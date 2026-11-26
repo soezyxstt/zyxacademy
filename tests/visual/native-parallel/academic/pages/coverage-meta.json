@@ -1,9 +1,9 @@
 {
-  "generated_utc": "2026-11-26T11:45:22.206382+00:00",
-  "head": "10cf8347f103b6c873873d0083c7a81cd444a7b2",
+  "generated_utc": "2026-11-26T12:05:04.509033+00:00",
+  "head": "ed40f7e103684f6d4b5c3cc36a8928385665ab5c",
   "scope": "Web and implementation observations are from a changing local worktree. Device observations refer to the archived fixture run.",
   "route_count": 54,
   "capture_manifest": "tests/visual/native-parallel/academic/pages/results.json",
-  "device_evidence_index": "tests/visual/native-parallel/academic/device/c60041d6d2cb98513c8232e41838b35c604b3577/index.json",
-  "device_evidence_revision": "c60041d6d2cb98513c8232e41838b35c604b3577"
+  "device_evidence_index": "tests/visual/native-parallel/academic/device/3866ea158c427b73696b8c467dd1e90815122e5b/index.json",
+  "device_evidence_revision": "3866ea158c427b73696b8c467dd1e90815122e5b"
 }

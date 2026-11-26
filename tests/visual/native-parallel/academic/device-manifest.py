@@ -41,7 +41,10 @@ def main():
     captures = []
     missing = []
     for maestro, case in MAESTRO_CASES.items():
-        images = list(args.screenshots.rglob(f"{maestro}.png"))
+        images = [
+            image for image in args.screenshots.rglob(f"{maestro}.png")
+            if "prior-attempts" not in image.relative_to(args.screenshots).parts
+        ]
         if not images:
             missing.append(case)
             continue

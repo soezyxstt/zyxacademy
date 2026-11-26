@@ -3,6 +3,7 @@
 import argparse
 import json
 import subprocess
+import tempfile
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
@@ -42,6 +43,8 @@ def preopen_fixture(platform, device, url, output):
     with (output / "preopen.log").open("wb") as log:
         log.write(f"{url}\n".encode())
         try:
+            if platform == "android":
+                run(["adb", "-s", device, "wait-for-device"])
             log.write(run(restart))
             opened = open_url(platform, device, url)
             log.write(opened)
@@ -54,6 +57,17 @@ def preopen_fixture(platform, device, url, output):
             log.write(f"\n{error}\n".encode())
             return False
     return True
+
+
+def android_transport_lost(output, device):
+    markers = (f"device '{device.lower()}' not found", "device offline", "device disconnected")
+    for log_name in ("preopen.log", "maestro.log"):
+        log = output / log_name
+        if log.is_file():
+            contents = log.read_text(errors="replace").lower()
+            if any(marker in contents for marker in markers):
+                return True
+    return False
 
 
 def run_segment(command_prefix, flow, output, timeout):
@@ -87,10 +101,24 @@ def run_flow(platform, device, command_prefix, flow, output, timeout=150):
         segment_output.mkdir(parents=True, exist_ok=True)
         segment = segment_output / flow.name
         segment.write_text(definition)
-        result = {"segment": index, "fixture": url, "status": "fixture-open-failed"}
-        if preopen_fixture(platform, device, url, segment_output):
-            result.update(run_segment(command_prefix, segment, segment_output, timeout))
-        results.append(result)
+        attempts = []
+        for attempt in (1, 2):
+            result = {"status": "fixture-open-failed"}
+            if preopen_fixture(platform, device, url, segment_output):
+                result = run_segment(command_prefix, segment, segment_output, timeout)
+            attempts.append({"attempt": attempt, **result})
+            if attempt == 2 or result["status"] == "passed" or platform != "android" or not android_transport_lost(segment_output, device):
+                break
+            # Retain the failed attempt's diagnostics and replay this fixture from its initial state.
+            history = segment_output / "prior-attempts"
+            history.mkdir(exist_ok=True)
+            diagnostics = Path(tempfile.mkdtemp(prefix="attempt-01-", dir=history))
+            attempts[-1]["diagnostics"] = str(diagnostics.relative_to(segment_output))
+            for name in ("preopen.log", "maestro.log", "report.xml", "results", "logs"):
+                item = segment_output / name
+                if item.exists():
+                    item.replace(diagnostics / name)
+        results.append({"segment": index, "fixture": url, **result, "attempts": attempts})
     status = next((result["status"] for result in results if result["status"] != "passed"), "passed")
     return {"flow": flow.stem, "status": status, "segments": results}
 

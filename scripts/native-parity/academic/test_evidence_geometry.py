@@ -72,3 +72,17 @@ class EvidenceGeometryTest(unittest.TestCase):
         self.assertEqual(self.run_script("match-viewport.py", self.artifacts, self.comparison), 1)
         match = json.loads((self.comparison / "status.json").read_text())[0]
         self.assertEqual(match["reason"], "final device geometry verification failed")
+
+    def test_retry_diagnostics_do_not_supply_comparison_screenshots(self):
+        name = "academic-admin-courses-list-populated-light.png"
+        diagnostics = self.android / "interactions" / "prior-attempts" / "attempt-01-synthetic"
+        diagnostics.mkdir(parents=True)
+        Image.new("RGB", (380, 900)).save(diagnostics / name)
+        self.route_geometry(852)
+        self.assertEqual(self.run_script("evaluate.py", self.android), 0)
+        manifest = json.loads((self.android / "interaction-manifest.json").read_text())
+        self.assertEqual(manifest["captures"][0]["image"], f"interactions/{name}")
+
+        (self.android / "interactions" / name).unlink()
+        self.assertNotEqual(self.run_script("evaluate.py", self.android), 0)
+        self.assertFalse((self.android / "interaction-manifest.json").exists())

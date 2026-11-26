@@ -1,0 +1,52 @@
+{
+  "sourceRevision": "3866ea158c427b73696b8c467dd1e90815122e5b",
+  "viewport": {
+    "width": 380,
+    "height": 852
+  },
+  "deviceScaleFactor": 1,
+  "locale": "id-ID",
+  "timezoneId": "Asia/Jakarta",
+  "clock": "2026-11-28T02:00:00.000Z",
+  "browser": "Chromium 154.0.8037.57",
+  "fonts": [
+    "Inter 400-700",
+    "Lexend 700"
+  ],
+  "captures": [
+    {
+      "id": "tutor-quizzes-list-light",
+      "component": "QuizzesClient",
+      "source": "app/(tutor)/tutor/[courseId]/quizzes/quizzes-client.tsx",
+      "route": "/tutor/academic-course-1/quizzes",
+      "theme": "light",
+      "image": "tutor-quizzes-list-light.png",
+      "width": 380,
+      "height": 852,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 380,
+        "height": 852
+      },
+      "sha256": "63b9eba2967bd6d48d6ea643e656683c15d2f669c93b9ca518e0b90610ca61c9"
+    },
+    {
+      "id": "admin-courses-empty-dark",
+      "component": "CoursesDashboard",
+      "source": "components/admin/courses-dashboard.tsx",
+      "route": "/admin/courses?state=empty",
+      "theme": "dark",
+      "image": "admin-courses-empty-dark.png",
+      "width": 380,
+      "height": 852,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 380,
+        "height": 852
+      },
+      "sha256": "09312567080406ea8e265eba2f6822951c45a160bb3d2b398458712b18914628"
+    }
+  ]
+}

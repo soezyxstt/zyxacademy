@@ -135,12 +135,24 @@ device_indexes = P.parent.glob('device/*/index.json')
 device_reports = [(path, json.loads(path.read_text())) for path in device_indexes]
 device_path, device_report = max(device_reports, key=lambda item: int(item[1]['runId']), default=(None, {}))
 device_platforms = {}
+device_interactions = {}
 for platform, report in device_report.get('platforms', {}).items():
  route_evidence = report.get('routeEvidence')
  if route_evidence:
   evidence_path = device_path.parent/route_evidence
   evidence = json.loads(evidence_path.read_text())
   device_platforms[platform] = (evidence_path, {case['id']: case['status'] for case in evidence['cases']})
+ interaction_evidence = report.get('reviewedInteractionOutcomes')
+ if interaction_evidence:
+  outcome_path = device_path.parent/interaction_evidence
+  for flow in json.loads(outcome_path.read_text()):
+   for segment in flow['segments']:
+    query = urllib.parse.parse_qs(urllib.parse.urlsplit(segment['fixture']).query)
+    pattern = resolve_route(query['path'][0])
+    if pattern:
+     entry = f"{flow['flow']} segment {segment['segment']} {segment['outcome']}"
+     device_interactions.setdefault(pattern, []).append((platform, entry, outcome_path))
+
 
 def device_observation(pattern, markdown=False):
  parts=[]
@@ -154,6 +166,10 @@ def device_observation(pattern, markdown=False):
   states = ', '.join(f'{scenario} {status}' for scenario, status in outcomes.items())
   link = f'../device/{device_path.parent.name}/{platform}/{evidence_path.name}'
   parts.append(f'[{name}]({link}): {states}' if markdown else f'{name}: {states} ({evidence_path.as_posix()})')
+  for source_platform, entry, outcome_path in device_interactions.get(pattern, []):
+   if source_platform == platform:
+    relative = f'../device/{device_path.parent.name}/{platform}/{outcome_path.name}'
+    parts.append(f'[Direct fixture entries]({relative}): {entry}' if markdown else f'{entry} ({outcome_path.as_posix()})')
  return '; '.join(parts)
 
 with (P/'coverage.tsv').open('w',newline='') as f:
@@ -182,7 +198,7 @@ lines=['# Protected web route evidence', '',
  f"Index generated {meta['generated_utc']}; HEAD then was `{meta['head']}` with local uncommitted changes. Captures span a changing worktree and are not attributable to one verified commit.",
  f"Current capture manifest records {counts['new_pass']} passing browser cases, {counts['missing_ui']} unseeded/missing cases with a rendered 404, {counts['shell_only']} shell-only or loading cases, and {counts['unpassed']} other unsuccessful or interrupted cases. Interaction manifest records {counts['interaction_pass']} passing and {counts['interaction_unpassed']} unsuccessful cases. The six earlier protected smoke records are listed separately. Counts are cases, not parity credit.",
  '', '[Route crosswalk and three registry case IDs](coverage.tsv) · [Protected page results](results.json) · [Interaction results](interactions-results.json) · [Original smoke manifest](../web/local-routes/manifest.json)', '',
- 'Web links identify passing screenshots, shell-only/loading outcomes, or rendered 404s. Screenshots are listed under the route that rendered them. The requested route records the redirect destination. Initial HTTP 200 with a rendered 404 is identified explicitly. Device statuses come from stamped fixture route captures. Live device operations remain unverified.', f"[Device run index](../device/{device_path.parent.name}/index.json) · [GitHub Actions run]({device_report['runUrl']})" if device_path else 'Device evidence index unavailable.', '', '| Route | Screen family | Recorded original protected web cases | Device fixture observations |', '|---|---|---|---|']
+ 'Web links identify passing screenshots, shell-only/loading outcomes, or rendered 404s. Screenshots are listed under the route that rendered them. The requested route records the redirect destination. Initial HTTP 200 with a rendered 404 is identified explicitly. Device route statuses come from stamped captures. Interaction statuses are assigned to direct fixture entries. Live device operations remain unverified.', f"[Device run index](../device/{device_path.parent.name}/index.json) · [GitHub Actions run]({device_report['runUrl']})" if device_path else 'Device evidence index unavailable.', '', '| Route | Screen family | Recorded original protected web cases | Device fixture observations |', '|---|---|---|---|']
 for route,source in routes.items():
  links=[]
  for e,c in page_cases(route):
