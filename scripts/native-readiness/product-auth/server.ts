@@ -1,0 +1,149 @@
+import { AsyncLocalStorage } from "node:async_hooks";
+import { randomBytes, timingSafeEqual } from "node:crypto";
+import { mock } from "bun:test";
+import { NextRequest } from "next/server";
+import { getSafeRedirectPath } from "@/lib/auth-redirect";
+import { NATIVE_AUTH_HANDOFF_COOKIE, normalizeNativeAuthState } from "@/lib/native/auth-handoff";
+import { EXPO_STAGING_ORIGIN, EXPO_STAGING_SCHEME } from "@/lib/native/expo-auth-config";
+import { assertFixtureRunner, fixtureHost, fixtureOrigin, fixturePort } from "./scope";
+import { prepareFixtureDatabase, seedBrowserSession } from "./seed";
+
+const noStore = { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" };
+const browserPage = "/auth/native-start";
+const browserSubmit = "/api/auth/native/fixture";
+const nativeComplete = "/api/auth/native/complete";
+const result = (status: number) => new Response(null, { status, headers: noStore });
+const requestContext = new AsyncLocalStorage<NextRequest>();
+
+function currentRequest() {
+  const request = requestContext.getStore();
+  if (!request) throw new Error("Missing fixture request context");
+  return request;
+}
+
+function handoffQuery(url: URL) {
+  const state = normalizeNativeAuthState(url.searchParams.get("state"));
+  if (!state || url.searchParams.get("scheme") !== EXPO_STAGING_SCHEME) return null;
+  const next = getSafeRedirectPath(url.searchParams.get("next") ?? undefined);
+  return new URLSearchParams({ state, scheme: EXPO_STAGING_SCHEME, next });
+}
+
+function localizeRedirect(response: Response) {
+  const location = response.headers.get("location");
+  if (!location || location.startsWith(`${EXPO_STAGING_SCHEME}://auth/native-finish#`)) return response;
+  if (!location.startsWith(EXPO_STAGING_ORIGIN + "/")) return result(502);
+  const headers = new Headers(response.headers);
+  headers.set("Location", fixtureOrigin + location.slice(EXPO_STAGING_ORIGIN.length));
+  return new Response(response.body, { status: response.status, headers });
+}
+
+function browserFixturePage(query: URLSearchParams) {
+  const action = browserSubmit + "?" + query.toString().replaceAll("&", "&amp;");
+  return new Response(`<!doctype html><html lang="en"><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Native Preview Sign-in</title><main><h1>Native Preview Sign-in</h1>
+    <form method="post" action="${action}">
+    <label>Runner code <input type="password" name="claim" required autocomplete="off"></label>
+    <button>Continue as preview student</button></form></main></html>`, {
+    headers: { ...noStore, "Content-Type": "text/html; charset=utf-8",
+      "Content-Security-Policy": "default-src 'none'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'" },
+  });
+}
+
+export async function startAuthFixture(certPath: string, keyPath: string) {
+  assertFixtureRunner();
+  process.env.SKIP_ENV_VALIDATION = "1";
+  process.env.QUEUE_PROVIDER = "noop";
+  process.env.GOOGLE_CLIENT_ID = "native-preview-disabled";
+  process.env.GOOGLE_CLIENT_SECRET = "native-preview-disabled";
+  process.env.BETTER_AUTH_SECRET = randomBytes(32).toString("hex");
+  process.env.BETTER_AUTH_URL = EXPO_STAGING_ORIGIN;
+  process.env.NEXT_PUBLIC_APP_URL = EXPO_STAGING_ORIGIN;
+
+  // Route handlers still call the actual Better Auth, role and DB implementations.
+  // Only Next's framework request storage runs through this test listener.
+  mock.module("server-only", () => ({}));
+  mock.module("next/headers", () => ({
+    headers: async () => currentRequest().headers,
+    cookies: async () => currentRequest().cookies,
+  }));
+
+  await prepareFixtureDatabase();
+  const [{ GET: start }, { GET: complete }, { POST: exchange }, { GET: accountContext }, { auth }, { pool }] = await Promise.all([
+    import("@/app/api/auth/native/start/route"),
+    import("@/app/api/auth/native/complete/route"),
+    import("@/app/api/auth/native/expo/exchange/route"),
+    import("@/app/api/native/context/route"),
+    import("@/lib/auth"),
+    import("@/lib/db"),
+  ]);
+
+  const claim = randomBytes(32).toString("hex");
+  const claimExpiresAt = Date.now() + 120_000;
+  let confirmedState: string | null = null;
+  let claimed = false;
+  let browserIdentity: Awaited<ReturnType<typeof seedBrowserSession>> | null = null;
+  const server = Bun.serve({
+    hostname: fixtureHost,
+    port: fixturePort,
+    tls: { cert: Bun.file(certPath), key: Bun.file(keyPath) },
+    maxRequestBodySize: 16 * 1024,
+    error: () => result(500),
+    async fetch(request, listener) {
+      const url = new URL(request.url);
+      if (listener.requestIP(request)?.address !== fixtureHost || url.origin !== fixtureOrigin ||
+        request.headers.get("host") !== url.host || request.headers.has("forwarded") ||
+        [...request.headers.keys()].some(name => name.startsWith("x-forwarded-"))) return result(403);
+
+      const headers = new Headers(request.headers);
+      headers.set("Host", new URL(EXPO_STAGING_ORIGIN).host);
+      const browserOrigin = headers.get("origin");
+      if (browserOrigin === fixtureOrigin) headers.set("Origin", EXPO_STAGING_ORIGIN);
+      const upstream = new NextRequest(EXPO_STAGING_ORIGIN + url.pathname + url.search, {
+        method: request.method, headers,
+        body: request.method === "POST" ? await request.arrayBuffer() : undefined,
+      });
+      const route = request.method + " " + url.pathname;
+      if (route === "GET /api/auth/native/start") {
+        const response = await start(upstream);
+        const query = handoffQuery(url);
+        if (response.status === 302 && query && !claimed) confirmedState = query.get("state");
+        return localizeRedirect(response);
+      }
+      if (route === "GET " + browserPage) {
+        const query = handoffQuery(url);
+        return query && confirmedState === query.get("state") && !claimed && Date.now() < claimExpiresAt
+          ? browserFixturePage(query) : result(403);
+      }
+      if (route === "POST " + browserSubmit) {
+        const query = handoffQuery(url);
+        if (!query || query.get("state") !== confirmedState || !upstream.cookies.has(NATIVE_AUTH_HANDOFF_COOKIE) ||
+          browserOrigin !== fixtureOrigin || claimed || Date.now() >= claimExpiresAt) return result(403);
+        const submitted = (await upstream.formData()).get("claim");
+        if (typeof submitted !== "string" || !/^[a-f\d]{64}$/.test(submitted) ||
+          !timingSafeEqual(Buffer.from(claim, "hex"), Buffer.from(submitted, "hex"))) return result(403);
+        claimed = true;
+        browserIdentity = await seedBrowserSession();
+        return new Response(null, { status: 303, headers: {
+          ...noStore, Location: fixtureOrigin + nativeComplete + "?" + query, "Set-Cookie": browserIdentity.cookie,
+        } });
+      }
+      if (route === "GET " + nativeComplete) return localizeRedirect(await complete(upstream));
+      if (route === "POST /api/auth/native/expo/exchange") return exchange(upstream);
+      if (route === "GET /api/native/context") return requestContext.run(upstream, accountContext);
+      if (route === "GET /api/auth/get-session" || route === "POST /api/auth/sign-out") {
+        return auth.handler(upstream);
+      }
+      return result(404);
+    },
+  });
+
+  return {
+    claim,
+    identity: () => browserIdentity && { accountId: browserIdentity.accountId, sessionId: browserIdentity.sessionId },
+    async stop() {
+      await server.stop(true);
+      await pool.end();
+    },
+  };
+}
