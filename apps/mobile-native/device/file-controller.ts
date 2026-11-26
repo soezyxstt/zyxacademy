@@ -31,6 +31,7 @@ export type NativeDownloadRequest = {
   fileName?: string;
   title?: string;
   signal?: AbortSignal;
+  isTargetCurrent?(): boolean;
 };
 
 type Issue = "policy" | "invalid-target" | "type" | "size" | "incomplete" | "picker" | "read" | "fetch" | "share" | "unauthorized" | "not-found";
@@ -377,7 +378,8 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
     if (!validPolicy(request.policy)) return { status: "error", issue: "policy" };
     const path = downloadPath(request.target);
     if (!path) return { status: "error", issue: "invalid-target" };
-    const before = rejectCurrent(request);
+    const current = () => rejectCurrent(request, request.isTargetCurrent);
+    const before = current();
     if (before) return before;
     const diskImages = request.target.kind === "discussion-image";
     // The existing discussion API authorizes only these three image types and caps each at 8 MiB.
@@ -385,7 +387,7 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
     const permitted = request.policy.mimeTypes.filter(mimeType => domainTypes.includes(mimeType));
     if (!permitted.length) return { status: "error", issue: "policy" };
     const maxBytes = diskImages ? Math.min(request.policy.maxBytes, 8 * 1024 * 1024) : request.policy.maxBytes;
-    const assertCurrent = () => { if (rejectCurrent(request)) throw new FileIssue("fetch"); };
+    const assertCurrent = () => { if (current()) throw new FileIssue("fetch"); };
     sharing = true;
     let response: Awaited<ReturnType<NativeSessionTransport["request"]>> | undefined;
     let errorStage: Issue = "share";
@@ -415,12 +417,12 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
       assertCurrent();
       errorStage = "share";
       await device.share(file.uri, mimeType, request.title?.trim() || name);
-      const afterShare = rejectCurrent(request);
+      const afterShare = current();
       if (afterShare) return afterShare;
       staged.retain();
       return { status: "finished" };
     } catch (error) {
-      return rejectCurrent(request) ?? resultFrom(error, errorStage);
+      return current() ?? resultFrom(error, errorStage);
     } finally {
       response?.dispose();
       staged.finish();

@@ -5,7 +5,7 @@ export const operationsCatalog = [
     "actions": ["GET", "POST"],
     "tools": [],
     "status": "excluded",
-    "reason": "The Expo course views return metadata for the signed-in learner under the existing course policy. Activation is the learner's existing group token redemption flow, with live Student authorization and a bound account. Admin MCP tools retain their own enrollment and group permissions."
+    "reason": "The Expo course views return metadata and Diktat PDF download eligibility for the signed-in learner under the existing course policy. Activation is the learner's existing group token redemption flow, with live Student authorization and a bound account. Admin MCP tools retain their own enrollment and group permissions."
   },
   {
     "source": "app/api/native/student/learning/route.ts",
@@ -250,7 +250,7 @@ export const operationsCatalog = [
     "actions": ["pickDocument", "shareDocument", "shareAuthorizedDownload"],
     "tools": [],
     "status": "excluded",
-    "reason": "The signed-in user selects a local document or downloads using an existing authorized route. The OS sheet controls sharing on the device. MCP authorization and publication are independent."
+    "reason": "The signed-in user selects a local document or downloads using an existing authorized route. Student Diktat PDF downloads use the learner's verified session and the existing download permission. The OS sheet controls sharing on the device. MCP authorization and publication are independent."
   },
   {
     "source": "apps/mobile-native/device/audio-controller.ts",

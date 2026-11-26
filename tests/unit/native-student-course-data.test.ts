@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import type { SQL } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
-import { artikel, diktatMateri, diktats, progress, studentMaterialProgress, websiteMaterials } from "@/db/schema";
+import { artikel, courseMaterials, diktatMateri, diktats, progress, studentMaterialProgress, websiteMaterials } from "@/db/schema";
 import type { StudentCourseAccess } from "@/lib/course-utils";
 
 const dialect = new PgDialect();
@@ -39,6 +39,12 @@ const previewAccess: StudentCourseAccess = {
     scopedChapterIds: ["free-chapter", "premium-chapter"],
     capabilities: { canReadArticle: true, canReadDiktat: true, canStartQuiz: true, canReviewFlashcard: false, canAskZyra: false, canDownloadDiktat: false, zyraDailyQuestionLimit: null },
   },
+};
+
+const enrolledAccess: StudentCourseAccess = {
+  ...previewAccess, tier: "enrolled", isEnrolled: true, hasFullContentAccess: true,
+  policy: { ...previewAccess.policy, tier: "enrolled", isEnrolled: true, hasFullContentAccess: true,
+    capabilities: { ...previewAccess.policy.capabilities, canDownloadDiktat: true } },
 };
 
 const resolveAccess = mock(async (): Promise<StudentCourseAccess | null> => previewAccess);
@@ -133,5 +139,39 @@ describe("native Student material metadata", () => {
     rows.set(diktats, [{ title: "Invalid handbook", chapterIds: ["free-chapter", null] }]);
     expect(await detail("mixed")).toMatchObject({ view: "material-detail", material: { locked: true, completed: false } });
     expect(queries.has(studentMaterialProgress)).toBeFalse();
+  });
+
+  test("advertises canonical and legacy Diktat PDFs only to learners with current download permissions", async () => {
+    rows.set(diktatMateri, [{ id: "handbook", title: "Diktat", chapterId: "free-chapter", fileKey: "diktats/private.pdf" }]);
+    expect(await detail("handbook")).not.toHaveProperty("material.canDownloadPdf");
+
+    resolveAccess.mockResolvedValueOnce(enrolledAccess);
+    const canonical = await detail("handbook");
+    expect(canonical).toMatchObject({ view: "material-detail", material: { id: "handbook", group: "diktat", canDownloadPdf: true } });
+    expect(JSON.stringify(canonical)).not.toContain("diktats/private.pdf");
+
+    rows.delete(diktatMateri);
+    rows.set(diktats, [{ title: "Legacy Diktat", chapterIds: ["free-chapter"], fileUrl: "https://files.ufs.sh/f/private.pdf" }]);
+    resolveAccess.mockResolvedValueOnce(enrolledAccess);
+    const legacy = await detail("old-handbook");
+    expect(legacy).toMatchObject({ view: "material-detail", material: { kind: "pdf", group: "diktat", canDownloadPdf: true } });
+    expect(JSON.stringify(legacy)).not.toContain("https://files.ufs.sh");
+  });
+
+  test("omits download eligibility for a locked handbook, a text-only Diktat or a general PDF", async () => {
+    resolveAccess.mockResolvedValueOnce(enrolledAccess);
+    rows.set(diktatMateri, [{ id: "locked", title: "Locked", chapterId: "outside-scope", fileKey: "diktats/locked.pdf" }]);
+    expect(await detail("locked")).toMatchObject({ material: { locked: true } });
+    resolveAccess.mockResolvedValueOnce(enrolledAccess);
+    expect(await detail("locked")).not.toHaveProperty("material.canDownloadPdf");
+
+    resolveAccess.mockResolvedValueOnce(enrolledAccess);
+    rows.set(diktatMateri, [{ id: "text", title: "Text", chapterId: "free-chapter", fileKey: null }]);
+    expect(await detail("text")).not.toHaveProperty("material.canDownloadPdf");
+
+    resolveAccess.mockResolvedValueOnce(enrolledAccess);
+    rows.delete(diktatMateri);
+    rows.set(courseMaterials, [{ title: "Course PDF", chapterIds: ["free-chapter"], fileUrl: "diktats/elsewhere.pdf" }]);
+    expect(await detail("course-pdf")).not.toHaveProperty("material.canDownloadPdf");
   });
 });

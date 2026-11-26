@@ -1,6 +1,7 @@
 import type { OfflineLibraryTarget } from "./offline-courses";
 import type { ReactNode } from "react";
 import type { NativePushStatus } from "../../device/notifications-controller";
+import type { ShareFileResult } from "../../device/file-controller";
 import type { NativeResponse } from "../../network/transport";
 
 export interface StudentSession {
@@ -46,6 +47,7 @@ export interface StudentServices {
   openOfflineLibrary?: (target?: OfflineLibraryTarget) => void;
   openOfflineMaterial?: (courseId: string, materialId: string) => void;
   renderMaterial?: (target: StudentMaterialReaderTarget) => ReactNode;
+  saveDiktatPdf?: (courseId: string, diktatId: string, signal: AbortSignal) => Promise<ShareFileResult>;
   openExternal?: (path: string) => void;
   /** Opens the browser notification settings in an existing browser profile. */
   openBrowserNotifications?: () => void;

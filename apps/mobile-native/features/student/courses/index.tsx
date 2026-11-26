@@ -397,7 +397,51 @@ function Documents({ data, route, replace, navigate, request, reload, openOfflin
   );
 }
 
-function Document({ data, request, reload, renderMaterial, route, replace, openOfflineLibrary, openExternal }: { data: MaterialDetailData; request: Request; reload: () => void; renderMaterial?: Reader } & Pick<StudentScreenProps, "route" | "replace" | "openOfflineLibrary" | "openExternal">) {
+type SaveDiktatPdf = NonNullable<StudentScreenProps["saveDiktatPdf"]>;
+type PdfNotice = "diktatPdfDenied" | "diktatPdfMissing" | "diktatPdfTooLarge" | "diktatPdfUnavailable" | "diktatPdfFailed";
+
+function DiktatPdfDownload({ courseId, diktatId, save, reload }: {
+  courseId: string; diktatId: string; save: SaveDiktatPdf; reload(): void;
+}) {
+  const copy = useContext(CopyContext);
+  const theme = useContext(ThemeContext);
+  const active = useRef<AbortController | undefined>(undefined);
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<PdfNotice>();
+  useEffect(() => () => active.current?.abort(), []);
+
+  async function download() {
+    if (active.current) return;
+    const controller = new AbortController();
+    active.current = controller;
+    setBusy(true);
+    setNotice(undefined);
+    try {
+      const result = await save(courseId, diktatId, controller.signal);
+      if (controller.signal.aborted || result.status === "finished" || result.status === "cancelled" || result.status === "stale") return;
+      const issue = result.status === "error" ? result.issue : undefined;
+      setNotice(issue === "unauthorized" ? "diktatPdfDenied" : issue === "not-found" ? "diktatPdfMissing"
+        : issue === "size" ? "diktatPdfTooLarge" : result.status === "unavailable" ? "diktatPdfUnavailable" : "diktatPdfFailed");
+    } catch {
+      if (!controller.signal.aborted) setNotice("diktatPdfFailed");
+    } finally {
+      active.current = undefined;
+      if (!controller.signal.aborted) setBusy(false);
+    }
+  }
+
+  const shouldReload = notice === "diktatPdfDenied" || notice === "diktatPdfMissing";
+  return <>
+    {notice && <Text accessibilityRole="alert" style={[styles.meta, { color: nativeColors[theme].destructive }]}>{copy[notice]}</Text>}
+    <Button theme={theme} variant="outline" testID="student-save-diktat-pdf" isLoading={busy}
+      disabled={notice === "diktatPdfTooLarge" || notice === "diktatPdfUnavailable"}
+      onPress={shouldReload ? reload : () => void download()}>
+      {shouldReload ? copy.retry : copy.saveDiktatPdf}
+    </Button>
+  </>;
+}
+
+function Document({ data, request, reload, renderMaterial, route, replace, openOfflineLibrary, openExternal, saveDiktatPdf }: { data: MaterialDetailData; request: Request; reload: () => void; renderMaterial?: Reader } & Pick<StudentScreenProps, "route" | "replace" | "openOfflineLibrary" | "openExternal" | "saveDiktatPdf">) {
   const copy = useContext(CopyContext);
   const theme = useContext(ThemeContext);
   const { course, material } = data;
@@ -405,6 +449,9 @@ function Document({ data, request, reload, renderMaterial, route, replace, openO
   const canonicalHref = canonicalStudentArticleHref(route, data);
   useEffect(() => { if (canonicalHref) replace(canonicalHref); }, [canonicalHref, replace]);
   const target = studentMaterialReaderTarget(route, data);
+  const downloadableDiktat = material.group === "diktat" && material.canDownloadPdf === true;
+  const webPath = target?.kind === "pdf" ? target.webPath
+    : target && downloadableDiktat ? materialPath(route.params.id, material.id, target.section) : undefined;
   return (
     <>
       <LearningText role="meta">{course.title}</LearningText>
@@ -419,9 +466,11 @@ function Document({ data, request, reload, renderMaterial, route, replace, openO
           {material.completed ? <LearningText role="meta">{copy.completed}</LearningText> : null}
           {openOfflineLibrary && material.kind === "article" ? <Button theme={theme} variant="outline"
             onPress={() => openOfflineLibrary({ courseId: course.id, materialId: material.id })}>{copy.savedCourses}</Button> : null}
-          {(target && renderMaterial?.(target)) ?? (target?.kind === "pdf" && openExternal
+          {saveDiktatPdf && downloadableDiktat ?
+            <DiktatPdfDownload key={JSON.stringify([course.id, material.id])} courseId={course.id} diktatId={material.id} save={saveDiktatPdf} reload={reload} /> : null}
+          {(target && renderMaterial?.(target)) ?? (webPath && openExternal
             ? <Button theme={theme} variant="outline" testID="student-open-pdf-on-web"
-              onPress={() => openExternal(target.webPath)}>{copy.openPdfOnWeb}</Button>
+              onPress={() => openExternal(webPath)}>{target?.kind === "pdf" ? copy.openPdfOnWeb : copy.openDiktatOnWeb}</Button>
             : <LearningText>{copy.rendererPending}</LearningText>)}
         </>
       )}
@@ -586,7 +635,7 @@ function CourseEntry(props: StudentScreenProps & { query: LearningQuery }) {
         onSelectGroup={id => updateListQuery(route, replace, { jurusan: id === "all" ? undefined : id, category: undefined })} />; break;
       case "course": content = <CourseOverview data={resource.data} navigate={navigate} request={request} reload={reload} locale={locale} />; break;
       case "material-list": content = <Documents data={resource.data} route={route} replace={replace} navigate={navigate} request={request} reload={reload} openOfflineLibrary={props.openOfflineLibrary} />; break;
-      case "material-detail": content = <Document data={resource.data} request={request} reload={reload} renderMaterial={renderMaterial} route={route} replace={replace} openOfflineLibrary={props.openOfflineLibrary} openExternal={openExternal} />; break;
+      case "material-detail": content = <Document data={resource.data} request={request} reload={reload} renderMaterial={renderMaterial} route={route} replace={replace} openOfflineLibrary={props.openOfflineLibrary} openExternal={openExternal} saveDiktatPdf={props.saveDiktatPdf} />; break;
     }
   }
 

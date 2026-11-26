@@ -143,6 +143,8 @@ export type MaterialDetailData = {
     group: MaterialGroup;
     completed: boolean;
     locked: boolean;
+    /** Present only when a Diktat PDF is available under the current download policy. */
+    canDownloadPdf?: true;
   };
 };
 

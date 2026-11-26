@@ -12,6 +12,7 @@ import { listStudentEnrollments, type StudentEnrollmentRecord } from "@/lib/stud
 import { loadStudentCourseCatalog } from "@/lib/student/course-catalog-view-data";
 import { getDashboardCourseMaterialsBatch } from "@/lib/student/dashboard-materials";
 import { loadCourseMaterialData } from "@/lib/student/course-material-list";
+import { resolveDiktatPdfSource } from "@/lib/student/diktat-pdf";
 import {
   loadOnboardingData,
   loadPrimaryLearningData,
@@ -146,7 +147,7 @@ async function findCanonicalDetail(courseId: string, materialId: string) {
       .from(artikel)
       .where(and(eq(artikel.mataKuliahId, courseId), eq(artikel.status, "published"), or(eq(artikel.id, materialId), eq(artikel.slug, materialId))))
       .limit(2),
-    db.select({ id: diktatMateri.id, title: diktatMateri.title, chapterId: diktatMateri.babId })
+    db.select({ id: diktatMateri.id, title: diktatMateri.title, chapterId: diktatMateri.babId, fileKey: diktatMateri.fileKey })
       .from(diktatMateri)
       .where(and(eq(diktatMateri.mataKuliahId, courseId), eq(diktatMateri.status, "published"), eq(diktatMateri.id, materialId)))
       .limit(1),
@@ -168,6 +169,12 @@ async function hasCompletedMaterial(studentId: string, materialId: string): Prom
   return Boolean(legacy || (current && current.completionPercent >= 90));
 }
 
+function downloadPdfCapability(access: Access, locked: boolean, source: string | null | undefined) {
+  return !locked && access.policy.capabilities.canDownloadDiktat && resolveDiktatPdfSource(source)
+    ? { canDownloadPdf: true } as const
+    : {};
+}
+
 async function findLegacyDetail(
   studentId: string,
   materialId: string,
@@ -176,7 +183,7 @@ async function findLegacyDetail(
 ): Promise<MaterialDetailData["material"] | null> {
   const id = course.legacyId ?? course.id;
   const [[diktat], [webArticle], [manual], [generatedArticle]] = await Promise.all([
-    db.select({ title: diktats.title, chapterIds: diktats.chapterIds }).from(diktats)
+    db.select({ title: diktats.title, chapterIds: diktats.chapterIds, fileUrl: diktats.fileUrl }).from(diktats)
       .where(and(eq(diktats.id, materialId), eq(diktats.courseId, id), eq(diktats.status, "ready"))).limit(1),
     db.select({ title: websiteMaterials.title, chapterId: websiteMaterials.chapterId }).from(websiteMaterials)
       .where(and(eq(websiteMaterials.id, materialId), eq(websiteMaterials.courseId, id), eq(websiteMaterials.status, "published"))).limit(1),
@@ -199,7 +206,8 @@ async function findLegacyDetail(
   const kind = isDiktat || isManual ? "pdf" : "article";
   const group = isDiktat ? "diktat" : isManual ? "pdf" : "materi";
   const completed = !locked && await hasCompletedMaterial(studentId, materialId);
-  return { id: materialId, title, kind, group, completed, locked };
+  return { id: materialId, title, kind, group, completed, locked,
+    ...downloadPdfCapability(access, locked, isDiktat ? diktat?.fileUrl : undefined) };
 }
 
 export async function loadNativeCourseData(studentId: string, query: LearningQuery): Promise<NativeLearningResult> {
@@ -277,6 +285,7 @@ export async function loadNativeCourseData(studentId: string, query: LearningQue
           group: canonical.group,
           completed: legacyCompleted || Boolean(summaries[0]?.completed),
           locked,
+          ...downloadPdfCapability(access, locked, canonical.group === "diktat" ? canonical.fileKey : undefined),
         },
       };
     }

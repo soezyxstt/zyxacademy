@@ -227,6 +227,28 @@ describe("Expo scoped files", () => {
     streamRead.resolve();
   });
 
+  test("cancels a Diktat export when its screen or role verification changes and allows a fresh request", async () => {
+    let current = false;
+    let requests = 0;
+    const fixture = setup({}, async () => {
+      if (++requests === 1) current = false;
+      return new Response(stream(fixturePdf), { headers: { "Content-Type": "application/pdf" } });
+    });
+    const request = { session: fixture.session, target: diktatTarget, policy, isTargetCurrent: () => current };
+    expect(await fixture.controller.shareAuthorizedDownload(request)).toEqual({ status: "stale" });
+    expect(requests).toBe(0);
+
+    current = true;
+    expect(await fixture.controller.shareAuthorizedDownload(request)).toEqual({ status: "stale" });
+    expect(fixture.shares).toHaveLength(0);
+    expect(fixture.files.size).toBe(0);
+
+    current = true;
+    expect(await fixture.controller.shareAuthorizedDownload(request)).toEqual({ status: "finished" });
+    expect(requests).toBe(2);
+    expect(fixture.shares).toHaveLength(1);
+  });
+
   test("purges a discussion attachment at account exit while the OS share operation remains open", async () => {
     const opened = deferred<void>();
     const dismissed = deferred<void>();
