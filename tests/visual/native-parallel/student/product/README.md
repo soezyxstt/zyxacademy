@@ -1,8 +1,10 @@
 # Referensi alur kursus pada web produk
 
-Direktori `web/` memuat hasil Playwright dari lima halaman Next.js untuk Alya (peserta aktif), Bima (belum terdaftar), dan Citra (enrollment berakhir). Semua akun, kursus, dokumen, dan sesi berasal dari seed lokal. Setiap gambar memperlihatkan viewport pertama pada rute yang tercantum dalam `web/web.json`. Halaman dokumen menampilkan “Turunan” untuk Alya dan “Materi terkunci” untuk Bima serta Citra.
+Direktori `web/` memuat tangkapan Playwright dari lima halaman Next.js untuk Alya (peserta aktif), Bima (belum terdaftar), dan Citra (pendaftaran berakhir). [Manifest](web/web.json) mencatat pemeriksaan isi yang terlihat di viewport awal untuk setiap akun dan rute. Dasbor direkam setelah pengingat kelengkapan profil ditutup. Alya dapat membaca artikel “Turunan”. Bima dan Citra melihat permintaan aktivasi kelas tanpa isi artikel.
 
-Server memakai checkout `7d93b3a5984814ee382ccd36d9ceff8cb34abbcd`, PostgreSQL 16 di loopback dan Next.js Turbopack. Chromium 154.0.8037.57 memakai viewport 380 × 820, DPR 1, tema terang, locale id-ID dan zona waktu Asia/Jakarta. Browser memuat font dari aplikasi dan menunggu `document.fonts.ready`. Referensi ini meliputi pemuatan rute dan keputusan akses pada web. Pengembalian posisi gulir di Expo memakai skenario Maestro terpisah.
+Server memakai checkout `7d93b3a5984814ee382ccd36d9ceff8cb34abbcd`, Next.js Turbopack, dan database PostgreSQL 16 di loopback yang hanya diisi oleh [seed kursus](seed.ts). Chromium 154.0.8037.57 memakai viewport 380 × 820, DPR 1, tema terang, locale id-ID dan zona waktu Asia/Jakarta. Dasbor dan pembaca artikel peserta aktif memakai pengaturan animasi sistem standar. Kasus lain memakai preferensi sistem untuk mengurangi animasi. Browser menunggu font aplikasi, membatasi permintaan ke origin lokal, dan memblokir service worker agar setiap rute dimuat langsung dari server.
+
+Referensi ini mencatat tampilan awal dan keputusan akses pada web. [Skenario Maestro](../../../../../.maestro/native-parallel/student/) memeriksa perilaku Expo, termasuk pengembalian posisi gulir.
 
 ## Reproduksi lokal
 
@@ -21,7 +23,7 @@ STUDENT_SERVER_SHA=$(git rev-parse HEAD) \
   bun --env-file=.env.local tests/visual/native-parallel/student/product/capture.ts
 ```
 
-Jika server berjalan dari checkout yang berbeda, gunakan SHA checkout server. Playwright memakai Chromium terpasang dari `bunx playwright install chromium` atau executable yang ditentukan oleh `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`. Capture menolak origin selain loopback dan menghentikan proses dengan status gagal bila ada rute tanpa judul produk. Berkas PNG serta `web.json` ditulis ke `artifacts/student-evidence/product/` atau `STUDENT_CAPTURE_DIR`.
+Jika server berjalan dari checkout yang berbeda, gunakan SHA checkout server. Playwright memakai Chromium terpasang dari `bunx playwright install chromium` atau executable yang ditentukan oleh `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`. Skrip memeriksa tautan, tombol, atau isi artikel yang sesuai dengan akun dan rute sebelum serta sesudah mengambil gambar. Elemen harus selesai ditampilkan oleh animasi dan berada di viewport awal. Skrip mencatat peringatan hidrasi React yang dapat dipulihkan dalam manifest jika isi target berhasil tampil. Kasus yang gagal tidak menghasilkan PNG dan membuat perintah keluar dengan status 1. Berkas PNG dan `web.json` ditulis ke `artifacts/student-evidence/product/` atau `STUDENT_CAPTURE_DIR`. Untuk mengulang kasus tertentu, isi `STUDENT_CAPTURE_CASES` dengan ID dari manifest dipisah koma dan gunakan direktori keluaran terpisah.
 
 Smoke HTTP menjalankan enam proyeksi untuk masing-masing akun. Pengujian menerima 18 respons 200 dan memeriksa isi dashboard, mastery, enrollment serta dokumen terkunci. Tiga permintaan dengan akun berbeda menghasilkan 409 dan tiga permintaan dokumen tidak dikenal menghasilkan 404. Pengujian konkurensi streak menggunakan dua pembacaan pertama secara bersamaan pada basis data pengujian.
 

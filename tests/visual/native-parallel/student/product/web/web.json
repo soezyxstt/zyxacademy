@@ -3,6 +3,7 @@
   "browser": "154.0.8037.57",
   "theme": "light",
   "locale": "id-ID",
+  "timezone": "Asia/Jakarta",
   "width": 380,
   "height": 820,
   "dpr": 1,
@@ -10,139 +11,193 @@
     {
       "id": "student-enrolled-dashboard",
       "path": "/dashboard",
+      "reducedMotion": "no-preference",
       "status": 200,
-      "heading": [
-        "Halo, Alya",
-        "Pencapaian",
+      "visibleContent": [
         "Kelas aktif",
-        "Spaced repetition"
+        "Matematika I"
       ]
     },
     {
       "id": "student-enrolled-catalog",
       "path": "/courses",
       "status": 200,
-      "heading": [
-        "Katalog mata kuliah",
-        "Matematika"
-      ]
+      "visibleContent": [
+        "Matematika I"
+      ],
+      "hydrationWarnings": [
+        "React reported server/client attribute differences during hydration."
+      ],
+      "reducedMotion": "reduce"
     },
     {
       "id": "student-enrolled-course",
       "path": "/courses/matematika-1",
       "status": 200,
-      "heading": [
-        "Matematika I",
-        "Silabus kelas"
-      ]
+      "visibleContent": [
+        "Ganti mata kuliah: Matematika I",
+        "Silabus kelas",
+        "Sistem bilangan real",
+        "Materi"
+      ],
+      "hydrationWarnings": [
+        "React regenerated part of the server-rendered tree after a hydration mismatch."
+      ],
+      "reducedMotion": "reduce"
     },
     {
       "id": "student-enrolled-material-list",
       "path": "/courses/matematika-1/material",
       "status": 200,
-      "heading": [
-        "Materi belajar: Matematika I"
-      ]
+      "visibleContent": [
+        "Ganti mata kuliah: Matematika I",
+        "Semua",
+        "Sistem bilangan real"
+      ],
+      "hydrationWarnings": [
+        "React regenerated part of the server-rendered tree after a hydration mismatch."
+      ],
+      "reducedMotion": "reduce"
     },
     {
       "id": "student-enrolled-material-detail",
       "path": "/courses/matematika-1/material/dokumen-4",
+      "reducedMotion": "no-preference",
       "status": 200,
-      "heading": [
-        "Turunan",
-        "Materi",
-        "Akhir bab"
+      "visibleContent": [
+        "Catatan belajar mengenai Turunan.",
+        "Tandai selesai dan simpan",
+        "Tandai selesai"
       ]
     },
     {
       "id": "student-unenrolled-dashboard",
       "path": "/dashboard",
       "status": 200,
-      "heading": [
-        "Mulai belajar, Bima",
+      "visibleContent": [
         "Course untukmu",
-        "Yang tersedia di Free",
-        "Paket belajar semester"
-      ]
+        "Mulai bab 1"
+      ],
+      "reducedMotion": "reduce"
     },
     {
       "id": "student-unenrolled-catalog",
       "path": "/courses",
       "status": 200,
-      "heading": [
-        "Katalog mata kuliah",
-        "Matematika"
-      ]
+      "visibleContent": [
+        "Matematika I"
+      ],
+      "hydrationWarnings": [
+        "React regenerated part of the server-rendered tree after a hydration mismatch."
+      ],
+      "reducedMotion": "reduce"
     },
     {
       "id": "student-unenrolled-course",
       "path": "/courses/matematika-1",
       "status": 200,
-      "heading": [
-        "Matematika I",
-        "Silabus kelas"
-      ]
+      "visibleContent": [
+        "Ganti mata kuliah: Matematika I",
+        "Silabus kelas",
+        "Sistem bilangan real",
+        "Aktivasi kelas"
+      ],
+      "hydrationWarnings": [
+        "React regenerated part of the server-rendered tree after a hydration mismatch."
+      ],
+      "reducedMotion": "reduce"
     },
     {
       "id": "student-unenrolled-material-list",
       "path": "/courses/matematika-1/material",
       "status": 200,
-      "heading": [
-        "Materi belajar: Matematika I"
-      ]
+      "visibleContent": [
+        "Ganti mata kuliah: Matematika I",
+        "Semua",
+        "Sistem bilangan real",
+        "Aktivasi kelas"
+      ],
+      "hydrationWarnings": [
+        "React regenerated part of the server-rendered tree after a hydration mismatch."
+      ],
+      "reducedMotion": "reduce"
     },
     {
       "id": "student-unenrolled-material-detail",
       "path": "/courses/matematika-1/material/dokumen-4",
       "status": 200,
-      "heading": [
-        "Materi terkunci"
-      ]
+      "visibleContent": [
+        "Ganti mata kuliah: Matematika I",
+        "Aktifkan kelas untuk membuka \"Turunan\".",
+        "Aktivasi kelas"
+      ],
+      "hydrationWarnings": [
+        "React regenerated part of the server-rendered tree after a hydration mismatch."
+      ],
+      "reducedMotion": "reduce"
     },
     {
       "id": "student-revoked-dashboard",
       "path": "/dashboard",
       "status": 200,
-      "heading": [
-        "Mulai belajar, Citra",
+      "visibleContent": [
         "Course untukmu",
-        "Yang tersedia di Free",
-        "Paket belajar semester"
-      ]
+        "Mulai bab 1"
+      ],
+      "reducedMotion": "reduce"
     },
     {
       "id": "student-revoked-catalog",
       "path": "/courses",
       "status": 200,
-      "heading": [
-        "Katalog mata kuliah",
-        "Matematika"
-      ]
+      "visibleContent": [
+        "Matematika I"
+      ],
+      "reducedMotion": "reduce"
     },
     {
       "id": "student-revoked-course",
       "path": "/courses/matematika-1",
       "status": 200,
-      "heading": [
-        "Matematika I",
-        "Silabus kelas"
-      ]
+      "visibleContent": [
+        "Ganti mata kuliah: Matematika I",
+        "Silabus kelas",
+        "Sistem bilangan real",
+        "Aktivasi kelas"
+      ],
+      "hydrationWarnings": [
+        "React regenerated part of the server-rendered tree after a hydration mismatch."
+      ],
+      "reducedMotion": "reduce"
     },
     {
       "id": "student-revoked-material-list",
       "path": "/courses/matematika-1/material",
       "status": 200,
-      "heading": [
-        "Materi belajar: Matematika I"
-      ]
+      "visibleContent": [
+        "Ganti mata kuliah: Matematika I",
+        "Semua",
+        "Sistem bilangan real",
+        "Aktivasi kelas"
+      ],
+      "hydrationWarnings": [
+        "React regenerated part of the server-rendered tree after a hydration mismatch."
+      ],
+      "reducedMotion": "reduce"
     },
     {
       "id": "student-revoked-material-detail",
       "path": "/courses/matematika-1/material/dokumen-4",
       "status": 200,
-      "heading": [
-        "Materi terkunci"
-      ]
+      "visibleContent": [
+        "Ganti mata kuliah: Matematika I",
+        "Aktifkan kelas untuk membuka \"Turunan\".",
+        "Aktivasi kelas"
+      ],
+      "hydrationWarnings": [
+        "React regenerated part of the server-rendered tree after a hydration mismatch."
+      ],
+      "reducedMotion": "reduce"
     }
   ]
 }
