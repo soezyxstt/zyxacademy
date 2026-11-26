@@ -6,6 +6,9 @@ on:
       android:
         type: boolean
         default: false
+      student_protocol:
+        type: boolean
+        default: false
       staff:
         type: boolean
         default: false
@@ -20,7 +23,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: native-authenticated-preview-${{ github.event.pull_request.number || github.ref }}${{ inputs.staff && '-staff' || '' }}${{ inputs.offline == 'only' && '-offline' || '' }}${{ inputs.probe && '-chrome-probe' || '' }}
+  group: native-authenticated-preview-${{ github.event.pull_request.number || github.ref }}${{ inputs.staff && '-staff' || '' }}${{ inputs.student_protocol && '-student-protocol' || '' }}${{ inputs.offline == 'only' && '-offline' || '' }}${{ inputs.probe && '-chrome-probe' || '' }}
   cancel-in-progress: true
 
 jobs:
@@ -52,12 +55,12 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-      - if: inputs.android || inputs.offline == 'only'
+      - if: inputs.android || inputs.student_protocol || inputs.offline == 'only'
         uses: actions/download-artifact@v4
         with:
           name: mounted-product-sources
           path: ${{ runner.temp }}/product-source
-      - if: inputs.android || inputs.offline == 'only'
+      - if: inputs.android || inputs.student_protocol || inputs.offline == 'only'
         name: Restore the exact mounted product tree
         run: bash scripts/native-readiness/product-auth/restore-mounted.sh
       - uses: actions/setup-node@v4
@@ -69,7 +72,7 @@ jobs:
       - run: bun install --frozen-lockfile
       - name: Verify the authenticated Expo protocol over loopback HTTPS
         env:
-          AUTH_STUDENT_PRODUCT: ${{ inputs.android }}
+          AUTH_STUDENT_PRODUCT: ${{ inputs.android || inputs.student_protocol }}
           AUTH_OFFLINE_PRODUCT: ${{ inputs.offline == 'only' }}
         run: |
           umask 077
