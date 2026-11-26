@@ -319,7 +319,7 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
     {success ? <View accessibilityLiveRegion="polite"><Ink>{success}</Ink></View> : null}
     {data?.summary?.length ? <Metrics values={data.summary} /> : null}
     {data?.rows.length === 0 && !data.week && pattern !== "/admin/notifications" ? <RecordsEmpty label={emptyMessages[pattern] ?? "Belum ada item."} filtered={filtered} /> : null}
-    {article && (data || pdfPending) ? <DiktatPdfControls {...props} authorized={data?.rows.flatMap((row) => row.pdf ? [row.pdf] : []) ?? []}
+    {article && (data || pdfPending) ? <DiktatPdfControls {...props} courseId={data?.productBundle?.courseId} authorized={data?.rows.flatMap((row) => row.pdf ? [row.pdf] : []) ?? []}
       target={pdfRow?.pdf} title={pdfRow?.title}
       closeConfirmation={() => setPdfRow(undefined)} refresh={retry} /> : null}
     {data && pattern === "/admin/notifications" ? <ResponsiveTable rows={data.rows} theme={theme}

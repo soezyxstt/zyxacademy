@@ -131,7 +131,7 @@ export const operationsCatalog = [
     "actions": ["GET", "HEAD"],
     "tools": [],
     "status": "excluded",
-    "reason": "Admin document PDF preview and lease renewal require the live Admin account, session and current course document binding. Native display has no storage URL handoff, share or download capability and does not enable an MCP tool or scope."
+    "reason": "Admin document PDF preview and lease renewal require the live Admin account, session and current course document or staged Diktat evidence binding. Bundle preview checks the selected course, import, product, revision and ready PDF evidence. Native display has no storage URL handoff, share or download capability and does not enable an MCP tool or scope."
   },
   {
     "source": "app/api/native/student/material-pdf/route.ts",

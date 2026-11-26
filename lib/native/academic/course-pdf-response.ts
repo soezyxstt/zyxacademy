@@ -1,15 +1,15 @@
-import { ADMIN_PDF_ACCOUNT, ADMIN_PDF_SESSION } from "@/packages/native-parity/academic/courses/pdf";
+import { ADMIN_PDF_ACCOUNT, ADMIN_PDF_SESSION, validAdminPdfBundle, type AdminPdfBundle } from "@/packages/native-parity/academic/courses/pdf";
 import { materialPdfId, MATERIAL_PDF_HEADERS, MATERIAL_PDF_LEASE_MS, type MaterialPdfTarget } from "@/packages/native-parity/student/courses/pdf";
 import { OfflineHttpError } from "@/lib/offline/server-auth";
 import type { MaterialPdfSource } from "@/lib/native/material-pdf-source";
 
 type Viewer = { accountId: string; sessionId: string; expiresAt: number };
-export type AdminPdfGrant = { source: MaterialPdfSource; revision: string };
+export type AdminPdfGrant = { source: MaterialPdfSource; revision: string; validateBytes?(bytes: Uint8Array): void };
 
 type Dependencies = {
   session(request: Request): Promise<Viewer | null>;
   hasAdmin(accountId: string): Promise<boolean>;
-  authorize(target: MaterialPdfTarget): Promise<AdminPdfGrant>;
+  authorize(target: MaterialPdfTarget, bundle?: AdminPdfBundle): Promise<AdminPdfGrant>;
   read(source: MaterialPdfSource, signal: AbortSignal): Promise<Uint8Array>;
   isSameOrigin(request: Request): boolean;
   now?(): number;
@@ -35,11 +35,13 @@ export function createAdminMaterialPdfHandler(deps: Dependencies) {
     const query = new URL(request.url).searchParams;
     const courseId = query.get("courseId");
     const materialId = query.get("materialId");
-    if (query.size !== 2 || !courseId || !materialId || !materialPdfId(courseId) || !materialPdfId(materialId)) return unavailable(400);
+    const bundle = query.has("importId") || query.has("expectedRevision")
+      ? { importId: query.get("importId") ?? "", expectedRevision: query.get("expectedRevision") ?? "" } : undefined;
+    if ((bundle && !validAdminPdfBundle(bundle)) || query.size !== (bundle ? 4 : 2) || !courseId || !materialId || !materialPdfId(courseId) || !materialPdfId(materialId)) return unavailable(400);
     const target = { courseId, materialId };
     try {
       const viewer = await verify(request);
-      const grant = await deps.authorize(target);
+      const grant = await deps.authorize(target, bundle);
       const expected = request.headers.get("If-Match");
       if (expected && expected !== `"${grant.revision}"`) return unavailable(409);
       const expiresAt = until(viewer);
@@ -48,8 +50,9 @@ export function createAdminMaterialPdfHandler(deps: Dependencies) {
         [MATERIAL_PDF_HEADERS.expiresAt]: String(expiresAt) });
       if (request.method === "HEAD") return new Response(null, { headers });
       const bytes = await deps.read(grant.source, request.signal);
+      grant.validateBytes?.(bytes);
       const current = await verify(request);
-      const latest = await deps.authorize(target);
+      const latest = await deps.authorize(target, bundle);
       if (latest.revision !== grant.revision) return unavailable(409);
       const freshExpiry = until(current);
       if (freshExpiry <= now()) return unavailable(401);

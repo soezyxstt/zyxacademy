@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, expect, mock, test } from "bun:test";
 import { MATERIAL_PDF_HEADERS } from "@/packages/native-parity/student/courses/pdf";
-import { ADMIN_PDF_ACCOUNT, ADMIN_PDF_SESSION } from "@/packages/native-parity/academic/courses/pdf";
+import { ADMIN_PDF_ACCOUNT, ADMIN_PDF_SESSION, adminMaterialPdfPath } from "@/packages/native-parity/academic/courses/pdf";
 
 const origin = "https://school.example.test";
 const fixture = new TextEncoder().encode("%PDF-1.7\nScoped Admin fixture");
@@ -93,4 +93,19 @@ test("suppresses staged bytes when authorization or the selected revision change
   const replaced = await GET(request());
   expect(replaced.status).toBe(409);
   expect(await replaced.text()).toBe("");
+});
+
+test("the signed transport only accepts a complete revision-bound bundle target", async () => {
+  const bundle = { importId: "import", expectedRevision: "a".repeat(64) };
+  const target = { courseId: "course", materialId: "pdf" };
+  const path = adminMaterialPdfPath(target, bundle)!;
+  const req = request("HEAD");
+  expect((await HEAD(new Request(origin + path, req))).status).toBe(200);
+  expect(authorizeAdminCoursePdf).toHaveBeenCalledWith(target, bundle);
+  expect(signedRead).not.toHaveBeenCalled();
+  const url = new URL(path, origin);
+  url.searchParams.delete("expectedRevision");
+  expect((await HEAD(new Request(url, req))).status).toBe(400);
+  expect(adminMaterialPdfPath(target, { ...bundle, importId: "../other" })).toBeNull();
+  expect(adminMaterialPdfPath(target, { ...bundle, expectedRevision: "unknown" })).toBeNull();
 });

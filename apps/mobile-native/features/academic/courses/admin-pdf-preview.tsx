@@ -9,8 +9,8 @@ import { ProtectedInteractionContext } from "../../../routing/protected-interact
 import { MaterialPdf } from "../../student/courses/MaterialPdf";
 import { CourseTheme } from "./ui";
 
-export function AdminCoursePdfPreview({ courseId, materialId, title }: {
-  courseId: string; materialId: string; title: string;
+export function AdminCoursePdfPreview({ courseId, materialId, title, bundle }: {
+  courseId: string; materialId: string; title: string; bundle?: MaterialPdfRequest["bundle"];
 }) {
   const theme = useContext(CourseTheme);
   const { context } = useNativeAccountContext();
@@ -28,7 +28,7 @@ export function AdminCoursePdfPreview({ courseId, materialId, title }: {
       !current.revalidating && state.expiresAt > Date.now() && context.roles.includes("admin");
   };
   const makeRequest = (target: MaterialPdfRequest["target"], signal: AbortSignal): MaterialPdfRequest => ({
-    audience: "admin", session: transport, target, signal, sessionExpiresAt: state.expiresAt,
+    audience: "admin", bundle, session: transport, target, signal, sessionExpiresAt: state.expiresAt,
     isTargetCurrent: () => target.courseId === courseId && target.materialId === materialId && isTargetCurrent(),
   });
   const locale = context.locale;

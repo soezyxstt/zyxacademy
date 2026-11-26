@@ -1,3 +1,4 @@
+import { AdminCoursePdfPreview } from "../courses/admin-pdf-preview";
 import { useEffect, useRef, useState } from "react";
 import { BackHandler, View } from "react-native";
 import { randomUUID } from "expo-crypto";
@@ -130,6 +131,11 @@ export function ProductReviewWorkspace({ scope, transport, back, exit, listing }
       {!solution && (panel === "read" || panel === "edit") ? <>
         <Picker label="Produk" selected={selected?.id ?? ""} options={data.previews.map(p => ({ id: p.id, label: p.title }))}
           onSelect={id => { if (id !== selected?.id) navigate(() => { setSelect(id); setTargetId(""); }); }} disabled={busy} />
+        {panel === "read" && selected?.productType === "diktat" && data.pdfStatuses?.some(p =>
+          p.productId === selected.id && p.revision === scope.checksum && p.status === "ready") &&
+          <AdminCoursePdfPreview key={JSON.stringify([scope.id, scope.checksum, selected.id])}
+            courseId={scope.courseId} materialId={selected.id} title={preview?.title ?? selected.id}
+            bundle={{ importId: scope.id, expectedRevision: scope.checksum }} />}
         {panel === "read" && target ? <>
           <Picker label={target.targetType === "article_section" ? "Bagian" : "Blok"} selected={target.targetId}
             options={targets.map(t => ({ id: t.targetId, label: t.label }))} onSelect={id => { if (id !== target.targetId) navigate(() => setTargetId(id)); }} disabled={busy} />

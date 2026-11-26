@@ -1,3 +1,4 @@
+import { AdminCoursePdfPreview } from "../courses/admin-pdf-preview";
 import { randomUUID } from "expo-crypto";
 import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
@@ -25,6 +26,7 @@ const pdfLabel: Record<PdfState, string> = {
 
 type DiktatProps = Pick<AcademicScreenProps, "path" | "query" | "params" | "replace"> & {
   transport: AcademicTransport;
+  courseId?: string;
   target?: DiktatPdfTarget;
   authorized: readonly DiktatPdfTarget[];
   title?: string;
@@ -37,7 +39,7 @@ export function readDiktatScope(query: AcademicScreenProps["query"], importId: s
   return isDiktatPdfRequest(value) ? value : undefined;
 }
 
-export function DiktatPdfControls({ path, query, params, replace, transport, target, authorized, title, closeConfirmation, refresh }: DiktatProps) {
+export function DiktatPdfControls({ path, query, params, replace, transport, courseId, target, authorized, title, closeConfirmation, refresh }: DiktatProps) {
   const persisted = readDiktatScope(query, params.bundleId);
   const [draftState, setDraft] = useState<{ transport: AcademicTransport; scope: DiktatPdfRequest }>();
   const draft = draftState?.transport === transport ? draftState.scope : undefined;
@@ -128,6 +130,10 @@ export function DiktatPdfControls({ path, query, params, replace, transport, tar
       <Ink tone={state === "failed" || state === "rejected" || state === "stale" || state === "denied" ? "error" : "default"}>
         {busy ? "Memeriksa permintaan PDF…" : pdfLabel[state]}
       </Ink>
+      {state === "ready" && courseId && isAuthorizedDiktatPdfTarget(current, authorized) &&
+        <AdminCoursePdfPreview key={JSON.stringify([current.importId, current.productId, current.expectedRevision])}
+          courseId={courseId} materialId={current.productId} title={title ?? current.productId}
+          bundle={{ importId: current.importId, expectedRevision: current.expectedRevision }} />}
       <View style={layout.row}>
         {!ended && state !== "denied" ? <Action label="Periksa status" disabled={busy} onPress={() => send(current, "check")} /> : null}
         {state === "unknown" && draft && canReplay ? <Action label="Coba kirim lagi" disabled={busy} onPress={() => send(draft, "request")} /> : null}

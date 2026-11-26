@@ -30,6 +30,14 @@ mock.module("@/db", () => ({ db: {
     } };
   },
 } }));
+const bundle = { importId: "import", expectedRevision: "8".repeat(64) };
+const evidence = { row: { courseId: "course", status: "draft", version: 4 }, status: "ready",
+  evidence: { id: "attempt", storageKey: "private/ready.pdf" }, pdfIntegrity: { checksum: "sha", byteLength: 1 } };
+const getDiktatPdfContext = mock(async (_importId: string, _productId: string, _revision: string) => evidence);
+const assertDiktatPdfBytes = mock((_context: typeof evidence, bytes: Uint8Array) => {
+  if (bytes[0] !== 17) throw new Error("PRODUCT_DIKTAT_PDF_STALE");
+});
+mock.module("@/lib/bundle/product-diktat-evidence", () => ({ getDiktatPdfContext, assertDiktatPdfBytes }));
 const { authorizeAdminCoursePdf, findAdminCoursePdf } = await import("@/lib/native/academic/course-pdf");
 
 beforeEach(() => { selected.clear(); visited.clear(); });
@@ -62,4 +70,20 @@ test("canonical compiled PDFs require their exact storage namespace and recorded
   expect((await findAdminCoursePdf(course, "document"))?.source).toEqual({ storageKey: "courses/math-101/materials/document-123456.pdf" });
   selected.set(diktatMateri, { row: { ...product, fileKey: "https://untrusted.example/document.pdf" }, requires: ["document", ids[0]] });
   expect(await findAdminCoursePdf(course, "document")).toBeNull();
+});
+
+test("a staged Diktat preview binds the import, course, product, evidence and actual bytes", async () => {
+  const target = { courseId: "course", materialId: "diktat" };
+  const grant = await authorizeAdminCoursePdf(target, bundle);
+  expect(getDiktatPdfContext).toHaveBeenCalledWith(bundle.importId, target.materialId, bundle.expectedRevision);
+  expect(grant.source).toEqual({ storageKey: evidence.evidence.storageKey });
+  expect(() => grant.validateBytes!(Uint8Array.of(17))).not.toThrow();
+  expect(() => grant.validateBytes!(Uint8Array.of(99))).toThrow();
+  await expect(authorizeAdminCoursePdf({ ...target, courseId: "other" }, bundle)).rejects.toMatchObject({ status: 404 });
+  getDiktatPdfContext.mockResolvedValueOnce({ ...evidence, status: "pending" });
+  await expect(authorizeAdminCoursePdf(target, bundle)).rejects.toMatchObject({ status: 404 });
+  getDiktatPdfContext.mockRejectedValueOnce(new Error("PRODUCT_BUNDLE_STALE_CONTEXT"));
+  await expect(authorizeAdminCoursePdf(target, bundle)).rejects.toMatchObject({ status: 409 });
+  getDiktatPdfContext.mockResolvedValueOnce({ ...evidence, evidence: { ...evidence.evidence, id: "replacement" } });
+  expect((await authorizeAdminCoursePdf(target, bundle)).revision).not.toBe(grant.revision);
 });

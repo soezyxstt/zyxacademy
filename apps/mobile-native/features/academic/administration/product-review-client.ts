@@ -22,7 +22,7 @@ const schema = z.object({
   blockReviews: z.array(z.object({ productId: z.string().nullable(), targetId: z.string().nullable(), targetType: z.string(), status, notes: z.string().nullable() })),
   publicationBlocked: z.boolean(), qualityEvaluation: z.object({ publicationReady: z.boolean() }),
   blockingIssues: z.array(z.object({ reason: z.string(), remediation: z.string() })).optional(),
-  pdfStatuses: z.array(z.object({ status: z.string(), revision: z.string().nullish() })).optional(),
+  pdfStatuses: z.array(z.object({ productId: z.string().optional(), status: z.string(), revision: z.string().nullish() })).optional(),
   pedagogicReview: ownReview.extend({ criteria: z.array(rubric) }).nullable(),
   v4ReviewContext: z.object({ verificationReady: z.boolean(), verificationPlanHash: z.string().nullable(),
     verificationReceiptSignature: z.string().nullable() }).nullable(),

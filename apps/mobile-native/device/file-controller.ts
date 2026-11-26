@@ -1,6 +1,6 @@
 import type { NativeSessionScope, NativeSessionTransport } from "../network/transport";
 import { MATERIAL_PDF_HEADERS, MATERIAL_PDF_MAX_BYTES, materialPdfPath, type MaterialPdfTarget } from "../../../packages/native-parity/student/courses/pdf";
-import { adminMaterialPdfPath, ADMIN_PDF_ACCOUNT, ADMIN_PDF_SESSION } from "../../../packages/native-parity/academic/courses/pdf";
+import { adminMaterialPdfPath, type AdminPdfBundle, ADMIN_PDF_ACCOUNT, ADMIN_PDF_SESSION } from "../../../packages/native-parity/academic/courses/pdf";
 import { courseVideoSource } from "../../../packages/course-video/source";
 import { matchesCourseVideoUploadHeader } from "../../../lib/video/upload-policy";
 import { SCHEDULE_ACCOUNT, SCHEDULE_SESSION, scheduleFilePolicy, scheduleResourcePath, type ScheduleRole } from "../../../packages/native-parity/schedule/resources";
@@ -62,6 +62,7 @@ export type PdfGrant = { revision: string; expiresAt: number };
 export type PreparedMaterialPdf = PdfGrant & { uri: string; release(): void };
 export type MaterialPdfRequest = {
   audience?: "admin";
+  bundle?: AdminPdfBundle;
   session: NativeSessionTransport;
   target: MaterialPdfTarget;
   signal: AbortSignal;
@@ -687,7 +688,7 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
     path: string | null; requiredRole: "admin" | "murid"; headers: Record<string, string>;
   } {
     if (request.audience === "admin") return {
-      path: adminMaterialPdfPath(request.target), requiredRole: "admin",
+      path: adminMaterialPdfPath(request.target, request.bundle), requiredRole: "admin",
       headers: { [ADMIN_PDF_ACCOUNT]: request.session.scope.accountId, [ADMIN_PDF_SESSION]: request.session.scope.sessionId },
     };
     return { path: materialPdfPath(request.target), requiredRole: "murid",

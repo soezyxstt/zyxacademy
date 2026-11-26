@@ -9,6 +9,7 @@ import { OfflineHttpError } from "@/lib/offline/server-auth";
 import { buildProductVerificationKey, isProtectedProductDiktatPdfKey, isSafeKey, slugifySegment } from "@/lib/storage/keys";
 import { nativeMaterialPdfSource, type MaterialPdfSource } from "@/lib/native/material-pdf-source";
 import type { MaterialPdfTarget } from "@/packages/native-parity/student/courses/pdf";
+import type { AdminPdfBundle } from "@/packages/native-parity/academic/courses/pdf";
 import type { AdminPdfGrant } from "./course-pdf-response";
 
 async function canonicalDiktatSource(row: {
@@ -66,7 +67,27 @@ export async function findAdminCoursePdf(identity: ResolvedCourseIdentity, mater
   return { source, revision };
 }
 
-export async function authorizeAdminCoursePdf({ courseId, materialId }: MaterialPdfTarget) {
+export async function authorizeAdminCoursePdf({ courseId, materialId }: MaterialPdfTarget, bundle?: AdminPdfBundle): Promise<AdminPdfGrant> {
+  if (bundle) {
+    const { getDiktatPdfContext, assertDiktatPdfBytes } = await import("@/lib/bundle/product-diktat-evidence");
+    let context: Awaited<ReturnType<typeof getDiktatPdfContext>>;
+    try {
+      context = await getDiktatPdfContext(bundle.importId, materialId, bundle.expectedRevision);
+    } catch (error) {
+      const code = error instanceof Error ? error.message : "";
+      if (code === "PRODUCT_BUNDLE_NOT_FOUND" || code === "PRODUCT_DIKTAT_NOT_FOUND") throw new OfflineHttpError(404, "PDF_NOT_FOUND");
+      if (code === "PRODUCT_BUNDLE_STALE_CONTEXT") throw new OfflineHttpError(409, "PDF_CHANGED");
+      throw error;
+    }
+    if (context.row.courseId !== courseId) throw new OfflineHttpError(404, "PDF_NOT_FOUND");
+    if (context.status === "stale") throw new OfflineHttpError(409, "PDF_CHANGED");
+    if (context.status !== "ready" || !context.evidence?.storageKey) throw new OfflineHttpError(404, "PDF_NOT_READY");
+    const revision = createHash("sha256").update(JSON.stringify([courseId, bundle, materialId, context.row.status,
+      context.row.version, context.evidence.id, context.evidence.storageKey, "pdfIntegrity" in context ? context.pdfIntegrity : undefined])).digest("hex");
+    return { revision, source: { storageKey: context.evidence.storageKey }, validateBytes(bytes) {
+      try { assertDiktatPdfBytes(context, bytes); } catch { throw new OfflineHttpError(409, "PDF_CHANGED"); }
+    } };
+  }
   const identity = await resolveCourseIdentity(courseId);
   const grant = identity && await findAdminCoursePdf(identity, materialId);
   if (!grant) throw new OfflineHttpError(404, "PDF_NOT_FOUND");
