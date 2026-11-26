@@ -72,7 +72,7 @@ export function createEvaluationFixtureRequest(mode: Mode = "populated"): Evalua
     status === "published" ? "published" : status === "retired" ? "retired" : status === "generated" ? "draft" : "in_review";
 
   return async <Data>(href: string, options?: Parameters<EvaluationRequest>[1]): Promise<Data> => {
-    options?.signal?.throwIfAborted();
+    if (options?.signal?.aborted) throw Object.assign(new Error("Aborted"), { name: "AbortError" });
     if (mode === "denied") throw new EvaluationFixtureError(403, "Forbidden");
     if (mode === "recovery" && !failedOnce) {
       failedOnce = true;
