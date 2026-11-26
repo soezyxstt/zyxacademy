@@ -1,0 +1,36 @@
+name: Native integration preview
+
+on:
+  pull_request:
+    paths:
+      - 'apps/mobile-native/**'
+      - 'packages/**'
+      - 'scripts/native-readiness/**'
+      - '.github/workflows/native-integration-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  combined-native:
+    if: github.head_ref == 'soezyxst/react-native-monorepo' || (github.event_name == 'workflow_dispatch' && github.ref_name == 'soezyxst/react-native-monorepo')
+    concurrency:
+      group: native-combined-preview
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - run: bash scripts/native-readiness/preview-lanes.sh
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci
+        working-directory: apps/mobile-native
+      - run: npx --no-install tsc --noEmit
+        working-directory: apps/mobile-native

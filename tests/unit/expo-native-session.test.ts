@@ -284,3 +284,11 @@ test("cold offline launch cannot use invalid identities, malformed server respon
   expect(pending.getSnapshot().state.status).toBe("logout-pending");
   expect(pending.getSnapshot().transport).toBeNull();
 });
+
+
+test("a forbidden session hides local access but cannot confirm a remote logout", async () => {
+  const api = createNativeSessionApi(origin, async (_url, init) =>
+    init.method === "POST" ? Response.json({ success: true }) : new Response(null, { status: 403 }));
+  expect(await api.read(cookie)).toBeNull();
+  await expect(api.revoke(cookie)).rejects.toThrow();
+});

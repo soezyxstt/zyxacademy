@@ -80,7 +80,7 @@ export function createNativeSessionApi(origin: string, fetcher: SessionFetcher) 
         void response.body?.cancel().catch(() => {});
         throw new Error("Respons sesi tidak valid.");
       }
-      if (response.status === 401 || (method === "GET" && response.status === 403)) {
+      if (response.status === 401 || (path === SESSION_PATH && response.status === 403)) {
         void response.body?.cancel().catch(() => {});
         return null;
       }
