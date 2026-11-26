@@ -351,6 +351,44 @@
       "coursePickerLoading": false,
       "consoleErrors": [],
       "screenshot": "mobile-380-profile.png"
+    },
+    {
+      "id": "profile-edit",
+      "scenario": "community-enrolled",
+      "path": "/profile/edit",
+      "expected": [
+        "Tahun masuk ITB (angkatan)"
+      ],
+      "status": "failed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "terminal": "/profile/edit",
+      "error": "Error: expect(locator).toBeVisible() failed\n\nLocator: getByLabel('Tahun masuk ITB (angkatan)', { exact: true }).filter({ visible: true }).first()\nExpected: visible\nTimeout: 25000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"toBeVisible\" with timeout 25000ms\n  - waiting for getByLabel('Tahun masuk ITB (angkatan)', { exact: true }).filter({ visible: true }).first()\n"
+    },
+    {
+      "id": "reflections",
+      "scenario": "community-enrolled",
+      "path": "/profile/reflections",
+      "expected": [
+        "2 kuis",
+        "21 flashcard"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "terminal": "/profile/reflections",
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": false,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-reflections.png"
     }
   ]
 }
