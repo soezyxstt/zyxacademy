@@ -12,7 +12,9 @@ import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { and, or, eq, inArray, sql, desc, notInArray } from 'drizzle-orm';
 import { canAccessStudentQuizTemplate } from '@/lib/quiz/student-access';
-import { canAccessQuizSnapshots, freeQuizQuestionScope } from '@/lib/quiz/question-scope';
+import { canAccessQuizSnapshot, canAccessQuizSnapshots, freeQuizQuestionScope } from '@/lib/quiz/question-scope';
+import { studentAssessmentRequestId } from '@/lib/student/assessment-idempotency';
+import { isPkaStageAttemptAllowed } from '@/lib/pka-simulation';
 import { getAdaptiveDifficultyProportions } from '@/lib/adaptive-quiz';
 import { canViewAttemptDiscussion } from '@/lib/quiz/review-release';
 import { serializeStudentQuizAttempt } from '@/lib/assessment-serialization';
@@ -34,6 +36,7 @@ import {
 const StartSchema = z.object({
  courseId: z.string().trim().min(1),
  templateId: z.string().min(1),
+ requestId: z.uuid().optional(),
 });
 
 const FREE_QUIZ_CATEGORIES: ReadonlySet<string> = new Set(['daily', 'weekly', 'chapter']);
@@ -267,14 +270,16 @@ export async function POST(req: NextRequest) {
  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
  }
 
- const body = await req.json();
+ const body = await req.json().catch(() => null);
  const parsed = StartSchema.safeParse(body);
  if (!parsed.success) {
  return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
  }
 
   const { courseId, templateId } = parsed.data;
+  const { requestId } = parsed.data;
   const studentId = session.user.id;
+  const attemptId = requestId ? studentAssessmentRequestId('quiz', studentId, templateId, requestId) : randomUUID();
   const assessmentV2Enabled = true;
 
  const [template] = await db
@@ -323,6 +328,21 @@ export async function POST(req: NextRequest) {
   }
   if (template.status === 'draft' && !isStaff) {
     return NextResponse.json({ error: 'Template kuis belum dipublikasi.' }, { status: 403 });
+  }
+  if (!isStaff && template.category === 'simulation' && !await isPkaStageAttemptAllowed(studentId, templateId)) {
+    return NextResponse.json({ error: 'Tahap simulasi belum tersedia.' }, { status: 403 });
+  }
+
+  // The native caller reloads the owned attempt after a replay. Check access
+  // before returning an existing reservation, even after the quiz has closed.
+  const sameAttempt = and(eq(studentQuizAttempts.id, attemptId), eq(studentQuizAttempts.studentId, studentId), eq(studentQuizAttempts.templateId, templateId));
+  const replay = () => NextResponse.json({ attemptId, templateId, timeLimitSeconds: template.timeLimitSeconds, replayed: true });
+  if (requestId) {
+    const [previous] = await db.select({ snapshot: studentQuizAttempts.questionsSnapshot }).from(studentQuizAttempts).where(sameAttempt).limit(1);
+    if (previous) {
+      if (!await canAccessQuizSnapshot(access, previous.snapshot)) return NextResponse.json({ error: 'Akses kuis tidak tersedia.' }, { status: 403 });
+      return replay();
+    }
   }
 
  const now = new Date();
@@ -521,10 +541,13 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const attemptId = randomUUID();
   const created = await db.transaction(async (tx) => {
     // Enforce max attempts under the same user lock as quiz submission.
     await lockQuestionExposureUser(tx, studentId);
+    if (requestId) {
+      const [previous] = await tx.select({ snapshot: studentQuizAttempts.questionsSnapshot }).from(studentQuizAttempts).where(sameAttempt).limit(1);
+      if (previous) return await canAccessQuizSnapshot(access, previous.snapshot, tx) ? 'replayed' : 'forbidden';
+    }
     if (!await hasQuizAttemptCapacity(tx, studentId, templateId, true)) return false;
     const startedAt = new Date();
     await tx.insert(studentQuizAttempts).values({
@@ -554,6 +577,8 @@ export async function POST(req: NextRequest) {
       .where(inArray(aiQuestionBank.id, selectedIds));
     return true;
   });
+  if (created === 'replayed') return replay();
+  if (created === 'forbidden') return NextResponse.json({ error: 'Akses kuis tidak tersedia.' }, { status: 403 });
   if (!created) {
     return NextResponse.json({ error: 'Max attempts reached' }, { status: 409 });
   }

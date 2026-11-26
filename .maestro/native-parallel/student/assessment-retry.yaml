@@ -1,0 +1,34 @@
+appId: com.zyx.academy.nativeparity
+name: Student tryout retries the same submission after response loss
+---
+- launchApp:
+    clearState: true
+- openLink: "zyx-native-parity://student-fixture?scenario=retry&path=%2Fcourses%2Fnative-assessment-course%2Ftryout%2Fnative-tryout"
+- extendedWaitUntil:
+    visible:
+      id: student-assessment-option-1
+    timeout: 30000
+- tapOn:
+    id: student-assessment-option-0
+- scrollUntilVisible:
+    element:
+      id: student-assessment-submit
+    direction: DOWN
+- tapOn:
+    id: student-assessment-submit
+- tapOn:
+    id: student-assessment-confirm
+- extendedWaitUntil:
+    visible:
+      id: student-assessment-retry
+    timeout: 30000
+- takeScreenshot: student-assessment-tryout-retry
+- tapOn:
+    id: student-assessment-retry
+- extendedWaitUntil:
+    visible:
+      id: student-assessment-native-tryout-1
+    timeout: 30000
+- tapOn:
+    id: student-assessment-native-tryout-1
+- takeScreenshot: student-assessment-tryout-results

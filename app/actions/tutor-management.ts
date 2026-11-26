@@ -1,7 +1,7 @@
 "use server";
 
 import { recordStaffCourseDisclosures } from "@/lib/gamification/question-exposure";
-import { resolveCourseAccess } from "@/lib/student/course-access";
+import { submitStudentTryout } from "@/lib/student/tryout-submit";
 
 import { db } from "@/db";
 import {
@@ -42,8 +42,6 @@ import {
   checkCourseMatch,
   buildGradingSnapshots,
   isReviewableSubmissionStatus,
-  isSqliteBusyError,
-  isUniqueConstraintError,
   recordTutorFailureAudit,
   recordTutorMutationAuditSafe,
 } from "@/lib/tutor/assessment-policy";
@@ -1886,161 +1884,12 @@ export async function deleteTryoutQuestionAction(courseId: string, questionId: s
 // GRADING & SUBMISSIONS (Course-scoped Tryout Grading)
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function submitTryoutAction(courseId: string, examId: string, answers: any) {
+export async function submitTryoutAction(courseId: string, examId: string, answers: Record<string, unknown>) {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user) {
-    throw new Error("Unauthorized: Silakan masuk terlebih dahulu.");
-  }
-
-  const [examRecord] = await db.select().from(exams).where(eq(exams.id, examId)).limit(1);
-  if (!examRecord) throw new Error("Tryout tidak ditemukan.");
-
-  const [canonicalCourse] = await db
-    .select({ id: mataKuliah.id, legacyCourseId: mataKuliah.legacyCourseId })
-    .from(mataKuliah)
-    .where(or(eq(mataKuliah.id, courseId), eq(mataKuliah.legacyCourseId, courseId)))
-    .limit(1);
-
-  const canonicalId = canonicalCourse?.id ?? courseId;
-  const legacyId = canonicalCourse?.legacyCourseId ?? courseId;
-
-  if (!checkCourseMatch(examRecord.courseId, canonicalId, legacyId) || examRecord.type !== "tryout") {
-    throw new Error("Tryout tidak sesuai dengan kelas.");
-  }
-
-  const access = await resolveCourseAccess({ courseId: examRecord.courseId, userId: session.user.id });
-  if (!access.hasFullContentAccess) throw new Error("Akses mata kuliah tidak tersedia.");
-
-  if (examRecord.status !== "published") {
-    throw new Error("Tryout belum dipublikasikan atau sudah ditutup.");
-  }
-
-  const now = new Date();
-  if (examRecord.openAt && now < new Date(examRecord.openAt)) {
-    throw new Error("Tryout belum dibuka.");
-  }
-  if (examRecord.closeAt && now > new Date(examRecord.closeAt)) {
-    throw new Error("Tryout sudah ditutup.");
-  }
-
-  const settings = typeof examRecord.settings === "string"
-    ? JSON.parse(examRecord.settings)
-    : (examRecord.settings as Record<string, any> | null);
-  const maxAttempts = settings?.maxAttempts;
-
-  const dbQuestions = await db
-    .select()
-    .from(questions)
-    .where(eq(questions.examId, examId))
-    .orderBy(asc(questions.order));
-
-  const hasEssay = dbQuestions.some((q) => q.type === "essay");
-  const status = hasEssay ? "pending_review" : "completed";
-
-  let correctCount = 0;
-  let autoGradedCount = 0;
-
-  const questionsSnapshot = dbQuestions.map((q) => {
-    const qContent = typeof q.content === "string" ? JSON.parse(q.content) : q.content;
-    const answer = answers[q.id];
-
-    if (q.type === "multiple_choice") {
-      autoGradedCount++;
-      const isCorrect = answer && answer.index === qContent.correctIndex;
-      if (isCorrect) correctCount++;
-    } else if (q.type === "multiple_choices") {
-      autoGradedCount++;
-      const submitted = answer?.indices || [];
-      const correct = qContent.correctIndices || [];
-      const isCorrect =
-        submitted.length === correct.length &&
-        submitted.every((idx: number) => correct.includes(idx));
-      if (isCorrect) correctCount++;
-    } else if (q.type === "short_answer") {
-      autoGradedCount++;
-      const submittedText = (answer?.text || "").trim().toLowerCase();
-      const acceptable = (qContent.acceptableAnswers || []).map((a: string) =>
-        a.trim().toLowerCase()
-      );
-      const isCorrect = acceptable.includes(submittedText);
-      if (isCorrect) correctCount++;
-    }
-
-    return {
-      id: q.id,
-      ...(typeof qContent.bankQuestionId === "string" ? { bankQuestionId: qContent.bankQuestionId } : {}),
-      order: q.order,
-      type: q.type,
-      prompt: qContent.prompt,
-      options: qContent.options || [],
-      correctIndex: qContent.correctIndex,
-      correctIndices: qContent.correctIndices || [],
-      acceptsImage: qContent.acceptsImage,
-      acceptsFile: qContent.acceptsFile,
-      acceptableAnswers: qContent.acceptableAnswers || [],
-      explanation: qContent.explanation || "",
-      ...normalizeQuestionProvenance(qContent),
-    };
-  });
-
-  const autoGradedScore = autoGradedCount > 0 ? Math.round((correctCount / autoGradedCount) * 100) : 100;
-  const score = hasEssay ? null : autoGradedScore;
-
-  const submissionId = `sub-tutor-${randomUUID()}`;
-
-  let attemptNumber = 1;
-  const maxSubmitRetries = 6;
-  for (let retry = 0; retry < maxSubmitRetries; retry++) {
-    try {
-      await db.transaction(async (tx) => {
-        const [attemptsResult] = await tx
-          .select({ count: sql<number>`count(*)` })
-          .from(submissions)
-          .where(
-            and(
-              eq(submissions.userId, session.user.id),
-              eq(submissions.examId, examId),
-            ),
-          );
-        const attemptCount = Number(attemptsResult?.count ?? 0);
-        if (typeof maxAttempts === "number" && maxAttempts > 0 && attemptCount >= maxAttempts) {
-          throw new Error("Batas maksimum percobaan tryout telah tercapai.");
-        }
-
-        attemptNumber = attemptCount + 1;
-        if (typeof maxAttempts === "number" && maxAttempts > 0 && attemptNumber > maxAttempts) {
-          throw new Error("Batas maksimum percobaan tryout telah tercapai.");
-        }
-
-        await tx.insert(submissions).values({
-          id: submissionId,
-          userId: session.user.id,
-          examId: examId,
-          status: status,
-          score: score,
-          answersSnapshot: answers,
-          questionsSnapshot: questionsSnapshot,
-          submittedAt: new Date(),
-          attemptNumber,
-        });
-      });
-      break;
-    } catch (err: any) {
-      const isRetryable = isUniqueConstraintError(err) || isSqliteBusyError(err);
-      if (isRetryable && retry < maxSubmitRetries - 1) {
-        const jitter = Math.floor(Math.random() * 20);
-        await new Promise((resolve) => setTimeout(resolve, 15 * 2 ** retry + jitter));
-        continue;
-      }
-      if (isUniqueConstraintError(err)) {
-        throw new Error("Batas maksimum percobaan tryout telah tercapai.");
-      }
-      throw err;
-    }
-  }
-
+  if (!session?.user) throw new Error("Unauthorized: Silakan masuk terlebih dahulu.");
+  const result = await submitStudentTryout({ courseId, examId, userId: session.user.id, answers });
   revalidatePath(`/courses/${courseId}/my-results`);
-  return { success: true, submissionId };
+  return result;
 }
 
 export async function gradeSubmissionAction(
