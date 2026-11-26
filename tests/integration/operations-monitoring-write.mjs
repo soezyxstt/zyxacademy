@@ -42,3 +42,60 @@ assert.equal(created.headers.get("cache-control"), "private, no-store");
 assert.deepEqual(await created.json(), { id: "fixture-link" });
 assert.deepEqual(calls, [draft]);
 console.log("monitoring write gate passed authorization, origin, schema and delegated request checks");
+
+let syncSuccess = false;
+let latencyAllowed = false;
+let modelConflict = false;
+const modelCalls = [];
+const proposals = [];
+mock.module("@/app/api/admin/analytics/sync/route", () => ({
+  POST: async () => Response.json({ success: syncSuccess, count: 4 }),
+}));
+mock.module("@/app/(admin)/admin/ops/models/actions", () => ({
+  updateAiModelSettingAction: async input => {
+    modelCalls.push(input);
+    return modelConflict ? { ok: false, code: "MODEL_SETTING_CONFLICT", error: "Conflict" } : { ok: true };
+  },
+  resetAiModelSettingAction: async input => { modelCalls.push(input); return { ok: true }; },
+  refreshAiModelLatenciesAction: async () => latencyAllowed
+    ? { ok: true, latencyRefreshRequestedAt: 1234 }
+    : { ok: false, code: "LATENCY_COOLDOWN", error: "Cooldown" },
+}));
+mock.module("@/app/api/zyra/proposals/route", () => ({
+  POST: async request => { proposals.push(await request.json()); return Response.json({}, { status: 201 }); },
+}));
+mock.module("@/app/api/zyra/proposals/[id]/route", () => ({
+  PATCH: async (request, { params }) => {
+    proposals.push({ ...await params, ...await request.json() });
+    return Response.json({});
+  },
+}));
+
+const action = (name, input = {}) => POST(new Request(origin + "/api/admin/native-monitoring?view=" + name, {
+  method: "POST", headers: { "Content-Type": "application/json", Origin: origin }, body: JSON.stringify(input),
+}));
+assert.equal((await action("sync")).status, 502);
+syncSuccess = true;
+assert.deepEqual(await (await action("sync")).json(), { count: 4 });
+assert.equal((await action("measureLatency")).status, 429);
+latencyAllowed = true;
+assert.equal((await action("measureLatency")).status, 200);
+const model = { feature: "fixture", models: ["uno", "dos", "tres"], expectedUpdatedAt: null };
+assert.equal((await action("saveModel", { ...model, models: [] })).status, 400);
+assert.equal((await action("saveModel", model)).status, 200);
+modelConflict = true;
+assert.equal((await action("saveModel", model)).status, 409);
+assert.equal((await action("resetModel", { feature: "fixture", expectedUpdatedAt: null })).status, 200);
+assert.deepEqual(modelCalls[0], model);
+assert.equal((await action("createProposal", { courseId: "outside" })).status, 400);
+assert.equal((await action("createProposal")).status, 201);
+const transition = { id: "fixture", preconditionVersion: 1, action: "review" };
+assert.equal((await action("transitionProposal", { ...transition, action: "apply" })).status, 400);
+assert.equal((await action("transitionProposal", transition)).status, 200);
+assert.deepEqual(proposals[0].operations, [{ kind: "read_only_report", reportKey: "course_readiness" }]);
+assert.deepEqual(proposals[1], transition);
+authorization = { ok: false, status: 403 };
+for (const name of ["sync", "measureLatency", "saveModel", "resetModel", "createProposal", "transitionProposal"]) {
+  assert.equal((await action(name)).status, 403);
+}
+console.log("monitoring actions: authorization, validation, model conflicts, latency cooldown, sync failure and proposal transitions passed");

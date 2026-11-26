@@ -101,6 +101,12 @@ export function createSessionMonitoringActions(session: NativeSessionTransport):
     }
   }
   return {
+    syncAnalytics: () => write("/api/admin/native-monitoring?view=sync", "POST", {}),
+    saveModel: input => write("/api/admin/native-monitoring?view=saveModel", "POST", input),
+    resetModel: input => write("/api/admin/native-monitoring?view=resetModel", "POST", input),
+    measureModelLatency: () => write("/api/admin/native-monitoring?view=measureLatency", "POST", {}),
+    createProposal: () => write("/api/admin/native-monitoring?view=createProposal", "POST", {}),
+    transitionProposal: input => write("/api/admin/native-monitoring?view=transitionProposal", "POST", input),
     createLink: input => write("/api/admin/native-monitoring?view=links", "POST", input),
     saveOffline: input => write("/api/admin/offline/policy", "PATCH", input),
     revalidateOffline: input => write("/api/admin/offline/revalidate", "POST", input),

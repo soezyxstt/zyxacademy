@@ -1476,7 +1476,7 @@ export const operationsCatalog = [
     "actions": ["GET", "POST"],
     "tools": ["shortlinks.create"],
     "status": "partial",
-    "reason": "The native Admin UI reuses web monitoring behind canonical admin session authorization. Short link creation also checks the native request origin and input. Its MCP equivalent retains its existing scope and request-key contract. This adapter changes no MCP tools, scopes, consent, discovery, playbooks, packaged skills, host prompts or environment bindings."
+    "reason": "The native Admin UI reuses web monitoring behind canonical admin session authorization. Native writes validate origin and input, including short links, analytics sync, versioned model changes, latency scheduling and read-only report proposal creation/review/confirmation. Its MCP equivalent retains its existing scope and request-key contract. This adapter changes no MCP tools, scopes, consent, discovery, playbooks, packaged skills, host prompts or environment bindings."
   },
   {
     "source": "app/(admin)/admin/ops/web-analytics/page.tsx",

@@ -265,8 +265,12 @@ export function ReadState({ loading, error, retry, message }: {
     <Skeleton theme={theme} style={{ width: "100%", height: 54 }} />
     <Skeleton theme={theme} style={{ width: "100%", height: 54 }} />
   </View>;
+  const failure = status === 409 ? t("Data telah berubah. Tinjau revisi terbaru.", "Data changed. Review the latest revision.")
+    : status === 429 ? t("Pengukuran latensi dibatasi sekali setiap 3 jam.", "Latency can be measured once every 3 hours.")
+    : status === 422 ? t("Periksa pilihan dan urutan model.", "Check the selected models and their order.")
+    : t("Gagal memuat data.", "Unable to load data.");
   if (error) return <View accessibilityRole="alert" style={styles.section}>
-    <Body error>{message ?? t("Gagal memuat data.", "Unable to load data.")}</Body>
+    <Body error>{message ?? failure}</Body>
     {retry && <View style={styles.actions}><Control label={t("Coba lagi", "Retry")} onPress={retry} /></View>}
   </View>;
   return null;

@@ -109,6 +109,14 @@ export async function GET(request: Request) {
   }
 }
 
+const transfer = z.object({
+  id: key,
+  action: z.enum(["review", "confirm"]),
+  preconditionVersion: z.number().int().positive(),
+}).strict();
+const resetModel = z.object({ feature: key, expectedUpdatedAt: z.iso.datetime({ offset: true }).nullable() }).strict();
+const saveModel = resetModel.extend({ models: z.tuple([key, key, key]) });
+
 const createLinkInput = z.object({
   slug: z.union([z.literal(""), z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,99}$/)]),
   url: z.url().max(2048).refine(value => {
@@ -123,15 +131,64 @@ export async function POST(request: Request) {
     const auth = await getNativeOperationsAdmin();
     if (!auth.ok) return json({ error: auth.status === 401 ? "Unauthorized" : "Forbidden" }, auth.status);
     if (!request.headers.has("origin") || !isSameOriginAdminRequest(request)) return json({ error: "Forbidden origin" }, 403);
-    if (new URL(request.url).searchParams.get("view") !== "links") return json({ error: "Unknown monitoring action" }, 400);
-    const parsed = createLinkInput.safeParse(await request.json().catch(() => null));
-    if (!parsed.success) return json({ error: "Invalid short link" }, 400);
-    const handler = await import("@/app/api/admin/short-links/route");
-    return privateResponse(await handler.POST(new Request(request.url, {
-      method: "POST", headers: request.headers, body: JSON.stringify(parsed.data),
-    })));
+    if (request.headers.get("content-type")?.split(";")[0].trim() !== "application/json") return json({ error: "Expected JSON" }, 415);
+    const input: unknown = await request.json().catch(() => null);
+    const view = new URL(request.url).searchParams.get("view");
+    const delegate = (body: unknown, method = "POST") => new Request(request.url, {
+      method, headers: request.headers, body: JSON.stringify(body),
+    });
+    switch (view) {
+      case "links": {
+        const parsed = createLinkInput.safeParse(input);
+        if (!parsed.success) return json({ error: "Invalid short link" }, 400);
+        return privateResponse(await (await import("@/app/api/admin/short-links/route")).POST(delegate(parsed.data)));
+      }
+      case "sync":
+      case "measureLatency":
+      case "createProposal": {
+        if (!z.object({}).strict().safeParse(input).success) return json({ error: "Unexpected input" }, 400);
+        if (view === "sync") {
+          const result = await (await import("@/app/api/admin/analytics/sync/route")).POST();
+          if (!result.ok) return json({ error: "Sync unavailable" }, result.status);
+          const body = await result.json();
+          return body?.success === true ? json({ count: body.count }) : json({ error: "Sync unavailable" }, 502);
+        }
+        if (view === "measureLatency") {
+          const result = await (await import("@/app/(admin)/admin/ops/models/actions")).refreshAiModelLatenciesAction();
+          return result.ok ? json({ requestedAt: result.latencyRefreshRequestedAt }) :
+            json({ error: result.error }, result.code === "LATENCY_COOLDOWN" ? 429 : 503);
+        }
+        const { createReportDraft } = await import("@/lib/zyra/report-draft");
+        return privateResponse(await (await import("@/app/api/zyra/proposals/route")).POST(delegate(createReportDraft("admin"))));
+      }
+      case "saveModel":
+      case "resetModel": {
+        const actions = await import("@/app/(admin)/admin/ops/models/actions");
+        let result;
+        if (view === "saveModel") {
+          const parsed = saveModel.safeParse(input);
+          if (!parsed.success) return json({ error: "Invalid model configuration" }, 400);
+          result = await actions.updateAiModelSettingAction(parsed.data);
+        } else {
+          const parsed = resetModel.safeParse(input);
+          if (!parsed.success) return json({ error: "Invalid model configuration" }, 400);
+          result = await actions.resetAiModelSettingAction(parsed.data);
+        }
+        return result.ok ? json({ success: true }) :
+          json({ error: result.error }, result.code === "MODEL_SETTING_CONFLICT" ? 409 : 422);
+      }
+      case "transitionProposal": {
+        const parsed = transfer.safeParse(input);
+        if (!parsed.success) return json({ error: "Invalid proposal transition" }, 400);
+        const { id, ...action } = parsed.data;
+        return privateResponse(await (await import("@/app/api/zyra/proposals/[id]/route")).PATCH(
+          delegate(action, "PATCH"), { params: Promise.resolve({ id }) },
+        ));
+      }
+      default: return json({ error: "Unknown monitoring action" }, 400);
+    }
   } catch (error) {
-    console.error("Failed to create native admin short link", error);
-    return json({ error: "Unable to create short link" }, 500);
+    console.error("Failed native monitoring action", error);
+    return json({ error: "Unable to complete monitoring action" }, 500);
   }
 }
