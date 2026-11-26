@@ -1,0 +1,24 @@
+@import "../../../../../../app/globals.css";
+
+@source "../../../../../../app/(marketing)";
+@source "../../../../../../components";
+@source "./";
+
+@font-face {
+  font-family: "Parity Inter";
+  src: url("../../../../fixtures/fonts/inter-latin.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Parity Lexend";
+  src: url("../../../../fixtures/fonts/lexend-latin.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+:root {
+  --font-inter: "Parity Inter";
+  --font-lexend: "Parity Lexend";
+}
