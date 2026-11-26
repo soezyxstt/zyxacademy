@@ -1,0 +1,148 @@
+{
+  "serverSha": "7d93b3a5984814ee382ccd36d9ceff8cb34abbcd",
+  "browser": "154.0.8037.57",
+  "theme": "light",
+  "locale": "id-ID",
+  "width": 380,
+  "height": 820,
+  "dpr": 1,
+  "results": [
+    {
+      "id": "student-enrolled-dashboard",
+      "path": "/dashboard",
+      "status": 200,
+      "heading": [
+        "Halo, Alya",
+        "Pencapaian",
+        "Kelas aktif",
+        "Spaced repetition"
+      ]
+    },
+    {
+      "id": "student-enrolled-catalog",
+      "path": "/courses",
+      "status": 200,
+      "heading": [
+        "Katalog mata kuliah",
+        "Matematika"
+      ]
+    },
+    {
+      "id": "student-enrolled-course",
+      "path": "/courses/matematika-1",
+      "status": 200,
+      "heading": [
+        "Matematika I",
+        "Silabus kelas"
+      ]
+    },
+    {
+      "id": "student-enrolled-material-list",
+      "path": "/courses/matematika-1/material",
+      "status": 200,
+      "heading": [
+        "Materi belajar: Matematika I"
+      ]
+    },
+    {
+      "id": "student-enrolled-material-detail",
+      "path": "/courses/matematika-1/material/dokumen-4",
+      "status": 200,
+      "heading": [
+        "Turunan",
+        "Materi",
+        "Akhir bab"
+      ]
+    },
+    {
+      "id": "student-unenrolled-dashboard",
+      "path": "/dashboard",
+      "status": 200,
+      "heading": [
+        "Mulai belajar, Bima",
+        "Course untukmu",
+        "Yang tersedia di Free",
+        "Paket belajar semester"
+      ]
+    },
+    {
+      "id": "student-unenrolled-catalog",
+      "path": "/courses",
+      "status": 200,
+      "heading": [
+        "Katalog mata kuliah",
+        "Matematika"
+      ]
+    },
+    {
+      "id": "student-unenrolled-course",
+      "path": "/courses/matematika-1",
+      "status": 200,
+      "heading": [
+        "Matematika I",
+        "Silabus kelas"
+      ]
+    },
+    {
+      "id": "student-unenrolled-material-list",
+      "path": "/courses/matematika-1/material",
+      "status": 200,
+      "heading": [
+        "Materi belajar: Matematika I"
+      ]
+    },
+    {
+      "id": "student-unenrolled-material-detail",
+      "path": "/courses/matematika-1/material/dokumen-4",
+      "status": 200,
+      "heading": [
+        "Materi terkunci"
+      ]
+    },
+    {
+      "id": "student-revoked-dashboard",
+      "path": "/dashboard",
+      "status": 200,
+      "heading": [
+        "Mulai belajar, Citra",
+        "Course untukmu",
+        "Yang tersedia di Free",
+        "Paket belajar semester"
+      ]
+    },
+    {
+      "id": "student-revoked-catalog",
+      "path": "/courses",
+      "status": 200,
+      "heading": [
+        "Katalog mata kuliah",
+        "Matematika"
+      ]
+    },
+    {
+      "id": "student-revoked-course",
+      "path": "/courses/matematika-1",
+      "status": 200,
+      "heading": [
+        "Matematika I",
+        "Silabus kelas"
+      ]
+    },
+    {
+      "id": "student-revoked-material-list",
+      "path": "/courses/matematika-1/material",
+      "status": 200,
+      "heading": [
+        "Materi belajar: Matematika I"
+      ]
+    },
+    {
+      "id": "student-revoked-material-detail",
+      "path": "/courses/matematika-1/material/dokumen-4",
+      "status": 200,
+      "heading": [
+        "Materi terkunci"
+      ]
+    }
+  ]
+}

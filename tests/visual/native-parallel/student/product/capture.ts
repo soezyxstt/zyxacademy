@@ -30,9 +30,10 @@ try {
         const rendered = new URL(page.url()).pathname;
         if (!response?.ok() || rendered !== path) throw new Error("HTTP " + response?.status() + " at " + rendered);
         await page.locator("main").last().waitFor({ state: "visible", timeout: 30000 });
+        await page.locator("main h1:visible, main h2:visible").first().waitFor({ state: "visible", timeout: 45000 });
         await page.evaluate(() => document.fonts.ready);
         await page.addStyleTag({content:"nextjs-portal { display:none !important }"});
-        const heading = (await page.locator("main h1, main h2").allTextContents()).slice(0, 4);
+        const heading = (await page.locator("main h1:visible, main h2:visible").allTextContents()).slice(0, 4);
         if (!heading.length || await page.getByText("Application error", {exact:false}).count()) throw new Error("Expected product headings");
         await page.screenshot({ path: out + "/" + id + ".png", animations: "disabled" });
         results.push({id,path,status:response.status(),heading});
