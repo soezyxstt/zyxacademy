@@ -70,7 +70,7 @@ const progress: Configuration = {
     }
     await expect(page.getByText("3 hari yang lalu", { exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "Hasil per topik" })).toHaveAttribute("href", `/courses/${courseId}/mastery`);
-    await capture("populated", [{ text: ".*35 menit.*" }, { text: ".*12 ulasan.*" }, { text: ".*Limit fungsi.*" }]);
+    await capture("populated", [{ text: ".*35 menit.*" }, { text: ".*12 ulasan.*" }, { text: ".*Limit fungsi.*" }, { text: "Analisis lebih lanjut" }]);
 
     await open("long");
     await expect(page.getByRole("heading", { name: "Aktivitas terbaru" })).toBeInViewport();
@@ -81,7 +81,7 @@ const progress: Configuration = {
     await expect(time).toHaveCount(0);
     await expect(page.getByText("Belum ada aktivitas belajar.", { exact: true })).toBeInViewport();
     await expect(page.getByRole("link", { name: "Hasil kuis dan ujian" })).toHaveAttribute("href", `/courses/${courseId}/my-results`);
-    await capture("empty", [{ text: "Statistik belajar" }, { text: "Belum ada aktivitas belajar\\." }, { text: "Hasil kuis dan ujian" }]);
+    await capture("empty", [{ text: "Statistik belajar" }, { text: "Belum ada aktivitas belajar\\." }]);
   },
 };
 

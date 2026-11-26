@@ -16,10 +16,15 @@ name: Student course progress metrics and recent activity
 - assertVisible: '.*12 ulasan.*'
 - assertVisible: '.*3 hari.*'
 - assertVisible: '.*Limit fungsi.*'
-- assertVisible: Hasil per topik
+- assertVisible: Analisis lebih lanjut
 - assertVisible:
     id: student-fixture-id-light
 - takeScreenshot: student-progress-populated
+- scrollUntilVisible:
+    element:
+      text: Hasil per topik
+    direction: DOWN
+    timeout: 30000
 - tapOn: Hasil per topik
 - extendedWaitUntil:
     visible: Topik untuk diulang
@@ -41,8 +46,13 @@ name: Student course progress metrics and recent activity
     timeout: 30000
 - assertVisible: Statistik belajar
 - assertVisible: 'Belum ada aktivitas belajar\.'
-- assertVisible: Hasil kuis dan ujian
 - assertNotVisible: '.*35 menit.*'
 - assertVisible:
     id: student-fixture-id-light
 - takeScreenshot: student-progress-empty
+- scrollUntilVisible:
+    element:
+      text: Hasil kuis dan ujian
+    direction: DOWN
+    timeout: 30000
+- assertVisible: Hasil kuis dan ujian
