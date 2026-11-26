@@ -50,6 +50,13 @@ jobs:
           printf '%s\n' 'catalog source data verified' > artifacts/student-evidence/reference/catalog-input-verified.txt
           bun tests/visual/native-parallel/student/capture-catalog.ts
           bunx playwright test tests/visual/native-parallel/student/web-reference.spec.ts tests/visual/native-parallel/student/assessment-reference.spec.ts --project=mobile-380 --reporter=list
+      - name: Capture flashcard reference at each device extent
+        env:
+          PLAYWRIGHT_BASE_URL: http://learning-query.invalid
+        run: >-
+          bunx playwright test tests/visual/learning-query.spec.ts --project=mobile-380
+          --grep 'flashcard reference matches the device inputs' --reporter=list
+          --output artifacts/student-evidence/reference/flashcard
       - name: Keep a web artifact even if capture failed
         if: always()
         run: |
@@ -162,7 +169,7 @@ jobs:
           mkdir -p "$__UNSAFE_EXPO_HOME_DIRECTORY"
           (cd apps/mobile-native && npx --no-install expo run:ios --configuration Release --device "$device" --no-bundler)
           bash tests/visual/native-parallel/student/run-device-smoke.sh ios "$device"
-      - name: Report comparison eligibility and image extents
+      - name: Compare matched catalog and flashcard captures
         if: always()
         run: |
           python tests/visual/native-parallel/student/compare.py --platform ${{ matrix.platform }} --web artifacts/student-evidence/web --native artifacts/student-evidence/${{ matrix.platform }} --output artifacts/student-evidence/${{ matrix.platform }}/comparison

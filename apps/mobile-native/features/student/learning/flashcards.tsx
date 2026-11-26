@@ -1,17 +1,24 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Animated, Easing, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
+import { Animated, Easing, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { courseHref, isFlashcardReviewReceipt, learningApi, type Flashcard } from "../../../../../packages/native-parity/student/learning/contracts";
+import { nativeLinkInks, nativeRadii } from "../../../../../packages/design-tokens/native-colors";
 import { Button } from "../../../components/Button";
 import { Input } from "../../../components/Input";
+import { Progress } from "../../../components/Progress";
+import { RadioGroup, RadioGroupItem } from "../../../components/RadioGroup";
 import { hapticSelection } from "../../../device/haptics";
 import { useReducedMotion } from "../../../device/reduced-motion";
+import { nativeTypography } from "../../../typography";
 import type { StudentScreenProps } from "../contracts";
-import { Body, Copy, LearningPage, Message, Progress, Section, english, postJson, readJson, RequestError, styles, useLearningColors, type Translate } from "./ui";
+import { Body, Copy, LearningPage, Message, Section, english, postJson, readJson, RequestError, styles, useLearningColors, type Translate } from "./ui";
 
 const batchSize = 10;
 const cardHeight = 256;
 const gradeDockBreakpoint = 768;
-const gradeLabels = ["again", "hard", "understood", "easy"];
+const gradeOptions = [
+  { key: "again", tone: "error" }, { key: "hard", tone: "warning" },
+  { key: "understood", tone: "brand" }, { key: "easy", tone: "success" },
+] as const;
 const reasonLabels: Record<string, string> = {
   "Tanpa pemetaan Idea": "reasonUnmapped",
   "Perlu dikuasai": "reasonMastery",
@@ -52,7 +59,7 @@ function FlipCard({ flipped, disabled, onFlip, front, back }: {
       style={[StyleSheet.absoluteFill, { opacity: reduceMotion ? Number(active) : opacity },
         !reduceMotion && { transform: [{ perspective: 1000 }, { rotateY: angle }] }]}>
       <Pressable accessible={false} disabled={disabled || !active} onPress={onFlip}
-        style={[flashcardStyles.face, { borderColor: colors.border, backgroundColor: colors.background }]}>
+        style={[flashcardStyles.face, { borderColor: colors.border, backgroundColor: colors.card }]}>
         <View onLayout={({ nativeEvent }) => measure(nativeEvent.layout.height + 2)} style={flashcardStyles.faceContent}>
           {children}
         </View>
@@ -137,44 +144,59 @@ export function FlashcardsPage({ cards, props, title, t, reload }: {
   const reason = reasonLabels[card.priorityReason] ? label(reasonLabels[card.priorityReason]) : card.priorityReason;
   const allowFlip = mode === "standard" || checked !== null;
   const flip = () => { void hapticSelection(); setFlipped(!flipped); };
-  const flipButton = (isBack: boolean) => allowFlip ? <Button variant="ghost" style={flashcardStyles.flipButton}
+  const flipButton = (isBack: boolean) => allowFlip ? <Button variant="ghost" wrapLabel style={flashcardStyles.flipButton}
     disabled={pending || failure === "uncertain" || flipped !== isBack}
     onPress={(event) => { event.stopPropagation(); flip(); }}>{label(isBack ? "flipToQuestion" : "flipCard")}</Button> : null;
   const grades = flipped || checked !== null ? <View style={flashcardStyles.grades}>
-    {gradeLabels.map((key, index) => <Button key={key} onPress={() => void grade(index + 1)}
-      style={[flashcardStyles.grade, (width < 350 || fontScale > 1.3) && flashcardStyles.wideGrade]}
-      variant={index === 0 ? "destructive" : index === 2 ? "default" : "outline"}
-      disabled={pending || failure === "uncertain"}>{label(key)}</Button>)}
+      {gradeOptions.map(({ key, tone }, index) => <Button key={key} onPress={() => void grade(index + 1)} size="sm" wrapLabel
+        testID={key === "understood" && pending ? "student.flashcard.grade-pending" : undefined}
+        accessibilityState={{ busy: pending }}
+        style={[flashcardStyles.grade, (width < 350 || fontScale > 1.3) && flashcardStyles.wideGrade]}
+        softTone={tone} variant="ghost" disabled={pending || failure === "uncertain"}>{label(key)}</Button>)}
   </View> : null;
   const docked = width < gradeDockBreakpoint;
-  const dock = docked && grades ? <View testID="student.flashcard.grade-dock" style={[flashcardStyles.dock, { borderColor: colors.border }]}>{grades}</View> : null;
-  return <LearningPage props={props} title={title} footer={dock}>
-    <Section>
-      <Copy muted>{label("sessionProgress", { session, total, current: index + 1, count: batchLength, all: queue.length })}</Copy>
-      <Progress value={100 * index / batchLength} label={label("reviewTitle")} />
-      <View style={styles.wrap} accessibilityRole="radiogroup" accessibilityLabel={label("mode")}>
-        {(["standard", "exam"] as const).map((option) => <Button key={option} variant={mode === option ? "default" : "outline"}
-          accessibilityRole="radio" accessibilityState={{ checked: mode === option }} disabled={pending || failure === "uncertain"} style={styles.action}
-          onPress={() => { void hapticSelection(); setMode(option); reset(); }}>{label(option === "standard" ? "standard" : "typeAnswer")}</Button>)}
+  const dock = docked && grades ? <View testID="student.flashcard.grade-dock" style={[flashcardStyles.dock, flashcardStyles.rating, { borderColor: colors.border }]}>{grades}</View> : null;
+  return <View style={styles.frame}>
+    <LearningPage props={props} title={title} footer={dock}>
+    <View style={flashcardStyles.rating}>
+      <Progress value={index} max={batchLength} accessibilityLabel={label("reviewTitle")} style={flashcardStyles.progress} />
+      <View style={flashcardStyles.controls}>
+        <Copy muted style={flashcardStyles.caption}>{label("sessionProgress", { session, total, current: index + 1, count: batchLength, all: queue.length })}</Copy>
+        <RadioGroup accessibilityLabel={label("mode")} orientation="horizontal" value={mode} style={flashcardStyles.modes}
+          disabled={pending || failure === "uncertain"} onValueChange={(option) => { setMode(option === "exam" ? "exam" : "standard"); reset(); }}>
+          <RadioGroupItem value="standard" label={label("standard")} />
+          <RadioGroupItem value="exam" label={label("typeAnswer")} />
+        </RadioGroup>
       </View>
-    </Section>
+    </View>
     {card.dueStatus === "review" ? <Copy muted>{label("dueForReview")}</Copy> : null}
     <FlipCard key={position} flipped={flipped} disabled={pending || failure === "uncertain" || !allowFlip} onFlip={flip}
       front={<>
-        <View style={styles.rowMain}><Copy>{reason}</Copy><Copy muted>{label("question")}</Copy></View>
-        {render(card.front, true)}
+        <View style={flashcardStyles.faceHeader}>
+          <Copy style={{ ...flashcardStyles.tag, color: colors.brandPrimary, borderColor: `${colors.brandPrimary}33`, backgroundColor: `${colors.brandPrimary}0d` }}>{reason}</Copy>
+          <Copy muted style={flashcardStyles.caption}>{label("question")}</Copy>
+        </View>
+        <View style={flashcardStyles.faceBody}>{render(card.front, true)}</View>
         {flipButton(false)}
       </>}
       back={<>
-        <View style={styles.rowMain}>
-          <Copy>{label("answer")}</Copy>
-          <Copy muted>{card.recallDifficulty === null ? label("details") : label("recallLevel", { level: card.recallDifficulty })}</Copy>
+        <View style={flashcardStyles.faceHeader}>
+          <Copy style={{ ...flashcardStyles.tag, color: colors.foreground, borderColor: `${nativeLinkInks.success}33`, backgroundColor: `${nativeLinkInks.success}0d` }}>{label("answer")}</Copy>
+          {card.recallDifficulty === null ? <Copy muted style={flashcardStyles.caption}>{label("details")}</Copy>
+            : <View accessible accessibilityLabel={label("recallLevel", { level: card.recallDifficulty })} style={flashcardStyles.recall}>
+              {[1, 2, 3, 4, 5].map((level) => <View key={level} style={[flashcardStyles.recallDot,
+                { backgroundColor: level <= (card.recallDifficulty ?? 0) ? nativeLinkInks.warning : colors.muted }]} />)}
+            </View>}
         </View>
-        {render(card.back, true)}
-        {card.explanation ? <Section title={label("details")}>{render(card.explanation)}</Section> : null}
+        <View style={flashcardStyles.faceBody}>
+          {render(card.back, true)}
+          {card.explanation ? <View style={[flashcardStyles.explanation, { borderColor: colors.border }]}>
+            <Copy muted style={nativeTypography.bodySemibold}>{label("explanation")}</Copy>{render(card.explanation)}
+          </View> : null}
+        </View>
         {flipButton(true)}
       </>} />
-    <Button variant="ghost" style={styles.action} disabled={queue.length - position <= 1 || pending || failure === "uncertain"} onPress={() => {
+    <Button variant="ghost" style={[styles.action, flashcardStyles.skip]} disabled={queue.length - position <= 1 || pending || failure === "uncertain"} onPress={() => {
       setQueue((current) => [...current.slice(0, position), ...current.slice(position + 1), card]); reset();
     }}>{label("skip")}</Button>
     {mode === "exam" ? <Section>
@@ -183,21 +205,45 @@ export function FlashcardsPage({ cards, props, title, t, reload }: {
         onSubmitEditing={check} disabled={checked !== null || pending} maxLength={4000} style={styles.field} />
       <Button onPress={checked === null ? check : reset} disabled={pending || failure === "uncertain"} style={styles.action}>{label(checked === null ? "check" : "tryAgain")}</Button>
     </Section> : null}
-    {!docked ? grades : null}
+    {!docked && grades ? <View style={flashcardStyles.rating}>{grades}</View> : null}
     {failure === "answer" ? <Message>{label("answerRequired")}</Message> : null}
-    {failure === "review" ? <Message action={label("reviewAgain")} onAction={reload}>{label("saveReviewFailed")}</Message> : null}
     {failure === "uncertain" ? <Message action={isEnglish ? "Refresh due cards" : "Muat ulang kartu"} onAction={reload}>
       {isEnglish ? "The review may have been saved. Refresh the queue to continue." : "Ulasan mungkin sudah tersimpan. Muat ulang antrean untuk melanjutkan."}
     </Message> : null}
-  </LearningPage>;
+    </LearningPage>
+    {failure === "review" && <View pointerEvents="none" style={[flashcardStyles.reviewNotice,
+      { backgroundColor: colors.card, borderColor: `${nativeLinkInks.error}80` }]}>
+      <View style={[flashcardStyles.reviewNoticeTint, { backgroundColor: `${nativeLinkInks.error}1f` }]}>
+        <Text accessibilityRole="alert" accessibilityLiveRegion="polite"
+          style={[flashcardStyles.noticeText, { color: colors.foreground }]}>{label("saveReviewFailed")}</Text>
+      </View>
+    </View>}
+  </View>;
 }
 
 const flashcardStyles = StyleSheet.create({
-  face: { flex: 1, borderWidth: 1, borderRadius: 10, justifyContent: "center" },
-  faceContent: { minHeight: cardHeight - 2, padding: 16, gap: 10, justifyContent: "space-between" },
-  flipButton: { minHeight: 44, alignSelf: "center" },
-  dock: { flexShrink: 0, borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: 16, paddingVertical: 10 },
+  face: { flex: 1, borderWidth: 1, borderRadius: nativeRadii["2xl"] },
+  faceContent: { flexGrow: 1, minHeight: cardHeight - 2, minWidth: 0, padding: 16, gap: 16, justifyContent: "space-between" },
+  faceHeader: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  faceBody: { flexGrow: 1, justifyContent: "center", gap: 16 },
+  caption: { ...nativeTypography.bodyMedium, fontSize: 12, lineHeight: 16, includeFontPadding: false },
+  tag: { ...nativeTypography.bodySemibold, fontSize: 12, lineHeight: 18, includeFontPadding: false,
+    borderRadius: nativeRadii.sm, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 2 },
+  recall: { flexDirection: "row", alignItems: "center", gap: 2 },
+  recallDot: { width: 6, height: 6, borderRadius: 3 },
+  explanation: { borderTopWidth: 1, paddingTop: 12, gap: 8 },
+  flipButton: { minHeight: 44, height: "auto", alignSelf: "center", maxWidth: "100%" },
+  skip: { alignSelf: "flex-end" },
+  rating: { gap: 8 },
+  progress: { height: 4 },
+  controls: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 8, paddingHorizontal: 4 },
+  modes: { flexWrap: "wrap", gap: 12 },
+  dock: { flexShrink: 0, borderTopWidth: 1, paddingHorizontal: 16, paddingVertical: 10 },
   grades: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  grade: { flexGrow: 1, flexShrink: 1, flexBasis: 0, minHeight: 44, paddingHorizontal: 4 },
+  grade: { flexGrow: 1, flexShrink: 1, flexBasis: 0, minHeight: 46, height: "auto", paddingHorizontal: 4, paddingVertical: 12 },
   wideGrade: { flexBasis: "45%" },
+  reviewNotice: { position: "absolute", top: 8, right: 12, width: 248, maxWidth: "90%", borderWidth: 1,
+    borderRadius: nativeRadii.xl, overflow: "hidden", elevation: 4, boxShadow: "0 4px 8px #0000001f" },
+  reviewNoticeTint: { padding: 14 },
+  noticeText: { ...nativeTypography.bodySemibold, fontSize: 14, lineHeight: 20, includeFontPadding: false },
 });

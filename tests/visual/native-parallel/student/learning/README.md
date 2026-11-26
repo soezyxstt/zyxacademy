@@ -2,6 +2,25 @@
 
 Referensi untuk halaman produk Learning dengan sesi Student dan PostgreSQL sintetis disimpan bersama manifest dan seed. [Referensi produk](product/README.md)
 
+## Referensi pada ukuran perangkat CI
+
+Kedua target memakai komponen web produksi, dua kartu dari fixture native yang sama, mode Standar, tema terang, locale Indonesia, dan berkas font Inter milik aplikasi native. Playwright menahan permintaan grade `Paham` untuk menangkap keadaan menunggu, lalu mengembalikan penolakan sintetis HTTP 422. Maestro memeriksa keadaan yang sama dan memastikan percobaan ulang eksplisit berpindah ke kartu kedua. [Data bersama](../../../../../packages/native-parity/student/learning/flashcard-fixture.ts) · [Maestro](../../../../../.maestro/native-parallel/student/learning-flashcard-review.yaml)
+
+| Target | Kartu depan | Penilaian menunggu | Penilaian ditolak | Manifest |
+|---|---|---|---|---|
+| Android, 380 × 820, DPR 1 | [PNG](web/android/flashcard-question.png) | [PNG](web/android/flashcard-review-pending.png) | [PNG](web/android/flashcard-review-failed.png) | [SHA-256 dan input](web/android/flashcard-reference.json) |
+| iPhone 17 Pro, 402 × 874, DPR 3 (1206 × 2622 piksel) | [PNG](web/ios/flashcard-question.png) | [PNG](web/ios/flashcard-review-pending.png) | [PNG](web/ios/flashcard-review-failed.png) | [SHA-256 dan input](web/ios/flashcard-reference.json) |
+
+```sh
+PLAYWRIGHT_BASE_URL=http://learning-query.invalid \
+bun run test:visual tests/visual/learning-query.spec.ts --project mobile-380 \
+  --grep 'flashcard reference matches the device inputs'
+```
+
+CI memeriksa manifest input dan hash PNG web, hasil flow Maestro, serta ukuran gambar sebelum menghitung selisih seluruh tangkapan tanpa penskalaan. Laporan membedakan selisih piksel dari pasangan yang hilang atau tidak dapat dibandingkan. Kesamaan piksel belum terukur untuk enam pasangan ini. Shell dan safe area sistem, rasterisasi antarplatform, dan rumus inline yang dirender KaTeX di web dapat menimbulkan selisih. [Pembanding](../compare.py)
+
+## Referensi regresi web 380 × 844
+
 Tangkapan Playwright menggunakan komponen flashcard web dan data sintetis pada Chromium 154.0.8037.57 dengan Playwright 1.62.1. Project `mobile-380` menetapkan viewport 380 × 844, DPR 1, tema terang, locale `id-ID`, dan zona waktu `Asia/Jakarta`. Fixture membekukan waktu pada 18 November 2026 untuk mengontrol percobaan review. [Spec Playwright](../../../learning-query.spec.ts) · [Fixture UI](../../../fixtures/learning-query.tsx)
 
 | Kasus | Tangkapan asli | SHA-256 |
@@ -25,4 +44,4 @@ Ketiga tes flashcard web lulus di viewport 380 × 844 dan 1536 × 864. Spec meme
 
 Expo menempatkan panel penilaian di bawah area gulir pada lebar kurang dari 768 dp, di dalam safe area host. Tombol tetap mengikuti ukuran teks perangkat. Pada layout lebar, panel mengikuti urutan isi halaman. Kartu memakai rotasi perspektif 600 ms ketika pengurangan gerak dinonaktifkan. Pada preferensi pengurangan gerak aktif, sisi kartu berganti langsung dan sisi tersembunyi keluar dari pohon aksesibilitas.
 
-Referensi web memakai radius kartu `rounded-2xl`, empat warna grade terpisah, dan toast kegagalan di tepi atas. Expo memakai radius kartu 10 dp, palet tombol bersama, pesan kegagalan inline, dan header rute dari shell native. Respons simpan yang tidak valid mempertahankan kartu dan panel. Expo meminta pengguna memuat ulang antrean sebelum mengirim grade lagi. Android dan iOS perlu merekam koordinat panel setelah safe area, perubahan sisi dengan dan tanpa pengurangan gerak, fokus aksesibilitas, dan diff piksel memakai data, tema, serta density yang sama.
+Expo memakai radius kartu 18 dp, warna latar untuk empat grade dan pemberitahuan penolakan di tepi atas. Label grade memakai warna teks dengan kontras tinggi. Penolakan eksplisit mempertahankan kartu, mengaktifkan kembali grade dan menunggu percobaan ulang dari pengguna. Respons yang ambigu menampilkan pemulihan antrean sebelum grade berikutnya. Panel menyesuaikan ukuran teks dan tetap berada dalam safe area native. Fokus aksesibilitas, perilaku dengan dan tanpa pengurangan gerak, dan diff piksel masih memerlukan hasil perangkat.

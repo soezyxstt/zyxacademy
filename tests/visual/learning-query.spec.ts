@@ -1,16 +1,26 @@
 import { expect, test, type Page, type Route, type TestInfo } from "@playwright/test";
+import { createHash } from "node:crypto";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { buildLearningFixture } from "./fixtures/learning-query-build";
+import { flashcardEvidence, flashcardEvidenceCards } from "../../packages/native-parity/student/learning/flashcard-fixture";
 
 const origin = "http://learning-query.invalid";
 const reviewReceipt = { nextReviewDue: "2026-11-19T00:00:00.000Z", nextIntervalDays: 1, nextBox: 1 };
 let fixture: Awaited<ReturnType<typeof buildLearningFixture>>;
 test.beforeAll(async () => { fixture = await buildLearningFixture(); });
 
-async function boot(page: Page, config: Window["learningFixture"], respond?: (route: Route) => Promise<void>) {
+async function boot(page: Page, config: Window["learningFixture"], respond?: (route: Route) => Promise<void>, expectedReviewRejection?: number) {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
-  page.on("response", (response) => { if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`); });
+  page.on("console", (message) => {
+    if (expectedReviewRejection && message.location().url === `${origin}/fixture/flashcard-review`
+      && message.text().includes(`status of ${expectedReviewRejection}`)) return;
+    if (message.type() === "error") errors.push(message.text());
+  });
+  page.on("response", (response) => {
+    if (response.status() === expectedReviewRejection && response.url() === `${origin}/fixture/flashcard-review` && response.request().method() === "POST") return;
+    if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`);
+  });
   await page.clock.install({ time: new Date("2026-11-18T00:00:00.000Z") });
   // Pause the reading clocks. Query batches observer updates with setTimeout(0),
   // so mutation assertions below advance one millisecond at each transition.
@@ -69,6 +79,88 @@ async function settleFlashcardFront(page: Page, question: string) {
     requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
   }));
 }
+
+const deviceTargets = [
+  { platform: "android", viewport: { width: 380, height: 820 }, deviceScaleFactor: 1 },
+  { platform: "ios", viewport: { width: 402, height: 874 }, deviceScaleFactor: 3 },
+] as const;
+
+test("flashcard reference matches the device inputs", async ({ browser }, info) => {
+  test.skip(info.project.name !== "mobile-380", "The comparison captures both device extents directly.");
+  test.setTimeout(60_000);
+  const fonts = await Promise.all([["Regular", 400], ["Medium", 500], ["SemiBold", 600]].map(async ([name, weight]) => {
+    const source = await readFile(`apps/mobile-native/assets/fonts/Inter-${name}.ttf`);
+    return `@font-face{font-family:FixtureInter;src:url(data:font/ttf;base64,${source.toString("base64")}) format('truetype');font-weight:${weight}}`;
+  }));
+  const first = flashcardEvidenceCards[0];
+  for (const { platform, viewport, deviceScaleFactor } of deviceTargets) {
+    const context = await browser.newContext({ viewport, deviceScaleFactor, hasTouch: true, isMobile: true,
+      colorScheme: flashcardEvidence.theme, locale: "id-ID", timezoneId: "Asia/Jakarta", reducedMotion: "reduce" });
+    const page = await context.newPage();
+    let reply: (() => Promise<void>) | undefined;
+    const requests: unknown[] = [];
+    try {
+      const errors = await boot(page, { mode: "flashcards", deviceFlashcards: true }, async (route) => {
+        expect(route.request().url()).toBe(`${origin}/fixture/flashcard-review`);
+        expect(route.request().method()).toBe("POST");
+        requests.push(route.request().postDataJSON());
+        reply = () => route.fulfill({ status: flashcardEvidence.rejectionStatus, json: flashcardEvidence.rejection });
+      }, flashcardEvidence.rejectionStatus);
+      await page.addStyleTag({ content: fonts.join("\n") + "\n:root{--font-inter:FixtureInter,sans-serif}" });
+      await page.evaluate(async () => {
+        await Promise.all([400, 500, 600].map((weight) => document.fonts.load(`${weight} 14px FixtureInter`)));
+        await document.fonts.ready;
+      });
+      expect(await page.evaluate(() => ({ viewport: { width: innerWidth, height: innerHeight }, deviceScaleFactor: devicePixelRatio,
+        font: getComputedStyle(document.body).fontFamily.includes("FixtureInter") }))).toEqual({ viewport, deviceScaleFactor, font: true });
+      const output = info.outputPath(platform);
+      await mkdir(output, { recursive: true });
+      const captures: Record<string, string> = {};
+      async function save(state: string) {
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+        const filename = `flashcard-${state}.png`;
+        const bytes = await page.screenshot({ path: info.outputPath(platform, filename), animations: "disabled", scale: "device" });
+        captures[filename] = createHash("sha256").update(bytes).digest("hex");
+        expect(errors).toEqual([]);
+      }
+      const dock = page.locator("[data-flashcard-rating-dock]");
+      const front = page.locator('[data-flashcard-face="front"]');
+      const back = page.locator('[data-flashcard-face="back"]');
+      await expect(page.getByRole("heading", { name: `Flashcard: ${flashcardEvidence.courseTitle}` })).toHaveCount(1);
+      await expect(page.getByRole("radio", { name: "Standar" })).toBeChecked();
+      // The production Markdown component expands the inline expression into KaTeX spans.
+      const question = front.locator("p").first();
+      await expect(question).toContainText(first.front.split(" f(")[0]);
+      await expect(question.locator("math")).toHaveCount(1);
+      await expect(question).toBeVisible();
+      await expect(back).toHaveJSProperty("inert", true);
+      await expect(dock).toHaveCount(0);
+      await save("question");
+      await question.click();
+      await expect(front).toHaveJSProperty("inert", true);
+      await expect(back.getByText(first.back, { exact: true })).toBeVisible();
+      await expect(back.getByText(first.explanation!, { exact: true })).toBeVisible();
+      const grade = dock.getByRole("button", { name: "Paham", exact: true });
+      await grade.click();
+      await expect.poll(() => requests).toEqual([{ studentId: "fixture-student", courseId: flashcardEvidence.courseId,
+        flashcardId: first.id, grade: flashcardEvidence.grade, isExamMode: false }]);
+      await page.clock.runFor(1);
+      for (const button of await dock.getByRole("button").all()) await expect(button).toBeDisabled();
+      await save("review-pending");
+      await reply!();
+      const rejection = page.getByText("Ulasan kartu tidak dapat disimpan.", { exact: true });
+      await waitForFlashcardState(page, async () => await rejection.isVisible() && await grade.isEnabled());
+      await save("review-failed");
+      await expect(back.getByText(first.back, { exact: true })).toBeVisible();
+      expect(requests).toHaveLength(1);
+      await writeFile(info.outputPath(platform, "flashcard-reference.json"), JSON.stringify({
+        platform, viewport, deviceScaleFactor, ...flashcardEvidence, font: "Inter from native assets", motion: "reduced", captures,
+      }, null, 2) + "\n");
+    } finally {
+      await context.close();
+    }
+  }
+});
 
 test("flashcards keep the active card on an invalid receipt and accept one explicit retry", async ({ page }, info) => {
   const posts: Record<string, unknown>[] = [];

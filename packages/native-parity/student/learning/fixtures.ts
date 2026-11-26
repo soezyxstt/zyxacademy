@@ -1,16 +1,15 @@
 import type { AssessmentPage, AssessmentQuestion, AssessmentResult, AssessmentRow } from "../assessment/contract";
-import { learningApi, learningLiveJoinApi, learningRouteViews, liveHostPattern, PKA_PATH, type Flashcard, type LearningData, type LearningView, type PkaSchedule, type StudyPathData } from "./contracts";
+import { learningApi, learningLiveJoinApi, learningRouteViews, liveHostPattern, PKA_PATH, type LearningData, type LearningView, type PkaSchedule, type StudyPathData } from "./contracts";
+import { flashcardEvidence, flashcardEvidenceCards } from "./flashcard-fixture";
 
-export type LearningFixtureScenario = "enrolled" | "empty" | "no-enrollment" | "revoked" | "offline" | "long";
+export type LearningFixtureScenario = "enrolled" | "empty" | "no-enrollment" | "revoked" | "offline" | "long" | typeof flashcardEvidence.scenario;
 type FixtureRequest = (path: string, init?: RequestInit) => Promise<Response>;
 const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers: { "Content-Type": "application/json" } });
-const sampleCourse = "Kalkulus Dasar";
+const sampleCourse = flashcardEvidence.courseTitle;
 const pkaTitle = "Tutorial PKA";
 const longTitle = "Limit fungsi aljabar dengan pendekatan tabel nilai dan pembuktian hubungan antara pembilang dan penyebut";
 const schedule: PkaSchedule = { id: "session-1", title: "Pembahasan fungsi limit", sessionAt: "2026-07-21T08:00:00.000Z", isPast: true, meetLink: null };
 const upcoming: PkaSchedule = { id: "session-2", title: "Latihan Matematika terarah", sessionAt: "2026-07-22T08:00:00.000Z", isPast: false, meetLink: "https://meet.google.com/abc-defg-hij" };
-const card: Flashcard = { id: "card-1", front: "Kapan lim x → a f(x) ada?", back: "Ketika limit dari kiri dan kanan sama.",
-  explanation: "Nilai fungsi di a dapat berbeda dari limitnya.", dueStatus: "new", priorityReason: "Kartu baru", recallDifficulty: 2 };
 const simulation = { id: "pka-fixture-quiz", title: "Matematika, tahap satu", timeLimitSeconds: null, stage: { subject: "matematika", number: 1 } } as const;
 
 const stageAssessmentPath = `/api/native/student/assessment/tutorial-pka/quiz/${simulation.id}`;
@@ -79,8 +78,9 @@ function payload(view: LearningView, url: URL, scenario: LearningFixtureScenario
         prerequisites: empty ? [] : [{ conceptName: "Fungsi real", slug: "fungsi" }], unlocks: [], related: [],
         kosByType: empty ? {} : { definition: [{ id: "definition-1", title, content: "Limit menjelaskan nilai yang didekati fungsi saat masukan mendekati suatu titik.\n\nNilai fungsi di titik itu tidak menentukan limit." }] } } };
     }
-    case "flashcard": return { ...ready, view, cards: empty ? [] : [card, { ...card, id: "card-2", front: scenario === "long" ? longTitle : "Apa makna limit dari kiri?", back: "Nilai yang didekati dari masukan yang lebih kecil." }]
-      .filter((item) => !reviewedCards.has(item.id)) };
+    case "flashcard": return { ...ready, view, cards: empty ? [] : flashcardEvidenceCards
+      .filter((item) => !reviewedCards.has(item.id))
+      .map((item) => scenario === "long" && item.id === "card-2" ? { ...item, front: longTitle } : item) };
     case "mastery": return { ...ready, view, groups: empty ? [] : [{ chapter: { id: "chapter-1", title: "Fungsi dan limit", orderIndex: 1 },
       concepts: [{ conceptName: title, conceptSlug: "limit", masteryScore: 56, confidence: 72, trend: "improving", blockedBy: ["Fungsi real"] },
         { conceptName: "Limit sepihak", conceptSlug: "sepihak", masteryScore: null, confidence: null, trend: null, blockedBy: [] }] }] };
@@ -130,6 +130,7 @@ function scenarioPath(courseId: string): StudyPathData {
 export function createLearningFixtureRequest(scenario: LearningFixtureScenario = "enrolled"): FixtureRequest {
   const removedAnnouncements = new Set<string>();
   const reviewedCards = new Set<string>();
+  let flashcardRejectionPending = scenario === flashcardEvidence.scenario;
   const failedReads = new Set<string>();
   const stageResults = new Set([stageComplete]);
   const stageStarted = { value: false };
@@ -150,7 +151,13 @@ export function createLearningFixtureRequest(scenario: LearningFixtureScenario =
           removedAnnouncements.add(body.announcementId);
           return json({ success: true });
         }
-        if (body.action === "flashcard-review" && ["card-1", "card-2"].includes(body.flashcardId) && [1, 2, 3, 4].includes(body.grade)) {
+        if (body.action === "flashcard-review" && flashcardEvidenceCards.some(card => card.id === body.flashcardId) && [1, 2, 3, 4].includes(body.grade)) {
+          if (flashcardRejectionPending) {
+            flashcardRejectionPending = false;
+            // Leave enough time for Maestro to capture the disabled grading dock.
+            await new Promise(resolve => setTimeout(resolve, 12_000));
+            return json(flashcardEvidence.rejection, flashcardEvidence.rejectionStatus);
+          }
           reviewedCards.add(body.flashcardId);
           return json({ nextReviewDue: "2026-07-24T07:00:00.000Z", nextIntervalDays: 3, nextBox: 2 });
         }

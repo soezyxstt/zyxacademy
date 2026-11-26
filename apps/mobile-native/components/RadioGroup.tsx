@@ -1,9 +1,10 @@
 import { createContext, forwardRef, useContext, useState, type ComponentRef } from "react";
-import { Pressable, StyleSheet, View, useColorScheme, type PressableProps, type ViewProps } from "react-native";
+import { Pressable, StyleSheet, Text, View, useColorScheme, type PressableProps, type ViewProps } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 
 import { nativeColors } from "../../../packages/design-tokens/native-colors";
 import { hapticSelection } from "../device/haptics";
+import { nativeTypography } from "../typography";
 
 type RadioGroupProps = Omit<ViewProps, "accessibilityRole" | "accessible" | "role"> & {
   value?: string;
@@ -65,12 +66,14 @@ export const RadioGroup = forwardRef<ComponentRef<typeof View>, RadioGroupProps>
 
 type RadioGroupItemProps = Omit<PressableProps, "accessibilityRole" | "children" | "onAccessibilityTap" | "onPress" | "role"> & {
   value: string;
+  label?: string;
 };
 
 export const RadioGroupItem = forwardRef<ComponentRef<typeof Pressable>, RadioGroupItemProps>(function RadioGroupItem({
   accessibilityState,
   disabled,
-  hitSlop = 14,
+  hitSlop,
+  label,
   onBlur,
   onFocus,
   style,
@@ -84,15 +87,20 @@ export const RadioGroupItem = forwardRef<ComponentRef<typeof Pressable>, RadioGr
   const blocked = group.disabled || Boolean(disabled);
   const { colors } = group;
   const select = () => group.select(value);
+  const indicatorStyle = [styles.indicator, { backgroundColor: colors.background, borderColor: checked ? colors.primary : colors.input }];
+  const dot = checked && <Svg width={10} height={10} viewBox="0 0 24 24" accessible={false} pointerEvents="none">
+    <Circle cx={12} cy={12} r={10} fill={colors.primary} stroke={colors.primary} strokeWidth={2} />
+  </Svg>;
 
   return (
     <Pressable
       {...props}
       ref={ref}
+      accessibilityLabel={props.accessibilityLabel ?? label}
       accessibilityRole="radio"
       accessibilityState={{ ...accessibilityState, checked, disabled: blocked }}
       disabled={blocked}
-      hitSlop={hitSlop}
+      hitSlop={hitSlop ?? (label ? 0 : 14)}
       needsOffscreenAlphaCompositing={blocked}
       onAccessibilityTap={blocked ? undefined : select}
       onBlur={(event) => {
@@ -105,21 +113,16 @@ export const RadioGroupItem = forwardRef<ComponentRef<typeof Pressable>, RadioGr
       }}
       onPress={select}
       style={(state) => [
-        styles.item,
-        {
-          backgroundColor: colors.background,
-          borderColor: checked ? colors.primary : colors.input,
-        },
+        label ? styles.labeledItem : indicatorStyle,
         focused && !blocked && [styles.focused, { outlineColor: colors.accent }],
         blocked && styles.disabled,
         typeof style === "function" ? style(state) : style,
       ]}
     >
-      {checked && (
-        <Svg width={10} height={10} viewBox="0 0 24 24" accessible={false} pointerEvents="none">
-          <Circle cx={12} cy={12} r={10} fill={colors.primary} stroke={colors.primary} strokeWidth={2} />
-        </Svg>
-      )}
+      {label ? <>
+        <View style={indicatorStyle}>{dot}</View>
+        <Text style={[styles.label, { color: colors.foreground }]}>{label}</Text>
+      </> : dot}
     </Pressable>
   );
 });
@@ -127,7 +130,7 @@ export const RadioGroupItem = forwardRef<ComponentRef<typeof Pressable>, RadioGr
 const styles = StyleSheet.create({
   group: { gap: 8 },
   horizontal: { flexDirection: "row" },
-  item: {
+  indicator: {
     width: 16,
     height: 16,
     flexShrink: 0,
@@ -136,6 +139,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  labeledItem: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 6, minHeight: 44 },
+  label: { ...nativeTypography.bodyRegular, fontSize: 14, lineHeight: 20, includeFontPadding: false },
   focused: { outlineWidth: 2, outlineOffset: 2 },
   disabled: { opacity: 0.5 },
 });
