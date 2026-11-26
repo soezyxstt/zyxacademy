@@ -1,12 +1,14 @@
 import { useState, type ReactNode } from "react";
 import { View } from "react-native";
-import type {
-  MonitoringActions, MonitoringReader, OfflinePolicy, OfflineScope, OfflineSettings, ShortLink,
+import { setStringAsync } from "expo-clipboard";
+import {
+  MonitoringError, type MonitoringActions, type MonitoringReader, type OfflinePolicy, type OfflineScope, type OfflineSettings, type ShortLink,
 } from "../../../../../packages/native-parity/operations/monitoring-contract";
 import { Input } from "../../../components/Input";
 import { Switch } from "../../../components/Switch";
 import { ActionRow, Body, Control, Dialog, List, Options, ReadState, Section, styles, useMonitoringRead, useMonitoringUi } from "./ui";
 import { useMonitoringAction } from "./mutation";
+import { ShortLinkQr } from "./link-qr";
 
 type ActionProps = { reader: MonitoringReader; actions?: MonitoringActions };
 export type LinkCapabilities = {
@@ -26,7 +28,13 @@ export function ShortLinksScreen({ reader, actions, links }: ActionProps & { lin
   const [copied, setCopied] = useState<string>();
   const mutation = useMonitoringAction();
   const copying = useMonitoringAction();
+  const slugConflict = mutation.error instanceof MonitoringError && mutation.error.status === 409;
   const shortUrl = (link: ShortLink) => `${links?.origin.replace(/\/$/, "") ?? ""}/s/${encodeURIComponent(link.slug)}`;
+
+  async function copy(url: string) {
+    if (links?.copy) await links.copy(url);
+    else if (!(await setStringAsync(url))) throw new Error("Clipboard unavailable");
+  }
 
   async function submit() {
     let destination: URL;
@@ -62,7 +70,9 @@ export function ShortLinksScreen({ reader, actions, links }: ActionProps & { lin
       <Body strong>{t("Slug khusus", "Custom slug")}</Body>
       <Input theme={theme} accessibilityLabel={t("Slug khusus", "Custom slug")} value={slug} onChangeText={setSlug} autoCapitalize="none" maxLength={100} />
       {formError && <View accessibilityRole="alert"><Body error>{formError}</Body></View>}
-      <ReadState error={mutation.error} message={t("Tautan belum terkonfirmasi. Periksa daftar sebelum mencoba lagi.", "Link creation is unconfirmed. Check the list before trying again.")} />
+      <ReadState error={mutation.error} message={slugConflict
+        ? t("Slug sudah digunakan. Pilih slug lain.", "This slug is already in use. Choose another.")
+        : t("Tautan belum terkonfirmasi. Periksa daftar sebelum mencoba lagi.", "Link creation is unconfirmed. Check the list before trying again.")} />
       <View style={styles.actions}>
         <Control primary label={t("Buat tautan", "Create link")} onPress={() => { void submit(); }}
           busy={mutation.busy} disabled={!url.trim()} />
@@ -74,14 +84,15 @@ export function ShortLinksScreen({ reader, actions, links }: ActionProps & { lin
       <List>{view.data.map(link => <Section key={link.id}>
         <ActionRow label={link.title || `/s/${link.slug}`}
           detail={`${link.title ? `/s/${link.slug} · ` : ""}${link.url} · ${t(`${n(link.clicks)} klik`, `${n(link.clicks)} clicks`)} · ${date(link.createdAt, true)}`} />
-        <View style={styles.actions}>
-          {links?.copy && <Control label={t("Salin tautan", "Copy link")} disabled={copying.busy}
-            onPress={async () => { if (await copying.run(() => links.copy!(shortUrl(link)))) setCopied(`/s/${link.slug}`); }} />}
-          {links?.renderQr && <Control label={t("Kode QR", "QR code")} onPress={() => setQr(link)} />}
-        </View>
+        {links && <View style={styles.actions}>
+          <Control label={t("Salin tautan", "Copy link")} disabled={copying.busy}
+            onPress={async () => { if (await copying.run(() => copy(shortUrl(link)))) setCopied(`/s/${link.slug}`); }} />
+          <Control label={t("Kode QR", "QR code")} onPress={() => setQr(link)} />
+        </View>}
       </Section>)}</List> : <Body muted>{t("Belum ada tautan singkat.", "No short links yet.")}</Body>}
-    {qr && <Dialog title={qr.title ?? t("Kode QR", "QR code")} visible onClose={() => setQr(undefined)}>
-      {links?.renderQr?.(shortUrl(qr))}
+    {qr && <Dialog title={t(`Kode QR untuk /s/${qr.slug}`, `QR code for /s/${qr.slug}`)} visible onClose={() => setQr(undefined)}>
+      {links?.renderQr?.(shortUrl(qr)) ?? <ShortLinkQr url={shortUrl(qr)} fileName={`qrcode-${qr.id.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 100)}.png`}
+        label={t("Kode QR tautan", "Link QR code")} />}
       <Body muted>{shortUrl(qr)}</Body>
     </Dialog>}
   </>;

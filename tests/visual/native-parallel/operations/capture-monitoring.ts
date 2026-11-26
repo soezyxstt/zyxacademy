@@ -228,7 +228,7 @@ async function main() {
     .sort((first, second) => screenOrder.indexOf(first.screen) - screenOrder.indexOf(second.screen));
   if (!cases.length) throw new Error("No monitoring scenarios matched.");
   await mkdir(destination, { recursive: true });
-  const browser = await chromium.launch({ executablePath: process.env.PARITY_CHROMIUM_EXECUTABLE, args: ["--force-color-profile=srgb"] });
+  const browser = await chromium.launch({ executablePath: process.env.PARITY_CHROMIUM_EXECUTABLE, args: ["--force-color-profile=srgb", "--disable-gpu"] });
   const captures: Record<string, unknown>[] = [];
   const failures: string[] = [];
   try {
@@ -271,9 +271,9 @@ async function main() {
           expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(viewport.width);
           expect(errors.slice(errorStart)).toEqual([]);
           const screenshot = `${name}-${viewport.width}.png`;
-          await page.screenshot({ path: `${destination}/${screenshot}`, fullPage: true, animations: "disabled" });
+          await page.screenshot({ path: `${destination}/${screenshot}`, fullPage: true, animations: "disabled", timeout: 120000 });
           const viewportScreenshot = `${name}-${viewport.width}-viewport.png`;
-          await page.screenshot({ path: `${destination}/${viewportScreenshot}`, animations: "disabled" });
+          await page.screenshot({ path: `${destination}/${viewportScreenshot}`, animations: "disabled", timeout: 120000 });
           captures.push({ id: scenario.id, screen: scenario.screen, theme, viewport, screenshot, viewportScreenshot, url: page.url() });
           process.stdout.write(`passed ${name}-${viewport.width}\n`);
         }

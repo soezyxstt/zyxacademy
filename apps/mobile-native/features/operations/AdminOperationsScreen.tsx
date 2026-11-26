@@ -42,7 +42,7 @@ export function AdminOperationsScreen(props: AdminOperationsScreenProps) {
       return <EvaluationScreen {...props.evaluation} href={href} navigate={navigate} accountKey={key}
         request={clients.evaluation} locale={context.locale} theme={theme} />;
     case "monitoring":
-      return <MonitoringScreen links={props.monitoring?.links} href={href} onNavigate={navigate} sessionKey={key}
+      return <MonitoringScreen links={{ origin: session.scope.origin, ...props.monitoring?.links }} href={href} onNavigate={navigate} sessionKey={key}
         access="allowed" reader={clients.monitoring} actions={{ ...clients.actions, ...props.monitoring?.actions }}
         locale={context.locale} theme={theme} />;
     default:

@@ -59,7 +59,7 @@ function FixtureSession({ id, path, mode, locale, theme }: Session) {
     />;
   } else if (!external && area === "monitoring") {
     screen = <MonitoringScreen href={href} access={mode === "denied" ? "denied" : "allowed"} sessionKey="operations-local"
-      {...monitoring} theme={theme} locale={locale} onNavigate={navigate} />;
+      links={{ origin: "https://example.invalid" }} {...monitoring} theme={theme} locale={locale} onNavigate={navigate} />;
   } else if (!external && area === "evaluation") {
     screen = <EvaluationScreen href={href} accountKey="operations-local" request={evaluation}
       theme={theme} locale={locale} navigate={navigate} />;
