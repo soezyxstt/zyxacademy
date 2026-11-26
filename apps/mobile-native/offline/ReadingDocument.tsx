@@ -2,7 +2,7 @@ import { useMemo, type ComponentProps } from "react";
 import { Text, View, useColorScheme } from "react-native";
 import { WebView } from "react-native-webview";
 import { nativeColors } from "../../../packages/design-tokens/native-colors";
-import { buildReadingContentHtml, savedReadingContent, type ReadingContent, type ReadingDocumentProps } from "./reading-document";
+import { buildReadingContentHtml, readerCodingAction, savedReadingContent, type ReadingContent, type ReadingDocumentProps } from "./reading-document";
 import { readingKatexCss } from "./reading-katex.generated";
 
 import { useNativeAppearance } from "../device/appearance";
@@ -18,16 +18,17 @@ export function ReadingDocument(props: ReadingDocumentProps) {
   return <ReadingContentDocument key={JSON.stringify([saved.summary.key, saved.summary.revision, section])} content={content} />;
 }
 
-export function ReadingContentDocument({ content, testID = "offline-reading-document", onProgress }: {
+export function ReadingContentDocument({ content, testID = "offline-reading-document", onProgress, codingActions, onCodingAction }: {
   content: ReadingContent; testID?: string; onProgress?: (percent: number) => void;
+  codingActions?: ReadonlyMap<string, string>; onCodingAction?: (id: string) => void;
 }) {
   const { title, locale } = content;
   const theme = useColorScheme() === "dark" ? "dark" : "light";
   const { fontSize, density } = useNativeAppearance();
   const html = useMemo(() => {
-    try { return buildReadingContentHtml(content, readingKatexCss, theme, { fontSize, density }); }
+    try { return buildReadingContentHtml(content, readingKatexCss, theme, { fontSize, density }, codingActions); }
     catch { return null; }
-  }, [content, theme, fontSize, density]);
+  }, [content, theme, fontSize, density, codingActions]);
   const source = useMemo(() => html ? { html, baseUrl: initialPage } : undefined, [html]);
   const unavailable = () => <View style={{ flex: 1, padding: 16 }}>
     <Text accessibilityRole="alert" style={{ color: nativeColors[theme].foreground }}>
@@ -47,7 +48,12 @@ export function ReadingContentDocument({ content, testID = "offline-reading-docu
     style={{ flex: 1, backgroundColor: nativeColors[theme].background }}
     source={source}
     originWhitelist={["*"]}
-    onShouldStartLoadWithRequest={request => request.url === initialPage}
+    onShouldStartLoadWithRequest={request => {
+      if (request.url === initialPage) return true;
+      const action = readerCodingAction(request.url, codingActions);
+      if (action !== undefined) onCodingAction?.(action);
+      return false;
+    }}
     onScroll={scroll}
     javaScriptEnabled={false}
     domStorageEnabled={false}

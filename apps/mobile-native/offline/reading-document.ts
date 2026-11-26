@@ -47,6 +47,7 @@ const styles = `
   pre, blockquote { padding: .75em; }
   .offline-worked-example { padding-inline-start: .85em; border-inline-start: 1px solid var(--line); }
   .offline-math-block { display: block; }
+  .reader-coding-action { display: inline-block; color: var(--text); min-height: 44px; line-height: 1.4; padding: 11px 10px; border: 1px solid var(--line); border-radius: 8px; margin-bottom: .75rem; }
 `;
 
 function base64(bytes: Uint8Array) {
@@ -92,15 +93,31 @@ export function buildReadingDocumentHtml(props: ReadingDocumentProps, katexCss: 
   return buildReadingContentHtml(savedReadingContent(props), katexCss, theme);
 }
 
+const codingActionBase = "https://reader.invalid/coding/";
+function codingActionUrl(id: string) { return codingActionBase + encodeURIComponent(id); }
+
+export function readerCodingAction(url: string, approved?: ReadonlyMap<string, string>): string | undefined {
+  if (!approved || !url.startsWith(codingActionBase) || url.length > 2048) return;
+  try {
+    const id = decodeURIComponent(url.slice(codingActionBase.length));
+    if (approved.has(id) && codingActionUrl(id) === url) return id;
+  } catch { return; }
+}
+
 export function buildReadingContentHtml({ data, kind, title, locale, resolveImage, section }: ReadingContent, katexCss: string, theme: keyof typeof nativeColors,
-  appearance: Pick<AppearancePreferences, "fontSize" | "density"> = DEFAULT_APPEARANCE_PREFERENCES) {
+  appearance: Pick<AppearancePreferences, "fontSize" | "density"> = DEFAULT_APPEARANCE_PREFERENCES,
+  codingActions?: ReadonlyMap<string, string>) {
   const options = { allowLinks: false, resolveImage };
   const article = kind === "article" && "sections" in data
     ? data as unknown as Pick<PublicArticleReadModel, "sections" | "visuals"> : undefined;
   const diktat = kind === "diktat" && typeof data.body === "string" ? data.body : undefined;
+  const renderCodingAction = codingActions && ((id: string) => {
+    const label = codingActions.get(id);
+    return label ? `<a class="reader-coding-action" href="${escapeHtml(codingActionUrl(id))}">${escapeHtml(label)}</a>` : "";
+  });
   const sections = buildOfflineReadingSections({
     kind: article ? "structured_article" : "course_material", article, material: { body: diktat }, locale,
-  }, options, section);
+  }, options, section, renderCodingAction);
   if (!sections.length) return null;
   const content = sections.map(({ headingHtml, bodyHtml }) =>
     `<section>${headingHtml ? `<h2>${headingHtml}</h2>` : ""}${bodyHtml ?? ""}</section>`).join("");

@@ -58,6 +58,16 @@ export function ReadingStudy({ content, courseId, request, session, theme, draft
     ? content.data.sections.find(section => section.id === active.id) : undefined;
   const codingParts = useMemo(() => sectionCodingParts(codingSection?.blocks ?? [], codingSection?.id), [codingSection]);
   const canUseNativeCoding = content.codingMode === "native" && Boolean(session.sessionId);
+  const codingList = canUseNativeCoding ? codingParts.filter(item => item.namespace) : codingParts;
+  const codingActions = useMemo(() => canUseNativeCoding ? new Map<string, string>(codingParts.filter(item => !item.namespace).map(item => [
+    item.part.id, item.part.kind === "coding_exercise" ? id ? "Buka latihan Python" : "Open Python exercise"
+      : id ? "Jalankan contoh Python" : "Run Python example",
+  ])) : undefined, [canUseNativeCoding, codingParts, id]);
+  function openCoding(partId: string) {
+    if (busy || showCoding || !canUseNativeCoding || !canInteract()) return;
+    const selectedPart = codingParts.find(item => item.part.id === partId);
+    if (selectedPart) { setCoding(selectedPart); setShowCoding(true); }
+  }
   const sectionProgress = progress && "sectionProgress" in progress ? progress.sectionProgress : {};
   const completed = progress && ("status" in progress ? progress.status === "completed"
     : sections.length > 0 && sections.every(section => sectionProgress[section.id]?.completed));
@@ -177,7 +187,8 @@ export function ReadingStudy({ content, courseId, request, session, theme, draft
         onPress={() => move(page + 1)}>{id ? "Bagian berikutnya" : "Next section"}</Button>
     </View>}
     {error !== "stale" ? <ReadingContentDocument key={active?.id ?? unstructuredSection ?? content.data.id} content={selectedContent}
-      testID="student-online-reading-document" onProgress={active ? scroll : undefined} /> : <View style={{ flex: 1 }} />}
+      testID="student-online-reading-document" onProgress={active ? scroll : undefined}
+      codingActions={codingActions} onCodingAction={openCoding} /> : <View style={{ flex: 1 }} />}
     <View style={{ gap: 6, padding: 8, borderTopWidth: 1, borderColor: colors.border }}>
       {error && <Text accessibilityRole="alert" style={{ color: colors.destructive }}>{error === "stale"
         ? id ? "Bacaan atau akses berubah. Muat ulang." : "The reading or access changed. Reload."
@@ -190,7 +201,7 @@ export function ReadingStudy({ content, courseId, request, session, theme, draft
             if (content.structured) select(sections.find(section => section.id === item.id));
             else if (item.slug) setUnstructuredSection(item.slug);
           }} />}
-          {codingParts.length > 0 && (canUseNativeCoding || openWeb) && <Button theme={theme} variant="outline" disabled={busy}
+          {codingList.length > 0 && (canUseNativeCoding || openWeb) && <Button theme={theme} variant="outline" disabled={busy}
             testID="student-reading-open-coding" onPress={() => {
               if (canInteract()) { if (canUseNativeCoding) setShowCoding(true); else openWeb?.(); }
             }}>{canUseNativeCoding ? "Python" : id ? "Buka Python di web" : "Open Python on the web"}</Button>}
@@ -210,10 +221,10 @@ export function ReadingStudy({ content, courseId, request, session, theme, draft
         {coding ? <ArticleCoding key={coding.part.id} item={coding} courseId={courseId} articleId={content.data.id}
           version={content.data.version} scope={{ materialId: content.data.id, sectionId: codingSection.id,
             partId: coding.part.id, revision: content.revision }} request={request} session={session} drafts={drafts} theme={theme}
-          close={() => setCoding(undefined)} />
+          close={() => { setCoding(undefined); setShowCoding(false); }} />
           : <ScrollView contentContainerStyle={{ padding: 12, gap: 8 }}>
             <Button theme={theme} variant="outline" onPress={() => setShowCoding(false)}>{id ? "Kembali ke bacaan" : "Back to reading"}</Button>
-            {codingParts.map((item, index) => <Button key={item.part.id} theme={theme} variant="outline"
+            {codingList.map((item, index) => <Button key={item.part.id} theme={theme} variant="outline"
               onPress={() => { if (canInteract()) setCoding(item); }}>
               {`${item.title ? item.title + " · " : ""}${item.part.kind === "code_example" ? id ? "Contoh" : "Example" : id ? "Latihan" : "Exercise"} ${index + 1}`}
             </Button>)}

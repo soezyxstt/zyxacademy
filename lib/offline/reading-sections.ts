@@ -48,7 +48,8 @@ type ReadingSource = {
 };
 
 /** Shared by the browser, Capacitor snapshot and Expo's local-only reading surface. */
-export function buildOfflineReadingSections(record: ReadingSource, options?: OfflineRenderOptions, section?: string): NativeOfflineSection[] {
+export function buildOfflineReadingSections(record: ReadingSource, options?: OfflineRenderOptions, section?: string,
+  renderCodingAction?: (partId: string) => string): NativeOfflineSection[] {
   const markdown = (value: string) => renderOfflineMarkdownHtml(value, options);
   const visualHtml = (visual: PublicVisualSpec) => renderOfflineVisualHtml(visual, options);
   const sections: NativeOfflineSection[] = [];
@@ -124,8 +125,10 @@ export function buildOfflineReadingSections(record: ReadingSource, options?: Off
               htmlParts.push(markdown(part.verificationMarkdown));
             } else if (part.kind === "code_example") {
               htmlParts.push(`<pre><code>${escapeHtml(part.code)}</code></pre>`);
+              if (part.runnable && renderCodingAction) htmlParts.push(renderCodingAction(part.id));
             } else if (part.kind === "coding_exercise") {
-              htmlParts.push(markdown(record.locale === "en" ? "Coding practice requires a connection." : "Latihan kode perlu koneksi."));
+              htmlParts.push(renderCodingAction?.(part.id) ||
+                markdown(record.locale === "en" ? "Coding practice requires a connection." : "Latihan kode perlu koneksi."));
             } else if ("content" in part && typeof part.content === "string") {
               const cleanedPart = cleanOfflineMarkdown(part.content);
               if (cleanedPart) {

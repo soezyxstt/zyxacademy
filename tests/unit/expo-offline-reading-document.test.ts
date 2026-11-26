@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { createRequire } from "node:module";
 import { dirname } from "node:path";
-import { buildReadingContentHtml, buildReadingDocumentHtml, savedReadingContent } from "../../apps/mobile-native/offline/reading-document";
+import { buildReadingContentHtml, buildReadingDocumentHtml, readerCodingAction, savedReadingContent } from "../../apps/mobile-native/offline/reading-document";
 import type { OfflineReadingArticle, OfflineReadingPackage, OfflineReadingSummary } from "../../apps/mobile-native/offline/reading-contract";
 import { buildReadingKatexCss } from "../../apps/mobile-native/offline/prepare-reading-katex.cjs";
 import type { PublicArticleReadModel } from "../../lib/articles/structured-read-model";
@@ -133,4 +133,28 @@ test("the generated document permits only inline styles, local images and local 
   }
   expect(wrapper).toContain('const initialPage = "about:blank"');
   expect(wrapper).toContain("request.url === initialPage");
+});
+
+test("only authorized local typed parts can open a native coding workspace from the inert reader", () => {
+  const data: OfflineReadingArticle = { ...identity, chapterId: "chapter", version: 3, sections: [{
+    ...section, blocks: [{ ...block, parts: [
+      { id: "exercise-1", kind: "coding_exercise", problem: { problemId: "exercise", version: 1 } },
+      { id: "static", kind: "code_example", language: "python", runnable: false, code: "print(1)" },
+      { id: "other", kind: "markdown", markdown: "[Pretend action](https://reader.invalid/coding/hidden)" },
+    ] }],
+  }] };
+  const saved: OfflineReadingPackage = { summary, data, assets: [] };
+  const actions = new Map([["exercise-1", "Open <practice>"], ["static", "Should stay static"]]);
+  const online = buildReadingContentHtml(savedReadingContent({ saved, locale: "en" }), katexCss, "light", undefined, actions);
+  expect(online).toContain('href="https://reader.invalid/coding/exercise-1">Open &lt;practice&gt;');
+  expect(online).not.toContain('href="https://reader.invalid/coding/hidden"');
+  expect(online).not.toContain('href="https://reader.invalid/coding/static"');
+  expect(online).toContain("script-src 'none'; connect-src 'none'");
+  expect(buildReadingDocumentHtml({ saved, locale: "en" }, katexCss)).not.toContain('href="https://reader.invalid/coding/exercise-1"');
+  expect(readerCodingAction("https://reader.invalid/coding/exercise-1", actions)).toBe("exercise-1");
+  for (const url of ["https://reader.invalid/coding/hidden", "https://reader.invalid/coding/exercise-1?branch=other",
+    "https://reader.invalid/coding/%65xercise-1", "https://reader.invalid.evil/coding/exercise-1"]) {
+    expect(readerCodingAction(url, actions)).toBeUndefined();
+  }
+  expect(readerCodingAction("https://reader.invalid/coding/exercise-1")).toBeUndefined();
 });
