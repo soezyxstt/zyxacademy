@@ -6,6 +6,7 @@ import { SafeAreaProvider, initialWindowMetrics } from "react-native-safe-area-c
 import { NativeSessionProvider } from "../auth/session-provider";
 import { NATIVE_STAGING_ORIGIN } from "../auth/session-api";
 import { NotificationsProvider } from "../device/notifications-provider";
+import { OfflineMetadataProvider } from "../offline/lifecycle-provider";
 import { nativeFontSources } from "../typography";
 
 export default function RootLayout() {
@@ -21,7 +22,9 @@ export default function RootLayout() {
       <StatusBar style="auto" />
       <NativeSessionProvider origin={NATIVE_STAGING_ORIGIN}>
         <NotificationsProvider>
-          <Stack screenOptions={{ headerShown: false, animation: "none" }} />
+          <OfflineMetadataProvider>
+            <Stack screenOptions={{ headerShown: false, animation: "none" }} />
+          </OfflineMetadataProvider>
         </NotificationsProvider>
       </NativeSessionProvider>
     </SafeAreaProvider>

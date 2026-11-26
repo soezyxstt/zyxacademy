@@ -1,3 +1,5 @@
+import { Platform, type TextStyle } from "react-native";
+
 const interRegular = "Inter-Regular";
 const interMedium = "Inter-Medium";
 const interSemibold = "Inter-SemiBold";
@@ -16,3 +18,8 @@ export const nativeTypography = {
   bodySemibold: { fontFamily: interSemibold, fontWeight: "600" },
   headingBold: { fontFamily: lexendBold, fontWeight: "700" },
 } as const;
+
+// Android rounds the centered Inter line down by one pixel relative to CSS.
+export const nativeControlLabelPosition = Platform.select<TextStyle>({
+  android: { transform: [{ translateY: -1 }] },
+});
