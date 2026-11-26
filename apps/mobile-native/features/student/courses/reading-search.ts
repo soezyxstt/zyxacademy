@@ -1,8 +1,9 @@
 import { articlePartSearchEntries, articlePartSchema } from "../../../../../lib/materials/article-parts";
 import { parseArticleSections } from "../../../../../lib/materials/reader-markdown-sections";
+import type { ReaderFocus } from "../../../../../lib/offline/reading-sections";
 import type { OnlineReadingContent } from "./online-reading";
 
-export type ReadingSearchTarget = { sectionId: string; blockId: string; partId?: string };
+export type ReadingSearchTarget = ReaderFocus;
 type ReadingSearchText = { text: string; target?: ReadingSearchTarget };
 export type ReadingNavigationItem = { id: string; slug: string; title: string; text: string; chunks?: ReadingSearchText[] };
 const clean = (value: string) => value.replace(/<!--[\s\S]*?-->/g, "").replace(/\s+/g, " ").trim();
@@ -29,7 +30,9 @@ export function readingNavigationItems(content: OnlineReadingContent): ReadingNa
       if (parts.length) {
         for (const part of parts) {
           for (const entry of articlePartSearchEntries([part])) {
-            chunks.push({ text: entry.text, target: { ...target, partId: part.id } });
+            chunks.push({ text: entry.text, target: { ...target, partId: part.id,
+              ...(entry.id !== part.id ? { elementId: entry.id } : {}),
+            } });
           }
         }
       } else if (typeof block.content === "string") chunks.push({ text: block.content, target });
@@ -45,13 +48,14 @@ export function findReadingSections(items: readonly ReadingNavigationItem[], que
   const target = compare(query);
   if (target.length < 2) return items.map(item => ({ ...item, snippet: "" }));
   return items.flatMap(item => {
-    const chunk = item.chunks?.find(entry => compare(entry.text).includes(target));
-    if (item.chunks && !chunk) return [];
-    const offset = compare(item.text).indexOf(target);
-    if (offset < 0) return [];
+    const chunk = (item.chunks ?? [{ text: item.text }]).find(entry => compare(entry.text).includes(target));
+    if (!chunk) return [];
+    const text = clean(chunk.text);
+    const offset = compare(text).indexOf(target);
     const start = Math.max(0, offset - 45);
-    const end = Math.min(item.text.length, offset + target.length + 65);
-    return [{ ...item, target: chunk?.target, snippet: (start ? "…" : "") + item.text.slice(start, end) + (end < item.text.length ? "…" : "") }];
+    const end = Math.min(text.length, offset + target.length + 65);
+    return [{ ...item, target: chunk.target,
+      snippet: (start ? "…" : "") + text.slice(start, end) + (end < text.length ? "…" : "") }];
   });
 }
 

@@ -15,6 +15,17 @@ name: Student reads a published Article and registered PKA Diktat
     timeout: 30000
 - assertVisible:
     id: student-native-reading-screen
+- tapOn:
+    id: student-reader-open-outline
+- tapOn:
+    id: student-reader-query
+- inputText: Rumus luas
+- hideKeyboard
+- tapOn:
+    id: student-reader-result-native-preview-reading-article-section
+- extendedWaitUntil:
+    visible: ".*Rumus luas.*"
+    timeout: 15000
 - tapOn: "(Kembali|Back)"
 - openLink: "zyx-native-parity://courses/tutorial-pka/material/native-preview-reading-pka-diktat"
 - extendedWaitUntil:

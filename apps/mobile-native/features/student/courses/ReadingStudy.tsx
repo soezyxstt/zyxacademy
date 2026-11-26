@@ -203,7 +203,7 @@ export function ReadingStudy({ content, courseId, request, session, theme, draft
       <Button theme={theme} variant="outline" disabled={busy || page >= pageCount - 1}
         onPress={() => move(page + 1)}>{id ? "Bagian berikutnya" : "Next section"}</Button>
     </View>}
-    {searchNotice && error !== "stale" && <Text accessibilityLiveRegion="polite" style={{ color: colors.foreground, paddingHorizontal: 8 }}>
+    {searchNotice && error !== "stale" && <Text testID="student-reader-search-notice" accessibilityLiveRegion="polite" style={{ color: colors.foreground, paddingHorizontal: 8 }}>
       {id ? "Hasil untuk " : "Result for "}{searchNotice.query}
     </Text>}
     {error !== "stale" ? <ReadingContentDocument key={JSON.stringify([active?.id ?? unstructuredSection ?? content.data.id, readerVisit])}

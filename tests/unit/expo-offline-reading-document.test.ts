@@ -197,11 +197,14 @@ test("authorized Markdown control follows its exact Python fence, including a ne
   expect(buildReadingDocumentHtml({ saved, locale: "en" }, katexCss)?.split("<main>")[1]).not.toContain("Run example 1");
 });
 
-test("a signed Article result anchors only its admitted target and leaves offline copies inert", () => {
+test("a signed Article result anchors an exact admitted part or worked step and leaves offline copies inert", () => {
   const saved: OfflineReadingPackage = { summary, data: { ...identity, chapterId: "chapter", version: 4, sections: [{
     ...section, blocks: [{ ...block, parts: [
       { id: "lead", kind: "markdown", markdown: "Earlier passage" },
       { id: "target", kind: "markdown", markdown: "Matched passage" },
+      { id: "worked", kind: "worked_example", title: "Step by step", problemMarkdown: "Problem text", verificationMarkdown: "Finish",
+        steps: [{ id: "step", operationMarkdown: "Matching operation", reasonMarkdown: "Reasoning",
+          sourceElementRefs: ["target"], parts: [{ id: "detail", kind: "markdown", markdown: "Matching detail" }] }] },
     ] }],
   }] }, assets: [] };
   const props = { saved, locale: "en" as const, section: section.slug };
@@ -210,6 +213,11 @@ test("a signed Article result anchors only its admitted target and leaves offlin
   const focused = buildReadingContentHtml(content, "", "light", undefined, undefined, undefined, focus);
   expect(focused).toContain('<div id="reading-search-result"><p>Matched passage</p>');
   expect(focused).not.toContain('<div id="reading-search-result"><p>Earlier passage</p>');
+  const step = { ...focus, partId: "worked", elementId: "step" };
+  expect(buildReadingContentHtml(content, "", "light", undefined, undefined, undefined, step))
+    .toContain('<div id="reading-search-result"><p>Matching operation</p>');
+  expect(buildReadingContentHtml(content, "", "light", undefined, undefined, undefined, { ...step, elementId: "detail" }))
+    .toContain('<div id="reading-search-result"><p>Matching detail</p>');
   const stale = buildReadingContentHtml(content, "", "light", undefined, undefined, undefined, { ...focus, sectionId: "retired" });
   expect(stale).not.toContain('id="reading-search-result"');
   expect(buildReadingDocumentHtml(props, "")).not.toContain('id="reading-search-result"');

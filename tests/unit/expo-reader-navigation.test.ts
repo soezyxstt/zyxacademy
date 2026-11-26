@@ -39,13 +39,22 @@ test("native reader search only uses authored title, body and public parts", () 
     data: { id: "id", courseId: "course", chapterId: "chapter", title: "Flux", version: 1, sections: [
       { id: "s1", slug: "first", title: "Part one", blocks: [{
         id: "b1", content: "fallback", blockType: "text", formativeCheck: { answer: "private-answer" },
-        parts: [{ id: "p1", kind: "markdown", markdown: "Visible flux text <!-- hidden reference -->" }],
+        parts: [
+          { id: "p1", kind: "markdown", markdown: "Visible flux text <!-- hidden reference -->" },
+          { id: "work", kind: "worked_example", title: "Calculation", problemMarkdown: "Calculate a quantity", verificationMarkdown: "Compare the result",
+            steps: [{ id: "step", operationMarkdown: "Find the flux", reasonMarkdown: "Use this equation", sourceElementRefs: ["p1"], parts: [{ id: "leaf", kind: "markdown", markdown: "Another line" }] }] },
+        ],
       }] },
       { id: "s2", slug: "second", title: "Gradient", blocks: [{ id: "b2", blockType: "text", content: "Second part" }] },
     ] },
   };
   const entries = readingNavigationItems(content);
-  expect(findReadingSections(entries, " FLUX ")).toMatchObject([{ id: "s1", slug: "first", snippet: "Part one Visible flux text", target: { sectionId: "s1", blockId: "b1", partId: "p1" } }]);
+  expect(findReadingSections(entries, " FLUX ")).toMatchObject([
+    { id: "s1", slug: "first", snippet: "Visible flux text", target: { sectionId: "s1", blockId: "b1", partId: "p1" } },
+  ]);
+  expect(findReadingSections(entries, "Use this equation")).toMatchObject([
+    { id: "s1", slug: "first", snippet: "Find the flux Use this equation", target: { sectionId: "s1", blockId: "b1", partId: "work", elementId: "step" } },
+  ]);
   expect(findReadingSections(entries, "one visible")).toEqual([]);
   expect(findReadingSections(entries, "Second part")[0].target).toEqual({ sectionId: "s2", blockId: "b2" });
   expect(findReadingSections(entries, "private-answer")).toEqual([]);

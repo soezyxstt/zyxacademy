@@ -53,7 +53,7 @@ type ReadingSource = {
 };
 
 export type ReadingVisualLocation = Pick<ArticleField, "sectionId" | "blockId" | "partId" | "field">;
-export type ReaderFocus = { sectionId: string; blockId: string; partId?: string };
+export type ReaderFocus = { sectionId: string; blockId: string; partId?: string; elementId?: string };
 export const readingFocusAnchor = "reading-search-result";
 export type RenderReadingVisualAction = (spec: InteractiveDocumentSpec, location: ReadingVisualLocation) => string;
 
@@ -77,12 +77,13 @@ export function buildOfflineReadingSections(record: ReadingSource, options?: Off
   const sections: NativeOfflineSection[] = [];
   let focused = false;
   function anchor(parts: string[], start: number) {
+    if (start === parts.length) return;
     const html = parts.splice(start).join("\n");
     parts.push(`<div id="${readingFocusAnchor}">${html}</div>`);
     focused = true;
   }
 
-  function renderMathUnit(part: Extract<ArticlePart, { kind: "math_unit" }>) {
+  function renderMathUnit(part: Extract<ArticlePart, { kind: "math_unit" }>, match?: string) {
     const rows = part.relations ?? [];
     const cases = articleCaseLatex(part);
     return [
@@ -91,11 +92,15 @@ export function buildOfflineReadingSections(record: ReadingSource, options?: Off
         symbol.conditionsMarkdown ? markdown(symbol.conditionsMarkdown) : "",
       ]),
       renderOfflineMath(cases ?? part.latex ?? "", true),
-      ...rows.flatMap(row => [
-        cases ? "" : renderOfflineMath(row.latex, true),
-        row.conditionLatex && !cases ? renderOfflineMath(row.conditionLatex) : "",
-        markdown(row.meaningMarkdown), row.conditionsMarkdown ? markdown(row.conditionsMarkdown) : "",
-      ]),
+      ...rows.flatMap(row => {
+        const rendered = [
+          cases ? "" : renderOfflineMath(row.latex, true),
+          row.conditionLatex && !cases ? renderOfflineMath(row.conditionLatex) : "",
+          markdown(row.meaningMarkdown), row.conditionsMarkdown ? markdown(row.conditionsMarkdown) : "",
+        ];
+        if (row.id === match && !focused) anchor(rendered, 0);
+        return rendered;
+      }),
       markdown(part.meaningMarkdown), part.conditionsMarkdown ? markdown(part.conditionsMarkdown) : "",
     ].join("\n");
   }
@@ -138,6 +143,8 @@ export function buildOfflineReadingSections(record: ReadingSource, options?: Off
         if (block.parts?.length) {
           for (const part of block.parts) {
             const partStart = htmlParts.length;
+            const targetPart = targetBlock && focus?.partId === part.id;
+            const elementId = targetPart ? focus?.elementId : undefined;
             if (part.kind === "visual_ref") {
               const vis = visualMap.get(part.visualId);
               if (vis) {
@@ -145,21 +152,25 @@ export function buildOfflineReadingSections(record: ReadingSource, options?: Off
                 htmlParts.push(visualHtml(vis, { sectionId: sec.id, blockId: block.id, partId: part.id, field: "visual_ref" }));
               }
             } else if (part.kind === "math_unit") {
-              htmlParts.push(renderMathUnit(part));
+              htmlParts.push(renderMathUnit(part, elementId));
             } else if (part.kind === "worked_example") {
               const exampleScope = appendArticleMarkdownScope(sourceScope, part.id);
               htmlParts.push(markdown(`### ${part.title}`), scopedMarkdown(part.problemMarkdown, appendArticleMarkdownScope(exampleScope, "problem")));
               for (const step of part.steps) {
+                const stepStart = htmlParts.length;
                 const stepScope = appendArticleMarkdownScope(exampleScope, `step:${step.id}`);
                 htmlParts.push(scopedMarkdown(step.operationMarkdown, appendArticleMarkdownScope(exampleScope, `step:${step.id}:operation`)),
                   scopedMarkdown(step.reasonMarkdown, appendArticleMarkdownScope(exampleScope, `step:${step.id}:reason`)));
                 if (step.conditionsMarkdown) htmlParts.push(scopedMarkdown(step.conditionsMarkdown, appendArticleMarkdownScope(exampleScope, `step:${step.id}:conditions`)));
                 for (const leaf of step.parts) {
+                  const leafStart = htmlParts.length;
                   if (leaf.kind === "markdown") htmlParts.push(locatedMarkdown(leaf.markdown,
                     { sectionId: sec.id, blockId: block.id, partId: leaf.id, field: "markdown" }, typedArticleMarkdownScope(stepScope, leaf.id)));
-                  if (leaf.kind === "math_unit") htmlParts.push(renderMathUnit(leaf));
+                  if (leaf.kind === "math_unit") htmlParts.push(renderMathUnit(leaf, elementId));
                   if (leaf.kind === "visual_ref") { const vis = visualMap.get(leaf.visualId); if (vis) { renderedVisualIds.add(vis.id); htmlParts.push(visualHtml(vis, { sectionId: sec.id, blockId: block.id, partId: leaf.id, field: "visual_ref" })); } }
+                  if (!focused && elementId === leaf.id) anchor(htmlParts, leafStart);
                 }
+                if (!focused && elementId === step.id) anchor(htmlParts, stepStart);
               }
               htmlParts.push(scopedMarkdown(part.verificationMarkdown, appendArticleMarkdownScope(exampleScope, "verification")));
             } else if (part.kind === "code_example") {
@@ -183,7 +194,7 @@ export function buildOfflineReadingSections(record: ReadingSource, options?: Off
                   : markdown(cleanedPart));
               }
             }
-            if (targetBlock && !focused && focus?.partId === part.id) anchor(htmlParts, partStart);
+            if (targetPart && !focused) anchor(htmlParts, partStart);
           }
         } else {
           const cleaned = cleanOfflineMarkdown(block.content ?? "");

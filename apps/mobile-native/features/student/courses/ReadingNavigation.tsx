@@ -26,9 +26,9 @@ export function ReadingNavigation({ items, locale, theme, onOpen }: Props) {
     {open && <SharedDialog open title={id ? "Daftar isi" : "Contents"} closeLabel={id ? "Tutup" : "Close"}
       theme={theme} onDismiss={() => { setOpen(false); setQuery(""); }}>
       <Input theme={theme} value={query} onChangeText={setQuery} maxLength={120}
-        accessibilityLabel={id ? "Cari di bacaan" : "Search reading"} placeholder={id ? "Cari di bacaan" : "Search reading"} />
+        testID="student-reader-query" accessibilityLabel={id ? "Cari di bacaan" : "Search reading"} placeholder={id ? "Cari di bacaan" : "Search reading"} />
       {matches.map(item => <NativeListRow layout="compact" key={item.id} theme={theme} title={item.title} subtitle={item.snippet || undefined}
-        primary={{ role: "button", label: item.title, onPress: () => { onOpen(item, query.trim()); setOpen(false); setQuery(""); } }} />)}
+        primary={{ role: "button", label: item.snippet ? `${item.title}. ${item.snippet}` : item.title, testID: "student-reader-result-" + item.id, onPress: () => { onOpen(item, query.trim()); setOpen(false); setQuery(""); } }} />)}
       {!matches.length && <Text style={{ color: nativeColors[theme].mutedForeground }}>
         {id ? "Tidak ada hasil." : "No matches."}
       </Text>}
