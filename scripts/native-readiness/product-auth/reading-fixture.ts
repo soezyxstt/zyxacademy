@@ -10,6 +10,8 @@ const enrollmentId = "native-preview-reading-enrollment";
 export const articleId = "native-preview-reading-article";
 export const articleSectionId = articleId + "-section";
 export const formativeBlockId = articleId + "-check";
+export const legacyArticleId = articleId + "-legacy";
+export const generatedArticleId = articleId + "-generated";
 export const pdfId = "native-preview-reading-pdf";
 const pdfUrl = "https://native-reading-fixture.ufs.sh/lesson.pdf";
 export const pkaCourseId = "tutorial-pka";
@@ -101,9 +103,10 @@ export async function createReadingPreview(runHandler: (request: Request, handle
       }
       const chapter = "native-preview-reading-chapter";
       const pkaChapter = "native-preview-reading-pka-chapter";
+      await tx.insert(schema.chapters).values({ id: chapter, courseId, title: "Pembahasan", orderIndex: 2, status: "published" });
       await tx.insert(schema.bab).values([
         { id: chapter + "-free", mataKuliahId: canonicalCourse, code: "PREVIEW", title: "Pengantar gratis", orderIndex: 1 },
-        { id: chapter, mataKuliahId: canonicalCourse, code: "INTRO", title: "Pembahasan", orderIndex: 2 },
+        { id: chapter, mataKuliahId: canonicalCourse, code: "INTRO", title: "Pembahasan", orderIndex: 2, legacyChapterId: chapter },
         { id: pkaChapter, mataKuliahId: pkaCanonical, code: "READER-PKA", title: "Pembahasan PKA", orderIndex: 20 },
       ]);
       await tx.insert(schema.pendaftaranMurid).values([
@@ -145,6 +148,16 @@ export async function createReadingPreview(runHandler: (request: Request, handle
       await tx.insert(schema.masterTeachingDocuments).values({
         id: sourceMtdId, courseId, title: "Sumber PDF verifikasi", markdownContent: "Luas", createdById: accountId,
       });
+      await tx.insert(schema.websiteMaterials).values({
+        id: legacyArticleId, courseId, chapterId: chapter, sourceMtdId, sourceMtdVersion: 1, generationHash: "preview-compat",
+        title: "Bacaan terbit lama", slug: legacyArticleId, canonicalMarkdown: "Isi bacaan lama.", structuredContent: {}, status: "published",
+      });
+      await tx.insert(schema.aiMaterialInstances).values({ id: generatedArticleId, courseId, title: "Bacaan tersusun",
+        sourceType: "markdown", summary: "Rangkuman", chapterIds: [chapter] });
+      const sectionId = generatedArticleId + "-section";
+      await tx.insert(schema.aiMaterialInstanceSections).values({ id: sectionId, materialInstanceId: generatedArticleId, title: "Luas", orderIndex: 1 });
+      await tx.insert(schema.aiMaterialInstanceChunks).values({ id: sectionId + "-chunk", sectionId, chunkText: "Isi artikel terangkai.",
+        orderIndex: 1, pineconeVectorId: "preview-compat-unused" });
       await tx.insert(schema.diktats).values({
         id: pdfId, courseId, title: "PDF verifikasi kelas", fileUrl: pdfUrl, chapterIds: [chapter],
         sourceMtdId, sourceMtdVersion: 1, generationHash: "preview-pdf", status: "ready",
@@ -168,7 +181,8 @@ export async function createReadingPreview(runHandler: (request: Request, handle
     const pka = course === pkaCourseId && material === pkaDiktatId;
     const pkaGate = url.pathname === "/api/native/student/learning" && view === "pka-material";
     const detail = url.pathname === "/api/native/student/courses" && view === "material-detail" && (ordinary || pka || manualPdf);
-    const read = url.pathname === "/api/native/student/reading" && (ordinary || pka);
+    const compatible = course === courseId && (material === legacyArticleId || material === generatedArticleId);
+    const read = url.pathname === "/api/native/student/reading" && (ordinary || pka || compatible);
     const courseNavigation = request.method === "GET" && url.pathname === studentNavigationEndpoint && course === courseId;
     if (!read && !detail && !pkaGate && !pdfRead && !courseNavigation && !studyPath) return null;
     owner = identity;
@@ -229,6 +243,11 @@ export async function createReadingPreview(runHandler: (request: Request, handle
       ]);
       withdrawalStage = `Article HTTP ${body.status}, image HTTP ${image.status}`;
       if (body.status !== 403 || image.status !== 403) throw new Error("Reading authorization survived withdrawal");
+      for (const id of [legacyArticleId, generatedArticleId]) {
+        const status = (await runHandler(request(courseId, id), reading.GET)).status;
+        withdrawalStage = `Compatibility article HTTP ${status}`;
+        if (status !== 403) throw new Error("Compatibility reader authorization survived withdrawal");
+      }
       const manual = new Request(EXPO_STAGING_ORIGIN + "/api/native/student/material-pdf?" + new URLSearchParams({ courseId, materialId: pdfId }), { headers });
       const manualStatus = (await runHandler(manual, pdf.GET)).status;
       withdrawalStage = `PDF HTTP ${manualStatus}`;

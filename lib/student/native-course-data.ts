@@ -181,6 +181,7 @@ async function findLegacyDetail(
   const nativePdf = !locked && reference.source !== "legacy-article" &&
     nativeMaterialPdfSource(reference.fileUrl, aliases, reference.source, new URL(resolveAuthBaseUrl()).origin);
   return { id: materialId, title, kind, group, completed, locked, ...(nativePdf && { nativePdf: true as const }),
+    ...(!locked && reference.source === "legacy-article" && { nativeReading: "article" as const }),
     ...downloadPdfCapability(access, locked, isDiktat ? reference.fileUrl : undefined) };
 }
 

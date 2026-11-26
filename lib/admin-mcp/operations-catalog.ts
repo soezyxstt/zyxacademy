@@ -110,7 +110,7 @@ export const operationsCatalog = [
     "actions": ["GET"],
     "tools": [],
     "status": "excluded",
-    "reason": "Published learner reading uses the current Student session, course and chapter authorization, and Tutorial PKA registration where applicable. Admitted image bytes are bound to the same authorized revision. Native reading does not accept MCP credentials or change authoring permissions."
+    "reason": "Published canonical, website and generated course readings use the current Student session, course and chapter authorization, and Tutorial PKA registration where applicable. Admitted image bytes are bound to the same authorized revision. Native reading does not accept MCP credentials or change authoring permissions."
   },
   {
     "source": "app/api/native/student/reading/learning/route.ts",

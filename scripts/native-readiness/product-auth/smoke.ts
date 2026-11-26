@@ -7,7 +7,7 @@ import { NATIVE_AUTH_HANDOFF_COOKIE } from "@/lib/native/auth-handoff";
 import { EXPO_ANDROID_BROWSER_RETURN, EXPO_ANDROID_BROWSER_RETURN_HEADER, EXPO_STAGING_ORIGIN, EXPO_STAGING_SCHEME } from "@/lib/native/expo-auth-config";
 import { course, video, privateVideoPath } from "./video-fixture";
 import { notificationId } from "./inbox-fixture";
-import { articleId, articleSectionId, formativeBlockId, imagePath, pdfId, pkaCourseId, pkaDiktatId, readingCourseId } from "./reading-fixture";
+import { articleId, articleSectionId, formativeBlockId, generatedArticleId, imagePath, legacyArticleId, pdfId, pkaCourseId, pkaDiktatId, readingCourseId } from "./reading-fixture";
 import { fixtureOrigin, fixtureSessionSeconds } from "./scope";
 import { startAuthFixture } from "./server";
 
@@ -171,6 +171,12 @@ try {
     const pdf = await binding.request("/api/native/student/material-pdf?" + new URLSearchParams({ courseId: readingCourseId, materialId: pdfId }),
       { headers: readingHeaders });
     check(pdf.ok && pdf.headers.get("Content-Type") === "application/pdf" && (await pdf.arrayBuffer()).byteLength > 0, "Authorized PDF bytes absent");
+    stage = "read previously published website and generated course articles";
+    for (const [materialId, content] of [[legacyArticleId, "Isi bacaan lama."], [generatedArticleId, "## Luas\n\nIsi artikel terangkai."]]) {
+      const read = await binding.request("/api/native/student/reading?" + new URLSearchParams({ courseId: readingCourseId, materialId }), { headers: readingHeaders });
+      const data = await read.json() as { structured?: boolean; data?: { sections?: { blocks: { content: string }[] }[] } };
+      check(read.ok && data.structured === false && data.data?.sections?.[0]?.blocks[0]?.content === content, "Compatibility article did not match its published content");
+    }
     stage = "save and resume Article or Diktat progress and submit a formative response";
     const studyPath = "/api/native/student/reading/learning";
     const art = { courseId: readingCourseId, materialId: articleId, revision: document.revision };

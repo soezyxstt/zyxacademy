@@ -25,17 +25,17 @@ export async function findLegacyMaterialDetail(legacyCourseId: string, materialI
   const [[diktat], [webArticle], [manual], [generatedArticle]] = await Promise.all([
     db.select({ title: diktats.title, chapterIds: diktats.chapterIds, fileUrl: diktats.fileUrl, revision: diktats.updatedAt }).from(diktats)
       .where(and(eq(diktats.id, materialId), eq(diktats.courseId, legacyCourseId), eq(diktats.status, "ready"))).limit(1),
-    db.select({ title: websiteMaterials.title, chapterId: websiteMaterials.chapterId }).from(websiteMaterials)
+    db.select({ title: websiteMaterials.title, chapterId: websiteMaterials.chapterId, version: websiteMaterials.contentVersion, updatedAt: websiteMaterials.updatedAt }).from(websiteMaterials)
       .where(and(eq(websiteMaterials.id, materialId), eq(websiteMaterials.courseId, legacyCourseId), eq(websiteMaterials.status, "published"))).limit(1),
     db.select({ title: courseMaterials.title, chapterIds: courseMaterials.chapterIds, fileUrl: courseMaterials.fileUrl, revision: courseMaterials.updatedAt }).from(courseMaterials)
       .where(and(eq(courseMaterials.id, materialId), eq(courseMaterials.courseId, legacyCourseId))).limit(1),
-    db.select({ title: aiMaterialInstances.title, chapterIds: aiMaterialInstances.chapterIds }).from(aiMaterialInstances)
+    db.select({ title: aiMaterialInstances.title, chapterIds: aiMaterialInstances.chapterIds, updatedAt: aiMaterialInstances.updatedAt }).from(aiMaterialInstances)
       .where(and(eq(aiMaterialInstances.id, materialId), eq(aiMaterialInstances.courseId, legacyCourseId), notLike(aiMaterialInstances.title, "[DRAF]%"))).limit(1),
   ]);
   if (diktat) return { ...diktat, source: "legacy-diktat", chapterIds: Array.isArray(diktat.chapterIds) ? diktat.chapterIds as string[] : [] } as const;
-  if (webArticle) return { title: webArticle.title, source: "legacy-article", chapterIds: [webArticle.chapterId] } as const;
+  if (webArticle) return { ...webArticle, source: "legacy-article", format: "website", chapterIds: [webArticle.chapterId] } as const;
   if (manual) return { ...manual, source: "manual-pdf", chapterIds: Array.isArray(manual.chapterIds) ? manual.chapterIds : [] } as const;
-  if (generatedArticle) return { title: generatedArticle.title.replace(/^\[DRAF\]\s*/u, ""), source: "legacy-article",
+  if (generatedArticle) return { title: generatedArticle.title.replace(/^\[DRAF\]\s*/u, ""), source: "legacy-article", format: "generated", version: 1, updatedAt: generatedArticle.updatedAt,
     chapterIds: Array.isArray(generatedArticle.chapterIds) ? generatedArticle.chapterIds : [] } as const;
   return null;
 }

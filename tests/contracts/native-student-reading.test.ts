@@ -20,6 +20,8 @@ let allowedChapter = "chapter";
 let policyKind = "article";
 let currentCourse: string | undefined;
 let currentRecord: typeof record | null;
+let legacyRecord: { source: string; format: "website" | "generated"; chapterIds: string[]; title: string; version: number; updatedAt: Date } | undefined;
+const legacyBody = mock(async (..._args: unknown[]) => "Bacaan lama");
 let mockResponse: { userId: string } | Response;
 let upstreamRequests: { url: string; init?: RequestInit }[];
 const upstream = globalThis.fetch;
@@ -40,7 +42,8 @@ mock.module("@/lib/student/course-access", () => ({
     courseId: "course", legacyCourseId: currentCourse }),
   canAccessCourseContent: (_access: unknown, kind: string, chapters: string[]) => kind === policyKind && chapters.includes(allowedChapter),
 }));
-mock.module("@/lib/student/canonical-material-detail", () => ({ findCanonicalDetail: async () => currentRecord }));
+mock.module("@/lib/student/canonical-material-detail", () => ({ findCanonicalDetail: async () => currentRecord, findLegacyMaterialDetail: async () => legacyRecord }));
+mock.module("@/lib/student/legacy-material-body", () => ({ readLegacyMaterialBody: legacyBody }));
 mock.module("@/lib/pka-enrollment", () => ({ isPkaEnrolled: async () => enrolled }));
 mock.module("@/app/api/native/student/_session", () => ({ requireNativeStudent: async () => mockResponse }));
 const { GET } = await import("@/app/api/native/student/reading/route");
@@ -51,6 +54,8 @@ beforeEach(() => {
   policyKind = "article";
   currentCourse = undefined;
   currentRecord = record;
+  legacyRecord = undefined;
+  legacyBody.mockClear();
   mockResponse = { userId: "learner" };
   upstreamRequests = [];
   canonical.mockClear();
@@ -125,4 +130,23 @@ test("an image fetch cannot return bytes after the publication or Student grant 
     return new Response(Uint8Array.of(1, 2, 3), { headers: { "Content-Type": "image/png" } });
   });
   expect((await get({ asset: source, revision })).status).toBe(403);
+});
+
+test("published compatibility articles and generated sections use the same chapter scope and active account as canonical reading", async () => {
+  currentRecord = null;
+  currentCourse = "old-course";
+  for (const format of ["website", "generated"] as const) {
+    legacyRecord = { source: "legacy-article", format, chapterIds: ["chapter"], title: "Luas", version: 1, updatedAt: new Date(1) };
+    const response = await get();
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ id: "material", structured: false,
+      data: { sections: [{ blocks: [{ content: "Bacaan lama" }] }] } });
+    expect(legacyBody).toHaveBeenCalledWith("old-course", "material", format, ["chapter"]);
+  }
+  legacyBody.mockClear();
+  allowedChapter = "other";
+  expect((await get()).status).toBe(403);
+  expect(legacyBody).not.toHaveBeenCalled();
+  legacyRecord = undefined;
+  expect((await get()).status).toBe(404);
 });

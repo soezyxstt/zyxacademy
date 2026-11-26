@@ -1,4 +1,3 @@
-import { pkaExportRead } from "../../../../packages/academic/pka-registrations";
 import { isEnrollmentTokenEditor, type EnrollmentTokenEditor } from "../../../../packages/academic/enrollment-token-admin";
 import { isStudyGroupEditorRead, type StudyGroupEditorRead } from "../../../../packages/academic/study-group-edit";
 import { isStudyGroupMembersRead, type StudyGroupMemberRecovery, type StudyGroupMembersRead } from "../../../../packages/academic/study-group-members";
@@ -72,6 +71,7 @@ export async function handleAdministrationRead(parts: string[], search: URLSearc
       return output(await services.list(section as LiveListSection, query));
     }
     if (section === "registrations" && kind === "export" && parts.length === 2 && services.registrationsForExport) {
+      const { pkaExportRead } = await import("../../../../packages/academic/pka-registrations");
       const result = pkaExportRead.safeParse(await services.registrationsForExport(query.search));
       return result.success && result.data.search === query.search ? Response.json(result.data, { headers }) : problem(500, "READ_FAILED");
     }

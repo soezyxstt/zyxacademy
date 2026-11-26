@@ -3,7 +3,8 @@ import type { PublicArticleReadModel } from "@/lib/articles/structured-read-mode
 import { getCanonicalPublishedArticle, getCanonicalPublishedTextProduct } from "@/lib/articles/structured-repository";
 import { OfflineHttpError } from "@/lib/offline/server-auth";
 import { offlineAssetFetchTarget, offlineAssetSources } from "@/lib/offline/server-assets";
-import { findCanonicalDetail } from "./canonical-material-detail";
+import { findCanonicalDetail, findLegacyMaterialDetail } from "./canonical-material-detail";
+import { readLegacyMaterialBody } from "./legacy-material-body";
 import { resolveNativeStudentReadingAccess } from "./native-reading-access";
 import { canAccessCourseContent } from "./course-access";
 
@@ -16,27 +17,38 @@ function publicContent({ progress: _progress, ...content }: PublicArticleReadMod
 async function authorizedReading(studentId: string, { courseId, materialId }: Target) {
   const access = await resolveNativeStudentReadingAccess(studentId, courseId);
   const record = access.canonicalCourseId && await findCanonicalDetail(access.canonicalCourseId, materialId);
-  if (!record || "ambiguous" in record) throw new OfflineHttpError(404, "READING_UNAVAILABLE");
-  if (!canAccessCourseContent(access, record.policyKind, [record.chapterId])) throw new OfflineHttpError(403, "READING_ACCESS_DENIED");
-  return record;
+  if (record && "ambiguous" in record) throw new OfflineHttpError(404, "READING_UNAVAILABLE");
+  if (record) {
+    if (!canAccessCourseContent(access, record.policyKind, [record.chapterId])) throw new OfflineHttpError(403, "READING_ACCESS_DENIED");
+    return { ...record, format: "canonical" as const, chapterIds: [record.chapterId] };
+  }
+  const legacyCourse = access.legacyCourseId ?? access.courseId ?? courseId;
+  const legacy = await findLegacyMaterialDetail(legacyCourse, materialId);
+  if (legacy?.source !== "legacy-article") throw new OfflineHttpError(404, "READING_UNAVAILABLE");
+  if (!canAccessCourseContent(access, "article", legacy.chapterIds)) throw new OfflineHttpError(403, "READING_ACCESS_DENIED");
+  return { ...legacy, id: materialId, chapterId: legacy.chapterIds[0] ?? null, policyKind: "article" as const, legacyCourse };
 }
 
 export async function loadNativePublishedReading(studentId: string, target: Target, environment: string) {
   const record = await authorizedReading(studentId, target);
   const kind = record.policyKind;
-  const article = kind === "article"
+  const canonical = record.format === "canonical";
+  const article = canonical && kind === "article"
     ? await getCanonicalPublishedArticle(target.courseId, record.id, studentId, undefined, { includeProgress: false }) : null;
-  const text = !article ? await getCanonicalPublishedTextProduct(target.courseId, record.id) : null;
+  const text = !article && canonical ? await getCanonicalPublishedTextProduct(target.courseId, record.id) : null;
+  const legacy = record.format !== "canonical"
+    ? await readLegacyMaterialBody(record.legacyCourse, record.id, record.format, record.chapterIds)
+    : null;
   if (article && (article.id !== record.id || article.version !== record.version)) throw new OfflineHttpError(409, "READING_CHANGED");
-  if (!article && (!text || text.id !== record.id || text.productType !== kind || !text.contentMarkdown.trim())) {
+  if (!article && !legacy?.trim() && (!text || text.id !== record.id || text.productType !== kind || !text.contentMarkdown.trim())) {
     throw new OfflineHttpError(404, "READING_UNAVAILABLE");
   }
   const current = await authorizedReading(studentId, target);
   if (record.id !== current.id || record.version !== current.version || record.updatedAt.getTime() !== current.updatedAt.getTime() ||
-    record.chapterId !== current.chapterId || kind !== current.policyKind) throw new OfflineHttpError(409, "READING_CHANGED");
+    record.format !== current.format || JSON.stringify(record.chapterIds) !== JSON.stringify(current.chapterIds) || kind !== current.policyKind) throw new OfflineHttpError(409, "READING_CHANGED");
   const { id, title, chapterId, version } = record;
   const identity = { id, title, courseId: target.courseId };
-  const markdown = text?.contentMarkdown ?? "";
+  const markdown = legacy ?? text?.contentMarkdown ?? "";
   const data = article ? publicContent(article) : kind === "diktat"
     ? { ...identity, kind: "article", docCategory: "diktat", body: markdown, contentVersion: version }
     : { ...identity, chapterId, version, sections: [{ id: id + ":reading", slug: "reading", title: "",
