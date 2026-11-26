@@ -26,6 +26,7 @@ const content = {
   enrolled: ["Pencapaian", "Rakyat", "0 XP", "0 LP", "Kelas aktif", "Aktivasi kelas", "Matematika I", "0/4 materi", "Spaced repetition", "Semua kartu tuntas", "Buka flashcard Matematika I", "Kuis dan tryout tersedia", "Semua ujian telah selesai", "Peta penguasaan (Matematika I)"],
   preview: ["Course untukmu", "Bab pertama gratis di setiap mata kuliah.", "Paket Free", "Matematika I", "Premium", "Mulai bab 1", "1 bab gratis", "1 materi", "0 kuis", "0/1 materi", "Sistem bilangan real", "Yang tersedia di Free", "Progres tersimpan"],
 };
+const shellLabels = ["Dashboard Siswa", "Streak: 0 hari", "Cari", "Notifikasi"];
 
 async function visiblyPainted(locator: Locator): Promise<boolean> {
   return locator.evaluateAll(async elements => {
@@ -70,7 +71,9 @@ try {
       await context.addInitScript(accountId => {
         sessionStorage.setItem("zyx_dismiss_profile_prompt", "1");
         // This comparison captures the returning-student dashboard after its dismissible prompts.
-        localStorage.setItem(`zyx:download-reminder:${accountId}`, String(Date.now()));
+        const now = Date.now();
+        localStorage.setItem(`zyx:download-reminder:${accountId}`, String(now));
+        localStorage.setItem(`zyx:notification-permission:${accountId}`, `later:${now}`);
       }, owner);
       await context.addCookies([{ ...cookie, url: origin.origin, httpOnly: true, sameSite: "Lax" }]);
       await context.route("**/*", route => {
@@ -91,6 +94,13 @@ try {
       assert.equal(dashboard.firstName, { enrolled: "Alya", unenrolled: "Bima", revoked: "Citra" }[state]);
       assert.ok(!extras.partial, `Incomplete dashboard extras for ${state}`);
       capturedResponses[state] = { dashboard, extras };
+      // Warm the distinct route the browser navbar consumes. Its client request
+      // otherwise races cold dev compilation and has automatic retry disabled.
+      const today = await context.request.get(new URL("/api/student/today", origin).href, {
+        headers, maxRedirects: 0, timeout: navigationTimeout,
+      });
+      assert.equal(today.status(), 200, `${state}/today`);
+      assert.equal((await today.json()).streak.current, 0, `${state}/streak`);
 
       const page = await context.newPage();
       const recoveredErrors = new Set<string>();
@@ -109,21 +119,30 @@ try {
       const display = await page.evaluate(() => ({ locale: document.documentElement.lang, dpr: window.devicePixelRatio }));
       assert.deepEqual(display, { locale: "id", dpr: deviceScaleFactor });
       const main = page.locator("main").last();
+      const navbar = page.locator("[data-mobile-navbar]");
+      const shell = [
+        navbar.getByText(shellLabels[0], { exact: true }),
+        navbar.getByRole("link", { name: shellLabels[1], exact: true }),
+        navbar.getByRole("button", { name: shellLabels[2], exact: true }),
+        navbar.getByRole("button", { name: shellLabels[3], exact: true }),
+      ];
       const expected = state === "enrolled" ? content.enrolled : content.preview;
-      const locators = expected.map(label => main.getByText(label, { exact: true }));
+      const locators = [...expected.map(label => main.getByText(label, { exact: true })), ...shell];
+      const labels = [...expected, ...shellLabels];
       const otherHeading = state === "enrolled" ? "Course untukmu" : "Kelas aktif";
       const missingContent = async () => (await Promise.all(locators.map(async (locator, index) =>
-        await visiblyPainted(locator) ? "" : expected[index]))).filter(Boolean);
+        await visiblyPainted(locator) ? "" : labels[index]))).filter(Boolean);
       let screenshot: Buffer | undefined;
       await expect.poll(async () => {
-        if (await page.getByRole("dialog").count()) return ["Open dialog covers dashboard"];
+        const dialog = page.getByRole("dialog");
+        if (await dialog.count()) return ["Open dialog covers dashboard", ...(await dialog.getByRole("heading").allTextContents())];
         const pending = await missingContent();
         if (pending.length) return pending;
         const pixels = await page.screenshot({ animations: "disabled", scale: "device" });
         const missing = await missingContent();
         if (!missing.length) screenshot = pixels;
         return missing;
-      }, { timeout: 45000 }).toEqual([]);
+      }, { timeout: 90000 }).toEqual([]);
       assert.ok(screenshot);
       await expect(main.getByText(otherHeading, { exact: true })).toHaveCount(0);
       if (state === "enrolled") {
@@ -135,7 +154,8 @@ try {
       assert.equal(page.url(), target);
       await writeFile(join(out, file), screenshot);
       captures[file] = digest(screenshot);
-      states[state] = { enrolled: state === "enrolled", firstName: dashboard.firstName, checkedVisibleContent: expected, absentHeading: otherHeading, ...(recoveredErrors.size ? { hydrationWarnings: [...recoveredErrors] } : {}) };
+      states[state] = { enrolled: state === "enrolled", firstName: dashboard.firstName, checkedVisibleContent: expected,
+        checkedVisibleShell: shellLabels, absentHeading: otherHeading, ...(recoveredErrors.size ? { hydrationWarnings: [...recoveredErrors] } : {}) };
       console.log(platform, state, response?.status());
     } finally {
       await context.close();
