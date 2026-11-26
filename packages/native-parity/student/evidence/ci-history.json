@@ -846,6 +846,76 @@
       "android": {
         "jobId": 140013786870,
         "status": "in_progress_at_observation"
+      },
+      "laterObservations": [
+        {
+          "observedAt": "2026-11-26T16:27:19Z",
+          "checkoutSha": "dc861fff2555c34797c543dc74268abceedc2e5f",
+          "android": {
+            "jobId": 140013786870,
+            "status": "device_flows_completed_with_failures",
+            "reason": "Generated smoke: {'passed': 167, 'blocked': 3, 'failed': 33}. Standalone flows: {'failed': 21, 'passed': 6}. Matched comparison: {'missing': 33}.",
+            "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45849382473/artifacts/15136398977",
+            "summaryCounts": {
+              "passed": 167,
+              "blocked": 3,
+              "failed": 33
+            },
+            "standaloneInitialOutcomes": {
+              "transport_failure": 26,
+              "passed": 1
+            },
+            "standaloneRetryOutcomes": {
+              "failed": 21,
+              "passed": 5
+            },
+            "standaloneCounts": {
+              "failed": 21,
+              "passed": 6
+            },
+            "matchedComparisonCounts": {
+              "missing": 33
+            },
+            "initialFailureCategories": {
+              "ADB transport": 126
+            },
+            "finalFailureCategories": {
+              "ADB transport": 33
+            },
+            "retryOutcomes": {
+              "passed": 93,
+              "failed": 33
+            },
+            "scrollRestoration": {
+              "status": "inconclusive",
+              "reason": "The effective Maestro material flow did not finish successfully"
+            }
+          },
+          "ios": {
+            "jobId": 140013786533,
+            "status": "superseded_before_runner_assignment",
+            "details": "Requested cancellation after Android artifacts were published. The replacement iOS job targets the in-app fixture launcher."
+          }
+        }
+      ]
+    },
+    {
+      "runId": 45857948643,
+      "sourceHead": "1ecc8e15f7f506b8b00a7aa2dfdc815d892cbe40",
+      "url": "https://github.com/soezyxstt/zyxacademy/actions/runs/45857948643",
+      "observedAt": "2026-11-26T16:27:19Z",
+      "web": {
+        "jobId": 140041156861,
+        "status": "passed",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45857948643/artifacts/15135874622"
+      },
+      "android": {
+        "jobId": 140042922299,
+        "status": "in_progress_at_observation"
+      },
+      "ios": {
+        "jobId": 140042922883,
+        "status": "pending_at_observation"
       }
     }
   ]
