@@ -1,0 +1,16 @@
+appId: com.zyx.academy.nativeparity
+name: Named progress bars
+---
+- runFlow:
+    file: helpers/open-gallery.yaml
+    env:
+      COMPONENT: progress
+- assertVisible:
+    id: progress-empty-light-bar
+    text: Kemajuan kuis
+- assertVisible:
+    id: progress-partial-dark-bar
+    text: Kemajuan misi
+- assertVisible:
+    id: progress-full-light-bar
+    text: Kemajuan lencana
