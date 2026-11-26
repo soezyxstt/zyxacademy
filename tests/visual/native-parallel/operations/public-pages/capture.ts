@@ -232,8 +232,19 @@ async function main() {
       await context.route("**/*", async (route) => {
         const url = new URL(route.request().url());
         if (url.origin === base) {
-          if (route.request().resourceType() === "image" && /^\/(?:[\w-]+(?:\.[\w-]+)*\/)*[\w.-]+\.(?:avif|gif|ico|jpe?g|png|svg|webp)$/i.test(url.pathname)) {
-            const filename = fileURLToPath(new URL(`../../../../../public${url.pathname}`, import.meta.url));
+          const pathname = decodeURIComponent(url.pathname);
+          const demoCase = fixture.pattern.startsWith("/demo");
+          if (demoCase && route.request().method() === "GET" && pathname === "/api/auth/get-session") {
+            return route.fulfill({ json: null });
+          }
+          let localAsset: string | undefined;
+          if (demoCase && /^\/_next\/static\/(?:[\w[\]-]+\/)*[\w.-]+\.(?:js|css|woff2)$/i.test(pathname)) {
+            localAsset = `./.next/dev${pathname.slice("/_next".length)}`;
+          } else if (route.request().resourceType() === "image" && /^\/(?:[\w-]+(?:\.[\w-]+)*\/)*[\w.-]+\.(?:avif|gif|ico|jpe?g|png|svg|webp)$/i.test(pathname)) {
+            localAsset = `../../../../../public${pathname}`;
+          }
+          if (localAsset) {
+            const filename = fileURLToPath(new URL(localAsset, import.meta.url));
             const file = await stat(filename).catch(() => null);
             if (file?.isFile()) return route.fulfill({ path: filename });
           }

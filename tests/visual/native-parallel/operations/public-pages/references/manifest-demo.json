@@ -112,12 +112,67 @@
       "layout": "fits",
       "runtimeIssues": [],
       "observation": "Article reader heading visible after direct navigation."
+    },
+    {
+      "file": "demo-view-missing-1536-dpr1.png",
+      "path": "/demo/flashcards?course=unknown",
+      "locale": "en",
+      "theme": "dark",
+      "width": 1536,
+      "height": 864,
+      "dpr": 1,
+      "status": 404,
+      "scrollWidth": 1536,
+      "layout": "fits",
+      "runtimeIssues": [
+        "React reported a script element while rendering the Next.js not-found boundary."
+      ],
+      "observation": "Missing course displays the 404 heading."
+    },
+    {
+      "file": "demo-view-missing-380-dpr1.png",
+      "path": "/demo/flashcards?course=unknown",
+      "locale": "en",
+      "theme": "dark",
+      "width": 380,
+      "height": 844,
+      "dpr": 1,
+      "status": 404,
+      "scrollWidth": 380,
+      "layout": "fits",
+      "runtimeIssues": [
+        "React reported a script element while rendering the Next.js not-found boundary."
+      ],
+      "observation": "Missing course displays the 404 heading."
+    },
+    {
+      "file": "demo-view-quiz-1536-dpr1.png",
+      "path": "/demo/quiz?course=fictional-berpikir",
+      "locale": "en",
+      "theme": "dark",
+      "width": 1536,
+      "height": 864,
+      "dpr": 1,
+      "status": 200,
+      "scrollWidth": 1536,
+      "layout": "fits",
+      "runtimeIssues": [],
+      "observation": "The first quiz answer was selected and verified checked."
+    },
+    {
+      "file": "demo-view-quiz-380-dpr1.png",
+      "path": "/demo/quiz?course=fictional-berpikir",
+      "locale": "en",
+      "theme": "dark",
+      "width": 380,
+      "height": 844,
+      "dpr": 1,
+      "status": 200,
+      "scrollWidth": 380,
+      "layout": "fits",
+      "runtimeIssues": [],
+      "observation": "The first quiz answer was selected and verified checked."
     }
   ],
-  "failures": [
-    "FAIL 1536 demo-view-missing: expect(locator).toBeVisible() failed\n\nLocator: getByRole('heading', { name: '404' }).first()\nExpected: visible\nTimeout: 20000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"to.be.visible\" with timeout 20000ms\n  - waiting for getByRole('heading', { name: '404' }).first()\n",
-    "FAIL 1536 demo-view-quiz: expect(locator).toHaveAttribute(expected) failed\n\nLocator:  locator('html')\nExpected: \"true\"\nReceived: \"\"\nTimeout:  75000ms\n\nCall log:\n  - Expect \"to.have.attribute.value\" with timeout 75000ms\n  - waiting for locator('html')\n    95 \u00d7 locator resolved to <html lang=\"en\" class=\"dark\">\u2026</html>\n       - unexpected value \"null\"\n    4 \u00d7 locator resolved to <html id=\"__next_error__\">\u2026</html>\n      - unexpected value \"null\"\n",
-    "FAIL 380 demo-view-missing: expect(locator).toBeVisible() failed\n\nLocator: getByRole('heading', { name: '404' }).first()\nExpected: visible\nTimeout: 20000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"to.be.visible\" with timeout 20000ms\n  - waiting for getByRole('heading', { name: '404' }).first()\n",
-    "FAIL 380 demo-view-quiz: HTTP 404 http://localhost:3212/gamification/mascots/v10.1/posters/cat-head.webp\nFailed to load resource: the server responded with a status of 404 (Not Found)"
-  ]
+  "failures": []
 }
