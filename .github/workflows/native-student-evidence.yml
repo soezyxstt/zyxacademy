@@ -144,6 +144,9 @@ jobs:
           xcrun simctl boot "$device"
           xcrun simctl bootstatus "$device" -b
           xcrun simctl spawn "$device" defaults write com.apple.Accessibility ReduceMotionEnabled -bool true
+          # Expo probes devicectl before creating its state directory on a fresh runner.
+          export __UNSAFE_EXPO_HOME_DIRECTORY="$RUNNER_TEMP/student-expo"
+          mkdir -p "$__UNSAFE_EXPO_HOME_DIRECTORY"
           (cd apps/mobile-native && npx --no-install expo run:ios --configuration Release --device "$device" --no-bundler)
           status=0
           bash tests/visual/native-parallel/student/run-maestro.sh ios "$device" || status=1
