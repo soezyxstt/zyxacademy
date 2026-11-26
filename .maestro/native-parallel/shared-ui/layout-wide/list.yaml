@@ -1,0 +1,9 @@
+appId: com.zyx.academy.nativeparity
+name: Shared list layout in a 1024dp viewport
+---
+- launchApp
+- openLink: zyx-native-parity://shared-ui/shared-ui-list-wide-light
+- assertVisible:
+    id: shared-ui-list-wide-light-sinta-wide
+- assertVisible: Sinta Ayuningtyas Kusumawardani
+- assertVisible: Ditangguhkan

@@ -1,0 +1,85 @@
+appId: com.zyx.academy.nativeparity
+name: Role navigation and tab overflow
+---
+- launchApp
+- openLink: zyx-native-parity://shared-ui/mobile-navbar-student-light
+- extendedWaitUntil:
+    visible:
+      id: mobile-navbar-student-light-search
+    timeout: 15000
+- tapOn:
+    id: mobile-navbar-student-light-search
+- assertVisible:
+    id: mobile-navbar-student-light-state
+    text: Cari
+- openLink: zyx-native-parity://shared-ui/mobile-navbar-tutor-light
+- tapOn:
+    id: mobile-navbar-tutor-light-switch-course
+- assertVisible:
+    id: mobile-navbar-tutor-light-course-sheet
+- tapOn: Matematika Dasar
+- assertNotVisible:
+    id: mobile-navbar-tutor-light-course-sheet
+- assertVisible:
+    id: mobile-navbar-tutor-light-switch-course
+- openLink: zyx-native-parity://shared-ui/mobile-navbar-admin-dark
+- tapOn:
+    id: mobile-navbar-admin-dark-back
+- assertVisible:
+    id: mobile-navbar-admin-dark-state
+    text: Kembali
+- openLink: zyx-native-parity://shared-ui/bottom-navigation-student-light
+- tapOn:
+    id: bottom-navigation-student-light-discuss
+- assertVisible:
+    id: bottom-navigation-student-light-state
+    text: Diskusi
+- openLink: zyx-native-parity://shared-ui/bottom-navigation-tutor-light
+- assertVisible:
+    id: bottom-navigation-tutor-light-state
+    text: Kelas
+- tapOn:
+    id: bottom-navigation-tutor-light-schedule
+- assertVisible:
+    id: bottom-navigation-tutor-light-state
+    text: Jadwal
+- openLink: zyx-native-parity://shared-ui/bottom-navigation-admin-dark
+- assertVisible:
+    id: bottom-navigation-admin-dark-state
+    text: Editor materi
+- assertNotVisible:
+    id: bottom-navigation-admin-dark
+- tapOn:
+    id: bottom-navigation-admin-dark-back
+- tapOn:
+    id: bottom-navigation-admin-dark-more
+- tapOn: Web Analytics
+- assertVisible:
+    id: bottom-navigation-admin-dark-state
+    text: Ops
+- openLink: zyx-native-parity://shared-ui/navigation-tabs-first-light
+- tapOn:
+    id: navigation-tabs-first-light-academic
+- assertVisible:
+    id: navigation-tabs-first-light-active
+    text: Akademik
+- openLink: zyx-native-parity://shared-ui/navigation-tabs-academic-dark
+- assertVisible:
+    id: navigation-tabs-academic-dark-active
+    text: Akademik
+- openLink: zyx-native-parity://shared-ui/navigation-tabs-overflow-light
+- tapOn:
+    id: navigation-tabs-overflow-light-more
+- assertVisible:
+    id: navigation-tabs-overflow-light-overflow-progress
+- tapOn:
+    id: navigation-tabs-overflow-light-overflow-progress
+- assertNotVisible:
+    id: navigation-tabs-overflow-light-overflow
+- assertVisible:
+    id: navigation-tabs-overflow-light-more
+- tapOn:
+    id: navigation-tabs-overflow-light-summary
+- assertVisible:
+    id: navigation-tabs-overflow-light-active
+    text: Ringkasan
