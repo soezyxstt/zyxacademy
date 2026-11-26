@@ -30,11 +30,6 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: native-parity-${{ github.head_ref || github.ref }}
-  # Let the current device evidence finish while newer revisions share one pending slot.
-  cancel-in-progress: false
-
 env:
   CI: '1'
   EXPO_NO_TELEMETRY: '1'
@@ -43,6 +38,9 @@ env:
 
 jobs:
   inventory:
+    concurrency:
+      group: native-inventory-${{ github.head_ref || github.ref }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
@@ -60,6 +58,9 @@ jobs:
           retention-days: 7
 
   native-contracts:
+    concurrency:
+      group: native-native-contracts-${{ github.head_ref || github.ref }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -83,6 +84,9 @@ jobs:
             tests/unit/native-account-context.test.ts tests/unit/native-zyra-stream.test.ts
 
   reference:
+    concurrency:
+      group: native-reference-${{ github.head_ref || github.ref }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -147,6 +151,11 @@ jobs:
             runner: ubuntu-latest
           - platform: ios
             runner: macos-26
+    # Finish each started device capture. A slow iOS build must not delay
+    # contract checks, web references, or the next Android run.
+    concurrency:
+      group: native-device-${{ matrix.platform }}-${{ github.head_ref || github.ref }}
+      cancel-in-progress: false
     runs-on: ${{ matrix.runner }}
     env:
       EXPO_PUBLIC_PARITY_WEBVIEW: '1'
