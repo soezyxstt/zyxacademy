@@ -52,6 +52,7 @@ export type TutorDiscussionDetail = {
       id: string;
       seq: number;
       author: string | null;
+      authorId?: string;
       kind?: DiscussionMessage["kind"];
       mentionedPeople?: DiscussionMessage["mentionedPeople"];
       body: string;

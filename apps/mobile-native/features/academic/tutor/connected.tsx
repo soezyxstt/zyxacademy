@@ -1,7 +1,7 @@
 import { toggleSlotCourseSelection } from "../../../../../lib/schedule/slot-courses";
 import { discussionDestination, discussionWorkspaceHref } from "../../../../../packages/native-parity/discussion-destination";
 import { useStaffChromeVisibility } from "../../../routing/staff-chrome-visibility";
-import { useCallback, useContext, useEffect, useRef, useState, type ComponentRef } from "react";
+import { useCallback, useContext, useEffect, useRef, useState, type ComponentRef, type ReactNode } from "react";
 import { randomUUID } from "expo-crypto";
 import { openBrowserAsync } from "expo-web-browser";
 import { AccessibilityInfo, ActivityIndicator, AppState, View } from "react-native";
@@ -329,10 +329,11 @@ function discussionSessionKey(service: TutorSupportClient) {
   return key;
 }
 
-export function ConnectedDiscussions({ theme, back, replace, query, courseId, service, workspacePath, subtitle }: Navigation & {
+export function ConnectedDiscussions({ theme, back, replace, query, courseId, service, workspacePath, subtitle, header }: Navigation & {
   courseId?: string;
   workspacePath?: string;
   subtitle?: string;
+  header?: ReactNode;
   service: TutorSupportClient;
 }) {
   const [search, setSearch] = useState("");
@@ -395,7 +396,7 @@ export function ConnectedDiscussions({ theme, back, replace, query, courseId, se
   }
 
   return <>
-    <TutorPage title="Diskusi" subtitle={subtitle} theme={theme} onBack={back}>
+    <TutorPage title="Diskusi" subtitle={subtitle} theme={theme} onBack={back} header={header}>
       {service.discussionWorkspace ? <>
         <TutorDiscussionChannels client={service.discussionWorkspace} {...{ courseId, theme }} selected={channel}
           choose={setChannel} create={setCreating} />
@@ -777,8 +778,12 @@ function ConnectedDiscussionDetail({ theme, courseId, threadId, targetMessage, s
         theme={theme} tone={status.status === "failed" || status.status === "uncertain" ? "error" : "muted"}>
         {discussionAiMessage(status, service.locale ?? "id")}
       </Label>)}
-      {service.discussionProfile && message.mentionedPeople?.length ? <View style={tutorLayout.cluster}>
-        {message.mentionedPeople.map(recipient => <Button theme={theme} key={recipient.id} variant="outline"
+      {service.discussionProfile && (message.authorId || message.mentionedPeople?.length) ? <View style={tutorLayout.cluster}>
+        {message.authorId && message.bodyKind !== "deleted" ? <Button theme={theme} variant="outline" testID={`discussion-author-profile-${message.id}`}
+          accessibilityLabel={`Lihat profil ${message.author ?? "penulis"}`} onPress={() => {
+            if (message.authorId && canInteract()) setPerson({ id: message.authorId, messageId: message.id });
+          }}>Profil penulis</Button> : null}
+        {message.mentionedPeople?.map(recipient => <Button theme={theme} key={recipient.id} variant="outline"
           accessibilityLabel={`Lihat profil ${recipient.name}`}
           onPress={() => { if (canInteract()) setPerson({ id: recipient.id, messageId: message.id }); }}>{`@${recipient.name}`}</Button>)}
       </View> : null}

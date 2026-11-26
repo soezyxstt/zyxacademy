@@ -95,7 +95,7 @@ export const tutorSupportServices = {
         channelId: thread.channelId, canResolve: thread.canResolve, unreadCount: thread.unreadCount },
       messages: {
         items: messages.items.map(({ id, seq, author, kind, mentionedPeople, body, attachments, messageType, replyTo, reactions, canReply, canReact, revision, bodyKind, canEdit, canDelete, canReport, canForward }) => ({
-          id, seq, author: author?.name ?? null, kind, mentionedPeople,
+          id, seq, author: author?.name ?? null, ...(author ? { authorId: author.id } : {}), kind, mentionedPeople,
           body, attachments, attachmentCount: attachments.length, messageType, replyTo, reactions, canReply, canReact,
           revision, bodyKind, canEdit, canDelete, canReport, canForward: canForward && forwardingAllowed,
         })),
