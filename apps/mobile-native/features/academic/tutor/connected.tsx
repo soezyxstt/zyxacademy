@@ -1,5 +1,5 @@
 import { useStaffChromeVisibility } from "../../../routing/staff-chrome-visibility";
-import { useEffect, useRef, useState, type ComponentRef } from "react";
+import { useCallback, useEffect, useRef, useState, type ComponentRef } from "react";
 import { randomUUID } from "expo-crypto";
 import { openBrowserAsync } from "expo-web-browser";
 import { AccessibilityInfo, ActivityIndicator, AppState, View } from "react-native";
@@ -21,6 +21,7 @@ import { Input } from "../../../components/Input";
 import { NativeRequestNotDispatched } from "../../../network/transport";
 import { useProtectedInteraction } from "../../../routing/protected-interaction";
 import type { AcademicScreenProps } from "../contracts";
+import { CourseVideoDialog } from "../../course-video/CourseVideoDialog";
 import { SharedDialog } from "../../shared-ui";
 import { TutorLiveHostPanel } from "./live-host";
 import { TutorWeekCalendar, tutorJakartaToday } from "./schedule-calendar";
@@ -526,8 +527,15 @@ function formatDuration(duration: number | null) {
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
-export function ConnectedVideos({ data, theme, back, playback }: Navigation & { data: TutorVideosData; playback?: TutorSupportClient["playback"] }) {
+export function ConnectedVideos({ data, theme, back, playback, videoPlayer }: Navigation & { data: TutorVideosData; playback?: TutorSupportClient["playback"]; videoPlayer?: TutorSupportClient["videoPlayer"] }) {
   const [expanded, setExpanded] = useState<string>();
+  const [selected, setSelected] = useState<{ id: string; title: string } | null>(null);
+  const trigger = useRef<ComponentRef<typeof Button> | null>(null);
+  const { canInteract } = useProtectedInteraction();
+  const load = useCallback((signal: AbortSignal) => {
+    if (!videoPlayer || !selected) throw new TutorDataError(404);
+    return videoPlayer.load(selected.id, signal);
+  }, [videoPlayer, selected]);
   const [loadingVideo, setLoadingVideo] = useState<string>();
   const [error, setError] = useState("");
   const buttons = useRef(new Map<string, ComponentRef<typeof Button>>());
@@ -557,7 +565,7 @@ export function ConnectedVideos({ data, theme, back, playback }: Navigation & { 
   }, []);
 
   async function play(videoId: string) {
-    if (!playback || pendingPlayback.current) return;
+    if (!playback || !canInteract() || pendingPlayback.current) return;
     const controller = new AbortController();
     const { signal } = controller;
     pendingPlayback.current = controller;
@@ -588,16 +596,23 @@ export function ConnectedVideos({ data, theme, back, playback }: Navigation & { 
         onPress={() => setExpanded((previous) => previous === playlist.id ? undefined : playlist.id)} />
       {expanded === playlist.id ? playlist.videos.map((video) => <Row key={video.id} theme={theme}
         title={video.title} meta={video.locked ? "Terkunci" : formatDuration(video.duration)}>
-        {!video.locked && playback ? <Button theme={theme} variant="outline" style={tutorLayout.action}
+        {!video.locked && (videoPlayer || playback) ? <Button theme={theme} variant="outline" style={tutorLayout.action}
           accessibilityLabel={`Putar ${video.title}`}
           ref={(node) => {
             if (node) buttons.current.set(video.id, node);
             else buttons.current.delete(video.id);
           }}
           isLoading={loadingVideo === video.id} disabled={Boolean(loadingVideo && loadingVideo !== video.id)}
-          onPress={() => play(video.id)}>Putar</Button> : null}
+          onPress={() => {
+            if (!canInteract()) return;
+            if (!videoPlayer) { void play(video.id); return; }
+            trigger.current = buttons.current.get(video.id) ?? null;
+            setSelected({ id: video.id, title: video.title });
+          }}>Putar</Button> : null}
       </Row>) : null}
     </View>)}
+    {selected && videoPlayer && <CourseVideoDialog key={selected.id} title={selected.title} locale={videoPlayer.locale}
+      theme={theme} origin={videoPlayer.origin} load={load} close={() => setSelected(null)} returnFocusRef={trigger} />}
     {data.playlists.length === 0 ? <Empty theme={theme} title="Belum ada playlist" /> : null}
   </TutorPage>;
 }

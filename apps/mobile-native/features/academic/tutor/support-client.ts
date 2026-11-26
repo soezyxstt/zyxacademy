@@ -33,7 +33,16 @@ export function createTutorSupportClient(transport: AcademicTransport): TutorSup
     return response.json() as Promise<T>;
   }
 
+  async function loadVideo(videoId: string, signal: AbortSignal) {
+    const response = await transport.get(`/api/videos/${encodeURIComponent(videoId)}/playback-url`, signal);
+    if (!response.ok) throw new TutorDataError(response.status);
+    const body = await response.json();
+    if (!body || typeof body !== "object" || !("url" in body)) throw new TutorDataError(422);
+    return { url: body.url, fallbackUrl: "fallbackUrl" in body ? body.fallbackUrl : undefined };
+  }
+
   return {
+    videoPlayer: { origin: transport.origin, locale: transport.locale, load: loadVideo },
     liveHost: createTutorLiveHost(transport),
     slotEditor: createTutorSlotEditor(transport),
     tryoutGrade: createTryoutGradeEditor(transport),
@@ -53,10 +62,8 @@ export function createTutorSupportClient(transport: AcademicTransport): TutorSup
     videos: (courseId, signal) => read(coursePath(courseId, "videos"), signal),
     live: (courseId, signal) => read(coursePath(courseId, "live"), signal),
     async playback(videoId, signal) {
-      const response = await transport.get(`/api/videos/${encodeURIComponent(videoId)}/playback-url`, signal);
-      if (!response.ok) throw new TutorDataError(response.status);
-      const body = await response.json() as { url?: unknown } | null;
-      const url = tutorPlaybackUrl(body?.url);
+      const body = await loadVideo(videoId, signal);
+      const url = tutorPlaybackUrl(body.url);
       if (!url) throw new TutorDataError(422);
       return url;
     },

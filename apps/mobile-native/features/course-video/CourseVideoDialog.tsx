@@ -1,4 +1,5 @@
 import Constants from "expo-constants";
+import { useIsFocused } from "expo-router";
 import { useEvent } from "expo";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useCallback, useEffect, useState, type ComponentRef, type RefObject } from "react";
@@ -8,6 +9,7 @@ import { courseVideoSource, type CourseVideoSource } from "../../../../packages/
 import { nativeColors } from "../../../../packages/design-tokens/native-colors";
 import { useNativeSession } from "../../auth/session-provider";
 import { Button } from "../../components/Button";
+import { useProtectedInteraction } from "../../routing/protected-interaction";
 import { scopedFiles } from "../../device/files";
 import { nativeTypography } from "../../typography";
 import { SharedDialog } from "../shared-ui/overlays";
@@ -52,6 +54,10 @@ type ActiveSource = Exclude<CourseVideoSource, { kind: "storage" }>;
 
 export function CourseVideoDialog({ title, locale, theme, origin, load, close, returnFocusRef }: Props) {
   const { transport } = useNativeSession();
+  const focused = useIsFocused();
+  const { suspended } = useProtectedInteraction();
+  const [open, setOpen] = useState(true);
+  const active = open && focused && !suspended;
   const systemTheme = useColorScheme();
   const colors = nativeColors[theme ?? systemTheme ?? "light"];
   const en = /^en(?:-|$)/i.test(locale);
@@ -66,6 +72,7 @@ export function CourseVideoDialog({ title, locale, theme, origin, load, close, r
     setFailed(false);
     setSource(null);
     setCanFallback(false);
+    if (!active) return;
     void (async () => {
       const result = await load(controller.signal);
       if (controller.signal.aborted) return;
@@ -81,11 +88,11 @@ export function CourseVideoDialog({ title, locale, theme, origin, load, close, r
       } else setSource(next);
     })().catch(() => { if (!controller.signal.aborted) setFailed(true); });
     return () => controller.abort();
-  }, [attempt, load, origin, preferFallback, transport]);
+  }, [active, attempt, load, origin, preferFallback, transport]);
 
-  return <SharedDialog open title={title} onDismiss={close} closeLabel={en ? "Close" : "Tutup"}
+  return <SharedDialog open={open && focused} title={title} onDismiss={() => setOpen(false)} onAfterDismiss={close} closeLabel={en ? "Close" : "Tutup"}
     theme={theme} returnFocusRef={returnFocusRef} testID="course-video-player">
-    {failed ? <View style={styles.error}>
+    {!active ? null : failed ? <View style={styles.error}>
       <Text accessibilityRole="alert" style={[nativeTypography.bodyRegular, { color: colors.foreground }]}>
         {en ? "Could not play this video." : "Video tidak dapat diputar."}
       </Text>
@@ -97,7 +104,7 @@ export function CourseVideoDialog({ title, locale, theme, origin, load, close, r
       source.kind === "youtube" ?
         <YouTubeSurface id={source.id} title={title} fail={fail} /> :
       <VideoSurface uri={source.uri} title={title} fail={fail} />}
-    {source?.kind === "youtube" && <Button variant="outline" theme={theme}
+    {active && source?.kind === "youtube" && <Button variant="outline" theme={theme}
           onPress={() => void Linking.openURL(`https://www.youtube.com/watch?v=${source.id}`).catch(fail)}>
           {en ? "Watch on YouTube" : "Tonton di YouTube"}
         </Button>}

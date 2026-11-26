@@ -179,3 +179,20 @@ test("video playback opens only validated HTTPS targets and supported YouTube re
     await expect(client.playback!("video-1", signal)).rejects.toMatchObject({ status: 422 });
   }
 });
+
+test("the embedded Tutor player preserves the signed URL and authorized proxy fallback from the same request", async () => {
+  const signed = "https://assets.example.test/course.mp4?sig=2";
+  const fallback = "/api/storage/file/course-videos/course.mp4";
+  const paths: string[] = [];
+  const client = createTutorSupportClient({ accountId: "tutor-1", origin, locale: "en",
+    async get(path, abort) {
+      expect(abort).toBe(signal);
+      paths.push(path);
+      return Response.json({ url: signed, fallbackUrl: fallback });
+    },
+  });
+  const player = client.videoPlayer!;
+  expect([player.origin, player.locale]).toEqual([origin, "en"]);
+  expect(await player.load("vid 1", signal)).toEqual({ url: signed, fallbackUrl: fallback });
+  expect(paths).toEqual(["/api/videos/vid%201/playback-url"]);
+});

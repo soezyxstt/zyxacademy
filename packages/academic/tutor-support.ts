@@ -97,6 +97,11 @@ export type TutorSupportClient = TutorSupportReads & {
   liveHost?: TutorLiveHost;
   slotEditor?: TutorSlotEditor;
   tryoutGrade?: TryoutGradeEditor;
+  videoPlayer?: {
+    origin: string;
+    locale: string;
+    load(videoId: string, signal: AbortSignal): Promise<{ url: unknown; fallbackUrl?: unknown }>;
+  };
   playback?(videoId: string, signal: AbortSignal): Promise<string>;
   pendingAnswer?(threadId: string): TutorDiscussionDraft | undefined;
   answer?(courseId: string | undefined, threadId: string, draft: TutorDiscussionDraft, signal: AbortSignal): Promise<TutorDiscussionSendResult>;

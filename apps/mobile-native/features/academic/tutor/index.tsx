@@ -74,7 +74,7 @@ export function TutorScreen({ dataSource, ...props }: TutorScreenProps) {
       {(data) => <ConnectedMaterials {...props} data={data} />}
     </DataView>;
     if (nested === "videos") return <DataView key={key} theme={theme} back={back} title="Video" load={(signal) => service.videos(courseId, signal)}>
-      {(data) => <ConnectedVideos {...props} data={data} playback={service.playback} />}
+      {(data) => <ConnectedVideos {...props} data={data} playback={service.playback} videoPlayer={service.videoPlayer} />}
     </DataView>;
     if (nested === "live") return <DataView key={key} theme={theme} back={back} title="Kuis langsung" load={(signal) => service.live(courseId, signal)}>
       {(data, refresh) => <ConnectedLive {...props} data={data} courseId={courseId} host={service.liveHost} refresh={refresh} />}
