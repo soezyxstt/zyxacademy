@@ -26,7 +26,8 @@ export type DraftDocument = Readonly<{
 export type NativeDownloadTarget =
   | { kind: "diktat-pdf"; courseId: string; diktatId: string }
   | { kind: "quiz-grade-attachment"; courseId: string; attemptId: string; questionId: string }
-  | { kind: "discussion-image"; attachmentId: string };
+  | { kind: "discussion-image"; attachmentId: string }
+  | { kind: "form-response-attachment"; formId: string; responseId: string; index: number };
 
 export type NativeDownloadRequest = {
   session: NativeSessionTransport;
@@ -142,6 +143,10 @@ function downloadPath(target: NativeDownloadTarget): string | null {
   }
   if (target.kind === "discussion-image" && id(target.attachmentId)) {
     return `/api/discussions/attachments/${encodeURIComponent(target.attachmentId)}?download=1`;
+  }
+  if (target.kind === "form-response-attachment" && id(target.formId) && id(target.responseId) &&
+    Number.isSafeInteger(target.index) && target.index >= 0 && target.index < 1_000_000) {
+    return `/api/native/operations/forms/${encodeURIComponent(target.formId)}/responses/${encodeURIComponent(target.responseId)}/attachment/${target.index}`;
   }
   if (target.kind === "quiz-grade-attachment" && [target.courseId, target.attemptId, target.questionId].every(id)) {
     const [course, attempt, question] = [target.courseId, target.attemptId, target.questionId].map(encodeURIComponent);
@@ -407,13 +412,15 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
     if (before) return before;
     const diskImages = request.target.kind === "discussion-image";
     const quiz = request.target.kind === "quiz-grade-attachment";
+    const form = request.target.kind === "form-response-attachment";
     // The existing discussion API authorizes only these three image types and caps each at 8 MiB.
     const imageTypes = ["image/jpeg", "image/png", "image/webp"];
-    const domainTypes = quiz ? [...imageTypes, "application/pdf"] : diskImages ? imageTypes : ["application/pdf"];
+    const domainTypes = form ? [...imageTypes, "image/gif", "application/pdf"] : quiz ? [...imageTypes, "application/pdf"] : diskImages ? imageTypes : ["application/pdf"];
     const permitted = request.policy.mimeTypes.filter(mimeType => domainTypes.includes(mimeType));
     if (!permitted.length) return { status: "error", issue: "policy" };
     const maxBytes = quiz ? Math.min(request.policy.maxBytes, 4 * 1024 * 1024)
-      : diskImages ? Math.min(request.policy.maxBytes, 8 * 1024 * 1024) : request.policy.maxBytes;
+      : diskImages ? Math.min(request.policy.maxBytes, 8 * 1024 * 1024)
+      : form ? Math.min(request.policy.maxBytes, 50 * 1024 * 1024) : request.policy.maxBytes;
     const assertCurrent = () => { if (current()) throw new FileIssue("fetch"); };
     sharing = true;
     let response: Awaited<ReturnType<NativeSessionTransport["request"]>> | undefined;
@@ -425,8 +432,11 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
       if (!await device.canShare()) return { status: "unavailable" };
       assertCurrent();
       errorStage = "fetch";
-      response = await request.session.request(path, { signal: request.signal, requiredRole: quiz ? "tutor" : undefined,
-        headers: { Accept: permitted.join(", ") } });
+      response = await request.session.request(path, { signal: request.signal, requiredRole: form ? "admin" : quiz ? "tutor" : undefined,
+        headers: {
+          Accept: permitted.join(", "),
+          ...(form ? { "x-native-operations-user-id": request.session.scope.accountId, "x-native-operations-session-id": request.session.scope.sessionId } : {}),
+        } });
       if (response.status === 401 || response.status === 403) return { status: "error", issue: "unauthorized" };
       if (response.status === 404) return { status: "error", issue: "not-found" };
       if (response.status !== 200 || !response.body) return { status: "error", issue: "fetch" };
