@@ -57,3 +57,33 @@ Pada checkout `0cc3c835251cead65ff838cde0c3e9c9ad3ccc0b`, Playwright menjalankan
 | `/settings`, pemuatan langsung | HTTP 200. Setelah tombol Bahasa ditekan, opsi menu “Bahasa Indonesia” tidak terlihat dalam 25 detik. | Mengulang kegagalan yang sama. Navigasi ke Pengaturan melalui profil lulus pada run pertama. |
 
 Status pemuatan langsung tetap tercatat sebagai gagal. Rujukan gambar Pengaturan yang berhasil memakai jalur melalui profil. [Skenario dan assertion](community-web.spec.ts)
+
+### Autentikasi klien native melalui HTTPS loopback
+
+Harness resmi lulus pada checkout bersih `4a1d9c866fd24047db59585f66dded3671cbc4c5` dengan Bun 1.3.14 dan PostgreSQL 17.12. Server uji memakai HTTPS `127.0.0.1:9443`, akun sintetis, handler autentikasi produksi, dan basis data sementara. Permintaan dari klien Expo diarahkan ke loopback selama pengujian. Login melalui UI perangkat masih perlu diverifikasi. [Workflow](../../../../../.github/workflows/native-authenticated-preview.yml)
+
+1. Endpoint start mengembalikan 302 menuju browser fixture. Klaim sintetis yang sah mendapat 303. Klaim salah atau yang diulang mendapat 403.
+2. Endpoint complete menghasilkan deep link dengan kode dan state yang sesuai. Permintaan tanpa cookie handoff mendapat 403. Pertukaran yang sah menghasilkan 200 dan cookie bertanda tangan. Origin salah mendapat 403, sedangkan verifier salah atau kode yang dipakai ulang mendapat 400.
+3. Klien Expo memverifikasi identitas akun dan sesi dengan masa berlaku maksimum lima menit. Konteks terautentikasi mengembalikan satu peran `murid` dan tujuan `/dashboard`.
+4. Klien mencabut sesi melalui sign-out. Permintaan konteks dengan cookie yang sudah dicabut mendapat 401. Permintaan anonim juga mendapat 401.
+
+Untuk mengulang, pakai checkout terpisah pada SHA di atas dan Bun 1.3.14. Siapkan instance PostgreSQL 17 kosong yang hanya mendengarkan di loopback port 55453. Gunakan database, pengguna, dan password fixture `native_preview` seperti pada workflow. Harness menerapkan migrasi dan membuat sesi sintetis. Penanda runner pada perintah ini berlaku hanya untuk proses fixture lokal.
+
+```bash
+(
+  set -eu
+  test "$(git rev-parse HEAD)" = 4a1d9c866fd24047db59585f66dded3671cbc4c5
+  umask 077
+  tls_dir=$(mktemp -d)
+  trap 'rm -rf -- "$tls_dir"' EXIT
+  openssl req -x509 -newkey rsa:2048 -sha256 -nodes -days 1 \
+    -subj /CN=127.0.0.1 -addext subjectAltName=IP:127.0.0.1 \
+    -keyout "$tls_dir/key.pem" -out "$tls_dir/cert.pem" 2>/dev/null
+  GITHUB_ACTIONS=true RUNNER_ENVIRONMENT=github-hosted NATIVE_PRODUCT_AUTH_FIXTURE=1 \
+    DATABASE_URL=postgresql://native_preview:native_preview@127.0.0.1:55453/native_preview \
+    NEXT_TELEMETRY_DISABLED=1 bun --no-env-file \
+    scripts/native-readiness/product-auth/smoke.ts "$tls_dir/cert.pem" "$tls_dir/key.pem"
+)
+```
+
+Harness menutup listener TLS setelah selesai. Hentikan instance PostgreSQL fixture setelah pengujian.
