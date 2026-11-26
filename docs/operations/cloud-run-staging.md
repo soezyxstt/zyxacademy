@@ -1,8 +1,10 @@
-# Cloud Run staging
+# Cloud Run Staging
 
-Status is **candidate implementation**. Vercel remains the live staging endpoint and the [manual Vercel release](vercel-staging.md) remains available. Complete the [compatibility checklist](cloud-run-compatibility.md) before exposing the candidate. The former Taiwan service is retained for investigation and recovery.
+Status: `ACTIVE` staging candidate workflow. Vercel remains available via the [manual Vercel staging runbook](vercel-staging.md).
 
-## Target and request flow
+## Target and Request Flow
+
+The container image (`Dockerfile.cloud-run`) packages the Next.js 16.3 standalone build on Linux AMD64 (Debian glibc): Bun installs the frozen lockfile and runs `build:authoring-skills`, V4 fingerprinting, and `next build`, while the runtime serves under Node 24 as an unprivileged user with `.next/static` and `public/` copied separately.
 
 | Setting | Candidate |
 |---|---|
@@ -116,9 +118,7 @@ Mirror the public build values used by Vercel staging for Firebase, realtime, an
 
 ## Data and release gates
 
-Use the final branch `br-gentle-scene-azq0gp91` in project `muddy-sky-44104897`, database `neondb`, the documented pinned pooled host, and private branch-scoped bucket `zyx-staging`. Follow the [Neon migration runbook](neon-migration.md) and the [maintenance and Vercel recovery runbook](vercel-staging.md). Verify the journal and compact history marker read-only, then verify the matching staging worker and writer fence. The application role has access to the cutover marker. Use a separately scoped operator credential for the migration journal. Deploying web code performs no migration, backfill, seed, worker restart, scheduler registration or Inngest resumption. Cloud Run does not run Vercel cron definitions. Preserve the existing scheduler and Inngest controls until the coordinated acceptance window.
-
-On November 19, 2026, the branch reported ready. The staging application role could read the cutover marker. The operator query returned 37 journal entries. All 37 timestamps and hashes matched the 35 repository migrations after applying the two historical hash substitutions and two bridge rows pinned in `scripts/staging/gamification-migration-core.ts`. The deployment preflight repeats this verification against the exact candidate commit.
+Use the staging branch `br-gentle-scene-azq0gp91` in project `muddy-sky-44104897`, database `neondb`, the documented pinned pooled host, and private branch-scoped bucket `zyx-staging`. Follow [DATABASE.md](../DATABASE.md) and the [manual Vercel staging runbook](vercel-staging.md). Verify the migration journal read-only, then verify the matching staging worker. Deploying web code performs no migration, backfill, seed, worker restart, or scheduler registration. Cloud Run does not run Vercel cron definitions.
 
 ## Cloudflare and DNS
 

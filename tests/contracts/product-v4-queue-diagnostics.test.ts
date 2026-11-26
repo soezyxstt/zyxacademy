@@ -3,10 +3,10 @@ import { Hono } from "hono";
 import { PRODUCT_V4_QUEUE_EVENT, PRODUCT_V4_QUEUE_PATH } from "@/lib/compute/product-v4-diagnostics";
 
 const task = "a".repeat(64);
-let authorized = true, jobFailure: unknown, requestFailure: unknown;
-const runQueueJob = mock(async (..._args: unknown[]) => { if (jobFailure !== undefined) throw jobFailure; });
+let authorized = true, jobFailure: unknown, requestFailure: unknown, duringAuthorization: (() => void) | undefined, duringJob: (() => void) | undefined;
+const runQueueJob = mock(async (..._args: unknown[]) => { duringJob?.(); if (jobFailure !== undefined) throw jobFailure; });
 mock.module("google-auth-library", () => ({ OAuth2Client: class {
-  async verifyIdToken() { return { getPayload: () => authorized ? { email_verified: true, email: "zyx-staging-queue@zyx-academy.iam.gserviceaccount.com" } : undefined }; }
+  async verifyIdToken() { duringAuthorization?.(); return { getPayload: () => authorized ? { email_verified: true, email: "zyx-staging-queue@zyx-academy.iam.gserviceaccount.com" } : undefined }; }
 } }));
 mock.module("@/db", () => ({ db: {} }));
 mock.module("@/lib/db", () => ({ pool: {} }));
@@ -29,7 +29,7 @@ afterAll(() => { for (const [key, value] of Object.entries(original)) { if (valu
 let errors: string[];
 let errorSpy: ReturnType<typeof spyOn>, infoSpy: ReturnType<typeof spyOn>;
 beforeEach(() => {
-  authorized = true; jobFailure = undefined; requestFailure = undefined; errors = [];
+  authorized = true; jobFailure = undefined; requestFailure = undefined; duringAuthorization = undefined; duringJob = undefined; errors = [];
   runQueueJob.mockClear();
   errorSpy = spyOn(console, "error").mockImplementation((line: string) => { errors.push(line); });
   infoSpy = spyOn(console, "info").mockImplementation(() => {});
@@ -78,4 +78,31 @@ test("a failed diagnostic sink does not change503 or rejected-fetch behavior", a
   expect((await worker.fetch(request())).status).toBe(503);
   requestFailure = new Error("original rejection");
   await expect(worker.fetch(request())).rejects.toBe(requestFailure);
+});
+
+test("fatal scope starts only after existing OIDC and delivery validation and ignores other jobs", async () => {
+  const observe = () => Reflect.apply(process.emit, process, ["uncaughtExceptionMonitor", new Error("private-fatal"), "uncaughtException"]);
+  duringAuthorization = observe;
+  authorized = false;
+  expect((await worker.fetch(request())).status).toBe(401);
+  authorized = true;
+  expect((await worker.fetch(request(PRODUCT_V4_QUEUE_PATH, { "X-CloudTasks-TaskName": "invalid" }))).status).toBe(400);
+  duringJob = observe;
+  expect((await worker.fetch(request("/internal/tasks/other.event"))).status).toBe(204);
+  expect(errors).toEqual([]);
+});
+
+test("fatal scope keeps only the validated task snapshot despite later request mutations and clears after delivery", async () => {
+  const delivery = request();
+  duringJob = () => {
+    delivery.headers.set("X-CloudTasks-TaskName", "private-mutated-task");
+    delivery.headers.set("Authorization", "Bearer private-mutated-token");
+    Reflect.apply(process.emit, process, ["uncaughtExceptionMonitor", new TypeError("private-fatal"), "uncaughtException"]);
+  };
+  expect((await worker.fetch(delivery)).status).toBe(204);
+  expect(errors.map(line => JSON.parse(line))).toEqual([{ event: "product_v4.process_fatal", job: "product-v4-verification", origin: "uncaughtException", activeTasks: [task], activeTaskCount: 1, errorType: "TypeError" }]);
+  expect(errors.join("\n")).not.toMatch(/private|Bearer|synthetic-only|https/);
+  errors.length = 0;
+  Reflect.apply(process.emit, process, ["uncaughtExceptionMonitor", new Error("private-after-response"), "uncaughtException"]);
+  expect(errors).toEqual([]);
 });

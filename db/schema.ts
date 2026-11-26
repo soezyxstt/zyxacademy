@@ -3962,6 +3962,7 @@ export const courseVideos = pgTable(
 		index("idx_course_videos_course").on(table.courseId),
 		index("idx_course_videos_playlist").on(table.playlistId),
 		index("idx_course_videos_chapter").on(table.chapterId),
+		index("idx_course_videos_video_url").on(table.videoUrl),
 	]
 );
 

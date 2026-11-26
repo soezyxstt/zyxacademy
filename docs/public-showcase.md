@@ -1,225 +1,79 @@
-# Zyx Academy — Engineering Case Study
+# Zyx Academy: Engineering Case Study
 
-> Public-facing case study draft for Zyx Academy. This document is intended to be copied into a separate public showcase repository. It intentionally excludes private course content, credentials, internal admin data, proprietary prompts, and sensitive operational details.
+> Public-facing case study for Zyx Academy. It intentionally excludes private course content, credentials, internal admin data, proprietary prompts, and sensitive operational details.
 
 **Live:** https://zyxacademy.com
 
 ## Overview
 
-Zyx Academy is a full-stack learning platform for university students, with a focus on structured learning content, assessments, spaced-repetition practice, progress tracking, and an AI tutor called Zyra.
+Zyx Academy is a full-stack, multi-platform learning management system for university students. It combines structured scientific learning content, spaced-repetition flashcards, adaptive assessments, interactive Python coding, scoped Q&A discussions, gamified progress, and an AI tutor called Zyra.
 
-The main engineering challenge is not only generating educational content with AI. The system needs a reliable content pipeline so generated materials, questions, flashcards, retrieval data, and tutor responses stay tied to reviewed source material.
+The core engineering challenge is not just generating educational content with AI. It is building a verifiable, source-backed content pipeline so articles, printable diktats, questions, flashcards, vector retrieval, and AI tutor responses remain traceable to reviewed academic sources.
 
-## What I built
+## What I Built
 
-- Course and chapter-based learning experience
-- Structured learning materials generated from source documents
-- Assessment and question-bank workflows
-- Spaced-repetition flashcards and review history
-- Student progress tracking and study analytics
-- AI tutor backed by retrieval and vector search
-- Admin authoring and review workflows
-- Structured content pipelines for source ingestion, validation, staging, and publication
-- Production storage and deployment on low-cost / free-tier infrastructure
-- Separate MCP authoring surface for AI-assisted content operations
+- **Multi-platform delivery**: Next.js 16.3 web app with separated mobile and desktop LMS shells, Capacitor 7 mobile wrapper (Android/iOS), and Tauri v2 desktop wrapper (Windows/macOS/Linux) with offline reading and delta updates.
+- **Canonical authoring pipeline**: Source Pack ingestion, atomic Idea Bundle V3 extraction, structured Product Bundle V4 (interactive scientific articles, printable diktats, flashcards), standalone solution collections (V5), and flexible stable-ID revisions.
+- **MCP-first authoring and operations**: Streamable HTTP MCP server with OAuth PKCE consent, scoped playbooks, and packaged skills (`soezyxstt/zyx-authoring-mcp`).
+- **Assessment and coding platform**: Timed and untimed quizzes, tryouts, live real-time classroom quizzes, and an interactive Python playground with browser/WASI execution and Zyra coding coaching.
+- **Grounded AI tutor (Zyra)**: Retrieval-augmented tutoring over 768-dimensional Cloudflare Vectorize namespaces, dynamic multi-provider model routing via Cloudflare AI Gateway, distributed quota leasing, and structured pedagogical responses with KaTeX math and interactive visuals.
+- **Student engagement and collaboration**: Bilingual (`id`/`en`) scoped discussions with `@Zyra` mentions, SM-2 spaced-repetition flashcards, mastery analytics, Google Calendar schedule sync, and student gamification with a 3D Pet Studio.
 
-## Product flow
+## High-Level Architecture
 
 ```text
-Source documents
-      │
-      ▼
-Canonical content pipeline
-      │
-      ├─► Knowledge objects
-      ├─► Knowledge graph
-      ├─► Flashcards
-      ├─► Assessments
-      ├─► Learning material
-      └─► Retrieval index
-                 │
-                 ▼
-              Zyra tutor
-                 │
-                 ▼
-        Grounded student answers
+Clients (Web Browser / Capacitor Mobile / Tauri Desktop)
+          |
+          v
+  Next.js 16.3 App Router (Vercel / Cloud Run + Edge Worker)
+          |
+   +------+---------------+
+   v      v               v
+Better   App & Domain   MCP Authoring &
+Auth     Services       Admin Operations
+   |      |               |
+   +------+---------------+
+          v
+   Drizzle ORM Data Layer
+          |
+          +-- Neon PostgreSQL          structured domain, auth, and outbox data
+          +-- Neon Object Storage      private S3-compatible academic and user assets
+          +-- Neon Functions           background compute via Inngest / Cloud Tasks
+          +-- Cloudflare AI Gateway    multi-provider LLM routing, BYOK, and cooldowns
+          +-- Cloudflare Vectorize     768d semantic retrieval (canonical & ops knowledge)
+          +-- Cloudflare Workers       vector API, Zyra control plane, realtime, PDF renderer
 ```
 
-## High-level architecture
+## Key Engineering Decisions
 
-```text
-Students / Tutors / Admins
-          │
-          ▼
-     Next.js application
-          │
-   ┌──────┼───────────────┐
-   ▼      ▼               ▼
-Auth   App services   Authoring workflows
-   │      │               │
-   └──────┼───────────────┘
-          ▼
-   Drizzle data layer
-          │
-          ├─ Turso / SQLite      structured application data
-          ├─ Cloudflare R2       source and generated files
-          ├─ Vectorize           semantic retrieval
-          ├─ Inngest             background workflows
-          └─ Gemini              generation and tutor intelligence
-```
+### 1. Treat AI Output as a Versioned Pipeline Artifact
+Generated content never goes straight from an LLM response to students. Source Packs, Idea Bundles (V3), and Product Bundles (V4/V5) pass deterministic schema validation, coverage checks, browser/PDF verification, and explicit review gates before atomic publication.
 
-## Key engineering decisions
+### 2. Preserve Source Provenance End-to-End
+Every Idea, Article block, flashcard, question, and vector chunk retains provenance links back to source document pages and checksums. Assessment answer keys are strictly excluded from shared caches and student tutoring retrieval.
 
-### 1. Treat AI output as a pipeline artifact
+### 3. Separate Authoring from Publication
+External AI agents can validate, inspect, and stage revisions over MCP, while publication requires explicit scoped consent and verified revision receipts.
 
-Generated content does not go straight from a model response to the student UI. The system uses structured intermediate artifacts that can be validated, reviewed, staged, and regenerated.
-
-This reduces hidden coupling between prompts and production data and makes content generation easier to audit.
-
-### 2. Keep source provenance
-
-Learning materials, questions, and tutor retrieval are designed around source-backed content. The pipeline keeps relationships between source files, structured knowledge, generated products, and later retrieval steps.
-
-This is important for an educational product where plausible but unsupported answers are not enough.
-
-### 3. Separate authoring from publication
-
-Authoring tools can generate, validate, inspect, and stage content, but final publication remains a distinct action in the admin application.
-
-The same boundary is reflected in the public Zyx Authoring MCP project: AI tools can help produce and review artifacts without silently publishing them.
-
-### 4. Design around constrained infrastructure
-
-The production system uses lightweight managed services and Cloudflare components instead of assuming a large always-on backend.
-
-This shaped choices around Turso / SQLite, object storage, vector search, background jobs, and serverless deployment.
-
-## Zyra retrieval flow
-
-```text
-Student question
-      │
-      ▼
-Query rewrite / retrieval intent
-      │
-      ▼
-Relevant course knowledge + assessment context
-      │
-      ▼
-Grounded response generation
-      │
-      ├─ answer
-      ├─ explanation
-      └─ source-aware context
-```
-
-## Authoring workflow
-
-```text
-Source pack
-    │
-    ▼
-Idea / knowledge extraction
-    │
-    ▼
-Structured product generation
-    │
-    ▼
-Validation + coverage checks
-    │
-    ▼
-Staging + review
-    │
-    ▼
-Admin publication
-```
-
-A public implementation of the authoring client surface is available in `soezyxstt/zyx-authoring-mcp`.
+### 4. Multi-Provider AI Resilience and Quota Isolation
+All AI traffic routes through Cloudflare AI Gateway with dynamic catalog discovery, 3-sample median latency probes, automatic alias cooldown on consecutive failures, and a distributed Cloudflare Worker control plane for quota leases.
 
 ## Stack
 
-- Next.js 16
-- React + TypeScript
-- Drizzle ORM
-- Turso / SQLite
-- Better Auth
-- Cloudflare Workers
-- Cloudflare R2
-- Cloudflare Vectorize
-- Inngest
-- Gemini
-- MCP-based authoring workflows
+- **Web**: Next.js 16.3, React 19, TypeScript, Tailwind CSS v4, TanStack Query 5, `next-intl`
+- **Native**: Capacitor 7 (Android/iOS), Tauri v2 (Windows/macOS/Linux)
+- **Data & Storage**: Drizzle ORM, Neon PostgreSQL, Neon Object Storage, Better Auth
+- **Background & Edge**: Neon Functions, Inngest, Google Cloud Tasks, Cloudflare Workers, AI Gateway, Vectorize, Workers KV
+- **AI & Scientific**: Gemini & multi-provider BYOK via AI Gateway, KaTeX, JSXGraph, Pyodide, Three.js / React Three Fiber
+- **Authoring**: Model Context Protocol (MCP) SDK, Playwright Chromium verification
 
-## Engineering themes demonstrated
+## Public Links
 
-- Large full-stack product design
-- AI content pipelines
-- Retrieval-augmented tutoring
-- Structured generation and validation
-- Data provenance
-- Assessment systems
-- Background workflows
-- Serverless / edge deployment
-- Database and object-storage design
-- Product architecture under low-cost infrastructure constraints
-
-## What is intentionally not public
-
-The main production repository remains private because it contains product-specific implementation details and operational material.
-
-The public showcase should not contain:
-
-- private course source material
-- copyrighted source PDFs not licensed for redistribution
-- student or tutor data
-- database dumps
-- API keys, OAuth secrets, or environment files
-- unpublished assessment content
-- internal admin credentials
-- proprietary prompts where disclosure would weaken production controls
-
-## Suggested screenshots
-
-Add sanitized screenshots for:
-
-1. Student course dashboard
-2. Learning material page
-3. Flashcard review flow
-4. Assessment / question practice
-5. Zyra tutor conversation
-6. Admin content pipeline or authoring screen
-7. Analytics or progress view
-
-Use demo or non-sensitive course data. Avoid student names, account data, tokens, private source documents, and unpublished questions.
-
-## Suggested public evidence
-
-The showcase repository should link to:
-
-- Live product: https://zyxacademy.com
-- Public authoring project: https://github.com/soezyxstt/zyx-authoring-mcp
+- Live platform: https://zyxacademy.com
+- Public MCP authoring skills: https://github.com/soezyxstt/zyx-authoring-mcp
 - Portfolio: https://adihnursyam.com
-
-Optional additions:
-
-- one architecture diagram exported as PNG or SVG
-- a short screen recording of the student flow
-- a short screen recording of Zyra answering a grounded question
-- a sanitized example showing source → structured content → assessment / flashcard output
-
-## Recruiter walkthrough
-
-A reviewer should be able to understand the project in this order:
-
-1. Open the live platform.
-2. Review the learning and practice experience.
-3. Read the architecture and content-pipeline sections.
-4. Inspect how Zyra retrieval is grounded.
-5. Open the public MCP repository for concrete implementation evidence.
-6. Review sanitized screenshots and diagrams.
-7. Use the private source during a technical interview if needed.
 
 ## Author
 
-Adi Haditya Nursyam  
+Adi Haditya Nursyam
 Portfolio: https://adihnursyam.com

@@ -8,6 +8,7 @@ import { enqueueTask, prepareTask } from "@/lib/queue/cloud-tasks";
 import { cronWindow, isCronJobName } from "@/lib/queue/cron";
 import { runQueueJob } from "@/lib/queue/run-job";
 import { logProductV4QueueFailure, PRODUCT_V4_QUEUE_EVENT } from "@/lib/compute/product-v4-diagnostics";
+import { activateProductV4FatalDiagnostics } from "../neon-background/product-v4-fatal-diagnostics";
 
 const verifier = new OAuth2Client();
 
@@ -34,6 +35,7 @@ export async function dispatchQueueTask(c: Context) {
   const queue = c.req.header("X-CloudTasks-QueueName");
   const { parent } = prepareTask({ name, data: body.data, id: body.id }, env);
   if (!queue || !task || !/^[a-f0-9]{64}$/.test(task) || !retry || !/^\d+$/.test(retry) || queue !== parent.split("/").at(-1)) return c.body(null, 400);
+  if (name === PRODUCT_V4_QUEUE_EVENT) activateProductV4FatalDiagnostics(task);
   try {
     await runQueueJob(name, body.data, task, Number(retry), queue.endsWith("-pdf") ? 3 : 6);
   } catch (error) {

@@ -1,74 +1,32 @@
-# Manual Vercel staging
+# Manual Vercel Staging
 
-Status: `OPEN / IN PROGRESS`. The release path is implemented; hosted recovery and DNS acceptance remain pending.
+Runbook for manually deploying and recovering the staging web tier on Vercel.
 
 ## Target
 
-- Vercel project: `zyxacademy`, `prj_9wDdc36VFIH5wJT45jEXIHGst2pb`.
-- Team: `team_rMFT8hSTCTObKzXirjJcbMFc`.
-- Branch and GitHub Environment: `staging`.
-- Origin: `https://staging.zyxacademy.com`.
-- Neon project `muddy-sky-44104897`, branch `br-gentle-scene-azq0gp91`, compute `ep-sparkling-lab-azrp3ymj`, database `neondb`, bucket `zyx-staging`.
-- Worker: Neon Function `zyxcompute` on that branch; Inngest environment `staging-40f1da25`.
+- **Vercel project**: `zyxacademy` (`prj_9wDdc36VFIH5wJT45jEXIHGst2pb`)
+- **Custom environment**: `staging` (`env_puSffSpNjRY4ZXuB03j0H5Davx0X`), Git branch tracking disabled
+- **Branch and GitHub Environment**: `staging`
+- **Origin**: `https://staging.zyxacademy.com`
+- **Data**: Neon project `muddy-sky-44104897`, branch `br-gentle-scene-azq0gp91`, database `neondb`, private bucket `zyx-staging` (`STORAGE_PROVIDER_MODE=neon`)
+- **Background worker**: Neon Function `zyxcompute` on the staging branch
 
-Use only `vercel deploy --target=staging` in this shared project. Custom environment ID: `env_puSffSpNjRY4ZXuB03j0H5Davx0X`. Runtime variables are scoped exclusively to this ID; never write production or generic preview variables or pass `--prod` for staging.
+Always target `--target=staging`. Never pass `--prod` or write production/generic preview variables during a staging release.
 
-## Release and reopen
+## Release Procedure
 
-1. Record current deployment IDs, project pause/protection/Git settings, domain assignment, DNS record, compute disabled state and Inngest pause states. Do not record secret values in reports.
-2. Complete the compact question-history gate in [DEPLOYMENT.md](../DEPLOYMENT.md), including backup, the migration journal, authorized backfill and ready marker, with old writers stopped. A migration-only result does not satisfy this gate. Keep traffic held until matching web and worker code are deployed.
-3. Keep custom staging branch tracking unset. `vercel.json` explicitly rejects staging Git builds and CI calls the web workflow automatically only on `main`. Keep the production deployment hold unchanged.
-4. Ensure GitHub Environment `staging` has its existing runtime secrets and `VERCEL_TOKEN`. The shared worker guard rejects production database, storage, Inngest and renderer identities. The manual web workflow syncs allowed settings only to the custom staging environment, including origins and compute URL, before building. CI credentials are never runtime settings. Public build variables use encrypted storage; server values use sensitive storage.
-5. Explicitly dispatch the staging web release, after its database cutover gate is satisfied:
-
-   ```powershell
+1. **Pre-release checks**: Confirm pending `drizzle-postgres/` migrations are applied to the staging Neon branch and that `staging` CI checks pass.
+2. **Verify secrets**: Ensure GitHub Environment `staging` has current runtime secrets, `VERCEL_TOKEN`, and `ANDROID_APP_LINKS_NIGHTLY_SHA256_FINGERPRINTS`. The deploy workflow validates target guards (rejecting production database, storage, Inngest, and renderer identities) and syncs only allowed variables to the custom `staging` environment.
+3. **Dispatch staging web release**:
+   ```bash
    gh workflow run deploy-web.yml --repo soezyxstt/zyxacademy --ref staging
    ```
+   Staging pushes never trigger web deployment automatically (`vercel.json` disables Git builds for `staging`). The workflow does not run migrations or seeds.
+4. **Coordinate matching worker**: Deploy the matching staging Neon worker via `.github/workflows/deploy-neon-worker.yml` (`environment=staging`) and verify its health and function registration.
+5. **Post-deploy verification**: Confirm the deployment reaches `READY`, verify `https://staging.zyxacademy.com` landing, sign-in, `/api/health`, `/.well-known/assetlinks.json`, and authenticated read/write smoke checks.
 
-   This dispatch is intentionally allowed while automated production web deployment is held. A staging push cannot run this job. The workflow does not run migrations, backfill or seed.
+## Recovery and Rollback
 
-6. Inspect the exact deployment's READY result, build revision and runtime logs. Deploy the matching Neon worker using its existing staging workflow. Do not resume the legacy Deno app. Keep Inngest paused until the matching worker passes its documented health/preflight checks.
-7. Assign only `staging.zyxacademy.com` to the custom staging environment. Verify its latest deployment and leave production aliases, deployment and protection settings unchanged. The separate rehearsal project remains paused.
-8. Update only the `staging.zyxacademy.com` CNAME from `ghs.googlehosted.com` to the currently recommended value returned by Vercel domain configuration. Read the recommendation after assigning the domain to the shared project. Preserve all other DNS records. The available Cloudflare account did not have this zone, so this operation remains blocked on DNS access.
-9. Re-enable the exact staging compute only in the coordinated maintenance window. Verify landing/sign-in, read-only database-backed routes, static assets and application health over the selected domain. Verify OAuth callbacks separately. Resume staging Inngest only after successful matching-worker validation. Check no old Google/Deno deployment can resume writes.
-
-## Read-only findings, 2026-11-15
-
-Remote `staging` was `869f20b9898b6391f6952ccf337d711ea402d267`, with PR 333 merged. Project `zyxacademy` had no custom environments. The custom `staging` environment was created without branch tracking. Its production deployment was `dpl_HpDpfeEfdEs3grmPjvbzt3ymqPUT`. The separate rehearsal project `zyx-neon-migration` remains paused. DNS still targeted Google. The staging Neon Function still needed a matching release.
-
-
-## Database cutover evidence, 2026-11-15
-
-The user authorized completion of staging recovery, including backfill and seed.
-Backup branches `br-lingering-band-azbbkkyk` and `br-old-forest-azfgxkp9` retain the
-pre-backfill data. Both were created from the exact staging branch without a compute.
-The migration journal has 26 entries and the guarded backfill verified its pinned
-complete state. The backfill indexed 2,357 legacy history entries from 95 attempts
-and committed the `v1` marker; its retry was a no-op. The catalog seed inserted
-21 entries, verified 28, and inserted zero on retry.
-
-Revoking database CONNECT was tested and proved insufficient through the Neon
-proxy, so its original ACL was restored. The staging owner credential was then
-replaced and retained privately for recovery. Existing owner sessions were checked
-and terminated where present. Independent direct and pooled connection tests with
-the old credential both failed with `28P01`; fresh operator and application logins
-both succeeded. Roles and credentials are branch-scoped. Old Google, Deno and Neon
-worker configurations must retain their invalid old credential. Only matching new
-code receives the application login `zyx_staging_app_20261115`. GitHub Environment
-`staging` DATABASE_URL was updated privately. Production was not changed.
-
-This proves a database write fence for old credentials, not termination of all
-external runtime processes. Deno remains suspended and must not be resumed.
-The temporary operator login is reserved for the controlled database window.
-
-Live PostgreSQL fixtures exposed two release blockers: raw SQL timestamp strings
-were passed into Drizzle Date columns, and the comeback lookup selected a sequential
-scan for correlated history. Normalize projection timestamps with the shared date
-helper and order the limited comeback lookup by its indexed timestamp. After these
-fixes, the exposure and real writer/processor fixtures passed with synthetic writes
-rolled back; the default planner used the six-column index with bounded work.
-Hosted web/worker release and domain acceptance are still pending.
-
-## Recovery
-
-If release/build verification fails, leave traffic and Inngest held and keep the database disabled outside the controlled validation window. Restore the saved Vercel project settings and staging DNS only when their matching application/database unit is valid. A previous Vercel deployment alone is not a safe rollback after compact-history backfill: restore the verified pre-cutover database backup and matching old code together, or keep maintenance active and fix forward. Do not delete the Google service, Vercel revisions, Deno app, credentials or backups as part of this move.
+- If build or runtime verification fails, promote the last verified compatible Vercel staging deployment or dispatch `deploy-web.yml` from the previous known-good `staging` commit.
+- If a schema migration or backfill accompanied the release, restore the Neon branch snapshot together with the matching web and worker revisions rather than rolling back web code alone.
+- To switch staging traffic between Vercel and Cloud Run Bangkok, see [cloud-run-staging.md](cloud-run-staging.md).

@@ -1,120 +1,100 @@
-# Zyra operations runbooks
+# Zyra Operations Runbooks
 
-Version: `zyra-ops-runbooks-v1`
+Version: `zyra-ops-runbooks-v2`
 
-These runbooks apply to staging and production operations review. They use the privacy-safe alert code only. Never retrieve a prompt, response, raw key, object key, or learner identity to investigate an alert.
+These runbooks apply to staging and production operations review. Investigate alerts using only privacy-safe alert codes and masked diagnostics. Never retrieve a prompt, response, raw API key, object key, or learner identity during incident triage.
 
 ## Active reservation spike
 
-Compare active reservations with the accepted allowance and control-plane diagnostics. If the count is not explainable, roll back to the last verified application version, preserve the lease evidence for reconciliation, and note that the allowance ledger no longer has an env kill switch.
+Compare active reservations against the configured allowance cap and `workers/zyra-control-plane` diagnostics. If the count cannot be explained by normal traffic, roll back to the last verified application version and preserve lease rows for reconciliation. The allowance ledger is always-on and has no env kill switch.
 
 ## Quota oversubscription
 
-Stop promotion of the affected canary, reconcile application leases with control-plane commits, and roll back to the last verified application version if the invariant is not restored. Never delete lease rows.
+Stop promotion of the affected release, reconcile application leases against control-plane commits, and roll back to the last verified application version if the invariant is not restored. Never delete lease rows.
 
 ## Reconciliation drift
 
-Keep the authoritative allowance ledger enabled, repair only the documented compatibility projection, and rerun reconciliation after the grace period. Escalate if a committed lease is missing or duplicated.
+Keep the authoritative allowance ledger active, repair only the documented compatibility projection, and rerun reconciliation after the grace window. Escalate if any committed lease is missing or duplicated.
 
 ## All projects degraded
 
-Keep new rollout flags off, inspect masked project health and provider outcome buckets, and use the router fallback policy. Roll back to the last verified application version if safe fallback cannot be demonstrated; the router is always-on and has no env kill switch.
+Inspect masked provider/alias health and outcome buckets in `/admin/ops/models` and `/admin/ops/analytics`. Confirm Cloudflare AI Gateway (`CF_AI_GATEWAY_URL`, `CF_AI_GATEWAY_TOKEN`) reachability and verify that healthy fallback aliases are configured. Three consecutive failures trigger an automatic 5-minute alias cooldown. Roll back to the last verified application version if safe fallback cannot serve text traffic.
 
 ## Provider 429 or timeout
 
-Slow or stop the synthetic canary, verify the bounded request cap, and allow health-aware fallback to settle. Roll back to the last verified application version if the accepted text path cannot meet its fallback gate.
+Verify bounded request caps, inspect alias cooldown state in `/admin/ops/models`, and allow health-aware fallback across configured BYOK aliases and query-key fallbacks to settle. Trigger a manual 3-sample median latency probe only after upstream pressure subsides.
 
 ## Premium reserve
 
-Stop premium-only experiments and verify that ordinary tutoring still has its declared reserve. Roll back to the last verified application version if reserve accounting is not exact.
+Pause premium-tier experiments and verify that standard student tutoring retains its declared daily reserve (15 to 18 turns per Jakarta day depending on rank). Roll back if reserve accounting drifts.
 
 ## Cache isolation
 
-Stop cache promotion and inspect only cache contract metadata and hashes. Disable `FEATURE_ZYRA_SEMANTIC_CACHE_V1` if a learner, image, assessment, or profile field can enter a shared cache.
+Stop cache promotion and inspect only cache contract metadata and hashes. Disable `FEATURE_ZYRA_SEMANTIC_CACHE_V1` immediately if any learner, image, assessment, or profile field can enter a shared cache.
 
 ## Semantic cache quality
 
-Freeze semantic writes, preserve the calibration artifact, and compare exact scope and profile metadata. Disable `FEATURE_ZYRA_SEMANTIC_CACHE_V1` if false reuse or profile drift is observed.
+Freeze semantic writes, preserve calibration metadata, and compare scope and profile hashes. Disable `FEATURE_ZYRA_SEMANTIC_CACHE_V1` if false reuse or scope drift is observed.
 
 ## Attachment authorization
 
-Disable new image input with `FEATURE_ZYRA_IMAGE_INPUT_V1`, preserve private objects and rows, and inspect only masked scope outcomes. Do not expose or copy the attachment bytes during investigation.
+Disable learner image input via `FEATURE_ZYRA_IMAGE_INPUT_V1` (and `NEXT_PUBLIC_FEATURE_ZYRA_IMAGE_INPUT_V1`), preserve private storage objects and database rows, and inspect only masked scope outcomes. Do not copy or expose attachment bytes.
 
 ## Image sanitizer
 
-Disable `FEATURE_ZYRA_IMAGE_INPUT_V1` if sanitizer failures exceed the accepted threshold. Keep text tutoring active, retain failed reason codes, and retry only with approved synthetic fixtures.
+Disable `FEATURE_ZYRA_IMAGE_INPUT_V1` if sanitizer rejections exceed the accepted threshold. Keep text tutoring active, retain masked failure reason codes, and retest only with approved synthetic fixtures.
 
 ## Assessment safety
 
-Roll back the deployment and disable image input for the affected canary, preserve the leak-scan artifact, and block active-assessment traffic until the policy and validator fixtures pass again.
+Roll back the affected deployment, disable image input if involved, preserve leak-scan evidence, and block active-assessment traffic until `tests/contracts/assessment-redaction.test.ts` and policy validators pass.
 
 ## Teaching validation
 
-Keep the typed response boundary fail-closed, inspect stable violation codes, and roll back the deployment if deterministic safe composition is not available.
+Keep the typed response boundary fail-closed, inspect stable violation codes in `zyra_operational_events`, and roll back if deterministic safe composition is unavailable.
 
 ## Telemetry loss
 
-Keep quota and learner responses authoritative, check database write health and bounded failure counts, and restrict or roll back the operations route if it causes request failures. The dashboard is admin-gated and always-on with no env kill switch. Never replace ledger truth with telemetry estimates.
+Keep quota and learner responses authoritative, verify PostgreSQL write health for `zyra_operational_events`, and restrict or roll back the operations route if it causes request failures. The `/admin/ops/analytics` dashboard is admin-gated and always-on. Never replace ledger truth with telemetry estimates.
 
 ## Proposal safety
 
-Disable the affected tutor or admin copilot flag, reject pending proposals, and verify that the existing mutation boundary remains fail-closed. Do not apply a proposal while preconditions or audit linkage are uncertain.
+Reject pending proposals in `zyra_proposals`, verify that the mutation confirmation boundary remains fail-closed, and do not apply any proposal while preconditions or audit linkage are uncertain.
 
 ## Canonical publication vector recovery
 
-For bundle-managed Ideas, source chunks, Articles, questions and solutions, inspect the exact environment and canonical entity status before any authorized replay. A queue action is historical intent, not authority to republish content. The worker rereads canonical state before embedding and again while holding publication locks for the provider write. An old upsert for withdrawn content becomes a delete; an old delete for an active shared entity is skipped. Completion records the actual operation and indexed content hash.
+For bundle-managed Ideas, source chunks, Articles, questions, and solutions, inspect the exact environment and canonical entity status before any authorized replay:
 
-Dispatch and cron process up to 250 rows per invocation in five independently checkpointed batches, then schedule a durable continuation when eligible work remains. A malformed payload is retained with `VECTOR_SYNC_INVALID_PAYLOAD` and attempts 10, outside automatic retry. Inspect and repair that exact row only with authorization; do not reset unrelated rows or reuse an unvalidated body. Valid rows sharing its batch continue without consuming retries for its error.
-
-Each new Idea or Product import creates its own deterministic outbox IDs and reports the inserted count. A later shared publication does not reuse an exhausted job from another import. Repeating publication of the same import remains idempotent.
-
-Managed jobs require explicit, consistent entity ID and version fields. A missing ID must not be repaired by guessing from the queue ID. After an exhausted provider batch step, the worker splits by vector identity before consuming row attempts. Equal identities stay together; every child rechecks canonical state and its own lease. Independent upserts and deletes complete even when another identity is rejected. Isolation has at most 99 groups for a 50-identity batch; partial provider effects may be repeated idempotently. Remaining failures receive a checkpointed 30-second backoff and retry dispatch. Failed owned rows stop retrying at ten attempts; subsequent pending batches still continue. When processing leases are the only remaining work, a durable wakeup at the earliest expiry recovers abandoned leases without waiting for cron.
-
-Current authoring acceptance covers canonical Idea V3 and learning Product V4/V5. Review and publication can run through scoped MCP tools without opening the Admin website. Legacy compatibility and legacy indexing are retired from this acceptance scope.
-
-Rows in `learning`, `practice`, `past_exams`, `idea` and `product` are quarantined with `VECTOR_SYNC_LEGACY_NAMESPACE_RETIRED` and attempts 10. The worker performs no embedding, upsert or deletion for these rows. Do not replay them into canonical namespaces or infer ownership from a KO foreign key. There is no legacy KO or assessment-object retrieval fallback. Existing legacy rows and remote vectors have not been deleted; cleanup requires explicit authorization for the exact environment and target.
-
-Canonical question mutations queue current question and solution identities transactionally and dispatch after commit. Retired questions and superseded manual solutions queue deletion of their exact versions. Allowed canonical reference snapshots and the separate Admin Ops Knowledge pipeline remain subject to their existing access boundaries.
-
-Embedding runs outside database locks. The provider write and queue finalization hold canonical advisory locks and row locks through commit, so provider latency can delay publication or withdrawal. The lock order is Product identities, Idea identities, compatibility identities, canonical parents and children, then queue leases. A lost provider response is ambiguous; preserve the queue record and retry reconciliation against current canonical state. Do not mark it completed manually or replay its saved payload directly. A changed embedding identity fails the lease for retry rather than writing a stale embedding. Local mock and PGlite checks do not establish live provider ordering or two-session PostgreSQL contention. The managed-row SDK regression exercises real SDK step execution and checkpoint replay, with a simulated coordinator, immediate sleep acknowledgement and local event/provider transports. It does not establish hosted Inngest delivery or timing.
+- A `vector_sync_queue` row represents historical intent, not authority to republish. Workers reread canonical state before embedding and again under advisory locks before provider writes. An old upsert for withdrawn content becomes a delete; an old delete for an active shared entity is skipped.
+- Dispatch and cron process up to 250 rows per invocation in five checkpointed batches and schedule a durable continuation when eligible work remains.
+- Malformed payloads stop at `VECTOR_SYNC_INVALID_PAYLOAD` (attempts 10) without blocking healthy sibling rows.
+- Provider batch failures split by vector identity so independent upserts/deletes complete while failing identities back off (30 seconds, up to 10 attempts).
+- Legacy namespaces (`learning`, `practice`, `past_exams`, `idea`, `product`) are retired and quarantined (`VECTOR_SYNC_LEGACY_NAMESPACE_RETIRED`). Do not replay them into `canonical-content-v2`.
 
 ## Admin Ops Knowledge index synchronization
 
-1. Scope and Namespace:
-   Admin Ops AI v2 uses the dedicated Cloudflare Vectorize namespace `admin_ops_knowledge` with profile `admin_ops_knowledge_v1` (768 dimensions, cosine similarity metric). It is completely isolated from student tutoring vector namespaces.
-2. Synchronization Procedure:
-   - When documentation in `docs/` or curated manifests are modified, trigger the synchronization worker via Inngest event `admin/knowledge.sync` or run the smoke check script `bun scripts/staging/smoke-admin-ops-knowledge.ts`.
-   - The sync planner computes deterministic differences against `admin_ops_knowledge_sources` and `admin_ops_knowledge_chunks`.
-   - Chunks are embedded via `CanonicalContentV2EmbeddingAdapter` (`text-embedding-004`) and upserted in batches. Obsolete chunk vectors are explicitly deleted.
-3. Verification:
-   Verify that `admin_ops_knowledge_sources` reflects the updated contentHash and chunkCount, and that status is `active`.
+1. **Scope and namespace**: Admin Ops AI uses the dedicated Cloudflare Vectorize namespace `admin_ops_knowledge` (768 dimensions, cosine similarity), completely isolated from student tutoring namespaces. Curated sources are defined in `CURATED_ADMIN_KNOWLEDGE_ALLOWLIST` (`lib/admin-ops-ai/admin-knowledge-sources.ts`).
+2. **Local index rebuild**: Whenever documentation under `docs/` or `AGENTS.md` changes, rebuild the precomputed fallback index:
+   ```bash
+   bun run build:ops-docs
+   ```
+3. **Remote vector sync**: Trigger the synchronization worker via event `admin/knowledge.sync` (or `bun scripts/staging/smoke-admin-ops-knowledge.ts` on verified staging). Obsolete chunk vectors are deleted automatically.
+4. **Verification**: Confirm `admin_ops_knowledge_sources` reflects the updated `contentHash`, `chunkCount`, and `active` status.
 
 ## Admin Ops Knowledge index rollback without runtime flag
 
-1. Invariant:
-   Knowledge retrieval is always-on for admin surfaces and does not rely on runtime feature flags.
-2. Rollback Procedure:
-   - To roll back a corrupted or incorrect document, revert the markdown source file in the repository to its prior verified commit.
-   - Run the synchronization workflow (`bun scripts/staging/smoke-admin-ops-knowledge.ts --apply`).
-   - The sync planner automatically marks the newer chunks as `stale`, deletes their vector IDs from the `admin_ops_knowledge` namespace, and restores the prior content chunks as `active`.
-   - If emergency catalog cleanup is required, invoke `markChunksStale()` in `admin-knowledge-store.ts` for the affected source ID.
+Knowledge retrieval is always-on for admin surfaces with no runtime feature flag:
+1. Revert the affected markdown file in Git to its prior verified commit and run `bun run build:ops-docs`.
+2. Re-run synchronization (`admin/knowledge.sync` or `bun scripts/staging/smoke-admin-ops-knowledge.ts --apply`) so newer chunks are marked `stale`, deleted from Vectorize, and prior chunks are restored.
+3. For emergency cleanup, invoke `markChunksStale()` in `lib/admin-ops-ai/admin-knowledge-store.ts` for the affected source ID.
 
-## Gemini model failure and provider timeout mitigation
+## AI Gateway and provider failure mitigation
 
-1. Key Rotation and Health Pool:
-   Admin Ops AI v2 utilizes the multi-key pool (`GeminiKeyPool`) across configured environment slots.
-2. Error Handling Codes:
-   - In case of HTTP 429 or quota exhaustion, the runtime emits typed error code `RATE_LIMITED` with `retryable: true`.
-   - In case of provider network timeouts or 5xx server errors, the runtime emits `PROVIDER_UNAVAILABLE` with `retryable: true`.
-3. Client Resilience:
-   The UI panel displays actionable Indonesian guidance with a retry action button. If provider degradation persists, admins can execute operational tasks manually through standard admin dashboard routes listed in the catalog.
+1. **Routing and cooldowns**: All LLM traffic routes through Cloudflare AI Gateway with dynamic catalog discovery (12-hour KV cache, 14-day stale-usable window) and per-feature or global model selection in `/admin/ops/models`. Three consecutive failures place a provider alias into a 5-minute cooldown while healthy aliases serve traffic.
+2. **Typed errors**: Quota exhaustion emits `RATE_LIMITED` (`retryable: true`); upstream timeouts/5xx emit `PROVIDER_UNAVAILABLE` (`retryable: true`).
+3. **Manual fallback**: If provider degradation persists, switch the affected feature's model/alias in `/admin/ops/models` or perform admin operations directly via standard `/admin` routes.
 
-## Admin action approvals
+## Admin action proposal retention and expiration policy
 
-The Ops AI browser chat uses the common MCP registrars for admin and authoring tools, applying the [chat permission policy](../../lib/admin-ops-ai/operation-policy.ts) and browser exclusions. It uses the same operation handlers, schemas, environment identity, playbooks and existing transaction paths. Discover the supported operations through the chat tool. The browser session must still hold the active admin role when the operation runs. The Zyra review API exposes only review proposals. Chat approval plans stay server-side.
-
-- **Allow** commits one reviewed change. An approval binds the actor, login session, environment, browser chat, operation and exact input for up to 10 minutes. Admin-plan operations retain their signed plan. Authoring operations retain their workflow tokens, revision checks, and review and publication gates. Legacy bulk and token proposals retain their existing 30-minute lifecycle.
-- **Allow in chat** also grants permission to update the same form preset or private blog draft for 10 minutes from approval. Each subsequent write reads a fresh plan and checks the current revision. A published article needs a new one-time approval. The composer can revoke chat permission. Chat grants are held in browser memory while the admin panel is mounted.
-- A stale target requires a fresh read and proposal. After an interrupted confirmation, use the same approval card to retry the exact request. For signed admin plans, the shared audit receipt commits with the business write and prevents a second commit. Direct authoring tools claim the approval once. If their result is unknown, inspect the target or job before proceeding. Use the scoped approval-result tool to continue a successful authoring workflow with its returned IDs and tokens.
-- Provider operations that require OAuth consent, including notifications, Meet changes and spreadsheet export, use the existing authorized MCP or Admin workflows. Private form responses, token lookup and admin promotion are outside the browser operation policy.
-- Expired proposals are rejected at execution. Keep proposal records and mutation receipts under the existing audit retention policy.
+1. **TTL**: Action proposals in `zyra_proposals` expire automatically after 30 minutes if not confirmed by an authenticated admin.
+2. **Idempotency and preconditions**: Executed proposals cannot re-run; duplicate requests return the recorded result idempotently. Live preconditions are checked immediately before execution and fail with `STALE_PRECONDITION` on drift.
+3. **Audit retention**: `zyra_proposals` and `ops_ai_mutation_audit` are immutable audit trails; retain records for at least 90 days before archival.
