@@ -26,7 +26,8 @@ const summaries = Object.fromEntries((["android", "ios"] as const).map(platform 
   }
   return [platform, { path, data: JSON.parse(readFileSync(path, "utf8")), provenance, captureIndexPath, captureIndex, archivePath }];
 }));
-const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+const manifest: { sourceHead?: string; routes: { source: string; cases: any[] }[] } =
+  JSON.parse(readFileSync(manifestPath, "utf8"));
 const web = JSON.parse(readFileSync("tests/visual/native-parallel/student/product/web/web.json", "utf8"));
 const webRoot = "tests/visual/native-parallel/student/product/web";
 const base = "packages/native-parity/student/evidence";
@@ -163,8 +164,8 @@ const resultFor = (platform: "android" | "ios", source: string, caseId: string) 
     ...provenance };
 };
 const docs = "docs/native-readiness.md";
-const rows = manifest.routes.map((route: any) => {
-  const source = route.source as string;
+const rows = manifest.routes.map(route => {
+  const source = route.source;
   const pattern = source.replace(/^app\/\(student\)/, "").replace(/\/page\.tsx$/, "");
   const area = (Object.entries(studentPatterns).find(([, values]) => values.includes(pattern))?.[0]) as StudentArea | undefined;
   if (!area || !operations[pattern]) throw new Error(`Missing route mapping: ${source}`);
