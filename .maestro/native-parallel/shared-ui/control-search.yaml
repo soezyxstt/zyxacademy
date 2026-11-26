@@ -6,6 +6,7 @@ name: Shared search expansion, editing and clear
     visible: separator
     timeout: 20000
 - openLink: zyx-native-parity://shared-ui/shared-ui-search-collapsed
+- runFlow: helpers/confirm-ios-link.yaml
 - tapOn:
     id: shared-ui-search-collapsed-trigger
 - assertVisible:
@@ -25,6 +26,7 @@ name: Shared search expansion, editing and clear
 - assertVisible:
     id: shared-ui-search-collapsed-trigger
 - openLink: zyx-native-parity://shared-ui/shared-ui-search-query
+- runFlow: helpers/confirm-ios-link.yaml
 - assertVisible:
     id: shared-ui-search-query-input
     text: Gelombang
@@ -36,6 +38,7 @@ name: Shared search expansion, editing and clear
 - assertNotVisible:
     id: shared-ui-search-query-clear
 - openLink: zyx-native-parity://shared-ui/shared-ui-search-loading
+- runFlow: helpers/confirm-ios-link.yaml
 - assertVisible:
     id: shared-ui-search-loading-input
     text: Energi

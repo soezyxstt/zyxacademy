@@ -6,6 +6,7 @@ name: Shared list layout in a wide viewport
     visible: separator
     timeout: 20000
 - openLink: zyx-native-parity://shared-ui/shared-ui-list-wide-light
+- runFlow: ../helpers/confirm-ios-link.yaml
 - assertVisible:
     id: shared-ui-list-wide-light-sinta-wide
 - assertVisible: Sinta Ayuningtyas Kusumawardani

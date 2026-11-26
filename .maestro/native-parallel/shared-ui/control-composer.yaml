@@ -6,6 +6,7 @@ name: Shared composer draft, attachments and recovery
     visible: separator
     timeout: 20000
 - openLink: zyx-native-parity://shared-ui/shared-ui-composer-empty
+- runFlow: helpers/confirm-ios-link.yaml
 - assertVisible:
     id: shared-ui-composer-empty-submit
     enabled: false
@@ -18,6 +19,7 @@ name: Shared composer draft, attachments and recovery
 - assertVisible: Balasan terkirim
 - assertVisible: Jawaban lengkap
 - openLink: zyx-native-parity://shared-ui/shared-ui-composer-attachment
+- runFlow: helpers/confirm-ios-link.yaml
 - assertVisible: grafik.png
 - tapOn:
     id: shared-ui-composer-attachment-remove
@@ -29,6 +31,7 @@ name: Shared composer draft, attachments and recovery
     id: shared-ui-composer-attachment-tools-attach
 - assertVisible: grafik.png
 - openLink: zyx-native-parity://shared-ui/shared-ui-composer-recovery
+- runFlow: helpers/confirm-ios-link.yaml
 - assertVisible:
     id: shared-ui-composer-recovery-error
 - assertVisible:

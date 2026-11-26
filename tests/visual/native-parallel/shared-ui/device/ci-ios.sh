@@ -72,6 +72,32 @@ prepare_simulator() {
   xcrun simctl spawn "$device" defaults write com.apple.Accessibility ReduceMotionEnabled -bool true
 }
 
+check_phone_fixture() {
+  local device=$1
+  local diagnostic_dir="$repo_root/artifacts/native-parity/shared-ui/ios/phone/preflight"
+  mkdir -p "$diagnostic_dir" || return
+  echo "Checking the iPhone fixture deep link on $device"
+  if PYTHONPATH="$device_dir${PYTHONPATH:+:$PYTHONPATH}" \
+    python3 - "$device_dir/ci-evidence.py" "$device" "$diagnostic_dir" <<'PY'
+from pathlib import Path
+import runpy
+import sys
+
+script, device, diagnostics = sys.argv[1:]
+probe_geometry = runpy.run_path(script)["probe_geometry"]
+try:
+    geometry = probe_geometry(device, Path(diagnostics), platform="ios")
+except (OSError, ValueError) as error:
+    sys.exit(f"iPhone fixture preflight failed: {error}")
+print(f'iPhone fixture measured {geometry["width"]}x{geometry["height"]} pt at DPR {geometry["scale"]}')
+PY
+  then
+    return 0
+  fi
+  xcrun simctl io "$device" screenshot "$diagnostic_dir/screen.png" || true
+  return 1
+}
+
 collect_evidence() {
   local group=$1 device=$2
   local flows="$repo_root/.maestro/native-parallel/shared-ui"
@@ -121,6 +147,7 @@ if [[ -z "$app_bundle" ]]; then
 fi
 
 status=0
+check_phone_fixture "$phone_device" || status=1
 collect_evidence phone "$phone_device" || status=1
 stop_simulator
 

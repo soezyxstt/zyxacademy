@@ -2,6 +2,13 @@
 
 Gunakan build galeri dari commit yang diperiksa, Python 3.10+ dengan Pillow, Maestro, dan target yang menjalankan React Native. Host memvalidasi semua kasus pada rute internal `/internal/shared-ui/[caseId]`. Alur Maestro memakai alias `/shared-ui/[id]` yang tersedia sejak commit integrator `68931f55`. Android memakai `adb` untuk emulator atau perangkat. iOS memakai `xcrun simctl` untuk simulator yang sedang boot. Simpan artefak gambar dan laporan lokal dalam `artifacts/native-parity/shared-ui/`.
 
+## Bukti dari GitHub Actions
+
+- Run pertama Android meluluskan 8 dari 12 alur interaksi, termasuk grid/tabel tablet. Alur Maestro dengan ukuran teks besar juga lulus. Simulator iOS tertahan pada dialog konfirmasi pembukaan deep link. [Run 45805093064](https://github.com/soezyxstt/zyxacademy/actions/runs/45805093064) · [Artefak Android 15110262845](https://github.com/soezyxstt/zyxacademy/actions/runs/45805093064/artifacts/15110262845) · [Artefak iOS 15116065483](https://github.com/soezyxstt/zyxacademy/actions/runs/45805093064/artifacts/15116065483)
+- Run kedua Android menghasilkan 46 dari 52 frame dengan geometri terverifikasi. Seluruh 46 berstatus `different`. Enam capture ponsel gagal karena transport emulator. Alur tablet, daftar lebar, dan ukuran teks besar lulus, termasuk verifikasi pemulihan pengaturan teks. [Run 45809686564](https://github.com/soezyxstt/zyxacademy/actions/runs/45809686564) · [Artefak Android 15115345846](https://github.com/soezyxstt/zyxacademy/actions/runs/45809686564/artifacts/15115345846)
+
+Artefak menyertakan `checkout-sha.txt`, `test-build.patch`, laporan interaksi JUnit, dan `ci-summary.json` per grup. Baca `compare/results.json` untuk status per kasus. Bandingkan PNG web dan native bersama diff. Diff viewport mencakup kontrol fixture di sekeliling komponen, seperti filter peran dan status di referensi pagination Admin. Perubahan bentuk atau status tombol pagination tetap terlihat di area komponen itu sendiri. [Rincian pemeriksaan hosted](../../../../../packages/native-parity/shared-ui/REPORT.md#hasil-github-actions-pada-emulator-dan-simulator)
+
 ## Cocokkan geometri dengan referensi
 
 `capture.ts` menulis referensi Playwright ke `tests/visual/native-parallel/shared-ui/references/dpr<DPR>/`. Setiap `results.json` berisi ID kasus, komponen, tema, lebar dan tinggi CSS, DPR, status capture, error, dan ID kesiapan. Jalankan satu kali per ukuran viewport di manifest dan per platform. Opsi `--viewport WIDTHxHEIGHT` memilih semua kasus pada ukuran tersebut. Gunakan `--case ID` untuk mengulang kasus tunggal. Ukuran yang dicatat pada kasus adalah area konten setelah safe area.
@@ -30,6 +37,8 @@ python "$SHARED_EVIDENCE" compare --platform "$SHARED_PLATFORM" \
 ```
 
 Maestro membuka setiap deep link dan menunggu identitas kasus serta geometri. Flow memakai ID panel saat dialog, sheet, atau popover tampil di jendela modal. Snapshot diambil dari renderer perangkat melalui `adb exec-out screencap -p` atau `xcrun simctl io ... screenshot`. Sidecar per kasus merekam model, versi OS, ABI, display pada Android, ukuran PNG penuh, DPR, area viewport, inset, dan checksum kedua PNG. Untuk iOS, ABI adalah arsitektur simulator (`uname -m`). Simpan direktori raw bersama laporan agar pengukuran dan build dapat direproduksi.
+
+CI Android menyimpan log tiap percobaan ketika perangkat terputus dan menunggu ADB tersambung kembali sebelum mengulang langkah yang terdampak. CI iOS memeriksa deep link iPhone sebelum alur interaksi dan menyimpan diagnostik di `phone/preflight/`. Flow iOS menekan tombol `Open` jika dialog konfirmasi sistem muncul.
 
 Untuk menyelidiki kegagalan capture, perintah berikut menyimpan PNG utuh dari layar aktif. Tempatkan PNG sebagai `<id>.png` dalam direktori raw terpisah dan gunakan `compare --insets L T R B`. Perbandingan manual menghasilkan diff diagnostik dengan status `unverified` karena geometri dan kesiapan kasus tidak direkam oleh collector.
 

@@ -46,6 +46,26 @@ class GeometryTests(unittest.TestCase):
 
 
 class OrchestrationTests(unittest.TestCase):
+    def test_android_geometry_retries_transient_fixture_start(self):
+        with tempfile.TemporaryDirectory() as temp:
+            output = Path(temp)
+            calls = []
+
+            def fake_command(name, args, directory, env=None):
+                calls.append(name)
+                if name == "geometry-open":
+                    (directory / f"{name}.log").write_text("error: device offline")
+                    return 1
+                if name == "geometry-hierarchy-1":
+                    (directory / f"{name}.log").write_text("shared-ui-geometry-380x760-dpr-1-insets-0-20-0-40")
+                return 0
+
+            with patch.object(ci, "command", side_effect=fake_command), patch.object(ci, "wait_for_android_device") as wait:
+                geometry = ci.probe_geometry("fixture", output, platform="android")
+            self.assertEqual(geometry["width"], 380)
+            self.assertEqual(calls, ["geometry-open", "geometry-open-2", "geometry-hierarchy-1"])
+            wait.assert_called_once_with("fixture", "geometry-open")
+
     def test_geometry_open_failure_records_screenshot_and_hierarchy(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -59,6 +79,7 @@ class OrchestrationTests(unittest.TestCase):
                     self.assertIn("zyx-native-parity://internal/shared-ui/" + ci.GEOMETRY_CASE, flow)
                     self.assertIn("id: shared-ui-case-" + ci.GEOMETRY_CASE, flow)
                     self.assertEqual(Path(args[args.index("--debug-output") + 1]), output / "geometry-debug")
+                    (output / f"{name}.log").write_text("Assertion is false: geometry fixture")
                     return 1
                 (output / f"{name}.log").write_text("separator")
                 return 0

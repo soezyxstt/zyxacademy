@@ -6,6 +6,7 @@ name: Shared pagination boundaries and pending state
     visible: separator
     timeout: 20000
 - openLink: zyx-native-parity://shared-ui/shared-ui-pagination-first
+- runFlow: helpers/confirm-ios-link.yaml
 - assertVisible: 1 / 3
 - assertVisible:
     id: shared-ui-pagination-first-previous
@@ -20,11 +21,13 @@ name: Shared pagination boundaries and pending state
     id: shared-ui-pagination-first-next
     enabled: false
 - openLink: zyx-native-parity://shared-ui/shared-ui-pagination-middle
+- runFlow: helpers/confirm-ios-link.yaml
 - assertVisible: 2 / 3
 - tapOn:
     id: shared-ui-pagination-middle-previous
 - assertVisible: 1 / 3
 - openLink: zyx-native-parity://shared-ui/shared-ui-pagination-pending
+- runFlow: helpers/confirm-ios-link.yaml
 - assertVisible: Memuat halaman…
 - assertVisible:
     id: shared-ui-pagination-pending-previous

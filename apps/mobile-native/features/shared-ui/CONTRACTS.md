@@ -65,6 +65,8 @@ ID tujuan mengikuti `roleNavigationDestinations`.
 
 Contoh pilihan tab tetap melalui callback yang sama ketika tab ada di overflow. Contoh overlay dapat mempertahankan formulir saat validasi gagal dan mengembalikan fokus ke pemicu setelah ditutup.
 
+Gunakan `SharedDialogFooter` di prop `footer` untuk aksi dialog responsif. Berikan tombol dalam urutan layar lebar, dengan aksi utama terakhir. Di bawah lebar jendela 640 dp, tombol memenuhi lebar footer dan aksi utama tampil serta dibaca lebih dahulu.
+
 ```tsx
 <NavigationTabs
   accessibilityLabel="Tampilan peringkat"
@@ -88,7 +90,7 @@ Contoh pilihan tab tetap melalui callback yang sama ketika tab ada di overflow. 
 
 Tombol tutup, backdrop, Back Android, dan gestur Escape VoiceOver memiliki alasan penutupan masing-masing. Verifikasi fokus pembaca layar dan keyboard perangkat pada build Android dan iOS.
 
-## Uji perilaku kontrol
+## Uji perilaku kontrol dan overlay
 
 Dari akar repo dengan dependensi repo terpasang, jalankan pengujian handler React pada host uji terisolasi.
 

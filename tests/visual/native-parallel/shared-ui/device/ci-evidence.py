@@ -9,7 +9,7 @@ import subprocess
 import sys
 import tempfile
 
-from evidence import device_screenshot, maestro_case_flow
+from evidence import command_text, device_screenshot, maestro_case_flow, transient_android_failure, wait_for_android_device
 
 ROOT = Path(__file__).resolve().parents[5]
 DEVICE_DIR = Path(__file__).resolve().parent
@@ -77,14 +77,24 @@ def require_group_width(group, width):
         raise ValueError(f"{group} requires a native content width of at least {minimum} dp, measured {width} dp")
 
 
-def probe_geometry(device, output):
+def probe_geometry(device, output, *, platform):
     flow = output / "geometry.yaml"
     flow.write_text(maestro_case_flow(GEOMETRY_CASE, f"shared-ui-case-{GEOMETRY_CASE}"), encoding="utf-8")
     maestro = ["maestro", "--device", device]
-    open_result = command("geometry-open", [
-        *maestro, "test", "--test-output-dir", str(output / "geometry-results"),
-        "--debug-output", str(output / "geometry-debug"), str(flow),
-    ], output)
+    open_attempts = 3 if platform == "android" else 1
+    for attempt in range(1, open_attempts + 1):
+        suffix = "" if attempt == 1 else f"-{attempt}"
+        name = f"geometry-open{suffix}"
+        open_result = command(name, [
+            *maestro, "test", "--test-output-dir", str(output / f"geometry-results{suffix}"),
+            "--debug-output", str(output / f"geometry-debug{suffix}"), str(flow),
+        ], output)
+        if open_result == 0 or attempt == open_attempts:
+            break
+        diagnostics = (output / f"{name}.log").read_text(encoding="utf-8", errors="replace")
+        if not transient_android_failure(diagnostics, fixture_setup=True):
+            break
+        wait_for_android_device(device, name)
     reason = "Maestro hierarchy did not complete"
     attempts = 1 if open_result else 3
     for attempt in range(1, attempts + 1):
@@ -118,7 +128,7 @@ def main():
         summary["expectedCases"] = len(expected)
         (output / "expected-cases.json").write_text(json.dumps(expected, indent=2) + "\n", encoding="utf-8")
         try:
-            geometry = probe_geometry(device, output)
+            geometry = probe_geometry(device, output, platform=platform)
             geometry.update({"platform": platform, "group": group, "device": device, "build": build, "baselineWidth": GROUP_WIDTHS[group]})
             summary["geometry"] = geometry
             (output / "geometry.json").write_text(json.dumps(geometry, indent=2) + "\n", encoding="utf-8")
@@ -128,7 +138,9 @@ def main():
             try:
                 device_screenshot(platform, device, output / "geometry-failure.png")
             except (OSError, subprocess.SubprocessError) as error:
-                print(f"Geometry diagnostic screenshot failed: {error}", file=sys.stderr, flush=True)
+                diagnostics = command_text(getattr(error, "stderr", None))
+                detail = f"\n{diagnostics}" if diagnostics else ""
+                print(f"Geometry diagnostic screenshot failed: {error}{detail}", file=sys.stderr, flush=True)
             raise
 
         web_root = output / "web"

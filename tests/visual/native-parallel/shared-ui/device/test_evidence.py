@@ -1,4 +1,6 @@
 from decimal import Decimal
+from contextlib import redirect_stdout
+from io import StringIO
 import json
 from pathlib import Path
 import subprocess
@@ -10,7 +12,7 @@ from unittest.mock import patch
 
 from PIL import Image
 
-from evidence import capture_case, device_info, geometry_id, manifest_cases, parse_scale, pixel_size, sha256
+from evidence import capture_case, capture_frame, device_info, geometry_id, manifest_cases, parse_scale, pixel_size, sha256
 
 
 SCRIPT = Path(__file__).with_name("evidence.py")
@@ -149,7 +151,7 @@ class EvidenceTest(unittest.TestCase):
             insets=[1, 2, 1, 2], reference_dir=self.reference, raw_dir=self.raw,
         )
 
-        def mock_run(command, *, check, stdout=None):
+        def mock_run(command, *, check, stdout=None, **options):
             self.assertTrue(check)
             if command[0] == "maestro":
                 flow = Path(command[-1]).read_text()
@@ -157,11 +159,15 @@ class EvidenceTest(unittest.TestCase):
                     "- launchApp",
                     "visible: separator",
                     "- openLink: zyx-native-parity://internal/shared-ui/sample-light",
+                    "platform: iOS",
+                    r"visible: '^Open in “Zyx Academy Native”\?$'",
+                    "tapOn: '^Open$'",
                     "id: sample-modal-panel",
                     "id: shared-ui-geometry-6x4-dpr-2-insets-1-2-1-2",
                 )
                 positions = [flow.index(step) for step in steps]
                 self.assertEqual(positions, sorted(positions))
+                return subprocess.CompletedProcess(command, 0, stdout=b"")
             elif command[0] == "adb":
                 stdout.write(screenshot)
             else:
@@ -171,6 +177,38 @@ class EvidenceTest(unittest.TestCase):
             capture_case(CASE, args, {"model": "test-device"}, scratch)
         self.assertEqual(self.compare().returncode, 0)
         self.assertTrue(self.result()["geometryVerified"])
+
+    def test_capture_replays_markers_after_transient_launch_and_screenshot_failures(self):
+        args = SimpleNamespace(platform="android", device="test-serial")
+        success = subprocess.CompletedProcess([], 0, stdout=b"")
+        startup = subprocess.CalledProcessError(1, "maestro", output=b'Launch app "app"...\n==== Debug output')
+        offline = subprocess.CalledProcessError(255, "adb", stderr=b"error: device 'test-serial' not found")
+        output = StringIO()
+
+        with patch("evidence.subprocess.run", side_effect=[startup, success, success, offline, success, success, success]) as run, redirect_stdout(output):
+            capture_frame(args, CASE["id"], self.root / "flow.yml", self.raw / self.image_name)
+
+        commands = [call.args[0] for call in run.call_args_list]
+        stages = [command[0] if command[0] == "maestro" else command[3] for command in commands]
+        self.assertEqual(stages, ["maestro", "wait-for-device", "maestro", "exec-out", "wait-for-device", "maestro", "exec-out"])
+        self.assertIn("Maestro fixture setup failed on attempt 1/3", output.getvalue())
+        self.assertIn("device 'test-serial' not found", output.getvalue())
+
+    def test_capture_stops_on_assertion_even_when_driver_reports_offline(self):
+        args = SimpleNamespace(platform="android", device="test-serial")
+        failure = subprocess.CalledProcessError(1, "maestro", output=b"Assertion is false: marker\ndevice offline")
+        with patch("evidence.subprocess.run", side_effect=failure) as run, redirect_stdout(StringIO()):
+            with self.assertRaises(subprocess.CalledProcessError):
+                capture_frame(args, CASE["id"], self.root / "flow.yml", self.raw / self.image_name)
+        self.assertEqual(run.call_count, 1)
+
+    def test_capture_stops_after_three_transient_failures(self):
+        args = SimpleNamespace(platform="android", device="test-serial")
+        failure = subprocess.CalledProcessError(1, "maestro", output=b"device offline")
+        with patch("evidence.subprocess.run", side_effect=[failure, None, failure, None, failure]) as run, redirect_stdout(StringIO()):
+            with self.assertRaises(subprocess.CalledProcessError):
+                capture_frame(args, CASE["id"], self.root / "flow.yml", self.raw / self.image_name)
+        self.assertEqual(run.call_count, 5)
 
 
 if __name__ == "__main__":

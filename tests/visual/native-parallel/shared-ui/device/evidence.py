@@ -16,6 +16,11 @@ from PIL import Image, ImageChops, ImageCms, ImageOps
 APP_ID = "com.zyx.academy.nativeparity"
 REFERENCE_ROOT = Path(__file__).resolve().parents[1] / "references"
 TOKEN = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
+ADB_TRANSPORT_FAILURE = re.compile(
+    r"device (?:offline|disconnected|(?:'[^']+' )?not found)|no devices/emulators found|connection (?:closed|refused|reset)",
+    re.IGNORECASE,
+)
+MAESTRO_INTERRUPTED_LAUNCH = re.compile(r'Launch app "[^"\n]+"\.\.\.(?=\s*(?:====|$))')
 
 
 def read_json(path):
@@ -258,6 +263,12 @@ def maestro_case_flow(case_id, ready_id, marker=None):
         f"appId: {APP_ID}\n---\n- launchApp\n"
         "- extendedWaitUntil:\n    visible: separator\n    timeout: 20000\n"
         f"- openLink: zyx-native-parity://internal/shared-ui/{case_id}\n"
+        "- runFlow:\n"
+        "    when:\n"
+        "      platform: iOS\n"
+        r"      visible: '^Open in “Zyx Academy Native”\?$'" "\n"
+        "    commands:\n"
+        "      - tapOn: '^Open$'\n"
         f"- extendedWaitUntil:\n    visible:\n      id: {ready_id}\n    timeout: 20000\n"
     )
     if marker:
@@ -270,7 +281,57 @@ def device_screenshot(platform, device, path):
         subprocess.run(["xcrun", "simctl", "io", device, "screenshot", str(path)], check=True)
     else:
         with path.open("wb") as stream:
-            subprocess.run(["adb", "-s", device, "exec-out", "screencap", "-p"], stdout=stream, check=True)
+            subprocess.run(
+                ["adb", "-s", device, "exec-out", "screencap", "-p"],
+                stdout=stream, stderr=subprocess.PIPE, timeout=20, check=True,
+            )
+
+
+def command_text(output):
+    return (output or b"").decode("utf-8", errors="replace").strip()
+
+
+def transient_android_failure(diagnostics, *, fixture_setup, timed_out=False):
+    if fixture_setup and "Assertion is false" in diagnostics:
+        return False
+    return (
+        timed_out
+        or ADB_TRANSPORT_FAILURE.search(diagnostics) is not None
+        or (fixture_setup and MAESTRO_INTERRUPTED_LAUNCH.search(diagnostics) is not None)
+    )
+
+
+def wait_for_android_device(device, context):
+    print(f"[{context}] Waiting for {device} before retrying", flush=True)
+    try:
+        subprocess.run(["adb", "-s", device, "wait-for-device"], timeout=15, check=True)
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
+        print(f"[{context}] ADB readiness check failed: {error}", flush=True)
+
+
+def capture_frame(args, case_id, flow, path):
+    attempts = 3 if args.platform == "android" else 1
+    for attempt in range(1, attempts + 1):
+        fixture_setup = True
+        try:
+            result = subprocess.run(
+                ["maestro", "--device", args.device, "test", str(flow)],
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=120, check=True,
+            )
+            print(f"[{case_id}] Maestro attempt {attempt}/{attempts}\n{command_text(result.stdout)}", flush=True)
+            fixture_setup = False
+            device_screenshot(args.platform, args.device, path)
+            return
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
+            stage = "Maestro fixture setup" if fixture_setup else "device screenshot"
+            diagnostics = command_text(error.stdout if fixture_setup else error.stderr)
+            detail = f"\n{diagnostics}" if diagnostics else ""
+            print(f"[{case_id}] {stage} failed on attempt {attempt}/{attempts}: {error}{detail}", flush=True)
+            if attempt == attempts or not transient_android_failure(
+                diagnostics, fixture_setup=fixture_setup, timed_out=isinstance(error, subprocess.TimeoutExpired),
+            ):
+                raise
+            wait_for_android_device(args.device, case_id)
 
 
 def capture_case(case, args, device, scratch):
@@ -284,10 +345,8 @@ def capture_case(case, args, device, scratch):
     sidecar.unlink(missing_ok=True)
     flow = scratch / "capture.yaml"
     flow.write_text(maestro_case_flow(case_id, ready_id, marker), encoding="utf-8")
-    subprocess.run(["maestro", "--device", args.device, "test", str(flow)], check=True)
-
     path = scratch / f"{case_id}.png"
-    device_screenshot(args.platform, args.device, path)
+    capture_frame(args, case_id, flow, path)
     frame = load_png(path)
     path.replace(target)
     crop_viewport(frame, dimensions, args.insets)
@@ -317,7 +376,7 @@ def capture_cases(cases, args):
         for case in cases:
             try:
                 capture_case(case, args, device, Path(directory))
-            except (OSError, ValueError, subprocess.CalledProcessError, ImageCms.PyCMSError) as error:
+            except (OSError, ValueError, subprocess.SubprocessError, ImageCms.PyCMSError) as error:
                 failures.append(case["id"])
                 print(f"{case['id']}: {error}")
     print(f"{len(cases) - len(failures)}/{len(cases)} exact-viewport frames captured in {args.raw_dir}")
@@ -360,7 +419,7 @@ def main():
             raise ValueError("Choose separate reference, raw PNG, and report directories")
         cases = manifest_cases(args.reference_dir / "results.json", args.case, args.viewport)
         return (capture_cases if args.command == "capture" else compare_cases)(cases, args)
-    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
         raise SystemExit(str(error)) from error
 
 

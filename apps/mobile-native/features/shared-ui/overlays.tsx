@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ComponentRef, type ReactNode, type RefObject } from "react";
+import { Children, useEffect, useLayoutEffect, useRef, useState, type ComponentRef, type ReactNode, type RefObject } from "react";
 import {
   AccessibilityInfo,
   KeyboardAvoidingView,
@@ -91,18 +91,25 @@ function OverlaySurface({
   const openRef = useRef(open);
   const afterDismissRef = useRef(onAfterDismiss);
   const [anchor, setAnchor] = useState<LayoutRectangle>();
+  const [viewport, setViewport] = useState<Pick<LayoutRectangle, "width" | "height">>();
   const [panelHeight, setPanelHeight] = useState(0);
 
   useEffect(() => {
     if (!open || !anchorRef) return;
+    let cancelled = false;
     const frame = requestAnimationFrame(() => {
-      anchorRef.current?.measureInWindow((x, y, anchorWidth, anchorHeight) => {
-        if (anchorWidth > 0 && anchorHeight > 0) {
+      // The app and edge-to-edge modal use full-screen layout coordinates.
+      // Native window measurements also include the activity's viewport offset.
+      anchorRef.current?.measure((_x, _y, anchorWidth, anchorHeight, x, y) => {
+        if (!cancelled && anchorWidth > 0 && anchorHeight > 0) {
           setAnchor({ x, y, width: anchorWidth, height: anchorHeight });
         }
       });
     });
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frame);
+    };
   }, [anchorRef, height, open, width]);
 
   useEffect(() => {
@@ -151,11 +158,13 @@ function OverlaySurface({
     if (!dismissDisabled) onDismiss(reason);
   }
 
-  const panelWidth = Math.max(1, Math.min(288, width - insets.left - insets.right - 32));
-  const rightEdge = width - insets.right - 16;
+  const viewportWidth = viewport?.width ?? width;
+  const viewportHeight = viewport?.height ?? height;
+  const panelWidth = Math.max(1, Math.min(288, viewportWidth - insets.left - insets.right - 32));
+  const rightEdge = viewportWidth - insets.right - 16;
   const leftEdge = insets.left + 16;
   const topEdge = insets.top + 12;
-  const bottomEdge = height - insets.bottom - 12;
+  const bottomEdge = viewportHeight - insets.bottom - 12;
   let popoverPosition: ViewProps["style"];
   if (kind === "popover" && anchor) {
     const indicatedLeft = align === "start"
@@ -170,7 +179,7 @@ function OverlaySurface({
       position: "absolute",
       width: panelWidth,
       left: Math.max(leftEdge, Math.min(rightEdge - panelWidth, indicatedLeft)),
-      ...(showAbove ? { bottom: height - above } : { top: Math.max(topEdge, below) }),
+      ...(showAbove ? { bottom: viewportHeight - above } : { top: Math.max(topEdge, below) }),
       maxHeight: Math.max(1, showAbove ? aboveSpace : belowSpace),
     };
   }
@@ -190,6 +199,9 @@ function OverlaySurface({
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" && kind !== "popover" ? "padding" : undefined}
         pointerEvents="box-none"
+        onLayout={kind === "popover" ? ({ nativeEvent: { layout } }) => {
+          setViewport({ width: layout.width, height: layout.height });
+        } : undefined}
         style={[
           styles.viewport,
           kind === "sheet" && styles.viewportSheet,
@@ -271,6 +283,18 @@ export function SharedDialog(props: SharedDialogProps) {
   return <OverlaySurface {...props} kind="dialog" />;
 }
 
+/** Pass actions in wide-layout order so compact dialogs show the primary action first. */
+export function SharedDialogFooter({ children }: { children: ReactNode }) {
+  const { width } = useWindowDimensions();
+  const compact = width < 640;
+  const actions = Children.toArray(children);
+  return (
+    <View style={[styles.dialogActions, compact && styles.dialogActionsCompact]}>
+      {compact ? actions.reverse() : actions}
+    </View>
+  );
+}
+
 export function SharedSheet(props: SharedSheetProps) {
   return <OverlaySurface {...props} kind="sheet" />;
 }
@@ -303,4 +327,6 @@ const styles = StyleSheet.create({
   scroll: { flexGrow: 0, flexShrink: 1 },
   content: { gap: 8, padding: 16, paddingTop: 8 },
   footer: { flexShrink: 0, paddingHorizontal: 16, paddingBottom: 16 },
+  dialogActions: { flexDirection: "row", flexWrap: "wrap", justifyContent: "flex-end", gap: 8 },
+  dialogActionsCompact: { flexDirection: "column", flexWrap: "nowrap", alignItems: "stretch" },
 });

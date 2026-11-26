@@ -6,6 +6,7 @@ name: Shared grid columns and table header on a 768dp or wider device
     visible: separator
     timeout: 20000
 - openLink: zyx-native-parity://shared-ui/shared-ui-grid-wide
+- runFlow: ../helpers/confirm-ios-link.yaml
 - assertVisible:
     id: shared-ui-grid-wide-grid-item-mechanics-column-1
 - assertVisible:
@@ -13,6 +14,7 @@ name: Shared grid columns and table header on a 768dp or wider device
 - assertVisible:
     id: shared-ui-grid-wide-grid-item-waves-column-3
 - openLink: zyx-native-parity://shared-ui/shared-ui-table-many
+- runFlow: ../helpers/confirm-ios-link.yaml
 - assertVisible:
     id: shared-ui-table-many-table-head
 - assertVisible: Peserta

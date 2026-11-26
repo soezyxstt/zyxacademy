@@ -14,7 +14,7 @@ if [[ $# -gt 1 || ! -f "$apk" ]]; then
   exit 2
 fi
 
-for dependency in adb maestro python3; do
+for dependency in adb maestro python3 timeout; do
   if ! command -v "$dependency" >/dev/null; then
     echo "Missing Android device runner dependency: $dependency" >&2
     exit 2
@@ -30,6 +30,114 @@ export SHARED_DEVICE
 export SHARED_PLATFORM=android
 export MAESTRO_CLI_NO_ANALYTICS=true
 export MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED=true
+
+run_maestro() {
+  local attempt_dir=$1
+  shift
+  mkdir -p "$attempt_dir" || return
+  maestro --platform android --device "$SHARED_DEVICE" test \
+    --format junit --output "$attempt_dir/report.xml" \
+    --test-output-dir "$attempt_dir/results" --debug-output "$attempt_dir/logs" \
+    "$@" 2>&1 | tee "$attempt_dir/console.log"
+}
+
+retryable_flows() {
+  python3 - "$@" <<'PY'
+import os
+from pathlib import Path
+import re
+import sys
+import xml.etree.ElementTree as ET
+
+attempt = Path(sys.argv[1])
+serial = re.escape(os.environ["SHARED_DEVICE"])
+adb_transport = re.compile(
+    rf"Command failed \(host:transport:{serial}\): device (?:offline|'{serial}' not found)"
+)
+command_error = "[ERROR] maestro.orchestra.Orchestra.executeCommands: [Command execution] "
+driver_death = "maestro.android.DeviceServerDiedException"
+
+try:
+    report = ET.parse(attempt / "report.xml")
+except (OSError, ET.ParseError) as error:
+    sys.exit(f"Cannot classify failed Maestro flows: {error}")
+
+
+def transport_failure(case, failure):
+    message = failure.get("message") or (failure.text or "")
+    first_line = message.strip().partition("\n")[0]
+    if failure.get("type") == driver_death or first_line.startswith(driver_death + ":"):
+        return True
+    if adb_transport.match(first_line.removeprefix("CommandFailed: ")):
+        return True
+    if first_line != "Unknown error":
+        return False
+
+    # Maestro omits the cause from JUnit when an earlier flow lost the driver.
+    # Use the failed command in this flow's log, excluding screenshot and hierarchy warnings.
+    for log in (attempt / "results").glob("*/*/logs/maestro.log"):
+        if log.parent.parent.name == case.get("name"):
+            with log.open(encoding="utf-8", errors="replace") as stream:
+                for line in stream:
+                    if command_error in line:
+                        error = line.partition(command_error)[2].removeprefix("CommandFailed: ")
+                        return adb_transport.match(error) is not None
+    return False
+
+
+cases = {}
+for case in report.iter("testcase"):
+    cases.setdefault(Path(case.get("file", "")).resolve(), []).append(case)
+
+unresolved = False
+retry_count = 0
+for flow in sys.argv[2:]:
+    matches = cases.get(Path(flow).resolve(), [])
+    if len(matches) != 1:
+        print(f"Expected one Maestro outcome for {flow}, found {len(matches)}", file=sys.stderr)
+        unresolved = True
+        continue
+    case = matches[0]
+    failures = case.findall("failure") + case.findall("error")
+    if case.get("status") == "SUCCESS" and not failures:
+        continue
+    if len(failures) == 1 and transport_failure(case, failures[0]):
+        print(flow)
+        retry_count += 1
+        continue
+    print(f"Maestro failure remains for {flow}", file=sys.stderr)
+    unresolved = True
+
+sys.exit(unresolved or retry_count == 0)
+PY
+}
+
+run_interactions() {
+  local interactions=$1 attempt_dir retries flow result=0
+  shift
+  mkdir -p "$interactions" || return
+  attempt_dir=$(mktemp -d "$interactions/run-XXXXXX") || return
+  if run_maestro "$attempt_dir" "$@"; then
+    return 0
+  fi
+
+  retries=$(retryable_flows "$attempt_dir" "$@") || result=1
+  while IFS= read -r flow; do
+    [[ -n "$flow" ]] || continue
+    printf 'Retrying Android interaction after a Maestro transport failure: %s\n' "$flow"
+    if ! timeout 30s "${adb_device[@]}" wait-for-device; then
+      echo "Android emulator did not reconnect for the Maestro retries." >&2
+      return 1
+    fi
+    if run_maestro "$attempt_dir/retries/$(basename "$flow" .yaml)" "$flow"; then
+      printf 'Android interaction passed after reconnecting: %s\n' "$flow"
+    else
+      result=1
+    fi
+  done <<< "$retries"
+
+  return "$result"
+}
 
 cd "$root"
 adb_device=(adb -s "$SHARED_DEVICE")
@@ -107,11 +215,7 @@ for group in phone tablet wide; do
   fi
 
   interactions="$root/artifacts/native-parity/shared-ui/android/$group/interactions"
-  mkdir -p "$interactions"
-  maestro --platform android --device "$SHARED_DEVICE" test \
-    --format junit --output "$interactions/report.xml" \
-    --test-output-dir "$interactions/results" --debug-output "$interactions/logs" \
-    "${group_flows[@]}" || status=1
+  run_interactions "$interactions" "${group_flows[@]}" || status=1
   SHARED_GROUP=$group bash "$device_dir/ci-evidence.sh" || status=1
 done
 
