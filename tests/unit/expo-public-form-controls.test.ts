@@ -121,6 +121,26 @@ test("section navigation stays inline and the iOS header offers the existing exi
   expect(exited).toBe(true);
 });
 
+test("iOS keeps the form mounted until a confirmed submission returns", async () => {
+  const { render, dialogs } = await harness("response", "ios");
+  const submit = Promise.withResolvers<{ status: "sent" }>();
+  let exited = false;
+  const props = {
+    form: { ...form("section"), questions: [{ type: "TEXT", title: "Nama", required: false }],
+      settings: { displayMode: "section", collectEmail: "none" } },
+    locale: "id", onSubmit: () => submit.promise, onDone: () => { exited = true; },
+  };
+  const tree = render(props);
+  const exit = byId(tree, "public-form-exit")?.props.onPress as () => void;
+  (byId(tree, "public-form-next")?.props.onPress as () => void)();
+  dialogs[0][1].onPress();
+  exit();
+  expect(exited).toBe(false);
+  expect(byId(render(props), "public-form-exit")?.props.disabled).toBe(true);
+  submit.resolve({ status: "sent" });
+  await submit.promise;
+});
+
 test("a 36-point underline sits inside a 44-point non-duplicate touch target", async () => {
   const { render } = await harness("fields");
   const tree = render({ index: 0, question: { type: "TEXT", title: "Nama" }, locale: "id", colors: nativeColors.light });

@@ -274,7 +274,8 @@ export function PublicFormResponse({ form, locale, signedIn, sessionStatus, onSe
       </View>
       <View style={[styles.column, styles.header]}>
         {Platform.OS === "ios" && <Button size="icon-lg" variant="ghost" testID="public-form-exit" accessibilityLabel={copy.exitForm}
-          style={styles.exit} onPress={onDone} renderIcon={(color, size) => <FormActionIcon kind="exit" color={color} size={size} />} />}
+          disabled={!!pending} style={styles.exit} onPress={() => { if (!occupied.current) onDone(); }}
+          renderIcon={(color, size) => <FormActionIcon kind="exit" color={color} size={size} />} />}
         <Text numberOfLines={1} style={[formStyles.meta, nativeTypography.bodyMedium, { flex: 1, color: colors.foreground }]}>{form.title}</Text>
         {section && <Text style={[formStyles.meta, nativeTypography.bodySemibold, { color: colors.mutedForeground }]}>
           {locale === "id" ? "Bagian" : "Section"} {cursor + 1} / {steps.length}
