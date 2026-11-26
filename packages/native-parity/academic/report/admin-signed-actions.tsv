@@ -9,11 +9,11 @@ route	action_family	source_status	web_entry	native_entry
 /admin/authoring-context	Resolve the authorized destination and replace the old route	alias	app/(admin)/admin/(academic)/authoring-context/page.tsx	packages/native-parity/academic/administration/live.ts
 /admin/blog	Browse or open a draft and share its published article address	connected	app/(admin)/admin/blog/page.tsx	apps/mobile-native/features/operations/management/blog.tsx
 /admin/blog/[id]/edit	Edit and save or publish with revision handling	connected	components/admin/markdown-editor.tsx	apps/mobile-native/features/operations/management/blog.tsx
-/admin/blog/[id]/edit	Inspect the draft Markdown preview, including embedded visuals	partial	components/admin/markdown-editor.tsx	apps/mobile-native/features/operations/management/blog.tsx
+/admin/blog/[id]/edit	Inspect the draft Markdown preview, copy code, and add, edit, remove or drag interactive graph entries	connected	components/admin/markdown-editor.tsx	apps/mobile-native/features/operations/management/blog.tsx
 /admin/blog/[id]/edit	Upload cover and body images, insert YouTube and generate an empty summary	connected	components/admin/markdown-editor.tsx	apps/mobile-native/features/operations/management/blog.tsx
 /admin/blog/[id]/edit	Withdraw a published revision	connected	app/(admin)/admin/blog/[id]/edit/page.tsx	apps/mobile-native/features/operations/management/blog.tsx
 /admin/blog/new	Edit and save or publish with revision handling	connected	components/admin/markdown-editor.tsx	apps/mobile-native/features/operations/management/blog.tsx
-/admin/blog/new	Inspect the draft Markdown preview, including embedded visuals	partial	components/admin/markdown-editor.tsx	apps/mobile-native/features/operations/management/blog.tsx
+/admin/blog/new	Inspect the draft Markdown preview, copy code, and add, edit, remove or drag interactive graph entries	connected	components/admin/markdown-editor.tsx	apps/mobile-native/features/operations/management/blog.tsx
 /admin/blog/new	Upload cover and body images, insert YouTube and generate an empty summary	connected	components/admin/markdown-editor.tsx	apps/mobile-native/features/operations/management/blog.tsx
 /admin/bundles/idea	Resolve the authorized destination and replace the old route	alias	app/(admin)/admin/(academic)/bundles/idea/page.tsx	packages/native-parity/academic/administration/live.ts
 /admin/bundles/product	Resolve the authorized destination and replace the old route	alias	app/(admin)/admin/(academic)/bundles/product/page.tsx	packages/native-parity/academic/administration/live.ts

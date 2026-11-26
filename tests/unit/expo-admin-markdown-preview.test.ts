@@ -1,7 +1,9 @@
 import { expect, test } from "bun:test";
 import { previewExternalHref, previewMedia, previewStoragePath } from "../../packages/native-parity/operations/admin-markdown-media";
 import { layoutMarkdownDiagram, splitMarkdownPreview } from "../../packages/native-parity/operations/admin-markdown-preview";
-import { evaluationPreviewVisual, previewFunctionPlot } from "../../packages/native-parity/operations/evaluation-ast-preview";
+import { evaluationPreviewVisual } from "../../packages/native-parity/operations/evaluation-ast-preview";
+import { graphBounds, hitGraphPoint, initialGraphEntries, moveGraphPoint, readGraphEntry } from "../../apps/mobile-native/features/shared-ui/admin-interactive-graph-model";
+import { plotFrame, projectPlotPoint } from "../../apps/mobile-native/features/student/zyra/canvas-plot-model";
 
 const origin = "https://staging.zyxacademy.com";
 
@@ -77,5 +79,21 @@ test("uses the compiled chart and graph contracts with metadata and authored sou
   expect(evaluationPreviewVisual(graph.visual, "en")).toMatchObject({ kind: "graph", spec: { series: [{ expression: "x^2" }] } });
   expect(widget).toMatchObject({ type: "function-widget", content: "x^2" });
   expect(embed).toMatchObject({ type: "embedded-visual", content: '{"kind":"unsupported"}' });
-  expect(previewFunctionPlot({ functions: ["x^2", "(1, 2)"], domain: { min: -10, max: 10 }, samples: 200 }, "id")).toBeUndefined();
+});
+
+test("the fenced widget reads mixed formulas and points, and dragging preserves a point's name", () => {
+  const rows = initialGraphEntries(" \n y = 1/x\nA = (-1, 2)\n(3, -2)\ninvalid()").map(readGraphEntry);
+  expect(rows.map(row => row.kind)).toEqual(["formula", "point", "point", "invalid"]);
+  if (rows[0].kind !== "formula") throw new Error("Expected the formula");
+  expect(rows[0].points[120]).toEqual({ x: 0, y: null });
+  expect(readGraphEntry(initialGraphEntries(" ")[0]).kind).toBe("formula");
+  const bounds = graphBounds(rows);
+  const original = projectPlotPoint(-1, 2, bounds);
+  const selection = hitGraphPoint(rows, original, 10, bounds);
+  if (!selection) throw new Error("Expected a draggable point");
+  expect(selection.row.id).toBe(1);
+  expect(hitGraphPoint(rows, { x: original.x, y: -100 }, 10, bounds)).toBeUndefined();
+  const target = projectPlotPoint(4, -2, bounds);
+  expect(moveGraphPoint(selection.row.point, target, bounds)).toBe("A = (4, -2)");
+  expect(moveGraphPoint(selection.row.point, { x: plotFrame.left - 20, y: target.y }, bounds)).toBe("A = (-10, -2)");
 });

@@ -6,7 +6,7 @@ import { parseEmbeddedVisual } from "../../../../lib/materials/embedded-visuals"
 import { nativeColors } from "../../../../packages/design-tokens/native-colors";
 import { previewExternalHref, previewMedia, type MarkdownPreviewAudience, type MarkdownPreviewMedia } from "../../../../packages/native-parity/operations/admin-markdown-media";
 import { splitMarkdownPreview, type MarkdownPreviewBlock } from "../../../../packages/native-parity/operations/admin-markdown-preview";
-import { evaluationPreviewTable, evaluationPreviewVisual, previewFunctionPlot } from "../../../../packages/native-parity/operations/evaluation-ast-preview";
+import { evaluationPreviewTable, evaluationPreviewVisual } from "../../../../packages/native-parity/operations/evaluation-ast-preview";
 import { Button } from "../../components/Button";
 import { scopedFiles } from "../../device/files";
 import type { NativeSessionTransport } from "../../network/transport";
@@ -16,6 +16,8 @@ import { CourseVideoDialog } from "../course-video/CourseVideoDialog";
 import { SolutionVisualPreview } from "../solutions/SolutionVisualPreview";
 import { CourseMarkdown } from "../student/CourseMarkdown";
 import { CanvasPlot } from "../student/zyra/CanvasPlot";
+import { AdminInteractiveGraph } from "./AdminInteractiveGraph";
+import { graphEntryLimit, initialGraphEntries } from "./admin-interactive-graph-model";
 import { AdminMarkdownDiagram } from "./AdminMarkdownDiagram";
 import { AdminPreviewChart } from "./AdminPreviewChart";
 import { SharedDialog } from "./overlays";
@@ -126,11 +128,10 @@ export function AdminMarkdownPreview({ source, previewBlocks, thumbnail, audienc
       }
       case "function-widget": {
         if (block.content.length > 12_000) return unavailable(block.source);
-        const functions = block.content.split("\n").map(line => line.trim()).filter(Boolean);
-        const spec = previewFunctionPlot({
-          functions, domain: { min: -10, max: 10 }, samples: 200,
-        }, locale);
-        return spec ? plot(spec) : unavailable(block.source);
+        const entries = initialGraphEntries(block.content);
+        return entries.length <= graphEntryLimit
+          ? <AdminInteractiveGraph key={block.source} entries={entries} theme={theme} locale={locale} current={current} />
+          : unavailable(block.source);
       }
       case "embedded-visual": {
         const visual = parseEmbeddedVisual(block.content);
