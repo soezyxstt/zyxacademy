@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Animated, Easing, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { Animated, Easing, Pressable, StyleSheet, Text, View, useWindowDimensions, type TextStyle } from "react-native";
+import Svg, { Path } from "react-native-svg";
 import { courseHref, isFlashcardReviewReceipt, learningApi, type Flashcard } from "../../../../../packages/native-parity/student/learning/contracts";
 import { nativeLinkInks, nativeRadii } from "../../../../../packages/design-tokens/native-colors";
 import { Button } from "../../../components/Button";
@@ -25,6 +26,18 @@ const reasonLabels: Record<string, string> = {
   "Kartu baru": "reasonNew",
   "Waktunya mengulang": "reasonDue",
 };
+
+// Lucide RotateCw and SkipForward also appear on the web flashcard.
+const actionIcons = {
+  flip: "M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8M21 3v5h-5",
+  skip: "M21 4v16M6.029 4.285A2 2 0 0 0 3 6v12a2 2 0 0 0 3.029 1.715l9.997-5.998a2 2 0 0 0 .003-3.432z",
+};
+
+function FlashcardActionIcon({ name, color }: { name: keyof typeof actionIcons; color: string }) {
+  return <Svg width={16} height={16} viewBox="0 0 24 24" accessible={false}>
+    <Path d={actionIcons[name]} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+  </Svg>;
+}
 
 function FlipCard({ flipped, disabled, onFlip, front, back }: {
   flipped: boolean; disabled: boolean; onFlip: () => void; front: ReactNode; back: ReactNode;
@@ -101,7 +114,8 @@ export function FlashcardsPage({ cards, props, title, t, reload }: {
   const reset = () => {
     setAnswer(""); setFlipped(false); setChecked(null); setFailure(null);
   };
-  const render = (source: string, centered = false) => props.renderAssessmentMarkdown?.(source, courseId) ?? <Body source={source} centered={centered} />;
+  const render = (source: string, centered: boolean, paragraphStyle: TextStyle, muted = false) =>
+    props.renderAssessmentMarkdown?.(source, courseId) ?? <Body source={source} centered={centered} muted={muted} paragraphStyle={paragraphStyle} />;
   const check = () => {
     const normalize = (value: string) => value.toLowerCase().trim().replace(/[^\w\s]/g, " ").replace(/\s+/g, " ").trim();
     if (!card || !answer.trim()) { setFailure("answer"); return; }
@@ -142,9 +156,12 @@ export function FlashcardsPage({ cards, props, title, t, reload }: {
     </Section></LearningPage>;
   }
   const reason = reasonLabels[card.priorityReason] ? label(reasonLabels[card.priorityReason]) : card.priorityReason;
+  const prompt = card.front.trim();
+  const questionStyle = prompt.length <= 120 && !prompt.includes("\n") ? flashcardStyles.shortQuestion : flashcardStyles.contentText;
   const allowFlip = mode === "standard" || checked !== null;
   const flip = () => { void hapticSelection(); setFlipped(!flipped); };
   const flipButton = (isBack: boolean) => allowFlip ? <Button variant="ghost" wrapLabel style={flashcardStyles.flipButton}
+    renderIcon={() => <FlashcardActionIcon name="flip" color={colors.mutedForeground} />}
     disabled={pending || failure === "uncertain" || flipped !== isBack}
     onPress={(event) => { event.stopPropagation(); flip(); }}>{label(isBack ? "flipToQuestion" : "flipCard")}</Button> : null;
   const grades = flipped || checked !== null ? <View style={flashcardStyles.grades}>
@@ -176,7 +193,7 @@ export function FlashcardsPage({ cards, props, title, t, reload }: {
           <Copy style={{ ...flashcardStyles.tag, color: colors.brandPrimary, borderColor: `${colors.brandPrimary}33`, backgroundColor: `${colors.brandPrimary}0d` }}>{reason}</Copy>
           <Copy muted style={flashcardStyles.caption}>{label("question")}</Copy>
         </View>
-        <View style={flashcardStyles.faceBody}>{render(card.front, true)}</View>
+        <View style={flashcardStyles.faceBody}>{render(card.front, true, questionStyle)}</View>
         {flipButton(false)}
       </>}
       back={<>
@@ -189,14 +206,17 @@ export function FlashcardsPage({ cards, props, title, t, reload }: {
             </View>}
         </View>
         <View style={flashcardStyles.faceBody}>
-          {render(card.back, true)}
+          {render(card.back, true, flashcardStyles.contentText)}
           {card.explanation ? <View style={[flashcardStyles.explanation, { borderColor: colors.border }]}>
-            <Copy muted style={nativeTypography.bodySemibold}>{label("explanation")}</Copy>{render(card.explanation)}
+            <Copy muted style={nativeTypography.bodySemibold}>{label("explanation")}</Copy>
+            {render(card.explanation, false, flashcardStyles.contentText, true)}
           </View> : null}
         </View>
         {flipButton(true)}
       </>} />
-    <Button variant="ghost" style={[styles.action, flashcardStyles.skip]} disabled={queue.length - position <= 1 || pending || failure === "uncertain"} onPress={() => {
+    <Button variant="ghost" style={[styles.action, flashcardStyles.skip]} iconPosition="end"
+      renderIcon={() => <FlashcardActionIcon name="skip" color={colors.mutedForeground} />}
+      disabled={queue.length - position <= 1 || pending || failure === "uncertain"} onPress={() => {
       setQueue((current) => [...current.slice(0, position), ...current.slice(position + 1), card]); reset();
     }}>{label("skip")}</Button>
     {mode === "exam" ? <Section>
@@ -226,6 +246,8 @@ const flashcardStyles = StyleSheet.create({
   faceContent: { flexGrow: 1, minHeight: cardHeight - 2, minWidth: 0, padding: 16, gap: 16, justifyContent: "space-between" },
   faceHeader: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 8 },
   faceBody: { flexGrow: 1, justifyContent: "center", gap: 16 },
+  contentText: { fontSize: 16, lineHeight: 26 },
+  shortQuestion: { ...nativeTypography.bodyMedium, fontSize: 18, lineHeight: 28 },
   caption: { ...nativeTypography.bodyMedium, fontSize: 12, lineHeight: 16, includeFontPadding: false },
   tag: { ...nativeTypography.bodySemibold, fontSize: 12, lineHeight: 18, includeFontPadding: false,
     borderRadius: nativeRadii.sm, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 2 },

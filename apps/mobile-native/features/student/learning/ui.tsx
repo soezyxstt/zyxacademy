@@ -80,10 +80,13 @@ export function Copy({ children, heading = false, muted = false, level, style }:
   );
 }
 
-export function Body({ source, centered = false }: { source: string; centered?: boolean }) {
+export function Body({ source, centered = false, muted = false, paragraphStyle }: {
+  source: string; centered?: boolean; muted?: boolean; paragraphStyle?: TextStyle;
+}) {
   return (
     <View style={styles.body}>
-      {source.split(/\n\s*\n/).filter(Boolean).map((paragraph, index) => <Copy key={index} style={{ lineHeight: 23, textAlign: centered ? "center" : undefined }}>{paragraph}</Copy>)}
+      {source.split(/\n\s*\n/).filter(Boolean).map((paragraph, index) => <Copy key={index} muted={muted}
+        style={{ lineHeight: 23, textAlign: centered ? "center" : undefined, ...paragraphStyle }}>{paragraph}</Copy>)}
     </View>
   );
 }

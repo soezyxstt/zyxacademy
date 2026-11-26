@@ -4,7 +4,7 @@ Referensi untuk halaman produk Learning dengan sesi Student dan PostgreSQL sinte
 
 ## Referensi pada ukuran perangkat CI
 
-Kedua target memakai komponen web produksi, dua kartu dari fixture native yang sama, mode Standar, tema terang, locale Indonesia, dan berkas font Inter milik aplikasi native. Playwright menahan permintaan grade `Paham` untuk menangkap keadaan menunggu, lalu mengembalikan penolakan sintetis HTTP 422. Maestro memeriksa keadaan yang sama dan memastikan percobaan ulang eksplisit berpindah ke kartu kedua. [Data bersama](../../../../../packages/native-parity/student/learning/flashcard-fixture.ts) · [Maestro](../../../../../.maestro/native-parallel/student/learning-flashcard-review.yaml)
+Kedua target memakai dua kartu dari fixture native yang sama, mode Standar, tema terang, locale Indonesia, dan berkas font Inter milik aplikasi native. Playwright membuka path flashcard dan merakit komponen web produksi `ApplicationShell`, `StudentMobileTopNav`, `CourseMobileTabNav`, `StudentFlashcardsView`, `Reveal` dan `AppToaster`. Header memakai tombol kembali, pemilih kelas Kalkulus Dasar, pencarian dan notifikasi sesuai rute web. Sesi, data, permintaan review dan hitungan notifikasi memakai transport fixture. Sesi autentikasi Next.js dan overlay akun berada pada referensi produk. Playwright menahan permintaan grade `Paham` untuk menangkap keadaan menunggu, lalu mengembalikan penolakan HTTP 422. Maestro memeriksa keadaan yang sama dan memastikan percobaan ulang eksplisit berpindah ke kartu kedua. [Data bersama](../../../../../packages/native-parity/student/learning/flashcard-fixture.ts) · [Maestro](../../../../../.maestro/native-parallel/student/learning-flashcard-review.yaml)
 
 | Target | Kartu depan | Penilaian menunggu | Penilaian ditolak | Manifest |
 |---|---|---|---|---|
@@ -17,7 +17,19 @@ bun run test:visual tests/visual/learning-query.spec.ts --project mobile-380 \
   --grep 'flashcard reference matches the device inputs'
 ```
 
-CI memeriksa manifest input dan hash PNG web, hasil flow Maestro, serta ukuran gambar sebelum menghitung selisih seluruh tangkapan tanpa penskalaan. Laporan membedakan selisih piksel dari pasangan yang hilang atau tidak dapat dibandingkan. Kesamaan piksel belum terukur untuk enam pasangan ini. Shell dan safe area sistem, rasterisasi antarplatform, dan rumus inline yang dirender KaTeX di web dapat menimbulkan selisih. [Pembanding](../compare.py)
+CI memeriksa manifest input dan hash PNG web, hasil flow Maestro, serta ukuran gambar sebelum menghitung selisih seluruh tangkapan tanpa penskalaan. Perbandingan dengan referensi web yang sekarang menyertakan navigasi menunggu tangkapan perangkat dari revisi yang sama. [Pembanding](../compare.py)
+
+## Selisih Android pada run 45818468369
+
+Run ini membandingkan 311.600 piksel per keadaan dari source head `379dbde47ad55e7689b5bf6e65f4812e5549063d` dan checkout `8f073512c063882ac5a24621824ad7cee84c2832`. Komposisi web saat itu sudah memakai `StudentFlashcardsView`, dengan judul halaman yang hanya tersedia untuk pembaca layar. Chrome navigasi web belum dimuat pada fixture tersebut. Android memakai tombol `Kembali`, judul `Flashcard: Kalkulus Dasar`, dan bilah sistem asli. Saat kartu dibalik, dok penilaian Android juga berhenti di atas safe area bawah. [Tangkapan web dan Android, SHA-256 per file](../../../../../packages/native-parity/student/evidence/device-runs/45818468369/android/provenance.json)
+
+| Keadaan | Piksel berbeda | SHA-256 PNG selisih |
+|---|---:|---|
+| Pertanyaan | 23.397 (7,51%) | `d2848d8495a9d9984fc1d1b4336225a197c7a24c535ba2dea6fcc6be4ab51c0b` |
+| Menunggu penilaian | 45.803 (14,70%) | `61c0e1c05cb45c8402a9a44522057775943142653f33b31c78003562a3873d7c` |
+| Penilaian ditolak | 68.175 (21,88%) | `9dd0e329a64fb389e3fa39d2cdaa2c749299dbda9f14cc9edfb2720844347f93` |
+
+Perhitungan ulang dari pasangan PNG asli menghasilkan hitungan yang sama. SHA-256 ZIP Android adalah `2c3746d0cb2bdef7f9dde97e88a4bd949f5e774f39c07a5454faf63ba862b874` dan SHA-256 ZIP web adalah `7b63dacf1755914a15bb7d6f2002e4d02552430d3577df66850640a068bb9179`. Flow Android melewati tiga tangkapan lalu berpindah ke kartu kedua setelah satu penilaian ulang. [Selisih CI](../../../../../packages/native-parity/student/evidence/device-runs/45818468369/android/comparison.json) · [JUnit Maestro](../../../../../packages/native-parity/student/evidence/device-runs/45818468369/android/report.xml)
 
 ## Referensi regresi web 380 × 844
 
@@ -44,4 +56,6 @@ Ketiga tes flashcard web lulus di viewport 380 × 844 dan 1536 × 864. Spec meme
 
 Expo menempatkan panel penilaian di bawah area gulir pada lebar kurang dari 768 dp, di dalam safe area host. Tombol tetap mengikuti ukuran teks perangkat. Pada layout lebar, panel mengikuti urutan isi halaman. Kartu memakai rotasi perspektif 600 ms ketika pengurangan gerak dinonaktifkan. Pada preferensi pengurangan gerak aktif, sisi kartu berganti langsung dan sisi tersembunyi keluar dari pohon aksesibilitas.
 
-Expo memakai radius kartu 18 dp, warna latar untuk empat grade dan pemberitahuan penolakan di tepi atas. Label grade memakai warna teks dengan kontras tinggi. Penolakan eksplisit mempertahankan kartu, mengaktifkan kembali grade dan menunggu percobaan ulang dari pengguna. Respons yang ambigu menampilkan pemulihan antrean sebelum grade berikutnya. Panel menyesuaikan ukuran teks dan tetap berada dalam safe area native. Fokus aksesibilitas, perilaku dengan dan tanpa pengurangan gerak, dan diff piksel masih memerlukan hasil perangkat.
+Expo memakai radius kartu 18 dp, warna latar untuk empat grade dan pemberitahuan penolakan di tepi atas. Label grade memakai warna teks dengan kontras tinggi. Ikon balik dan lewati mengikuti ikon Lucide dari komponen web. Fallback native memakai ukuran paragraf 18 dp untuk pertanyaan pendek dan 16 dp untuk jawaban serta penjelasan. Web menampilkan rumus inline melalui KaTeX. Host fixture Expo merender teks sumber sampai renderer Markdown terhubung melalui `renderAssessmentMarkdown`. Shell native, safe area sistem, ornamen latar web, dan rasterisasi antarplatform tetap terlihat di tangkapan utuh.
+
+Penolakan eksplisit mempertahankan kartu, mengaktifkan kembali grade dan menunggu percobaan ulang dari pengguna. Respons yang ambigu menampilkan pemulihan antrean sebelum grade berikutnya. Panel menyesuaikan ukuran teks dan tetap berada dalam safe area native. Fokus aksesibilitas dan perilaku dengan pengurangan gerak aktif atau nonaktif masih memerlukan uji perangkat terpisah.

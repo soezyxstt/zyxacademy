@@ -11,6 +11,7 @@ test.beforeAll(async () => { fixture = await buildLearningFixture(); });
 
 async function boot(page: Page, config: Window["learningFixture"], respond?: (route: Route) => Promise<void>, expectedReviewRejection?: number) {
   const errors: string[] = [];
+  const documentUrl = config.deviceFlashcards ? `${origin}/courses/${flashcardEvidence.courseId}/flashcard` : `${origin}/`;
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => {
     if (expectedReviewRejection && message.location().url === `${origin}/fixture/flashcard-review`
@@ -26,14 +27,14 @@ async function boot(page: Page, config: Window["learningFixture"], respond?: (ro
   // so mutation assertions below advance one millisecond at each transition.
   await page.clock.pauseAt(new Date("2026-11-18T00:00:01.000Z"));
   await page.route("**/*", async (route) => {
-    if (route.request().url() === `${origin}/`) {
+    if (route.request().url() === documentUrl) {
       return route.fulfill({ contentType: "text/html", body: '<!doctype html><html lang="id"><head><meta name="viewport" content="width=device-width, initial-scale=1"></head><body><div id="root"></div></body></html>' });
     }
     if (respond) return respond(route);
     errors.push(`Unexpected ${route.request().method()} ${route.request().url()}`);
     return route.abort();
   });
-  await page.goto(origin);
+  await page.goto(documentUrl);
   await page.addStyleTag({ content: fixture.styles });
   await page.evaluate((value) => { window.learningFixture = value; }, config);
   await page.addScriptTag({ content: fixture.script });
@@ -101,6 +102,12 @@ test("flashcard reference matches the device inputs", async ({ browser }, info) 
     const requests: unknown[] = [];
     try {
       const errors = await boot(page, { mode: "flashcards", deviceFlashcards: true }, async (route) => {
+        if (route.request().url() === `${origin}/api/notifications/history?countOnly=true` && route.request().method() === "GET") {
+          return route.fulfill({ json: { unreadCount: 0 } });
+        }
+        if (route.request().url() === `${origin}/api/discussions/counts` && route.request().method() === "GET") {
+          return route.fulfill({ json: { total: { unreadThreads: 0, activeThreads: 0 }, course: null } });
+        }
         expect(route.request().url()).toBe(`${origin}/fixture/flashcard-review`);
         expect(route.request().method()).toBe("POST");
         requests.push(route.request().postDataJSON());
@@ -127,6 +134,7 @@ test("flashcard reference matches the device inputs", async ({ browser }, info) 
       const front = page.locator('[data-flashcard-face="front"]');
       const back = page.locator('[data-flashcard-face="back"]');
       await expect(page.getByRole("heading", { name: `Flashcard: ${flashcardEvidence.courseTitle}` })).toHaveCount(1);
+      await expect(page.getByRole("button", { name: `Ganti mata kuliah: ${flashcardEvidence.courseTitle}` })).toBeVisible();
       await expect(page.getByRole("radio", { name: "Standar" })).toBeChecked();
       // The production Markdown component expands the inline expression into KaTeX spans.
       const question = front.locator("p").first();
@@ -154,7 +162,8 @@ test("flashcard reference matches the device inputs", async ({ browser }, info) 
       await expect(back.getByText(first.back, { exact: true })).toBeVisible();
       expect(requests).toHaveLength(1);
       await writeFile(info.outputPath(platform, "flashcard-reference.json"), JSON.stringify({
-        platform, viewport, deviceScaleFactor, ...flashcardEvidence, font: "Inter from native assets", motion: "reduced", captures,
+        platform, viewport, deviceScaleFactor, ...flashcardEvidence, font: "Inter from native assets", motion: "reduced",
+        webComposition: "Student application and course navigation with fixture transport", captures,
       }, null, 2) + "\n");
     } finally {
       await context.close();
