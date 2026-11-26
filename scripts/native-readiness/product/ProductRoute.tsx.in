@@ -18,6 +18,7 @@ import { nativeUiLocale } from "../auth/ui-locale";
 import { Button } from "../components/Button";
 import { useDevicePreferences } from "../device/preferences-provider";
 import { AcademicLiveScreen, bindAcademicSession, createAcademicClient } from "../features/academic";
+import { connectTutorDiscussionImages, TutorDiscussionImages } from "../features/academic/tutor/discussion-images";
 import { AdminOperationsScreen } from "../features/operations/AdminOperationsScreen";
 import { academicRouteCanRead, productLocation, productNavigationHref, productQueryUpdate } from "./product-location";
 import { legacyLiveHostPattern, tutorLiveDestination } from "./live-host-alias";
@@ -194,11 +195,14 @@ function AcademicRoute({ session, locale, accountId, role, ...props }: {
     focusedOnce.current = true;
   }, [preserveList]));
   const transport = useMemo(() => bindAcademicSession(session, locale, role === "tutor" ? role : undefined), [session, locale, role]);
+  const discussionImages = useMemo(() => role === "tutor" ? connectTutorDiscussionImages(session, locale) : null, [session, locale, role]);
 
   // Keep list filters on Back. Other Academic screens recheck their protected
   // resource from a fresh mount before displaying any previous result.
   if (!academicRouteCanRead(props.href, focused, focusedOnce.current)) return null;
-  return <AcademicLiveScreen {...props} transport={transport} actor={{ id: accountId, role }} refresh={refresh} />;
+  return <TutorDiscussionImages.Provider value={discussionImages}>
+    <AcademicLiveScreen {...props} transport={transport} actor={{ id: accountId, role }} refresh={refresh} />
+  </TutorDiscussionImages.Provider>;
 }
 
 function StudentBrowserPage({ locale, href, canNavigate, signOut }: {

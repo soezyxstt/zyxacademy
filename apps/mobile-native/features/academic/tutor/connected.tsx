@@ -1,11 +1,12 @@
 import { toggleSlotCourseSelection } from "../../../../../lib/schedule/slot-courses";
 import { discussionDestination, discussionWorkspaceHref } from "../../../../../packages/native-parity/discussion-destination";
 import { useStaffChromeVisibility } from "../../../routing/staff-chrome-visibility";
-import { useCallback, useEffect, useRef, useState, type ComponentRef } from "react";
+import { useCallback, useContext, useEffect, useRef, useState, type ComponentRef } from "react";
 import { randomUUID } from "expo-crypto";
 import { openBrowserAsync } from "expo-web-browser";
 import { AccessibilityInfo, ActivityIndicator, AppState, View } from "react-native";
 import type {
+  TutorDiscussionChange,
   TutorDiscussionDetail,
   TutorDiscussThread,
   TutorDiscussionList,
@@ -16,6 +17,7 @@ import type {
   TutorSupportClient,
   TutorVideosData,
 } from "../../../../../packages/academic/tutor-support";
+import { DISCUSSION_REACTIONS } from "../../../../../lib/discussions/policy";
 import type { TutorSlotEditor, TutorSlotPending } from "../../../../../packages/academic/tutor-slot";
 import { TutorDataError } from "../../../../../packages/native-parity/academic/tutor/model";
 import { Button } from "../../../components/Button";
@@ -28,6 +30,7 @@ import { ScheduleResources } from "../../schedule/resources";
 import { SharedDialog } from "../../shared-ui";
 import { CalendarActions } from "./calendar-actions";
 import { TicketActions } from "./ticket-actions";
+import { TutorDiscussionImage, TutorDiscussionImages } from "./discussion-images";
 import { TutorLiveHostPanel } from "./live-host";
 import { TutorWeekCalendar, tutorJakartaToday } from "./schedule-calendar";
 import { Choices, Empty, Heading, Label, Row, TutorDetail, TutorPage, tutorLayout } from "./ui";
@@ -168,12 +171,12 @@ export function ConnectedSchedule({ data: initial, week, theme, back, replace, q
   </TutorPage>;
 
   const data = scheduleState.data;
-  const term = search.trim().toLowerCase();
-  const matches = (values: (string | null)[]) => values.some((value) => value?.toLowerCase().includes(term));
-  const slots = data.slots.filter((slot) => !term || matches([slot.date, slot.start, slot.location]));
   const assigned = data.courses ?? [];
   const existingIds = data.slots.find(item => item.id === draft?.target?.slotId)?.courseIds ?? [];
   const selectedIds = draft?.fields.courseIds ?? existingIds.map(id => assigned.find(course => course.legacyId === id)?.id ?? id);
+  const term = search.trim().toLowerCase();
+  const matches = (values: (string | null)[]) => values.some((value) => value?.toLowerCase().includes(term));
+  const slots = data.slots.filter((slot) => !term || matches([slot.date, slot.start, slot.location]));
   const sessions = data.sessions.filter((session) => !term || matches([session.date, session.groupName, session.courseTitle, session.topic]));
   const sessionStatus = (status: string) => status === "completed" ? "Selesai" : status === "cancelled" ? "Dibatalkan" : "Terjadwal";
   const events = [
@@ -275,6 +278,20 @@ export function ConnectedSchedule({ data: initial, week, theme, back, replace, q
         change={(mode) => setDraft({ ...draft, fields: { ...draft.fields, mode } })} options={[["online", "Daring"], ["offline", "Tatap muka"]]} />
       {draft.fields.mode === "offline" ? <Input theme={theme} accessibilityLabel="Lokasi" placeholder="Lokasi atau ruangan" value={draft.fields.location}
         editable={!saving && !awaiting && !blocked} onChangeText={(location) => setDraft({ ...draft, fields: { ...draft.fields, location } })} /> : null}
+      {!draft.target ? <Choices theme={theme} label="Jumlah minggu" value={String(draft.fields.weeks ?? 1)}
+        options={[["1", "1 minggu"], ["2", "2 minggu"], ["3", "3 minggu"], ["4", "4 minggu"]]} disabled={saving || awaiting || blocked}
+        change={weeks => setDraft({ ...draft, fields: { ...draft.fields, weeks: Number(weeks) } })} /> : null}
+      {assigned.length || existingIds.length ? <View style={tutorLayout.group}>
+        <Label theme={theme} tone="strong">Mata kuliah</Label>
+        <Button theme={theme} variant={selectedIds.length ? "ghost" : "outline"}
+          accessibilityState={{ selected: !selectedIds.length }} disabled={saving || awaiting || blocked}
+          onPress={() => setDraft({ ...draft, fields: { ...draft.fields, courseIds: [] } })}>Semua mata kuliah yang diampu</Button>
+        {assigned.map(course => <Button key={course.id} theme={theme} variant={selectedIds.includes(course.id) ? "outline" : "ghost"}
+          accessibilityState={{ selected: selectedIds.includes(course.id) }} disabled={saving || awaiting || blocked}
+          onPress={() => setDraft({ ...draft, fields: { ...draft.fields, courseIds: toggleSlotCourseSelection(
+            selectedIds.filter(id => assigned.some(option => option.id === id)), course.id, assigned.map(option => option.id)) } })}>{course.title}</Button>)}
+        {selectedIds.filter(id => !assigned.some(course => course.id === id)).map(id => <Label key={id} theme={theme}>{id}</Label>)}
+      </View> : null}
       <Input theme={theme} accessibilityLabel="Catatan slot" placeholder="Catatan slot (opsional)" value={draft.fields.notes} multiline
         maxLength={4000} editable={!saving && !awaiting && !blocked} onChangeText={(notes) => setDraft({ ...draft, fields: { ...draft.fields, notes } })} />
       {slotError ? <Label theme={theme} tone="error">{slotError}</Label> : null}
@@ -291,20 +308,6 @@ function LoadFailure({ theme, error, retry }: { theme: Navigation["theme"]; erro
 
 function accessEnded(error: unknown) {
   return error instanceof TutorDataError && [401, 403, 404].includes(error.status);
-      {!draft.target ? <Choices theme={theme} label="Jumlah minggu" value={String(draft.fields.weeks ?? 1)}
-        options={[["1", "1 minggu"], ["2", "2 minggu"], ["3", "3 minggu"], ["4", "4 minggu"]]} disabled={saving || awaiting || blocked}
-        change={weeks => setDraft({ ...draft, fields: { ...draft.fields, weeks: Number(weeks) } })} /> : null}
-      {assigned.length || existingIds.length ? <View style={tutorLayout.group}>
-        <Label theme={theme} tone="strong">Mata kuliah</Label>
-        <Button theme={theme} variant={selectedIds.length ? "ghost" : "outline"}
-          accessibilityState={{ selected: !selectedIds.length }} disabled={saving || awaiting || blocked}
-          onPress={() => setDraft({ ...draft, fields: { ...draft.fields, courseIds: [] } })}>Semua mata kuliah yang diampu</Button>
-        {assigned.map(course => <Button key={course.id} theme={theme} variant={selectedIds.includes(course.id) ? "outline" : "ghost"}
-          accessibilityState={{ selected: selectedIds.includes(course.id) }} disabled={saving || awaiting || blocked}
-          onPress={() => setDraft({ ...draft, fields: { ...draft.fields, courseIds: toggleSlotCourseSelection(
-            selectedIds.filter(id => assigned.some(option => option.id === id)), course.id, assigned.map(option => option.id)) } })}>{course.title}</Button>)}
-        {selectedIds.filter(id => !assigned.some(course => course.id === id)).map(id => <Label key={id} theme={theme}>{id}</Label>)}
-      </View> : null}
 }
 
 export function ConnectedDiscussions({ theme, back, replace, query, courseId, service }: Navigation & {
@@ -402,6 +405,7 @@ function mergeDiscussionMessages(previous: TutorDiscussionDetail | undefined, ne
   const unique = new Map([...previous?.messages.items ?? [], ...next.messages.items].map((message) => [message.id, message]));
   return {
     thread: next.thread,
+    observed: next.observed,
     messages: {
       items: [...unique.values()].sort((left, right) => left.seq - right.seq),
       nextCursor: keepCursor && previous ? previous.messages.nextCursor : next.messages.nextCursor,
@@ -419,6 +423,7 @@ function ConnectedDiscussionDetail({ theme, courseId, threadId, targetMessage, s
   onThread(thread: TutorDiscussThread): void;
 }) {
   const { canInteract } = useProtectedInteraction();
+  const imageActions = useContext(TutorDiscussionImages);
   const [data, setData] = useState<TutorDiscussionDetail>();
   const [attempt, setAttempt] = useState(0);
   const [error, setError] = useState("");
@@ -426,13 +431,24 @@ function ConnectedDiscussionDetail({ theme, courseId, threadId, targetMessage, s
   const [loadingMore, setLoadingMore] = useState(false);
   const pageRequest = useRef<AbortController | null>(null);
   const sendRequest = useRef<AbortController | null>(null);
+  const imageRequest = useRef<AbortController | null>(null);
+  const changeRequest = useRef<AbortController | null>(null);
   const [draft, setDraft] = useState(() => service.pendingAnswer?.(threadId)?.body ?? "");
+  const [replyTo, setReplyTo] = useState(() => service.pendingAnswer?.(threadId)?.replyTo);
+  const [images, setImages] = useState(() => (service.pendingAnswer?.(threadId)?.attachmentIds ?? []).map(id => ({ id, name: "Gambar" })));
   const [pending, setPending] = useState(() => Boolean(service.pendingAnswer?.(threadId)));
   const [sending, setSending] = useState(false);
   const [sendMessage, setSendMessage] = useState("");
   const [readback, setReadback] = useState<string>();
+  const [picking, setPicking] = useState(false);
+  const [changing, setChanging] = useState(false);
+  const [reactionMenu, setReactionMenu] = useState<string>();
 
-  useEffect(() => () => sendRequest.current?.abort(), []);
+  useEffect(() => () => {
+    sendRequest.current?.abort();
+    imageRequest.current?.abort();
+    changeRequest.current?.abort();
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -491,20 +507,24 @@ function ConnectedDiscussionDetail({ theme, courseId, threadId, targetMessage, s
   }
 
   async function sendAnswer() {
-    if (!canInteract() || !service.answer || !draft.trim() || sendRequest.current) return;
+    if (!canInteract() || !service.answer || (!draft.trim() && !images.length) || sendRequest.current || imageRequest.current) return;
     const controller = new AbortController();
     const { signal } = controller;
     sendRequest.current = controller;
     setSending(true);
     setSendMessage("");
     try {
-      const attempt = service.pendingAnswer?.(threadId) ?? { body: draft.trim(), requestId: randomUUID() };
+      const attempt = service.pendingAnswer?.(threadId) ?? { body: draft.trim(), requestId: randomUUID(),
+        ...(replyTo ? { replyTo } : {}), ...(images.length ? { attachmentIds: images.map(image => image.id) } : {}),
+      };
       const result = await service.answer(courseId, threadId, attempt, signal);
       if (signal.aborted) return;
       setPending(Boolean(service.pendingAnswer?.(threadId)));
       if (result.ok) {
         setDraft("");
-        setSendMessage("Jawaban terkirim.");
+        setReplyTo(undefined);
+        setImages([]);
+        setSendMessage(attempt.replyTo ? "Balasan terkirim." : "Jawaban terkirim.");
         await receiveMessage(result.value.messageId, signal);
       } else if (result.error === "replay_unverified") {
         setSendMessage("Pengiriman belum terkonfirmasi. Periksa jawaban yang ditemukan.");
@@ -534,6 +554,55 @@ function ConnectedDiscussionDetail({ theme, courseId, threadId, targetMessage, s
     }
   }
 
+  async function pickImage() {
+    if (!data?.thread.channelId || !imageActions || images.length >= 4 || imageRequest.current || sending || pending || !canInteract()) return;
+    const controller = new AbortController();
+    imageRequest.current = controller;
+    setPicking(true); setSendMessage("");
+    try {
+      const image = await imageActions.pick(data.thread.channelId, threadId, controller.signal);
+      if (image && !controller.signal.aborted) setImages(previous => [...previous, image]);
+    } catch (error) {
+      if (!controller.signal.aborted) setSendMessage(error instanceof Error && error.message === "size" ? "Gambar melebihi 8 MB." : "Gambar gagal dilampirkan.");
+    } finally {
+      if (imageRequest.current === controller) imageRequest.current = null;
+      if (!controller.signal.aborted) setPicking(false);
+    }
+  }
+
+  async function change(value: TutorDiscussionChange) {
+    if (!service.changeDiscussion || changeRequest.current || !canInteract()) return;
+    const controller = new AbortController();
+    changeRequest.current = controller;
+    setChanging(true); setSendMessage("");
+    try {
+      await service.changeDiscussion(courseId, threadId, value, randomUUID(), controller.signal);
+      const next = await service.discussion(courseId, threadId, undefined, controller.signal,
+        value.action === "reaction" ? value.messageId : targetMessage);
+      if (!controller.signal.aborted) {
+        setReactionMenu(undefined);
+        setData(previous => mergeDiscussionMessages(previous, next, true));
+        onThread(next.thread);
+      }
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        if (accessEnded(error)) setUnavailable(true);
+        else setSendMessage("Perubahan belum dapat diperiksa. Muat ulang diskusi.");
+      }
+    } finally {
+      if (changeRequest.current === controller) changeRequest.current = null;
+      if (!controller.signal.aborted) setChanging(false);
+    }
+  }
+
+  function markPageRead() {
+    if (!data?.observed) return;
+    const { receipt, items } = data.observed;
+    let throughSeq = data.observed.throughSeq;
+    for (const item of [...items].sort((a, b) => a.seq - b.seq)) if (item.seq === throughSeq + 1) throughSeq++;
+    void change({ action: "read", throughSeq, receipt, messageIds: items.map(item => item.id) });
+  }
+
   async function retryReadback() {
     if (!readback || sendRequest.current) return;
     const controller = new AbortController();
@@ -548,18 +617,47 @@ function ConnectedDiscussionDetail({ theme, courseId, threadId, targetMessage, s
   return <TutorDetail title={data?.thread.title ?? "Diskusi"} theme={theme} onBack={() => { if (!sending) close(); }}
     subtitle={data?.thread.status === "resolved" ? "Terselesaikan" : undefined}
     footer={service.answer && (data?.thread.canReply || pending) && !unavailable ? <View style={tutorLayout.group}>
-      {sendMessage ? <Label theme={theme}>{sendMessage}</Label> : null}
-      <Input theme={theme} multiline maxLength={12000} accessibilityLabel="Jawaban" placeholder="Tulis jawaban"
-        value={draft} onChangeText={setDraft} editable={!sending && !pending} />
-      <Button theme={theme} style={tutorLayout.action} disabled={!draft.trim()} isLoading={sending} onPress={sendAnswer}>
-        {pending ? "Coba kirim lagi" : "Kirim jawaban"}
+      {replyTo ? <View style={tutorLayout.cluster}>
+        <Label theme={theme}>{`Balas ${data?.messages.items.find(item => item.id === replyTo)?.author ?? "pesan"}`}</Label>
+        <Button theme={theme} variant="outline" disabled={sending || pending} onPress={() => setReplyTo(undefined)}>Batal balas</Button>
+      </View> : null}
+      {images.length ? <View style={tutorLayout.cluster}>{images.map(image => <Button key={image.id} theme={theme} variant="outline"
+        accessibilityLabel={`Lepas ${image.name}`} disabled={sending || pending} onPress={() => setImages(previous => previous.filter(item => item.id !== image.id))}>{image.name}</Button>)}</View> : null}
+      <Input theme={theme} multiline maxLength={12000} accessibilityLabel={replyTo ? "Balasan" : "Jawaban"}
+        placeholder={replyTo ? "Tulis balasan" : "Tulis jawaban"} value={draft} onChangeText={setDraft} editable={!sending && !pending} />
+      {imageActions && data?.thread.channelId && <Button theme={theme} variant="outline" style={tutorLayout.action}
+        disabled={sending || pending || images.length >= 4} isLoading={picking} onPress={() => void pickImage()}>Lampirkan gambar</Button>}
+      <Button theme={theme} style={tutorLayout.action} disabled={(!draft.trim() && !images.length) || picking} isLoading={sending} onPress={sendAnswer}>
+        {pending ? "Coba kirim lagi" : replyTo ? "Kirim balasan" : "Kirim jawaban"}
       </Button>
     </View> : undefined}>
     {unavailable ? <Empty theme={theme} title="Diskusi tidak tersedia" /> : null}
     {!data && !error && !unavailable ? <ActivityIndicator accessibilityLabel="Memuat pesan" /> : null}
+    {sendMessage && !unavailable ? <Label theme={theme}>{sendMessage}</Label> : null}
+    {!unavailable && data && service.changeDiscussion ? <View style={tutorLayout.cluster}>
+      <Button theme={theme} variant="outline" disabled={changing} onPress={() => setAttempt(value => value + 1)}>Muat ulang diskusi</Button>
+      {data.observed && Boolean(data.thread.unreadCount) ? <Button theme={theme} variant="outline" disabled={changing} onPress={markPageRead}>Tandai telah dibaca</Button> : null}
+      {data.thread.canResolve ? <Button theme={theme} variant="outline" disabled={changing}
+        onPress={() => void change({ action: "resolve", resolved: data.thread.status !== "resolved" })}>
+        {data.thread.status === "resolved" ? "Buka kembali" : "Tandai selesai"}
+      </Button> : null}
+    </View> : null}
     {!unavailable && data?.messages.items.map((message) => <Row key={message.id} theme={theme} title={message.author ?? "Pengguna"}
-      subtitle={message.body} meta={message.attachmentCount ? `${message.attachmentCount} lampiran` : undefined}>
+      subtitle={message.body} meta={!imageActions && message.attachmentCount ? `${message.attachmentCount} lampiran` : undefined}>
       {message.id === targetMessage ? <Label theme={theme}>Pesan yang dibuka</Label> : null}
+      {message.replyTo ? <Label theme={theme} tone="muted">{message.replyTo.excerpt ?? "Balasan pada pesan sebelumnya"}</Label> : null}
+      {message.attachments?.map(image => <TutorDiscussionImage key={image.id} theme={theme} image={image} />)}
+      <View style={tutorLayout.cluster}>
+        {message.canReply && <Button theme={theme} variant="outline" disabled={pending || sending} onPress={() => setReplyTo(message.id)}>Balas</Button>}
+        {message.reactions?.map(reaction => <Button key={reaction.emoji} theme={theme} variant={reaction.selected ? "default" : "outline"}
+          disabled={!message.canReact || changing} onPress={() => void change({ action: "reaction", messageId: message.id,
+            emoji: reaction.emoji, selected: !reaction.selected })}>{`${reaction.emoji} ${reaction.count}`}</Button>)}
+        {message.canReact && service.changeDiscussion && <Button theme={theme} variant="outline" disabled={changing}
+          onPress={() => setReactionMenu(reactionMenu === message.id ? undefined : message.id)}>Reaksi</Button>}
+      </View>
+      {reactionMenu === message.id && <View style={tutorLayout.cluster}>{DISCUSSION_REACTIONS.filter(emoji =>
+        !message.reactions?.some(reaction => reaction.emoji === emoji)).map(emoji => <Button theme={theme} key={emoji} variant="outline" disabled={changing}
+          onPress={() => void change({ action: "reaction", messageId: message.id, emoji, selected: true })}>{emoji}</Button>)}</View>}
     </Row>)}
     {error ? <LoadFailure theme={theme} error={error} retry={data ? more : () => setAttempt((value) => value + 1)} /> : null}
     {data?.messages.nextCursor && !error && !unavailable ? <Button theme={theme} variant="outline" style={tutorLayout.action}

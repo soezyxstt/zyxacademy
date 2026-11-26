@@ -75,7 +75,8 @@ export function createTutorSupportClient(transport: AcademicTransport): TutorSup
       pendingAnswer: (threadId) => pending.get(threadId),
       async answer(courseId, threadId, draft, signal) {
         const existing = pending.get(threadId);
-        if (existing && existing.body !== draft.body) return { ok: false, error: "unknown" };
+        if (existing && (existing.body !== draft.body || existing.replyTo !== draft.replyTo ||
+          JSON.stringify(existing.attachmentIds ?? []) !== JSON.stringify(draft.attachmentIds ?? []))) return { ok: false, error: "unknown" };
         const attempt = existing ?? draft;
         pending.set(threadId, attempt);
         const response = await command(apiRoot + discussionsPath(courseId), {
@@ -100,6 +101,12 @@ export function createTutorSupportClient(transport: AcademicTransport): TutorSup
         if (result.ok || !["unknown", "rate_limited", "replay_unverified"].includes(result.error)) pending.delete(threadId);
         return result;
       },
-    } satisfies Pick<TutorSupportClient, "pendingAnswer" | "answer"> : {}),
+      async changeDiscussion(courseId, threadId, change, requestId, signal) {
+        const response = await command(apiRoot + discussionsPath(courseId), { method: "POST", body: { ...change, threadId, requestId }, requestId }, signal);
+        if (!response.ok) throw new TutorDataError(response.status);
+        const result = await response.json();
+        if (!result || typeof result !== "object" || !("ok" in result) || result.ok !== true) throw new TutorDataError(502);
+      },
+    } satisfies Pick<TutorSupportClient, "pendingAnswer" | "answer" | "changeDiscussion"> : {}),
   };
 }

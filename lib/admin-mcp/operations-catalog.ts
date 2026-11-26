@@ -138,7 +138,7 @@ export const operationsCatalog = [
     "actions": ["GET", "POST", "PATCH"],
     "tools": [],
     "status": "excluded",
-    "reason": "Schedule, live class, materials and discussions use the current Tutor session. Availability edits check ownership and revision, and weekly series apply the assigned course restrictions to each slot. Calendar commands reuse slot deletion, week copy and direct or ticketed moves with booking and target-slot ownership checks. Ticket decisions and replies use the current booking tutor, session-bound receipts and the existing schedule notifications. Replies reuse the signed-in discussion service. Tryout grades use the web grading operation and the stored answer revision. The writes use durable receipts scoped to the active Tutor session."
+    "reason": "Schedule, live class, materials and discussions use the current Tutor session. Assigned Tutors have read-only materials, matching the web capability. Availability edits check ownership and revision, and weekly series apply the assigned course restrictions to each slot. Calendar commands reuse slot deletion, week copy and direct or ticketed moves with booking and target-slot ownership checks. Ticket decisions and replies use the booking Tutor, session-bound receipts and the existing schedule notifications. Contextual replies, attachments, reactions, observed reads and resolution reuse the signed-in discussion services. Tryout grades use the web grading operation and the stored answer revision."
   },
   {
     "source": "app/api/native/academic/tutor-support/courses/[courseId]/live/host/route.ts",

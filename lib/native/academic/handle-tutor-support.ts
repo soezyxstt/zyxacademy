@@ -1,7 +1,10 @@
-import { validDiscussionId, validDiscussionText } from "@/lib/discussions/policy";
+import { DISCUSSION_REACTIONS, validDiscussionId, validDiscussionText } from "@/lib/discussions/policy";
+import { DISCUSSION_IMAGE_MAX_COUNT } from "@/lib/discussions/image-policy";
+import { z } from "zod";
 import type {
   TutorDiscussionDetail,
   TutorDiscussionDraft,
+  TutorDiscussionChange,
   TutorDiscussionSendResult,
   TutorSupportReads,
 } from "@/packages/academic/tutor-support";
@@ -13,6 +16,7 @@ export type TutorSupportServices = {
   authorizeCourse(userId: string, courseId: string): Promise<void>;
   discussion(userId: string, courseId: string | undefined, threadId: string, cursor: string | undefined, targetMessageId?: string): Promise<TutorDiscussionDetail>;
   answer(userId: string, courseId: string | undefined, threadId: string, draft: TutorDiscussionDraft): Promise<TutorDiscussionSendResult>;
+  changeDiscussion?(userId: string, courseId: string | undefined, threadId: string, change: TutorDiscussionChange): Promise<void>;
 } & {
   [Key in keyof Omit<TutorSupportReads, "discussion">]: (
     userId: string,
@@ -25,6 +29,13 @@ function reply(status: number, data: unknown) {
 }
 
 const safeId = (value: string) => value.length <= 256 && /^[^/\\\s\0]+$/.test(value);
+const discussionId = z.string().refine(validDiscussionId);
+const discussionChange = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("read"), throughSeq: z.number().int().nonnegative(), receipt: z.string().min(1).max(25_000),
+    messageIds: z.array(discussionId).max(100).refine(ids => new Set(ids).size === ids.length) }),
+  z.object({ action: z.literal("reaction"), messageId: discussionId, emoji: z.enum(DISCUSSION_REACTIONS), selected: z.boolean() }),
+  z.object({ action: z.literal("resolve"), resolved: z.boolean() }),
+]);
 
 export async function handleTutorSupport(url: URL, parts: string[], services: TutorSupportServices) {
   const [section, id, operation] = parts;
@@ -124,12 +135,28 @@ export async function handleTutorDiscussionAnswer(request: Request, parts: strin
     if (courseId) await services.authorizeCourse(userId, courseId);
     const value = await readTutorCommandBody(request);
     if (!value || typeof value !== "object") return reply(400, { error: "INVALID_INPUT" });
-    const { threadId, body, requestId } = value as Record<string, unknown>;
-    if (!validDiscussionId(threadId) || !validDiscussionText(body, 12000) ||
-        !validDiscussionId(requestId) || requestId !== request.headers.get("Idempotency-Key")) {
+    const { threadId, body, requestId, replyTo, attachmentIds, ...extra } = value as Record<string, unknown>;
+    if (!validDiscussionId(threadId) || !validDiscussionId(requestId) || requestId !== request.headers.get("Idempotency-Key")) {
       return reply(400, { error: "INVALID_INPUT" });
     }
-    return reply(200, await services.answer(userId, courseId, threadId, { body, requestId }));
+    if (extra.action !== undefined) {
+      const parsed = discussionChange.safeParse(extra);
+      if (!parsed.success || body !== undefined || replyTo !== undefined || attachmentIds !== undefined || !services.changeDiscussion) {
+        return reply(400, { error: "INVALID_INPUT" });
+      }
+      await services.changeDiscussion(userId, courseId, threadId, parsed.data);
+      return reply(200, { ok: true });
+    }
+    if ((replyTo !== undefined && !validDiscussionId(replyTo)) ||
+        (attachmentIds !== undefined && (!Array.isArray(attachmentIds) || attachmentIds.length > DISCUSSION_IMAGE_MAX_COUNT ||
+          !attachmentIds.every(validDiscussionId) || new Set(attachmentIds).size !== attachmentIds.length))) {
+      return reply(400, { error: "INVALID_INPUT" });
+    }
+    const ids = Array.isArray(attachmentIds) ? attachmentIds as string[] : [];
+    if (!validDiscussionText(body, 12000) && !(body === "" && ids.length > 0)) return reply(400, { error: "INVALID_INPUT" });
+    return reply(200, await services.answer(userId, courseId, threadId, { body, requestId,
+      ...(typeof replyTo === "string" ? { replyTo } : {}), ...(ids.length ? { attachmentIds: ids } : {}),
+    }));
   } catch (error) {
     return failure(error);
   }

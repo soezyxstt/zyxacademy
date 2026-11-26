@@ -79,6 +79,30 @@ describe("tutor support route", () => {
     expect(await result.json()).toEqual({ ok: true, value: target });
     expect(writes).toEqual([["tutor-1", "course-1", thread.id, draft]]);
   });
+
+  test("routes contextual replies, image-only messages and observed actions to the same Tutor and course", async () => {
+    const writes: unknown[][] = [];
+    const readers = services({
+      async answer(...args) { writes.push(args); return { ok: true, value: target }; },
+      async changeDiscussion(...args) { writes.push(args); },
+    });
+    const send = (body: object, path = route, scoped = readers) => handleTutorDiscussionAnswer(new Request(origin, {
+      method: "POST", headers: { "Content-Type": "application/json", Origin: origin, "Idempotency-Key": draft.requestId },
+      body: JSON.stringify({ threadId: thread.id, requestId: draft.requestId, ...body }),
+    }), path, origin, scoped);
+    expect((await send({ body: "", replyTo: "message-source", attachmentIds: ["attached-image"] })).status).toBe(200);
+    expect((await send({ body: "Tanggapan", attachmentIds: ["duplicate", "duplicate"] })).status).toBe(400);
+    expect((await send({ body: "Tanggapan", replyTo: null })).status).toBe(400);
+    expect((await send({ action: "reaction", emoji: "invalid", messageId: "reaction-target", selected: true })).status).toBe(400);
+    const reception = { action: "read", throughSeq: 3, receipt: "session-observation", messageIds: ["message-source"] };
+    expect((await send(reception, ["courses", "other-course", "discussions"])).status).toBe(403);
+    expect((await send(reception, route, { ...readers, hasTutor: async () => false })).status).toBe(403);
+    expect((await send(reception)).status).toBe(200);
+    expect(writes).toEqual([
+      ["tutor-1", "course-1", thread.id, { body: "", requestId: draft.requestId, replyTo: "message-source", attachmentIds: ["attached-image"] }],
+      ["tutor-1", "course-1", thread.id, reception],
+    ]);
+  });
 });
 
 test("discussion command reuses its request ID after lost response and reads back the returned message", async () => {

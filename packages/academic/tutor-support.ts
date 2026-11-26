@@ -32,6 +32,9 @@ export type TutorDiscussThread = {
   status: "open" | "resolved";
   answerCount: number;
   canReply: boolean;
+  canResolve?: boolean;
+  unreadCount?: number;
+  channelId?: string;
 };
 
 export type TutorDiscussionList = {
@@ -48,10 +51,16 @@ export type TutorDiscussionDetail = {
       author: string | null;
       body: string;
       attachmentCount: number;
+      attachments?: import("../../lib/discussions/contracts").DiscussionAttachment[];
+      replyTo?: { id: string; authorName?: string; excerpt?: string } | null;
+      reactions?: { emoji: string; count: number; selected: boolean }[];
+      canReply?: boolean;
+      canReact?: boolean;
       messageType: "question" | "answer" | "reply" | "forward";
     }[];
     nextCursor: string | null;
   };
+  observed?: { receipt: string; throughSeq: number; items: { id: string; seq: number }[] };
 };
 
 export type TutorMaterialsData = { title: string; items: { id: string; title: string; summary: string }[] };
@@ -87,7 +96,11 @@ export type TutorDiscussionSendResult =
   | { ok: false; error: "replay_unverified"; value: TutorDiscussionTarget }
   | { ok: false; error: "invalid" | "unavailable" | "rate_limited" | "conflict" | "resolved" | "attachment_expired" | "unknown" };
 
-export type TutorDiscussionDraft = { body: string; requestId: string };
+export type TutorDiscussionDraft = { body: string; requestId: string; replyTo?: string; attachmentIds?: string[] };
+export type TutorDiscussionChange =
+  | { action: "read"; throughSeq: number; receipt: string; messageIds: string[] }
+  | { action: "reaction"; messageId: string; emoji: string; selected: boolean }
+  | { action: "resolve"; resolved: boolean };
 
 export type TutorSupportReads = {
   schedule(week: number, signal: AbortSignal): Promise<TutorScheduleData>;
@@ -112,6 +125,7 @@ export type TutorSupportClient = TutorSupportReads & {
   playback?(videoId: string, signal: AbortSignal): Promise<string>;
   pendingAnswer?(threadId: string): TutorDiscussionDraft | undefined;
   answer?(courseId: string | undefined, threadId: string, draft: TutorDiscussionDraft, signal: AbortSignal): Promise<TutorDiscussionSendResult>;
+  changeDiscussion?(courseId: string | undefined, threadId: string, change: TutorDiscussionChange, requestId: string, signal: AbortSignal): Promise<void>;
 };
 
 export function tutorPlaybackUrl(value: unknown): string | null {

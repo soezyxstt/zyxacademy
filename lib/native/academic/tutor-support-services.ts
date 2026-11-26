@@ -7,9 +7,9 @@ import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { getAuthSession } from "@/lib/auth-session";
 import { ensureLegacyIdentity } from "@/lib/auth/legacy-identity";
 import { hasAnyPeran, listTutorAccessibleCourses, requireTutorCourseAccess } from "@/lib/auth/request-cache";
-import { requireDiscussionThreadAccess } from "@/lib/discussions/access";
+import { requireDiscussionMessageAccess, requireDiscussionThreadAccess } from "@/lib/discussions/access";
 import { reply } from "@/lib/discussions/actions";
-import { getThread, listChannelMetadataPage, listThreadsAcrossChannels } from "@/lib/discussions/service";
+import { getThread, listChannelMetadataPage, listThreadsAcrossChannels, markRead, setReaction, setResolved } from "@/lib/discussions/service";
 import { env } from "@/lib/env";
 import { addCalendarDays, getCalendarWeekRange, getJakartaCalendarDate } from "@/lib/schedule/calendar-date";
 import { getTutorScheduleReadModel } from "@/lib/schedule/tutor-read-model";
@@ -79,24 +79,44 @@ export const tutorSupportServices = {
     const channelId = courseId ? await courseChannel(userId, courseId) : undefined;
     if (courseId && !channelId) return { items: [], nextCursor: null };
     const result = await listThreadsAcrossChannels(userId, { channelId, search, cursor });
-    return { items: result.items.map(({ id, title, status, answerCount, canReply }) => ({ id, title, status, answerCount, canReply })), nextCursor: result.nextCursor };
+    return { items: result.items.map(({ id, title, status, answerCount, canReply, unreadCount }) => ({ id, title, status, answerCount, canReply, unreadCount })), nextCursor: result.nextCursor };
   },
   async discussion(userId, courseId, threadId, cursor, targetMessageId) {
     if (courseId) await requireCourseThread(userId, courseId, threadId);
-    const { thread: { id, title, status, answerCount, canReply }, messages } = await getThread(userId, threadId, cursor, targetMessageId);
+    const { thread, messages, readThroughSeq } = await getThread(userId, threadId, cursor, targetMessageId);
     return {
-      thread: { id, title, status, answerCount, canReply },
+      thread: { id: thread.id, title: thread.title, status: thread.status, answerCount: thread.answerCount, canReply: thread.canReply,
+        channelId: thread.channelId, canResolve: thread.canResolve, unreadCount: thread.unreadCount },
       messages: {
-        items: messages.items.map(({ id, seq, author, body, attachments, messageType }) => ({
-          id, seq, author: author?.name ?? null, body, attachmentCount: attachments.length, messageType,
+        items: messages.items.map(({ id, seq, author, body, attachments, messageType, replyTo, reactions, canReply, canReact }) => ({
+          id, seq, author: author?.name ?? null, body, attachments, attachmentCount: attachments.length, messageType, replyTo, reactions, canReply, canReact,
         })),
         nextCursor: messages.nextCursor,
       },
+      observed: { receipt: messages.observationReceipt, throughSeq: readThroughSeq, items: messages.items.map(({ id, seq }) => ({ id, seq })) },
     };
   },
   async answer(userId, courseId, threadId, draft) {
     if (courseId) await requireCourseThread(userId, courseId, threadId);
-    return reply({ ...draft, threadId, messageType: "answer", attachmentIds: [], mentionIds: [], askZyra: false });
+    const input = { threadId, body: draft.body, requestId: draft.requestId, attachmentIds: draft.attachmentIds ?? [], mentionIds: [], askZyra: false };
+    return reply(draft.replyTo ? { ...input, messageType: "reply", replyTo: draft.replyTo } : { ...input, messageType: "answer" });
+  },
+  async changeDiscussion(userId, courseId, threadId, change) {
+    if (courseId) await requireCourseThread(userId, courseId, threadId);
+    switch (change.action) {
+      case "reaction": {
+        const { thread } = await requireDiscussionMessageAccess({ id: userId, role: "tutor" }, change.messageId);
+        if (thread.id !== threadId) throw new Error("DISCUSSION_UNAVAILABLE");
+        await setReaction(userId, change.messageId, change.emoji, change.selected);
+        break;
+      }
+      case "read":
+        await markRead(userId, threadId, change.throughSeq, change.receipt, change.messageIds);
+        break;
+      case "resolve":
+        await setResolved(userId, threadId, change.resolved);
+        break;
+    }
   },
   async materials(userId, courseId) {
     const access = await readCourse(userId, courseId);
