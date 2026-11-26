@@ -6,11 +6,13 @@ import { parseCoursePricingInput, type CoursePricing } from "../../../../../pack
 import { emptyCourseFixture, type CourseFixture } from "../../../../../packages/native-parity/academic/courses/fixtures";
 import { adminCoursePath, filterAdminCourses, type AdminChapter, type AdminCourse, type AdminCourseOverview } from "../../../../../packages/native-parity/academic/courses/model";
 import { NativeListRow, NativeResponsiveList, SharedUiSearch } from "../../shared-ui";
-import type { AdminChapterEditor } from "../../../../../packages/native-parity/academic/courses/edit-contract";
+import type { AdminChapterEditor, AdminCourseCreateDraft, CourseWriteTarget } from "../../../../../packages/native-parity/academic/courses/edit-contract";
 import { Button } from "../../../components/Button";
 import { nativeTypography } from "../../../typography";
 import { NavigationIcon } from "../../shared-ui/navigation-icons";
 import { LiveChapterEditor } from "./live-chapters";
+import { LiveCourseCreateForm } from "./live-management";
+import { displayWib, formatWib } from "./course-pricing-fields";
 import type { AcademicActor } from "../contracts";
 import { MutationStatus, useCourseMutation } from "./scope";
 import { Action, CourseDialog, CourseStatus, CourseTheme, Field, Ink, Metrics, Panel, Picker, layout, useCourseColors } from "./ui";
@@ -62,11 +64,12 @@ function CourseCatalogRow({ course, navigate }: { course: CourseListEntry; navig
   </Pressable>;
 }
 
-export function CourseList({ courses, actor, navigate, allowCreate, initialSearch, initialCategory, pending, readError, retry }: {
+export function CourseList({ courses, actor, navigate, allowCreate, createCourse, initialSearch, initialCategory, pending, readError, retry }: {
   courses: readonly CourseListEntry[];
   actor: AcademicActor;
   navigate: Navigate;
   allowCreate: boolean;
+  createCourse?: CourseWriteTarget<AdminCourseCreateDraft>;
   initialSearch: string;
   initialCategory: string;
   pending?: boolean;
@@ -102,7 +105,8 @@ export function CourseList({ courses, actor, navigate, allowCreate, initialSearc
             onValueChange={(value) => { setSearch(value); setPage(0); }} testID="course-search"
             expansion={{ expanded: searchOpen, onExpandedChange: setSearchOpen, closeLabel: "Tutup pencarian" }} />
         </View>
-        {allowCreate && !searching ? <CourseIconAction label="Tambah mata kuliah" onPress={() => { setCreated(false); setCreating(true); }} testID="course-create" primary /> : null}
+        {allowCreate && !searching ? <CourseIconAction label={createCourse?.pending() ? "Periksa penyimpanan" : "Tambah mata kuliah"}
+          onPress={() => { setCreated(false); setCreating(true); }} testID="course-create" primary /> : null}
       </View>
       {created ? <CourseStatus label="Mata kuliah dibuat." /> : null}
       {!pending && !readError && !visible.length ? <View style={courseStyles.empty} accessibilityLiveRegion="polite">
@@ -140,21 +144,15 @@ export function CourseList({ courses, actor, navigate, allowCreate, initialSearc
           <Action label="Berikutnya" onPress={() => setPage(visiblePage + 1)} disabled={(visiblePage + 1) * pageSize >= filtered.length} />
         </View>
       ) : null}
-      {creating ? (
+      {creating && createCourse ? <LiveCourseCreateForm target={createCourse} close={() => setCreating(false)}
+        saved={() => { setCreating(false); setCreated(true); reset(); retry?.(); }}
+        reload={() => { setCreating(false); retry?.(); }} /> : creating ? (
         <CourseDialog title="Tambah mata kuliah" onClose={() => setCreating(false)}>
           <CourseFields actor={actor} onCancel={() => setCreating(false)} onSaved={() => { setCreating(false); setCreated(true); reset(); }} />
         </CourseDialog>
       ) : null}
     </>
   );
-}
-
-function formatWib(input: string) {
-  return /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(input) ? input.replace(" ", "T") + ":00+07:00" : null;
-}
-
-function displayWib(value: Date | null | undefined) {
-  return value ? new Date(value.getTime() + 7 * 60 * 60 * 1000).toISOString().slice(0, 16).replace("T", " ") : "";
 }
 
 function CourseFields({ actor, data, onSaved, onCancel, onReload }: {

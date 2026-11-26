@@ -62,9 +62,9 @@ export async function handleCourseCommand<T>(request: Request, origin: string, a
     if (code === "UNAUTHENTICATED") return reply(401, { error: code });
     if (code === "FORBIDDEN") return reply(403, { error: code });
     if (code === "COURSE_NOT_FOUND" || code === "CHAPTER_NOT_FOUND" || code === "MATERIAL_NOT_FOUND") return reply(404, { error: "NOT_FOUND" });
-    if (code === "REVISION_CONFLICT" || code === "REQUEST_CONFLICT" ||
+    if (code === "COURSE_ALREADY_EXISTS" || code === "DEPENDENCIES_EXIST" || code === "REVISION_CONFLICT" || code === "REQUEST_CONFLICT" ||
       code === "COURSE_IDENTITY_AMBIGUOUS" || code === "CHAPTER_IDENTITY_AMBIGUOUS") return reply(409, { error: code });
-    if (code === "COURSE_PROJECTION_UNAVAILABLE" || code === "CHAPTER_PROJECTION_UNAVAILABLE" || code === "CHAPTER_ORDER_INVALID") {
+    if (code === "COURSE_PROJECTION_UNAVAILABLE" || code === "CHAPTER_PROJECTION_UNAVAILABLE" || code === "CHAPTER_ORDER_INVALID" || code.startsWith("INVALID_COURSE_PRICING")) {
       return reply(422, { error: options.invalidError });
     }
     return reply(500, { error: "SAVE_FAILED" });

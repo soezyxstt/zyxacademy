@@ -26,7 +26,8 @@ export function createCourseCommandTarget<Draft extends object>(send: NonNullabl
       },
       async submit(draft, requestId, signal) {
         if (validate && !validate(draft)) return { status: "invalid" };
-        const fingerprint = JSON.stringify(draft, Object.keys(draft).sort());
+        const fingerprint = JSON.stringify(draft, (_key, value) => value && typeof value === "object" && !Array.isArray(value)
+          ? Object.fromEntries(Object.keys(value).sort().map(key => [key, value[key]])) : value);
         const previous = entries.get(key);
         if (previous && (previous.fingerprint !== fingerprint || previous.requestId !== requestId)) return retry;
         if (previous?.operation) return previous.operation;
@@ -38,7 +39,7 @@ export function createCourseCommandTarget<Draft extends object>(send: NonNullabl
         };
         const operation = (async (): Promise<AdminCourseEditResponse> => {
           try {
-            const response = await send(`/api/native/academic/admin/courses/${resource}`, {
+            const response = await send(`/api/native/academic/admin/courses${resource ? `/${resource}` : ""}`, {
               method, body: entry.draft, requestId: entry.requestId,
             }, signal);
             if (response.status === 200) {
@@ -57,7 +58,13 @@ export function createCourseCommandTarget<Draft extends object>(send: NonNullabl
             if ([400, 404, 409, 422].includes(response.status)) {
               clear();
               if (response.status === 404) return { status: "missing" };
-              if (response.status === 409) return { status: "conflict" };
+              if (response.status === 409) {
+                const result = await response.json().catch(() => null);
+                const code = result && typeof result === "object" && "error" in result ? result.error : null;
+                if (code === "COURSE_ALREADY_EXISTS") return { status: "exists" };
+                if (code === "DEPENDENCIES_EXIST") return { status: "dependencies" };
+                return { status: "conflict" };
+              }
               return { status: "invalid" };
             }
             return retry;

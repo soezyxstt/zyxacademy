@@ -97,7 +97,7 @@ function LiveStatus<T>({ read, retry, children }: {
   return <CourseStatus label="Data mata kuliah gagal dimuat." retry={retry} error />;
 }
 
-function LiveCourseRoute({ live, isList, section, actor, navigate, query, back }: CourseScreenProps & {
+function LiveCourseRoute({ live, isList, section, actor, navigate, replace, query, back }: CourseScreenProps & {
   live: AdminCourseLiveRead; isList: boolean; section?: string;
 }) {
   if (section) {
@@ -109,7 +109,8 @@ function LiveCourseRoute({ live, isList, section, actor, navigate, query, back }
           {(payload) => (
             <>
               <Ink kind="heading">{sections.find((item) => item.id === section)?.label}</Ink>
-              <LiveCourseSection data={payload} query={query} navigate={navigate} updateSettings={live.updateSettings} updateMaterial={live.updateMaterial} refresh={live.retry} />
+              <LiveCourseSection data={payload} query={query} navigate={navigate} updateSettings={live.updateSettings} updateMaterial={live.updateMaterial}
+                archiveCourse={live.archiveCourse} onArchived={() => replace("/admin/courses")} refresh={live.retry} />
             </>
           )}
         </LiveStatus>
@@ -123,7 +124,8 @@ function LiveCourseRoute({ live, isList, section, actor, navigate, query, back }
         {status === "denied" || status === "missing" ? <CourseStatus error
           label={status === "denied" ? "Akses ditolak." : "Mata kuliah tidak ditemukan."} /> : (
           <CourseList courses={live.list?.status === "ready" ? live.list.data : []} actor={actor}
-            navigate={navigate} allowCreate={false} initialSearch={query.search ?? ""} initialCategory={query.category ?? ""}
+            navigate={navigate} allowCreate={status === "ready" && !!live.createCourse} createCourse={live.createCourse}
+            initialSearch={query.search ?? ""} initialCategory={query.category ?? ""}
             pending={status === "loading"} readError={status === "error"} retry={live.retry} />
         )}
       </CoursePage>

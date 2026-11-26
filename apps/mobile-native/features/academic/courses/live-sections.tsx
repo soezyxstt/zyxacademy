@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { View } from "react-native";
 import { adminCoursePath } from "../../../../../packages/native-parity/academic/courses/model";
-import type { AdminCourseEditor, AdminMaterialEditor } from "../../../../../packages/native-parity/academic/courses/edit-contract";
+import type { AdminCourseArchiver, AdminCourseEditor, AdminMaterialEditor } from "../../../../../packages/native-parity/academic/courses/edit-contract";
 import type { AdminCourseSectionResult } from "../../../../../packages/native-parity/academic/courses/sections";
 import { CourseLeaderboard } from "./leaderboard";
 import { LivePdfTitleEdit } from "./live-material";
 import { LiveCourseEdit } from "./live-settings";
+import { LiveCourseArchive } from "./live-management";
 import { QuizAttemptsTable, QuizResultsTable } from "./tables";
 import { Action, CourseDialog, CourseStatus, DataRow, Ink, Metrics, Panel, Picker, SearchBox, Tabs, layout } from "./ui";
 
@@ -31,8 +32,9 @@ function match(text: string, query: string) {
   return text.toLocaleLowerCase("id").includes(query.trim().toLocaleLowerCase("id"));
 }
 
-export function LiveCourseSection({ data, query, navigate, updateSettings, updateMaterial, refresh }: {
+export function LiveCourseSection({ data, query, navigate, updateSettings, updateMaterial, archiveCourse, onArchived, refresh }: {
   data: AdminCourseSectionResult; query: Query; navigate: Navigate; updateSettings?: AdminCourseEditor; updateMaterial?: AdminMaterialEditor; refresh(): void;
+  archiveCourse?: AdminCourseArchiver; onArchived(): void;
 }) {
   switch (data.type) {
     case "analytics":
@@ -81,6 +83,8 @@ export function LiveCourseSection({ data, query, navigate, updateSettings, updat
             <Ink>{data.isDemo ? "Aktif untuk demo publik" : "Belum dipilih untuk demo publik"}</Ink>
             {data.demoChecks.map((check) => <DataRow key={check.label} title={check.label} description={`${check.count} tersedia`} detail={check.ready ? "Siap" : "Belum siap"} />)}
           </Panel>
+          {archiveCourse ? <LiveCourseArchive target={archiveCourse(data.course.id)} title={data.course.title}
+            revision={data.revision} saved={onArchived} refresh={refresh} /> : null}
         </>
       );
     case "questions":

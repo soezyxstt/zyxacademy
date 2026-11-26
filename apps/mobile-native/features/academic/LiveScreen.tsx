@@ -4,8 +4,8 @@ import { Button } from "../../components/Button";
 import { nativeTypography } from "../../typography";
 import { nativeColors } from "../../../../packages/design-tokens/native-colors";
 import { matchAcademicRoute } from "../../../../packages/native-parity/academic/match";
-import type { AdminChapterEditor, AdminCourseEditor, AdminMaterialEditor } from "../../../../packages/native-parity/academic/courses/edit-contract";
-import type { AdminCourse, AdminCourseOverview, LiveCourseRead } from "../../../../packages/native-parity/academic/courses/model";
+import type { AdminChapterEditor, AdminMaterialEditor } from "../../../../packages/native-parity/academic/courses/edit-contract";
+import type { AdminCourse, AdminCourseOverview, AdminCourseLiveRead, LiveCourseRead } from "../../../../packages/native-parity/academic/courses/model";
 import { isAdminCourseLiveSection, type AdminCourseSectionResult } from "../../../../packages/native-parity/academic/courses/sections";
 import { TutorDataError } from "../../../../packages/native-parity/academic/tutor/model";
 import { createAcademicClient, type AcademicTransport } from "./client";
@@ -51,9 +51,9 @@ function useCourseRead<T>(load: (signal: AbortSignal) => Promise<T>, refresh?: n
   return [state, () => changeAttempt(i => i + 1)] as const;
 }
 
-function LiveCourseList(props: AcademicScreenProps & { refresh?: number; read: (signal: AbortSignal) => Promise<AdminCourse[]> }) {
+function LiveCourseList(props: AcademicScreenProps & Pick<AdminCourseLiveRead, "createCourse"> & { refresh?: number; read: (signal: AbortSignal) => Promise<AdminCourse[]> }) {
   const [list, retry] = useCourseRead(props.read, props.refresh);
-  return <CourseScreen {...props} live={{ list, retry }} />;
+  return <CourseScreen {...props} live={{ list, retry, createCourse: props.createCourse }} />;
 }
 
 function LiveCourseDetail(props: AcademicScreenProps & { refresh?: number; saveChapter?: AdminChapterEditor; read: (slug: string, signal: AbortSignal) => Promise<AdminCourseOverview> }) {
@@ -63,10 +63,9 @@ function LiveCourseDetail(props: AcademicScreenProps & { refresh?: number; saveC
   return <CourseScreen {...props} live={{ detail, retry, saveChapter: props.saveChapter }} />;
 }
 
-function LiveCourseSectionScreen(props: AcademicScreenProps & {
+function LiveCourseSectionScreen(props: AcademicScreenProps & Pick<AdminCourseLiveRead, "archiveCourse" | "updateSettings"> & {
   section: string;
   refresh?: number;
-  updateSettings?: AdminCourseEditor;
   updateMaterial?: AdminMaterialEditor;
   itemId: string | undefined;
   read: (slug: string, section: string, itemId: string | undefined, signal: AbortSignal) => Promise<AdminCourseSectionResult>;
@@ -74,7 +73,8 @@ function LiveCourseSectionScreen(props: AcademicScreenProps & {
   const { read, section, itemId, params: { slug } } = props;
   const load = useCallback((signal: AbortSignal) => read(slug, section, itemId, signal), [read, slug, section, itemId]);
   const [readSection, retry] = useCourseRead(load, props.refresh);
-  return <CourseScreen {...props} live={{ section: readSection, retry, updateSettings: props.updateSettings, updateMaterial: props.updateMaterial }} />;
+  return <CourseScreen {...props} live={{ section: readSection, retry, updateSettings: props.updateSettings,
+    updateMaterial: props.updateMaterial, archiveCourse: props.archiveCourse }} />;
 }
 
 /** Product entry. Transport and actor must come from the same authenticated host session. */
@@ -91,14 +91,14 @@ export function AcademicLiveScreen({ href, transport, refresh, ...host }: LivePr
   if (match.feature === "assessment") return <AssessmentScreen key={key} {...props} gateway={assessment} />;
   if (match.feature === "administration") return <AdministrationLiveScreen key={key} {...props} transport={transport} />;
   if (match.feature === "tutor") return <TutorScreen key={key} {...props} dataSource={client.tutor} />;
-  if (match.pattern === "/admin/courses") return <LiveCourseList key={key} {...props} read={client.courses} refresh={refresh} />;
+  if (match.pattern === "/admin/courses") return <LiveCourseList key={key} {...props} read={client.courses} refresh={refresh} createCourse={client.createCourse} />;
   if (match.pattern === "/admin/courses/[slug]") return <LiveCourseDetail key={key} {...props} read={client.course} refresh={refresh} saveChapter={client.saveChapter} />;
   if (match.feature === "courses") {
     const section = match.pattern.split("/")[4];
     const itemId = match.params.quizId ?? match.params.materialId;
     if (isAdminCourseLiveSection(section, itemId)) {
       return <LiveCourseSectionScreen key={key} {...props} read={client.courseSection} section={section} itemId={itemId}
-        refresh={refresh} updateSettings={client.updateCourseSettings} updateMaterial={client.updateMaterial} />;
+        refresh={refresh} updateSettings={client.updateCourseSettings} updateMaterial={client.updateMaterial} archiveCourse={client.archiveCourse} />;
     }
   }
   return <AcademicMessage {...host}>Sumber data halaman ini belum terhubung.</AcademicMessage>;

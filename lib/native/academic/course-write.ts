@@ -8,7 +8,6 @@ import type { CourseCommandViewer } from "./course-command";
 
 export type CourseWriteTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Saved = { id: string; canonicalCourseId: string; legacyCourseId?: string };
-type RevisionDraft = { expectedRevision: string };
 
 async function assertAuthority(tx: CourseWriteTransaction, viewer: CourseCommandViewer) {
   await assertAuthoringActor(tx, viewer.user.id, { roles: ["admin"], error: "FORBIDDEN", lock: true });
@@ -17,7 +16,7 @@ async function assertAuthority(tx: CourseWriteTransaction, viewer: CourseCommand
   if (!active || active.expiresAt.getTime() <= Date.now()) throw new Error("UNAUTHENTICATED");
 }
 
-export async function courseWrite<T extends RevisionDraft>({
+export async function courseWrite<T extends object>({
   slug, targetId, draft, requestId, viewer, entityType, action, write, validateReplay,
 }: {
   slug: string;
@@ -25,11 +24,12 @@ export async function courseWrite<T extends RevisionDraft>({
   draft: T;
   requestId: string;
   viewer: CourseCommandViewer;
-  entityType: "native_course_settings" | "native_course_chapter" | "native_course_material";
-  action: "create" | "update";
+  entityType: "native_course_settings" | "native_course_chapter" | "native_course_material" | "native_course_management";
+  action: "create" | "update" | "archive";
   write(tx: CourseWriteTransaction): Promise<Saved>;
   validateReplay(tx: CourseWriteTransaction, result: Saved): Promise<void>;
 }) {
+  const receiptScope = entityType === "native_course_management" ? { sessionHash: revisionOf(viewer.session.id) } : {};
   const receiptId = `native_course_${revisionOf({ actorId: viewer.user.id, requestId })}`;
   const inputHash = revisionOf({ slug, targetId, draft });
   async function findReceipt(tx: CourseWriteTransaction) {
@@ -37,7 +37,8 @@ export async function courseWrite<T extends RevisionDraft>({
     if (!receipt) return null;
     const result = receipt.afterSnapshot?.result;
     if (receipt.entityType !== entityType || receipt.action !== action || receipt.actorId !== viewer.user.id ||
-      receipt.afterSnapshot?.inputHash !== inputHash || !isSaved(result)) throw new Error("REQUEST_CONFLICT");
+      receipt.afterSnapshot?.inputHash !== inputHash || receipt.afterSnapshot?.sessionHash !== receiptScope.sessionHash ||
+      !isSaved(result)) throw new Error("REQUEST_CONFLICT");
     await validateReplay(tx, result);
     return result;
   }
@@ -51,8 +52,9 @@ export async function courseWrite<T extends RevisionDraft>({
       await tx.insert(auditMutasi).values({
         id: receiptId, actorId: viewer.user.id, entityType, action, correlationId: requestId, outcome: "success",
         entityId: entityType === "native_course_settings" ? result.canonicalCourseId : result.id,
-        courseId: result.canonicalCourseId, beforeSnapshot: { expectedRevision: draft.expectedRevision },
-        afterSnapshot: { inputHash, result },
+        courseId: result.canonicalCourseId,
+        beforeSnapshot: "expectedRevision" in draft ? { expectedRevision: draft.expectedRevision } : null,
+        afterSnapshot: { inputHash, result, ...receiptScope },
       });
       return result;
     }, { isolationLevel: "serializable" });

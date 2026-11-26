@@ -1,6 +1,6 @@
 import {
   validAdminMaterialTitle, type AdminChapterDraft, type AdminChapterEditor, type AdminCourseEditDraft, type AdminCourseEditor,
-  type AdminMaterialEditor, type AdminMaterialTitleDraft,
+  type AdminMaterialEditor, type AdminMaterialTitleDraft, type AdminCourseCreateDraft, type AdminCourseArchiver, type AdminCourseArchiveDraft,
 } from "../../../../packages/native-parity/academic/courses/edit-contract";
 import type { AdminCourseSectionResult } from "../../../../packages/native-parity/academic/courses/sections";
 import type { AdminCourse, AdminCourseOverview } from "../../../../packages/native-parity/academic/courses/model";
@@ -57,6 +57,10 @@ function buildAcademicClient(transport: AcademicTransport) {
   const settingsTarget = command ? createCourseCommandTarget<AdminCourseEditDraft>(command) : undefined;
   const chapterTarget = command ? createCourseCommandTarget<AdminChapterDraft>(command) : undefined;
   const materialTarget = command ? createCourseCommandTarget<AdminMaterialTitleDraft>(command, ({ title }) => validAdminMaterialTitle(title)) : undefined;
+  const createCourse = command ? createCourseCommandTarget<AdminCourseCreateDraft>(command)("", "POST") : undefined;
+  const archiveTarget = command ? createCourseCommandTarget<AdminCourseArchiveDraft>(command) : undefined;
+  const archiveCourse: AdminCourseArchiver | undefined = archiveTarget ? (courseId) =>
+    archiveTarget(`${encodeURIComponent(courseId)}/archive`, "POST") : undefined;
   const updateCourseSettings: AdminCourseEditor | undefined = settingsTarget ? (courseId) =>
     settingsTarget(`${encodeURIComponent(courseId)}/settings`, "PATCH") : undefined;
   const saveChapter: AdminChapterEditor | undefined = chapterTarget ? (courseId, chapterId) =>
@@ -67,6 +71,8 @@ function buildAcademicClient(transport: AcademicTransport) {
   return {
     tutor,
     updateCourseSettings,
+    createCourse,
+    archiveCourse,
     saveChapter,
     updateMaterial,
     courses: (signal: AbortSignal) => read<AdminCourse[]>("/api/native/academic/admin/courses", signal),

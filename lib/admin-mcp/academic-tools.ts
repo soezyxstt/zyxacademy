@@ -1,12 +1,11 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { recordOfflineChange } from "@/lib/offline/server-events";
 import { z } from "zod";
-import { and, asc, count, eq, getTableName, is } from "drizzle-orm";
-import { getTableConfig, PgTable } from "drizzle-orm/pg-core";
+import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import * as schema from "@/db/schema";
-import { courses, chapters, courseMaterials, courseVideos, courseVideoPlaylists, mataKuliah, bab } from "@/db/schema";
+import { courses, chapters, courseMaterials, courseVideos, courseVideoPlaylists } from "@/db/schema";
 import { saveCourseWithCanonicalProjection, saveChapterWithCanonicalProjection, archiveCourseWithLegacyDeletion, archiveChapterWithLegacyDeletion, reorderChaptersWithCanonicalProjection } from "@/lib/academic/course-canonical-sync";
+import { relatedRows as dependencies } from "@/lib/academic/related-rows";
 import { writeCourseMaterialMetadata } from "@/lib/academic/course-material-metadata";
 import { allowedCategories } from "@/app/(admin)/admin/(academic)/courses/constants";
 import type { McpPrincipal } from "@/lib/authoring/mcp-auth";
@@ -26,20 +25,6 @@ async function chapter(id: string, source: Source = db) {
 const courseView = (row: typeof courses.$inferSelect) => ({ id: row.id, title: row.title, category: row.category, description: row.description, revision: revisionOf(row) });
 const chapterView = (row: typeof chapters.$inferSelect) => ({ id: row.id, courseId: row.courseId, title: row.title, description: row.description, orderIndex: row.orderIndex, status: row.status, revision: revisionOf(row) });
 function expectRevision(row: unknown, expected: string) { if (revisionOf(row) !== expected) throw new AdminMcpError("REVISION_CONFLICT"); }
-/** Discover references from trusted schema metadata, never caller-supplied SQL or table names. */
-async function dependencies(target: PgTable, id: string, source: Source = db) {
-  const counts: Record<string, number> = {};
-  for (const table of Object.values(schema)) {
-    if (!is(table, PgTable) || (target === courses && table === mataKuliah) || (target === chapters && table === bab)) continue;
-    for (const fk of getTableConfig(table).foreignKeys) {
-      const ref = fk.reference();
-      if (ref.foreignTable !== target) continue;
-      const [result] = await source.select({ count: count() }).from(table).where(eq(ref.columns[0], id));
-      if (result.count) counts[`${getTableName(table)}.${ref.columns[0].name}`] = result.count;
-    }
-  }
-  return counts;
-}
 const courseDefinition = z.object({ id: z.string().regex(/^[a-z0-9][a-z0-9-]{0,99}$/), title: z.string().trim().min(1).max(500), category: z.enum(allowedCategories), description: z.string().max(20000).nullable().default(null) }).strict();
 const chapterDefinition = z.object({ title: z.string().trim().min(1).max(500), description: z.string().max(20000).nullable().default(null), orderIndex: z.number().int().min(1).max(100000) }).strict();
 const videoDefinition = z.object({ courseId: adminId, playlistId: adminId, chapterId: adminId.nullable().default(null), title: z.string().trim().min(1).max(500), description: z.string().max(20000).nullable().default(null), videoUrl: z.url().max(2048).refine(v => new URL(v).protocol === "https:"), duration: z.number().int().nonnegative().nullable().default(null), orderIndex: z.number().int().nonnegative().default(0) }).strict();

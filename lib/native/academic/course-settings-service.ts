@@ -11,7 +11,7 @@ import type { AdminCourseEditDraft } from "@/packages/native-parity/academic/cou
 import type { CourseCommandViewer } from "./course-command";
 import { courseWrite, type CourseWriteTransaction } from "./course-write";
 
-async function readSettings(slug: string, tx: CourseWriteTransaction) {
+export async function readCourseSettingsInTransaction(slug: string, tx: CourseWriteTransaction) {
   const identity = await resolveCourseIdentity(slug, tx);
   if (!identity || identity.status !== "active") return null;
   const [legacy, canonical] = await Promise.all([
@@ -33,14 +33,14 @@ async function readSettings(slug: string, tx: CourseWriteTransaction) {
 }
 
 export function readCourseSettingsEditView(slug: string) {
-  return db.transaction((tx) => readSettings(slug, tx), { isolationLevel: "repeatable read", accessMode: "read only" });
+  return db.transaction((tx) => readCourseSettingsInTransaction(slug, tx), { isolationLevel: "repeatable read", accessMode: "read only" });
 }
 
 export async function updateCourseSettingsFromNative(slug: string, draft: AdminCourseEditDraft, requestId: string, viewer: CourseCommandViewer) {
   const updated = await courseWrite({
     slug, draft, requestId, viewer, entityType: "native_course_settings", action: "update",
     async write(tx) {
-      const current = await readSettings(slug, tx);
+      const current = await readCourseSettingsInTransaction(slug, tx);
       if (!current) throw new Error("COURSE_NOT_FOUND");
       if (current.revision !== draft.expectedRevision) throw new Error("REVISION_CONFLICT");
       if (current.canonicalOnly ? draft.category !== "Umum" || Boolean(draft.description) : draft.category === "Umum") {
@@ -53,12 +53,16 @@ export async function updateCourseSettingsFromNative(slug: string, draft: AdminC
       }, tx);
     },
     async validateReplay(tx, saved) {
-      const current = await readSettings(slug, tx);
+      const current = await readCourseSettingsInTransaction(slug, tx);
       if (!current || current.primaryId !== saved.canonicalCourseId) throw new Error("COURSE_NOT_FOUND");
     },
   });
 
-  for (const id of new Set([slug, updated.id, updated.canonicalCourseId])) {
+  revalidateNativeCoursePaths([slug, updated.id, updated.canonicalCourseId]);
+}
+
+export function revalidateNativeCoursePaths(ids: readonly string[]) {
+  for (const id of new Set(ids)) {
     const segment = encodeURIComponent(id);
     revalidatePath(`/admin/courses/${segment}`);
     revalidatePath(`/admin/courses/${segment}/settings`);

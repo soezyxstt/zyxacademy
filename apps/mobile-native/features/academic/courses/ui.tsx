@@ -103,25 +103,26 @@ export function Tabs<T extends string>({ options, selected, onSelect, testID }: 
   );
 }
 
-export function Picker({ label, options, selected, onSelect, testID, compact = false }: {
+export function Picker({ label, options, selected, onSelect, testID, compact = false, disabled = false }: {
   label: string; options: readonly { id: string; label: string }[];
-  selected: string; onSelect(id: string): void; testID?: string; compact?: boolean;
+  selected: string; onSelect(id: string): void; testID?: string; compact?: boolean; disabled?: boolean;
 }) {
   const theme = useContext(CourseTheme);
   const [open, setOpen] = useState(false);
   const selection = options.find((item) => item.id === selected)?.label ?? label;
   return (
     <View style={layout.compact}>
-      {compact ? <Button theme={theme} variant="ghost" onPress={() => setOpen(!open)} testID={testID}
+      {compact ? <Button theme={theme} variant="ghost" disabled={disabled} onPress={() => setOpen(!open)} testID={testID}
         accessibilityLabel={`${label}, ${selection}`} accessibilityState={{ expanded: open }} iconPosition="end"
         renderIcon={(color, size) => <NavigationIcon name="chevron" color={color} size={size} />} style={{ height: 44 }}>
         {selection}
       </Button> : <Action
         testID={testID}
         label={selection}
+        disabled={disabled}
         onPress={() => setOpen(!open)}
       />}
-      {open ? (
+      {open && !disabled ? (
         <View accessibilityLabel={label} style={layout.compact}>
           {options.map((item) => (
             <DataRow key={item.id} title={item.label} detail={item.id === selected ? "Dipilih" : undefined}

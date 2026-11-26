@@ -1,4 +1,4 @@
-import type { AdminChapterEditor, AdminCourseEditor, AdminMaterialEditor } from "./edit-contract";
+import type { AdminChapterEditor, AdminCourseArchiver, AdminCourseCreateDraft, AdminCourseEditor, AdminMaterialEditor, CourseWriteTarget } from "./edit-contract";
 import type { AdminCourseSectionResult } from "./sections";
 
 export type AdminCourse = {
@@ -37,6 +37,8 @@ export type AdminCourseLiveRead = {
   detail?: LiveCourseRead<AdminCourseOverview>;
   section?: LiveCourseRead<AdminCourseSectionResult>;
   updateSettings?: AdminCourseEditor;
+  createCourse?: CourseWriteTarget<AdminCourseCreateDraft>;
+  archiveCourse?: AdminCourseArchiver;
   saveChapter?: AdminChapterEditor;
   updateMaterial?: AdminMaterialEditor;
   retry(): void;

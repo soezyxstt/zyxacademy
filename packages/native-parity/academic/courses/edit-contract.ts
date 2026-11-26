@@ -1,3 +1,5 @@
+import type { CoursePricingCategory } from "../../../academic/course-pricing";
+
 export type AdminCourseEditDraft = {
   title: string;
   category: string;
@@ -7,7 +9,7 @@ export type AdminCourseEditDraft = {
 
 export type AdminCourseEditResponse =
   | { status: "saved" }
-  | { status: "invalid" | "denied" | "missing" | "conflict" | "retry" };
+  | { status: "invalid" | "denied" | "missing" | "conflict" | "exists" | "dependencies" | "retry" };
 
 export type PendingCourseWrite<Draft> = { requestId: string; draft: Draft; confirmed: boolean };
 
@@ -18,6 +20,16 @@ export type CourseWriteTarget<Draft> = {
 };
 
 export type AdminCourseEditor = (courseId: string) => CourseWriteTarget<AdminCourseEditDraft>;
+
+export type AdminCourseCreateDraft = {
+  id: string;
+  title: string;
+  category: string;
+  description: string | null;
+  pricing: { category: CoursePricingCategory; startsAt: string | null; endsAt: string | null };
+};
+export type AdminCourseArchiveDraft = { expectedRevision: string; confirmed: true };
+export type AdminCourseArchiver = (courseId: string) => CourseWriteTarget<AdminCourseArchiveDraft>;
 
 export type AdminChapterDraft = {
   title: string;

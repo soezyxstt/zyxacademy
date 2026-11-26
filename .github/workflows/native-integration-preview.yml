@@ -22,6 +22,7 @@ on:
       - 'drizzle-postgres/**'
       - 'tests/contracts/notifications-history.test.ts'
       - 'tests/contracts/offline-server-sync.test.ts'
+      - 'tests/contracts/native-admin-course-management.test.ts'
       - 'tests/offline-shell-and-reader.test.ts'
       - 'tests/unit/expo-offline-reading-document.test.ts'
       - 'lib/offline/reading-sections.ts'
@@ -173,10 +174,10 @@ jobs:
       - name: Student learning and live-session operations
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: bun scripts/test-contracts.ts tests/contracts/native-student-learning-postgres.test.ts
-      - name: Academic scheduling and tryout operations
+      - name: Academic courses, scheduling and tryout operations
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: |
-          bun scripts/test-contracts.ts tests/contracts/native-tutor-slot.test.ts tests/contracts/native-tryout-draft.test.ts
+          bun scripts/test-contracts.ts tests/contracts/native-admin-course-management.test.ts tests/contracts/native-tutor-slot.test.ts tests/contracts/native-tryout-draft.test.ts
       - name: Tutor Live ownership, client and Worker contracts
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: |
