@@ -33,3 +33,10 @@ test("article reading presentation remains browser-only", () => {
   expect(entry.tools).toEqual([]);
   expect(entry.actions).toContain("toggleReadingFocus");
 });
+
+test("Student assessment operations are limited to learner app sessions", () => {
+  const entry = operationsCatalog.find(item => item.source === "app/api/native/student/assessment/[courseId]/[...segments]/route.ts")!;
+  expect(entry.status).toBe("excluded");
+  expect(entry.tools).toEqual([]);
+  expect(entry.actions).toContain("submitTryout");
+});
