@@ -1,0 +1,174 @@
+{
+  "platform": "android",
+  "viewport": {
+    "width": 380,
+    "height": 820
+  },
+  "deviceScaleFactor": 1,
+  "locale": "id",
+  "theme": "light",
+  "timeZone": "Asia/Jakarta",
+  "route": "/courses/[id]/concept/[slug]",
+  "endpoint": "/api/native/student/learning?view=concept&courseId=matematika-1&slug=limit&locale=id",
+  "browser": "154.0.8037.57",
+  "states": {
+    "populated": {
+      "data": {
+        "state": "ready",
+        "courseTitle": "Kalkulus Dasar",
+        "view": "concept",
+        "concept": {
+          "conceptId": "limit",
+          "canonicalSlug": "limit",
+          "conceptName": "Limit fungsi",
+          "masteryScore": 56,
+          "prerequisites": [
+            {
+              "conceptName": "Fungsi real",
+              "slug": "fungsi"
+            }
+          ],
+          "unlocks": [],
+          "related": [],
+          "kosByType": {
+            "definition": [
+              {
+                "id": "definition-1",
+                "title": "Limit fungsi",
+                "content": "Limit menjelaskan nilai yang didekati fungsi saat masukan mendekati suatu titik.\n\nNilai fungsi di titik itu tidak menentukan limit."
+              }
+            ]
+          }
+        }
+      },
+      "path": "/courses/matematika-1/concept/limit",
+      "courseId": "matematika-1",
+      "slug": "limit",
+      "scenario": "enrolled",
+      "nativeMarkers": [
+        {
+          "id": "student-fixture-id-light"
+        },
+        {
+          "text": ".*Skor penguasaan 56/100.*"
+        },
+        {
+          "text": ".*Fungsi real.*"
+        },
+        {
+          "text": ".*Limit menjelaskan nilai yang didekati fungsi.*"
+        }
+      ]
+    },
+    "long": {
+      "data": {
+        "state": "ready",
+        "courseTitle": "Kalkulus Dasar",
+        "view": "concept",
+        "concept": {
+          "conceptId": "limit",
+          "canonicalSlug": "limit",
+          "conceptName": "Limit fungsi aljabar dengan pendekatan tabel nilai dan pembuktian hubungan antara pembilang dan penyebut",
+          "masteryScore": 56,
+          "prerequisites": [
+            {
+              "conceptName": "Fungsi real",
+              "slug": "fungsi"
+            }
+          ],
+          "unlocks": [],
+          "related": [],
+          "kosByType": {
+            "definition": [
+              {
+                "id": "definition-1",
+                "title": "Limit fungsi aljabar dengan pendekatan tabel nilai dan pembuktian hubungan antara pembilang dan penyebut",
+                "content": "Limit menjelaskan nilai yang didekati fungsi saat masukan mendekati suatu titik.\n\nNilai fungsi di titik itu tidak menentukan limit."
+              }
+            ]
+          }
+        }
+      },
+      "path": "/courses/matematika-1/concept/limit",
+      "courseId": "matematika-1",
+      "slug": "limit",
+      "scenario": "long",
+      "nativeMarkers": [
+        {
+          "id": "student-fixture-id-light"
+        },
+        {
+          "text": ".*pembuktian hubungan antara pembilang dan penyebut.*"
+        },
+        {
+          "text": "Definisi"
+        },
+        {
+          "text": ".*Limit menjelaskan nilai yang didekati fungsi.*"
+        }
+      ]
+    },
+    "locked": {
+      "data": {
+        "view": "concept",
+        "state": "locked",
+        "courseTitle": "Kalkulus Dasar"
+      },
+      "path": "/courses/matematika-1/concept/limit",
+      "courseId": "matematika-1",
+      "slug": "limit",
+      "scenario": "unenrolled",
+      "nativeMarkers": [
+        {
+          "id": "student-fixture-id-light"
+        },
+        {
+          "text": "Kelas memerlukan token"
+        },
+        {
+          "text": "Aktifkan kelas untuk menjelajahi konsep\\."
+        },
+        {
+          "text": "Aktifkan kelas"
+        }
+      ]
+    }
+  },
+  "captures": {
+    "concept-populated.png": "2c63ce727be58e1b4e0e7398ff75f036033d7c1181a34e7eafb2e5bf3df1c365",
+    "concept-long.png": "e254e8a17bf808714457419bc4ce3f833f61011192f6e89f9f15b6fe28f81aec",
+    "concept-locked.png": "00a508fbe720f3c55cc6f9c1e20687395697448653316076ae2303312f76ee19"
+  },
+  "sourceDigests": {
+    "tests/visual/fixtures/student-concept-reference.tsx": "f609973a51e719de69e72ebf123149ab7a2ed074c662355b4846006b3a0559e8",
+    "tests/visual/fixtures/student-concept-reference-build.ts": "7c8e92952332a21dc8cf0b564383573cea8b11664ac8cf83336902bed7755a8f",
+    "tests/visual/native-parallel/student/concept-reference.spec.ts": "263b0474032321542c2d4aff5b068543306be772a6f50cd1f13b08ef62f1199c",
+    "app/(student)/courses/[id]/concept/[slug]/page.tsx": "d8873097f46b773fd9a7dd8786cb15979c54eba75fbde43a44b9061392d58dbb",
+    "app/globals.css": "be812b64b005159daf0c3db873b0a8571952834222d9c8906019650388becf83",
+    "lib/concept-explorer-service.ts": "84b54896c11106f5f387cd8ed1abd8798606aada36fc3ae85ec47bf623c6246f",
+    "components/course/course-page-shell.tsx": "e4171dee451d6ca3e9049e0fafb61061392cfa23d3d2fb8c1451dd7f75f05aa6",
+    "components/course/markdown-renderer.tsx": "3b64dab171b1aefb0a74a0f0276fdaec7c2fcbcdf0b001252337ad33cba933b8",
+    "components/enrollment-form.tsx": "2c8f4e1edfeb086ab7c16138e2bf4fd03b828a7a5420a06a2815c9c471ef3c77",
+    "components/ui/reveal.tsx": "8d095c462ab16029d852b4b7917881501eeaa03604ca2438ccdf824c4fd267a8",
+    "components/navigation/mobile-top-navbar.tsx": "80bc1dc3904f662bff0b39ff07f108339b69ce4b68672a836b738e8db50beda6",
+    "packages/native-parity/student/fixture-request.ts": "0d3cb6ff191a057fbdf73f638a3c6af054f13ee99c089ea6aaa6ae0743c16c7b",
+    "packages/native-parity/student/learning/contracts.ts": "2a1cf81df56c117429678fbb197edeb74bcef6344461757859e4674e346de3eb",
+    "packages/native-parity/student/learning/fixtures.ts": "ebadf962b505c8ff90a63ee9e0a3809c99e021b11af4760b2e877588a9483f6c",
+    "packages/native-parity/student/learning/messages-id.json": "31b159634be1bc9bbf4264d7eeb4f9642d3a6ce1af6f6d72f42e04316ab5b9b6",
+    "apps/mobile-native/features/student/StudentFixtureRoute.tsx": "9d137376881ead4134ec428c5957ed21afa3fdf9f7d094e431a186ca123984bd",
+    "apps/mobile-native/features/student/learning/knowledge.tsx": "45637fd799424eb28b52d40b8d663852496efe3aa03b44a8de91484756e58cdf",
+    "apps/mobile-native/features/student/learning/index.tsx": "49f4e3bfb143d7f7ec791b1186e7151006d47b4b0db1a8d4d2deb438916c6c75",
+    "apps/mobile-native/features/student/learning/ui.tsx": "c849d71311766b75f32720dec8d291177eecdf05dbae31d5621fb30097fddbbe",
+    ".maestro/native-parallel/student/concept-parity.yaml": "3961fa6e27f37fa4825d21174277db936b984147d2bdec65d48190c2992e0601",
+    "messages/id/learning.json": "e5376bea4a130042fea063ca931aca3c135994777ee3ebe4300ae107877ecc54",
+    "messages/id/studentCourse.json": "03a30324db79eaa188e609e12b9f1b9c84b67c8a50641f54a74d7280f865a6d1",
+    "messages/id/schedule.json": "0d467e173762de1e8e2e4cff175aba846d08055b2d566a7990f04f07ac7978d8"
+  },
+  "fontDigests": {
+    "Inter-Regular": "19b2e364a739f0a493415b5185f1323f4994fcf451d24ab314cb7ff0504ccd39",
+    "Inter-Medium": "5bd11bf34ec26309bf6fa65f8d7e23c4738356f8219e643ce9f376be6dce0295",
+    "Inter-SemiBold": "bec5d982df3acdc7edbd7d99458e397285dd2d206058a1cfcdf77f55c7ac6c44",
+    "Lexend-SemiBold": "f8afa7919bba1f2b2536477e68359857d3f10e6bf8d93f21242fcc359437323f",
+    "Lexend-Bold": "231fd4c77e990af738beb90c090e7bb92a960b24e64efebf419761aa516b0fcf"
+  }
+}
