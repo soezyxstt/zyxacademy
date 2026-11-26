@@ -38,6 +38,9 @@ const browserNotes: Readonly<Record<string, string>> = {
   "/v4": "Public noindex reference reader and linked PDF remain in the website.",
 };
 
+// The web pages authorize the signed account itself for these personal routes.
+const accountPages = new Set(["/profile", "/profile/edit", "/settings", "/settings/notifications", "/settings/notifications/browser"]);
+
 const adminAliases = {
   "/admin/authoring-context": ["authoring"],
   "/admin/materials/manual": ["manual"],
@@ -209,7 +212,11 @@ export async function auditProductRoutes(root: string) {
       continue;
     }
 
-    if (current(role, href)?.pattern !== pattern || roles.some(other => other !== role && current(other, href))) {
+    const sharedAccountPage = accountPages.has(pattern);
+    if (roles.some(candidate => {
+      const target = current(candidate, href);
+      return sharedAccountPage || candidate === role ? target?.pattern !== pattern : Boolean(target);
+    })) {
       issue(pattern, "login destination does not match the installed route and role");
     }
     if (owner === "student") {
