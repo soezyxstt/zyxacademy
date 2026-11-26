@@ -9,7 +9,7 @@ adb shell input keyevent KEYCODE_WAKEUP
 adb shell wm dismiss-keyguard
 adb shell settings put global transition_animation_scale 0
 adb shell settings put global animator_duration_scale 0
-adb install apps/mobile-native/android/app/build/outputs/apk/release/app-release.apk
+adb install "${PARITY_APK_PATH:-apps/mobile-native/android/app/build/outputs/apk/release/app-release.apk}"
 adb shell am start -W -n com.zyx.academy.nativeparity/.MainActivity
 if [[ ${1:-} == product ]]; then
   exec bash scripts/native-parity/check-interactions.sh android "$(adb get-serialno)" product

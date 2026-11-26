@@ -7,6 +7,7 @@ on:
       - 'packages/**'
       - 'scripts/native-readiness/**'
       - 'scripts/native-parity/check-interactions.sh'
+      - 'scripts/native-parity/prepare-android-emulator.sh'
       - 'scripts/native-parity/capture-*.sh'
       - '.maestro/native-integration/**'
       - '.github/workflows/native-integration-preview.yml'
@@ -127,6 +128,9 @@ jobs:
           npx --no-install expo prebuild --platform android --no-install
           cd android
           ./gradlew :app:assembleRelease -PreactNativeArchitectures=x86_64 --max-workers=2
+      - if: matrix.platform == 'android'
+        name: Prepare the Android emulator image after compilation
+        run: bash scripts/native-parity/prepare-android-emulator.sh
       - if: matrix.platform == 'android'
         run: sudo chmod a+rw /dev/kvm
       - if: matrix.platform == 'android'

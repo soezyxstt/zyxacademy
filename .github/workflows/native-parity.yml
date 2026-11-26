@@ -212,6 +212,9 @@ jobs:
           cd android
           ./gradlew :app:assembleRelease -PreactNativeArchitectures=x86_64 --max-workers=2
       - if: matrix.platform == 'android'
+        name: Prepare the Android emulator image after compilation
+        run: bash scripts/native-parity/prepare-android-emulator.sh
+      - if: matrix.platform == 'android'
         run: sudo chmod a+rw /dev/kvm
       - if: matrix.platform == 'android'
         uses: reactivecircus/android-emulator-runner@v2.38.0
