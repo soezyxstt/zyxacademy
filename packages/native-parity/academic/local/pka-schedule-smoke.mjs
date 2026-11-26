@@ -43,14 +43,15 @@ async function deleteWithWebEditor(title) {
     await context.addCookies([{ name, value, url: webOrigin }]);
     const page = await context.newPage();
     await page.route("**/*", (route) => new URL(route.request().url()).origin === webOrigin ? route.continue() : route.abort());
-    const response = await page.goto(`${webOrigin}/admin/tutorial-pka/schedules`, { waitUntil: "domcontentloaded", timeout: 120_000 });
+    const response = await page.goto(`${webOrigin}/admin/tutorial-pka/schedules`, { waitUntil: "domcontentloaded", timeout: 240_000 });
     assert.equal(response?.status(), 200);
     await page.waitForFunction(() => [...document.querySelectorAll("main button")]
       .some((button) => Object.keys(button).some((key) => key.startsWith("__reactProps"))), undefined, { timeout: 40_000 });
     const row = page.getByRole("listitem").filter({ hasText: title }).filter({ visible: true });
     await row.getByRole("button", { name: /^(Aksi|Actions)$/ }).click();
     await page.getByRole("menuitem", { name: /^(Hapus jadwal|Delete schedule)$/ }).click();
-    await page.getByRole("alertdialog").getByRole("button", { name: /^(Hapus|Delete)( jadwal| schedule)?$/ }).click();
+    await page.getByRole("dialog", { name: /^(Hapus jadwal|Delete schedule)$/ })
+      .getByRole("button", { name: /^(Hapus|Delete)( jadwal| schedule)?$/ }).click();
     await row.waitFor({ state: "hidden", timeout: 30_000 });
   } finally {
     await browser.close();

@@ -7,7 +7,8 @@ import { Button } from "../../../components/Button";
 import type { AcademicScreenProps } from "../contracts";
 import { ConnectedDiscussions, ConnectedLive, ConnectedMaterials, ConnectedSchedule, ConnectedVideos } from "./connected";
 import { TutorLive, TutorMaterials, TutorVideos } from "./content";
-import { TutorCourseOverview, TutorDashboard, TutorGrading, TutorParticipants } from "./core";
+import { TutorCourseOverview, TutorDashboard, TutorGrading } from "./core";
+import { TutorParticipants } from "./participants";
 import { TutorDiscussions, TutorDocs, TutorSchedule } from "./support";
 import { Empty, TutorPage, tutorLayout } from "./ui";
 

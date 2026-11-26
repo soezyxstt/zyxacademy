@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, type ViewProps } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import { nativeColors, nativeLinkInks, nativeRadii } from "../../../../../packages/design-tokens/native-colors";
@@ -33,17 +33,18 @@ export function Label({ theme, children, tone = "body", compactTitle = false }: 
   >{children}</Text>;
 }
 
-export function TutorPage({ theme, title, subtitle, onBack, children, dashboard = false }: {
+export function TutorPage({ theme, title, subtitle, onBack, children, dashboard = false, header, contentStyle }: {
   theme: TutorTheme; title: string; subtitle?: string; onBack?: () => void; children: ReactNode; dashboard?: boolean;
+  header?: ReactNode; contentStyle?: ViewProps["style"];
 }) {
   const colors = nativeColors[theme];
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={[styles.page, dashboard && styles.dashboardPage]}
+      contentContainerStyle={[styles.page, dashboard && styles.dashboardPage, contentStyle]}
       keyboardShouldPersistTaps="handled"
     >
-      <Header theme={theme} title={title} subtitle={subtitle} onBack={onBack} compact={dashboard} />
+      {header ?? <Header theme={theme} title={title} subtitle={subtitle} onBack={onBack} compact={dashboard} />}
       {children}
     </ScrollView>
   );
@@ -264,7 +265,6 @@ export const tutorLayout = StyleSheet.create({
   action: { height: "auto", minHeight: 44, paddingVertical: 8 },
   sectionLink: { height: "auto", minHeight: 44, alignSelf: "flex-start", paddingHorizontal: 0 },
   dashboardSections: { gap: 32 },
-  participantMeta: { flexGrow: 1, minWidth: 114 },
   tag: { borderRadius: nativeRadii.sm, paddingHorizontal: 8, paddingVertical: 4 },
   input: { minHeight: 44 },
 });

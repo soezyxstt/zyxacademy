@@ -21,7 +21,7 @@ Jalankan dari terminal kedua.
 node packages/native-parity/academic/local/smoke.mjs
 node packages/native-parity/academic/local/course-settings-smoke.mjs
 node packages/native-parity/academic/local/pka-announcement-smoke.mjs
-node packages/native-parity/academic/local/pka-schedule-smoke.mjs
+PARITY_CHROMIUM_EXECUTABLE=/usr/bin/chromium node packages/native-parity/academic/local/pka-schedule-smoke.mjs
 node packages/native-parity/academic/local/tryout-bank-smoke.mjs
 node packages/native-parity/academic/local/study-group-smoke.mjs
 node packages/native-parity/academic/local/study-group-members-smoke.mjs

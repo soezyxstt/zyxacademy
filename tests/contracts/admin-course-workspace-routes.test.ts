@@ -67,6 +67,7 @@ describe("admin course workspace routes", () => {
 
   test("adds admin-only course-scoped tryout authoring", () => {
     const page = source(`${courseRoot}/tryouts/page.tsx`);
+    const policy = source("lib/tutor/tryout-authoring.ts");
 
     expect(page).toContain("await assertAdmin()");
     expect(page).toContain("getCourseDetailData(slug)");
@@ -74,7 +75,9 @@ describe("admin course workspace routes", () => {
     expect(page).toContain("notFound()");
     expect(page).toContain('eq(exams.courseId, courseId)');
     expect(page).toContain('eq(exams.type, "tryout")');
-    expect(page).toContain('eq(aiQuestionBank.reviewStatus, "published")');
+    expect(page).toContain(".where(selectableTryoutBankCondition(courseIds))");
+    expect(policy).toContain("inArray(aiQuestionBank.courseId, courseIds)");
+    expect(policy).toContain('eq(aiQuestionBank.reviewStatus, "published")');
   });
 
   test("adds the tryout route to the admin course navigation titles", () => {
@@ -86,8 +89,8 @@ describe("admin course workspace routes", () => {
   });
 
   test("publishes essay attachments through the existing tryout answer flow", () => {
-    const tryoutPage = source(`${courseRoot}/tryouts/page.tsx`);
     const importAction = source("app/actions/tutor-management.ts");
+    const snapshot = source("lib/tutor/tryout-bank-snapshot.ts");
     const answerForm = [
       "components/course/tryout-form.tsx",
       "features/student-assessment/ui/shared/tryout-form-parts.tsx",
@@ -95,8 +98,8 @@ describe("admin course workspace routes", () => {
       .map((path) => source(path))
       .join("\n");
 
-    expect(tryoutPage).toContain('eq(aiQuestionBank.reviewStatus, "published")');
-    expect(importAction).toContain('acceptsFile: row.questionType === "essay"');
+    expect(importAction).toContain("buildTryoutBankSnapshot(exam.courseId, row)");
+    expect(snapshot).toContain('acceptsFile: row.questionType === "essay"');
     expect(answerForm).toContain('placeholder={t("tryout.essayPlaceholder")}');
     expect(answerForm).toContain('accept=".pdf,image/*"');
     expect(JSON.parse(source("messages/id/studentCourse.json")).tryout.essayPlaceholder).toBe("Tuliskan penjelasan, langkah matematika, atau esai Anda di sini...");

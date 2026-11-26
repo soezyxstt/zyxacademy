@@ -3,8 +3,6 @@ import { randomUUID } from "expo-crypto";
 import { ActivityIndicator, View } from "react-native";
 import { tryoutGradeNotesLimit, type TryoutGradeEditor } from "../../../../../packages/academic/tryout-grade";
 import {
-  filterGroups,
-  filterParticipants,
   parseGrade,
   readAnswers,
   TutorDataError,
@@ -15,8 +13,6 @@ import {
   type TutorDataSource,
   type TutorGrade,
   type TutorGrading as GradingData,
-  type TutorParticipant,
-  type TutorParticipants as ParticipantsData,
   type TutorSubmission,
 } from "../../../../../packages/native-parity/academic/tutor/model";
 import { Button } from "../../../components/Button";
@@ -183,14 +179,6 @@ function CourseAnalytics({ theme, courseId, analytics, refresh }: {
   </View>;
 }
 
-const enrollmentFilters = [
-  ["all", "Semua akses"],
-  ["direct", "Langsung"],
-  ["group", "Kelompok"],
-  ["both", "Langsung dan kelompok"],
-] as const;
-
-const accessNames = { direct: "Langsung", group: "Kelompok", both: "Langsung dan kelompok" };
 const dateFormat = new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Jakarta" });
 const submissionDateFormat = new Intl.DateTimeFormat("id-ID", { dateStyle: "short", timeStyle: "short", timeZone: "Asia/Jakarta" });
 
@@ -198,67 +186,6 @@ function displayDate(value: string | null, fallback: string, format = dateFormat
   if (!value) return fallback;
   const date = new Date(value);
   return Number.isNaN(date.valueOf()) ? fallback : format.format(date);
-}
-
-export function TutorParticipants({ theme, back, data, query }: Navigation & { data: ParticipantsData; query: AcademicScreenProps["query"] }) {
-  const [tab, setTab] = useState<"people" | "groups">(query.tab === "groups" ? "groups" : "people");
-  const [access, setAccess] = useState<(typeof enrollmentFilters)[number][0]>("all");
-  const [search, setSearch] = useState("");
-  const [active, setActive] = useState<TutorParticipant | null>(null);
-  const participants = filterParticipants(data.participants, search, access);
-  const groups = filterGroups(data.groups, search);
-  return <><TutorPage theme={theme} title="Peserta dan kelompok" subtitle={data.course.title} onBack={back}>
-    <Choices theme={theme} label="Peserta dan kelompok" value={tab} change={setTab} tabBar
-      options={[["people", `Peserta (${data.participants.length})`], ["groups", `Kelompok belajar (${data.groups.length})`]]}
-    />
-    <Input theme={theme} accessibilityLabel="Cari peserta atau kelompok" placeholder="Cari peserta atau kelompok"
-      value={search} onChangeText={setSearch} style={tutorLayout.input} />
-    {tab === "people" ? <>
-      <Choices theme={theme} label="Filter jenis akses" options={enrollmentFilters} value={access} change={setAccess} />
-      {participants.length === 0
-        ? <Empty theme={theme} title={data.participants.length ? "Peserta tidak ditemukan" : "Belum ada peserta aktif"}
-          description={data.participants.length ? "Ubah kata kunci atau filter akses." : undefined} />
-        : <View>{participants.map((participant) => (
-          <Row key={participant.userId} testID={`tutor-participant-${participant.userId}`}
-            theme={theme} title={participant.name} subtitle={participant.email} onPress={() => setActive(participant)}>
-            <Label theme={theme} tone="muted">{accessNames[participant.enrollmentType]}</Label>
-            {participant.groups.map((group) =>
-              <Label key={group.id} theme={theme} tone="muted">{group.name}{group.role === "leader" ? " (Ketua)" : ""}</Label>,
-            )}
-            <View style={[tutorLayout.cluster, { alignItems: "flex-start" }]}>
-              <View style={tutorLayout.participantMeta}>
-                <Label theme={theme} tone="muted">Terdaftar sejak</Label>
-                <Label theme={theme} tone="muted">{displayDate(participant.enrolledAt, "Belum tercatat")}</Label>
-              </View>
-              <View style={tutorLayout.participantMeta}>
-                <Label theme={theme} tone="muted">Masa berlaku</Label>
-                <Label theme={theme} tone="muted">{displayDate(participant.expiresAt, "Aktif semester ini")}</Label>
-              </View>
-            </View>
-          </Row>
-        ))}</View>}
-    </> : (
-      groups.length === 0
-        ? <Empty theme={theme} title={data.groups.length ? "Kelompok tidak ditemukan" : "Belum ada kelompok aktif"} />
-        : <View>{groups.map((group) => (
-          <Row key={group.id} theme={theme} title={group.name} subtitle={group.packageName} meta={`${group.membersCount} anggota`}>
-            <Label theme={theme} tone="muted">{group.usedQuotaSessions}/{group.totalQuotaSessions} sesi digunakan</Label>
-            {group.members.map((member) => <Label key={member.userId} theme={theme}>
-              {member.name}{member.role === "leader" ? " (Ketua)" : ""}
-            </Label>)}
-          </Row>
-        ))}</View>
-    )}
-  </TutorPage>
-  {active ? <TutorDetail theme={theme} title={active.name} subtitle={active.email} onBack={() => setActive(null)}>
-    <Row theme={theme} title="Jenis akses" subtitle={accessNames[active.enrollmentType]} />
-    <Row theme={theme} title="Terdaftar sejak" subtitle={displayDate(active.enrolledAt, "Belum tercatat")} />
-    <Row theme={theme} title="Masa berlaku" subtitle={displayDate(active.expiresAt, "Aktif semester ini")} />
-    <Heading theme={theme} title="Kelompok" count={String(active.groups.length)} />
-    {active.groups.map((group) => <Row key={group.id} theme={theme} title={group.name} subtitle={group.role === "leader" ? "Ketua" : "Anggota"} />)}
-    {active.groups.length === 0 ? <Empty theme={theme} title="Belum bergabung dalam kelompok" /> : null}
-  </TutorDetail> : null}
-  </>;
 }
 
 type GradeTab = "pending" | "graded" | "all";

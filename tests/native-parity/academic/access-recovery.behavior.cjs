@@ -40,6 +40,7 @@ const dependencies = {
 const built = buildSync({
   stdin: {
     contents: `export { ConnectedSchedule } from "./tutor/connected";
+      export { TutorScreen } from "./tutor";
       export { createTutorSupportClient } from "./tutor/support-client";
       export { AdministrationLiveScreen } from "./administration/live-screen";
       export { StudyGroupMembersEditor } from "./administration/study-group-members-editor";
@@ -54,14 +55,14 @@ const built = buildSync({
 });
 const entry = { exports: {} };
 new Function("require", "module", "exports", built.outputFiles[0].text)((id) => dependencies[id] ?? testRequire(id), entry, entry.exports);
-const { ConnectedSchedule, createTutorSupportClient, AdministrationLiveScreen, LivePdfTitleEdit, createAcademicClient,
+const { ConnectedSchedule, TutorScreen, createTutorSupportClient, AdministrationLiveScreen, LivePdfTitleEdit, createAcademicClient,
   CourseScreen, AdminCourseFixtureProvider, StudyGroupMembersEditor, Tryouts, createAssessmentReadGateway } = entry.exports;
 
 const noop = () => {};
 const navigation = { theme: "light", back: noop, navigate: noop, replace: noop, query: {} };
 let renderer;
 async function mount(Component, props) {
-  await act(() => { renderer = create(h(Component, { ...navigation, ...props })); });
+  await act(async () => { renderer = create(h(Component, { ...navigation, ...props })); });
 }
 function unmount() {
   if (renderer) act(() => renderer.unmount());
@@ -77,6 +78,65 @@ async function press(label) {
   assert.ok(control && !control.props.disabled, label);
   await act(async () => { await control.props.onPress(); });
 }
+
+function tutorRoster(course, overrides = {}) {
+  return { path: `/tutor/${course}/participants`, params: { courseId: course }, scenario: "populated",
+    actor: { id: "academic-tutor", role: "tutor" }, ...overrides };
+}
+
+test("Tutor roster recovers from a load error and retains filter and detail navigation", async () => {
+  let backs = 0;
+  await mount(TutorScreen, tutorRoster("academic-course-1", { scenario: "error", back: () => backs++ }));
+  assert.ok(screenContains("Data gagal dimuat"));
+  await press("Coba lagi");
+  assert.ok(screenContains("Peserta dan kelompok, Biologi Dasar"));
+  const visibleCourse = () => renderer.root.findAllByType("Text").find((node) => node.props.testID === "tutor-roster-course")?.children;
+  assert.deepEqual(visibleCourse(), ["Biologi Dasar"]);
+  assert.ok(screenContains("Semua tipe"));
+  assert.ok(screenContains("Kelompok Sel (Ketua)"));
+  assert.ok(screenContains("Masa berlaku 31 Jan 2027"));
+  assert.equal(screenContains("tutor-roster-search-input"), false);
+  await press("tutor-roster-access");
+  await press("tutor-roster-access-group");
+  assert.ok(screenContains("Rafi Ananda"));
+  assert.equal(screenContains("Nadia Lestari"), false);
+  await press("tutor-roster-search-trigger");
+  assert.deepEqual(visibleCourse(), ["Biologi Dasar"]);
+  const input = renderer.root.findAllByType("TextInput").find((node) => node.props.testID === "tutor-roster-search-input");
+  assert.ok(input);
+  act(() => input.props.onChangeText("nadia"));
+  assert.ok(screenContains("Peserta tidak ditemukan"));
+  assert.ok(screenContains("Ubah kata kunci atau filter akses."));
+  await press("tutor-roster-search-clear");
+  await press("tutor-roster-search-close");
+  await press("tutor-participant-academic-student-2");
+  const detail = renderer.root.findAllByType("SafeAreaView").find((node) => node.props.testID === "tutor-detail");
+  assert.ok(detail);
+  assert.match(JSON.stringify(detail.findAllByType("Text").map((node) => node.children)), /Terdaftar sejak/);
+  const close = detail.findAllByType("Pressable").find((node) => node.props.testID === "tutor-back");
+  await act(() => close.props.onPress());
+  assert.equal(screenContains("tutor-detail"), false);
+  assert.ok(screenContains("Filter jenis akses, Kelompok"));
+  await press("Kelompok belajar (1)");
+  assert.ok(screenContains("sesi digunakan"));
+  await press("tutor-back");
+  assert.equal(backs, 1);
+});
+
+test("Tutor sees an empty assigned roster and a denied unassigned roster as distinct states", async () => {
+  await mount(TutorScreen, tutorRoster("academic-course-2", { theme: "dark" }));
+  assert.ok(screenContains("Peserta dan kelompok, Fisika Dasar"));
+  assert.deepEqual(renderer.root.findAllByType("Text").find((node) => node.props.testID === "tutor-roster-course")?.children, ["Fisika Dasar"]);
+  assert.ok(screenContains("Peserta tidak ditemukan"));
+  assert.ok(screenContains("Belum ada peserta aktif untuk kelas ini."));
+  assert.equal(screenContains("tutor-participant-academic-student-1"), false);
+  unmount();
+  await mount(TutorScreen, tutorRoster("academic-course-3", { theme: "dark" }));
+  assert.ok(screenContains("Akses ditolak"));
+  assert.equal(screenContains("tutor-roster-course"), false);
+  assert.equal(screenContains("Semua tipe"), false);
+  assert.equal(screenContains("tutor-participant-academic-student-1"), false);
+});
 
 const date = "2026-11-28";
 const schedule = {

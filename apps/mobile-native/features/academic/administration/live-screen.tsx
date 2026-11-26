@@ -136,15 +136,17 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
     clearTokenContext();
   }, [invalidate, clearTokenContext]);
   const clearPkaScheduleContext = useCallback(() => {
-    clearPkaScheduleRecovery(transport);
     setPkaScheduleDraft(undefined);
     setSelected(undefined);
     setSuccess("");
-  }, [transport]);
+  }, []);
   const pkaScheduleAccessEnded = pkaSchedulePage && (state.status === "denied" || state.status === "missing");
   useEffect(() => {
-    if (pkaScheduleAccessEnded) clearPkaScheduleContext();
-  }, [pkaScheduleAccessEnded, clearPkaScheduleContext]);
+    if (pkaScheduleAccessEnded) {
+      if (state.status === "denied") clearPkaScheduleRecovery(transport);
+      clearPkaScheduleContext();
+    }
+  }, [pkaScheduleAccessEnded, state.status, transport, clearPkaScheduleContext]);
   function reloadTokens() {
     setFilters((previous) => ({ ...previous, search: "", page: "1" }));
     retry();
