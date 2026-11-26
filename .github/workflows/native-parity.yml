@@ -2,9 +2,8 @@ name: Native component parity
 
 on:
   workflow_dispatch:
-  push:
-    branches: ['soezyxst/react-native-monorepo']
-    paths: &inputs
+  pull_request:
+    paths:
       - 'apps/mobile-native/**'
       - 'packages/**'
       - 'app/globals.css'
@@ -13,8 +12,6 @@ on:
       - 'scripts/native-parity/**'
       - '.github/workflows/native-parity.yml'
       - 'bun.lock'
-  pull_request:
-    paths: *inputs
 
 permissions:
   contents: read
@@ -47,7 +44,7 @@ jobs:
       - run: bunx playwright install --with-deps chromium
       - name: Capture the Next.js component
         run: |
-          bun node_modules/next/dist/bin/next dev tests/visual/ui-parity-web --port 3210 > "$RUNNER_TEMP/parity-next.log" 2>&1 &
+          node node_modules/next/dist/bin/next dev tests/visual/ui-parity-web --port 3210 > "$RUNNER_TEMP/parity-next.log" 2>&1 &
           trap 'cat "$RUNNER_TEMP/parity-next.log"' EXIT
           curl --fail --retry 20 --retry-all-errors --retry-delay 2 http://localhost:3210/ >/dev/null
           PARITY_DPR=1 bun tests/visual/ui-parity-web/capture.ts
