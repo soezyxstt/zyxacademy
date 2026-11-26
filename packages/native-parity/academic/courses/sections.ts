@@ -55,7 +55,7 @@ export type CourseSectionPayload =
   | { type: "documents"; chapters: (CourseChapterLabel & { orderIndex?: number })[]; documents: CourseDocumentRow[]; pdfUpload?: boolean }
   | { type: "document"; document: CourseDocumentRow; chapters: CourseChapterLabel[]; titleEdit?: AdminMaterialTitleEdit | null; pdfPreview?: boolean }
   | { type: "review"; bundles: CourseReviewRow[]; bundleUpload?: { idea: boolean; product: boolean } }
-  | { type: "leaderboard"; attempts: CourseLeaderboardAttempt[] }
+  | { type: "leaderboard"; attempts: CourseLeaderboardAttempt[]; participants?: { id: string; email: string }[] }
   | { type: "videos"; playlists: { id: string; title: string; description: string | null; revision?: string | null; videos:
       { id: string; title: string; description: string | null; playable: boolean; revision?: string | null }[] }[] }
   | { type: "flashcards"; chapters: (CourseChapterLabel & { legacyId?: string | null })[]; legacyChapters?: CourseChapterLabel[]; writable?: boolean; canCreateSet?: boolean;
@@ -79,7 +79,7 @@ export function isAdminCourseLiveSection(section: string | undefined, itemId?: s
     section === "videos" || section === "flashcards" || section === "settings" || section === "questions" || section === "leaderboard");
 }
 
-export function rankCourseLeaderboard(attempts: readonly CourseLeaderboardAttempt[], type: string, search: string) {
+export function rankCourseLeaderboard(attempts: readonly CourseLeaderboardAttempt[], type: string, search: string, participants: readonly { id: string; email: string }[] = []) {
   const applicable = attempts.filter((attempt) =>
     (type !== "quiz" || attempt.category !== "simulation") && (type !== "simulation" || attempt.category === "simulation"));
   const byParticipant = new Map<string, CourseLeaderboardAttempt[]>();
@@ -88,15 +88,17 @@ export function rankCourseLeaderboard(attempts: readonly CourseLeaderboardAttemp
     if (group) group.push(attempt);
     else byParticipant.set(attempt.participantId, [attempt]);
   }
+  const emails = new Map(participants.map(item => [item.id, item.email]));
   const query = search.trim().toLocaleLowerCase("id");
   const standings = Array.from(byParticipant, ([id, records]) => {
     const name = records[0].name;
     const score = records.reduce((total, attempt) => total + attempt.score, 0);
     const time = records.reduce((total, attempt) => total + attempt.duration, 0);
-    return { id, name, records, score, average: Number((score / records.length).toFixed(1)), duration: Math.round(time / records.length) };
-  }).filter(({ name }) => name.toLocaleLowerCase("id").includes(query))
+    return { id, name, email: emails.get(id), records, score, best: records.reduce((max, item) => Math.max(max, item.score), 0), average: Number((score / records.length).toFixed(1)), duration: Math.round(time / records.length) };
+  }).filter(({ name, email }) => name.toLocaleLowerCase("id").includes(query) || email?.toLocaleLowerCase("id").includes(query))
     .sort((left, right) => right.average - left.average || right.score - left.score ||
-      right.records.length - left.records.length || left.duration - right.duration || left.id.localeCompare(right.id))
+      right.records.length - left.records.length || left.duration - right.duration)
     .map((entry, index) => ({ ...entry, rank: index + 1 }));
-  return { standings, totalAttempts: applicable.length };
+  const average = applicable.length ? Number((applicable.reduce((sum, item) => sum + item.score, 0) / applicable.length).toFixed(1)) : 0;
+  return { standings, totalAttempts: applicable.length, average, best: applicable.reduce((max, item) => Math.max(max, item.score), 0) };
 }

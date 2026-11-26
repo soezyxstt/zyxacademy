@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAcademicClient } from "../../../../apps/mobile-native/features/academic/client";
 import { handleAcademicRead, type AcademicReadServices } from "../../../../lib/native/academic/handle-read";
-import { isAdminCourseLiveSection } from "./sections";
+import { isAdminCourseLiveSection, rankCourseLeaderboard } from "./sections";
 
 function harness(role: "admin" | "tutor" | "student" | null) {
   const sent: string[] = [];
@@ -63,4 +63,16 @@ test("course section replies protect authorization, scope, malformed paths and p
   const failed = await handleAcademicRead(["admin", "courses", "biologi-dasar", "results"], services);
   assert.equal(failed.status, 500);
   assert.deepEqual(await failed.json(), { error: "READ_FAILED" });
+});
+
+
+test("participant email filters the standings while attempt metrics keep their selected course and quiz type", () => {
+  const attempt = { id: "a", participantId: "first", name: "Intan", title: "Bab 1", category: "weekly", score: 80, duration: 45, submittedAt: null };
+  const rows = [attempt, { ...attempt, id: "b", participantId: "second", name: "Dito", score: 40 },
+    { ...attempt, id: "c", score: 100, category: "simulation" }];
+  const result = rankCourseLeaderboard(rows, "quiz", "MAIL.", [{ id: "first", email: "intan@mail.test" }]);
+  assert.deepEqual(result.standings.map(row => [row.id, row.rank, row.best]), [["first", 1, 80]]);
+  assert.equal(result.totalAttempts, 2);
+  assert.equal(result.average, 60);
+  assert.equal(result.best, 80);
 });

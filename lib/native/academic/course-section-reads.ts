@@ -142,7 +142,8 @@ export async function readAdminCourseSection(slug: string, section: string, item
       inArray(quizTemplates.courseId, identity.allIds),
     ], identity.title);
     return {
-      type: "leaderboard", course, attempts: view.students.flatMap(({ studentId, studentName, attempts }) =>
+      type: "leaderboard", course, participants: view.students.map(student => ({ id: student.studentId, email: student.studentEmail })),
+      attempts: view.students.flatMap(({ studentId, studentName, attempts }) =>
         attempts.map(({ id, title, category, score, durationSeconds, submittedAt }) => ({
           id, participantId: studentId, name: studentName, title, category, score, duration: durationSeconds, submittedAt,
         }))),

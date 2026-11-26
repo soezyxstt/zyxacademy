@@ -76,7 +76,7 @@ export function LiveCourseSection({ data, query, navigate, updateSettings, updat
     case "review":
       return <LiveReview data={data} query={query} navigate={navigate} />;
     case "leaderboard":
-      return <CourseLeaderboard attempts={data.attempts} />;
+      return <CourseLeaderboard attempts={data.attempts} participants={data.participants} />;
     case "videos":
       return <LiveVideos data={data} player={videoPlayer} remove={removeVideo} refresh={refresh} />;
     case "flashcards":
