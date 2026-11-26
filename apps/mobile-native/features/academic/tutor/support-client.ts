@@ -1,3 +1,4 @@
+import { createCalendarEditor } from "./calendar-client";
 import type { TutorDiscussionDraft, TutorDiscussionSendResult, TutorSupportClient } from "../../../../../packages/academic/tutor-support";
 import { tutorPlaybackUrl } from "../../../../../packages/academic/tutor-support";
 import { TutorDataError } from "../../../../../packages/native-parity/academic/tutor/model";
@@ -47,6 +48,7 @@ export function createTutorSupportClient(transport: AcademicTransport): TutorSup
     liveHost: createTutorLiveHost(transport),
     slotEditor: createTutorSlotEditor(transport),
     ticketEditor: createTutorTicketEditor(transport),
+    calendarEditor: createCalendarEditor(transport),
     tryoutGrade: createTryoutGradeEditor(transport),
     schedule: (week, signal) => read("schedule", signal, new URLSearchParams({ week: String(week) })),
     discussions: (courseId, search, cursor, signal) => {

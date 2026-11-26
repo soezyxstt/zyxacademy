@@ -1,6 +1,7 @@
 import { resolveAuthBaseUrl } from "@/lib/auth-site-url";
 import { handleTryoutGrade } from "@/lib/native/academic/handle-tryout-grade";
-import { handleTutorTicket } from "@/lib/native/academic/handle-tutor-ticket";
+import { writeTutorCalendar } from "@/lib/native/academic/tutor-calendar-service";
+import { handleTutorCalendar, handleTutorTicket } from "@/lib/native/academic/handle-tutor-ticket";
 import { writeTutorTicket } from "@/lib/native/academic/tutor-ticket-service";
 import { handleTutorSlotWrite } from "@/lib/native/academic/handle-tutor-slot";
 import { handleTutorDiscussionAnswer, handleTutorSupport } from "@/lib/native/academic/handle-tutor-support";
@@ -24,6 +25,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ resou
 
 export async function POST(request: Request, context: { params: Promise<{ resource: string[] }> }) {
   const { resource } = await context.params;
+  if (resource.length === 2 && resource[0] === "schedule" && resource[1] === "calendar") return handleTutorCalendar(request, new URL(resolveAuthBaseUrl()).origin, {
+    session: tutorSupportServices.session, hasTutor: tutorSupportServices.hasTutor, save: writeTutorCalendar,
+  });
   if (resource[0] === "schedule" && resource[1] === "tickets") return handleTutorTicket(request, resource, new URL(resolveAuthBaseUrl()).origin, {
     session: tutorSupportServices.session, hasTutor: tutorSupportServices.hasTutor, save: writeTutorTicket,
   });

@@ -44,7 +44,7 @@ export function TutorScreen({ dataSource, ...props }: TutorScreenProps) {
     const service = source.support;
     const week = parseTutorWeek(props.query.week);
     return <DataView key={key} theme={theme} back={back} title="Jadwal mengajar" load={(signal) => service.schedule(week, signal)}>
-      {(data) => <ConnectedSchedule {...props} week={week} data={data} editor={service.slotEditor} ticketEditor={service.ticketEditor} reload={(signal) => service.schedule(week, signal)} />}
+      {(data) => <ConnectedSchedule {...props} week={week} data={data} editor={service.slotEditor} ticketEditor={service.ticketEditor} calendarEditor={service.calendarEditor} loadWeek={service.schedule} reload={(signal) => service.schedule(week, signal)} />}
     </DataView>;
   }
   if (source.support && route === "discussions") {

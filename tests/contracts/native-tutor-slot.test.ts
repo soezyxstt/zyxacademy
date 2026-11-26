@@ -190,3 +190,27 @@ test("Tutor replies once to an owned Student ticket and decides it with the web 
     .toMatchObject({ status: "rejected", decisionNotes: decision.notes, decidedById: tutor });
   expect(notifyDecision).toHaveBeenCalledTimes(1);
 });
+
+test("calendar deletion and week copy preserve ownership, slot revision and retry counts", async () => {
+  const { writeTutorCalendar } = await import("@/lib/native/academic/tutor-calendar-service");
+  const { getCalendarWeekRange } = await import("@/lib/date-utils");
+  const monday = addCalendarDays(getCalendarWeekRange(getJakartaCalendarDate()).startIso, 21);
+  const { testDb } = database;
+  const item = await readCreated(await write(fields));
+  const [slot] = await tutorSlotDetails(tutor, [item.slotId]);
+  const actor = { id: tutor, sessionId: tutor + "-session", requestId: "native-calendar-delete" };
+  const remove = { action: "delete", slotId: item.slotId, expectedRevision: slot.revision, confirmed: true } as const;
+  await expect(writeTutorCalendar({ ...actor, id: secondTutor, sessionId: secondTutor + "-session" }, remove)).rejects.toThrow("NOT_FOUND");
+  await expect(writeTutorCalendar(actor, { ...remove, expectedRevision: "0".repeat(64) })).rejects.toThrow("CONFLICT");
+  // Only slots beyond the availability edit deadline are deletable.
+  await testDb.update(schema.tutorSlots).set({ sessionDate: monday, dayOfWeek: "Senin" }).where(eq(schema.tutorSlots.id, item.slotId));
+  const [future] = await tutorSlotDetails(tutor, [item.slotId]);
+  const copy = { action: "copy", week: addCalendarDays(monday, 7) } as const;
+  const copyActor = { ...actor, requestId: "native-calendar-copy" };
+  const copied = await writeTutorCalendar(copyActor, copy);
+  expect(copied.outcome).toEqual({ action: "copy", created: 1, skipped: 0 });
+  expect(await writeTutorCalendar(copyActor, copy)).toEqual(copied);
+  expect((await writeTutorCalendar(actor, { ...remove, expectedRevision: future.revision })).outcome).toEqual({ action: "delete" });
+  expect((await writeTutorCalendar(actor, { ...remove, expectedRevision: future.revision })).outcome).toEqual({ action: "delete" });
+  expect(await testDb.select().from(schema.tutorSlots)).toHaveLength(1);
+});

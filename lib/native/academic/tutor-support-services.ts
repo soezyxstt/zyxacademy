@@ -63,8 +63,8 @@ export const tutorSupportServices = {
         return [{ id, date: slot.date, start: slot.start, end: slot.end, mode: slot.mode, location: slot.location,
           notes: slot.notes, booked: Boolean(booking), hasBookingHistory: slot.booked, revision: slot.booked ? undefined : slot.revision }];
       }),
-      sessions: schedule.ownedBookings.map(({ id, sessionDate, startTime, endTime, course, group, topic, status }) => ({
-        id, date: sessionDate, start: startTime, end: endTime, courseTitle: course?.title ?? null, groupName: group?.name ?? null, topic, status,
+      sessions: schedule.ownedBookings.map(({ id, slotId, sessionDate, startTime, endTime, course, group, topic, status }) => ({
+        id, slotId, date: sessionDate, start: startTime, end: endTime, courseTitle: course?.title ?? null, groupName: group?.name ?? null, topic, status,
       })),
       tickets: schedule.ownedTickets.map(({ id, type, status, reason, proposedDate, decisionNotes, groupId, messages }) => ({
         id, type, status, reason, proposedDate, decisionNotes, groupName: groupNames.get(groupId) ?? null,

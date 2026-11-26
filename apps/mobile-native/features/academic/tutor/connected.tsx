@@ -24,6 +24,7 @@ import { useProtectedInteraction } from "../../../routing/protected-interaction"
 import type { AcademicScreenProps } from "../contracts";
 import { CourseVideoDialog } from "../../course-video/CourseVideoDialog";
 import { SharedDialog } from "../../shared-ui";
+import { CalendarActions } from "./calendar-actions";
 import { TicketActions } from "./ticket-actions";
 import { TutorLiveHostPanel } from "./live-host";
 import { TutorWeekCalendar, tutorJakartaToday } from "./schedule-calendar";
@@ -46,11 +47,13 @@ function times(start: string | null, end: string | null) {
 type ScheduleTab = "calendar" | "tickets" | "groups";
 const ticketStatuses = { pending: "Menunggu keputusan", approved: "Disetujui", rejected: "Ditolak" };
 
-export function ConnectedSchedule({ data: initial, week, theme, back, replace, query, editor, ticketEditor, reload }: Navigation & {
+export function ConnectedSchedule({ data: initial, week, theme, back, replace, query, editor, ticketEditor, calendarEditor, loadWeek, reload }: Navigation & {
   week: number;
   data: TutorScheduleData;
   editor?: TutorSlotEditor;
   ticketEditor?: TutorSupportClient["ticketEditor"];
+  calendarEditor?: TutorSupportClient["calendarEditor"];
+  loadWeek?: TutorSupportClient["schedule"];
   reload(signal: AbortSignal): Promise<TutorScheduleData>;
 }) {
   const { canInteract } = useProtectedInteraction();
@@ -193,6 +196,8 @@ export function ConnectedSchedule({ data: initial, week, theme, back, replace, q
         onPress={() => openSlot({ target: undefined, fields: { date: selectedDate ?? defaultDate, start: "09:00", mode: "online", location: "", notes: "" } })}>
         Tambah slot
       </Button> : null}
+      {calendarEditor && loadWeek ? <CalendarActions theme={theme} week={week} data={data} editor={calendarEditor} schedule={loadWeek}
+        refresh={refreshSchedule} denied={() => loseAccess("Akses jadwal berakhir.")} /> : null}
       {pending.map((item) => <Button key={item.target?.slotId ?? "create"} theme={theme} variant="outline" style={tutorLayout.action}
         disabled={saving} onPress={() => openSlot(item)}>{`Lanjutkan pengiriman slot ${dated(item.fields.date)}`}</Button>)}
       <Input theme={theme} accessibilityLabel="Cari slot dan sesi" placeholder="Cari slot, topik, kelompok" value={search}

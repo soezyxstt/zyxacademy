@@ -12,7 +12,6 @@ import {
   bookingRescheduleTickets,
   bookingTicketMessages,
   bookings,
-  groupMembers,
   groups,
   pengguna,
   penggunaPeran,
@@ -54,14 +53,7 @@ import {
   validateSlotDuration,
   validateSlotWeekdayDate,
 } from "@/lib/schedule/tutor-policy";
-import { sendToMany } from "@/lib/notifications/send";
-import { resolveCourseIdentity } from "@/lib/admin/course-identity";
-import {
-  tutorScheduleMovedPayload,
-} from "@/lib/notifications/templates";
-import { notifyTutorTicketDecision, notifyTutorTicketReply } from "@/lib/schedule/tutor-ticket-notifications";
-import { sendOptionalEmail } from "@/lib/email-preferences/send";
-import { renderScheduleEventEmail } from "@/lib/notifications/email-templates";
+import { notifyTutorSessionMove, notifyTutorTicketDecision, notifyTutorTicketReply } from "@/lib/schedule/tutor-ticket-notifications";
 import {
   recordTutorFailureAudit,
   recordUnauthenticatedRejectAudit,
@@ -2036,54 +2028,7 @@ export async function executeMoveTutorSession(
     };
   }
 
-  // 9. AFTER COMMIT: Notifications
-  if (!options?.skipNotifications) {
-    try {
-      const memberRows = await client
-        .select({ userId: groupMembers.userId })
-        .from(groupMembers)
-        .where(eq(groupMembers.groupId, booking.groupId));
-
-      const memberUserIds = memberRows.map((m: { userId: string }) => m.userId);
-      if (memberUserIds.length > 0) {
-        await sendToMany(memberUserIds, tutorScheduleMovedPayload({
-          courseTitle: (await resolveCourseIdentity(booking.courseId).catch(() => null))?.title,
-          dayOfWeek: targetSlot.dayOfWeek,
-          sessionDate: targetSessionDateIso,
-          startTime: targetSlot.startTime,
-          endTime: targetSlot.endTime,
-        }));
-        if (process.env.RESEND_API_KEY) {
-          await Promise.allSettled(
-            memberUserIds.map((uid: string) =>
-              sendOptionalEmail({
-                userId: uid,
-                category: "events_and_schedules",
-                render: (locale) =>
-                  renderScheduleEventEmail({
-                    locale,
-                    recipientName: locale === "en" ? "Student" : "Siswa",
-                    title: locale === "en" ? "Tutorial schedule updated" : "Jadwal tutorial diperbarui",
-                    summary:
-                      locale === "en"
-                        ? "Your tutor moved a scheduled tutorial session to a new slot."
-                        : "Pengajar memindahkan sesi tutorial ke slot baru.",
-                    details: [
-                      { label: locale === "en" ? "Day" : "Hari", value: targetSlot.dayOfWeek },
-                      { label: locale === "en" ? "Date" : "Tanggal", value: targetSessionDateIso },
-                      { label: locale === "en" ? "Time" : "Waktu", value: `${targetSlot.startTime} - ${targetSlot.endTime} WIB` },
-                    ],
-                    link: "/dashboard/schedule",
-                  }),
-              }),
-            ),
-          );
-        }
-      }
-    } catch (notifErr) {
-      console.error("[TUTOR_SCHEDULE] Move notification failed:", notifErr);
-    }
-  }
+  if (!options?.skipNotifications) await notifyTutorSessionMove(booking, targetSlot, targetSessionDateIso, client);
 
   try {
     revalidatePath("/tutor/schedule");
