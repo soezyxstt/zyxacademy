@@ -571,24 +571,13 @@ function CourseEntry(props: StudentScreenProps & { query: LearningQuery }) {
   const { resource, reload: loadAgain } = useLearningData(request, learningEndpoint(query), query.view, !revoked);
   const cached = offline?.course;
   const useOfflineMetadata = canShowOfflineCourse(query.view, "courseId" in query ? query.courseId : undefined, cached?.id, offline?.status, resource);
-  const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
-  const restoreOffset = useRef(initialScrollY);
+  const restoreOffset = useRef({ x: 0, y: initialScrollY });
   const lastOffset = useRef(initialScrollY);
-  const viewportHeight = useRef(0);
-  const contentHeight = useRef(0);
   const isReady = !revoked && (resource.kind === "ready" || Boolean(useOfflineMetadata));
   const reload = () => {
-    restoreOffset.current = lastOffset.current;
-    contentHeight.current = 0;
+    restoreOffset.current = { x: 0, y: lastOffset.current };
     loadAgain();
   };
-
-  function restorePosition() {
-    if (!isReady || restoreOffset.current <= 0 || viewportHeight.current <= 0 || contentHeight.current <= 0) return;
-    const targetY = Math.min(restoreOffset.current, Math.max(0, contentHeight.current - viewportHeight.current));
-    restoreOffset.current = 0;
-    scroll.current?.scrollTo({ x: 0, y: targetY, animated: false });
-  }
 
   let content: ReactNode;
   if (revoked) {
@@ -627,23 +616,21 @@ function CourseEntry(props: StudentScreenProps & { query: LearningQuery }) {
     }
   }
 
+  // Mount ready content with its initial offset so native layout does not clamp it to the loading skeleton.
   return (
     <ThemeContext.Provider value={theme}>
       <CopyContext.Provider value={copy}>
         <ScrollView
-          ref={scroll}
+          key={isReady ? "loaded" : "pending"}
+          contentOffset={isReady ? restoreOffset.current : undefined}
           testID={query.view === "catalog" ? "student-courses-list" : query.view === "material-list" ? "student-materials-list" : `student-learning-${query.view}`}
           style={{ backgroundColor: colors.background }}
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
           refreshControl={<RefreshControl refreshing={resource.kind === "loading" && lastOffset.current > 0} onRefresh={reload} tintColor={colors.primary} colors={[colors.primary]} />}
           scrollEventThrottle={16}
-          onLayout={(event) => {
-            viewportHeight.current = event.nativeEvent.layout.height;
-            restorePosition();
-          }}
           onScroll={(event) => {
-            if (restoreOffset.current <= 0 && isReady) {
+            if (isReady) {
               lastOffset.current = Math.max(0, event.nativeEvent.contentOffset.y);
               onScrollY(lastOffset.current);
             }
@@ -652,18 +639,7 @@ function CourseEntry(props: StudentScreenProps & { query: LearningQuery }) {
           {query.view === "course" || query.view === "material-list" || query.view === "material-detail" ? (
             <Button theme={theme} variant="ghost" testID="student-learning-back" style={styles.back} onPress={back}>{copy.back}</Button>
           ) : null}
-          {isReady ? (
-            <View
-              style={styles.readyContent}
-              onLayout={(event) => {
-                const { y, height } = event.nativeEvent.layout;
-                contentHeight.current = y + height + styles.content.paddingBottom;
-                restorePosition();
-              }}
-            >
-              {content}
-            </View>
-          ) : content}
+          {isReady ? <View style={styles.readyContent}>{content}</View> : content}
         </ScrollView>
       </CopyContext.Provider>
     </ThemeContext.Provider>
