@@ -35,7 +35,10 @@ test('staff analytics, grading and bank responses record the viewer before relea
  const tryouts = source('lib/tutor/tryout-grading-read-model.ts');
  expect(tryouts.indexOf('await db.transaction(tx => recordStaffCourseDisclosures(tx')).toBeGreaterThan(0);
  expect(tryouts.indexOf('await db.transaction(tx => recordStaffCourseDisclosures(tx')).toBeLessThan(tryouts.indexOf('return { access, courseTitle, submissionsList }'));
- for (const path of ['app/(admin)/admin/(eval)/questions/page.tsx', 'app/(admin)/admin/(eval)/distractors/page.tsx', 'app/(admin)/admin/(academic)/courses/actions.ts', 'app/(admin)/admin/(academic)/courses/[slug]/tryouts/page.tsx', 'app/api/admin/questions/route.ts', 'app/api/admin/products/route.ts', 'lib/admin/quiz-insight-read-model.ts', 'app/api/admin/quiz-insights/[id]/attempts/route.ts', 'app/api/admin/quiz-insights/[id]/analyze/route.ts']) {
+ const insight = source('app/api/admin/quiz-insights/[id]/route.ts');
+ expect(insight).toContain('await readAdminQuizInsight(id, session.user.id)');
+ expect(insight.indexOf('await readAdminQuizInsight(')).toBeLessThan(insight.indexOf('return NextResponse.json(result)'));
+ for (const path of ['app/(admin)/admin/(academic)/courses/actions.ts', 'app/(admin)/admin/(academic)/courses/[slug]/tryouts/page.tsx', 'app/api/admin/questions/route.ts', 'app/api/admin/products/route.ts', 'lib/admin/quiz-insight-read-model.ts', 'app/api/admin/quiz-insights/[id]/attempts/route.ts', 'app/api/admin/quiz-insights/[id]/analyze/route.ts']) {
   expect(source(path)).toContain('recordAuthorizedGlobalDisclosures(tx');
  }
 });
@@ -55,4 +58,20 @@ test('tutor final grading delegates to the same initial scoring rule', () => {
  expect(grading).toContain('return checkAnswerCorrectness(q, submitted)');
  expect(source('app/api/quiz/attempts/[id]/route.ts')).toContain('checkAnswerCorrectness(q, submitted)');
  expect(grading).toContain('ESSAY_REVIEW_REQUIRED');
+});
+
+test('web and native evaluation share disclosures before projecting protected question data', () => {
+ const native = source('app/api/native/operations/evaluation/route.ts');
+ for (const [folder, reader, call] of [
+  ['questions', 'question-bank-read-model', 'readQuestionBank'],
+  ['distractors', 'distractors-read-model', 'readDistractors'],
+ ]) {
+  const route = `app/(admin)/admin/(eval)/${folder}`;
+  const web = source(`${route}/page.tsx`);
+  const model = source(`${route}/${reader}.ts`);
+  expect(web.indexOf('await assertTutorOrAdmin()')).toBeLessThan(web.indexOf(`await ${call}(user.id`));
+  expect(native.indexOf('await getNativeOperationsAdmin()')).toBeLessThan(native.indexOf(`await ${call}(userId`));
+  expect(model).toContain('await db.transaction(tx => recordAuthorizedGlobalDisclosures(tx');
+  expect(model.indexOf('await db.transaction(tx => recordAuthorizedGlobalDisclosures(tx')).toBeLessThan(model.lastIndexOf('return '));
+ }
 });

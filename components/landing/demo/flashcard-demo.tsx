@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { CalendarClock } from "lucide-react";
+import { landingFlashcardGrades } from "@/lib/marketing-learning-previews";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/client";
 
@@ -17,12 +18,12 @@ type FlashcardDemoProps = {
  cards: FlashcardDemoCard[];
 };
 
-const grades = [
- { key: "again", delay: 0, classes: "border-status-error/45 text-status-error hover:bg-status-error/10" },
- { key: "hard", delay: 3, classes: "border-status-warning/55 text-status-warning hover:bg-status-warning/10" },
- { key: "good", delay: 6, classes: "border-primary/45 text-primary hover:bg-primary/10" },
- { key: "easy", delay: 14, classes: "border-status-success/45 text-status-success hover:bg-status-success/10" },
-] as const;
+const gradeClasses = {
+ again: "border-status-error/45 text-status-error hover:bg-status-error/10",
+ hard: "border-status-warning/55 text-status-warning hover:bg-status-warning/10",
+ good: "border-primary/45 text-primary hover:bg-primary/10",
+ easy: "border-status-success/45 text-status-success hover:bg-status-success/10",
+} as const;
 
 /**
  * SM-2 flashcard demo: flip the card, grade it, watch the spaced-repetition
@@ -80,7 +81,7 @@ export function FlashcardDemo({ cards }: FlashcardDemoProps) {
  )}
  aria-hidden={!flipped}
  >
- {grades.map((item) => (
+ {landingFlashcardGrades.map((item) => (
  <button
  key={item.key}
  type="button"
@@ -88,7 +89,7 @@ export function FlashcardDemo({ cards }: FlashcardDemoProps) {
  onClick={() => grade(item.delay, t(`home.flashcardGrades.${item.key}`))}
  className={cn(
  "rounded-lg border bg-background px-2 py-2 text-body-sm font-semibold transition-colors",
- item.classes,
+ gradeClasses[item.key],
  )}
  >
  {t(`home.flashcardGrades.${item.key}`)}

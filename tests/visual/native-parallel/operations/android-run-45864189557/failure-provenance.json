@@ -1,0 +1,26 @@
+[
+  {
+    "flow": "operations-public-form-local-submit",
+    "artifactPath": "results/04-cases/2026-11-26_172452/operations-public-form-local-submit/commands.json",
+    "path": "failure/public-form-transport-commands.json",
+    "sha256": "de294d423d7e3be73955d085d8f4bf659e02ae03169d77190cd2c16ac341c458"
+  },
+  {
+    "flow": "operations-public-form-local-submit",
+    "artifactPath": "results/04-cases/2026-11-26_172452/operations-public-form-local-submit/logs/maestro.log",
+    "path": "failure/public-form-transport-maestro.log",
+    "sha256": "a72e92e1d6883d2cd5ffac5f6fd44fa3f092c44b4d29bdea5a8b8447b4c0f6ed"
+  },
+  {
+    "flow": "Operations Admin home to Web Analytics and access denial",
+    "artifactPath": "results/00-journeys/2026-11-26_171710/Operations Admin home to Web Analytics and access denial/commands.json",
+    "path": "failure/admin-launch-offline-commands.json",
+    "sha256": "75da333c6e6664c4d47b82ed6efdfb68a2679cd8007b48d880c3ed600a8fc5c8"
+  },
+  {
+    "flow": "Operations Admin home to Web Analytics and access denial",
+    "artifactPath": "results/00-journeys/2026-11-26_171710/Operations Admin home to Web Analytics and access denial/logs/maestro.log",
+    "path": "failure/admin-launch-offline-maestro.log",
+    "sha256": "883a0a97fb72be06cbe74e3a2916bc7b73d6539cc2cb5559834321f5502ee95e"
+  }
+]

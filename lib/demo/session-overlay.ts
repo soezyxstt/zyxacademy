@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { isValid, parseISO } from "date-fns";
-import { formatIsoDateUtc } from "@/lib/date-utils";
+import { formatIsoDateUtc } from "../date-utils";
 
 const eventSchema = z.object({
   kind: z.enum(["article", "review", "quiz"]),
@@ -27,7 +27,14 @@ export function addDemoEvent(overlay: DemoOverlay, event: DemoEvent): DemoOverla
 
 /** Scope positional flashcard IDs to their selected set and page. */
 export function scopedDemoReviewId(setId: string, offset: number, cardId: string): string {
-  const input = JSON.stringify([setId, offset, cardId]);
+  return `demo-review-${demoIdentityHash(JSON.stringify([setId, offset, cardId]))}`;
+}
+
+export function scopedDemoMaterialId(kind: "article" | "diktat", id: string): string {
+  return `demo-${kind}-${demoIdentityHash(id)}`;
+}
+
+function demoIdentityHash(input: string): string {
   let first = 2166136261;
   let second = 2246822519;
   for (let i = 0; i < input.length; i++) {
@@ -35,5 +42,5 @@ export function scopedDemoReviewId(setId: string, offset: number, cardId: string
     first = Math.imul(first ^ code, 16777619);
     second = Math.imul(second ^ code, 3266489917);
   }
-  return `demo-review-${(first >>> 0).toString(36)}-${(second >>> 0).toString(36)}`;
+  return `${(first >>> 0).toString(36)}-${(second >>> 0).toString(36)}`;
 }

@@ -1,0 +1,45 @@
+17:25:49.626 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Define variables RUNNING
+17:25:49.626 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Define variables COMPLETED
+17:25:49.626 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Apply configuration RUNNING
+17:25:49.626 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Apply configuration COMPLETED
+17:25:49.626 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Open zyx-native-parity://operations-fixture?caseId=operations-public-form-local-submit RUNNING
+17:25:49.626 [ INFO] maestro.Maestro.openLink: Opening link zyx-native-parity://operations-fixture?caseId=operations-public-form-local-submit for app: com.zyx.academy.nativeparity with autoVerify config as false
+17:25:50.592 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Open zyx-native-parity://operations-fixture?caseId=operations-public-form-local-submit COMPLETED
+17:25:50.592 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Assert that id: operations-public-form-local-submit is visible RUNNING
+17:25:50.701 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Assert that id: operations-public-form-local-submit is visible COMPLETED
+17:25:50.701 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Assert that id: operations-loading is not visible RUNNING
+17:25:51.572 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Assert that id: operations-loading is not visible COMPLETED
+17:25:51.572 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Scrolling DOWN until id: public-form-fullName is visible with speed 65, visibility percentage 100%, timeout 20000 ms, with centering disabled RUNNING
+17:25:51.681 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Scrolling try count: 0, DeviceWidth: 380, DeviceWidth: 844
+17:25:51.681 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Element bounds: Bounds(x=24, y=352, width=332, height=44)
+17:25:51.681 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Visibility Percent: 1.0
+17:25:51.681 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Command centerElement: ScrollUntilVisibleCommand(selector=ElementSelector(textRegex=null, idRegex=public-form-fullName, size=null, below=null, above=null, leftOf=null, rightOf=null, containsChild=null, containsDescendants=null, traits=null, index=null, enabled=null, optional=false, selected=null, checked=null, focused=null, childOf=null, css=null), direction=DOWN, scrollDuration=351, visibilityPercentage=100, timeout=20000, waitToSettleTimeoutMs=null, centerElement=false, originalSpeedValue=65, label=null, optional=false).centerElement
+17:25:51.681 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: visibilityPercentageNormalized: 1.0
+17:25:51.681 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Scrolling DOWN until id: public-form-fullName is visible with speed 65, visibility percentage 100%, timeout 20000 ms, with centering disabled COMPLETED
+17:25:51.681 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Tap on id: public-form-fullName RUNNING
+17:25:51.785 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tapping on element:  UiElement(treeNode=TreeNode(attributes={text=, accessibilityText=Full name, hintText=e.g. Adi Haditya Nursyam, ignoreBoundsFiltering=false, resource-id=public-form-fullName, clickable=true, bounds=[24,352][356,396], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.EditText, important-for-accessibility=true, error=}, children=[], clickable=true, enabled=true, focused=false, checked=false, selected=false), bounds=Bounds(x=24, y=352, width=332, height=44))
+17:25:53.040 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tap aimed via settled hierarchy
+17:25:53.040 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Tapping at (190, 374) using hierarchy based logic for wait
+17:25:54.534 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Something has changed in the UI judging by view hierarchy. Proceed.
+17:25:54.534 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Tap on id: public-form-fullName COMPLETED
+17:25:54.535 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Input text Pengguna Fixture RUNNING
+17:25:54.535 [ INFO] maestro.Maestro.inputText: Inputting text: Pengguna Fixture
+17:25:57.563 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Input text Pengguna Fixture COMPLETED
+17:25:57.564 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Hide Keyboard RUNNING
+17:25:57.565 [ INFO] maestro.Maestro.hideKeyboard$lambda$13: Hiding Keyboard
+17:25:58.508 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Hide Keyboard COMPLETED
+17:25:58.508 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Scrolling DOWN until id: public-form-email is visible with speed 65, visibility percentage 100%, timeout 20000 ms, with centering disabled RUNNING
+17:25:58.658 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Scrolling try count: 0, DeviceWidth: 380, DeviceWidth: 844
+17:25:58.659 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Element bounds: Bounds(x=24, y=442, width=332, height=44)
+17:25:58.659 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Visibility Percent: 1.0
+17:25:58.659 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: Command centerElement: ScrollUntilVisibleCommand(selector=ElementSelector(textRegex=null, idRegex=public-form-email, size=null, below=null, above=null, leftOf=null, rightOf=null, containsChild=null, containsDescendants=null, traits=null, index=null, enabled=null, optional=false, selected=null, checked=null, focused=null, childOf=null, css=null), direction=DOWN, scrollDuration=351, visibilityPercentage=100, timeout=20000, waitToSettleTimeoutMs=null, centerElement=false, originalSpeedValue=65, label=null, optional=false).centerElement
+17:25:58.659 [ INFO] maestro.orchestra.Orchestra.scrollUntilVisible: visibilityPercentageNormalized: 1.0
+17:25:58.659 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Scrolling DOWN until id: public-form-email is visible with speed 65, visibility percentage 100%, timeout 20000 ms, with centering disabled COMPLETED
+17:25:58.659 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Tap on id: public-form-email RUNNING
+17:25:58.796 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tapping on element:  UiElement(treeNode=TreeNode(attributes={text=, accessibilityText=Email address, hintText=username@email.com, ignoreBoundsFiltering=false, resource-id=public-form-email, clickable=true, bounds=[24,442][356,486], enabled=true, focused=false, checked=false, scrollable=false, selected=false, class=android.widget.EditText, important-for-accessibility=true, error=}, children=[], clickable=true, enabled=true, focused=false, checked=false, selected=false), bounds=Bounds(x=24, y=442, width=332, height=44))
+17:26:00.512 [ INFO] maestro.Maestro.tap-HgV9Ck0: Tap aimed via settled hierarchy
+17:26:00.513 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Tapping at (190, 464) using hierarchy based logic for wait
+17:26:01.984 [ INFO] maestro.Maestro.hierarchyBasedTap-ogj28Uc: Something has changed in the UI judging by view hierarchy. Proceed.
+17:26:01.984 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandFinished: Tap on id: public-form-email COMPLETED
+17:26:01.984 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Input text learner@example.test RUNNING
+17:26:01.984 [ INFO] maestro.Maestro.inputText: Inputting text: learner@example.test

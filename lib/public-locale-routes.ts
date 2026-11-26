@@ -1,4 +1,4 @@
-import type { Locale } from "@/lib/i18n/locale";
+import type { Locale } from "./i18n/locale";
 
 /** Public pages with complete application-owned translations. */
 export const PUBLIC_LOCALE_ROUTES = [

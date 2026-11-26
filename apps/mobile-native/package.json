@@ -15,8 +15,10 @@
   "dependencies": {
     "@expo/log-box": "58.0.15",
     "@expo/metro-runtime": "58.0.17",
+    "date-fns": "4.4.0",
     "expo": "58.0.26",
     "expo-audio": "58.0.12",
+    "expo-clipboard": "58.0.4",
     "expo-constants": "58.0.16",
     "expo-crypto": "58.0.8",
     "expo-document-picker": "58.0.5",
@@ -35,13 +37,15 @@
     "expo-status-bar": "58.0.5",
     "expo-system-ui": "58.0.7",
     "expo-web-browser": "58.1.0",
+    "qrcode-generator": "2.0.4",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-native": "0.88.1",
     "react-native-safe-area-context": "5.11.1",
     "react-native-screens": "4.30.1",
     "react-native-svg": "15.16.0",
-    "react-native-webview": "14.0.1"
+    "react-native-webview": "14.0.1",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/react": "19.3.3",

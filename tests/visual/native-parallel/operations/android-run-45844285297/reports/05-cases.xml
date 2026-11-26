@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+  <testsuite name="Test Suite" device="test" tests="3" failures="0" time="17.121" timestamp="2026-11-26T15:28:12">
+    <testcase id="operations-public-unsubscribe-confirm" name="operations-public-unsubscribe-confirm" classname="operations-public-unsubscribe-confirm" file="/tmp/tmp.qNzcD6kTFe/operations/operations-public-unsubscribe-confirm.yaml" time="5.858" timestamp="2026-11-26T15:28:12" status="SUCCESS"/>
+    <testcase id="operations-public-unsubscribe-invalid" name="operations-public-unsubscribe-invalid" classname="operations-public-unsubscribe-invalid" file="/tmp/tmp.qNzcD6kTFe/operations/operations-public-unsubscribe-invalid.yaml" time="1.864" timestamp="2026-11-26T15:28:18" status="SUCCESS"/>
+    <testcase id="operations-public-unsubscribe-retry" name="operations-public-unsubscribe-retry" classname="operations-public-unsubscribe-retry" file="/tmp/tmp.qNzcD6kTFe/operations/operations-public-unsubscribe-retry.yaml" time="9.374" timestamp="2026-11-26T15:28:20" status="SUCCESS"/>
+  </testsuite>
+</testsuites>

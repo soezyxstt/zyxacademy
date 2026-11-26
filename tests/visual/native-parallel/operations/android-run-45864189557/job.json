@@ -1,0 +1,252 @@
+{
+  "id": 140062654565,
+  "run_id": 45864189557,
+  "workflow_name": "Operations device fixtures",
+  "head_branch": "native-migration/operations",
+  "run_url": "https://api.github.com/repos/soezyxstt/zyxacademy/actions/runs/45864189557",
+  "run_attempt": 1,
+  "node_id": "CR_kwDORxS5X88AAAAgnGKAZQ",
+  "head_sha": "6fda5518d1e845b19d54e5e50ee9c1381b0a3d1b",
+  "url": "https://api.github.com/repos/soezyxstt/zyxacademy/actions/jobs/140062654565",
+  "html_url": "https://github.com/soezyxstt/zyxacademy/actions/runs/45864189557/job/140062654565",
+  "status": "completed",
+  "conclusion": "failure",
+  "created_at": "2026-11-26T17:02:15Z",
+  "started_at": "2026-11-26T17:02:18Z",
+  "completed_at": "2026-11-26T17:27:44Z",
+  "name": "capture (android, ubuntu-latest, 380, 1)",
+  "steps": [
+    {
+      "name": "Set up job",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 1,
+      "started_at": "2026-11-26T17:02:19Z",
+      "completed_at": "2026-11-26T17:02:21Z"
+    },
+    {
+      "name": "Run actions/checkout@v4",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 2,
+      "started_at": "2026-11-26T17:02:21Z",
+      "completed_at": "2026-11-26T17:02:29Z"
+    },
+    {
+      "name": "Run actions/setup-node@v4",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 3,
+      "started_at": "2026-11-26T17:02:29Z",
+      "completed_at": "2026-11-26T17:02:29Z"
+    },
+    {
+      "name": "Run oven-sh/setup-bun@v2",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 4,
+      "started_at": "2026-11-26T17:02:29Z",
+      "completed_at": "2026-11-26T17:02:30Z"
+    },
+    {
+      "name": "Run bun install --frozen-lockfile",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 5,
+      "started_at": "2026-11-26T17:02:30Z",
+      "completed_at": "2026-11-26T17:02:38Z"
+    },
+    {
+      "name": "Run npm ci",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 6,
+      "started_at": "2026-11-26T17:02:38Z",
+      "completed_at": "2026-11-26T17:02:51Z"
+    },
+    {
+      "name": "Run node scripts/native-parity/operations/mount.mjs",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 7,
+      "started_at": "2026-11-26T17:02:51Z",
+      "completed_at": "2026-11-26T17:02:52Z"
+    },
+    {
+      "name": "Run actions/setup-java@v4",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 8,
+      "started_at": "2026-11-26T17:02:52Z",
+      "completed_at": "2026-11-26T17:02:52Z"
+    },
+    {
+      "name": "Build and install the iOS release fixture",
+      "status": "completed",
+      "conclusion": "skipped",
+      "number": 9,
+      "started_at": "2026-11-26T17:02:52Z",
+      "completed_at": "2026-11-26T17:02:52Z"
+    },
+    {
+      "name": "Capture iOS blog viewport checkpoints",
+      "status": "completed",
+      "conclusion": "skipped",
+      "number": 10,
+      "started_at": "2026-11-26T17:02:52Z",
+      "completed_at": "2026-11-26T17:02:52Z"
+    },
+    {
+      "name": "Run actions/setup-python@v5",
+      "status": "completed",
+      "conclusion": "skipped",
+      "number": 11,
+      "started_at": "2026-11-26T17:02:52Z",
+      "completed_at": "2026-11-26T17:02:52Z"
+    },
+    {
+      "name": "Compare iOS blog viewport checkpoints",
+      "status": "completed",
+      "conclusion": "skipped",
+      "number": 12,
+      "started_at": "2026-11-26T17:02:52Z",
+      "completed_at": "2026-11-26T17:02:52Z"
+    },
+    {
+      "name": "Run actions/upload-artifact@v4",
+      "status": "completed",
+      "conclusion": "skipped",
+      "number": 13,
+      "started_at": "2026-11-26T17:02:52Z",
+      "completed_at": "2026-11-26T17:02:52Z"
+    },
+    {
+      "name": "Run the complete iOS fixture suite",
+      "status": "completed",
+      "conclusion": "skipped",
+      "number": 14,
+      "started_at": "2026-11-26T17:02:52Z",
+      "completed_at": "2026-11-26T17:02:52Z"
+    },
+    {
+      "name": "Retain all iOS screenshots already captured",
+      "status": "completed",
+      "conclusion": "skipped",
+      "number": 15,
+      "started_at": "2026-11-26T17:02:52Z",
+      "completed_at": "2026-11-26T17:02:52Z"
+    },
+    {
+      "name": "Run npx --no-install expo prebuild --platform android --no-install",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 16,
+      "started_at": "2026-11-26T17:02:52Z",
+      "completed_at": "2026-11-26T17:15:21Z"
+    },
+    {
+      "name": "Prepare the Android emulator image after compilation",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 17,
+      "started_at": "2026-11-26T17:15:21Z",
+      "completed_at": "2026-11-26T17:16:15Z"
+    },
+    {
+      "name": "Run sudo chmod a+rw /dev/kvm",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 18,
+      "started_at": "2026-11-26T17:16:15Z",
+      "completed_at": "2026-11-26T17:16:15Z"
+    },
+    {
+      "name": "Run reactivecircus/android-emulator-runner@v2.38.0",
+      "status": "completed",
+      "conclusion": "failure",
+      "number": 19,
+      "started_at": "2026-11-26T17:16:15Z",
+      "completed_at": "2026-11-26T17:27:37Z"
+    },
+    {
+      "name": "Run actions/setup-python@v5",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 20,
+      "started_at": "2026-11-26T17:27:37Z",
+      "completed_at": "2026-11-26T17:27:37Z"
+    },
+    {
+      "name": "Compare available matching viewport captures",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 21,
+      "started_at": "2026-11-26T17:27:37Z",
+      "completed_at": "2026-11-26T17:27:39Z"
+    },
+    {
+      "name": "Run actions/upload-artifact@v4",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 22,
+      "started_at": "2026-11-26T17:27:39Z",
+      "completed_at": "2026-11-26T17:27:42Z"
+    },
+    {
+      "name": "Post Run actions/setup-python@v5",
+      "status": "completed",
+      "conclusion": "skipped",
+      "number": 40,
+      "started_at": "2026-11-26T17:27:42Z",
+      "completed_at": "2026-11-26T17:27:42Z"
+    },
+    {
+      "name": "Post Run actions/setup-java@v4",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 41,
+      "started_at": "2026-11-26T17:27:42Z",
+      "completed_at": "2026-11-26T17:27:42Z"
+    },
+    {
+      "name": "Post Run oven-sh/setup-bun@v2",
+      "status": "completed",
+      "conclusion": "skipped",
+      "number": 42,
+      "started_at": "2026-11-26T17:27:42Z",
+      "completed_at": "2026-11-26T17:27:42Z"
+    },
+    {
+      "name": "Post Run actions/setup-node@v4",
+      "status": "completed",
+      "conclusion": "skipped",
+      "number": 43,
+      "started_at": "2026-11-26T17:27:42Z",
+      "completed_at": "2026-11-26T17:27:42Z"
+    },
+    {
+      "name": "Post Run actions/checkout@v4",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 44,
+      "started_at": "2026-11-26T17:27:42Z",
+      "completed_at": "2026-11-26T17:27:42Z"
+    },
+    {
+      "name": "Complete job",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 45,
+      "started_at": "2026-11-26T17:27:42Z",
+      "completed_at": "2026-11-26T17:27:42Z"
+    }
+  ],
+  "check_run_url": "https://api.github.com/repos/soezyxstt/zyxacademy/check-runs/140062654565",
+  "labels": [
+    "ubuntu-latest"
+  ],
+  "runner_id": 1000011431,
+  "runner_name": "GitHub Actions 1000011431",
+  "runner_group_id": 0,
+  "runner_group_name": "GitHub Actions"
+}

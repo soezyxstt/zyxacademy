@@ -1,0 +1,136 @@
+{
+  "sourceCommit": "79b3229fb1d8bf4ca910f02d6f1dec18390edaac",
+  "viewportUnits": "CSS pixels",
+  "shell": "app/(marketing)/layout.tsx with the production Navbar, SiteMain and Footer",
+  "data": "Public blog fixture articles and unauthenticated guest session. All requests restricted to localhost.",
+  "references": [
+    {
+      "name": "list",
+      "locale": "id",
+      "theme": "light",
+      "path": "/id/blog",
+      "width": 380,
+      "height": 844,
+      "dpr": 1,
+      "file": "blog-shell-list-id-light-380-dpr1.png",
+      "viewport": {
+        "width": 380,
+        "header": 56,
+        "mainTop": 56,
+        "dark": false
+      }
+    },
+    {
+      "name": "detail",
+      "locale": "id",
+      "theme": "light",
+      "path": "/id/blog/belajar-dengan-latihan-terarah",
+      "width": 380,
+      "height": 844,
+      "dpr": 1,
+      "file": "blog-shell-detail-id-light-380-dpr1.png",
+      "viewport": {
+        "width": 380,
+        "header": 56,
+        "mainTop": 56,
+        "dark": false
+      }
+    },
+    {
+      "name": "empty",
+      "locale": "en",
+      "theme": "dark",
+      "path": "/en/blog?category=kegiatan_zyx",
+      "width": 380,
+      "height": 844,
+      "dpr": 1,
+      "file": "blog-shell-empty-en-dark-380-dpr1.png",
+      "viewport": {
+        "width": 380,
+        "header": 56,
+        "mainTop": 56,
+        "dark": true
+      }
+    },
+    {
+      "name": "footer",
+      "locale": "en",
+      "theme": "dark",
+      "path": "/en/blog?category=kegiatan_zyx",
+      "width": 380,
+      "height": 844,
+      "dpr": 1,
+      "file": "blog-shell-footer-en-dark-380-dpr1.png",
+      "viewport": {
+        "width": 380,
+        "header": 56,
+        "mainTop": 56,
+        "dark": true
+      }
+    },
+    {
+      "name": "list",
+      "locale": "id",
+      "theme": "light",
+      "path": "/id/blog",
+      "width": 402,
+      "height": 874,
+      "dpr": 3,
+      "file": "blog-shell-list-id-light-402-dpr3.png",
+      "viewport": {
+        "width": 402,
+        "header": 56,
+        "mainTop": 56,
+        "dark": false
+      }
+    },
+    {
+      "name": "detail",
+      "locale": "id",
+      "theme": "light",
+      "path": "/id/blog/belajar-dengan-latihan-terarah",
+      "width": 402,
+      "height": 874,
+      "dpr": 3,
+      "file": "blog-shell-detail-id-light-402-dpr3.png",
+      "viewport": {
+        "width": 402,
+        "header": 56,
+        "mainTop": 56,
+        "dark": false
+      }
+    },
+    {
+      "name": "empty",
+      "locale": "en",
+      "theme": "dark",
+      "path": "/en/blog?category=kegiatan_zyx",
+      "width": 402,
+      "height": 874,
+      "dpr": 3,
+      "file": "blog-shell-empty-en-dark-402-dpr3.png",
+      "viewport": {
+        "width": 402,
+        "header": 56,
+        "mainTop": 56,
+        "dark": true
+      }
+    },
+    {
+      "name": "footer",
+      "locale": "en",
+      "theme": "dark",
+      "path": "/en/blog?category=kegiatan_zyx",
+      "width": 402,
+      "height": 874,
+      "dpr": 3,
+      "file": "blog-shell-footer-en-dark-402-dpr3.png",
+      "viewport": {
+        "width": 402,
+        "header": 56,
+        "mainTop": 56,
+        "dark": true
+      }
+    }
+  ]
+}

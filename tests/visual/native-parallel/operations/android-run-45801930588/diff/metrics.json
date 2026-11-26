@@ -1,0 +1,28 @@
+[
+  {
+    "caseId": "operations-public-blog-list-open-back",
+    "reference": "tests/visual/native-parallel/operations/references/blog-list-light-380-dpr1.png",
+    "referenceSha256": "0e9e0915f3330683724e8a671dd6584505f9ae8a80942fb84ede5d1fbc10f790",
+    "diagnosticSha256": "7225b82f6d6fd62f4005ce5bdb69f96068abcfdb04d3b92da8baf61ddf497588",
+    "width": 380,
+    "height": 844,
+    "differentPixels": 202280,
+    "totalPixels": 320720,
+    "differentPercent": 63.071,
+    "maxChannelDelta": 213,
+    "diff": "diff/blog-list.png"
+  },
+  {
+    "caseId": "operations-public-blog-detail-content",
+    "reference": "tests/visual/native-parallel/operations/references/blog-detail-light-380-dpr1.png",
+    "referenceSha256": "197ff8549d07046e2c26a0aa2d1b3b31751e8179cad92864ac86ba9fa7e6a688",
+    "diagnosticSha256": "77cfd7cf38edce77de1e64239db4b048a162f69f6bcbd6eeee94413e95fecf65",
+    "width": 380,
+    "height": 844,
+    "differentPixels": 67432,
+    "totalPixels": 320720,
+    "differentPercent": 21.025,
+    "maxChannelDelta": 213,
+    "diff": "diff/blog-detail.png"
+  }
+]

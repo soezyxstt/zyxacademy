@@ -1,3 +1,4 @@
+import { createReportDraft } from "./report-draft";
 import { mutationOptions, queryOptions, type QueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { isQueryAccountCurrent } from "@/lib/query/client";
@@ -35,18 +36,7 @@ export function createZyraProposalReport(role: ProposalRole, courseId?: string |
   return requestJson("/api/zyra/proposals", z.object({ proposal: proposalSummarySchema }), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      proposalType: role === "admin" ? "course_readiness" : "misconception_brief",
-      courseId: courseId ?? null,
-      scope: courseId ? { courseId } : {},
-      evidenceRefs: [courseId ? `course:${courseId}` : "ops:current"],
-      preconditionSnapshot: { version: 1 },
-      operations: [{ kind: "read_only_report", reportKey: role === "admin" ? "course_readiness" : "misconception_brief" }],
-      learnerImpact: { audience: courseId ? "single_course" : "none", summary: "Tidak ada perubahan yang diterapkan." },
-      reversibility: { reversible: true, rollback: "Tidak ada mutasi; proposal dapat ditolak atau kedaluwarsa." },
-      warnings: ["Hasil ini adalah proposal dan memerlukan review manusia."],
-      rationale: role === "admin" ? "Tinjau kesiapan course secara terstruktur." : "Tinjau pola miskonsepsi secara terstruktur.",
-    }),
+    body: JSON.stringify(createReportDraft(role, courseId)),
   });
 }
 

@@ -4,14 +4,14 @@ import { SectionContainer } from "@/components/layout/section-container";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { LandingVisible } from "@/components/landing/landing-visible";
 import { QuizDemo, type QuizDemoOption } from "@/components/landing/demo/quiz-demo";
+import { landingQuizOptions } from "@/lib/marketing-learning-previews";
 import { getTranslations } from "@/lib/i18n/server";
 
-const options: QuizDemoOption[] = [
- { id: "a", content: <MathText>{"$2$"}</MathText>, correct: false },
- { id: "b", content: <MathText>{"$1$"}</MathText>, correct: true },
- { id: "c", content: <MathText>{"$\\tfrac{1}{2}$"}</MathText>, correct: false },
- { id: "d", content: <MathText>{"$x^2$"}</MathText>, correct: false },
-];
+const options: QuizDemoOption[] = landingQuizOptions.map(({ id, latex, correct }) => ({
+ id,
+ content: <MathText>{`$${latex}$`}</MathText>,
+ correct,
+}));
 
 async function CorrectPanel() {
  const t = await getTranslations("marketing");

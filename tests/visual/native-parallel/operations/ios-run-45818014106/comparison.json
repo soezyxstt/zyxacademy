@@ -1,0 +1,148 @@
+[
+  {
+    "device": "cases/operations-public-blog-list-open-back.png",
+    "reference": "blog-list-light-402-dpr3.png",
+    "devicePixels": [
+      1206,
+      2622
+    ],
+    "referencePixels": [
+      1206,
+      2622
+    ],
+    "differentPixels": 1955436,
+    "maxChannelDelta": 255,
+    "status": "different"
+  },
+  {
+    "device": "cases/operations-public-blog-detail-content.png",
+    "reference": "blog-detail-light-402-dpr3.png",
+    "devicePixels": [
+      1206,
+      2622
+    ],
+    "referencePixels": [
+      1206,
+      2622
+    ],
+    "differentPixels": 563353,
+    "maxChannelDelta": 255,
+    "status": "different"
+  },
+  {
+    "device": "cases/operations-public-blog-list-empty.png",
+    "reference": "blog-empty-dark-en-402-dpr3.png",
+    "devicePixels": [
+      1206,
+      2622
+    ],
+    "referencePixels": [
+      1206,
+      2622
+    ],
+    "differentPixels": 1205776,
+    "maxChannelDelta": 226,
+    "status": "different"
+  },
+  {
+    "device": "blog-list.png",
+    "reference": "blog-list-light-402-dpr3.png",
+    "devicePixels": [
+      1206,
+      2622
+    ],
+    "referencePixels": [
+      1206,
+      2622
+    ],
+    "differentPixels": 1955560,
+    "maxChannelDelta": 255,
+    "status": "different"
+  },
+  {
+    "device": "blog-detail.png",
+    "reference": "blog-detail-light-402-dpr3.png",
+    "devicePixels": [
+      1206,
+      2622
+    ],
+    "referencePixels": [
+      1206,
+      2622
+    ],
+    "differentPixels": 563643,
+    "maxChannelDelta": 255,
+    "status": "different"
+  },
+  {
+    "device": "blog-empty-dark.png",
+    "reference": "blog-empty-dark-402-dpr3.png",
+    "devicePixels": [
+      1206,
+      2622
+    ],
+    "referencePixels": [
+      1206,
+      2622
+    ],
+    "differentPixels": 1209617,
+    "maxChannelDelta": 226,
+    "status": "different"
+  },
+  {
+    "device": "management-form-summary.png",
+    "reference": "management-form-summary-402-dpr3.png",
+    "status": "awaiting capture"
+  },
+  {
+    "device": "cases/operations-public-blog-list-open-back.png",
+    "reference": "blog-shell-list-id-light-402-dpr3.png",
+    "variant": "full-shell",
+    "devicePixels": [
+      1206,
+      2622
+    ],
+    "referencePixels": [
+      1206,
+      2622
+    ],
+    "differentPixels": 1807846,
+    "maxChannelDelta": 255,
+    "status": "different",
+    "diff": "cases/operations-public-blog-list-open-back-full-shell-diff.png"
+  },
+  {
+    "device": "cases/operations-public-blog-detail-content.png",
+    "reference": "blog-shell-detail-id-light-402-dpr3.png",
+    "variant": "full-shell",
+    "devicePixels": [
+      1206,
+      2622
+    ],
+    "referencePixels": [
+      1206,
+      2622
+    ],
+    "differentPixels": 564284,
+    "maxChannelDelta": 255,
+    "status": "different",
+    "diff": "cases/operations-public-blog-detail-content-full-shell-diff.png"
+  },
+  {
+    "device": "cases/operations-public-blog-list-empty.png",
+    "reference": "blog-shell-empty-en-dark-402-dpr3.png",
+    "variant": "full-shell",
+    "devicePixels": [
+      1206,
+      2622
+    ],
+    "referencePixels": [
+      1206,
+      2622
+    ],
+    "differentPixels": 1289835,
+    "maxChannelDelta": 255,
+    "status": "different",
+    "diff": "cases/operations-public-blog-list-empty-full-shell-diff.png"
+  }
+]

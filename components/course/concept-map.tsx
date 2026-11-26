@@ -9,6 +9,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useTranslations } from "@/lib/i18n/client";
+import { chooseMasteryFocus } from "@/lib/demo/view-mastery";
 import type { StudentMasteryConcept, StudentMasteryGroup } from "@/lib/student/idea-mastery-read";
 
 const PAGE_SIZE = 10;
@@ -84,14 +85,7 @@ export function ConceptMap({ courseId, groups, pathHref = `/courses/${courseId}/
     assessed: concepts.filter(c => c.masteryScore !== null),
     unassessed: concepts.filter(c => c.masteryScore === null),
   }));
-  const results = chapters.flatMap(({ chapter, assessed }) => assessed.map(topic => ({
-    chapter, topic, score: topic.masteryScore!, reliable: (topic.confidence ?? 0) >= 50,
-  })));
-  // Use the same score and confidence cutoffs as the study path.
-  const reliable = results.filter(result => result.reliable);
-  const candidates = reliable.length ? reliable : results;
-  const review = candidates.filter(result => result.score < 70).sort((a, b) => a.score - b.score)[0];
-  const focus = review ?? candidates.sort((a, b) => b.score - a.score)[0];
+  const { review, focus } = chooseMasteryFocus(groups);
   const topicHref = review?.topic.conceptSlug && `/courses/${courseId}/concept/${review.topic.conceptSlug}`;
   const action = <Button asChild size="sm" className="text-body-sm"><Link href={topicHref || pathHref}>
     {t(topicHref ? "reviewTopic" : "openPath")}

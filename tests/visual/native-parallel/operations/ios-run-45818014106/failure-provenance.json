@@ -1,0 +1,38 @@
+[
+  {
+    "flow": "Operations Admin home to Web Analytics and access denial",
+    "artifactPath": "results/2026-11-26_142457/Operations Admin home to Web Analytics and access denial/screenshots/step-010-assertCondition-Tampilan_halaman.png",
+    "path": "failures/admin-analytics-navigation.png",
+    "sha256": "bff3ba528d0eab6fd21a4c88da71bf8a3dec3ddb7d9355757ad9fd60b03e2061"
+  },
+  {
+    "flow": "Operations Admin home to Web Analytics and access denial",
+    "artifactPath": "results/2026-11-26_142457/Operations Admin home to Web Analytics and access denial/screen-hierarchy/step-010-assertCondition-Tampilan_halaman.json",
+    "path": "failures/admin-analytics-navigation.json",
+    "sha256": "323a57ca1bbb1049c04fa730376e7f22a146e1e594a0aa143828ef1d84f2ca8e"
+  },
+  {
+    "flow": "Operations public demo completion, study planning and tryout list",
+    "artifactPath": "results/2026-11-26_142457/Operations public demo completion, study planning and tryout list/screenshots/step-025-hideKeyboard.png",
+    "path": "failures/demo-numeric-keyboard.png",
+    "sha256": "1d5309bc9ff9a17d9d5338cf4de2625236c30e3418a14d1758da2c906b6b17ee"
+  },
+  {
+    "flow": "Operations public demo completion, study planning and tryout list",
+    "artifactPath": "results/2026-11-26_142457/Operations public demo completion, study planning and tryout list/screen-hierarchy/step-025-hideKeyboard.json",
+    "path": "failures/demo-numeric-keyboard.json",
+    "sha256": "dc690c2231785e70b13adca99fad36daa2ea2c47352c625763ab640286f21f3d"
+  },
+  {
+    "flow": "operations-public-form-local-submit",
+    "artifactPath": "results/2026-11-26_142457/operations-public-form-local-submit/screenshots/step-017-hideKeyboard.png",
+    "path": "failures/form-numeric-keyboard.png",
+    "sha256": "4458a6f822074d3b65168f00dabb521954d72c8262e12c1dce2870bc2ecb4bcf"
+  },
+  {
+    "flow": "operations-public-form-local-submit",
+    "artifactPath": "results/2026-11-26_142457/operations-public-form-local-submit/screen-hierarchy/step-017-hideKeyboard.json",
+    "path": "failures/form-numeric-keyboard.json",
+    "sha256": "112917762a0e81280d4df0ef649397117e81abf1034220bf90ade1cc84188b6d"
+  }
+]

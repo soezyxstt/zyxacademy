@@ -1,6 +1,10 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
-    "strict": true
+    "strict": true,
+    "paths": {
+      "date-fns": ["./node_modules/date-fns"],
+      "zod": ["./node_modules/zod"]
+    }
   }
 }

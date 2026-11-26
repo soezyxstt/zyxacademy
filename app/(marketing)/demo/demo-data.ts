@@ -13,7 +13,8 @@ export type DemoFlashcard = { front: string; back: string; explanation: string |
 export type DemoQuizQuestion = { id: string; prompt: string; options: string[]; multiple: boolean };
 type DemoQuizQuestionPrivate = DemoQuizQuestion & { version: number; correctIndices: number[]; explanation: string | null };
 export type DemoCourseSummary = { id: string; title: string; category: string; description: string | null; chapterTitle: string; chapterNumber: number };
-export type DemoProductSelection = { articleId?: string; diktatId?: string; flashcardSetId?: string; quizOffset?: number; collectionOffset?: number; flashcardOffset?: number };
+import type { DemoProductSelection } from "@/lib/demo/selection";
+export type { DemoProductSelection } from "@/lib/demo/selection";
 export type DemoExperienceKind = import("@/lib/demo/legacy-eligibility").PublicDemoKind;
 export type DemoContent = { collections: { articles: { id: string; title: string }[]; diktats: { id: string; title: string }[]; flashcardSets: { id: string; title: string }[]; quiz: { offset: number; total: number; pageSize: number; nextOffset: number | null; previousOffset: number | null }; page: { offset: number; pageSize: number; hasMore: boolean; nextOffset: number | null }; flashcards: { offset: number; pageSize: number; nextOffset: number | null } }; selected: { articleId: string; diktatId: string; flashcardSetId: string | null }; course: DemoCourseSummary; article: PublicArticleReadModel; diktat: { title: string; sections: DemoDiktatSection[] }; flashcards: DemoFlashcard[]; quiz: DemoQuizQuestion[]; quizSetToken: string };
 export type DemoExperience = { content: DemoContent; snapshot: PublicDemoSnapshot };

@@ -1464,6 +1464,13 @@ export const operationsCatalog = [
     "reason": "Related MCP operations are implemented; this source may contain additional UI actions. See docs/operations/admin-mcp.md for exact supported boundaries."
   },
   {
+    "source": "app/api/blog/upload/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Interactive blog media upload uses the authenticated web tutor or Admin session, or the bound native Admin session for thumbnails. Blog MCP article tools can reference accepted media URLs under their existing scopes and consent."
+  },
+  {
     "source": "app/(admin)/admin/forms/[id]/page.tsx",
     "actions": [],
     "tools": [
@@ -1624,6 +1631,13 @@ export const operationsCatalog = [
     "tools": [],
     "status": "excluded",
     "reason": "No operations tool implemented for this source; mutations require service invariants and concurrency review."
+  },
+  {
+    "source": "app/api/admin/native-monitoring/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": ["shortlinks.create"],
+    "status": "partial",
+    "reason": "The native Admin UI reuses web monitoring behind canonical admin session authorization. Native writes validate origin and input, including short links, analytics sync, versioned model changes, latency scheduling and read-only report proposal creation/review/confirmation. Its MCP equivalent retains its existing scope and request-key contract. This adapter changes no MCP tools, scopes, consent, discovery, playbooks, packaged skills, host prompts or environment bindings."
   },
   {
     "source": "app/(admin)/admin/ops/web-analytics/page.tsx",

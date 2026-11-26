@@ -1,0 +1,1126 @@
+{
+  "platform": "android",
+  "gitSha": "017ca3de48ca698a8bd61e5c10e2d4f088e9ba88",
+  "gitHubRun": "45811051798",
+  "gitHubJob": "139878735676",
+  "gitHubArtifact": "15115270405",
+  "gitHubArtifactDigest": "sha256:ef9381d862de60dd8602efdbaef59eef5d637c2b3e2c3f1878a52626eb89492a",
+  "flowsPassed": 116,
+  "flowsFailed": 39,
+  "namedScreens": [
+    {
+      "path": "blog-detail-diff.png",
+      "sha256": "c672321bf484bbd03ef75ebbf6324b3428d83f06516acae861ad7b27f48de6e1",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "blog-detail.png",
+      "sha256": "37a905f7c5155af9a9acc35c4e6ae739775455703610add32ae629b09f6cb04c",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "blog-empty-dark-diff.png",
+      "sha256": "7c8be8ccfab79f07032e5d6c797190909c8230aa74b989ce2ef1f2621005a317",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "blog-empty-dark.png",
+      "sha256": "f73816de9e3b5ed39db5ed7701252ee0ed117e23574e9eb373007ee49e39f4e2",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "blog-list-diff.png",
+      "sha256": "6eff1c9f96e76f5003d662cd0bba91d41e1af5f8f6bfa896deaaecf775783e93",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "blog-list.png",
+      "sha256": "cc978b5036a263c864f8bebfa0a3463ca6110c6a1eae1868f136ce43a282479e",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-evaluation-assessment-detail-alternate.png",
+      "sha256": "e89e54e2b21c93b03aa794084f30b894c7c647110dae0326df88ab8c9fae9050",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-evaluation-assessments-alternate.png",
+      "sha256": "ef58ac75c50d84b65d5cf56f0da36d8f8654101a737ab576062c676b1716deee",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-evaluation-assessments-populated.png",
+      "sha256": "23b8a834db464b1bb9ce410841db16800cd6892183110f27f5ceb2da271c5ee5",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-evaluation-assessments-recovery.png",
+      "sha256": "d330f7ad3d42aeaa1fbfd1c06acd472982f087c78eeee7be1cd61605e80837a2",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-evaluation-ast-inspector-alternate.png",
+      "sha256": "93b3b626c273d70a626318ebd52d43032ee129329778be7f3b0c59f95e2d5659",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-evaluation-ast-inspector-populated.png",
+      "sha256": "d61922964483b2381266672b4a4f11c18e8d5c7ec8be7eef88897184cd439260",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-evaluation-diktats-alternate.png",
+      "sha256": "408b3b7805287cff0512e2a6a640140b66aa399fb65c6b1bbf04fd5a326b6070",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-evaluation-diktats-populated.png",
+      "sha256": "059b2149fd5d8e59e954da16760128c58ab7731c22ab4702990b9f4a3fec9873",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-evaluation-diktats-recovery.png",
+      "sha256": "c4949d9ab31332adc0677983a60f7d59762e2a15d06a028cef54acd208e139ed",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-evaluation-distractors-alternate.png",
+      "sha256": "1782d5149b725c38c3ce0845f1e69a985daf7d5a383d6470b1d6e79579f81166",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-evaluation-distractors-populated.png",
+      "sha256": "33f82d07097b2e732e7e8d1d2baf8dceca92bbd71e2599598435bc3e77a58e8c",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-evaluation-distractors-recovery.png",
+      "sha256": "2f38f0d2dc77198b9f81c5fcfbb0ce8c2391ec726a7ec768feb8274e51a55e5d",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-evaluation-jobs-populated-diff.png",
+      "sha256": "e7b03230ba17b49480383978f8af73510a9ea1c49dc707b8c463172fca1bad36",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-evaluation-jobs-populated.png",
+      "sha256": "a76f2a3bdc8cd3696f3c01484071e5a007bba8925998c650326b188a767edea9",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-evaluation-jobs-recovery.png",
+      "sha256": "dc6aa3365b131eadba2f58e80ab089f4088f3be03fbee2ecf6b12d99767dfc8d",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-evaluation-leaderboard-alternate.png",
+      "sha256": "2c13ae04c6de689cbf9c8df1094c7c562c3fe86f3d1b7ccf2cc0cf7bd2ce0f7b",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-evaluation-leaderboard-populated.png",
+      "sha256": "3a66d0a839e59ae539bc12a58076f88f9df4bf1b9916867e60e80e6c9225f866",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-evaluation-leaderboard-recovery.png",
+      "sha256": "86d328f80cd68f65e3070342fd9c3a08d87497c85556abacb246792a2ae6aab0",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-evaluation-questions-alternate.png",
+      "sha256": "86bcc6da60343ac566ac6418d9af80a5f4a8d04733d19471a47c50a6e4a08149",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-evaluation-questions-recovery.png",
+      "sha256": "1ef67601b112698279b1b3cd9c40650246b6be58f5a8a9afd8e35edd653abf4a",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-evaluation-quiz-edit-alternate.png",
+      "sha256": "b8219c2e6fce5da8f7da91c2080feba47631e7fbb7100910ca8671d086aabe7b",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-evaluation-quiz-edit-populated.png",
+      "sha256": "3b9de6e05a2a4dc2d1d17295662cd92dae772c94c4c54b565a84e3ef10fd6699",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-evaluation-quiz-edit-recovery.png",
+      "sha256": "242e5d5eced4c71fc6fb39cf21477cd3d89c9741a3728703a4c92e7f6796b31d",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-evaluation-quiz-insight-alternate.png",
+      "sha256": "0a1ccaa868ad98166d46b35ea244263eb757c454c16c2472f0136cfca8d2461d",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-evaluation-quiz-insight-recovery.png",
+      "sha256": "33631e01afe36d6033605bb7bd32d4433cc611be9cfdef992865436b210a2980",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-evaluation-quiz-insights-alternate.png",
+      "sha256": "6f724e8725137b9a6299e1e62d1818a17d9c572981aecce8ac90736468077146",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-evaluation-quiz-insights-recovery.png",
+      "sha256": "b978724249a0d22d4d34df6b31f6e571f0b13222f2f1c399ffa696d4f3f7f959",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-evaluation-quiz-new-alternate.png",
+      "sha256": "5bf6d81d22127f3745b0dcf6517ceb573697a08514747b7b35dfafd5a24fe90b",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-evaluation-quiz-new-populated.png",
+      "sha256": "4b93fc92a59b67f35a0717aa73f41bcb762c35e4daacd9c075a1d60477d1bc73",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-evaluation-quiz-new-recovery.png",
+      "sha256": "3f1b9fa6a204ab10e2fbc234b3a3ccf4b02fdae95de519429400a050b8cf8abf",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-evaluation-quizzes-alternate.png",
+      "sha256": "00e69b5671ad1fcf2f3685f45243e98dcdb31d6e77affa90329c9ca0d22823ce",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-evaluation-quizzes-populated.png",
+      "sha256": "184067bf2ab6b925b0aefdb5a3c2ffadef2e6980b04563407a5e359fcefda2bc",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-evaluation-quizzes-recovery.png",
+      "sha256": "6fe9fc4ef207ef32710ad8712ad1b3ecd1e19c41537ac6541d0e50b82d24fbb9",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-management-blog-empty.png",
+      "sha256": "bcd02fe59c7c845e101120f4153a8706aac880b20b032cf95138df6882503873",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-management-blog-id-edit-empty.png",
+      "sha256": "b93ca58d7c6e36e8ae3c83824ceb1b7293bd961ccc5a91fc1c0407a04f15560d",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-management-blog-id-edit-populated.png",
+      "sha256": "55a50f40496ffa7dcf9b53283c38bd195efb4e725d9296edf7a4fefef627e035",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-management-blog-new-empty.png",
+      "sha256": "ca72544afac18ad3d43e27c38524531394bab6774445bb66ab15547d27c18231",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-management-blog-new-populated.png",
+      "sha256": "963ecfaac6d6535bc22cf7a1f999646905f923d275e66840aa3f0f96080d5a32",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-management-blog-new-recoverable-error.png",
+      "sha256": "e7107a9e68ad3d832102a0acf166a646a4d5fbdb6e86a826bab22fece6db009e",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-management-blog-populated.png",
+      "sha256": "50ea4130208bd731695e3635d0bb535f0bbad18650efaa1a22cdf4d99dddb163",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-management-blog-recoverable-error.png",
+      "sha256": "6cea73f3b2403c98cf9d933b68e058e39af0ea5122048bf51c5d1543287841cf",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-management-discussions-empty.png",
+      "sha256": "032181ca1cae4f3933a0cada9e51555e666d4d473c0f3be3053692d8599f9f18",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-management-discussions-populated.png",
+      "sha256": "a2ac610d919307788ab7b2e6c8285b3af83c697fc7f0278e0b85dfaa383feb18",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-management-discussions-recoverable-error.png",
+      "sha256": "04dc2a501e7b07ad506f16c75ba9cce7de879d081ad81644b9590742038ea31a",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-management-docs-populated.png",
+      "sha256": "b9aa4a5301dc139ad2062ff5334ea76d37a9d3dba835079a99d58bfe1201f5d3",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-management-docs-recoverable-error.png",
+      "sha256": "5ed82d67cbdbc1b227cc60dda111c56ff54d440be8ac3b8c8a9545b5d4188e68",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-management-docs-slug-empty.png",
+      "sha256": "22828bab3a74c5761ba06bd2087a07641222e988ec7567ef05d554197cd7ea9e",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-management-docs-slug-recoverable-error.png",
+      "sha256": "3f8110d951d7b4e4cda553035031a4daee18dedad5d6c88d4daa4e6729022897",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-management-forms-empty.png",
+      "sha256": "cf7ab99d2d3791ccac70fdecfe69ce768d45d0abd2cdb51e07b35b001ea6f086",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-management-forms-id-empty.png",
+      "sha256": "b2ea55ad12d0ca1bc3c2a671aaec6b53c2227c3042c9f5bd08a9080ed463ae2b",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-management-forms-id-populated.png",
+      "sha256": "d5a2235128e1f1f1781346eb45b41682be35e930831790833d30a98acd85b3ea",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-management-forms-populated.png",
+      "sha256": "a0e586bdf6c27f8e6fb37f15b744d11e9fbaeb26479efbaa1002d64f68b495c5",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-management-forms-recoverable-error.png",
+      "sha256": "53ff98f14941caea051af04a05e3ca2edb3c988b2c4b5fe1148d2f1f1300c40b",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-management-media-populated.png",
+      "sha256": "fc575cbac3fa8d546e94755f7de1cb3fab5d5e61740669bc78d609f85d97c681",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-management-meet-empty.png",
+      "sha256": "a315d4641a8482c7d7daf6cb314244fba8756a9fc384bede6da531e739f15d1a",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-management-meet-id-empty.png",
+      "sha256": "4bc82dc9dd4b049da6c47e585d0c57b2a4c598b6900ba9302b07d687d84cc23a",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-management-meet-id-recoverable-error.png",
+      "sha256": "ec56e676bbbe34c4b48aac9b6ebd480b5717acb88758e287f74814ba34b3fb27",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-management-meet-populated.png",
+      "sha256": "571d3de86775c0c2e2f450f2c2a8d060cd802f001fbe029ccbc0dcdbf7bff567",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-management-pricing-empty.png",
+      "sha256": "d8bd7223659d4156091fa052cc0e672477532d948cd6765dd431aa3697d2fb2c",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-management-pricing-recoverable-error.png",
+      "sha256": "db9bf34699e1b075162ad26a3b0c26c4bbe7e54f56f9b817af95a19230ba3793",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-management-tautan-empty.png",
+      "sha256": "9e67d44e1679cefc044ab439556c1b7a110f5563a5047269c34d233ee836f098",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-management-tautan-recoverable-error.png",
+      "sha256": "fa7d0fe1d778e37f88dead94a17cd542afdb0a0aa2091c47f3d58e233483cc78",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-monitoring-admin-denied.png",
+      "sha256": "86d328f80cd68f65e3070342fd9c3a08d87497c85556abacb246792a2ae6aab0",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-monitoring-admin-ops-denied.png",
+      "sha256": "ad15a8357ec30b6d1eb4771b05a5fd27b91660499df9ed759e0c8bb8c81bb5f6",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-monitoring-admin-ops-feature-usage-denied.png",
+      "sha256": "b6e9825b207f992ec71b32ceeaad8ee448da410fde334abefe1c1dae36355fd1",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-monitoring-admin-ops-feature-usage-populated-diff.png",
+      "sha256": "2dbf2798a0621256b71ba6f7497a2e9d666818ca7e748e2e0a15d4f922db7c3e",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-monitoring-admin-ops-feature-usage-populated.png",
+      "sha256": "a4ef8c0fc6326db7e796134d3910142c3db5906376bb4fdef3da3f5abe337312",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-monitoring-admin-ops-feature-usage-retry.png",
+      "sha256": "28d36a36dfd735ef3a62077f43e8a269c3c97eba34f2f62fb198f8d62e7427e9",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-monitoring-admin-ops-keys-denied.png",
+      "sha256": "0daed1a0107a51dad22d27de2a633972ad61db5c7a8bc12ad2439f07d8241bca",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-monitoring-admin-ops-keys-retry.png",
+      "sha256": "9322d152c332d8e860fe210ca72823ef30e12cb4e2bdca249408a8bd81862bef",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-monitoring-admin-ops-models-denied.png",
+      "sha256": "db17ce40d18945bac9ea1a679523259a7b00d0539260c1881f41c97de0bbe9e1",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-monitoring-admin-ops-models-retry.png",
+      "sha256": "5448ff81cd605477cb67d0bcb2286b535637a3536b00d61aba65dadcb5b05e1e",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-monitoring-admin-ops-offline-denied.png",
+      "sha256": "0a4b3bca690309a960767981cc7b692cd26ff6cb0d1924aa57d0ccfa004814bc",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-monitoring-admin-ops-offline-retry.png",
+      "sha256": "1522a664ed55722197d471d8976327670f6ef56cbb266380463b6f2e7d7c64ce",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-monitoring-admin-ops-populated.png",
+      "sha256": "0f0b1f991395d1980663f71422246a7f0b08b3fd1626c32c74c1f0a14f880d42",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-monitoring-admin-ops-short-links-denied.png",
+      "sha256": "23c573ff89ee7c3c23217190b6189ab9546160bc35febdba3851c523033ca3ba",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-monitoring-admin-ops-short-links-populated.png",
+      "sha256": "e4cc65f18a5754be063f2c0fba53e2fcef2347e0baac198e4ee2d6039747aca1",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-monitoring-admin-ops-short-links-retry.png",
+      "sha256": "ef8e61a78f9cb5e35e014533a8740a104ddef8bde03845a0c96718c736f78ef2",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-monitoring-admin-ops-tutor-activity-denied.png",
+      "sha256": "8e0e50c0ed796631653bd84988843fec802686313f48af6f86ca45165515ffda",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-monitoring-admin-ops-web-analytics-denied.png",
+      "sha256": "2c009ccb0013ae71e62e20250a8f6bc644d69ae9f3d8bd021c87b3f5804e7eea",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-monitoring-admin-ops-web-analytics-retry.png",
+      "sha256": "0171c99bac992ab2f7e7ab50af8aad5bb0089ae2a3616f93c040bd4f4d63a644",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-monitoring-admin-retry.png",
+      "sha256": "4d97819f6099d3b25d19060dbe988d03b36d64fefd278ed28437d6f7f13a992b",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-public-blog-detail-content-diff.png",
+      "sha256": "28a95d20b69d455558714c90a19abce755d7b75d50682ad597a375cfd68d8c23",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-public-blog-detail-content.png",
+      "sha256": "889f4ccffd225f45994eda15c26ff42931b78f6e4943c5eb787dbb187a04a68a",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-public-blog-detail-retry.png",
+      "sha256": "16a050712d1c3b48ca0baeab43fd1b760d39f8c76de3714e50fea7987a465f45",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-public-blog-list-open-back-diff.png",
+      "sha256": "4a748e5dfa38709fa367f72b49bbf22c346f1ca94ea8fb7aeaed68ff020b42c3",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-public-blog-list-open-back.png",
+      "sha256": "1c05dddfaad8ffd29aa4011ff1dfeda66a58b469543e311f5bc0169b13bee091",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-public-demo-course-article.png",
+      "sha256": "921e103f2213ec2dfb011f2acdc3c02820aae8dac5a9f6fc687d3b0bfa52f3c5",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-public-demo-empty.png",
+      "sha256": "4582f4b5ebebf7d91e93183fba913ec3ae7493de5bf3a35fb0861b0fc0ee2d5f",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-public-demo-link.png",
+      "sha256": "bb837468fd61e196d79becf80481533df5c8b5bc580c91662755099f09f28c1a",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-public-demo-retry.png",
+      "sha256": "8feecb6373642ac6825e605556cf4a60339b57d5cab8fd44b699ad51eb0e8d00",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-public-demo-view-article.png",
+      "sha256": "18e95a8a5d74d0852071d830b62e0af40b683fc1c2daa48c9c5ac99792b05c6a",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-public-download-empty.png",
+      "sha256": "d1ffb9f4143f2c913f19f9b9f52920dd73f7daa1d9d7211d64828f4f92945c55",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-public-download-platforms.png",
+      "sha256": "37ddddf6a488b549023f4688aeea7ef724200a92d8c3587a3e04479ba034df76",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-public-english-faq.png",
+      "sha256": "4d95957fd9afe2b42d99fb6284dccca3a685b439cfe61b578670e558f28085bc",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-public-form-empty-diff.png",
+      "sha256": "39f042317a4b7a940cb11dbbc1b87066cbd092fd93a04f408d0038a7e2c00942",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-public-form-empty.png",
+      "sha256": "ee9f37aaf2bbc4ee46c718b455b185790243a22f15c0f50045e2af5e8533305d",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-public-form-local-submit.png",
+      "sha256": "15e0ac02c573200607882029cf33f6aed17fe49fd43f9240680cec20f447ca4f",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-public-founders-id.png",
+      "sha256": "c1243020b91c74ddc6b3b12acb03ea5da4805ec9ee715045c8bb241dfd012b20",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-public-hero-id-diff.png",
+      "sha256": "476c0254bc2ee93bea6bb068a6c74e78886edcc3a3b4a84bce437bda3237158c",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-public-hero-id.png",
+      "sha256": "b20fc133f0f5a8a1e44a0c3c582bcc95dfc2027fa213c218a7a1d0dab133035f",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-public-long-copy-en.png",
+      "sha256": "c572228ad80bbc46fb075cedf26a02ca3bece5d8bc4ccc9f25225b25da53ad4f",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-public-plans-course-limits.png",
+      "sha256": "aaa55f37648893bdf9fc6520b3b01e6f26933e475b5b95e2df964b2248a57f7c",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-public-plans-default.png",
+      "sha256": "b21f70a5c3f9108049870608332c67f86a0c08c7ff8baf6432cde8cccdbad1c5",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-public-plans-retry.png",
+      "sha256": "c4d0d2d1b8d303b441348a4242d83c01b16dcaecbd7ca5a6e39b5e754830c772",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-public-portfolio.png",
+      "sha256": "be7936cbad31e8f6dd6ad7875b7b1e8e6759758183b9bdad4c99929da0419b47",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-public-privacy-en-anchor.png",
+      "sha256": "a29d7a85f8f317c3ceb073ae386ba65c40b6e7e71fb32a8d8c3693b502090e6e",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-public-privacy-id.png",
+      "sha256": "4bd1d91392dd2a15686b9de006f585fa5add958bebc451cee0992c2f44094fcc",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-public-privacy-terms-link.png",
+      "sha256": "5da57425ff9106c7df0f8f4083dcf322ee4b4dacfb637549f011b4a1390ada60",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-public-terms-en-anchor.png",
+      "sha256": "6d8d9ee3f7142324eb59f2fb5d4918a8fcace823b51fc404949516096a972a96",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-public-terms-id.png",
+      "sha256": "9287893a7efbcdf2d0c732b5892bd36ab35169d444c4440fed5791ee20c9a75b",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-public-terms-privacy-link.png",
+      "sha256": "4fa7a1052394dbd92a6fff2efe12df23379aa7354623ae746c5654844e7d6aee",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-public-testimonial-dark-en.png",
+      "sha256": "9a50ec9f820f8d2f67f5c61fc452561cd14dfea3ce66a588c1448a22779ebb7b",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-public-testimonial-list.png",
+      "sha256": "01ca38a60d9bccc5b3b2eb441a7c9231e00a400d1937aae5298edc1ce34df6ac",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-public-testimonial-plans.png",
+      "sha256": "d48a0e754e90fd6e0dbaaa4bd5829716b16dca861388b03d31bb174121fd7861",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-public-unsubscribe-confirm.png",
+      "sha256": "1e348e7ce19a18870d59b3586d1197d31233d8781c77165918886ec6d8f1c889",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "cases/operations-public-unsubscribe-invalid.png",
+      "sha256": "606b791b8aa20f264059912bee9a24ce0012682f0f6b208275d80c53e077ec5e",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "demo-progress.png",
+      "sha256": "a410c0bd8173ce2f155a74366af945474bbd9b602de7ed0b1451d704f30f883b",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "evaluation-active.png",
+      "sha256": "34676d76e63ba60d8946fca3be386dd268702f82918433444b982d0efe8e3cf5",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "evaluation-ast-denied.png",
+      "sha256": "b824c952585078ffa1baf65a4e1e6a8823ecef781107fdbfa575f33228e84035",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "evaluation-distractors-empty.png",
+      "sha256": "71558161b8c2554cb5e1f06dc80c4d0cf8d1c00fb3a96bbf686adc9228d6e3c4",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "evaluation-historical.png",
+      "sha256": "9f0cdcd013416998e98ee5ae9ae871768aace6760155cb82b2c1e5c564471a68",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "evaluation-idea-weights.png",
+      "sha256": "5d14538959661bde089bc9948a27d771fe03b9edd804c6cd891356addc225ce3",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "evaluation-jobs.png",
+      "sha256": "e196bfb3c418d8b7a22c46ab7f4922f3218a4451d9427590e8b1c5161764b1bf",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "landing-quiz-feedback.png",
+      "sha256": "48c6fde89066bb4953f9ff0230639780948ea6624da0d80f76de054b555a4345",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "management-blog-invalid.png",
+      "sha256": "b3271e3d6f78f7e416b219478e7090eb3cf30bac5a0c4239823c458ba3bc7667",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "management-blog-populated.png",
+      "sha256": "2cc3639b3bf6098eece74aed0dd099d65fb90f0ca4b382c3ac3b5f9495c4fe5c",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "management-blog-preview.png",
+      "sha256": "55d7876a7b6cd6c58c1c3e5d19b82b9482323562a19683d1d2658f4788be199a",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "management-denied.png",
+      "sha256": "c15869c1b0c8a5def07448a7dcdd2f63ea03b8971c6a8b49fe1e2d78730120d1",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "management-form-summary-diff.png",
+      "sha256": "0902d14642534062da8fbf7d9b73ca02afd099141ba7dc250f8ba15caac51044",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "management-form-summary.png",
+      "sha256": "45dd9b5cab07e1b3e2bc0e67ad7f1ac1b13c212573c9be7a340d21642db65406",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "management-link-confirmation.png",
+      "sha256": "b0bfe0c722b5ff84cae42f3b530f58d7d0cdd55007c658e129f0120eab83440d",
+      "pixels": [
+        380,
+        844
+      ]
+    },
+    {
+      "path": "short-links-qr.png",
+      "sha256": "8b428eccf48541a3ecb665153e3fd3d9f5ebb7dacb66cb2d7ab693edd9ece635",
+      "pixels": [
+        380,
+        844
+      ]
+    }
+  ],
+  "screensArchive": "named-screens.tar.xz",
+  "screensArchiveSha256": "a5df6584eab9f22f48c8919c4e6564fe292dc6018476f643f0f160d0dc955056"
+}

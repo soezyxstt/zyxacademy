@@ -1,0 +1,63 @@
+appId: com.zyx.academy.nativeparity
+name: Operations evaluation question and generation recovery
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: separator
+    timeout: 30000
+- openLink: "zyx-native-parity://operations-fixture?caseId=&mode=populated&theme=light&locale=id&path=%2Fadmin%2Fassessments%2Fasesmen-lama"
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - runFlow:
+          when:
+            visible: 'Open in .*Zyx Academy Native.*'
+          commands:
+            - tapOn: "Open"
+- assertVisible: Bank Soal
+- assertVisible: '.*Gaya tetap 10 N.*'
+- takeScreenshot: evaluation-active
+- tapOn: Referensi historis
+- assertVisible: '.*Latihan mekanika 2024.*'
+- takeScreenshot: evaluation-historical
+- openLink: "zyx-native-parity://operations-fixture?caseId=&mode=recoverable&theme=light&locale=id&path=%2Fadmin%2Fjobs"
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - runFlow:
+          when:
+            visible: 'Open in .*Zyx Academy Native.*'
+          commands:
+            - tapOn: "Open"
+- assertVisible: Permintaan gagal.
+- tapOn: Coba lagi
+- assertVisible: '.*Selesai.*'
+- takeScreenshot: evaluation-jobs
+- openLink: "zyx-native-parity://operations-fixture?caseId=&mode=empty&theme=dark&locale=id&path=%2Fadmin%2Fdistractors"
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - runFlow:
+          when:
+            visible: 'Open in .*Zyx Academy Native.*'
+          commands:
+            - tapOn: "Open"
+- assertVisible: Belum ada analitik distraktor
+- takeScreenshot: evaluation-distractors-empty
+- openLink: "zyx-native-parity://operations-fixture?caseId=&mode=denied&theme=light&locale=id&path=%2Fadmin%2Fast-inspector"
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - runFlow:
+          when:
+            visible: 'Open in .*Zyx Academy Native.*'
+          commands:
+            - tapOn: "Open"
+- assertVisible: Akses ditolak.
+- assertNotVisible: AST Inspector
+- takeScreenshot: evaluation-ast-denied

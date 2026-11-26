@@ -26,6 +26,8 @@ import { getAuthoringChapters, getAuthoringIdeas, matchingActiveQuestionIds } fr
 import { createQuestionQueryCoordinator, normalizeQuestionQuery, questionParamsFromUrl, questionQueryUrl, toggleQuestionIds, type QuestionQuery } from "./question-query-state";
 import { QuestionFilterField, QuestionFilterPopover } from "./question-filter-popover";
 import { QuestionBankToolbar } from "./question-bank-tabs";
+import { hasValidIdeaWeights } from "@/packages/native-parity/operations/evaluation-idea-links";
+import { IdeaAssignmentFields } from "./idea-assignment-fields";
 
 type ReviewStatus = "generated" | "reviewed" | "published" | "flagged" | "retired";
 type Difficulty = "easy" | "medium" | "hard";
@@ -82,12 +84,6 @@ interface AuthoringChapter {
   title: string;
 }
 
-interface AuthoringIdea {
-  id: string;
-  code: string;
-  statement: string;
-}
-
 interface Props {
   query: QuestionQuery;
   total: number;
@@ -115,38 +111,6 @@ const statusTone: Record<ReviewStatus, "muted" | "info" | "success" | "warning" 
 function reviewStatusFromSubmit(event: React.FormEvent<HTMLFormElement>): ReviewStatus {
   const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
   return submitter?.value === "published" ? "published" : "generated";
-}
-
-/**
- * Recomputes equal distribution weights across selected Idea links when an Idea is toggled.
- *
- * @param current - Currently linked Ideas.
- * @param ideaId - The identifier of the Idea being added or removed.
- * @param checked - Whether the Idea should be selected.
- * @returns Updated array of IdeaLink items with normalized weights.
- */
-function rebalanceIdeaLinks(current: IdeaLink[], ideaId: string, checked: boolean): IdeaLink[] {
-  const existing = new Map(current.map((link) => [link.ideaId, link]));
-  if (checked) existing.set(ideaId, { ideaId, weight: 1, role: current.length === 0 ? "primary" : "supporting" });
-  else existing.delete(ideaId);
-  const ids = [...existing.keys()];
-  if (ids.length === 0) return [];
-  const weight = 1 / ids.length;
-  return ids.map((id, index) => ({
-    ideaId: id,
-    weight,
-    role: existing.get(id)?.role ?? (index === 0 ? "primary" : "supporting"),
-  }));
-}
-
-/**
- * Validates that the sum of Idea link weights equals 1.0 (100%) within a small epsilon.
- *
- * @param links - Array of Idea links to validate.
- * @returns True if links are empty or their weights sum to 1.0.
- */
-function hasValidIdeaWeights(links: IdeaLink[]): boolean {
-  return links.length === 0 || Math.abs(links.reduce((sum, link) => sum + link.weight, 0) - 1) <= 0.000001;
 }
 
 /**
@@ -1044,6 +1008,7 @@ export function QuestionBankClient({ query, total, questions, courses, courseMap
               </div>
 
               <IdeaAssignmentFields
+                readIdeas={getAuthoringIdeas}
                 idPrefix="create"
                 open={createOpen}
                 courseId={createCourseId}
@@ -1226,6 +1191,7 @@ export function QuestionBankClient({ query, total, questions, courses, courseMap
                 </div>
 
                 <IdeaAssignmentFields
+                  readIdeas={getAuthoringIdeas}
                   idPrefix="edit"
                   open={editOpen}
                   courseId={editCourseId}
@@ -1377,6 +1343,7 @@ export function QuestionBankClient({ query, total, questions, courses, courseMap
               </div>
 
               <IdeaAssignmentFields
+                readIdeas={getAuthoringIdeas}
                 idPrefix="bulk"
                 open={bulkOpen}
                 courseId={bulkCourseId}
@@ -1466,151 +1433,6 @@ function AuthoringChapterSelect({ open, courseId, value, onChange }: {
       {loading && <Loader2 className="size-4 animate-spin text-muted-foreground" aria-label={t("chapter")} />}
       {error && <div role="alert" className="flex flex-wrap items-center gap-2 text-body-xs text-muted-foreground">{t("connectionError")} <Button type="button" variant="outline" size="sm" onClick={() => setRetry((n) => n + 1)}>{common("retry")}</Button></div>}
     </div>
-  );
-}
-
-function IdeaAssignmentFields({
-  idPrefix,
-  open,
-  courseId,
-  chapterId,
-  links,
-  onChange,
-}: {
-  idPrefix: string;
-  open: boolean;
-  courseId: string;
-  chapterId: string;
-  links: IdeaLink[];
-  onChange: (links: IdeaLink[]) => void;
-}) {
-  const t = useTranslations("adminEval.questionBank");
-  const common = useTranslations("core.error");
-  const [expanded, setExpanded] = useState(links.length > 0);
-  const [retry, setRetry] = useState(0);
-  const [result, setResult] = useState<{ courseId: string; chapterId: string; status: "loading" | "ready" | "error"; ideas: AuthoringIdea[] } | null>(null);
-
-  useEffect(() => {
-    if (!open || !expanded || !courseId) return;
-    let current = true;
-    setResult({ courseId, chapterId, status: "loading", ideas: [] });
-    getAuthoringIdeas(courseId, chapterId).then(
-      (ideas) => { if (current) setResult({ courseId, chapterId, status: "ready", ideas }); },
-      () => { if (current) setResult({ courseId, chapterId, status: "error", ideas: [] }); },
-    );
-    return () => { current = false; };
-  }, [open, expanded, courseId, chapterId, retry]);
-
-  const scoped = result?.courseId === courseId && result.chapterId === chapterId ? result : null;
-  const loading = Boolean(open && expanded && courseId && (!scoped || scoped.status === "loading"));
-  const ideas = scoped?.status === "ready" ? scoped.ideas : [];
-  const selected = new Map(links.map((link) => [link.ideaId, link]));
-  const totalWeight = links.reduce((sum, link) => sum + link.weight, 0);
-  const valid = hasValidIdeaWeights(links);
-
-  return (
-    <section className="space-y-3 border-t border-border pt-4" aria-labelledby={`${idPrefix}-idea-heading`}>
-      <Collapsible open={expanded} onOpenChange={setExpanded} className="space-y-3">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <h3 id={`${idPrefix}-idea-heading`} className="text-body-sm font-semibold text-foreground">{t("ideaConnection")}</h3>
-            <StatusBadge tone="muted" subtle>{t("optional")}</StatusBadge>
-          </div>
-          <p className="mt-1 text-body-xs text-muted-foreground">
-            {links.length > 0 ? t("ideaConnectedCount", { count: links.length }) : t("ideaCanBeUnlinked")}
-          </p>
-        </div>
-        <CollapsibleTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="group h-8 gap-2 text-body-xs"
-          aria-controls={`${idPrefix}-idea-options`}
-        >
-          {expanded ? t("close") : t("manageIdeas")}
-          <ChevronDown className="size-4 transition-transform duration-200 group-data-[state=open]:rotate-180 motion-reduce:transition-none" aria-hidden="true" />
-        </Button>
-        </CollapsibleTrigger>
-      </div>
-
-      <CollapsibleContent id={`${idPrefix}-idea-options`}>
-        <div className="space-y-3" aria-busy={loading}>
-          {links.length > 0 ? (
-            <p className={cn("text-body-xs font-semibold", valid ? "text-status-success" : "text-status-warning")}>
-              {t("totalWeight")}: {Math.round(totalWeight * 100)}%. {valid ? t("readyToSave") : t("weightMustBe100")}
-            </p>
-          ) : null}
-          {loading ? (
-            <Loader2 className="size-4 animate-spin text-muted-foreground" aria-label={t("manageIdeas")} />
-          ) : scoped?.status === "error" ? (
-            <div role="alert" className="flex flex-wrap items-center gap-2 text-body-xs text-muted-foreground">
-              {t("connectionError")}
-              <Button type="button" variant="outline" size="sm" onClick={() => setRetry((n) => n + 1)}>{common("retry")}</Button>
-            </div>
-          ) : ideas.length === 0 ? (
-            <p className="text-body-xs text-muted-foreground">
-              {t("noPublishedIdeas")}
-            </p>
-          ) : (
-            <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
-          {ideas.map((idea) => {
-            const link = selected.get(idea.id);
-            return (
-              <div key={idea.id} className={cn("rounded-lg border p-3 transition-colors", link ? "border-brand-primary/40 bg-brand-primary/5" : "border-border bg-background/40")}>
-                <div className="flex items-start gap-3">
-                  <Checkbox
-                    id={`${idPrefix}-idea-${idea.id}`}
-                    checked={Boolean(link)}
-                    onCheckedChange={(checked) => onChange(rebalanceIdeaLinks(links, idea.id, checked === true))}
-                    className="mt-0.5 size-4 shrink-0"
-                  />
-                  <label htmlFor={`${idPrefix}-idea-${idea.id}`} className="min-w-0 flex-1 cursor-pointer">
-                    <span className="block text-body-xs font-semibold text-foreground">{idea.code}</span>
-                    <span className="mt-1 block line-clamp-2 text-body-xs leading-relaxed text-muted-foreground">{idea.statement}</span>
-                  </label>
-                </div>
-                {link ? (
-                  <div className="mt-3 grid grid-cols-2 gap-2 pl-7">
-                    <div className="space-y-1">
-                      <label htmlFor={`${idPrefix}-weight-${idea.id}`} className="text-body-xs font-medium text-muted-foreground">{t("weightLabel")}</label>
-                      <Input
-                        id={`${idPrefix}-weight-${idea.id}`}
-                        type="number"
-                        min="0.01"
-                        max="1"
-                        step="0.01"
-                        value={String(link.weight)}
-                        onChange={(event) => {
-                          const weight = Number(event.target.value);
-                          onChange(links.map((item) => item.ideaId === idea.id ? { ...item, weight } : item));
-                        }}
-                        className="h-8 bg-background text-body-xs"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label htmlFor={`${idPrefix}-role-${idea.id}`} className="text-body-xs font-medium text-muted-foreground">{t("roleLabel")}</label>
-                      <Select value={link.role} onValueChange={(role) => onChange(links.map((item) => item.ideaId === idea.id ? { ...item, role: role as IdeaRole } : item))}>
-                        <SelectTrigger id={`${idPrefix}-role-${idea.id}`} className="h-8 text-body-sm"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="primary">{t("rolePrimary")}</SelectItem>
-                          <SelectItem value="supporting">{t("roleSupporting")}</SelectItem>
-                          <SelectItem value="required">{t("roleRequired")}</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            );
-          })}
-            </div>
-          )}
-        </div>
-      </CollapsibleContent>
-      </Collapsible>
-    </section>
   );
 }
 
