@@ -421,6 +421,13 @@ export const operationsCatalog = [
     "reason": "The app remembers a local navigation destination for the verified session. Installed routes, roles and product authorization still apply. MCP tools, scopes, consent, discovery, playbooks, packaged skills, host prompts and environment bindings are unchanged."
   },
   {
+    "source": "apps/mobile-native/features/onboarding/GuidedTour.tsx",
+    "actions": ["start", "progress", "skip", "restart", "complete"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Only the signed-in Student or Tutor can run the in-app tour. Expo uses the account and role-bound onboarding API with the current generation. Device notification permission remains a user gesture."
+  },
+  {
     "source": "components/onboarding/guided-tour.tsx",
     "actions": ["start", "progress", "skip", "restart"],
     "tools": [],

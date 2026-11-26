@@ -61,6 +61,8 @@ function times(start: string | null, end: string | null) {
 type ScheduleTab = "calendar" | "tickets" | "groups";
 const ticketStatuses = { pending: "Menunggu keputusan", approved: "Disetujui", rejected: "Ditolak" };
 
+import { useTourEvent } from "../../onboarding/tour-events";
+
 export function ConnectedSchedule({ data: initial, week, theme, back, replace, query, editor, ticketEditor, calendarEditor, loadWeek, reload }: Navigation & {
   week: number;
   data: TutorScheduleData;
@@ -71,6 +73,7 @@ export function ConnectedSchedule({ data: initial, week, theme, back, replace, q
   reload(signal: AbortSignal): Promise<TutorScheduleData>;
 }) {
   const { canInteract } = useProtectedInteraction();
+  const tour = useTourEvent();
   const [scheduleState, setScheduleState] = useState<{ data: TutorScheduleData } | { error: string }>({ data: initial });
   const [tab, setTab] = useState<ScheduleTab>(query.tab === "tickets" ? "tickets" : "calendar");
   const [search, setSearch] = useState("");
@@ -91,6 +94,7 @@ export function ConnectedSchedule({ data: initial, week, theme, back, replace, q
 
   function openSlot(value: TutorSlotPending) {
     if (saving) return;
+    if (!value.target) tour?.("addSlot");
     setDraft(pending.find((item) => item.target?.slotId === value.target?.slotId) ?? value);
     setSlotError("");
     setBlocked(false);
@@ -207,7 +211,7 @@ export function ConnectedSchedule({ data: initial, week, theme, back, replace, q
   const selectedSession = data.sessions.find((session) => session.id === sessionId);
 
   return <><TutorPage title="Jadwal mengajar" theme={theme} onBack={back}>
-    <Choices<ScheduleTab> theme={theme} label="Bagian jadwal" value={tab} change={setTab}
+    <Choices<ScheduleTab> theme={theme} label="Bagian jadwal" value={tab} change={value => { setTab(value); if (value === "calendar" || value === "tickets") tour?.(value === "calendar" ? "sessions" : "tickets"); }}
       options={[["calendar", "Kalender"], ["tickets", "Tiket"], ["groups", "Kelas dan kelompok"]]} />
     {tab === "calendar" ? <>
       {notice ? <Label theme={theme} tone="strong">{notice}</Label> : null}
@@ -271,7 +275,7 @@ export function ConnectedSchedule({ data: initial, week, theme, back, replace, q
     {selectedSession ? <ScheduleResources key={selectedSession.id} bookingId={selectedSession.id} role="tutor" theme={theme} onUpdated={refreshSchedule} /> : null}
   </SharedDialog>
   <SharedDialog open={Boolean(draft)} theme={theme} title={draft?.target ? "Edit slot ketersediaan" : "Tambah slot ketersediaan"}
-    description="90 menit" closeLabel="Kembali" onDismiss={() => setDraft(null)}
+    description="90 menit" closeLabel="Kembali" onDismiss={() => { setDraft(null); tour?.("cancelSlot"); }}
     dismissOnBackdrop={false} dismissDisabled={saving} returnFocusRef={addSlotRef} testID="tutor-connected-slot-dialog"
     footer={<Button theme={theme} style={tutorLayout.action} onPress={save} isLoading={saving} disabled={blocked}>
       {awaiting ? "Coba kirim lagi" : "Simpan slot"}

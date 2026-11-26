@@ -42,6 +42,8 @@ const copy = {
 
 type TurnState = "streaming" | "uncertain" | "retry" | "unsaved";
 
+import { useTourEvent } from "../../onboarding/tour-events";
+
 export function CourseZyra({ courseId, pathname, session, locale, theme, current, openExternal, launcher = true, handoff, onHandoffConsumed }: {
   courseId: string;
   pathname: string;
@@ -56,6 +58,7 @@ export function CourseZyra({ courseId, pathname, session, locale, theme, current
 }) {
   const t = copy[locale];
   const colors = nativeColors[theme];
+  const tour = useTourEvent();
   const trigger = useRef<ComponentRef<typeof Pressable>>(null);
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
   const follow = useRef(true);
@@ -142,7 +145,7 @@ export function CourseZyra({ courseId, pathname, session, locale, theme, current
     setShownImage(null);
     setReadState(previous => previous === "loading" ? null : previous);
     setReceiptState(previous => previous === "checking" ? null : previous);
-    setOpen(false);
+    setOpen(false); tour?.("zyraClose");
   }
 
   async function submit(request: NativeZyraRequest) {
@@ -254,7 +257,7 @@ export function CourseZyra({ courseId, pathname, session, locale, theme, current
       disabled={!open && turn?.state === "streaming"}
       onPress={() => {
         if (!current()) return;
-        setOpen(true);
+        setOpen(true); tour?.("zyra");
         void load(photoSessionId ?? history?.history?.sessionId);
       }} /> : null}
     <SharedSheet open={open} theme={theme} title="Zyra" closeLabel={t.close} returnFocusRef={trigger} onDismiss={dismiss}

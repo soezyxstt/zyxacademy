@@ -72,7 +72,10 @@ function SearchDialog({ open, account, transport, trigger, theme, dismiss, choos
   </SharedDialog>;
 }
 
+import { useTourEvent } from "../onboarding/tour-events";
+
 export function useSiteSearch({ enabled, theme, visit }: { enabled: boolean; theme: Theme; visit(path: string): void }) {
+  const tour = useTourEvent();
   const navigation = useNavigation();
   const sitemap = useSitemap();
   const { context } = useNativeAccountContext();
@@ -88,9 +91,9 @@ export function useSiteSearch({ enabled, theme, visit }: { enabled: boolean; the
   return {
     trigger,
     action: ready ? { label: labels[context.locale].searchAction, expanded: active } : undefined,
-    open: () => { if (current()) setOpened(transport); },
+    open: () => { if (current()) { setOpened(transport); tour?.("search"); } },
     dialog: ready && <SearchDialog open={active} account={context} transport={transport} trigger={trigger} theme={theme}
-      dismiss={() => setOpened(null)} choose={path => {
+      dismiss={() => { setOpened(null); tour?.("searchClose"); }} choose={path => {
         if (!current()) return;
         const target = searchDestination(path, context, sitemap);
         if (target) { setOpened(null); visit(target); }

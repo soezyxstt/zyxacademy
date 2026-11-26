@@ -1,3 +1,4 @@
+import { nativeTourState } from "../../../apps/mobile-native/features/onboarding/tour-client";
 import { createHash, randomBytes } from "node:crypto";
 import { createNativeSessionApi, readSignedSessionCookie } from "../../../apps/mobile-native/auth/session-api";
 import { loadInbox, markInboxRead } from "../../../apps/mobile-native/features/notification-inbox/client";
@@ -123,6 +124,20 @@ try {
   check(context.roles.length === 1 && context.roles[0] === "murid" && context.dashboard === "/dashboard", "Unexpected fixture privileges");
 
   if (studentProduct) {
+    stage = "verify account-scoped tour start, resume, restart and stale-generation rejection";
+    const tourSignal = new AbortController().signal;
+    check(await nativeTourState(binding, "student", tourSignal) === null, "Expected a new Student tour");
+    const tour = (action: import("../../../lib/onboarding/tour-state").TourAction, generation: number) => nativeTourState(binding, "student", tourSignal, { action, generation });
+    const active = await tour({ action: "start" }, 0);
+    check(active?.status === "in_progress", "Tour did not start");
+    check((await tour({ action: "progress", stepIndex: 1 }, active.generation))?.stepIndex === 1, "Tour progress was not saved");
+    check((await nativeTourState(binding, "student", tourSignal))?.stepIndex === 1, "Tour did not resume");
+    const next = await tour({ action: "restart" }, active.generation);
+    check(next && next.generation > active.generation && next.stepIndex === 0, "Tour did not restart");
+    check((await tour({ action: "skip" }, active.generation))?.status === "in_progress", "Old tour ended a new run");
+    check((await tour({ action: "skip" }, next.generation))?.status === "skipped", "Tour did not end");
+    const wrongTour = await binding.request("/api/onboarding/tour?role=tutor", { headers: { "x-user-id": session.accountId } });
+    try { check(wrongTour.status === 403, "Tour admitted opposite role"); } finally { wrongTour.dispose(); }
     stage = "read the actual Student dashboard";
     const dashboard = await binding.request("/api/native/student/courses?view=dashboard", {
       headers: { "x-student-id": session.accountId, "x-app-locale": context.locale },

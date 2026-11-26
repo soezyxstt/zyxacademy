@@ -101,6 +101,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
     import("@/lib/db"),
   ]);
 
+  const tour = studentProduct ? await import("@/app/api/onboarding/tour/route") : null;
   const product = studentProduct ? await Promise.all([
     import("@/app/api/native/student/courses/route"),
     import("@/app/api/notifications/history/route"),
@@ -274,6 +275,9 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
           if (response.ok) unauthorizedRead = true;
           return response;
         }
+      }
+      if (tour && url.pathname === "/api/onboarding/tour" && (request.method === "GET" || request.method === "PUT")) {
+        return requestContext.run(upstream, () => tour[request.method === "GET" ? "GET" : "PUT"](upstream));
       }
       if (product && route === "GET /api/native/student/courses" && url.searchParams.get("view") === "dashboard") {
         const response = await requestContext.run(upstream, () => product[0].GET(upstream));

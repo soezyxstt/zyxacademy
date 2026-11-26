@@ -16,9 +16,12 @@ import { accountMenuCopy, accountMenuEntries } from "./account-menu-model";
 
 const themes = ["system", "light", "dark"] as const;
 
+import { useTourEvent } from "../features/onboarding/tour-events";
+
 export function useRoleAccountMenu({ enabled, theme, visit }: {
   enabled: boolean; theme: "light" | "dark"; visit(href: string): void;
 }) {
+  const tour = useTourEvent();
   const { context } = useNativeAccountContext();
   const { state, transport, getSnapshot } = useNativeSession();
   const preferences = useDevicePreferences();
@@ -51,7 +54,7 @@ export function useRoleAccountMenu({ enabled, theme, visit }: {
   return {
     trigger,
     action: { label: name ? copy.accountNamed.replace("{name}", name) : copy.account, expanded: panel !== null },
-    open: () => { if (current()) setPanel("account"); },
+    open: () => { if (current()) { setPanel("account"); tour?.("account"); } },
     sheet: <SharedSheet open={panel !== null} testID="role-account-menu" theme={theme}
       title={panel === "preferences" ? copy.devicePreferences : copy.account} closeLabel={copy.close}
       returnFocusRef={trigger} onDismiss={() => setPanel(null)}>

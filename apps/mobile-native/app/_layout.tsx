@@ -20,6 +20,8 @@ import { isSessionRoute, navigationSessionKey, resetSessionStack } from "../rout
 import { AssessmentDraftCleanup } from "../features/student/assessment-drafts";
 import { nativeFontSources } from "../typography";
 
+import { NativeGuidedTour } from "../features/onboarding/GuidedTour";
+
 const RetiringStack = createContext(false);
 
 function SessionStackLayout({ state, navigation, children }: {
@@ -81,9 +83,9 @@ function NativeAppLayout() {
           <RouteHistoryLifecycle />
           <AccountNotificationsProvider>
             <OfflineMetadataProvider>
-              <Stack screenOptions={{ headerShown: false, animation: "none" }}
+              <NativeGuidedTour><Stack screenOptions={{ headerShown: false, animation: "none" }}
                 layout={props => <SessionStackLayout {...props} />}
-                screenLayout={({ route, children }) => <SessionStackEntry routeName={route.name}>{children}</SessionStackEntry>} />
+                screenLayout={({ route, children }) => <SessionStackEntry routeName={route.name}>{children}</SessionStackEntry>} /></NativeGuidedTour>
             </OfflineMetadataProvider>
           </AccountNotificationsProvider>
         </NativeAccountContextProvider>

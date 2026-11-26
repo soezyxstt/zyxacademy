@@ -249,7 +249,10 @@ function WeekCalendar({ schedule, pending, offset, onPeriodChange, apply }: {
   </>;
 }
 
+import { useTourEvent } from "../../onboarding/tour-events";
+
 export function ScheduleScreen() {
+  const tour = useTourEvent();
   const { route, tr, request, navigate } = useCommunity();
   const [offset, setOffset] = useState(0);
   const state = useRemote<Schedule>(communityPath("schedule", { offset, course: route.query.course }));
@@ -271,7 +274,7 @@ export function ScheduleScreen() {
       </Actions>
       {data.locked && <Copy kind="muted">{tr("Pemesanan minggu ini sudah ditutup.", "Booking for this week is closed.")}</Copy>}
       <WeekCalendar key={`${route.query.course ?? "all"}:${data.week.startIso}`} schedule={data} pending={operation.pending} offset={offset}
-        onPeriodChange={direction => setOffset(value => value + direction)} apply={apply} />
+        onPeriodChange={direction => { setOffset(value => value + direction); if (direction > 0) tour?.("nextWeek"); }} apply={apply} />
     </>}</Remote>
   </Page>;
 }

@@ -8,6 +8,7 @@ import type { ActivityPreferenceKey, FeedbackCategory, NotificationPreferences, 
 import idStudent from "../../../../../messages/id/student.json";
 import enStudent from "../../../../../messages/en/student.json";
 import { DENSITY_OPTIONS, FONT_SIZE_OPTIONS, TOAST_POSITION_OPTIONS } from "../../../../../lib/appearance-preferences";
+import { useTourEvent } from "../../onboarding/tour-events";
 import { useStudentAlert } from "./alerts";
 import { studentBrowserNotificationsUrl } from "../browser-handoff";
 import { AccountSessionsPanel } from "./account-sessions";
@@ -181,6 +182,7 @@ export function BrowserNotificationsScreen() {
 
 function GeneralPanel() {
   const { tr, request, session, devicePreferences, onLocaleChanged, openOfflineLibrary } = useCommunity();
+  const tour = useTourEvent();
   const [selected, setSelected] = useState<"en" | "id">(session.locale === "en" ? "en" : "id");
   const state = useOperation();
   return <>
@@ -189,11 +191,13 @@ function GeneralPanel() {
       disabled={state.pending} onSelect={locale => void state.run(async () => {
         operationResult(await post(request, "locale", { locale }));
         setSelected(locale);
+        tour?.("language");
         onLocaleChanged?.(locale);
       }, tr("Bahasa tersimpan.", "Language saved."))} />
     {devicePreferences && <Toggle label={tr("Getaran", "Haptics")} value={devicePreferences.haptics} onChange={devicePreferences.setHaptics} />}
     <Notice notice={state.notice} />
     {openOfflineLibrary && <Actions><Action label={tr("Kelola bacaan offline", "Manage offline readings")} onPress={() => openOfflineLibrary()} /></Actions>}
+    {tour && <Actions><Action label={tr("Ulangi tur", "Replay tour")} onPress={() => tour("replay")} /></Actions>}
     <AccountSessionsPanel />
   </>;
 }
