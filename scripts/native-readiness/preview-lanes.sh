@@ -36,7 +36,7 @@ keep_reviewed_host_files() {
         ;;
       *)
         printf '| %s | `%s` | Host file requires review |\n\n`%s` incoming blob `%s`\n' \
-          "$lane" "$revision" "$path" "$incoming" >> "$GITHUB_STEP_SUMMARY"
+          "$lane" "$revision" "$path" "$incoming" | tee -a "$GITHUB_STEP_SUMMARY"
         return 1
         ;;
     esac
@@ -73,7 +73,7 @@ for lane in shared-ui student academic operations; do
         app/actions/tutor-management.ts:12f2cf10a8aa9689c4b1cecd00ee789905bb4430|\
         tests/gamification/question-disclosure-calls.test.ts:4885627aaf0124bedf92991befcc551bf05fbb58|\
         apps/mobile-native/offline/library-view.tsx:e5effb595b5d85823a8ac9973d6c1549b9a64b35|\
-        tests/contracts/admin-mcp-catalog.test.ts:7a3108126b63a3453759a3798304e5c28a61d699)
+        tests/contracts/admin-mcp-catalog.test.ts:*)
           if python3 scripts/native-readiness/merge_reviewed_preview.py "$conflict"; then
             git add -- "$conflict"
           fi
@@ -85,7 +85,7 @@ for lane in shared-ui student academic operations; do
   unresolved=$(git diff --name-only --diff-filter=U)
   if [[ -n $unresolved ]]; then
     printf '| %s | `%s` | Conflict |\n\nUnresolved files:\n\n' "$lane" "$revision" >> "$GITHUB_STEP_SUMMARY"
-    printf '%s\n' "$unresolved" >> "$GITHUB_STEP_SUMMARY"
+    printf '%s\n' "$unresolved" | tee -a "$GITHUB_STEP_SUMMARY"
     exit 1
   fi
   if git rev-parse --verify --quiet MERGE_HEAD >/dev/null; then
