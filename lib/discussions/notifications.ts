@@ -124,7 +124,10 @@ async function recipientState(client: Pick<Tx, "select">, event: Event, ids: str
   ? await client.select().from(discussionMessageObservations).where(and(
    eq(discussionMessageObservations.messageId, event.messageId), inArray(discussionMessageObservations.userId, ids))) : [];
  const locales = await client.select().from(accountLocalePreferences).where(inArray(accountLocalePreferences.userId, ids));
- const activity = event.kind === "report" ? [] : await client.select().from(activityNotificationPreferences).where(inArray(activityNotificationPreferences.userId, ids));
+ const activity = event.kind === "report" ? [] : await client.select({
+  userId: activityNotificationPreferences.userId,
+  discussionsEnabled: activityNotificationPreferences.discussionsEnabled,
+ }).from(activityNotificationPreferences).where(inArray(activityNotificationPreferences.userId, ids));
  const participants = event.kind === "report" ? [] : await client.select({ userId: discussionThreadParticipants.userId }).from(discussionThreadParticipants).where(and(
   eq(discussionThreadParticipants.threadId, event.threadId), inArray(discussionThreadParticipants.userId, ids),
   event.participantThroughSeq != null ? lte(discussionThreadParticipants.firstSeq, event.participantThroughSeq) : undefined,

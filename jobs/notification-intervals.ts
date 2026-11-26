@@ -5,8 +5,8 @@
  * 1. studyReengagementCron: invites inactive students (3+ days) back to a
  *    specific course; adds optional email at 7+ inactive days.
  * 2. flashcardReminderCron: reminds students when 5+ SM-2 flashcards are due.
- * 3. upcomingSessionReminderCron: server-backed H-24h (push + optional email)
- *    and H-1h (push) reminders for confirmed tutorial sessions (students & tutors).
+ * 3. upcomingSessionReminderCron: server-backed H-24h and H-1h push reminders.
+ *    All tutorial reminder emails are handled by jobs/tutorial-reminders.ts.
  * 4. tutorDailyDigestCron: morning summary for tutors with pending schedule
  *    tickets or ungraded student quiz attempts.
  */
@@ -40,7 +40,6 @@ import {
 import { sendOptionalEmail } from "@/lib/email-preferences/send";
 import {
   renderStudyReengagementEmail,
-  renderUpcomingSessionEmail,
 } from "@/lib/notifications/email-templates";
 import { getUserLocalePreference } from "@/lib/i18n/preferences";
 import { DEFAULT_LOCALE } from "@/lib/i18n/locale";
@@ -333,7 +332,6 @@ export const upcomingSessionReminderCron = defineJob(
 
     const stats = await step.run("dispatch-session-reminders", async () => {
       let sentPush = 0;
-      let sentEmail = 0;
 
       await mapConcurrent(scheduledSessions, 5, async (session) => {
         if (!session.sessionDate || !session.startTime) return;
@@ -380,27 +378,6 @@ export const upcomingSessionReminderCron = defineJob(
             );
             sentPush++;
 
-            if (window === "24h" && process.env.RESEND_API_KEY) {
-              const emailRes = await sendOptionalEmail({
-                userId: recipient.userId,
-                category: "events_and_schedules",
-                locale,
-                render: (resolvedLocale) =>
-                  renderUpcomingSessionEmail({
-                    locale: resolvedLocale,
-                    recipientName:
-                      recipient.audience === "tutor"
-                        ? resolvedLocale === "en" ? "Tutor" : "Pengajar"
-                        : resolvedLocale === "en" ? "Student" : "Siswa",
-                    courseTitle,
-                    sessionDate: session.sessionDate!,
-                    startTime: session.startTime!,
-                    endTime: session.endTime ?? session.startTime!,
-                    link: recipient.audience === "tutor" ? "/tutor/schedule" : "/dashboard/schedule",
-                  }),
-              });
-              if (emailRes.status === "sent") sentEmail++;
-            }
           } catch (err) {
             console.error(
               `[upcoming-session-reminder-cron] Failed for booking ${session.bookingId} user ${recipient.userId}:`,
@@ -410,7 +387,7 @@ export const upcomingSessionReminderCron = defineJob(
         }
       });
 
-      return { sentPush, sentEmail };
+      return { sentPush };
     });
 
     return { inspected: scheduledSessions.length, ...stats };

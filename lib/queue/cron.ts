@@ -16,6 +16,7 @@ const scheduledJobs = [
   { job: "ai-model-catalog-cron", hour: 12, minute: 0 },
   { job: "tutor-daily-digest-cron", hour: 0, minute: 30 },
   { job: "flashcard-reminder-cron", hour: 1, minute: 0 },
+  { job: "tutor-availability-reminder-cron", hour: 1, minute: 0 },
   { job: "study-reengagement-cron", hour: 11, minute: 0 },
   { job: "google-calendar-sync-cron", hour: 20, minute: 0 },
   { job: "course-analytics-snapshot-cron", hour: 2, minute: 0 },
@@ -36,6 +37,9 @@ export function cronWindow(environment: QueueEnvironment, scheduledAt: Date) {
   for (let scheduledAt = start; scheduledAt < end; scheduledAt += 3_600_000) {
     entries.push({ job: "upcoming-session-reminder-cron", scheduledAt });
     entries.push({ job: "notification-quiet-recovery", scheduledAt });
+  }
+  for (let scheduledAt = start; scheduledAt < end; scheduledAt += 300_000) {
+    entries.push({ job: "tutorial-session-email-cron", scheduledAt });
   }
   for (const { job, hour, minute, weekday } of scheduledJobs) {
     const due = new Date(start);

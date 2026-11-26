@@ -5,6 +5,8 @@
  * (in-app inbox, WebPush/FCM, iOS APNs, Tauri desktop bridge, and email).
  */
 
+import { DEFAULT_TUTORIAL_EMAIL_SCHEDULE, type TutorialEmailSchedule } from "./tutorial-email-schedule";
+
 export type NotificationAudience = "student" | "tutor" | "admin";
 
 export type NotificationTriggerKind = "eventual" | "interval";
@@ -50,14 +52,20 @@ export type SystemNotificationTemplate =
 export interface ActivityNotificationPreferences {
   discussionsEnabled: boolean;
   flashcardsEnabled: boolean;
+  tutorAvailabilityEnabled: boolean;
+  tutorialSessionEmailEnabled: boolean;
+  tutorialEmailSchedule: TutorialEmailSchedule;
 }
 
 export const DEFAULT_ACTIVITY_NOTIFICATION_PREFERENCES: ActivityNotificationPreferences = {
   discussionsEnabled: true,
   flashcardsEnabled: true,
+  tutorAvailabilityEnabled: true,
+  tutorialSessionEmailEnabled: true,
+  tutorialEmailSchedule: DEFAULT_TUTORIAL_EMAIL_SCHEDULE,
 };
 
-export type ActivityNotificationPreferenceKey = keyof ActivityNotificationPreferences;
+export type ActivityNotificationPreferenceKey = Exclude<keyof ActivityNotificationPreferences, "tutorialEmailSchedule">;
 
 export interface NotificationPayload {
   /** Short notification title (65 chars or fewer recommended). */

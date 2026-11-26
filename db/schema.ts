@@ -70,8 +70,15 @@ export const activityNotificationPreferences = pgTable("activity_notification_pr
  userId: text("user_id").primaryKey().references(() => user.id, { onDelete: "cascade" }),
  discussionsEnabled: boolean("discussions_enabled").notNull().default(true),
  flashcardsEnabled: boolean("flashcards_enabled").notNull().default(true),
+ tutorAvailabilityEnabled: boolean("tutor_availability_enabled").notNull().default(true),
+ tutorialSessionEmailEnabled: boolean("tutorial_session_email_enabled").notNull().default(true),
+ tutorialEmailMode: text("tutorial_email_mode").$type<"once" | "repeat">().notNull().default("once"),
+ tutorialEmailLeadMinutes: integer("tutorial_email_lead_minutes").notNull().default(60),
+ tutorialEmailIntervalMinutes: integer("tutorial_email_interval_minutes").notNull().default(30),
  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-});
+}, table => [
+ check("tutorial_email_schedule_check", sql`${table.tutorialEmailMode} in ('once','repeat') and ${table.tutorialEmailLeadMinutes} between 1 and 1440 and ${table.tutorialEmailIntervalMinutes} between 5 and 1440 and (${table.tutorialEmailMode} = 'once' or (${table.tutorialEmailIntervalMinutes} < ${table.tutorialEmailLeadMinutes} and ${table.tutorialEmailLeadMinutes} <= 12 * ${table.tutorialEmailIntervalMinutes}))`),
+]);
 
 /** Account-wide quiet hours with an explicit time zone. */
 export const notificationQuietPreferences = pgTable("notification_quiet_preferences", {

@@ -1,6 +1,6 @@
 import { db } from "@/db";
-import { deferredNotificationPushes, notificationQuietPreferences, notifications, user } from "@/db/schema";
-import { and, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
+import { activityNotificationPreferences, deferredNotificationPushes, notificationQuietPreferences, notifications, pengguna, penggunaPeran, peran, tutorSlots, user } from "@/db/schema";
+import { and, eq, exists, gte, inArray, isNull, lte, notExists, or, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { enqueueTask } from "@/lib/queue/cloud-tasks";
 import { DEFAULT_QUIET_HOURS, quietHoursEnd, type QuietHours } from "./quiet-hours";
@@ -8,6 +8,7 @@ import { getUserLocalePreference } from "@/lib/i18n/preferences";
 import { notificationVisibility } from "./discussion-history";
 import { getDefaultHomeLinkForRole } from "./catalog";
 import type { NotificationPayload } from "./types";
+import { getDeferredAvailabilityReminderWeek } from "./tutorial-reminder-policy";
 
 const noDelivery = { attempted: 0, succeeded: 0, failedTokens: [], errors: [] };
 const leaseAvailable = (now: Date) => or(isNull(deferredNotificationPushes.leaseUntil), lte(deferredNotificationPushes.leaseUntil, now));
@@ -63,6 +64,45 @@ export async function deferQuietPushes(items: { userId: string; payload: Notific
  return deferred;
 }
 
+/** A queued availability prompt is no longer relevant once the tutor has added
+ * any dated slot for its original week, disabled reminders, lost their tutor
+ * role, or the week has ended. Other tutor reminders are unaffected. */
+async function filterDeferredAvailability(
+ userId: string,
+ rows: { id: string; type: string; metadata: Record<string, unknown> }[],
+ now: Date,
+) {
+ const eligibility = new Map<string, boolean>();
+ const kept: typeof rows = [];
+ for (const row of rows) {
+  const key = row.metadata.dedupeKey;
+  if (row.type !== "tutor_reminder" || typeof key !== "string" || !key.startsWith("tutor_availability:")) {
+   kept.push(row);
+   continue;
+  }
+  if (!eligibility.has(key)) {
+   const week = getDeferredAvailabilityReminderWeek(key, now);
+   let eligible = false;
+   if (week) {
+    const [active] = await db.select({ id: pengguna.id }).from(pengguna)
+     .where(and(eq(pengguna.id, userId), eq(pengguna.status, "active"),
+      exists(db.select({ id: penggunaPeran.id }).from(penggunaPeran)
+       .innerJoin(peran, eq(peran.id, penggunaPeran.peranId))
+       .where(and(eq(penggunaPeran.penggunaId, userId), eq(peran.code, "tutor")))),
+      notExists(db.select({ id: activityNotificationPreferences.userId }).from(activityNotificationPreferences)
+       .where(and(eq(activityNotificationPreferences.userId, userId), eq(activityNotificationPreferences.tutorAvailabilityEnabled, false)))),
+      notExists(db.select({ id: tutorSlots.id }).from(tutorSlots)
+       .where(and(eq(tutorSlots.tutorId, userId), gte(tutorSlots.sessionDate, week.start), lte(tutorSlots.sessionDate, week.end)))),
+     )).limit(1);
+    eligible = Boolean(active);
+   }
+   eligibility.set(key, eligible);
+  }
+  if (eligibility.get(key)) kept.push(row);
+ }
+ return kept;
+}
+
 export async function flushQuietUser(userId: string): Promise<{ count: number; rescheduled?: boolean }> {
  const now = new Date();
  const preference = await getQuietHours(userId);
@@ -90,8 +130,9 @@ export async function flushQuietUser(userId: string): Promise<{ count: number; r
  const claimed = and(eq(deferredNotificationPushes.userId, userId), eq(deferredNotificationPushes.claimId, claim));
  try {
   const visibility = await notificationVisibility(userId, userId, { unreadOnly: true, ids });
-  const eligible = await db.select({ id: notifications.id }).from(notifications)
+  const visible = await db.select({ id: notifications.id, type: notifications.type, metadata: notifications.metadata }).from(notifications)
    .where(and(eq(notifications.userId, userId), inArray(notifications.id, ids), eq(notifications.read, false), visibility));
+  const eligible = await filterDeferredAvailability(userId, visible, new Date());
   if (eligible.length) {
    // Recheck a recently edited schedule immediately before sending.
    const newEnd = quietHoursEnd(await getQuietHours(userId));
