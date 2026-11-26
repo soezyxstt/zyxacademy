@@ -26,9 +26,9 @@ afterAll(() => {
   if (workspace) rmSync(workspace, { recursive: true, force: true });
 });
 
-function readReport(manifest = join(workspace, "manifest.json"), androidSummary = android) {
+function readReport(manifest = join(workspace, "manifest.json"), androidSummary = android, iosSummary = ios) {
   const output = join(workspace, "reports");
-  run("generate-report", [`--manifest=${manifest}`, `--android=${androidSummary}`, `--ios=${ios}`, `--output=${output}`]);
+  run("generate-report", [`--manifest=${manifest}`, `--android=${androidSummary}`, `--ios=${iosSummary}`, `--output=${output}`]);
   return {
     report: JSON.parse(readFileSync(join(output, "routes.json"), "utf8")),
     markdown: readFileSync(join(output, "routes.md"), "utf8"),
@@ -154,4 +154,15 @@ test("quiz gateway and player share one route and retain their own three-state r
     expect.objectContaining({ id: "android-settings-en-light", locale: "en", theme: "light" }),
     expect.objectContaining({ id: "ios-settings-id-dark", locale: "id", theme: "dark" }),
   ]));
+});
+
+test("signed Android review ignores mislabelled iOS comparisons", () => {
+  const summary = join(workspace, "smoke-summary.json");
+  const id = "assessment-result-review-released-quiz";
+  writeFileSync(summary, JSON.stringify({ counts: {}, routes: [] }));
+  writeFileSync(join(workspace, "comparison.json"), JSON.stringify([{ id, status: "pass", differing_pixels: 0 }]));
+  const { report } = readReport(undefined, summary, summary);
+  const review = report.routes.find((row: { pattern: string }) => row.pattern === "/courses/[id]/my-results/[submissionId]");
+  expect(review.device_comparisons.filter((row: { id: string }) => row.id === id))
+    .toEqual([expect.objectContaining({ platform: "android", id, differingPixels: 0 })]);
 });

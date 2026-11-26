@@ -15,7 +15,7 @@ const deviceRuns = `${base}/device-runs`;
 const platforms = ["android", "ios"] as const;
 type Platform = typeof platforms[number];
 type ScenarioResult = { name: string; status: string };
-type ImageComparison = { id: string; status: string; differing_pixels?: number; comparison_scope?: string; native_scenario?: ScenarioResult };
+type ImageComparison = { id: string; platform?: Platform; status: string; differing_pixels?: number; comparison_scope?: string; native_scenario?: ScenarioResult };
 type ComparisonSource = {
   rows: ImageComparison[];
   report: string;
@@ -313,17 +313,16 @@ const rows = manifest.routes.map(route => {
   const componentCaptures = pattern === "/courses" ? ["android", "ios"].flatMap(target => ["all", "tpb", "pka"].map(state => ({
     id: `catalog-${target}-${state}`, file: `${base}/web-reference/${target}/catalog-${state}.png`, evidence: "web fixture; target label is viewport only",
   }))) : groups.flatMap(deviceSizedWebReferences);
-  const groupForId = new Map<string, string>(groups.flatMap(group => group.states.map(state => [`${group.prefix}-${state}`, group.prefix] as const)));
   const routeGroups = groups.map(({ prefix, states }) => ({ id: prefix, states, platforms: [...platforms] }));
   if (pattern === signedAndroidReview.route) {
     const states = Object.keys(signedAndroidReview.states);
     routeGroups.push({ id: signedAndroidReview.group, states, platforms: [signedAndroidReview.platform] });
-    for (const state of states) groupForId.set(`${signedAndroidReview.group}-${state}`, signedAndroidReview.group);
   }
+  const groupForId = new Map<string, typeof routeGroups[number]>(routeGroups.flatMap(group => group.states.map(state => [`${group.id}-${state}`, group] as const)));
   const deviceComparisons = platforms.flatMap(platform => comparisonSources[platform].flatMap(source =>
-    source.rows.filter(row => groupForId.has(row.id)).map(row => ({
+    source.rows.filter(row => (!row.platform || row.platform === platform) && groupForId.get(row.id)?.platforms.includes(platform)).map(row => ({
       platform, id: row.id, status: row.status, differingPixels: row.differing_pixels ?? null, comparisonScope: row.comparison_scope,
-      standaloneScenario: row.native_scenario ?? source.provenance.matchedScenarioResults?.[groupForId.get(row.id)!] ?? null,
+      standaloneScenario: row.native_scenario ?? source.provenance.matchedScenarioResults?.[groupForId.get(row.id)!.id] ?? null,
       report: source.report, sourceHead: source.provenance.sourceHead ?? null, checkoutSha: source.provenance.checkoutSha ?? null,
       workflowRun: source.provenance.workflowRun ?? null, artifact: source.provenance.artifact ?? null, primary: source.primary,
     }))));
