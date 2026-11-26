@@ -3,6 +3,7 @@ import { createProductDraft, type CreateProductDraftRequest, type ProductDraftCr
 import { issueMcpBootstrapToken } from "@/lib/authoring/mcp-workflows";
 import { validateProductBundle } from "@/lib/bundle/product-validator";
 import { issueBoundMcpRunToken } from "../helpers/mcp-run";
+import { solutionCollectionDraft } from "../helpers/product-draft-formats";
 
 const principal = { actorId: "author", userId: "author", sessionId: "session", authMethod: "session" as const, scopes: ["authoring:stage"] };
 function request(): CreateProductDraftRequest {
@@ -20,7 +21,7 @@ function harness() {
   const ports: ProductDraftCreationPorts = {
     async loadContext({ run, principal: actor }) {
       reads++;
-      return { bundleId: "bundle", courseId: run.courseId, chapterId: run.chapterId, creatorId: actor.actorId, createdAt: new Date(run.issuedAt).toISOString(),
+      return { bundleId: "bundle", courseId: run.courseId, chapterId: run.chapterId, courseTitle: "Course", chapterTitle: "Chapter", creatorId: actor.actorId, createdAt: new Date(run.issuedAt).toISOString(),
         ideas: [{ id: "idea", version: 1, semanticHash: "a".repeat(64) }], sources: [{ sourceId: "source", version: 1, checksum: "b".repeat(64), excerptIds: ["excerpt"] }], learningSectionIds: [] };
     },
     async stage(input) {
@@ -50,10 +51,19 @@ test("missing consent, foreign bootstrap and oversized draft fail before context
   await expect(createProductDraft(input, { ...principal, scopes: ["authoring:read"] }, h.ports)).rejects.toThrow("AUTHORING_MCP_SCOPE_REQUIRED");
   await expect(createProductDraft(input, { ...principal, actorId: "other" }, h.ports)).rejects.toThrow("MISMATCH");
   const oversized = structuredClone(input);
+  if (!("title" in oversized.draft.products[0])) throw new Error("Expected titled product");
   oversized.draft.products[0].title = "x".repeat(524289);
   await expect(createProductDraft(oversized, principal, h.ports)).rejects.toThrow("PRODUCT_DRAFT_REQUEST_TOO_LARGE");
   expect(h.reads()).toBe(0);
   expect(h.archives).toHaveLength(0);
+});
+
+test("V5 creation stages the canonical collection without prescribing V4 browser verification", async () => {
+  const h = harness();
+  const result = await createProductDraft({ ...request(), draft: solutionCollectionDraft() }, principal, h.ports);
+  expect(result).toMatchObject({ ok: true, staged: true, publicationReady: false });
+  expect(result.nextActions).toEqual(["authoring.get_edit_context", "authoring.get_solution_collection_review_context"]);
+  expect(result.authoredProducts).toEqual([expect.objectContaining({ productType: "solution_collection" })]);
 });
 
 test("invalid reference findings are returned together without staging or returning archive bytes", async () => {
@@ -63,6 +73,18 @@ test("invalid reference findings are returned together without staging or return
   const result = await createProductDraft(input, principal, h.ports);
   expect(result).toMatchObject({ ok: false, staged: false, publicationReady: false, category: "content", issueCount: 2 });
   expect(result.diagnostics).toHaveLength(2);
+  expect(h.archives).toHaveLength(0);
+});
+
+test("bounded draft diagnostics retain the actual total when more than 40 references fail", async () => {
+  const h = harness();
+  const products = Array.from({ length: 25 }, (_, index) => ({ productType: "flashcard" as const,
+    ideaIds: [`unknown-idea-${index}`], sourceRefs: [{ sourceId: `unknown-source-${index}`, excerptIds: ["unknown-excerpt"] }],
+    front: `Kartu ${index}?`, back: "Jawaban",
+  }));
+  const result = await createProductDraft({ ...request(), draft: { products } }, principal, h.ports);
+  expect(result).toMatchObject({ ok: false, staged: false, issueCount: 50, diagnosticCount: 50, diagnosticsTruncated: true });
+  expect(result.diagnostics).toHaveLength(40);
   expect(h.archives).toHaveLength(0);
 });
 

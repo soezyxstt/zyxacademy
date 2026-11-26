@@ -6,6 +6,7 @@ import sys
 from urllib.parse import urlparse
 
 from cloud_run_runtime import ALIASES, REQUIRED, RUNTIME_KEYS, validate_database
+from staging_authoring_browser import staging_browser_settings
 
 
 TARGETS = {
@@ -96,6 +97,12 @@ def prepare_worker_runtime(environment, secrets, variables):
                     NEXT_PUBLIC_APP_URL=target["origin"], BETTER_AUTH_URL=target["origin"],
                     COMPUTE_SERVICE_URL=f"https://{target['branch']}-zyxcompute.compute.c-3.ap-southeast-1.aws.neon.tech",
                     AUTHORING_VERIFICATION_BROWSER_PROVIDER="cloudflare")
+    if environment == "staging":
+        steel_key = secrets.get("STEEL_API_KEY")
+        if not isinstance(steel_key, str) or not steel_key.strip() or steel_key == "[SENSITIVE]":
+            raise ValueError("WORKER_STEEL_API_KEY_REQUIRED")
+        settings["STEEL_API_KEY"] = steel_key
+        settings.update(staging_browser_settings())
     if settings.keys() & CI_KEYS:
         raise ValueError("WORKER_CI_CREDENTIAL_LEAK")
     return settings

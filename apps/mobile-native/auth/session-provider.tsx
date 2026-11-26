@@ -21,7 +21,7 @@ const session = createNativeSessionController({
 });
 
 const SessionContext = createContext<typeof session | null>(null);
-const serverSnapshot = { state: { status: "loading" }, transport: null } as const;
+const serverSnapshot = { state: { status: "loading" }, transport: null, revalidating: false } as const;
 const getServerSnapshot = () => serverSnapshot;
 
 export function NativeSessionProvider({ children, origin }: { children: ReactNode; origin: string }) {

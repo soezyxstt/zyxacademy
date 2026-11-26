@@ -63,7 +63,7 @@ import { QUALITY_POLICY_VERSION, pedagogicRubricItemSchema } from "@/lib/materia
 import type { getProductV4VerificationReadiness } from "./product-v4-verification-service";
 import { compileArticleProduct } from "@/lib/materials/compiler";
 import { assertProductSectionReviews, evaluateProductBundleQualityPolicy } from "./product-review-gate";
-import { diktatPdfLineage, resolveProductV4PdfBinding, selectProductPdfEvidence } from "./product-pdf-selection";
+import { diktatPdfLineage, resolveProductV4PdfBinding, selectProductPdfEvidence, verifyCanonicalProductPdf } from "./product-pdf-selection";
 import type { PdfArtifactEvidence } from "@/lib/materials/pdf-artifact-contract";
 import { claimProductReviewSnapshot } from "./product-review-snapshot";
 import { listProcessingLegacyPdfRequests } from "./product-diktat-queue";
@@ -487,7 +487,7 @@ async function insertArticle(tx: Tx, product: Extract<ProductEntity, { productTy
   for (const batch of chunksOf(blockSourceValues)) await tx.insert(blokArtikelSumber).values(batch);
 }
 
-async function insertDiktat(tx: Tx, product: Extract<ProductEntity, { productType: "diktat" }>, originalProduct: Extract<ProductEntity, { productType: "diktat" }>, course: { targetId: string }, now: Date, fileKey: string): Promise<void> {
+async function insertDiktat(tx: Tx, product: Extract<ProductEntity, { productType: "diktat" }>, originalProduct: Extract<ProductEntity, { productType: "diktat" }>, course: { targetId: string }, now: Date, fileKey: string, verifiedCanonicalKey?: string): Promise<void> {
   const materialId = targetId(product);
   const chapterId = await resolveChapter(tx, product.chapterId, course.targetId);
   const [existing] = await tx.select({ id: diktatMateri.id, mataKuliahId: diktatMateri.mataKuliahId, babId: diktatMateri.babId, title: diktatMateri.title, contentMarkdown: diktatMateri.contentMarkdown, fileKey: diktatMateri.fileKey, version: diktatMateri.version, status: diktatMateri.status, sourceHash: diktatMateri.sourceHash, generationHash: diktatMateri.generationHash, creatorId: diktatMateri.creatorId, curatorId: diktatMateri.curatorId }).from(diktatMateri).where(eq(diktatMateri.id, materialId)).limit(1);
@@ -502,7 +502,8 @@ async function insertDiktat(tx: Tx, product: Extract<ProductEntity, { productTyp
     const { fileKey: existingFileKey, ...existingProjection } = existing;
     const { fileKey: _fileKey, publishedAt: _publishedAt, createdAt: _createdAt, updatedAt: _updatedAt, ...projection } = values;
     const existingIdeas = await tx.select({ id: diktatIde.id, diktatMateriId: diktatIde.diktatMateriId, ideId: diktatIde.ideId, weight: diktatIde.weight }).from(diktatIde).where(eq(diktatIde.diktatMateriId, materialId));
-    if (existingFileKey !== fileKey || !equal(existingProjection, projection) || !equal(sortedById(existingIdeas), sortedById(ideaValues))) throw new Error(`PRODUCT_BUNDLE_VERSION_CONFLICT:${product.id}`);
+    const retainsVerifiedPdf = reusesRevisionProduct(product.productType, product.id, product.version) && verifiedCanonicalKey === existingFileKey;
+    if ((existingFileKey !== fileKey && !retainsVerifiedPdf) || !equal(existingProjection, projection) || !equal(sortedById(existingIdeas), sortedById(ideaValues))) throw new Error(`PRODUCT_BUNDLE_VERSION_CONFLICT:${product.id}`);
     await requireMatchingPublishedProduct(tx, originalProduct);
     return;
   }
@@ -724,7 +725,7 @@ export async function publishProductBundle(input: { importId: string; publishedB
     });
   }
   if (snapshot.status !== "draft") throw new Error("PRODUCT_BUNDLE_DRAFT_REQUIRED");
-  const bundle = await parseStagedProductBundle(input.importId);
+  const bundle = await parseStagedProductBundle(input.importId, snapshot);
   if (bundle.checksum !== snapshot.checksum || bundle.manifest.bundleId !== snapshot.bundleId) throw new Error("PRODUCT_BUNDLE_PUBLICATION_CONFLICT");
   if (input.solutionScope) assertSolutionImportScope(snapshot, bundle, input.solutionScope);
   const documents = productInteractiveDocuments(bundle.products);
@@ -744,6 +745,24 @@ export async function publishProductBundle(input: { importId: string; publishedB
     if (typeof ref?.runId !== "string" || typeof ref.planHash !== "string") throw new Error("PRODUCT_V4_VERIFICATION_REQUIRED");
     v4Verification = (revisionPublicationVerification(input.importId) as typeof v4Verification) ?? await (await import("./product-v4-verification-service")).getProductV4VerificationReadiness(input.importId, ref.runId);
     if (!v4Verification.evaluation.ready || v4Verification.plan.planHash !== ref.planHash) throw new Error("PRODUCT_V4_VERIFICATION_REQUIRED");
+  }
+  // A new exact receipt uses new attempt keys. Preserve the published version's
+  // key only after reading its bytes against that receipt, then recheck the key
+  // and the entire canonical projection under the publication lock below.
+  const verifiedCanonicalPdfs = new Map<string, string>();
+  const reusedDiktats = isV4 ? bundle.products.filter(product => product.productType === "diktat" && reusesRevisionProduct(product.productType, product.id, product.version)) : [];
+  if (reusedDiktats.length) {
+    const existingPdfs = await revisionPublicationConnection().select({ id: diktatMateri.id, fileKey: diktatMateri.fileKey }).from(diktatMateri)
+      .where(inArray(diktatMateri.id, reusedDiktats.map(targetId)));
+    const { storage } = await import("@/lib/storage");
+    const download = storage.download?.bind(storage);
+    for (const product of reusedDiktats) {
+      const existingKey = existingPdfs.find(row => row.id === targetId(product))?.fileKey;
+      const binding = resolveProductV4PdfBinding({ importId: input.importId, diktatId: product.id, validationReport: snapshot.validationReport, verification: v4Verification });
+      if (!existingKey || !binding || existingKey === binding.storageKey) continue;
+      if (!download) throw new Error("PRODUCT_DIKTAT_PDF_STORAGE_UNAVAILABLE");
+      if (await verifyCanonicalProductPdf({ existingKey, binding, read: download })) verifiedCanonicalPdfs.set(targetId(product), existingKey);
+    }
   }
   let courseLegacyId: string | undefined;
   const result = await revisionPublicationTransaction(async (tx) => {
@@ -889,7 +908,7 @@ export async function publishProductBundle(input: { importId: string; publishedB
           if (pdfEvidence?.status !== "ready" || !pdfEvidence.storageKey || pdfEvidence.articleVersion !== lineage.articleVersion || pdfEvidence.articleHash !== lineage.articleHash || pdfEvidence.diktatHash !== product.generationHash) throw new Error(`PRODUCT_DIKTAT_PDF_NOT_READY:${product.id}`);
           const original = bundle.products.find((candidate) => candidate.productType === "diktat" && candidate.id === product.id && candidate.version === product.version);
           if (!original || original.productType !== "diktat") throw new Error(`PRODUCT_BUNDLE_VERSION_CONFLICT:${product.id}`);
-          await insertDiktat(tx, product, original, course, now, pdfEvidence.storageKey);
+          await insertDiktat(tx, product, original, course, now, pdfEvidence.storageKey, verifiedCanonicalPdfs.get(targetId(product)));
           break;
         }
         case "flashcard":
