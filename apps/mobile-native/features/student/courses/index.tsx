@@ -19,6 +19,7 @@ import { DashboardBottom, DashboardTop, useDashboardExtras } from "./dashboard-e
 import { ActiveDashboardCourses, DashboardPreviewCourses, dashboardMessages } from "./dashboard-overview";
 import { Catalog } from "./catalog";
 import { courseCopy, type CourseCopy } from "./copy";
+import { OnlineReading } from "./OnlineReading";
 import { courseScrollOffsetForMount } from "./scroll-offset";
 
 type Theme = keyof typeof nativeColors;
@@ -441,7 +442,7 @@ function DiktatPdfDownload({ courseId, diktatId, save, reload }: {
   </>;
 }
 
-function Document({ data, request, reload, renderMaterial, route, replace, openOfflineLibrary, openExternal, saveDiktatPdf }: { data: MaterialDetailData; request: Request; reload: () => void; renderMaterial?: Reader } & Pick<StudentScreenProps, "route" | "replace" | "openOfflineLibrary" | "openExternal" | "saveDiktatPdf">) {
+function Document({ data, request, reload, renderMaterial, route, replace, openOfflineLibrary, openExternal, saveDiktatPdf, locale }: { data: MaterialDetailData; request: Request; reload: () => void; renderMaterial?: Reader; locale: string } & Pick<StudentScreenProps, "route" | "replace" | "openOfflineLibrary" | "openExternal" | "saveDiktatPdf">) {
   const copy = useContext(CopyContext);
   const theme = useContext(ThemeContext);
   const { course, material } = data;
@@ -451,7 +452,8 @@ function Document({ data, request, reload, renderMaterial, route, replace, openO
   const target = studentMaterialReaderTarget(route, data);
   const downloadableDiktat = material.group === "diktat" && material.canDownloadPdf === true;
   const webPath = target?.kind === "pdf" ? target.webPath
-    : target && downloadableDiktat ? materialPath(route.params.id, material.id, target.section) : undefined;
+    : target ? materialPath(route.params.id, material.id, target.section) : undefined;
+  const openWeb = webPath && openExternal ? () => openExternal(webPath) : undefined;
   return (
     <>
       <LearningText role="meta">{course.title}</LearningText>
@@ -468,10 +470,13 @@ function Document({ data, request, reload, renderMaterial, route, replace, openO
             onPress={() => openOfflineLibrary({ courseId: course.id, materialId: material.id })}>{copy.savedCourses}</Button> : null}
           {saveDiktatPdf && downloadableDiktat ?
             <DiktatPdfDownload key={JSON.stringify([course.id, material.id])} courseId={course.id} diktatId={material.id} save={saveDiktatPdf} reload={reload} /> : null}
-          {(target && renderMaterial?.(target)) ?? (webPath && openExternal
-            ? <Button theme={theme} variant="outline" testID="student-open-pdf-on-web"
-              onPress={() => openExternal(webPath)}>{target?.kind === "pdf" ? copy.openPdfOnWeb : copy.openDiktatOnWeb}</Button>
-            : <LearningText>{copy.rendererPending}</LearningText>)}
+          {(target && renderMaterial?.(target)) ?? (target && material.nativeReading && !canonicalHref
+            ? <OnlineReading key={JSON.stringify([course.id, material.id, target.section, locale])}
+                request={request} kind={material.nativeReading} courseId={course.id} materialId={material.id}
+                title={material.title} section={target.section} theme={theme} locale={locale === "en" ? "en" : "id"} openWeb={openWeb} />
+            : openWeb ? <Button theme={theme} variant="outline" testID="student-open-pdf-on-web" onPress={openWeb}>
+                {target?.kind === "pdf" ? copy.openPdfOnWeb : downloadableDiktat ? copy.openDiktatOnWeb : copy.openDocumentOnWeb}
+              </Button> : <LearningText>{copy.rendererPending}</LearningText>)}
         </>
       )}
     </>
@@ -635,7 +640,7 @@ function CourseEntry(props: StudentScreenProps & { query: LearningQuery }) {
         onSelectGroup={id => updateListQuery(route, replace, { jurusan: id === "all" ? undefined : id, category: undefined })} />; break;
       case "course": content = <CourseOverview data={resource.data} navigate={navigate} request={request} reload={reload} locale={locale} />; break;
       case "material-list": content = <Documents data={resource.data} route={route} replace={replace} navigate={navigate} request={request} reload={reload} openOfflineLibrary={props.openOfflineLibrary} />; break;
-      case "material-detail": content = <Document data={resource.data} request={request} reload={reload} renderMaterial={renderMaterial} route={route} replace={replace} openOfflineLibrary={props.openOfflineLibrary} openExternal={openExternal} saveDiktatPdf={props.saveDiktatPdf} />; break;
+      case "material-detail": content = <Document data={resource.data} request={request} locale={locale} reload={reload} renderMaterial={renderMaterial} route={route} replace={replace} openOfflineLibrary={props.openOfflineLibrary} openExternal={openExternal} saveDiktatPdf={props.saveDiktatPdf} />; break;
     }
   }
 

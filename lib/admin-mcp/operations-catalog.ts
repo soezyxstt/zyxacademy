@@ -29,6 +29,13 @@ export const operationsCatalog = [
     "reason": "Joining a live room requires an interactive Student session, an active course enrollment and a valid room code. The short-lived token is specific to the learner and room. Tutor hosting remains independently authorized."
   },
   {
+    "source": "app/api/native/student/reading/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Published learner reading uses the current Student session, course and chapter authorization, and Tutorial PKA registration where applicable. Admitted image bytes are bound to the same authorized revision. Native reading does not accept MCP credentials or change authoring permissions."
+  },
+  {
     "source": "app/api/native/student/community/[operation]/route.ts",
     "actions": ["GET", "POST"],
     "tools": [],

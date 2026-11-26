@@ -119,6 +119,27 @@ export function offlineReadingAssetSource(path: string, target: OfflineReadingTa
     && Object.entries(values).every(([key, value]) => query.get(key) === value) ? source : null;
 }
 
+export function parseReadingData(value: unknown, target: OfflineReadingTarget, chapters?: readonly string[]): OfflineReadingData {
+  const data = row(value);
+  expectValue(data.id === target.id && data.courseId === target.courseId && typeof data.title === "string");
+  if (target.kind === "diktat") {
+    expectValue(data.kind === "article" && data.docCategory === "diktat" && typeof data.body === "string"
+      && Number.isSafeInteger(data.contentVersion));
+  } else {
+    expectValue(!Object.hasOwn(data, "progress") && Number.isSafeInteger(data.version) && Array.isArray(data.sections)
+      && (data.chapterId === null || (typeof data.chapterId === "string" && (!chapters || chapters.includes(data.chapterId)))));
+    for (const value of data.sections) {
+      const section = row(value);
+      expectValue(typeof section.id === "string" && typeof section.slug === "string" && Array.isArray(section.blocks));
+      for (const value of section.blocks) {
+        const block = row(value);
+        expectValue(typeof block.id === "string" && typeof block.content === "string" && typeof block.blockType === "string");
+      }
+    }
+  }
+  return data as unknown as OfflineReadingData;
+}
+
 export function parseOfflineReadingResource(value: unknown, target: OfflineReadingTarget, scope: NativeOfflineScope,
   descriptor: NativeOfflineResourceDescriptor, metadata: ReturnType<typeof readOfflineReadingHeaders>) {
   const envelope = row(value);
@@ -131,23 +152,7 @@ export function parseOfflineReadingResource(value: unknown, target: OfflineReadi
     && resource.courseId === target.courseId && resource.revision === descriptor.revision && resource.title === descriptor.title
     && resource.updatedAt === descriptor.updatedAt && Array.isArray(chapters) && chapters.length === descriptor.chapterIds.length
     && descriptor.chapterIds.every(chapter => chapters.includes(chapter)));
-  const data = row(envelope.data);
-  expectValue(data.id === target.id && data.courseId === target.courseId && typeof data.title === "string");
-  if (target.kind === "diktat") {
-    expectValue(data.kind === "article" && data.docCategory === "diktat" && typeof data.body === "string"
-      && Number.isSafeInteger(data.contentVersion));
-  } else {
-    expectValue(!Object.hasOwn(data, "progress") && Number.isSafeInteger(data.version) && Array.isArray(data.sections)
-      && (data.chapterId === null || (typeof data.chapterId === "string" && descriptor.chapterIds.includes(data.chapterId))));
-    for (const value of data.sections) {
-      const section = row(value);
-      expectValue(typeof section.id === "string" && typeof section.slug === "string" && Array.isArray(section.blocks));
-      for (const value of section.blocks) {
-        const block = row(value);
-        expectValue(typeof block.id === "string" && typeof block.content === "string" && typeof block.blockType === "string");
-      }
-    }
-  }
+  const data = parseReadingData(envelope.data, target, descriptor.chapterIds);
   expectValue(Array.isArray(envelope.assets) && envelope.assets.length <= READING_ASSET_COUNT_LIMIT);
   const assets = envelope.assets.map(value => {
     const asset = row(value);
@@ -155,5 +160,5 @@ export function parseOfflineReadingResource(value: unknown, target: OfflineReadi
     return asset.url;
   });
   expectValue(new Set(assets).size === assets.length);
-  return { data: data as unknown as OfflineReadingData, assets };
+  return { data, assets };
 }

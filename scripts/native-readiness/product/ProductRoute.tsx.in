@@ -71,7 +71,10 @@ function ProductRoute({ href, pattern, owner, StudentScreen }: {
     pattern === "/courses/[id]/quiz/[quizId]" || pattern === "/courses/[id]/tryout/[tryoutId]" ||
     pattern === "/courses/tutorial-pka/simulasi/[subject]/[stage]"
   );
-  const access = useNativeRouteAccountContext(studentAssessment || tutor);
+  const studentReading = owner === "student" && (
+    pattern === "/courses/[id]/material/[materialId]" || pattern === "/courses/tutorial-pka/material/[materialId]"
+  );
+  const access = useNativeRouteAccountContext(studentAssessment || studentReading || tutor);
   const context = access.context;
   const devicePreferences = useDevicePreferences();
   const scheme = useColorScheme();
@@ -134,7 +137,7 @@ function ProductRoute({ href, pattern, owner, StudentScreen }: {
   }
   if (owner === "student" && StudentScreen && (state.status === "signed-in" || (state.status === "unavailable" && state.offlineIdentity))) {
     const identity = state.status === "signed-in" ? state : state.offlineIdentity;
-    return <RecheckingRoute enabled={studentAssessment} checking={access.retaining} canInteract={canInteract}>
+    return <RecheckingRoute enabled={studentAssessment || studentReading} checking={access.retaining} canInteract={canInteract}>
       <StudentScreen key={JSON.stringify([identity?.accountId, identity?.sessionId])} href={href} pattern={pattern}
         locale={locale} theme={theme} showChrome={!access.retaining && context?.roles.includes("murid") === true}
         context={context} devicePreferences={devicePreferences}

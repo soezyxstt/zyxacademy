@@ -2,9 +2,17 @@ import type { PublicArticleReadModel } from "../../../lib/articles/structured-re
 import { escapeHtml } from "../../../lib/offline/offline-snapshot-renderer";
 import { buildOfflineReadingSections } from "../../../lib/offline/reading-sections";
 import { nativeColors } from "../../../packages/design-tokens/native-colors";
-import { offlineReadingAssetSource, type OfflineReadingAsset, type OfflineReadingPackage } from "./reading-contract";
+import { offlineReadingAssetSource, type OfflineReadingAsset, type OfflineReadingData, type OfflineReadingPackage } from "./reading-contract";
 
 export type ReadingDocumentProps = { saved: OfflineReadingPackage; locale: "id" | "en"; section?: string };
+export type ReadingContent = {
+  kind: "article" | "diktat";
+  title: string;
+  data: OfflineReadingData;
+  locale: ReadingDocumentProps["locale"];
+  section?: string;
+  resolveImage(source: string): string | undefined;
+};
 
 const policy = "default-src 'none'; script-src 'none'; connect-src 'none'; form-action 'none'; base-uri 'none'; img-src data:; font-src data:; style-src 'unsafe-inline'";
 const media = /^image\/(?:avif|gif|jpeg|png|svg\+xml|webp)$/;
@@ -47,6 +55,10 @@ function base64(bytes: Uint8Array) {
   return globalThis.btoa(chunks.join(""));
 }
 
+export function readingAssetDataUrl(asset: Pick<OfflineReadingAsset, "mime" | "bytes">) {
+  return media.test(asset.mime) && asset.bytes.byteLength > 0 ? `data:${asset.mime};base64,${base64(asset.bytes)}` : undefined;
+}
+
 function resolvePackageImages(saved: OfflineReadingPackage, locale: ReadingDocumentProps["locale"]) {
   const assets = new Map<string, OfflineReadingAsset>();
   for (const asset of saved.assets) {
@@ -63,19 +75,26 @@ function resolvePackageImages(saved: OfflineReadingPackage, locale: ReadingDocum
     if (!asset) return undefined;
     const current = rendered.get(asset);
     if (current) return current;
-    const result = `data:${asset.mime};base64,${base64(asset.bytes)}`;
-    rendered.set(asset, result);
+    const result = readingAssetDataUrl(asset);
+    if (result) rendered.set(asset, result);
     return result;
   };
 }
 
-export function buildReadingDocumentHtml(
-  { saved, locale, section }: ReadingDocumentProps, katexCss: string, theme: keyof typeof nativeColors = "light",
-) {
-  const options = { allowLinks: false, resolveImage: resolvePackageImages(saved, locale) };
-  const article = saved.summary.kind === "article" && "sections" in saved.data
-    ? saved.data as unknown as Pick<PublicArticleReadModel, "sections" | "visuals"> : undefined;
-  const diktat = saved.summary.kind === "diktat" && typeof saved.data.body === "string" ? saved.data.body : undefined;
+export function savedReadingContent({ saved, locale, section }: ReadingDocumentProps): ReadingContent {
+  return { kind: saved.summary.kind, title: saved.summary.title, data: saved.data, locale, section,
+    resolveImage: resolvePackageImages(saved, locale) };
+}
+
+export function buildReadingDocumentHtml(props: ReadingDocumentProps, katexCss: string, theme: keyof typeof nativeColors = "light") {
+  return buildReadingContentHtml(savedReadingContent(props), katexCss, theme);
+}
+
+export function buildReadingContentHtml({ data, kind, title, locale, resolveImage, section }: ReadingContent, katexCss: string, theme: keyof typeof nativeColors) {
+  const options = { allowLinks: false, resolveImage };
+  const article = kind === "article" && "sections" in data
+    ? data as unknown as Pick<PublicArticleReadModel, "sections" | "visuals"> : undefined;
+  const diktat = kind === "diktat" && typeof data.body === "string" ? data.body : undefined;
   const sections = buildOfflineReadingSections({
     kind: article ? "structured_article" : "course_material", article, material: { body: diktat }, locale,
   }, options, section);
@@ -84,5 +103,5 @@ export function buildReadingDocumentHtml(
     `<section>${headingHtml ? `<h2>${headingHtml}</h2>` : ""}${bodyHtml ?? ""}</section>`).join("");
   const colors = nativeColors[theme];
   const palette = `:root { color-scheme: ${theme}; --surface: ${colors.background}; --card: ${colors.card}; --text: ${colors.foreground}; --muted: ${colors.mutedForeground}; --line: ${colors.border}; }`;
-  return `<!doctype html><html lang="${locale}"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${policy}"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="referrer" content="no-referrer"><title>${escapeHtml(saved.summary.title)}</title><style>${palette}\n${katexCss}\n${styles}</style></head><body><main>${content}</main></body></html>`;
+  return `<!doctype html><html lang="${locale}"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${policy}"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="referrer" content="no-referrer"><title>${escapeHtml(title)}</title><style>${palette}\n${katexCss}\n${styles}</style></head><body><main>${content}</main></body></html>`;
 }

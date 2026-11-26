@@ -1,6 +1,6 @@
 import { db } from "@/db";
-import { aiMaterialInstances, artikel, courseMaterials, diktatMateri, diktats, progress, studentMaterialProgress, user, websiteMaterials } from "@/db/schema";
-import { and, eq, notLike, or } from "drizzle-orm";
+import { aiMaterialInstances, courseMaterials, diktats, progress, studentMaterialProgress, user, websiteMaterials } from "@/db/schema";
+import { and, eq, notLike } from "drizzle-orm";
 import { getCourse, getCourseChapterOutline, getStudentCourseAccess, normalizeChapterIds } from "@/lib/course-utils";
 import { getMaterialArticleSummaries } from "@/app/(student)/courses/[id]/material/canonical-summaries";
 import { env } from "@/lib/env";
@@ -12,6 +12,7 @@ import { listStudentEnrollments, type StudentEnrollmentRecord } from "@/lib/stud
 import { loadStudentCourseCatalog } from "@/lib/student/course-catalog-view-data";
 import { getDashboardCourseMaterialsBatch } from "@/lib/student/dashboard-materials";
 import { loadCourseMaterialData } from "@/lib/student/course-material-list";
+import { findCanonicalDetail } from "@/lib/student/canonical-material-detail";
 import { resolveDiktatPdfSource } from "@/lib/student/diktat-pdf";
 import {
   loadOnboardingData,
@@ -141,24 +142,6 @@ function canOpenDocument(access: Access, row: DocumentRow): boolean {
   return canAccessCourseContent(access.policy, row.docCategory === "diktat" ? "diktat" : "article", chapterIds);
 }
 
-async function findCanonicalDetail(courseId: string, materialId: string) {
-  const [articles, handbooks] = await Promise.all([
-    db.select({ id: artikel.id, title: artikel.title, chapterId: artikel.babId })
-      .from(artikel)
-      .where(and(eq(artikel.mataKuliahId, courseId), eq(artikel.status, "published"), or(eq(artikel.id, materialId), eq(artikel.slug, materialId))))
-      .limit(2),
-    db.select({ id: diktatMateri.id, title: diktatMateri.title, chapterId: diktatMateri.babId, fileKey: diktatMateri.fileKey })
-      .from(diktatMateri)
-      .where(and(eq(diktatMateri.mataKuliahId, courseId), eq(diktatMateri.status, "published"), eq(diktatMateri.id, materialId)))
-      .limit(1),
-  ]);
-  // Reuse canonical article precedence and reject an ambiguous id or slug.
-  if (articles.length > 1) return { ambiguous: true } as const;
-  if (articles[0]) return { ...articles[0], group: "materi", policyKind: "article" } as const;
-  if (handbooks[0]) return { ...handbooks[0], group: "diktat", policyKind: "diktat" } as const;
-  return null;
-}
-
 async function hasCompletedMaterial(studentId: string, materialId: string): Promise<boolean> {
   const [[legacy], [current]] = await Promise.all([
     db.select({ id: progress.id }).from(progress)
@@ -285,6 +268,7 @@ export async function loadNativeCourseData(studentId: string, query: LearningQue
           group: canonical.group,
           completed: legacyCompleted || Boolean(summaries[0]?.completed),
           locked,
+          ...(!locked && { nativeReading: canonical.policyKind }),
           ...downloadPdfCapability(access, locked, canonical.group === "diktat" ? canonical.fileKey : undefined),
         },
       };

@@ -5,6 +5,7 @@ import { artikel, bab, chapters, courseVideos, courseVideoPlaylists, diktatMater
 import { resolveCourseAccess, canAccessCourseContent, type CourseAccessResult } from "@/lib/student/course-access";
 import { listStudentEnrollments, resolveStudentCourse, type StudentEnrollmentRecord } from "@/lib/student/course-catalog";
 import { getCanonicalPublishedArticle } from "@/lib/articles/structured-repository";
+import { offlineAssetSources } from "./server-assets";
 import type { PublicArticleReadModel } from "@/lib/articles/structured-read-model";
 import { hasLegacyPrivateFormativeEnvelope } from "@/lib/materials/legacy-article-public";
 import { storage } from "@/lib/storage";
@@ -14,6 +15,8 @@ import { loadCatalog } from "@/lib/i18n/catalogs";
 import { OfflineHttpError, assertOfflineActorCurrent, offlineIdentity, type OfflineActor } from "./server-auth";
 import { currentOfflineCursor, readOfflineChanges, readOfflinePolicy } from "./server-events";
 import { OFFLINE_REPRESENTATION_VERSION, offlineResourceKey, type OfflineAchievementCatalog, type OfflineAsset, type OfflineCourseAccess, type OfflineCourseOutline, type OfflineEnrollment, type OfflineManifestResponse, type OfflinePolicy, type OfflineResourceDescriptor, type OfflineResourceEnvelope, type OfflineResourceKind, type OfflineTextMaterial, type OfflineVideoCatalog } from "./sync-contract";
+
+export { offlineAssetSources } from "./server-assets";
 
 function stable(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(stable);
@@ -126,21 +129,6 @@ async function videoCatalog(access: CourseAccessResult): Promise<{ catalog: Offl
   ]);
   const visible = videos.filter(video => access.tier === "staff" || !video.chapterId || access.scopedChapterIds.includes(video.chapterId));
   return { catalog: { playlists, videos: visible.map(video => ({ id: video.id, title: video.title, videoUrl: access.hasFullContentAccess ? video.videoUrl.startsWith("youtube/") ? video.videoUrl : storage.getUrl(video.videoUrl) : "", thumbnailUrl: video.thumbnailUrl ? storage.getUrl(video.thumbnailUrl) : null, playlistId: video.playlistId, durationSeconds: video.duration })) }, revision: offlineRevision(visible.map(video => [video.id, video.updatedAt])) };
-}
-
-/** Only image references get downloaded; video URLs and interactive evaluation stay online. */
-export function offlineAssetSources(data: unknown): string[] {
-  const urls = new Set<string>();
-  const visit = (value: unknown, key = "") => {
-    if (typeof value === "string") {
-      if (["imageUrl", "thumbnailUrl", "icon"].includes(key) && /^(?:https?:\/\/|\/)/.test(value)) urls.add(value);
-      for (const match of value.matchAll(/!\[[^\]]*\]\(([^\s)]+)(?:\s+[^)]*)?\)/g)) urls.add(match[1]);
-    } else if (Array.isArray(value)) value.forEach(item => visit(item));
-    else if (value && typeof value === "object") for (const [childKey, child] of Object.entries(value)) visit(child, childKey);
-  };
-  visit(data);
-  if (urls.size > 80) throw new OfflineHttpError(413, "OFFLINE_TOO_MANY_ASSETS");
-  return [...urls].filter(url => !url.startsWith("//") && !url.includes("\u0000"));
 }
 
 function assertRequiredFiguresReady(data: unknown): void {
