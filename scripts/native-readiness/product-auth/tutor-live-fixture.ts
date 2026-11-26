@@ -55,11 +55,11 @@ export function createTutorLiveFixture() {
       ]);
       await db.transaction(async tx => {
         const questionIds = [legacyId + "-q1", legacyId + "-q2"];
-        await tx.insert(courses).values({ id: legacyId, title: staffRoles.tutor.recordTitle, category: "Preview" }).onConflictDoNothing();
+        await tx.insert(courses).values({ id: legacyId, title: staffRoles.tutor.recordTitle, category: "Fisika" }).onConflictDoNothing();
         await tx.update(mataKuliah).set({ legacyCourseId: legacyId }).where(eq(mataKuliah.id, courseId));
         await tx.insert(aiQuestionBank).values(questionIds.map((id, index) => ({
           id, courseId: legacyId, prompt: "Soal Live Preview " + (index + 1), options: ["Pilihan A", "Pilihan B"],
-          correctIndices: [0], reviewStatus: "published" as const,
+          correctIndices: [0], explanation: "Penjelasan soal Live Preview.", reviewStatus: "published" as const,
         }))).onConflictDoNothing();
         await tx.insert(quizTemplates).values({
           id: templateId, title: "Kuis Live Preview", courseId: legacyId, category: "weekly", status: "published",

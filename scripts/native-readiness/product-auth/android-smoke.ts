@@ -59,6 +59,7 @@ async function runFlow(name: string, inputs: string[] = [], label = name) {
       ["Native Preview Sign-in", "browser sign-in form"],
       ["Runner code", "browser claim input"],
       ["Continue as preview", "browser form submission"],
+      ["Zyx Academy", "browser return link"],
       ["student-dashboard-preview", "Student dashboard"],
       ["student-inbox", "Student inbox"],
       ["PREVIEW_RECORD", "protected staff read"],
@@ -105,6 +106,7 @@ async function reportDeviceState() {
       ["Native Preview Sign-in", "preview document"], ["Runner code", "runner label"],
       ["android.widget.EditText", "text editor"], ["password=\"true\"", "password field"],
       ["focused=\"true\"", "focus"], ["Continue as preview", "preview submit"],
+      ["Open Zyx Academy", "return link"], ["Buka Zyx Academy", "return link"],
       ["Use without an account", "Chrome setup"], ["Your connection is not private", "TLS warning"],
     ].filter(([needle]) => hierarchy.includes(needle)).map(([, label]) => label);
     console.error("Chrome accessibility snapshot: " + (visible.join(", ") || "no recognized controls"));
@@ -131,10 +133,11 @@ try {
     // query in one argument. The verifier and runner claim stay out of the URL.
     await openChrome(`'${fixtureOrigin}/api/auth/native/start?${query}'`);
     await runFlow("browser-claim", ["-e", `PREVIEW_CLAIM=${fixture.claim}`]);
+    await runFlow("browser-return-ready");
     const deadline = Date.now() + 8_000;
     while (fixture.progress() !== "browser completion" && Date.now() < deadline) await Bun.sleep(100);
     if (fixture.progress() !== "browser completion") throw new Error();
-    console.log("Chrome completed the actual native-start and browser form handoff on runner-local HTTPS");
+    console.log("Chrome reached the real app return page on runner-local HTTPS");
   } else if (offlineProduct) {
     try {
       step = "sign in as a Student and save the authorized reading";

@@ -162,6 +162,13 @@ export const operationsCatalog = [
     "reason": "Public clients read the same published link fields as the public directory. Existing administrative links tools retain their scopes, consent, environment and ability to manage unpublished entries."
   },
   {
+    "source": "app/api/auth/native/complete/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Native sign-in completion verifies browser handoff state and returns the verifier-bound Expo code. Android HTML uses an explicit browser link. This is end-user authentication outside the MCP OAuth and consent surface."
+  },
+  {
     "source": "app/api/auth/native/expo/exchange/route.ts",
     "actions": ["POST"],
     "tools": [],

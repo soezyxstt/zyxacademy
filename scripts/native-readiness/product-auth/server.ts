@@ -5,7 +5,7 @@ import { NextRequest } from "next/server";
 import { studentNavigationEndpoint } from "@/components/navigation/student/student-nav-model";
 import { getSafeRedirectPath } from "@/lib/auth-redirect";
 import { NATIVE_AUTH_HANDOFF_COOKIE, normalizeNativeAuthState } from "@/lib/native/auth-handoff";
-import { EXPO_STAGING_ORIGIN, EXPO_STAGING_SCHEME } from "@/lib/native/expo-auth-config";
+import { EXPO_ANDROID_BROWSER_RETURN, EXPO_ANDROID_BROWSER_RETURN_HEADER, EXPO_STAGING_ORIGIN, EXPO_STAGING_SCHEME } from "@/lib/native/expo-auth-config";
 import { assertFixtureRunner, fixtureHost, fixtureOrigin, fixturePort, fixtureSessionSeconds } from "./scope";
 import { prepareFixtureDatabase, seedBrowserSession } from "./seed";
 import { notificationId, seedStudentInbox, verifiedInboxAcknowledgement } from "./inbox-fixture";
@@ -129,6 +129,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
   let confirmedState: string | null = null;
   let claimed = false;
   let completedHandoff = false;
+  let browserSetupFailed: "browser session setup failed" | "Tutor Live setup failed" | "Student setup failed" | undefined;
   let exchangedCode = false;
   let verifiedContext = false;
   let signedOut = false;
@@ -206,17 +207,28 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
           return result(403);
         }
         claimed = true;
-        browserIdentity = await seedBrowserSession(staff);
-        await tutorLive?.seed(browserIdentity.accountId);
-        if (studentProduct) await seedStudentInbox(browserIdentity.accountId);
-        await offline?.seed(browserIdentity.accountId);
+        try {
+          browserSetupFailed = "browser session setup failed";
+          browserIdentity = await seedBrowserSession(staff);
+          browserSetupFailed = tutorLive ? "Tutor Live setup failed" : "Student setup failed";
+          await tutorLive?.seed(browserIdentity.accountId);
+          if (studentProduct) await seedStudentInbox(browserIdentity.accountId);
+          await offline?.seed(browserIdentity.accountId);
+          browserSetupFailed = undefined;
+        } catch {
+          return result(500);
+        }
         return new Response(null, { status: 303, headers: {
           ...noStore, Location: fixtureOrigin + nativeComplete + "?" + query, "Set-Cookie": browserIdentity.cookie,
         } });
       }
       if (route === "GET " + nativeComplete) {
         const response = await complete(upstream);
-        if (response.headers.get("location")?.startsWith(EXPO_STAGING_SCHEME + "://auth/native-finish#")) completedHandoff = true;
+        const returnedFromAndroid = response.status === 200 &&
+          response.headers.get(EXPO_ANDROID_BROWSER_RETURN_HEADER) === EXPO_ANDROID_BROWSER_RETURN;
+        const redirected = response.status === 302 &&
+          response.headers.get("location")?.startsWith(EXPO_STAGING_SCHEME + "://auth/native-finish#");
+        if (returnedFromAndroid || redirected) completedHandoff = true;
         return localizeRedirect(response);
       }
       if (route === "POST /api/auth/native/expo/exchange") {
@@ -337,6 +349,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
       if (verifiedContext) return "authorized context";
       if (exchangedCode) return "code exchange";
       if (completedHandoff) return "browser completion";
+      if (browserSetupFailed) return browserSetupFailed;
       if (claimed) return "browser form";
       if (browserStep) return browserStep;
       if (confirmedState) return "native start";

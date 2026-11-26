@@ -4,7 +4,7 @@ import { loadInbox, markInboxRead } from "../../../apps/mobile-native/features/n
 import { loadNativeAccountContext } from "../../../apps/mobile-native/network/account-context";
 import { createNativeTransport } from "../../../apps/mobile-native/network/transport";
 import { NATIVE_AUTH_HANDOFF_COOKIE } from "@/lib/native/auth-handoff";
-import { EXPO_STAGING_ORIGIN, EXPO_STAGING_SCHEME } from "@/lib/native/expo-auth-config";
+import { EXPO_ANDROID_BROWSER_RETURN, EXPO_ANDROID_BROWSER_RETURN_HEADER, EXPO_STAGING_ORIGIN, EXPO_STAGING_SCHEME } from "@/lib/native/expo-auth-config";
 import { course, video, privateVideoPath } from "./video-fixture";
 import { notificationId } from "./inbox-fixture";
 import { fixtureOrigin, fixtureSessionSeconds } from "./scope";
@@ -81,9 +81,17 @@ try {
   stage = "produce the real complete callback";
   const completeLocation = signedIn.headers.get("location");
   check(completeLocation?.startsWith(fixtureOrigin + "/api/auth/native/complete?"), "Unexpected completion destination");
-  const complete = await local(completeLocation, { headers: { Cookie: browserCookie + "; " + handoffCookie } });
-  const deepLink = complete.headers.get("location");
-  check(complete.status === 302 && deepLink?.startsWith(EXPO_STAGING_SCHEME + "://auth/native-finish#"), "Unexpected native callback");
+  const complete = await local(completeLocation, { headers: {
+    Cookie: browserCookie + "; " + handoffCookie, Accept: "text/html", "User-Agent": "Mozilla/5.0 (Linux; Android 13) Chrome/120.0",
+    "Accept-Language": "en",
+  } });
+  check(complete.status === 200 && complete.headers.get(EXPO_ANDROID_BROWSER_RETURN_HEADER) === EXPO_ANDROID_BROWSER_RETURN &&
+    !complete.headers.has("location") && complete.headers.get("cache-control") === "no-store" &&
+    complete.headers.get("referrer-policy") === "no-referrer", "Missing protected Android return page");
+  const html = await complete.text();
+  const deepLink = /<a[^>]* href="([^"]+)"/.exec(html)?.[1].replaceAll("&amp;", "&");
+  check(deepLink?.startsWith(EXPO_STAGING_SCHEME + "://auth/native-finish#") && html.includes("Open Zyx Academy") &&
+    !html.includes("<script") && !html.includes("http-equiv"), "Unexpected native return link");
   const fragment = new URLSearchParams(new URL(deepLink).hash.slice(1));
   const code = fragment.get("code");
   check(fragment.get("state") === state && code && !fragment.has("token"), "Native callback contract mismatch");

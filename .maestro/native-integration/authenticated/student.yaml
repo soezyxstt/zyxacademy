@@ -12,6 +12,7 @@ name: Verified Student dashboard, inbox acknowledgement and online learning
     id: native-auth-google
     enabled: true
 - runFlow: browser-claim.yaml
+- runFlow: browser-return.yaml
 - extendedWaitUntil:
     visible:
       id: student-dashboard-preview

@@ -58,6 +58,7 @@ test("Expo download and storage recovery stay device-local", () => {
 
 test("device sign-in, role context, photo recovery and OS permissions stay user-scoped", () => {
   for (const source of [
+    "app/api/auth/native/complete/route.ts",
     "app/api/auth/native/expo/exchange/route.ts",
     "app/api/native/context/route.ts",
     "apps/mobile-native/routing/BrowserHandoff.tsx",

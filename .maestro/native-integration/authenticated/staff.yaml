@@ -12,6 +12,7 @@ name: Verified staff role, protected read, wrong-role denial and logout
     id: native-auth-google
     enabled: true
 - runFlow: browser-claim.yaml
+- runFlow: browser-return.yaml
 - extendedWaitUntil:
     visible: ".*${PREVIEW_RECORD}.*"
     timeout: 45000

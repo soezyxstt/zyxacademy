@@ -1,0 +1,5 @@
+appId: com.android.chrome
+name: Return to the installed app from Chrome
+---
+- runFlow: browser-return-ready.yaml
+- tapOn: "(Buka|Open) Zyx Academy"

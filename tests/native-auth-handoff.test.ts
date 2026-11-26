@@ -7,6 +7,7 @@ import { oneTimeToken } from "better-auth/plugins/one-time-token";
 import * as schema from "@/db/schema";
 import { accountSwitchPlugin } from "@/lib/auth/account-switch-plugin";
 import { NATIVE_AUTH_HANDOFF_COOKIE } from "@/lib/native/auth-handoff";
+import { EXPO_ANDROID_BROWSER_RETURN, EXPO_ANDROID_BROWSER_RETURN_HEADER } from "@/lib/native/expo-auth-config";
 import { createPostgresTestDb } from "./helpers/postgres";
 
 const { client, testDb } = await createPostgresTestDb();
@@ -149,7 +150,7 @@ describe("Better Auth oneTimeToken native browser handoff", () => {
     expect(replayRes.status).toBeGreaterThanOrEqual(400);
   });
 
-  test("requires the originating Expo verifier and staging origin, consumes the code once", async () => {
+  test.each(["Android", "iOS"])("requires the originating Expo verifier on %s and consumes the code once", async (platform) => {
     const previousOrigin = process.env.BETTER_AUTH_URL;
     const origin = "https://staging.zyxacademy.com";
     const verifier = randomBytes(32).toString("base64url");
@@ -166,7 +167,7 @@ describe("Better Auth oneTimeToken native browser handoff", () => {
       process.env.BETTER_AUTH_URL = origin;
       const signIn = await testAuth.handler(new Request(`${origin}/api/auth/sign-up/email`, {
         method: "POST", headers: { "Content-Type": "application/json", origin },
-        body: JSON.stringify({ name: "Expo", email: "expo-fixture@example.com", password: "fixture-password-123" }),
+        body: JSON.stringify({ name: "Expo", email: `expo-fixture-${platform.toLowerCase()}@example.com`, password: "fixture-password-123" }),
       }));
       expect(signIn.status).toBe(200);
       const user = (await signIn.json()).user;
@@ -175,12 +176,36 @@ describe("Better Auth oneTimeToken native browser handoff", () => {
       expect(handoff).toBeTruthy();
       query.delete("challenge");
       expect((await start()).status).toBe(400);
+      const android = platform === "Android";
       const complete = await completeNativeAuth(new NextRequest(`${origin}/api/auth/native/complete?${query}`, {
-        headers: { cookie: `${signIn.headers.get("set-cookie")}; ${handoff}` },
+        headers: {
+          cookie: `${signIn.headers.get("set-cookie")}; ${handoff}; zyx_locale=id`,
+          accept: "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
+          "user-agent": android ? "Mozilla/5.0 (Linux; Android 13) Chrome/120.0" : "Mozilla/5.0 (iPhone) Safari/16.0",
+        },
       }));
-      expect(complete.status).toBe(302);
-      const link = new URL(complete.headers.get("location")!);
+      expect(complete.status).toBe(android ? 200 : 302);
+      expect(complete.headers.get("set-cookie")).toContain("Max-Age=0");
+      let href = complete.headers.get("location");
+      if (android) {
+        expect(href).toBeNull();
+        expect(complete.headers.get(EXPO_ANDROID_BROWSER_RETURN_HEADER)).toBe(EXPO_ANDROID_BROWSER_RETURN);
+        expect(complete.headers.get("cache-control")).toBe("no-store");
+        expect(complete.headers.get("referrer-policy")).toBe("no-referrer");
+        expect(complete.headers.get("content-security-policy")).toContain("frame-ancestors 'none'");
+        const html = await complete.text();
+        expect(html).toContain('<html lang="id">');
+        expect(html).toContain("Buka Zyx Academy");
+        expect(html).not.toContain("<script");
+        expect(html).not.toContain("http-equiv");
+        href = /<a[^>]* href="([^"]+)"/.exec(html)?.[1].replaceAll("&amp;", "&") ?? null;
+      } else {
+        expect(complete.headers.has(EXPO_ANDROID_BROWSER_RETURN_HEADER)).toBe(false);
+      }
+      expect(href).toBeTruthy();
+      const link = new URL(href!);
       expect(link.protocol).toBe("zyx-native-parity:");
+      expect(link.search).toBe("");
       const fragment = new URLSearchParams(link.hash.slice(1));
       expect(fragment.get("state")).toBe(query.get("state"));
       expect(fragment.has("token")).toBe(false);

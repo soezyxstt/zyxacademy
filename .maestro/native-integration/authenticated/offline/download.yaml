@@ -12,6 +12,7 @@ name: Download an authorized Student reading
     id: native-auth-google
     enabled: true
 - runFlow: ../browser-claim.yaml
+- runFlow: ../browser-return.yaml
 - extendedWaitUntil:
     visible: "(Simpan|Save) Diktat verifikasi offline"
     timeout: 45000
