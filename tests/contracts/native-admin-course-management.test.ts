@@ -276,3 +276,27 @@ test("legacy-only flashcards stay editable and mirrored deletion protects unseen
   await expect(saveAdminCourseFlashcard(course, change, "native-protect-hidden-card", viewer)).rejects.toThrow("DEPENDENCIES_EXIST");
   expect(await db.select().from(tables.flashcards).where(eq(tables.flashcards.setId, legacy.id))).toHaveLength(1);
 });
+
+test("PDF metadata and deletion bind the document, chapters, revision and actor before updating the course catalog", async () => {
+  const { testDb: db } = database;
+  const { updateCoursePdfTitleFromNative, deleteCoursePdfFromNative } = await import("@/lib/native/academic/course-material-service");
+  const { revisionOf } = await import("@/lib/admin-mcp/revision");
+  const id = "native-course-documents";
+  expect((await command("native-pdf-test-course", create(id))).status).toBe(200);
+  const chapter = await saveChapterWithCanonicalProjection({ courseId: id, title: "Latihan", orderIndex: 1 });
+  const [document] = await db.insert(tables.courseMaterials).values({ id: "native-pdf-document", courseId: id, title: "Draft",
+    type: "materi", fileUrl: "https://example.invalid/legacy/document.pdf", chapterIds: [] }).returning();
+  const viewer = { user: { id: admin }, session: { id: "admin-first" } };
+  const metadata = { type: "soal", subcategory: "uts", year: 2025, chapterIds: [chapter.id] } as const;
+  const draft = { expectedRevision: revisionOf(document), title: "Latihan UTS", metadata: { ...metadata, chapterIds: [...metadata.chapterIds] } };
+  await expect(updateCoursePdfTitleFromNative(id, document.id, { ...draft, metadata: { ...draft.metadata, chapterIds: ["outside"] } }, "native-pdf-foreign-chapter", viewer)).rejects.toThrow("CHAPTER_NOT_FOUND");
+  await updateCoursePdfTitleFromNative(id, document.id, draft, "native-pdf-save-metadata", viewer);
+  const [saved] = await db.select().from(tables.courseMaterials).where(eq(tables.courseMaterials.id, document.id));
+  expect(saved).toMatchObject({ title: draft.title, ...metadata });
+  const consent = { confirmed: true as const, expectedRevision: revisionOf(saved) };
+  await expect(deleteCoursePdfFromNative(id, document.id, { ...consent, expectedRevision: draft.expectedRevision }, "native-pdf-stale-delete", viewer)).rejects.toThrow("REVISION_CONFLICT");
+  await deleteCoursePdfFromNative(id, document.id, consent, "native-pdf-confirm-delete", viewer);
+  await deleteCoursePdfFromNative(id, document.id, consent, "native-pdf-confirm-delete", viewer);
+  await expect(deleteCoursePdfFromNative(id, document.id, consent, "native-pdf-confirm-delete", { ...viewer, session: { id: "admin-second" } })).rejects.toThrow("REQUEST_CONFLICT");
+  expect(await db.select().from(tables.courseMaterials).where(eq(tables.courseMaterials.id, document.id))).toHaveLength(0);
+});

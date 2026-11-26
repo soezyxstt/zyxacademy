@@ -65,9 +65,9 @@ function buildAcademicClient(transport: AcademicTransport) {
     saveCard: (courseId, setId, cardId) => cardTarget(flashcardPath(courseId, setId, true, cardId), cardId ? "PATCH" : "POST"),
     remove: (courseId, setId, cardId) => flashcardDeleteTarget(flashcardPath(courseId, setId, Boolean(cardId), cardId), "DELETE"),
   } : undefined;
-  const videoDeleteTarget = command ? createCourseCommandTarget<AdminEntityDeleteDraft>(command) : undefined;
-  const removeVideo: AdminVideoRemover | undefined = videoDeleteTarget ? (courseId, playlistId, videoId) =>
-    videoDeleteTarget(`${encodeURIComponent(courseId)}/videos/playlists/${encodeURIComponent(playlistId)}${videoId ? `/videos/${encodeURIComponent(videoId)}` : ""}`, "DELETE") : undefined;
+  const deleteTarget = command ? createCourseCommandTarget<AdminEntityDeleteDraft>(command) : undefined;
+  const removeVideo: AdminVideoRemover | undefined = deleteTarget ? (courseId, playlistId, videoId) =>
+    deleteTarget(`${encodeURIComponent(courseId)}/videos/playlists/${encodeURIComponent(playlistId)}${videoId ? `/videos/${encodeURIComponent(videoId)}` : ""}`, "DELETE") : undefined;
   const materialTarget = command ? createCourseCommandTarget<AdminMaterialTitleDraft>(command, ({ title }) => validAdminMaterialTitle(title)) : undefined;
   const createCourse = command ? createCourseCommandTarget<AdminCourseCreateDraft>(command)("", "POST") : undefined;
   const archiveTarget = command ? createCourseCommandTarget<AdminCourseArchiveDraft>(command) : undefined;
@@ -84,8 +84,10 @@ function buildAcademicClient(transport: AcademicTransport) {
   const saveChapter: AdminChapterEditor | undefined = chapterTarget ? (courseId, chapterId) =>
     chapterTarget(`${encodeURIComponent(courseId)}/chapters${chapterId ? `/${encodeURIComponent(chapterId)}` : ""}`,
       chapterId ? "PATCH" : "POST") : undefined;
-  const updateMaterial: AdminMaterialEditor | undefined = materialTarget ? (courseId, materialId) =>
-    materialTarget(`${encodeURIComponent(courseId)}/documents/${encodeURIComponent(materialId)}/metadata`, "PATCH") : undefined;
+  const updateMaterial: AdminMaterialEditor | undefined = materialTarget && deleteTarget ? (courseId, materialId) => {
+    const path = `${encodeURIComponent(courseId)}/documents/${encodeURIComponent(materialId)}`;
+    return { ...materialTarget(path + "/metadata", "PATCH"), remove: deleteTarget(path, "DELETE") };
+  } : undefined;
   return {
     tutor,
     updateCourseSettings,

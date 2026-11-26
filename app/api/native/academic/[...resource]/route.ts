@@ -9,8 +9,8 @@ import { handleAdminCourseManagementCommand } from "@/lib/native/academic/course
 import { archiveCourseFromNative, createCourseFromNative } from "@/lib/native/academic/course-management-service";
 import { archiveCourseChapterFromNative, reorderCourseChaptersFromNative, saveCourseChapterFromNative } from "@/lib/native/academic/course-chapter-service";
 import { handleAdminCourseSettingsCommand } from "@/lib/native/academic/course-settings-command";
-import { handleAdminCourseMaterialCommand } from "@/lib/native/academic/course-material-command";
-import { updateCoursePdfTitleFromNative } from "@/lib/native/academic/course-material-service";
+import { handleAdminCourseMaterialCommand, handleAdminCoursePdfDelete } from "@/lib/native/academic/course-material-command";
+import { updateCoursePdfTitleFromNative, deleteCoursePdfFromNative } from "@/lib/native/academic/course-material-service";
 import { updateCourseSettingsFromNative } from "@/lib/native/academic/course-settings-service";
 import { handleAcademicRead } from "@/lib/native/academic/handle-read";
 import { academicReadServices } from "@/lib/native/academic/read-services";
@@ -38,6 +38,9 @@ export async function POST(request: Request, { params }: Context) {
 export async function DELETE(request: Request, { params }: Context) {
   const { resource } = await params;
   const origin = new URL(resolveAuthBaseUrl()).origin;
+  if (resource[3] === "documents") {
+    return handleAdminCoursePdfDelete(request, resource, origin, { ...auth, remove: deleteCoursePdfFromNative });
+  }
   if (resource[3] === "flashcards") {
     return handleAdminCourseFlashcardCommand(request, resource, origin, { ...auth, save: saveAdminCourseFlashcard });
   }

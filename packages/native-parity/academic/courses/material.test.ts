@@ -77,3 +77,15 @@ test("PDF titles containing NUL are rejected before a native command or server w
   assert.deepEqual(written, []);
   assert.deepEqual(await target.submit(draft, requestId, signal), { status: "saved" });
 });
+
+test("native PDF editing sends taxonomy, year and chapter selection without dropping the old title-only payload", async () => {
+  const host = harness("admin");
+  const metadata = { type: "soal", subcategory: "uts", year: 2024, chapterIds: ["chapter-visible"] } as const;
+  const input = { ...draft, metadata: { ...metadata, chapterIds: [...metadata.chapterIds] } };
+  const target = host.client.updateMaterial!("biologi-dasar", "document-1");
+  assert.deepEqual(await target.submit(input, requestId, signal), { status: "saved" });
+  assert.deepEqual(host.written, [input]);
+  for (const patch of [{ subcategory: "ebook" }, { year: 1800 }, { chapterIds: [] }, { chapterIds: ["one", "one"] }]) {
+    assert.equal((await host.dispatch(path, { ...draft, metadata: { ...metadata, ...patch } })).status, 422);
+  }
+});

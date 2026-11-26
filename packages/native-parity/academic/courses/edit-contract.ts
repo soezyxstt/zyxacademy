@@ -49,7 +49,7 @@ export type CoursePdfMetadata = {
 };
 export type AdminMaterialTitleDraft = { title: string; expectedRevision: string; metadata?: CoursePdfMetadata };
 export type AdminMaterialTitleEdit = { title: string; revision: string; metadata?: CoursePdfMetadata; chapters?: { id: string; title: string }[] };
-export type AdminMaterialEditor = (courseId: string, materialId: string) => CourseWriteTarget<AdminMaterialTitleDraft>;
+export type AdminMaterialEditor = (courseId: string, materialId: string) => CourseWriteTarget<AdminMaterialTitleDraft> & { remove?: CourseWriteTarget<AdminEntityDeleteDraft> };
 
 export function validAdminMaterialTitle(title: string) {
   const trimmed = title.trim();

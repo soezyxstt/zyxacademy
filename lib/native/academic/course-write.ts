@@ -29,7 +29,7 @@ export async function courseWrite<T extends object>({
   write(tx: CourseWriteTransaction): Promise<Saved>;
   validateReplay(tx: CourseWriteTransaction, result: Saved): Promise<void>;
 }) {
-  const receiptScope = entityType === "native_course_management" || entityType === "native_chapter_management" || entityType === "native_course_video" || entityType === "native_course_flashcard"
+  const receiptScope = (entityType === "native_course_material" && action === "delete") || entityType === "native_course_management" || entityType === "native_chapter_management" || entityType === "native_course_video" || entityType === "native_course_flashcard"
     ? { sessionHash: revisionOf(viewer.session.id) } : {};
   const receiptId = `native_course_${revisionOf({ actorId: viewer.user.id, requestId })}`;
   const inputHash = revisionOf({ slug, targetId, draft });

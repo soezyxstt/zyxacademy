@@ -50,7 +50,7 @@ export function LiveCourseSection({ data, query, navigate, updateSettings, updat
     case "document": {
       const { document, chapters, titleEdit } = data;
       const editTitle = titleEdit && updateMaterial ? (
-        <LivePdfTitleEdit initial={titleEdit} target={updateMaterial(data.course.id, document.id)} refresh={refresh} />
+        <LivePdfTitleEdit initial={titleEdit} target={updateMaterial(data.course.id, document.id)} refresh={refresh} onDeleted={() => navigate(adminCoursePath(data.course.slug, "documents"))} />
       ) : null;
       return (
         <Panel title={document.title} action={editTitle}>
