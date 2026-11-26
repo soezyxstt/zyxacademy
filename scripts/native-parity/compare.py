@@ -24,13 +24,19 @@ def load_frame(path):
 
 def crop_positions(frame, scale, identity_width):
     width = 320 * scale
+    # Android's GPU can round an identity-strip channel by one when compositing
+    # a filtered EditText. Keep its exact run length to distinguish neighbors.
+    delta = ImageChops.difference(frame, Image.new("RGB", frame.size, MARKER))
+    identity_mask = delta.point(lambda channel: 255 if channel <= 1 else 0).convert("L")
+    identity_run = bytes([255]) * identity_width
     # Only the first row of each full-width marker starts a case.
     positions = []
     identified = False
     for y in range(frame.height):
         line = frame.crop((0, y, frame.width, y + 1)).tobytes()
-        if not identified and line.count(bytes(MARKER)) == identity_width:
-            identified = bytes(MARKER) * identity_width in line
+        if not identified:
+            mask_line = identity_mask.crop((0, y, frame.width, y + 1)).tobytes()
+            identified = mask_line.count(255) == identity_width and identity_run in mask_line
         offset = line.find(bytes(MARKER) * width)
         if offset >= 0 and offset % 3 == 0:
             x = offset // 3
