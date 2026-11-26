@@ -63,6 +63,7 @@ let snapshot: NativeOfflineLibrarySnapshot | null = null;
 let items: Summary[] = [];
 let bytes = 0;
 let locale: "id" | "en" = document.documentElement.lang === "en" ? "en" : "id";
+let localeChosenByUser = false;
 let section: Section = "courses";
 let selectedCourse: string | null = null;
 let expired = false;
@@ -306,8 +307,11 @@ async function initialize(): Promise<void> {
     const initial = await bridge.getLibrary(); snapshot = initial.snapshot ?? null; expired = Boolean(initial.expired);
     const identity = snapshot ?? initial.identity;
     if (identity?.userId && identity.environment && (identity.locale === "id" || identity.locale === "en")) {
-      currentScope = createOfflineScope(identity.userId, identity.environment, identity.locale); setOfflineScope(currentScope); locale = identity.locale;
-      document.getElementById(locale === "id" ? "lang-id" : "lang-en")?.click();
+      currentScope = createOfflineScope(identity.userId, identity.environment, identity.locale); setOfflineScope(currentScope);
+      if (!localeChosenByUser) {
+        locale = identity.locale;
+        document.getElementById(locale === "id" ? "lang-id" : "lang-en")?.click();
+      }
       window.zyxOfflineShell!.hasIdentity = true;
       await refreshNative();
       await hydrateNativeOfflineReadings(currentScope);
@@ -320,8 +324,14 @@ async function initialize(): Promise<void> {
 
 let resolveReady!: () => void;
 window.zyxOfflineShell = { ready: new Promise(resolve => { resolveReady = resolve; }), hasSnapshot: false, hasIdentity: false, refresh: refreshNative };
-// The local snapshot renders before any server response; remote sync never gates launch.
-void initialize().finally(resolveReady);
+// The inline shell installs its locale and reader handlers after this bundle.
+// Wait for those handlers, while keeping server work outside the launch gate.
+const start = () => {
+  if (!localeChosenByUser) locale = document.documentElement.lang === "en" ? "en" : "id";
+  void initialize().finally(resolveReady);
+};
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start, { once: true });
+else start();
 window.addEventListener(OFFLINE_CACHE_CHANGED_EVENT, () => { void refreshNative(); });
 window.addEventListener("zyx:offline-reader-closed", () => { activeKey = null; activeVersion = null; document.getElementById("offline-reader-update")?.setAttribute("hidden", ""); });
 window.addEventListener("online", () => { void sync(); });
@@ -332,7 +342,7 @@ document.addEventListener("click", event => {
   if (menu && !menu.contains(event.target as Node)) menu.open = false;
 });
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { void refreshNative(); if (Date.now() - lastCheck > 15_000) void sync(); } });
-for (const lang of ["id", "en"] as const) document.getElementById(`lang-${lang}`)?.addEventListener("click", () => { locale = lang; render(); });
+for (const lang of ["id", "en"] as const) document.getElementById(`lang-${lang}`)?.addEventListener("click", event => { if (event.isTrusted) localeChosenByUser = true; locale = lang; render(); });
 setInterval(() => {
   if (document.visibilityState !== "visible") return;
   if (snapshot && snapshot.accessValidUntil <= Date.now()) { void refreshNative(); }

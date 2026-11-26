@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Download, Loader2, RefreshCw, Check } from "lucide-react";
+import { Download, Loader2, RefreshCw, Check, CircleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAppLocale } from "@/lib/i18n/client";
@@ -58,7 +58,7 @@ export function OfflineReadingActions({ userId, courseId, materialId, kind }: { 
   };
   return <TooltipProvider delayDuration={150}>
     {updated && <Tooltip><TooltipTrigger asChild><Button type="button" variant="outline" size="sm" aria-label={t.update} disabled={refreshing} onClick={() => { setUpdated(false); startRefresh(() => router.refresh()); }}><RefreshCw className={refreshing ? "size-4 animate-spin motion-reduce:animate-none" : "size-4"} />{t.newVersion}</Button></TooltipTrigger><TooltipContent>{t.update}</TooltipContent></Tooltip>}
-    <Tooltip><TooltipTrigger asChild><Button type="button" variant="ghost" size="icon-sm" aria-label={failed ? t.retry : saved ? t.saved : t.save} disabled={saving} onClick={() => void save()} className={failed ? "text-destructive" : "text-muted-foreground"}>{saving ? <Loader2 className="size-4 animate-spin motion-reduce:animate-none" /> : saved ? <Check className="size-4" /> : <Download className="size-4" />}</Button></TooltipTrigger><TooltipContent>{failed ? t.retry : saved ? t.saved : t.save}</TooltipContent></Tooltip>
+    <Tooltip><TooltipTrigger asChild><Button type="button" variant="ghost" size="icon-sm" aria-label={failed ? t.retry : saved ? t.saved : t.save} disabled={saving} onClick={() => void save()} className={failed ? "text-destructive" : "text-muted-foreground"}>{saving ? <Loader2 className="size-4 animate-spin motion-reduce:animate-none" /> : failed ? <CircleAlert className="size-4" /> : saved ? <Check className="size-4" /> : <Download className="size-4" />}</Button></TooltipTrigger><TooltipContent>{failed ? t.retry : saved ? t.saved : t.save}</TooltipContent></Tooltip>
     <span role="status" aria-live="polite" className="sr-only">{failed ? t.retry : updated ? t.update : saved ? t.saved : ""}</span>
   </TooltipProvider>;
 }

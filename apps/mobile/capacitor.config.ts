@@ -1,6 +1,5 @@
 import { execSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import type { CapacitorConfig } from "@capacitor/cli";
 
@@ -76,7 +75,8 @@ const defaultServerUrl = isNightly
   : "https://www.zyxacademy.com";
 
 const serverUrl = process.env.ZYX_MOBILE_SERVER_URL?.trim() || defaultServerUrl;
-writeFileSync(fileURLToPath(new URL("./www/offline-origin.js", import.meta.url)), `window.__ZYX_NATIVE_SERVER_ORIGIN__=${JSON.stringify(new URL(serverUrl).origin)};\n`);
+// Capacitor loads this TypeScript config as CommonJS, including under Node 24.
+writeFileSync(join(__dirname, "www", "offline-origin.js"), `window.__ZYX_NATIVE_SERVER_ORIGIN__=${JSON.stringify(new URL(serverUrl).origin)};\n`);
 
 const config: CapacitorConfig = {
   appId: isNightly ? "com.zyx.academy.nightly" : "com.zyx.academy",

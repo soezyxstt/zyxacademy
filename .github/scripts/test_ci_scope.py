@@ -50,11 +50,17 @@ class ScopeTest(unittest.TestCase):
         self.assertFalse(result['worker'])
         self.assertFalse(result['typecheck'])
 
-    def test_background_entry_does_not_build_web(self):
+    def test_background_entry_checks_dependent_tests_without_building_web(self):
         result = self.plan('workers/deno-background/main.ts')
         self.assertTrue(result['worker'])
-        for key in ['web', 'v4', 'typecheck', 'test_typecheck', 'authoring', 'schedule']:
+        for key in ['web', 'v4', 'typecheck', 'authoring', 'schedule']:
             self.assertFalse(result[key], key)
+        # Queue diagnostics import the Neon entry, which delegates to this worker.
+        # Its tests still need checking even when no web build is affected.
+        diagnostics = 'tests/contracts/product-v4-queue-diagnostics.test.ts'
+        self.assertIn(diagnostics, result['tests'])
+        self.assertIn(diagnostics, result['compiler_tests'])
+        self.assertTrue(result['test_typecheck'])
 
     def test_new_worker_and_shared_job_are_worker_inputs(self):
         for path in ['workers/deno-background/new.ts', 'workers/neon-background/new.ts', 'scripts/neon/build-worker.mjs', 'jobs/new.ts']:

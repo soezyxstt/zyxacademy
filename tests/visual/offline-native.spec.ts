@@ -13,7 +13,7 @@ type Scenario = "populated" | "empty" | "expired" | "unsupported";
 
 test.beforeAll(() => { execFileSync(process.execPath, ["scripts/build-native-offline.mjs"], { cwd: process.cwd(), stdio: "pipe", env: { ...process.env, ZYX_APP_CHANNEL: "nightly" } }); });
 
-async function launch(page: Page, platform: Platform, theme: "light" | "dark", locale: "id" | "en" = "id", scenario: Scenario = "populated") {
+async function launch(page: Page, platform: Platform, theme: "light" | "dark", locale: "id" | "en" = "id", scenario: Scenario = "populated", stalledOnline = false) {
   const now = Date.now(); const scopeKey = JSON.stringify([environment, "fixture-student", locale]);
   const library = {
     schemaVersion: 2, scopeKey, environment, userId: "fixture-student", sessionId: "fixture-session", locale,
@@ -51,8 +51,8 @@ async function launch(page: Page, platform: Platform, theme: "light" | "dark", l
   page.on("console", message => { if (message.type() === "error") failures.push(message.text()); });
   page.on("response", response => { if (response.status() >= 400) failures.push(`${response.status()} ${response.url()}`); });
   await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
-  await page.addInitScript(({ platform, library, records, scenario, environment }) => {
-    const state = { library: scenario === "empty" ? null : library, records: scenario === "empty" ? [] : records, online: false, requests: [] as unknown[], mode: "network" };
+  await page.addInitScript(({ platform, library, records, scenario, environment, stalledOnline }) => {
+    const state = { library: scenario === "empty" ? null : library, records: scenario === "empty" ? [] : records, online: stalledOnline, requests: [] as unknown[], mode: stalledOnline ? "stalled" : "network" };
     Object.defineProperty(navigator, "onLine", { configurable: true, get: () => state.online });
     Object.defineProperty(navigator, "userAgent", { configurable: true, get: () => platform === "desktop" ? "Mozilla/5.0 Windows WebView2" : "ZyxMobileApp/1 (nightly)" });
     const summary = (record: Record<string, unknown>) => { const { sections: _sections, ...meta } = record; return meta; };
@@ -66,7 +66,7 @@ async function launch(page: Page, platform: Platform, theme: "light" | "dark", l
       async removeReading({ key }: { key: string }) { state.records = state.records.filter(record => record.key !== key); },
       async saveReadingPosition() { return { saved: true }; },
       async clearOtherUsers({ userId }: { userId: string }) { if (state.library?.userId !== userId) { state.library = null; state.records = []; } },
-      async offlineRequest(options: unknown) { state.requests.push(options); if (state.mode === "revoked") { state.records = []; state.library = null; return { status: 401, headers: {}, bodyBase64: "" }; } throw new Error("Network unavailable"); },
+      async offlineRequest(options: unknown) { state.requests.push(options); if (state.mode === "stalled") return new Promise(() => {}); if (state.mode === "revoked") { state.records = []; state.library = null; return { status: 401, headers: {}, bodyBase64: "" }; } throw new Error("Network unavailable"); },
     };
     const global = window as unknown as Record<string, unknown>;
     if (scenario === "unsupported") global.Capacitor = { isNativePlatform: () => true, getPlatform: () => "ios", Plugins: {} };
@@ -78,10 +78,12 @@ async function launch(page: Page, platform: Platform, theme: "light" | "dark", l
       return (store[map[command]] as (args?: unknown) => unknown)(args);
     } } };
     global.__offlineNativeFixture = state;
-  }, { platform, library, records, scenario, environment });
+  }, { platform, library, records, scenario, environment, stalledOnline });
+  let releaseProbe: (() => Promise<void>) | undefined;
   await page.route("**/*", async route => {
     const url = new URL(route.request().url());
     if (url.origin === environment && url.pathname === "/favicon.ico" && url.searchParams.has("zyx-connect") && route.request().method() === "HEAD") {
+      if (stalledOnline) return new Promise<void>(resolve => { releaseProbe = async () => { await route.fulfill({ status: 200, body: "" }); resolve(); }; });
       return route.fulfill({ status: 200, body: "" });
     }
     if (url.origin !== origin) { failures.push(`Unexpected external request: ${url.href}`); return route.abort(); }
@@ -97,7 +99,7 @@ async function launch(page: Page, platform: Platform, theme: "light" | "dark", l
   await page.goto(`${origin}/native-offline/${platform}/index.html`);
   await page.waitForFunction(async () => { await window.zyxOfflineShell?.ready; return Boolean(window.zyxOfflineShell); });
   if (scenario !== "unsupported") await expect(page.locator("#offline-library-v2")).toBeVisible();
-  return { failures, records };
+  return { failures, records, hasPendingProbe: () => Boolean(releaseProbe), releaseProbe: async () => { await releaseProbe?.(); } };
 }
 
 async function capture(page: Page, info: TestInfo, name: string, failures: string[]) {
@@ -136,8 +138,12 @@ for (const platform of ["desktop", "android"] as const) for (const theme of ["li
   });
 }
 
-test("English native metadata and failed refresh retain saved content", async ({ page }, info) => {
-  const { failures } = await launch(page, "desktop", "light", "en");
+for (const platform of ["desktop", "android"] as const) test(`${platform} English native metadata and failed refresh retain saved content`, async ({ page }, info) => {
+  const { failures } = await launch(page, platform, "light", "en");
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  await expect(page.locator("#lang-en")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("#lang-id")).toHaveAttribute("aria-pressed", "false");
+  await expect(page.locator("#reader-back-label")).toHaveText("Back");
   await selectSection(page, "achievements");
   await capture(page, info, "offline-native-achievements-en", failures);
   await page.locator('[data-section="videos"]').click();
@@ -145,7 +151,9 @@ test("English native metadata and failed refresh retain saved content", async ({
   await capture(page, info, "offline-native-videos-en", failures);
   await page.evaluate(() => { const state = (window as unknown as { __offlineNativeFixture: { online: boolean } }).__offlineNativeFixture; state.online = true; window.dispatchEvent(new Event("online")); });
   await expect(page.locator(".offline-v2-notice")).toContainText("Could not update");
-  expect(page.url()).toContain(`${origin}/native-offline/desktop/`);
+  await expect(page.locator("#reconnect-banner-text")).toHaveText("Connection restored");
+  await expect(page.locator("#banner-online-btn")).toHaveText("Return online");
+  expect(page.url()).toContain(`${origin}/native-offline/${platform}/`);
   await page.locator('[data-section="readings"]').click();
   await expect(page.locator(".offline-v2-row")).toHaveCount(3);
   await capture(page, info, "offline-native-sync-error-en", failures);
@@ -184,4 +192,22 @@ test("a native platform without the storage bridge keeps the bundled recovery vi
   await expect(page.locator("#retry-btn")).toBeVisible();
   await expect(page.locator("#reading-list")).toBeEmpty();
   await capture(page, info, "offline-native-unsupported-recovery", failures);
+});
+
+for (const platform of ["desktop", "android"] as const) test(`${platform} cached online launch opens local content while server requests are stalled`, async ({ page }, info) => {
+  const { failures, hasPendingProbe, releaseProbe } = await launch(page, platform, "light", "id", "populated", true);
+  await expect(page.getByRole("heading", { name: "Materi di perangkat", exact: true })).toBeVisible();
+  if (platform === "desktop") {
+    await expect(page.locator("#startup-splash")).toBeHidden();
+    await expect.poll(hasPendingProbe).toBe(true);
+  }
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __offlineNativeFixture: { requests: unknown[] } }).__offlineNativeFixture.requests.length)).toBeGreaterThan(0);
+  await page.locator('[data-section="readings"]').click();
+  await page.locator(".offline-v2-row").filter({ hasText: "Limit fungsi" }).getByRole("button", { name: "Buka", exact: true }).click();
+  await expect(page.locator("#reader-body .katex")).toBeVisible();
+  await capture(page, info, `offline-${platform}-cold-online-stalled`, failures);
+  await releaseProbe();
+  await expect(page).toHaveURL(`${origin}/native-offline/${platform}/index.html`);
+  await expect(page.locator("#reader-view")).toBeVisible();
+  expect(failures).toEqual([]);
 });

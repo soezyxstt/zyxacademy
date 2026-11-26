@@ -1,4 +1,5 @@
 import { attachDatabasePool } from "@neon/functions";
+import { logProductV4QueueFailure, PRODUCT_V4_QUEUE_PATH } from "../../lib/compute/product-v4-diagnostics";
 
 const startupAt = performance.now(), startupCpu = process.cpuUsage();
 Object.assign(process.env, { ZYX_COMPUTE_RUNTIME: "neon" });
@@ -16,7 +17,15 @@ console.info(JSON.stringify({ event: "compute.startup", cwd: process.cwd(), dura
 const worker = {
   async fetch(request: Request): Promise<Response> {
     const started = performance.now(), cpu = process.cpuUsage();
-    const response = await app.fetch(request);
+    let response: Response;
+    try {
+      response = await app.fetch(request);
+    } catch (error) {
+      if (request.method === "POST" && new URL(request.url).pathname === PRODUCT_V4_QUEUE_PATH) {
+        logProductV4QueueFailure("request", error, request.headers.get("X-CloudTasks-TaskName"), request.headers.get("X-CloudTasks-TaskRetryCount"));
+      }
+      throw error;
+    }
     const used = process.cpuUsage(cpu);
     // Process CPU overlaps concurrent requests; retain it as a diagnostic, not billable job accounting.
     console.info(JSON.stringify({ event: "compute.request", path: new URL(request.url).pathname, method: request.method, status: response.status,
