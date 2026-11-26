@@ -21,6 +21,7 @@ function createHarness() {
   let serverSession: unknown = sessionResponse();
   let canDelete = true;
   let offline = false;
+  let readStatus = 200;
   let beforeWrite: (() => Promise<void>) | undefined;
   const requests: Array<{ url: string; init: RequestInit }> = [];
   const api = createNativeSessionApi(origin, async (url, init) => {
@@ -30,7 +31,7 @@ function createHarness() {
       if (canDelete) serverSession = null;
       return Response.json({ success: true });
     }
-    return Response.json(serverSession);
+    return readStatus === 200 ? Response.json(serverSession) : new Response(null, { status: readStatus });
   });
   const dataTransport = createNativeTransport({ origin, fetcher: async () => Response.json({ success: true }) });
   const controller = () => createNativeSessionController({ origin, api, dataTransport, now: () => now, store: {
@@ -47,6 +48,7 @@ function createHarness() {
     setStored: (value: unknown) => { stored = JSON.stringify(value); },
     setBeforeWrite: (value?: () => Promise<void>) => { beforeWrite = value; },
     setOffline: (value: boolean) => { offline = value; },
+    setReadStatus: (value: number) => { readStatus = value; },
     setCanDelete: (value: boolean) => { canDelete = value; },
     setServerSession: (value: unknown) => { serverSession = value; },
   };
@@ -243,8 +245,11 @@ describe("Expo staging session", () => {
     await session.logout();
     expect(session.getSnapshot().state).toEqual({ status: "logout-pending", retry: true });
     expect(harness.requests.some(request => request.url.endsWith("/sign-out"))).toBe(true);
+    const requestsAfterRevocation = harness.requests.length;
+    harness.setOffline(true);
     await session.refresh();
     expect(attempts).toBe(2);
+    expect(harness.requests).toHaveLength(requestsAfterRevocation);
     expect(session.getSnapshot().state).toEqual({ status: "signed-out" });
   });
 
@@ -260,6 +265,131 @@ describe("Expo staging session", () => {
       expect(purged).toEqual([{ origin, accountId: identity.accountId, sessionId: identity.sessionId }]);
       expect(session.getSnapshot()).toEqual({ state: { status: "signed-out" }, transport: null, revalidating: false });
       expect(harness.readStored()).toBeNull();
+    }
+  });
+
+  test("persists a cookie-free local cleanup marker before purging a denied or mismatched session", async () => {
+    for (const result of [401, 403, "mismatch"] as const) {
+      const harness = createHarness();
+      const session = harness.controller();
+      await session.refresh();
+      await session.acceptLogin(loginHeaders, identity.accountId);
+      const transport = session.getSnapshot().transport!;
+      await session.rememberAccountAccess({ ...identity, locale: "en", roles: ["murid"] }, transport);
+      const scope = { origin, accountId: identity.accountId, sessionId: identity.sessionId };
+      const tombstone = { ...scope, status: "clearing" };
+      if (result === 401) {
+        harness.setOffline(true);
+        await session.refresh();
+        expect(session.getSnapshot().state).toEqual({ status: "unavailable", offlineIdentity: { ...identity, locale: "en" } });
+        harness.setOffline(false);
+      }
+      if (result === "mismatch") {
+        harness.setServerSession({
+          user: { id: "different-account" },
+          session: { ...sessionResponse().session, id: "different-session", userId: "different-account" },
+        });
+      } else {
+        harness.setReadStatus(result);
+      }
+      session.subscribeBeforeLocalLogout(pending => {
+        expect(pending).toEqual(scope);
+        expect(JSON.parse(harness.readStored()!)).toEqual(tombstone);
+        expect(session.getSnapshot()).toEqual({ state: { status: "logout-pending", retry: false }, transport: null, revalidating: false });
+        expect(transport.isCurrent()).toBe(false);
+        throw new Error("SQLite unavailable");
+      });
+      await session.refresh();
+      expect(JSON.parse(harness.readStored()!)).toEqual(tombstone);
+      expect(session.getSnapshot().state).toEqual({ status: "logout-pending", retry: true });
+
+      harness.setOffline(true);
+      const requestsBeforeRestart = harness.requests.length;
+      const cold = harness.controller();
+      const purged: unknown[] = [];
+      cold.subscribeBeforeLocalLogout(pending => { purged.push(pending); });
+      // A persisted tombstone can retry even if SecureStore writes are still unavailable.
+      harness.setBeforeWrite(async () => { throw new Error("SecureStore cannot write"); });
+      if (result === "mismatch") await cold.logout();
+      else await cold.refresh();
+      expect(purged).toEqual([scope]);
+      expect(harness.requests).toHaveLength(requestsBeforeRestart);
+      expect(harness.requests.some(request => request.init.method === "POST")).toBe(false);
+      expect(cold.getSnapshot()).toEqual({ state: { status: "signed-out" }, transport: null, revalidating: false });
+      expect(harness.readStored()).toBeNull();
+    }
+  });
+
+  test("expires a stored credential into local cleanup without contacting the server", async () => {
+    const harness = createHarness();
+    harness.setStored({ origin, status: "active", cookie, ...identity, expiresAt: now });
+    harness.setOffline(true);
+    const session = harness.controller();
+    session.subscribeBeforeLocalLogout(() => {
+      expect(JSON.parse(harness.readStored()!)).toEqual({
+        origin, status: "clearing", accountId: identity.accountId, sessionId: identity.sessionId,
+      });
+      throw new Error("Storage unavailable");
+    });
+    await session.refresh();
+    expect(session.getSnapshot().state).toEqual({ status: "logout-pending", retry: true });
+    expect(harness.requests).toEqual([]);
+    const cold = harness.controller();
+    await cold.refresh();
+    expect(cold.getSnapshot().state).toEqual({ status: "signed-out" });
+    expect(harness.requests).toEqual([]);
+  });
+
+  test("restores only the canonical locale for the exact verified account and session", async () => {
+    const harness = createHarness();
+    const session = harness.controller();
+    await session.refresh();
+    await session.acceptLogin(loginHeaders, identity.accountId, undefined, { entry: "sign-in", locale: "id" });
+    const transport = session.getSnapshot().transport!;
+    const account = { ...identity, locale: "en", roles: ["murid"] } as const;
+    await session.rememberAccountAccess({ ...account, accountId: "different-account" }, transport);
+    await session.rememberAccountAccess({ ...account, sessionId: "different-session" }, transport);
+    expect(JSON.parse(harness.readStored()!).locale).toBeUndefined();
+    await session.rememberAccountAccess(account, transport);
+    expect(JSON.parse(harness.readStored()!).locale).toBe("en");
+
+    harness.setOffline(true);
+    await session.refresh();
+    await session.rememberAccountAccess({ ...account, locale: "id" }, transport);
+    const cold = harness.controller();
+    await cold.refresh();
+    expect(cold.getSnapshot()).toEqual({
+      state: { status: "unavailable", offlineIdentity: { ...identity, locale: "en" } }, transport: null, revalidating: false,
+    });
+  });
+
+  test("context denial blocks cached reading until the same session verifies Murid membership again", async () => {
+    for (const denial of [null, { ...identity, locale: "en", roles: ["tutor"] }] as const) {
+      const harness = createHarness();
+      const session = harness.controller();
+      await session.refresh();
+      await session.acceptLogin(loginHeaders, identity.accountId);
+      const transport = session.getSnapshot().transport!;
+      await session.rememberAccountAccess({ ...identity, locale: "en", roles: ["murid"] }, transport);
+      await session.rememberAccountAccess(denial, transport);
+      expect(JSON.parse(harness.readStored()!)).toMatchObject({ status: "active", readingDenied: true, locale: "en" });
+      expect(session.getSnapshot().offlineReadingDenied).toBe(true);
+      expect(transport.isCurrent()).toBe(true);
+      harness.setOffline(true);
+      const cold = harness.controller();
+      await cold.refresh();
+      expect(cold.getSnapshot()).toEqual({ state: { status: "unavailable" }, transport: null, revalidating: false });
+
+      harness.setOffline(false);
+      await cold.refresh();
+      expect(cold.getSnapshot().offlineReadingDenied).toBe(true);
+      await cold.rememberAccountAccess({ ...identity, locale: "id", roles: ["murid"] }, cold.getSnapshot().transport!);
+      expect(JSON.parse(harness.readStored()!).readingDenied).toBeUndefined();
+      expect(cold.getSnapshot().offlineReadingDenied).toBeUndefined();
+      harness.setOffline(true);
+      await cold.refresh();
+      expect(cold.getSnapshot().state).toEqual({ status: "unavailable", offlineIdentity: { ...identity, locale: "id" } });
+      expect(harness.requests.some(request => request.init.method === "POST")).toBe(false);
     }
   });
 });
