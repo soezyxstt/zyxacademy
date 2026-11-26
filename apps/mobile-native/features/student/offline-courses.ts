@@ -1,6 +1,9 @@
+import type { OfflineLibraryTarget } from "../../offline/library-model";
+export type { OfflineLibraryTarget } from "../../offline/library-model";
 import { createOfflineMetadataLifecycle, visibleCourseMetadata } from "../../offline/lifecycle";
 import type { NativeOfflineMetadataSnapshot } from "../../offline/metadata-store";
-import type { NativeOfflineResourceDescriptor, NativeOfflineScope } from "../../offline/sync-contract";
+import type { OfflineReadingPackage, OfflineReadingTarget } from "../../offline/reading-contract";
+import type { NativeOfflineLocale, NativeOfflineResourceDescriptor, NativeOfflineScope } from "../../offline/sync-contract";
 import { matchStudentRoute } from "./routes";
 
 export type OfflineCourseTarget =
@@ -26,6 +29,10 @@ export function offlineCourseTarget(path: string): OfflineCourseTarget {
   return { kind: "course", courseId };
 }
 
+export function offlineLibraryHref(locale: NativeOfflineLocale, target?: OfflineLibraryTarget) {
+  return { pathname: "/offline" as const, params: { locale, ...target } };
+}
+
 export type OfflineCourseMetadata = NativeOfflineMetadataSnapshot["courses"][number];
 
 export function studentOfflineCourses(snapshot: NativeOfflineMetadataSnapshot | null, now: number): OfflineCourseMetadata[] {
@@ -41,7 +48,7 @@ export function studentOfflineCourses(snapshot: NativeOfflineMetadataSnapshot | 
 
 export type AuthorizedOfflineMaterial = {
   scope: NativeOfflineScope;
-  resource: NativeOfflineResourceDescriptor;
+  resource: NativeOfflineResourceDescriptor & OfflineReadingTarget;
   leaseExpiresAt: number;
   section?: string;
   page?: number;
@@ -59,14 +66,32 @@ export function selectAuthorizedOfflineMaterial({
   if (verifiedUntil <= now) return null;
   const course = studentOfflineCourses(snapshot, now).find(({ id }) => id === target.courseId);
   const matches = course?.materials.filter(resource => resource.id === target.materialId && resource.courseId === target.courseId) ?? [];
-  if (!course || !course.manifestLeaseExpiresAt || matches.length !== 1) return null;
+  const resource = matches[0];
+  if (!course || !course.manifestLeaseExpiresAt || matches.length !== 1
+    || resource.courseId !== target.courseId || (resource.kind !== "article" && resource.kind !== "diktat")) return null;
   return {
     scope,
-    resource: matches[0],
+    resource: { ...resource, courseId: resource.courseId, kind: resource.kind },
     leaseExpiresAt: Math.min(verifiedUntil, course.leaseExpiresAt, course.manifestLeaseExpiresAt),
     section: target.section,
     page: target.page,
   };
+}
+
+export type VerifiedOfflineMaterial = AuthorizedOfflineMaterial & { saved: OfflineReadingPackage };
+
+export function attachAuthorizedOfflinePackage(
+  target: AuthorizedOfflineMaterial,
+  saved: OfflineReadingPackage | null,
+  now: number,
+): VerifiedOfflineMaterial | null {
+  if (!saved) return null;
+  const { summary } = saved;
+  const { resource } = target;
+  const leaseExpiresAt = Math.min(target.leaseExpiresAt, summary.leaseExpiresAt);
+  if (leaseExpiresAt <= now || summary.key !== resource.key || summary.revision !== resource.revision
+    || summary.courseId !== resource.courseId || summary.id !== resource.id || summary.kind !== resource.kind) return null;
+  return { ...target, leaseExpiresAt, saved };
 }
 
 export function createStudentOfflineCourseLifecycle(

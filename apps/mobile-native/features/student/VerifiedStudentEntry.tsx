@@ -1,4 +1,5 @@
-import { useLayoutEffect, useMemo, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { Redirect, useRouter } from "expo-router";
 import { Alert, Text, View } from "react-native";
 import { openBrowserAsync } from "expo-web-browser";
 import { authLocale } from "../../auth/auth-copy";
@@ -6,6 +7,9 @@ import { useNativeAccountContext } from "../../auth/use-account-context";
 import { useNativeSession } from "../../auth/session-provider";
 import { Button } from "../../components/Button";
 import { useDeviceNotificationSettings } from "../../device/notifications-provider";
+import { subscribeOfflineReadingChanges } from "../../offline/reading-events";
+import { offlineReadingSessionBlocked } from "../../offline/reading-session-storage";
+import { useOfflineReadingPackages } from "../../offline/reading-hooks";
 import { useOfflineReadingSession } from "../../offline/use-reading-session";
 import type { NativeOfflineLocale } from "../../offline/sync-contract";
 import { useOfflineCourseMetadata } from "../../offline/lifecycle-provider";
@@ -14,16 +18,19 @@ import { useAssessmentPhotos } from "./assessment/device";
 import { useAssessmentDrafts } from "./assessment-drafts";
 import { StudentEntry, type StudentEntryProps } from "./StudentEntry";
 import { OfflineCourseScreen } from "./courses";
-import { offlineCourseTarget, type AuthorizedOfflineMaterial } from "./offline-courses";
+import { offlineCourseTarget, offlineLibraryHref, type OfflineLibraryTarget, type VerifiedOfflineMaterial } from "./offline-courses";
 import { useOpenAuthorizedOfflineMaterial, useStudentOfflineCourses } from "./use-offline-courses";
+
+const notBlocked = () => false;
 
 export type VerifiedEntryProps = Omit<StudentEntryProps, "session" | "request" | "devicePush" | "openOfflineMaterial"> & {
   offlineLocale?: NativeOfflineLocale;
-  openOfflineMaterial?: (material: AuthorizedOfflineMaterial) => void | Promise<void>;
+  openOfflineMaterial?: (material: VerifiedOfflineMaterial) => void | Promise<void>;
 };
 
 /** Mount below the application's session and notification providers, inside its route shell. */
 export function VerifiedStudentEntry({ offlineLocale, openOfflineMaterial, ...props }: VerifiedEntryProps) {
+  const router = useRouter();
   const { state, transport, refresh } = useNativeSession();
   const { context, failed, retry } = useNativeAccountContext();
   const push = useDeviceNotificationSettings();
@@ -35,6 +42,8 @@ export function VerifiedStudentEntry({ offlineLocale, openOfflineMaterial, ...pr
   const locale = context?.locale ?? offlineLocale ?? authLocale();
   const metadata = useOfflineCourseMetadata(courseIds, locale);
   const reading = useOfflineReadingSession(locale);
+  const packages = useOfflineReadingPackages(locale);
+  const openLibrary = props.openOfflineLibrary ?? ((target?: OfflineLibraryTarget) => router.push(offlineLibraryHref(locale, target)));
   const identity = transport?.scope ?? reading.scope;
   const identityKey = identity ? JSON.stringify([identity.origin, identity.accountId, identity.sessionId]) : "";
   const [revokedSession, setRevokedSession] = useState("");
@@ -43,7 +52,9 @@ export function VerifiedStudentEntry({ offlineLocale, openOfflineMaterial, ...pr
     if (metadata.status === "revoked") setRevokedSession(identityKey);
     else if (metadata.status === "ready") setRevokedSession(current => current === identityKey ? "" : current);
   }, [identityKey, metadata.status]);
-  const revoked = metadata.status === "revoked" || Boolean(identityKey && revokedSession === identityKey && metadata.status !== "ready");
+  const readBlocked = useCallback(() => Boolean(identity && offlineReadingSessionBlocked(identity)), [identity]);
+  const blocked = useSyncExternalStore(subscribeOfflineReadingChanges, readBlocked, notBlocked);
+  const revoked = blocked || metadata.status === "revoked" || Boolean(identityKey && revokedSession === identityKey && metadata.status !== "ready");
   const readingScope = revoked ? null : reading.scope;
   const target = useMemo(() => offlineCourseTarget(props.path), [props.path]);
   const saved = useStudentOfflineCourses({ scope: reading.offline ? readingScope : null, verifiedUntil: reading.verifiedUntil });
@@ -51,7 +62,11 @@ export function VerifiedStudentEntry({ offlineLocale, openOfflineMaterial, ...pr
   const visibleMaterial = target.kind === "material" && visibleCourses.some(course => course.id === target.courseId
     && course.materials.filter(material => material.id === target.materialId).length === 1);
   const openSaved = useOpenAuthorizedOfflineMaterial({
-    scope: visibleMaterial ? readingScope : null, verifiedUntil: reading.verifiedUntil, target, open: openOfflineMaterial,
+    scope: visibleMaterial && packages.available ? readingScope : null,
+    verifiedUntil: reading.verifiedUntil,
+    target,
+    readPackage: packages.read,
+    open: openOfflineMaterial,
     onUnavailable: () => {
       Alert.alert(locale === "en" ? "The saved material is unavailable." : "Materi tersimpan tidak tersedia.");
       if (reading.offline) void saved.retry();
@@ -66,6 +81,8 @@ export function VerifiedStudentEntry({ offlineLocale, openOfflineMaterial, ...pr
       <Button onPress={() => void refresh()}>{locale === "en" ? "Try again" : "Coba lagi"}</Button>
     </View>;
 
+    if (target.kind === "library") return <Redirect href={offlineLibraryHref(locale)} />;
+
     return <OfflineCourseScreen
       key={JSON.stringify([identityKey, locale, props.entryKey])}
       {...props}
@@ -74,6 +91,7 @@ export function VerifiedStudentEntry({ offlineLocale, openOfflineMaterial, ...pr
       status={saved.status}
       locale={locale}
       openOfflineMaterial={openSaved}
+      openOfflineLibrary={openLibrary}
       retry={() => { void saved.retry(); void refresh(); }}
     />;
   }
@@ -96,7 +114,7 @@ export function VerifiedStudentEntry({ offlineLocale, openOfflineMaterial, ...pr
       if (transport?.isCurrent()) void openBrowserAsync(url.href).catch(showError);
     } catch { showError(); }
   }
-  return <StudentEntry {...props} openExternal={props.openExternal ?? openExternal} openOfflineMaterial={openSaved} request={transport.request} devicePush={push} assessmentPhotos={props.assessmentPhotos ?? assessmentPhotos} drafts={props.drafts ?? drafts}
+  return <StudentEntry {...props} openExternal={props.openExternal ?? openExternal} openOfflineMaterial={openSaved} openOfflineLibrary={target.kind === "course" || target.kind === "material" ? openLibrary : undefined} request={transport.request} devicePush={push} assessmentPhotos={props.assessmentPhotos ?? assessmentPhotos} drafts={props.drafts ?? drafts}
     offlineCourse={{ status: revoked ? "revoked" : metadata.status, course: revoked ? null : metadata.snapshot?.courses.find(course => course.id === courseIds[0]) ?? null, retry: metadata.retry }}
     session={{ role: "student", userId: accountId, origin, sessionId, locale: context.locale }}
     onLocaleChanged={locale => { props.onLocaleChanged?.(locale); retry(); }} />;

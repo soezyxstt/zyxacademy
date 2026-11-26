@@ -8,7 +8,7 @@ import { useNativeSession } from "../auth/session-provider";
 import { useNativeAccountContext } from "../auth/use-account-context";
 import { NativeStatusPanel } from "../features/shared-ui/layout";
 import { useOfflineLibraryData } from "../offline/library-data";
-import { filterOfflineLibrary, offlineLibraryCopy, offlineLibraryFeedback, type OfflineLibraryRow } from "../offline/library-model";
+import { filterOfflineLibrary, focusOfflineLibrary, offlineLibraryCopy, offlineLibraryFeedback, offlineLibraryTarget, type OfflineLibraryRow } from "../offline/library-model";
 import { OfflineLibraryView, type OfflineLibraryAction, type OfflineLibraryNotice } from "../offline/library-view";
 import { useOfflineCourseMetadata } from "../offline/lifecycle-provider";
 import type { OfflineReadingDownloadStatus } from "../offline/reading-contract";
@@ -19,7 +19,7 @@ const supported = Platform.OS === "ios" || Platform.OS === "android";
 const noCourses: readonly string[] = [];
 
 export default function OfflineRoute() {
-  const params = useLocalSearchParams<{ locale?: string }>();
+  const params = useLocalSearchParams<{ locale?: string; courseId?: string; materialId?: string }>();
   const router = useRouter();
   const { state, revalidating, refresh: refreshSession } = useNativeSession();
   const account = useNativeAccountContext();
@@ -36,7 +36,8 @@ export default function OfflineRoute() {
   const { observation, revision } = library;
   const [search, setSearch] = useState<{ observation: typeof observation; query: string } | null>(null);
   const query = search?.observation === observation ? search.query : "";
-  const rows = useMemo(() => filterOfflineLibrary(library.rows, query, locale), [library.rows, query, locale]);
+  const target = useMemo(() => offlineLibraryTarget(params.courseId, params.materialId), [params.courseId, params.materialId]);
+  const rows = useMemo(() => filterOfflineLibrary(focusOfflineLibrary(library.rows, target), query, locale), [library.rows, query, locale, target]);
   const activeObservation = useRef<typeof observation | null>(null);
   const working = useRef<{ observation: typeof observation; key: string } | null>(null);
   const [pending, setPending] = useState<{ observation: typeof observation; key: string; action: OfflineLibraryAction } | null>(null);
@@ -119,6 +120,7 @@ export default function OfflineRoute() {
   return <OfflineLibraryView
     locale={locale} offline={supported && offline} loading={loading} blocked={blocked}
     rows={scope ? rows : []} query={query} onQuery={value => setSearch({ observation, query: value })}
+    onClearTarget={target ? () => { setSearch(null); router.replace({ pathname: "/offline", params: { locale } }); } : undefined}
     canDownload={Boolean(scope && packages.canDownload)} notices={notices}
     syncing={metadata.status === "syncing"}
     pending={pending?.observation === observation ? pending : null}

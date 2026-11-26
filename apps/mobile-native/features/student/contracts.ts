@@ -1,3 +1,4 @@
+import type { OfflineLibraryTarget } from "./offline-courses";
 import type { ReactNode } from "react";
 import type { NativePushStatus } from "../../device/notifications-controller";
 import type { NativeResponse } from "../../network/transport";
@@ -35,6 +36,7 @@ export interface StudentServices {
     course: { id: string; title: string; materials: ReadonlyArray<{ id: string; title: string; kind: string }> } | null;
     retry(): void;
   };
+  openOfflineLibrary?: (target?: OfflineLibraryTarget) => void;
   openOfflineMaterial?: (courseId: string, materialId: string) => void;
   renderMaterial?: (props: { courseId: string; materialId: string; section?: string; page?: number }) => ReactNode;
   openExternal?: (path: string) => void;

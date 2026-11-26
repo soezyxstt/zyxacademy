@@ -1,8 +1,10 @@
 import { expect, mock, test } from "bun:test";
 import { readingAccess } from "@/apps/mobile-native/offline/reading-access";
+import { focusOfflineLibrary, offlineLibraryTarget, type OfflineLibraryRow } from "@/apps/mobile-native/offline/library-model";
+import type { OfflineReadingPackage } from "@/apps/mobile-native/offline/reading-contract";
 import type { NativeOfflineMetadataSnapshot } from "@/apps/mobile-native/offline/metadata-store";
 import type { NativeOfflineResourceDescriptor } from "@/apps/mobile-native/offline/sync-contract";
-import { createStudentOfflineCourseLifecycle, offlineCourseTarget, selectAuthorizedOfflineMaterial, studentOfflineCourses } from "@/apps/mobile-native/features/student/offline-courses";
+import { attachAuthorizedOfflinePackage, createStudentOfflineCourseLifecycle, offlineCourseTarget, offlineLibraryHref, selectAuthorizedOfflineMaterial, studentOfflineCourses } from "@/apps/mobile-native/features/student/offline-courses";
 
 const scope = { origin: "https://student.example", accountId: "student-a", sessionId: "session-a", locale: "en" } as const;
 const article: NativeOfflineResourceDescriptor = {
@@ -49,6 +51,38 @@ test("the handoff requires a unique matching leased descriptor and caps the read
   expect(selectAuthorizedOfflineMaterial({ ...input, snapshot: withMaterials([{ ...article, kind: "course_outline" }]) })).toBeNull();
   expect(studentOfflineCourses(snapshot, 220)).toEqual([expect.objectContaining({ id: "math", materials: [] })]);
   expect(studentOfflineCourses(snapshot, 250)).toEqual([]);
+});
+
+test("focuses the integrated library by course and material identity", () => {
+  const target = { courseId: "math", materialId: "limits" };
+  const rows: OfflineLibraryRow[] = [
+    { key: "a", target: { courseId: "math", id: "limits", kind: "article" }, title: "Limits", courseTitle: "Math", availableUntil: 400, savedUntil: null },
+    { key: "b", target: { courseId: "other", id: "limits", kind: "article" }, title: "Limits", courseTitle: "Other", availableUntil: 400, savedUntil: null },
+    { key: "c", target: { courseId: "math", id: "integration", kind: "diktat" }, title: "Integration", courseTitle: "Math", availableUntil: 400, savedUntil: null },
+  ];
+  expect(offlineLibraryHref("en", target)).toEqual({ pathname: "/offline", params: { locale: "en", ...target } });
+  expect(focusOfflineLibrary(rows, offlineLibraryTarget(target.courseId, target.materialId)).map(row => row.key)).toEqual(["a"]);
+  expect(focusOfflineLibrary(rows, offlineLibraryTarget("math", undefined)).map(row => row.key)).toEqual(["a", "c"]);
+  expect(offlineLibraryTarget(["math", "other"], "limits")).toBeNull();
+  expect(offlineLibraryTarget("math", "../integration")).toBeNull();
+});
+
+test("passes only a current package for the authorized material revision to the renderer", () => {
+  const material = selectAuthorizedOfflineMaterial({
+    scope, snapshot, target: { kind: "material", courseId: "math", materialId: "limits" }, verifiedUntil: 210, now: 100,
+  });
+  if (!material) throw new Error("Expected authorized material");
+  const saved: OfflineReadingPackage = {
+    summary: { key: article.key, courseId: "math", kind: "article", id: "limits", title: "Limits", revision: "r2",
+      leaseExpiresAt: 180, savedAt: 10, bytes: 100 },
+    data: { id: "limits", courseId: "math", chapterId: "chapter-1", title: "Limits", version: 2, sections: [] },
+    assets: [],
+  };
+  expect(attachAuthorizedOfflinePackage(material, saved, 100)).toEqual({ ...material, leaseExpiresAt: 180, saved });
+  expect(attachAuthorizedOfflinePackage(material, saved, 180)).toBeNull();
+  expect(attachAuthorizedOfflinePackage(material, null, 100)).toBeNull();
+  expect(attachAuthorizedOfflinePackage(material, { ...saved, summary: { ...saved.summary, revision: "r1" } }, 100)).toBeNull();
+  expect(attachAuthorizedOfflinePackage(material, { ...saved, summary: { ...saved.summary, courseId: "other" } }, 100)).toBeNull();
 });
 
 test("cold offline metadata loads through the session scope with no network transport", async () => {

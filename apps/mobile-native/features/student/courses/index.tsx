@@ -397,8 +397,9 @@ function DocumentRows({ materials, courseId, navigate }: { materials: MaterialRo
   });
 }
 
-function Documents({ data, route, replace, navigate, request, reload }: { data: MaterialListData } & Pick<StudentScreenProps, "navigate" | "request" | "route" | "replace"> & { reload: () => void }) {
+function Documents({ data, route, replace, navigate, request, reload, openOfflineLibrary }: { data: MaterialListData } & Pick<StudentScreenProps, "navigate" | "request" | "route" | "replace" | "openOfflineLibrary"> & { reload: () => void }) {
   const copy = useContext(CopyContext);
+  const theme = useContext(ThemeContext);
   const tab = normalizeMaterialTab(route.query.tab);
   const { course, chapters, materials } = data;
   const matching = tab === "all" ? materials : materials.filter((row) => row.group === tab);
@@ -417,6 +418,7 @@ function Documents({ data, route, replace, navigate, request, reload }: { data: 
         {materialTabs.map((key) => <Toggle key={key} label={copy[key]} selected={key === tab} onPress={() => updateListQuery(route, replace, { tab: key === "all" ? undefined : key })} />)}
       </View>
       {!course.hasFullContentAccess ? <Enrollment request={request} reload={reload} /> : null}
+      {openOfflineLibrary ? <Button theme={theme} variant="outline" onPress={() => openOfflineLibrary({ courseId: course.id })}>{copy.savedCourses}</Button> : null}
       {matching.length === 0 ? <LearningText>{copy.noDocuments}</LearningText> : null}
       {chapters.map(({ id, title }) => {
         const rows = groups.get(id);
@@ -427,8 +429,9 @@ function Documents({ data, route, replace, navigate, request, reload }: { data: 
   );
 }
 
-function Document({ data, request, reload, renderMaterial, route }: { data: MaterialDetailData; request: Request; reload: () => void; renderMaterial?: Reader; route: StudentScreenProps["route"] }) {
+function Document({ data, request, reload, renderMaterial, route, openOfflineLibrary }: { data: MaterialDetailData; request: Request; reload: () => void; renderMaterial?: Reader; route: StudentScreenProps["route"]; openOfflineLibrary?: StudentScreenProps["openOfflineLibrary"] }) {
   const copy = useContext(CopyContext);
+  const theme = useContext(ThemeContext);
   const { course, material } = data;
   const requestedPage = Number(route.query.page);
   const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : undefined;
@@ -444,6 +447,8 @@ function Document({ data, request, reload, renderMaterial, route }: { data: Mate
       ) : (
         <>
           {material.completed ? <LearningText role="meta">{copy.completed}</LearningText> : null}
+          {openOfflineLibrary && material.kind === "article" ? <Button theme={theme} variant="outline"
+            onPress={() => openOfflineLibrary({ courseId: course.id, materialId: material.id })}>{copy.savedCourses}</Button> : null}
           {renderMaterial?.({ courseId: course.id, materialId: material.id, section: route.query.section, page }) ?? <LearningText>{copy.rendererPending}</LearningText>}
         </>
       )}
@@ -451,11 +456,11 @@ function Document({ data, request, reload, renderMaterial, route }: { data: Mate
   );
 }
 
-function OfflineDocuments({ data, query, route, replace, navigate, retry, openOfflineMaterial }: {
+function OfflineDocuments({ data, query, route, replace, navigate, retry, openOfflineMaterial, openOfflineLibrary }: {
   data: NonNullable<NonNullable<StudentScreenProps["offlineCourse"]>["course"]>;
   query: LearningQuery;
   retry(): void;
-} & Pick<StudentScreenProps, "navigate" | "replace" | "route" | "openOfflineMaterial">) {
+} & Pick<StudentScreenProps, "navigate" | "replace" | "route" | "openOfflineMaterial" | "openOfflineLibrary">) {
   const copy = useContext(CopyContext);
   const theme = useContext(ThemeContext);
   const matching = query.view === "material-detail" ? data.materials.filter(item => item.id === query.materialId) : [];
@@ -471,13 +476,17 @@ function OfflineDocuments({ data, query, route, replace, navigate, retry, openOf
       <Section title={selected.title}>
         {openOfflineMaterial
           ? <Button theme={theme} onPress={() => openOfflineMaterial(data.id, selected.id)}>{copy.readMaterials}</Button>
-          : <LearningText role="meta">{copy.offlineReaderPending}</LearningText>}
+          : null}
+        {openOfflineLibrary
+          ? <Button theme={theme} variant="outline" onPress={() => openOfflineLibrary({ courseId: data.id, materialId: selected.id })}>{copy.savedCourses}</Button>
+          : !openOfflineMaterial ? <LearningText role="meta">{copy.offlineReaderPending}</LearningText> : null}
       </Section>
     ) : <LearningText>{copy.noDocuments}</LearningText> : <>
       <View style={styles.toggles} accessibilityRole="tablist">
         {materialTabs.map(key => <Toggle key={key} label={copy[key]} selected={key === tab}
           onPress={() => updateListQuery(route, replace, { tab: key === "all" ? undefined : key })} />)}
       </View>
+      {openOfflineLibrary ? <Button theme={theme} variant="outline" onPress={() => openOfflineLibrary({ courseId: data.id })}>{copy.savedCourses}</Button> : null}
       {records.length === 0 ? <LearningText>{copy.noDocuments}</LearningText> : <Section>
         {records.map(item => <Row key={`${item.kind}/${item.id}`} title={item.title} testID={`student-material-${item.id}`}
           onPress={() => navigate(materialPath(data.id, item.id))} />)}
@@ -488,15 +497,15 @@ function OfflineDocuments({ data, query, route, replace, navigate, retry, openOf
 
 export function OfflineCourseScreen({
   path, target, courses, status, locale, retry, navigate, replace, back, devicePreferences,
-  initialScrollY, onScrollY, openOfflineMaterial,
+  initialScrollY, onScrollY, openOfflineMaterial, openOfflineLibrary,
 }: {
   path: string;
-  target: OfflineCourseTarget;
+  target: Exclude<OfflineCourseTarget, { kind: "library" }>;
   courses: OfflineCourseMetadata[];
   status: string;
   locale: string;
   retry(): void;
-} & Pick<StudentScreenProps, "navigate" | "replace" | "back" | "devicePreferences" | "initialScrollY" | "onScrollY" | "openOfflineMaterial">) {
+} & Pick<StudentScreenProps, "navigate" | "replace" | "back" | "devicePreferences" | "initialScrollY" | "onScrollY" | "openOfflineMaterial" | "openOfflineLibrary">) {
   const systemTheme = useColorScheme() === "dark" ? "dark" : "light";
   const preference = devicePreferences?.theme;
   const theme = preference && preference !== "system" ? preference : systemTheme;
@@ -524,23 +533,18 @@ export function OfflineCourseScreen({
         onLayout={event => { viewport.current = event.nativeEvent.layout.height; restorePosition(); }}
         onContentSizeChange={(_width, height) => { if (ready) { content.current = height; restorePosition(); } }}
         onScroll={event => { if (ready && restore.current <= 0) onScrollY(Math.max(0, event.nativeEvent.contentOffset.y)); }}>
-        {target.kind !== "library" ? <Button theme={theme} variant="ghost" testID="student-learning-back" style={styles.back} onPress={back}>{copy.back}</Button> : null}
+        <Button theme={theme} variant="ghost" testID="student-learning-back" style={styles.back} onPress={back}>{copy.back}</Button>
         {ready && course && route && "courseId" in target ? <OfflineDocuments
           data={course}
           query={target.kind === "course"
             ? { view: "material-list", courseId: target.courseId }
             : { view: "material-detail", courseId: target.courseId, materialId: target.materialId }}
-          route={route} navigate={navigate} replace={replace} retry={retry} openOfflineMaterial={openOfflineMaterial} />
+          route={route} navigate={navigate} replace={replace} retry={retry} openOfflineMaterial={openOfflineMaterial} openOfflineLibrary={openOfflineLibrary} />
           : <>
-            <Notice title={target.kind === "library" ? copy.savedCourses : copy.offline}
-              detail={!ready ? copy.loading : target.kind === "library" && courses.length > 0 ? copy.offlineMetadata : copy.offlineUnavailable}>
+            <Notice title={copy.offline} detail={!ready ? copy.loading : copy.offlineUnavailable}>
               <Button theme={theme} variant="outline" testID="student-learning-retry" onPress={retry}>{copy.retry}</Button>
             </Notice>
-            {ready && target.kind === "library" ? <Section>
-              {courses.map(({ id, title }) => <Row key={id} testID={`student-course-${id}`} title={title}
-                onPress={() => navigate(materialPath(id))} />)}
-            </Section> : null}
-            {ready && target.kind !== "library" ? <Button theme={theme} variant="outline" onPress={() => navigate("/courses")}>{copy.savedCourses}</Button> : null}
+            {ready && openOfflineLibrary ? <Button theme={theme} variant="outline" onPress={() => openOfflineLibrary()}>{copy.savedCourses}</Button> : null}
           </>}
       </ScrollView>
     </CopyContext.Provider>
@@ -586,7 +590,7 @@ function CourseEntry(props: StudentScreenProps & { query: LearningQuery }) {
       <Button theme={theme} variant="outline" onPress={() => navigate("/courses")}>{copy.catalog}</Button>
     </Notice>;
   } else if (useOfflineMetadata && cached && offline) {
-    content = <OfflineDocuments data={cached} query={query} route={route} replace={replace} navigate={navigate} openOfflineMaterial={props.openOfflineMaterial}
+    content = <OfflineDocuments data={cached} query={query} route={route} replace={replace} navigate={navigate} openOfflineMaterial={props.openOfflineMaterial} openOfflineLibrary={props.openOfflineLibrary}
       retry={() => { offline.retry(); reload(); }} />;
   } else if (resource.kind === "loading") {
     content = (
@@ -612,8 +616,8 @@ function CourseEntry(props: StudentScreenProps & { query: LearningQuery }) {
       case "dashboard-extras": content = null; break;
       case "catalog": content = <Catalog data={resource.data} navigate={navigate} route={route} replace={replace} openExternal={openExternal} locale={locale} />; break;
       case "course": content = <CourseOverview data={resource.data} navigate={navigate} request={request} reload={reload} locale={locale} />; break;
-      case "material-list": content = <Documents data={resource.data} route={route} replace={replace} navigate={navigate} request={request} reload={reload} />; break;
-      case "material-detail": content = <Document data={resource.data} request={request} reload={reload} renderMaterial={renderMaterial} route={route} />; break;
+      case "material-list": content = <Documents data={resource.data} route={route} replace={replace} navigate={navigate} request={request} reload={reload} openOfflineLibrary={props.openOfflineLibrary} />; break;
+      case "material-detail": content = <Document data={resource.data} request={request} reload={reload} renderMaterial={renderMaterial} route={route} openOfflineLibrary={props.openOfflineLibrary} />; break;
     }
   }
 
