@@ -13,3 +13,5 @@ The local loopback rehearsal passed with Bun 1.3.14 and disposable PostgreSQL 17
 
 
 On the integration base `24a84607`, the committed router contains 103 public, Tutor and Admin entry points and a browser fallback for the Student dashboard. A disposable checkout merging that base with this Student PR mounted all 153 canonical entries. Running the mount twice and both product-mount tests passed. The generated `/dashboard` and `/courses` use the verified Student entry. Select `include_pending_student` in the integration workflow to build these entries.
+
+The Android production bundle also built from `d29c7a4b35ae5a50eeb8d7c54f002a370c6e9ea6` after the official mount, with all 545 dependency entries matching the Expo lockfile. The staged tree was `c6e17e594ea97176bd704b71cb3b138988cc878f`. From `apps/mobile-native`, `npx --no-install expo export --platform android --max-workers 1` produced 7,323,693 bytes of Hermes v99 bytecode, SHA-256 `781588a4f198c4737051d36a70fb8d30bdbbc08087f539cdcf88f28722bf96aa`. The bundle contained `VerifiedStudentEntry` and `/api/native/student/learning`. No Student fixture route was installed in this checkout.
