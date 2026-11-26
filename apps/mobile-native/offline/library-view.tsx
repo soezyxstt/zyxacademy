@@ -17,24 +17,28 @@ export type OfflineLibraryViewProps = {
   query: string;
   canDownload: boolean;
   syncing?: boolean;
+  purging?: boolean;
+  unavailableCount?: number;
   pending?: { key: string; action: OfflineLibraryAction } | null;
   notices?: OfflineLibraryNotice[];
   blocked?: ReactNode;
   loading?: boolean;
   onQuery: (query: string) => void;
   onRefresh?: () => void;
+  onPurgeUnavailable?: () => void;
   onAction: (row: OfflineLibraryRow, action: OfflineLibraryAction) => void;
   onBack?: () => void;
 };
 
 export function OfflineLibraryView({
-  locale, offline, rows, query, canDownload, syncing, pending, notices = [], blocked, loading,
-  onQuery, onRefresh, onAction, onBack,
+  locale, offline, rows, query, canDownload, syncing, purging, unavailableCount = 0, pending, notices = [], blocked, loading,
+  onQuery, onRefresh, onPurgeUnavailable, onAction, onBack,
 }: OfflineLibraryViewProps) {
   const colors = nativeColors[useColorScheme() ?? "light"];
   const shared = OFFLINE_LIBRARY_COPY[locale];
   const copy = offlineLibraryCopy[locale];
   const date = new Intl.DateTimeFormat(locale === "en" ? "en-GB" : "id-ID", { dateStyle: "medium", timeStyle: "short" });
+  const unavailable = new Intl.NumberFormat(locale).format(unavailableCount);
   function requestAction(row: OfflineLibraryRow, action: OfflineLibraryAction) {
     if (action === "download") {
       onAction(row, action);
@@ -43,6 +47,12 @@ export function OfflineLibraryView({
     Alert.alert(copy.removeTitle, row.title, [
       { text: shared.cancel, style: "cancel" },
       { text: shared.remove, style: "destructive", onPress: () => onAction(row, action) },
+    ], { cancelable: true });
+  }
+  function requestUnavailablePurge() {
+    Alert.alert(copy.removeUnavailableTitle, copy.removeUnavailableBody, [
+      { text: shared.cancel, style: "cancel" },
+      { text: shared.remove, style: "destructive", onPress: onPurgeUnavailable },
     ], { cancelable: true });
   }
   const content = blocked ?? (loading && rows.length === 0 ? (
@@ -87,7 +97,7 @@ export function OfflineLibraryView({
             {(savedUntil || canDownload || working) ? (
               <SharedUiActionButton
                 action={{ id: action, label: working ? pendingLabel : label, accessibilityLabel: `${working ? pendingLabel : label} ${title}`,
-                  disabled: Boolean(pending), pending: working, variant: "ghost" }}
+                  disabled: Boolean(pending || purging || syncing), pending: working, variant: "ghost" }}
                 onAction={() => requestAction(item, action)}
               />
             ) : null}
@@ -115,10 +125,21 @@ export function OfflineLibraryView({
           />
           {onRefresh && (
             <SharedUiActionButton
-              action={{ id: "refresh", label: syncing ? `${shared.syncing}…` : shared.sync, pending: syncing }}
+              action={{ id: "refresh", label: syncing ? `${shared.syncing}…` : shared.sync, pending: syncing,
+                disabled: Boolean(pending || purging) }}
               onAction={onRefresh}
             />
           )}
+        </View>
+      )}
+      {onPurgeUnavailable && (unavailableCount > 0 || purging) && (
+        <View style={styles.storageAction}>
+          <SharedUiActionButton
+            action={{ id: "purge-unavailable", label: purging ? copy.removing : `${copy.removeUnavailable} (${unavailable})`,
+              pending: purging, disabled: Boolean(pending || syncing), variant: "outline" }}
+            onAction={requestUnavailablePurge}
+            testID="offline-library-purge"
+          />
         </View>
       )}
       {notices.length > 0 && (
@@ -138,6 +159,7 @@ const styles = StyleSheet.create({
   search: { flexBasis: 160, flexGrow: 1, minHeight: 44, width: undefined },
   offline: { alignSelf: "flex-start", marginBottom: 8 },
   notices: { gap: 4, marginBottom: 8 },
+  storageAction: { alignItems: "flex-start", marginBottom: 8 },
   list: { paddingBottom: 16 },
   divider: { height: StyleSheet.hairlineWidth },
   progress: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 16 },

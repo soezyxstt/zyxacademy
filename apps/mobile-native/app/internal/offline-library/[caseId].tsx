@@ -19,15 +19,23 @@ function OfflineLibraryFixture({ id }: { id: OfflineLibraryFixtureCase }) {
   const shared = OFFLINE_LIBRARY_COPY[locale];
   const [query, setQuery] = useState("");
   const [retried, setRetried] = useState(false);
+  const [unavailableCount, setUnavailableCount] = useState(id === "cleanup" ? 2 : id === "refresh" ? 1 : 0);
   const [fixtureRows, setFixtureRows] = useState(() => offlineLibraryFixtureRows(id));
   const rows = filterOfflineLibrary(fixtureRows, query, locale);
   return <OfflineLibraryView
-    locale={locale} offline={id === "empty"} rows={rows} query={query} onQuery={setQuery} canDownload={id === "populated"}
+    locale={locale} offline={id === "empty" || id === "cleanup"} rows={rows} query={query} onQuery={setQuery}
+    canDownload={id === "populated" || id === "refresh"}
     notices={fixtureRows.some(row => row.savedUntil) ? [{ message: copy.readerPending }] : []}
     blocked={id === "failure" && !retried ? <NativeStatusPanel tone="error" title={copy.failure}
       action={{ id: "retry", label: copy.retry }} onAction={() => setRetried(true)} /> : undefined}
     onAction={(item, action) => setFixtureRows(current => current.map(row => row.key === item.key
       ? { ...row, savedUntil: action === "download" ? row.availableUntil : null } : row))}
+    onRefresh={id === "refresh" ? () => {
+      setFixtureRows(offlineLibraryFixtureRows("populated"));
+      setUnavailableCount(0);
+    } : undefined}
+    unavailableCount={unavailableCount}
+    onPurgeUnavailable={id === "cleanup" || id === "refresh" ? () => setUnavailableCount(0) : undefined}
     onBack={() => router.replace("/")}
   />;
 }
