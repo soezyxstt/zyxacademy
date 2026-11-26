@@ -1,905 +1,108 @@
-# Zyx Academy ; Features & Workflows
+# Zyx Academy Product Features and Workflows
+
+This catalog documents the active user-facing and operational capabilities of Zyx Academy across Student, Tutor, Admin, Public, Native App, and MCP surfaces.
+
+## 1. Authentication, Profiles, and Account Switching
+
+### Account Switching
+- **Saved sessions**: The sidebar account menu keeps up to 5 signed-in Zyx accounts so users can switch sessions without re-authenticating with Google.
+- **Native Google account chooser**: On Android builds with `ZyxGoogleAuth`, adding an account opens the Credential Manager chooser; older APKs, iOS, Desktop, and Web use the native system browser flow with session `login_hint`.
+- **Session cleanup**: Switching or signing out clears account-scoped TanStack Query caches, private offline reader storage, guarded coding drafts, and active Zyra language overrides.
+- **Role redirect**: Signed-in users visiting marketing entry pages redirect directly to their role dashboard on the canonical public origin.
+
+### Profiles and Bilingual Preferences
+- **Staff and Student profiles**: Authenticated staff have basic profile access; gamification and Pet Studio are student-only.
+- **Editor tabs**: Academic, Privacy, and Appearance tabs save independently; academic drafts survive tab switches and failed saves.
+- **Profile completeness**: Inline completeness indicator and mobile-friendly inline dialog actions.
+- **Bilingual UI (`id` / `en`)**: Full Indonesian and English interface across student, tutor, admin, and public routes, including bilingual Admin (`/admin/docs`) and Tutor (`/tutor/docs`) documentation hubs.
+- **Notification preferences and quiet hours**: Granular activity and email notification categories with atomic saves, confirmation links, signed 30-day one-click unsubscribe tokens, per-account quiet-hour push digests, native push isolation, and signed-in device session revocation. See [notifications.md](notifications.md) and [notifications-quiet-hours.md](notifications-quiet-hours.md).
+- **Bilingual first-use tours**: Interactive Indonesian and English onboarding tours for students and tutors.
+
+## 2. Student Learning Experience
+
+### Separated Mobile and Desktop Navigation
+- Dedicated desktop and mobile LMS shells (`features/`) with responsive sticky horizontal tabs (`More` / `Lebih` overflow popover), history-backed overlay dismissal, and global `cmdk` search.
+- Mobile surfaces include pull-to-refresh, navbar refresh actions, tab icons, meaningful haptics, and OS share/file integration in the Capacitor app.
+
+### Courses, Articles, Diktats, and Videos
+- **Structured Articles (V4 default)**: Ordered scientific sections, catalogue-based headings, chapter numbering, decoded canonical product URLs, compact formula rows with KaTeX macros, and subsection navigation.
+- **Embedded Learning Visuals**: Always-on typed `zyx-visual` Markdown embeds (interactive function plots, 2D geometry, reading-first graphs with optional parameter controls and explicit interaction activation) plus sandboxed `interactive_document` widgets that preserve state while scrolling and pause offscreen playback.
+- **Article selection handoff**: Selecting text on desktop (popover) or mobile (selection action) sends a saved quote directly to Zyra for contextual explanation.
+- **Diktat**: Authored 1 to 4 page printable scientific PDFs with inline viewer and authorized download.
+- **Standalone Solution Collections (V5)**: Reviewed problem-and-solution collections under `/courses/[id]/solutions/[collectionId]`.
+- **Videos**: Course video playlists powered by Vidstack player, streaming via short-lived presigned storage URLs for optimized playback and proxy efficiency.
+- **Offline Reader**: Decoupled offline service worker and native offline reader (`/offline`) for saved readings when offline.
+
+### Flashcards, Mastery, and Study Paths
+- **SM-2 Flashcards**: Idea-linked spaced-repetition flashcards with flip, grade (1 to 4), due queues, and mastery-based suppression.
+- **Chapter Mastery & Study Path**: Per-Idea mastery tracking, concept explorer (`/courses/[id]/concept/[slug]`), chapter-level mastery browsing, topic feedback, and adaptive study paths.
+- **Weekly Reflections**: Student reflection journal (`/profile/reflections`) with optional reminder emails (`FEATURE_REFLECTION_EMAIL`).
+
+### Python Learning and Playground
+- Editable Python Markdown blocks directly inside student Articles, plus a dedicated viewport-aware Playground (`/courses/[id]/playground`).
+- Browser Pyodide execution, staging WASI terminal support, explicit Submit grading, guarded code insertion from Zyra, and beginner-friendly Python coaching. See [coding-foundation.md](coding-foundation.md).
+
+## 3. Assessments, Quizzes, Tryouts, and Live Classroom
+
+### Quizzes and Tryouts
+- **Reservation and timing**: Quiz attempts reserve canonical items at start. Untimed quizzes (`timeLimitSeconds: null`) omit countdown timers and expiry effects.
+- **Timeout and late submission invariant**: POST `/api/quiz/attempts/[id]` accepts timeout and late submissions and caps the recorded duration at `timeLimitSeconds` when configured, preventing zombie attempts. Drafts are preserved on failed submission and cleared only after server acknowledgement.
+- **Answer safety**: Active attempt GET endpoints redact `correct_indices` and stored explanations until submission.
+- **Provenance and grading**: Canonical Idea-linked questions record per-Idea mastery evidence; legacy unprovenanced snapshots remain gradeable without attributing Idea evidence. Essays support manual tutor grading.
+- **Tryouts**: Multi-chapter timed exams with recovery for interrupted submissions and detailed post-submission summaries.
+
+### Live Classroom (`FEATURE_LIVE`)
+- Real-time host and student quiz sessions (`/courses/[id]/live`, `/courses/[id]/live/host`) powered by `workers/realtime` with durable live answers.
+
+### Tutorial PKA (`FEATURE_PKA`)
+- Free multi-stage PKA simulation campaign (`/courses/tutorial-pka`), registration, schedules, announcements, and progress reports.
+
+## 4. Zyra AI Tutor and Operations
+
+### Student Tutoring Experience
+- **Conversational tutoring**: Live SSE streaming with response progress indicators, article-style KaTeX math rendering, proactive grounded visual exploration, and safe retry handling when generation fails.
+- **Contextual follow-ups**: Policy-validated subtle follow-up quick actions and automatic Zyra AI session titles.
+- **Multimodal input (`FEATURE_ZYRA_IMAGE_INPUT_V1`)**: Private authenticated learner image uploads with sanitizer validation and persistent thumbnails.
+- **Language override**: Temporary per-conversation language switching (in-memory, up to 32 sessions) without mutating account locale.
+
+### Zyra Operations
+- **Model configuration (`/admin/ops/models`)**: Dynamic Cloudflare AI Gateway model discovery, 12-hour KV catalog cache, release/creation date sorting, 3-sample median latency probes (12-hour scheduled + manual refresh), global and per-feature model selection, and 5-minute alias cooldown after 3 consecutive failures.
+- **AI analytics (`/admin/ops/analytics`)**: Deduplicated usage, latency, error bucket, and allowance telemetry with Asia/Jakarta day boundaries and zero prompt/PII retention.
+- **Admin Ops AI Copilot**: Grounded in `admin_ops_knowledge` Vectorize namespace and curated docs; generates 30-minute expiring action proposals requiring explicit admin confirmation before any mutation.
+
+## 5. Discussions, Schedules, Groups, and Gamification
+
+### Bilingual Scoped Discussions
+- Course and general discussion channels (`/discussions`, `/courses/[id]/discussions`, `/tutor/discussions`, `/admin/discussions`) with full-text search (GIN indexes), mention handles, emoji status, compact composer with square image thumbnail strips, and `@Zyra` AI dispatch with hardened cooldowns. See [discussions.md](discussions.md).
+
+### Schedules, Bookings, and Google Calendar Sync
+- **Role calendars**: Route-owned Student (`/calendar`, `/dashboard/schedule`), Course, Tutor (`/tutor/schedule`), and Admin (`/admin/schedules`) calendars with on-demand week loading, tutor availability configuration, configurable tutorial email reminders, and filtered slot booking.
+- **Google Calendar sync**: Personal offline OAuth calendar sync and shared Zyx host primary calendar sync via daily queue dispatch and manual toolbar sync controls.
+- **Study Groups & Tokens**: Transactional enrollment token redemption (`Zyx-XXXXXXXX-{capacity}-{courseIds.length}`) forming study groups (`/dashboard/groups`) with shared rosters and booking quotas.
+
+### Student Leaderboard and Social Identity
+- **Combined Leaderboard (`/leaderboard`)**: URL-addressable `Rank` (participation XP: week/month/all-time/following) and `Academic` (course-scoped academic ranking) tabs. `/leaderboard/academic` redirects to `?tab=academic`.
+- **Achievements & Rewards (`/achievements`)**: Overview, Badges (6 families x 5 tiers), Missions, and Rewards (animated frames, chat skins, Pet Studio items).
+- **Pet Studio (`/pet`)**: 4 3D GLB companions (cat free; tiger, rhino, crocodile purchasable with LP) with unique actions and 15 fitted LP suits.
+- **Social Identity**: `StudentProfileDialog` and people search (250 ms debounce, 2 to 80 chars, max 10 results) with member visibility, follow/unfollow, block, and report controls. See [gamification.md](gamification.md).
+
+## 6. Tutor and Admin Workflows
+
+### Tutor Surface (`/tutor`)
+- Course overview, read-only material list (with Admin authoring override), video management, quiz authoring and attempt review, tryout management, essay grading (`/tutor/[courseId]/grading`), participant roster, live classroom hosting, schedule/slot management, discussions, and bilingual Tutor Docs (`/tutor/docs`).
+
+### Admin Surface (`/admin`)
+- **Hybrid domain-grouped sidebar**: Home, Academic & Content (Courses, Materials, Bundles, Schedules, Tutorial PKA, Discussions), Evaluation (Question Bank, Quizzes, Quiz Insights, Distractors, Generation Jobs, Leaderboard), Tools & Communications (Form Studio, Meet, Media Library, Blog, Short Links, Important Links, Pricing & Discounts, Notifications), Users & Access (Users, Groups, Tokens), and System & Ops (Ops Monitor, Models, Analytics, API Keys, Feature Flags, Feature Usage, Web Analytics, Tutor Activity, Admin Docs).
+- **Form Studio (`/admin/forms`)**: Revamped Google Forms style builder with less-cards layout, per-question or per-section publication, upload size labels, submission confirmation, and Google Sheets export with attachment URLs.
+- **Pricing & Discounts (`/admin/pricing`)**: Admin-managed platform and tutorial discount schedules backed by singleton `pricing_settings`.
+- **Course Access Categories**: Admin-managed free/paid course access categories and scheduled free access windows.
+
+### Authoring and Admin MCP (`/api/mcp/authoring`)
+- Streamable HTTP MCP endpoint supporting OAuth PKCE with 4 default scopes plus explicit publication and admin consent grants.
+- Full canonical workflow: Source Pack ingestion -> Idea Bundle V3 -> Product Bundle V4/V5 -> Flexible stable-ID revisions -> verification -> review -> atomic publication.
+- Admin MCP tools for blog, forms, media, schedules, groups, tokens, notifications, and operation receipt recovery. See [operations/admin-mcp.md](operations/admin-mcp.md) and [operations/agent-first-content.md](operations/agent-first-content.md).
 
-### Discussion recovery, local post35 source
+## 7. Public Marketing and Interactive Demo
 
-Discussion notifications open the event message when available. Viewing an observed revision clears its eligible inbox rows and refreshes the mounted bell. A read acknowledgement that exhausts its automatic retries exposes a visible retry action. Reaction controls identify their message for assistive technology. Report navigation retains its current page while the same workspace stays mounted and restores focus when a reported message page returns.
-
-Expired uploads retain authorized ownership evidence after sweeping, allowing a retained same-account draft to re-upload its files. Message previews, posts and reply quotes preserve multiplication within emphasized math. An invalid session cookie can reach sign-in with its original discussion target. Staff guards wait for first-time legacy provisioning and continue to deny existing roleless identities. AI outcomes remain uncertain through malformed responses, structured repair and conversational tutoring, preventing another fallback from being presented as a completed answer.
-
-
-The always-on structured Q&A discussion feature is being integrated locally. Its global, course and private team scope, permissions, rewards and outstanding verification are described in [discussions](discussions.md). Existing roleless canonical accounts are denied by both discussion and shared course access instead of having their legacy roles restored. Fresh legacy identity provisioning remains atomic. This source work is not a deployment claim.
-
-Authenticated accounts can open their basic profile and academic profile editor. Student social settings, cosmetics, badges and the dashboard XP summary load only for eligible students. Active canonical roles take precedence over the legacy role; admin and tutor memberships exclude student gamification, including mixed staff/student memberships. Private gamification actions and APIs continue to reject unauthorized callers. Authorization failures do not prevent staff from viewing or editing their basic profile; database failures still propagate.
-
-The student profile groups learning statistics, enrolled courses, related activity links and a compact badge board. Its editor opens academic information first, with URL-addressable privacy and appearance tabs. Draft selections survive tab changes and failed academic saves. Long academic options wrap within the mobile viewport. A blank display name uses the Google account name; photos continue to come from Google. Privacy and appearance save separately, with pending, failure and success feedback. Cosmetic selectors show owned items and allow clearing each slot; the collection link opens the existing rewards shop. Private visibility and disabling followers retain their existing follow-removal rules, shown before saving. Component-fixture visual and interaction checks remain distinct from hosted persistence acceptance.
-
-Student, tutor, and admin workspaces use neutral active tabs and mobile navigation. Repeated profile, calendar, group, and preference rows use quiet separators. In active quizzes and tryouts, choices use a compact divided list. Progress and the current question use neutral emphasis. Flagged and answered questions retain distinct colors and accessible labels. Timer warning colors appear during the final minute overall and the final ten seconds of a timed quiz question. On mobile, assessment navigation replaces application navigation and aligns actions to the right. The next action becomes a submit action on the last question. Desktop assessments also offer a submit action before the last question. The confirmation shows answers completed out of the total, any warnings, and remaining time when applicable.
-
-Shared select triggers are borderless by default. Validation states and standalone public form answers use an outline to identify the field. The chevron, hover treatment, and keyboard focus indicator show where to interact.
-
-Tutor and Admin record lists use divided rows with compact filters and section spacing. On mobile, the Admin schedule stacks event details, tickets, audit entries, and tutor availability inside each row. Tutor grading actions align at the end of the form. Standalone sign-in, form, offline, and consent screens use the same spacing and show recovery and permission information next to the relevant controls. Public forms in one-question mode offer submission on the final question and open the confirmation before sending.
-
-Admin and Tutor documentation uses flat search results and a compact article index. The mobile navbar opens the documentation panel. Selecting a guide or section closes the panel before opening the destination.
-
-The Student dashboard groups active courses and mastery separately from daily actions. Mobile places available quizzes and tryouts before the mastery list. Daily flashcard targets and the due queue across courses are identified separately. Course Progress uses a compact metric comparison, and Course Mastery keeps long formulas readable with score and trend labels. The Tutorial PKA diagnostic distinguishes incomplete simulations from simulations that have yet to start.
-
-Quiz analysis puts the study plan before detailed diagnostics. Score, question counts, time, and score change are shown in compact rows. Concept mastery pairs readable status and trend text with semantic indicators. On mobile, refresh and regeneration actions sit in the navbar. PKA registration and upcoming sessions use the same compact spacing.
-
-Achievements and student public profiles share the student parent layout and transition classification. Navigation among student pages does not start the cross-surface logo overlay; reduced-motion preferences remain respected.
-
-Gamification routes, rewards and privacy settings are described in the [gamification contract](gamification.md). Confirmed badge and rank awards appear in student celebration notifications. Full application runtime, font metrics and staging remain open. Students can buy owned photo frames, profile themes and titles, plus Zyra chat skins and wildlife characters with LP. Profile settings equip each slot independently and display the selected owned Zyra character as an interactive 3D model. The four studio mascots support drag and keyboard rotation. Small chat icons use posters. In course chat, only assistant messages receive the selected Zyra appearance; the student photo remains unchanged. Ten collection frames use distinct ornament choreography in large profile displays, including articulated wings, heads, petals, orbiting pieces and themed perimeter effects. Photos stay steady; lists remain static and reduced motion is respected. Migration 0016 and expanded staging seeding remain pending.
-
-The public demo loads products for the selected view, reuses scoped reading/card state, and limits exercise-page collection and grading concurrency. Quiz results are saved only after all page submissions succeed. Demo transitions show ready content immediately, with visible loading states for optional feature modules. Runtime and visual acceptance remain open in the [demo performance audit](audit/demo-performance-20261111.md).
-
-Quiz scores remain available when discussion is locked. Solutions and diagnosis follow the template release policy on both learner pages and direct student APIs. Failed admin list requests show retry rather than actionable results for an old filter; sidebar enrollment falls back to a fresh account-scoped read when Today refresh fails. These local corrections await runtime validation in the [open audit](audit/web-performance-follow-up-20261111.md).
-
-Local performance follow-up keeps student material lists metadata-only, loads quiz snapshots only for the selected attempt, and shares Today activity and enrollment between sidebar and plan. Admin user and group lists use server-side search, filtering and pagination; heavy group details load on demand. Question authoring loads published Idea choices for the selected course and chapter when needed. Video player and management dialogs load on demand. The `OPEN / IN PROGRESS` [follow-up audit](audit/web-performance-follow-up-20261111.md) records unverified runtime, access, visual and performance boundaries.
-
-Pembahasan soal supports separately authored optional starting hints, independent of full solution strategy. Admin review displays publication blockers and recovery actions; static Python examples expose keyboard and button scrolling only when lines overflow.
-
-Course access categories are separate from academic disciplines. Admins can configure Free, Limited Time Free, or Premium. Limited offers use Jakarta wall time and include the start instant but exclude the end. Active free courses grant full learning content without creating an enrollment or changing AI quota; existing paid enrollment retains access after an offer ends. Student search checks current publication and chapter access, and flashcard recommendations use current course eligibility. Apply the additive PostgreSQL migration before deploying code that reads these columns.
-
-The student course list shows nonzero material, quiz, and tryout counts. A lock indicates limited course access or required Tutorial PKA registration. Limited Time Free courses show their offer status and dates in the row. Inside a course, active mobile navigation uses neutral emphasis. Overview, documents, videos, assessments, and progress use compact rows with access, completion, and assessment status visible where they affect the next action.
-
-The student sidebar opens the Pet studio at `/pet`. Zyra the cat is included. Students buy the tiger, rhino and crocodile with LP and can switch the active companion. Actions and suits have separate inventory entries. Profile and play viewers use the saved selections. The floating launcher uses the pet's head poster.
-
-## What It Is
-
-Zyx Academy is an AI-powered learning management platform. It takes expert teaching documents, breaks them into atomic concepts, and uses that structure to power personalized learning paths, adaptive flashcards, quizzes, PDF study guides, and one-on-one tutoring.
-
-## User Roles
-
-Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor layout gates use domain memberships as the canonical authorization source. Better Auth keeps the legacy `user.role` projection for compatibility without changing chat speaker values such as `student`.
-
-### Student
-- Redeems enrollment tokens to access courses
-- Views personalized dashboard with progress, weak concepts, daily recommendations
-- When no class is active, can compare a compact Minimal, Essential, and Premium plan preview while retaining enrollment-code activation
-- Reads interactive course materials (markdown, PDFs, images, embedded video)
-- Takes daily/weekly quizzes and timed tryouts
-- Views the AI-powered Quiz Learning Analytics & Diagnosis summary page after quiz completion (3-layer executive summary, deterministic concept mastery, AI error pattern detection, cognitive skill breakdown, time/speed insights, and personalized 3-step action plan)
-- Reviews flashcards with SM-2 spaced repetition
-- Chats with AI tutor for concept help
-- Article text selection shows a fixed bottom Tanya Zyra action below 768px and keeps the selection popover on desktop. Mobile selection changes update the saved quote, which is attached when Zyra opens for an explanation of the selected text.
-- Books real tutor sessions
-- Participates in live classroom quizzes
-- Views leaderboard and answer keys
-
-### Tutor
-- Accesses a dedicated tutor portal (`/tutor`) with a course switcher for all assigned teaching responsibilities
-- Manages availability and sessions in a calendar-first workspace (`/tutor/schedule`) with week, day, and month views. Available, booked, expired, and locked slots have distinct states.
-- Creates, edits, previews, and publishes native quiz templates (`/tutor/[courseId]/quizzes`) with visible creator attribution
-- Hosts interactive live classroom quizzes directly from the tutor console (`/tutor/[courseId]/live`)
-- Grades assigned tryout essay submissions (`/tutor/[courseId]/grading`), provides feedback notes, and inputs final scores (0 to 100) with concurrency guards
-- Grades quiz essays and may override deterministic short-answer scores (`/tutor/[courseId]/quizzes/grading`). Final quiz totals remain hidden from students until every essay has been reviewed.
-- Inspects student attempt spreadsheets and exports CSV records (`/tutor/[courseId]/quizzes/[templateId]/attempts`)
-- Reviews enrolled students, active study groups, and group representatives (`/tutor/[courseId]/participants`)
-- Cannot author or upload course materials. `/tutor/[courseId]/materials` retains a read-only material list; its authoring controls require the existing Admin override.
-- Cannot author simulations or tryouts (tryout authoring is disabled for tutors; `/tutor/[courseId]/tryouts` redirects to the course overview)
-
-### Admin
-- Generates enrollment tokens with capacity and expiry
-- Manages file drive (Google Drive-style folder tree)
-- Uploads Master Teaching Documents (MTDs)
-- Runs AI extraction pipeline to decompose documents into Knowledge Objects
-- Curates global question bank (5-state moderation grid)
-- Monitors background sync queues and usage budgets
-- Imports learning/assessment bundles (split JSON pipeline)
-- Manages PKA tutorial campaign (stages, schedules, announcements)
-- Manages career path templates
-- Monitors content quality flags (auto-detected issues)
-- Views coaching analytics dashboards
-- Accesses course-scoped Quiz & Exam Analytics & Insight portals (`/admin/courses/[slug]/analytics`) for real-time item and distractor analysis, student attempt spreadsheets, item-response answer matrices, export to CSV, and on-demand Gemini AI deep pedagogical insights
-- Creates and publishes course-scoped tryouts at `/admin/courses/[slug]/tryouts` from published question bank items; essay questions can accept typed responses and PDF or image attachments
-- Accesses Tutor Quiz Attempt Spreadsheet portal (`/tutor/[courseId]/quizzes/[templateId]/attempts`) for detailed student answer inspection and CSV exports
-- Monitors real-time tutor mutations, rejections, and failures with cursor pagination, stats aggregation, and sanitized snapshot inspection (`/admin/ops/tutor-activity`)
-- Reads retained operational feature flag status through Admin Ops AI or the `settings.feature_flags` MCP tool
-- Configures live AI primary and two fallback models per feature (`/admin/ops/models`) across Zyra, Python Playground, Ops AI, and background learning or generation tasks, with optimistic concurrency checks, per-feature capability validation, and instant reset to built-in defaults
-- Manages course-scoped leaderboard (`/admin/courses/[slug]/leaderboard`) for per-student ranking within a single course, with backward compatibility redirects from `/admin/leaderboard`
-- Operates inside unified course workspaces (`/admin/courses/[slug]`) with contextual navigation across Bab, Dokumen, Kuis, Soal, Flashcard, Hasil, Papan Peringkat, Analitik, Review Materi, and Pengaturan
-
-
-### Zyx Ops AI
-
-- Ops AI shares Zyra's message layout, live editor, and incremental response reader. Its admin harness combines documentation, diagnosis, existing batch proposals, and the shared MCP tool catalog for admin operations and authoring.
-- Ops AI can inspect and prepare changes for blog, forms, links, academic metadata, schedules, groups, and access. The agent asks for approval in chat before changes. **Allow** approves the exact action shown. **Allow in chat** also authorizes updates to that same form preset or private blog draft for 10 minutes. End the permission from the composer. Publication, deletion, and role or access changes require a fresh **Allow** each time.
-- The catalog also covers Source Pack, Idea and Product Bundle workflows, revisions and releases, reference and original questions, and quiz assembly. Ops AI loads the MCP stage playbook and can continue after reading the result of an approved action. Admin access to the browser catalog is always on.
-- Chat history in this browser is scoped to the signed-in admin account. The earlier shared browser history is kept in its original storage keys.
-
-## Plan pricing
-
-- `/plans`, the landing preview, student dashboard preview, and student onboarding use the same scheduled pricing quote and display components.
-- Admin `/admin/pricing?tab=discounts` stores independent platform and tutorial discount percentages (0 to 100), start dates, and inclusive end dates in WIB. Setting 0 disables a component discount. Only admins can save; both component schedules are saved atomically.
-- Regular prices retain the existing formula and rounding. Discounts apply independently to the regular platform and tutorial components, rounded to whole Rupiah, before any voucher. Free and Custom public cards do not advertise discounts.
-- Public plans, landing and student previews, onboarding, WhatsApp consultation messages, the Custom estimator, and tutor-fee estimates share the saved configuration. The public endpoint exposes only the two schedules, uses no-store responses, and clients refresh configuration every 30 seconds and on focus. Dates are checked every second. Unavailable configuration suppresses monetary quotes and consultation links rather than publishing a stale price.
-- Existing campaigns default to 40% for both components from 12 September through 31 October 2026. Outside a component's dates, its regular price applies. Group totals are authoritative; per-person amounts are rounded estimates.
-- Payment remains outside the website through the admin. WhatsApp includes the current semester total; the admin confirms the applicable price at payment time. The site does not collect payment.
-- Admin Custom estimates support positive multiples of five meetings. Active vouchers apply after the component discounts. Tutor estimates split the discounted tutorial pool 70% to the tutor and 30% to management, excluding the discounted platform component. A manually entered package price is the total before discounts. The estimator allocates the regular platform cost first, up to the quoted total, and applies the two active component discounts before calculating the split.
-- The public landing page separates platform benefits, tutor evidence, and package questions. Its FAQ describes only the published Free, Minimal, Essential, Premium, payment, and activation behavior.
-
-## Public demo and Free access
-
-- The approved public demo policy permits real Free-eligible products from the first active chapter only, matching the current Free chapter scope. Product-specific publication, visibility and chapter-scope checks must be enforced on reads and grading. Diktat is read-only with no download; generic uploaded PDFs remain unavailable unless an existing explicit Free eligibility path covers the exact file and first chapter.
-- Authored fictional fallback products are authorized only where eligible real products are unavailable. They do not change real publication, chapter or Free permissions.
-- Progress and monthly history are fictional. Active chapter titles and published product metadata, including student-visible upload titles, are shown by chapter; later content and uploaded files remain locked. The demo uses the same student page renderers and components with a fictional identity and local transactions. Zyra replies are scripted. Schedule bookings, rescheduling, cancellation, completion, notes, links and pre/post-session files use browser-local storage. Every selected week has course-specific slots, tutors, topics and a study group. The global schedule combines all courses; an explicit course query scopes the calendar and sidebar to that course. Leaderboard participants, scores and activity differ by course and assessment type and remain stable across reloads. The Groups page reuses the student package, quota, roster and rename view; demo renames persist locally without account actions. Demo package usage counts active sessions from the viewed week and saved sessions across weeks, deduplicated by booking ID; weekly usage follows the viewed week. Cancelled sessions do not count. Group edits, quiz drafts and completed results, flashcard resume and progress persist across browser sessions; per-course rankings include validated completed quiz attempts. File bytes stay in IndexedDB, metadata in localStorage. Reset clears this local state; browser data deletion removes it. Inline formative grading requires an account. Product access stays behind the Free first-chapter resolver. The student-page correction is deployed; the catalogue and fictional baseline update is under verification. See [the seeding guide](operations/public-demo-seeding.md).
-- Demo achievements, profile, leaderboard and group identities use the shared student presentation with fictional rank, badges, cosmetics and people. Follow relationships and reward purchases or equipment are stored only in the browser and reset with demo progress. The academic leaderboard filter uses `academicCourse` independently of the demo context `course`; legacy `academic=1` links remain supported.
-- The demo sidebar includes Pet, global discussion and course discussion. Pet and profile use the same browser-local inventory and equipment. Discussion starts with authored fictional conversations tied to course and peer profiles. Text posts, reactions and thread status changes stay in the browser and reset with the demo. Reflections aggregate the existing fictional activity history across courses.
-- The legacy admin `isDemo` singleton remains separate from the snapshot allowlist.
-- The Free chapter resolver selects the first active chapter, including eligible Article, Diktat, Kuis, and Flashcard content. Diktat is readable without download. Zyra allows 5 questions per day, and authenticated learning progress is stored.
-- Admins select the legacy singleton demo course from course settings. Selection is allowed only when the course is active, its canonical and legacy mapping is unambiguous, and it has a complete published Article, two-section Diktat, at least five published Flashcards, and at least three published Kuis questions. The selection is transactional and singleton-scoped.
-
-## Core Pipelines
-
-### Admin and tutor documentation
-
-- `/admin/docs` provides an admin-only searchable guide and linked articles covering course identity, material and video naming, access, assessment, operations, and agent authoring. The admin layout enforces access; the page is always available to admins.
-- `/tutor/docs` provides a searchable guide covering the tutor workspace, scheduling, discussions, class materials, grading, and live quizzes.
-- Both guide catalogs follow the application language in Indonesian and English. Operational instructions distinguish application validation from team conventions and must be reviewed against the current code and runtime contract when workflows change.
-- The documentation navigation lists guides and their sections on both documentation surfaces. It appears as a right sidebar on wide screens and a right-side sheet on smaller screens. Section links include a URL fragment for direct access.
-
-### Site-wide command search
-
-- `Ctrl+K` or `Cmd+K` opens the site-wide command search. Results combine the local index with authenticated API matches, then apply deterministic lexical ranking so exact titles, complete token matches, and matching numbers appear before semantic neighbors.
-- Navigation results show their Admin, Tutor, Murid, or Publik surface so identical sidebar labels remain distinguishable.
-- Typing `?` opens the search guide. It documents and applies the `group:`, `meet:`, `user:`, `form:`, `token:`, and `schedule:` prefixes, and shows every accepted alias for each prefix.
-- Changing the query resets the result list to the top. Selecting a result triggers the global route progress bar before navigation.
-
-### Dialog, sheet and sidebar navigation
-
-Opening a dialog, sheet, modal popover, or overlay panel adds a temporary `dialog` query parameter. Browser and native WebView Back dismiss the top overlay first. Clicking its backdrop or using its close action also consumes that overlay's history entry. Nested overlays close in reverse order, and dismissal respects existing guards while an operation is pending. The query value is temporary, so a reload or a forward visit to a closed overlay URL does not restore a draft or reopen a confirmation. The desktop sidebar keeps its layout preference.
-
-### Bilingual interface and published content
-
-The application uses paired `id` and `en` JSON message catalogs. Locale resolution prefers a supported explicit public URL, then the signed-in account preference, the `zyx_locale` cookie, a supported browser language, and Indonesian. Public `/id/...` and `/en/...` prefixes are limited to the allowlist in `lib/public-locale-routes.ts`; this does not prefix protected routes or APIs. The account choice is stored in `account_locale_preferences` independently of learning preferences and role membership.
-
-The language applies to application-owned controls, errors, empty and loading states, generated system email and push wrappers, search categories, and navigation aliases. It does not rewrite the language or identity of published Articles, Diktat PDFs, historical exams, quiz questions and answers, flashcards, announcements, form questions, blog bodies, or user-authored text. Academic search results retain their source titles, and the bilingual navigation aliases do not promise cross-language academic search.
-
-Use these product terms consistently: `Mata kuliah / Course`, `Bab / Chapter`, `Idea / Idea`, `Artikel / Article`, `Diktat / Diktat`, `Kuis / Quiz`, and `Tryout / Practice test`. Keep stable identifiers and authored titles unchanged.
-
-Zyra accepts an allowlisted response language, honors explicit English or Indonesian instructions, and includes response language in exact and semantic cache identity. The shared tutor chat-request builder sends interface locale for typed, retry, image, and selection requests, with sticky language state guarded by an epoch. Account interface locale persists across visits. Explicit conversation overrides are memory-only, limited to 32 sessions, and cleared on drawer remount, reload, or account, course, and interface-locale changes. The Zyra contract suite passed 48 tests and the request/SSE boundary suite passed 8 tests. The full role/route/state matrix remains incomplete under CP7.
-
-### MTD → Knowledge Objects (KO)
-1. Admin uploads a markdown master document
-2. Preprocessed and normalized with deterministic semantic chunking preserving headings, formulas, and tables without 30k char truncation
-3. Gemini extracts candidates per chunk with source spans, exact excerpt hashes, and learning objectives (with Bloom Taxonomy)
-4. Cross-chunk reconciliation deduplicates concepts while preserving all supporting source spans
-5. Canonical concept resolution checks exact names, aliases, and flags high embedding similarity without exact match as `ambiguous`
-6. Run validated and assigned state (`staged`, `accepted`, `needs_review`, `failed`)
-7. Accepted runs persisted atomically using stable identity keys (`stableKey`) without destructive deletion
-
-### Canonical Source and Idea Domain
-1. Versioned source metadata is stored in `sumber_materi` with a checksum and canonical URI or R2 key.
-2. Exact source spans are stored in `potongan_sumber` with offsets, checksums, and embedding eligibility.
-3. `ide` provides the future course and chapter learning atom with optional global `concepts` linkage, semantic hashes, and explicit source policy.
-4. `asal_ide`, `relasi_ide`, and `ketergantungan_produk` preserve provenance, typed relations, and freshness transitions.
-5. Canonical Idea callers are always-on; existing KOs remain readable through compatibility mappings.
-
-### Product, Assessment, and Idea Mastery Domain
-1. Articles, diktat materials, questions, solutions, and flashcards have normalized versioned target records with source and generation hashes.
-2. Published products require at least one published Idea; question links support multiple Ideas with positive weights whose sum is checked within `0.000001`. Product Bundle V2 question products are ITB examples with a required source event and allowed reference. Product Bundle V3 writes learning products only, and multi-Idea assessment questions use their separate assessment workflow.
-3. Assessment definitions separate blueprint, assessment, chapter scope, ordered items, attempts, and answers. Quiz scope is exactly one chapter; tryout scope is one or more chapters.
-4. Attempt and answer records carry rendered question, option order, response, grading policy, and content version snapshots so later content changes do not alter historical context.
-5. Answer evidence records Idea attribution, contribution, weight, confidence, evidence source, rubric version, and derivation status. Ambiguous evidence is retained but cannot affect mastery.
-6. `pemahaman_ide` stores score and confidence as separate 0 to 100 values, with append-only change history, replay metadata, and deterministic flashcard recommendations. Cards for Ideas with mastery score 80 or higher are suppressed. Only attributable verified evidence contributes to the score; a legacy concept baseline is explicitly labelled and never copied to an Idea.
-7. Bundle imports, entity inventories, reviews, atomic publication records, and mutation audits are normalized for later workflow plans.
-8. Product, assessment, and per-Idea learning callers are always-on; current legacy records remain unchanged and readable for compatibility.
-
-### Admin Course Workspace Hierarchy & Contextual Navigation
-
-1. Admin course management is organized as a nested hierarchy under `/admin/courses/[slug]`, replacing former tab-based client state with direct, addressable routes.
-2. The contextual sidebar automatically switches when navigating inside `/admin/courses/[slug]`, rendering course-scoped destinations in this order:
-   - Bab (`/admin/courses/[slug]`): chapter management, reordering, and canonical projection.
-   - Dokumen (`/admin/courses/[slug]/documents`): unified document catalog with responsive search, upload dialog, and full document management workspace for previews, PDF metadata, and article or diktat lifecycle.
-   - Video (`/admin/courses/[slug]/videos`): course video playlists and lesson links.
-   - Kuis (`/admin/courses/[slug]/quizzes`): course quizzes list with inline metrics and nested quiz authoring routes.
-   - Tryout (`/admin/courses/[slug]/tryouts`): course-scoped tryout authoring, question bank import, and publication to the student Tryout page.
-   - Soal (`/admin/courses/[slug]/questions`): course-filtered question bank.
-   - Flashcard (`/admin/courses/[slug]/flashcards`): course-locked flashcard set and card CRUD management.
-   - Hasil (`/admin/courses/[slug]/results`): student attempt metrics and completion rates.
-   - Papan Peringkat (`/admin/courses/[slug]/leaderboard`): course-locked leaderboard ranking with hidden overview selector.
-   - Analitik (`/admin/courses/[slug]/analytics`): course-locked quiz analytics and AI diagnostic insights.
-   - Review Materi (`/admin/courses/[slug]/review`): course-locked staging review for Idea and Product bundles.
-   - Pengaturan (`/admin/courses/[slug]/settings`): course metadata, category, and archiving controls.
-3. Mobile navbar displays matching Indonesian route titles dynamically without falling back to generic panel titles.
-4. Legacy course IDs and canonical slugs both resolve transparently through server-side `resolveCourseIdentity`.
-
-### Editorial Article reader
-
-The reader keeps a complete chapter in one scrollable document. At widths below 640px, Article and web Diktat prose uses a 15px base size with the existing reader font-scale preference and generous line height; controls, touch targets and desktop prose retain their sizes. Article and web Diktat toolbars show the chapter title while the active section heading remains visible, then show the active section context after its heading leaves the reading viewport. Article section context uses the section number and title without repeating the chapter prefix. Section headers retain a compact reading-time estimate without a separate activity breakdown; anchor offsets and section gaps keep the content close to the toolbar. Core prose and math use a plain surface; editorial notes and examples use left rails; interaction and dense reference tables retain containers. Comparison math pairs each relation with its meaning and conditions on wide screens and stacks the same pair on narrow screens. Short statement math from existing bundles also pairs the expression and explanation in two left-aligned columns on desktop and stacked rows on mobile; long expressions, text-bearing LaTeX and multiline math retain full width. Standalone formula paragraphs use horizontal math scrolling even when authored with inline delimiters and trailing punctuation. Article TOC numbers match the body numbering, including introductory and closing sections. The header keeps only the two-pixel scroll track; completion remains in the TOC. Derivations and cases retain their authored order. Generic theory labels and wrapper headings repeated by an embedded worked example are omitted without removing authored body content.
-
-Articles with V4 ordered parts start formative checks collapsed. Opening and closing a check preserves its answer and feedback. Additional worked-example blocks can be opened through a disclosure; the primary example stays visible. Correct feedback stays open until the learner closes it. Reading focus temporarily hides formative checks and coding exercises without unmounting them. The context header follows the active section; the TOC respects authored parent sections and expands only the active section, limited to worked examples and checkpoints. Section leads have no rail. Comparison and worked-step formulas align left. Function plots group legend, interaction and value-table controls above the plot, retaining authored reference values and live sampled values in one divided panel below the plot. Opening the panel leaves the plot position unchanged. Sampled values use rounded steps and right-aligned tabular numerals; table control labels stay constant across states. Additional-example disclosures announce their open state and mark their content boundary with a subtle background. Graph legends retain their series visibility toggle with a plain text treatment. The chapter close prioritizes the supplied next material or course material list over manual completion. A two-pixel position track remains visible in both mobile and desktop headers, separate from persisted completion. Quiz actions remain aligned to the right of wrapping titles. Product Bundle envelopes and ordered-part payloads need no migration. Renderer-bound verification receipts must be regenerated against this source revision before publication, as required by the existing V4 verification policy. Reading completion and session-only checkpoint correctness are separate indicators. Reloading clears checkpoint indicators; they are not a durable mastery record.
-
-Embedded function-plot parameter controls expand below the plot without moving it, beside the table-disclosure flow. Compact controls retain parameter symbols, use tinted active presets and a separate reset action for all parameters. Embedded worked-example connectors pass through numbered markers. Article and Diktat footers distinguish reaching the end from recorded completion. Graph navigation stays beside the plot even when parameter and value panels are open. Quiz retry is unavailable while a reveal request is pending, and invalid reveal responses show a recovery message. Formula blocks place the equation before meaning, domain conditions and compact symbol definitions. Only short, simple equations share a desktop row with their meaning; compound equations stack. Wide math uses a right-edge fade while more content remains to scroll, including after resizing.
-
-These are browser presentation actions, not new MCP tools. Authoring schemas, scopes, consent, capability discovery, playbooks, packaged skills, host prompts and environment bindings remain unchanged. Existing clients still supply ordered parts and parent section IDs. The operations coverage catalog records the UI-only actions. No publication or deployment is implied.
-
-The web Diktat/Markdown reader shares the editorial typography and surfaces, numbered sections, active-context header, two-pixel scroll track and course-material continuation. Decorative completion dividers and generic Diktat concept badges are omitted. Reading completion and download permissions retain their existing handlers. The PDF compiler, print layout, authored units and Article lineage are unchanged.
-
-### Unified Reader Modes (Learner vs Admin Preview)
-
-1. The reading experience across `MaterialViewer` and `StructuredArticleReader` supports two explicit modes: `learner` and `admin-preview`.
-2. In `admin-preview` mode:
-   - All learner-specific mutations are strictly gated: reading progress is never written, completion checkmarks are suppressed, and learner feedback modals are omitted.
-   - Zyra tutor integration and interactive Socratic sidecars are disabled.
-   - The preview bar displays authoritative source provenance: `canonical-article`, `canonical-diktat`, `legacy-article`, `legacy-diktat`, or `legacy-pdf`.
-   - Navigation links safely return to the course documents list (`/admin/courses/[slug]/documents`).
-3. In `learner` mode:
-   - Interactive progress tracking, section completion checkmarks, and contextual Zyra assistance are fully active.
-   - Document listing uses minimal file tiles with thumbnail previews rather than heavy embedded iframes.
-
-### Compatibility Redirects & Contextual Sidebar Isolation
-
-1. Old global course-related routes are converted into server-side compatibility redirects, preventing duplicate global course workspaces:
-   - `/admin/quizzes`: with `courseId`, resolves canonical or legacy identity and redirects to `/admin/courses/[slug]/quizzes`; without it redirects to `/admin/courses`.
-   - `/admin/quizzes/new`: validates the owning course server-side and redirects to `/admin/courses/[slug]/quizzes/new`; redirects to `/admin/courses` if unverified.
-   - `/admin/quizzes/[id]/edit`: resolves the owning course from database template records (`resolveQuizCourseIdentity`) and redirects to `/admin/courses/[slug]/quizzes/[id]/edit`; unverified or missing records trigger `notFound()`.
-   - `/admin/leaderboard`: with `courseId`, redirects to `/admin/courses/[slug]/leaderboard`; otherwise redirects to `/admin/courses`.
-   - `/admin/quiz-insights`: with `courseId`, redirects to `/admin/courses/[slug]/analytics`; otherwise redirects to `/admin/courses`.
-   - `/admin/quiz-insights/[id]`: resolves quiz ownership server-side and redirects to `/admin/courses/[slug]/analytics/[quizId]`.
-   - `/admin/materials/review`: with `courseId`, redirects to `/admin/courses/[slug]/review`; otherwise redirects to `/admin/courses`.
-   - `/admin/materials/review/idea/[slug]`: resolves bundle ownership server-side (`resolveBundleCourseIdentity`) and redirects to `/admin/courses/[slug]/review/idea/[bundleId]`.
-   - `/admin/materials/review/product/[slug]`: resolves bundle ownership server-side (`resolveBundleCourseIdentity`) and redirects to `/admin/courses/[slug]/review/product/[bundleId]`.
-2. Browser Upload Manual retirement:
-   - `/admin/materials/manual` redirects permanently to `/admin/courses`.
-   - Retired browser-only manual authoring APIs return HTTP 410 Gone.
-3. Sidebar isolation guarantee: no old route can render an active global course workspace or reset the contextual sidebar back to global while viewing a course-owned resource.
-
-### Flexible existing-content revisions
-
-`OPEN / IN PROGRESS`: the [agent workflow](bundle/authoring-agent-workflow.md) adds direct Idea/Article/Diktat drafts, authored Idea priorities, local raw-JSON preview, compact Diktat-unit reads/patches and shared revision helpers. Verification checks structure/model issues before browser work, captures PDF/page images once and reuses only authenticated successful batches from the unchanged plan. Repeatable synthetic measurements record response bytes and executor calls. Full review and publication gates remain. Hosted acceptance, real chapter cost/quality comparison and external skill distribution remain separate.
-
-The [revision contract](bundle/authoring-revisions.md) describes MCP editing for Idea V3 and learning Product V3/V4/V5. Agents fork a stored artifact into a separate draft, edit entities and reading units by stable ID, inspect affected reviews and dependencies, and explicitly publish a reference-based release. A release can replace related Idea and Product revisions atomically while keeping the old content live until it succeeds. History and restoration use immutable artifacts; restoration creates a new draft. Existing-content edits use stored source context and a fresh bound bootstrap, without a replacement Source Pack or expired original run. Unchanged review evidence requires server-proven applicability and explicit reviewer consent. Profile-specific correctness, release, source, PDF and trusted-verification gates remain in place. No Admin website visit is mandatory. Implemented with focused local verification; remote migrations, deployment and live-service acceptance remain pending.
-
-### Idea Bundle Workflow
-
-1. Admins open `/admin/courses/[slug]/review`, choose `Source Pack + Idea`, and use the compact `Upload ZIP` action (or access via `/admin/materials/review?courseId=...` compatibility redirect). The dialog first analyzes the strict ZIP without persistence, then stages the validated artifact after confirmation. Validation rejects unsafe archive entries, unknown manifest fields, checksum drift, missing source spans, non-publishable Ideas or sources, inconsistent creator attribution, duplicate stable keys, unresolved conflicts, and prerequisite cycles.
-2. The review page is a searchable, filterable inventory by course, author, and status. Artifact cards lead with course, creation time, author, and content summary; bundle IDs and checksums remain secondary technical details. `Buka review` navigates to `/admin/courses/[slug]/review/idea/[bundleId]`. The compact detail workspace uses the left Idea list as its selector, marks per-Idea review status through card color, advances to the next pending Idea without a page reload, shows readable full-width source evidence and named relations, and exposes editing, review, publication, staging deletion, and published withdrawal actions.
-3. The detail page reads the staged ZIP from R2 and reconstructs the validated preview before showing it. Stable identities and source spans stay locked. Identical upload retries are no-ops and a different checksum for the same bundle ID is blocked.
-4. Only an admin can publish an approved bundle. Source materials, chunks, Ideas, provenance, relations, publication state, audits, and deterministic vector outbox jobs are written atomically. An admin may later withdraw a published Idea Bundle, which marks its canonical sources, Ideas, relations, and learning sections as withdrawn and queues deterministic vector deletions while preserving publication history and audit evidence.
-5. The workflow is always-on. The legacy Learning Bundle and Assessment Bundle importers are retired and reject new writes.
-
-### Authoring Context Pack and Manual Browser Retirement
-
-1. Browser-based manual authoring pages (`/admin/materials/manual`) are completely retired and redirect to `/admin/courses`.
-2. In-memory validation, job packaging, and authoring context extraction are preserved for external agent authoring via Authoring Context Pack V1 and the provider-neutral Authoring MCP server.
-3. After official Idea publication, the Context Pack export creates a deterministic bundle rooted in the selected course without exposing raw technical IDs or credentials.
-4. The allowlist includes only published current reviewed Ideas, active source excerpts, provenance, relations, objectives, safe requirements, and allowed benchmark summaries.
-5. Holdout content, murid data, credentials, signed URLs, embeddings, and unpublished or stale content are excluded.
-6. The private artifact is stored under a run-specific staging R2 prefix and every export is recorded in `audit_mutasi` with checksum and retention metadata.
-7. External agents use `$UPLOADER` and `$APPROVING_REVIEWER` for attribution without receiving private Zyx identity IDs.
-8. The provider-neutral Authoring MCP server at `/api/mcp/authoring` remains the authoritative pipeline for authoring and staging Source, Idea, and Product bundles.
-
-### Provider-neutral Authoring MCP V1
-
-1. `/api/mcp/authoring` exposes a provider-neutral Streamable HTTP MCP endpoint. Its core does not depend on Gemini, Claude, or ChatGPT; each host discovers the same typed tools.
-2. `workflow.list` exposes three choices: `idea_product`, `quiz_bank`, and `reference_question_ingest`. There is deliberately no combined workflow option. The first two workflows lock one course and one chapter; the historical reference workflow locks only one course, rejects chapter and Source Pack inputs, and reads stored question and solution PDFs directly.
-3. `source.list_files` resolves the selected canonical course and chapter to their legacy `course_materials` mappings, then returns every eligible PDF category with an encrypted short-lived `fileKey`. Multi-chapter PDFs are included when the selected chapter is present in `chapterIds`; external URLs, unsafe keys, unmapped scopes, and files from another course are rejected.
-4. `source.read_file` reads one current `fileKey`. Page mode defaults to text and accepts up to four pages per call. Request `representation: "image"` or `"both"` and optional `imageWidth` (320 to 2048 px) for visual evidence. Cold results return a job ID immediately; `source.get_read_job` polls per-page Inngest work and can retry only failed pages. Original files use a 15-minute signed binary URL with HTTP Range through `mode: "download"`; `blob` aliases this descriptor. The repository download client preserves partial progress and ETag across interruptions and renewed URLs.
-5. `source.ingest` accepts a base64 Source Pack plus either ephemeral `originals`, server-resolved `storedOriginals`, or a unique mix of both. Stored PDFs may be up to 50 MiB and all originals together may be up to 96 MiB. The same checksum, content, and ZIP quality gates apply; stored references additionally bind the Source Pack token to their course and chapter. Valid Source Packs are persisted automatically to Cloudflare R2 and recorded in `impor_bundle` with status `validated`, returning `persisted` metadata including `sourcePackId`, `storageKey`, and `checksumSha256`. Previously persisted packs can be discovered with `source.list_packs` and inspected or read with `source.get_pack`.
-6. Course and chapter choices use short-lived signed keys, and stored file references use encrypted short-lived keys, so agents and operators do not exchange raw internal IDs or storage keys. `workflow.start` accepts either an active `sourcePackToken` or a stored `sourcePackId`, automatically binding the pack and issuing a valid token. It rejects a stored-source scope mismatch and returns a scoped run token and workflow contract.
-   Admin course and chapter CRUD keeps these choices current by mirroring every exact legacy mutation to `mata_kuliah` and `bab` in the same database transaction. MCP catalog calls query those canonical rows at request time without an application cache.
-7. Idea Bundle and Product Bundle validation combines technical compatibility with repository content-quality gates. Idea checks include meaningful source coverage, provenance coverage, duplicate candidates, and formula trace warnings. Product checks include published Idea scope, dependency freshness, Article depth, Diktat coverage, examples, visuals, retrieval, traps, formulas, and ITB provenance.
-8. For `quiz_bank`, `assessment.list_ideas` returns the published Idea catalog of the locked course and chapter with free-text query, knowledge kind, instructional role, and difficulty level filters plus distribution facets and offset paging. `assessment.get_idea` returns one Idea with active relations in both directions and a provenance summary so agents can respect prerequisites before linking. The workflow contract exposes scope guidance enumerating difficulty, cognitive level, question type, idea role, tag rules, and weight rules. For `reference_question_ingest`, `knowledge.search_course_ideas` searches the published Idea catalog across all chapters of the locked course, while `knowledge.get_idea` returns one published Idea with attribution context.
-9. Draft V2 requires at least one published Idea in the locked course and chapter per question, exactly one `primary`, and positive link weights summing to 100%. Draft updates use the same validation. Legacy V1 drafts must be migrated to V2 with explicit Idea links before validation or staging; existing stored questions are unchanged. `assessment.validate_quiz_draft` aggregates every blocking issue and warning in one response instead of failing on the first error. It reports difficulty, cognitive level, question type, and tag distributions plus per-Idea coverage so agents can close gaps before submission. Historical authoring uses `reference-question-draft.v1`, requires source and solution provenance, at least one published same-course Idea link, and direct source attribution. `assessment.submit_reference_draft` writes immutable historical reference questions directly with `status=published` (`reviewRequired=false`, `publicationTarget=reference_question_bank`), and items with `quizEligible=true` are immediately eligible for quiz assembly. Valid `quiz_bank` submission writes Zyx-original `soal`, required `soal_ide`, `pembahasan_soal`, the `ai_question_bank` compatibility projection, and an audit row in one transaction for admin review (`reviewRequired=true`), while `quiz.create`, `quiz.update`, and `quiz.set_questions` assemble quizzes with explicit `draft` or `published` quiz metadata status. Authorized active admins can review and publish Idea and learning Product Bundles through scoped MCP tools with exact revisions, explicit publication consent and the shared review and evidence gates. The authenticated Admin review UI remains optional.
-10. The MCP lifecycle tools support inspection, maintenance, and review across bundles and questions:
-   - `authoring.list_imports` and `authoring.get_import` inspect staged Source, Idea, and Product bundles, entity inventories, and review outcomes without exposing private storage keys or internal reviewer identity IDs (`authoring:read`).
-   - `authoring.restage_idea_bundle` and `authoring.restage_product_bundle` revalidate and replace staged bundles in place, resetting prior review decisions via existing lifecycle services (`authoring:stage`).
-   - `authoring.discard_product_draft` removes draft Product Bundle inventory (`authoring:withdraw`), retaining shared content-addressed objects for safe cleanup. Published or withdrawn bundles cannot be discarded.
-   - `authoring.review_idea_bundle` and `authoring.review_product_bundle` record immutable review decisions (`approved` or `rejected`) with notes without publishing content (`authoring:review`).
-   - `authoring.withdraw_product_bundle` provides audited, idempotent Product withdrawal (`authoring:withdraw`). `authoring.withdraw_idea_bundle` provides the revision-bound Idea counterpart through a bound run or exact-import recovery without a Source Pack, preserving canonical entities still owned by other published imports. The Admin website is optional.
-   - `assessment.update_question` updates draft Zyx-original questions in the locked run scope and resets them to `reviewStatus=generated` for admin review (`authoring:stage`). ITB examples and historical references are immutable and cannot be updated. Published or retired questions cannot be edited through this tool.
-11. The thin client skills are `zyx-authoring-pipeline`, `zyx-source-pack-mcp`, `zyx-idea-bundle-mcp`, `zyx-product-bundle-mcp`, `zyx-question-authoring-mcp`, and `reference-question-ingest`. At runtime, each skill calls `workflow.get_playbook` to verify `bootstrapProtocol` and host capabilities, receive a signed `bootstrapToken`, and load the active stage playbook modules from the server before drafting or mutating state. MCP HTTP authorization uses the existing Better Auth admin session through MCP OAuth discovery, PKCE authorization code exchange, and audience-bound bearer tokens with a 30-day hard lifetime. Discovery, consent, and token audiences use the configured public Better Auth origin, including behind a reverse proxy. OAuth has four default scopes: `authoring:read`, `authoring:stage`, `authoring:review`, and `authoring:withdraw`. Publication is a fifth opt-in scope, `authoring:publish`, which clients must request explicitly. The consent page displays and initially selects the requested supported scopes; the admin may deselect them. At least one selection is required, and only selected supported scopes are granted. Silent authorization requires prior approval for the same client, live admin session, resource and requested permissions. Third-party clients need fresh interactive approval if no consent record exists. Reducing approved permissions also invalidates tokens that exceed them. Authenticated same-origin session connections receive all supported scopes. A logged-in admin can also create a per-session connection token at `/api/mcp/authoring/connection` for clients without interactive OAuth, including ChatGPT connectors that accept a remote MCP endpoint. Each request checks the token audience, the live Better Auth session and active canonical admin membership. Profile updates cannot grant an admin role. No static MCP token, manually configured actor ID, or feature flag is required.
-
-### Product Bundle Workflow
-
-1. Admins open `/admin/materials/review`, choose `Product`, and use the compact `Upload ZIP` dialog. The dialog validates Product Bundle V2 or V3 according to its declared schema. V3 validates learning products, checksums, Idea and source traceability, complete Article quality coverage, atomic flashcards, draft status, consistent attribution, and holdout markers before staging. V3 rejects question, solution, and assessment blueprint entities; assessment content uses `quiz_bank` or `reference_question_ingest`.
-2. The review inventory supports search and filters for course, author, and status. `Buka review` navigates to `/admin/materials/review/product/[slug]`, where Artikel, Diktat, Soal, Pembahasan, Flashcard, and Blueprint use distinct type tabs and a searchable one-product navigator. Artikel provides focus reading and section review modes with learning objectives, estimates, typed learning blocks, relevant visuals, and a compact provenance inspector. Diktat preserves Article lineage and provides render, retry, and PDF preview actions.
-3. The detail page reads the staged ZIP from R2 and reconstructs the typed preview before showing it. Product identity, source references, and dependency integrity remain server-controlled; publication still revalidates the bundle before writing canonical rows.
-4. Product Idea-link weights must be positive and sum to one. An atomic flashcard has exactly one Idea. A multi-Idea question carries an explicit relation and rationale per linked Idea instead of attaching every relation to the first Idea.
-5. Product Bundle never creates Zyx-original questions. Every question declares `itbSource.referenceId` and `itbSource.eventName`; the source must be present in ITB curation, allowed for authoring, and label-matched against the database. Curation dimensions still cover difficulty, format, terminology, and reasoning pattern.
-6. Every Diktat declares its source Article ID, version, and generation hash. The bundle must include the matching Article dependency so the Diktat cannot silently drift from its Article.
-7. Product Bundle lifecycle is only `draft -> published -> withdrawn`. Explicit save stores a draft. Section decisions and one bundle review decision live outside the ZIP and are bound to reviewer identity, policy version, and the current content fingerprint. Detailed criterion evidence from older reviews remains readable. Restaging preserves only evidence whose content remains unchanged; content edits invalidate affected decisions and make downstream PDF evidence stale.
-8. Publication verifies current published Ideas, active source excerpts, identities, dependency freshness, same-reviewer section approval, current pedagogic approval, and a ready 1 to 4 page Diktat PDF before one transaction writes V3 learning products, links, dependencies, the PDF storage key, vector outbox entries, publication state, and mutation audit records. Product Bundle V3 does not write question, solution, or assessment blueprint rows. Existing V2 assessment products remain readable and publish-compatible for legacy bundles. Historical reference questions keep their own assessment workflow and attribution boundary.
-9. The workflow is always-on. Legacy material, Diktat, and assessment-source CRUD is retired. Existing legacy rows remain available to compatibility readers, but new authoring must use Source Pack, Idea Bundle, Product Bundle, and the canonical Bank Soal flow.
-
-### Student canonical content
-
-1. `/dashboard`, `/courses`, course detail, search, material lists, mastery, Concept Explorer, study path, flashcards, leaderboard course selection, and profile enrollment read `mata_kuliah`, `bab`, `pendaftaran_murid`, and published Product Bundle tables first.
-2. Published Article and Diktat content is visible immediately after publication. Structured Article section progress uses `kemajuan_baca_artikel`; canonical flashcard scheduling uses `kemajuan_flashcard_murid` and append-only `review_flashcard` rows.
-3. Article, Diktat, flashcard, and canonical assessment activity records attributable Idea evidence and updates `pemahaman_ide`. Student mastery and study paths use published Ideas and active Idea relations first. Course Mastery highlights one assessed topic, qualifies early results, and groups topic scores by chapter. Unassessed topics stay available in a separate disclosure.
-4. Quiz and tryout templates, attempt snapshots, submissions, original PDFs, and historical generated materials remain compatibility readers. Their course identity is resolved through `legacyCourseId`, so they do not replace or duplicate a canonical course.
-5. The old `/murid` preview route redirects to `/dashboard`; there is one primary student experience.
-
-### Question origin and citation
-
-1. `ai_question_bank` and canonical `soal` classify each row as `zyx_original`, `historical_reference`, or `itb_example`. Manual and generated bank questions default to `zyx_original`; Product Bundle V2 publication can retain `itb_example`; Product Bundle V3 does not create assessment rows.
-2. The admin bank can filter and distinguish the three groups. The tryout editor can import eligible published rows, while historical references remain excluded until their `quizEligible` rules pass.
-3. Quiz, tryout, PKA, daily API, and live-quiz payloads preserve origin, source event, source reference, historical source metadata, and provenance in immutable snapshots. Every student question surface renders source attribution when provenance metadata exists, including `Referensi: <source>` for historical references.
-4. Origin labels and learner citations render whenever provenance metadata exists; provenance is no longer hidden behind a separate public flag.
-
-### External Authoring Skills
-
-1. The active MCP instruction skills are `zyx-source-pack-mcp`, `zyx-idea-bundle-mcp`, `zyx-product-bundle-mcp`, `zyx-question-authoring-mcp`, and `reference-question-ingest`. They guide agent extraction and authoring, call the provider-neutral MCP tools, and never duplicate or bypass repository quality gates. The question skills document host setup for Claude Desktop, Claude Code, and ChatGPT connectors.
-2. The legacy `source-pack-translator`, `zyx-idea-authoring`, and `zyx-product-authoring` directories remain as migration references only. Their JavaScript packaging and validation scripts are not the MCP runtime authority.
-4. Idea and Product skills keep a small local Authoring Learning Profile. An explicit operator correction updates the current artifact and adds a scoped lesson for later runs. Source facts, schemas, and quality gates always override learned preferences. No Revision Pack or separate training workflow is used.
-5. Legacy packagers and validators use JavaScript and run directly with Bun. The active MCP skills do not ship duplicate validators. All workflow enforcement lives in repository TypeScript modules called by MCP, while ZIP rules still prohibit generic archivers, scripts, symlinks, and executable permission bits.
-
-### Article and Diktat Quality Compiler
-
-1. Approved article products are normalized into typed pedagogic blocks with Idea IDs, source excerpts, learning purpose, generation hash, and reviewer state.
-2. Required article coverage includes prior-knowledge activation, problem introduction, per-Idea teaching blocks, synthesis for multi-Idea articles, summary, and retrieval close. Conditional blocks must carry a typed inapplicability reason.
-3. Idea prerequisites are ordered deterministically and cycles are rejected before compilation. Quality gates reject stale dependencies, empty blocks, broken math delimiters, missing traceability, and rejected review states.
-4. Diktat material is compressed only from an approved article representation. The compression report records the source article version and hash, every removed block, preserved formulas, preserved Idea coverage, and source traces.
-5. Admin previews expose block-level Idea and source traceability plus stable quality-gate reason codes. The material quality gate is always applied during review and publication.
-
-### Website Material Generation
-The standalone Admin material editor is retired. Existing website material remains readable for compatibility, while new material is published through Product Bundle.
-
-1. All KOs for a chapter are collected in order
-2. Gemini compiles them into canonical markdown with custom containers (`:::concept`, `:::formula`, `:::misconception`)
-3. Custom compiler parses markdown → AST → interactive web page
-4. Math formulas extracted into interactive parameter sheets
-
-### Flashcards (SM-2 Spaced Repetition)
-- Cards auto-generated from KOs per chapter
-- SM-2 algorithm schedules reviews with recall grades 1;4
-- Ease factor adjusts card difficulty dynamically
-- Safety floor recovery prevents forgetting after long intervals
-- The student queue contains only new or due cards. Canonical cards are ranked by the weakest linked published Idea, unseen state, oldest due date, then stable card ID. Cards at Idea mastery 80 or higher are suppressed, while cards without a valid Idea remain at the end as a compatibility fallback.
-- `Lewati` rotates a card to the session tail without writing a review or mastery evidence. Recall grade `Ulangi` writes the normal review, then appends the card to the session tail. Every other grade advances directly to the next card or completion state.
-
-### Student course learning surfaces
-
-- The Documents page uses one reusable search control, one grouped multi-select filter, and one grid or list toggle. Filters use OR within a group and AND across groups. Grid items are minimal file tiles with a contained page thumbnail or structured fallback, never an embedded PDF viewer.
-- Manual PDF uploads and completed Diktat rendering rasterize page one through `PDFParse.getScreenshot()`, encode it as WebP through `sharp`, and store it with the course thumbnail key builder. Thumbnail failure does not block the document row or file access. Backfill is an explicit dry-run or guarded apply operation.
-- The study path is a deterministic, chapter-grouped roadmap. It exposes one recommended next step, short priority reasons, mastery progress, contextual material, flashcard, and quiz actions, collapsed mastered steps, locked steps after active work, and an optional daily accordion plan.
-- Quiz access filters live in the compact page header. Tryout attempt limits remain enforced without a separate explanatory banner.
-- Daily Trivia fails closed. A question must belong to the active course, be active, published, current, tagged `trivia`, structurally valid multiple choice, and anchored to a course Knowledge Object or published canonical Idea. When no eligible question exists, no automatic popup or manual trigger is rendered.
-
-### AI Tutor (RAG)
-- Three-tier grounded pipeline: KV cache → vector search → Gemini
-- Query Action Router (`retrieve`, `reuse_previous_evidence`, `answer_from_conversation`, `clarify`) with response style modifier extraction (`simpler`, `analogy`, `worked_example`, `graph`, etc.)
-- Tier 1 Shared KV Cache isolation ensuring zero student identity, user ID, or conversation history is stored in shared cache payloads
-- Versioned prompt contracts, policy contracts, and evidence version digests in cache keys
-- Weak-concept addendum when student struggles
-- Empty or irrelevant course retrieval falls back to the model's general knowledge for learning requests within the Zyx scope. The response clearly states that it is not grounded in the current course material, provides no source badge, and keeps active assessment protections.
-- Requests outside the Zyx learning scope receive a short redirection instead of an unrestricted general chat response.
-- Capped at 30 AI requests per day per student
-
-### Question Generation & Bank Soal Management
-- Multi-format question support: Pilihan Ganda (`multiple_choice`), Pilihan Ganda Kompleks (`multiple_choices`), Isian Singkat (`short_answer` with comma-separated acceptable answers), and Uraian/Essay (`essay` with reference rubric).
-- Deterministic multidimensional blueprint engine produces per-slot specs identifying KO, cognitive process, target difficulty, reasoning pattern, and targeted misconceptions
-- Gemini generates candidate options with stable option IDs (`opt_0`..`opt_3`)
-- Application option shuffle with stored seed prevents position leakage and updates correctIndices and distractor provenances deterministically
-- Machine-readable distractor provenance engine maps non-correct options with targeted misconception family, method, score, and uncertainty state (`confident`, `ambiguous`, `unknown`)
-- Bulk Markdown Importer supports multi-format tags (`**Tipe:** Pilihan Ganda | Isian Singkat | Essay`) and `**Jawaban:**` parsing for short answers.
-- Manual creation and Markdown import in `/admin/ai/questions` are canonical-first. The author must choose a canonical course, may scope the question to a chapter, and may leave the Idea connection empty. If one or more published Ideas are linked, they must belong to the same course and selected chapter and their weights must sum to 100%.
-- The question authoring form captures cognitive level and reasoning pattern, supports one or multiple correct options, defaults new work to draft, and offers an explicit publish action. Each write creates `soal` and `pembahasan_soal`, replaces the optional `soal_ide` rows, then updates `ai_question_bank` as a compatibility projection.
-- Markdown accepts `**Level Kognitif:**`, `**Pola Penalaran:**`, Indonesian or English type labels, comma or semicolon short-answer variants, and multiple-choice keys such as `**Jawaban:** A, C`.
-- Audit trail stored in `question_generation_runs` and `distractor_provenance`
-- Generated questions persisted with `qualityScore: null` (unverified) until independent verification
-
-### Diktat PDF Compilation
-- The standalone Admin Diktat compiler is retired.
-- New Diktat is authored from an approved Article inside Product Bundle, reviewed at `/admin/materials/review`, and published through the canonical bundle lifecycle.
-- Rendering runs as a retryable background job against exact Article and Diktat hashes. Formula, renderer, storage, content, and page-count failures are recorded as safe evidence codes.
-- A current ready artifact must contain 1 to 4 pages before publication. Admin preview and enrolled-student download use dedicated authorized routes; generic storage access rejects protected Product Diktat PDF keys.
-
-### Bundle Import Pipeline
-- Legacy Learning Bundle and Assessment Bundle Admin importers are retired.
-- Direct server-action calls fail closed with a retirement message.
-- Source Pack, Idea Bundle, and Product Bundle are the supported authoring pipeline.
-
-### PKA Tutorial Campaign
-- Free multi-stage simulation for incoming freshmen
-- Stages: Matematika, Fisika, Kimia with quiz mappings
-- Gated enrollment intake with student registration
-- Google Meet review session scheduling
-- Admin broadcast announcements
-
-### Account switching
-
-The avatar and gear control in the sidebar opens one account popover. It shows the active account, other saved Zyx accounts, `Tambah akun Google`, and the existing account actions. Selecting a saved account opens its dashboard without another Google sign-in. Up to five accounts can remain signed in on the same app or browser. The list contains valid Zyx sessions saved there, not a list of every Google account on the device.
-
-On Android builds with the `ZyxGoogleAuth` plugin, adding an account opens Google's native account chooser through Credential Manager. The web server verifies the chosen account before changing the Zyx session. Older APKs, iOS and desktop use the existing system-browser sign-in; web uses Google's account chooser. Cancelling the chooser keeps the current account. An unavailable native provider can use the browser flow. A native configuration or verification error shows a recovery action instead of silently retrying a different flow.
-
-Other saved accounts have a menu to remove that Zyx session from this device, with confirmation. The active account cannot be removed until another account is active. `Keluar dari semua akun` ends the sessions saved in the current app or browser; it does not remove Google accounts from Android or end unrelated sessions on other devices. Expired accounts need a new sign-in. Suspended accounts cannot become active.
-
-Switching requires a connection and cannot start while mutations or existing quiz, upload, chat or editor locks remain active on the current surface. It pauses delayed code saves, detaches the device's push registration from the previous account, clears account data from memory and offline readings, cancels old local reminders, and reloads the new account's dashboard and role gates. Other open tabs cancel queries and block form, pointer and keyboard actions, including dialog portals, while the change remains pending; they reload on commit because cookies share the active identity. The initiating tab retains its account-menu loading state. A failed switch resumes the original account when the server confirms that its session is still active.
-
-Reader notes and bookmarks use the account, course and material as their local storage key. Old material-only keys have no proven owner and are not imported into an account. Demo storage keeps its separate keys. Coding drafts retain their account key, and the server rejects requests whose expected learner differs from the session. Code sent from an exercise to Playground also carries its account and course; another account cannot restore it from browser history, and legacy entries without an owner remain unread. MCP tokens keep their original identity and scopes; an open MCP consent form must still match the account and session displayed when it opened.
-
-This is a local implementation. The Android picker requires a new APK and the [Google OAuth client setup](DEPLOYMENT.md#google-account-switching-in-native-apps). Device OAuth and hosted acceptance remain separate from local tests and browser UI checks.
-
-### Account preferences
-
-The account menu opens `/settings` for students, tutors, and admins. General is the default tab and holds account language, device vibration, saved-reading access and the web app-download link. Vibration is disabled with an explanation on devices without native haptics. Language follows the signed-in account; device choices remain local.
-
-Appearance contains color mode, background ornaments, animations, spacing, font size and the reading preview. Restore display defaults resets only these display choices, including system color mode. It preserves account language, vibration, alert position and notification delivery preferences. Spacing and font size apply on Student and Tutor surfaces, including the public student demo. Reduced-motion system preferences still apply.
-
-Notifications groups on-screen alerts, device delivery status, mobile study reminders and optional email. The current device controls come before the optional-email form. Existing `?tab=email` links open Notifications; `?tab=appearance`, `?tab=profile` and `/settings/notifications` remain valid.
-
-On-screen alerts default to the top right. Desktop screens respect the saved position. Below 768 px, alerts remain at the top right below the mobile navbar; the position control explains this existing mobile rule.
-
-The Profile tab reuses the authenticated profile editor, including student-only privacy and cosmetics where eligible. `/profile` opens the profile view. Existing links to `/profile/edit` also open the editor.
-
-### Email Notification Preferences
-- Authenticated users manage optional email at `/settings?tab=notifications` using their Google account email. Legacy `?tab=email` links and `/settings/notifications` remain available.
-- One master control covers four global categories: course updates, events and schedules, learning reminders, and news and offers.
-- Essential account, security, payment, and enrollment emails remain mandatory and are outside the optional preference system.
-- Optional email delivery always uses one shared sender and fails closed if preferences cannot be loaded.
-- Every optional email includes a visible category unsubscribe link plus RFC 8058 one-click headers. Signed links expire after 30 days.
-- A browser visit shows a confirmation page and does not mutate preferences. Gmail and compatible clients unsubscribe the linked category through POST.
-- Tutorial PKA email uses the central preferences. The legacy PKA opt-in remains only as the initial fallback for existing rows; push preferences are unchanged.
-
-### Student feedback
-
-The `/feedback` form keeps Send available while idle. Empty, short or whitespace-only messages show an inline error and focus the message field. Submission reads the form fields directly, so a browser-restored draft does not depend on a React change event or disappear when the category changes. Both client and server require at least five characters after trimming. Only an in-flight request disables Send; a failed request retains the draft and offers another attempt. Demo feedback explains that sign-in is required and makes no write.
-
-### Desktop launch and offline recovery
-
-The bundled desktop page starts with a neutral Connecting state while checking the configured Zyx origin through a fresh static HEAD request. The check does not load an account session. A disconnected device opens its saved readings; a failed server check shows a separate recovery message. Reconnect requires a successful fresh check, ignores results from a prior connection and never leaves a reading automatically after the user has chosen saved content. This behavior ships inside the desktop installer: merging the web branch alone does not update an installed app. The Nightly release workflow must run from staging, followed by installation of that build.
-
-### Learning Outcomes & Career Paths
-- CPL/CPMK/Sub-CPMK hierarchy mapped to concepts
-- Career path templates with concept prerequisites
-- All deterministic SQL, no AI calls
-
-### Content Quality Monitoring
-- Auto-detected quality flags: too_easy, too_hard, dead_distractor
-- Pedagogical validation against course policies
-
-### Blog & Short Links
-- Multi-category blog (tips_kuliah, pojok_kampus, fakta_seru, kegiatan_zyx)
-- The public Blog leads with category navigation and the latest article, followed by recent articles and category previews. A single link to the course catalog follows the articles.
-- URL shortener (zyxacademy.com/s/[slug])
-
-### Assessment Integrity & Assistance Policy
-- Active attempt answer protection: GET `/api/quiz/attempts` and `/api/quiz/attempts/[id]` strip `correct_indices`, stored explanations, and grading feedback during in-progress attempts.
-- A quiz with an attempt limit reserves a slot for each in-progress attempt. The quiz page links back to the saved attempt. Completed attempts keep their slot. Attempts explicitly marked abandoned free their slot and cannot be resumed.
-- Deterministic assistance policy engine (`lib/assessment-assistance-policy.ts`): gates AI tutor and mistake feedback based on activity kind (study, practice, quiz, simulation, exam), attempt state, answer release state, and match state.
-- Answer release state matrix: active attempts enforce `socratic_only` or `refuse_answer_reveal`; completed attempts follow release settings (`hidden`, `rationale_only`, `released`).
-
-### Quiz Timing Rules
-- The player auto-submits when the configured total time limit or scheduled close is reached, whichever comes first. A quiz without either deadline has no total countdown.
-- Per-question timers (`selectionRules.perQuestionTimerEnabled`, `perQuestionTimers`, `defaultQuestionTimerSeconds`) are pacing aids only. Expiry advances to the next question and never force-submits the quiz while total time remains; revisiting a question restarts its allowance.
-- Coherence validation (`lib/asesmen/quiz-timing.ts`): when both timers are active, the sum of per-question allowances must equal the total limit. The admin quiz form blocks save with an error toast, and POST/PATCH `/api/quiz/templates` reject mismatched payloads with 400.
-- Submissions on or after session deadline: POST `/api/quiz/attempts/[id]` accepts timeout and late submissions, auto-grades eligible objective answers, marks the attempt as completed, and caps the recorded duration at `timeLimitSeconds`. Attempts containing essay questions remain completed with `gradingStatus` set to `pending` and `score` set to null until essay grading occurs. Attempts without a total limit are unaffected.
-- Tryout uses the same recovery behavior for manual and automatic submission. Failed submissions retain answers and uploaded file references on the form so the student can retry. The results page opens after confirmed success.
-
-### Assessment Integrity V2
-- `lib/asesmen/blueprint.ts` compiles quiz and tryout blueprints with exact largest-remainder dimension allocation, explicit chapter scope, reproducible seeds, and publication eligibility checks.
-- `lib/asesmen/evidence-rubric.ts` derives versioned per-Idea evidence from stable option IDs. Ambiguous evidence and misconception mappings never affect mastery, and free-response evidence requires a reviewed rubric or grading result.
-- `lib/asesmen/benchmark-policy.ts` rejects exact duplicates, applies versioned similarity thresholds, and keeps holdout content inside the benchmark boundary. Missing thresholds produce `needs_review`.
-- Quiz attempts include stable option IDs and grade through those IDs while accepting legacy numeric submissions for compatibility.
-- Canonical-first assessment lifecycle: all new quizzes created via Admin or Tutor interfaces write to canonical `asesmen`, `blueprint_asesmen`, and `cakupan_asesmen` first, then project to `quiz_templates` for backwards compatibility. Legacy `quiz_templates` is marked as a compatibility projection.
-- Legacy quiz submissions bridge each eligible question independently when its snapshot and current published canonical question and Idea links match. The bridge preserves compatible existing assessment items and writes immutable answer snapshots, per-Idea evidence, and deterministic mastery recompute events. Missing, stale, ambiguous, unreviewed, or incompatible items produce no mastery evidence for that question and leave the legacy grade intact.
-- A database failure during canonical lookup stops submission before grading writes. The same attempt can be retried without silently losing Idea evidence.
-
-### Canonical Vectorize Retrieval V2
-
-- Canonical content is indexed through the `canonical-content-v2` profile using Gemini Embedding 2, 768 dimensions, cosine distance, versioned IDs, and allowlisted metadata.
-- Turso remains the source of truth. `vector_sync_queue` is the retryable outbox, and the staging worker exposes only the authenticated `/v2/*` contract.
-- Canonical retrieval always uses `canonical-content-v2` through the authenticated Vectorize contract. Preserved legacy indexes remain rollback evidence only.
-- The old 1024-dimensional indexes are preserved as unbound rollback evidence. They are not active sources of truth.
-
-### Zyra Canonical Runtime V1
-
-- Course-scoped canonical retrieval rehydrates current approved content from Turso before it reaches the tutor response.
-- Enrollment, status, version, content hash, active-assessment, restricted-solution capability, and source attribution checks fail closed.
-- Shared cache payloads remain student-free and active attempts never receive answer-bearing content.
-
-### Zyra Allowance Ledger V2
-
-- Role-aware application leases for murid, tutor, and admin requests are always-on.
-- Provider-backed turns and total interactions are counted separately; cache hits and deterministic actions spend zero provider units.
-- Allowance ownership is exclusive: Provider Router V2 owns the router path and `PromptExecutor` owns the legacy path. A bounded model chain shares one application lease. Confirmed terminal HTTP failures on the router refund that lease after provider-attempt settlement; ordinary legacy chains refund their own lease only when every exhausted attempt is a confirmed HTTP failure. Unknown billable outcomes stop automatic fallback, including caller-level pedagogy and tutor RAG fallback, and remain counted for reconciliation. Visual requests use the published daily provider allowance without a smaller hidden premium balance.
-
-### Zyra Semantic Cache V1
-
-- `FEATURE_ZYRA_SEMANTIC_CACHE_V1` enables a profile-free exact and semantic cache for reusable teaching scaffolds.
-- Cache identity is scoped to canonical evidence, policy, language, route, assessment mode, and embedding profile; learner-specific data is excluded.
-- Personalization is applied after cache retrieval, while cache hits consume zero provider units.
-
-Zyra uses bounded, session-scoped conversation context to interpret follow-up questions. Turns using that context bypass shared response caches; active assessment safeguards still apply. General explanations use a conversational tutor voice without mandatory learning-goal headings.
-
-### Zyra Pedagogy V3
-
-- The server-owned teaching state machine and typed response contract are always-on. Shadow comparison remains an explicit staging request.
-- Zyra selects one teaching move, validates canonical citations and assessment safety, and asks at most one checkpoint question.
-- Answers preserve article-style Markdown paragraphs and LaTeX display formulas. Failed generation offers retry guidance rather than repeating page instructions or presenting a source excerpt as the requested explanation.
-- Invalid model output becomes a safe clarification or evidence-grounded composition. Active attempts remain capped at the approved hint boundary.
-- Reservations are idempotent and fail closed before provider dispatch. Terminal transitions preserve legacy usage history and repair derived compatibility events idempotently.
-- The authenticated allowance summary is scoped to the current session actor and includes Jakarta reset timing without exposing global capacity or another user's usage.
-- Questions outside the current course evidence use a bounded general-teaching fallback. It states the course boundary, presents one learning goal and staged explanation, and ends with exactly one check-for-understanding prompt instead of reverting to an unstructured chat response.
-
-### Zyra Personalization V1
-
-- Deterministic adaptation from bounded learner evidence is always-on.
-- Recent evidence can select pacing, representation, support intensity, explanation length, and checkpoint type while leaving canonical truth, grades, mastery, and assessment policy unchanged.
-- Explicit learner preferences are stored separately from inferred fields. Learners can view, update, and reset their course-scoped adaptation through authenticated API routes.
-- Shared cache scaffolds remain profile-free. Personalization is composed only after cache retrieval and fails back to the grounded base answer on profile errors.
-- The Plan 008 surface is API-only; learner-facing controls are integrated by later Zyra experience plans.
-
-### Zyra Learning Canvas V1
-
-- Typed application-owned visual specs for plots, derivations, tables, diagrams, vectors, and chemistry relationships are always-on.
-- Function expressions use a bounded allowlist parser. Controls, presets, reset, and invalid-expression fallback run locally and spend zero AI quota.
-- Function value tables recompute from the current formula, coefficient controls, and visible domain; invalid or undefined samples show `N/A` instead of stale default values.
-- Teaching prompts proactively request a supported visual when it helps explain the concept, including coefficient controls for exploration and stepwise derivations. Explicit graph requests can use function or data plots. Visuals must remain grounded and respect the current assessment hint level.
-- Every canvas includes alt text and a table or textual fallback. Grounded visuals include canonical claim references validated against the retrieved evidence set. Shared specs contain no learner profile or interaction state.
-- The renderer uses semantic tokens and keyboard-operable native controls. Arbitrary model-generated JavaScript, HTML, SVG, or unrestricted Mermaid is rejected.
-- The harness renders exactly one interactive visual per answer: the validated `canvasSpec` emitted by the model through a structured channel. It never mines equations out of prose, so an answer without a structured spec has no canvas instead of a guessed plot. Tutor prompts no longer request `:::graph`, `:::chart`, or `:::flowchart` markdown blocks; legacy persisted answers with those blocks still render for backward compatibility.
-- Function and data plots use custom SVG surfaces with labeled adaptive axes, grid lines, hover crosshair tooltips, visible zero crossings, local expression editing, and coefficient controls. Plots are directly manipulable: drag pans the view, scroll wheel or pinch zooms around the pointer, double-click or Reset tampilan restores the fitted view, and axis labels keep precision at deep zoom levels. Common Gemini notation such as `y = 2x²` is normalized before semantic validation and rendering. Evaluator syntax is separately formatted as readable mathematical notation, so `a*x^2 + b*x + c` is presented as `ax² + bx + c`. Invalid expressions produce a visible recovery message.
-- The murid panel is mounted only by the student layout. On desktop it is a flex sibling that reduces the content width, with a persisted width from 360 px to the lower of 720 px or 50 percent of the viewport. Mouse, touch, and keyboard resize share the same limits. On mobile it is a dismissible overlay with backdrop and body scroll lock. Closing with the button, backdrop, or Escape returns focus to the invoking control.
-- Zyra can offer up to three contextual follow-up actions for a generated study answer. Active assessments and hint-only coding exercises do not offer generated suggestions. Suggestions exist only in the live session and are not restored from saved conversation history. The compact header shows Zyra and the human-readable course title. AI messages use a flat conversation surface, while learner messages use a light bubble. The sticky composer retains attachments, math input, Learning Canvas, quota, Socratic mode, and assessment safety.
-- The `desmos` markdown block renders a local multi-expression graph editor at zero AI cost: each row accepts a bounded function of `x` or a named point such as `A = (1, 2)`, rows can be added or removed inline, points are drag-editable on the plot, the vertical domain auto-fits the content, and invalid rows are flagged without blocking valid ones.
-- Static Zyra entry points use one application-owned hexagonal `Z` mark across material selection, mistake feedback, and panel fallback. The sidebar no longer duplicates the floating launcher.
-- When the pet capability is enabled, the course launcher becomes a draggable fox-like Zyra companion with ears, tail, paws, face, and state-specific expressions. Drag uses pointer capture and frame-based updates. On release it snaps to the nearest of four safe corners outside the sidebar, persists the anchor rather than raw coordinates, and recalculates after viewport changes. Click suppression prevents an accidental open after drag, and reduced motion disables the snap animation.
-- On a verified quiz-review route, Zyra receives a bounded page context containing the quiz title and question prompts. This supports requests such as summarizing the current quiz without exposing learner answers or caching attempt-specific context.
-
-### Admin, Tutor, and Murid Workflows
-
-- The guarded `alur_konten` lifecycle is always-on from upload through tutor review, admin approval, publication, supersession, or withdrawal. Every mutation carries an actor, course, version, request, reason, and snapshot hash in `audit_mutasi`.
-- The `/murid` read model and compatibility route adapters are always-on. They project published Ideas and preserve Tutorial PKA and historical attempt snapshots without rewriting them.
-
-### Structured Form Upload Storage System
-
-- Form response uploads and builder question images use the active object storage provider with keys under `forms/[slugified-judul-forms]/question-[number]/[timestamp]-[hash]-[filename]`.
-- The response upload API resolves an open, non-deleted form and its file question before writing to storage. It applies the form's sign-in and email-verification rules. The builder uses `/api/admin/custom-forms/image` for question images, including unsaved drafts.
-- `buildFormStorageKey` derives response upload paths from the stored form and question number.
-- The storage proxy serves a question image publicly only while a non-deleted form references its proxy URL. Other form files require an active canonical admin role; response answers cannot prove upload ownership. A respondent can download a local copy of a new upload. External legacy URLs retain their own access policy and query strings.
-
-### Course Material Batch Upload (Admin)
-
-- The course detail Materials tab offers `Unggah Batch` alongside the single-file form. The batch dialog ingests many PDFs at once with a 200-file cap and the existing 50 MB per-file limit.
-- Ingestion accepts multi-file pickers, folder pickers (`webkitdirectory`), and drag-and-drop of folders using recursive entry traversal. Hidden and system files (.DS_Store, Thumbs.db, dotfiles) are skipped silently; unsupported extensions and oversize files are logged as skipped warnings.
-- Each file is hashed to SHA-256 on the client, in a Web Worker for files above 10 MB, before any network call. Hashes are verified against existing `course_materials.checksum` rows for the course via `POST /api/admin/course-materials/batch/check-duplicates`, plus duplicate detection inside the staged set.
-- Duplicates show warning badges and a per-card action: skip, overwrite the existing material (replaces file and metadata), or upload as an additional row.
-- Filenames feed a heuristic parser that pre-fills category (materi/soal/pembahasan_soal), subcategory (uts/uas/kuis/kbf/tutorial/modul/ebook/ppt_dosen/catatan/lainnya), year (first 19xx/20xx token), and title.
-- Staged files appear as cards in three kanban columns by level-1 category. Cards move between columns via drag-and-drop, individually or as a multi-selection. A bulk bar applies category, year, or subcategory to all selected cards and removes them from the queue. Year inputs appear only for time-related categories (soal, pembahasan_soal); materi cards keep year null.
-- A rename preview table shows original versus generated names with inline override. Generated names follow `{course}_{kategori}[_{subkategori}][_{year}]_{judul}.pdf` deterministically; manual overrides win until the metadata changes again.
-- Uploads stream straight from the browser to Cloudflare R2 through presigned PUT URLs from `POST /api/admin/course-materials/batch/presign`, with a concurrency queue of four, per-file progress bars, total progress, and up to three exponential-backoff retries. Object keys stay under the existing `courses/{course-slug}/materials/{timestamp}-{hash}-{sanitized-name}.pdf` convention built by `lib/storage/keys.ts`.
-- After transfers finish, `POST /api/admin/course-materials/batch/commit` validates keys against the course prefix and persists all metadata rows in one transaction. Metadata is only written for files R2 accepted. Overwrite targets update in place and their replaced objects are deleted best-effort. A failed commit keeps uploaded binaries recoverable via a retry button.
-
-### Push Notifications & In-App Inbox
-
-- Users get an in-app notification bell (unread badge, list, mark-as-read) in the marketing navbar and the app sidebar, backed by `GET /api/notifications/history` and `PATCH /api/notifications/read`.
-- FCM push triggers: quiz published (via `saveQuizTemplateAction` and `PATCH /api/quiz/templates/[id]` on a draft-to-published transition), PKA announcements and schedule updates, and admin broadcasts.
-- Every notification row persists FCM delivery stats (`attempted`, `succeeded`, `failedCount`, `sentAt`); the admin history table shows a delivery status (Terkirim / Sebagian / Gagal / Tanpa perangkat) alongside the read state.
-- The browser permission flow only prompts authenticated users, "Nanti Saja" defers for 7 days instead of denying forever, and foreground FCM messages surface as toasts and refresh the inbox.
-
-### Meet Studio Improvements
-- Meet sessions share the `/f/[slug]` resolver with Form Studio. Slugs default from the title, remain editable, and are checked against active Meet and Form records before creation.
-- Restricted and Trusted access use a role/course filtered picker with additive bulk selects. Selected users are created as Meet space members, so they can join without knocking according to the selected access mode.
-- The signed-in creator and every active admin are provisioned as `COHOST` members through the Developer Preview Meet `v2beta` member endpoint. The OAuth principal remains the meeting organizer; the creator receives host-management rights as a co-host.
-- Host, co-host, and invited emails are persisted on `google_meet_sessions`. Failed member grants are returned as visible warnings instead of being presented as successful assignments.
-- When `FEATURE_DRIVE_EDITOR_SYNC=1`, active admin emails are granted Drive editor access for exported spreadsheets, Forms files, recording files, transcripts, and new export folders through `lib/google-drive-permissions.ts`.
-
-### Form Studio Fixes & Presets
-- The compact admin editor uses divided question rows. `settings.displayMode` persists `question` (the default for existing forms) or `section` for publication and preview; presets retain this setting.
-- Section mode shows an implicit first section and starts a new page at each SECTION marker. A leading SECTION shares the first page with form details and email collection. Statements stay inline; consecutive and closing sections retain their own pages. With no sections, all questions share one page. Next validates the current section; Back preserves answers.
-- Both layouts replace the pre-submit summary with a confirmation dialog. Only its submit action sends a response; keyboard shortcuts open the same dialog. In-flight uploads and duplicate submits block sending. Success appears only after a successful response (or an explicit preview simulation).
-- Response uploads accept PDF, JPEG, PNG, GIF, and WebP by default. A file question's optional `allowedFileTypes` list narrows the formats by MIME type. The API checks the file signature, filename extension, and per-question size limit (10 MB by default, capped at 50 MB). Builder question images accept the same image types.
-- Spreadsheet export is scoped to a structured Drive folder (`forms/{slug}`, title `form-{slug}-responses`) and excludes SECTION rows from the data export.
-- "Lainnya" (other) options use a stable sentinel (`\uE000__other__`) so open answers survive round trips; SECTION counts are excluded everywhere via a continuous `questionNumberMap`.
-- The builder auto-scrolls, resets after a successful publish, and uses shadcn Switch toggles for settings (collect email, show progress, etc.).
-- Verified email collection uses the signed-in account's verified address. Manual collection requires the respondent's submitted address. Disabled collection stores no respondent email. Schedule inputs are converted from browser-local values to absolute ISO instants before save, then use `formatDatetimeLocal` for editing.
-- Reusable presets (question blueprints + settings) can be saved and re-applied from `/admin/forms` via `/api/admin/form-presets` and `components/forms/form-presets.tsx`, standard for admin users.
-- Settings panels fill the container width; the matrix question table was removed; terminology and section header images with zoom were fixed.
-
-### Media Library
-- Admins can upload, organize, preview, and manage shared media in R2 under `media/{children_folder...}/{filename}` via `/admin/media` (`components/admin/media-library.tsx`).
-- Virtual folder tree with `.keep` markers; move, copy, rename, replace, delete, and download operations, including recursive folder ops and bulk ops.
-- Built-in document viewer for image, video, audio, PDF, markdown, and text (`components/admin/document-viewer.tsx`).
-- Standard admin capability; uploads use `buildMediaKey` from `lib/storage/keys.ts` and `StorageProvider.list()` from `lib/storage/index.ts`.
-
-### Tautan (Important Links)
-- Admins manage a curated links library at `/admin/tautan` (`components/admin/links-manager.tsx`) backed by `lib/links.ts` and `/api/admin/links/*`.
-- A public Linktree-style page at `/tautan` renders only active links grouped by category.
-- Stored in the `important_links` table with title, URL, description, icon, category, color, and sort order.
-
-### Zyra multimodal tutoring and murid experience
-
-- `FEATURE_ZYRA_IMAGE_INPUT_V1` provides authenticated JPEG, PNG, and WebP uploads for a tutoring turn. Files are sanitized server-side, stored privately for a bounded retention period, and excluded from shared response caches.
-- Large accepted images are rotated and resized to a maximum 2048 px dispatch edge before private storage, reducing multimodal latency and payload size without enlarging smaller screenshots.
-- Sent images remain visible as authenticated thumbnails on the learner message and in restored chat history. Selecting a thumbnail opens a larger private preview; expired or unauthorized objects remain unreadable.
-- Image and text are dispatched as one multimodal request. Gemini Interactions and the stable image fallback use the configured Cloudflare AI Gateway. Recognized retryable provider responses can move through a bounded model chain under one application lease. Proven pre-call failures refund the reservation. Confirmed terminal HTTP failures on the router refund the application lease after complete control-plane settlement; uncertain outcomes retain it for reconciliation. Router allowance denial or reconciliation failure cannot fall through to the direct key pool. Hidden Interactions SDK retries are disabled. Discussion single-dispatch requests also disable model fallback and structured-output repair; single-dispatch legacy HTTP failures remain uncertain without verified control-plane settlement. Ordinary legacy chains refund their own lease only after all exhausted attempts are confirmed HTTP failures; an earlier unknown attempt prevents refund. Unknown network or billable response outcomes stop automatic fallback for all callers.
-- Mathematical tutoring uses equation-first Markdown with inline and display LaTeX. The tutor prompt prefers symbolic derivations over verbal operation lists, while a bounded presentation normalizer repairs common raw equations in new responses and restored chat history without changing valid LaTeX or code.
-- A learner can paste an image from the clipboard into the chat input as well as select a file. Image turns treat the current attachment as the primary problem statement and bypass text-only course retrieval, preventing an unrelated published question and its source link from replacing the image content.
-- The integrated murid Zyra surface, selection-to-ask, and Zyra pet states are foundational.
-- Learning Canvas exploration remains local after render and spends no provider allowance. Multimodal image input is gated by `FEATURE_ZYRA_IMAGE_INPUT_V1`.
-
-### Kelompok Belajar (Study Groups)
-
-- Students enroll in and access courses through Study Groups configured on the platform.
-- Study groups combine a semester package with a weekly booking allowance derived from the package:
-  - Paket Reguler: 15 sessions per semester, 1 session per week.
-  - Paket Intensif: 30 sessions per semester, 2 sessions per week.
-  - Paket Super Intensif: 45 sessions per semester, 3 sessions per week.
-  - Paket Kustom: Configurable totals with an admin-set weekly allowance.
-- Admin portal (`/admin/groups`) provides comprehensive management:
-  - KPI strip for total groups, active groups, enrolled students, and average quota usage.
-  - Interactive table filtering by status, package tier, and course.
-  - Create and edit dialogs with package selection, semester dates, and course assignments.
-   - Group detail modal with weekly quota usage, 4-week attended versus missed history, student membership manager (search, add, remove, promote leader), linked activation tokens, and booked tutor session history.
-- Student portal (`/dashboard/groups`) provides a dedicated study group dashboard:
-  - Active group overview with status and semester badges.
-  - Weekly quota tracker showing sessions booked this week against the group weekly allowance, plus attended versus missed counts for the last 4 weeks.
-  - Associated courses grid with direct navigation to class materials, quizzes, and tryouts.
-  - Peer study mates roster with roles (leader, member) and joined dates.
-  - Group session booking and schedule history integrated with the tutor scheduling calendar.
-  - 1-click token sharing for inviting group mates when capacity remains.
-  - Empty state with instant token redemption for new students.
-- Dashboard and Groups redeem tokens in one transaction per group. Membership and access commit together. A retry can repair missing access without consuming another seat. The grant uses the group's configured end date or the semester end and preserves any longer valid term.
-
-### Scheduling & Calendar System (Model Kelompok Belajar)
-
-The student Agenda (`/calendar`) groups dated assessments and personal tutorial bookings by Jakarta calendar day. It highlights assessment openings before they are available, deadlines after they open, and separates past events. Its category selector stays with the event list. On mobile, tutorial management and Calendar sync sit in the navbar. The Schedule workspace (`/dashboard/schedule`) shows weekly availability, group sessions, and academic events, with the existing booking controls.
-
-The canonical scheduling workflow uses concrete, date-specific 90-minute tutor slots. The route determines the perspective: `/dashboard/schedule` remains the global student calendar for every signed-in role, `/dashboard/schedule?course=<id>` shows only that course's slots, bookings, academic events and eligible groups, `/tutor/schedule` is the tutor workspace, and `/admin/schedules` is the administrative global calendar. Course scope accepts mapped canonical and legacy IDs. Student booking details remain limited to the account's memberships; visiting this route with an Admin role does not grant administrative calendar controls. The client loads weeks on demand and clears cached weeks after booking or session mutations, rejecting older responses. A visible booking action lists available slots for the loaded week and current course/tutor filters, then opens the existing booking form. Started slots remain unavailable. Authenticated runtime verification remains open.
-
-- Group Ownership & Collaborative Booking:
-  - Tutoring sessions are booked on behalf of Study Groups.
-  - Any group member can book or move a session to a slot before its start time in Asia/Jakarta. At the start time the calendar disables booking, and the server rejects late requests without consuming quota.
-- Booking and quota:
-  - A booking uses one package session. A student cancellation returns that session once. Another eligible group can then book the same future slot. The cancelled booking, its audit entries, and its documents stay attached to the original booking ID.
-  - Schedule and Groups use the same package counter. Weekly usage counts bookings in the Jakarta week, including historical cancellations without a refund marker. Cancelled rows carrying `BOOKING_CANCELLED_QUOTA_REFUNDED` do not count.
-  - Students can book an available slot later today. The server checks the slot's stored date and start time for both bookings and moves.
-- Fixed 90-Minute Slots:
-  - Tutors open concrete availability slots of exactly 90 minutes. The server rejects other durations and the tutor form auto-computes the end time.
-  - Copying the previous week creates new concrete rows for the target week. It never creates an unbounded recurring browser event.
-- Google Calendar sync (local implementation, live OAuth and deployment unverified):
-  - Students and tutors can grant Calendar permission from the calendar toolbar. Their relevant schedules mirror to their primary Google Calendar daily at 03:00 WIB, with a manual sync action and last-sync/error feedback. Ordinary sign-in does not grant Calendar permission.
-  - Admins can manually sync the primary calendar of the Zyx host account behind the shared Google refresh token. The same daily worker mirrors all concrete bookings and dated published academic/assessment/PKA events. Unbooked availability is excluded. See the Google Calendar setup in `docs/DEVELOPMENT.md`.
-  - Sync is one way and uses stable event IDs. Future events that are cancelled, unpublished or no longer in scope are removed only from the Zyx-managed set; past history and unrelated Google events remain.
-- Google Meet Automation:
-  - Online sessions provision a dedicated Google Meet space lazily as soon as the slot is booked, moved, or a reschedule ticket is approved; links render immediately for tutors and students. Admins can batch-generate missing links from the admin dashboard.
-  - Offline sessions require tutors to specify explicit physical room or branch locations.
-- Session Attachments:
-  - Pre-session materials upload through `POST /api/upload` into `schedules/{bookingId}/materials`, post-session notes into `schedules/{bookingId}/notes`. Only PDF/PNG/JPG/WebP up to 10 MB is accepted; uploads are authorized per booking (group members or the assigned tutor).
-- Pre-Session & Post-Session Workflows:
-  - Pre-Session: Any group member can define the discussion topic and upload question files (PDF/images), with uploader identity logged.
-  - Post-Session: Tutors mark sessions complete, upload handwritten photo notes or answer PDFs, and embed external links with automated OpenGraph metadata previews.
-  - Students, tutors, and admins use the shared Session Detail Drawer for prep, files, links, Meet or location, tutor summary, recording, post-session resources, audit, and tickets.
-- Reschedule, Cancellation, and Discussion Threads:
-  - Post-lock ticket requests open an integrated discussion chat restricted to group members and the assigned tutor.
-  - The assigned tutor holds sole approval authority. Approval migrates the booking to the proposed slot and regenerates Meet links; cancellations forfeit the week's quota without refund.
-- Tutor Course Certifications:
-  - Only admins assign the courses a tutor may teach (admin schedules dashboard, Tutor tab). The canonical tutor schedule displays certifications read-only.
-- Admin Scheduling Operations:
-  - Admin Tutorial mode shows concrete availability, booked sessions, locked sessions, and a compact weekly coverage table with Tutor, Slots opened, Booked, Available, and Submission status.
-  - Admin can create availability, assign a group to a slot, move a session, or cancel a session only through explicit exceptional controls. Every override requires a non-empty reason and records actor, action, reason, before, after, and timestamp through the existing audit mechanisms.
-  - Academic mode remains the only mode that creates official exams, tryouts, quizzes, or other academic schedules. Tutorial mode never turns a calendar gesture into an `official_exam`.
-- Legacy Compatibility:
-  - `sessionDate = null` tutor availability is legacy compatibility data only. It is excluded from student bookable totals, tutor calendar ranges, and admin coverage. Admin may see a review count, but the application never guesses a recurring date.
-- Audit Trail & Activity Log:
-  - Every calendar card displays a last-modified indicator: "Diubah oleh [Nama] • [Tanggal]" with full details in the audit drawer.
-  - A chronological audit trail records slot selections, migrations, pre-session uploads, and ticket decisions.
-- Multi-Level Filter System:
-  - Student: Filter by Course and Tutor.
-  - Tutor: Filter by Course or Study Group.
-  - Admin: Full filtering by Course, Tutor, Study Group, and Schedule Type (Ujian Resmi ITB, Tryout, Kuis, Sesi Tatap Muka).
-
-### Tutor Portal & Overhaul Architecture
-
-The tutor experience is housed in a dedicated, role-scoped shell (`app/(tutor)`) with its own navigation sidebar (`components/tutor/tutor-sidebar.tsx`) and course switcher (`components/tutor/tutor-course-switcher.tsx`). Tutors manage schedules and course activities directly within this shell without redirecting to student pages. The overhaul is always-on with no feature flag.
-
-- Subroute Structure:
-  - `/tutor`: Upcoming sessions, pending tickets, assigned courses, and study groups. Weekly and cross-course totals appear beside the lists they describe.
-  - `/tutor/schedule`: Full schedule and availability manager (add concrete 90-minute slots, copy the previous week, view assigned bookings, delete unbooked slots, approve or reject reschedule tickets, and complete sessions). Tutors do not directly assign groups to slots from this surface. Each reschedule or cancellation ticket exposes its discussion thread; the assigned tutor can read all group messages and reply inline.
-  - `/tutor/[courseId]`: Course analytics with cohort metrics, concept distribution, priority concepts, interventions, students who need attention, and common misconceptions. Tutors can expand the concept list or open a concept to inspect its evidence.
-  - `/tutor/[courseId]/participants`: Enrolled student roster and active study groups with member lists and deterministic representatives.
-  - `/tutor/[courseId]/quizzes`: Full quiz template management (create, edit, delete, preview, toggle draft/published status) with creator attribution.
-  - `/tutor/[courseId]/quizzes/grading`: Pending quiz review queue. Tutors score essays from 0 to 100, add optional notes, and may override short-answer scores. Every question has equal weight in the final total.
-  - `/tutor/[courseId]/quizzes/[templateId]/attempts`: Per-quiz attempt spreadsheet and answer inspection with CSV export.
-  - `/tutor/[courseId]/live`: Real-time interactive quiz console for hosting live sessions.
-  - `/tutor/[courseId]/grading`: Tryout essay grading queue for assigned courses. Essay attachments uploaded by students are stored under `exams/{examId}/attachments` in object storage and downloadable from the grading workspace; snapshots recorded before real uploads show the attachment as unavailable.
-  - Private file delivery checks the current essay submission and upload owner, the tutorial booking and its attached resources, or the Product draft's current archive reference. The proxy checks access before streaming and marks the response private for direct, download and range reads.
-
-- Capability Boundaries & Access Control:
-  - Canonical Access Resolution (`lib/auth/tutor-access.ts`): Requires active `pengguna`, canonical `tutor` role in `pengguna_peran`, active `mata_kuliah` course, and active `penugasan_tutor` row (`status = 'active'`, `assignment_scope = 'course'`).
-  - Compatibility Fallback: If no canonical `penugasan_tutor` row exists for that tutor and course, queries legacy `tutor_courses` for active courses. Inactive courses or duplicate legacy mappings fail closed.
-  - Materials Authoring Disabled: Tutors cannot create, edit, or upload course materials. Accessing `/tutor/[courseId]/materials` redirects to `/tutor/[courseId]`, and server mutations throw `TUTOR_CAPABILITY_FORBIDDEN: MATERIALS_AUTHORING_DISABLED`.
-  - Tryout Authoring Disabled: Tutors can only author quizzes (`daily`, `weekly`, `chapter`, `premium`). Attempting to author `simulation` or `tryout` categories throws `TUTOR_CAPABILITY_FORBIDDEN: SIMULATION_MUTATION_FORBIDDEN` or `TRYOUT_CATEGORY_FORBIDDEN`. Accessing `/tutor/[courseId]/tryouts` redirects to `/tutor/[courseId]`.
-  - Tryout Essay Grading: Tutors can grade student essay submissions for tryouts in their assigned courses (`/tutor/[courseId]/grading`). Only reviewable statuses (`pending_review`, `late`, `graded`) can be graded. Submissions for non-assigned courses or non-tryout exams are forbidden. Grading updates score and teacher feedback notes with an optimistic concurrency check (`where(and(eq(id, submissionId), eq(status, currentStatus)))`).
-  - Quiz Essay Grading: Quiz submissions containing essays enter `pending` grading state and expose no final total or analytics to the student. Assigned tutors review canonical answer rows with revision-based optimistic concurrency. Completing every required essay changes the attempt to `graded`, recomputes the equal-weight total, and emits reviewed Idea evidence only where an exact published Idea mapping exists.
-  - Creator Attribution: Quiz templates and questions track and display creator metadata (`creatorId`, `creatorName`, `creatorEmail`, `creatorRole`) joined from canonical `asesmen.creatorId` through `pengguna` to `user`.
-
-- Schedule Quotas, Refunds, and Notifications:
-  - Exact 90-Minute Slots: Availability slots must span exactly 90 minutes. Start and end times are validated server-side.
-  - Calendar-First Availability: The tutor schedule opens in week view and also supports day and month views. Selecting a future calendar time creates a date-specific 90-minute slot with a concrete session date. Visual states distinguish available slots, booked sessions, and unavailable past or locked slots.
-  - Group Eligibility & Representative Selection: Sessions are scheduled for active study groups enrolled in the course. Group representative is deterministically selected (leader first, earliest `joinedAt`, lexicographical `userId`, member record `id`).
-  - Weekly usage follows the booking and refund policy above. Both the calendar and the Groups page exclude refunded sessions from the weekly count.
-  - Notifications: Schedule bookings, cancellations, and status changes dispatch real-time multi-recipient notifications via `sendToMany`.
-  - Durable Mutation Audit: Every tutor slot mutation, deletion, session creation, or cancellation (including failures and validation rejections) is recorded in `audit_mutasi` using `recordTutorMutationAudit` with bounded exponential backoff on SQLite lock contention (`TutorAuditPersistenceError`).
-
-- Admin Tutor Activity Monitoring (`/admin/ops/tutor-activity`):
-  - Dedicated admin operations dashboard for auditing all tutor actions and rejected attempts.
-  - Filterable by tutor actor, course, entity type, action, outcome (`success`, `rejected`, `failed`, `unclassified`), correlation ID, and date range.
-  - Backed by `app/(admin)/admin/ops/tutor-activity/dal.ts` with cursor-based pagination, KPI stats cards, and recursive secret redaction on state snapshots.
-
-- Real-time Live Quiz Callback Semantics (`/api/live/callback`):
-  - The Cloudflare room saves the first accepted choice before sending updated counts to the host. Restoring the room preserves the choice for reveal scoring and duplicate detection.
-  - The Cloudflare Realtime Worker calls `POST /api/live/callback` upon session conclusion with authorization token verification.
-  - Token-Fenced Processing Lease: Inside a transaction, writes `live_quiz_results` rows, sets session state to `ended`, participant count, and acquires an exclusive processing lease via conditional Compare-And-Set (CAS) setting `delivery_status = 'processing'`, `delivery_claimed_at = now`, and a fresh unique `delivery_claim_token`. Concurrently enqueues pending tasks into `mastery_recompute_queue`.
-  - Lease Concurrency & Stale Claim Recovery: Concurrent callback invocations arriving while an active lease is held (within `CLAIM_LEASE_TTL_MS = 30_000`, 30 seconds) short-circuit without dispatching duplicate side effects. If an earlier processing attempt crashed or stalled beyond 30 seconds, subsequent callback retries use CAS to take over the lease with a new claim token and resume delivery.
-  - At-Least-Once Delivery with Idempotent Effects: The active leaseholder dispatches learning events with deterministic collision-resistant IDs (`buildLiveQuizLearningEventId(sessionId, userId, qi)`) and Inngest events with deterministic job IDs (`mastery-recompute-${sessionId}-${studentId}`). This guarantees at-least-once network delivery with idempotent downstream effects.
-  - Token-Fenced Delivery Finalization: Upon successful downstream dispatch, updates `delivery_status = 'delivered'` and `delivered_at` conditionally on matching `delivery_claim_token`, preventing expired lease owners from overwriting newer state. If dispatch fails, updates `delivery_status = 'failed'` conditionally on the same token.
-  - Idempotent Deduplication: Subsequent callback retries check `delivery_status === 'delivered'` and return immediate success without duplicate processing.
-
-- Zyra Atomic Proposal Transitions (`lib/zyra/proposals/service.ts`):
-  - Proposals use typed operations, scope, and precondition snapshots with TTL expiry (`ZYRA_PROPOSAL_TTL_HOURS = 72`).
-  - State transitions (`transitionZyraProposal`) execute inside database transactions with optimistic concurrency locking (`where(and(eq(id, proposalId), eq(status, currentStatus)))`).
-  - Every transition appends an immutable event log to `zyra_proposal_events` with diff hash and timestamp.
-  - If a concurrent mutation occurs, the transaction aborts and throws `PROPOSAL_CONCURRENT_MUTATION`.
-
-### Zyra tutor and admin copilots
-
-- `FEATURE_ZYRA_TUTOR_COPILOT_V1` and `FEATURE_ZYRA_ADMIN_COPILOT_V1` are opt-out switches (enabled unless explicitly `0`) for the scoped proposal API. Admin Ops provides a proposal panel. Tutor course Overview shows cohort analytics and follow-up signals. The former tutor proposal button recorded a read-only draft without generating a misconception report.
-- Proposals never auto-apply. The current mutation call fails closed until the accepted mutation boundary is available.
-
-### Zyra operations
-
-- The admin-only privacy-safe operations dashboard is always-on and guarded by admin authorization. It separates Zyx-recorded usage from configured limits and marks external provider usage unknown when no authoritative balance exists.
-- Metrics use the Asia/Jakarta day boundary and expose deduplicated quota, provider, cache, image, assessment, telemetry, and proposal alerts. Each alert carries a rollback flag and a versioned runbook reference; no raw learner or provider payload is shown.
-- `/admin/ops/models` lets admins assign one primary and two distinct fallback models per AI feature (`ai_model_settings`) without redeploying. Global models sets the inherited primary and two fallback models. A saved feature assignment takes precedence. Use global models removes that override. Embeddings keep their separate vector profile. `admin-ops-ai` supports streaming tools through Gemini generate-content and compatible chat-completions models, while multimodal turns retain image-capable fallback safety (Gemini 3.5 and 3.1 Flash-Lite).
-- The model toolbar keeps search, group, status and refresh on one row. Mobile search expands in place with Escape and focus return. Each feature retains its primary and two fallback assignments, with capability help in a popover and reset/discard in a row menu. The picker and latency job intersect Gateway discovery with Gemini 3.5 and 3.1 Flash-Lite, Gemini 3 Flash Preview, 3.8 Flash and 2.5 Flash, eligible Gemma models, GPT 6 Luna, GPT 5.6 Luna, GPT 6.1 Terra, Muse Spark 1.2 and 1.3 Contributor, and Muse Ember 1.0. Older assignments retain eligible models in priority order. Empty slots use the two Flash-Lite models and Gemma 4 31B. A shared 12-hour cache refreshes automatically after expiry and retains the last successful snapshot for up to 14 days from discovery on failure. A cycle locks concurrent probes and starts its three-hour cooldown only after every selected model in the discovered catalog has three successful samples and the observations are stored. Partial cycles automatically retry outstanding models after five minutes with backoff up to one hour. Each model also retains its ten latest successful real request durations in PostgreSQL; the picker prefers their median when available. The refresh button only queues latency measurements; the page loads their results automatically. The tutor receives the authorized course title, accepts prerequisites and follow-ups, asks for clarification when the connection is uncertain, and redirects clearly unrelated questions in the requested language. The grounded and general-knowledge tutor prompts both use the saved Zyra model order. Latency observations are marked stored only after KV confirms the write. Generation availability and billing remain separate from model-list access. Three consecutive generation failures put an alias in a five-minute cooldown, shared through the control plane when configured. On chat completions and Gemini generateContent, payload and model rejections (400 except missing credentials, 404, 413, 415 and 422) leave alias health intact. Latency sampling stops once a three-success median is impossible. Discussion text turns honor supported OpenAI and Muse selections under their existing environment gates; GPT 6.1 Terra, GPT 6 Luna and Muse Spark 1.3 Contributor accept image turns in configured order before native visual fallbacks.
-- `/admin/ops/analytics` polls gateway and token usage through deduplicated foreground React Query queries, enforces canonical tutor/admin authorization, orders cross-course user usage alphabetically without truncating totals, and paginates recent gateway logs and user usage tables.
-- Model choices sort by verified release date, falling back to provider creation time and placing undated choices last. A source-linked release registry enriches metadata without restricting dynamic discovery. The scheduled 12-hour job measures three identical short, uncached requests per model and publishes their median at the right of its name. Missing medians show their probe status; older measurements show their age state. Text-provider request limits come from the provider, without the old synthetic 20-per-day or five-per-minute ceiling. Recorded usage remains available; unknown provider capacity displays N/A.
-
-### Student Feature Usage Monitor
-
-- `/admin/ops/feature-usage` is a tutor/admin read model that ranks student feature activity (materials, flashcards, self quizzes, assessments v2, live quizzes, Zyra chat) over a 7/30/90-day window selector.
-- It aggregates existing domain tables only (`student_material_progress`, `flashcard_reviews`, `student_quiz_attempts`, `percobaan_asesmen`, `live_quiz_results`, `tutor_chat_messages`/`chat_sessions`); it writes no new events. Unique active students are the union of distinct student ids across those sources.
-- The page lists measurement gaps explicitly: daily pop-up quiz stays in localStorage, Cmd+K search records no server events, and diktat download counts are cumulative only. Page traffic remains in Web Analytics; AI token usage remains in Analitik Zyra.
-- Feature Usage shows daily activity, distinct usage highlights, and one feature ranking. Web Analytics pairs its traffic chart and page ranking on wide screens. Zyra Analytics uses compact model and request rows, with readable labels for request outcomes. Course-scoped quiz insights keep formulas readable and put answer distributions beside the relevant question. The performance analysis icon sits in the mobile navbar.
-
-## Embedded learning visuals
-
-Learning Markdown supports typed visuals directly in question prompts, answer options, explanations, quiz reviews, flashcards, material readers and shared admin previews. This support is always on wherever the shared `MarkdownRenderer` is used. Insert a triple-backtick code fence with the language `zyx-visual` and one JSON visual spec at the intended reading position. Surrounding prose and formulas remain in order; each visual has its own interaction state.
-
-````markdown
-Perhatikan perubahan nilai epsilon pada grafik berikut.
-
-```zyx-visual
-{
-  "id": "limit-linear",
-  "kind": "epsilon_delta_graph",
-  "label": "Limit fungsi linear",
-  "description": "Fungsi f(x) = x mendekati 0 ketika x mendekati 0.",
-  "bounds": { "xMin": -2, "xMax": 2, "yMin": -2, "yMax": 2 },
-  "limitPoint": 0,
-  "limitValue": 0,
-  "defaultEpsilon": 1,
-  "defaultDelta": 1,
-  "functionModel": { "kind": "linear", "m": 1, "b": 0 },
-  "staticFallback": {
-    "type": "text",
-    "summary": "Limit f(x) = x di x = 0 adalah 0.",
-    "content": "Untuk setiap epsilon positif, pilih delta = epsilon."
-  }
-}
-```
-
-Jelaskan hubungan epsilon dan delta.
-````
-
-Specs reuse the Article visual contract and renderer: `epsilon_delta_graph`, `learning_canvas`, `geometry_2d`, `source_figure` and `interactive_scene`. The latter supports bounded typed 2D shapes, controls, actions, expressions and optional shared time playback. Geometry and source figures remain static. Source figures retain their existing scoped asset delivery and access checks. Each payload is limited to 131072 characters and validated for supported structure and unsafe content. Typed visuals do not execute author-supplied JavaScript or HTML. Invalid payloads show a local error while surrounding content stays readable. Question Markdown imports preserve visual fences in prompts, multiline options and explanations, including lines resembling metadata inside ordinary code fences. Prompt and option visual data must not contain solution-only states or labels. This format does not replace the structured Article/Diktat bundle contracts or their review and publication gates.
-
-`interactive_document` adalah batas terpisah untuk HTML mandiri yang ditinjau, termasuk visual SVG, Canvas atau 3D offline. Metadata dan aset HTML serta PNG terikat hash; aset privat memerlukan otorisasi versi, field dan rilis. Visual tersedia tanpa flag, dimuat setelah pengguna memilihnya, dan berjalan dalam iframe sandbox tanpa akses host DOM. Visual yang dibuka tetap mempertahankan keadaan saat pembaca menggulir menjauh, dengan pemutaran dijeda di luar layar; menutupnya mengakhiri sesi visual. Jika belum siap dalam 15 detik, tersedia coba lagi. PNG keadaan awal digunakan untuk cetak. Verifikasi formative mencakup prompt, opsi, jawaban dan pembahasan pada kedua viewport, termasuk reveal berscope, keyboard dan reset. Fixture lokal tidak membuktikan layanan autentikasi, storage atau deployment; detail admission, batas format dan receipt ada pada [kontrak V4](bundle/product-bundle-v4.md).
-
-## Structured Article authoring and reading
-
-Student Article headings use the catalogue chapter number and title, for example `Bab 2: Fungsi dan Limit`, in both normal and focus mode. Catalogue numbering already starts at 1. Verbose authoring titles remain available in the bundle without adding course names or duplicate chapter prefixes to the student heading.
-
-The active section's navigation includes the same meaningful block headings shown in the article, including existing fallback headings when a block has no authored title. Formula-only labels and headings that repeat the section title are omitted.
-
-Canonical Article and Diktat lookups decode URL-encoded product IDs before querying. This preserves access to versioned IDs such as `article-id:v2` when App Router page parameters contain `article-id%3Av2`.
-
-Article math styles ship with the application instead of loading from a CDN. Embedded function graphs retain authored equations, display labelled open or closed points, and keep optional value tables behind "Nilai grafik". The reader constrains its flex width so equations and graphs remain inside the mobile reading area. Visuals assigned to a teaching block appear there once, without repeating above the section.
-
-Consecutive Article formulas use compact left-aligned rows without enclosing cards or dividers. Wide equations scroll within their own row. Embedded function graphs start in reading mode, allowing normal page scrolling and touch gestures. "Interaksi grafik" enables pan, pinch, wheel, keyboard navigation, and zoom controls; "Selesai" or Escape releases gestures without resetting the viewport or parameters. "Parameter" reveals compact coefficient controls and a parameter-only reset. Automatic intersection coordinates are inspected through the curve tooltip instead of always covering the plot; authored point labels remain visible. Zyra graphs retain immediate interaction.
-
-`FEATURE_STRUCTURED_ARTICLE_READER_V1` enables coordinated Idea Bundle V3 and Product Bundle V3 authoring, submission, and review. Admin Idea review uses an Idea queue, safe editor, and source evidence. Product Article review uses a section queue, the same semantic renderer as students, provenance, dependency state, and per-section decisions. Published canonical content remains visible to students regardless of the authoring rollout flag.
-
-Students read one meaningful section at a time with stable slug links, chapter search, collapsible table of contents, reading estimates, semantic callouts, resume, completion progress, and titled previous or next navigation. Artikel and text Diktat use a consistent table of contents on the far right, with title-only entries and a right-side Sheet on mobile. Entering a material reader temporarily collapses the student sidebar without overwriting its saved preference. Desktop limits prose to about 75 characters. Search results show title and snippet, open the matching section, and apply a temporary visual highlight. The legacy reader remains a fallback only when no published canonical Article exists.
-
-A section completes at 90 percent read depth or when the reader proceeds from its end. Chapter progress is the count of completed sections divided by all sections. Student payloads never expose Idea IDs or internal provenance.
-
-## Money & Quota Rules
-
-- AI quota spent only on: tutoring, mistake feedback, content generation
-- Streaks, recommendations, study paths, reflections ; all deterministic SQL
-- Students capped at 30 AI requests/day
-- KV writes capped at 900/day; reads unrestricted
-
-### Article and Diktat V4
-
-New Article/Diktat authoring defaults to V4. Existing V3 revisions and readers remain supported. Article parts keep explanations, formulas, conditions, symbols, examples and visuals in reading order. Mathematical prose, headings, scientific values, chemistry and units use the shared mathematical renderer. Diktat units are authored separately with references to Article elements and verified static figures. Existing V2/V3 content keeps its compatibility path.
-
-MCP exposes scoped source-figure extraction and resumable jobs, plus `authoring.verify_product_bundle` and `authoring.get_verification`. Approval requires current server verification, explicit decisions for every section, an anchored eight-criterion rubric and the same verified PDF artifact. V4 content is revised through its bundle rather than a lossy legacy editor. See [the V4 source contract](bundle/product-bundle-v4.md) and [the MCP skills runbook](operations/authoring-mcp-skills.md). Deployment and installation remain separate actions.
-## Python coding
-
-In the student Article reader, fenced Markdown blocks labelled `python` or `py`
-are editable and runnable with the existing Python terminal. Drafts are scoped by
-learner, course, article version and example, subject to storage and course access.
-Examples in free chapters run in the browser and save drafts on the device.
-Admin review and Diktat output show static code.
-
-Course Playground, runnable V4 Article examples, repeated coding submissions,
-Zyra decomposition/flowchart help and Python Live Quiz are implemented locally
-without a new feature flag. Playground and runnable Article examples use an interactive terminal, Python autocomplete, automatic bracket and quote pairing, and indentation assistance. On public staging and production origins, the terminal uses the shared isolated Python worker and does not count time spent entering input as execution time. Local and unrecognized deployments retain the browser runtime. The Playground terminal can be collapsed and opens on Run. Playground uses the existing Zyra drawer with one compact composer and Python/Tutor modes beside the attachment and math controls. Python mode sends the current editor context. Ordinary messages request explanations without changing the program. The explicit `Buat kode` action applies one complete final Python block to the active editor, without repeating it in chat. Retries retain the original intent, quote, session, and ready image attachments without consuming a newer composer draft. Prose-only replies stay visible. If the editor changed during generation, an explicit apply action protects the new work. Tutor mode keeps explanations and example snippets in chat and does not change the editor. Explicit math delimiters render formulas inside the composer, with source editing on selection; prose, currency, code, invalid LaTeX, and unfinished formulas stay literal. Rendered formulas are single units for arrow navigation and deletion. The symbol palette closes after insertion and retains typing focus; Escape closes the palette before the drawer. Sending clears draft undo history. Conversation history counts persisted messages and refreshes after saves. Existing Live Quiz gating remains unchanged. See
-[coding contract](coding-foundation.md) for authoring, access and runtime limits.
-
-In Playground, learners can describe a problem and ask Zyra to generate Python. Generation follows the supplied teaching context and task level, preferring introductory constructs when context is missing. Functions, comprehensions, and other constructs remain appropriate when the task, material, or learner request justifies them.
-A complete fenced Python response replaces the editor draft after generation;
-errors, missing code, and edits made during generation leave the draft intact.
-
-Error help guides trial and error: explain the observed failure, offer a tentative
-concept diagnosis, let the learner clarify their reasoning, give one small next
-step, and encourage another predicted Run. After an edit, old explanations are
-marked stale until a new consultation. A successful browser Run remains practice,
-not an official Submit grade.
-
-Zyra preserves LaTeX spacing commands during answer cleanup and renders standalone formula steps as separate display rows. Display formula boundaries containing escaped line breaks are normalized without changing commands such as `\neq` or `\nabla`.
-
-Admin MCP adds scoped admin tools to the existing authoring endpoint, without a new feature flag. Supported operations include form and short link management, isolated form preview and simulation, aggregate response visuals and exports, academic metadata, users, groups, access tokens, schedules, blog, links, notifications and durable provider jobs. Writes require a signed plan and replay-safe request key; existing tokens do not acquire new permissions automatically. The exact catalog, limits, incomplete admin parity and deployment boundaries are recorded in [Admin MCP operations](operations/admin-mcp.md).
-
-Admin MCP distinguishes its application environment from the hosting deployment tier. Before data operations, discover `admin.environment` and pass the user-intended `expectedEnvironment` and `expectedOrigin`; mismatched targets are denied. This local implementation does not establish live database/storage separation. See [Admin MCP isolation](operations/admin-mcp.md#staging-and-production-isolation).
-
-## Navigation and question bank pilot
-
-The student dashboard streams independent learning sections after its session/enrollment gate, with section loading and failure states. It preserves onboarding and free-access behavior. Weekly streak uses one range query; review batching shares individual semantics, and next-concept batching shares its selector with fallback coverage. Material and assessment batching is integrated.
-
-`/admin/questions` uses server filtering and pagination for both active/AI and historical tabs. Only the selected tab is loaded, with hydration bounded to the requested page. Active page sizes are 10, 20, 50, and 100. Stable ordering uses newest createdAt first, then ID ascending.
-
-Deep links use `tab=ai-generated` or `tab=historical`, `qPage`, `qPageSize`, `qSearch`, `qStatus`, `qCourse`, `qOrigin`, `qType`, and `qDifficulty`. Filters and page size reset to page 1. Nonempty search waits 300 ms; clearing search navigates immediately. Browser back/forward cancels pending search and restores URL state. Selection retains IDs across pages while mounted. Select all resolves all matching IDs through an authorized action; bulk mutations recheck permissions and those IDs.
-
-Admin forms load the builder lazily and offer explicit retry after a load failure. Notification initialization includes race guards and safely does nothing when Firebase is not configured. Configured FCM permission and account-switch behavior still requires real-service verification. CodeMirror and PageTransition remain unchanged pending profiling.
-
-These are local implementation contracts. Local candidate and responsive checks are documented in the [validation audit](audit/navigation-performance-validation.md), including unverified historical detail, real-fixture states, configured FCM, and Cloud Run capacity. The streak GET workflow is unchanged. The [performance plan](../plans/navigation-performance-plan.md) remains open and does not establish causal savings.
-## Standalone solution collections
-
-Reviewed solution collections can be published headlessly for a course chapter and read by eligible learners. Each item has a prompt, answer, strategy, steps, verification and separate source attribution for the problem and solution. They are released learning examples, separate from question-bank and assessment solutions. See the [V5 contract](bundle/product-bundle-v5.md) for review and release conditions.
-
-Pembahasan soal displays the authored hint beside the optional Admin review decisions. Markdown fenced code in prompts and reasoning shares the static-code keyboard scrolling controls used by typed examples.
-
-Pembahasan review supports Indonesian and English, detects tab-draft conflicts against the saved server baseline, and requires explicit recovery before reusing conflicting choices. Bounded question pages support normal Tab navigation. Static typed and Markdown code retain their language and localized copy controls, with visible fallback when the clipboard is unavailable.
-
-
-Agent-first content tools expose paginated registered capabilities, permission recovery and actor-scoped database receipts. Blog creation, validation, editing and explicit publication use MCP with observed revisions; public edits report their live impact. Media resolution returns served paths without private storage credentials. Repository plugin 0.5.1 covers admin operations and product-specific revision workflows. See [agent-first content operations](operations/agent-first-content.md) for limits and release boundaries.
-
-
-## Student leaderboard and social identity
-
-Status: ACTIVE local source; full application acceptance OPEN / IN PROGRESS.
-
-The leaderboard combines Rank and Academic tabs with contextual filters. Achievements keeps Overview, Badges, Missions and Rewards, with collected badges, tier progress, activity groups and expandable reward collections. Detailed rewards reuse animated frames, rotatable 3D mascots and before/after Zyra chat skins. The LP plus button opens Missions.
-
-Rewards and the Pet studio share 15 purchasable mascot suits, priced from 400 to 900 LP. Students can try each suit on their active pet in the studio before buying it.
-
-Student names on supported social, group and leaderboard rows share framed avatars and subtle ranks. Owner profiles and authorized profile dialogs display the equipped Zyra mascot; repeated identity rows remain lightweight. Member-visible, unblocked profiles open a profile dialog with badges, follow controls and counts. Zyx AI search also returns eligible public student identities through deterministic name lookup. Base XP in the public dialog requires participation leaderboard consent. See the [gamification contract](gamification.md#student-achievements-and-social-presentation) for visibility, filtering and verification limits.
-
-Zyra chat reports the material lookup, provider dispatch, receipt of visible response data and final answer checks over its existing event stream. Structured answers are rendered after validation and sanitization.
-
-
-## First-use student and tutor tours
-
-Status: ACTIVE source contract. Deployment and authenticated staging acceptance remain separate.
-
-Students and tutors receive a one-time invitation on their dashboard to start or skip a ten-step tour. Existing accounts also receive the invitation until they make a choice. A guided step highlights the actual control with a dimmed page, and advances only after its click or keyboard activation. A mobile overflow menu is a preparatory phase within the same numbered step. The guide respects reduced motion, blocks unrelated actions, supports keyboard focus and Escape, and always permits local exit, including when a save fails. A failed save remains visible as a nonblocking notice rather than claiming durable success.
-
-Student accounts with an enrolled non-PKA course see Documents, Quizzes, Flashcards, opening and closing Zyra, Schedule, Discussions, Account, Preferences and Notifications. Accounts without such a course see Courses, Schedule, the following week, Discussions, opening and closing Search, Account, Preferences, Language and Notifications. The tour never submits a question, quiz answer, purchase or enrollment, nor does it change the user's language.
-
-Tutors assigned to an eligible non-PKA course see their course, Documents, Quizzes, Quiz grading, Schedule, Tickets, Discussions, Account, Preferences and Notifications. Tutors without such an assignment see Schedule, opening and cancelling an availability form, Sessions, Tickets, Discussions, Documentation, Account, Preferences and Notifications. Opening the slot form does not save availability.
-
-The tenth step opens `/settings/notifications` for every plan. The user explicitly enables notifications through the existing permission flow: the browser permission prompt on the web, or the native device permission prompt in the app. Permission alone does not mean delivery is ready; the step confirms token registration before reporting success. Denied permission explains the relevant browser or device settings, and failed registration offers a retry. Unsupported or inactive notification delivery has a clear status. The user can skip this step or end the tour without granting permission.
-
-The server selects an eligible course at start or restart from the account's current enrollments or assignments. It checks route identity and access, excludes PKA, and skips stale or ambiguous entries; a client hint only changes the candidate order. The selected course stays with the saved tour run. Existing course access checks and package limits still apply. The tutor document step opens a reading view and does not grant editing rights. On mobile, Search may first expand the page search control before opening global Search. Account and schedule navigation may also require a reveal click within the same numbered step.
-
-`onboarding_tours` stores version 1, run generation, chosen course context, step and terminal choice separately for each account and role. `GET` and `PUT /api/onboarding/tour` derive identity from the session, require an exact account header and canonical active membership, exclude admins and prevent stale writes from overwriting skipped, completed or restarted runs. The Replay tour control in the General tab of Preferences (Umum in Preferensi) restarts the tour. The UI carries the active role across shared profile and preference routes, pauses during account changes, and offers recovery when a saved course or control is unavailable. Course-discovery errors offer retry without saving a fallback plan.
-
-Tour invitation/loading and active guidance defer the profile reminder, notification consent prompt and app-download prompt. Already-granted notification registration remains independent. Public demo surfaces and admin accounts do not run the tour. Indonesian and English catalogs share the same keys and behavior. This is intentionally a browser workflow with no added MCP tool or permission.
-
-The additive migration `0043_onboarding_tours.sql` is a deployment prerequisite. It creates only the tour ledger and its account foreign key. The migration snapshot also carries the already-shipped 0042 tutor-slot table metadata; unrelated historical schema drift remains outside this change.
+- Marketing routes (`/`, `/about`, `/plans`, `/blog`, `/testimonial`, `/tautan`, `/privacy`, `/terms`, `/f/[slug]`, `/meet/[slug]`).
+- **Interactive Public Demo (`/demo`)**: Reuses the exact student shell, course catalog, dashboard, articles, read-only diktats, flashcards, quizzes, tryout, calendar, groups, achievements, leaderboard, and scripted Zyra with first-chapter Free policy and browser-persistent fictional state. See [operations/public-demo-seeding.md](operations/public-demo-seeding.md).
