@@ -16,6 +16,7 @@ curl --fail --silent --show-error --location --retry 3 --connect-timeout 10 --ma
 printf '%s  %s\n' "$sha256" "$install_dir/maestro.zip" | shasum -a 256 -c - || exit 1
 unzip -q "$install_dir/maestro.zip" -d "$install_dir" || exit 1
 export MAESTRO_CLI_NO_ANALYTICS=true MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED=true
+scripts=$(dirname "${BASH_SOURCE[0]}")
 for area in courses assessment learning community; do
   mkdir -p "$output/$area"
   files=("$generated/$area"/*.yaml)
@@ -23,9 +24,16 @@ for area in courses assessment learning community; do
     printf 'No runnable cases for %s\n' "$area" > "$output/$area/missing.txt"
     continue
   fi
-  (cd "$output/$area" && "$install_dir/maestro/bin/maestro" --platform "$platform" --device "$device" test \
+  if (cd "$output/$area" && "$install_dir/maestro/bin/maestro" --platform "$platform" --device "$device" test \
     --format junit --output "$output/$area/report.xml" --test-output-dir "$output/$area/results" \
-    --debug-output "$output/$area/logs" "${files[@]}") || status=1
+    --debug-output "$output/$area/logs" "${files[@]}"); then
+    continue
+  fi
+  if [[ "$platform" == android ]] &&
+    python "$scripts/retry-android-smoke.py" "$install_dir/maestro/bin/maestro" "$device" "$generated/$area" "$output/$area"; then
+    continue
+  fi
+  status=1
 done
 python "$root/tests/visual/native-parallel/student/summarize-smoke.py" --manifest "$generated/manifest.json" --output "$output" || status=1
 exit "$status"

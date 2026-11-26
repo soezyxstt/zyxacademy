@@ -32,6 +32,20 @@ const webRoot = "tests/visual/native-parallel/student/product/web";
 const base = "packages/native-parity/student/evidence";
 const ciHistory = JSON.parse(readFileSync(`${base}/ci-history.json`, "utf8"));
 const webRun = ciHistory.runs.findLast((run: any) => run.web?.status === "passed" && run.web.artifact);
+const flashcardReferences = ["android", "ios"].flatMap(target => {
+  const directory = `tests/visual/native-parallel/student/learning/web/${target}`;
+  const manifest = `${directory}/flashcard-reference.json`;
+  const reference = JSON.parse(readFileSync(manifest, "utf8"));
+  return Object.entries(reference.captures).map(([name, sha256]) => {
+    const file = `${directory}/${name}`;
+    if (createHash("sha256").update(readFileSync(file)).digest("hex") !== sha256) {
+      throw new Error(`Flashcard reference checksum does not match: ${file}`);
+    }
+    return { id: `${target}-${name.replace(/\.png$/, "")}`, file, sha256, manifest,
+      evidence: "web component fixture; target label is viewport only", viewport: reference.viewport,
+      dpr: reference.deviceScaleFactor, theme: reference.theme, locale: reference.locale };
+  });
+});
 const sha = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
 const optionalManifests = ["tests/visual/native-parallel/student/product/assessment-web/web.json",
   "tests/visual/native-parallel/student/learning/product/web.json"];
@@ -144,6 +158,7 @@ const resultFor = (platform: "android" | "ios", source: string, caseId: string) 
     entry.fixturePath === item.path && entry.status === "passed" && item.result === "passed" &&
     item.artifacts?.some((member: string) => `smoke/${member}` === entry.artifactMember));
   return { status: item.result ?? "not_run", artifacts: item.artifacts ?? [],
+    ...(item.attempts ? { attempts: item.attempts } : {}),
     ...(capture ? { retained_capture: { archive: summary.archivePath, file: capture.file, sha256: capture.sha256, index: summary.captureIndexPath } } : {}),
     ...provenance };
 };
@@ -163,9 +178,7 @@ const rows = manifest.routes.map((route: any) => {
   });
   const componentCaptures = pattern === "/courses" ? ["android", "ios"].flatMap(target => ["all", "tpb", "pka"].map(state => ({
     id: `catalog-${target}-${state}`, file: `${base}/web-reference/${target}/catalog-${state}.png`, evidence: "web fixture; target label is viewport only",
-  }))) : pattern === "/courses/[id]/flashcard" ? ["question", "review-pending", "review-failed"].map(state => ({
-    id: `flashcard-${state}`, file: `tests/visual/native-parallel/student/learning/web/${state}.png`, evidence: "web component fixture",
-  })) : [];
+  }))) : pattern === "/courses/[id]/flashcard" ? flashcardReferences : [];
   const attempts = optionalAttempts.filter(item => item.pattern === pattern);
   const optionalCaptures = attempts.filter(item => item.status === "passed").flatMap(item => item.files.map((file: any) => ({
     id: `${item.id}-${basename(file.file)}`, file: file.file, evidence: "authenticated product web", sourceHead: item.sourceHead,
@@ -194,7 +207,7 @@ const rows = manifest.routes.map((route: any) => {
     device_status: { android: summaries.android ? `see ${summaries.android.path}` : "not_recorded", ios: summaries.ios ? `see ${summaries.ios.path}` : "not_recorded" },
     interaction_status: "Generated fixture interactions are not device results unless a matching summary records them.",
     parity_status: "not_established", known_differences: pattern === "/courses/[id]/flashcard" ?
-      "Web uses rounded-2xl cards, distinct grade colors and an upper toast; Expo uses 10 dp cards, shared buttons and inline error. Device pixel diff is not measured. See tests/visual/native-parallel/student/learning/README.md." :
+      "Web fixture references match the target dimensions and input for the question, pending review and explicit rejection. Expo renders distinct grade colors and the upper notice. System safe area, font rasterization, math layout and device pixel comparison remain unverified. See tests/visual/native-parallel/student/learning/README.md." :
       pattern.endsWith("/material/[materialId]") ? "Fixture shows a reader-unavailable state when the shared renderer is absent; it does not render the web document. Device pixel diff is not measured." :
       pattern === "/pet" ? "Expo uses catalog posters; GLB animation and equipped visuals require the shared renderer. Device pixel diff is not measured." :
       pattern === "/settings" ? "Some web display settings are not mapped to native. Device pixel diff is not measured." :

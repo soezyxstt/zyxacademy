@@ -1,5 +1,5 @@
 {
-  "generated_from_head": "a742e6d2b0d3d94f5faa0e68f77edbc9a66687c5",
+  "generated_from_head": "96053de3dc3b3dab50d42c6989745c2a2755fa09",
   "note": "HEAD identifies the checkout at generation time; an uncommitted working tree may differ. Evidence retains its own provenance. No platform pass or parity is inferred from fixtures.",
   "smoke_manifest": "artifacts/student-evidence/generated/manifest.json",
   "smoke_generated_from_head": "a742e6d2b0d3d94f5faa0e68f77edbc9a66687c5",
@@ -1060,19 +1060,88 @@
       "http_evidence": null,
       "web_evidence": [
         {
-          "id": "flashcard-question",
-          "file": "tests/visual/native-parallel/student/learning/web/question.png",
-          "evidence": "web component fixture"
+          "id": "android-flashcard-question",
+          "file": "tests/visual/native-parallel/student/learning/web/android/flashcard-question.png",
+          "sha256": "228f83f9dc59ecdd8b36beaeb3a887378819d95b1b227d35049ecafc9b5f0a22",
+          "manifest": "tests/visual/native-parallel/student/learning/web/android/flashcard-reference.json",
+          "evidence": "web component fixture; target label is viewport only",
+          "viewport": {
+            "width": 380,
+            "height": 820
+          },
+          "dpr": 1,
+          "theme": "light",
+          "locale": "id"
         },
         {
-          "id": "flashcard-review-pending",
-          "file": "tests/visual/native-parallel/student/learning/web/review-pending.png",
-          "evidence": "web component fixture"
+          "id": "android-flashcard-review-pending",
+          "file": "tests/visual/native-parallel/student/learning/web/android/flashcard-review-pending.png",
+          "sha256": "837b947ee7efa12031b66680f875c29d9edcf6b793e25620d763583d98768805",
+          "manifest": "tests/visual/native-parallel/student/learning/web/android/flashcard-reference.json",
+          "evidence": "web component fixture; target label is viewport only",
+          "viewport": {
+            "width": 380,
+            "height": 820
+          },
+          "dpr": 1,
+          "theme": "light",
+          "locale": "id"
         },
         {
-          "id": "flashcard-review-failed",
-          "file": "tests/visual/native-parallel/student/learning/web/review-failed.png",
-          "evidence": "web component fixture"
+          "id": "android-flashcard-review-failed",
+          "file": "tests/visual/native-parallel/student/learning/web/android/flashcard-review-failed.png",
+          "sha256": "4a14fc8cf81243033bd90878f0c6bc8aa4741d9a1a9cd9d07b6b24b3103b7f26",
+          "manifest": "tests/visual/native-parallel/student/learning/web/android/flashcard-reference.json",
+          "evidence": "web component fixture; target label is viewport only",
+          "viewport": {
+            "width": 380,
+            "height": 820
+          },
+          "dpr": 1,
+          "theme": "light",
+          "locale": "id"
+        },
+        {
+          "id": "ios-flashcard-question",
+          "file": "tests/visual/native-parallel/student/learning/web/ios/flashcard-question.png",
+          "sha256": "8c0a0683a0c27a86081cc109e223df1af88a3d3a1035b9697895c8dd4e7a5449",
+          "manifest": "tests/visual/native-parallel/student/learning/web/ios/flashcard-reference.json",
+          "evidence": "web component fixture; target label is viewport only",
+          "viewport": {
+            "width": 402,
+            "height": 874
+          },
+          "dpr": 3,
+          "theme": "light",
+          "locale": "id"
+        },
+        {
+          "id": "ios-flashcard-review-pending",
+          "file": "tests/visual/native-parallel/student/learning/web/ios/flashcard-review-pending.png",
+          "sha256": "9a347803a2abfe68dee988ba3ed2badf4c968b6e103f2296f683bb7a585b5d2f",
+          "manifest": "tests/visual/native-parallel/student/learning/web/ios/flashcard-reference.json",
+          "evidence": "web component fixture; target label is viewport only",
+          "viewport": {
+            "width": 402,
+            "height": 874
+          },
+          "dpr": 3,
+          "theme": "light",
+          "locale": "id"
+        },
+        {
+          "id": "ios-flashcard-review-failed",
+          "file": "tests/visual/native-parallel/student/learning/web/ios/flashcard-review-failed.png",
+          "sha256": "872ee5d83d1313e423c2cf4fd88cb998667dc3e2b605520e123992369b2be89f",
+          "manifest": "tests/visual/native-parallel/student/learning/web/ios/flashcard-reference.json",
+          "evidence": "web component fixture; target label is viewport only",
+          "viewport": {
+            "width": 402,
+            "height": 874
+          },
+          "dpr": 3,
+          "theme": "light",
+          "locale": "id"
         },
         {
           "id": "flashcard-flashcard.png",
@@ -1279,7 +1348,7 @@
       },
       "interaction_status": "Generated fixture interactions are not device results unless a matching summary records them.",
       "parity_status": "not_established",
-      "known_differences": "Web uses rounded-2xl cards, distinct grade colors and an upper toast; Expo uses 10 dp cards, shared buttons and inline error. Device pixel diff is not measured. See tests/visual/native-parallel/student/learning/README.md.",
+      "known_differences": "Web fixture references match the target dimensions and input for the question, pending review and explicit rejection. Expo renders distinct grade colors and the upper notice. System safe area, font rasterization, math layout and device pixel comparison remain unverified. See tests/visual/native-parallel/student/learning/README.md.",
       "pending": [
         "Verified product router mounting and signed-in product flow",
         "Android and iOS captures, interactions, accessibility and matching pixel comparison"
