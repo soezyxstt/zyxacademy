@@ -84,7 +84,16 @@ def run(device, maestro, output):
         deadline = time.monotonic() + 20
         expected = ORIGIN + path
         while True:
-            dump = shell("dumpsys", "activity", "-a", "activities")
+            try:
+                dump = shell("dumpsys", "activity", "-a", "activities")
+            except subprocess.CalledProcessError as failure:
+                # Maestro may release its ADB connection as Chrome takes focus.
+                # Retry only this read, retaining the original browser deadline.
+                detail = (failure.stderr or "").lower()
+                if not ("device offline" in detail or "not found" in detail) or time.monotonic() >= deadline:
+                    raise
+                time.sleep(0.5)
+                continue
             evidence = browser_intent(dump, expected)
             if evidence:
                 break
