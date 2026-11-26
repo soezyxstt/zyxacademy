@@ -1,0 +1,47 @@
+appId: com.zyx.academy.nativeparity
+name: Student Zyra streams and recovers a saved answer without resending
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: separator
+    timeout: 30000
+- openLink: "zyx-native-parity://student-fixture?scenario=zyra-course&theme=light&locale=en&path=%2Fcourses%2Fmatematika-1"
+- extendedWaitUntil:
+    visible:
+      id: student-zyra-open
+    timeout: 30000
+- tapOn:
+    id: student-zyra-open
+- extendedWaitUntil:
+    visible:
+      id: student-zyra-question
+    timeout: 30000
+- tapOn:
+    id: student-zyra-question
+- inputText: Explain the limit
+- tapOn:
+    id: student-zyra-send
+- hideKeyboard
+- extendedWaitUntil:
+    visible:
+      id: student-rich-markdown
+    timeout: 20000
+- tapOn: History
+- tapOn:
+    id: student-zyra-session-fixture-conversation
+- tapOn:
+    id: student-zyra-question
+- inputText: Explain continuity
+- tapOn:
+    id: student-zyra-send
+- hideKeyboard
+- extendedWaitUntil:
+    visible: "Your question may have been saved.*"
+    timeout: 20000
+- assertNotVisible: "A saved reply about continuity."
+- tapOn: Check history
+- extendedWaitUntil:
+    visible: "A saved reply about continuity."
+    timeout: 20000
+- assertNotVisible: "A partial reply."

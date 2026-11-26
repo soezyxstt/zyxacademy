@@ -14,6 +14,7 @@ type Props = {
   muted?: boolean;
   paragraphStyle?: TextStyle;
   allowLinks?: boolean;
+  theme?: keyof typeof nativeColors;
   /** Markdown prepared by the discussion grammar has its own link targets and math budget. */
   onPreparedLinkPress?: (url: string) => void;
 };
@@ -32,11 +33,11 @@ function CourseImage({ uri, alt, label, style }: { uri?: string; alt: string; la
 }
 
 /** Learner prose, formulas and code share a renderer. Raw authored input stays in the model. */
-export function CourseMarkdown({ source, services, centered, muted, paragraphStyle, allowLinks = true, onPreparedLinkPress }: Props) {
+export function CourseMarkdown({ source, services, centered, muted, paragraphStyle, allowLinks = true, theme, onPreparedLinkPress }: Props) {
   const { canInteract } = useProtectedInteraction();
   const system = useColorScheme() ?? "light";
   const preferred = services.devicePreferences?.theme;
-  const colors = nativeColors[preferred && preferred !== "system" ? preferred : system];
+  const colors = nativeColors[theme ?? (preferred && preferred !== "system" ? preferred : system)];
   const en = /^en(?:-|$)/i.test(services.session.locale);
   const prepared = Boolean(onPreparedLinkPress);
   const { markdown, rich } = useMemo(() => prepared ? { markdown: source, rich: true } : prepareCourseMarkdown(source), [source, prepared]);

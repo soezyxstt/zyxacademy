@@ -14,6 +14,7 @@ import {
   useWindowDimensions,
   View,
   type LayoutRectangle,
+  type ScrollViewProps,
   type TextInput,
   type ViewProps,
 } from "react-native";
@@ -37,6 +38,9 @@ export type SharedOverlayProps = {
   closeLabel: string;
   children: ReactNode;
   footer?: ReactNode;
+  bodyScrollRef?: RefObject<ComponentRef<typeof ScrollView> | null>;
+  onBodyScroll?: ScrollViewProps["onScroll"];
+  onBodyContentSizeChange?: ScrollViewProps["onContentSizeChange"];
   initialFocusRef?: RefObject<OverlayFocusTarget | null>;
   returnFocusRef?: RefObject<OverlayFocusTarget | null>;
   dismissOnBackdrop?: boolean;
@@ -109,6 +113,9 @@ function OverlaySurface({
   closeLabel,
   children,
   footer,
+  bodyScrollRef,
+  onBodyScroll,
+  onBodyContentSizeChange,
   initialFocusRef,
   returnFocusRef,
   dismissOnBackdrop = true,
@@ -340,6 +347,10 @@ function OverlaySurface({
             />
           </View>}
           <ScrollView
+            ref={bodyScrollRef}
+            onScroll={onBodyScroll}
+            scrollEventThrottle={onBodyScroll ? 32 : undefined}
+            onContentSizeChange={onBodyContentSizeChange}
             keyboardShouldPersistTaps="handled"
             style={[styles.scroll, popover?.bodyMaxHeight === undefined ? null : { maxHeight: popover.bodyMaxHeight }]}
             contentContainerStyle={popover?.bodyInsets === false ? undefined : styles.content}

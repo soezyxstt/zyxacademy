@@ -19,6 +19,8 @@ import type { StudentSession } from "./contracts";
 import { studentFixturePath } from "./fixture-location";
 import { matchStudentRoute } from "./routes";
 import { bindStudentRequest } from "./transport";
+import { CourseZyra } from "./zyra/CourseZyra";
+import { createCourseZyraFixture } from "./zyra/fixture";
 
 // Keep device evidence separate from product drafts, including garbage collection.
 const fixtureRepository = createAssessmentDraftRepository(() => openDatabaseAsync("student-fixture-answers.db"));
@@ -35,6 +37,7 @@ function Fixture({ scenario, initialPath, theme, locale, persistent }: { persist
     sessionId: refocusResults ? "student-results-fixture-session" : baseSession.sessionId,
   }), [locale, dashboardState, refocusResults]);
   const courseRequest = useMemo(() => bindStudentRequest(session, request), [request, session]);
+  const zyra = useMemo(() => scenario === "zyra-course" ? createCourseZyraFixture() : null, [scenario]);
   const drafts = useMemo(() => {
     if (persistent) return fixtureRepository.bind({
       origin: session.origin, accountId: session.userId, sessionId: "student-device-evidence", locale,
@@ -106,10 +109,13 @@ function Fixture({ scenario, initialPath, theme, locale, persistent }: { persist
   );
 
   // Keep assessment player and refocus fixtures on their dedicated stack harness.
-  if (route && studentCourseId(active.path) && (route.area === "courses" ||
+  const courseId = studentCourseId(active.path);
+  if (route && courseId && (route.area === "courses" ||
     scenario.startsWith("quiz-gateway-") || route.pattern === "/courses/[id]/leaderboard")) {
     return <StudentNavigationFrame href={active.path} pattern={route.pattern} theme={observedTheme} locale={locale}
-      enabled focused courseRequest={courseRequest} visit={visit} back={back} testID={fixtureId}>
+      enabled focused courseRequest={courseRequest} visit={visit} back={back} testID={fixtureId}
+      productActions={zyra ? { pageActions: <CourseZyra key={active.id} courseId={courseId} pathname={active.path}
+        session={zyra} theme={observedTheme} locale={locale} current={() => true} /> } : undefined}>
       {stack.filter(entry => entry.id === active.id || matchStudentRoute(entry.path)?.pattern === "/courses/[id]/material")
         .map(entry => <View key={entry.id} style={{ flex: 1, display: entry.id === active.id ? "flex" : "none" }}>
           {renderEntry(entry, entry.id === active.id)}

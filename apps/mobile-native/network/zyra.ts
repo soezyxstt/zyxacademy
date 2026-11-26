@@ -8,6 +8,7 @@ export type NativeZyraRequest = Readonly<{
   question: string;
   /** Reuse the same ID for an explicit retry of the same turn. */
   requestId: string;
+  persistHistory?: true;
   conceptId?: string | null;
   sessionId?: string | null;
   attachmentIds?: readonly string[];
@@ -70,7 +71,9 @@ export async function* streamNativeZyra(
     assertCurrent();
     response = await session.request("/api/zyra/chat", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+      headers: { "Content-Type": "application/json", Accept: "text/event-stream",
+        ...(request.persistHistory ? { "x-student-id": session.scope.accountId } : {}) },
+      requiredRole: request.persistHistory ? "murid" : undefined,
       body: JSON.stringify(request),
       signal: controller.signal,
     });

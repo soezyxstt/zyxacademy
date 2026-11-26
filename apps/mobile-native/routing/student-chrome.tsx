@@ -1,4 +1,5 @@
-import { useIsFocused } from "expo-router";
+import { useIsFocused, useNavigation } from "expo-router";
+import { openBrowserAsync } from "expo-web-browser";
 import { useLayoutEffect, useMemo, useState, type ComponentProps, type ReactNode } from "react";
 import { View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -10,6 +11,8 @@ import { NativeInboxBell } from "../features/notification-inbox/bell";
 import { useSiteSearch } from "../features/site-search/search";
 import type { StudentRequest } from "../features/student/contracts";
 import { bindStudentRequest } from "../features/student/transport";
+import { CourseZyra } from "../features/student/zyra/CourseZyra";
+import { courseZyraAvailable } from "../features/student/zyra/conversation";
 import { useRoleAccountMenu } from "./account-menu";
 import { useStudentCourseChrome } from "./student-course-chrome";
 import { defaultStudentChromeVisibility, StudentChromeVisibilityContext, StudentCourseNavbarContext } from "./student-course-chrome-context";
@@ -28,21 +31,34 @@ type FrameProps = {
   children: ReactNode;
 };
 
-type ProductActions = Pick<ComponentProps<typeof MobileNavbar>, "actions" | "actionRefs" | "notificationSlot">;
+type ProductActions = Pick<ComponentProps<typeof MobileNavbar>, "actions" | "actionRefs" | "notificationSlot" | "pageActions">;
 
 export function StudentChrome(props: FrameProps) {
   const { href, enabled, theme, locale, visit } = props;
   const focused = useIsFocused();
-  const { transport } = useNativeSession();
+  const navigation = useNavigation();
+  const { state, transport, getSnapshot } = useNativeSession();
   const request = useMemo(() => transport && bindStudentRequest({
     userId: transport.scope.accountId, origin: transport.scope.origin, sessionId: transport.scope.sessionId, role: "student", locale,
   }, (path, init) => transport.request(path, { ...init, requiredRole: "murid" })), [transport, locale]);
   const [hideTop, setHideTop] = useState(false);
+  const pathname = href.split(/[?#]/, 1)[0];
+  const courseId = studentCourseId(pathname);
+  const current = () => {
+    const snapshot = getSnapshot();
+    return enabled && !hideTop && navigation.isFocused() && state.status === "signed-in" && state.expiresAt > Date.now() &&
+      !!transport?.isCurrent() && snapshot.state === state && snapshot.transport === transport && !snapshot.revalidating;
+  };
   const siteSearch = useSiteSearch({ enabled: enabled && focused && !hideTop, theme, visit });
-  const accountMenu = useRoleAccountMenu({ enabled: enabled && focused && !hideTop && !studentCourseId(href), theme, visit });
+  const accountMenu = useRoleAccountMenu({ enabled: enabled && focused && !hideTop && !courseId, theme, visit });
   return <StudentNavigationFrame {...props} courseRequest={request ?? undefined} focused={focused} onHideTopChange={setHideTop}
     productActions={{
       notificationSlot: enabled && !hideTop ? <NativeInboxBell role="student" locale={locale} theme={theme} visit={visit} /> : null,
+      pageActions: enabled && focused && !hideTop && transport?.isCurrent() && courseId && courseZyraAvailable(pathname) ?
+        <CourseZyra key={JSON.stringify([transport.scope, pathname])} courseId={courseId} pathname={pathname} session={transport}
+          locale={locale} theme={theme} current={current} openExternal={href => {
+            if (current()) void openBrowserAsync(new URL(href, transport.scope.origin).href).catch(() => {});
+          }} /> : null,
       actions: { search: siteSearch.action, account: accountMenu.action },
       actionRefs: { search: siteSearch.trigger, account: accountMenu.trigger },
     }} onProductAction={action => action === "search" ? siteSearch.open() : accountMenu.open()}

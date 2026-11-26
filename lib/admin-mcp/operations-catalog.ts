@@ -1,6 +1,20 @@
 /** Source-level coverage index. Tool registration is authoritative; partial does not imply every action is exposed. */
 export const operationsCatalog = [
   {
+    "source": "app/api/native/student/zyra/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Learner Zyra history and receipts are bound to the verified Student account and course. The interactive chat reuses the existing course authorization, usage limits and private conversation history."
+  },
+  {
+    "source": "app/api/zyra/chat/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Course tutoring streams use the learner's own session, active course policy and usage limits. Native clients request history persistence with the verified Student identity. The separate administrative Zyra tooling keeps its own authorization."
+  },
+  {
     "source": "app/api/student/navigation/route.ts",
     "actions": ["GET"],
     "tools": [],
