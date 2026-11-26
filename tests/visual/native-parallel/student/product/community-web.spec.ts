@@ -36,7 +36,7 @@ const cases: Case[] = [
   { id: "leaderboard-academic-alias", path: "/leaderboard/academic?course=" + data.course + "&custom=first&custom=second",
     expectedPath: "/leaderboard", expectedQuery: { tab: ["academic"], course: [data.course], custom: ["first", "second"] },
     checks: [text(data.courseTitle), text(data.learner), text("93%", false)], selectedTab: "Akademik" },
-  { id: "course-leaderboard", path: course + "/leaderboard", checks: [text(data.learner), text("93%")] },
+  { id: "course-leaderboard", path: course + "/leaderboard", checks: [text("Peringkat Anda"), text(data.learner), text("93%")] },
   { id: "course-leaderboard-revoked", path: "/courses/matematika-1/leaderboard", scenario: "revoked", checks: [heading("Kelas memerlukan token")] },
   { id: "course-discussions", path: course + "/discussions" + openThread, checks: [text(data.threadTitle), text(data.question)] },
   { id: "dashboard-discussions", path: "/dashboard/discussions", checks: [text(data.threadTitle)] },
@@ -105,6 +105,7 @@ type VisualEvidence = {
   status: string;
   screenshot?: string;
   signedInScope?: boolean;
+  coursePickerLoading?: boolean;
   viewport?: { width: number; height: number };
   deviceScale?: number;
   theme?: string;
@@ -154,6 +155,7 @@ for (const item of cases) {
       evidence.theme = display.theme;
       evidence.deviceScale = display.dpr;
       evidence.signedInScope = true;
+      evidence.coursePickerLoading = await page.getByText(/Memuat mata kuliah/i).filter({ visible: true }).count() > 0;
       evidence.consoleErrors = [...new Set(consoleErrors)];
       evidence.screenshot = `${info.project.name}-${item.id}.png`;
       screenshot = info.outputPath(evidence.screenshot);

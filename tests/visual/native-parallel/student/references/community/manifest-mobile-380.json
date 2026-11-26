@@ -1,0 +1,104 @@
+{
+  "serverSha": "7d93b3a5984814ee382ccd36d9ceff8cb34abbcd",
+  "project": "mobile-380",
+  "locale": "id-ID",
+  "timeZone": "Asia/Jakarta",
+  "entries": [
+    {
+      "id": "leaderboard-participation",
+      "scenario": "community-enrolled",
+      "path": "/leaderboard",
+      "expected": [
+        "Akademik",
+        "Alya Komunitas"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-leaderboard-participation.png"
+    },
+    {
+      "id": "leaderboard-academic-alias",
+      "scenario": "community-enrolled",
+      "path": "/leaderboard/academic?course=community-reference-matematika&custom=first&custom=second",
+      "expected": [
+        "Matematika komunitas",
+        "Alya Komunitas",
+        "93%"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-leaderboard-academic-alias.png"
+    },
+    {
+      "id": "course-leaderboard",
+      "scenario": "community-enrolled",
+      "path": "/courses/community-reference-matematika/leaderboard",
+      "expected": [
+        "Alya Komunitas",
+        "93%"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-course-leaderboard.png"
+    },
+    {
+      "id": "course-leaderboard-revoked",
+      "scenario": "revoked",
+      "path": "/courses/matematika-1/leaderboard",
+      "expected": [
+        "Kelas memerlukan token"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-course-leaderboard-revoked.png"
+    },
+    {
+      "id": "course-discussions",
+      "scenario": "community-enrolled",
+      "path": "/courses/community-reference-matematika/discussions?thread=community-reference-thread",
+      "expected": [
+        "Strategi menentukan limit kiri dan kanan",
+        "Bagaimana membandingkan limit kiri dan kanan pada fungsi potongan?"
+      ],
+      "status": "failed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "error": "Error: page.addStyleTag: Test ended."
+    }
+  ]
+}
