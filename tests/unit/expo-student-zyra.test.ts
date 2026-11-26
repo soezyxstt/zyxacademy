@@ -192,3 +192,16 @@ test("value inspection respects visible series, gaps and the current plot window
   expect(table.rows.every(row => Number(row[0]) >= 0 && Number(row[0]) <= 2)).toBe(true);
   expect(functionValues(spec, {}, {}, "", { min: 3, max: 4 }).rows).toEqual([]);
 });
+
+test("confirmed reader clarification uses the same signed Zyra request as the phone drawer", async () => {
+  const selection = { snippet: "Use this definition", sectionTitle: "Limits", intent: "clarify" } as const;
+  const session = sessionFor(async (href, init) => {
+    expect(href).toBe(origin + "/api/zyra/chat");
+    expect(new Headers(init.headers).get("x-student-id")).toBe("signed-student");
+    expect(JSON.parse(String(init.body)).selectionContext).toEqual(selection);
+    return new Response("data: [DONE]\n\n", { headers: { "Content-Type": "text/event-stream" } });
+  });
+  for await (const event of streamNativeZyra(session, { ...request, selectionContext: selection })) {
+    expect(event.type).toBe("done");
+  }
+});

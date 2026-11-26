@@ -45,7 +45,9 @@ test("native reader search only uses authored title, body and public parts", () 
     ] },
   };
   const entries = readingNavigationItems(content);
-  expect(findReadingSections(entries, " FLUX ")).toMatchObject([{ id: "s1", slug: "first", snippet: "Part one Visible flux text" }]);
+  expect(findReadingSections(entries, " FLUX ")).toMatchObject([{ id: "s1", slug: "first", snippet: "Part one Visible flux text", target: { sectionId: "s1", blockId: "b1", partId: "p1" } }]);
+  expect(findReadingSections(entries, "one visible")).toEqual([]);
+  expect(findReadingSections(entries, "Second part")[0].target).toEqual({ sectionId: "s2", blockId: "b2" });
   expect(findReadingSections(entries, "private-answer")).toEqual([]);
   expect(findReadingSections(entries, "hidden reference")).toEqual([]);
   expect(findReadingSections(entries, "")).toHaveLength(2);
@@ -62,7 +64,9 @@ test("Diktat outline and search resolve the same section indices as the web read
   };
   const items = readingNavigationItems(content);
   expect(items.map(({ slug, title }) => [slug, title])).toEqual([["0", "Dasar"], ["1", "Contoh"], ["2", "Daftar Rumus"]]);
-  expect(findReadingSections(items, "Electric example")).toMatchObject([{ slug: "1" }]);
+  const [match] = findReadingSections(items, "Electric example");
+  expect(match.slug).toBe("1");
+  expect(match.target).toBeUndefined();
   expect(findReadingSections(items, "Second formula")).toMatchObject([{ slug: "2" }]);
 });
 

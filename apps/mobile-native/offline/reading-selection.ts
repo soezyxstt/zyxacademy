@@ -8,8 +8,8 @@ export function normalizeReadingSelection(value: unknown, mode: "quote" | "clipb
   return text.replace(/[\uD800-\uDBFF]$/u, "");
 }
 
-export function readerSelectionUsesContentEngine(platform: string, hasSelectionHandler: boolean) {
-  // Android's native selection callback needs the engine to evaluate its own fixed query.
+export function readerSelectionUsesContentEngine(platform: string, hasHostAction: boolean) {
+  // Android's host actions use the engine for a fixed selection or scroll command.
   // The document CSP still prohibits authored scripts, connections and form actions.
-  return platform === "android" && hasSelectionHandler;
+  return platform === "android" && hasHostAction;
 }

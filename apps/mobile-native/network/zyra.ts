@@ -21,6 +21,7 @@ export type NativeZyraRequest = Readonly<{
     surroundingText?: string;
     sectionTitle?: string;
     chapterTitle?: string;
+    intent?: "clarify";
   } | null;
   /** The existing endpoint validates coding locators and execution evidence. */
   codingContext?: Record<string, unknown> | null;

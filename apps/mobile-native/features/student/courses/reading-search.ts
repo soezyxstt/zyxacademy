@@ -2,7 +2,9 @@ import { articlePartSearchEntries, articlePartSchema } from "../../../../../lib/
 import { parseArticleSections } from "../../../../../lib/materials/reader-markdown-sections";
 import type { OnlineReadingContent } from "./online-reading";
 
-export type ReadingNavigationItem = { id: string; slug: string; title: string; text: string };
+export type ReadingSearchTarget = { sectionId: string; blockId: string; partId?: string };
+type ReadingSearchText = { text: string; target?: ReadingSearchTarget };
+export type ReadingNavigationItem = { id: string; slug: string; title: string; text: string; chunks?: ReadingSearchText[] };
 const clean = (value: string) => value.replace(/<!--[\s\S]*?-->/g, "").replace(/\s+/g, " ").trim();
 
 export function readingNavigationItems(content: OnlineReadingContent): ReadingNavigationItem[] {
@@ -16,28 +18,40 @@ export function readingNavigationItems(content: OnlineReadingContent): ReadingNa
   }
   return data.sections.map(section => {
     const title = typeof section.title === "string" && section.title.trim() ? section.title : data.title;
-    return {
-      id: section.id, slug: section.slug, title,
-      text: clean([title, section.learningObjective, ...section.blocks.flatMap(block => {
-        const parts = Array.isArray(block.parts) ? block.parts.flatMap(value => {
-          const parsed = articlePartSchema.safeParse(value);
-          return parsed.success ? [parsed.data] : [];
-        }) : [];
-        return [block.title, ...(parts.length ? articlePartSearchEntries(parts).map(item => item.text) : [block.content])];
-      })].filter((value): value is string => typeof value === "string").join(" ")),
-    };
+    const chunks: ReadingSearchText[] = [{ text: title }, { text: typeof section.learningObjective === "string" ? section.learningObjective : "" }];
+    for (const block of section.blocks) {
+      const target = { sectionId: section.id, blockId: block.id };
+      if (typeof block.title === "string") chunks.push({ text: block.title, target });
+      const parts = Array.isArray(block.parts) ? block.parts.flatMap(value => {
+        const parsed = articlePartSchema.safeParse(value);
+        return parsed.success ? [parsed.data] : [];
+      }) : [];
+      if (parts.length) {
+        for (const part of parts) {
+          for (const entry of articlePartSearchEntries([part])) {
+            chunks.push({ text: entry.text, target: { ...target, partId: part.id } });
+          }
+        }
+      } else if (typeof block.content === "string") chunks.push({ text: block.content, target });
+    }
+    return { id: section.id, slug: section.slug, title, chunks, text: clean(chunks.map(chunk => chunk.text).join(" ")) };
   });
 }
 
-export function findReadingSections(items: readonly ReadingNavigationItem[], query: string) {
-  const target = clean(query).toLocaleLowerCase();
-  if (!target) return items.map(item => ({ ...item, snippet: "" }));
+export type ReadingSearchMatch = ReadingNavigationItem & { snippet: string; target?: ReadingSearchTarget };
+const compare = (value: string) => clean(value).normalize("NFD").replace(/[\u0300-\u036f]/gu, "").toLocaleLowerCase("id-ID");
+
+export function findReadingSections(items: readonly ReadingNavigationItem[], query: string): ReadingSearchMatch[] {
+  const target = compare(query);
+  if (target.length < 2) return items.map(item => ({ ...item, snippet: "" }));
   return items.flatMap(item => {
-    const offset = item.text.toLocaleLowerCase().indexOf(target);
+    const chunk = item.chunks?.find(entry => compare(entry.text).includes(target));
+    if (item.chunks && !chunk) return [];
+    const offset = compare(item.text).indexOf(target);
     if (offset < 0) return [];
     const start = Math.max(0, offset - 45);
     const end = Math.min(item.text.length, offset + target.length + 65);
-    return [{ ...item, snippet: (start ? "…" : "") + item.text.slice(start, end) + (end < item.text.length ? "…" : "") }];
+    return [{ ...item, target: chunk?.target, snippet: (start ? "…" : "") + item.text.slice(start, end) + (end < item.text.length ? "…" : "") }];
   });
 }
 

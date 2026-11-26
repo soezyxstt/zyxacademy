@@ -5,13 +5,13 @@ import { Button } from "../../../components/Button";
 import { Input } from "../../../components/Input";
 import { NativeListRow } from "../../shared-ui/layout";
 import { SharedDialog } from "../../shared-ui/overlays";
-import { findReadingSections, type ReadingNavigationItem } from "./reading-search";
+import { findReadingSections, type ReadingNavigationItem, type ReadingSearchMatch } from "./reading-search";
 
 type Props = {
   items: ReadingNavigationItem[];
   locale: "id" | "en";
   theme: keyof typeof nativeColors;
-  onOpen(item: ReadingNavigationItem): void;
+  onOpen(item: ReadingSearchMatch, query: string): void;
 };
 
 export function ReadingNavigation({ items, locale, theme, onOpen }: Props) {
@@ -28,7 +28,7 @@ export function ReadingNavigation({ items, locale, theme, onOpen }: Props) {
       <Input theme={theme} value={query} onChangeText={setQuery} maxLength={120}
         accessibilityLabel={id ? "Cari di bacaan" : "Search reading"} placeholder={id ? "Cari di bacaan" : "Search reading"} />
       {matches.map(item => <NativeListRow layout="compact" key={item.id} theme={theme} title={item.title} subtitle={item.snippet || undefined}
-        primary={{ role: "button", label: item.title, onPress: () => { onOpen(item); setOpen(false); setQuery(""); } }} />)}
+        primary={{ role: "button", label: item.title, onPress: () => { onOpen(item, query.trim()); setOpen(false); setQuery(""); } }} />)}
       {!matches.length && <Text style={{ color: nativeColors[theme].mutedForeground }}>
         {id ? "Tidak ada hasil." : "No matches."}
       </Text>}

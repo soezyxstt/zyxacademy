@@ -133,7 +133,7 @@ test("the generated document permits only inline styles, local images and local 
   for (const option of ["domStorageEnabled", "allowFileAccess", "allowUniversalAccessFromFileURLs", "thirdPartyCookiesEnabled"]) {
     expect(wrapper).toContain(`${option}={false}`);
   }
-  expect(wrapper).toContain("javaScriptEnabled={readerSelectionUsesContentEngine(Platform.OS, nativeSelection)}");
+  expect(wrapper).toContain("javaScriptEnabled={readerSelectionUsesContentEngine(Platform.OS, nativeSelection || Boolean(focus))}");
   expect(wrapper).toContain('const initialPage = "about:blank"');
   expect(wrapper).toContain("request.url === initialPage");
 });
@@ -195,4 +195,22 @@ test("authorized Markdown control follows its exact Python fence, including a ne
   expect(html.indexOf("Run example 1")).toBeLessThan(html.indexOf("After code"));
   expect(html.indexOf("Run Python")).toBeLessThan(html.indexOf("Run example 2"));
   expect(buildReadingDocumentHtml({ saved, locale: "en" }, katexCss)?.split("<main>")[1]).not.toContain("Run example 1");
+});
+
+test("a signed Article result anchors only its admitted target and leaves offline copies inert", () => {
+  const saved: OfflineReadingPackage = { summary, data: { ...identity, chapterId: "chapter", version: 4, sections: [{
+    ...section, blocks: [{ ...block, parts: [
+      { id: "lead", kind: "markdown", markdown: "Earlier passage" },
+      { id: "target", kind: "markdown", markdown: "Matched passage" },
+    ] }],
+  }] }, assets: [] };
+  const props = { saved, locale: "en" as const, section: section.slug };
+  const content = savedReadingContent(props);
+  const focus = { sectionId: section.id, blockId: block.id, partId: "target" };
+  const focused = buildReadingContentHtml(content, "", "light", undefined, undefined, undefined, focus);
+  expect(focused).toContain('<div id="reading-search-result"><p>Matched passage</p>');
+  expect(focused).not.toContain('<div id="reading-search-result"><p>Earlier passage</p>');
+  const stale = buildReadingContentHtml(content, "", "light", undefined, undefined, undefined, { ...focus, sectionId: "retired" });
+  expect(stale).not.toContain('id="reading-search-result"');
+  expect(buildReadingDocumentHtml(props, "")).not.toContain('id="reading-search-result"');
 });

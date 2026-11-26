@@ -1,4 +1,4 @@
-import type { RenderReadingVisualAction } from "../../../lib/offline/reading-sections";
+import type { ReaderFocus, RenderReadingVisualAction } from "../../../lib/offline/reading-sections";
 import { DEFAULT_APPEARANCE_PREFERENCES, type AppearancePreferences } from "../../../lib/appearance-preferences";
 import { readingDensityScales, readingFontScales } from "../device/reading-scales";
 import type { PublicArticleReadModel } from "../../../lib/articles/structured-read-model";
@@ -48,6 +48,8 @@ const styles = `
   pre, blockquote { padding: .75em; }
   .offline-worked-example { padding-inline-start: .85em; border-inline-start: 1px solid var(--line); }
   .offline-math-block { display: block; }
+  #reading-search-result { scroll-margin-block: 12px; }
+  #reading-search-result.reader-focus-active { outline: 2px solid var(--focus); outline-offset: 4px; }
   .reader-coding-action { display: inline-block; color: var(--text); min-height: 44px; line-height: 1.4; padding: 11px 10px; border: 1px solid var(--line); border-radius: 8px; margin-bottom: .75rem; }
 `;
 
@@ -107,7 +109,7 @@ export function readerCodingAction(url: string, approved?: ReadonlyMap<string, s
 
 export function buildReadingContentHtml({ data, kind, title, locale, resolveImage, section }: ReadingContent, katexCss: string, theme: keyof typeof nativeColors,
   appearance: Pick<AppearancePreferences, "fontSize" | "density"> = DEFAULT_APPEARANCE_PREFERENCES,
-  codingActions?: ReadonlyMap<string, string>, renderVisualAction?: RenderReadingVisualAction) {
+  codingActions?: ReadonlyMap<string, string>, renderVisualAction?: RenderReadingVisualAction, focus?: ReaderFocus) {
   const options = { allowLinks: false, resolveImage };
   const article = kind === "article" && "sections" in data
     ? data as unknown as Pick<PublicArticleReadModel, "sections" | "visuals"> : undefined;
@@ -118,11 +120,11 @@ export function buildReadingContentHtml({ data, kind, title, locale, resolveImag
   });
   const sections = buildOfflineReadingSections({
     kind: article ? "structured_article" : "course_material", article, material: { body: diktat }, locale,
-  }, options, section, renderCodingAction, renderVisualAction);
+  }, options, section, renderCodingAction, renderVisualAction, focus);
   if (!sections.length) return null;
   const content = sections.map(({ headingHtml, bodyHtml }) =>
     `<section>${headingHtml ? `<h2>${headingHtml}</h2>` : ""}${bodyHtml ?? ""}</section>`).join("");
   const colors = nativeColors[theme];
-  const palette = `:root { color-scheme: ${theme}; --reading-size: ${16 * readingFontScales[appearance.fontSize]}px; --reading-spacing: ${readingDensityScales[appearance.density]}; --surface: ${colors.background}; --card: ${colors.card}; --text: ${colors.foreground}; --muted: ${colors.mutedForeground}; --line: ${colors.border}; }`;
+  const palette = `:root { color-scheme: ${theme}; --reading-size: ${16 * readingFontScales[appearance.fontSize]}px; --reading-spacing: ${readingDensityScales[appearance.density]}; --surface: ${colors.background}; --card: ${colors.card}; --text: ${colors.foreground}; --muted: ${colors.mutedForeground}; --line: ${colors.border}; --focus: ${colors.primary}; }`;
   return `<!doctype html><html lang="${locale}"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${policy}"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="referrer" content="no-referrer"><title>${escapeHtml(title)}</title><style>${palette}\n${katexCss}\n${styles}</style></head><body><main>${content}</main></body></html>`;
 }

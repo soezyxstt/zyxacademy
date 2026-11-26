@@ -1,8 +1,8 @@
 import type { InteractiveDocumentAssetKind } from "../../../lib/materials/interactive-document-path";
 import type { InteractiveDocumentSpec } from "../../../lib/materials/interactive-document";
 import { escapeHtml } from "../../../lib/offline/offline-snapshot-renderer";
-import type { ReadingVisualLocation } from "../../../lib/offline/reading-sections";
-import { useMemo, type ComponentProps } from "react";
+import { readingFocusAnchor, type ReaderFocus, type ReadingVisualLocation } from "../../../lib/offline/reading-sections";
+import { useMemo, useRef, type ComponentProps, type ComponentRef } from "react";
 import { Platform, Text, View, useColorScheme } from "react-native";
 import { WebView } from "react-native-webview";
 import { nativeColors } from "../../../packages/design-tokens/native-colors";
@@ -26,16 +26,17 @@ export function ReadingDocument(props: ReadingDocumentProps) {
   return <ReadingContentDocument key={JSON.stringify([saved.summary.key, saved.summary.revision, section])} content={content} />;
 }
 
-export function ReadingContentDocument({ content, testID = "offline-reading-document", onProgress, codingActions, onCodingAction, onVisualAction, onSelectedText }: {
+export function ReadingContentDocument({ content, testID = "offline-reading-document", onProgress, codingActions, onCodingAction, onVisualAction, onSelectedText, focus }: {
   content: ReadingContent; testID?: string; onProgress?: (percent: number) => void;
   codingActions?: ReadonlyMap<string, string>; onCodingAction?: (id: string) => void;
   onSelectedText?: (key: ReadingSelectionKey, text: unknown) => void;
-  onVisualAction?: (action: VisualAction) => void;
+  onVisualAction?: (action: VisualAction) => void; focus?: ReaderFocus;
 }) {
   const { title, locale } = content;
   const theme = useColorScheme() === "dark" ? "dark" : "light";
   const { fontSize, density } = useNativeAppearance();
   const canOpenVisuals = Boolean(onVisualAction);
+  const webView = useRef<ComponentRef<typeof WebView>>(null);
   const nativeSelection = Boolean(onSelectedText) && (Platform.OS === "ios" || Platform.OS === "android");
   const menuItems = nativeSelection ? [
     { label: locale === "en" ? "Ask Zyra" : "Tanya Zyra", key: readingSelectionKeys.ask },
@@ -52,10 +53,10 @@ export function ReadingContentDocument({ content, testID = "offline-reading-docu
         };
         return link("document", locale === "id" ? "Buka visual" : "Open visual") + " " +
           link("print", locale === "id" ? "Lihat gambar" : "View image");
-      } : undefined);
+      } : undefined, focus);
       return html ? { source: { html, baseUrl: initialPage }, visualActions } : undefined;
     } catch { return undefined; }
-  }, [content, theme, fontSize, density, codingActions, canOpenVisuals, locale]);
+  }, [content, theme, fontSize, density, codingActions, canOpenVisuals, locale, focus]);
   const unavailable = () => <View style={{ flex: 1, padding: 16 }}>
     <Text accessibilityRole="alert" style={{ color: nativeColors[theme].foreground }}>
       {locale === "id" ? "Dokumen tidak dapat ditampilkan." : "This document cannot be displayed."}
@@ -69,6 +70,16 @@ export function ReadingContentDocument({ content, testID = "offline-reading-docu
   } : undefined;
 
   return <WebView
+    ref={webView}
+    onLoadEnd={focus ? () => {
+      webView.current?.injectJavaScript(`(() => {
+        const target = document.getElementById("${readingFocusAnchor}");
+        if (!target) return;
+        target.scrollIntoView({ block: "start" });
+        target.classList.add("reader-focus-active");
+        setTimeout(() => target.classList.remove("reader-focus-active"), 3000);
+      })(); true;`);
+    } : undefined}
     testID={testID}
     accessibilityLabel={title}
     style={{ flex: 1, backgroundColor: nativeColors[theme].background }}
@@ -88,7 +99,7 @@ export function ReadingContentDocument({ content, testID = "offline-reading-docu
       const { key, selectedText } = nativeEvent;
       if (key === readingSelectionKeys.ask || key === readingSelectionKeys.copy) onSelectedText?.(key, selectedText);
     } } } : undefined}
-    javaScriptEnabled={readerSelectionUsesContentEngine(Platform.OS, nativeSelection)}
+    javaScriptEnabled={readerSelectionUsesContentEngine(Platform.OS, nativeSelection || Boolean(focus))}
     domStorageEnabled={false}
     incognito
     cacheEnabled={false}

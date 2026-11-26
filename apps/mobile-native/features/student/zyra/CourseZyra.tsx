@@ -97,10 +97,11 @@ export function CourseZyra({ courseId, pathname, session, locale, theme, current
     if (!handoff || handoff.id === seenHandoff.current || !current() || send.current) return;
     seenHandoff.current = handoff.id;
     setContext(handoff.input);
+    if (handoff.input.kind === "selection") setDraft(previous => previous.trim() ? previous : t.explainSelection);
     onHandoffConsumed?.(handoff.id);
     setOpen(true);
     if (!read.current) void load(photoSessionId ?? history?.history?.sessionId);
-  }, [handoff, current, history?.history?.sessionId, onHandoffConsumed, photoSessionId]);
+  }, [handoff, current, history?.history?.sessionId, onHandoffConsumed, photoSessionId, t.explainSelection]);
 
   function deny() {
     photos.cancel();
@@ -246,7 +247,7 @@ export function CourseZyra({ courseId, pathname, session, locale, theme, current
         void submit({ courseId, pathname, question, requestId: randomUUID(), persistHistory: true,
           sessionId: photoSessionId ?? history.history?.sessionId ?? null,
           attachmentIds: photos.items.length ? photos.items.map(item => item.uploaded.id) : undefined, responseLanguage: locale,
-          selectionContext: context?.kind === "selection" ? { snippet: context.snippet, sectionTitle: context.sectionTitle, chapterTitle: context.chapterTitle } : undefined,
+          selectionContext: context?.kind === "selection" ? { snippet: context.snippet, sectionTitle: context.sectionTitle, chapterTitle: context.chapterTitle, intent: context.intent } : undefined,
           codingContext: context?.kind === "playground" ? context : undefined });
       }} />
   </View></> : null;

@@ -46,7 +46,7 @@ export function OnlineReading(props: ReaderProps) {
     if (selection && canInteract()) openZyra?.(selection);
   };
   const ask = openZyra ? (snippet: string, sectionTitle?: string) => {
-    quote.current = { kind: "selection", snippet, chapterTitle: props.title, sectionTitle };
+    quote.current = { kind: "selection", snippet, chapterTitle: props.title, sectionTitle, intent: "clarify" };
     close();
     if (Platform.OS !== "ios") requestAnimationFrame(sendQuote);
   } : undefined;
@@ -93,7 +93,7 @@ function OnlineReadingPage({ request, session, kind, courseId, materialId, local
   function onSelection(key: ReadingSelectionKey, selected: unknown, sectionTitle?: string) {
     if (!canInteract() || !alive.current) return;
     const snippet = normalizeReadingSelection(selected, key === readingSelectionKeys.copy ? "clipboard" : "quote");
-    if (!snippet) { setEmptyClipboard(true); return; }
+    if (!snippet || (key === readingSelectionKeys.ask && snippet.length < 2)) { setEmptyClipboard(true); return; }
     if (key === readingSelectionKeys.ask) ask?.(snippet, sectionTitle);
     else {
       setCopyFailed(false);
@@ -121,7 +121,7 @@ function OnlineReadingPage({ request, session, kind, courseId, materialId, local
         void getStringAsync().then(value => {
           if (!alive.current || !canInteract()) return;
           const snippet = normalizeReadingSelection(value);
-          if (snippet) ask(snippet);
+          if (snippet.length >= 2) ask(snippet);
           else setEmptyClipboard(true);
         }).catch(() => { if (alive.current && canInteract()) setEmptyClipboard(true); });
       }}>{id ? "Tanya Zyra tentang teks yang disalin" : "Ask Zyra about copied text"}</Button>

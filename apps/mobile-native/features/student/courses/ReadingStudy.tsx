@@ -18,7 +18,7 @@ import type { StudentRequest, StudentServices, StudentSession } from "../contrac
 import { sectionCodingParts } from "../../../../../lib/coding/native-article-parts";
 import { ArticleCoding, type CodingItem } from "./ArticleCoding";
 import { ReadingNavigation } from "./ReadingNavigation";
-import { diktatReadingSections, readingNavigationItems } from "./reading-search";
+import { diktatReadingSections, readingNavigationItems, type ReadingSearchTarget } from "./reading-search";
 import { OnlineReadingError, type OnlineReadingContent } from "./online-reading";
 import { readingLearning, readingStudySections, resumeReadingSection, type CheckResult, type CheckReveal, type ReadProgress, type StudyBlock, type StudySection } from "./reading-learning";
 
@@ -46,6 +46,9 @@ export function ReadingStudy({ content, courseId, request, session, theme, draft
   const navigation = useMemo(() => readingNavigationItems(content), [content]);
   const [selected, setSelected] = useState<string>();
   const [unstructuredSection, setUnstructuredSection] = useState<string>();
+  const [searchTarget, setSearchTarget] = useState<ReadingSearchTarget>();
+  const [searchNotice, setSearchNotice] = useState<{ query: string }>();
+  const [readerVisit, setReaderVisit] = useState(0);
   const [progress, setProgress] = useState<ReadProgress>();
   const [attempt, setAttempt] = useState(0);
   const [error, setError] = useState<"unavailable" | "stale">();
@@ -109,6 +112,11 @@ export function ReadingStudy({ content, courseId, request, session, theme, draft
   }, [study, attempt, canInteract, content.section, sections]);
 
   useEffect(() => () => pending.current?.abort(), []);
+  useEffect(() => {
+    if (!searchNotice) return;
+    const timer = setTimeout(() => setSearchNotice(undefined), 3_000);
+    return () => clearTimeout(timer);
+  }, [searchNotice]);
   useEffect(() => {
     if (!completed || completionReported.current) return;
     completionReported.current = true;
@@ -180,6 +188,8 @@ export function ReadingStudy({ content, courseId, request, session, theme, draft
   const pageCount = sections.length || diktatSections.length;
   function move(to: number) {
     if (to < 0 || to >= pageCount || busy || !canInteract()) return;
+    setSearchTarget(undefined);
+    setSearchNotice(undefined);
     if (active) select(sections[to]);
     else setUnstructuredSection(String(to));
   }
@@ -193,7 +203,11 @@ export function ReadingStudy({ content, courseId, request, session, theme, draft
       <Button theme={theme} variant="outline" disabled={busy || page >= pageCount - 1}
         onPress={() => move(page + 1)}>{id ? "Bagian berikutnya" : "Next section"}</Button>
     </View>}
-    {error !== "stale" ? <ReadingContentDocument key={active?.id ?? unstructuredSection ?? content.data.id} content={selectedContent}
+    {searchNotice && error !== "stale" && <Text accessibilityLiveRegion="polite" style={{ color: colors.foreground, paddingHorizontal: 8 }}>
+      {id ? "Hasil untuk " : "Result for "}{searchNotice.query}
+    </Text>}
+    {error !== "stale" ? <ReadingContentDocument key={JSON.stringify([active?.id ?? unstructuredSection ?? content.data.id, readerVisit])}
+      content={selectedContent} focus={searchTarget}
       testID="student-online-reading-document" onProgress={active ? scroll : undefined}
       codingActions={codingActions} onCodingAction={openCoding}
       onSelectedText={onSelection ? (key, text) => {
@@ -209,8 +223,11 @@ export function ReadingStudy({ content, courseId, request, session, theme, draft
       <View style={toolbar}>
         {error === "stale" ? <Button theme={theme} onPress={reload}>{id ? "Muat ulang bacaan" : "Reload reading"}</Button> : <>
           {error && !progress ? <Button theme={theme} variant="outline" onPress={() => setAttempt(value => value + 1)}>{id ? "Periksa progres" : "Check progress"}</Button> : null}
-          {navigation.length > 0 && <ReadingNavigation items={navigation} locale={locale} theme={theme} onOpen={item => {
-            if (!canInteract()) return;
+          {navigation.length > 0 && <ReadingNavigation items={navigation} locale={locale} theme={theme} onOpen={(item, query) => {
+            if (busy || !canInteract()) return;
+            setSearchTarget(item.target);
+            setSearchNotice(query.length >= 2 ? { query } : undefined);
+            setReaderVisit(value => value + 1);
             if (content.structured) select(sections.find(section => section.id === item.id));
             else if (item.slug) setUnstructuredSection(item.slug);
           }} />}

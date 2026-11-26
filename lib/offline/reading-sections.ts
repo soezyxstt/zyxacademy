@@ -53,11 +53,13 @@ type ReadingSource = {
 };
 
 export type ReadingVisualLocation = Pick<ArticleField, "sectionId" | "blockId" | "partId" | "field">;
+export type ReaderFocus = { sectionId: string; blockId: string; partId?: string };
+export const readingFocusAnchor = "reading-search-result";
 export type RenderReadingVisualAction = (spec: InteractiveDocumentSpec, location: ReadingVisualLocation) => string;
 
 /** Shared by the browser, Capacitor snapshot and Expo's local-only reading surface. */
 export function buildOfflineReadingSections(record: ReadingSource, options?: OfflineRenderOptions, section?: string,
-  renderCodingAction?: (partId: string) => string, renderVisualAction?: RenderReadingVisualAction): NativeOfflineSection[] {
+  renderCodingAction?: (partId: string) => string, renderVisualAction?: RenderReadingVisualAction, focus?: ReaderFocus): NativeOfflineSection[] {
   const markdown = (value: string) => renderOfflineMarkdownHtml(value, options);
   const scopedOptions = (raw: string, scope?: string): OfflineRenderOptions | undefined => renderCodingAction && scope
     ? { ...options, renderCodeAction: renderMarkdownCodeActions(raw, scope, renderCodingAction) } : options;
@@ -73,6 +75,12 @@ export function buildOfflineReadingSections(record: ReadingSource, options?: Off
       : renderOfflineMarkdownHtml(value, renderOptions);
   };
   const sections: NativeOfflineSection[] = [];
+  let focused = false;
+  function anchor(parts: string[], start: number) {
+    const html = parts.splice(start).join("\n");
+    parts.push(`<div id="${readingFocusAnchor}">${html}</div>`);
+    focused = true;
+  }
 
   function renderMathUnit(part: Extract<ArticlePart, { kind: "math_unit" }>) {
     const rows = part.relations ?? [];
@@ -116,6 +124,8 @@ export function buildOfflineReadingSections(record: ReadingSource, options?: Off
       }
 
       for (const [blockIndex, block] of (sec.blocks ?? []).entries()) {
+        const targetBlock = !focused && focus !== undefined && sec.id === focus.sectionId && block.id === focus.blockId;
+        const blockStart = htmlParts.length;
         const sourceScope = articleBlockScope(sec.id, block, blockIndex);
         const visualMap = collectVisualMap(record.article.visuals, sec.visuals, block.visuals);
         const renderedVisualIds = new Set<string>();
@@ -127,6 +137,7 @@ export function buildOfflineReadingSections(record: ReadingSource, options?: Off
 
         if (block.parts?.length) {
           for (const part of block.parts) {
+            const partStart = htmlParts.length;
             if (part.kind === "visual_ref") {
               const vis = visualMap.get(part.visualId);
               if (vis) {
@@ -172,6 +183,7 @@ export function buildOfflineReadingSections(record: ReadingSource, options?: Off
                   : markdown(cleanedPart));
               }
             }
+            if (targetBlock && !focused && focus?.partId === part.id) anchor(htmlParts, partStart);
           }
         } else {
           const cleaned = cleanOfflineMarkdown(block.content ?? "");
@@ -197,6 +209,7 @@ export function buildOfflineReadingSections(record: ReadingSource, options?: Off
             htmlParts.push(visualHtml(visual));
           }
         }
+        if (targetBlock && !focused) anchor(htmlParts, blockStart);
       }
 
       const body = parts.join("\n\n").trim();
