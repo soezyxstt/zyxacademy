@@ -37,7 +37,7 @@ test("trusted document resource binds exact bytes and keeps production sandbox h
   await expect(prepareVerificationDocumentResource({ ...visual, printSha256: digest(badPng), printBytes: badPng.length }, { document: resource.document, print: badPng }, scope)).rejects.toThrow("INTERACTIVE_DOCUMENT_PRINT_INVALID");
 });
 
-test("current plan loads only selected verified bytes and builds exact scoped article routes", async () => {
+test("logic plan avoids transferring executable HTML and preserves exact scoped article routes", async () => {
   const document = Buffer.from("<!doctype html><p>Private HTML marker</p>");
   const print = await sharp({ create: { width: 2, height: 2, channels: 4, background: "white" } }).png().toBuffer();
   const digest = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
@@ -48,16 +48,13 @@ test("current plan loads only selected verified bytes and builds exact scoped ar
   const spec = interactiveDocumentSchema.parse({ id: previous.id, kind: "interactive_document", version: 1, label: "Visual", description: "Visual", documentSha256: digest(document), documentBytes: document.length, printSha256: digest(print), printBytes: print.length, height: 400, staticFallback: { type: "text", summary: "Visual", content: "Visual" }, printCaption: "Visual" });
   article.visuals = [spec];
   const hash = "a".repeat(64);
-  const plan = deriveProductV4VerificationPlan({ bundle, binding: { importId: "import", courseId: bundle.manifest.courseId, runId: "run", revision: 1, rendererChecksum: hash, dependencyChecksum: hash, contractChecksum: hash, playbookChecksum: hash, fontChecksum: hash, assetChecksum: hash, printProfile: "a4", policyRevision: "v1" } });
-  const requirement = plan.requirements.find(check => check.target === `${article.id}/${spec.id}` && check.layer === "web")!;
+  const plan = deriveProductV4VerificationPlan({ bundle, binding: { importId: "import", courseId: bundle.manifest.courseId, runId: "run", revision: 1, logicChecksum: hash, rendererChecksum: hash, dependencyChecksum: hash, contractChecksum: hash, playbookChecksum: hash, fontChecksum: hash, assetChecksum: hash, printProfile: "a4", policyRevision: "v1" } });
+  const requirement = plan.requirements.find(check => check.target === `${article.id}/${spec.id}` && check.layer === "model")!;
   const read = async (_spec: typeof spec, kind: "document" | "print") => kind === "document" ? document : print;
-  const assets = await loadProductV4InteractiveDocumentAssets({ bundle, plan, requirement }, read);
-  expect(assets[productV4DocumentPairKey(spec)].document).toEqual(new Uint8Array(document));
-  document[0] ^= 1;
-  expect(assets[productV4DocumentPairKey(spec)].document[0]).not.toBe(document[0]);
-  await expect(loadProductV4InteractiveDocumentAssets({ bundle, plan, requirement }, read)).rejects.toThrow("INTEGRITY");
-  document[0] ^= 1;
-  await expect(loadProductV4InteractiveDocumentAssets({ bundle, plan, requirement }, async (_spec, kind) => kind === "document" ? document : new Uint8Array())).rejects.toThrow("INTEGRITY");
+  let reads = 0;
+  const assets = await loadProductV4InteractiveDocumentAssets({ bundle, plan, requirement }, async () => { reads++; throw new Error("HTML_TRANSFER_NOT_REQUIRED"); });
+  expect(assets).toEqual({});
+  expect(reads).toBe(0);
   await expect(loadProductV4InteractiveDocumentAssets({ bundle, plan: { ...plan, contentHash: hash }, requirement }, read)).rejects.toThrow();
   const altered = structuredClone(bundle);
   altered.manifest.bundleId = "different";
@@ -109,10 +106,9 @@ test("formative fields bind to actual reveal and only the selected public field 
   block.formativeCheckPayload.answer = "Answer withheld";
   block.formativeCheckPayload.explanation = `Explanation\n\n${explanationMarkdown}`;
   const hash = "a".repeat(64);
-  const plan = deriveProductV4VerificationPlan({ bundle, binding: { importId: "import", courseId: bundle.manifest.courseId, runId: "run", revision: 1, ...(await readProductV4RuntimeFingerprint()), dependencyChecksum: hash, assetChecksum: hash, policyRevision: "v1" } });
+  const plan = deriveProductV4VerificationPlan({ bundle, binding: { importId: "import", courseId: bundle.manifest.courseId, runId: "run", revision: 1, logicChecksum: hash, ...(await readProductV4RuntimeFingerprint()), dependencyChecksum: hash, assetChecksum: hash, policyRevision: "v1" } });
   const requirements = plan.requirements.filter(check => check.state === "formative-document-field");
-  expect(requirements).toHaveLength(8);
-  expect(new Set(requirements.map(check => check.target)).size).toBe(4);
+  expect(requirements).toHaveLength(0);
   expect(JSON.stringify(plan)).not.toContain("hidden answer marker");
   const fields = formativeDocumentFields(bundle.products);
   const answer = fields.find(field => field.field === "answer")!;
@@ -140,10 +136,7 @@ test("formative fields bind to actual reveal and only the selected public field 
   expect(verifyInteractiveDocumentGrant(signed, "verification", "test-secret", 1_001)?.field).toBe("answer");
   expect(verifyInteractiveDocumentGrant(signed, "other", "test-secret", 1_001)).toBeNull();
   expect(verifyInteractiveDocumentGrant(signed, "verification", "wrong", 1_001)).toBeNull();
-  const answerRequirement = requirements.find(requirement => requirement.target === answer.target)!;
-  const read = async (_spec: typeof spec, kind: "document" | "print") => kind === "document" ? document : print;
-  expect(Object.keys(await loadProductV4InteractiveDocumentAssets({ bundle, plan, requirement: answerRequirement }, read))).toEqual([productV4DocumentPairKey(spec)]);
-  await expect(loadProductV4InteractiveDocumentAssets({ bundle, plan, requirement: answerRequirement }, async () => new Uint8Array())).rejects.toThrow("INTEGRITY");
-  const tampered = { ...answerRequirement, target: requirements[0].target };
-  if (tampered.target !== answerRequirement.target) await expect(loadProductV4InteractiveDocumentAssets({ bundle, plan, requirement: tampered }, read)).rejects.toThrow("VERIFICATION_REQUIREMENT_INVALID");
+  // Formative assets stay admitted and scoped, but logical verification does not
+  // open their iframe or create a browser requirement for each answer state.
+  expect(plan.requirements.some(requirement => requirement.layer === "web")).toBe(false);
 });

@@ -19,6 +19,18 @@ test("mastery coalesces only the same student and target in one bucket", () => {
   expect(task.name).not.toBe(prepareTask({ ...event, data: { ...event.data, courseId: "other" } }, "staging", 0).task.name);
 });
 
+test("logical verification and final PDF generation use separate existing queues", () => {
+  const base = { name: "product.verification.requested", id: "attempt", data: {} };
+  for (const environment of ["staging", "production"] as const) {
+    const logic = prepareTask({ ...base, data: { purpose: "logic" } }, environment);
+    const pdf = prepareTask({ ...base, data: { purpose: "pdf" } }, environment);
+    expect(logic.parent.endsWith(`/zyx-${environment}-default`)).toBe(true);
+    expect(pdf.parent.endsWith(`/zyx-${environment}-pdf`)).toBe(true);
+    expect(pdf.task.name).not.toBe(logic.task.name);
+    expect(prepareTask(base, environment).parent).toBe(logic.parent);
+  }
+});
+
 test("test process exits before loading credentials even with Cloud Tasks selected", async () => {
   const before = process.env.QUEUE_PROVIDER;
   try {

@@ -1,4 +1,4 @@
 interface:
   display_name: "Zyx Content Revisions"
   short_description: "Edit stable units and release reviewed Zyx revisions"
-  default_prompt: "Use $zyx-content-revisions to find current heads with compact paged discovery, fork initial drafts when required, and edit stable units. Retain known module/view checksums and successful successor identities. Review affected Diktat units explicitly instead of making fake text changes. Read full context and current target verification before authorized release; a cached proof never replaces the exact new receipt. Use only the zyx-stg MCP connection; use advertised tool names and keep dotted operation arguments unchanged."
+  default_prompt: "Use $zyx-content-revisions to find current heads, edit stable units and retain successor identities. Review affected reasoning and Diktat units. For V4, verify purpose logic during edits and request purpose pdf only for final Diktat artifacts; screenshots are optional. Read full context before authorized release and retain exact logic and PDF identities. Use only the zyx-stg MCP connection; use advertised tool names and keep dotted operation arguments unchanged."

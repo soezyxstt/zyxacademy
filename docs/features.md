@@ -100,6 +100,7 @@ This catalog documents the active user-facing and operational capabilities of Zy
 ### Authoring and Admin MCP (`/api/mcp/authoring`)
 - Streamable HTTP MCP endpoint supporting OAuth PKCE with 4 default scopes plus explicit publication and admin consent grants.
 - Full canonical workflow: Source Pack ingestion -> Idea Bundle V3 -> Product Bundle V4/V5 -> Flexible stable-ID revisions -> verification -> review -> atomic publication.
+- V4 verification defaults to browser-free logic checks and independent semantic review. Explicit final Diktat PDF generation uses a separate plan and reuses unchanged artifacts. Article-only V4 needs no PDF; screenshots, page captures and visual inspection are optional and cannot block publication. V2/V3 and V5 retain their own contracts.
 - Admin MCP tools for blog, forms, media, schedules, groups, tokens, notifications, and operation receipt recovery. See [operations/admin-mcp.md](operations/admin-mcp.md) and [operations/agent-first-content.md](operations/agent-first-content.md).
 
 ## 7. Public Marketing and Interactive Demo

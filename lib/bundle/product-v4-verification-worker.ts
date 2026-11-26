@@ -11,9 +11,11 @@ import { buildProductV4RuntimeBinding } from "@/lib/compute/product-v4-runtime-b
 import { persistProductV4PdfEvidence } from "@/lib/compute/product-v4-pdf-evidence-shared";
 import { parseAdmittedProductBundle } from "./product-staged-worker";
 import { createProductV4VerificationService, readProductVerificationObject, type ProductV4VerificationPorts, type ProductV4VerificationCheckpoint } from "./product-v4-verification-core";
+import type { ProductV4VerificationPurpose } from "./product-v4-verification";
 
 
-function applicationService(execute?: ProductV4VerificationPorts["execute"]) {
+function applicationService(execute?: ProductV4VerificationPorts["execute"], purpose: ProductV4VerificationPurpose = "logic") {
+  if (!["logic", "pdf"].includes(purpose)) throw new Error("PRODUCT_V4_VERIFICATION_PURPOSE_INVALID");
   const getRow = async (importId: string) => {
     const [row] = await db.select().from(imporBundle).where(eq(imporBundle.id, importId)).limit(1);
     return row?.bundleType === "product" ? row : null;
@@ -28,8 +30,8 @@ function applicationService(execute?: ProductV4VerificationPorts["execute"]) {
       const staging = await latestProductV4StagingAudit(db, importId);
       if (row.version !== 4 || !staging || staging.correlationId !== runId || staging.afterSnapshot?.checksum !== row.checksum) throw new Error("PRODUCT_V4_VERIFICATION_CONFLICT");
       const bundle = parseAdmittedProductBundle(await storage.download(row.sourceUriOrKey), row);
-      const binding = await buildProductV4RuntimeBinding({ row: { ...row, courseId: row.courseId }, bundle, runId });
-      const previous = currentProductV4VerificationRef(row.validationReport, staging.id, runId);
+      const binding = await buildProductV4RuntimeBinding({ row: { ...row, courseId: row.courseId }, bundle, runId, purpose });
+      const previous = currentProductV4VerificationRef(row.validationReport, staging.id, runId, purpose);
       return { importId, checksum: row.checksum, sourceUriOrKey: row.sourceUriOrKey, binding, stagingAuditId: staging.id, stagingRunId: runId, importState: { bundleType: row.bundleType, bundleId: row.bundleId, courseId: row.courseId, version: row.version, status: row.status, validationReport: row.validationReport }, pdfEvidenceAttachment: row.validationReport.productV4PdfEvidence,
         verificationAttemptId: typeof previous?.attemptId === "string" ? previous.attemptId : null,
         verificationPlanHash: typeof previous?.planHash === "string" ? previous.planHash : null,
@@ -38,19 +40,21 @@ function applicationService(execute?: ProductV4VerificationPorts["execute"]) {
     read: key => readProductVerificationObject(storage, key),
     async write(key, bytes, mediaType) { await storage.upload(bytes, key.split("/").pop()!, mediaType, { key }); },
     async enqueue(data) {
-      if (process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER === "local_playwright") return;
-      await inngest.send({ id: `product-verification-${data.planHash}-${data.attemptId}`, name: "product.verification.requested", data });
+      if ((data.purpose ?? "logic") !== purpose) throw new Error("PRODUCT_V4_VERIFICATION_PURPOSE_INVALID");
+      if (purpose === "pdf" && process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER === "local_playwright") return;
+      await inngest.send({ id: `product-verification-${data.planHash}-${data.attemptId}`, name: "product.verification.requested", data: { ...data, purpose } });
     },
     async attach(snapshot, planHash, attemptId, expectedAttemptId) {
-      return attachProductV4VerificationSnapshot(db, snapshot, planHash, attemptId, expectedAttemptId);
+      return attachProductV4VerificationSnapshot(db, snapshot, planHash, attemptId, expectedAttemptId, purpose);
     },
     async persistPdfEvidence(input) { await persistProductV4PdfEvidence(input, buildProductV4RuntimeBinding); },
     async hasPdfEvidence({ snapshot, plan, attemptId, receipt }) {
+      if (purpose !== "pdf" || plan.binding.purpose !== "pdf") return false;
       return db.transaction(async tx => {
         const [row] = await tx.select().from(imporBundle).where(eq(imporBundle.id, snapshot.importId)).limit(1).for("update");
         const staging = await latestProductV4StagingAudit(tx, snapshot.importId);
-        if (!row || !matchesProductV4StagingSnapshot(row, staging, snapshot)) return false;
-        const ref = currentProductV4VerificationRef(row.validationReport, snapshot.stagingAuditId, snapshot.stagingRunId);
+        if (!row || !matchesProductV4StagingSnapshot(row, staging, snapshot, "pdf")) return false;
+        const ref = currentProductV4VerificationRef(row.validationReport, snapshot.stagingAuditId, snapshot.stagingRunId, "pdf");
         if (ref?.attemptId !== attemptId || ref.planHash !== plan.planHash) return false;
         const rows = await tx.select().from(buktiPdfBundle).where(eq(buktiPdfBundle.imporBundleId, snapshot.importId));
         const targets = snapshot.bundle.products.filter(product => product.productType === "diktat");
@@ -71,12 +75,12 @@ function applicationService(execute?: ProductV4VerificationPorts["execute"]) {
   });
 }
 
-export async function failProductV4VerificationJob(input: { importId: string; runId: string; planHash: string; attemptId: string }) {
-  return applicationService().fail(input);
+export async function failProductV4VerificationJob(input: { importId: string; runId: string; planHash: string; attemptId: string; purpose?: ProductV4VerificationPurpose }) {
+  return applicationService(undefined, input.purpose ?? "logic").fail(input);
 }
 
-export async function processProductV4VerificationJob(input: { importId: string; runId: string; planHash: string; attemptId?: string }, checkpoint: ProductV4VerificationCheckpoint | undefined, execute: ProductV4VerificationPorts["execute"]) {
-  const service = applicationService(execute);
+export async function processProductV4VerificationJob(input: { importId: string; runId: string; planHash: string; attemptId?: string; purpose?: ProductV4VerificationPurpose }, checkpoint: ProductV4VerificationCheckpoint | undefined, execute: ProductV4VerificationPorts["execute"]) {
+  const service = applicationService(execute, input.purpose ?? "logic");
   checkpoint ??= (_id, operation) => operation();
-  return service.process(input, checkpoint);
+  return service.process({ ...input, purpose: input.purpose ?? "logic" }, checkpoint);
 }

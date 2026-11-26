@@ -41,7 +41,11 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     const v4Verification = bundle.manifest.schemaVersion === "product-bundle.v4" && typeof verificationRef?.runId === "string"
       ? await getProductV4VerificationReadiness(id, verificationRef.runId).catch(() => null)
       : null;
-    let qualityEvaluation = await currentPublisherProductReadiness(id, session.user.id, { v4Verification });
+    const pdfRef = row.validationReport.productV4PdfGeneration as { runId?: unknown } | undefined;
+    const v4PdfVerification = bundle.manifest.schemaVersion === "product-bundle.v4" && bundle.products.some(product => product.productType === "diktat") && typeof pdfRef?.runId === "string"
+      ? await getProductV4VerificationReadiness(id, pdfRef.runId, "pdf").catch(() => null)
+      : null;
+    let qualityEvaluation = await currentPublisherProductReadiness(id, session.user.id, { v4Verification, v4PdfVerification, admittedContext: { row, bundle } });
 
     let pedagogicReview = null;
     try {
@@ -90,7 +94,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       qualityEvaluation = { ...qualityEvaluation, pdfEvidenceStatus: "pending", issues, blockingIssueCodes: issues.filter(issue => issue.severity === "blocking").map(issue => issue.code), publicationReady: false };
     }
     const pdfStatuses = bundle.products.filter(product => product.productType === "diktat").map(product => {
-      const selected = selectDiktatPdfStatus({ importId: id, revision: row.checksum, bundle, productId: product.id, rows: pdfRows, validationReport: row.validationReport, verification: v4Verification, publishedPreviewBinding: publishedBindings.get(product.id), requestProcessing: processing.some(request => request.productId === product.id) });
+      const selected = selectDiktatPdfStatus({ importId: id, revision: row.checksum, bundle, productId: product.id, rows: pdfRows, validationReport: row.validationReport, verification: v4PdfVerification, publishedPreviewBinding: publishedBindings.get(product.id), requestProcessing: processing.some(request => request.productId === product.id) });
       return { productId: selected.productId, revision: selected.revision, status: selected.status, id: selected.evidence?.id, pageCount: selected.evidence?.pageCount ?? null, failureCode: selected.evidence?.failureCode ?? null, createdAt: selected.evidence?.createdAt ?? null };
     });
     if (qualityEvaluation.publicationReady && pdfStatuses.some(status => status.status === "pending")) {
@@ -128,7 +132,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       const verification = v4Verification;
       v4ReviewContext = {
         expectedRevision: row.checksum, policyVersion: QUALITY_POLICY_VERSION, contentFingerprint: currentFingerprint,
-        verificationReady: Boolean(verification?.evaluation.ready && ref?.planHash === verification.plan.planHash),
+        verificationReady: Boolean(verification?.evaluation.ready && verification.plan.binding.purpose === "logic" && ref?.planHash === verification.plan.planHash),
         verificationPlanHash: verification?.plan.planHash ?? null,
         verificationReceiptSignature: getProductV4VerificationReceiptSignature(verification?.receipt),
         sections: bundle.products.flatMap(product => product.productType === "article" ? product.sections.map(section => ({ productId: product.id, sectionId: section.id, title: section.title, semanticHash: computeProductV4SectionSemanticHash(product, section.id) })) : []),

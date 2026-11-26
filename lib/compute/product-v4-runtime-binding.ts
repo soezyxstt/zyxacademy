@@ -6,7 +6,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import { deterministicProductSerialization, productInteractiveDocuments, productBundleManifestSchema, productDependencySchema, productEntitySchema } from "@/lib/bundle/product-validator";
-import { PRODUCT_V4_VERIFICATION_POLICY, assertProductV4VerificationCurrent, deriveProductV4VerificationPlan, formativeDocumentFields, type ProductV4VerificationBinding, type ProductV4VerificationPlan, type ProductV4VerificationRequirement } from "@/lib/bundle/product-v4-verification";
+import { PRODUCT_V4_VERIFICATION_POLICY, assertProductV4VerificationCurrent, deriveProductV4VerificationPlan, formativeDocumentFields, type ProductV4VerificationBinding, type ProductV4VerificationPlan, type ProductV4VerificationRequirement, type ProductV4VerificationPurpose } from "@/lib/bundle/product-v4-verification";
 import type { ProductV4VerificationSnapshot } from "@/lib/bundle/product-v4-verification-core";
 import type { DiktatSourceFigureAssets } from "@/lib/materials/diktat-static-visual";
 import type { SourceFigureVisualSpec } from "@/lib/materials/visual-contract";
@@ -19,7 +19,7 @@ import { verifyInteractiveDocumentAdmissionReceipt } from "@/lib/materials/inter
 import { productV4DocumentPairKey } from "./product-v4-document-wire";
 import type { db as applicationDb } from "@/db";
 
-declare const __ZYX_VERIFICATION_BUILD_RUNTIME__: { fingerprint: ProductV4RuntimeFingerprint } | undefined;
+declare const __ZYX_VERIFICATION_BUILD_RUNTIME__: { fingerprint: ProductV4RuntimeFingerprint; logicFingerprint?: ProductV4LogicRuntimeFingerprint } | undefined;
 
 type Bundle = ProductV4VerificationSnapshot["bundle"];
 export type ProductV4RuntimeConnection = typeof applicationDb | Parameters<Parameters<typeof applicationDb.transaction>[0]>[0];
@@ -36,8 +36,10 @@ interface RuntimePorts extends FigurePorts {
   dependencies(bundle: Bundle): Promise<ProductV4LiveDependency[]>;
   revisionDependencies?(input: { row: ImportRow; bundle: Bundle; rows: readonly ProductV4LiveDependency[] }): Promise<{ rows: ProductV4LiveDependency[]; contextDigest?: string }>;
   runtime(): Promise<ProductV4RuntimeFingerprint>;
+  logicRuntime?(): Promise<ProductV4LogicRuntimeFingerprint>;
 }
-export type ProductV4RuntimeFingerprint = Pick<ProductV4VerificationBinding, "rendererChecksum" | "fontChecksum" | "contractChecksum" | "playbookChecksum" | "printProfile">;
+export type ProductV4RuntimeFingerprint = Required<Pick<ProductV4VerificationBinding, "rendererChecksum" | "fontChecksum" | "contractChecksum" | "playbookChecksum" | "printProfile">>;
+export type ProductV4LogicRuntimeFingerprint = Required<Pick<ProductV4VerificationBinding, "logicChecksum" | "contractChecksum" | "playbookChecksum">>;
 const hash = (value: unknown) => createHash("sha256").update(deterministicProductSerialization(value)).digest("hex");
 const bytesHash = (value: Uint8Array) => createHash("sha256").update(value).digest("hex");
 const unique = (values: string[]) => [...new Set(values)].sort();
@@ -72,7 +74,7 @@ export const PRODUCT_V4_RUNTIME_FILES = [
   "lib/coding/article-markdown-scope.ts", "lib/coding/runtime-selection.ts", "lib/coding/draft-reconciliation.ts", "lib/coding/contracts.ts", "lib/coding/browser-runtime.ts", "lib/coding/runtime.ts", "lib/coding/runtime-assets.ts", "lib/coding/frame.html", "public/coding/worker.js", "lib/coding/http-contracts.ts", "lib/coding/zyra.ts",
   "components/course/markdown/flowchart-diagram-renderer.tsx", "lib/visual-layout-service.ts",
   "components/course/article-parts.tsx", "components/course/math-text.tsx", "components/course/markdown-renderer.tsx",
-  "lib/markdown-compiler.ts", "lib/materials/embedded-visuals.ts",
+  "lib/markdown-compiler.ts", "lib/ast-validator.ts", "lib/materials/embedded-visuals.ts",
   "components/course/product-learning-visual.tsx", "components/course/epsilon-delta-board.tsx", "components/course/geometry-2d-visual.tsx", "components/course/interactive-scene-renderer.tsx", "components/course/interactive-scene-svg.tsx",
   "components/course/interactive-document-visual.tsx", "components/course/interactive-document-context.tsx", "lib/materials/interactive-document.ts", "lib/materials/interactive-document-server.ts", "lib/materials/interactive-document-png-worker.cjs", "lib/materials/interactive-document-assets.ts", "lib/materials/interactive-document-authorization.ts", "lib/materials/interactive-document-grant.ts", "lib/materials/visual-payload-security.ts",
   "app/api/materials/interactive-document/article/route.ts", "app/api/materials/interactive-document/reveal/route.ts",
@@ -84,15 +86,33 @@ export const PRODUCT_V4_RUNTIME_FILES = [
   "lib/query/client.ts", "lib/query/http.ts", "lib/query/keys.ts", "lib/query/invalidation.ts",
   "lib/activity-signal.ts", "lib/auth-client.ts", "components/providers/query-provider.tsx",
   "components/course/question-image.tsx", "lib/articles/source-figure-resolver.ts", "app/api/courses/[id]/articles/[articleId]/source-figures/[visualId]/route.ts",
-  "lib/articles/structured-read-model.ts", "lib/articles/structured-repository.ts", "lib/materials/compiler.ts", "lib/materials/pedagogy-contract.ts",
+  "lib/articles/structured-read-model.ts", "lib/articles/structured-repository.ts", "lib/materials/compiler.ts", "lib/materials/quality-gates.ts", "lib/materials/diktat-contract.ts", "lib/materials/solution-collection.ts", "lib/materials/pedagogy-contract.ts",
   "lib/authoring/source-figures.ts", "lib/compute/source-figure.ts", "lib/authoring/mcp-contract-revision.ts", "lib/authoring/mcp-workflows.ts", "lib/authoring/interactive-visual-guidance.ts", "lib/authoring/mcp-playbook.ts",
   "lib/authoring/source-pack.ts", "lib/authoring/revision-verification-context.ts", "lib/authoring/question-bank-draft.ts", "lib/authoring/reference-question-draft.ts", "lib/question-authoring-contract.ts", "lib/ide/contracts.ts", "lib/sumber/contracts.ts", "lib/bundle/idea-bundle-v2.ts", "lib/bundle/validator.ts", "lib/bundle/zip-reader.ts", "lib/materials/quality-policy.ts", "lib/materials/quality-policy-constants.ts", "lib/materials/pdf-artifact-contract.ts",
   "lib/math/katex.ts", "lib/math/katex-render.ts", "lib/math/scientific-format.ts", "lib/math/text-segments.ts", "lib/math/unmarked-scientific.ts", "lib/math/visual-function-latex.ts", "lib/math/math-normalizer.ts", "lib/math/scientific-answer-normalizer.ts",
   "lib/materials/article-parts.ts", "lib/materials/article-contract.ts", "lib/materials/visual-contract.ts", "lib/materials/interactive-scene.ts", "lib/materials/interactive-document-markdown.ts", "lib/materials/epsilon-delta.ts",
   "lib/materials/diktat-v4.ts", "lib/materials/diktat-visual-snapshot.ts", "lib/materials/diktat-static-visual.ts", "lib/materials/diktat-print-readiness.ts", "lib/materials/diktat-renderer-policy.ts", "lib/materials/verification-preview.ts",
-  "lib/zyra/canvas/contracts.ts", "lib/zyra/canvas/expression.ts", "lib/zyra/canvas/evaluator.ts", "lib/zyra/canvas/viewport.ts",
+  "lib/zyra/canvas/contracts.ts", "lib/zyra/canvas/expression.ts", "lib/zyra/canvas/evaluator.ts", "lib/zyra/canvas/viewport.ts", "lib/zyra/canvas/validator.ts", "lib/tutor/visual-contracts.ts",
   "lib/bundle/product-diktat-pdf.ts", "lib/bundle/product-validator.ts", "lib/bundle/product-identity.ts", "lib/bundle/product-v4-verification.ts", "lib/bundle/product-v4-verification-service.ts", "lib/bundle/product-v4-staging-identity.ts", "lib/bundle/product-pdf-selection.ts", "lib/bundle/product-readiness.ts", "lib/bundle/product-review-gate.ts", "lib/compute/product-v4-runtime-binding.ts", "lib/compute/product-v4-pdf-evidence.ts", "lib/compute/product-v4-verification-executor.ts", "lib/compute/product-v4-browser-runner.ts", "lib/compute/product-v4-browser-session.ts", "lib/compute/product-v4-browser-config.ts", "scripts/authoring/verification-renderer.ts", "scripts/authoring/build-local-verification-renderer.ts", "jobs/product-verification.ts", "lib/bundle/product-admission.ts", "lib/compute/product-v4-document-wire.ts", "lib/compute/product-v4-formative-verification.ts", "lib/materials/formative-check-answer.ts", "components/course/formative-check-endpoint-context.tsx", "lib/materials/diktat-scene-svg.ts", "lib/bundle/product-staged-worker.ts", "lib/bundle/product-staging.ts", "lib/storage/keys.ts", "lib/authoring/question-visual-references.ts", "lib/authoring/question-visual-assets.ts", "lib/compute/product-diktat-worker-assets.ts", "lib/bundle/product-v4-verification-core.ts", "lib/bundle/product-v4-verification-worker.ts", "lib/compute/product-v4-pdf-evidence-shared.ts", "lib/materials/interactive-document-verified.ts", "lib/compute/product-v4-http-asset-validation.ts", "scripts/authoring/local-v4-bundle.ts",
 ] as const;
+
+const PRINT_ONLY_RUNTIME_FILES = new Set<string>([
+  "lib/bundle/product-diktat-pdf.ts", "lib/bundle/product-pdf-selection.ts",
+  "lib/materials/pdf-artifact-contract.ts", "lib/materials/diktat-print-readiness.ts",
+  "lib/materials/diktat-renderer-policy.ts", "lib/materials/diktat-static-visual.ts",
+  "lib/materials/diktat-scene-svg.ts", "lib/materials/verification-preview.ts",
+  "lib/compute/product-diktat-worker-assets.ts",
+]);
+
+/** Keep authored Diktat validation and static snapshot hashes, excluding PDF creation and selection. */
+export const PRODUCT_V4_LOGIC_RUNTIME_FILES = PRODUCT_V4_RUNTIME_FILES.filter(path =>
+  !PRINT_ONLY_RUNTIME_FILES.has(path) && (/^lib\/(authoring|materials|math|bundle|ide|sumber|zyra\/canvas)\//.test(path) ||
+  path === "lib/question-authoring-contract.ts" || path === "lib/coding/contracts.ts" || path === "lib/tutor/visual-contracts.ts" || path === "lib/flowchart.ts" ||
+  path === "lib/markdown-compiler.ts" || path === "lib/ast-validator.ts" ||
+  ["lib/compute/runtime.ts", "lib/compute/product-v4-runtime-binding.ts", "lib/compute/product-v4-execution.ts",
+    "lib/compute/product-v4-verification-executor.ts", "lib/compute/product-v4-document-wire.ts",
+    "lib/compute/product-v4-http-asset-validation.ts", "lib/compute/product-diktat-worker-assets.ts",
+    "jobs/product-verification.ts", "scripts/authoring/prepare-web-verification.ts", "scripts/neon/build-worker.mjs"].includes(path)));
 
 function figureSpecs(bundle: Bundle): SourceFigureVisualSpec[] {
   return bundle.products.flatMap(product => product.productType === "article" || product.productType === "diktat" ? (product.visuals ?? []).filter((visual): visual is SourceFigureVisualSpec => visual.kind === "source_figure") : []);
@@ -259,13 +279,16 @@ export function productV4TargetInputHashes(bundle: Bundle, rows: readonly Produc
   }));
 }
 
-export async function buildProductV4RuntimeBinding(input: { row: ImportRow; bundle: Bundle; runId: string }, injected?: RuntimePorts, read?: DocumentAssetReader, connection?: ProductV4RuntimeConnection): Promise<ProductV4VerificationBinding> {
+export async function buildProductV4RuntimeBinding(input: { row: ImportRow; bundle: Bundle; runId: string; purpose?: ProductV4VerificationPurpose }, injected?: RuntimePorts, read?: DocumentAssetReader, connection?: ProductV4RuntimeConnection): Promise<ProductV4VerificationBinding> {
   const { row, bundle, runId } = input;
+  const purpose = input.purpose ?? "logic";
+  if (!["logic", "pdf"].includes(purpose)) throw new Error("PRODUCT_V4_VERIFICATION_PURPOSE_INVALID");
   if (bundle.manifest.schemaVersion !== "product-bundle.v4" || row.bundleType !== "product" || row.bundleId !== bundle.manifest.bundleId || !/^[a-f0-9]{64}$/i.test(row.checksum)) throw new Error("PRODUCT_V4_IMPORT_MISMATCH");
   const ports = injected ?? await defaultPorts(connection);
   const course = await ports.course(bundle.manifest.courseId);
   if (course.id !== bundle.manifest.courseId || row.courseId !== course.legacyCourseId) throw new Error("PRODUCT_V4_COURSE_MISMATCH");
-  const [rows, figures, runtime] = await Promise.all([ports.dependencies(bundle), verifiedFigures(bundle, ports), ports.runtime()]);
+  const [rows, figures, runtime] = await Promise.all([ports.dependencies(bundle), verifiedFigures(bundle, ports),
+    purpose === "pdf" ? ports.runtime() : (ports.logicRuntime ?? readProductV4LogicExecutorRuntime)()]);
   const resolved = ports.revisionDependencies ? await ports.revisionDependencies({ row, bundle, rows }) : { rows };
   const liveChecksum = productV4DependencyChecksum(bundle, resolved.rows);
   const dependencyChecksum = resolved.contextDigest ? hash({ liveChecksum, revisionVerificationContext: resolved.contextDigest }) : liveChecksum;
@@ -281,9 +304,9 @@ export async function buildProductV4RuntimeBinding(input: { row: ImportRow; bund
     }
   }
   const verifiedAssets = { figures: figures.map(figure => ({ metadata: figure.metadata, variants: figure.variants.map(({ bytes, ...variant }) => ({ ...variant, byteLength: bytes.length, readbackChecksum: bytesHash(bytes) })) })), documents: documentAssets };
-  const execution = productV4ExecutionCapability();
-  return { importId: row.id, courseId: course.id, runId, revision: Number.parseInt(row.checksum.slice(0, 8), 16) + 1,
-    ...(process.env.NODE_ENV === "production" || process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER ? verificationBrowserIdentity() : {}),
+  const execution = productV4ExecutionCapability(purpose);
+  return { purpose, importId: row.id, courseId: course.id, runId, revision: Number.parseInt(row.checksum.slice(0, 8), 16) + 1,
+    ...(purpose === "pdf" && (process.env.NODE_ENV === "production" || process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER) ? verificationBrowserIdentity() : {}),
     ...runtime, policyRevision: PRODUCT_V4_VERIFICATION_POLICY, dependencyChecksum,
     assetChecksum: hash(verifiedAssets),
     ...(execution.available && execution.origin ? { executionOrigin: execution.origin, targetInputHashes: productV4TargetInputHashes(bundle, resolved.rows, verifiedAssets, resolved.contextDigest) } : {}),
@@ -296,7 +319,7 @@ export async function buildProductV4RuntimeBinding(input: { row: ImportRow; bund
  */
 export async function buildProductV4RevisionReuseBinding(input: { row: ImportRow; bundle: Bundle; runId: string }): Promise<ProductV4VerificationBinding> {
   const ports = await defaultPorts();
-  return buildProductV4RuntimeBinding(input, { ...ports, revisionDependencies: undefined });
+  return buildProductV4RuntimeBinding({ ...input, purpose: "pdf" }, { ...ports, revisionDependencies: undefined });
 }
 
 export function expectedChromiumRuntime(): { browserVersion: string; revision: string } {
@@ -307,7 +330,7 @@ export function expectedChromiumRuntime(): { browserVersion: string; revision: s
   return { browserVersion: chromium.browserVersion, revision: chromium.revision };
 }
 
-export function assertProductV4RuntimeFingerprint(expected: ProductV4RuntimeFingerprint, actual: ProductV4RuntimeFingerprint): void {
+export function assertProductV4RuntimeFingerprint(expected: Partial<ProductV4RuntimeFingerprint>, actual: ProductV4RuntimeFingerprint): void {
   for (const key of ["rendererChecksum", "fontChecksum", "contractChecksum", "playbookChecksum", "printProfile"] as const) {
     if (!actual[key] || expected[key] !== actual[key]) throw new Error(`PRODUCT_V4_RUNTIME_MISMATCH:${key}`);
   }
@@ -324,6 +347,20 @@ export async function readProductV4ExecutorRuntime(): Promise<ProductV4RuntimeFi
   return resolveProductV4LoadedRuntime(embedded);
 }
 
+export function assertProductV4LogicRuntimeFingerprint(expected: Partial<ProductV4LogicRuntimeFingerprint>, actual: ProductV4LogicRuntimeFingerprint): void {
+  for (const key of ["logicChecksum", "contractChecksum", "playbookChecksum"] as const) {
+    if (!actual[key] || expected[key] !== actual[key]) throw new Error(`PRODUCT_V4_LOGIC_RUNTIME_MISMATCH:${key}`);
+  }
+}
+
+export async function readProductV4LogicExecutorRuntime(): Promise<ProductV4LogicRuntimeFingerprint> {
+  const embedded = typeof __ZYX_VERIFICATION_BUILD_RUNTIME__ === "undefined" ? undefined : __ZYX_VERIFICATION_BUILD_RUNTIME__.logicFingerprint;
+  const actual = await readProductV4LogicRuntimeFingerprint();
+  if (embedded) assertProductV4LogicRuntimeFingerprint(embedded, actual);
+  else if (typeof __ZYX_VERIFICATION_BUILD_RUNTIME__ !== "undefined") throw new Error("PRODUCT_V4_LOGIC_BUILD_RUNTIME_REQUIRED");
+  return embedded ?? actual;
+}
+
 function runtimePackageManifest(name: string): string {
   // Read the traced manifest directly, including packages that hide it through exports.
   return resolve(/* turbopackIgnore: true */ process.cwd(), "node_modules", name, "package.json");
@@ -335,7 +372,8 @@ export async function readProductV4RuntimeFingerprint(): Promise<ProductV4Runtim
     const fingerprint = JSON.parse(process.env.ZYX_COMPUTE_RUNTIME === "neon" ? process.env.ZYX_COMPUTE_BUILD_RUNTIME! : process.env.NEXT_PUBLIC_V4_WEB_RUNTIME!);
     for (const key of ["rendererChecksum", "fontChecksum", "contractChecksum", "playbookChecksum"]) if (!/^[a-f0-9]{64}$/.test(fingerprint[key] ?? "")) throw new Error("PRODUCT_V4_BUILD_RUNTIME_INVALID");
     if (!fingerprint.printProfile) throw new Error("PRODUCT_V4_BUILD_RUNTIME_INVALID");
-    return fingerprint;
+    return { rendererChecksum: fingerprint.rendererChecksum, fontChecksum: fingerprint.fontChecksum,
+      contractChecksum: fingerprint.contractChecksum, playbookChecksum: fingerprint.playbookChecksum, printProfile: fingerprint.printProfile };
   }
   const [{ getStagePlaybookManifest }, { PRODUCT_DIKTAT_PRINT_PROFILE }] = await Promise.all([import("@/lib/authoring/mcp-playbook"), import("@/lib/bundle/product-diktat-pdf")]);
   const require = createRequire(import.meta.url);
@@ -348,12 +386,31 @@ export async function readProductV4RuntimeFingerprint(): Promise<ProductV4Runtim
   // Git checkouts on Windows use CRLF; bind the same source text on Linux deployments.
   const files = PRODUCT_V4_RUNTIME_FILES.map(path => [path, bytesHash(Buffer.from(readFileSync(resolve(/* turbopackIgnore: true */ process.cwd(), path), "utf8").replace(/\r\n/g, "\n")))] as const);
   // Bun bundling expands Unicode regex escapes; bind contract source, not engine-specific JSON Schema spellings.
-  const contractFiles = files.filter(([path]) => /^lib\/(authoring|materials|bundle|ide|sumber|coding|zyra\/canvas)\//.test(path) || path === "lib/question-authoring-contract.ts");
+  const contractFiles = files.filter(([path]) => /^lib\/(authoring|materials|bundle|ide|sumber|coding|zyra\/canvas)\//.test(path) || path === "lib/question-authoring-contract.ts" || path === "lib/markdown-compiler.ts" || path === "lib/ast-validator.ts");
   return { rendererChecksum: hash({ files, versions, browsers: bytesHash(browsers), chromium: expectedChromiumRuntime() }),
     fontChecksum: hash({ stylesheet: bytesHash(readFileSync(join(katexRoot, "dist/katex.min.css"))), fonts: fonts.map(name => [name, bytesHash(readFileSync(join(katexRoot, "dist/fonts", name)))]) }),
     contractChecksum: hash({ files: contractFiles, policy: PRODUCT_V4_VERIFICATION_POLICY }), playbookChecksum: getStagePlaybookManifest("product").playbookChecksum,
     printProfile: PRODUCT_DIKTAT_PRINT_PROFILE,
   };
+}
+
+/** The logic manifest contains no renderer, font, browser or screenshot fingerprint. */
+export async function readProductV4LogicRuntimeFingerprint(): Promise<ProductV4LogicRuntimeFingerprint> {
+  if (process.env.ZYX_COMPUTE_RUNTIME === "neon" || process.env.NEXT_PUBLIC_V4_WEB_RUNTIME) {
+    const manifest = JSON.parse(process.env.ZYX_COMPUTE_RUNTIME === "neon" ? process.env.ZYX_COMPUTE_BUILD_RUNTIME! : process.env.NEXT_PUBLIC_V4_WEB_RUNTIME!);
+    const fingerprint = manifest.logicFingerprint;
+    for (const key of ["logicChecksum", "contractChecksum", "playbookChecksum"] as const) {
+      if (!/^[a-f0-9]{64}$/.test(fingerprint?.[key] ?? "")) throw new Error("PRODUCT_V4_LOGIC_BUILD_RUNTIME_INVALID");
+    }
+    return { logicChecksum: fingerprint.logicChecksum, contractChecksum: fingerprint.contractChecksum, playbookChecksum: fingerprint.playbookChecksum };
+  }
+  const { getStagePlaybookManifest } = await import("@/lib/authoring/mcp-playbook");
+  const versions = ["zod", "mathjs", "katex", "pngjs"].map(name => [name, JSON.parse(readFileSync(runtimePackageManifest(name), "utf8")).version]);
+  const files = PRODUCT_V4_LOGIC_RUNTIME_FILES.map(path => [path, bytesHash(Buffer.from(readFileSync(resolve(/* turbopackIgnore: true */ process.cwd(), path), "utf8").replace(/\r\n/g, "\n")))] as const);
+  const contractFiles = files.filter(([path]) => /^lib\/(authoring|materials|bundle|ide|sumber|coding|zyra\/canvas)\//.test(path) || path === "lib/question-authoring-contract.ts" || path === "lib/markdown-compiler.ts" || path === "lib/ast-validator.ts");
+  return { logicChecksum: hash({ schema: "product-v4-logic-runtime.v1", files, versions, policy: PRODUCT_V4_VERIFICATION_POLICY }),
+    contractChecksum: hash({ schema: "product-v4-logic-contract.v1", files: contractFiles, policy: PRODUCT_V4_VERIFICATION_POLICY }),
+    playbookChecksum: getStagePlaybookManifest("product").playbookChecksum };
 }
 
 async function defaultPorts(connection?: ProductV4RuntimeConnection): Promise<RuntimePorts> {
@@ -368,6 +425,7 @@ async function defaultPorts(connection?: ProductV4RuntimeConnection): Promise<Ru
     figure: input => resolveSourceFigureForCourse(input, undefined, database),
     async download(key) { if (!storage.download) throw new Error("STORAGE_DOWNLOAD_UNSUPPORTED"); return storage.download(key); },
     runtime: readProductV4ExecutorRuntime,
+    logicRuntime: readProductV4LogicExecutorRuntime,
     async revisionDependencies(input) {
       const { resolveRevisionVerificationContext } = await import("@/lib/authoring/revision-verification-context");
       return resolveRevisionVerificationContext(input, database);

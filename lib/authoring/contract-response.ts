@@ -34,7 +34,7 @@ export function compactContractView<T>(input: ContractViewInput<T>, options: Con
   if (outputs.productBundle) {
     const { pilot: _pilot, ...product } = record(outputs.productBundle);
     const verification = record(product.verification);
-    const execution = record(verification.execution);
+    const execution = record(record(verification.pdf).execution ?? verification.execution);
     if (execution.mode !== "local_operator" || execution.available !== true) {
       const { localOperator: _local, ...activeVerification } = verification;
       product.verification = activeVerification;

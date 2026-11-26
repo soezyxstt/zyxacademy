@@ -18,6 +18,47 @@ test("already bounded validation errors retain the original issue count", () => 
   expect(authoringFailureDiagnostics({ ...error, issueCount: -1 })).toMatchObject({ diagnosticCount: 1, diagnosticsTruncated: false });
 });
 
+test("PDF generation recovery preserves purpose without routing legacy gates through V4", () => {
+  for (const code of ["PDF_V4_RECEIPT_MISMATCH", "PRODUCT_V4_PDF_EVIDENCE_REQUIRED"]) {
+    const result = authoringFailureDiagnostics(new Error(code));
+    expect(result).toMatchObject({ category: "runtime", retryable: false, nextAction: { kind: "request_verification", tool: "authoring.verify_product_bundle", purpose: "pdf" } });
+    expect(result.nextAction.instruction).toContain("Keep authored text unchanged");
+  }
+  const legacyOrV4 = authoringFailureDiagnostics(new Error("PDF_EVIDENCE_MISSING"));
+  expect(legacyOrV4).toMatchObject({ category: "runtime", nextAction: { kind: "read_context", tool: "authoring.get_import" } });
+  expect(legacyOrV4.nextAction).not.toHaveProperty("purpose");
+  expect(legacyOrV4.nextAction.instruction).toContain("purpose:'pdf'");
+  expect(legacyOrV4.nextAction.instruction).toContain("legacy V2/V3");
+  expect(authoringFailureDiagnostics(new Error("PRODUCT_V4_PDF_NOT_REQUIRED"))).toMatchObject({ nextAction: { kind: "request_verification", purpose: "logic" } });
+  expect(authoringFailureDiagnostics(new Error("PRODUCT_V4_PDF_EVIDENCE_PERSIST_FAILED"))).toMatchObject({ category: "runtime", nextAction: { kind: "inspect_runtime", purpose: "pdf" } });
+  // A genuine print-size finding still requires an authored content change.
+  expect(authoringFailureDiagnostics(new Error("PDF_PAGE_BUDGET_EXCEEDED"))).toMatchObject({ category: "content", nextAction: { kind: "edit_content" } });
+});
+
+test("publication wrappers expose only safe gate codes and recover missing PDF without prose edits", () => {
+  expect(authoringFailureDiagnostics(new Error("PRODUCT_BUNDLE_PUBLICATION_BLOCKED:PDF_V4_RECEIPT_MISMATCH"))).toMatchObject({ blockingCode: "PDF_V4_RECEIPT_MISMATCH", nextAction: { kind: "request_verification", purpose: "pdf" } });
+  expect(authoringFailureDiagnostics(new Error("PRODUCT_BUNDLE_PUBLICATION_BLOCKED:PDF_EVIDENCE_MISSING"))).toMatchObject({ blockingCode: "PDF_EVIDENCE_MISSING", nextAction: { kind: "read_context", tool: "authoring.get_import" } });
+  const unsafe = authoringFailureDiagnostics(new Error("PRODUCT_BUNDLE_PUBLICATION_BLOCKED:token=private-value"));
+  expect(unsafe).toMatchObject({ nextAction: { kind: "read_context", tool: "authoring.get_import" } });
+  expect(unsafe).not.toHaveProperty("blockingCode");
+  expect(JSON.stringify(unsafe)).not.toContain("private-value");
+});
+
+test("verification recovery retains selected logic or PDF context", () => {
+  for (const purpose of ["logic", "pdf"] as const) {
+    for (const code of ["PRODUCT_V4_VERIFICATION_JOB_NOT_FOUND", "PRODUCT_V4_VERIFICATION_CANCELLED"]) {
+      const result = authoringFailureDiagnostics(new Error(code), { purpose });
+      expect(result.nextAction).toMatchObject({ kind: "request_verification", purpose });
+      expect(result.nextAction.instruction).toContain(`purpose:'${purpose}'`);
+    }
+  }
+  const currentVerification = { contentHash: "a".repeat(64), planHash: "b".repeat(64), purpose: "pdf" as const };
+  const result = authoringFailureDiagnostics(Object.assign(new Error("PRODUCT_V4_VERIFICATION_CONFLICT"), { currentVerification }));
+  expect(result.currentVerification).toEqual(currentVerification);
+  expect(result.nextAction.instruction).toContain("pdf plan hashes");
+  expect(authoringFailureDiagnostics(Object.assign(new Error("PRODUCT_V4_VERIFICATION_CONFLICT"), { currentVerification: { ...currentVerification, purpose: "untrusted" } })).currentVerification).not.toHaveProperty("purpose");
+});
+
 test("current verification context exposes only validated hashes and recovery avoids content edits", () => {
   const currentVerification = { contentHash: "a".repeat(64), planHash: "b".repeat(64), status: "not_started", secret: "must-not-leak" };
   const result = authoringFailureDiagnostics(Object.assign(new Error("PRODUCT_V4_VERIFICATION_CONFLICT"), { currentVerification }));

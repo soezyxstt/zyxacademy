@@ -1,10 +1,11 @@
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { expectedChromiumRuntime, readProductV4RuntimeFingerprint } from "../../lib/compute/product-v4-runtime-binding";
+import { expectedChromiumRuntime, readProductV4RuntimeFingerprint, readProductV4LogicRuntimeFingerprint } from "../../lib/compute/product-v4-runtime-binding";
 
 const outdir = resolve("artifacts/authoring-verification");
 const fingerprint = await readProductV4RuntimeFingerprint();
+const logicFingerprint = await readProductV4LogicRuntimeFingerprint();
 const chromium = expectedChromiumRuntime();
 mkdirSync(outdir, { recursive: true });
 const result = await Bun.build({
@@ -18,7 +19,7 @@ const result = await Bun.build({
       return { path: file, external: false };
     });
   } }],
-  define: { __ZYX_VERIFICATION_BUILD_RUNTIME__: JSON.stringify({ fingerprint, chromium }) },
+  define: { __ZYX_VERIFICATION_BUILD_RUNTIME__: JSON.stringify({ fingerprint, logicFingerprint, chromium }) },
 });
 if (!result.success) throw new AggregateError(result.logs, "VERIFICATION_RENDERER_BUILD_FAILED");
 const output = resolve(outdir, "renderer.mjs");

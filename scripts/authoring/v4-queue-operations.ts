@@ -1,6 +1,6 @@
 import { prepareTask } from "../../lib/queue/cloud-tasks";
 
-type Identity = { importId: string; runId: string; planHash: string; attemptId: string };
+type Identity = { importId: string; runId: string; planHash: string; attemptId: string; purpose?: "logic" | "pdf" };
 type Ports = { fetch(url: string, init: RequestInit): Promise<Response>; accessToken(): Promise<string> };
 const defaultPorts: Ports = {
   fetch: (...args) => fetch(...args),
@@ -20,9 +20,11 @@ export function v4OperationQueueProvider(env: Record<string, string | undefined>
 
 export async function operateCloudTask(input: Identity & { environment: string; action: "inspect" | "cancel"; verificationStatus?: string }, ports: Ports = defaultPorts) {
   if (input.environment !== "staging" && input.environment !== "production") throw new Error("V4_OPERATION_ENVIRONMENT_INVALID");
+  const purpose = input.purpose ?? "logic";
+  if (purpose !== "logic" && purpose !== "pdf") throw new Error("V4_OPERATION_PURPOSE_INVALID");
   if (!/^[a-f0-9]{64}$/.test(input.planHash) || !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(input.attemptId)) throw new Error("V4_OPERATION_ATTEMPT_INVALID");
   if (input.action === "cancel" && input.verificationStatus !== "pending") throw new Error("V4_OPERATION_CLOUD_TASKS_RUNNING_CANCEL_UNSUPPORTED");
-  const { task } = prepareTask({ name: "product.verification.requested", id: `product-verification-${input.planHash}-${input.attemptId}`, data: { importId: input.importId, runId: input.runId, planHash: input.planHash, attemptId: input.attemptId } }, input.environment);
+  const { task } = prepareTask({ name: "product.verification.requested", id: `product-verification-${input.planHash}-${input.attemptId}`, data: { importId: input.importId, runId: input.runId, planHash: input.planHash, attemptId: input.attemptId, purpose } }, input.environment);
   const url = `https://cloudtasks.googleapis.com/v2/${task.name}`;
   const headers = { Authorization: `Bearer ${await ports.accessToken()}` };
   const response = await ports.fetch(url, { headers, redirect: "error", signal: AbortSignal.timeout(15_000) });

@@ -1,6 +1,6 @@
 {
   "name": "zyx-stg",
-  "version": "0.5.4",
+  "version": "0.5.6",
   "description": "Zyx staging content and ops",
   "author": {
     "name": "Zyx Academy"
@@ -43,7 +43,7 @@
       "Run or resume the end-to-end authoring pipeline from course sources through validated Idea and Product Bundles.",
       "Build a Source Pack from stored course PDFs and validate it through Zyx MCP.",
       "Create an Idea draft from a validated Source Pack using the connected server's advertised draft contract and exact source quotes.",
-      "Create an Article or Diktat from published Ideas, preview the same draft JSON when a checkout is available, and keep trusted verification and independent review separate.",
+      "Create an Article or Diktat from published Ideas, verify V4 content with purpose logic without browser captures, and request purpose pdf only for final Diktat artifacts before authorized publication.",
       "Revise one stored Idea or Product target using current revision identity and compact reads, then inspect full release context before review or publication.",
       "Author an Idea-linked Question Bank draft for admin review.",
       "Ingest stored historical question and solution PDFs into immutable attributed reference records."

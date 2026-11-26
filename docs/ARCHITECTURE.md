@@ -80,7 +80,7 @@ Source PDFs / Documents
 ```
 
 - **Product V4 (default for Article & Diktat)**: Supports ordered scientific blocks, KaTeX math, typed `zyx-visual` Markdown embeds, sandboxed `interactive_document` widgets (with theme/resize/offscreen-pause messaging), source figure assets, and static 1 to 4 page Diktat PDFs.
-- **Verification and Review**: Staged drafts require browser and PDF verification (`local_playwright`, `cloudflare`, or `steel`) bound to the exact import, revision, and web build fingerprint, followed by explicit semantic review before atomic publication.
+- **V4 Verification and Review**: The default `logic` purpose checks structure, references, notation and supported models without a browser or PDF. Semantic review binds its exact receipt. An explicit `pdf` purpose prepares final Diktat artifacts through the configured renderer and reuses valid unchanged targets. Publication requires current logic and review plus exact canonical PDFs for included Diktats, with no screenshot, page-capture or visual-review gate. Legacy V2/V3 keep their separate policy.
 - **MCP Surface (`/api/mcp/authoring`)**: Streamable HTTP MCP server exposing authoring, assessment, and admin operations with OAuth PKCE consent, 4 default OAuth scopes plus explicit publication/admin grants, capability discovery, and operation receipts.
 
 ## 5. Zyra AI Architecture and Multi-Provider Routing

@@ -95,7 +95,7 @@ export async function runProductV4LocalVerification() {
       const [runtime, { verificationBrowserIdentity }] = await Promise.all([import("../../lib/compute/product-v4-runtime-binding"), import("../../lib/compute/product-v4-browser-config")]);
       const chromium = runtime.expectedChromiumRuntime();
       const configured = verificationBrowserIdentity({ NODE_ENV: "production", AUTHORING_VERIFICATION_BROWSER_PROVIDER: "local_playwright" } as NodeJS.ProcessEnv);
-      console.log(JSON.stringify({ schema: "zyx-product-v4-local-capabilities.v1", operator: { launcher: "scripts/authoring/run-product-v4-local.mjs", command: "node scripts/authoring/run-product-v4-local.mjs --input <input.json>", inputSchema: "zyx-product-v4-local-input.v1", requiredFields: ["privateFile", "sourceRevision", "importId", "runId", "expectedChecksum"], optionalFields: ["retry"], resultSchema: "zyx-product-v4-local-result.v1", target: "verified-production-only", deployedRevisionCheck: "operator-prerequisite", deployedRevisionSource: "authorized deployment record; not inferred from local HEAD" }, browser: { ...chromium, provider: configured.browserProvider, configuredVersion: configured.browserVersion, pinsMatch: configured.browserVersion === chromium.browserVersion }, runtime: await runtime.readProductV4RuntimeFingerprint(), concurrency: 1 }));
+      console.log(JSON.stringify({ schema: "zyx-product-v4-local-capabilities.v1", operator: { purpose: "pdf", launcher: "scripts/authoring/run-product-v4-local.mjs", command: "node scripts/authoring/run-product-v4-local.mjs --input <input.json>", inputSchema: "zyx-product-v4-local-input.v1", requiredFields: ["privateFile", "sourceRevision", "importId", "runId", "expectedChecksum"], optionalFields: ["retry"], resultSchema: "zyx-product-v4-local-result.v1", target: "verified-production-only", deployedRevisionCheck: "operator-prerequisite", deployedRevisionSource: "authorized deployment record; not inferred from local HEAD" }, browser: { ...chromium, provider: configured.browserProvider, configuredVersion: configured.browserVersion, pinsMatch: configured.browserVersion === chromium.browserVersion }, runtime: await runtime.readProductV4RuntimeFingerprint(), concurrency: 1 }));
     } finally {
       if (previousDatabase === undefined) delete process.env.DATABASE_URL;
       else process.env.DATABASE_URL = previousDatabase;
@@ -132,12 +132,12 @@ export async function runProductV4LocalVerification() {
       // The service reads the exact draft and its latest staging audit before any write.
       const requested = await service.requestProductV4VerificationLocally({ ...selectedInput, retry: input.retry });
       if (["failed", "stale"].includes(requested.state.status)) {
-        console.log(JSON.stringify({ schema: "zyx-product-v4-local-result.v1", status: requested.state.status, importId: input.importId, runId: input.runId, checksum: input.expectedChecksum, planHash: requested.plan.planHash, attemptId: requested.attemptId, failureCode: requested.state.failureCode ?? null }));
+        console.log(JSON.stringify({ schema: "zyx-product-v4-local-result.v1", purpose: "pdf", status: requested.state.status, importId: input.importId, runId: input.runId, checksum: input.expectedChecksum, planHash: requested.plan.planHash, attemptId: requested.attemptId, failureCode: requested.state.failureCode ?? null }));
         throw new Error("PRODUCT_V4_LOCAL_RETRY_REQUIRED");
       }
       let result;
       try {
-        result = await service.processProductV4VerificationJob({ importId: input.importId, runId: input.runId, planHash: requested.plan.planHash, attemptId: requested.attemptId }, undefined, async check => {
+        result = await service.processProductV4VerificationJob({ importId: input.importId, runId: input.runId, planHash: requested.plan.planHash, attemptId: requested.attemptId, purpose: "pdf" }, undefined, async check => {
           assertSource();
           if (check.requirement.layer === "structure" || check.requirement.layer === "model") return executor.executeProductV4VerificationCheck(check);
           const staticFigureAssets = await runtime.loadProductV4StaticFigureAssets(check.bundle, undefined, check.requirement.layer === "print");
@@ -145,7 +145,7 @@ export async function runProductV4LocalVerification() {
           return runner.executeBrowserProductV4Check({ ...check, baseUrl: "https://www.zyxacademy.com", staticFigureAssets, interactiveDocumentAssets });
         }, selectedInput);
       } catch (error) {
-        console.log(JSON.stringify({ schema: "zyx-product-v4-local-result.v1", status: "execution_failed", importId: input.importId, runId: input.runId, checksum: input.expectedChecksum, planHash: requested.plan.planHash, attemptId: requested.attemptId }));
+        console.log(JSON.stringify({ schema: "zyx-product-v4-local-result.v1", purpose: "pdf", status: "execution_failed", importId: input.importId, runId: input.runId, checksum: input.expectedChecksum, planHash: requested.plan.planHash, attemptId: requested.attemptId }));
         throw error;
       }
       const verified = await service.getProductV4VerificationLocally({ ...selectedInput, planHash: result.plan.planHash });
@@ -162,7 +162,7 @@ export async function runProductV4LocalVerification() {
         await writeFile(path.join(outputDirectory, artifact.id), bytes);
         inventory.push({ file: artifact.id, checkId: check.checkId, mediaType: artifact.mediaType, checksum: artifact.checksum, byteLength: artifact.byteLength, ...(artifact.pageNumber === undefined ? {} : { pageNumber: artifact.pageNumber }) });
       }
-      const summary = { schema: "zyx-product-v4-local-result.v1", status: verified.evaluation.ready ? "ready" : "not_ready", sourceRevision: input.sourceRevision, importId: input.importId, runId: input.runId, checksum: input.expectedChecksum, planHash: verified.plan.planHash, receiptSignature: verified.receipt?.signature ?? null, attemptId: verified.attemptId, browserProvider: "local_playwright", chromium, requirementCount: verified.plan.requirements.length, ready: verified.evaluation.ready, artifactCount: inventory.length, outputDirectory, planFile: path.join(outputDirectory, "plan.json"), receiptFile: path.join(outputDirectory, "receipt.json"), inventory, next: "Inspect evidence, then use current MCP review and publication tools with explicit semantic decisions." };
+      const summary = { schema: "zyx-product-v4-local-result.v1", purpose: "pdf", status: verified.evaluation.ready ? "ready" : "not_ready", sourceRevision: input.sourceRevision, importId: input.importId, runId: input.runId, checksum: input.expectedChecksum, planHash: verified.plan.planHash, receiptSignature: verified.receipt?.signature ?? null, attemptId: verified.attemptId, browserProvider: "local_playwright", chromium, requirementCount: verified.plan.requirements.length, ready: verified.evaluation.ready, artifactCount: inventory.length, outputDirectory, planFile: path.join(outputDirectory, "plan.json"), receiptFile: path.join(outputDirectory, "receipt.json"), inventory, next: verified.evaluation.ready ? "PDF generation complete. Use the separate logic verification receipt and explicit semantic decisions for review and publication." : "Resolve the current PDF generation failure before publication." };
       await writeFile(path.join(outputDirectory, "summary.json"), JSON.stringify(summary, null, 2));
       console.log(JSON.stringify(summary));
       if (!verified.evaluation.ready) throw new Error("PRODUCT_V4_LOCAL_VERIFICATION_NOT_READY");

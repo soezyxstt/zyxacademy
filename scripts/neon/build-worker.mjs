@@ -11,7 +11,8 @@ import { fileURLToPath } from "node:url";
 const require = createRequire(import.meta.url);
 const output = resolve(process.argv[2] || "artifacts/neon-worker");
 const packages = ["katex", "playwright-core"];
-const fingerprint = JSON.parse(await readFile("artifacts/authoring-verification/web-runtime.json", "utf8"));
+const { logicFingerprint, ...fingerprint } = JSON.parse(await readFile("artifacts/authoring-verification/web-runtime.json", "utf8"));
+for (const key of ["logicChecksum", "contractChecksum", "playbookChecksum"]) if (!/^[a-f0-9]{64}$/.test(logicFingerprint?.[key] ?? "")) throw new Error("NEON_LOGIC_RUNTIME_FINGERPRINT_REQUIRED");
 const chromium = JSON.parse(await readFile(join(dirname(require.resolve("playwright-core/package.json")), "browsers.json"), "utf8")).browsers.find(browser => browser.name === "chromium");
 const nativeDeps = process.platform === "win32" ? {
   async install(cwd, specs) {
@@ -20,7 +21,7 @@ const nativeDeps = process.platform === "win32" ? {
     await promisify(execFile)(process.execPath, [npm, "install", "--cpu=arm64", "--os=linux", "--libc=glibc", "--ignore-scripts", "--no-audit", "--no-fund", ...specs], { cwd, maxBuffer: 4 * 1024 * 1024 });
   },
 } : undefined;
-const bundled = await build({ entryPoints: ["workers/neon-background/main.ts"], bundle: true, write: false, minify: true, format: "esm", platform: "node", target: "node24", outfile: "index.mjs", external: [...packages, "@napi-rs/canvas", "pdf-parse", "pdfjs-dist"], define: { "process.env.ZYX_COMPUTE_RUNTIME": JSON.stringify("neon"), "__ZYX_VERIFICATION_BUILD_RUNTIME__": JSON.stringify({ fingerprint, chromium: { browserVersion: chromium.browserVersion, revision: chromium.revision } }) },
+const bundled = await build({ entryPoints: ["workers/neon-background/main.ts"], bundle: true, write: false, minify: true, format: "esm", platform: "node", target: "node24", outfile: "index.mjs", external: [...packages, "@napi-rs/canvas", "pdf-parse", "pdfjs-dist"], define: { "process.env.ZYX_COMPUTE_RUNTIME": JSON.stringify("neon"), "__ZYX_VERIFICATION_BUILD_RUNTIME__": JSON.stringify({ fingerprint, logicFingerprint, chromium: { browserVersion: chromium.browserVersion, revision: chromium.revision } }) },
   // Deno's nested npm cache must not contribute a second SDK with different internal Symbols.
   plugins: [{ name: "shared-worker-sdk", setup(build) { build.onResolve({ filter: /^(inngest|hono)(\/.*)?$/ }, args => ({ path: fileURLToPath(import.meta.resolve(args.path)) })); } }],
   banner: { js: "import{createRequire as ___cr}from'node:module';const require=___cr(import.meta.url);" } });

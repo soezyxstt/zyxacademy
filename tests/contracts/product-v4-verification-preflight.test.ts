@@ -10,7 +10,7 @@ function fixture(twoDiktats = false) {
   const { bundle } = buildLocalVerificationFixture();
   const diktat = bundle.products.find(product => product.productType === "diktat")!;
   const products = twoDiktats ? [...bundle.products, { ...diktat, id: `${diktat.id}-second` }] : bundle.products;
-  const binding = { importId: "import", courseId: bundle.manifest.courseId, runId: "run", revision: 1, rendererChecksum: hash, dependencyChecksum: hash, contractChecksum: hash, playbookChecksum: hash, fontChecksum: hash, assetChecksum: hash, printProfile: "a4", policyRevision: PRODUCT_V4_VERIFICATION_POLICY };
+  const binding = { importId: "import", courseId: bundle.manifest.courseId, runId: "run", revision: 1, purpose: "pdf" as const, rendererChecksum: hash, dependencyChecksum: hash, contractChecksum: hash, playbookChecksum: hash, fontChecksum: hash, assetChecksum: hash, printProfile: "a4", policyRevision: PRODUCT_V4_VERIFICATION_POLICY };
   return deriveProductV4VerificationPlan({ bundle: { ...bundle, products }, binding });
 }
 const observe = (requirement: ProductV4VerificationRequirement): ProductV4ObservedCheck => ({
@@ -59,63 +59,41 @@ test("preflight transport exceptions stay errors instead of becoming content fai
   await expect(runProductV4Verification(fixture(), authority, async () => { throw error; })).rejects.toBe(error);
 });
 
-for (const persisted of [false, true]) test(`one PDF render per target satisfies both print checks using ${persisted ? "persisted" : "raw"} page evidence`, async () => {
+for (const persisted of [false, true]) test(`one render per Diktat produces ${persisted ? "persisted" : "raw"} PDF evidence without screenshots`, async () => {
   const plan = fixture(true);
-  const calls: ProductV4VerificationRequirement[] = [];
   let renders = 0;
-  const execute = async (requirement: ProductV4VerificationRequirement) => {
-    calls.push(requirement);
+  const receipt = await runProductV4Verification(plan, authority, async requirement => {
     const observed = observe(requirement);
     if (requirement.artifactType === "application/pdf") {
       const bytes = Buffer.from(`%PDF-1.7\n${requirement.target}\n%%EOF`);
       const print = await renderProductV4PrintArtifacts({
         renderPdf: async () => { renders++; return bytes; },
         pageCount: async pdf => { expect(pdf).toBe(bytes); return 2; },
-        capturePages: async (pdf, pages) => { expect(pdf).toBe(bytes); return pages.map(pageNumber => ({ pageNumber, png })); },
       });
       Object.assign(observed, print, { artifacts: print.artifacts.map(artifact => ({ ...artifact, id: `${requirement.id}-${artifact.id}` })) });
     }
     return persisted ? recordProductV4VerificationReport(plan, [observed], authority).results[0] : observed;
-  };
-  const receipt = await runProductV4Verification(plan, authority, execute);
+  });
   expect(renders).toBe(2);
-  expect(calls.filter(check => check.state === "every-page-rendering-and-overflow")).toHaveLength(0);
-  expect(receipt.results).toHaveLength(plan.requirements.length);
   expect(evaluateProductV4Verification(plan, [receipt], authority).ready).toBe(true);
+  expect(receipt.results.flatMap(check => check.artifacts).filter(artifact => artifact.mediaType === "image/png")).toHaveLength(0);
   for (const requirement of plan.requirements.filter(check => check.artifactType === "application/pdf")) {
     const source = receipt.results.find(check => check.checkId === requirement.id)!;
-    const pageCheck = plan.requirements.find(check => check.target === requirement.target && check.state === "every-page-rendering-and-overflow")!;
-    const pages = receipt.results.find(check => check.checkId === pageCheck.id)!;
-    expect(pages.artifacts).toEqual(source.artifacts.filter(artifact => artifact.mediaType === "image/png"));
-    expect(pages.pageCount).toBe(2);
+    expect(source.artifacts).toHaveLength(1);
+    expect(source.pageCount).toBe(2);
   }
-  // Reuse belongs to this invocation's exact plan, never another run or runtime binding.
-  await runProductV4Verification(plan, authority, execute);
-  expect(renders).toBe(4);
 });
 
-test("older PDF-only executors still execute the separate page requirement", async () => {
+for (const failure of ["failed-pdf", "missing-pdf", "missing-page-count"] as const) test(`${failure} cannot satisfy final PDF readiness`, async () => {
   const plan = fixture();
-  const calls: string[] = [];
-  const receipt = await runProductV4Verification(plan, authority, async requirement => { calls.push(requirement.state); return observe(requirement); });
-  expect(calls).toContain("every-page-rendering-and-overflow");
-  expect(evaluateProductV4Verification(plan, [receipt], authority).ready).toBe(true);
-});
-
-for (const failure of ["failed-pdf", "missing-page", "duplicate-page"] as const) test(`${failure} cannot fabricate a successful paired print check`, async () => {
-  const plan = fixture();
-  let pageChecks = 0;
   const receipt = await runProductV4Verification(plan, authority, async requirement => {
     const result = observe(requirement);
     if (requirement.artifactType === "application/pdf") {
-      result.pageCount = 2;
-      result.artifacts.push({ id: "page-1.png", mediaType: "image/png", bytes: png, pageNumber: 1 });
-      if (failure !== "missing-page") result.artifacts.push({ id: "page-2.png", mediaType: "image/png", bytes: png, pageNumber: failure === "duplicate-page" ? 1 : 2 });
       if (failure === "failed-pdf") result.status = "FAIL";
+      if (failure === "missing-pdf") result.artifacts = [];
+      if (failure === "missing-page-count") delete result.pageCount;
     }
-    if (requirement.state === "every-page-rendering-and-overflow") { pageChecks++; result.status = "FAIL"; }
     return result;
   });
-  expect(pageChecks).toBe(1);
   expect(evaluateProductV4Verification(plan, [receipt], authority).ready).toBe(false);
 });

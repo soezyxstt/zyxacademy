@@ -13,6 +13,12 @@ on:
         options: [inspect, retry, evidence, cancel]
         default: inspect
         required: true
+      purpose:
+        description: Logic validation or final Diktat PDF generation
+        type: choice
+        options: [logic, pdf]
+        default: logic
+        required: true
       revision:
         description: Exact bundle checksum from the inspect operation
         type: string
@@ -56,6 +62,7 @@ jobs:
           AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION: ${{ vars.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION || secrets.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION }}
           V4_OPERATION: ${{ inputs.action }}
           V4_REVISION: ${{ inputs.revision }}
+          V4_PURPOSE: ${{ inputs.purpose }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
           INNGEST_EVENT_KEY: ${{ secrets.INNGEST_EVENT_KEY }}
@@ -68,7 +75,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
-          if [ "$ZYX_ENVIRONMENT" = staging ]; then
+          if [ "$ZYX_ENVIRONMENT" = staging ] && [ "$V4_PURPOSE" = pdf ]; then
             python3 .github/scripts/staging_authoring_browser.py bun --conditions=react-server scripts/authoring/operate-v4-verification.ts
           else
             bun --conditions=react-server scripts/authoring/operate-v4-verification.ts

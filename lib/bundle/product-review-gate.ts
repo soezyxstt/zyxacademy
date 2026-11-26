@@ -79,6 +79,8 @@ export function assertProductSectionReviews(input: ProductSectionReviewInput): v
   if (state.missing.length) throw new Error(`PRODUCT_BUNDLE_SECTION_APPROVAL_REQUIRED:${state.missing.map(label).join(",")}`);
 }
 
+type ProductV4QualityVerification = { plan: ProductV4VerificationPlan; attemptId?: string; stagingAuditId?: string; receipt?: unknown; evaluation: { ready: boolean } };
+
 export interface ProductBundleEvaluationContext {
   imporBundleId?: string;
   publisherId?: string;
@@ -86,7 +88,8 @@ export interface ProductBundleEvaluationContext {
   pdfEvidence?: readonly PdfArtifactEvidence[] | null;
   pendingPdfRequests?: readonly { productId: string }[];
   tx?: any;
-  v4Verification?: { plan: ProductV4VerificationPlan; attemptId?: string; stagingAuditId?: string; receipt?: unknown; evaluation: { ready: boolean } } | null;
+  v4Verification?: ProductV4QualityVerification | null;
+  v4PdfVerification?: ProductV4QualityVerification | null;
 }
 
 export interface ProductBundleEvaluationInput {
@@ -440,20 +443,23 @@ export async function evaluateProductBundleQualityPolicy(
     }
   }
   let verification = context.v4Verification;
+  let pdfVerification = context.v4PdfVerification;
   let validationReport: Record<string, unknown> | undefined;
   if (isV4 && context.imporBundleId) {
     const connection = context.tx ?? db;
     const [row] = await connection.select({ validationReport: imporBundle.validationReport }).from(imporBundle).where(eq(imporBundle.id, context.imporBundleId)).limit(1);
     validationReport = row?.validationReport;
-    if (verification === undefined) {
+    const currentForPurpose = async (purpose: "logic" | "pdf", supplied: ProductV4QualityVerification | null | undefined) => {
       try {
-        const ref = validationReport?.productV4Verification as { runId?: unknown; planHash?: unknown } | undefined;
-        if (typeof ref?.runId === "string" && typeof ref.planHash === "string") {
-          const current = await (await import("./product-v4-verification-service")).getProductV4VerificationReadiness(context.imporBundleId, ref.runId);
-          if (current.plan.planHash === ref.planHash) verification = current;
-        }
-      } catch { verification = null; }
-    }
+        const ref = validationReport?.[purpose === "pdf" ? "productV4PdfGeneration" : "productV4Verification"] as { runId?: unknown; planHash?: unknown; attemptId?: unknown; stagingAuditId?: unknown } | undefined;
+        if (typeof ref?.runId !== "string" || typeof ref.planHash !== "string") return null;
+        const current: ProductV4QualityVerification | null = supplied === undefined ? await (await import("./product-v4-verification-service")).getProductV4VerificationReadiness(context.imporBundleId!, ref.runId, purpose) : supplied;
+        if (!current || current.plan.binding.purpose !== purpose || current.plan.binding.importId !== context.imporBundleId || current.plan.binding.runId !== ref.runId || current.plan.planHash !== ref.planHash || !("attemptId" in current) || !current.attemptId || current.attemptId !== ref.attemptId || !current.stagingAuditId || current.stagingAuditId !== ref.stagingAuditId) return null;
+        return current;
+      } catch { return null; }
+    };
+    verification = await currentForPurpose("logic", verification);
+    pdfVerification = diktats.length ? await currentForPurpose("pdf", pdfVerification) : null;
   }
 
   const pairs: { article: (typeof articles)[number] | undefined; diktat: (typeof diktats)[number] | undefined }[] = articles.flatMap(article => {
@@ -474,7 +480,7 @@ export async function evaluateProductBundleQualityPolicy(
       contentFingerprint,
       articleGenerationHash: lineage?.articleHash ?? article?.generationHash ?? null,
       articleVersion: lineage?.articleVersion ?? article?.version ?? null,
-      v4PdfBinding: isV4 ? (diktat ? resolveProductV4PdfBinding({ importId: context.imporBundleId ?? "", diktatId: diktat.id, validationReport, verification }) : null) : undefined,
+      v4PdfBinding: isV4 ? (diktat ? resolveProductV4PdfBinding({ importId: context.imporBundleId ?? "", diktatId: diktat.id, validationReport, verification: pdfVerification }) : null) : undefined,
       diktatGenerationHash: diktat?.generationHash ?? null,
       publisherId: context.publisherId,
       reviewDecision: context.pedagogicReview,
@@ -493,12 +499,12 @@ export async function evaluateProductBundleQualityPolicy(
       remediation: "Use explicit inline or display math. Write scientific numbers with \\times 10^{...}, never a numeric e notation literal, and verify the rendered meaning.",
     });
     const expectedContentHash = manifest ? createHash("sha256").update(deterministicProductSerialization({ manifest, products, dependencies })).digest("hex") : null;
-    if (!verification?.evaluation.ready || verification.plan.contentHash !== expectedContentHash) issues.push({
+    if (!verification?.evaluation.ready || verification.plan.binding.purpose !== "logic" || verification.plan.contentHash !== expectedContentHash) issues.push({
       code: "PRODUCT_V4_VERIFICATION_REQUIRED",
       severity: "blocking",
       target: { targetType: "document", targetId: manifest?.bundleId ?? article?.id ?? "manifest.json" },
-      reason: "The complete current V4 verification matrix has not passed with trusted artifacts.",
-      remediation: "Request verification for this exact revision and resolve every missing, failed or stale check.",
+      reason: "The current V4 logic checks have not passed with trusted evidence.",
+      remediation: "Request logic verification for this exact revision and resolve every missing, failed or stale check. Generate Diktat PDFs separately before publication.",
     });
   }
 
@@ -749,6 +755,9 @@ export function evaluateProductBundleReviewAndPdfGate(
 
   if (!(input.requiresPdf ?? input.hasArticle)) return { reviewDecision, reviewStatus, pdfEvidenceStatus: "not_required", selectedPdfEvidence: null, issues };
   const targetPdfProductId = input.diktatId || input.articleId;
+  const pdfRecovery = input.v4PdfBinding !== undefined
+    ? "Request authoring.verify_product_bundle with purpose:'pdf' for this exact revision before publication."
+    : "Generate the PDF for this exact revision before publication.";
   const expectedArticleHash = input.articleGenerationHash ?? undefined;
   const expectedDiktatHash = input.diktatId ? input.diktatGenerationHash ?? undefined : expectedArticleHash;
   const evidence = selectProductPdfEvidence({
@@ -771,7 +780,7 @@ export function evaluateProductBundleReviewAndPdfGate(
         reason: input.diktatId
           ? `PDF artifact evidence is missing for diktat ${input.diktatId}`
           : "PDF artifact evidence is missing for this article",
-        remediation: "Render PDF artifact and record evidence in bukti_pdf_bundle before publication",
+        remediation: pdfRecovery,
       });
     }
   } else {
@@ -790,7 +799,7 @@ export function evaluateProductBundleReviewAndPdfGate(
         severity: "blocking",
         target: { targetType: "pdf", targetId: targetPdfProductId },
         reason: `PDF rendering failed: ${evidence.failureCode ?? "unknown"}`,
-        remediation: "Resolve rendering errors and re-generate PDF artifact",
+        remediation: `Resolve the reported PDF error. ${pdfRecovery}`,
       });
     } else if (evidence.status === "stale") {
       issues.push({
@@ -798,7 +807,7 @@ export function evaluateProductBundleReviewAndPdfGate(
         severity: "blocking",
         target: { targetType: "pdf", targetId: targetPdfProductId },
         reason: "PDF artifact is stale because article or diktat lineage changed",
-        remediation: "Re-render PDF artifact against the updated content",
+        remediation: pdfRecovery,
       });
     } else if (evidence.status !== "ready") {
       issues.push({
@@ -817,7 +826,7 @@ export function evaluateProductBundleReviewAndPdfGate(
         severity: "blocking",
         target: { targetType: "pdf", targetId: targetPdfProductId },
         reason: `PDF evidence articleHash '${evidence.articleHash}' does not match article '${expectedArticleHash}'`,
-        remediation: "Re-render PDF artifact to match current article generation hash",
+        remediation: pdfRecovery,
       });
     }
 
@@ -828,13 +837,13 @@ export function evaluateProductBundleReviewAndPdfGate(
         severity: "blocking",
         target: { targetType: "pdf", targetId: targetPdfProductId },
         reason: `PDF evidence diktatHash '${evidence.diktatHash}' does not match diktat '${expectedDiktatHash}'`,
-        remediation: "Re-render PDF artifact to match current diktat generation hash",
+        remediation: pdfRecovery,
       });
     }
 
     if (input.articleVersion && evidence.articleVersion !== input.articleVersion) {
       pdfEvidenceStatus = "stale";
-      issues.push({ code: "PDF_LINEAGE_VERSION_MISMATCH", severity: "blocking", target: { targetType: "pdf", targetId: targetPdfProductId }, reason: "PDF evidence does not match the current Article version.", remediation: "Re-render the PDF for the current Article." });
+      issues.push({ code: "PDF_LINEAGE_VERSION_MISMATCH", severity: "blocking", target: { targetType: "pdf", targetId: targetPdfProductId }, reason: "PDF evidence does not match the current Article version.", remediation: pdfRecovery });
     }
 
     const pdfResult = validatePdfArtifactEvidence(evidence);
@@ -843,9 +852,9 @@ export function evaluateProductBundleReviewAndPdfGate(
     }
   }
 
-  if (input.v4PdfBinding !== undefined && (!input.v4PdfBinding || !evidence || evidence.storageKey !== input.v4PdfBinding.storageKey || evidence.printProfile !== input.v4PdfBinding.printProfile || evidence.pageCount !== input.v4PdfBinding.pageCount)) {
+  if (input.v4PdfBinding !== undefined && evidence && (!input.v4PdfBinding || evidence.storageKey !== input.v4PdfBinding.storageKey || evidence.printProfile !== input.v4PdfBinding.printProfile || evidence.pageCount !== input.v4PdfBinding.pageCount)) {
     pdfEvidenceStatus = "stale";
-    issues.push({ code: "PDF_V4_RECEIPT_MISMATCH", severity: "blocking", target: { targetType: "pdf", targetId: targetPdfProductId }, reason: "PDF evidence is not attached to the current verification receipt.", remediation: "Verify this revision again and attach its PDF evidence." });
+    issues.push({ code: "PDF_V4_RECEIPT_MISMATCH", severity: "blocking", target: { targetType: "pdf", targetId: targetPdfProductId }, reason: "PDF evidence is not attached to the current PDF receipt.", remediation: pdfRecovery });
   }
 
   return {

@@ -162,7 +162,7 @@ export async function executePedagogicReview(
     const evidence = input.decision === "approved" && typeof registered?.runId === "string"
       ? await getProductV4VerificationReadiness(input.importId, registered.runId) : null;
     sectionDecisions = validateProductV4ReviewContext({ articles, importId: input.importId, checksum: row.checksum, fingerprint: freshFingerprint, review: input,
-      verification: evidence ? { ready: evidence.evaluation.ready && registered?.planHash === evidence.plan.planHash, planHash: evidence.plan.planHash, importId: evidence.plan.binding.importId, receiptSignature: getProductV4VerificationReceiptSignature(evidence.receipt) } : undefined });
+      verification: evidence ? { purpose: evidence.plan.binding.purpose ?? "logic", ready: evidence.evaluation.ready && registered?.planHash === evidence.plan.planHash, planHash: evidence.plan.planHash, importId: evidence.plan.binding.importId, receiptSignature: getProductV4VerificationReceiptSignature(evidence.receipt) } : undefined });
   } else {
     sectionDecisions = normalizeProductSectionDecisions(articles, input.sectionDecisions!);
     const seen = new Set(sectionDecisions.map(decision => productSectionReviewKey(decision.productId, decision.sectionId)));
@@ -180,7 +180,7 @@ export async function executePedagogicReview(
     await assertAuthoringActor(tx, input.reviewerId, { roles: [role], error: "PRODUCT_BUNDLE_REVIEW_FORBIDDEN", lock: true });
     await assertRevisionReviewGuard(tx);
     if (role === "tutor" && (!row.courseId || !(await checkTutorCourseAccess(input.reviewerId, row.courseId, undefined, tx)).hasAccess)) throw new Error("PRODUCT_BUNDLE_REVIEW_COURSE_FORBIDDEN");
-    await claimProductReviewSnapshot(tx, row, now);
+    await claimProductReviewSnapshot(tx, row, now, isV4 ? { purpose: "logic" } : {});
     {
       const [existing] = await tx.select().from(reviewPedagogiBundle).where(and(eq(reviewPedagogiBundle.imporBundleId, input.importId), eq(reviewPedagogiBundle.reviewerId, input.reviewerId), eq(reviewPedagogiBundle.contentFingerprint, freshFingerprint), eq(reviewPedagogiBundle.policyVersion, QUALITY_POLICY_VERSION))).limit(1);
       const [bundleReview] = await tx.select().from(reviewBundle).where(and(eq(reviewBundle.imporBundleId, input.importId), eq(reviewBundle.reviewerId, input.reviewerId))).limit(1);

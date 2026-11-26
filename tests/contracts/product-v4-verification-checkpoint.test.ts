@@ -18,7 +18,7 @@ function observe(requirement: ProductV4VerificationRequirement): ProductV4Observ
 function fixture() {
   const source = buildLocalVerificationFixture().bundle;
   const bundle = { ...source, products: source.products.filter(product => product.productType === "article") };
-  const binding = { importId: "import", courseId: bundle.manifest.courseId, runId: "run", revision: 1, rendererChecksum: hash, dependencyChecksum: hash, contractChecksum: hash, playbookChecksum: hash, fontChecksum: hash, assetChecksum: hash, printProfile: "a4", policyRevision: PRODUCT_V4_VERIFICATION_POLICY };
+  const binding = { importId: "import", courseId: bundle.manifest.courseId, runId: "run", revision: 1, logicChecksum: hash, rendererChecksum: hash, dependencyChecksum: hash, contractChecksum: hash, playbookChecksum: hash, fontChecksum: hash, assetChecksum: hash, printProfile: "a4", policyRevision: PRODUCT_V4_VERIFICATION_POLICY };
   let snapshot: ProductV4VerificationSnapshot = { importId: "import", checksum: hash, sourceUriOrKey: "bundle.zip", stagingAuditId: "audit-one", stagingRunId: "run", importState: { bundleType: "product", bundleId: bundle.manifest.bundleId, courseId: binding.courseId, version: 4, status: "draft", validationReport: {} }, binding, bundle };
   const objects = new Map<string, Uint8Array>();
   const calls: string[] = [];
@@ -110,87 +110,29 @@ test("checkpoint read rehashes artifacts and preserves storage transport failure
   await expect(readProductV4VerificationCheckpoint({ scope: value.scope, requirement: value.requirement, authority, read })).rejects.toBe(failure);
 });
 
-test("an explicit retry resumes successful capture batches and copies evidence to its new attempt", async () => {
+test("a retry reuses completed logic evidence and copies it to the new attempt", async () => {
   const value = fixture();
-  const web = value.plan.requirements.find(check => check.layer === "web")!;
+  const [structure, model] = value.plan.requirements;
   const execute = value.ports.execute;
   let interrupt = true;
   value.ports.execute = async input => {
-    const result = await execute(input);
-    if (input.requirement.id !== web.id) return result;
-    if (input.captureOffset === 2 && interrupt) throw new Error("WORKER_INTERRUPTED");
-    return { ...result, captureTotal: 3, artifacts: Array.from({ length: Math.min(2, 3 - (input.captureOffset ?? 0)) }, () => ({ ...result.artifacts[0] })) };
-  };
-  const first = await value.service.request({ importId: "import", runId: "run" });
-  await expect(value.service.process({ importId: "import", runId: "run", planHash: first.plan.planHash, attemptId: first.attemptId })).rejects.toThrow("WORKER_INTERRUPTED");
-  const successful = value.calls.slice(0, -1);
-  value.calls.length = 0;
-  interrupt = false;
-  const retry = await value.service.request({ importId: "import", runId: "run", retry: true });
-  const completed = await value.service.process({ importId: "import", runId: "run", planHash: retry.plan.planHash, attemptId: retry.attemptId });
-  expect(completed.evaluation.ready).toBe(true);
-  expect(completed.state.completedChecks).toBe(completed.plan.requirements.length);
-  expect(value.calls).toContain(`${web.id}:2`);
-  for (const id of successful) expect(value.calls).not.toContain(id);
-  for (const result of completed.receipt.results) for (const artifact of result.artifacts) expect(artifact.id.startsWith(`artifact-${retry.attemptId}-`)).toBe(true);
-  expect(completed.receipt.results.find((result: { checkId: string }) => result.checkId === web.id).artifacts).toHaveLength(3);
-});
-
-test("a retry reuses full browser captures and retains all PNGs and JSON observations", async () => {
-  const value = fixture();
-  const [web, next] = value.plan.requirements.filter(check => check.layer === "web");
-  const execute = value.ports.execute;
-  const observations = { observations: [{ state: "default", exercised: true }, { state: "keyboard", exercised: true }, { state: "reset", exercised: true }] };
-  let interrupted = true;
-  let renders = 0;
-  value.ports.execute = async input => {
-    const result = await execute(input);
-    if (input.requirement.id === next.id && interrupted) throw new Error("LATER_CHECK_INTERRUPTED");
-    if (input.requirement.id !== web.id) return result;
-    expect(input.captureOffset).toBe(0);
-    expect(input.captureLimit).toBe(2);
-    renders++;
-    return { ...result, artifacts: [
-      ...Array.from({ length: 3 }, (_, index) => ({ id: `capture-${index}`, mediaType: "image/png" as const, bytes: png })),
-      { id: "observations.json", mediaType: "application/json" as const, bytes: encode(observations) },
-    ] };
+    if (input.requirement.id === model.id && interrupt) throw new Error("LATER_CHECK_INTERRUPTED");
+    return execute(input);
   };
   const first = await value.service.request({ importId: "import", runId: "run" });
   await expect(value.service.process({ importId: "import", runId: "run", planHash: first.plan.planHash, attemptId: first.attemptId })).rejects.toThrow("LATER_CHECK_INTERRUPTED");
-  interrupted = false;
+  interrupt = false;
   value.calls.length = 0;
   const retry = await value.service.request({ importId: "import", runId: "run", retry: true });
   const completed = await value.service.process({ importId: "import", runId: "run", planHash: retry.plan.planHash, attemptId: retry.attemptId });
   expect(completed.evaluation.ready).toBe(true);
-  expect(renders).toBe(1);
-  expect(value.calls).not.toContain(`${web.id}:0`);
-  const result = completed.receipt.results.find((check: { checkId: string }) => check.checkId === web.id);
-  expect(result.artifacts).toHaveLength(4);
-  expect(result.artifacts.map((artifact: { mediaType: string }) => artifact.mediaType)).toEqual(["image/png", "image/png", "image/png", "application/json"]);
-  for (const artifact of result.artifacts) {
+  expect(value.calls).toEqual([`${model.id}:0`]);
+  expect(value.calls).not.toContain(`${structure.id}:0`);
+  for (const result of completed.receipt.results) for (const artifact of result.artifacts) {
     expect(artifact.id.startsWith(`artifact-${retry.attemptId}-`)).toBe(true);
-    const bytes = value.objects.get(buildProductVerificationKey(retry.plan.planHash, artifact.id))!;
-    if (artifact.mediaType === "application/json") expect(decode(bytes)).toEqual(observations);
-    else expect(Buffer.from(bytes)).toEqual(png);
+    expect(artifact.mediaType).toBe("application/json");
+    expect(decode(value.objects.get(buildProductVerificationKey(retry.plan.planHash, artifact.id))!)).toEqual({});
   }
-});
-
-test("full web captures still require PNG evidence and paginated captures retain their bounds", () => {
-  const value = fixture();
-  const requirement = value.plan.requirements.find(check => check.layer === "web")!;
-  const scope: ProductV4VerificationBatchScope = { planHash: value.plan.planHash, stagingAuditId: value.snapshot.stagingAuditId, checkId: requirement.id, captureOffset: 0, captureLimit: 2 };
-  const raw = observe(requirement);
-  raw.artifacts[0].id = `artifact-${attempt}-${requirement.id}-0.png`;
-  raw.artifacts.push({ id: `artifact-${attempt}-${requirement.id}-1.json`, mediaType: "application/json", bytes: encode({ observations: [] }) });
-  const result = recordProductV4VerificationReport(value.plan, [raw], authority).results[0];
-  const input = { scope, requirement, sourceAttemptId: attempt, result };
-  expect(issueProductV4VerificationCheckpoint(input, authority)).not.toBeNull();
-  expect(issueProductV4VerificationCheckpoint({ ...input, result: { ...result, captureTotal: 2 } }, authority)).not.toBeNull();
-  expect(issueProductV4VerificationCheckpoint({ ...input, result: { ...result, captureTotal: 1 } }, authority)).toBeNull();
-  expect(issueProductV4VerificationCheckpoint({ ...input, scope: { ...scope, captureLimit: 1 }, result: { ...result, captureTotal: 2 } }, authority)).toBeNull();
-  expect(issueProductV4VerificationCheckpoint({ ...input, scope: { ...scope, captureLimit: null } }, authority)).toBeNull();
-  expect(issueProductV4VerificationCheckpoint({ ...input, scope: { ...scope, captureOffset: 1 }, result: { ...result, artifacts: result.artifacts.map((artifact, index) => ({ ...artifact, id: `artifact-${attempt}-${requirement.id}-${index + 1}.${index === 0 ? "png" : "json"}` })) } }, authority)).toBeNull();
-  expect(issueProductV4VerificationCheckpoint({ ...input, result: { ...result, artifacts: [{ ...result.artifacts[1], id: `artifact-${attempt}-${requirement.id}-0.json` }] } }, authority)).toBeNull();
 });
 
 for (const status of ["FAIL", "NOT_TESTED"] as const) test(`${status} executes again while successful independent checks resume`, async () => {
@@ -240,11 +182,11 @@ for (const damage of ["metadata", "bytes", "missing"]) test(`a retry repairs ${d
   expect(value.calls).toContain(`${requirement.id}:0`);
 });
 
-for (const change of ["revision", "browser", "audit"]) test(`changed ${change} cannot reuse an earlier checkpoint`, async () => {
+for (const change of ["revision", "logic-runtime", "audit"]) test(`changed ${change} cannot reuse an earlier checkpoint`, async () => {
   const { value, requirement } = await interrupted();
   value.snapshot = { ...value.snapshot, verificationAttemptId: null, verificationPlanHash: null,
     ...(change === "audit" ? { stagingAuditId: "audit-two" } : { binding: { ...value.snapshot.binding,
-      ...(change === "revision" ? { revision: 2 } : { browserProvider: "local_playwright" as const, browserVersion: "1.2.3.4" }) } }) };
+      ...(change === "revision" ? { revision: 2 } : { logicChecksum: "b".repeat(64) }) } }) };
   const next = await value.service.request({ importId: "import", runId: "run" });
   expect((await value.service.process({ importId: "import", runId: "run", planHash: next.plan.planHash, attemptId: next.attemptId })).evaluation.ready).toBe(true);
   expect(value.calls).toContain(`${requirement.id}:0`);

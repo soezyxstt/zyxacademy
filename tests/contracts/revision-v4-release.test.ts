@@ -40,7 +40,7 @@ process.env.BETTER_AUTH_SECRET = "local-test-only-revision-verification-signing-
 process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER = "cloudflare";
 process.env.NEXT_PUBLIC_APP_URL = process.env.BETTER_AUTH_URL = "https://staging.zyxacademy.com";
 process.env.ZYX_ENVIRONMENT = "staging";
-let renders = 0, deliveries = 0;
+let renders = 0, pdfRenders = 0, deliveries = 0;
 const checkpoint = (phase: string) => { if (process.env.ZYX_REVISION_V4_TEST_TRACE === "1") console.info(`[revision-v4-test] ${phase}`); };
 mock.module("@/db", () => ({ db: testDb }));
 mock.module("@/lib/storage", () => ({ ...originalStorage, storage: {
@@ -62,6 +62,7 @@ async function fixtureBinding(input: Parameters<typeof buildRealBinding>[0], rea
   async course() { return { id: "course-physics", legacyCourseId: "legacy-physics" }; },
   async figure(): Promise<never> { throw new Error("NO_SOURCE_FIGURES_IN_FIXTURE"); },
   async download(): Promise<never> { throw new Error("NO_REMOTE_ASSETS_IN_FIXTURE"); },
+  async logicRuntime() { return { logicChecksum: fixedHash, contractChecksum: fixedHash, playbookChecksum: fixedHash }; },
   async runtime() { return { rendererChecksum: fixedHash, fontChecksum: fixedHash, contractChecksum: fixedHash, playbookChecksum: fixedHash, printProfile: PRODUCT_DIKTAT_PRINT_PROFILE }; },
   async dependencies(bundle) {
     const { assertProspectiveReleaseDependencies } = await import("@/lib/authoring/revision-verification-context");
@@ -89,7 +90,7 @@ async function fixtureBinding(input: Parameters<typeof buildRealBinding>[0], rea
 }
 mock.module("@/lib/compute/product-v4-runtime-binding", () => ({ ...originalRuntime,
   buildProductV4RuntimeBinding: (input: Parameters<typeof buildRealBinding>[0], _ports?: Parameters<typeof buildRealBinding>[1], read?: Parameters<typeof buildRealBinding>[2], connection?: Parameters<typeof buildRealBinding>[3]) => fixtureBinding(input, read, connection),
-  buildProductV4RevisionReuseBinding: (input: Parameters<typeof buildRealBinding>[0]) => fixtureBinding(input, undefined, undefined, true),
+  buildProductV4RevisionReuseBinding: (input: Parameters<typeof buildRealBinding>[0]) => fixtureBinding({ ...input, purpose: "pdf" }, undefined, undefined, true),
 }));
 const revisions = await import("@/lib/authoring/revision-service");
 const { provisionPenggunaForNewUser } = await import("@/lib/auth/authorization");
@@ -165,27 +166,32 @@ const rowFor = async (id: string) => (await testDb.select().from(schema.imporBun
 const storedBundle = async (id: string) => { const row = await rowFor(id); return parseAdmittedProductBundle(objects.get(row.sourceUriOrKey)!, row); };
 const executeFixture = async ({ requirement }: { requirement: ProductV4VerificationRequirement }) => {
   renders++;
-  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64");
-  const bytes = requirement.artifactType === "application/pdf" ? new TextEncoder().encode(`%PDF-1.7\nSYNTHETIC TEST ONLY ${renders}\n%%EOF`) : requirement.artifactType === "image/png" ? png : new TextEncoder().encode("{}");
-  const artifacts: ProductV4ObservedCheck["artifacts"] = [{ id: "fixture", mediaType: requirement.artifactType, bytes, ...(requirement.layer === "print" && requirement.artifactType === "image/png" ? { pageNumber: 1 } : {}) }];
-  if (requirement.artifactType === "application/pdf") artifacts.push({ id: "page", mediaType: "image/png", bytes: png, pageNumber: 1 });
+  if (requirement.layer === "print") pdfRenders++;
+  expect(requirement.artifactType).not.toBe("image/png");
+  const bytes = requirement.artifactType === "application/pdf" ? new TextEncoder().encode(`%PDF-1.7\nSYNTHETIC TEST ONLY ${renders}\n%%EOF`) : new TextEncoder().encode("{}");
+  const artifacts: ProductV4ObservedCheck["artifacts"] = [{ id: "fixture", mediaType: requirement.artifactType, bytes }];
   return { checkId: requirement.id, status: "PASS" as const, expected: "Injected integration observation", observed: "Synthetic executor, no browser or PDF renderer", artifacts, ...(requirement.layer === "print" ? { pageCount: 1 } : {}) };
 };
-async function verify(importId: string) {
-  checkpoint("verification request");
+async function verifyPurpose(importId: string, purpose: "logic" | "pdf") {
+  checkpoint(`${purpose} verification request`);
   const staging = await latestProductV4StagingAudit(testDb, importId);
   if (!staging?.correlationId) throw new Error("FIXTURE_STAGING_RUN_REQUIRED");
-  const service = await createProductV4ApplicationService(executeFixture, async () => { deliveries++; });
-  const requested = await service.request({ importId, runId: staging.correlationId });
-  checkpoint("verification process");
-  const complete = await service.process({ importId, runId: staging.correlationId, planHash: requested.plan.planHash, attemptId: requested.attemptId! });
-  checkpoint("verification completed");
+  const service = await createProductV4ApplicationService(executeFixture, async () => { deliveries++; }, undefined, purpose);
+  const requested = await service.request({ importId, runId: staging.correlationId, purpose });
+  const complete = await service.process({ importId, runId: staging.correlationId, purpose, planHash: requested.plan.planHash, attemptId: requested.attemptId! });
   expect(complete.evaluation.ready).toBe(true);
   const receipt = parseProductV4VerificationReceipt(complete.receipt);
-  const pdf = receipt.results.flatMap(result => result.artifacts).find(artifact => artifact.mediaType === "application/pdf")!;
-  const selectedKey = buildProductVerificationKey(complete.plan.planHash, pdf.id);
+  expect(complete.plan.binding.purpose).toBe(purpose);
+  expect(receipt.results.flatMap(result => result.artifacts).some(artifact => artifact.mediaType === "image/png")).toBe(false);
+  return { ...complete, receipt };
+}
+async function verify(importId: string) {
+  const logic = await verifyPurpose(importId, "logic");
+  const pdf = await verifyPurpose(importId, "pdf");
+  const artifact = pdf.receipt.results.flatMap(result => result.artifacts).find(artifact => artifact.mediaType === "application/pdf")!;
+  const selectedKey = buildProductVerificationKey(pdf.plan.planHash, artifact.id);
   expect(objects.has(selectedKey)).toBe(true);
-  return { ...complete, receipt, selectedKey };
+  return { ...logic, selectedKey, pdf };
 }
 async function approveProduct(importId: string, verification: Awaited<ReturnType<typeof verify>>, throughRevision: boolean) {
   const row = await rowFor(importId), bundle = await storedBundle(importId);
@@ -205,7 +211,7 @@ async function approveIdea(importId: string, expectedRevision: string, throughRe
 let liveProductId = "";
 beforeEach(async () => {
   checkpoint("seed start");
-  objects.clear(); renders = 0; deliveries = 0;
+  objects.clear(); renders = 0; pdfRenders = 0; deliveries = 0;
   await testDb.delete(schema.ketergantunganProduk);
   await client.exec('TRUNCATE TABLE "user", courses, mata_kuliah, peran CASCADE');
   for (const id of new Set([actorId, "local-verification-author", "creator-1", "curator-1"])) {
@@ -295,8 +301,10 @@ test("a warm card-only revision reuses trusted print bytes and preserves the imm
   const lineage = (await rowFor(patched.importId)).validationReport.revisionLineage as { impact: { printVersionReuse?: unknown } };
   expect(lineage.impact.printVersionReuse).toEqual({ preservedEntityIds: [diktat.id], advancedEntityIds: [], reason: "verified" });
   const beforeRenders = renders;
+  const beforePdfRenders = pdfRenders;
   const fresh = await verify(patched.importId);
-  expect(renders - beforeRenders).toBe(1);
+  expect(renders).toBeGreaterThan(beforeRenders);
+  expect(pdfRenders).toBe(beforePdfRenders);
   expect(fresh.selectedKey).not.toBe(canonicalBefore.fileKey);
   expect(objects.get(fresh.selectedKey)).toEqual(originalPdf);
   await approveProduct(patched.importId, fresh, true);
@@ -333,9 +341,10 @@ test("lost warm proof refreshes an immutable evidence revision without changing 
   const preserved = await storedBundle(patched.importId);
   expect(preserved.products.find(product => product.productType === "diktat")).toEqual(diktat);
   for (const key of objects.keys()) if (key.includes("product-verification-reuse")) objects.delete(key);
-  const before = renders;
-  await expect(verify(patched.importId)).rejects.toThrow("PRODUCT_V4_PRINT_REUSE_CHANGED");
-  expect(renders).toBe(before);
+  const before = pdfRenders;
+  expect((await verifyPurpose(patched.importId, "logic")).evaluation.ready).toBe(true);
+  await expect(verifyPurpose(patched.importId, "pdf")).rejects.toThrow("PRODUCT_V4_PRINT_REUSE_CHANGED");
+  expect(pdfRenders).toBe(before);
   const refreshed = await revisions.patchRevisionDraft({ actorId, kind: "product", importId: patched.importId, expectedRevision: patched.revision, operations: [], refreshPrintEvidence: true });
   expect(refreshed.importId).not.toBe(patched.importId);
   const refreshedBundle = await storedBundle(refreshed.importId);

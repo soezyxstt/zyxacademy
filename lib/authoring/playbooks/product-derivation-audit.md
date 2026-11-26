@@ -2,7 +2,7 @@
 
 ## 1. Purpose
 
-Every derivation, proof, worked example, and numerical calculation in an Article, Diktat, or formative check explanation must pass a deterministic step-by-step audit before staging.
+Review each derivation, proof, worked example and numerical calculation in an Article, Diktat or formative explanation step by step before staging. Use exact symbolic reasoning where needed and independent numerical checks where they apply. The supported machine checks do not prove arbitrary mathematics. This content audit requires no browser or screenshot.
 
 ## 2. Step-by-Step Derivation Rules
 
@@ -27,6 +27,6 @@ Every derivation, proof, worked example, and numerical calculation in an Article
      - No distractor becomes accidentally equivalent to the correct answer under an alternate algebraic simplification.
      - Each distractor corresponds to a specific, identifiable student error (such as sign flip, omitted chain-rule factor, or boundary mistake) explained in `formativeCheckPayload.explanation`.
 
-5. **LaTeX Render Safety (Article and Diktat PDF):**
+5. **Mathematical Notation and Print Compatibility:**
    - Use standard KaTeX-compatible commands (`\frac`, `\sqrt`, `\lim`, `\sum`, `\int`, `\left`, `\right`, `\begin{aligned}...\end{aligned}`, `\begin{cases}...\end{cases}`).
    - Avoid unsupported custom TeX macros (`\newcommand`, `\def`), unescaped `%` or `&` outside alignment environments, or overly wide single-line display equations that would trigger `FORMULA_RENDER_ERROR` or `LAYOUT_OVERFLOW` during A4 Diktat PDF rendering.

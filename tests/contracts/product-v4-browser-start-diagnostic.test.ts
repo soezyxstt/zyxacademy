@@ -6,6 +6,7 @@ const planHash = "a".repeat(64), checkId = "b".repeat(64);
 mock.module("@/lib/compute/runtime", () => ({ isHostedComputeRuntime: () => true }));
 mock.module("@/lib/compute/product-v4-runtime-binding", () => ({
   buildProductV4RuntimeBinding() {}, readProductV4ExecutorRuntime() {}, assertProductV4RuntimeFingerprint() {},
+  readProductV4LogicExecutorRuntime() {}, assertProductV4LogicRuntimeFingerprint() {},
   async loadProductV4StaticFigureAssets() { order.push("assets"); if (assetFailure) throw assetFailure; return {}; },
   async loadProductV4InteractiveDocumentAssets() { return {}; },
 }));
