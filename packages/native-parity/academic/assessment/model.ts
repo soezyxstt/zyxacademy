@@ -123,12 +123,14 @@ export type GradeItem = { questionId: string; score: number; reviewNotes: string
 
 export type QuizCollection = { course: AssessmentCourse; quizzes: AssessmentQuiz[]; bank: BankQuestion[] };
 export type QuizPreviewQuestion = QuestionInput & Versioned & { explanation?: string };
-export type TryoutCollection = { course: AssessmentCourse; tryouts: AssessmentTryout[]; bank: TryoutBankChoice[]; canSaveDraft?: boolean };
+export type TryoutCollection = { course: AssessmentCourse; tryouts: AssessmentTryout[]; bank: TryoutBankChoice[]; canSaveDraft?: boolean; canSaveMetadata?: boolean };
 
 export type AssessmentErrorCode = "forbidden" | "not_found" | "invalid" | "conflict" | "unavailable";
 export type AssessmentResult<T> =
   | { ok: true; value: T }
   | { ok: false; code: AssessmentErrorCode; message: string };
+
+type TryoutMetadataCommand = { target: (VersionRef & { metadataRevision?: string }) | null; input: TryoutInput; courseId?: string };
 
 export type AssessmentCommand =
   | { kind: "quiz.save"; target: VersionRef | null; input: QuizInput; courseId?: string }
@@ -136,7 +138,8 @@ export type AssessmentCommand =
   | { kind: "quiz.delete"; target: VersionRef; courseId?: string }
   | { kind: "bank.save"; target: VersionRef | null; input: BankQuestionInput }
   | { kind: "bank.delete"; target: VersionRef }
-  | { kind: "tryout.save"; target: (VersionRef & { metadataRevision?: string }) | null; input: TryoutInput; courseId?: string }
+  | (TryoutMetadataCommand & { kind: "tryout.save" })
+  | (TryoutMetadataCommand & { kind: "tryout.metadata.save" })
   | { kind: "tryout.delete"; target: VersionRef }
   | { kind: "tryout.question.save"; examId: string; target: VersionRef | null; input: TryoutQuestionInput }
   | { kind: "tryout.question.delete"; examId: string; target: VersionRef; courseId?: string; questionSetRevision?: string }
@@ -150,7 +153,7 @@ export type OutstandingQuizSave = {
 };
 export type QuizGradeCommand = Extract<AssessmentCommand, { kind: "grading.save" }>;
 export type OutstandingQuizGrade = { requestId: string; command: QuizGradeCommand };
-export type TryoutDraftCommand = Extract<AssessmentCommand, { kind: "tryout.save" | "tryout.question.import" | "tryout.question.delete" }>;
+export type TryoutDraftCommand = Extract<AssessmentCommand, { kind: "tryout.save" | "tryout.metadata.save" | "tryout.question.import" | "tryout.question.delete" }>;
 
 export type MutationEffect = {
   id: string;
@@ -165,6 +168,7 @@ export interface AssessmentGateway {
   readonly canGrade: boolean;
   readonly canSaveQuiz: boolean;
   readonly canSaveTryoutDraft: boolean;
+  readonly canSaveTryoutMetadata?: boolean;
   pendingTryoutDraft?(context: AssessmentContext): { requestId: string; command: TryoutDraftCommand; confirmed: boolean } | null;
   confirmTryoutDraft?(context: AssessmentContext, requestId: string): void;
   takeQuizSaveNotice?(context: AssessmentContext, requestId: string): string | null;

@@ -32,6 +32,8 @@ export function Tryouts({ gateway, context, back }: Props) {
   const [questionPage, setQuestionPage] = useState(0);
   const active = result?.ok ? result.value.tryouts.find((tryout) => tryout.id === activeId) : undefined;
   const recovery = gateway.pendingTryoutDraft?.(context);
+  const canSaveMetadata = Boolean(gateway.canSaveTryoutMetadata && result?.ok && result.value.canSaveMetadata);
+  const canChangeStatus = gateway.canMutate || canSaveMetadata;
   const unknownDraft = !gateway.canMutate && Boolean(recovery) && mutation.problem?.code === "unavailable";
   const denial = mutation.problem?.code === "forbidden" ? mutation.problem
     : result && !result.ok && result.code === "forbidden" ? result : null;
@@ -113,8 +115,8 @@ export function Tryouts({ gateway, context, back }: Props) {
           <Ink kind="heading">{exam.title}</Ink>
           <Ink kind="meta" tone="muted">{statuses[exam.status]} · {exam.questions.length} soal · {exam.timeLimitMinutes} menit · {exam.maxAttempts} percobaan</Ink>
           <View style={layout.row}>
-            <Action label={gateway.canMutate || (gateway.canSaveTryoutDraft && exam.questionSetRevision) ? "Kelola soal" : "Lihat soal"} onPress={() => { setNotice(""); setQuestionPage(0); setActiveId(exam.id); }} testID={`academic-tryout-questions-${exam.id}`} />
-            {canSaveDraft && (gateway.canMutate || (exam.status === "draft" && exam.metadataRevision))
+            <Action label={gateway.canMutate || (gateway.canSaveTryoutDraft && exam.status === "draft" && exam.questionSetRevision) ? "Kelola soal" : "Lihat soal"} onPress={() => { setNotice(""); setQuestionPage(0); setActiveId(exam.id); }} testID={`academic-tryout-questions-${exam.id}`} />
+            {canSaveDraft && (gateway.canMutate || (exam.metadataRevision && (canSaveMetadata || exam.status === "draft")))
               ? <Action label="Edit" disabled={Boolean(recovery)} onPress={() => open({ kind: "edit", exam })} testID={`academic-tryout-edit-${exam.id}`} /> : null}
             {gateway.canMutate ? <Action label="Hapus" variation="ghost" onPress={() => open({ kind: "delete", exam })} /> : null}
           </View>
@@ -139,16 +141,16 @@ export function Tryouts({ gateway, context, back }: Props) {
     <ReadState result={result} retry={retry}>{(data) => <>
       {recovery && !modal ? <AssessmentNotice
         error={!recovery.confirmed}
-        message={recovery.confirmed ? "Perubahan draf tersimpan." : "Hasil penyimpanan draf belum diketahui."}
+        message={recovery.confirmed ? "Perubahan tryout tersimpan." : "Hasil penyimpanan tryout belum diketahui."}
         action={<Action label={recovery.confirmed ? "Muat daftar" : "Coba lagi"} disabled={mutation.pending}
           onPress={() => mutation.resume(recovery.requestId, recovery.command, finished)} testID="academic-tryout-restore" />}
       /> : null}
       {!modal && !recovery && mutation.problem ? feedback : null}
       {render(data)}
       {modal?.kind === "edit" ? <CourseDialog title={modal.exam ? "Edit tryout" : "Buat tryout"} onClose={close}>
-        <TryoutEditor initial={modal.exam} canChangeStatus={gateway.canMutate} busy={mutation.pending || unknownDraft} feedback={feedback} cancel={close}
+        <TryoutEditor initial={modal.exam} canChangeStatus={canChangeStatus} busy={mutation.pending || unknownDraft} feedback={feedback} cancel={close}
           save={(input) => mutation.send({
-            kind: "tryout.save", target: modal.exam ? { ...targetVersion(modal.exam), metadataRevision: modal.exam.metadataRevision } : null,
+            kind: canSaveMetadata ? "tryout.metadata.save" : "tryout.save", target: modal.exam ? { ...targetVersion(modal.exam), metadataRevision: modal.exam.metadataRevision } : null,
             input, courseId: data.course.id,
           }, finished)} />
       </CourseDialog> : null}
@@ -200,6 +202,9 @@ function TryoutEditor({ initial, busy, canChangeStatus, feedback, cancel, save }
   const [duration, setDuration] = useState(String(input.timeLimitMinutes));
   const [maxAttempts, setMaxAttempts] = useState(String(input.maxAttempts));
   const [validation, setValidation] = useState("");
+  const statusChanged = canChangeStatus && input.status !== (initial?.status ?? "draft");
+  const saveLabel = !canChangeStatus ? "Simpan draf" : !statusChanged ? "Simpan tryout"
+    : { draft: "Kembalikan ke draf", published: "Terbitkan tryout", ended: "Akhiri tryout" }[input.status];
 
   function submit() {
     const value = {
@@ -213,16 +218,16 @@ function TryoutEditor({ initial, busy, canChangeStatus, feedback, cancel, save }
 
   return (
     <View style={layout.group}>
-      <Field label="Judul tryout" value={input.title} onChangeText={(title) => setInput({ ...input, title })} testID="academic-tryout-title" />
-      {canChangeStatus ? <SelectField label="Status" options={statuses} value={input.status} change={(status) => setInput({ ...input, status })} /> : null}
-      <Field label="Durasi dalam menit" keyboardType="number-pad" value={duration} onChangeText={setDuration} />
-      <Field label="Batas percobaan" keyboardType="number-pad" value={maxAttempts} onChangeText={setMaxAttempts} />
-      <ScheduleFields openAt={input.openAt} closeAt={input.closeAt}
+      <Field label="Judul tryout" value={input.title} editable={!busy} onChangeText={(title) => setInput({ ...input, title })} testID="academic-tryout-title" />
+      {canChangeStatus ? <SelectField label="Status" options={statuses} value={input.status} disabled={busy} testID="academic-tryout-status" change={(status) => setInput({ ...input, status })} /> : null}
+      <Field label="Durasi dalam menit" keyboardType="number-pad" value={duration} editable={!busy} onChangeText={setDuration} />
+      <Field label="Batas percobaan" keyboardType="number-pad" value={maxAttempts} editable={!busy} onChangeText={setMaxAttempts} />
+      <ScheduleFields openAt={input.openAt} closeAt={input.closeAt} disabled={busy}
         setOpen={(openAt) => setInput({ ...input, openAt })} setClose={(closeAt) => setInput({ ...input, closeAt })} />
       {validation ? <AssessmentNotice message={validation} error /> : null}
       {feedback}
       <View style={layout.row}>
-        <Action label={canChangeStatus ? "Simpan tryout" : "Simpan draf"} onPress={submit} disabled={busy} variation="default" testID="academic-tryout-save" />
+        <Action label={saveLabel} onPress={submit} disabled={busy} variation="default" testID="academic-tryout-save" />
         <Action label="Batal" onPress={cancel} disabled={busy} variation="ghost" />
       </View>
     </View>

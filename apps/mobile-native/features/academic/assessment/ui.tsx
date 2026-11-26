@@ -60,19 +60,20 @@ export function SectionRow({ testID, children }: { testID?: string; children: Re
   return <View testID={testID} style={[styles.row, { borderColor: colors.border }]}>{children}</View>;
 }
 
-export function SelectField<T extends string>({ label, options, value, change, testID }: {
+export function SelectField<T extends string>({ label, options, value, change, testID, disabled }: {
   label: string;
   options: Partial<Record<T, string>>;
   value: T;
   change(value: T): void;
   testID?: string;
+  disabled?: boolean;
 }) {
   const values = Object.keys(options) as T[];
   return (
     <View style={layout.compact}>
       <Ink kind="strong">{label}</Ink>
       <Picker label={label} options={values.map((id) => ({ id, label: options[id] ?? id }))}
-        selected={value} onSelect={(key) => { if (values.includes(key as T)) change(key as T); }} testID={testID} />
+        selected={value} onSelect={(key) => { if (values.includes(key as T)) change(key as T); }} testID={testID} disabled={disabled} />
     </View>
   );
 }

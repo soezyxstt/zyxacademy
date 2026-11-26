@@ -6,6 +6,9 @@ export type TryoutDraftWrite = TryoutDraftInput & {
   expectedRevision: string | null;
 };
 export type TryoutDraftReceipt = { requestId: string; examId: string; revision: string };
+export const tryoutStatuses = ["draft", "published", "ended"] as const;
+export type TryoutMetadataWrite = TryoutDraftWrite & { status: TryoutInput["status"] };
+export type TryoutMetadataReceipt = TryoutDraftReceipt & { status: TryoutInput["status"] };
 export const maxTryoutBankImport = 100;
 export type TryoutQuestionSetWrite = { courseId: string; expectedRevision: string } & (
   | { action: "import"; bankIds: string[] }

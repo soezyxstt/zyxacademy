@@ -9,6 +9,11 @@ on:
       - 'app/api/native/context/**'
       - 'app/api/native/academic/tutor-support/**'
       - 'app/api/native/academic-administration/**'
+      - 'app/api/native/academic-assessment/**'
+      - 'lib/native/academic/assessment/**'
+      - 'lib/tutor/tryout-authoring.ts'
+      - 'lib/student/tryout-submit.ts'
+      - 'tests/contracts/native-tryout-draft.test.ts'
       - 'lib/native/academic/administration/broadcast-*.ts'
       - 'lib/notifications/admin-broadcast-audience.ts'
       - 'jobs/admin-operations.ts'
@@ -217,6 +222,7 @@ jobs:
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: |
           bun scripts/test-contracts.ts tests/contracts/native-admin-course-management.test.ts tests/contracts/native-tutor-slot.test.ts tests/contracts/native-tryout-draft.test.ts
+          bun test packages/native-parity/academic/assessment/read-handler.test.ts
       - name: Tutor quiz grading, attachment access and same-session recovery
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: |

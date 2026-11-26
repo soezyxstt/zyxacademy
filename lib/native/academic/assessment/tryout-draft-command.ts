@@ -1,11 +1,12 @@
 import { z } from "zod";
-import { maxTryoutBankImport, tryoutDraftValidationError, type TryoutDraftReceipt, type TryoutDraftWrite, type TryoutQuestionSetReceipt, type TryoutQuestionSetWrite } from "@/packages/native-parity/academic/assessment/tryout-draft";
+import { maxTryoutBankImport, tryoutDraftValidationError, tryoutStatuses, type TryoutDraftReceipt, type TryoutDraftWrite, type TryoutMetadataReceipt, type TryoutMetadataWrite, type TryoutQuestionSetReceipt, type TryoutQuestionSetWrite } from "@/packages/native-parity/academic/assessment/tryout-draft";
 import {
   courseCommandReply, readCourseCommandBody, validCourseCommandId, type CourseCommandAuth, type CourseCommandViewer,
 } from "../course-command";
 
 type Services = CourseCommandAuth & {
   save(slug: string, examId: string | null, draft: TryoutDraftWrite, requestId: string, viewer: CourseCommandViewer): Promise<Omit<TryoutDraftReceipt, "requestId">>;
+  saveMetadata(slug: string, examId: string | null, draft: TryoutMetadataWrite, requestId: string, viewer: CourseCommandViewer): Promise<Omit<TryoutMetadataReceipt, "requestId">>;
   changeQuestions(slug: string, examId: string, edit: TryoutQuestionSetWrite, requestId: string, viewer: CourseCommandViewer): Promise<Omit<TryoutQuestionSetReceipt, "requestId">>;
 };
 
@@ -20,6 +21,7 @@ const draftSchema = z.object({
   closeAt: z.string().max(48).nullable(),
   expectedRevision: revisionSchema.nullable(),
 }).strict();
+const metadataSchema = draftSchema.extend({ status: z.enum(tryoutStatuses) });
 const questionSetFields = { courseId: idSchema, expectedRevision: revisionSchema };
 const questionSetSchema = z.discriminatedUnion("action", [
   z.object({ ...questionSetFields, action: z.literal("import"), bankIds: z.array(idSchema).min(1).max(maxTryoutBankImport)
@@ -27,10 +29,20 @@ const questionSetSchema = z.discriminatedUnion("action", [
   z.object({ ...questionSetFields, action: z.literal("remove"), questionId: idSchema }).strict(),
 ]);
 
+function normalizeDates<T extends TryoutDraftWrite>(draft: T): T {
+  return {
+    ...draft,
+    openAt: draft.openAt ? new Date(draft.openAt).toISOString() : null,
+    closeAt: draft.closeAt ? new Date(draft.closeAt).toISOString() : null,
+  };
+}
+
 export async function handleAdminTryoutDraftCommand(request: Request, parts: string[], origin: string, services: Services) {
   const [role, slug, section, examId, operation] = parts;
-  const creating = request.method === "POST" && parts.length === 3;
-  const editing = request.method === "PATCH" && parts.length === 4;
+  const creatingMetadata = request.method === "POST" && parts.length === 4 && examId === "metadata";
+  const editingMetadata = request.method === "PATCH" && parts.length === 5 && operation === "metadata";
+  const creating = (request.method === "POST" && parts.length === 3) || creatingMetadata;
+  const editing = (request.method === "PATCH" && parts.length === 4) || editingMetadata;
   const managingQuestions = request.method === "POST" && parts.length === 5 && operation === "questions";
   const reply = courseCommandReply;
   if (role !== "admin" || section !== "tryouts" || (!creating && !editing && !managingQuestions)) return reply(404, { error: "NOT_FOUND" });
@@ -51,16 +63,21 @@ export async function handleAdminTryoutDraftCommand(request: Request, parts: str
       const outcome = await services.changeQuestions(slug, examId, body.data, requestId, viewer);
       return reply(200, { ...outcome, requestId });
     }
+    const target = creating ? null : examId;
+    if (creatingMetadata || editingMetadata) {
+      const body = await readCourseCommandBody(request, metadataSchema);
+      if (!body?.success || creating !== (body.data.expectedRevision === null) || tryoutDraftValidationError(body.data)) {
+        return reply(422, { error: "INVALID_TRYOUT_METADATA" });
+      }
+      const outcome = await services.saveMetadata(slug, target, normalizeDates(body.data), requestId, viewer);
+      return reply(creating ? 201 : 200, { ...outcome, requestId });
+    }
+
     const body = await readCourseCommandBody(request, draftSchema);
     if (!body?.success || creating !== (body.data.expectedRevision === null) || tryoutDraftValidationError(body.data)) {
       return reply(422, { error: "INVALID_TRYOUT_DRAFT" });
     }
-    const draft = body.data;
-    const outcome = await services.save(slug, examId ?? null, {
-      ...draft,
-      openAt: draft.openAt ? new Date(draft.openAt).toISOString() : null,
-      closeAt: draft.closeAt ? new Date(draft.closeAt).toISOString() : null,
-    }, requestId, viewer);
+    const outcome = await services.save(slug, target, normalizeDates(body.data), requestId, viewer);
     return reply(creating ? 201 : 200, { ...outcome, requestId });
   } catch (error) {
     const code = error instanceof Error ? error.message : "";

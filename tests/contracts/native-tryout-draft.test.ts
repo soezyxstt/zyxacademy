@@ -12,13 +12,23 @@ const delegate = new Proxy({} as typeof fixture.testDb, {
 });
 mock.module("@/db", () => ({ db: delegate }));
 mock.module("next/cache", () => ({ revalidatePath: () => {} }));
+let beforeLearnerAccess: (() => Promise<void>) | undefined;
+mock.module("@/lib/student/course-access", () => ({
+  resolveCourseAccess: async () => {
+    await beforeLearnerAccess?.();
+    return { hasFullContentAccess: true };
+  },
+}));
 
 import { handleAdminTryoutDraftCommand } from "@/lib/native/academic/assessment/tryout-draft-command";
-import { changeTryoutDraftQuestionsFromNative, saveTryoutDraftFromNative } from "@/lib/native/academic/assessment/tryout-draft-service";
+import { changeTryoutDraftQuestionsFromNative, saveTryoutDraftFromNative, saveTryoutMetadataFromNative } from "@/lib/native/academic/assessment/tryout-draft-service";
 import { tryoutMetadataRevision, tryoutQuestionSetRevision } from "@/lib/tutor/tryout-authoring";
+import { submitStudentTryout } from "@/lib/student/tryout-submit";
 
 const admin = { user: { id: "draft-admin" }, session: { id: "draft-admin-session" } };
 const tutor = { user: { id: "draft-tutor" }, session: { id: "draft-tutor-session" } };
+const sameAdminOtherSession = { user: admin.user, session: { id: "another-tryout-admin-session" } };
+const learnerId = "draft-learner";
 const origin = "http://localhost:3000";
 const base = {
   courseId: "mk-bio", title: "Draf tryout biologi", timeLimitMinutes: 90, maxAttempts: 2,
@@ -33,6 +43,7 @@ beforeAll(async () => {
   await db.insert(schema.user).values([
     { id: admin.user.id, role: "admin", email: "tryout-admin@example.test", name: "Admin", createdAt: now, updatedAt: now },
     { id: tutor.user.id, role: "teacher", email: "tryout-tutor@example.test", name: "Tutor", createdAt: now, updatedAt: now },
+    { id: learnerId, role: "student", email: "tryout-student@example.test", name: "Murid", createdAt: now, updatedAt: now },
   ]);
   await db.insert(schema.pengguna).values([{ id: admin.user.id, status: "active" }, { id: tutor.user.id, status: "active" }]);
   await db.insert(schema.peran).values([{ id: "p-tryout-admin", code: "admin" }, { id: "p-tryout-tutor", code: "tutor" }]).onConflictDoNothing();
@@ -41,7 +52,7 @@ beforeAll(async () => {
     { id: "draft-admin-role", penggunaId: admin.user.id, peranId: roles.find((role) => role.code === "admin")!.id, source: "seed" },
     { id: "draft-tutor-role", penggunaId: tutor.user.id, peranId: roles.find((role) => role.code === "tutor")!.id, source: "seed" },
   ]);
-  await db.insert(schema.session).values([admin, tutor].map((viewer) => ({
+  await db.insert(schema.session).values([admin, tutor, sameAdminOtherSession].map((viewer) => ({
     id: viewer.session.id, token: viewer.session.id, expiresAt: activeUntil(), userId: viewer.user.id,
   })));
   await db.insert(schema.courses).values([
@@ -56,9 +67,9 @@ beforeAll(async () => {
 afterAll(async () => { await fixture?.client.close(); });
 
 function command(method: "POST" | "PATCH", key: string, body: unknown, options: {
-  slug?: string; examId?: string; questions?: boolean; viewer?: typeof admin | null; admitAdmin?: boolean; requestOrigin?: string;
+  slug?: string; examId?: string; questions?: boolean; metadata?: boolean; viewer?: typeof admin | null; admitAdmin?: boolean; requestOrigin?: string;
 } = {}) {
-  const parts = ["admin", options.slug ?? "bio", "tryouts", ...(options.examId ? [options.examId] : []), ...(options.questions ? ["questions"] : [])];
+  const parts = ["admin", options.slug ?? "bio", "tryouts", ...(options.examId ? [options.examId] : []), ...(options.questions ? ["questions"] : options.metadata ? ["metadata"] : [])];
   const request = new Request(`${origin}/api/native/academic-assessment/${parts.join("/")}`, {
     method, body: JSON.stringify(body), headers: {
       "content-type": "application/json", origin: options.requestOrigin ?? origin, "idempotency-key": key,
@@ -68,6 +79,7 @@ function command(method: "POST" | "PATCH", key: string, body: unknown, options: 
     session: async () => options.viewer === undefined ? admin : options.viewer,
     hasAdmin: async (id) => options.admitAdmin ?? (id === admin.user.id),
     save: saveTryoutDraftFromNative,
+    saveMetadata: saveTryoutMetadataFromNative,
     changeQuestions: changeTryoutDraftQuestionsFromNative,
   });
 }
@@ -204,4 +216,97 @@ it("edits only the locked course draft and preserves settings through replay and
   } finally {
     await db.insert(schema.penggunaPeran).values(membership);
   }
+});
+
+
+it("publishes, ends, and reverts course tryouts through explicit metadata commands and preserves prior attempts", async () => {
+  const db = fixture.testDb;
+  const [draft] = await db.insert(schema.exams).values({
+    id: "tryout-lifecycle", courseId: "bio", type: "tryout", title: "Draf status", status: "draft",
+    settings: { timeLimitMinutes: 90, maxAttempts: 2, randomization: { perAttempt: true } },
+  }).returning();
+  const [question] = await db.insert(schema.questions).values({
+    id: "lifecycle-one", examId: draft.id, type: "multiple_choice", order: 1,
+    content: { prompt: "Pilih A", options: ["A", "B"], correctIndex: 0, bankQuestionId: "lifecycle-bank-id" },
+  }).returning();
+  const edit = (id: string, body: unknown, extra: Parameters<typeof command>[3] = {}) =>
+    command("PATCH", id, body, { examId: draft.id, metadata: true, ...extra });
+  const initial = { ...base, openAt: null, closeAt: null, expectedRevision: tryoutMetadataRevision(draft), status: "published" };
+  const publishKey = "native-lifecycle-publish";
+  expect((await edit(publishKey, initial, { viewer: tutor, admitAdmin: true })).status).toBe(403);
+  expect((await edit(publishKey, initial, { requestOrigin: "https://other.test" })).status).toBe(403);
+  expect((await edit(publishKey, { ...initial, status: "archived" })).status).toBe(422);
+  expect((await edit(publishKey, { ...initial, expectedRevision: null })).status).toBe(422);
+  expect((await edit(publishKey, { ...initial, courseId: "mk-fisika" })).status).toBe(409);
+  expect((await edit(publishKey, { ...initial, courseId: "mk-fisika" }, { slug: "fisika" })).status).toBe(404);
+  expect((await edit(publishKey, initial, { metadata: false })).status).toBe(422);
+  const publish = await edit(publishKey, initial);
+  expect(publish.status).toBe(200);
+  const published = await publish.json();
+  expect(published).toMatchObject({ examId: draft.id, requestId: publishKey, status: "published" });
+  expect(await (await edit(publishKey, initial, { slug: "mk-bio" })).json()).toEqual(published);
+  expect(await (await edit(publishKey, initial, { viewer: sameAdminOtherSession })).json()).toEqual({ error: "REQUEST_CONFLICT" });
+  expect(await (await edit(publishKey, { ...initial, status: "ended" })).json()).toEqual({ error: "REQUEST_CONFLICT" });
+
+  const { status: _status, ...legacy } = initial;
+  expect(await (await edit("native-legacy-started", { ...legacy, expectedRevision: published.revision }, { metadata: false })).json())
+    .toEqual({ error: "TRYOUT_NOT_DRAFT" });
+  expect(await (await edit("native-lifecycle-stale", { ...initial, status: "ended" })).json())
+    .toEqual({ error: "REVISION_CONFLICT" });
+  const accepted = { courseId: "bio", examId: draft.id, userId: learnerId, requestId: "learner-tryout-accepted", answers: { [question.id]: { index: 0 } } };
+  const submission = await submitStudentTryout(accepted);
+  const response = await edit("native-lifecycle-ending", { ...initial, expectedRevision: published.revision, status: "ended" });
+  expect(response.status).toBe(200);
+  const ended = await response.json();
+  expect(ended.status).toBe("ended");
+  expect(await submitStudentTryout(accepted)).toEqual(submission);
+  await expect(submitStudentTryout({ ...accepted, requestId: "learner-tryout-after-ending" })).rejects.toMatchObject({ status: 409 });
+
+  const revert = await edit("native-lifecycle-revert", { ...initial, expectedRevision: ended.revision, status: "draft" });
+  expect(revert.status).toBe(200);
+  const reverted = await revert.json();
+  const [saved] = await db.select().from(schema.exams).where(eq(schema.exams.id, draft.id));
+  expect(reverted).toMatchObject({ examId: draft.id, status: "draft", revision: tryoutMetadataRevision(saved) });
+  expect(saved.settings).toMatchObject({ randomization: { perAttempt: true }, maxAttempts: 2 });
+  expect(await (await edit(publishKey, initial)).json()).toEqual(published);
+  expect(await db.select().from(schema.questions).where(eq(schema.questions.examId, saved.id))).toEqual([question]);
+  const blockedQuestionEdit = await command("POST", "native-bank-after-revert", {
+    courseId: initial.courseId, expectedRevision: tryoutQuestionSetRevision(saved, [question]), action: "remove", questionId: question.id,
+  }, { examId: saved.id, questions: true });
+  expect(await blockedQuestionEdit.json()).toEqual({ error: "TRYOUT_HAS_SUBMISSIONS" });
+  expect(await db.select({ id: schema.submissions.id }).from(schema.submissions).where(eq(schema.submissions.examId, draft.id)))
+    .toEqual([{ id: submission.submissionId }]);
+  expect(await db.select().from(schema.auditMutasi).where(eq(schema.auditMutasi.entityId, draft.id))).toHaveLength(3);
+});
+
+it("rejects a submission when publication is withdrawn after the learner began the request", async () => {
+  const data = { ...base, openAt: null, closeAt: null, status: "published" };
+  const key = "native-create-published-tryout";
+  const created = await command("POST", key, data, { metadata: true });
+  expect(created.status).toBe(201);
+  const published = await created.json();
+  expect(await (await command("POST", key, data, { metadata: true })).json()).toEqual(published);
+
+  const arrival = Promise.withResolvers<void>();
+  const proceed = Promise.withResolvers<void>();
+  beforeLearnerAccess = async () => {
+    arrival.resolve();
+    await proceed.promise;
+  };
+  const result = submitStudentTryout({
+    courseId: "bio", examId: published.examId, userId: learnerId, answers: {}, requestId: "learner-stale-publication",
+  }).catch((error: unknown) => error);
+  try {
+    await arrival.promise;
+    const transition = await command("PATCH", "native-revert-before-submit", {
+      ...data, status: "draft", expectedRevision: published.revision,
+    }, { metadata: true, examId: published.examId });
+    expect(transition.status).toBe(200);
+  } finally {
+    beforeLearnerAccess = undefined;
+    proceed.resolve();
+  }
+  expect(await result).toMatchObject({ status: 409 });
+  expect(await fixture.testDb.select().from(schema.submissions).where(eq(schema.submissions.examId, published.examId)))
+    .toEqual([]);
 });

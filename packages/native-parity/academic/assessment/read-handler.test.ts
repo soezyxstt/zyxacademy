@@ -358,3 +358,46 @@ test("same-session Admin bank selection retries keep the original course, exam, 
   remounted.confirmTryoutDraft?.(context, requestId);
   assert.equal(remounted.pendingTryoutDraft?.(context), null);
 });
+
+test("explicit Admin tryout status saves retry the same revision and require a matching receipt", async () => {
+  const calls: Array<{ path: string; init: import("../../../../apps/mobile-native/features/academic/client").AcademicCommand }> = [];
+  const transport = {
+    accountId: "admin", origin: "https://example.test", locale: "id",
+    get: async () => Response.json(null, { status: 404 }),
+    command: async (path: string, init: import("../../../../apps/mobile-native/features/academic/client").AcademicCommand) => {
+      calls.push({ path, init });
+      const status = calls.length === 1 ? "draft" : (init.body as { status: string }).status;
+      const examId = init.method === "PATCH" ? "draft" : "new";
+      return Response.json({ requestId: init.requestId, examId, revision: "b".repeat(64), status });
+    },
+  };
+  const context = { actor: { id: "admin", role: "admin" }, scope: { kind: "admin", slug: "biologi" }, scenario: "populated" } as const;
+  const input = { title: "Tryout", status: "published", timeLimitMinutes: 90, maxAttempts: 2, openAt: null, closeAt: null } as const;
+  const command = {
+    kind: "tryout.metadata.save", courseId: "mk-bio", input,
+    target: { id: "draft", expectedRevision: 0, metadataRevision: "a".repeat(64) },
+  } as const;
+  const gateway = createAssessmentReadGateway(transport);
+  assert.equal(gateway.canSaveTryoutMetadata, true);
+  const id = "publish-tryout-once";
+  assert.equal((await gateway.mutate(context, id, command)).ok, false);
+  const remounted = createAssessmentReadGateway(transport);
+  const pending = remounted.pendingTryoutDraft?.(context);
+  assert.ok(pending);
+  assert.equal(pending.confirmed, false);
+  assert.equal((await remounted.mutate(context, "different-tryout-key", { ...command, input: { ...input, status: "ended" } })).ok, false);
+  assert.equal(calls.length, 1);
+  assert.equal((await remounted.mutate(context, pending.requestId, pending.command)).ok, true);
+  assert.deepEqual(calls[0], calls[1]);
+  assert.deepEqual(calls[0], {
+    path: "/api/native/academic-assessment/admin/biologi/tryouts/draft/metadata",
+    init: { method: "PATCH", requestId: id, body: { courseId: "mk-bio", expectedRevision: "a".repeat(64), ...input } },
+  });
+  remounted.confirmTryoutDraft?.(context, id);
+  assert.equal(remounted.pendingTryoutDraft?.(context), null);
+  assert.equal((await remounted.mutate(context, "publish-on-create", { ...command, target: null })).ok, true);
+  assert.deepEqual(calls[2], {
+    path: "/api/native/academic-assessment/admin/biologi/tryouts/metadata",
+    init: { method: "POST", requestId: "publish-on-create", body: { courseId: "mk-bio", expectedRevision: null, ...input } },
+  });
+});

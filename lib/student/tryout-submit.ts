@@ -6,6 +6,7 @@ import { db } from "@/db";
 import { exams, mataKuliah, questions, submissions } from "@/db/schema";
 import { normalizeQuestionProvenance } from "@/lib/asesmen/question-provenance";
 import { checkCourseMatch, isSqliteBusyError, isUniqueConstraintError } from "@/lib/tutor/assessment-policy";
+import { lockTryoutExam } from "@/lib/tutor/tryout-authoring";
 import { resolveCourseAccess } from "@/lib/student/course-access";
 import { studentAssessmentRequestId } from "./assessment-idempotency";
 
@@ -15,41 +16,7 @@ export class TryoutSubmissionError extends Error {
   }
 }
 
-/** Both the web action and native handler supply userId from their validated session. */
-export async function submitStudentTryout({ courseId, examId, userId, answers, requestId, validateAnswers }: {
-  courseId: string;
-  examId: string;
-  userId: string;
-  answers: Record<string, unknown>;
-  requestId?: string;
-  validateAnswers?: (rows: (typeof questions.$inferSelect)[]) => Record<string, unknown>;
-}) {
-  const [examRecord] = await db.select().from(exams).where(eq(exams.id, examId)).limit(1);
-  if (!examRecord) throw new TryoutSubmissionError("Tryout tidak ditemukan.", 404);
-
-  const [canonicalCourse] = await db
-    .select({ id: mataKuliah.id, legacyCourseId: mataKuliah.legacyCourseId })
-    .from(mataKuliah)
-    .where(or(eq(mataKuliah.id, courseId), eq(mataKuliah.legacyCourseId, courseId)))
-    .limit(1);
-
-  const canonicalId = canonicalCourse?.id ?? courseId;
-  const legacyId = canonicalCourse?.legacyCourseId ?? courseId;
-
-  if (!checkCourseMatch(examRecord.courseId, canonicalId, legacyId) || examRecord.type !== "tryout") {
-    throw new TryoutSubmissionError("Tryout tidak sesuai dengan kelas.", 404);
-  }
-
-  const access = await resolveCourseAccess({ courseId: examRecord.courseId, userId });
-  if (!access.hasFullContentAccess) throw new TryoutSubmissionError("Akses mata kuliah tidak tersedia.", 403);
-
-  const submissionId = `sub-tutor-${requestId ? studentAssessmentRequestId("tryout", userId, examId, requestId) : randomUUID()}`;
-  const sameSubmission = and(eq(submissions.id, submissionId), eq(submissions.userId, userId), eq(submissions.examId, examId));
-  const alreadySubmitted = async () => Boolean(requestId && (await db.select({ id: submissions.id }).from(submissions).where(sameSubmission).limit(1)).length);
-  if (await alreadySubmitted()) {
-    return { success: true, submissionId };
-  }
-
+function assertTryoutOpen(examRecord: typeof exams.$inferSelect) {
   if (examRecord.status !== "published") {
     throw new TryoutSubmissionError("Tryout belum dipublikasikan atau sudah ditutup.", 409);
   }
@@ -61,22 +28,11 @@ export async function submitStudentTryout({ courseId, examId, userId, answers, r
   if (examRecord.closeAt && now > new Date(examRecord.closeAt)) {
     throw new TryoutSubmissionError("Tryout sudah ditutup.", 409);
   }
+}
 
-  const settings = typeof examRecord.settings === "string"
-    ? JSON.parse(examRecord.settings)
-    : (examRecord.settings as Record<string, any> | null);
-  const maxAttempts = settings?.maxAttempts;
-
-  const dbQuestions = await db
-    .select()
-    .from(questions)
-    .where(eq(questions.examId, examId))
-    .orderBy(asc(questions.order));
-
-  if (validateAnswers) answers = validateAnswers(dbQuestions);
-
+function gradeTryoutAnswers(dbQuestions: (typeof questions.$inferSelect)[], answers: Record<string, unknown>) {
   const hasEssay = dbQuestions.some((q) => q.type === "essay");
-  const status = hasEssay ? "pending_review" : "completed";
+  const status = hasEssay ? "pending_review" as const : "completed" as const;
 
   let correctCount = 0;
   let autoGradedCount = 0;
@@ -126,12 +82,61 @@ export async function submitStudentTryout({ courseId, examId, userId, answers, r
 
   const autoGradedScore = autoGradedCount > 0 ? Math.round((correctCount / autoGradedCount) * 100) : 100;
   const score = hasEssay ? null : autoGradedScore;
+  return { status, score, questionsSnapshot };
+}
+
+/** Both the web action and native handler supply userId from their validated session. */
+export async function submitStudentTryout({ courseId, examId, userId, answers, requestId, validateAnswers }: {
+  courseId: string;
+  examId: string;
+  userId: string;
+  answers: Record<string, unknown>;
+  requestId?: string;
+  validateAnswers?: (rows: (typeof questions.$inferSelect)[]) => Record<string, unknown>;
+}) {
+  const [examRecord] = await db.select().from(exams).where(eq(exams.id, examId)).limit(1);
+  if (!examRecord) throw new TryoutSubmissionError("Tryout tidak ditemukan.", 404);
+
+  const [canonicalCourse] = await db
+    .select({ id: mataKuliah.id, legacyCourseId: mataKuliah.legacyCourseId })
+    .from(mataKuliah)
+    .where(or(eq(mataKuliah.id, courseId), eq(mataKuliah.legacyCourseId, courseId)))
+    .limit(1);
+
+  const canonicalId = canonicalCourse?.id ?? courseId;
+  const legacyId = canonicalCourse?.legacyCourseId ?? courseId;
+
+  if (!checkCourseMatch(examRecord.courseId, canonicalId, legacyId) || examRecord.type !== "tryout") {
+    throw new TryoutSubmissionError("Tryout tidak sesuai dengan kelas.", 404);
+  }
+
+  const access = await resolveCourseAccess({ courseId: examRecord.courseId, userId });
+  if (!access.hasFullContentAccess) throw new TryoutSubmissionError("Akses mata kuliah tidak tersedia.", 403);
+
+  const submissionId = `sub-tutor-${requestId ? studentAssessmentRequestId("tryout", userId, examId, requestId) : randomUUID()}`;
+  const sameSubmission = and(eq(submissions.id, submissionId), eq(submissions.userId, userId), eq(submissions.examId, examId));
+  const alreadySubmitted = async () => Boolean(requestId && (await db.select({ id: submissions.id }).from(submissions).where(sameSubmission).limit(1)).length);
+  if (await alreadySubmitted()) {
+    return { success: true, submissionId };
+  }
 
   const maxSubmitRetries = 6;
   for (let retry = 0; retry < maxSubmitRetries; retry++) {
     try {
       await db.transaction(async (tx) => {
+        // Share the exam row with concurrent learners and exclude lifecycle and bank writers.
+        const locked = await lockTryoutExam(tx, examRecord.courseId, examId, "share");
+        if (!locked) throw new TryoutSubmissionError("Tryout tidak sesuai dengan kelas.", 404);
         if (requestId && (await tx.select({ id: submissions.id }).from(submissions).where(sameSubmission).limit(1)).length) return;
+        assertTryoutOpen(locked);
+        const settings = typeof locked.settings === "string"
+          ? JSON.parse(locked.settings)
+          : (locked.settings as Record<string, unknown> | null);
+        const maxAttempts = settings?.maxAttempts;
+        const dbQuestions = await tx.select().from(questions)
+          .where(eq(questions.examId, examId)).orderBy(asc(questions.order));
+        const acceptedAnswers = validateAnswers ? validateAnswers(dbQuestions) : answers;
+        const graded = gradeTryoutAnswers(dbQuestions, acceptedAnswers);
         const [attemptsResult] = await tx
           .select({ count: sql<number>`count(*)` })
           .from(submissions)
@@ -155,10 +160,8 @@ export async function submitStudentTryout({ courseId, examId, userId, answers, r
           id: submissionId,
           userId,
           examId,
-          status,
-          score,
-          answersSnapshot: answers,
-          questionsSnapshot,
+          ...graded,
+          answersSnapshot: acceptedAnswers,
           submittedAt: new Date(),
           attemptNumber,
         });

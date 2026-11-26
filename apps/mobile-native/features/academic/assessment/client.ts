@@ -2,7 +2,7 @@ import type {
   AssessmentContext, AssessmentErrorCode, AssessmentGateway, AssessmentResult, MutationEffect, OutstandingQuizSave, QuizGradeCommand, TryoutDraftCommand,
 } from "../../../../../packages/native-parity/academic/assessment/model";
 import { quizAuthoringPayload } from "../../../../../packages/native-parity/academic/assessment/quiz-payload";
-import type { TryoutDraftWrite, TryoutQuestionSetWrite } from "../../../../../packages/native-parity/academic/assessment/tryout-draft";
+import type { TryoutDraftWrite, TryoutMetadataWrite, TryoutQuestionSetWrite } from "../../../../../packages/native-parity/academic/assessment/tryout-draft";
 import type { AcademicTransport } from "../client";
 
 const forbidden = { ok: false, code: "forbidden", message: "Akun ini tidak memiliki akses ke data penilaian kursus." } as const;
@@ -136,21 +136,24 @@ export function createAssessmentReadGateway(transport: AcademicTransport): Asses
     const { courseId } = command;
     const send = transport.command?.bind(transport);
     if (!send || context.scope.kind !== "admin" || !courseId) return forbidden;
-    let body: TryoutDraftWrite | TryoutQuestionSetWrite;
+    let body: TryoutDraftWrite | TryoutMetadataWrite | TryoutQuestionSetWrite;
     let examId: string | undefined;
     let method: "PATCH" | "POST" = "POST";
     let path: string;
-    if (command.kind === "tryout.save") {
+    const metadata = command.kind === "tryout.metadata.save";
+    if (command.kind === "tryout.save" || metadata) {
       const { input, target } = command;
-      if (input.status !== "draft" || (target && !target.metadataRevision)) return forbidden;
+      if ((!metadata && input.status !== "draft") || (target && !target.metadataRevision)) return forbidden;
       examId = target?.id;
       method = examId ? "PATCH" : "POST";
-      path = examId ? `tryouts/${encodeURIComponent(examId)}` : "tryouts";
-      body = {
+      const targetPath = examId ? `tryouts/${encodeURIComponent(examId)}` : "tryouts";
+      path = metadata ? `${targetPath}/metadata` : targetPath;
+      const fields = {
         courseId, expectedRevision: target?.metadataRevision ?? null,
         title: input.title, timeLimitMinutes: input.timeLimitMinutes, maxAttempts: input.maxAttempts,
         openAt: input.openAt, closeAt: input.closeAt,
       };
+      body = metadata ? { ...fields, status: input.status } : fields;
     } else {
       const { questionSetRevision } = command;
       if (!questionSetRevision) return forbidden;
@@ -182,15 +185,15 @@ export function createAssessmentReadGateway(transport: AcademicTransport): Asses
           if (response.status >= 500 || response.status === 429) return uncertain;
           tryoutDrafts.delete(key);
           const error = responseError(response.status);
-          if (error.code === "invalid") return { ...error, message: command.kind === "tryout.save"
-            ? "Periksa judul, durasi, batas percobaan, dan jadwal tryout."
+          if (error.code === "invalid") return { ...error, message: command.kind === "tryout.save" || metadata
+            ? "Periksa pengaturan, status, dan jadwal tryout."
             : "Pilihan soal tidak valid atau aset visualnya belum terverifikasi." };
           if (error.code === "conflict") {
             const detail = await response.json().catch(() => null);
             if (detail && typeof detail === "object" && "error" in detail && detail.error === "TRYOUT_HAS_SUBMISSIONS") {
               return { ...error, message: "Draf ini sudah memiliki pengumpulan. Muat versi terbaru." };
             }
-            return { ...error, message: "Draf tryout atau kursus telah berubah. Muat versi terbaru." };
+            return { ...error, message: "Tryout atau kursus telah berubah. Muat versi terbaru." };
           }
           return error;
         }
@@ -200,6 +203,10 @@ export function createAssessmentReadGateway(transport: AcademicTransport): Asses
         if (receipt.requestId !== requestId || typeof receipt.examId !== "string" || typeof receipt.revision !== "string" ||
           !/^[a-f0-9]{64}$/.test(receipt.revision) || (examId && receipt.examId !== examId)) return uncertain;
         let message = "Draf tryout tersimpan.";
+        if (metadata) {
+          if (receipt.status !== command.input.status) return uncertain;
+          message = "Tryout tersimpan.";
+        }
         if (command.kind === "tryout.question.import") {
           const { imported, skipped } = receipt;
           if (typeof imported !== "number" || typeof skipped !== "number" ||
@@ -227,6 +234,7 @@ export function createAssessmentReadGateway(transport: AcademicTransport): Asses
     canGrade: Boolean(transport.command),
     canSaveQuiz: Boolean(transport.command),
     canSaveTryoutDraft: Boolean(transport.command),
+    canSaveTryoutMetadata: Boolean(transport.command),
     pendingQuizGrade(context) {
       const entry = accountMatches(context) ? quizGrades.get(scopeKey(context)) : undefined;
       return entry ? { requestId: entry.requestId, command: JSON.parse(entry.fingerprint) as QuizGradeCommand } : null;
@@ -274,7 +282,7 @@ export function createAssessmentReadGateway(transport: AcademicTransport): Asses
     async mutate(context, requestId, command, signal) {
       if (!accountMatches(context) || !transport.command) return forbidden;
       if (command.kind === "quiz.save") return saveQuiz(context, requestId, command, signal);
-      if (command.kind === "tryout.save" || command.kind === "tryout.question.import" || command.kind === "tryout.question.delete") {
+      if (command.kind === "tryout.save" || command.kind === "tryout.metadata.save" || command.kind === "tryout.question.import" || command.kind === "tryout.question.delete") {
         return saveTryoutDraft(context, requestId, command, signal);
       }
       if (command.kind === "quiz.status" || command.kind === "quiz.delete") {

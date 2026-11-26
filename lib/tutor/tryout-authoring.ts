@@ -42,9 +42,9 @@ export function tryoutBankQuestionId(content: unknown): string | undefined {
   return typeof bankQuestionId === "string" && bankQuestionId ? bankQuestionId : undefined;
 }
 
-export function lockTryoutExam(tx: Transaction, legacyCourseId: string, id: string) {
+export function lockTryoutExam(tx: Transaction, legacyCourseId: string, id: string, strength: "update" | "share" = "update") {
   return tx.select().from(exams).where(and(eq(exams.id, id), eq(exams.courseId, legacyCourseId),
-    eq(exams.type, "tryout"))).limit(1).for("update").then(([row]) => row ?? null);
+    eq(exams.type, "tryout"))).limit(1).for(strength).then(([row]) => row ?? null);
 }
 
 export async function saveTryoutRecord(tx: Transaction, target: { id: string; legacyCourseId: string; previous: TryoutExam | null }, input: TryoutMetadata) {

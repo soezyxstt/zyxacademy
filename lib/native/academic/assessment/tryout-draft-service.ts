@@ -10,7 +10,7 @@ import { buildTutorMutationAuditRow, recordTutorMutationAudit } from "@/lib/audi
 import { assertAuthoringActor } from "@/lib/auth/authoring-actor";
 import { lockTryoutExam, saveTryoutRecord, selectableTryoutBankCondition, tryoutBankQuestionId, tryoutMetadataRevision, tryoutQuestionSetRevision } from "@/lib/tutor/tryout-authoring";
 import { buildTryoutBankSnapshot } from "@/lib/tutor/tryout-bank-snapshot";
-import type { TryoutDraftWrite, TryoutQuestionSetWrite } from "@/packages/native-parity/academic/assessment/tryout-draft";
+import type { TryoutDraftWrite, TryoutMetadataWrite, TryoutQuestionSetWrite } from "@/packages/native-parity/academic/assessment/tryout-draft";
 import type { CourseCommandViewer } from "../course-command";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -36,12 +36,14 @@ async function lockDraftCourse(tx: Transaction, slug: string, courseId: string, 
   return { ...identity, legacyId: legacyCourseId };
 }
 
-export async function saveTryoutDraftFromNative(slug: string, examId: string | null, draft: TryoutDraftWrite, requestId: string, viewer: CourseCommandViewer) {
+async function persistTryoutMetadata(slug: string, examId: string | null, draft: TryoutDraftWrite, requestId: string, viewer: CourseCommandViewer, requestedStatus?: TryoutMetadataWrite["status"]) {
+  const statusAware = requestedStatus !== undefined;
   const actorId = viewer.user.id;
   const result = await db.transaction(async (tx) => {
     const identity = await lockDraftCourse(tx, slug, draft.courseId, viewer);
     const legacyCourseId = identity.legacyId;
-    const auditRequestId = `req-native-tryout-draft-${revisionOf([actorId, identity.primaryId, examId, requestId])}`;
+    const operation = statusAware ? "metadata" : "draft";
+    const auditRequestId = `req-native-tryout-${operation}-${revisionOf([actorId, identity.primaryId, examId, requestId])}`;
     const id = examId ?? `exm-native-${revisionOf(auditRequestId).slice(0, 32)}`;
 
     // Requests to create an exam have no existing row to lock.
@@ -52,7 +54,7 @@ export async function saveTryoutDraftFromNative(slug: string, examId: string | n
       action: examId ? "tryout:update" : "tryout:create",
       outcome: "success", reason: examId ? "Tryout exam updated by admin" : "Tryout exam created by admin",
     } as const;
-    const requestDigest = revisionOf({ draft, legacyCourseId });
+    const requestDigest = revisionOf(statusAware ? { draft, requestedStatus, legacyCourseId, sessionId: viewer.session.id } : { draft, legacyCourseId });
     const auditId = buildTutorMutationAuditRow(audit).id;
     const [receipt] = await tx.select({ actorId: auditMutasi.actorId, after: auditMutasi.afterSnapshot })
       .from(auditMutasi).where(eq(auditMutasi.id, auditId)).limit(1);
@@ -62,15 +64,15 @@ export async function saveTryoutDraftFromNative(slug: string, examId: string | n
         typeof snapshot?.revision !== "string" || !/^[a-f0-9]{64}$/.test(snapshot.revision)) {
         throw new Error("REQUEST_CONFLICT");
       }
-      return { examId: id, revision: snapshot.revision, legacyCourseId };
+      return { examId: id, revision: snapshot.revision, legacyCourseId, courseId: identity.primaryId };
     }
 
     const previous = examId ? await lockTryoutExam(tx, legacyCourseId, id) : null;
     if (examId && !previous) throw new Error("TRYOUT_NOT_FOUND");
-    if (previous?.status && previous.status !== "draft") throw new Error("TRYOUT_NOT_DRAFT");
+    if (!statusAware && previous?.status && previous.status !== "draft") throw new Error("TRYOUT_NOT_DRAFT");
     if (previous && tryoutMetadataRevision(previous) !== draft.expectedRevision) throw new Error("REVISION_CONFLICT");
 
-    const saved = await saveTryoutRecord(tx, { id, legacyCourseId, previous }, { ...draft, status: "draft" });
+    const saved = await saveTryoutRecord(tx, { id, legacyCourseId, previous }, { ...draft, status: requestedStatus ?? "draft" });
     const revision = tryoutMetadataRevision(saved);
     await recordTutorMutationAudit({
       ...audit,
@@ -81,12 +83,29 @@ export async function saveTryoutDraftFromNative(slug: string, examId: string | n
         requestDigest, revision,
       },
     }, tx);
-    return { examId: id, revision, legacyCourseId };
+    return { examId: id, revision, legacyCourseId, courseId: identity.primaryId };
   });
 
   revalidatePath(`/admin/courses/${encodeURIComponent(slug)}/tryouts`);
-  revalidatePath(`/courses/${encodeURIComponent(result.legacyCourseId)}/tryout`);
+  const affectedCourses = statusAware ? new Set([result.legacyCourseId, result.courseId]) : [result.legacyCourseId];
+  for (const courseId of affectedCourses) {
+    const course = encodeURIComponent(courseId);
+    revalidatePath(`/courses/${course}/tryout`);
+    if (statusAware) {
+      revalidatePath(`/courses/${course}/tryout/${encodeURIComponent(result.examId)}`);
+      revalidatePath(`/tutor/${course}/tryouts`);
+    }
+  }
   return { examId: result.examId, revision: result.revision };
+}
+
+export function saveTryoutDraftFromNative(slug: string, examId: string | null, draft: TryoutDraftWrite, requestId: string, viewer: CourseCommandViewer) {
+  return persistTryoutMetadata(slug, examId, draft, requestId, viewer);
+}
+
+export async function saveTryoutMetadataFromNative(slug: string, examId: string | null, draft: TryoutMetadataWrite, requestId: string, viewer: CourseCommandViewer) {
+  const { status, ...fields } = draft;
+  return { ...(await persistTryoutMetadata(slug, examId, fields, requestId, viewer, status)), status };
 }
 
 export async function changeTryoutDraftQuestionsFromNative(slug: string, examId: string, edit: TryoutQuestionSetWrite, requestId: string, viewer: CourseCommandViewer) {

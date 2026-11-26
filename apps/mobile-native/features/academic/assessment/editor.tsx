@@ -158,13 +158,13 @@ const tutorCategories: Partial<typeof quizCategories> = {
   daily: quizCategories.daily, weekly: quizCategories.weekly, chapter: quizCategories.chapter, premium: quizCategories.premium,
 };
 
-export function ScheduleFields({ openAt, closeAt, setOpen, setClose }: {
-  openAt: string | null; closeAt: string | null; setOpen(value: string): void; setClose(value: string): void;
+export function ScheduleFields({ openAt, closeAt, setOpen, setClose, disabled }: {
+  openAt: string | null; closeAt: string | null; setOpen(value: string): void; setClose(value: string): void; disabled?: boolean;
 }) {
   const placeholder = "2026-11-30T09:00+07:00";
   return <View style={layout.group}>
-    <Field label="Waktu buka dan zona waktu" autoCapitalize="none" autoCorrect={false} placeholder={placeholder} value={openAt ?? ""} onChangeText={setOpen} />
-    <Field label="Waktu tutup dan zona waktu" autoCapitalize="none" autoCorrect={false} placeholder={placeholder} value={closeAt ?? ""} onChangeText={setClose} />
+    <Field label="Waktu buka dan zona waktu" autoCapitalize="none" autoCorrect={false} placeholder={placeholder} value={openAt ?? ""} editable={!disabled} onChangeText={setOpen} />
+    <Field label="Waktu tutup dan zona waktu" autoCapitalize="none" autoCorrect={false} placeholder={placeholder} value={closeAt ?? ""} editable={!disabled} onChangeText={setClose} />
   </View>;
 }
 

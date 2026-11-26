@@ -298,7 +298,7 @@ export const assessmentReadServices: AssessmentReadServices = {
       userId: scope.actorId, questions: disclosures, requestId: crypto.randomUUID(),
     }));
     return {
-      course, canSaveDraft,
+      course, canSaveDraft, canSaveMetadata: canSaveDraft,
       bank: bankRows.map((row) => ({ id: row.id, prompt: row.prompt, type: type(row.type), difficulty: row.difficulty, tags: strings(row.tags) })),
       tryouts: rows.map((row) => {
         const settings = object(row.settings);

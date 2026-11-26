@@ -255,7 +255,8 @@ export function createAssessmentFixtureGateway(): AssessmentGateway {
         replace(data.bank, { ...command.input, id, revision: (question?.revision ?? 0) + 1, origin: "zyx_original" });
         return success(id, "Soal tersimpan di bank.");
       }
-      case "tryout.save": {
+      case "tryout.save":
+      case "tryout.metadata.save": {
         const prior = command.target ? checked(data.tryouts, command.target, "Tryout") : undefined;
         const { title, timeLimitMinutes, maxAttempts, openAt, closeAt } = command.input;
         if (!title.trim()) deny("invalid", "Judul tryout wajib diisi.");
