@@ -86,6 +86,10 @@ async function runFlow(name: string, inputs: string[] = [], label = name) {
       ["student-pdf-thumbnail", "Student PDF local thumbnail"],
       ["student-pdf-note", "Student private PDF note"],
       ["student-pdf-search", "Student authorized PDF text search"],
+      ["Lintasan uji Article", "signed Article scene entry"],
+      ["student-solution-scene", "signed Article scene surface"],
+      ["Perpindahan uji", "signed Article scene readout"],
+      ["student-close-article-visual", "signed Article scene return"],
       ["Kuis selesai", "Tutor live conclusion"],
       ["(Simpan|Save) Diktat verifikasi offline", "offline save action"],
       ["(Hapus|Remove) Diktat verifikasi offline", "offline saved state"],
@@ -268,6 +272,9 @@ try {
     await runFlow("student-pdf-controls");
     if (!fixture.verifiedOnlinePdfSearch()) throw new Error("The signed PDF search did not return its page-scoped match");
     console.log("Android previewed a private PDF page, reopened its note and bookmark, and jumped to its authorized text match");
+    step = "change the authorized Article scene and return to reading";
+    await runFlow("student-reading-widget");
+    console.log("Android changed a signed Article scene from 0 m to 3 m and returned to the reader");
     step = "withdraw the runner-only enrollment and PKA registration";
     await fixture.revokeOnlineReading();
     step = "reject the withdrawn Article from the normal Android document route";

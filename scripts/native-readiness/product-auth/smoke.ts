@@ -8,7 +8,7 @@ import { NATIVE_AUTH_HANDOFF_COOKIE } from "@/lib/native/auth-handoff";
 import { EXPO_ANDROID_BROWSER_RETURN, EXPO_ANDROID_BROWSER_RETURN_HEADER, EXPO_STAGING_ORIGIN, EXPO_STAGING_SCHEME } from "@/lib/native/expo-auth-config";
 import { course, video, privateVideoPath } from "./video-fixture";
 import { notificationId } from "./inbox-fixture";
-import { articleId, articleSectionId, formativeBlockId, generatedArticleId, imagePath, legacyArticleId, pdfId, pkaCourseId, pkaDiktatId, pkaReadingConcept, readingCourseId } from "./reading-fixture";
+import { articleId, articleSceneId, articleSectionId, formativeBlockId, generatedArticleId, imagePath, legacyArticleId, pdfId, pkaCourseId, pkaDiktatId, pkaReadingConcept, readingCourseId } from "./reading-fixture";
 import { fixtureOrigin, fixtureSessionSeconds } from "./scope";
 import { startAuthFixture } from "./server";
 
@@ -175,8 +175,12 @@ try {
     const reading = (courseId: string, materialId: string, extra = {}) =>
       binding.request("/api/native/student/reading?" + new URLSearchParams({ courseId, materialId, ...extra }), { headers: readingHeaders });
     const article = await reading(readingCourseId, articleId);
-    const document = await article.json() as { revision?: string; assets?: string[] };
+    const document = await article.json() as {
+      revision?: string; assets?: string[]; data?: { visuals?: Array<{ id: string; kind: string }> };
+    };
     check(article.ok && typeof document.revision === "string" && document.assets?.includes(imagePath), "Canonical Article or admitted image absent");
+    check(document.data?.visuals?.some(visual => visual.id === articleSceneId && visual.kind === "interactive_scene"),
+      "The signed Article did not admit its authored interactive scene");
     const image = await reading(readingCourseId, articleId, { asset: imagePath, revision: document.revision });
     check(image.ok && image.headers.get("content-type") === "image/png" && (await image.arrayBuffer()).byteLength > 0,
       "Admitted image bytes absent");

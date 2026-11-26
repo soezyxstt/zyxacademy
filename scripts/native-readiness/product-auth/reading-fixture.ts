@@ -10,6 +10,20 @@ const enrollmentId = "native-preview-reading-enrollment";
 export const articleId = "native-preview-reading-article";
 export const articleSectionId = articleId + "-section";
 export const formativeBlockId = articleId + "-check";
+export const articleSceneId = "article_scope_motion";
+const articleReadingScene = {
+  id: articleSceneId, kind: "interactive_scene", label: "Lintasan uji Article",
+  description: "Ubah posisi penanda dan lihat perpindahannya.",
+  viewBox: { x: 0, y: 0, width: 180, height: 100 },
+  parameters: [{ id: "travel", label: "Posisi uji", control: "range", min: 0, max: 3, step: 1, initial: 0, unit: "m" }],
+  shapes: [
+    { type: "line", x1: 15, y1: 50, x2: 165, y2: 50, actionLabel: "Majukan penanda uji",
+      action: { type: "set", parameter: "travel", value: 3 } },
+    { type: "circle", cx: "25 + 40 * travel", cy: 50, r: 8, color: "primary", fill: true },
+  ],
+  outputs: [{ label: "Perpindahan uji", value: "travel", unit: "m" }],
+  staticFallback: { type: "text", summary: "Penanda di titik awal", content: "Posisi awal adalah 0 m." },
+};
 export const legacyArticleId = articleId + "-legacy";
 export const generatedArticleId = articleId + "-generated";
 export const pdfId = "native-preview-reading-pdf";
@@ -120,9 +134,10 @@ export async function createReadingPreview(runHandler: (request: Request, handle
       ]);
       await tx.insert(schema.enrollments).values({ id: registrationId, userId: accountId, courseId: pkaCourseId, expiresAt: expiration });
       const details = { status: "published" as const, creatorId: accountId, sourceHash: "preview-source", generationHash: "preview-v3", version: 3 };
+      const visuals = Buffer.from(JSON.stringify([articleReadingScene])).toString("base64url");
       await tx.insert(schema.artikel).values({
         ...details, id: articleId, slug: articleId, mataKuliahId: canonicalCourse, babId: chapter, title: "Artikel verifikasi kanonis",
-        contentMarkdown: "Isi terstruktur berada di bagian bacaan.", structureStatus: "structured",
+        contentMarkdown: `Isi terstruktur berada di bagian bacaan.\n<!--__ZYX_V3_ARTICLE_VISUALS__:${visuals}-->`, structureStatus: "structured",
       });
       const id = articleSectionId;
       await tx.insert(schema.bagianArtikel).values({
@@ -130,7 +145,10 @@ export async function createReadingPreview(runHandler: (request: Request, handle
         learningObjective: "Memahami hubungan luas dan panjang.", orderIndex: 1, estimatedReadingMinutes: 1, version: 3,
       });
       const markdown = `Isi artikel kanonis versi tiga.\n\nRumus luas $x^2$.\n\n![Diagram bacaan terverifikasi](${imagePath})`;
-      const authored = Buffer.from(JSON.stringify({ parts: [{ id: "intro", kind: "markdown", markdown }] })).toString("base64url");
+      const authored = Buffer.from(JSON.stringify({ parts: [
+        { id: "intro", kind: "markdown", markdown },
+        { id: "scope-motion", kind: "visual_ref", visualId: articleSceneId },
+      ] })).toString("base64url");
       await tx.insert(schema.blokArtikel).values({
         id: articleId + "-body", artikelId: articleId, bagianArtikelId: id, blockKey: "body", blockType: "explanation", orderIndex: 1,
         content: `${markdown}\n<!--__ZYX_V4_BLOCK_PAYLOAD__:${authored}-->`, version: 3, generationHash: details.generationHash, status: "published",
