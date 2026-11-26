@@ -209,6 +209,8 @@ for pair in pairs:
     else:
         native = locate(args.native, pair['native'])
     item = {'id': pair['id'], 'platform': args.platform, 'web': describe(web), 'native': describe(native)}
+    if kind in state_groups and state_groups[kind].get('scope'):
+        item['comparison_scope'] = state_groups[kind]['scope']
     if testcase:
         status = standalone.status(testcase)
         item['native_scenario'] = {'name': testcase, 'status': status}

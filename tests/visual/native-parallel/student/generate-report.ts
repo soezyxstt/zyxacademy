@@ -15,7 +15,7 @@ const deviceRuns = `${base}/device-runs`;
 const platforms = ["android", "ios"] as const;
 type Platform = typeof platforms[number];
 type ScenarioResult = { name: string; status: string };
-type ImageComparison = { id: string; status: string; differing_pixels?: number; native_scenario?: ScenarioResult };
+type ImageComparison = { id: string; status: string; differing_pixels?: number; comparison_scope?: string; native_scenario?: ScenarioResult };
 type ComparisonSource = {
   rows: ImageComparison[];
   report: string;
@@ -66,13 +66,13 @@ const webRoot = "tests/visual/native-parallel/student/product/web";
 const output = process.argv.find(arg => arg.startsWith("--output="))?.slice(9) ?? base;
 const ciHistory = JSON.parse(readFileSync(`${base}/ci-history.json`, "utf8"));
 const webRun = ciHistory.runs.findLast((run: any) => run.web?.status === "passed" && run.web.artifact);
-const matchedGroups: Record<string, { route: string; productFixture?: string; states: string[]; testcase: string }> =
+const matchedGroups: Record<string, { route: string; productFixture?: string; scope?: string; states: string[]; testcase: string }> =
   JSON.parse(readFileSync("tests/visual/native-parallel/student/matched-reference-groups.json", "utf8"));
 const referenceGroups = [
-  { route: "/courses", directory: "", prefix: "catalog", product: false, states: ["all", "tpb", "pka"] },
-  { route: "/courses/[id]/flashcard", directory: "learning", prefix: "flashcard", product: false, states: ["question", "review-pending", "review-failed"] },
+  { route: "/courses", directory: "", prefix: "catalog", scope: undefined, product: false, states: ["all", "tpb", "pka"] },
+  { route: "/courses/[id]/flashcard", directory: "learning", prefix: "flashcard", scope: undefined, product: false, states: ["question", "review-pending", "review-failed"] },
   ...Object.entries(matchedGroups).map(([prefix, config]) => ({
-    route: config.route, directory: prefix, prefix, product: Boolean(config.productFixture), states: config.states,
+    route: config.route, directory: prefix, prefix, scope: config.scope, product: Boolean(config.productFixture), states: config.states,
   })),
 ];
 const retainedRuns = readdirSync(deviceRuns).filter(run => /^\d+$/.test(run)).sort((a, b) => Number(b) - Number(a));
@@ -111,6 +111,7 @@ const additionalComparisons = retainedRuns.flatMap(run =>
     return (evidence.pairs as { state: string; status: string; differingPixels: number }[])
       .filter(pair => config.states.includes(pair.state) && evidence.maestro?.testcase === config.testcase.replace("{state}", pair.state) && isMeasurement(pair.status, pair.differingPixels)).map(pair => ({
         pattern: config.route, platform, id: `${group}-${pair.state}`, status: pair.status, differingPixels: pair.differingPixels,
+        comparisonScope: evidence.comparison_scope as string | undefined,
         standaloneScenario: { name: evidence.maestro.testcase, status: evidence.maestro.status }, report,
         sourceHead: evidence.pullRequestHead as string, checkoutSha: evidence.checkoutSha as string,
         workflowRun: evidence.workflowRun as string, artifact: evidence.androidArtifact?.url ?? null, primary: false,
@@ -127,12 +128,13 @@ function deviceSizedWebReferences(group: typeof referenceGroups[number]) {
       if (createHash("sha256").update(readFileSync(file)).digest("hex") !== sha256) {
         throw new Error(`Device-sized web reference checksum does not match: ${file}`);
       }
-      return { id: `${target}-${name.replace(/\.png$/, "")}`, file, sha256, manifest, referenceCommit,
+      const state = reference.states?.[name.slice(group.prefix.length + 1, -4)];
+      return { id: `${target}-${name.replace(/\.png$/, "")}`, file, sha256, manifest, referenceCommit, comparisonScope: group.scope,
         serverSha: reference.serverSha ?? null,
         evidence: group.product ? "authenticated product web" : "web component fixture; target label is viewport only", viewport: reference.viewport,
         dpr: reference.deviceScaleFactor,
-        theme: reference.states?.[name.slice(group.prefix.length + 1, -4)]?.theme ?? reference.theme,
-        locale: reference.states?.[name.slice(group.prefix.length + 1, -4)]?.locale ?? reference.locale };
+        theme: state?.web?.theme ?? state?.theme ?? reference.theme,
+        locale: state?.web?.locale ?? state?.locale ?? reference.locale };
     });
   });
 }
@@ -303,7 +305,7 @@ const rows = manifest.routes.map(route => {
   const groupForId = new Map<string, string>(groups.flatMap(group => group.states.map(state => [`${group.prefix}-${state}`, group.prefix] as const)));
   const deviceComparisons = platforms.flatMap(platform => comparisonSources[platform].flatMap(source =>
     source.rows.filter(row => groupForId.has(row.id)).map(row => ({
-      platform, id: row.id, status: row.status, differingPixels: row.differing_pixels ?? null,
+      platform, id: row.id, status: row.status, differingPixels: row.differing_pixels ?? null, comparisonScope: row.comparison_scope,
       standaloneScenario: row.native_scenario ?? source.provenance.matchedScenarioResults?.[groupForId.get(row.id)!] ?? null,
       report: source.report, sourceHead: source.provenance.sourceHead ?? null, checkoutSha: source.provenance.checkoutSha ?? null,
       workflowRun: source.provenance.workflowRun ?? null, artifact: source.provenance.artifact ?? null, primary: source.primary,
@@ -418,7 +420,7 @@ for (const row of rows) {
     return run ? `[${p}](${run}) ${label}` : `${p} ${label}`;
   }).join("<br>");
   const compared = row.device_comparisons.map(item =>
-    link(item.report, `${item.platform} ${item.id} · ${item.primary ? "run utama" : item.workflowRun?.split("/").at(-1) ?? "run historis"} · ${item.differingPixels === null ? item.status : item.differingPixels + " px berbeda"} · flow ${item.standaloneScenario?.status ?? "belum tercatat"}`));
+    link(item.report, `${item.platform} ${item.id} · ${item.primary ? "run utama" : item.workflowRun?.split("/").at(-1) ?? "run historis"} · ${item.differingPixels === null ? item.status : item.status + " · " + item.differingPixels + " px berbeda"}${item.comparisonScope ? " · " + item.comparisonScope : ""} · flow ${item.standaloneScenario?.status ?? "belum tercatat"}`));
   lines.push(`| ${link(row.source, row.pattern)} | ${link(row.implementation.ui, row.implementation.symbol)}; ${row.operations.map((op: string) => `\`${op}\``).join("<br>")}<br>${link(row.contract_doc, "kontrak dan izin")} | ${available.length} / ${blocked}; ${assertions} assertion yang direncanakan | ${screenshots} | ${[platform, ...compared].join("<br>")} |`);
 }
 lines.push("", "Jumlah run asli dipertahankan. `historical_changed` menandai kasus lama yang berubah dan tidak menambah assertion terverifikasi. Setiap kasus di JSON mencatat hasil, marker saat run dan SHA perangkat. `runnable` menandai fixture yang dapat dijalankan, sedangkan `blocked` menyertakan alasannya. Perbandingan visual tiga keadaan per item dan bukti aksesibilitas masih memerlukan evaluasi perangkat.", "");

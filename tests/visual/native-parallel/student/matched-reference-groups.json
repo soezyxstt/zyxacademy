@@ -93,5 +93,93 @@
     "testcase": "Student participation ranking global and following filters",
     "webOrigin": "http://student-ranking-reference.invalid",
     "webSuite": "ranking"
+  },
+  "mastery": {
+    "route": "/courses/[id]/mastery",
+    "states": [
+      "review",
+      "expanded",
+      "empty"
+    ],
+    "testcase": "Student mastery review and chapter coverage",
+    "webOrigin": "http://student-mastery-reference.invalid",
+    "scope": "Mastery review, chapter expansion and empty learning state",
+    "sourcePaths": [
+      "tests/visual/fixtures/student-mastery.tsx",
+      "tests/visual/native-parallel/student/mastery-reference.spec.ts",
+      "tests/visual/fixtures/interactive-document-build.ts",
+      "app/(student)/courses/[id]/mastery/page.tsx",
+      "app/globals.css",
+      "components/course/concept-map.tsx",
+      "components/course/course-page-shell.tsx",
+      "components/navigation/mobile-top-navbar.tsx",
+      "packages/native-parity/student/fixture-request.ts",
+      "packages/native-parity/student/learning/contracts.ts",
+      "packages/native-parity/student/learning/fixtures.ts",
+      "apps/mobile-native/features/student/StudentFixtureRoute.tsx",
+      "apps/mobile-native/features/student/learning/knowledge.tsx",
+      "apps/mobile-native/features/student/learning/index.tsx",
+      "apps/mobile-native/features/student/learning/ui.tsx",
+      ".maestro/native-parallel/student/mastery-parity.yaml",
+      "messages/id/learning.json"
+    ]
+  },
+  "settings": {
+    "route": "/settings",
+    "states": [
+      "id-light",
+      "en-light",
+      "id-dark"
+    ],
+    "testcase": "Student settings language selection states",
+    "webOrigin": "http://student-settings-reference.invalid",
+    "scope": "Settings language selection with contextual full-viewport capture",
+    "sourcePaths": [
+      ".maestro/native-parallel/student/settings-parity.yaml",
+      "app/(student)/settings/settings-client.tsx",
+      "apps/mobile-native/features/student/StudentFixtureRoute.tsx",
+      "apps/mobile-native/features/student/community/settings.tsx",
+      "apps/mobile-native/features/student/community/ui.tsx",
+      "packages/design-tokens/native-colors.ts",
+      "packages/native-parity/student/community/fixtures.ts",
+      "packages/native-parity/student/fixture-request.ts",
+      "tests/visual/fixtures/settings-preferences.tsx",
+      "tests/visual/fixtures/settings-preferences-build.ts",
+      "tests/visual/fixtures/fonts/inter-latin.woff2",
+      "tests/visual/fixtures/fonts/lexend-latin.woff2",
+      "tests/visual/native-parallel/student/settings-reference.spec.ts"
+    ]
+  },
+  "quiz-player": {
+    "route": "/courses/[id]/quiz/[quizId]",
+    "states": [
+      "unanswered",
+      "answered",
+      "flagged-restored"
+    ],
+    "testcase": "Student quiz player answer and draft states",
+    "webOrigin": "http://student-quiz-player-reference.invalid",
+    "scope": "Quiz question, answer selection and flagged draft restoration",
+    "sourcePaths": [
+      "tests/visual/fixtures/student-quiz-player.tsx",
+      "components/course/quiz-player.tsx",
+      "components/course/course-page-shell.tsx",
+      "features/student-assessment/ui/mobile/quiz-player-mobile.tsx",
+      "features/student-assessment/ui/shared/quiz-player-parts.tsx",
+      "app/(student)/courses/[id]/quiz/[quizId]/page.tsx",
+      "app/globals.css",
+      "messages/id/learning.json",
+      "messages/id/studentCourse.json",
+      "tests/visual/native-parallel/student/quiz-player-reference.spec.ts",
+      "tests/visual/fixtures/interactive-document-build.ts",
+      "hooks/use-quiz-player.ts",
+      "lib/quiz/player-state.ts",
+      "packages/native-parity/student/assessment/quiz-player-fixture.ts",
+      "packages/native-parity/student/fixture-request.ts",
+      "apps/mobile-native/features/student/assessment/player.tsx",
+      "apps/mobile-native/features/student/assessment-draft-store.ts",
+      "apps/mobile-native/features/student/StudentFixtureRoute.tsx",
+      ".maestro/native-parallel/student/quiz-player.yaml"
+    ]
   }
 }

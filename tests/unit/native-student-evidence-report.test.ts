@@ -140,3 +140,18 @@ test("a changed Playwright screenshot loses evidence credit in both product mani
   writeFileSync(join(workspace, file), "changed snapshot");
   for (const entry of [flat, multiple]) expect(verifyWebCaptures(entry, workspace, true)[0].status).toBe("sha256_mismatch");
 });
+
+test("quiz gateway and player share one route and retain their own three-state references", () => {
+  const { report } = readReport();
+  const quiz = report.routes.find((row: { pattern: string }) => row.pattern === "/courses/[id]/quiz/[quizId]");
+  const images = quiz.web_evidence.map((entry: { id: string }) => entry.id) as string[];
+  for (const platform of ["android", "ios"]) {
+    expect(images).toEqual(expect.arrayContaining(["new", "resumable", "exhausted"].map(state => `${platform}-quiz-gateway-${state}`)));
+    expect(images).toEqual(expect.arrayContaining(["unanswered", "answered", "flagged-restored"].map(state => `${platform}-quiz-player-${state}`)));
+  }
+  const settings = report.routes.find((row: { pattern: string }) => row.pattern === "/settings");
+  expect(settings.web_evidence).toEqual(expect.arrayContaining([
+    expect.objectContaining({ id: "android-settings-en-light", locale: "en", theme: "light" }),
+    expect.objectContaining({ id: "ios-settings-id-dark", locale: "id", theme: "dark" }),
+  ]));
+});
