@@ -14,6 +14,7 @@ import { LiveStudyGroupEditor } from "./study-group-editor";
 import { StudyGroupMembersEditor } from "./study-group-members-editor";
 import { PkaAnnouncementEditor } from "./pka-edit";
 import { clearPkaScheduleRecovery, PkaScheduleEditor } from "./pka-schedule-editor";
+import { UserRolesEditor } from "./user-roles-editor";
 import { UserStatusEditor } from "./user-status-editor";
 import { DiktatPdfControls, readDiktatScope } from "./diktat-controls";
 import { IdeaReviewEditor } from "./idea-review-editor";
@@ -99,6 +100,7 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
   const [ideaDraft, setIdeaDraft] = useState<{ actorTransport: AcademicTransport; slug: string; importId: string; id: string }>();
   const [pkaDraft, setPkaDraft] = useState<{ actorTransport: AcademicTransport; row: LiveRow }>();
   const [pkaScheduleDraft, setPkaScheduleDraft] = useState<{ actorTransport: AcademicTransport; id: string }>();
+  const [rolesDraft, setRolesDraft] = useState<{ actorTransport: AcademicTransport; row: LiveRow }>();
   const [userStatusDraft, setUserStatusDraft] = useState<{ actorTransport: AcademicTransport; row: LiveRow }>();
   const [groupDraft, setGroupDraft] = useState<{ actorTransport: AcademicTransport; id?: string }>();
   const [groupMembersDraft, setGroupMembersDraft] = useState<{ actorTransport: AcademicTransport; id: string }>();
@@ -109,6 +111,7 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
   const groupMembersEditor = pattern === "/admin/groups" && groupMembersDraft?.actorTransport === transport ? groupMembersDraft : undefined;
   const tokenEditor = tokenDraft?.actorTransport === transport ? tokenDraft : undefined;
   const announcement = pkaDraft?.actorTransport === transport ? pkaDraft.row : undefined;
+  const rolesRow = rolesDraft?.actorTransport === transport && pattern === "/admin/users" ? rolesDraft.row : undefined;
   const userStatusRow = userStatusDraft?.actorTransport === transport && pattern === "/admin/users" ? userStatusDraft.row : undefined;
   const theme = useContext(CourseTheme);
   const palette = useCourseColors();
@@ -244,7 +247,7 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
         { id: "success", label: "Berhasil", renderCell: (row) => row.fields?.find((field) => field.label === "Berhasil")?.value ?? "0" },
         { id: "failure", label: "Gagal", renderCell: (row) => row.fields?.find((field) => field.label === "Gagal")?.value ?? "0" },
       ]} /> : !data?.week ? data?.rows.map((row) => {
-      type ActionId = "pdf" | "review-idea" | "edit" | "edit-pka-schedule" | "edit-group" | "group-members" | "revoke-token" | "user-status";
+      type ActionId = "pdf" | "review-idea" | "edit" | "edit-pka-schedule" | "edit-group" | "group-members" | "revoke-token" | "user-status" | "user-roles";
       const actions: SharedUiAction<ActionId>[] = [];
       if (row.pdf && transport.command && !pdfPending) actions.push({ id: "pdf", label: "Minta PDF" });
       if (ideaReviewPage && row.ideaReviewId) actions.push({ id: "review-idea", label: "Review Idea" });
@@ -252,6 +255,7 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
       if (row.groupEditable && transport.command) actions.push({ id: "edit-group", label: "Edit kelompok" }, { id: "group-members", label: "Kelola anggota" });
       if (row.announcementEdit && transport.command) actions.push({ id: "edit", label: "Edit pengumuman" });
       if (row.pkaScheduleEdit && transport.command) actions.push({ id: "edit-pka-schedule", label: "Edit jadwal" });
+      if (row.userRolesEdit && transport.command) actions.push({ id: "user-roles", label: "Kelola peran" });
       if (row.userStatusEdit && transport.command) actions.push({ id: "user-status", label: "Ubah status" });
       const onAction: SharedUiActionHandler<ActionId> = (id) => {
         if (id === "pdf") setPdfRow(row);
@@ -263,6 +267,7 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
           else if (id === "edit-group") setGroupDraft({ actorTransport: transport, id: row.id });
           else if (id === "group-members") setGroupMembersDraft({ actorTransport: transport, id: row.id });
           else if (id === "revoke-token") setTokenDraft({ actorTransport: transport, id: row.id });
+          else if (id === "user-roles") setRolesDraft({ actorTransport: transport, row });
           else if (id === "user-status") setUserStatusDraft({ actorTransport: transport, row });
           else if (id === "edit-pka-schedule") setPkaScheduleDraft({ actorTransport: transport, id: row.id });
           else setPkaDraft({ actorTransport: transport, row });
@@ -291,6 +296,11 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
       initial={pkaSchedule.pkaScheduleEdit} transport={transport} close={() => { setPkaScheduleDraft(undefined); retry(); }}
       unavailable={invalidate}
       saved={() => { setPkaScheduleDraft(undefined); setSuccess("Jadwal diperbarui."); retry(); }} /> : null}
+    {data && rolesRow?.userRolesEdit && transport.command ? <UserRolesEditor key={rolesRow.id} id={rolesRow.id} name={rolesRow.title}
+      email={rolesRow.subtitle} initial={rolesRow.userRolesEdit} transport={transport} send={transport.command}
+      close={() => setRolesDraft(undefined)} refresh={() => { setRolesDraft(undefined); retry(); }}
+      denied={() => { setRolesDraft(undefined); invalidate("denied"); }}
+      saved={() => { setRolesDraft(undefined); setSuccess("Peran diperbarui."); retry(); }} /> : null}
     {data && userStatusRow?.userStatusEdit ? <UserStatusEditor key={userStatusRow.id} id={userStatusRow.id} name={userStatusRow.title}
       email={userStatusRow.subtitle} initial={userStatusRow.userStatusEdit} transport={transport}
       close={() => setUserStatusDraft(undefined)}

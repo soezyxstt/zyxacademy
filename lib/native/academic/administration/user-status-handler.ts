@@ -2,11 +2,14 @@ import { z } from "zod";
 import { adminUserStatuses, type AdminUserStatusEdit } from "../../../../packages/academic/admin-user-status";
 import type { NativeAdminViewer } from "./admin-transaction";
 import { nativeAdminIdSchema, readNativeAdminJson } from "./request-validation";
+import { adminUserRoles } from "../../../../packages/academic/admin-user-roles";
+import type { saveNativeUserRoles } from "./user-roles-service";
 import type { NativeUserStatusResult } from "./user-status-service";
 
 type Services = {
   session(): Promise<NativeAdminViewer | null>;
   hasAdmin(id: string): Promise<boolean>;
+  saveRoles: typeof saveNativeUserRoles;
   save(id: string, draft: AdminUserStatusEdit, requestId: string, viewer: NativeAdminViewer): Promise<NativeUserStatusResult>;
 };
 
@@ -16,11 +19,16 @@ const bodySchema = z.object({
   expectedRevision: z.string().regex(/^[a-f0-9]{64}$/),
 }).strict();
 
+const rolesSchema = bodySchema.omit({ status: true }).extend({
+  roles: z.array(z.enum(adminUserRoles)).min(1).max(3).refine((roles) => new Set(roles).size === roles.length),
+  confirmed: z.literal(true),
+}).strict();
+
 const reply = (status: number, body: unknown) => Response.json(body, { status, headers: { "Cache-Control": "private, no-store" } });
 
 export async function handleNativeUserStatus(request: Request, parts: string[], origin: string, services: Services) {
   const [section, id, operation] = parts;
-  if (section !== "users" || operation !== "status" || parts.length !== 3 || request.method !== "PATCH") return reply(404, { error: "NOT_FOUND" });
+  if (section !== "users" || (operation !== "status" && operation !== "roles") || parts.length !== 3 || request.method !== "PATCH") return reply(404, { error: "NOT_FOUND" });
   if (!nativeAdminIdSchema.safeParse(id).success) return reply(400, { error: "INVALID_PATH" });
   const fetchSite = request.headers.get("sec-fetch-site");
   if (request.headers.get("origin") !== origin || (fetchSite && fetchSite !== "same-origin")) return reply(403, { error: "INVALID_ORIGIN" });
@@ -31,7 +39,15 @@ export async function handleNativeUserStatus(request: Request, parts: string[], 
     if (!(await services.hasAdmin(viewer.user.id))) return reply(403, { error: "FORBIDDEN" });
     const requestId = z.uuidv4().safeParse(request.headers.get("idempotency-key"));
     if (!requestId.success) return reply(400, { error: "INVALID_REQUEST_ID" });
-    const body = bodySchema.safeParse(await readNativeAdminJson(request));
+    const input = await readNativeAdminJson(request);
+    if (operation === "roles") {
+      const body = rolesSchema.safeParse(input);
+      if (!body.success) return reply(422, { error: "INVALID_ROLES" });
+      if (body.data.accountId !== viewer.user.id) return reply(403, { error: "FORBIDDEN" });
+      const result = await services.saveRoles(id, body.data, requestId.data, viewer);
+      return reply(200, { ...result, requestId: requestId.data });
+    }
+    const body = bodySchema.safeParse(input);
     if (!body.success) return reply(422, { error: "INVALID_STATUS" });
     if (body.data.accountId !== viewer.user.id) return reply(403, { error: "FORBIDDEN" });
     const result = await services.save(id, body.data, requestId.data, viewer);
@@ -42,8 +58,8 @@ export async function handleNativeUserStatus(request: Request, parts: string[], 
     if (code === "FORBIDDEN") return reply(403, { error: code });
     if (code === "USER_NOT_FOUND") return reply(404, { error: "NOT_FOUND" });
     if (code === "USER_IDENTITY_UNAVAILABLE") return reply(422, { error: code });
-    if (code === "REQUEST_CONFLICT") return reply(409, { error: code });
-    if (code === "SELF_SUSPENSION") return reply(422, { error: code });
+    if (code === "REVISION_CONFLICT" || code === "REQUEST_CONFLICT") return reply(409, { error: code });
+    if (code === "SELF_ADMIN_CHANGE" || code === "SELF_SUSPENSION") return reply(422, { error: code });
     return reply(500, { error: "SAVE_FAILED" });
   }
 }

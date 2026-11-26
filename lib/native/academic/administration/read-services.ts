@@ -169,7 +169,8 @@ export const administrationReadServices: AdministrationReadServices = {
           id: entry.id, title: entry.name, subtitle: entry.email,
           detail: [entry.id === currentUserId ? "Anda" : "", entry.status === "suspended" ? "Ditangguhkan" : ""].filter(Boolean).join(" · "),
           userStatusEdit: entry.id !== currentUserId && entry.statusRevision ? { status: entry.status, revision: entry.statusRevision } : undefined,
-          fields: [field("Peran", entry.roles.map((role) => roleLabels[role]).join(", ")),
+          userRolesEdit: entry.roleSelection,
+          fields: [field("Peran", (entry.roleSelection?.roles ?? entry.roles).map((role) => roleLabels[role]).join(", ") || "Belum ada peran"),
             field("Status", entry.status === "suspended" ? "Ditangguhkan" : "Aktif"), field("Terdaftar", jakDateTime(entry.createdAt))],
         })), total > page * 30, [field("Total", stats.totalUsers), field("Tutor", stats.tutorCount), field("Ditangguhkan", stats.suspendedCount)]);
       }

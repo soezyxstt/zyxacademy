@@ -13,6 +13,7 @@ import { writeNativeStudyGroupMember } from "@/lib/native/academic/administratio
 import { handleNativeUserStatus } from "@/lib/native/academic/administration/user-status-handler";
 import { saveNativeUserStatus } from "@/lib/native/academic/administration/user-status-service";
 import { handleNativeIdeaReview, isNativeIdeaReviewPath } from "@/lib/native/academic/administration/idea-review-handler";
+import { saveNativeUserRoles } from "@/lib/native/academic/administration/user-roles-service";
 import { readNativeIdeaReview, writeNativeIdeaReview } from "@/lib/native/academic/administration/idea-review-service";
 import { handleAdministrationRead } from "@/lib/native/academic/administration/handle-read";
 import { administrationReadServices } from "@/lib/native/academic/administration/read-services";
@@ -53,7 +54,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ resou
   if (resource[0] === "users") return handleNativeUserStatus(request, resource, new URL(resolveAuthBaseUrl()).origin, {
     session: getAuthSession,
     hasAdmin: administrationReadServices.hasAdmin,
-    save: saveNativeUserStatus,
+    save: saveNativeUserStatus, saveRoles: saveNativeUserRoles,
   });
   return handlePkaAnnouncementEdit(request, resource, new URL(resolveAuthBaseUrl()).origin, {
     session: getAuthSession,
