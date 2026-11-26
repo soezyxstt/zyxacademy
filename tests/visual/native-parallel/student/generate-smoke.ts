@@ -21,7 +21,7 @@ function add(area: StudentArea, pattern: string, id: string, path: string, scena
   if (!matchStudentRoute(path) || matchStudentRoute(path)?.pattern !== pattern) throw new Error(`Bad route for ${id}: ${path}`);
   const limitation = pattern === "/settings/notifications/browser" ?
     "Checks instructions for opening the link in the subscribed browser profile. External browser cleanup needs device evidence." :
-    pattern === "/courses/[id]/live/host" ? "Checks the handoff control. The browser step needs device evidence." :
+    pattern === "/courses/[id]/live/host" ? "The canonical native Tutor route verifies the active role after redirect." :
     pattern === "/discussions" || pattern === "/leaderboard/academic" ?
       "Checks destination content after alias resolution; does not prove Back or query retention." :
     pattern.endsWith("/material/[materialId]") ? "Checks the current reader dependency status; the renderer is not exercised." :
@@ -120,7 +120,6 @@ const learningReady: Record<string, Marker> = {
   "/courses/[id]/progress": text("Analisis lebih lanjut"),
   "/courses/[id]/video": text("Pembahasan limit"),
   "/courses/[id]/live": text("Kode sesi"),
-  "/courses/[id]/live/host": text("Buka halaman tutor"),
   "/courses/tutorial-pka": text("Mulai dari simulasi awal"),
   "/courses/tutorial-pka/daftar": text("Pendaftaran ditutup"),
   "/courses/tutorial-pka/jadwal": text("Pembahasan fungsi limit"),
@@ -142,7 +141,7 @@ const learningEmpty: Record<string, Marker> = {
 };
 for (const item of learningFixtureCases) {
   let marker: Marker | undefined;
-  if (item.pattern === "/courses/[id]/live/host") marker = item.scenario === "offline" ? undefined : learningReady[item.pattern];
+  if (item.pattern === "/courses/[id]/live/host") marker = undefined;
   else if (item.scenario === "offline") marker = text("Data belajar gagal dimuat. Periksa koneksi dan coba lagi.");
   else if (item.scenario === "no-enrollment" && item.pattern.startsWith("/courses/tutorial-pka")) marker = text("Pendaftaran ditutup");
   else if (item.pattern === "/courses/tutorial-pka/daftar" && item.scenario === "enrolled") marker = text("Mulai dari simulasi awal");
@@ -150,10 +149,9 @@ for (const item of learningFixtureCases) {
   const steps: Step[] | undefined = item.scenario !== "empty" ? undefined :
     item.pattern === "/courses/[id]/concept/[slug]" ? [{ absent: text("Definisi") }, { absent: text("Fungsi real") }] :
     item.pattern === "/courses/[id]/progress" ? [{ scroll: text("Belum ada aktivitas belajar.") }] :
-    item.pattern === "/courses/[id]/playground" ? [{ tap: text("Buka Playground Python") }, { assert: text("Editor Python tidak tersedia di aplikasi ini.") }] :
-    item.pattern === "/courses/[id]/live/host" ? [{ tap: text("Buka halaman tutor") }, { assert: text("Halaman tutor tidak dapat dibuka.") }] : undefined;
+    item.pattern === "/courses/[id]/playground" ? [{ tap: text("Buka Playground Python") }, { assert: text("Editor Python tidak tersedia di aplikasi ini.") }] : undefined;
   add("learning", item.pattern, item.id, item.path, item.scenario, item.theme, marker,
-    item.pattern === "/courses/[id]/live/host" && item.scenario === "offline" ? "Host alias does not request a fixture resource; offline behavior requires a real browser handoff." : undefined, steps);
+    item.pattern === "/courses/[id]/live/host" ? "This Student-only fixture cannot render the canonical Tutor destination. Verify the alias with the mounted Tutor route." : undefined, steps);
 }
 
 for (const item of assessmentFixtureCases) {

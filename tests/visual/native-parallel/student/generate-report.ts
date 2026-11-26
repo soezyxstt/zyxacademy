@@ -201,7 +201,7 @@ const operations: Record<string, string[]> = {
   "/courses/[id]/progress": [`GET ${l}?view=progress`],
   "/courses/[id]/video": [`GET ${l}?view=video`, "GET /api/videos/[videoId]/playback-url"],
   "/courses/[id]/live": [`GET ${l}?view=live`, `POST ${l}/live`, "Live socket: room-bound participant"],
-  "/courses/[id]/live/host": ["Browser handoff: /tutor/[id]/live"],
+  "/courses/[id]/live/host": ["Native redirect to the authenticated Tutor live screen"],
   "/courses/tutorial-pka": [`GET ${l}?view=pka-home`, `POST ${l} pka-announcement-read`],
   "/courses/tutorial-pka/daftar": [`GET ${l}?view=pka-registration`],
   "/courses/tutorial-pka/jadwal": [`GET ${l}?view=pka-schedule`],
@@ -377,7 +377,7 @@ const rows = manifest.routes.map(route => {
       comparisons.some(item => Number.isFinite(item.differingPixels)) ? "Per-platform outcomes are recorded in device_comparisons at their own source commits." : "Per-case pixel diff has not been established by this report.",
     pending: ["Signed-in end-to-end product flow on the integrated host", "Remaining Android and iOS captures, interactions, accessibility and matching pixel comparisons", ...(cases.some((x: any) => x.blocked_reason) ? ["Resolve named fixture or device blockers in fixture_cases"] : []),
       ...(pattern.includes("/material/[materialId]") ? ["Integrate and test authorized article, diktat and PDF renderers"] : []),
-      ...(["/courses/[id]/live/host", "/settings/notifications/browser", "/courses/[id]/playground", "/courses/[id]/video"].includes(pattern) ? ["Exercise system browser handoff and return on devices"] : [])],
+      ...(["/settings/notifications/browser", "/courses/[id]/playground", "/courses/[id]/video"].includes(pattern) ? ["Exercise system browser handoff and return on devices"] : [])],
     readiness_reference: docs };
 });
 if (rows.length !== 50 || new Set(rows.map((row: any) => row.source)).size !== 50 || Object.keys(operations).length !== 50) throw new Error("Expected exactly 50 uniquely mapped Student routes");

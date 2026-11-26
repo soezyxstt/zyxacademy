@@ -1,5 +1,6 @@
 import { getOAuthCallbackErrorKey, getSafeRedirectPath } from "../../../packages/native-session/auth-redirect";
 import type { NativeAccountContext } from "../../../packages/native-session/context";
+import { legacyLiveHostPattern, tutorLiveDestination } from "../routing/live-host-alias";
 import { publicWebsiteUrl } from "../routing/public-website";
 import { NATIVE_BROWSER_SCHEME } from "./browser-intent";
 import { returnRoutes } from "./return-routes";
@@ -114,6 +115,10 @@ function resolveDestination(raw: unknown): Destination | null {
   if (canonicalPath === "/murid") return { href: `/dashboard${suffix}`, pattern: "/dashboard", area: "student" };
   const match = routePatterns.find(route => route.parts.length === parts.length &&
     route.parts.every((part, index) => part.startsWith("[") || part === parts[index]));
+  if (match?.pattern === legacyLiveHostPattern) {
+    const target = tutorLiveDestination(parts[1]);
+    return target ? { href: target, pattern: "/tutor/[courseId]/live", area: "tutor" } : null;
+  }
   return match && match.area !== "public" ? { href: `${canonicalPath}${suffix}`, pattern: match.pattern, area: match.area } : null;
 }
 

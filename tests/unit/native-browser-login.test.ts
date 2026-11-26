@@ -395,6 +395,18 @@ describe("native login destination", () => {
       .toEqual({ status: "ready", href: "/meet/session-name?from=schedule" });
   });
 
+  test("the legacy course host alias resumes only at the installed native Tutor live page", () => {
+    const oldHref = "/courses/matematika-%C3%A9/live/host?tab=old#host";
+    const target = "/tutor/matematika-%C3%A9/live";
+    const app = sitemap(leaf("/dashboard"), leaf("/courses/[id]/live/host"), leaf("/tutor/[courseId]/live"));
+    const tutor = { dashboard: "/tutor", roles: ["tutor"] } as const;
+    expect(parseNativeLoginIntent({ entry: "sign-in", locale: "id", next: oldHref })?.next).toBe(target);
+    expect(resolveNativeLoginReturn(oldHref, tutor, app)).toEqual({ status: "ready", href: target });
+    expect(resolveNativeLoginReturn(oldHref, account, app)).toEqual({ status: "denied", dashboard: "/dashboard" });
+    expect(resolveNativeLoginReturn(oldHref, tutor, sitemap(leaf("/courses/[id]/live/host"))).status).toBe("unavailable");
+    expect(parseNativeLoginIntent({ entry: "sign-in", locale: "id", next: "/courses/a%2Fb/live/host" })?.next).toBeUndefined();
+  });
+
   test("retains a real destination pending integration and ignores layouts, wildcards and galleries", () => {
     const app = sitemap(leaf("/[...path]"), leaf("/admin", { contextKey: "./admin/_layout.tsx" }),
       leaf("/(student)/dashboard", { isGenerated: true }), leaf("/(internal)/dashboard", { isInternal: true }),

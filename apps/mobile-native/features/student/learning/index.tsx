@@ -2,12 +2,13 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator } from "react-native";
 import { courseHref, learningRequestPath, learningRouteViews, liveHostPattern, type LearningData, type LearningView } from "../../../../../packages/native-parity/student/learning/contracts";
 import type { StudentScreenProps } from "../contracts";
+import { tutorLiveDestination } from "../../../routing/live-host-alias";
 import { CourseScreen } from "../courses";
 import { FlashcardsPage } from "./flashcards";
 import { ConceptContent, MasteryContent, ProgressContent, StudyPathContent } from "./knowledge";
 import { LiveContent, PlaygroundContent, VideoContent } from "./media";
 import { PkaHomeContent, PkaReportContent, PkaScheduleContent, PkaSimulationContent, PkaStageContent, pkaStageTitle } from "./pka";
-import { Copy, LearningPage, Message, Section, english, launchWeb, readJson, RequestError, translator, type Translate } from "./ui";
+import { Copy, LearningPage, Message, Section, english, readJson, RequestError, translator, type Translate } from "./ui";
 
 export { learningRouteViews, liveHostPattern } from "../../../../../packages/native-parity/student/learning/contracts";
 
@@ -43,15 +44,10 @@ function ReadyContent({ data, props, t }: {
   }
 }
 
-function LiveHostAlias(props: StudentScreenProps) {
-  const t = translator(props.session.locale);
-  const target = `/tutor/${encodeURIComponent(props.route.params.id)}/live`;
-  const [failed, setFailed] = useState(false);
-  const isEnglish = english(props.session.locale);
-  return <LearningPage props={props} title={t("live.hostTitle")}>
-    <Message action={isEnglish ? "Open tutor page" : "Buka halaman tutor"} onAction={() => setFailed(!launchWeb(props, target))}>{t("live.hostUnavailable")}</Message>
-    {failed ? <Message>{isEnglish ? "Could not open the tutor page." : "Halaman tutor tidak dapat dibuka."}</Message> : null}
-  </LearningPage>;
+function LiveHostAlias({ route, replace, focused }: StudentScreenProps) {
+  const target = tutorLiveDestination(route.params.id);
+  useEffect(() => { if (focused !== false && target) replace(target); }, [focused, replace, target]);
+  return null;
 }
 
 type ReadState = { key: string; data?: LearningData; status?: number };
@@ -118,6 +114,8 @@ function LearningRoute({ props, view }: { props: StudentScreenProps; view: Learn
 }
 
 export function LearningScreen(props: StudentScreenProps) {
+  // The course grant can change while another stack entry covers this one.
+  if (props.focused === false) return null;
   if (props.route.pattern === liveHostPattern) return <LiveHostAlias {...props} />;
   const view = learningRouteViews[props.route.pattern as keyof typeof learningRouteViews];
   if (!view) return <LearningPage props={props} title={english(props.session.locale) ? "Learning" : "Pembelajaran"}>

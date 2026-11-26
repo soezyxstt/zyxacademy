@@ -20,6 +20,7 @@ import { useDevicePreferences } from "../device/preferences-provider";
 import { AcademicLiveScreen, bindAcademicSession, createAcademicClient } from "../features/academic";
 import { AdminOperationsScreen } from "../features/operations/AdminOperationsScreen";
 import { academicRouteCanRead, productLocation, productNavigationHref, productQueryUpdate } from "./product-location";
+import { legacyLiveHostPattern, tutorLiveDestination } from "./live-host-alias";
 import { ProtectedInteractionContext } from "./protected-interaction";
 import { publicWebsiteUrl } from "./public-website";
 import { expoRouteHistory } from "./route-history-expo";
@@ -46,6 +47,11 @@ export function productRoute(pattern: string, owner: Owner, StudentScreen?: Comp
     // SDK 58 decodes useLocalSearchParams values again. Product filters can
     // contain literal percent sequences, so take the entry's decoded query as stored.
     const local = { ...params, ...route.params, "#": params["#"] };
+    if (pattern === legacyLiveHostPattern) {
+      const id = "id" in local ? local.id : undefined;
+      const destination = typeof id === "string" ? tutorLiveDestination(id) : null;
+      return <Redirect href={(destination ?? "/") as Href} />;
+    }
     const href = productLocation(pattern, local);
     if (!href) return <Redirect href="/" />;
     return <ProductRoute href={href} pattern={pattern} owner={owner} StudentScreen={StudentScreen} />;
