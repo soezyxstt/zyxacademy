@@ -11,7 +11,7 @@ The 13 public route patterns have native entries in `apps/mobile-native/features
 | `/demo` | Course selection and guest learning entry links | Web learning dashboard metrics and session activity |
 | `/demo/[view]` | Native catalogue, overview, documents, readable article/Diktat, flip and page flashcards, and signed quiz practice | Complex article visuals, flashcard grades and persistent demo overlay, and the browser journeys below |
 | `/download` | Stable or Nightly status, platform links, missing assets and retry | Icon and device installer handoff comparison |
-| `/forms-playground` | Local-only validation, course selection, file size/type/removal, agreement, mock submit and reset | Integrator supplies a system picker. Without it the file action opens the actual browser playground. |
+| `/forms-playground` | Local-only validation, course selection, file size/type/removal, agreement, mock submit and reset | The Expo system picker returns local file metadata. Device selection and cancellation require runtime checks. |
 | `/plans` | Bounded participant/subject selection, per-person and semester quotes, discounts, signup and WhatsApp drafts | Pricing promotion banner and timer comparison |
 | `/privacy` | Both locales, complete policy text, section navigation and contact/terms links | Device text, scrolling and accessibility comparison |
 | `/terms` | Both locales, complete terms text, section navigation and contact/privacy links | Device text, scrolling and accessibility comparison |
@@ -28,7 +28,7 @@ The `/demo/[view]` entry recognizes all 37 documented views. The detailed browse
 | Published release | Existing `GET /api/app/latest` and download channel selection | Uses published release metadata and browser for available artifacts. |
 | Plan quote | Existing discount settings, price calculation and public WhatsApp formatter | `POST /api/native/public/plans` validates quantities, supported subjects and locale. Reads only, with the link opening a draft in WhatsApp. |
 | Email unsubscribe | Existing signed category capability, expiry and preference write | `POST /api/native/public/unsubscribe` sends token in the body. Inspection returns only category and confirm is repeatable. Concurrent category confirmations update only the affected preference. |
-| Playground form | Local form and fake submit in the web page | Validation and submit stay on device, with the supplied picker returning file metadata only. |
+| Playground form | Local form and fake submit in the web page | Validation and submit stay on device, with the picker returning file metadata only. |
 
 - Local validation includes the 39-case registry, route validation, guest transport, retry and pagination, local PostgreSQL-backed blog and pricing/email tests, and the public demo content and grading checks in `tests/contracts/demo-scoped-loaders.test.ts`.
 - MCP compatibility review found no change to the tool list, scopes, consent, discovery, host prompts, skills or environment bindings. The guest operations reuse existing public capability boundaries. Blog staff preview still uses the web role guard.

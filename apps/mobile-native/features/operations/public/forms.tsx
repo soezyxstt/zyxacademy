@@ -1,3 +1,4 @@
+import { getDocumentAsync } from "expo-document-picker";
 import { useEffect, useRef, useState } from "react";
 import { View, type TextInputProps } from "react-native";
 import { Checkbox } from "../../../components/Checkbox";
@@ -50,8 +51,18 @@ function validate(values: FormValues): Errors {
   return errors;
 }
 
+async function pickFormDocuments() {
+  const result = await getDocumentAsync({
+    type: ["application/pdf", "image/png"],
+    copyToCacheDirectory: false,
+    multiple: true,
+  });
+  if (result.canceled) return null;
+  return result.assets.map(({ name, size }) => ({ name, size: size ?? Number.NaN }));
+}
+
 export function FormsPlayground() {
-  const { colors, theme, pickFiles } = usePublic();
+  const { colors, theme, pickFiles = pickFormDocuments } = usePublic();
   const [values, setValues] = useState<FormValues>(emptyForm);
   const [errors, setErrors] = useState<Errors>({});
   const [busy, setBusy] = useState(false);
@@ -94,7 +105,7 @@ export function FormsPlayground() {
   }
 
   async function selectFiles() {
-    if (!pickFiles || picking) return;
+    if (picking) return;
     setPicking(true);
     try {
       const files = await pickFiles();
@@ -141,8 +152,7 @@ export function FormsPlayground() {
     <View style={layout.item}>
       <Label style={{ fontWeight: "600" }}>Upload assignment</Label>
       <Label tone="meta">PDF or PNG files, up to 5 MB each.</Label>
-      {pickFiles ? <Action onPress={() => void selectFiles()} disabled={busy} loading={picking}>Choose files</Action> :
-        <Action href="/forms-playground" external>Choose files in browser</Action>}
+      <Action onPress={() => void selectFiles()} disabled={busy} loading={picking}>Choose files</Action>
       {values.files.map((file, index) => <View key={`${file.name}-${index}`} style={layout.between}>
         <Label>{file.name}</Label>
         <Action accessibilityLabel={`Remove ${file.name}`} variant="ghost" disabled={busy}
