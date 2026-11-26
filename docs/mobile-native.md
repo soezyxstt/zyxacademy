@@ -42,6 +42,8 @@ Rute `/f/<slug>` mendahulukan slug formulir yang aktif atau ditutup, lalu tautan
 
 Unggahan Expo memakai batas pertanyaan hingga 10 MiB karena SDK menyimpan salinan berkas dan badan multipart di memori JavaScript. Untuk batas pertanyaan di atas 10 MiB, klien menyediakan tautan ke formulir yang sama di browser. Sesi dan draf browser dapat berbeda. Verifikasi Android dan iOS untuk kembali dari pemilih, serta unggahan native di atas 10 MiB, masih terbuka. Admin MCP menggunakan alur simulasi formulir dengan cakupan, persetujuan, discovery, playbook dan paket skill yang sama. Pengiriman responden dan unggahan publik memakai API formulir di origin masing-masing.
 
+Di Android, aplikasi memeriksa hasil kamera formulir yang tertinggal saat mulai, kembali aktif, atau menghapus sesi. Jika draf sudah hilang, aplikasi membuang salinan cache pribadi yang dikembalikan Expo tanpa memulihkan atau mengunggahnya. Pemeriksaan menunggu pemilih aktif dan mempertahankan hasil pemilih dari draf lain. Jika Expo belum mengembalikan hasil, penanda tanpa identitas akun atau draf dipertahankan untuk pemeriksaan berikutnya. Berkas sementara yang tidak dikembalikan Expo tetap mengikuti masa hidup cache SDK dan sistem operasi.
+
 ## Kondisi yang ada
 
 - `apps/mobile` adalah Capacitor 7 alpha yang memuat origin Next.js jarak jauh dalam WebView. Konfigurasi memisahkan aplikasi dan origin nightly/staging dan stable/production. `www/index.html` menguji koneksi lalu membuka aplikasi online. Saat offline, Android menampilkan pustaka dan reader lokal. iOS menyediakan tampilan coba lagi. Paket bacaan mengikat akun, origin, bahasa, masa akses, dan hak bab. Klien Expo perlu menggunakan [kontrak sinkronisasi yang sudah ada](operations/offline-data-sync.md).

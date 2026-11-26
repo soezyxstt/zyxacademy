@@ -77,8 +77,8 @@ function fixture() {
     time: (next: number) => { time = next; },
     getRecord: () => pending,
     setLaunchResult: (next: PhotoPickerResult) => { launchResult = next; },
-    restore(value: PhotoPickerResult | null = selected, createdAt = epoch) {
-      pending = JSON.stringify({ version: 1, scope, target, id: "original-1", createdAt, recoverable: true });
+    restore(value: PhotoPickerResult | null = selected, createdAt = epoch, pendingTarget = target, discardOnRestore?: true) {
+      pending = JSON.stringify({ version: 1, scope, target: pendingTarget, id: "original-1", createdAt, recoverable: true, discardOnRestore });
       pendingResult = value;
     },
     oldResult: (value: PhotoPickerResult | null) => { pendingResult = value; },
@@ -227,6 +227,102 @@ test("does not publish a processed photo if the session ends while preparation i
   finish.resolve({ photo });
   expect(await pending).toEqual({ status: "stale" });
   expect(f.calls.slice(-2)).toEqual([`discard:${photo.uri}`, `discard:${asset.uri}`]);
+});
+
+const legacyFormTarget = { route: "/forms/check-in", locale: "id" as const, draftId: "draft-a:q1" };
+
+test("drops orphaned form captures without recovery, including expired records from earlier builds", async () => {
+  for (const expired of [false, true]) {
+    const f = fixture();
+    f.restore(selected, expired ? epoch - DRAFT_PHOTO_RECOVERY_TTL_MS - 1 : epoch, legacyFormTarget);
+    const bridge = f.create();
+    expect(await bridge.getPendingTarget(f.request.session)).toBeNull();
+    expect(await bridge.recover({ ...f.request, target: legacyFormTarget })).toEqual({ status: "no-pending" });
+    expect(f.calls).toEqual([]);
+    await bridge.discardOrphanedFormCapture();
+    expect(f.getRecord()).toBeNull();
+    expect(f.calls).toEqual(["write", "pending", `discard:${asset.uri}`, "remove"]);
+  }
+});
+
+test("keeps a form record across a null read and cleanup retries until the SDK delivers the result", async () => {
+  const f = fixture();
+  f.restore(null, epoch, { ...legacyFormTarget, route: "/f/form" }, true);
+  const bridge = f.create();
+  await Promise.all([bridge.discardOrphanedFormCapture(), bridge.discardOrphanedFormCapture()]);
+  expect(f.calls).toEqual(["write", "pending"]);
+  expect(JSON.parse(f.getRecord()!)).toEqual({ version: 0, kind: "form-camera" });
+  expect(await bridge.recover(f.request)).toEqual({ status: "no-pending" });
+  f.oldResult(selected);
+  await bridge.discardOrphanedFormCapture();
+  expect(f.getRecord()).toBeNull();
+  expect(f.calls).toEqual(["write", "pending", "pending", `discard:${asset.uri}`, "remove"]);
+});
+
+test("lifecycle cleanup leaves personal photo and other product draft recovery intact", async () => {
+  for (const other of [{ route: "/internal/photo", locale: "id" as const, draftId: "photo-check" }, target]) {
+    const f = fixture();
+    f.restore(selected, epoch, other);
+    const bridge = f.create();
+    await bridge.discardOrphanedFormCapture();
+    expect(f.calls).toEqual([]);
+    expect(await bridge.recover({ ...f.request, target: other })).toMatchObject({ status: "ready", recovered: true });
+  }
+});
+
+test("defers cleanup while a form picker is live, including a logout during capture", async () => {
+  for (const logout of [false, true]) {
+    const f = fixture();
+    const started = deferred<void>();
+    const finish = deferred<PhotoPickerResult>();
+    f.options.device.launch = async () => { started.resolve(); return finish.promise; };
+    const bridge = f.create();
+    const picking = bridge.pick("camera", { ...f.request, target: legacyFormTarget, discardOnRestore: true });
+    await started.promise;
+    expect(f.getRecord()).toContain("discardOnRestore");
+    if (logout) f.deactivate();
+    const before = [...f.calls];
+    await bridge.discardOrphanedFormCapture();
+    expect(f.calls).toEqual(before);
+    finish.resolve(selected);
+    expect(await picking).toMatchObject({ status: logout ? "stale" : "ready" });
+    await bridge.discardOrphanedFormCapture();
+    expect(f.getRecord()).toBeNull();
+    expect(f.calls.filter(call => call === "pending")).toHaveLength(1);
+    expect(f.calls.filter(call => call === "prepare")).toHaveLength(logout ? 0 : 1);
+  }
+});
+
+test("a failed camera promise leaves a discard marker for an Android result delivered later", async () => {
+  const f = fixture();
+  f.options.device.launch = async () => { throw new Error("Activity changed"); };
+  const bridge = f.create();
+  const request = { ...f.request, target: legacyFormTarget, discardOnRestore: true as const };
+  expect(await bridge.pick("camera", request)).toEqual({ status: "error", issue: "picker" });
+  await bridge.discardOrphanedFormCapture();
+  expect(JSON.parse(f.getRecord()!)).toEqual({ version: 0, kind: "form-camera" });
+  f.oldResult(selected);
+  await bridge.discardOrphanedFormCapture();
+  expect(f.getRecord()).toBeNull();
+  expect(f.calls).toContain(`discard:${asset.uri}`);
+  expect(f.calls).not.toContain("prepare");
+});
+
+test("explicit recovery waits for lifecycle inspection without consuming another draft result", async () => {
+  const f = fixture();
+  f.restore(selected, epoch, { route: "/internal/photo", locale: "id", draftId: "photo-check" });
+  const read = f.options.store.read;
+  const gate = deferred<void>();
+  f.options.store.read = async () => { await gate.promise; return read(); };
+  const bridge = f.create();
+  const cleanup = bridge.discardOrphanedFormCapture();
+  const request = { ...f.request, target: { route: "/internal/photo", locale: "id" as const, draftId: "photo-check" } };
+  const recovery = bridge.recover(request);
+  expect(f.calls).toEqual([]);
+  gate.resolve();
+  await cleanup;
+  expect(await recovery).toMatchObject({ status: "ready", recovered: true });
+  expect(f.calls.filter(call => call === "pending")).toHaveLength(1);
 });
 
 test("resizes along the longest edge and transcodes a large PNG into a bounded JPEG", async () => {

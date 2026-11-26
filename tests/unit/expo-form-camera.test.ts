@@ -53,6 +53,7 @@ async function fixture(platform = "android") {
       expect(target.session).toBe(draft.session);
       expect(target.target).toEqual({ ...draft.target, draftId: "draft-a:q3" });
       expect(target.output).toEqual({ format: "jpeg", maxBytes: 500 });
+      expect(target.discardOnRestore).toBe(true);
       return captured ?? { status: "ready", photo: { uri, name: "captured.jpg", size: 376, mimeType: "image/jpeg", release } };
     } } },
     "./client": client,

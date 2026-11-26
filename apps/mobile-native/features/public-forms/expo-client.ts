@@ -47,6 +47,7 @@ async function captureFormPhoto(draft: DocumentDraftRequest, questionIndex: numb
     target: { ...draft.target, draftId: `${draft.target.draftId}:q${questionIndex + 1}` },
     isDraftCurrent: draft.isDraftCurrent,
     output: { format: "jpeg", maxBytes: draft.policy.maxBytes },
+    discardOnRestore: true,
   });
   if (captured.status === "ready") {
     const { photo } = captured;

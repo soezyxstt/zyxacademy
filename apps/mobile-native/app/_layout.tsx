@@ -11,6 +11,7 @@ import { NATIVE_STAGING_ORIGIN } from "../auth/session-api";
 import { startNativeFileCacheLifecycle } from "../device/files";
 import { NotificationsProvider } from "../device/notifications-provider";
 import { LocalReminderResponseLifecycle } from "../device/notification-response";
+import { FormPhotoLifecycle } from "../device/photo-lifecycle";
 import { LocalReminderLifecycle } from "../device/reminder-lifecycle";
 import { DevicePreferencesProvider } from "../device/preferences-provider";
 import { OfflineMetadataProvider } from "../offline/lifecycle-provider";
@@ -71,6 +72,7 @@ function NativeAppLayout() {
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
       <StatusBar style="auto" />
       <NativeSessionProvider origin={NATIVE_STAGING_ORIGIN}>
+        <FormPhotoLifecycle />
         <NativeAccountContextProvider>
           <LocalReminderLifecycle />
           <LocalReminderResponseLifecycle />
