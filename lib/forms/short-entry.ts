@@ -1,6 +1,7 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { customForms, googleMeetSessions } from "@/db/schema";
+import { publicMeetingUrl } from "@/packages/meet/public-destination";
 
 async function findPublicForm(identifier: string, by: "id" | "slug") {
   const match = by === "id" ? eq(customForms.id, identifier) : eq(customForms.slug, identifier.toLowerCase());
@@ -31,7 +32,8 @@ export async function findShortFormEntry(identifier: string) {
   }).from(googleMeetSessions).where(and(
     eq(googleMeetSessions.slug, identifier.toLowerCase()), isNull(googleMeetSessions.deletedAt),
   )).limit(1);
-  if (meeting?.meetingUri) return { kind: "meeting", title: meeting.title, meetingUri: meeting.meetingUri } as const;
+  const meetingUri = publicMeetingUrl(meeting?.meetingUri);
+  if (meeting && meetingUri) return { kind: "meeting", title: meeting.title, meetingUri } as const;
 
   const alias = await findPublicForm(identifier, "id");
   return alias ? { kind: "form", form: alias } as const : null;

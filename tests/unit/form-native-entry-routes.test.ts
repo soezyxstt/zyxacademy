@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { runInNewContext } from "node:vm";
+import * as destinations from "../../packages/meet/public-destination";
 import * as fileTypes from "../../lib/forms/file-types";
 import * as presentation from "../../lib/forms/presentation";
 import * as responsePolicy from "../../lib/forms/response-policy";
@@ -25,6 +26,7 @@ function fixture() {
   const submissions: Row[] = [];
   const uploadKeys: string[] = [];
   const modules: Record<string, unknown> = {
+    "@/packages/meet/public-destination": destinations,
     "next/server": { NextResponse: Response },
     "drizzle-orm": {
       and: (...predicates: Predicate[]) => (row: Row) => predicates.every(predicate => predicate(row)),
@@ -119,7 +121,9 @@ test("the web short entry renders the colliding form and redirects a meeting-onl
   const entry = { params: Promise.resolve({ slug: meeting.slug }) };
   expect(await shortPage(entry)).toEqual({ idOrSlug: form.slug, shortEntry: true });
   form.deletedAt = new Date();
-  await expect(shortPage(entry)).rejects.toThrow(meeting.meetingUri);
+  const room = meeting.meetingUri;
+  meeting.meetingUri = room + "?AuthUser=host%40example.test&hs=1&authuser=2#room";
+  await expect(shortPage(entry)).rejects.toHaveProperty("message", room + "?hs=1#room");
 });
 
 test("native POST and upload bind to the canonical form ID even when another form has that slug", async () => {

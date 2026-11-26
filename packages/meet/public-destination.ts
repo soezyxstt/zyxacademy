@@ -5,10 +5,14 @@ export function publicMeetingPath(slug: unknown) {
 }
 
 export function publicMeetingUrl(raw: unknown) {
-  if (typeof raw !== "string") return null;
+  if (typeof raw !== "string" || /[\\\u0000-\u001f\u007f]/.test(raw)) return null;
   try {
     const url = new URL(raw);
-    return url.origin === "https://meet.google.com" && !url.username && !url.password ? url.href : null;
+    if (url.origin !== "https://meet.google.com" || url.username || url.password) return null;
+    for (const key of Array.from(url.searchParams.keys())) {
+      if (key.toLowerCase() === "authuser") url.searchParams.delete(key);
+    }
+    return url.href;
   } catch {
     return null;
   }

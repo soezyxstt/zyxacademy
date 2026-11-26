@@ -65,7 +65,8 @@ test("the public lookup and canonical Next page use the same exact nondeleted me
   expect(available.headers.get("Cache-Control")).toBe("no-store");
   expect(await available.json()).toEqual({ title: row.title });
   expect(selections).toEqual([["title", "meetingUri"]]);
-  await expect(renderPage(slug)).rejects.toThrow(room);
+  row.meetingUri = room + "?authuser=host%40example.test&hs=1&AUTHUSER=2#room";
+  await expect(renderPage(slug)).rejects.toHaveProperty("message", room + "?hs=1#room");
   expect((await load(slug.toLowerCase())).status).toBe(404);
   row.deletedAt = new Date();
   const deleted = await load(slug);

@@ -1,3 +1,4 @@
+import { publicMeetingUrl } from "../../../../../packages/meet/public-destination";
 import { resolvePublicShareUrl, type PublicLinkInput, type PublicLinkResult } from "../../../device/share-links";
 import type { MeetingSpace } from "../../../../../packages/native-parity/operations/management-contract";
 
@@ -7,15 +8,9 @@ export function respondentLink(slug: string | undefined): string | null {
 
 export function meetingLinks(space: Pick<MeetingSpace, "slug" | "meetingUri" | "hostEmail">) {
   const short = respondentLink(space.slug);
-  const resolved = space.meetingUri && resolvePublicShareUrl(space.meetingUri);
-  if (!resolved) return { short, host: null, publicUrl: null };
-  const meeting = new URL(resolved);
-  // A provisioned host identity belongs only on the official Google Meet destination.
-  if (meeting.origin !== "https://meet.google.com") return { short, host: null, publicUrl: null };
-  for (const name of Array.from(meeting.searchParams.keys())) {
-    if (name.toLowerCase() === "authuser") meeting.searchParams.delete(name);
-  }
-  const publicUrl = meeting.href;
+  const publicUrl = publicMeetingUrl(space.meetingUri);
+  if (!publicUrl) return { short, host: null, publicUrl: null };
+  const meeting = new URL(publicUrl);
   if (space.hostEmail) meeting.searchParams.set("authuser", space.hostEmail);
   return { short, host: meeting.href, publicUrl };
 }
