@@ -37,6 +37,9 @@ export MAESTRO_CLI_NO_ANALYTICS=true
 fixture_flows="$maestro_dir/operations"
 bun scripts/native-parity/operations/capture-cases.ts "$fixture_flows" "$output_dir/cases"
 cp .maestro/native-parallel/operations/*.yaml "$fixture_flows/"
+status=0
 "$maestro_dir/maestro/bin/maestro" --platform "$platform" --device "$device" test \
   --format junit --output "$output_dir/report.xml" --test-output-dir "$output_dir/results" \
-  --debug-output "$output_dir/logs" -e SCREENSHOT_DIR="$output_dir" "$fixture_flows"
+  --debug-output "$output_dir/logs" "$fixture_flows" || status=$?
+python3 scripts/native-parity/operations/collect.py "$output_dir" "$fixture_flows"
+exit "$status"

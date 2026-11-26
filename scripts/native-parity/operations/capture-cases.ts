@@ -24,7 +24,7 @@ for (const item of operationsCases) {
     "      id: operations-loading",
     "    timeout: 10000",
     "- waitForAnimationToEnd",
-    "- takeScreenshot: " + JSON.stringify(join(screenshotDirectory, item.id)),
+    "- takeScreenshot: " + JSON.stringify(item.id),
     "",
   ].join("\n"));
   manifest.push({ ...item, filename });
