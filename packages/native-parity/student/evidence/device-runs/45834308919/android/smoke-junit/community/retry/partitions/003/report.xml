@@ -1,0 +1,13 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+  <testsuite name="Test Suite" device="test" tests="8" failures="0" time="31.445" timestamp="2026-11-26T14:49:26">
+    <testcase id="smoke-063" name="smoke-063" classname="smoke-063" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-063.yaml" time="5.943" timestamp="2026-11-26T14:49:26" status="SUCCESS"/>
+    <testcase id="smoke-064" name="smoke-064" classname="smoke-064" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-064.yaml" time="2.655" timestamp="2026-11-26T14:49:32" status="SUCCESS"/>
+    <testcase id="smoke-065" name="smoke-065" classname="smoke-065" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-065.yaml" time="2.657" timestamp="2026-11-26T14:49:35" status="SUCCESS"/>
+    <testcase id="smoke-066" name="smoke-066" classname="smoke-066" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-066.yaml" time="2.673" timestamp="2026-11-26T14:49:38" status="SUCCESS"/>
+    <testcase id="smoke-070" name="smoke-070" classname="smoke-070" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-070.yaml" time="8.235" timestamp="2026-11-26T14:49:40" status="SUCCESS"/>
+    <testcase id="smoke-071" name="smoke-071" classname="smoke-071" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-071.yaml" time="2.605" timestamp="2026-11-26T14:49:49" status="SUCCESS"/>
+    <testcase id="smoke-072" name="smoke-072" classname="smoke-072" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-072.yaml" time="3.189" timestamp="2026-11-26T14:49:51" status="SUCCESS"/>
+    <testcase id="smoke-075" name="smoke-075" classname="smoke-075" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-075.yaml" time="3.462" timestamp="2026-11-26T14:49:54" status="SUCCESS"/>
+  </testsuite>
+</testsuites>
