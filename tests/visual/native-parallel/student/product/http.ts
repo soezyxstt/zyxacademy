@@ -13,9 +13,9 @@ for (const scenario of ["enrolled", "unenrolled", "revoked"] as const) {
     return fetch(new URL(path, origin), { headers: { ...headers, "x-student-id": expected }, redirect: "error" });
   };
   assert.equal((await read({ view: "dashboard" }, "wrong-account")).status, 409);
-  for (const view of ["dashboard", "catalog", "course", "material-list", "material-detail"]) {
+  for (const view of ["dashboard", "dashboard-extras", "catalog", "course", "material-list", "material-detail"]) {
     const query: Record<string, string> = { view };
-    if (view !== "dashboard" && view !== "catalog") query.courseId = courseId;
+    if (!["dashboard", "dashboard-extras", "catalog"].includes(view)) query.courseId = courseId;
     if (view === "material-detail") query.materialId = "dokumen-4";
     const response = await read(query);
     const body = await response.json();
@@ -24,6 +24,15 @@ for (const scenario of ["enrolled", "unenrolled", "revoked"] as const) {
     if (view === "dashboard") {
       assert.equal(body.firstName, { enrolled: "Alya", unenrolled: "Bima", revoked: "Citra" }[scenario]);
       assert.equal(body.enrolled.some((item: {id:string}) => item.id === courseId), scenario === "enrolled");
+    }
+    if (view === "dashboard-extras") {
+      if (scenario === "enrolled") {
+        assert.equal(body.partial, false);
+        assert.equal(typeof body.today?.streak, "number");
+        assert.equal(body.mastery?.courseId, courseId);
+      } else {
+        assert.deepEqual(body, { view });
+      }
     }
     if (view === "course") assert.equal(body.course.hasFullContentAccess, scenario === "enrolled");
     if (view === "material-list") assert.ok(body.materials.some((item: {id:string}) => item.id === "dokumen-4"));
