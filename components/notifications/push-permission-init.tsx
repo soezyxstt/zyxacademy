@@ -18,6 +18,7 @@
  *
  * Placed in the root layout so it runs on every page for authenticated users.
  */
+import { useOnboardingTour } from "@/components/onboarding/tour-context";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import {
@@ -51,6 +52,7 @@ function isPushEnvironmentSupported(): boolean {
 }
 
 export function PushPermissionInit() {
+  const tour = useOnboardingTour();
   const pathname = usePathname();
   const { locale } = useAppLocale();
   const localeRef = useRef(locale);
@@ -165,7 +167,7 @@ export function PushPermissionInit() {
 
   // 2. Permission prompt scheduling effect: route-aware delay for "default" permission only.
   useEffect(() => {
-    if (isPending || !userId) {
+    if (isPending || !userId || tour.blocking) {
       setShowPrompt(false);
       return;
     }
@@ -218,7 +220,7 @@ export function PushPermissionInit() {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [isPending, userId, isAdminSurface, pathname]);
+  }, [isPending, userId, isAdminSurface, pathname, tour.blocking]);
 
   const handleAccept = async () => {
     setShowPrompt(false);
@@ -232,7 +234,7 @@ export function PushPermissionInit() {
     localStorage.setItem(LATER_AT_KEY, String(Date.now()));
   };
 
-  if (!showPrompt || isPending || !userId || isAdminSurface) return null;
+  if (tour.blocking || !showPrompt || isPending || !userId || isAdminSurface) return null;
 
   return (
     <Dialog

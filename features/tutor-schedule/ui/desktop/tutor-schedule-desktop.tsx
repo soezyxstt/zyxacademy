@@ -4,6 +4,7 @@ import {
   BookOpen,
   CalendarDays,
   Check,
+  ChevronDown,
   Clock,
   ExternalLink,
   MapPin,
@@ -26,6 +27,7 @@ import calendarStyles from "@/components/schedule/schedule-calendar-readability.
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useOnboardingTour } from "@/components/onboarding/tour-context";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Dialog,
@@ -39,6 +41,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { FormattedDate } from "@/components/ui/formatted-date";
@@ -132,6 +136,7 @@ export function TutorScheduleDesktop({
   onOpenSessionDetail,
   handleCopyPreviousWeek,
 }: TutorScheduleSurfaceProps) {
+  const tour = useOnboardingTour();
   const t = useTranslations("tutor.schedule");
   const scheduleLabels = useTranslations("schedule");
   const statusLabel = useTranslations("schedule.session.status");
@@ -149,24 +154,38 @@ export function TutorScheduleDesktop({
   const filterLabel = activeFilters
     ? t("activeFilters", { count: activeFilters })
     : scheduleLabels("calendar.filter");
+  const viewLabels: Record<string, string> = {
+    calendar: t("calendar"),
+    tickets: t("tickets"),
+    groups: t("classesGroups"),
+    slots: t("slots"),
+    sessions: t("sessions"),
+  };
 
   const viewSelect = (
-    <Select value={activeTab} onValueChange={setActiveTab}>
-      <SelectTrigger
-        aria-label={t("calendar")}
-        variant="inline"
-        className="max-w-[180px] shrink-0 font-semibold"
-      >
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="calendar">{t("calendar")}</SelectItem>
-        <SelectItem value="tickets">{t("tickets")}</SelectItem>
-        <SelectItem value="groups">{t("classesGroups")}</SelectItem>
-        <SelectItem value="slots">{t("slots")}</SelectItem>
-        <SelectItem value="sessions">{t("sessions")}</SelectItem>
-      </SelectContent>
-    </Select>
+    <DropdownMenu modal={!tour.active}>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          data-tour="tutor-schedule-view"
+          aria-label={t("calendar")}
+          className="h-9 max-w-[180px] shrink-0 gap-2 px-2.5 font-semibold"
+        >
+          {viewLabels[activeTab] ?? viewLabels.calendar}
+          <ChevronDown className="size-3.5 text-muted-foreground" aria-hidden />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" onInteractOutside={event => { if (tour.active) event.preventDefault(); }}>
+        <DropdownMenuRadioGroup value={activeTab} onValueChange={setActiveTab}>
+          <DropdownMenuRadioItem value="calendar">{t("calendar")}</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="tickets" data-tour="tutor-tickets">{t("tickets")}</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="groups">{t("classesGroups")}</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="slots">{t("slots")}</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="sessions" data-tour="tutor-sessions">{t("sessions")}</DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 
   const headerActions = (
@@ -239,6 +258,7 @@ export function TutorScheduleDesktop({
             type="button"
             size="icon-lg"
             onClick={openAddSlotDialog}
+            data-tour="tutor-add-slot"
             aria-label={t("addSlot")}
           >
             <Plus aria-hidden />
@@ -806,11 +826,12 @@ export function TutorScheduleDesktop({
 
         <Dialog
           open={isAddSlotOpen}
+          modal={!tour.active}
           onOpenChange={(open) => {
             if (!isPending) setIsAddSlotOpen(open);
           }}
         >
-          <DialogContent className="sm:max-w-[460px]">
+          <DialogContent className="sm:max-w-[460px]" onInteractOutside={event => { if (tour.active) event.preventDefault(); }}>
             <DialogHeader>
               <DialogTitle className="font-heading text-body-base font-bold">
                 {editingSlotId ? t("editSlotTitle") : t("addSlotTitle")}
@@ -1006,6 +1027,7 @@ export function TutorScheduleDesktop({
                 size="sm"
                 disabled={isPending}
                 onClick={() => setIsAddSlotOpen(false)}
+                data-tour="tutor-cancel-slot"
                 className="h-9 rounded-lg text-body-sm"
               >
                 {t("cancel")}

@@ -138,6 +138,7 @@ export function MobileTopNavSearchTrigger({
       aria-label={label}
       aria-expanded={control?.hasPageSearch ? control.isSearchExpanded : undefined}
       data-mobile-search-trigger=""
+      data-tour={control?.hasPageSearch ? "search-page" : "search"}
       onClick={handleClick}
       className={cn(MOBILE_TOP_NAV_ICON_BUTTON_CLASS, className)}
     >
@@ -586,6 +587,7 @@ export function MobileTopNavbar({
               <button
                 type="button"
                 data-mobile-global-search-button=""
+                data-tour={activeSearchExpanded ? "search" : undefined}
                 tabIndex={activeSearchExpanded ? 0 : -1}
                 onClick={handleOpenGlobalSearch}
                 className="flex w-full items-center justify-between gap-3 rounded-xl px-2 py-2.5 text-left text-body-sm text-foreground/90 transition-colors hover:bg-muted/70 active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

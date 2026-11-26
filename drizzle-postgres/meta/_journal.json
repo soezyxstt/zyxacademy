@@ -302,6 +302,13 @@
       "when": 1795460000000,
       "tag": "0042_tutor_slot_courses",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1795625168219,
+      "tag": "0043_onboarding_tours",
+      "breakpoints": true
     }
   ]
 }

@@ -746,7 +746,7 @@ export function ScheduleCalendarView({
 
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button type="button" variant="ghost" size="icon" className="h-8 w-7 sm:h-9 sm:w-8" onClick={() => navigate(1)} aria-label={t("calendar.nextRange")}>
+                  <Button type="button" variant="ghost" size="icon" className="h-8 w-7 sm:h-9 sm:w-8" onClick={() => navigate(1)} data-tour="schedule-next" aria-label={t("calendar.nextRange")}>
                     <ChevronRight className="size-4" />
                   </Button>
                 </TooltipTrigger>
