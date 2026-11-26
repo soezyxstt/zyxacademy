@@ -53,6 +53,8 @@ for pair in pairs:
     item = {'id': pair['id'], 'platform': args.platform, 'web': describe(web), 'native': describe(native)}
     if not web or not native:
         item.update(status='missing', reason='One or both capture files are absent or ambiguous.')
+    elif pair['same_input'] and not locate(args.web, '**/catalog-input-verified.txt'):
+        item.update(status='not_comparable', reason='Catalog input verification marker is missing.')
     elif not pair['same_input']:
         item.update(status='not_comparable', reason=pair['reason'])
     else:

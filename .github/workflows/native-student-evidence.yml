@@ -46,6 +46,9 @@ jobs:
           node node_modules/next/dist/bin/next dev --webpack -p 3127 > "$RUNNER_TEMP/student-next.log" 2>&1 &
           trap 'cat "$RUNNER_TEMP/student-next.log"' EXIT
           curl --fail --retry 30 --retry-all-errors --retry-delay 2 http://127.0.0.1:3127/visual-fixtures/course-catalog >/dev/null
+          bun tests/visual/native-parallel/student/verify-catalog-input.ts
+          mkdir -p artifacts/student-evidence/reference
+          printf '%s\n' 'catalog source data verified' > artifacts/student-evidence/reference/catalog-input-verified.txt
           bun tests/visual/native-parallel/student/capture-catalog.ts
           bunx playwright test tests/visual/native-parallel/student/web-reference.spec.ts --project=mobile-380 --reporter=list
       - name: Keep a web artifact even if capture failed
