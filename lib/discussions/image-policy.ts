@@ -33,7 +33,7 @@ export type DiscussionImageRowShape = {
 };
 
 export class DiscussionImageError extends Error {
-  constructor(public readonly code: "format" | "size" | "pixels" | "animation" | "invalid") {
+  constructor(public readonly code: "format" | "size" | "pixels" | "animation" | "invalid" | "origin") {
     super(code);
   }
 }
@@ -67,11 +67,20 @@ export function sanitizeDiscussionImageFilename(name: string, extension: string)
   return `${base || "gambar"}.${extension}`;
 }
 
-export async function parseDiscussionImageUpload(request: Request): Promise<{ channelId: string; file: File }> {
+export async function parseDiscussionImageUpload(request: Request, configuredPublicUrl?: string): Promise<{ channelId: string; file: File }> {
   const origin = request.headers.get("origin");
   const fetchSite = request.headers.get("sec-fetch-site");
-  if (!origin || origin !== new URL(request.url).origin || (fetchSite && fetchSite !== "same-origin")) {
-    throw new DiscussionImageError("invalid");
+  // Cloud Run's standalone Next server may expose an internal URL. The
+  // configured public origin is trusted; client-supplied proxy headers are not.
+  const allowedOrigins = new Set([new URL(request.url).origin]);
+  if (configuredPublicUrl) {
+    const publicUrl = new URL(configuredPublicUrl);
+    if (publicUrl.protocol === "https:" || publicUrl.protocol === "http:") {
+      allowedOrigins.add(publicUrl.origin);
+    }
+  }
+  if (!origin || !allowedOrigins.has(origin) || (fetchSite && fetchSite !== "same-origin")) {
+    throw new DiscussionImageError("origin");
   }
   const contentType = request.headers.get("content-type") ?? "";
   if (!/^multipart\/form-data\s*;/i.test(contentType)) throw new DiscussionImageError("invalid");

@@ -29,6 +29,7 @@ import { GoogleCalendarControl } from "@/components/schedule/google-calendar-con
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useOnboardingTour } from "@/components/onboarding/tour-context";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -145,6 +146,7 @@ export function TutorScheduleMobile({
   onOpenSessionDetail,
   handleCopyPreviousWeek,
 }: TutorScheduleSurfaceProps) {
+  const tour = useOnboardingTour();
   const t = useTranslations("tutor.schedule");
   const scheduleLabels = useTranslations("schedule");
   const statusLabel = useTranslations("schedule.session.status");
@@ -228,6 +230,7 @@ export function TutorScheduleMobile({
               type="button"
               size="icon-sm"
               onClick={openAddSlotDialog}
+              data-tour="tutor-add-slot"
               aria-label={t("addSlot")}
               className="size-9 shrink-0 rounded-lg"
             >
@@ -236,8 +239,8 @@ export function TutorScheduleMobile({
           }
         >
           <TabsTrigger value="calendar">{t("calendar")}</TabsTrigger>
-          <TabsTrigger value="sessions">{t("sessions")}</TabsTrigger>
-          <TabsTrigger value="tickets">{t("tickets")}</TabsTrigger>
+          <TabsTrigger value="sessions" data-tour="tutor-sessions">{t("sessions")}</TabsTrigger>
+          <TabsTrigger value="tickets" data-tour="tutor-tickets">{t("tickets")}</TabsTrigger>
           <TabsTrigger value="slots">{t("slots")}</TabsTrigger>
           <TabsTrigger value="groups">{t("classesGroups")}</TabsTrigger>
         </TabsList>
@@ -1088,6 +1091,7 @@ export function TutorScheduleMobile({
       {/* Bottom-Sheet Slot Creator / Editor */}
       <Sheet
         open={isAddSlotOpen}
+        modal={!tour.active}
         onOpenChange={(open) => {
           if (!isPending) setIsAddSlotOpen(open);
         }}
@@ -1095,6 +1099,7 @@ export function TutorScheduleMobile({
         <SheetContent
           side="bottom"
           className="max-h-[88dvh] overflow-y-auto rounded-t-2xl pb-[calc(1rem+env(safe-area-inset-bottom))]"
+          onInteractOutside={event => { if (tour.active) event.preventDefault(); }}
         >
           <SheetHeader>
             <SheetTitle className="font-heading text-body-base font-bold">
@@ -1291,6 +1296,7 @@ export function TutorScheduleMobile({
               variant="outline"
               disabled={isPending}
               onClick={() => setIsAddSlotOpen(false)}
+              data-tour="tutor-cancel-slot"
               className="min-h-10 flex-1 rounded-lg text-body-sm"
             >
               {t("cancel")}

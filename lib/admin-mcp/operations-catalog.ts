@@ -22,6 +22,13 @@ export const operationsCatalog = [
     "reason": "Personal interface language and device display, vibration and alert choices require the signed-in UI or local device. Preference grouping and reset do not change MCP tools, scopes, consent, discovery, playbooks, packaged skills, host prompts or environment bindings."
   },
   {
+    "source": "components/onboarding/guided-tour.tsx",
+    "actions": ["start", "progress", "skip", "restart"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "First-use student and tutor tours guide the user's real browser or native app controls. Progress belongs to the signed-in account and role. Notification permission requires the user's direct browser or device action and does not change email preferences. Admin MCP tools, scopes, consent, discovery, playbooks, packaged skills, host prompts and environment bindings are unchanged; agents must not complete a user's tour for them."
+  },
+  {
     "source": "app/(student)/settings/notifications/actions.ts",
     "actions": ["updateNotificationPreferencesAction", "updateActivityNotificationPreferenceAction"],
     "tools": [],

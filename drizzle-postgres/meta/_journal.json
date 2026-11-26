@@ -306,8 +306,15 @@
     {
       "idx": 43,
       "version": "7",
+      "when": 1795625168219,
+      "tag": "0043_onboarding_tours",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
       "when": 1795657920000,
-      "tag": "0043_activity_notification_preferences",
+      "tag": "0044_activity_notification_preferences",
       "breakpoints": true
     }
   ]

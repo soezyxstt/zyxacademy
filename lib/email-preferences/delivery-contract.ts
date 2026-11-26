@@ -5,6 +5,8 @@ import type { Locale } from "@/lib/i18n/locale";
 import idMessages from "../../messages/id/notifications.json" with { type: "json" };
 import enMessages from "../../messages/en/notifications.json" with { type: "json" };
 
+import { EMAIL_OPTIONAL_FOOTER_MARKER, emailStyles, escapeEmailHtml } from "@/lib/notifications/email-layout";
+
 const emailMessages = { id: idMessages.email, en: enMessages.email } as const;
 
 export function buildEmailUnsubscribeUrls(
@@ -43,15 +45,18 @@ export function appendEmailUnsubscribeFooter(
   const text = emailMessages[locale];
   const label = text.categories[categoryKey].label;
   const footer = `
-    <div style="margin-top: 32px; padding-top: 16px; border-top: 1px solid #e2e8f0; text-align: center;">
-      <p style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; font-size: 12px; line-height: 1.5; color: #64748b; margin: 0;">
-        ${text.footer.replace("{category}", label)}
-        <a href="${confirmationUrl}" style="color: #2563eb; text-decoration: underline;">${text.manage}</a>
+    <div style="padding:12px 0 0;text-align:left;">
+      <p style="${emailStyles.muted}">
+        ${escapeEmailHtml(text.footer.replace("{category}", () => label))}
+        <a href="${escapeEmailHtml(confirmationUrl)}" style="${emailStyles.link}">${escapeEmailHtml(text.manage)}</a>
       </p>
     </div>`;
 
+  if (html.includes(EMAIL_OPTIONAL_FOOTER_MARKER)) {
+    return html.replace(EMAIL_OPTIONAL_FOOTER_MARKER, () => footer);
+  }
   if (/<\/body>/i.test(html)) {
-    return html.replace(/<\/body>/i, `${footer}\n</body>`);
+    return html.replace(/<\/body>/i, () => `${footer}\n</body>`);
   }
   return `${html}${footer}`;
 }

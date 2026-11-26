@@ -1,6 +1,7 @@
 "use client";
 
 /** Register granted device tokens and offer a non-blocking, account-scoped permission reminder. */
+import { useOnboardingTour } from "@/components/onboarding/tour-context";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { NotificationPermissionDialog } from "./notification-permission-dialog";
@@ -24,6 +25,7 @@ function isPushEnvironmentSupported(): boolean {
 }
 
 export function PushPermissionInit() {
+  const tour = useOnboardingTour();
   const pathname = usePathname();
   const router = useRouter();
   const { locale } = useAppLocale();
@@ -139,7 +141,10 @@ export function PushPermissionInit() {
 
   // Check on navigation and when returning to the app. Denied browsers need settings guidance, not another OS prompt.
   useEffect(() => {
-    if (isPending || !userId || isAdminSurface || !isPushEnvironmentSupported()) return;
+    if (isPending || !userId || isAdminSurface || tour.blocking || !isPushEnvironmentSupported()) {
+      setPrompt(null);
+      return;
+    }
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let generation = 0;
@@ -176,14 +181,14 @@ export function PushPermissionInit() {
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onFocus);
     };
-  }, [isPending, userId, isAdminSurface, pathname]);
+  }, [isPending, userId, isAdminSurface, pathname, tour.blocking]);
 
   const dismiss = (choice: "later" | "never") => {
     if (prompt?.userId === userId && userId) rememberNotificationPermissionChoice(localStorage, userId, choice, Date.now());
     setPrompt(null);
   };
 
-  if (!prompt || prompt.userId !== userId || isPending || !userId || isAdminSurface) return null;
+  if (tour.blocking || !prompt || prompt.userId !== userId || isPending || !userId || isAdminSurface) return null;
   return (
     <NotificationPermissionDialog
       blocked={prompt.blocked}

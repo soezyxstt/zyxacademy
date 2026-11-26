@@ -268,8 +268,13 @@ export async function requestUnifiedNotificationPermission(): Promise<UnifiedNot
     }
   }
 
-  const { requestNotificationPermission } = await import("@/lib/firebase/messaging");
-  return requestNotificationPermission();
+  if (!("Notification" in window) || !("serviceWorker" in navigator)) {
+    return "unsupported";
+  }
+  if (window.Notification.permission !== "default") return window.Notification.permission;
+  // A lazy Firebase import can outlive the click's browser activation. Asking
+  // for permission does not need Firebase; load it later for token registration.
+  return window.Notification.requestPermission();
 }
 
 async function waitForCapacitorPushToken(timeoutMs = 10_000): Promise<string | null> {
