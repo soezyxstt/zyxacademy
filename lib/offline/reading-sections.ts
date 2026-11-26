@@ -1,3 +1,5 @@
+import { appendArticleMarkdownScope } from "../coding/article-markdown-scope";
+import { articleBlockContentScope, articleBlockScope, renderMarkdownCodeActions, typedArticleMarkdownScope } from "../coding/native-article-parts";
 import { interactiveMarkdown } from "../materials/interactive-document-display";
 import type { InteractiveDocumentSpec } from "../materials/interactive-document";
 import type { ArticleField } from "../materials/interactive-document-path";
@@ -57,12 +59,19 @@ export type RenderReadingVisualAction = (spec: InteractiveDocumentSpec, location
 export function buildOfflineReadingSections(record: ReadingSource, options?: OfflineRenderOptions, section?: string,
   renderCodingAction?: (partId: string) => string, renderVisualAction?: RenderReadingVisualAction): NativeOfflineSection[] {
   const markdown = (value: string) => renderOfflineMarkdownHtml(value, options);
+  const scopedOptions = (raw: string, scope?: string): OfflineRenderOptions | undefined => renderCodingAction && scope
+    ? { ...options, renderCodeAction: renderMarkdownCodeActions(raw, scope, renderCodingAction) } : options;
+  const scopedMarkdown = (raw: string, scope: string) => renderOfflineMarkdownHtml(raw, scopedOptions(raw, scope));
   const visualHtml = (visual: PublicVisualSpec, location?: ReadingVisualLocation) =>
     renderOfflineVisualHtml(visual, options) +
     (location && visual.kind === "interactive_document" ? renderVisualAction?.(visual, location) ?? "" : "");
-  const locatedMarkdown = (value: string, location: ReadingVisualLocation) => renderVisualAction
-    ? interactiveMarkdown(value).map(part => typeof part === "string" ? markdown(part) : visualHtml(part, location)).join("")
-    : markdown(value);
+  const locatedMarkdown = (raw: string, location: ReadingVisualLocation, scope: string) => {
+    const value = cleanOfflineMarkdown(raw);
+    const renderOptions = scopedOptions(raw, scope);
+    return renderVisualAction
+      ? interactiveMarkdown(value).map(part => typeof part === "string" ? renderOfflineMarkdownHtml(part, renderOptions) : visualHtml(part, location)).join("")
+      : renderOfflineMarkdownHtml(value, renderOptions);
+  };
   const sections: NativeOfflineSection[] = [];
 
   function renderMathUnit(part: Extract<ArticlePart, { kind: "math_unit" }>) {
@@ -106,7 +115,8 @@ export function buildOfflineReadingSections(record: ReadingSource, options?: Off
         }
       }
 
-      for (const block of sec.blocks ?? []) {
+      for (const [blockIndex, block] of (sec.blocks ?? []).entries()) {
+        const sourceScope = articleBlockScope(sec.id, block, blockIndex);
         const visualMap = collectVisualMap(record.article.visuals, sec.visuals, block.visuals);
         const renderedVisualIds = new Set<string>();
 
@@ -126,17 +136,21 @@ export function buildOfflineReadingSections(record: ReadingSource, options?: Off
             } else if (part.kind === "math_unit") {
               htmlParts.push(renderMathUnit(part));
             } else if (part.kind === "worked_example") {
-              htmlParts.push(markdown(`### ${part.title}`), markdown(part.problemMarkdown));
+              const exampleScope = appendArticleMarkdownScope(sourceScope, part.id);
+              htmlParts.push(markdown(`### ${part.title}`), scopedMarkdown(part.problemMarkdown, appendArticleMarkdownScope(exampleScope, "problem")));
               for (const step of part.steps) {
-                htmlParts.push(markdown(step.operationMarkdown), markdown(step.reasonMarkdown));
-                if (step.conditionsMarkdown) htmlParts.push(markdown(step.conditionsMarkdown));
+                const stepScope = appendArticleMarkdownScope(exampleScope, `step:${step.id}`);
+                htmlParts.push(scopedMarkdown(step.operationMarkdown, appendArticleMarkdownScope(exampleScope, `step:${step.id}:operation`)),
+                  scopedMarkdown(step.reasonMarkdown, appendArticleMarkdownScope(exampleScope, `step:${step.id}:reason`)));
+                if (step.conditionsMarkdown) htmlParts.push(scopedMarkdown(step.conditionsMarkdown, appendArticleMarkdownScope(exampleScope, `step:${step.id}:conditions`)));
                 for (const leaf of step.parts) {
-                  if (leaf.kind === "markdown") htmlParts.push(locatedMarkdown(leaf.markdown, { sectionId: sec.id, blockId: block.id, partId: leaf.id, field: "markdown" }));
+                  if (leaf.kind === "markdown") htmlParts.push(locatedMarkdown(leaf.markdown,
+                    { sectionId: sec.id, blockId: block.id, partId: leaf.id, field: "markdown" }, typedArticleMarkdownScope(stepScope, leaf.id)));
                   if (leaf.kind === "math_unit") htmlParts.push(renderMathUnit(leaf));
                   if (leaf.kind === "visual_ref") { const vis = visualMap.get(leaf.visualId); if (vis) { renderedVisualIds.add(vis.id); htmlParts.push(visualHtml(vis, { sectionId: sec.id, blockId: block.id, partId: leaf.id, field: "visual_ref" })); } }
                 }
               }
-              htmlParts.push(markdown(part.verificationMarkdown));
+              htmlParts.push(scopedMarkdown(part.verificationMarkdown, appendArticleMarkdownScope(exampleScope, "verification")));
             } else if (part.kind === "code_example") {
               htmlParts.push(`<pre><code>${escapeHtml(part.code)}</code></pre>`);
               if (part.runnable && renderCodingAction) htmlParts.push(renderCodingAction(part.id));
@@ -153,7 +167,8 @@ export function buildOfflineReadingSections(record: ReadingSource, options?: Off
               const cleanedPart = cleanOfflineMarkdown(part.markdown);
               if (cleanedPart) {
                 parts.push(cleanedPart);
-                htmlParts.push(part.kind === "markdown" ? locatedMarkdown(cleanedPart, { sectionId: sec.id, blockId: block.id, partId: part.id, field: "markdown" })
+                htmlParts.push(part.kind === "markdown" ? locatedMarkdown(part.markdown, { sectionId: sec.id, blockId: block.id, partId: part.id, field: "markdown" },
+                  typedArticleMarkdownScope(sourceScope, part.id))
                   : markdown(cleanedPart));
               }
             }
@@ -162,7 +177,7 @@ export function buildOfflineReadingSections(record: ReadingSource, options?: Off
           const cleaned = cleanOfflineMarkdown(block.content ?? "");
           if (cleaned) {
             parts.push(cleaned);
-            htmlParts.push(locatedMarkdown(cleaned, { sectionId: sec.id, blockId: block.id, field: "content" }));
+            htmlParts.push(locatedMarkdown(block.content, { sectionId: sec.id, blockId: block.id, field: "content" }, articleBlockContentScope(sourceScope, block)));
           }
         }
 

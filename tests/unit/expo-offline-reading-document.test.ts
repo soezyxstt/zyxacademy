@@ -4,6 +4,7 @@ import { dirname } from "node:path";
 import { buildReadingContentHtml, buildReadingDocumentHtml, readerCodingAction, savedReadingContent } from "../../apps/mobile-native/offline/reading-document";
 import type { OfflineReadingArticle, OfflineReadingPackage, OfflineReadingSummary } from "../../apps/mobile-native/offline/reading-contract";
 import { normalizeReadingSelection, readerSelectionUsesContentEngine } from "../../apps/mobile-native/offline/reading-selection";
+import { sectionCodingParts } from "../../lib/coding/native-article-parts";
 import { buildReadingKatexCss } from "../../apps/mobile-native/offline/prepare-reading-katex.cjs";
 import type { PublicArticleReadModel } from "../../lib/articles/structured-read-model";
 import { buildOfflineReadingSections } from "../../lib/offline/reading-sections";
@@ -169,4 +170,28 @@ test("native selection keeps host extraction Android-online-only and bounds the 
   expect(normalizeReadingSelection("  Flux\u0000\ngradient ")).toBe("Flux\ngradient");
   expect(normalizeReadingSelection("x".repeat(2_000))).toHaveLength(1200);
   expect(normalizeReadingSelection({ snippet: "spoofed" })).toBe("");
+});
+
+test("authorized Markdown control follows its exact Python fence, including a nested worked step", () => {
+  const print = "```python\nprint(2)\n```";
+  const nonPython = "```js\nprint(2)\n```";
+  const typed = {
+    ...block, id: "typed", parts: [{ id: "worked", kind: "worked_example", title: "Work",
+      problemMarkdown: "Read the input", verificationMarkdown: "Check it", steps: [{ id: "step", operationMarkdown: "Run Python",
+        reasonMarkdown: "Observe output", sourceElementRefs: ["sheet"], parts: [{ id: "sub", kind: "markdown", markdown: print }],
+      }] }],
+  };
+  const blocks = [{ ...block, content: nonPython + "\n\n" + print + "\n\nAfter code" }, typed];
+  const data: OfflineReadingArticle = { ...identity, chapterId: "chapter", version: 3, sections: [{ ...section, blocks }] };
+  const saved: OfflineReadingPackage = { summary, data, assets: [] };
+  const items = sectionCodingParts(blocks, section.id);
+  expect(items).toHaveLength(2);
+  const actions = new Map(items.map(({ part }, index) => [part.id, "Run example " + (index + 1)]));
+  const html = buildReadingContentHtml(savedReadingContent({ saved, locale: "en" }), katexCss, "light", undefined, actions)!.split("<main>")[1];
+  for (const [id, label] of actions) {
+    expect(html).toContain(`</code></pre>\n<a class="reader-coding-action" href="https://reader.invalid/coding/${id}">${label}</a>`);
+  }
+  expect(html.indexOf("Run example 1")).toBeLessThan(html.indexOf("After code"));
+  expect(html.indexOf("Run Python")).toBeLessThan(html.indexOf("Run example 2"));
+  expect(buildReadingDocumentHtml({ saved, locale: "en" }, katexCss)?.split("<main>")[1]).not.toContain("Run example 1");
 });

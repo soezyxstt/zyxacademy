@@ -66,8 +66,7 @@ export function ReadingStudy({ content, courseId, request, session, theme, draft
     ? { articleId: content.data.id, articleVersion: content.data.version, courseId: content.data.courseId } : undefined;
   const codingParts = useMemo(() => sectionCodingParts(codingSection?.blocks ?? [], codingSection?.id), [codingSection]);
   const canUseNativeCoding = content.codingMode === "native" && Boolean(session.sessionId);
-  const codingList = canUseNativeCoding ? codingParts.filter(item => item.namespace) : codingParts;
-  const codingActions = useMemo(() => canUseNativeCoding ? new Map<string, string>(codingParts.filter(item => !item.namespace).map(item => [
+  const codingActions = useMemo(() => canUseNativeCoding ? new Map<string, string>(codingParts.map(item => [
     item.part.id, item.part.kind === "coding_exercise" ? id ? "Buka latihan Python" : "Open Python exercise"
       : id ? "Jalankan contoh Python" : "Run Python example",
   ])) : undefined, [canUseNativeCoding, codingParts, id]);
@@ -198,7 +197,7 @@ export function ReadingStudy({ content, courseId, request, session, theme, draft
       testID="student-online-reading-document" onProgress={active ? scroll : undefined}
       codingActions={codingActions} onCodingAction={openCoding}
       onSelectedText={onSelection ? (key, text) => {
-        if (!canInteract() || showCoding || check) return;
+        if (!canInteract() || showCoding || selectedVisual || check) return;
         onSelection(key, text, typeof codingSection?.title === "string" ? codingSection.title : diktatSection?.title);
       } : undefined} onVisualAction={visualArticle ? action => {
         if (canInteract()) setSelectedVisual({ spec: action.spec, scope: { ...visualArticle, ...action.location }, kind: action.kind });
@@ -215,10 +214,10 @@ export function ReadingStudy({ content, courseId, request, session, theme, draft
             if (content.structured) select(sections.find(section => section.id === item.id));
             else if (item.slug) setUnstructuredSection(item.slug);
           }} />}
-          {codingList.length > 0 && (canUseNativeCoding || openWeb) && <Button theme={theme} variant="outline" disabled={busy}
+          {codingParts.length > 0 && !canUseNativeCoding && openWeb && <Button theme={theme} variant="outline" disabled={busy}
             testID="student-reading-open-coding" onPress={() => {
-              if (canInteract()) { if (canUseNativeCoding) setShowCoding(true); else openWeb?.(); }
-            }}>{canUseNativeCoding ? "Python" : id ? "Buka Python di web" : "Open Python on the web"}</Button>}
+              if (canInteract()) openWeb();
+            }}>{id ? "Buka Python di web" : "Open Python on the web"}</Button>}
           {checks.length > 0 && <Button theme={theme} variant="outline" disabled={busy} onPress={() => setCheck(checks[0])}>
             {id ? "Cek pemahaman" : "Check understanding"}
           </Button>}
@@ -231,20 +230,13 @@ export function ReadingStudy({ content, courseId, request, session, theme, draft
     </View>
     {selectedVisual && error !== "stale" && <InteractiveDocumentModal selection={selectedVisual}
       request={request} locale={locale} onClose={() => setSelectedVisual(undefined)} />}
-    {codingSection && "version" in content.data && <Modal visible={showCoding && error !== "stale"}
+    {codingSection && coding && "version" in content.data && <Modal visible={showCoding && error !== "stale"}
       onRequestClose={() => { setShowCoding(false); setCoding(undefined); }} animationType="none">
       {showCoding && <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-        {coding ? <ArticleCoding key={coding.part.id} item={coding} courseId={courseId} articleId={content.data.id}
+        <ArticleCoding key={coding.part.id} item={coding} courseId={courseId} articleId={content.data.id}
           version={content.data.version} scope={{ materialId: content.data.id, sectionId: codingSection.id,
             partId: coding.part.id, revision: content.revision }} request={request} session={session} drafts={drafts} theme={theme}
           close={() => { setCoding(undefined); setShowCoding(false); }} />
-          : <ScrollView contentContainerStyle={{ padding: 12, gap: 8 }}>
-            <Button theme={theme} variant="outline" onPress={() => setShowCoding(false)}>{id ? "Kembali ke bacaan" : "Back to reading"}</Button>
-            {codingList.map((item, index) => <Button key={item.part.id} theme={theme} variant="outline"
-              onPress={() => { if (canInteract()) setCoding(item); }}>
-              {`${item.title ? item.title + " · " : ""}${item.part.kind === "code_example" ? id ? "Contoh" : "Example" : id ? "Latihan" : "Exercise"} ${index + 1}`}
-            </Button>)}
-          </ScrollView>}
       </SafeAreaView>}
     </Modal>}
     {active && <Modal visible={Boolean(check)} onRequestClose={() => setCheck(undefined)} animationType="none">

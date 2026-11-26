@@ -80,6 +80,7 @@ function renderScientificProse(value: string): string {
 export type OfflineRenderOptions = {
   resolveImage?: (url: string) => string | undefined;
   allowLinks?: boolean;
+  renderCodeAction?: (code: string, language: string) => string;
 };
 
 function imageSource(url: string, options?: OfflineRenderOptions) {
@@ -183,6 +184,7 @@ export function renderOfflineMarkdownHtml(markdown: string, options?: OfflineRen
   let listItems: string[] = [];
   let quoteLines: string[] = [];
   let codeLines: string[] | null = null;
+  let codeLanguage = "";
   let mathBlockLines: string[] | null = null;
 
   const flushParagraph = () => {
@@ -219,6 +221,13 @@ export function renderOfflineMarkdownHtml(markdown: string, options?: OfflineRen
     flushQuote();
   };
 
+  function flushFence(lines: string[]) {
+    const code = lines.join("\n");
+    out.push(`<pre><code>${escapeHtml(code)}</code></pre>`);
+    const action = options?.renderCodeAction?.(code, codeLanguage);
+    if (action) out.push(action);
+  }
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmed = line.trim();
@@ -228,8 +237,9 @@ export function renderOfflineMarkdownHtml(markdown: string, options?: OfflineRen
       flushAllText();
       if (codeLines === null) {
         codeLines = [];
+        codeLanguage = trimmed.slice(3).match(/^[\w-]*/)?.[0] ?? "";
       } else {
-        out.push(`<pre><code>${escapeHtml(codeLines.join("\n"))}</code></pre>`);
+        flushFence(codeLines);
         codeLines = null;
       }
       continue;
@@ -344,7 +354,7 @@ export function renderOfflineMarkdownHtml(markdown: string, options?: OfflineRen
   }
 
   if (codeLines !== null) {
-    out.push(`<pre><code>${escapeHtml(codeLines.join("\n"))}</code></pre>`);
+    flushFence(codeLines);
   }
   if (mathBlockLines !== null) {
     out.push(`<div class="offline-math-block">${renderOfflineMath(mathBlockLines.join("\n"), true)}</div>`);
