@@ -1,5 +1,6 @@
 import { Fragment, useState } from "react";
-import { Share, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { sharePublicLink } from "../../../device/share";
 import { localizedPublicPath } from "../../../../../lib/public-locale-routes";
 import {
   blogArticleHref,
@@ -156,7 +157,9 @@ export function BlogArticle({ slug }: { slug: string }) {
   }).format(new Date(article.publishedAt));
   const share = () => {
     setFailedShare(false);
-    void Share.share({ title: article.title, message: articleUrl }).catch(() => setFailedShare(true));
+    void sharePublicLink({ title: article.title, url: articleUrl, origin }).then(result => {
+      setFailedShare(result.status === "error" || result.status === "unavailable");
+    });
   };
   return <View style={layout.stack} testID="public-blog-detail">
     <View style={layout.row}><Action onPress={back} id="public-blog-back" variant="link">{blog.back}</Action></View>
