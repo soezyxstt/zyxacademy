@@ -446,3 +446,41 @@ test("Tutor bank writes keep the original course, revision and request across a 
   assert.deepEqual(calls[2], { path: calls[0].path, init: { method: "DELETE", requestId: "tutor-bank-delete-recovery",
     body: { courseId: "mk-physics", expectedRevision: target.bankRevision } } });
 });
+
+test("Admin direct tryout writes and deletion preserve the revision and exact receipt across retry", async () => {
+  const calls: Array<{ path: string; init: AcademicCommand }> = [];
+  const transport: AcademicTransport = {
+    accountId: "admin", origin: "https://example.test", locale: "id",
+    get: async () => Response.json(null, { status: 404 }),
+    command: async (path, init) => {
+      calls.push({ path, init });
+      if (calls.length === 1) throw new Error("Lost response");
+      return Response.json({ requestId: init.requestId, examId: "tryout",
+        ...(init.method === "DELETE" ? { revision: null } : { questionId: "question", revision: "b".repeat(64) }) });
+    },
+  };
+  const context = { actor: { id: "admin", role: "admin" }, scope: { kind: "admin", slug: "biologi" }, scenario: "populated" } as const;
+  const gateway = createAssessmentReadGateway(transport);
+  assert.equal(gateway.canManageTryoutContent, true);
+  const fields = { courseId: "mk-bio", authoringRevision: "a".repeat(64) };
+  const input = { type: "essay" as const, prompt: "Explain", options: [], correctIndices: [], acceptableAnswers: [], order: 1, acceptsFile: true };
+  const command = { ...fields, kind: "tryout.question.save", examId: "tryout", target: null, input } as const;
+  assert.equal((await gateway.mutate(context, "tryout-direct-question", command)).ok, false);
+  const recovered = createAssessmentReadGateway(transport);
+  const pending = recovered.pendingTryoutDraft?.(context);
+  assert.ok(pending);
+  assert.equal((await recovered.mutate(context, pending.requestId, pending.command)).ok, true);
+  assert.deepEqual(calls[0], calls[1]);
+  assert.deepEqual(calls[1], {
+    path: "/api/native/academic-assessment/admin/biologi/tryouts/tryout/questions/direct",
+    init: { method: "POST", requestId: pending.requestId, body: { courseId: fields.courseId, expectedRevision: fields.authoringRevision, input } },
+  });
+  recovered.confirmTryoutDraft?.(context, pending.requestId);
+  const target = { id: "tryout", expectedRevision: 0 };
+  const remove = { ...fields, kind: "tryout.delete", target } as const;
+  assert.equal((await recovered.mutate(context, "tryout-certified-deletion", remove)).ok, true);
+  assert.deepEqual(calls[2], {
+    path: "/api/native/academic-assessment/admin/biologi/tryouts/tryout",
+    init: { method: "DELETE", requestId: "tryout-certified-deletion", body: { courseId: fields.courseId, expectedRevision: fields.authoringRevision } },
+  });
+});

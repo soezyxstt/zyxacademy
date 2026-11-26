@@ -24,9 +24,8 @@ import { parseMaterialIntoSections } from "@/lib/ingestion-parser";
 import { revalidatePath } from "next/cache";
 import { revisionOf } from "@/lib/admin-mcp/revision";
 import { notifyQuizPublishedBestEffort } from "@/lib/notifications/send";
-import { lockTryoutExam, saveTryoutRecord, tryoutBankQuestionId } from "@/lib/tutor/tryout-authoring";
+import { deleteTryoutRecord, lockTryoutExam, saveTryoutQuestionRecord, saveTryoutRecord, tryoutBankQuestionId, type TryoutQuestionFields } from "@/lib/tutor/tryout-authoring";
 import { buildTryoutBankSnapshot } from "@/lib/tutor/tryout-bank-snapshot";
-import { normalizeQuestionProvenance } from "@/lib/asesmen/question-provenance";
 import {
   createAssessmentWithLegacyProjection,
   updateAssessmentWithLegacyProjection,
@@ -1143,17 +1142,15 @@ export async function deleteTryoutAction(courseId: string, examId: string) {
     throw new Error(TUTOR_CAPABILITY_ERRORS.TRYOUT_AUTHORING_DISABLED);
   }
 
+  const identity = await resolveCourseIdentity(courseId);
+  const legacyCourseId = identity?.legacyId;
+  if (!legacyCourseId) throw new Error("COURSE_LEGACY_MAPPING_REQUIRED");
   const requestId = newAuditRequestId();
   try {
     await db.transaction(async (tx) => {
-      const [existingExam] = await tx
-        .select()
-        .from(exams)
-        .where(eq(exams.id, examId))
-        .limit(1).for("update");
-
-      await tx.delete(questions).where(eq(questions.examId, examId));
-      await tx.delete(exams).where(eq(exams.id, examId));
+      const existingExam = await lockTryoutExam(tx, legacyCourseId, examId);
+      if (!existingExam) throw new Error("TRYOUT_NOT_FOUND");
+      await deleteTryoutRecord(tx, existingExam);
 
       await recordTutorMutationAudit({
         actorId: session.user.id,
@@ -1166,7 +1163,7 @@ export async function deleteTryoutAction(courseId: string, examId: string) {
         action: "tryout:delete",
         outcome: "success",
         reason: "Tryout exam deleted by admin",
-        before: existingExam ? { id: examId, title: existingExam.title } : { id: examId },
+        before: { id: examId, title: existingExam.title },
       }, tx);
     });
   } catch (err: any) {
@@ -1194,17 +1191,7 @@ export async function saveTryoutQuestionAction(
   courseId: string,
   examId: string,
   questionId: string | null,
-  data: {
-    type: "multiple_choice" | "multiple_choices" | "short_answer" | "essay";
-    order: number;
-    prompt: string;
-    options?: string[];
-    correctIndex?: number;
-    correctIndices?: number[];
-    acceptsImage?: boolean;
-    acceptsFile?: boolean;
-    acceptableAnswers?: string[];
-  },
+  data: TryoutQuestionFields,
 ) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) {
@@ -1233,42 +1220,9 @@ export async function saveTryoutQuestionAction(
   }
 
   const targetId = questionId || `que-tutor-${randomUUID()}`;
-  let existingProvenance = normalizeQuestionProvenance(null);
-  if (questionId) {
-    const [existingQuestion] = await db
-      .select({ examId: questions.examId, content: questions.content })
-      .from(questions)
-      .where(eq(questions.id, questionId))
-      .limit(1);
-    if (!existingQuestion || existingQuestion.examId !== examId) {
-      const reason = "Soal tryout tidak ditemukan.";
-      await recordTutorFailureAudit({
-        actorId: session.user.id,
-        actorRoles: roles,
-        courseId,
-        entityType: "question",
-        entityId: questionId,
-        entityVersion: 1,
-        action: "tryout_question:update",
-        outcome: "rejected",
-        requestId: newAuditRequestId(),
-        reason,
-      });
-      throw new Error(reason);
-    }
-    const existingContent = typeof existingQuestion.content === "string" ? JSON.parse(existingQuestion.content) : existingQuestion.content;
-    existingProvenance = normalizeQuestionProvenance(existingContent);
-  }
-  const content = {
-    prompt: data.prompt,
-    options: data.options || [],
-    correctIndex: data.correctIndex,
-    correctIndices: data.correctIndices || [],
-    acceptsImage: data.acceptsImage || false,
-    acceptsFile: data.acceptsFile || false,
-    acceptableAnswers: data.acceptableAnswers || [],
-    ...existingProvenance,
-  };
+  const identity = await resolveCourseIdentity(courseId);
+  const legacyCourseId = identity?.legacyId;
+  if (!legacyCourseId) throw new Error("COURSE_LEGACY_MAPPING_REQUIRED");
 
   const requestId = newAuditRequestId();
   const auditBase = {
@@ -1283,24 +1237,9 @@ export async function saveTryoutQuestionAction(
 
   try {
     await db.transaction(async (tx) => {
-      if (questionId) {
-        await tx
-          .update(questions)
-          .set({
-            type: data.type,
-            order: data.order,
-            content: content,
-          })
-          .where(eq(questions.id, questionId));
-      } else {
-        await tx.insert(questions).values({
-          id: targetId,
-          examId,
-          type: data.type,
-          order: data.order,
-          content: content,
-        });
-      }
+      const exam = await lockTryoutExam(tx, legacyCourseId, examId);
+      if (!exam) throw new Error("TRYOUT_NOT_FOUND");
+      await saveTryoutQuestionRecord(tx, { exam, id: targetId, updating: Boolean(questionId) }, data);
 
       await recordTutorMutationAudit({
         ...auditBase,
@@ -1318,9 +1257,10 @@ export async function saveTryoutQuestionAction(
     await recordTutorMutationAuditSafe({
       ...auditBase,
       action: questionId ? "tryout_question:update" : "tryout_question:create",
-      outcome: "failed",
-      reason: err?.message || "Failed to persist tryout question",
+      outcome: err?.message === "TRYOUT_QUESTION_NOT_FOUND" ? "rejected" : "failed",
+      reason: err?.message === "TRYOUT_QUESTION_NOT_FOUND" ? "Soal tryout tidak ditemukan." : err?.message || "Failed to persist tryout question",
     });
+    if (err?.message === "TRYOUT_QUESTION_NOT_FOUND") throw new Error("Soal tryout tidak ditemukan.");
     throw err;
   }
 

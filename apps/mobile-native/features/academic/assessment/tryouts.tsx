@@ -34,6 +34,7 @@ export function Tryouts({ gateway, context, back }: Props) {
   const recovery = gateway.pendingTryoutDraft?.(context);
   const canSaveMetadata = Boolean(gateway.canSaveTryoutMetadata && result?.ok && result.value.canSaveMetadata);
   const canChangeStatus = gateway.canMutate || canSaveMetadata;
+  const canAuthorContent = gateway.canMutate || Boolean(gateway.canManageTryoutContent && result?.ok && result.value.canManageContent);
   const unknownDraft = !gateway.canMutate && Boolean(recovery) && mutation.problem?.code === "unavailable";
   const denial = mutation.problem?.code === "forbidden" ? mutation.problem
     : result && !result.ok && result.code === "forbidden" ? result : null;
@@ -81,10 +82,13 @@ export function Tryouts({ gateway, context, back }: Props) {
       const questions = [...active.questions].sort((a, b) => a.order - b.order);
       const shown = Math.min(questionPage, Math.max(0, Math.ceil(questions.length / pageSize) - 1));
       const canManageBank = gateway.canSaveTryoutDraft && active.status === "draft" && Boolean(active.questionSetRevision);
+      const canEditQuestions = canAuthorContent && (gateway.canMutate || Boolean(active.authoringRevision));
       return <>
-        {gateway.canMutate || canManageBank ? <View style={layout.row}>
-          {gateway.canMutate ? <Action label="Tambah soal" variation="default" onPress={() => open({ kind: "question", exam: active })} testID="academic-tryout-add-question" /> : null}
-          <Action label="Impor dari bank" disabled={Boolean(recovery)} onPress={() => open({ kind: "import", exam: active })} testID="academic-tryout-import" />
+        {canEditQuestions || canManageBank ? <View style={layout.row}>
+          {canEditQuestions ? <Action label="Tambah soal" variation="default" disabled={Boolean(recovery)}
+            onPress={() => open({ kind: "question", exam: active })} testID="academic-tryout-add-question" /> : null}
+          {gateway.canMutate || canManageBank
+            ? <Action label="Impor dari bank" disabled={Boolean(recovery)} onPress={() => open({ kind: "import", exam: active })} testID="academic-tryout-import" /> : null}
         </View> : null}
         {!questions.length ? <AssessmentNotice message="Tryout belum memiliki soal." /> : null}
         {questions.slice(shown * pageSize, (shown + 1) * pageSize).map((question) => (
@@ -92,10 +96,12 @@ export function Tryouts({ gateway, context, back }: Props) {
             <Ink kind="meta" tone="muted">Soal {question.order}</Ink>
             <QuestionContent question={question} />
             {question.acceptsFile ? <Ink kind="meta" tone="muted">Menerima lampiran</Ink> : null}
-            {gateway.canMutate || (canManageBank && question.bankQuestionId) ? <View style={layout.row}>
-              {gateway.canMutate ? <Action label="Edit" onPress={() => open({ kind: "question", exam: active, question })} /> : null}
-              <Action label="Hapus" variation="ghost" disabled={Boolean(recovery)} onPress={() => open({ kind: "deleteQuestion", exam: active, question })}
-                testID={`academic-tryout-remove-${question.id}`} />
+            {canEditQuestions || (canManageBank && question.bankQuestionId) ? <View style={layout.row}>
+              {canEditQuestions ? <Action label="Edit" disabled={Boolean(recovery)} testID={`academic-tryout-edit-question-${question.id}`}
+                onPress={() => open({ kind: "question", exam: active, question })} /> : null}
+              {gateway.canMutate || (canManageBank && question.bankQuestionId)
+                ? <Action label="Hapus" variation="ghost" disabled={Boolean(recovery)} onPress={() => open({ kind: "deleteQuestion", exam: active, question })}
+                  testID={`academic-tryout-remove-${question.id}`} /> : null}
             </View> : null}
           </SectionRow>
         ))}
@@ -115,10 +121,12 @@ export function Tryouts({ gateway, context, back }: Props) {
           <Ink kind="heading">{exam.title}</Ink>
           <Ink kind="meta" tone="muted">{statuses[exam.status]} · {exam.questions.length} soal · {exam.timeLimitMinutes} menit · {exam.maxAttempts} percobaan</Ink>
           <View style={layout.row}>
-            <Action label={gateway.canMutate || (gateway.canSaveTryoutDraft && exam.status === "draft" && exam.questionSetRevision) ? "Kelola soal" : "Lihat soal"} onPress={() => { setNotice(""); setQuestionPage(0); setActiveId(exam.id); }} testID={`academic-tryout-questions-${exam.id}`} />
+            <Action label={canAuthorContent || (gateway.canSaveTryoutDraft && exam.status === "draft" && exam.questionSetRevision) ? "Kelola soal" : "Lihat soal"} onPress={() => { setNotice(""); setQuestionPage(0); setActiveId(exam.id); }} testID={`academic-tryout-questions-${exam.id}`} />
             {canSaveDraft && (gateway.canMutate || (exam.metadataRevision && (canSaveMetadata || exam.status === "draft")))
               ? <Action label="Edit" disabled={Boolean(recovery)} onPress={() => open({ kind: "edit", exam })} testID={`academic-tryout-edit-${exam.id}`} /> : null}
-            {gateway.canMutate ? <Action label="Hapus" variation="ghost" onPress={() => open({ kind: "delete", exam })} /> : null}
+            {canAuthorContent && (gateway.canMutate || (exam.canDelete && exam.authoringRevision))
+              ? <Action label="Hapus" variation="ghost" disabled={Boolean(recovery)} testID={`academic-tryout-delete-${exam.id}`}
+                onPress={() => open({ kind: "delete", exam })} /> : null}
           </View>
         </SectionRow>
       ))}
@@ -155,14 +163,16 @@ export function Tryouts({ gateway, context, back }: Props) {
           }, finished)} />
       </CourseDialog> : null}
       {modal?.kind === "delete" ? <ConfirmAction title="Hapus tryout" message={`Hapus “${modal.exam.title}” beserta soalnya?`}
-        confirmLabel="Hapus tryout" destructive busy={mutation.pending} cancel={close}
-        confirm={() => mutation.send({ kind: "tryout.delete", target: targetVersion(modal.exam) }, finished)}>{feedback}</ConfirmAction> : null}
+        confirmLabel="Hapus tryout" destructive busy={mutation.pending || unknownDraft} cancel={close}
+        confirm={() => mutation.send({ kind: "tryout.delete", target: targetVersion(modal.exam),
+          courseId: data.course.id, authoringRevision: modal.exam.authoringRevision }, finished)}>{feedback}</ConfirmAction> : null}
       {modal?.kind === "question" ? <CourseDialog title={modal.question ? "Edit soal" : "Tambah soal"} onClose={close}>
-        <QuestionEditor bank={false} initial={modal.question} busy={mutation.pending} feedback={feedback} cancel={close}
+        <QuestionEditor bank={false} initial={modal.question} busy={mutation.pending || unknownDraft} feedback={feedback} cancel={close}
           order={Math.max(0, ...modal.exam.questions.map((question) => question.order)) + 1}
           save={(input) => mutation.send({
             kind: "tryout.question.save", examId: modal.exam.id,
             target: modal.question ? targetVersion(modal.question) : null, input,
+            courseId: data.course.id, authoringRevision: modal.exam.authoringRevision,
           }, finished)} />
       </CourseDialog> : null}
       {modal?.kind === "deleteQuestion" ? <ConfirmAction title="Hapus soal tryout" message={modal.question.prompt}

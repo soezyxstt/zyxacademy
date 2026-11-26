@@ -123,6 +123,7 @@ test("native tryout lifecycle and submission use interactive academic authority"
   expect(admin.tools).toEqual([]);
   expect(admin.reason).toContain("lifecycle saves");
   expect(admin.reason).toContain("original Admin session");
+  expect(admin.reason).toContain("retain submitted snapshots");
   expect(learner.status).toBe("excluded");
   expect(learner.tools).toEqual([]);
   expect(learner.reason).toContain("same exam lock");

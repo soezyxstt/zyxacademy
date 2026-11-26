@@ -272,14 +272,14 @@ export const assessmentReadServices: AssessmentReadServices = {
       }).from(aiQuestionBank).where(selectableTryoutBankCondition([course.id, courseId]))
         .orderBy(desc(aiQuestionBank.createdAt), asc(aiQuestionBank.id)) : [],
     ]);
-    const draftIds = canSaveDraft ? rows.filter((row) => row.status === "draft").map((row) => row.id) : [];
-    const [contents, usedDrafts] = await Promise.all([
+    const writableIds = canSaveDraft ? rows.map((row) => row.id) : [];
+    const [contents, usedTryouts] = await Promise.all([
       rows.length ? db.select().from(questions)
         .where(inArray(questions.examId, rows.map((row) => row.id))).orderBy(asc(questions.order), asc(questions.id)) : [],
-      draftIds.length ? db.selectDistinct({ examId: submissions.examId }).from(submissions)
-        .where(inArray(submissions.examId, draftIds)) : [],
+      writableIds.length ? db.selectDistinct({ examId: submissions.examId }).from(submissions)
+        .where(inArray(submissions.examId, writableIds)) : [],
     ]);
-    const usedDraftIds = new Set(usedDrafts.map((row) => row.examId));
+    const usedIds = new Set(usedTryouts.map((row) => row.examId));
     const disclosures = bankRows.map((row) => ({ questionId: row.id, courseId: row.courseId }));
     const questionsByExam = new Map<string, AssessmentTryout["questions"]>();
     const rowsByExam = new Map<string, (typeof questions.$inferSelect)[]>();
@@ -305,14 +305,15 @@ export const assessmentReadServices: AssessmentReadServices = {
       userId: scope.actorId, questions: disclosures, requestId: crypto.randomUUID(),
     }));
     return {
-      course, canSaveDraft, canSaveMetadata: canSaveDraft,
+      course, canSaveDraft, canSaveMetadata: canSaveDraft, canManageContent: canSaveDraft,
       bank: bankRows.map((row) => ({ id: row.id, prompt: row.prompt, type: type(row.type), difficulty: row.difficulty, tags: strings(row.tags) })),
       tryouts: rows.map((row) => {
         const settings = object(row.settings);
+        const authoringRevision = canSaveDraft ? tryoutQuestionSetRevision(row, rowsByExam.get(row.id) ?? []) : undefined;
         return {
           id: row.id, revision: 0, metadataRevision: tryoutMetadataRevision(row), title: row.title, status: row.status,
-          questionSetRevision: canSaveDraft && row.status === "draft" && !usedDraftIds.has(row.id)
-            ? tryoutQuestionSetRevision(row, rowsByExam.get(row.id) ?? []) : undefined,
+          authoringRevision, canDelete: canSaveDraft && !usedIds.has(row.id),
+          questionSetRevision: row.status === "draft" && !usedIds.has(row.id) ? authoringRevision : undefined,
           timeLimitMinutes: number(settings.timeLimitMinutes, 90), maxAttempts: number(settings.maxAttempts, 2),
           openAt: iso(row.openAt), closeAt: iso(row.closeAt), questions: questionsByExam.get(row.id) ?? [],
         };

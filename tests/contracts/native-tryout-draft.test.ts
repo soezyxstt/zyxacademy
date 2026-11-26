@@ -21,7 +21,7 @@ mock.module("@/lib/student/course-access", () => ({
 }));
 
 import { handleAdminTryoutDraftCommand } from "@/lib/native/academic/assessment/tryout-draft-command";
-import { changeTryoutDraftQuestionsFromNative, saveTryoutDraftFromNative, saveTryoutMetadataFromNative } from "@/lib/native/academic/assessment/tryout-draft-service";
+import { changeTryoutDraftQuestionsFromNative, saveTryoutDraftFromNative, saveTryoutMetadataFromNative, writeNativeTryoutContent } from "@/lib/native/academic/assessment/tryout-draft-service";
 import { tryoutMetadataRevision, tryoutQuestionSetRevision } from "@/lib/tutor/tryout-authoring";
 import { submitStudentTryout } from "@/lib/student/tryout-submit";
 
@@ -66,10 +66,10 @@ beforeAll(async () => {
 }, 60_000);
 afterAll(async () => { await fixture?.client.close(); });
 
-function command(method: "POST" | "PATCH", key: string, body: unknown, options: {
-  slug?: string; examId?: string; questions?: boolean; metadata?: boolean; viewer?: typeof admin | null; admitAdmin?: boolean; requestOrigin?: string;
+function command(method: "POST" | "PATCH" | "DELETE", key: string, body: unknown, options: {
+  slug?: string; examId?: string; questions?: boolean; direct?: string; metadata?: boolean; viewer?: typeof admin | null; admitAdmin?: boolean; requestOrigin?: string;
 } = {}) {
-  const parts = ["admin", options.slug ?? "bio", "tryouts", ...(options.examId ? [options.examId] : []), ...(options.questions ? ["questions"] : options.metadata ? ["metadata"] : [])];
+  const parts = ["admin", options.slug ?? "bio", "tryouts", ...(options.examId ? [options.examId] : []), ...(options.direct ? ["questions", options.direct] : options.questions ? ["questions"] : options.metadata ? ["metadata"] : [])];
   const request = new Request(`${origin}/api/native/academic-assessment/${parts.join("/")}`, {
     method, body: JSON.stringify(body), headers: {
       "content-type": "application/json", origin: options.requestOrigin ?? origin, "idempotency-key": key,
@@ -80,6 +80,7 @@ function command(method: "POST" | "PATCH", key: string, body: unknown, options: 
     hasAdmin: async (id) => options.admitAdmin ?? (id === admin.user.id),
     save: saveTryoutDraftFromNative,
     saveMetadata: saveTryoutMetadataFromNative,
+    writeContent: writeNativeTryoutContent,
     changeQuestions: changeTryoutDraftQuestionsFromNative,
   });
 }
@@ -309,4 +310,81 @@ it("rejects a submission when publication is withdrawn after the learner began t
   expect(await result).toMatchObject({ status: 409 });
   expect(await fixture.testDb.select().from(schema.submissions).where(eq(schema.submissions.examId, published.examId)))
     .toEqual([]);
+});
+
+it("edits direct questions in any tryout status, validates the enclosing course and preserves submitted results", async () => {
+  const db = fixture.testDb;
+  const [exam, outside] = await db.insert(schema.exams).values([
+    { id: "published-direct", courseId: "bio", title: "Tryout live", type: "tryout", status: "published" },
+    { id: "outside-direct", courseId: "fisika", title: "Other tryout", type: "tryout", status: "ended" },
+  ]).returning();
+  const before = { prompt: "Original", options: ["A", "B"], correctIndex: 0, correctIndices: [0],
+    origin: "itb_example", sourceEventName: "Source", sourceReferenceId: "source-id", bankQuestionId: "original-bank", explanation: "Original reasoning" };
+  const [question, foreignQuestion] = await db.insert(schema.questions).values([
+    { id: "published-direct-question", examId: exam.id, order: 1, type: "multiple_choice", content: before },
+    { id: "outside-direct-question", examId: outside.id, order: 1, type: "multiple_choice", content: before },
+  ]).returning();
+  await db.insert(schema.submissions).values({
+    id: "saved-direct-result", examId: exam.id, userId: learnerId, score: 100,
+    answersSnapshot: { [question.id]: { index: 0 } }, questionsSnapshot: [{ id: question.id, ...before }],
+  });
+  const readResult = async () => (await db.select().from(schema.submissions).where(eq(schema.submissions.id, "saved-direct-result")))[0];
+  const resultBefore = await readResult();
+  const input = {
+    type: "multiple_choice", prompt: "Changed", options: ["A", "B"], correctIndices: [1], acceptableAnswers: [],
+    order: 2, acceptsFile: false,
+  };
+  const scope = { courseId: "mk-bio", expectedRevision: tryoutQuestionSetRevision(exam, [question]) };
+  const key = "native-tryout-direct-live-edit";
+  const path = { examId: exam.id, direct: question.id };
+  expect((await command("PATCH", key, { ...scope, input }, { ...path, viewer: tutor, admitAdmin: true })).status).toBe(403);
+  expect((await command("PATCH", key, { ...scope, input }, { ...path, direct: foreignQuestion.id })).status).toBe(404);
+  expect((await command("PATCH", key, { ...scope, input: { ...input, correctIndices: [3] } }, path)).status).toBe(422);
+  expect((await command("PATCH", key, { ...scope, input }, { ...path, examId: outside.id })).status).toBe(404);
+  const saved = await command("PATCH", key, { ...scope, input }, path);
+  expect(saved.status).toBe(200);
+  const receipt = await saved.json();
+  const [row] = await db.select().from(schema.questions).where(eq(schema.questions.id, question.id));
+  expect(row).toMatchObject({ order: 2, content: { ...before, prompt: "Changed", correctIndex: 1, correctIndices: [1] } });
+  expect(receipt).toEqual({ requestId: key, examId: exam.id, questionId: question.id, revision: tryoutQuestionSetRevision(exam, [row]) });
+  expect(await (await command("PATCH", key, { ...scope, input }, path)).json()).toEqual(receipt);
+  expect(await (await command("PATCH", key, { ...scope, input }, { ...path, viewer: sameAdminOtherSession })).json()).toEqual({ error: "REQUEST_CONFLICT" });
+  expect(await (await command("PATCH", "native-stale-direct-edit", { ...scope, input }, path)).json()).toEqual({ error: "REVISION_CONFLICT" });
+
+  const deniedDelete = await command("DELETE", "native-tryout-results-protect", { ...scope, expectedRevision: receipt.revision }, { examId: exam.id });
+  expect(await deniedDelete.json()).toEqual({ error: "TRYOUT_HAS_SUBMISSIONS" });
+  expect(await readResult()).toEqual(resultBefore);
+  expect(await db.select().from(schema.questions).where(eq(schema.questions.id, question.id))).toEqual([row]);
+});
+
+it("adds questions and deletes an unused tryout with one durable deletion receipt", async () => {
+  const db = fixture.testDb;
+  const [exam] = await db.insert(schema.exams).values({
+    id: "tryout-unused-delete", courseId: "bio", title: "Ended tryout without results", type: "tryout", status: "ended",
+  }).returning();
+  const scope = { courseId: "mk-bio", expectedRevision: tryoutQuestionSetRevision(exam, []) };
+  const input = { type: "essay", prompt: "Explain", options: [], correctIndices: [], acceptableAnswers: [], order: 1, acceptsFile: true };
+  const key = "native-add-question-tryout";
+  const created = await command("POST", key, { ...scope, input }, { examId: exam.id, direct: "direct" });
+  expect(created.status).toBe(201);
+  const saved = await created.json();
+  expect(await (await command("POST", key, { ...scope, input }, { examId: exam.id, direct: "direct" })).json()).toEqual(saved);
+  const [question] = await db.select().from(schema.questions).where(eq(schema.questions.id, saved.questionId));
+  expect(question).toMatchObject({ examId: exam.id, type: "essay", content: { acceptsFile: true } });
+
+  const remove = "native-delete-unused-tryout";
+  const deleteFrom = (body: unknown, options: Parameters<typeof command>[3] = {}) =>
+    command("DELETE", remove, body, { examId: exam.id, ...options });
+  expect(await (await deleteFrom(scope)).json()).toEqual({ error: "REVISION_CONFLICT" });
+  const payload = { ...scope, expectedRevision: saved.revision };
+  const ended = await deleteFrom(payload);
+  expect(ended.status).toBe(200);
+  const receipt = { examId: exam.id, requestId: remove, revision: null };
+  expect(await ended.json()).toEqual(receipt);
+  expect(await (await deleteFrom(payload, { slug: "mk-bio" })).json()).toEqual(receipt);
+  expect(await (await deleteFrom(payload, { viewer: sameAdminOtherSession })).json()).toEqual({ error: "REQUEST_CONFLICT" });
+  expect(await db.select().from(schema.exams).where(eq(schema.exams.id, exam.id))).toEqual([]);
+  expect(await db.select().from(schema.questions).where(eq(schema.questions.examId, exam.id))).toEqual([]);
+  const audits = await db.select().from(schema.auditMutasi).where(eq(schema.auditMutasi.entityId, exam.id));
+  expect(audits.map(row => row.action)).toEqual(["tryout:delete"]);
 });

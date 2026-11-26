@@ -1,5 +1,5 @@
 import type {
-  AssessmentContext, AssessmentErrorCode, AssessmentGateway, AssessmentResult, BankWriteCommand, MutationEffect, OutstandingQuizSave, QuizGradeCommand, TryoutDraftCommand,
+  AssessmentContext, AssessmentErrorCode, AssessmentGateway, AssessmentResult, BankWriteCommand, MutationEffect, OutstandingQuizSave, QuizGradeCommand, TryoutDraftCommand, TryoutQuestionInput,
 } from "../../../../../packages/native-parity/academic/assessment/model";
 import { quizAuthoringPayload } from "../../../../../packages/native-parity/academic/assessment/quiz-payload";
 import type { TryoutDraftWrite, TryoutMetadataWrite, TryoutQuestionSetWrite } from "../../../../../packages/native-parity/academic/assessment/tryout-draft";
@@ -137,9 +137,9 @@ export function createAssessmentReadGateway(transport: AcademicTransport): Asses
     const { courseId } = command;
     const send = transport.command?.bind(transport);
     if (!send || context.scope.kind !== "admin" || !courseId) return forbidden;
-    let body: TryoutDraftWrite | TryoutMetadataWrite | TryoutQuestionSetWrite;
+    let body: TryoutDraftWrite | TryoutMetadataWrite | TryoutQuestionSetWrite | { courseId: string; expectedRevision: string; input?: TryoutQuestionInput };
     let examId: string | undefined;
-    let method: "PATCH" | "POST" = "POST";
+    let method: "PATCH" | "POST" | "DELETE" = "POST";
     let path: string;
     const metadata = command.kind === "tryout.metadata.save";
     if (command.kind === "tryout.save" || metadata) {
@@ -155,6 +155,21 @@ export function createAssessmentReadGateway(transport: AcademicTransport): Asses
         openAt: input.openAt, closeAt: input.closeAt,
       };
       body = metadata ? { ...fields, status: input.status } : fields;
+    } else if (command.kind === "tryout.delete" || command.kind === "tryout.question.save") {
+      if (!command.authoringRevision) return forbidden;
+      const fields = { courseId, expectedRevision: command.authoringRevision };
+      if (command.kind === "tryout.delete") {
+        examId = command.target.id;
+        method = "DELETE";
+        path = `tryouts/${encodeURIComponent(examId)}`;
+        body = fields;
+      } else {
+        examId = command.examId;
+        method = command.target ? "PATCH" : "POST";
+        path = `tryouts/${encodeURIComponent(examId)}/questions/${command.target ? encodeURIComponent(command.target.id) : "direct"}`;
+        const { prompt, type, options, correctIndices, acceptableAnswers, order, acceptsFile } = command.input;
+        body = { ...fields, input: { prompt, type, options, correctIndices, acceptableAnswers, order, acceptsFile } };
+      }
     } else {
       const { questionSetRevision } = command;
       if (!questionSetRevision) return forbidden;
@@ -186,13 +201,14 @@ export function createAssessmentReadGateway(transport: AcademicTransport): Asses
           if (response.status >= 500 || response.status === 429) return uncertain;
           tryoutDrafts.delete(key);
           const error = responseError(response.status);
+          if (error.code === "invalid" && command.kind === "tryout.question.save") return { ...error, message: "Periksa isi, opsi, dan kunci soal." };
           if (error.code === "invalid") return { ...error, message: command.kind === "tryout.save" || metadata
             ? "Periksa pengaturan, status, dan jadwal tryout."
             : "Pilihan soal tidak valid atau aset visualnya belum terverifikasi." };
           if (error.code === "conflict") {
             const detail = await response.json().catch(() => null);
             if (detail && typeof detail === "object" && "error" in detail && detail.error === "TRYOUT_HAS_SUBMISSIONS") {
-              return { ...error, message: "Draf ini sudah memiliki pengumpulan. Muat versi terbaru." };
+              return { ...error, message: "Tryout ini sudah memiliki pengumpulan. Muat versi terbaru." };
             }
             return { ...error, message: "Tryout atau kursus telah berubah. Muat versi terbaru." };
           }
@@ -201,9 +217,16 @@ export function createAssessmentReadGateway(transport: AcademicTransport): Asses
         const data = await response.json();
         if (!data || typeof data !== "object") return uncertain;
         const receipt = data as Record<string, unknown>;
-        if (receipt.requestId !== requestId || typeof receipt.examId !== "string" || typeof receipt.revision !== "string" ||
-          !/^[a-f0-9]{64}$/.test(receipt.revision) || (examId && receipt.examId !== examId)) return uncertain;
+        if (receipt.requestId !== requestId || typeof receipt.examId !== "string" ||
+          (examId && receipt.examId !== examId) ||
+          (command.kind === "tryout.delete" ? receipt.revision !== null
+            : typeof receipt.revision !== "string" || !/^[a-f0-9]{64}$/.test(receipt.revision))) return uncertain;
         let message = "Draf tryout tersimpan.";
+        if (command.kind === "tryout.delete") message = "Tryout dihapus.";
+        if (command.kind === "tryout.question.save") {
+          if (typeof receipt.questionId !== "string" || (command.target && receipt.questionId !== command.target.id)) return uncertain;
+          message = "Soal tryout tersimpan.";
+        }
         if (metadata) {
           if (receipt.status !== command.input.status) return uncertain;
           message = "Tryout tersimpan.";
@@ -297,6 +320,7 @@ export function createAssessmentReadGateway(transport: AcademicTransport): Asses
     canSaveQuiz: Boolean(transport.command),
     canSaveTryoutDraft: Boolean(transport.command),
     canSaveTryoutMetadata: Boolean(transport.command),
+    canManageTryoutContent: Boolean(transport.command),
     canWriteBank: Boolean(transport.command),
     pendingBankWrite(context) {
       const entry = accountMatches(context) ? bankWrites.get(scopeKey(context)) : undefined;
@@ -356,7 +380,8 @@ export function createAssessmentReadGateway(transport: AcademicTransport): Asses
       if (!accountMatches(context) || !transport.command) return forbidden;
       if (command.kind === "bank.save" || command.kind === "bank.delete") return writeBank(context, requestId, command, signal);
       if (command.kind === "quiz.save") return saveQuiz(context, requestId, command, signal);
-      if (command.kind === "tryout.save" || command.kind === "tryout.metadata.save" || command.kind === "tryout.question.import" || command.kind === "tryout.question.delete") {
+      if (command.kind === "tryout.save" || command.kind === "tryout.metadata.save" || command.kind === "tryout.delete" ||
+        command.kind === "tryout.question.save" || command.kind === "tryout.question.import" || command.kind === "tryout.question.delete") {
         return saveTryoutDraft(context, requestId, command, signal);
       }
       if (command.kind === "quiz.status" || command.kind === "quiz.delete") {

@@ -85,7 +85,7 @@ export interface TryoutInput {
 
 export type TryoutQuestionInput = QuestionInput & { order: number; acceptsFile: boolean };
 export type TryoutQuestion = TryoutQuestionInput & Versioned & { bankQuestionId?: string };
-export type AssessmentTryout = TryoutInput & Versioned & { questions: TryoutQuestion[]; metadataRevision?: string; questionSetRevision?: string };
+export type AssessmentTryout = TryoutInput & Versioned & { questions: TryoutQuestion[]; metadataRevision?: string; questionSetRevision?: string; authoringRevision?: string; canDelete?: boolean };
 export type TryoutBankChoice = Pick<BankQuestion, "id" | "prompt" | "type" | "difficulty" | "tags">;
 
 export type QuizAttemptSummary = {
@@ -124,7 +124,7 @@ export type GradeItem = { questionId: string; score: number; reviewNotes: string
 
 export type QuizCollection = { course: AssessmentCourse; quizzes: AssessmentQuiz[]; bank: BankQuestion[]; canWriteBank?: boolean };
 export type QuizPreviewQuestion = QuestionInput & Versioned & { explanation?: string };
-export type TryoutCollection = { course: AssessmentCourse; tryouts: AssessmentTryout[]; bank: TryoutBankChoice[]; canSaveDraft?: boolean; canSaveMetadata?: boolean };
+export type TryoutCollection = { course: AssessmentCourse; tryouts: AssessmentTryout[]; bank: TryoutBankChoice[]; canSaveDraft?: boolean; canSaveMetadata?: boolean; canManageContent?: boolean };
 
 export type AssessmentErrorCode = "forbidden" | "not_found" | "invalid" | "conflict" | "unavailable";
 export type AssessmentResult<T> =
@@ -143,8 +143,8 @@ export type AssessmentCommand =
   | { kind: "bank.delete"; target: BankVersionRef; courseId?: string }
   | (TryoutMetadataCommand & { kind: "tryout.save" })
   | (TryoutMetadataCommand & { kind: "tryout.metadata.save" })
-  | { kind: "tryout.delete"; target: VersionRef }
-  | { kind: "tryout.question.save"; examId: string; target: VersionRef | null; input: TryoutQuestionInput }
+  | { kind: "tryout.delete"; target: VersionRef; courseId?: string; authoringRevision?: string }
+  | { kind: "tryout.question.save"; examId: string; target: VersionRef | null; input: TryoutQuestionInput; courseId?: string; authoringRevision?: string }
   | { kind: "tryout.question.delete"; examId: string; target: VersionRef; courseId?: string; questionSetRevision?: string }
   | { kind: "tryout.question.import"; exam: VersionRef; bankIds: string[]; courseId?: string; questionSetRevision?: string }
   | { kind: "grading.save"; attemptId: string; items: GradeItem[]; finalize: boolean };
@@ -159,7 +159,7 @@ export type OutstandingQuizSave = {
 };
 export type QuizGradeCommand = Extract<AssessmentCommand, { kind: "grading.save" }>;
 export type OutstandingQuizGrade = { requestId: string; command: QuizGradeCommand };
-export type TryoutDraftCommand = Extract<AssessmentCommand, { kind: "tryout.save" | "tryout.metadata.save" | "tryout.question.import" | "tryout.question.delete" }>;
+export type TryoutDraftCommand = Extract<AssessmentCommand, { kind: "tryout.save" | "tryout.metadata.save" | "tryout.delete" | "tryout.question.save" | "tryout.question.import" | "tryout.question.delete" }>;
 
 export type MutationEffect = {
   id: string;
@@ -175,6 +175,7 @@ export interface AssessmentGateway {
   readonly canSaveQuiz: boolean;
   readonly canSaveTryoutDraft: boolean;
   readonly canSaveTryoutMetadata?: boolean;
+  readonly canManageTryoutContent?: boolean;
   readonly canWriteBank?: boolean;
   pendingBankWrite?(context: AssessmentContext): OutstandingBankWrite | null;
   confirmBankWrite?(context: AssessmentContext, requestId: string): void;

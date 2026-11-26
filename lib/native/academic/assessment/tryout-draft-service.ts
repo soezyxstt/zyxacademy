@@ -7,10 +7,11 @@ import { aiQuestionBank, auditMutasi, courses, mataKuliah, questions, session, s
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { revisionOf } from "@/lib/admin-mcp/revision";
 import { buildTutorMutationAuditRow, recordTutorMutationAudit } from "@/lib/audit/mutasi";
+import { rejectQuestionVisualReferences } from "@/lib/authoring/question-visual-references";
 import { assertAuthoringActor } from "@/lib/auth/authoring-actor";
-import { lockTryoutExam, saveTryoutRecord, selectableTryoutBankCondition, tryoutBankQuestionId, tryoutMetadataRevision, tryoutQuestionSetRevision } from "@/lib/tutor/tryout-authoring";
+import { deleteTryoutRecord, lockTryoutExam, saveTryoutQuestionRecord, saveTryoutRecord, selectableTryoutBankCondition, tryoutBankQuestionId, tryoutMetadataRevision, tryoutQuestionSetRevision } from "@/lib/tutor/tryout-authoring";
 import { buildTryoutBankSnapshot } from "@/lib/tutor/tryout-bank-snapshot";
-import type { TryoutDraftWrite, TryoutMetadataWrite, TryoutQuestionSetWrite } from "@/packages/native-parity/academic/assessment/tryout-draft";
+import type { TryoutContentReceipt, TryoutContentWrite, TryoutDraftWrite, TryoutMetadataWrite, TryoutQuestionSetWrite } from "@/packages/native-parity/academic/assessment/tryout-draft";
 import type { CourseCommandViewer } from "../course-command";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -176,4 +177,66 @@ export async function changeTryoutDraftQuestionsFromNative(slug: string, examId:
   revalidatePath(`/admin/courses/${encodeURIComponent(slug)}/tryouts`);
   revalidatePath(`/courses/${encodeURIComponent(result.legacyCourseId)}/tryout/${encodeURIComponent(examId)}`);
   return { examId, revision: result.revision, imported: result.imported, skipped: result.skipped };
+}
+
+
+export async function writeNativeTryoutContent(slug: string, examId: string, edit: TryoutContentWrite, requestId: string, viewer: CourseCommandViewer):
+  Promise<Omit<TryoutContentReceipt, "requestId">> {
+  const actorId = viewer.user.id;
+  const receiptId = `native_admin_tryout_content_${revisionOf([actorId, requestId])}`;
+  const result = await db.transaction(async tx => {
+    const identity = await lockDraftCourse(tx, slug, edit.courseId, viewer);
+    const legacyCourseId = identity.legacyId;
+    const digest = revisionOf({ sessionId: viewer.session.id, examId, legacyCourseId, edit });
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${receiptId}, 0))`);
+    const [receipt] = await tx.select().from(auditMutasi).where(eq(auditMutasi.id, receiptId)).limit(1);
+    if (receipt) {
+      const snapshot = receipt.afterSnapshot?.snapshot as { requestDigest?: unknown; questionId?: unknown; revision?: unknown } | undefined;
+      if (receipt.actorId !== actorId || snapshot?.requestDigest !== digest) throw new Error("REQUEST_CONFLICT");
+      if (edit.action === "delete" && snapshot.revision === null) return { legacyCourseId, revision: null };
+      if (edit.action === "save-question" && typeof snapshot.questionId === "string" && typeof snapshot.revision === "string") {
+        return { legacyCourseId, questionId: snapshot.questionId, revision: snapshot.revision };
+      }
+      throw new Error("REQUEST_CONFLICT");
+    }
+
+    const exam = await lockTryoutExam(tx, legacyCourseId, examId);
+    if (!exam) throw new Error("TRYOUT_NOT_FOUND");
+    const rows = await tx.select().from(questions).where(eq(questions.examId, examId)).for("update");
+    if (tryoutQuestionSetRevision(exam, rows) !== edit.expectedRevision) throw new Error("REVISION_CONFLICT");
+    const audit = { actorId, actorRoles: ["admin"], courseId: edit.courseId, entityVersion: 1, requestId, outcome: "success" as const };
+    if (edit.action === "delete") {
+      await deleteTryoutRecord(tx, exam);
+      await tx.insert(auditMutasi).values({
+        ...buildTutorMutationAuditRow({ ...audit, entityType: "exam", entityId: examId, action: "tryout:delete",
+          reason: "Tryout exam deleted by admin", before: { title: exam.title }, after: { requestDigest: digest, revision: null } }),
+        id: receiptId,
+      });
+      return { legacyCourseId, revision: null };
+    }
+
+    rejectQuestionVisualReferences([edit.input]);
+    const questionId = edit.targetId ?? `que-native-${revisionOf(receiptId).slice(0, 32)}`;
+    const saved = await saveTryoutQuestionRecord(tx, { exam, id: questionId, updating: edit.targetId !== null }, {
+      ...edit.input,
+      correctIndex: edit.input.type === "multiple_choice" ? edit.input.correctIndices[0] : undefined,
+    });
+    const revision = tryoutQuestionSetRevision(exam, [...rows.filter(row => row.id !== questionId), saved]);
+    await tx.insert(auditMutasi).values({
+      ...buildTutorMutationAuditRow({ ...audit, entityType: "question", entityId: questionId,
+        action: edit.targetId ? "tryout_question:update" : "tryout_question:create", reason: "Tryout question saved by admin",
+        after: { requestDigest: digest, questionId, examId, revision } }),
+      id: receiptId,
+    });
+    return { legacyCourseId, questionId, revision };
+  });
+
+  revalidatePath(`/admin/courses/${encodeURIComponent(slug)}/tryouts`);
+  for (const id of new Set([edit.courseId, result.legacyCourseId])) {
+    const course = encodeURIComponent(id);
+    revalidatePath(`/tutor/${course}/tryouts`);
+    revalidatePath(`/courses/${course}/tryout`);
+    revalidatePath(`/courses/${course}/tryout/${encodeURIComponent(examId)}`);
+  }
+  return { examId, revision: result.revision, ...(result.questionId ? { questionId: result.questionId } : {}) };
 }

@@ -12,7 +12,7 @@ import { handleGradeCommand } from "@/lib/native/academic/assessment/handle-grad
 import { assessmentReadServices } from "@/lib/native/academic/assessment/read-services";
 
 import { handleAdminTryoutDraftCommand } from "@/lib/native/academic/assessment/tryout-draft-command";
-import { changeTryoutDraftQuestionsFromNative, saveTryoutDraftFromNative, saveTryoutMetadataFromNative } from "@/lib/native/academic/assessment/tryout-draft-service";
+import { changeTryoutDraftQuestionsFromNative, saveTryoutDraftFromNative, saveTryoutMetadataFromNative, writeNativeTryoutContent } from "@/lib/native/academic/assessment/tryout-draft-service";
 
 import { handleTutorQuestionBankCommand } from "@/lib/native/academic/assessment/question-bank-command";
 import { writeNativeTutorQuestionBank } from "@/lib/native/academic/assessment/question-bank-service";
@@ -28,6 +28,7 @@ function tryoutDraftCommand(request: Request, parts: string[], origin: string) {
     hasAdmin: assessmentReadServices.isAdmin,
     save: saveTryoutDraftFromNative,
     saveMetadata: saveTryoutMetadataFromNative,
+    writeContent: writeNativeTryoutContent,
     changeQuestions: changeTryoutDraftQuestionsFromNative,
   });
 }
@@ -79,5 +80,7 @@ export async function PATCH(request: Request, { params }: Context) {
 }
 
 export async function DELETE(request: Request, { params }: Context) {
-  return bankCommand(request, (await params).resource, new URL(resolveAuthBaseUrl()).origin);
+  const { resource } = await params;
+  const origin = new URL(resolveAuthBaseUrl()).origin;
+  return isBankWrite(resource) ? bankCommand(request, resource, origin) : tryoutDraftCommand(request, resource, origin);
 }

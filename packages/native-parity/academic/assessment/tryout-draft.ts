@@ -1,4 +1,4 @@
-import { dateRangeError, type TryoutInput } from "./model";
+import { dateRangeError, type TryoutInput, type TryoutQuestionInput } from "./model";
 
 export type TryoutDraftInput = Omit<TryoutInput, "status">;
 export type TryoutDraftWrite = TryoutDraftInput & {
@@ -14,6 +14,12 @@ export type TryoutQuestionSetWrite = { courseId: string; expectedRevision: strin
   | { action: "import"; bankIds: string[] }
   | { action: "remove"; questionId: string }
 );
+export type TryoutContentWrite = { courseId: string; expectedRevision: string } & (
+  | { action: "save-question"; targetId: string | null; input: TryoutQuestionInput }
+  | { action: "delete" }
+);
+export type TryoutContentReceipt = { requestId: string; examId: string; questionId?: string; revision: string | null };
+
 export type TryoutQuestionSetReceipt = TryoutDraftReceipt & { imported: number; skipped: number };
 
 export function tryoutDraftValidationError(input: TryoutDraftInput): string | undefined {
