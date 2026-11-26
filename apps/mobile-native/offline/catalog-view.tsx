@@ -37,7 +37,7 @@ export function OfflineCatalogView({ metadata, section, locale, offline, onCours
     return <FlatList
       data={videos} keyExtractor={({ courseId, video }) => JSON.stringify([courseId, video.id])} accessibilityLabel={copy.videos}
       testID="offline-library-videos"
-      ListHeaderComponent={videos.length ? <Text style={[styles.notice, { color: colors.mutedForeground }]}>{copy.videoNeedsConnection}</Text> : null}
+      ListHeaderComponent={videos.length ? <Text style={[styles.notice, { color: colors.mutedForeground }]}>{copy.videoNeedsConnection}</Text> : undefined}
       ListEmptyComponent={<NativeStatusPanel title={copy.noVideos} />}
       renderItem={({ item }) => <NativeListRow layout="compact" theme={theme} title={item.video.title}
         subtitle={[item.courseTitle, item.video.playlistTitle, item.video.durationSeconds === undefined ? null
