@@ -1,0 +1,16 @@
+{
+  "expo": {
+    "name": "Zyx Academy Native",
+    "slug": "zyx-academy-native",
+    "version": "0.1.0",
+    "platforms": ["android", "ios"],
+    "userInterfaceStyle": "automatic",
+    "android": {
+      "package": "com.zyx.academy.nativeparity"
+    },
+    "ios": {
+      "bundleIdentifier": "com.zyx.academy.nativeparity",
+      "supportsTablet": true
+    }
+  }
+}
