@@ -104,7 +104,8 @@ function PublicFormLocation({ id, entry, locale }: { id: string | null; entry: F
   const formKey = JSON.stringify([owner, form]);
 
   return <PublicFormScreen state={data} locale={locale} access={access} opening={web === "opening"} browserFailed={web === "error"}
-    onRetry={tryAgain} onLogin={login} onWeb={openWeb} onMeet={() => void open(data?.status === "meeting" ? data.url : null)} onBack={leave}>
+    onRetry={tryAgain} onLogin={login} onWeb={openWeb} onMeet={() => void open(data?.status === "meeting" ? data.url : null)}
+    onBack={leave} onHome={() => router.replace("/")}>
     {form && route && owner && (
       <FormSession key={formKey}
         locale={locale} route={route} form={form} owner={owner} session={session} access={access}

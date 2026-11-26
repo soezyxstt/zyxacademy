@@ -10,7 +10,7 @@ import { groupPublicLinks, type PublicLink } from "../../../../packages/public-l
 import { Button } from "../../components/Button";
 import { nativeTypography } from "../../typography";
 import { openPublicLink } from "./client";
-import { DirectoryOrnaments } from "./directory-ornaments";
+import { NativePageOrnaments } from "../shared-ui/page-ornaments";
 import { BrandSymbol } from "../shared-ui/navigation-icons";
 
 export type DirectoryState = { status: "loading" | "error" } | { status: "ready"; links: PublicLink[] };
@@ -60,7 +60,7 @@ export function PublicDirectory({ state, retry, locale, theme: preference, insid
 
   return <SafeAreaView edges={insideSafeArea ? [] : undefined} style={{ flex: 1, backgroundColor: colors.background }}>
     <ScrollView contentContainerStyle={styles.scroll}>
-      <DirectoryOrnaments theme={theme} />
+      <NativePageOrnaments variant="testimonial" theme={theme} />
       <View style={[styles.page, { paddingHorizontal: gutter }]}>
         <View style={styles.header}>
           <View accessible accessibilityRole="image" accessibilityLabel="Zyx Academy">
