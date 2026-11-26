@@ -1,4 +1,4 @@
-import type { OfflineResourceData } from "../../../lib/offline/sync-contract";
+import type { OfflineReadingContent } from "../../../packages/offline/reading-content";
 import type { NativeResponse } from "../network/transport";
 import {
   compareNativeOfflineCursors,
@@ -18,7 +18,7 @@ export const READING_ENTRY_LIMIT = 250;
 export const READING_ASSET_COUNT_LIMIT = 80;
 
 export type OfflineReadingTarget = { kind: "article" | "diktat"; id: string; courseId: string };
-export type OfflineReadingData = OfflineResourceData[OfflineReadingTarget["kind"]];
+export type OfflineReadingData = OfflineReadingContent;
 export type OfflineReadingSummary = OfflineReadingTarget & {
   key: string;
   title: string;
