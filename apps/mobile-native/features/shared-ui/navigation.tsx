@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { nativeColors, nativeRadii } from "../../../../packages/design-tokens/native-colors";
 import { Button } from "../../components/Button";
-import { hapticSelection } from "../../device/haptics";
+import { hapticLight, hapticSelection } from "../../device/haptics";
 import { nativeControlLabelPosition, nativeTypography } from "../../typography";
 import { BrandSymbol, NavigationIcon, type NavigationIconName } from "./navigation-icons";
 import { visibleNavigationTabs } from "./navigation-model";
@@ -91,6 +91,11 @@ export function MobileNavbar({
 
   if (hidden) return null;
 
+  function activate(id: NavbarActionId) {
+    void hapticLight();
+    onAction(id);
+  }
+
   function action(id: NavbarActionId, descriptor: NavbarAction) {
     return (
       <Button
@@ -101,7 +106,7 @@ export function MobileNavbar({
         accessibilityLabel={descriptor.label}
         accessibilityState={{ expanded: descriptor.expanded }}
         disabled={descriptor.disabled}
-        onPress={() => onAction(id)}
+        onPress={() => activate(id)}
         variant={id === "home" ? "ghost" : "outline"}
         size="icon-lg"
         renderIcon={(color, size) => id === "home"
@@ -132,7 +137,7 @@ export function MobileNavbar({
             accessibilityState={{ expanded: course.expanded, disabled: course.disabled }}
             disabled={course.disabled}
             testID={testID ? `${testID}-switch-course` : undefined}
-            onPress={() => onAction("switch-course")}
+            onPress={() => activate("switch-course")}
             style={({ pressed }) => [
               styles.courseButton,
               { borderColor: colors.border, backgroundColor: pressed ? colors.muted : colors.background },

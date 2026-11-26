@@ -5,6 +5,7 @@ import { buildFormSteps } from "../../../../packages/forms/presentation";
 import { customFormMessage } from "../../../../packages/forms/response-policy";
 import { Input } from "../../components/Input";
 import { Progress } from "../../components/Progress";
+import { hapticError, hapticSuccess } from "../../device/haptics";
 import { NativeStatusPanel, SharedUiActionButton } from "../shared-ui/layout";
 import type { FormSubmission } from "./client";
 import { publicFormCopy } from "./copy";
@@ -141,8 +142,11 @@ export function PublicFormResponse({ form, locale, signedIn, sessionStatus, onSe
     setResult(outcome.status === "session-pending" ? null : outcome.status);
     if (["sent", "uncertain", "already-sent", "missing"].includes(outcome.status)) locked.current = true;
     if (outcome.status === "sent") {
+      void hapticSuccess();
       update(emptyDraft());
       setFilenames({});
+    } else if (outcome.status === "denied" || outcome.status === "invalid" || outcome.status === "missing") {
+      void hapticError();
     }
   }
 

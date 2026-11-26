@@ -1,9 +1,10 @@
 import * as Haptics from "expo-haptics";
 import Storage from "expo-sqlite/kv-store";
+import { Platform } from "react-native";
+import { createTouchFeedback } from "./touch-feedback";
 
 const preference = "zyx-haptics-enabled";
 let enabled: boolean | undefined;
-let lastSelection = -Infinity;
 
 export function getHapticsEnabled(): boolean {
   if (enabled === undefined) {
@@ -26,14 +27,24 @@ export function setHapticsEnabled(value: boolean) {
   }
 }
 
-export async function hapticSelection(): Promise<boolean> {
-  const now = performance.now();
-  if (!getHapticsEnabled() || now - lastSelection < 80) return false;
-  lastSelection = now;
-  try {
-    await Haptics.selectionAsync();
-    return true;
-  } catch {
-    return false;
+const emit = createTouchFeedback(getHapticsEnabled, kind => {
+  if (Platform.OS === "android") {
+    const api = Number(Platform.Version);
+    if (kind === "selection") {
+      const tick = api >= 34 ? Haptics.AndroidHaptics.Segment_Tick : Haptics.AndroidHaptics.Clock_Tick;
+      return Haptics.performAndroidHapticsAsync(tick);
+    }
+    if (kind === "light") return Haptics.performAndroidHapticsAsync(Haptics.AndroidHaptics.Virtual_Key);
+    if (api >= 30) {
+      return Haptics.performAndroidHapticsAsync(kind === "success" ? Haptics.AndroidHaptics.Confirm : Haptics.AndroidHaptics.Reject);
+    }
   }
-}
+  if (kind === "selection") return Haptics.selectionAsync();
+  if (kind === "light") return Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  return Haptics.notificationAsync(kind === "success" ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Error);
+});
+
+export const hapticSelection = () => emit("selection");
+export const hapticLight = () => emit("light");
+export const hapticSuccess = () => emit("success");
+export const hapticError = () => emit("error");
