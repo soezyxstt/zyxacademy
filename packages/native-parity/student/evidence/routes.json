@@ -1,0 +1,1561 @@
+{
+  "schema_version": 1,
+  "scope": "Student route patterns",
+  "baseline_ref": "native-migration/student",
+  "case_status_meaning": "pending means no evidence has been recorded here",
+  "routes": [
+    {
+      "web_source": "app/(student)/achievements/page.tsx",
+      "cases": [
+        {
+          "id": "achievements:1",
+          "scenario": "ringkasan dengan progres",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "achievements:2",
+          "scenario": "daftar badge kosong",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "achievements:3",
+          "scenario": "akses gamifikasi ditolak",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/calendar/page.tsx",
+      "cases": [
+        {
+          "id": "calendar:1",
+          "scenario": "semua acara",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "calendar:2",
+          "scenario": "filter tutorial",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "calendar:3",
+          "scenario": "filter tanpa hasil",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Fixture memakai komponen web dan data sintetis; tidak membuktikan halaman server atau izin.",
+      "web_test": "tests/visual/native-parallel/student/web-reference.spec.ts"
+    },
+    {
+      "web_source": "app/(student)/courses/[id]/concept/[slug]/page.tsx",
+      "cases": [
+        {
+          "id": "courses/[id]/concept/[slug]:1",
+          "scenario": "konsep dan referensi tersedia",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/concept/[slug]:2",
+          "scenario": "konsep tidak ditemukan",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/concept/[slug]:3",
+          "scenario": "hak konten dicabut",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/courses/[id]/discussions/page.tsx",
+      "cases": [
+        {
+          "id": "courses/[id]/discussions:1",
+          "scenario": "daftar dan thread tersedia",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/discussions:2",
+          "scenario": "belum ada diskusi",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/discussions:3",
+          "scenario": "kirim gagal atau hasil tidak pasti",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/courses/[id]/flashcard/page.tsx",
+      "cases": [
+        {
+          "id": "courses/[id]/flashcard:1",
+          "scenario": "antrean kartu tersedia",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/flashcard:2",
+          "scenario": "antrean kosong",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/flashcard:3",
+          "scenario": "akses review ditolak",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/courses/[id]/leaderboard/page.tsx",
+      "cases": [
+        {
+          "id": "courses/[id]/leaderboard:1",
+          "scenario": "peringkat kursus",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/leaderboard:2",
+          "scenario": "belum ada peringkat",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/leaderboard:3",
+          "scenario": "akses kursus dicabut",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/courses/[id]/live/host/page.tsx",
+      "cases": [
+        {
+          "id": "courses/[id]/live/host:1",
+          "scenario": "alias menuju tutor live",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/live/host:2",
+          "scenario": "kursus tidak valid",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/live/host:3",
+          "scenario": "Back setelah alias",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/courses/[id]/live/page.tsx",
+      "cases": [
+        {
+          "id": "courses/[id]/live:1",
+          "scenario": "bergabung dengan kode valid",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/live:2",
+          "scenario": "kode ditolak",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/live:3",
+          "scenario": "koneksi terputus dan pulih",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/courses/[id]/mastery/page.tsx",
+      "cases": [
+        {
+          "id": "courses/[id]/mastery:1",
+          "scenario": "peta mastery tersedia",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/mastery:2",
+          "scenario": "belum ada mastery",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/mastery:3",
+          "scenario": "akses dicabut",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/courses/[id]/material/[materialId]/page.tsx",
+      "cases": [
+        {
+          "id": "courses/[id]/material/[materialId]:1",
+          "scenario": "materi berhak dengan isi panjang",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/material/[materialId]:2",
+          "scenario": "materi tidak ditemukan",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/material/[materialId]:3",
+          "scenario": "hak bab dicabut",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/courses/[id]/material/page.tsx",
+      "cases": [
+        {
+          "id": "courses/[id]/material:1",
+          "scenario": "dokumen tersedia",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/material:2",
+          "scenario": "dokumen kosong",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/material:3",
+          "scenario": "hak bab terbatas",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/courses/[id]/my-results/[submissionId]/page.tsx",
+      "cases": [
+        {
+          "id": "courses/[id]/my-results/[submissionId]:1",
+          "scenario": "review milik peserta",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/my-results/[submissionId]:2",
+          "scenario": "submission tidak ditemukan",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/my-results/[submissionId]:3",
+          "scenario": "submission peserta lain ditolak",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/courses/[id]/my-results/[submissionId]/summary/page.tsx",
+      "cases": [
+        {
+          "id": "courses/[id]/my-results/[submissionId]/summary:1",
+          "scenario": "ringkasan milik peserta",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/my-results/[submissionId]/summary:2",
+          "scenario": "submission tidak ditemukan",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/my-results/[submissionId]/summary:3",
+          "scenario": "submission peserta lain ditolak",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/courses/[id]/my-results/page.tsx",
+      "cases": [
+        {
+          "id": "courses/[id]/my-results:1",
+          "scenario": "hasil tersedia",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/my-results:2",
+          "scenario": "belum ada hasil",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/my-results:3",
+          "scenario": "akses dicabut",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/courses/[id]/page.tsx",
+      "cases": [
+        {
+          "id": "courses/[id]:1",
+          "scenario": "kursus dengan hak penuh",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]:2",
+          "scenario": "kursus tanpa hak penuh",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]:3",
+          "scenario": "akses dicabut setelah sebelumnya berhak",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/courses/[id]/path/page.tsx",
+      "cases": [
+        {
+          "id": "courses/[id]/path:1",
+          "scenario": "alur belajar tersedia",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/path:2",
+          "scenario": "alur kosong",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/path:3",
+          "scenario": "akses dicabut",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/courses/[id]/playground/page.tsx",
+      "cases": [
+        {
+          "id": "courses/[id]/playground:1",
+          "scenario": "akses kursus diizinkan",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/playground:2",
+          "scenario": "akses tidak diizinkan",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/playground:3",
+          "scenario": "kursus tidak ditemukan",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/courses/[id]/progress/page.tsx",
+      "cases": [
+        {
+          "id": "courses/[id]/progress:1",
+          "scenario": "progres tersedia",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/progress:2",
+          "scenario": "belum ada aktivitas",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/progress:3",
+          "scenario": "akses dicabut",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/courses/[id]/quiz/[quizId]/page.tsx",
+      "cases": [
+        {
+          "id": "courses/[id]/quiz/[quizId]:1",
+          "scenario": "soal belum dijawab",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/quiz/[quizId]:2",
+          "scenario": "jawaban dipilih",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/quiz/[quizId]:3",
+          "scenario": "konfirmasi submit belum lengkap",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Fixture memakai komponen web dan data sintetis; tidak membuktikan halaman server atau izin.",
+      "web_test": "tests/visual/native-parallel/student/web-reference.spec.ts"
+    },
+    {
+      "web_source": "app/(student)/courses/[id]/quiz/[quizId]/summary/[attemptId]/page.tsx",
+      "cases": [
+        {
+          "id": "courses/[id]/quiz/[quizId]/summary/[attemptId]:1",
+          "scenario": "ringkasan attempt sendiri",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/quiz/[quizId]/summary/[attemptId]:2",
+          "scenario": "attempt tidak ditemukan",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/quiz/[quizId]/summary/[attemptId]:3",
+          "scenario": "attempt peserta lain ditolak",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/courses/[id]/quiz/page.tsx",
+      "cases": [
+        {
+          "id": "courses/[id]/quiz:1",
+          "scenario": "daftar kuis tersedia",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/quiz:2",
+          "scenario": "daftar kuis kosong",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/quiz:3",
+          "scenario": "cakupan bab gratis dibatasi",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/courses/[id]/solutions/[collectionId]/page.tsx",
+      "cases": [
+        {
+          "id": "courses/[id]/solutions/[collectionId]:1",
+          "scenario": "pembahasan berhak",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/solutions/[collectionId]:2",
+          "scenario": "koleksi tidak ditemukan",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/solutions/[collectionId]:3",
+          "scenario": "akses dicabut",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/courses/[id]/tryout/[tryoutId]/page.tsx",
+      "cases": [
+        {
+          "id": "courses/[id]/tryout/[tryoutId]:1",
+          "scenario": "tryout tersedia",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/tryout/[tryoutId]:2",
+          "scenario": "tryout tidak ditemukan",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/tryout/[tryoutId]:3",
+          "scenario": "akses dicabut",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/courses/[id]/tryout/page.tsx",
+      "cases": [
+        {
+          "id": "courses/[id]/tryout:1",
+          "scenario": "daftar tryout tersedia",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/tryout:2",
+          "scenario": "daftar kosong",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/tryout:3",
+          "scenario": "akses dicabut",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/courses/[id]/video/page.tsx",
+      "cases": [
+        {
+          "id": "courses/[id]/video:1",
+          "scenario": "daftar video tersedia",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/video:2",
+          "scenario": "daftar kosong",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/[id]/video:3",
+          "scenario": "akses dicabut",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/courses/page.tsx",
+      "cases": [
+        {
+          "id": "courses:1",
+          "scenario": "katalog tersedia",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses:2",
+          "scenario": "filter PKA",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses:3",
+          "scenario": "katalog loading",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Fixture memakai komponen web dan data sintetis; tidak membuktikan halaman server atau izin.",
+      "web_test": "tests/visual/native-parallel/student/web-reference.spec.ts"
+    },
+    {
+      "web_source": "app/(student)/courses/tutorial-pka/daftar/page.tsx",
+      "cases": [
+        {
+          "id": "courses/tutorial-pka/daftar:1",
+          "scenario": "form pendaftaran",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/tutorial-pka/daftar:2",
+          "scenario": "validasi input",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/tutorial-pka/daftar:3",
+          "scenario": "sudah terdaftar",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/courses/tutorial-pka/jadwal/page.tsx",
+      "cases": [
+        {
+          "id": "courses/tutorial-pka/jadwal:1",
+          "scenario": "jadwal tersedia",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/tutorial-pka/jadwal:2",
+          "scenario": "jadwal kosong",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/tutorial-pka/jadwal:3",
+          "scenario": "belum terdaftar diarahkan ke daftar",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/courses/tutorial-pka/laporan/page.tsx",
+      "cases": [
+        {
+          "id": "courses/tutorial-pka/laporan:1",
+          "scenario": "hasil diagnostik tersedia",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/tutorial-pka/laporan:2",
+          "scenario": "mata pelajaran belum dicoba",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/tutorial-pka/laporan:3",
+          "scenario": "belum terdaftar diarahkan ke daftar",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/courses/tutorial-pka/material/[materialId]/page.tsx",
+      "cases": [
+        {
+          "id": "courses/tutorial-pka/material/[materialId]:1",
+          "scenario": "materi berhak",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/tutorial-pka/material/[materialId]:2",
+          "scenario": "materi tidak ditemukan",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/tutorial-pka/material/[materialId]:3",
+          "scenario": "belum terdaftar diarahkan ke daftar",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/courses/tutorial-pka/material/page.tsx",
+      "cases": [
+        {
+          "id": "courses/tutorial-pka/material:1",
+          "scenario": "daftar materi tersedia",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/tutorial-pka/material:2",
+          "scenario": "daftar kosong",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/tutorial-pka/material:3",
+          "scenario": "belum terdaftar diarahkan ke daftar",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/courses/tutorial-pka/page.tsx",
+      "cases": [
+        {
+          "id": "courses/tutorial-pka:1",
+          "scenario": "beranda peserta terdaftar",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/tutorial-pka:2",
+          "scenario": "tanpa pengumuman",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/tutorial-pka:3",
+          "scenario": "belum terdaftar diarahkan ke daftar",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/courses/tutorial-pka/simulasi/[subject]/[stage]/page.tsx",
+      "cases": [
+        {
+          "id": "courses/tutorial-pka/simulasi/[subject]/[stage]:1",
+          "scenario": "tahap tersedia",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/tutorial-pka/simulasi/[subject]/[stage]:2",
+          "scenario": "subject atau stage tidak valid",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/tutorial-pka/simulasi/[subject]/[stage]:3",
+          "scenario": "tahap terkunci atau akses dicabut",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/courses/tutorial-pka/simulasi/page.tsx",
+      "cases": [
+        {
+          "id": "courses/tutorial-pka/simulasi:1",
+          "scenario": "simulasi tersedia",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/tutorial-pka/simulasi:2",
+          "scenario": "belum ada simulasi",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "courses/tutorial-pka/simulasi:3",
+          "scenario": "belum terdaftar diarahkan ke daftar",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/dashboard/discussions/page.tsx",
+      "cases": [
+        {
+          "id": "dashboard/discussions:1",
+          "scenario": "daftar dan thread tersedia",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "dashboard/discussions:2",
+          "scenario": "belum ada diskusi",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "dashboard/discussions:3",
+          "scenario": "kirim gagal atau hasil tidak pasti",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/dashboard/groups/page.tsx",
+      "cases": [
+        {
+          "id": "dashboard/groups:1",
+          "scenario": "grup tersedia",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "dashboard/groups:2",
+          "scenario": "belum ada grup",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "dashboard/groups:3",
+          "scenario": "token bergabung ditolak",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/dashboard/page.tsx",
+      "cases": [
+        {
+          "id": "dashboard:1",
+          "scenario": "enrollment aktif dan data tersedia",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "dashboard:2",
+          "scenario": "belum ada enrollment",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "dashboard:3",
+          "scenario": "bagian gagal dan pemulihan",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/dashboard/schedule/page.tsx",
+      "cases": [
+        {
+          "id": "dashboard/schedule:1",
+          "scenario": "jadwal dan slot tersedia",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "dashboard/schedule:2",
+          "scenario": "tidak ada slot",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "dashboard/schedule:3",
+          "scenario": "booking gagal atau konflik",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/discussions/page.tsx",
+      "cases": [
+        {
+          "id": "discussions:1",
+          "scenario": "student dialihkan ke dashboard",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "discussions:2",
+          "scenario": "tutor dialihkan ke tutor",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "discussions:3",
+          "scenario": "query dan Back setelah pengalihan",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/feedback/page.tsx",
+      "cases": [
+        {
+          "id": "feedback:1",
+          "scenario": "form terisi",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "feedback:2",
+          "scenario": "validasi input",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "feedback:3",
+          "scenario": "pengiriman gagal dan pulih",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/leaderboard/academic/page.tsx",
+      "cases": [
+        {
+          "id": "leaderboard/academic:1",
+          "scenario": "dialihkan ke leaderboard akademik",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "leaderboard/academic:2",
+          "scenario": "query dipertahankan",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "leaderboard/academic:3",
+          "scenario": "Back setelah alias",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/leaderboard/page.tsx",
+      "cases": [
+        {
+          "id": "leaderboard:1",
+          "scenario": "peringkat partisipasi",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "leaderboard:2",
+          "scenario": "peringkat akademik",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "leaderboard:3",
+          "scenario": "tidak ada peringkat",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/pet/page.tsx",
+      "cases": [
+        {
+          "id": "pet:1",
+          "scenario": "pet dan saldo tersedia",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "pet:2",
+          "scenario": "tanpa reward",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "pet:3",
+          "scenario": "akses gamifikasi ditolak",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/profile/edit/page.tsx",
+      "cases": [
+        {
+          "id": "profile/edit:1",
+          "scenario": "profil terisi",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "profile/edit:2",
+          "scenario": "input tidak valid",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "profile/edit:3",
+          "scenario": "simpan gagal dan pulih",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/profile/page.tsx",
+      "cases": [
+        {
+          "id": "profile:1",
+          "scenario": "profil lengkap",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "profile:2",
+          "scenario": "tanpa akses gamifikasi",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "profile:3",
+          "scenario": "data profil kosong",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/profile/reflections/page.tsx",
+      "cases": [
+        {
+          "id": "profile/reflections:1",
+          "scenario": "arsip tersedia",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "profile/reflections:2",
+          "scenario": "belum ada refleksi",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "profile/reflections:3",
+          "scenario": "sesi kedaluwarsa",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/settings/notifications/browser/page.tsx",
+      "cases": [
+        {
+          "id": "settings/notifications/browser:1",
+          "scenario": "push browser aktif",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "settings/notifications/browser:2",
+          "scenario": "push dijeda",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "settings/notifications/browser:3",
+          "scenario": "gagal dan petunjuk pemulihan",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/settings/notifications/page.tsx",
+      "cases": [
+        {
+          "id": "settings/notifications:1",
+          "scenario": "preferensi tersedia",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "settings/notifications:2",
+          "scenario": "ubah preferensi",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "settings/notifications:3",
+          "scenario": "simpan gagal dan pulih",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/settings/page.tsx",
+      "cases": [
+        {
+          "id": "settings:1",
+          "scenario": "tab umum",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "settings:2",
+          "scenario": "tab tampilan",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "settings:3",
+          "scenario": "tab notifikasi",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    },
+    {
+      "web_source": "app/(student)/students/[publicId]/page.tsx",
+      "cases": [
+        {
+          "id": "students/[publicId]:1",
+          "scenario": "profil publik terlihat",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "students/[publicId]:2",
+          "scenario": "profil tidak ditemukan",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        },
+        {
+          "id": "students/[publicId]:3",
+          "scenario": "visibilitas dibatasi",
+          "web": "pending",
+          "android": "pending",
+          "ios": "pending",
+          "interaction": "pending"
+        }
+      ],
+      "implementation": "unverified",
+      "notes": "Perlu bukti per kasus; bukan klaim kelulusan."
+    }
+  ]
+}

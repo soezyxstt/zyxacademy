@@ -1,0 +1,28 @@
+appId: com.zyx.academy.nativeparity
+name: Catalog comparable fixture all TPB and PKA
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: separator
+    timeout: 30000
+- openLink: "zyx-native-parity://student-fixture?scenario=catalog-parity"
+- extendedWaitUntil:
+    visible:
+      id: student-course-ma1101
+    timeout: 30000
+- takeScreenshot: student-catalog-all
+- tapOn:
+    id: student-catalog-tab-tpb
+- assertVisible:
+    id: student-course-ma1101
+- assertNotVisible:
+    id: student-course-tutorial-pka
+- takeScreenshot: student-catalog-tpb
+- tapOn:
+    id: student-catalog-tab-pka
+- assertVisible:
+    id: student-course-tutorial-pka
+- assertNotVisible:
+    id: student-course-ma1101
+- takeScreenshot: student-catalog-pka
