@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { basename, dirname, join, relative } from "node:path";
+import { basename, dirname, join, relative, resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { matchStudentRoute, studentPatterns, type StudentArea } from "../../../../apps/mobile-native/features/student/routes";
 
@@ -9,9 +9,37 @@ import { matchStudentRoute, studentPatterns, type StudentArea } from "../../../.
 // files can be passed with --android=... and --ios=...; absent data is not a pass.
 // Use --output=... to inspect an alternate report without touching the ledger.
 const manifestPath = process.argv.find(arg => arg.startsWith("--manifest="))?.slice(11) ?? "artifacts/student-evidence/generated/manifest.json";
-const deviceIndexPath = "packages/native-parity/student/evidence/device-runs/index.json";
+const base = "packages/native-parity/student/evidence";
+const deviceRuns = `${base}/device-runs`;
+const platforms = ["android", "ios"] as const;
+type Platform = typeof platforms[number];
+type ScenarioResult = { name: string; status: string };
+type ImageComparison = { id: string; status: string; differing_pixels?: number; native_scenario?: ScenarioResult };
+type ComparisonSource = {
+  rows: ImageComparison[];
+  report: string;
+  provenance: {
+    sourceHead?: string;
+    checkoutSha?: string;
+    workflowRun?: string;
+    artifact?: string;
+    matchedScenarioResults?: Record<string, ScenarioResult>;
+  };
+  primary: boolean;
+};
+
+function readComparisons(path: string): ImageComparison[] {
+  return existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : [];
+}
+
+function isMeasurement(status: string, pixels: unknown): pixels is number {
+  return (status === "pass" || status === "different") && typeof pixels === "number" &&
+    Number.isSafeInteger(pixels) && pixels >= 0;
+}
+
+const deviceIndexPath = `${deviceRuns}/index.json`;
 const deviceIndex = existsSync(deviceIndexPath) ? JSON.parse(readFileSync(deviceIndexPath, "utf8")) : {};
-const summaries = Object.fromEntries((["android", "ios"] as const).map(platform => {
+const summaries = Object.fromEntries(platforms.map(platform => {
   const path = process.argv.find(arg => arg.startsWith(`--${platform}=`))?.slice(platform.length + 3)
     ?? deviceIndex[platform] ?? `artifacts/student-evidence/${platform}/smoke/smoke-summary.json`;
   if (!existsSync(path)) return [platform, null];
@@ -20,8 +48,7 @@ const summaries = Object.fromEntries((["android", "ios"] as const).map(platform 
   const captureIndexPath = join(dirname(path), "smoke-captures.json");
   const captureIndex = existsSync(captureIndexPath) ? JSON.parse(readFileSync(captureIndexPath, "utf8")) : null;
   const comparisonPath = join(dirname(path), "comparison.json");
-  const comparison: { id: string; status: string; differing_pixels?: number; native_scenario?: { name: string; status: string } }[] =
-    existsSync(comparisonPath) ? JSON.parse(readFileSync(comparisonPath, "utf8")) : [];
+  const comparison = readComparisons(comparisonPath);
   const archivePath = captureIndex ? join(dirname(path), "smoke-captures.zip") : null;
   if (archivePath && (captureIndex.archive !== basename(archivePath) ||
     captureIndex.sourceHead !== provenance.sourceHead || captureIndex.workflowRun !== provenance.workflowRun ||
@@ -35,7 +62,6 @@ const manifest: { sourceHead?: string; routes: { source: string; cases: any[] }[
   JSON.parse(readFileSync(manifestPath, "utf8"));
 const web = JSON.parse(readFileSync("tests/visual/native-parallel/student/product/web/web.json", "utf8"));
 const webRoot = "tests/visual/native-parallel/student/product/web";
-const base = "packages/native-parity/student/evidence";
 const output = process.argv.find(arg => arg.startsWith("--output="))?.slice(9) ?? base;
 const ciHistory = JSON.parse(readFileSync(`${base}/ci-history.json`, "utf8"));
 const webRun = ciHistory.runs.findLast((run: any) => run.web?.status === "passed" && run.web.artifact);
@@ -47,19 +73,46 @@ const pairedReferenceGroups: Record<string, { directory: string; prefix: string;
     config.route, { directory: prefix, prefix, product: Boolean(config.productFixture) },
   ])),
 };
+const retainedRuns = readdirSync(deviceRuns).filter(run => /^\d+$/.test(run)).sort((a, b) => Number(b) - Number(a));
+// The selected summary owns the case counts and may report attempted but unmeasured comparisons.
+function comparisonSourcesFor(platform: Platform): ComparisonSource[] {
+  const selected = summaries[platform];
+  const archive = retainedRuns.flatMap(run => {
+    const directory = `${deviceRuns}/${run}/${platform}`;
+    const report = `${directory}/comparison.json`;
+    if (selected && resolve(report) === resolve(selected.comparisonPath)) return [];
+    const rows = readComparisons(report).filter(row => isMeasurement(row.status, row.differing_pixels));
+    if (!rows.length) return [];
+    const provenance = JSON.parse(readFileSync(`${directory}/provenance.json`, "utf8"));
+    if (!provenance.sourceHead || !provenance.checkoutSha || !provenance.workflowRun) {
+      throw new Error(`Incomplete measured device evidence: ${report}`);
+    }
+    return [{ rows, report, provenance, primary: false }];
+  });
+  return selected ? [{
+    rows: selected.comparison, report: selected.comparisonPath,
+    provenance: { ...selected.provenance, sourceHead: selected.provenance.sourceHead ?? selected.data.sourceHead,
+      workflowRun: selected.provenance.workflowRun ?? selected.data.workflowRun },
+    primary: true,
+  }, ...archive] : archive;
+}
+const comparisonSources = { android: comparisonSourcesFor("android"), ios: comparisonSourcesFor("ios") };
+
 // Some older workflows retained a successful device flow before the web job
 // knew its reference group. Keep independently verified pairs at their own SHA.
-const additionalComparisons = readdirSync(`${base}/device-runs`).filter(run => /^\d+$/.test(run)).flatMap(run =>
-  (["android", "ios"] as const).flatMap(platform => Object.entries(matchedGroups).flatMap(([group, config]) => {
+const additionalComparisons = retainedRuns.flatMap(run =>
+  platforms.flatMap(platform => Object.entries(matchedGroups).flatMap(([group, config]) => {
     const report = `${base}/device-runs/${run}/${platform}/${group}/comparison.json`;
     if (!existsSync(report)) return [];
     const evidence = JSON.parse(readFileSync(report, "utf8"));
     if (evidence.route !== config.route || !evidence.checkoutSha || !evidence.pullRequestHead) throw new Error(`Wrong supplemental evidence: ${report}`);
-    return (evidence.pairs as { state: string; status: string; differingPixels: number }[]).map(pair => ({
-      pattern: config.route, platform, id: `${group}-${pair.state}`, status: pair.status, differingPixels: pair.differingPixels,
-      standaloneScenario: { name: evidence.maestro.testcase, status: evidence.maestro.status }, report,
-      sourceHead: evidence.pullRequestHead as string, checkoutSha: evidence.checkoutSha as string,
-    }));
+    return (evidence.pairs as { state: string; status: string; differingPixels: number }[])
+      .filter(pair => isMeasurement(pair.status, pair.differingPixels)).map(pair => ({
+        pattern: config.route, platform, id: `${group}-${pair.state}`, status: pair.status, differingPixels: pair.differingPixels,
+        standaloneScenario: { name: evidence.maestro.testcase, status: evidence.maestro.status }, report,
+        sourceHead: evidence.pullRequestHead as string, checkoutSha: evidence.checkoutSha as string,
+        workflowRun: evidence.workflowRun as string, artifact: evidence.androidArtifact?.url ?? null, primary: false,
+      }));
   })));
 function deviceSizedWebReferences(pattern: string) {
   const group = pairedReferenceGroups[pattern];
@@ -179,7 +232,6 @@ const areaInfo: Record<StudentArea, { ui: string; symbol: string; doc: string; c
 };
 const httpCourses = new Set(["/dashboard", "/courses", "/courses/[id]", "/courses/[id]/material", "/courses/[id]/material/[materialId]"]);
 const httpCommunity = new Set(["/leaderboard", "/leaderboard/academic", "/courses/[id]/leaderboard", "/calendar", "/dashboard/schedule", "/profile/reflections", "/settings/notifications", "/profile", "/students/[publicId]", "/dashboard/discussions", "/courses/[id]/discussions", "/discussions"]);
-type Platform = "android" | "ios";
 type CaseInputs = {
   id: string;
   path?: string;
@@ -254,14 +306,13 @@ const rows = manifest.routes.map(route => {
     id: `catalog-${target}-${state}`, file: `${base}/web-reference/${target}/catalog-${state}.png`, evidence: "web fixture; target label is viewport only",
   }))) : deviceSizedWebReferences(pattern);
   const group = pattern === "/courses" ? "catalog" : pairedReferenceGroups[pattern]?.prefix;
-  const deviceComparisons = group ? (["android", "ios"] as const).flatMap(platform => {
-    const summary = summaries[platform];
-    if (!summary) return [];
-    return summary.comparison.filter(row => row.id.startsWith(group + "-") && !row.id.includes("-versus-"))
-      .map(row => ({ platform, id: row.id, status: row.status, differingPixels: row.differing_pixels ?? null,
-        standaloneScenario: row.native_scenario ?? summary.provenance.matchedScenarioResults?.[group] ?? null,
-        report: summary.comparisonPath, sourceHead: summary.provenance.sourceHead ?? null, checkoutSha: summary.provenance.checkoutSha ?? null }));
-  }) : [];
+  const deviceComparisons = group ? platforms.flatMap(platform =>
+    comparisonSources[platform].flatMap(source =>
+      source.rows.filter(row => row.id.startsWith(group + "-") && !row.id.includes("-versus-"))
+        .map(row => ({ platform, id: row.id, status: row.status, differingPixels: row.differing_pixels ?? null,
+          standaloneScenario: row.native_scenario ?? source.provenance.matchedScenarioResults?.[group] ?? null,
+          report: source.report, sourceHead: source.provenance.sourceHead ?? null, checkoutSha: source.provenance.checkoutSha ?? null,
+          workflowRun: source.provenance.workflowRun ?? null, artifact: source.provenance.artifact ?? null, primary: source.primary })))) : [];
   const attempts = optionalAttempts.filter(item => item.pattern === pattern);
   const optionalCaptures = attempts.filter(item => item.status === "passed").flatMap(item => item.files.map((file: any) => ({
     id: `${item.id}-${basename(file.file)}`, file: file.file, evidence: "authenticated product web", sourceHead: item.sourceHead,
@@ -278,7 +329,15 @@ const rows = manifest.routes.map(route => {
       flow: entry.flow ?? null, blocked_reason: entry.reason ?? null, limitation: entry.limitation ?? null,
       android: resultFor("android", source, entry, assertionCount), ios: resultFor("ios", source, entry, assertionCount) };
   });
-  const comparisons = [...deviceComparisons, ...additionalComparisons.filter(item => item.pattern === pattern)];
+  const comparisonByRun = new Map<string, (typeof deviceComparisons)[number]>();
+  for (const item of [...deviceComparisons, ...additionalComparisons.filter(item => item.pattern === pattern)]) {
+    const key = JSON.stringify([item.platform, item.id, item.workflowRun ?? resolve(item.report)]);
+    const existing = comparisonByRun.get(key);
+    if (!existing || (!isMeasurement(existing.status, existing.differingPixels) && isMeasurement(item.status, item.differingPixels))) {
+      comparisonByRun.set(key, { ...item, primary: existing?.primary ?? item.primary });
+    }
+  }
+  const comparisons = Array.from(comparisonByRun.values());
   return { source, pattern, area, implementation: { status: "module_present_fixture_hosted", ui: info.ui, symbol: info.symbol,
       entry: "apps/mobile-native/features/student/StudentEntry.tsx", verified_entry: "apps/mobile-native/features/student/VerifiedStudentEntry.tsx",
       limitation: "The integration preview mounts the verified entry. A signed-in product run and fixture device results have separate provenance." },
@@ -307,7 +366,6 @@ const rows = manifest.routes.map(route => {
     readiness_reference: docs };
 });
 if (rows.length !== 50 || new Set(rows.map((row: any) => row.source)).size !== 50 || Object.keys(operations).length !== 50) throw new Error("Expected exactly 50 uniquely mapped Student routes");
-const platforms = ["android", "ios"] as const;
 const fixtureCases = rows.flatMap(row => row.fixture_cases);
 const deviceEvidence = Object.fromEntries(platforms.map(platform => {
   const summary = summaries[platform];
@@ -365,7 +423,7 @@ for (const row of rows) {
     return run ? `[${p}](${run}) ${label}` : `${p} ${label}`;
   }).join("<br>");
   const compared = row.device_comparisons.map(item =>
-    link(item.report, `${item.platform} ${item.id} · ${item.differingPixels === null ? item.status : item.differingPixels + " px berbeda"} · flow ${item.standaloneScenario?.status ?? "belum tercatat"}`));
+    link(item.report, `${item.platform} ${item.id} · ${item.primary ? "run utama" : item.workflowRun?.split("/").at(-1) ?? "run historis"} · ${item.differingPixels === null ? item.status : item.differingPixels + " px berbeda"} · flow ${item.standaloneScenario?.status ?? "belum tercatat"}`));
   lines.push(`| ${link(row.source, row.pattern)} | ${link(row.implementation.ui, row.implementation.symbol)}; ${row.operations.map((op: string) => `\`${op}\``).join("<br>")}<br>${link(row.contract_doc, "kontrak dan izin")} | ${available.length} / ${blocked}; ${assertions} assertion yang direncanakan | ${screenshots} | ${[platform, ...compared].join("<br>")} |`);
 }
 lines.push("", "Jumlah run asli dipertahankan. `historical_changed` menandai kasus lama yang berubah dan tidak menambah assertion terverifikasi. Setiap kasus di JSON mencatat hasil, marker saat run dan SHA perangkat. `runnable` menandai fixture yang dapat dijalankan, sedangkan `blocked` menyertakan alasannya. Perbandingan visual tiga keadaan per item dan bukti aksesibilitas masih memerlukan evaluasi perangkat.", "");

@@ -24,9 +24,9 @@ afterAll(() => {
   if (workspace) rmSync(workspace, { recursive: true, force: true });
 });
 
-function readReport(manifest = join(workspace, "manifest.json")) {
+function readReport(manifest = join(workspace, "manifest.json"), androidSummary = android) {
   const output = join(workspace, "reports");
-  run("generate-report", [`--manifest=${manifest}`, `--android=${android}`, `--ios=${ios}`, `--output=${output}`]);
+  run("generate-report", [`--manifest=${manifest}`, `--android=${androidSummary}`, `--ios=${ios}`, `--output=${output}`]);
   return {
     report: JSON.parse(readFileSync(join(output, "routes.json"), "utf8")),
     markdown: readFileSync(join(output, "routes.md"), "utf8"),
@@ -92,4 +92,38 @@ test("path, scenario, theme and ordered actions form part of the evidence defini
   const outcome = revised.fixture_cases.find((row: { id: string }) => row.id === caseId).android;
   expect(outcome).toMatchObject({ status: "historical_changed", changed_fields: ["path", "scenario", "theme", "steps"],
     status_at_run: baseline.android.status_at_run, assertions_verified: 0 });
+});
+
+
+test("a newer partial run retains the older measured comparisons without changing current case credit", () => {
+  const newer = `${evidence}/45834308919/android`;
+  const earlier = `${evidence}/45829658265/android`;
+  const { report, markdown } = readReport(undefined, `${newer}/smoke-summary.json`);
+  const selected = report.device_evidence_summary.android;
+  expect(selected.summary).toBe(`${newer}/smoke-summary.json`);
+  expect(selected.run_counts).toEqual({ passed: 175, failed: 25, blocked: 3 });
+  expect(selected.current.case_counts.failed).toBe(25);
+
+  type Comparison = { report: string; id: string; status: string; differingPixels: number | null; primary: boolean };
+  const comparisons = report.routes.flatMap((row: { device_comparisons: Comparison[] }) => row.device_comparisons) as Comparison[];
+  const measured = (directory: string) => comparisons.filter(row =>
+    row.report === `${directory}/comparison.json` && row.differingPixels !== null);
+  const earlierPairs = measured(earlier);
+  expect(earlierPairs).toHaveLength(26);
+  expect(new Set(earlierPairs.map(row => row.id)).size).toBe(26);
+  const earlierProvenance = JSON.parse(readFileSync(`${earlier}/provenance.json`, "utf8"));
+  for (const item of earlierPairs) expect(item).toMatchObject({
+    primary: false, sourceHead: earlierProvenance.sourceHead, checkoutSha: earlierProvenance.checkoutSha,
+    workflowRun: earlierProvenance.workflowRun, artifact: earlierProvenance.artifact,
+  });
+  expect(measured(newer)).toHaveLength(3);
+  const newerProvenance = JSON.parse(readFileSync(`${newer}/provenance.json`, "utf8"));
+  for (const item of measured(newer)) expect(item).toMatchObject({
+    primary: true, sourceHead: newerProvenance.sourceHead, checkoutSha: newerProvenance.checkoutSha,
+  });
+  expect(comparisons.filter(row => row.id === "results-mixed" && row.report === `${newer}/comparison.json`)).toEqual([
+    expect.objectContaining({ primary: true, status: "missing", differingPixels: null }),
+  ]);
+  expect(comparisons.filter(row => !row.primary).every(row => row.differingPixels !== null)).toBe(true);
+  expect(markdown).toContain("results-mixed · 45829658265");
 });
