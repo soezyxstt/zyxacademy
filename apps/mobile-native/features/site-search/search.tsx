@@ -79,7 +79,7 @@ export function useSiteSearch({ enabled, theme, visit }: { enabled: boolean; the
   const { state, transport, revalidating, getSnapshot } = useNativeSession();
   const trigger = useRef<ComponentRef<typeof Pressable>>(null);
   const [opened, setOpened] = useState<NativeSessionTransport | null>(null);
-  const ready = enabled && !revalidating && !!context && !!transport?.isCurrent() && state.status === "signed-in"
+  const ready = enabled && !revalidating && !!context && !!transport && transport.isCurrent() && state.status === "signed-in"
     && context.accountId === state.accountId && context.sessionId === state.sessionId;
   useEffect(() => { if (!ready) setOpened(null); }, [ready]);
   const current = () => ready && navigation.isFocused() && getSnapshot().state === state &&
