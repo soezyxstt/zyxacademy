@@ -6,10 +6,15 @@ type FormResponse = Pick<NativeResponse, "status" | "headers" | "body" | "dispos
 export type FormRequest = (path: string, init: NativeRequestInit) => Promise<FormResponse>;
 export type FormSubmission =
   | { status: "sent" }
-  | { status: "login" | "verify-email" | "already-sent" | "missing" | "denied" | "invalid" | "uncertain" | "session-pending" };
+  | { status: "login" | "verify-email" | "already-sent" | "missing" | "denied" | "invalid" | "uncertain" | "session-pending" | "session-retry" };
 export type FormUpload =
   | { status: "uploaded"; storageUrl: string }
-  | { status: "login" | "verify-email" | "type" | "size" | "missing" | "denied" | "retry" };
+  | { status: "login" | "verify-email" | "type" | "size" | "missing" | "denied" | "retry" | "session-pending" | "session-retry" };
+export type FormCredentialRejection = { status: "credential-rejected" };
+
+function credentialRejection(identity: FormWriteIdentity | undefined): FormCredentialRejection | { status: "login" } {
+  return { status: identity ? "credential-rejected" : "login" };
+}
 
 function object(input: unknown) {
   return input && typeof input === "object" && !Array.isArray(input) ? input as Record<string, unknown> : null;
@@ -74,13 +79,13 @@ export async function loadPublicForm(request: FormRequest, entry: FormEntry, ide
 const verifiedEmailError = "Verifikasi alamat email akun Zyx Anda sebelum mengisi formulir ini.";
 const alreadySentError = "Anda sudah pernah mengisi formulir ini (Dibatasi 1 kali pengisian).";
 
-export async function submitPublicForm(request: FormRequest, form: PublicForm, draft: FormDraft, signal: AbortSignal, identity?: FormWriteIdentity): Promise<FormSubmission> {
+export async function submitPublicForm(request: FormRequest, form: PublicForm, draft: FormDraft, signal: AbortSignal, identity?: FormWriteIdentity): Promise<FormSubmission | FormCredentialRejection> {
   try {
-    return await withResponse<FormSubmission>(request, publicFormApiPath(form.id) + (identity ? "?target=id&respondent=session" : "?target=id"), {
+    return await withResponse<FormSubmission | FormCredentialRejection>(request, publicFormApiPath(form.id) + (identity ? "?target=id&respondent=session" : "?target=id"), {
       method: "POST", signal, headers: { "Content-Type": "application/json", ...(identity && formWriteSessionHeaders(identity)) },
       body: JSON.stringify(submitFormBody(form, draft)),
     }, 20_000, async response => {
-      if (response.status === 401) return { status: "login" };
+      if (response.status === 401) return credentialRejection(identity);
       if (response.status === 404) return { status: "missing" };
       if (response.status === 400 || response.status === 413) return { status: "invalid" };
       if (response.status !== 200 && response.status !== 403) return { status: "uncertain" };
@@ -93,17 +98,18 @@ export async function submitPublicForm(request: FormRequest, form: PublicForm, d
       return value?.success === true ? { status: "sent" } : { status: "uncertain" };
     });
   } catch (error) {
-    return { status: error instanceof NativeTransportError && error.code === "credentials" ? "login" : "uncertain" };
+    return error instanceof NativeTransportError && error.code === "credentials"
+      ? credentialRejection(identity) : { status: "uncertain" };
   }
 }
 
-export async function uploadPublicForm(request: FormRequest, body: FormData, signal: AbortSignal, origin: string, identity?: FormWriteIdentity): Promise<FormUpload> {
+export async function uploadPublicForm(request: FormRequest, body: FormData, signal: AbortSignal, origin: string, identity?: FormWriteIdentity): Promise<FormUpload | FormCredentialRejection> {
   try {
     const path = identity ? "/api/forms/upload?target=id&respondent=session" : "/api/forms/upload?target=id";
-    return await withResponse<FormUpload>(request, path, {
+    return await withResponse<FormUpload | FormCredentialRejection>(request, path, {
       method: "POST", body, signal, headers: identity && formWriteSessionHeaders(identity),
     }, 90_000, async response => {
-      if (response.status === 401) return { status: "login" };
+      if (response.status === 401) return credentialRejection(identity);
       if (response.status === 403) {
         const data = await readJson(response, 4096);
         return { status: data?.error === verifiedEmailError ? "verify-email" : "denied" };
@@ -122,7 +128,8 @@ export async function uploadPublicForm(request: FormRequest, body: FormData, sig
       return { status: "retry" };
     });
   } catch (error) {
-    return { status: error instanceof NativeTransportError && error.code === "credentials" ? "login" : "retry" };
+    return error instanceof NativeTransportError && error.code === "credentials"
+      ? credentialRejection(identity) : { status: "retry" };
   }
 }
 

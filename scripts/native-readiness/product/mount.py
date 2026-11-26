@@ -86,7 +86,9 @@ def mount():
             rewrite_once(screen, first_import, f"{chrome_import}\n{first_import}")
         rewrite_once(screen, anchor, f"{anchor}\n  {hook}")
     layout = MOBILE / "app/_layout.tsx"
-    rewrite_once(layout, 'import { nativeFontSources }', 'import { AssessmentDraftCleanup } from "../features/student/assessment-drafts";\nimport { nativeFontSources }')
+    cleanup_import = 'import { AssessmentDraftCleanup } from "../features/student/assessment-drafts";'
+    if cleanup_import not in layout.read_text():
+        rewrite_once(layout, 'import { nativeFontSources }', f'{cleanup_import}\nimport {{ nativeFontSources }}')
     if '<AssessmentDraftCleanup />' not in layout.read_text():
         rewrite_once(layout, '<NativeAccountContextProvider>', '<NativeAccountContextProvider>\n          <AssessmentDraftCleanup />')
     print(f"Mounted {len(routes)} canonical external routes and the Murid redirect.")

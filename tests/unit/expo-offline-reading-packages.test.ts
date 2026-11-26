@@ -137,13 +137,19 @@ async function setup(...responses: Array<Response | ((url: URL) => Response | Pr
   };
   const controller = createOfflineReadingController(options);
 
-  async function commit(response = page(), materials = [descriptor()], previous: string | null = null) {
-    const accessRevision = await metadata.applyAccess(scope, { response, expectedCursor: previous });
+  async function commit(response = page(), materials = [descriptor()], previous: string | null = null, authorityScope = scope) {
+    const responseIdentity = { ...identity, environment: authorityScope.origin, accountId: authorityScope.accountId,
+      sessionId: authorityScope.sessionId, locale: authorityScope.locale };
+    response = { ...response, ...responseIdentity };
+    const accessRevision = await metadata.applyAccess(authorityScope, { response, expectedCursor: previous });
     expect(accessRevision).toBeNumber();
-    const saved = await metadata.commitPage(scope, { response, expectedCursor: previous, accessRevision: accessRevision!, manifests: [{
-      ...identity, cursor: response.cursor, serverTime: response.serverTime, leaseExpiresAt: response.leaseExpiresAt,
-      resource: response.access[0], resources: materials,
-    }] });
+    const saved = await metadata.commitPage(authorityScope, {
+      response, expectedCursor: previous, accessRevision: accessRevision!,
+      manifests: response.access.filter(grant => grant.allowed).map(grant => ({
+        ...responseIdentity, cursor: response.cursor, serverTime: response.serverTime, leaseExpiresAt: response.leaseExpiresAt,
+        resource: grant, resources: materials.filter(material => material.courseId === grant.courseId),
+      })),
+    });
     expect(saved).toBe(true);
   }
 
@@ -198,6 +204,56 @@ test("a required asset reporting the material changed invalidates the old packag
   expect((await controller.download(target)).status).toBe("changed");
   expect(await controller.read(target)).toBeNull();
 });
+
+const courseDenied = () => Response.json({ code: "OFFLINE_COURSE_ACCESS_DENIED" }, { status: 403 });
+
+test("a course denial withdraws its authority and all its saved readings", async () => {
+  const sibling = { ...target, id: "reading-2" };
+  const otherCourse = { ...target, courseId: "course-2" };
+  const unsaved = { ...target, id: "reading-3" };
+  const { controller, commit, metadata, db, options, revocations, transport } = await setup(
+    resource(), resource({ selection: sibling }), resource({ selection: otherCourse }), courseDenied(),
+  );
+  await commit(page("4", { access: [grant, { ...grant, courseId: otherCourse.courseId }] }),
+    [target, sibling, otherCourse, unsaved].map(selection => descriptor(selection)), "4");
+  for (const selection of [target, sibling, otherCourse]) {
+    expect(await controller.download(selection)).toEqual({ status: "saved" });
+  }
+  expect(await controller.download(unsaved)).toEqual({ status: "changed" });
+  expect(revocations()).toBe(0);
+  expect((await metadata.read(scope, now))?.knownCourseIds).toEqual([otherCourse.courseId]);
+  expect(db.query("SELECT course_id FROM expo_reading_packages_v2").all()).toEqual([{ course_id: otherCourse.courseId }]);
+  expect(db.query("SELECT COUNT(*) AS count FROM expo_reading_parts_v2").get()).toEqual({ count: 1 });
+  transport.clearSession();
+  const offline = createOfflineReadingController({ ...options, session: null });
+  expect((await offline.list()).map(item => item.courseId)).toEqual([otherCourse.courseId]);
+  expect(await offline.read(target)).toBeNull();
+  expect(await offline.read(sibling)).toBeNull();
+  expect(await offline.read(otherCourse)).not.toBeNull();
+});
+
+for (const mode of ["newer grant", "cursor reset", "replacement session"] as const) {
+  test(`a delayed course denial preserves authority after a ${mode}`, async () => {
+    const requested = Promise.withResolvers<void>();
+    const delayed = Promise.withResolvers<Response>();
+    const { controller, commit, readingStore, guard, metadata } = await setup(resource(), () => {
+      requested.resolve();
+      return delayed.promise;
+    });
+    expect(await controller.download(target)).toEqual({ status: "saved" });
+    const pending = controller.download(target);
+    await requested.promise;
+    const replacement = mode === "replacement session" ? { ...scope, sessionId: "session-2" } : scope;
+    const previous = mode === "replacement session" ? null : "4";
+    const cursor = mode === "cursor reset" ? "1" : "4";
+    await commit(page(cursor, { reset: mode !== "newer grant" }), [descriptor()], previous, replacement);
+    delayed.resolve(courseDenied());
+    expect(await pending).toEqual({ status: "changed" });
+    expect((await metadata.read(replacement, now))?.knownCourseIds).toEqual([target.courseId]);
+    expect(await readingStore.authorize(replacement, target, guard)).not.toBeNull();
+    if (mode === "newer grant") expect(await controller.read(target)).not.toBeNull();
+  });
+}
 
 test("a stale response cursor keeps an existing verified package", async () => {
   const { controller } = await setup(resource(), resource({ cursor: "3" }));
@@ -433,6 +489,43 @@ test("upgrades atomically and keeps new downloads invisible to a downgraded read
   const reopened = createOfflineReadingStore(connection, () => now);
   expect((await reopened.read(scope, target, guard))?.data).toEqual(data);
   expect(db.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'expo_reading_%_v1'").all()).toEqual([]);
+});
+
+test("upgrade reclaims v2 packages retired by a downgraded logout or a replacement session", async () => {
+  const { controller, commit, metadata, readingStore, connection, db, guard } = await setup(resource());
+  const english = { ...scope, locale: "en" as const };
+  const replaced = { ...scope, accountId: "replaced" };
+  const active = { ...scope, accountId: "active" };
+  const unknown = { ...scope, accountId: "unknown" };
+  const body = new TextEncoder().encode(JSON.stringify(data));
+  for (const selection of [scope, english, replaced, active, unknown]) {
+    if (selection !== scope) await commit(page(), [descriptor()], null, selection);
+    const authority = await readingStore.authorize(selection, target, guard);
+    await readingStore.store(selection, {
+      target, body, assets: [], revision, cursor: "4", resetGeneration: authority!.resetGeneration,
+      assetLeaseExpiresAt: null, leaseExpiresAt: lease, validatedAt: now,
+    }, guard);
+  }
+  // The older build can clear metadata and its v1 readings but the v2 rows are left behind.
+  db.exec(legacySchema);
+  await metadata.clearSession(scope);
+  db.exec("UPDATE expo_reading_packages_v2 SET bytes = 209715200 WHERE account_id = 'learner-1'");
+  await commit(page(), [descriptor()], null, { ...replaced, sessionId: "session-2" });
+  db.exec("DELETE FROM offline_reading_metadata_v1 WHERE account_id = 'unknown'");
+  expect(db.query("SELECT COUNT(*) AS count FROM expo_reading_parts_v2").get()).toEqual({ count: 5 });
+
+  const reopened = createOfflineReadingStore(connection, () => now);
+  expect((await reopened.read(active, target, guard))?.data).toEqual(data);
+  expect(db.query("SELECT account_id FROM expo_reading_packages_v2 ORDER BY account_id").all())
+    .toEqual([{ account_id: active.accountId }, { account_id: unknown.accountId }]);
+  expect(db.query("SELECT COUNT(*) AS count FROM expo_reading_parts_v2").get()).toEqual({ count: 2 });
+  await commit(page(), [descriptor()], null, { ...scope, sessionId: "session-2" });
+  const authority = await reopened.authorize({ ...scope, sessionId: "session-2" }, target, guard);
+  await reopened.store({ ...scope, sessionId: "session-2" }, {
+    target, body, assets: [], revision, cursor: "4", resetGeneration: authority!.resetGeneration,
+    assetLeaseExpiresAt: null, leaseExpiresAt: lease, validatedAt: now,
+  }, guard);
+  expect(await controller.list()).toEqual([]);
 });
 
 test("pins complete packages and releases quota by forgetting unavailable bytes", async () => {

@@ -1,0 +1,25 @@
+appId: com.zyx.academy.nativeparity
+name: Canonical Student, Tutor and Admin entries require sign-in
+---
+- launchApp
+- openLink: zyx-native-parity://sign-up?locale=en
+- assertVisible: "Sign up with Google"
+- openLink: zyx-native-parity://murid
+- extendedWaitUntil:
+    visible: "(Sign in with Google|Masuk dengan Google)"
+    timeout: 20000
+- takeScreenshot: guest-murid
+- openLink: zyx-native-parity://sign-up?locale=en
+- assertVisible: "Sign up with Google"
+- openLink: zyx-native-parity://tutor
+- extendedWaitUntil:
+    visible: "(Sign in with Google|Masuk dengan Google)"
+    timeout: 20000
+- takeScreenshot: guest-tutor
+- openLink: zyx-native-parity://sign-up?locale=en
+- assertVisible: "Sign up with Google"
+- openLink: zyx-native-parity://admin
+- extendedWaitUntil:
+    visible: "(Sign in with Google|Masuk dengan Google)"
+    timeout: 20000
+- takeScreenshot: guest-admin
