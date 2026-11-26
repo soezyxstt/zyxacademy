@@ -2,51 +2,10 @@
 """Run Android Maestro cases in bounded partitions and retry transport failures once."""
 import json
 from pathlib import Path
-import re
-import subprocess
 import sys
 import xml.etree.ElementTree as ET
 
-
-TRANSPORT_FAILURE = re.compile(r'DeviceServerDiedException|\bdevice offline\b', re.I)
-PARTITION_SIZE = 8
-
-
-def read_cases(report, expected):
-    try:
-        tests = list(ET.parse(report).iter('testcase'))
-    except (OSError, ET.ParseError):
-        return {}
-    observed = {test.get('name'): test for test in tests}
-    return observed if observed.keys() <= expected and len(tests) == len(observed) else {}
-
-
-def failure_message(test):
-    for child in ('failure', 'error'):
-        failure = test.find(child)
-        if failure is not None:
-            return (failure.get('message') or failure.text or '').strip()
-    return 'Skipped' if test.find('skipped') is not None else None
-
-
-def transport_failed(name, message, partition):
-    if message is None or message.startswith(('Assertion is false:', 'No visible element found:')):
-        return False
-    if TRANSPORT_FAILURE.search(message):
-        return True
-    if not message.startswith('Unknown error'):
-        return False
-    logs = list((partition / 'results').glob(f'*/{name}/logs/maestro.log'))
-    return len(logs) == 1 and bool(TRANSPORT_FAILURE.search(logs[0].read_text(errors='replace')))
-
-
-def ready(device):
-    try:
-        return subprocess.run(['adb', '-s', device, 'wait-for-device', 'shell', 'true'],
-                              timeout=45).returncode == 0
-    except subprocess.TimeoutExpired:
-        print(f'Android device {device} did not reconnect within 45 seconds.', file=sys.stderr)
-        return False
+from android_maestro import PARTITION_SIZE, failure_message, read_cases, ready, run_maestro, transport_failed
 
 
 def run_partitions(maestro, device, flows, phase):
@@ -67,21 +26,15 @@ def run_partitions(maestro, device, flows, phase):
             record['status'] = 'device_unavailable'
             complete = False
             continue
-        report = partition / 'report.xml'
-        result = subprocess.run(
-            [maestro, '--platform', 'android', '--device', device, 'test',
-             '--format', 'junit', '--output', str(report), '--test-output-dir', str(partition / 'results'),
-             '--debug-output', str(partition / 'logs'), *(str(flow) for flow in batch)],
-            cwd=partition,
-        )
-        observed = read_cases(report, names)
+        exit_code = run_maestro(maestro, device, batch, partition)
+        observed = read_cases(partition / 'report.xml', names)
         failures = {name: failure_message(test) for name, test in observed.items()}
         batch_complete = observed.keys() == names and (
-            result.returncode == 0 or any(reason is not None for reason in failures.values())
+            exit_code == 0 or any(reason is not None for reason in failures.values())
         )
         complete = complete and batch_complete
         record.update(status='complete' if batch_complete else 'incomplete',
-                      exitCode=result.returncode, observed=list(observed))
+                      exitCode=exit_code, observed=list(observed))
         cases.update(observed)
         transport.extend(name for name, reason in failures.items() if transport_failed(name, reason, partition))
 

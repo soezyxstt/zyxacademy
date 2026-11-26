@@ -28,6 +28,16 @@ if [[ $platform == ios ]]; then
     printf '%s\n' 'bootstrap=success' >> "$GITHUB_OUTPUT"
   fi
 fi
-"$maestro" --platform "$platform" --device "$device" test \
+flows=("$root"/.maestro/native-parallel/student/*.yaml)
+if "$maestro" --platform "$platform" --device "$device" test \
   --format junit --output "$output/report.xml" --test-output-dir "$output/results" \
-  --debug-output "$output/logs" "$root"/.maestro/native-parallel/student/*.yaml
+  --debug-output "$output/logs" "${flows[@]}"; then
+  exit 0
+else
+  status=$?
+fi
+if [[ $platform == android ]]; then
+  python "$root/tests/visual/native-parallel/student/retry-android-standalone.py" "$maestro" "$device" "$output" "${flows[@]}"
+else
+  exit "$status"
+fi

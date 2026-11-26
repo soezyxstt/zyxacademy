@@ -35,3 +35,5 @@ bun scripts/test-contracts.ts tests/contracts/native-student-session.test.ts tes
 ```
 
 Lihat `tests/visual/native-parallel/student/` untuk Playwright, `.maestro/native-parallel/student/` untuk interaksi perangkat, dan workflow `Native Student evidence` untuk screenshot serta hasil perbandingan per platform. Kredit visual membutuhkan tiga pasang gambar dengan masukan, ukuran dan density yang sama di masing-masing platform.
+
+Jika langkah Maestro mandiri di Android gagal, CI hanya mengulang kasus dengan bukti kegagalan transport ADB. Setiap kasus diulang maksimal sekali. Artefak `report.xml`, `results/`, dan log awal tetap tersedia. `standalone-retry/` menyimpan bukti percobaan ulang. `standalone-attempts.json` memilih hasil efektif setiap kasus sehingga perbandingan gambar dan pemeriksaan posisi gulir memakai laporan serta tangkapan dari percobaan yang sama. [Runner Android](../../../../tests/visual/native-parallel/student/retry-android-standalone.py)

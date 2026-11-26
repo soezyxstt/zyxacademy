@@ -67,6 +67,25 @@ class MatchedReferenceTest(unittest.TestCase):
         file.write_text(json.dumps(data))
         self.assertEqual(self.compare()['status'], 'not_comparable')
 
+    def test_uses_only_the_selected_retry_junit_and_capture(self):
+        retry = self.native / 'standalone-retry' / '001'
+        shutil.copytree(self.native / 'results', retry / 'results')
+        shutil.copyfile(self.native / 'report.xml', retry / 'report.xml')
+        failure = f'<testsuite><testcase name="{self.case}" status="ERROR"><failure>device offline</failure></testcase></testsuite>'
+        (self.native / 'report.xml').write_text(failure)
+        index = {'version': 1, 'cases': {self.case: {'initial': 'transport_failure', 'effective': 'standalone-retry/001',
+            'retry': {'directory': 'standalone-retry/001', 'result': 'passed'}}}}
+        (self.native / 'standalone-attempts.json').write_text(json.dumps(index))
+        result = self.compare()
+        self.assertEqual(result['status'], 'pass')
+        self.assertEqual(result['native_scenario']['attempt'], 'standalone-retry/001')
+        self.assertTrue(Path(result['native']['path']).is_relative_to(retry))
+        shutil.copytree(retry / 'results' / 'unit-test', retry / 'results' / 'duplicate')
+        self.assertEqual(self.compare()['status'], 'missing')
+        shutil.rmtree(retry / 'results' / 'duplicate')
+        (retry / 'report.xml').write_text(failure)
+        self.assertEqual(self.compare()['status'], 'not_comparable')
+
 
 if __name__ == '__main__':
     unittest.main()

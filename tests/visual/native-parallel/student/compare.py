@@ -12,6 +12,7 @@ import sys
 from xml.etree import ElementTree
 from pathlib import Path
 from PIL import Image, ImageChops
+from standalone_evidence import StandaloneEvidence
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--platform', required=True, choices=['android', 'ios'])
@@ -21,6 +22,7 @@ parser.add_argument('--output', required=True)
 args = parser.parse_args()
 out = Path(args.output)
 out.mkdir(parents=True, exist_ok=True)
+standalone = StandaloneEvidence(args.native)
 # The catalog reference contains five records; native enrolled shows a dashboard
 # with two different fixture records. They are documented together to make the
 # input mismatch visible, not as an image comparison.
@@ -64,7 +66,7 @@ def describe(path):
 
 def native_capture_problem(native, testcase):
     try:
-        pieces = native.relative_to(args.native).parts
+        pieces = native.relative_to(standalone.folder(testcase)).parts
         if len(pieces) != 5 or pieces[0] != 'results' or pieces[2:4] != (testcase, 'takeScreenshot'):
             return 'The screenshot is outside the expected Maestro testcase.'
         commands = json.loads((native.parents[1] / 'commands.json').read_text())
@@ -81,18 +83,6 @@ def native_capture_problem(native, testcase):
         return 'The device trace did not record this screenshot after its state assertions.'
     except (KeyError, OSError, ValueError, TypeError):
         return 'Missing or unreadable Maestro screenshot trace.'
-
-def native_scenario_status(testcase):
-    try:
-        cases = [case for case in ElementTree.parse(Path(args.native) / 'report.xml').iter('testcase')
-                 if case.get('name') == testcase]
-        if len(cases) == 1:
-            if cases[0].find('failure') is not None or cases[0].find('error') is not None:
-                return 'ERROR'
-            return cases[0].get('status', 'unknown')
-    except (ElementTree.ParseError, OSError):
-        pass
-    return 'not_recorded'
 
 def verify_state(group, state, web, native):
     config = state_groups[group]
@@ -141,7 +131,7 @@ def verify_state(group, state, web, native):
                 return f'The {group} web capture dimensions differ from the target extent.'
         if problem := native_capture_problem(native, testcase):
             return problem
-        if native_scenario_status(testcase) != 'SUCCESS':
+        if standalone.status(testcase) != 'SUCCESS':
             return f'Maestro did not verify the {group} inputs and visible states.'
     except (AttributeError, KeyError, OSError, ValueError, TypeError, ElementTree.ParseError):
         return f'Unreadable {group} input manifest, image or device report.'
@@ -168,16 +158,8 @@ def verify_flashcard(web):
                 return 'Flashcard capture does not match the target pixel extent.'
     except (ValueError, AttributeError, OSError):
         return 'Unreadable flashcard input manifest or capture.'
-    native_report = locate(args.native, 'report.xml')
-    if not native_report:
-        return 'Missing Maestro report for the flashcard state assertions.'
-    try:
-        cases = [case for case in ElementTree.parse(native_report).iter('testcase')
-                 if case.get('name') == 'Learning flashcard flip and grade']
-        if len(cases) != 1 or cases[0].get('status') != 'SUCCESS':
-            return 'Maestro did not verify the flashcard question, pending, rejection and retry states.'
-    except (ElementTree.ParseError, OSError):
-        return 'Unreadable Maestro report for the flashcard captures.'
+    if standalone.status('Learning flashcard flip and grade') != 'SUCCESS':
+        return 'Maestro did not verify the flashcard question, pending, rejection and retry states.'
     return None
 
 def verification_problem(pair, web, native):
@@ -194,16 +176,27 @@ def verification_problem(pair, web, native):
 
 report = []
 for pair in pairs:
-    web, native = locate(args.web, pair['web']), locate(args.native, pair['native'])
-    item = {'id': pair['id'], 'platform': args.platform, 'web': describe(web), 'native': describe(native)}
     kind = pair.get('verification')
     testcase = (state_groups[kind]['testcase'].format(state=pair['state']) if kind in state_groups else
                 'Catalog comparable fixture all TPB and PKA' if kind == 'catalog' else
                 'Learning flashcard flip and grade' if kind == 'flashcard' else None)
+    web = locate(args.web, pair['web'])
     if testcase:
-        item['native_scenario'] = {'name': testcase, 'status': native_scenario_status(testcase)}
+        matches = standalone.captures(testcase, Path(pair['native']).name)
+        native = matches[0] if len(matches) == 1 else None
+    else:
+        native = locate(args.native, pair['native'])
+    item = {'id': pair['id'], 'platform': args.platform, 'web': describe(web), 'native': describe(native)}
+    if testcase:
+        status = standalone.status(testcase)
+        item['native_scenario'] = {'name': testcase, 'status': status}
+        if standalone.cases is not None:
+            folder = standalone.folder(testcase)
+            item['native_scenario']['attempt'] = folder.relative_to(args.native).as_posix() if folder is not None else None
     if not web or not native:
         item.update(status='missing', reason='One or both capture files are absent or ambiguous.')
+    elif testcase and standalone.cases is not None and status != 'SUCCESS':
+        item.update(status='not_comparable', reason='The effective Maestro attempt did not finish successfully.')
     elif reason := verification_problem(pair, web, native):
         item.update(status='not_comparable', reason=reason)
     elif pair.get('dependency'):
