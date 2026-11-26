@@ -1,11 +1,16 @@
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { chromium, expect } from "@playwright/test";
+import { avatarPosition } from "../../../packages/ui-parity/avatar-cases";
 import { parityFrame } from "../../../packages/ui-parity/frame";
+import { getProgressPosition } from "../../../packages/ui-parity/progress-cases";
 import { getSeparatorPosition } from "../../../packages/ui-parity/separator-cases";
 import { galleryCases, type GalleryCase } from "../../../packages/ui-parity/gallery";
 
 const skeletonSelector = '[data-slot="skeleton"]';
+const avatarSelector = '[data-slot="avatar"]';
+const avatarImageSelector = '[data-slot="avatar-image"]';
+const avatarFallbackSelector = '[data-slot="avatar-fallback"]';
 
 function specimenCapture(item: GalleryCase) {
   switch (item.family) {
@@ -16,6 +21,10 @@ function specimenCapture(item: GalleryCase) {
       };
     case "skeleton":
       return { selector: skeletonSelector, size: { width: item.width, height: item.height } };
+    case "avatar":
+      return { selector: avatarSelector, size: avatarPosition };
+    case "progress":
+      return { selector: '[data-slot="progress"]', size: getProgressPosition() };
     case "control":
     case "radio":
     case "choice":
@@ -48,8 +57,23 @@ try {
   page.on("console", (message) => {
     if (message.type() === "error") errors.push(message.text());
   });
-  const response = await page.goto(url, { timeout: 60_000 });
-  if (!response?.ok()) throw new Error(`Fixture returned HTTP ${response?.status() ?? "unknown"}`);
+  // Hold the bundled portrait until the production primitive exposes its loading fallback.
+  let releasePortrait!: () => void;
+  const portraitReady = new Promise<void>(resolve => { releasePortrait = resolve; });
+  await page.route(/\/_next\/static\/media\/adi[.\w-]*\.jpeg(?:\?.*)?$/, async route => {
+    await portraitReady;
+    await route.continue();
+  });
+  try {
+    const response = await page.goto(url, { timeout: 60_000, waitUntil: "domcontentloaded" });
+    if (!response?.ok()) throw new Error(`Fixture returned HTTP ${response?.status() ?? "unknown"}`);
+    const loadingAvatar = page.locator('[data-parity-case="avatar-image-light"]').locator(avatarSelector);
+    await expect(loadingAvatar).toHaveAttribute("data-parity-image-status", "loading");
+    await expect(loadingAvatar.locator(avatarFallbackSelector)).toHaveText("A");
+    await expect(loadingAvatar.locator(avatarImageSelector)).toHaveCount(0);
+  } finally {
+    releasePortrait();
+  }
 
   const skeleton = page.locator(skeletonSelector).first();
   await expect(skeleton).toHaveCSS("animation-name", "pulse");
@@ -68,6 +92,27 @@ try {
     if (size) {
       await expect(specimen).toHaveCSS("width", `${size.width}px`);
       await expect(specimen).toHaveCSS("height", `${size.height}px`);
+    }
+    if (item.family === "progress") {
+      const bar = frame.getByRole("progressbar", { name: item.label });
+      await expect(bar).toHaveAttribute("aria-valuemin", "0");
+      await expect(bar).toHaveAttribute("aria-valuemax", String(item.max));
+      await expect(bar).toHaveAttribute("aria-valuenow", String(item.value));
+      await expect(bar.locator('[data-slot="progress-indicator"]')).toHaveCSS(
+        "width",
+        `${getProgressPosition().width * item.value / item.max}px`,
+      );
+    }
+    if (item.family === "avatar") {
+      await expect(frame.getByRole("img", { name: item.label })).toBeVisible();
+      await expect(specimen).toHaveAttribute("data-parity-image-status", item.status);
+      if (item.status === "loaded") {
+        await expect(specimen.locator(avatarImageSelector)).toBeVisible();
+        await expect(specimen.locator(avatarFallbackSelector)).toHaveCount(0);
+      } else {
+        await expect(specimen.locator(avatarFallbackSelector)).toHaveText(item.initials);
+        await expect(specimen.locator(avatarImageSelector)).toHaveCount(0);
+      }
     }
     await frame.screenshot({
       path: fileURLToPath(new URL(`${item.id}.png`, outputDirectory)),
