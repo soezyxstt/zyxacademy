@@ -752,6 +752,87 @@
           }
         }
       ]
+    },
+    {
+      "runId": 45846158662,
+      "sourceHead": "75843587d5ff277f2129dd1074af4f70ee76d365",
+      "url": "https://github.com/soezyxstt/zyxacademy/actions/runs/45846158662",
+      "observedAt": "2026-11-26T15:55:35Z",
+      "web": {
+        "jobId": 140000262252,
+        "status": "passed",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45846158662/artifacts/15132137443",
+        "details": "Student web reference and protected route refocus suites passed."
+      },
+      "android": {
+        "jobId": 140002198444,
+        "status": "device_flows_completed_with_failures",
+        "reason": "Generated smoke: {'passed': 199, 'blocked': 3, 'failed': 1}. Standalone flows: {'failed': 24, 'passed': 3}. Matched comparison: {'missing': 33}.",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45846158662/artifacts/15134404282",
+        "summaryCounts": {
+          "passed": 199,
+          "blocked": 3,
+          "failed": 1
+        },
+        "standaloneCounts": {
+          "failed": 24,
+          "passed": 3
+        },
+        "matchedComparisonCounts": {
+          "missing": 33
+        },
+        "initialFailureCategories": {
+          "ADB transport": 29
+        },
+        "finalFailureCategories": {
+          "ADB transport": 1
+        },
+        "retryOutcomes": {
+          "passed": 28,
+          "failed": 1
+        },
+        "scrollRestoration": {
+          "status": "pass",
+          "region": [
+            38,
+            205,
+            342,
+            615
+          ],
+          "dimensions": [
+            380,
+            820
+          ],
+          "different_pixels": 0,
+          "before": "results/2026-11-26_153503/Student course long material list fixture/takeScreenshot/student-long-content.png",
+          "after": "results/2026-11-26_153503/Student course long material list fixture/takeScreenshot/student-long-content-restored.png"
+        }
+      },
+      "ios": {
+        "jobId": 140002198732,
+        "status": "cancelled_before_device_flows"
+      },
+      "checkoutSha": "bdbaad76a07863f63e99528886286c7fa7c8f264"
+    },
+    {
+      "runId": 45849382473,
+      "sourceHead": "4a1d9c866fd24047db59585f66dded3671cbc4c5",
+      "url": "https://github.com/soezyxstt/zyxacademy/actions/runs/45849382473",
+      "observedAt": "2026-11-26T15:55:38Z",
+      "web": {
+        "jobId": 140011419475,
+        "status": "passed",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45849382473/artifacts/15133012168",
+        "details": "Student web reference and protected route refocus suites passed."
+      },
+      "ios": {
+        "jobId": 140013786533,
+        "status": "pending_at_observation"
+      },
+      "android": {
+        "jobId": 140013786870,
+        "status": "in_progress_at_observation"
+      }
     }
   ]
 }
