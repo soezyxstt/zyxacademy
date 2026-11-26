@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Video } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { MeetingUnavailable } from "@/components/meet/unavailable";
 import { findPublicMeeting } from "@/lib/meet/public-meeting";
 import { createMetadata } from "@/lib/site";
 import { getAppLocale, getTranslations } from "@/lib/i18n/server";
@@ -50,20 +48,5 @@ export default async function MeetSlugPage({
     redirect(session.meetingUri);
   }
 
-  return (
-    <main className="mx-auto flex min-h-[60vh] max-w-lg items-center justify-center px-(--page-gutter) py-(--section-gap)">
-      <div className="space-y-(--compact-gap) text-center">
-        <Video className="mx-auto size-5 text-muted-foreground" aria-hidden />
-        <h1 className="font-heading text-h5 font-bold text-foreground">
-          {t("public.meetNotFound")}
-        </h1>
-        <p className="text-body-sm text-muted-foreground">
-          {t("public.meetUnavailable")}
-        </p>
-        <Button asChild>
-          <Link href="/">{t("public.home")}</Link>
-        </Button>
-      </div>
-    </main>
-  );
+  return <MeetingUnavailable title={t("public.meetNotFound")} description={t("public.meetUnavailable")} home={t("public.home")} />;
 }

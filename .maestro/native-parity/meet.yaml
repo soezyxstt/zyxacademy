@@ -1,0 +1,44 @@
+appId: com.zyx.academy.nativeparity
+name: Meet unavailable, user-initiated handoff, and retry
+---
+- launchApp
+- extendedWaitUntil:
+    visible: separator
+    timeout: 20000
+- runFlow:
+    file: helpers/open-meeting.yaml
+    env:
+      CASE_ID: meeting-unavailable
+- assertVisible: Tautan meeting tidak ditemukan
+- assertVisible: .*Periksa kembali tautan yang dikirim atau hubungi admin.*
+- assertVisible: Kembali ke beranda
+- assertNotVisible: Gabung Google Meet
+- tapOn:
+    id: meeting-home
+- extendedWaitUntil:
+    visible: separator
+    timeout: 10000
+- runFlow:
+    file: helpers/open-meeting.yaml
+    env:
+      CASE_ID: meeting-ready
+- assertVisible: Kelas Fisika
+- assertVisible: Gabung Google Meet
+- assertNotVisible: https://staging.zyxacademy.com/meet/meeting-ready
+- tapOn:
+    id: meeting-open
+- assertVisible: https://staging.zyxacademy.com/meet/meeting-ready
+- takeScreenshot: meeting-handoff-url
+- tapOn: OK
+- runFlow:
+    file: helpers/open-meeting.yaml
+    env:
+      CASE_ID: meeting-recovery
+- assertVisible: Tautan meeting gagal diperiksa
+- assertVisible: Buka di browser
+- assertNotVisible: Tautan meeting tidak ditemukan
+- takeScreenshot: meeting-before-retry
+- tapOn: Coba lagi
+- assertVisible: Tautan meeting tidak ditemukan
+- assertVisible: Kembali ke beranda
+- takeScreenshot: meeting-after-retry

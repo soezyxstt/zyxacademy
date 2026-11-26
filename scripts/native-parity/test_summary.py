@@ -130,3 +130,19 @@ class PageSummaryTest(unittest.TestCase):
             redirect["location"] = "https://example.com/abc-defg-hij"
             write("reference-manifests/dpr3/short-forms.json", manifest)
             self.assertFalse(page_summary(root, "fixture", "merge", "short-forms")[1])
+
+    def test_meeting_recovery_uses_behavior_evidence_and_keeps_the_unavailable_pixel_result(self):
+        cases = ["meeting-unavailable", "meeting-ready", "meeting-recovery"]
+        redirect = {"case": cases[1], "status": 307, "location": "https://meet.google.com/abc-defg-hij"}
+        recovery = {"case": cases[2], "beforeStatus": 503, "afterStatus": 200}
+        manifest = {**self.manifest, "route": "/meet/[slug]", "cases": cases, "externalRedirect": redirect, "recovery": recovery}
+        report = self.report("android")
+        report["route"] = manifest["route"]
+        report["cases"][0].update(case=cases[0], status="fail", differentPixels=1)
+        report["cases"][1] = {"case": cases[1], "status": "external-redirect", "framePixels": [380, 640], "externalRedirect": redirect}
+        report["cases"][2] = {"case": cases[2], "status": "backend-recovery", "framePixels": [380, 640], "recovery": recovery}
+        self.assertEqual([
+            "1 differing pixels", "Web redirects, native handoff captured", "Web reload recovered, native retry screen captured",
+        ], check_page(report, manifest, "android"))
+        report["cases"][2].update(status="pass", differentPixels=0)
+        self.assertEqual("Missing behavior evidence", check_page(report, manifest, "android")[2])

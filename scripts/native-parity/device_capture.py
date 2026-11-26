@@ -9,6 +9,7 @@ CAPTURE_GROUPS = {
     "gallery": "gallery",
     "internal/public-links": "directory",
     "internal/public-forms": "public-forms",
+    "internal/meet": "meet",
     "internal/webview-reference": "webview",
 }
 

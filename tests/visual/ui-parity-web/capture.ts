@@ -11,6 +11,7 @@ import { sliderPosition } from "../../../packages/ui-parity/slider-cases";
 import { notificationInboxCases, notificationInboxCopy } from "../../../packages/ui-parity/notification-inbox-cases";
 import { formatNotificationTime } from "../../../lib/date-utils/notification-display";
 import { capturePublicForms } from "./capture-public-forms";
+import { captureMeet } from "./capture-meet";
 
 const skeletonSelector = '[data-slot="skeleton"]';
 const avatarSelector = '[data-slot="avatar"]';
@@ -338,6 +339,7 @@ try {
   if (errors.length > 0) throw new Error(errors.join("\n"));
   await writeFile(directoryManifestPath, JSON.stringify(directoryManifest));
   await capturePublicForms(browser, url, dpr, outputDirectory);
+  await captureMeet(browser, url, dpr, outputDirectory);
   const cases = galleryCases.map(({ id, component }) => ({ id, component, height: getParityFrameHeight(id) }));
   await writeFile(manifest, `${JSON.stringify(cases, null, 2)}\n`);
 } finally {

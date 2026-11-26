@@ -13,6 +13,7 @@ class CaptureNavigationTests(unittest.TestCase):
             "gallery/separator": "parity-capture-gallery-separator",
             "internal/public-links/grouped": "parity-capture-directory-grouped",
             "internal/public-forms/short-meeting": "parity-capture-public-forms-short-meeting",
+            "internal/meet/meeting-recovery": "parity-capture-meet-meeting-recovery",
             "internal/webview-reference/formatted-date": "parity-capture-webview-formatted-date",
         }
         for path, target in targets.items():

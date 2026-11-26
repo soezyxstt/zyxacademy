@@ -4,7 +4,7 @@ import json
 import os
 from pathlib import Path
 
-from case_manifest import PAGE_CAPTURES, load_case_groups, load_page_manifest
+from case_manifest import PAGE_BEHAVIORS, PAGE_CAPTURES, load_case_groups, load_page_manifest, page_behavior_cases
 
 SCALES = {"android": 1, "ios": 3}
 
@@ -47,7 +47,7 @@ def check_page(report, manifest, platform):
     if [item.get("case") for item in results] != case_ids:
         return missing
     expected_size = [value * scale for value in viewport]
-    redirect = manifest.get("externalRedirect")
+    behavior_cases = page_behavior_cases(manifest)
     states = []
     for item in results:
         status, changed = item.get("status"), item.get("differentPixels")
@@ -57,12 +57,14 @@ def check_page(report, manifest, platform):
             states.append("Missing stable frame")
         elif status == "navigation-failed":
             states.append("Fixture navigation failed")
-        elif redirect and item["case"] == redirect["case"]:
-            if (status == "external-redirect" and item.get("externalRedirect") == redirect
+        elif item["case"] in behavior_cases:
+            key = behavior_cases[item["case"]]
+            required_status, label = PAGE_BEHAVIORS[key]
+            if (status == required_status and item.get(key) == manifest[key]
                     and item.get("framePixels") == expected_size and "differentPixels" not in item):
-                states.append("Web redirects, native handoff captured")
+                states.append(label)
             else:
-                states.append("Missing native handoff evidence")
+                states.append("Missing behavior evidence")
         elif (item.get("framePixels") != expected_size or item.get("blankReference") is not False
               or type(changed) is not int or changed < 0 or status != ("fail" if changed else "pass")):
             states.append("Missing")
@@ -91,18 +93,19 @@ def page_summary(artifacts, commit, build_commit, group):
             report = None
         platforms.append(check_page(report, manifest, platform))
     rows = [f"| {case} | {android} | {ios} |" for case, android, ios in zip(manifest["cases"], *platforms)]
-    redirect = manifest.get("externalRedirect")
-    comparable = len(rows) - bool(redirect)
+    behaviors = page_behavior_cases(manifest)
+    comparable = len(rows) - len(behaviors)
     passed = sum(android == ios == "Pass" for android, ios in zip(*platforms))
-    redirect_ok = not redirect or all(
-        states[manifest["cases"].index(redirect["case"])] == "Web redirects, native handoff captured" for states in platforms
+    behavior_ok = all(
+        states[manifest["cases"].index(case)] == PAGE_BEHAVIORS[key][1]
+        for case, key in behaviors.items() for states in platforms
     )
-    explanation = ["The Google Meet case has a web redirect and a native handoff screen. It is excluded from the pixel comparison.", ""] if redirect else []
+    explanation = ["Redirect and recovery cases are reported as behavior evidence.", ""] if behaviors else []
     return [
         title, "", f"Viewport {manifest['width']} × {manifest['height']}. "
         f"{passed}/{comparable} comparable route cases matched exactly on both platforms.", "", *explanation,
         "| Case | Android DPR 1 | iOS DPR 3 |", "| --- | --- | --- |", *rows, "",
-    ], passed == comparable and redirect_ok
+    ], passed == comparable and behavior_ok
 
 
 def main():
