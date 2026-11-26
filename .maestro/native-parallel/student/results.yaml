@@ -42,9 +42,9 @@ name: Student course results history states
 - tapOn:
     id: student-assessment-native-tryout-submission
 - extendedWaitUntil:
-    visible: "Simulasi turunan untuk sains dan rekayasa"
+    visible: "Skor akhir"
     timeout: 30000
-- assertVisible: "Skor akhir"
+- assertVisible: "Simulasi turunan untuk sains dan rekayasa"
 
 - openLink: "zyx-native-parity://student-fixture?scenario=results-empty&theme=light&locale=id&path=%2Fcourses%2Fnative-assessment-course%2Fmy-results"
 - extendedWaitUntil:
