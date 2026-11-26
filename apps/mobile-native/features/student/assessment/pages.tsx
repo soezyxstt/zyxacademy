@@ -4,7 +4,8 @@ import { randomUUID } from "expo-crypto";
 import type { AssessmentPage, AssessmentResult, AssessmentRow, Review, ReviewedQuestion } from "../../../../../packages/native-parity/student/assessment/contract";
 import { assessmentCoursePath, assessmentRequest, AssessmentRequestError, assessmentRoutePath, draftKey, isAssessmentRequestId, jsonBody, pkaReturnPath, quizAttemptPath } from "./client";
 import { AssessmentPlay } from "./player";
-import { Body, Button, ButtonRow, Fact, fill, Frame, Heading, Markdown, Message, Row, Section, styles, useAssessment, useAssessmentCopy } from "./ui";
+import { QuizGatewayHistory, QuizGatewayIcon, QuizGatewayInstructions, quizGatewayStyles } from "./quiz-gateway-layout";
+import { Body, Button, ButtonRow, Fact, fill, Frame, Heading, Markdown, Message, Row, Section, styles, useAssessment, useAssessmentColors, useAssessmentCopy } from "./ui";
 
 function useCourse() { return assessmentCoursePath(useAssessment().route); }
 
@@ -81,8 +82,7 @@ function AvailabilityMessage({ assessment, kind }: { assessment: AssessmentRow; 
 function QuizGateway({ data }: { data: Extract<AssessmentPage, { kind: "quiz-detail" }> }) {
   const { route, request, drafts, navigate, replace } = useAssessment();
   const course = useCourse();
-  const { messages, tx, date } = useAssessmentCopy();
-  const { score } = useResultCopy();
+  const { messages, tx } = useAssessmentCopy();
   const { assessment, history } = data;
   const base = `${course}/quiz/${encodeURIComponent(assessment.id)}`;
   const stage = route.params.id === "tutorial-pka" ? pkaReturnPath(route.query.pkaStage) : undefined;
@@ -138,34 +138,36 @@ function QuizGateway({ data }: { data: Extract<AssessmentPage, { kind: "quiz-det
     }
   }
 
-  const open = assessment.availability === "open";
-  const canStart = open && assessment.questionCount !== 0 && (assessment.maxAttempts === null || assessment.attempts < assessment.maxAttempts);
+  const open = assessment.availability === "open" && !assessment.stageLocked;
+  const exhausted = assessment.maxAttempts !== null && assessment.attempts >= assessment.maxAttempts;
+  const canStart = open && assessment.questionCount !== 0 && !exhausted;
+  const canResume = assessment.availability !== "locked" && Boolean(assessment.activeAttemptId) && !pending;
+  const showUnavailable = open && !canResume && !pending;
+  let actionMessage: string | undefined;
+  if (showUnavailable && exhausted) {
+    actionMessage = tx("Batas percobaan maksimal telah tercapai. Anda tidak dapat memulai kuis ini lagi.", "You’ve reached the attempt limit. You can’t start this quiz again.");
+  } else if (showUnavailable && assessment.questionCount === 0) {
+    actionMessage = tx("Soal kuis belum tersedia untuk kelas ini. Hubungi pengajar Anda untuk mempublikasikan soal kuis.", "No quiz questions are available for this course yet. Contact your instructor to publish questions.");
+  }
+  const { border, destructive } = useAssessmentColors();
   return <Frame title={assessment.title} subtitle={data.courseTitle}>
-    <AvailabilityMessage kind="quiz" assessment={assessment} />
-    {open ? <Section>
-      <Heading>{messages.quizTake.instructionsTitle}</Heading>
-      <Fact label={messages.quizTake.questionCount} value={assessment.questionCount ?? "-"} />
-      <Fact label={messages.quizTake.duration} value={assessment.durationSeconds === null ? messages.quizList.noLimit : tx(`${Math.round(assessment.durationSeconds / 60)} menit`, `${Math.round(assessment.durationSeconds / 60)} min`)} />
-      <Fact label={messages.quizTake.attemptsRemaining} value={assessment.maxAttempts === null ? messages.quizTake.unlimitedAttempts : fill(messages.quizTake.attemptsLeft, { remaining: Math.max(0, assessment.maxAttempts - assessment.attempts), total: assessment.maxAttempts })} />
-      <Body tone="muted">{messages.quizTake.instructions.independent}</Body>
-      {assessment.durationSeconds !== null ? <Body tone="muted">{messages.quizTake.instructions.timer}</Body> : null}
-      {drafts ? <Body tone="muted">{tx("Draf jawaban tersimpan di perangkat ini.", "Answer drafts are saved on this device.")}</Body> : null}
-    </Section> : null}
+    {open ? <QuizGatewayInstructions assessment={assessment} completedCount={history.length} /> : <AvailabilityMessage kind="quiz" assessment={assessment} />}
     {error ? <View accessibilityLiveRegion="assertive"><Body tone="error">{error}</Body></View> : null}
     {draftReadError ? <Message title={tx("Percobaan tersimpan belum dapat dibuka", "Could not read the saved attempt")}
       action={tx("Coba lagi", "Try again")} onPress={() => setDraftRevision((value) => value + 1)} error /> : null}
-    <ButtonRow>
-      {assessment.availability !== "locked" && assessment.activeAttemptId && !pending ? <Button testID="student-assessment-resume" onPress={() => navigate(quizAttemptPath(base, assessment.activeAttemptId!, stage))}>{messages.quizList.continue}</Button> : null}
+    {open || canResume || pending || assessment.discussionAvailable ? <View style={[quizGatewayStyles.actions, { borderTopColor: border }]}>
+      {actionMessage ? <View accessibilityLiveRegion="polite" style={quizGatewayStyles.actionMessage}>
+        <QuizGatewayIcon name="warning" color={destructive} size={16} />
+        <Body tone="error" style={quizGatewayStyles.actionMessageText}>{actionMessage}</Body>
+      </View> : null}
+      {open ? <Button variant="ghost" accessibilityRole="link" onPress={() => replace(stage ?? `${course}/quiz`)}>{messages.quizTake.cancel}</Button> : null}
+      {canResume && assessment.activeAttemptId ? <Button accessibilityRole="link" testID="student-assessment-resume" onPress={() => navigate(quizAttemptPath(base, assessment.activeAttemptId!, stage))}>{messages.quizList.continue}</Button> : null}
       {assessment.availability !== "locked" && (pending || (canStart && !assessment.activeAttemptId)) ? <Button testID="student-assessment-start" isLoading={busy || loadingDraft}
+        style={quizGatewayStyles.start} renderIcon={pending ? undefined : (color, size) => <QuizGatewayIcon name="play" color={color} size={size} />}
         disabled={draftReadError} onPress={() => void begin()}>{pending ? tx("Periksa percobaan", "Check attempt") : messages.quizStart.startQuiz}</Button> : null}
       {assessment.discussionAvailable ? <Button variant="outline" onPress={() => navigate(`${base}?viewDiscussion=true`)}>{messages.quizTake.viewDiscussion}</Button> : null}
-    </ButtonRow>
-    {assessment.availability !== "locked" ? <Section border>
-      <Heading>{messages.quizTake.attemptHistory}</Heading>
-      {history.length === 0 ? <Body tone="muted">{messages.quizTake.noCompletedAttempts}</Body> : history.map((result, index) => <Row key={result.id}
-        title={fill(messages.quizTake.attemptNumber, { number: history.length - index })} description={date(result.submittedAt)} trailing={score(result)}
-        onPress={() => navigate(quizAttemptPath(base, result.id))} />)}
-    </Section> : null}
+    </View> : null}
+    {assessment.availability !== "locked" ? <QuizGatewayHistory history={history} onReview={(id) => navigate(quizAttemptPath(base, id))} /> : null}
   </Frame>;
 }
 

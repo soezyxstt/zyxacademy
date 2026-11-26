@@ -1,6 +1,15 @@
 import { assessmentApiPath, type AssessmentPage, type AssessmentPlayer, type AssessmentQuestion, type AssessmentResult, type AssessmentRow, type ReviewedQuestion } from "./contract";
 
-export const assessmentFixtureScenarios = ["populated", "empty", "locked", "offline", "long", "retry"] as const;
+export const quizGatewayEvidence = {
+  states: ["new", "resumable", "exhausted"],
+  locale: "id",
+  theme: "light",
+} as const;
+export type QuizGatewayState = (typeof quizGatewayEvidence.states)[number];
+export const quizGatewayScenario = <T extends QuizGatewayState>(state: T) => `quiz-gateway-${state}` as const;
+
+export const assessmentFixtureScenarios = ["populated", "empty", "locked", "offline", "long", "retry",
+  ...quizGatewayEvidence.states.map(quizGatewayScenario)] as const;
 export type AssessmentFixtureScenario = (typeof assessmentFixtureScenarios)[number];
 
 const courseId = "native-assessment-course";
@@ -45,17 +54,27 @@ export function createAssessmentFixtureRequest(scenario: AssessmentFixtureScenar
   const empty = scenario === "empty";
   const locked = scenario === "locked";
   const long = scenario === "long";
+  const newGateway = scenario === quizGatewayScenario("new");
+  const resumableGateway = scenario === quizGatewayScenario("resumable");
+  const exhaustedGateway = scenario === quizGatewayScenario("exhausted");
+  const gatewayEvidence = newGateway || resumableGateway || exhaustedGateway;
   let loseResponse = scenario === "retry";
   const questions = long ? baseQuestions.map((question) => ({ ...question, prompt: `${question.prompt} Jelaskan hubungan koefisien dengan perubahan gradien ketika nilai variabel bertambah. `.repeat(3) })) : baseQuestions;
   const activeByKey = new Map<string, string>();
   const tryoutByKey = new Map<string, string>();
-  const completed = new Set([attemptId]);
-  const results = empty ? [] : [fixtureQuiz, fixtureTryout];
+  const completed = new Set(newGateway ? [] : [attemptId]);
+  const priorQuiz = gatewayEvidence ? { ...fixtureQuiz, submittedAt: "2026-10-05T12:00:00.000Z" } : fixtureQuiz;
+  const results = empty || newGateway ? [] : [priorQuiz, fixtureTryout];
   const quiz: AssessmentRow = { id: quizId, title: fixtureQuiz.assessmentTitle, availability: locked ? "locked" : "open", durationSeconds: 900,
-    questionCount: questions.length, openAt: null, closeAt: null, maxAttempts: 3, attempts: empty ? 0 : 1, bestScore: empty ? undefined : 80, visibility: "free", discussionAvailable: !empty && !locked };
+    questionCount: questions.length, openAt: null, closeAt: null, maxAttempts: exhaustedGateway ? 1 : gatewayEvidence ? 2 : 3,
+    attempts: empty || newGateway ? 0 : 1, bestScore: empty || newGateway ? undefined : 80, visibility: "free",
+    discussionAvailable: !empty && !locked && !gatewayEvidence };
   const tryout: AssessmentRow = { id: tryoutId, title: fixtureTryout.assessmentTitle, availability: locked ? "locked" : "open", durationSeconds: 3600,
     questionCount: questions.length, openAt: null, closeAt: null, maxAttempts: 3, attempts: empty ? 0 : 1 };
-  const simulatedQuiz = () => ({ ...quiz, activeAttemptId: activeByKey.size && !completed.has(activeAttemptId) ? activeAttemptId : undefined });
+  const simulatedQuiz = () => {
+    const active = (resumableGateway || activeByKey.size > 0) && !completed.has(activeAttemptId);
+    return { ...quiz, attempts: gatewayEvidence ? completed.size + Number(active) : quiz.attempts, activeAttemptId: active ? activeAttemptId : undefined };
+  };
   const player = (kind: "quiz" | "tryout"): AssessmentPlayer => ({ questions, answers: {}, startAt: kind === "quiz" ? new Date(Date.now() - 1000).toISOString() : null,
     durationSeconds: kind === "quiz" ? 900 : 3600, closeAt: null, canGoBack: true, requireAllAnswered: false, perQuestionSeconds: null });
   const reviewQuestions: ReviewedQuestion[] = questions.map((question, i) => ({ ...question,
@@ -85,6 +104,7 @@ export function createAssessmentFixtureRequest(scenario: AssessmentFixtureScenar
         return commitReceipt({ status: "completed", attemptId: selected });
       }
       if (family === "quiz" && id === quizId) {
+        if (exhaustedGateway) return json({ error: "Batas percobaan kuis tercapai" }, 409);
         const attempt = activeByKey.get(body.requestId) ?? activeAttemptId;
         activeByKey.set(body.requestId, attempt);
         return commitReceipt({ attemptId: attempt, templateId: quizId });
@@ -106,11 +126,13 @@ export function createAssessmentFixtureRequest(scenario: AssessmentFixtureScenar
     if (family === "quiz" && id === quizId && !action) {
       const target = url.searchParams.get("attemptId");
       const isReview = target !== null && completed.has(target);
-      const review = !locked && (isReview || url.searchParams.get("viewDiscussion") === "true")
-        ? { result: target ? { ...fixtureQuiz, id: target } : null, discussionAvailable: true, items: reviewQuestions } : null;
-      return ok({ kind: "quiz-detail", courseTitle, assessment: empty ? { ...quiz, questionCount: 0 } : simulatedQuiz(),
+      const assessment = empty ? { ...quiz, questionCount: 0 } : simulatedQuiz();
+      const review = !locked && (isReview || (!gatewayEvidence && url.searchParams.get("viewDiscussion") === "true"))
+        ? { result: target ? { ...priorQuiz, id: target } : null, discussionAvailable: !gatewayEvidence, items: gatewayEvidence ? [] : reviewQuestions } : null;
+      const mayPlay = !locked && !empty && target === activeAttemptId && !isReview && (!gatewayEvidence || target === assessment.activeAttemptId);
+      return ok({ kind: "quiz-detail", courseTitle, assessment,
         history: empty || locked ? [] : results.filter((row) => row.kind === "quiz"),
-        player: !locked && !empty && target === activeAttemptId && !isReview ? player("quiz") : null, review });
+        player: mayPlay ? player("quiz") : null, review });
     }
     if (family === "tryout" && id === tryoutId) return ok({ kind: "tryout-detail", courseTitle, assessment: empty ? { ...tryout, questionCount: 0 } : tryout, player: !locked && !empty ? player("tryout") : null });
     if (locked) return missing();
