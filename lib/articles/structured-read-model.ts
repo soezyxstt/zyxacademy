@@ -19,8 +19,6 @@ import {
   type FormativeCheckKind,
 } from "@/lib/materials/pedagogy-contract";
 
-import type { OfflineReadingArticle, OfflineReadingBlock, OfflineReadingSection } from "../../packages/offline/reading-content";
-
 /** Keep managed visual registries out of retrieval text and its content hash. */
 export function articleIndexableMarkdown(markdown: string): string {
   return markdown.replace(/\n*<!--__ZYX_V3_ARTICLE_VISUALS__:[A-Za-z0-9_-]+-->/g, "");
@@ -118,17 +116,22 @@ export interface PublicSectionPedagogy {
   };
 }
 
-export interface PublicBlockReadModel extends OfflineReadingBlock {
+export interface PublicBlockReadModel {
+  id: string;
   blockKey: string;
+  blockType: string;
   title: string | null;
   orderIndex: number;
+  content: string;
   parts?: ArticlePart[];
   visuals?: PublicVisualSpec[];
   workedExample?: PublicWorkedExamplePayload | null;
   formativeCheck?: PublicFormativeCheckPayload | null;
 }
 
-export interface PublicSectionReadModel extends OfflineReadingSection<PublicBlockReadModel> {
+export interface PublicSectionReadModel {
+  id: string;
+  slug: string;
   title: string;
   sectionNumber: string;
   sectionKind: "overview" | "topic" | "summary";
@@ -136,6 +139,7 @@ export interface PublicSectionReadModel extends OfflineReadingSection<PublicBloc
   estimatedReadingMinutes: number;
   orderIndex: number;
   parentSectionId: string | null;
+  blocks: PublicBlockReadModel[];
   pedagogy?: PublicSectionPedagogy | null;
   learningTimeEstimate?: PublicLearningTimeEstimate;
   visuals?: PublicVisualSpec[];
@@ -155,11 +159,17 @@ export interface PublicArticleProgress {
   sectionProgress: Record<string, SectionProgressDetail>;
 }
 
-export interface PublicArticleReadModel extends OfflineReadingArticle<PublicSectionReadModel> {
+export interface PublicArticleReadModel {
+  id: string;
+  courseId: string;
+  chapterId: string | null;
   slug: string;
+  title: string;
   courseTitle: string;
   chapterTitle: string | null;
   chapterNumber: number | null;
+  version: number;
+  sections: PublicSectionReadModel[];
   totalEstimatedReadingMinutes: number;
   totalLearningTimeEstimate?: PublicLearningTimeEstimate;
   visuals?: PublicVisualSpec[];

@@ -149,10 +149,12 @@ export function createOfflineReadingController({ scope, verifiedUntil, repositor
       const body = new TextEncoder().encode(JSON.stringify(payload.data));
       const assets: OfflineReadingAsset[] = [];
       let remaining = READING_PACKAGE_LIMIT - body.byteLength;
-      let leaseExpiresAt = Math.min(verifiedUntil, authority.leaseExpiresAt, payload.leaseExpiresAt);
+      const leaseExpiresAt = Math.min(verifiedUntil, authority.leaseExpiresAt, payload.leaseExpiresAt);
+      let assetLeaseExpiresAt: number | null = null;
       for (const url of payload.assets) {
         const item = await request(url, operation.signal, true, async response => {
           const metadata = readOfflineReadingHeaders(response, scope, { ...verify, minCursor: payload.cursor, now: now() });
+          if (metadata.validatedAt < payload.validatedAt) throw new NativeOfflineProtocolError();
           const mime = contentType(response);
           if (!MIME.test(mime)) throw new OfflineReadingError("unsupported");
           const etag = response.headers.get("etag");
@@ -162,12 +164,12 @@ export function createOfflineReadingController({ scope, verifiedUntil, repositor
           return { item: { url, mime, bytes }, leaseExpiresAt: metadata.leaseExpiresAt };
         });
         remaining -= item.item.bytes.byteLength;
-        leaseExpiresAt = Math.min(leaseExpiresAt, item.leaseExpiresAt);
+        assetLeaseExpiresAt = Math.min(assetLeaseExpiresAt ?? Infinity, item.leaseExpiresAt);
         assets.push(item.item);
       }
       verifiedNetwork = true;
-      await store.store(scope, { target, revision, cursor: payload.cursor, validatedAt: payload.validatedAt,
-        leaseExpiresAt, body, assets }, activeGuard);
+      await store.store(scope, { target, revision, cursor: payload.cursor, resetGeneration: authority.resetGeneration,
+        validatedAt: payload.validatedAt, leaseExpiresAt, assetLeaseExpiresAt, body, assets }, activeGuard);
       return { status: "saved" };
     } catch (error) {
       try { assertCurrent(operation.signal); } catch { return { status: "cancelled" }; }

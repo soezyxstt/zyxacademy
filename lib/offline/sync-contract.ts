@@ -1,8 +1,6 @@
 import { z } from "zod";
 import type { OfflinePolicy } from "./policy-types";
 export type { OfflinePolicy, OfflinePolicySettings } from "./policy-types";
-import type { OfflineTextMaterial } from "../../packages/offline/reading-content";
-export type { OfflineTextMaterial } from "../../packages/offline/reading-content";
 import type { PublicArticleReadModel } from "@/lib/articles/structured-read-model";
 
 export const OFFLINE_PROTOCOL_VERSION = 1 as const;
@@ -45,6 +43,7 @@ export type OfflineCourseAccess = { courseId: string; allowed: boolean; fullCont
 export type OfflineCourseOutline = { id: string; title: string; chapters: Array<{ id: string; title: string; orderIndex: number }>; materials: OfflineResourceDescriptor[] };
 export type OfflineVideoCatalog = { videos: Array<{ id: string; title: string; videoUrl: string; thumbnailUrl: string | null; playlistId: string | null; durationSeconds: number | null }>; playlists: Array<{ id: string; title: string }> };
 export type OfflineAchievementCatalog = { achievements: Array<{ id: string; title: string; description: string; thresholds: number[]; icon: string }> };
+export type OfflineTextMaterial = { id: string; courseId: string; title: string; body: string; docCategory: "diktat" | "materi"; kind: "article"; contentVersion: number };
 export type OfflineResourceData = {
   article: PublicArticleReadModel;
   diktat: OfflineTextMaterial;

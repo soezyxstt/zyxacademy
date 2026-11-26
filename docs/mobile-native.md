@@ -16,6 +16,8 @@ Unduhan manual Expo menyimpan data bacaan mentah Artikel dan Diktat dari `/api/o
 
 Unduhan manual mengikuti batas kebijakan server, hingga 250 paket dan 100 MiB per kombinasi origin, akun, sesi, dan bahasa, serta 200 MiB per sandbox aplikasi. Pembacaan juga memerlukan kecocokan bab, revisi manifest dan masa akses. Keluar atau kehilangan akses Murid yang terkonfirmasi membersihkan paket dan metadata kedua bahasa. Jalur Expo memakai kontrak HTTP yang sama sehingga cakupan, persetujuan, discovery, dan paket MCP mengikuti kontrak sinkronisasi yang ada. Bukti lokal mencakup pengujian Bun dan SQLite dengan respons HTTP terkontrol. Unduhan dan pembacaan melalui build Android atau iOS masih memerlukan verifikasi perangkat. [Kontrol paket Expo](../apps/mobile-native/offline/reading-client.ts).
 
+Manifest terbaru dapat memperbarui verifikasi paket yang masih berlaku. Lease gambar wajib tetap mengikuti respons aset. Paket yang kedaluwarsa, melewati ambang usia konten, terkena invalidasi, atau berasal dari sebelum reset cursor perlu diunduh ulang. Unduhan ulang memeriksa resource dan gambar wajib sebelum mengaktifkan paket. [Penyimpanan paket Expo](../apps/mobile-native/offline/reading-store.ts).
+
 ## Kondisi yang ada
 
 - `apps/mobile` adalah Capacitor 7 alpha yang memuat origin Next.js jarak jauh dalam WebView. Konfigurasi memisahkan aplikasi dan origin nightly/staging dan stable/production. `www/index.html` menguji koneksi lalu membuka aplikasi online. Saat offline, Android menampilkan pustaka dan reader lokal. iOS menyediakan tampilan coba lagi. Paket bacaan mengikat akun, origin, bahasa, masa akses, dan hak bab. Klien Expo perlu menggunakan [kontrak sinkronisasi yang sudah ada](operations/offline-data-sync.md).
