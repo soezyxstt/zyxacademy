@@ -3,14 +3,20 @@ import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { customForms, customFormResponses } from "@/db/schema";
 import { eq, or, isNull, and } from "drizzle-orm";
+import { findShortFormMeeting } from "@/lib/forms/short-entry";
 import { describeFormClosure, getFormClosure, getFormClosedReason, getFormRespondentError } from "@/lib/forms/response-policy";
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ idOrSlug: string }> }
 ) {
   try {
     const { idOrSlug } = await params;
+    if (new URL(req.url).searchParams.get("entry") === "short") {
+      const meetingUri = await findShortFormMeeting(idOrSlug);
+      if (meetingUri) return NextResponse.json({ success: true, destination: "meeting", meetingUri });
+    }
+
 
     const [form] = await db
       .select({
@@ -52,6 +58,7 @@ export async function POST(
 ) {
   try {
     const { idOrSlug } = await params;
+    const exactId = new URL(req.url).searchParams.get("target") === "id";
     const session = await auth.api.getSession({ headers: req.headers });
 
     const [form] = await db
@@ -66,7 +73,7 @@ export async function POST(
       .where(
         and(
           isNull(customForms.deletedAt),
-          or(eq(customForms.id, idOrSlug), eq(customForms.slug, idOrSlug.toLowerCase()))
+          exactId ? eq(customForms.id, idOrSlug) : or(eq(customForms.id, idOrSlug), eq(customForms.slug, idOrSlug.toLowerCase()))
         )
       )
       .limit(1);
