@@ -34,16 +34,16 @@ export function PdfThumbnailGrid({ uri, page, total, en, theme, onOpen }: {
 function PdfThumbnail({ source, page, selected, en, theme, onOpen }: {
   source: { uri: string; cache: boolean }; page: number; selected: boolean; en: boolean; theme: Theme; onOpen(page: number): void;
 }) {
-  const [failed, setFailed] = useState(false);
+  const [status, setStatus] = useState<"loading" | "ready" | "failed">("loading");
   const colors = nativeColors[theme];
-  return <Pressable accessibilityRole="button" accessibilityState={{ selected }} accessibilityLabel={(en ? "Open page " : "Buka halaman ") + page}
+  return <Pressable testID={`student-pdf-thumbnail-${status}-${page}`} accessibilityRole="button" accessibilityState={{ selected }} accessibilityLabel={(en ? "Open page " : "Buka halaman ") + page}
     onPress={() => onOpen(page)} style={({ pressed }) => ({ flexBasis: "47%", flexGrow: 1, padding: 6, gap: 5, borderWidth: 1,
       borderColor: selected ? colors.primary : colors.border, borderRadius: nativeRadii.md, backgroundColor: pressed ? colors.muted : colors.card })}>
     <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants"
       style={{ height: 140, backgroundColor: colors.muted, alignItems: "center", justifyContent: "center" }}>
-      {failed ? <Text style={{ color: colors.mutedForeground }}>{en ? "Preview unavailable" : "Pratinjau tidak tersedia"}</Text>
+      {status === "failed" ? <Text style={{ color: colors.mutedForeground }}>{en ? "Preview unavailable" : "Pratinjau tidak tersedia"}</Text>
         : <Pdf source={source} page={page} singlePage scrollEnabled={false} enableDoubleTapZoom={false}
-            fitPolicy={2} trustAllCerts={false} style={{ width: "100%", height: "100%" }} onError={() => setFailed(true)} />}
+            fitPolicy={2} trustAllCerts={false} style={{ width: "100%", height: "100%" }} onLoadComplete={() => setStatus("ready")} onError={() => setStatus("failed")} />}
     </View>
     <Text style={{ color: colors.foreground, textAlign: "center" }}>{page}</Text>
   </Pressable>;

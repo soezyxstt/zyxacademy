@@ -61,6 +61,7 @@ export async function createReadingPreview(runHandler: (request: Request, handle
   let pkaReading = false;
   let privateImage = false;
   let privatePdf = false;
+  let privatePdfSearch = false;
   const expectedPdf = previewPdf();
   let deniedNormal = false;
   let deniedPka = false;
@@ -192,8 +193,12 @@ export async function createReadingPreview(runHandler: (request: Request, handle
     if (courseNavigation) return navigation.GET(request);
     if (pkaGate) return learning.GET(request);
     if (pdfRead) {
-      const response = await (request.method === "HEAD" ? pdf.HEAD(request) : pdf.GET(request));
+      const response = await (request.method === "POST" ? pdf.POST(request) : request.method === "HEAD" ? pdf.HEAD(request) : pdf.GET(request));
       if (response.ok && request.method === "GET") privatePdf = Buffer.from(await response.clone().arrayBuffer()).equals(expectedPdf);
+      if (response.ok && request.method === "POST") {
+        const { matches } = await response.clone().json() as { matches?: Array<{ page: number; excerpt: string }> };
+        privatePdfSearch ||= matches?.length === 1 && matches[0].page === 2 && /private preview, page 2/i.test(matches[0].excerpt);
+      }
       return response;
     }
     if (detail) {
@@ -218,7 +223,7 @@ export async function createReadingPreview(runHandler: (request: Request, handle
 
   return {
     handle,
-    progress: () => `Article ${articleRevision ? "verified" : "missing"}, image ${privateImage ? "verified" : "missing"}, PKA Diktat ${pkaReading ? "verified" : "missing"}, PDF ${privatePdf ? "verified" : "missing"}, withdrawal ${withdrawalStage}`,
+    progress: () => `Article ${articleRevision ? "verified" : "missing"}, image ${privateImage ? "verified" : "missing"}, PKA Diktat ${pkaReading ? "verified" : "missing"}, PDF ${privatePdf ? "verified" : "missing"}, PDF search ${privatePdfSearch ? "verified" : "missing"}, withdrawal ${withdrawalStage}`,
     async revoke() {
       withdrawalStage = "prerequisites";
       if (!owner || !articleRevision || !pkaReading || !privateImage || !privatePdf) throw new Error("The Student device did not receive each authorized reading");
@@ -256,6 +261,7 @@ export async function createReadingPreview(runHandler: (request: Request, handle
       withdrawalStage = `PKA HTTP ${pkaStatus}`;
       deniedPka = pkaStatus === 403;
     },
+    verifiedPdfSearch: () => privatePdfSearch,
     verified: () => Boolean(articleRevision) && pkaReading && privateImage && privatePdf && deniedNormal && deniedPka,
     stop() { if (globalThis.fetch === fixtureFetch) globalThis.fetch = previousFetch; },
   };

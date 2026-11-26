@@ -75,15 +75,15 @@ export function PdfReaderControls({ position, scale, outline, go, zoom, theme, l
 
   return <>
     <Button theme={theme} variant="ghost" size="sm" testID={testID} onPress={show}
-      accessibilityLabel={t("Halaman dan pengaturan PDF", "Pages and PDF controls")}>{`${page} / ${total}`}</Button>
+      accessibilityLabel={`${t("Halaman dan pengaturan PDF", "Pages and PDF controls")}, ${page} / ${total}`}>{`${page} / ${total}`}</Button>
     {open && <SharedDialog open title={t("Navigasi PDF", "PDF navigation")} closeLabel={t("Tutup", "Close")}
       theme={theme} onDismiss={() => setOpen(false)}>
       {(annotations || search || thumbnailSource) && <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
         <Button theme={theme} variant={tab === "pages" ? "secondary" : "ghost"} onPress={() => setTab("pages")}>{t("Halaman", "Pages")}</Button>
-        {thumbnailSource && <Button theme={theme} variant={tab === "thumbnails" ? "secondary" : "ghost"}
+        {thumbnailSource && <Button theme={theme} testID="student-pdf-open-previews" variant={tab === "thumbnails" ? "secondary" : "ghost"}
           onPress={() => setTab("thumbnails")}>{t("Pratinjau", "Previews")}</Button>}
-        {search && <Button theme={theme} variant={tab === "search" ? "secondary" : "ghost"} onPress={() => setTab("search")}>{t("Cari", "Search")}</Button>}
-        {annotations && <Button theme={theme} variant={tab === "personal" ? "secondary" : "ghost"} onPress={() => setTab("personal")}>{t("Catatan dan penanda", "Notes and bookmarks")}</Button>}
+        {search && <Button theme={theme} testID="student-pdf-open-search" variant={tab === "search" ? "secondary" : "ghost"} onPress={() => setTab("search")}>{t("Cari", "Search")}</Button>}
+        {annotations && <Button theme={theme} testID="student-pdf-open-annotations" variant={tab === "personal" ? "secondary" : "ghost"} onPress={() => setTab("personal")}>{t("Catatan dan penanda", "Notes and bookmarks")}</Button>}
       </View>}
       {tab === "pages" ? <>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
@@ -109,7 +109,7 @@ export function PdfReaderControls({ position, scale, outline, go, zoom, theme, l
         <Button theme={theme} variant="outline" onPress={() => write(() => annotations.toggle(editPage))} testID="student-pdf-bookmark">
           {notes?.bookmarks.includes(editPage) ? t("Hapus penanda", "Remove bookmark") : t("Tandai halaman", "Bookmark page")}
         </Button>
-        <Input theme={theme} accessibilityLabel={t("Catatan halaman", "Page note")} value={draftNote} onChangeText={setDraftNote}
+        <Input theme={theme} testID="student-pdf-note-input" accessibilityLabel={t("Catatan halaman", "Page note")} value={draftNote} onChangeText={setDraftNote}
           maxLength={maxPdfNoteLength} multiline style={{ minHeight: 96 }} />
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
           <Button theme={theme} onPress={() => write(() => annotations.note(editPage, draftNote))} testID="student-pdf-note-save">{t("Simpan catatan", "Save note")}</Button>

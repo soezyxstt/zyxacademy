@@ -375,6 +375,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
     verifiedAdminOpsAi: () => opsAi?.verified(),
     revokeOnlineReading: () => previewReading?.revoke(),
     verifiedOnlineReading: () => previewReading?.verified(),
+    verifiedOnlinePdfSearch: () => previewReading?.verifiedPdfSearch(),
     readingProgress: () => previewReading?.progress() ?? offline?.progress(),
     identity: () => browserIdentity && { accountId: browserIdentity.accountId, sessionId: browserIdentity.sessionId },
     progress() {

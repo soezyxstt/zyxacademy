@@ -40,16 +40,16 @@ export function PdfTextSearch({ search, total, onOpen, theme, en }: {
   }
 
   return <>
-    <Input theme={theme} accessibilityLabel={t("Cari teks PDF", "Search PDF text")} placeholder={t("Cari teks PDF", "Search PDF text")}
+    <Input theme={theme} testID="student-pdf-query" accessibilityLabel={t("Cari teks PDF", "Search PDF text")} placeholder={t("Cari teks PDF", "Search PDF text")}
       value={query} onChangeText={value => { setQuery(value); setFound(undefined); setFailed(false); }}
       maxLength={120} disabled={pending} returnKeyType="search" onSubmitEditing={() => void scan(1)} />
-    <Button theme={theme} isLoading={pending} disabled={query.trim().length < 2} onPress={() => void scan(1)}>{t("Cari", "Search")}</Button>
+    <Button theme={theme} testID="student-pdf-search-submit" isLoading={pending} disabled={query.trim().length < 2} onPress={() => void scan(1)}>{t("Cari", "Search")}</Button>
     {failed && <Text accessibilityRole="alert" style={{ color: color.destructive }}>{t("PDF belum dapat dicari. Coba lagi.", "PDF search is unavailable. Try again.")}</Text>}
     {found && <>
       <Text accessibilityLiveRegion="polite" style={{ color: color.mutedForeground }}>
         {t("Halaman", "Pages")} {found.from} sampai {found.until} · {found.result.matches.length} {t("hasil", "matches")}
       </Text>
-      {found.result.matches.map(hit => <NativeListRow layout="compact" key={hit.page} theme={theme} title={t("Halaman", "Page") + " " + hit.page}
+      {found.result.matches.map(hit => <NativeListRow testID={`student-pdf-search-result-${hit.page}`} layout="compact" key={hit.page} theme={theme} title={t("Halaman", "Page") + " " + hit.page}
         subtitle={hit.excerpt} primary={{ role: "button", label: t("Buka halaman", "Go to page") + " " + hit.page, onPress: () => onOpen(hit.page) }} />)}
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
         {found.from > 1 && <Button theme={theme} variant="outline" disabled={pending}

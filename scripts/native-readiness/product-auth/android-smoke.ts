@@ -69,6 +69,9 @@ async function runFlow(name: string, inputs: string[] = [], label = name) {
       ["native-reading-screen", "Student native reading"],
       ["artikel kanonis", "canonical Article body"],
       ["diktat PKA", "canonical PKA Diktat body"],
+      ["student-pdf-thumbnail", "Student PDF local thumbnail"],
+      ["student-pdf-note", "Student private PDF note"],
+      ["student-pdf-search", "Student authorized PDF text search"],
       ["Kuis selesai", "Tutor live conclusion"],
       ["(Simpan|Save) Diktat verifikasi offline", "offline save action"],
       ["(Hapus|Remove) Diktat verifikasi offline", "offline saved state"],
@@ -221,8 +224,10 @@ try {
   } else {
     step = "complete browser login, open the Student dashboard and mark a notification read";
     await runFlow("student", ["-e", `PREVIEW_CLAIM=${fixture.claim}`, "-e", `PREVIEW_INBOX_ROW=student-inbox-row-${notificationId}`]);
-    step = "read the published Article with an admitted image and the registered PKA Diktat";
+    step = "read the admitted Article and registered PKA Diktat, then use private PDF previews, notes and search";
     await runFlow("student-reading");
+    if (!fixture.verifiedOnlinePdfSearch()) throw new Error("The signed PDF search did not return its page-scoped match");
+    console.log("Android previewed a private PDF page, reopened its note and bookmark, and jumped to its authorized text match");
     step = "withdraw the runner-only enrollment and PKA registration";
     await fixture.revokeOnlineReading();
     step = "reject the withdrawn Article from the normal Android document route";

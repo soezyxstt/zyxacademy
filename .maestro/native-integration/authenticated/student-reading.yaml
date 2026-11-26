@@ -29,19 +29,4 @@ name: Student reads a published Article and registered PKA Diktat
     visible: ".*Isi diktat PKA versi tiga.*"
     timeout: 30000
 - tapOn: "(Kembali|Back)"
-- openLink: "zyx-native-parity://courses/native-preview-reading-course/material/native-preview-reading-pdf?page=2"
-- extendedWaitUntil:
-    visible: PDF verifikasi kelas
-    timeout: 30000
-- scrollUntilVisible:
-    element:
-      id: student-open-material-pdf
-- tapOn:
-    id: student-open-material-pdf
-- extendedWaitUntil:
-    visible:
-      id: student-material-pdf-page
-      text: "2 / 2"
-    timeout: 30000
-- tapOn:
-    id: student-material-pdf-close
+- runFlow: student-pdf-controls.yaml
