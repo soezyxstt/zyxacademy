@@ -1,0 +1,174 @@
+{
+  "platform": "ios",
+  "viewport": {
+    "width": 402,
+    "height": 874
+  },
+  "deviceScaleFactor": 3,
+  "locale": "per-state",
+  "theme": "per-state",
+  "timeZone": "Asia/Jakarta",
+  "motion": "reduced",
+  "scope": "Owned academic form and dependent faculty/major controls",
+  "sourceDigests": {
+    "app/globals.css": "be812b64b005159daf0c3db873b0a8571952834222d9c8906019650388becf83",
+    "apps/mobile-native/features/student/StudentFixtureRoute.tsx": "9d137376881ead4134ec428c5957ed21afa3fdf9f7d094e431a186ca123984bd",
+    "apps/mobile-native/features/student/community/profile.tsx": "19709749e477eed0887d1ee42c8d58ea7a2c39deb1d5362299c2462fc0e5318d",
+    "apps/mobile-native/features/student/community/ui.tsx": "4a63a9b1a4173a4dd931e2d629b3c60fdd0f065796be28f1ba0cdac12a0d9f99",
+    "packages/native-parity/student/community/fixtures.ts": "27a7e52a38ac47fb1960b983d65a3fcfb231673d7f876b9959b168bc6520c305",
+    "packages/native-parity/student/fixture-request.ts": "0d3cb6ff191a057fbdf73f638a3c6af054f13ee99c089ea6aaa6ae0743c16c7b",
+    "tests/visual/fixtures/interactive-document-build.ts": "dc51a2f41b0a567504d40004f1ec44e9469601c8e74eb6fd71b6da23ebd45053",
+    "tests/visual/fixtures/student-profile-reference.tsx": "bb8894663a250a30d22217beafc8b230926a2505d62a2563b2cca537b4cd86e8",
+    "tests/visual/fixtures/student-profile-reference-build.ts": "ec4fae9051f6a0de34c02f449bb27f1e12239cb0fd9a5cebd9eb7b638cf1b87d",
+    "tests/visual/fixtures/fonts/inter-latin.woff2": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62",
+    "tests/visual/fixtures/fonts/lexend-latin.woff2": "52dcdaa127bac4a5ea4c39ee17a3f454ceacc18d9f2a45cc453eeab68d378588",
+    "tests/visual/native-parallel/student/profile-reference.spec.ts": "3d869bd88ceaa7fc3a9476c8bcae452e68f60a1c7a98f3638621b79cf91054bb",
+    "app/(student)/profile/edit/page.tsx": "59810fd64737cb7ff678a0dd2eb45bda15069bbcdb15beeade30b0b5000c86db",
+    "app/(student)/profile/edit/profile-edit-form.tsx": "710ba276c4511f686534d36d250e131bab95aa4fb61252022ab5e8b244b84595",
+    "packages/student-community/itb-academic-data.ts": "12c929e3a134642a00c4665cbd778092eaf93231c5fa21659e2ff47c72998031",
+    "messages/id/student.json": "582002f50eee76f376329746908fcaddbbc2601d82abee7997d3785c20dc4eb4",
+    ".maestro/native-parallel/student/profile-edit-parity.yaml": "72960177f5b9d73e8c080f386a56991ab426dbb99e7ac026b47957738e11c242"
+  },
+  "states": {
+    "existing": {
+      "native": {
+        "path": "/profile/edit",
+        "locale": "id",
+        "theme": "light",
+        "scenario": "loaded"
+      },
+      "nativeMarkers": [
+        {
+          "id": "student-fixture-id-light"
+        },
+        {
+          "text": "^FMIPA$",
+          "selected": true
+        },
+        {
+          "text": "^Matematika$",
+          "selected": true
+        },
+        {
+          "text": "^2025$"
+        }
+      ],
+      "web": {
+        "faculty": "FMIPA",
+        "major": "Matematika",
+        "entryYear": 2025,
+        "viewport": {
+          "width": 402,
+          "height": 874
+        },
+        "deviceScaleFactor": 3,
+        "locale": "id",
+        "theme": "light",
+        "overflow": false,
+        "route": "/profile/edit"
+      },
+      "response": {
+        "name": "Aruni Rasyid",
+        "email": "aruni@example.invalid",
+        "image": null,
+        "faculty": "FMIPA",
+        "major": "Matematika",
+        "entryYear": 2025
+      }
+    },
+    "major-reset": {
+      "native": {
+        "path": "/profile/edit",
+        "locale": "id",
+        "theme": "light",
+        "scenario": "loaded"
+      },
+      "nativeMarkers": [
+        {
+          "id": "student-fixture-id-light"
+        },
+        {
+          "text": "^FITB$",
+          "selected": true
+        },
+        {
+          "text": "^Teknik Geologi$",
+          "selected": false
+        }
+      ],
+      "web": {
+        "faculty": "FITB",
+        "major": null,
+        "entryYear": 2025,
+        "viewport": {
+          "width": 402,
+          "height": 874
+        },
+        "deviceScaleFactor": 3,
+        "locale": "id",
+        "theme": "light",
+        "overflow": false,
+        "route": "/profile/edit"
+      },
+      "response": {
+        "name": "Aruni Rasyid",
+        "email": "aruni@example.invalid",
+        "image": null,
+        "faculty": "FMIPA",
+        "major": "Matematika",
+        "entryYear": 2025
+      }
+    },
+    "revised": {
+      "native": {
+        "path": "/profile/edit",
+        "locale": "id",
+        "theme": "light",
+        "scenario": "loaded"
+      },
+      "nativeMarkers": [
+        {
+          "id": "student-fixture-id-light"
+        },
+        {
+          "text": "^FITB$",
+          "selected": true
+        },
+        {
+          "text": "^Teknik Geologi$",
+          "selected": true
+        },
+        {
+          "text": "^2025$"
+        }
+      ],
+      "web": {
+        "faculty": "FITB",
+        "major": "Teknik Geologi",
+        "entryYear": 2025,
+        "viewport": {
+          "width": 402,
+          "height": 874
+        },
+        "deviceScaleFactor": 3,
+        "locale": "id",
+        "theme": "light",
+        "overflow": false,
+        "route": "/profile/edit"
+      },
+      "response": {
+        "name": "Aruni Rasyid",
+        "email": "aruni@example.invalid",
+        "image": null,
+        "faculty": "FMIPA",
+        "major": "Matematika",
+        "entryYear": 2025
+      }
+    }
+  },
+  "captures": {
+    "profile-edit-existing.png": "88e7ab11cf5949c955b99d498ece701203c8f1b79a064ee7762e4770ae985710",
+    "profile-edit-major-reset.png": "2af32dee5b315b0dc2128c795cfaf90790f5cb8edee348b18ed5f2402ab019b5",
+    "profile-edit-revised.png": "120a56a236c4c83ca1052ff89e3477affcc190039b0a9df258f66e096e871410"
+  }
+}

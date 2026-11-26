@@ -1,0 +1,178 @@
+{
+  "platform": "android",
+  "viewport": {
+    "width": 380,
+    "height": 820
+  },
+  "deviceScaleFactor": 1,
+  "locale": "per-state",
+  "theme": "per-state",
+  "timeZone": "Asia/Jakarta",
+  "motion": "reduced",
+  "scope": "Owned weekly archive with native details expanded before capture",
+  "sourceDigests": {
+    "app/globals.css": "be812b64b005159daf0c3db873b0a8571952834222d9c8906019650388becf83",
+    "apps/mobile-native/features/student/StudentFixtureRoute.tsx": "9d137376881ead4134ec428c5957ed21afa3fdf9f7d094e431a186ca123984bd",
+    "apps/mobile-native/features/student/community/profile.tsx": "19709749e477eed0887d1ee42c8d58ea7a2c39deb1d5362299c2462fc0e5318d",
+    "apps/mobile-native/features/student/community/ui.tsx": "4a63a9b1a4173a4dd931e2d629b3c60fdd0f065796be28f1ba0cdac12a0d9f99",
+    "packages/native-parity/student/community/fixtures.ts": "27a7e52a38ac47fb1960b983d65a3fcfb231673d7f876b9959b168bc6520c305",
+    "packages/native-parity/student/fixture-request.ts": "0d3cb6ff191a057fbdf73f638a3c6af054f13ee99c089ea6aaa6ae0743c16c7b",
+    "tests/visual/fixtures/interactive-document-build.ts": "dc51a2f41b0a567504d40004f1ec44e9469601c8e74eb6fd71b6da23ebd45053",
+    "tests/visual/fixtures/student-profile-reference.tsx": "bb8894663a250a30d22217beafc8b230926a2505d62a2563b2cca537b4cd86e8",
+    "tests/visual/fixtures/student-profile-reference-build.ts": "ec4fae9051f6a0de34c02f449bb27f1e12239cb0fd9a5cebd9eb7b638cf1b87d",
+    "tests/visual/fixtures/fonts/inter-latin.woff2": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62",
+    "tests/visual/fixtures/fonts/lexend-latin.woff2": "52dcdaa127bac4a5ea4c39ee17a3f454ceacc18d9f2a45cc453eeab68d378588",
+    "tests/visual/native-parallel/student/profile-reference.spec.ts": "3d869bd88ceaa7fc3a9476c8bcae452e68f60a1c7a98f3638621b79cf91054bb",
+    "app/(student)/profile/reflections/page.tsx": "a65c54cf32eb22e4c988967d8b803dc38290b7f03a9e67f8914395db5172943b",
+    "components/student-reflections-view.tsx": "b29944772dec8e095b96a207e91a4eb2694b5bcd3246c295e3bd770916628f7e",
+    "messages/id/student.json": "582002f50eee76f376329746908fcaddbbc2601d82abee7997d3785c20dc4eb4",
+    "messages/en/student.json": "2d345bfc5bd9ebec6765b7307604d1ef986643669ee8761a1a9e32c565433b16",
+    ".maestro/native-parallel/student/reflections-parity.yaml": "3c6364de9fd9e0b4e20b44b540d28969bd90eefb540b27a797bd0c151a064c30"
+  },
+  "states": {
+    "owned-id-light": {
+      "native": {
+        "path": "/profile/reflections",
+        "locale": "id",
+        "theme": "light",
+        "scenario": "loaded"
+      },
+      "nativeMarkers": [
+        {
+          "id": "student-fixture-id-light"
+        },
+        {
+          "text": "^Kuis 2 · Flashcard 12 · Materi 3$"
+        },
+        {
+          "text": "^Pertumbuhan penguasaan 12$"
+        }
+      ],
+      "web": {
+        "entries": 1,
+        "weekStart": "2026-11-23",
+        "quizzes": 2,
+        "flashcards": 12,
+        "materials": 3,
+        "masteryGrowth": 12,
+        "viewport": {
+          "width": 380,
+          "height": 820
+        },
+        "deviceScaleFactor": 1,
+        "locale": "id",
+        "theme": "light",
+        "overflow": false,
+        "route": "/profile/reflections"
+      },
+      "response": [
+        {
+          "id": "week-1",
+          "weekStart": "2026-11-23",
+          "payload": {
+            "completed": {
+              "quizzes": 2,
+              "flashcards": 12,
+              "modules": 3
+            },
+            "masteryGrowth": 12,
+            "mostImproved": "Turunan",
+            "streak": {
+              "currentStreak": 3,
+              "longestStreak": 5
+            }
+          }
+        }
+      ]
+    },
+    "empty-id-light": {
+      "native": {
+        "path": "/profile/reflections",
+        "locale": "id",
+        "theme": "light",
+        "scenario": "empty"
+      },
+      "nativeMarkers": [
+        {
+          "id": "student-fixture-id-light"
+        },
+        {
+          "text": "^Belum ada refleksi mingguan\\.$"
+        }
+      ],
+      "web": {
+        "entries": 0,
+        "viewport": {
+          "width": 380,
+          "height": 820
+        },
+        "deviceScaleFactor": 1,
+        "locale": "id",
+        "theme": "light",
+        "overflow": false,
+        "route": "/profile/reflections"
+      },
+      "response": []
+    },
+    "owned-en-dark": {
+      "native": {
+        "path": "/profile/reflections",
+        "locale": "en",
+        "theme": "dark",
+        "scenario": "loaded"
+      },
+      "nativeMarkers": [
+        {
+          "id": "student-fixture-en-dark"
+        },
+        {
+          "text": "^Quizzes 2 · Flashcards 12 · Materials 3$"
+        },
+        {
+          "text": "^Mastery growth 12$"
+        }
+      ],
+      "web": {
+        "entries": 1,
+        "weekStart": "2026-11-23",
+        "quizzes": 2,
+        "flashcards": 12,
+        "materials": 3,
+        "masteryGrowth": 12,
+        "viewport": {
+          "width": 380,
+          "height": 820
+        },
+        "deviceScaleFactor": 1,
+        "locale": "en",
+        "theme": "dark",
+        "overflow": false,
+        "route": "/profile/reflections"
+      },
+      "response": [
+        {
+          "id": "week-1",
+          "weekStart": "2026-11-23",
+          "payload": {
+            "completed": {
+              "quizzes": 2,
+              "flashcards": 12,
+              "modules": 3
+            },
+            "masteryGrowth": 12,
+            "mostImproved": "Turunan",
+            "streak": {
+              "currentStreak": 3,
+              "longestStreak": 5
+            }
+          }
+        }
+      ]
+    }
+  },
+  "captures": {
+    "reflections-owned-id-light.png": "9609e225d5fff38307f6402365387d4e54e4d252f32180dd365bcc90c61cde74",
+    "reflections-empty-id-light.png": "6a2815b0381a667a08b3de08f27cb7be682540fd1af8e344a638f04df16b0f04",
+    "reflections-owned-en-dark.png": "2c934c431c0f97018ffa833a0e06015ae727060b54ff8314d1d59434e943e5dd"
+  }
+}
