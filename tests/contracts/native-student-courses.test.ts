@@ -1,0 +1,109 @@
+import { afterEach, describe, expect, mock, test } from "bun:test";
+import {
+  coursesEndpoint, learningEndpoint, materialPath, materialRowPath, normalizeMaterialTab,
+  type LearningQuery, type MaterialListData, type MaterialDetailData,
+} from "@/packages/native-parity/student/courses/contract";
+import { createCourseFixtureRequest } from "@/packages/native-parity/student/courses/fixtures";
+
+const authGuard = mock(async (_request: Request): Promise<{ userId: string } | Response> => ({ userId: "learner-a" }));
+const loadCourse = mock(async (_student: string, _query: LearningQuery): Promise<unknown> => ({ view: "catalog", courses: [], targetCategory: null }));
+const redeem = mock(async (_token: string, _student: string, _surface: string) => ({ success: true }));
+
+mock.module("@/app/api/native/student/_session", () => ({ requireNativeStudent: authGuard }));
+mock.module("@/lib/student/native-course-data", () => ({ loadNativeCourseData: loadCourse }));
+mock.module("@/lib/groups/redeem-token", () => ({ redeemGroupToken: redeem }));
+
+const { GET, POST } = await import("@/app/api/native/student/courses/route");
+
+const request = (path: string, init?: RequestInit) => new Request(`https://native.example${path}`, init);
+
+afterEach(() => {
+  authGuard.mockClear();
+  loadCourse.mockClear();
+  redeem.mockClear();
+});
+
+describe("native Student course routes", () => {
+  test("verifies live session before reads and activates only the bound Student", async () => {
+    authGuard.mockResolvedValueOnce(Response.json({ error: "ACCOUNT_CHANGED" }, { status: 409 }));
+    expect((await GET(request(learningEndpoint({ view: "catalog" })))).status).toBe(409);
+    expect(loadCourse).not.toHaveBeenCalled();
+
+    authGuard.mockResolvedValueOnce(Response.json({ error: "STUDENT_REQUIRED" }, { status: 403 }));
+    expect((await POST(request(coursesEndpoint))).status).toBe(403);
+    expect(redeem).not.toHaveBeenCalled();
+
+    const result = await POST(request(coursesEndpoint, { method: "POST", body: JSON.stringify({ token: " Zyx-example " }) }));
+    expect(result.status).toBe(200);
+    expect(redeem).toHaveBeenCalledWith("Zyx-example", "learner-a", "dashboard");
+  });
+
+  test("validates unique route parameters and never accepts a Student identity from the client payload", async () => {
+    expect((await GET(request(`${coursesEndpoint}?view=material-detail&courseId=c`))).status).toBe(400);
+    expect((await GET(request(`${coursesEndpoint}?view=catalog&view=dashboard`))).status).toBe(400);
+    expect((await GET(request(`${coursesEndpoint}?view=course&courseId=c%2Fprivate`))).status).toBe(400);
+    expect((await GET(request(`${coursesEndpoint}?view=dashboard&studentId=learner-b`))).status).toBe(400);
+    expect((await POST(request(coursesEndpoint, { method: "POST", body: JSON.stringify({ token: "valid", studentId: "learner-b" }) }))).status).toBe(400);
+    expect(loadCourse).not.toHaveBeenCalled();
+    expect(redeem).not.toHaveBeenCalled();
+  });
+
+  test("returns scoped denials without caching and passes only the bound account and validated identifiers", async () => {
+    loadCourse.mockResolvedValueOnce({ status: 403 });
+    const path = learningEndpoint({ view: "material-detail", courseId: "math", materialId: "bab-2" });
+    const result = await GET(request(path));
+    expect(result.status).toBe(403);
+    expect(result.headers.get("cache-control")).toBe("private, no-store");
+    expect(await result.json()).toEqual({ error: "COURSE_ACCESS_DENIED" });
+    expect(loadCourse).toHaveBeenCalledWith("learner-a", { view: "material-detail", courseId: "math", materialId: "bab-2" });
+  });
+});
+
+describe("native Student course fixtures", () => {
+  const courseId = "matematika-1";
+  const dashboard = learningEndpoint({ view: "dashboard" });
+  const materialList = learningEndpoint({ view: "material-list", courseId });
+  const materialDetail = (materialId: string) => learningEndpoint({ view: "material-detail", courseId, materialId });
+
+  test("traverses the enrolled path from dashboard to a selectable document", async () => {
+    const learner = createCourseFixtureRequest("enrolled");
+    const home = await (await learner(dashboard)).json();
+    expect(home.enrolled[0].id).toBe(courseId);
+    expect((await learner(learningEndpoint({ view: "course", courseId }))).status).toBe(200);
+    const data: MaterialListData = await (await learner(materialList)).json();
+    const first = data.materials[0];
+    expect(first.locked).toBeFalse();
+    expect(materialRowPath(courseId, first)).toBe("/courses/matematika-1/material/pengantar");
+    expect((await learner(materialDetail(first.id))).status).toBe(200);
+  });
+
+  test("unenrolled and revoked learners can use the free preview while premium readers stay locked", async () => {
+    for (const scenario of ["unenrolled", "revoked"] as const) {
+      const learner = createCourseFixtureRequest(scenario);
+      expect((await (await learner(dashboard)).json()).enrolled).toEqual([]);
+      const locked: MaterialDetailData = await (await learner(materialDetail("catatan-fungsi"))).json();
+      const preview: MaterialDetailData = await (await learner(materialDetail("pengantar"))).json();
+      expect(locked.material.locked).toBeTrue();
+      expect(locked.material.completed).toBeFalse();
+      expect(preview.material.locked).toBeFalse();
+      expect(Object.keys(locked.material).sort()).toEqual(["completed", "group", "id", "kind", "locked", "title"]);
+    }
+  });
+
+  test("recovers from a transient offline read and creates enough rows to exercise scrolling", async () => {
+    const offline = createCourseFixtureRequest("offline");
+    await expect(offline(dashboard)).rejects.toThrow("Network request failed");
+    expect((await offline(dashboard)).status).toBe(200);
+
+    const long = createCourseFixtureRequest("long-content");
+    const data: MaterialListData = await (await long(materialList)).json();
+    expect(data.materials.length).toBeGreaterThan(30);
+    expect(data.materials.findIndex(({ id }) => id === "bab-24")).toBeGreaterThan(20);
+  });
+
+  test("encodes navigation identifiers and reading positions while honoring the question bank alias", () => {
+    expect(materialPath("a+b", "c d", "x&y")).toBe("/courses/a%2Bb/material/c%20d?section=x%26y");
+    expect(normalizeMaterialTab("bank-soal")).toBe("bank_soal");
+    expect(normalizeMaterialTab("invalid")).toBe("all");
+  });
+});
