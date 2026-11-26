@@ -35,10 +35,11 @@ emulator shell chown root:root "$cert"
 emulator shell chmod 644 "$cert"
 emulator shell restorecon "$cert"
 
-# ADB reverse carries the fixture listener without allowing device Internet traffic.
+# ADB reverse carries fixture traffic. Block app and isolated-process egress
+# while the Android network service can still validate the emulator network.
 emulator reverse tcp:9443 tcp:9443
-emulator shell iptables -I OUTPUT 1 '!' -o lo -j REJECT
-emulator shell ip6tables -I OUTPUT 1 '!' -o lo -j REJECT
+emulator shell iptables -I OUTPUT 1 -m owner --uid-owner 10000-99999 '!' -o lo -j REJECT
+emulator shell ip6tables -I OUTPUT 1 -m owner --uid-owner 10000-99999 '!' -o lo -j REJECT
 emulator shell am force-stop com.android.chrome
 emulator install "$private/preview.apk" >/dev/null
 mkdir "$private/maestro"

@@ -5,8 +5,15 @@ on:
     paths:
       - 'apps/mobile-native/**'
       - 'packages/**'
+      - 'app/api/auth/native/**'
+      - 'app/api/native/context/**'
       - 'app/api/notifications/**'
       - 'app/api/offline/**'
+      - 'lib/auth.ts'
+      - 'lib/auth/**'
+      - 'lib/native/expo-auth*'
+      - 'db/schema.ts'
+      - 'drizzle-postgres/**'
       - 'tests/contracts/notifications-history.test.ts'
       - 'tests/contracts/offline-server-sync.test.ts'
       - 'scripts/native-readiness/**'
@@ -24,7 +31,10 @@ permissions:
 jobs:
   authenticated-session:
     if: github.head_ref == 'soezyxst/react-native-monorepo' || (github.event_name == 'workflow_dispatch' && github.ref_name == 'soezyxst/react-native-monorepo')
+    needs: combined-native
     uses: ./.github/workflows/native-authenticated-preview.yml
+    with:
+      android: ${{ github.event_name == 'workflow_dispatch' }}
 
   combined-native:
     if: github.head_ref == 'soezyxst/react-native-monorepo' || (github.event_name == 'workflow_dispatch' && github.ref_name == 'soezyxst/react-native-monorepo')

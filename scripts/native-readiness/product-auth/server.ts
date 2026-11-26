@@ -7,6 +7,7 @@ import { NATIVE_AUTH_HANDOFF_COOKIE, normalizeNativeAuthState } from "@/lib/nati
 import { EXPO_STAGING_ORIGIN, EXPO_STAGING_SCHEME } from "@/lib/native/expo-auth-config";
 import { assertFixtureRunner, fixtureHost, fixtureOrigin, fixturePort, fixtureSessionSeconds } from "./scope";
 import { prepareFixtureDatabase, seedBrowserSession } from "./seed";
+import { notificationId, seedStudentInbox, verifiedInboxAcknowledgement } from "./inbox-fixture";
 
 const noStore = { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" };
 const browserPage = "/auth/native-start";
@@ -50,7 +51,7 @@ function browserFixturePage(query: URLSearchParams) {
   });
 }
 
-export async function startAuthFixture(certPath: string, keyPath: string) {
+export async function startAuthFixture(certPath: string, keyPath: string, { studentProduct = false } = {}) {
   assertFixtureRunner();
   process.env.SKIP_ENV_VALIDATION = "1";
   process.env.QUEUE_PROVIDER = "noop";
@@ -88,6 +89,12 @@ export async function startAuthFixture(certPath: string, keyPath: string) {
     import("@/lib/db"),
   ]);
 
+  const product = studentProduct ? await Promise.all([
+    import("@/app/api/native/student/courses/route"),
+    import("@/app/api/notifications/history/route"),
+    import("@/app/api/notifications/read/route"),
+  ]) : null;
+
   const claim = randomBytes(32).toString("hex");
   const claimExpiresAt = Date.now() + 120_000;
   let confirmedState: string | null = null;
@@ -96,6 +103,8 @@ export async function startAuthFixture(certPath: string, keyPath: string) {
   let exchangedCode = false;
   let verifiedContext = false;
   let signedOut = false;
+  let loadedDashboard = false;
+  let acknowledgedInbox = false;
   let browserIdentity: Awaited<ReturnType<typeof seedBrowserSession>> | null = null;
   const server = Bun.serve({
     hostname: fixtureHost,
@@ -113,7 +122,7 @@ export async function startAuthFixture(certPath: string, keyPath: string) {
       headers.set("Host", new URL(EXPO_STAGING_ORIGIN).host);
       const browserOrigin = headers.get("origin");
       if (browserOrigin === fixtureOrigin) headers.set("Origin", EXPO_STAGING_ORIGIN);
-      const body = request.method === "POST" && request.body ? await request.arrayBuffer() : undefined;
+      const body = (request.method === "POST" || request.method === "PATCH") && request.body ? await request.arrayBuffer() : undefined;
       const upstream = new NextRequest(EXPO_STAGING_ORIGIN + url.pathname + url.search, {
         method: request.method, headers, body: body?.byteLength ? body : undefined,
       });
@@ -138,6 +147,7 @@ export async function startAuthFixture(certPath: string, keyPath: string) {
           !timingSafeEqual(Buffer.from(claim, "hex"), Buffer.from(submitted, "hex"))) return result(403);
         claimed = true;
         browserIdentity = await seedBrowserSession();
+        if (studentProduct) await seedStudentInbox(browserIdentity.accountId);
         return new Response(null, { status: 303, headers: {
           ...noStore, Location: fixtureOrigin + nativeComplete + "?" + query, "Set-Cookie": browserIdentity.cookie,
         } });
@@ -157,6 +167,22 @@ export async function startAuthFixture(certPath: string, keyPath: string) {
         if (response.ok) verifiedContext = true;
         return response;
       }
+      if (product && route === "GET /api/native/student/courses" && url.searchParams.get("view") === "dashboard") {
+        const response = await requestContext.run(upstream, () => product[0].GET(upstream));
+        if (response.ok) loadedDashboard = true;
+        return response;
+      }
+      if (product && route === "GET /api/notifications/history") {
+        return requestContext.run(upstream, () => product[1].GET(upstream));
+      }
+      if (product && route === "PATCH /api/notifications/read") {
+        const selection = await upstream.clone().json().catch(() => null);
+        const response = await requestContext.run(upstream, () => product[2].PATCH(upstream));
+        if (response.ok && Array.isArray(selection?.ids) && selection.ids.length === 1 && selection.ids[0] === notificationId) {
+          acknowledgedInbox = true;
+        }
+        return response;
+      }
       if (route === "GET /api/auth/get-session" || route === "POST /api/auth/sign-out") {
         const response = await auth.handler(upstream);
         if (route === "POST /api/auth/sign-out" && response.ok) signedOut = true;
@@ -171,6 +197,8 @@ export async function startAuthFixture(certPath: string, keyPath: string) {
     identity: () => browserIdentity && { accountId: browserIdentity.accountId, sessionId: browserIdentity.sessionId },
     progress() {
       if (signedOut) return "sign-out";
+      if (acknowledgedInbox) return "inbox acknowledgement";
+      if (loadedDashboard) return "Student dashboard";
       if (verifiedContext) return "authorized context";
       if (exchangedCode) return "code exchange";
       if (completedHandoff) return "browser completion";
@@ -180,6 +208,8 @@ export async function startAuthFixture(certPath: string, keyPath: string) {
     },
     async verifiedAndRevoked() {
       if (!verifiedContext || !signedOut || !browserIdentity) return false;
+      if (studentProduct && (!loadedDashboard || !acknowledgedInbox ||
+        !await verifiedInboxAcknowledgement(browserIdentity.accountId))) return false;
       const headers = new Headers({ Cookie: browserIdentity.cookie.split(";", 1)[0] });
       return (await auth.api.getSession({ headers, query: { disableCookieCache: true, disableRefresh: true } })) === null;
     },

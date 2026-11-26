@@ -1,9 +1,9 @@
 appId: com.zyx.academy.nativeparity
-name: Verified Student browser handoff and protected library
+name: Verified Student dashboard, inbox acknowledgement and logout
 ---
 - launchApp:
     clearState: true
-- openLink: "zyx-native-parity://sign-in?next=%2Foffline&locale=id"
+- openLink: "zyx-native-parity://sign-in?next=%2Fdashboard&locale=id"
 - extendedWaitUntil:
     visible: "(Masuk dengan Google|Sign in with Google)"
     timeout: 30000
@@ -26,15 +26,41 @@ name: Verified Student browser handoff and protected library
 - tapOn: Continue as preview student
 - extendedWaitUntil:
     visible:
-      id: offline-library-list
+      id: student-dashboard-preview
     timeout: 45000
+- extendedWaitUntil:
+    visible: "(Notifikasi, 1 belum dibaca|Notifications, 1 unread)"
+    timeout: 20000
+- tapOn:
+    id: student-inbox
+- extendedWaitUntil:
+    visible:
+      id: ${PREVIEW_INBOX_ROW}
+    timeout: 20000
+- assertNotVisible: ".*Private preview update.*"
+- tapOn:
+    id: ${PREVIEW_INBOX_ROW}
+- extendedWaitUntil:
+    notVisible:
+      id: student-inbox-title
+    timeout: 20000
+- tapOn:
+    id: student-inbox
+- extendedWaitUntil:
+    visible:
+      id: ${PREVIEW_INBOX_ROW}
+    timeout: 20000
+- assertNotVisible:
+    id: student-inbox-mark-all
+- tapOn:
+    id: student-inbox-close
 - openLink: "zyx-native-parity://sign-out?locale=id"
 - extendedWaitUntil:
     visible: '(Kamu sudah keluar\.|You are signed out\.)'
     timeout: 30000
-- openLink: "zyx-native-parity://offline?locale=id"
+- openLink: "zyx-native-parity://dashboard"
 - extendedWaitUntil:
-    visible: "(Masuk untuk melihat bacaan Anda|Sign in to see your readings|Hubungkan ke internet untuk memeriksa akses materi Anda.|Connect to the internet to check your access to these materials.)"
+    visible: "(Masuk dengan Google|Sign in with Google)"
     timeout: 30000
 - assertNotVisible:
-    id: offline-library-list
+    id: student-inbox
