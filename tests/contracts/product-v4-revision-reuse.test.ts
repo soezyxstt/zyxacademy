@@ -33,7 +33,7 @@ function snapshot(bundle: Bundle, importId = rootImportId, root = rootImportId):
   return {
     importId, checksum: bundle.checksum, sourceUriOrKey: `${importId}.zip`, stagingAuditId: `audit-${importId}`, stagingRunId: "run",
     importState: { bundleType: "product", bundleId: bundle.manifest.bundleId, courseId: "legacy-course", version: 4, status: "draft", validationReport: { revisionLineage: { schema: "authoring-revision.v1", rootImportId: root } } },
-    bundle, binding: { importId, courseId: bundle.manifest.courseId, runId: "run", revision: Number.parseInt(bundle.checksum.slice(0, 8), 16) + 1,
+    bundle, binding: { purpose: "pdf", importId, courseId: bundle.manifest.courseId, runId: "run", revision: Number.parseInt(bundle.checksum.slice(0, 8), 16) + 1,
       rendererChecksum: hash, dependencyChecksum: productV4DependencyChecksum(bundle, rows), contractChecksum: hash, playbookChecksum: hash, fontChecksum: hash, assetChecksum: hash,
       printProfile: "fixed-a4", policyRevision: PRODUCT_V4_VERIFICATION_POLICY, browserProvider: "cloudflare", browserVersion: "152.0.7977.64", executionOrigin: "https://staging.zyxacademy.com",
       targetInputHashes: productV4TargetInputHashes(bundle, rows, emptyAssets),
@@ -62,7 +62,6 @@ function observed(requirement: ProductV4VerificationRequirement): ProductV4Obser
   if (requirement.layer === "print") {
     result.pageCount = 1;
     if (requirement.artifactType === "image/png") result.artifacts[0].pageNumber = 1;
-    else result.artifacts.push({ id: "page", mediaType: "image/png", bytes: png, pageNumber: 1 });
   }
   return result;
 }
@@ -124,7 +123,7 @@ test("a real card-only revision reuses unchanged target checks and PDF with a ne
   expect(f.objects.get(buildProductVerificationKey(second.plan.planHash, currentPdf.id))).toEqual(pdf);
 });
 
-test("a real Diktat edit reuses the unchanged Article while rerunning both print checks", async () => {
+test("a real Diktat edit reuses the unchanged Article while regenerating the final PDF", async () => {
   const original = buildLocalVerificationFixture().bundle;
   const f = fixture(original);
   await f.process();
@@ -154,15 +153,15 @@ test("cold legacy checkpoints cause an automatic evidence-version bump and fresh
   f.mutable.snapshot = snapshot(next, revisionImportId);
   const result = await f.process();
   expect(result.evaluation.ready).toBe(true);
-  expect(f.calls.length - before).toBe(result.plan.requirements.length - 1);
+  expect(f.calls.length - before).toBe(result.plan.requirements.length);
 });
 
-test("missing pages, changed canonical PDF, tampered proof, and storage failure never preserve Diktat version", async () => {
+test("missing PDF bytes, changed canonical PDF, tampered proof, and storage failure never preserve Diktat version", async () => {
   const f = fixture();
   const first = await f.process();
   const originalObjects = new Map(f.objects);
   const reset = () => { f.objects.clear(); for (const [key, value] of originalObjects) f.objects.set(key, value); };
-  const pdfPage = first.receipt.results.filter(result => first.plan.requirements.find(check => check.id === result.checkId)?.layer === "print").flatMap(result => result.artifacts).find(artifact => artifact.mediaType === "image/png")!;
+  const pdfPage = first.receipt.results.filter(result => first.plan.requirements.find(check => check.id === result.checkId)?.layer === "print").flatMap(result => result.artifacts).find(artifact => artifact.mediaType === "application/pdf")!;
   f.objects.delete(buildProductVerificationKey(first.plan.planHash, pdfPage.id));
   expect((await f.select()).preserveUnchangedDiktatIds).toEqual([]);
   reset(); f.objects.set(f.mutable.canonicalKey, new TextEncoder().encode("%PDF-different"));

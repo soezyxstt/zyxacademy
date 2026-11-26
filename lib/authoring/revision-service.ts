@@ -445,7 +445,7 @@ export async function reviewRevisionDraft(input: RevisionReviewInput) {
   return { kind: input.kind, importId: row.id, revision: row.checksum, result, reusedUnits: reuseRequested ? reuse.units : [], nextActions: ["authoring.plan_release"] };
 }
 
-type LoadedReleaseEntry = { row: Row; bundle: Bundle; base: Row; baseBundle: Bundle; scope: Awaited<ReturnType<typeof scopeFor>>; lineage: Lineage; verification: Awaited<ReturnType<typeof getProductV4VerificationReadiness>> | null; reviewFingerprint?: string; canonicalIdeaFingerprint?: string; canonicalIdeaIds?: string[]; retiredReplacements?: string[]; canonicalAuxiliaryFingerprint?: string };
+type LoadedReleaseEntry = { row: Row; bundle: Bundle; base: Row; baseBundle: Bundle; scope: Awaited<ReturnType<typeof scopeFor>>; lineage: Lineage; verification: Awaited<ReturnType<typeof getProductV4VerificationReadiness>> | null; pdfVerification: Awaited<ReturnType<typeof getProductV4VerificationReadiness>> | null; reviewFingerprint?: string; canonicalIdeaFingerprint?: string; canonicalIdeaIds?: string[]; retiredReplacements?: string[]; canonicalAuxiliaryFingerprint?: string };
 type ReleaseBlocker = { code: string; importId?: string; entityId?: string; action: string };
 async function auxiliarySnapshot(entry: LoadedReleaseEntry, connection: typeof db | Tx = db, lock = false) {
   const bundles = [ideaBundle(entry.baseBundle),ideaBundle(entry.bundle)];
@@ -519,11 +519,14 @@ async function prepareRelease(input: RevisionReleaseInput) {
     const base = await rowFor(lineage.baseImportId, lineage.baseRevision, kindOf(row));
     const baseBundle = await bundleFor(base);
     let verification: LoadedReleaseEntry["verification"] = null;
+    let pdfVerification: LoadedReleaseEntry["pdfVerification"] = null;
     if (row.version === 4) {
       const ref = row.validationReport.productV4Verification as { runId?: string } | undefined;
       if (ref?.runId) verification = await getProductV4VerificationReadiness(row.id, ref.runId).catch(() => null);
+      const pdfRef = row.validationReport.productV4PdfGeneration as { runId?: string } | undefined;
+      if (pdfRef?.runId && "products" in bundle && bundle.products.some(product => product.productType === "diktat")) pdfVerification = await getProductV4VerificationReadiness(row.id, pdfRef.runId, "pdf").catch(() => null);
     }
-    entries.push({ row, bundle, base, baseBundle, scope, lineage, verification });
+    entries.push({ row, bundle, base, baseBundle, scope, lineage, verification, pdfVerification });
   }
   if (new Set(entries.map(entry => entry.scope.courseId)).size !== 1) throw new Error("REVISION_RELEASE_COURSE_MISMATCH");
   if (new Set(entries.map(entry => entry.lineage.rootImportId)).size !== entries.length) throw new Error("REVISION_RELEASE_DUPLICATE_LINEAGE");
@@ -604,7 +607,7 @@ async function prepareRelease(input: RevisionReleaseInput) {
       await attestRetiredAuxiliary(entry,blockers);
       canonicalForHash.push(entry.canonicalAuxiliaryFingerprint);
     } else {
-      const readiness = await currentPublisherProductReadiness(row.id, input.actorId, { v4Verification: entry.verification });
+      const readiness = await currentPublisherProductReadiness(row.id, input.actorId, { v4Verification: entry.verification, v4PdfVerification: entry.pdfVerification });
       for (const code of new Set(readiness.blockingIssueCodes)) {
         const incomingIdeas = entries.filter(candidate => candidate.row.bundleType === "idea").map(candidate => ideaBundle(candidate.bundle));
         if (incomingIdeas.length && ["PRODUCT_BUNDLE_DEPENDENCY_NEEDS_REVIEW", "PRODUCT_TRACEABILITY_INVALID", "PRODUCT_V5_LIVE_DEPENDENCY_MISMATCH"].includes(code)) {
@@ -655,6 +658,7 @@ export async function publishRevisionRelease(input: RevisionReleaseInput & { exp
   if (prepared.manifest.blockers.length) throw new Error(`REVISION_RELEASE_BLOCKED:${prepared.manifest.blockers.map(blocker => blocker.code).join(",")}`);
   const dispatchCourses = new Set<string>();
   const verifications = new Map(prepared.entries.filter(entry => entry.verification).map(entry => [entry.row.id, entry.verification]));
+  const pdfVerifications = new Map(prepared.entries.map(entry => [entry.row.id, entry.pdfVerification]));
   const replacements = new Set(prepared.entries.filter(entry => entry.row.bundleType === "idea" && entry.base.status === "published").flatMap(entry => {
     const before = new Map(inventory(entry.baseBundle).map(item => [revisionEntityKey(item.entityType, item.entityId), item.entityHash]));
     return [...inventory(entry.bundle).filter(item => before.has(revisionEntityKey(item.entityType, item.entityId)) && before.get(revisionEntityKey(item.entityType, item.entityId)) !== item.entityHash).map(item => revisionEntityKey(item.entityType, item.entityId)), ...(entry.retiredReplacements??[])];
@@ -705,7 +709,7 @@ export async function publishRevisionRelease(input: RevisionReleaseInput & { exp
       await assertProspectiveReleaseDependencies({ productBundle: productBundle(entry.bundle), ideaDrafts, scope: entry.scope, connection: tx });
     }
     await assertRevisionVerificationReleaseContext({ entries: prepared.entries.map(({ row, bundle }) => ({ row, bundle })), connection: tx });
-    return withRevisionPublication({ tx, replacements, unchangedProducts, verifications, dispatchCourses }, async () => {
+    return withRevisionPublication({ tx, replacements, unchangedProducts, verifications, pdfVerifications, dispatchCourses }, async () => {
       // Provenance has no retired status and its semantic span is unique. Remove
       // only superseded, unshared rows before inserting replacement spans. The
       // immutable predecessor archive and its inventory retain the old evidence.

@@ -15,7 +15,8 @@ export function prepareTask(event: QueueEvent, environment: keyof typeof workerB
   if (!Object.hasOwn(workerBranches, environment)) throw new Error("QUEUE_ENVIRONMENT_INVALID");
   if (!/^[A-Za-z0-9][A-Za-z0-9_./-]*$/.test(event.name)) throw new Error("QUEUE_EVENT_INVALID");
   const origin = `https://${workerBranches[environment]}-zyxcompute.compute.c-3.ap-southeast-1.aws.neon.tech`;
-  const queue = event.queue ?? (pdfEvents.has(event.name) ? "pdf" : "default");
+  const generatesProductPdf = event.name === "product.verification.requested" && event.data.purpose === "pdf";
+  const queue = event.queue ?? (pdfEvents.has(event.name) || generatesProductPdf ? "pdf" : "default");
   const parent = `projects/zyx-academy/locations/asia-southeast1/queues/zyx-${environment}-${queue}`;
   let id = event.id ?? randomUUID();
   let delay = event.delaySeconds ?? 0;

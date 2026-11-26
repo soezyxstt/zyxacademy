@@ -4,8 +4,8 @@ import { operateCloudTask, v4OperationQueueProvider } from "../../scripts/author
 import { prepareTask } from "@/lib/queue/cloud-tasks";
 
 const identity = { importId: "impor-product-revision-11111111-1111-4111-8111-111111111111", runId: "run", planHash: "a".repeat(64), attemptId: "22222222-2222-4222-8222-222222222222" };
-const taskFor = (environment: "staging" | "production") => prepareTask({ name: "product.verification.requested", id: `product-verification-${identity.planHash}-${identity.attemptId}`, data: identity }, environment).task;
-function fixture(environment: "staging" | "production" = "staging", response: Record<string, unknown> = {}, status = 200) {
+const taskFor = (environment: "staging" | "production", purpose: "logic" | "pdf" = "logic") => prepareTask({ name: "product.verification.requested", id: `product-verification-${identity.planHash}-${identity.attemptId}`, data: { ...identity, purpose } }, environment).task;
+function fixture(environment: "staging" | "production" = "staging", response: Record<string, unknown> = {}, status = 200, purpose: "logic" | "pdf" = "logic") {
   const calls: Array<{ url: string; method: string }> = [];
   let tokens = 0;
   return {
@@ -14,7 +14,7 @@ function fixture(environment: "staging" | "production" = "staging", response: Re
       calls.push({ url: String(url), method: init?.method ?? "GET" });
       expect(new Headers(init?.headers).get("Authorization")).toBe("Bearer test-only-token");
       expect(init?.redirect).toBe("error");
-      return init?.method === "DELETE" ? new Response(null, { status: 204 }) : Response.json({ name: taskFor(environment).name, dispatchCount: 0, responseCount: 0, ...response }, { status });
+      return init?.method === "DELETE" ? new Response(null, { status: 204 }) : Response.json({ name: taskFor(environment, purpose).name, dispatchCount: 0, responseCount: 0, ...response }, { status });
     }) as typeof fetch },
   };
 }
@@ -59,6 +59,20 @@ test("cancellation deletes only the exact pending delivery and never claims an i
   expect(running.calls).toEqual([]);
 });
 
+test("PDF and logic maintenance resolve their separate queues for the same exact attempt identity", async () => {
+  const logic = taskFor("staging", "logic"), pdf = taskFor("staging", "pdf");
+  expect(logic.name).toContain("/queues/zyx-staging-default/");
+  expect(pdf.name).toContain("/queues/zyx-staging-pdf/");
+  for (const purpose of ["logic", "pdf"] as const) {
+    const f = fixture("staging", {}, 200, purpose);
+    await operateCloudTask({ ...identity, purpose, environment: "staging", action: "cancel", verificationStatus: "pending" }, f.ports);
+    expect(f.calls).toEqual(["GET", "DELETE"].map(method => ({ method, url: `https://cloudtasks.googleapis.com/v2/${taskFor("staging", purpose).name}` })));
+  }
+  const invalid = fixture();
+  await expect(operateCloudTask({ ...identity, purpose: "invalid" as never, environment: "staging", action: "inspect" }, invalid.ports)).rejects.toThrow("PURPOSE_INVALID");
+  expect(invalid.tokenCount()).toBe(0);
+});
+
 test("cross-environment responses and malformed attempt identities cannot delete a task", async () => {
   const wrong = fixture("production");
   await expect(operateCloudTask({ ...identity, environment: "staging", action: "cancel", verificationStatus: "pending" }, wrong.ports)).rejects.toThrow("IDENTITY_MISMATCH");
@@ -72,10 +86,11 @@ test("cross-environment responses and malformed attempt identities cannot delete
 
 test("the active maintenance workflow uses the selected queue and excludes the legacy fixture copier", () => {
   const workflow = Bun.YAML.parse(readFileSync(".github/workflows/v4-verification.yml", "utf8")) as {
-    on: { workflow_dispatch: { inputs: { action: { options: string[] } } } };
+    on: { workflow_dispatch: { inputs: { action: { options: string[] }; purpose: { options: string[]; default: string } } } };
     jobs: Record<string, { env?: Record<string, string>; permissions?: Record<string, string>; steps: Array<{ name?: string; if?: string; uses?: string }> }>;
   };
   expect(workflow.on.workflow_dispatch.inputs.action.options).toEqual(["inspect", "retry", "evidence", "cancel"]);
+  expect(workflow.on.workflow_dispatch.inputs.purpose).toMatchObject({ options: ["logic", "pdf"], default: "logic" });
   expect(Object.keys(workflow.jobs)).toEqual(["verify"]);
   expect(workflow.jobs.verify.env?.QUEUE_PROVIDER).toContain("vars.QUEUE_PROVIDER");
   expect(workflow.jobs.verify.permissions?.["id-token"]).toBe("write");

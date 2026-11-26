@@ -37,7 +37,7 @@ test("operator selects an explicit draft, run and checksum and cannot choose lat
   for (const change of [{ action: "other" }, { correlationId: "another" }, { afterSnapshot: { checksum: "c".repeat(64) } }]) expect(() => assertProductV4LocalDraft(row, input, { ...staging, ...change })).toThrow("EXACT_DRAFT_REQUIRED");
   expect(() => assertProductV4LocalDraft(row, input, null)).toThrow("EXACT_DRAFT_REQUIRED");
   expect(validateProductV4LocalInput({ ...input, retry: true }).retry).toBe(true);
-  for (const bad of [{ ...input, retry: "true" }, { ...input, runId: "mcp-run-" + "-".repeat(36) }, { ...input, extra: 1 }]) expect(() => validateProductV4LocalInput(bad)).toThrow("EXACT_INPUT_REQUIRED");
+  for (const bad of [{ ...input, retry: "true" }, { ...input, runId: "mcp-run-" + "-".repeat(36) }, { ...input, extra: 1 }, { ...input, purpose: "logic" }, { ...input, purpose: "pdf" }]) expect(() => validateProductV4LocalInput(bad)).toThrow("EXACT_INPUT_REQUIRED");
 });
 
 test("local lock serializes a draft on this machine and can be reacquired after release", async () => {

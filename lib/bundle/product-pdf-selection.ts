@@ -46,7 +46,7 @@ export function isCurrentProductV4PdfAttachment(attachment: unknown, planHash: s
   return value.planHash === planHash && value.attemptId === attemptId && value.receiptSignature === receiptSignature;
 }
 
-/** Resolve the one PDF artifact for this Diktat from the current trusted receipt. */
+/** Resolve this Diktat's PDF from its independent, current signed PDF receipt. */
 export function resolveProductV4PdfBinding(input: {
   importId: string;
   diktatId: string;
@@ -54,9 +54,9 @@ export function resolveProductV4PdfBinding(input: {
   verification: Verification | null | undefined;
 }): ProductV4PdfBinding | null {
   const { verification } = input;
-  if (!verification?.evaluation.ready || !verification.attemptId) return null;
+  if (!verification?.evaluation.ready || !verification.attemptId || verification.plan.binding.purpose !== "pdf") return null;
   const { plan, attemptId } = verification;
-  const ref = input.validationReport?.productV4Verification as Record<string, unknown> | undefined;
+  const ref = input.validationReport?.productV4PdfGeneration as Record<string, unknown> | undefined;
   if (plan.binding.importId !== input.importId || !verification.stagingAuditId || ref?.stagingAuditId !== verification.stagingAuditId || ref.planHash !== plan.planHash || ref.attemptId !== attemptId || ref.runId !== plan.binding.runId) return null;
   try {
     const receipt = parseProductV4VerificationReceipt(verification.receipt);
@@ -66,7 +66,7 @@ export function resolveProductV4PdfBinding(input: {
     const results = receipt.results.filter(result => result.checkId === requirements[0].id);
     const result = results[0];
     const artifacts = result?.artifacts.filter(artifact => artifact.mediaType === "application/pdf") ?? [];
-    if (results.length !== 1 || result.status !== "PASS" || !result.pageCount || artifacts.length !== 1 || !artifacts[0].id.startsWith(`artifact-${attemptId}-`)) return null;
+    if (results.length !== 1 || result.status !== "PASS" || !result.pageCount || artifacts.length !== 1 || !artifacts[0].id.startsWith(`artifact-${attemptId}-`) || !plan.binding.printProfile) return null;
     return { storageKey: buildProductVerificationKey(plan.planHash, artifacts[0].id), printProfile: plan.binding.printProfile, pageCount: result.pageCount, checksum: artifacts[0].checksum, byteLength: artifacts[0].byteLength };
   } catch {
     return null;

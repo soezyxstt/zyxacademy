@@ -8,7 +8,7 @@ description: Menyusun Idea Bundle V3 dari Source Pack tervalidasi dengan satu po
 Utamakan isi dan bukti sumber melalui input langsung yang server dukung. Untuk mengubah Idea tersimpan, gunakan [zyx-content-revisions](../zyx-content-revisions/SKILL.md) tanpa membangun ulang Source Pack.
 
 <!-- BEGIN:environment-connection -->
-Gunakan koneksi MCP `zyx-stg` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.5"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
+Gunakan koneksi MCP `zyx-stg` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.6"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
 
 Panggil nama tool dari `tools/list`. Nama bertitik di skill ini merujuk ke operasi; nama panggilan biasanya mengganti titik dengan `_`, seperti `admin_environment`. Pengecualian: `authoring.get_solution_collection_review_context` memakai `authoring_solution_review_context`. Pertahankan nama bertitik pada argumen `operation` serta identitas konfirmasi dan receipt.
 <!-- END:environment-connection -->
@@ -17,7 +17,7 @@ Jika akses kedaluwarsa atau izin kurang, ikuti [pemulihan koneksi](../zyx-operat
 
 ## Bootstrap dan sumber
 
-1. Panggil `workflow.get_playbook` pada awal atau saat lanjut, dengan identitas `{"skill": "zyx-idea-bundle-mcp", "stage": "idea", "bootstrapProtocol": 1, "pluginVersion": "0.5.5"}` dan `clientCapabilities` nyata. Baca `common/execution`, `idea/workflow`, serta `idea/decomposition`. Jika gagal atau tidak kompatibel, hentikan tahap dan sampaikan `remediation`.
+1. Panggil `workflow.get_playbook` pada awal atau saat lanjut, dengan identitas `{"skill": "zyx-idea-bundle-mcp", "stage": "idea", "bootstrapProtocol": 1, "pluginVersion": "0.5.6"}` dan `clientCapabilities` nyata. Baca `common/execution`, `idea/workflow`, serta `idea/decomposition`. Jika gagal atau tidak kompatibel, hentikan tahap dan sampaikan `remediation`.
 2. Untuk draft baru, temukan course dan bab lewat katalog. Pilih Source Pack tervalidasi dengan `source.list_packs` serta `source.get_pack`, atau jalankan [zyx-source-pack-mcp](../zyx-source-pack-mcp/SKILL.md).
 3. Mulai `workflow.start` dengan `workflow: "idea_product"`, scope katalog, bootstrap, dan `sourcePackImportId` atau `sourcePackToken` yang tepat. Ambil `workflow.get_contract`. Baca seluruh dokumen melalui `source.get_pack` dengan `packId`, `runToken`, dan `documentId` per dokumen.
 4. Periksa `knowledge.search_course_ideas`, `knowledge.search_ideas`, serta `authoring.list_imports` untuk mencegah duplikasi. Gunakan versi sumber yang terikat run, bukan pack terbaru yang namanya sama.

@@ -6,7 +6,7 @@ description: Merevisi Idea V3 dan Product belajar V3/V4/V5 yang tersimpan dengan
 # Revisi konten akademik Zyx
 
 <!-- BEGIN:environment-connection -->
-Gunakan koneksi MCP `zyx-stg` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.5"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
+Gunakan koneksi MCP `zyx-stg` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.6"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
 
 Panggil nama tool dari `tools/list`. Nama bertitik di skill ini merujuk ke operasi; nama panggilan biasanya mengganti titik dengan `_`, seperti `admin_environment`. Pengecualian: `authoring.get_solution_collection_review_context` memakai `authoring_solution_review_context`. Pertahankan nama bertitik pada argumen `operation` serta identitas konfirmasi dan receipt.
 <!-- END:environment-connection -->
@@ -17,7 +17,7 @@ Jika akses kedaluwarsa atau izin kurang, ikuti [pemulihan koneksi](../zyx-operat
 
 Verifikasi target lewat `admin.environment`, lalu `admin.capabilities` domain `authoring` dengan `expectedEnvironment` dan `expectedOrigin`. Baca, edit, review dan rilis memakai scope `authoring:read`, `authoring:stage`, `authoring:review`, `authoring:publish`. Discovery tidak memberi izin; gunakan compact/target hanya bila schema server mendukungnya.
 
-Pilih `kind: "idea"` atau `"product"`. Ambil `workflow.get_playbook` dengan `skill: "zyx-idea-bundle-mcp"` atau `skill: "zyx-product-bundle-mcp"`, tahap yang cocok, `bootstrapProtocol: 1`, `pluginVersion: "0.5.5"` dan kemampuan host nyata. Ikuti modul aktif; hentikan saat incompatible. Skill ini bukan ID bootstrap. Product tetap memerlukan Creator, Critic dan Student POV terpisah.
+Pilih `kind: "idea"` atau `"product"`. Ambil `workflow.get_playbook` dengan `skill: "zyx-idea-bundle-mcp"` atau `skill: "zyx-product-bundle-mcp"`, tahap yang cocok, `bootstrapProtocol: 1`, `pluginVersion: "0.5.6"` dan kemampuan host nyata. Ikuti modul aktif; hentikan saat incompatible. Skill ini bukan ID bootstrap. Product tetap memerlukan Creator, Critic dan Student POV terpisah.
 
 Protokol `authoring-revision` memakai bootstrap serta revisi tepat, tanpa `dryRun`, `requestKey`, `confirmationToken` atau field target environment. Artifact tersimpan memberi scope; tidak perlu Source Pack baru atau run lama. Pertahankan versi asal; V1/V2 dan konversi otomatis tidak didukung.
 
@@ -56,7 +56,9 @@ Untuk Diktat turunan, periksa unit terdampak beserta `sourceElementRefs`. Bila m
 
 Jika bukti cetak hilang atau runtime berubah setelah draft terbentuk, gunakan `patch_revision` dengan `refreshPrintEvidence: true` dan `operations: []` bila tersedia. Server memeriksa ulang bukti lalu menaikkan versi cetak yang perlu, tanpa edit isi palsu. Bila bukti masih cocok, hasil tetap no-op. Lanjutkan dari identitas hasil dan verifikasi ulang sebelum review/rilis.
 
-V4 memerlukan receipt pada revisi tepat dan PDF bila plan memintanya. Jika V4 merujuk Idea kandidat dalam rilis yang sama, panggil `authoring.prepare_revision_verification` dahulu. Baca `verification.execution` untuk target/provider aktif. `not_started` atau plan berubah memerlukan `authoring.verify_product_bundle` dengan identitas kini, bukan edit isi atau polling terus. Pantau `authoring.get_verification` pada `planHash` tepat. Operator lokal hanya untuk target yang didukung; jangan beralih environment. Server boleh memakai ulang bukti target yang cocok, tetapi selalu memberi receipt untuk plan baru. Bukti lama atau tidak lengkap perlu cek baru. V3 mengikuti bukti profilnya; V5 memakai lima keputusan per item dan `expectedReviewVersion` terbaru.
+V4 memakai `purpose: "logic"` secara bawaan pada `verify_product_bundle` dan `get_verification`. Struktur, rujukan, notasi dan model yang didukung tidak memerlukan browser, PNG atau PDF. Review sumber, hitungan dan alasan tetap wajib dan mengikat receipt logika revisi tepat. Jika V4 merujuk Idea kandidat dalam rilis yang sama, panggil `authoring.prepare_revision_verification` dahulu. `not_started` atau plan berubah perlu request untuk tujuan dan identitas kini; jangan mengedit isi atau polling terus.
+
+Saat PDF akhir Diktat diperlukan, minta `purpose: "pdf"` dan ikuti `verification.pdf.execution`. Server memakai ulang target yang tetap cocok serta membuat ulang target yang berubah. Publikasi tetap memerlukan byte PDF kanonis dan lineage kini untuk Diktat, tanpa syarat screenshot, gambar halaman atau inspeksi visual. Artikel V4 tanpa Diktat tidak perlu PDF. Jangan menukar plan hash logika/PDF atau merender pada tiap edit. V2/V3 tetap memakai bukti profil lama; V5 memakai lima keputusan per item dan `expectedReviewVersion` terbaru.
 
 Replan setelah review/verifikasi. Dengan publikasi yang sudah diizinkan, panggil `authoring.publish_release` memakai entry sama dan `expectedPlanHash` terbaru. Rilis atomik memeriksa ulang reviewer, revisi, dependensi dan bukti; kegagalan mempertahankan versi live lama. Patch sukses bukan approval.
 

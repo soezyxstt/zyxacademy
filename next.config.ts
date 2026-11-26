@@ -25,6 +25,7 @@ const nextConfig: NextConfig = {
       "./lib/query/{client,http,keys,invalidation}.ts", "./lib/{activity-signal,auth-client}.ts",
       "./hooks/{use-article-reading-progress,use-query-account}.ts",
       "./lib/question-authoring-contract.ts", "./lib/authoring/playbooks/**/*",
+      "./lib/tutor/visual-contracts.ts", "./lib/flowchart.ts",
       "./next.config.ts", "./scripts/authoring/prepare-web-verification.ts", "./scripts/authoring/local-v4-bundle.ts",
       "./components/coding/**/*", "./lib/coding/**/*", "./public/coding/worker.js",
       "./components/course/**/*.tsx", "./components/ui/{slider,scientific-input}.tsx",

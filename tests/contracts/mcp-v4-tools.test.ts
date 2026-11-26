@@ -27,6 +27,45 @@ test("MCP catalog exposes six typed V4 tools with correct read/write hints", asy
     expect(tools.find(tool => tool.name === "source.extract_figure")!.annotations!.readOnlyHint).toBe(false);
     expect(tools.find(tool => tool.name === "authoring.get_verification")!.annotations!.readOnlyHint).toBe(true);
     expect(tools.find(tool => tool.name === "authoring.verify_product_bundle")!.inputSchema.required).toContain("expectedContentHash");
+    for (const name of ["authoring.verify_product_bundle", "authoring.get_verification"]) {
+      expect(tools.find(tool => tool.name === name)!.inputSchema.properties?.purpose).toMatchObject({ enum: ["logic", "pdf"], default: "logic" });
+    }
+  } finally { await connection.close(); }
+});
+
+test("MCP defaults to logic and keeps explicit PDF reads, retries and plan hashes separate", async () => {
+  const contentHash = "a".repeat(64), logicHash = "b".repeat(64), pdfHash = "d".repeat(64);
+  const seen: string[] = [];
+  let requests = 0;
+  const connection = await connect(principal.scopes, {
+    getImport: async () => ({ courseId: "legacy-course" }) as never,
+    courseAliases: async () => new Set(["canonical-course", "legacy-course"]), assertStagingScope: async () => {},
+    readiness: async (_id, _run, purpose) => {
+      seen.push(`readiness:${purpose}`);
+      return { plan: { contentHash, planHash: purpose === "pdf" ? pdfHash : logicHash, purpose }, state: { status: "not_started" } } as never;
+    },
+    request: async input => {
+      requests++;
+      seen.push(`request:${input.purpose}:${input.retry === true}`);
+      expect(input.expectedPlanHash).toBe(input.purpose === "pdf" ? pdfHash : logicHash);
+      return { jobId: input.expectedPlanHash } as never;
+    },
+    verification: async input => {
+      seen.push(`get:${input.purpose}`);
+      throw new Error("PRODUCT_V4_VERIFICATION_JOB_NOT_FOUND");
+    },
+  });
+  try {
+    const common = { runToken: runToken(), bootstrapToken: bootstrapToken("actor", "product"), importId: "allowed" };
+    const logic = await connection.client.callTool({ name: "authoring.verify_product_bundle", arguments: { ...common, expectedContentHash: contentHash } });
+    expect(logic.structuredContent).toMatchObject({ ok: true, result: { purpose: "logic", execution: { purpose: "logic", provider: null, mode: "server_job" } } });
+    const pdf = await connection.client.callTool({ name: "authoring.verify_product_bundle", arguments: { ...common, expectedContentHash: contentHash, expectedPlanHash: pdfHash, purpose: "pdf", retry: true } });
+    expect(pdf.structuredContent).toMatchObject({ ok: true, result: { purpose: "pdf", execution: { purpose: "pdf" } } });
+    const readPdf = await connection.client.callTool({ name: "authoring.get_verification", arguments: { ...common, planHash: pdfHash, purpose: "pdf" } });
+    expect(readPdf.structuredContent).toMatchObject({ ok: true, result: { purpose: "pdf", plan: { purpose: "pdf", planHash: pdfHash }, state: { status: "not_started" } } });
+    expect((await connection.client.callTool({ name: "authoring.verify_product_bundle", arguments: { ...common, expectedContentHash: contentHash, expectedPlanHash: logicHash, purpose: "pdf" } })).structuredContent).toMatchObject({ ok: false, error: "PRODUCT_V4_VERIFICATION_CONFLICT", currentVerification: { planHash: pdfHash } });
+    expect(requests).toBe(2);
+    expect(seen).toEqual(["readiness:logic", "request:logic:false", "readiness:pdf", "request:pdf:true", "get:pdf", "readiness:pdf", "readiness:pdf"]);
   } finally { await connection.close(); }
 });
 

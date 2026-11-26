@@ -34,7 +34,7 @@ export async function selectProductV4ReusableDiktatVersions(input: {
   try {
     const ports = injected ?? await applicationPorts();
     const row = { ...input.source, courseId: input.source.courseId, bundleId: input.candidate.manifest.bundleId, checksum: input.candidate.checksum };
-    const binding = await ports.binding({ row, bundle: input.candidate, runId: input.runId });
+    const binding = { ...await ports.binding({ row, bundle: input.candidate, runId: input.runId }), purpose: "pdf" as const };
     const snapshot: ProductV4VerificationSnapshot = {
       importId: row.id, checksum: row.checksum, sourceUriOrKey: "unstaged-revision-candidate", stagingAuditId: "unstaged-revision-candidate", stagingRunId: input.runId,
       importState: { bundleType: "product", bundleId: row.bundleId, courseId: row.courseId, version: 4, status: "draft", validationReport: { revisionLineage: { schema: "authoring-revision.v1", rootImportId: root } } },
@@ -45,7 +45,7 @@ export async function selectProductV4ReusableDiktatVersions(input: {
     const preserveUnchangedDiktatIds: string[] = [];
     for (const product of unchanged) {
       const requirements = plan.requirements.filter(check => check.layer === "print" && check.target === product.id);
-      if (requirements.length !== 2 || !requirements.some(check => check.artifactType === "application/pdf") || !requirements.some(check => check.artifactType === "image/png")) continue;
+      if (requirements.length !== 1 || requirements[0].artifactType !== "application/pdf") continue;
       const requirement = requirements.find(check => check.artifactType === "application/pdf")!;
       const scope = productV4ReuseScope(snapshot, plan, requirement, 0, null);
       const proof = scope ? await readProductV4ReuseProof({ scope, requirement, authority, read: key => ports.read(key) }) : null;

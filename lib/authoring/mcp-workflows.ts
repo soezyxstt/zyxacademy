@@ -1344,8 +1344,9 @@ export function flexibleRevisionContract(kind?: "idea" | "product") {
 }
 
 export function productBundleV3Contract() {
-  const execution = productV4ExecutionCapability();
-  const v4 = { schemaVersion: "product-bundle.v4", articleSchemaVersion: "article.v4", orderedPartKinds: ["markdown", "math_unit", "visual_ref", "worked_example"], publicationReady: "derived from current trusted verification, anchored review, explicit decisions for present Article sections, and PDF evidence for present Diktats", scopedSymbolDefinitions: true,
+  const execution = productV4ExecutionCapability("logic");
+  const pdfExecution = productV4ExecutionCapability("pdf");
+  const v4 = { schemaVersion: "product-bundle.v4", articleSchemaVersion: "article.v4", orderedPartKinds: ["markdown", "math_unit", "visual_ref", "worked_example"], publicationReady: "requires the current logic receipt, anchored semantic review, explicit decisions for present Article sections, and exact canonical PDF bytes with current lineage only for present Diktats; screenshots and visual inspection are not publication gates", scopedSymbolDefinitions: true,
       schemaDocuments: productV4SchemaDocuments().map(({ body: _body, ...document }) => document),
       schemaRetrieval: "GET each path on the same origin as this MCP endpoint. Public type definitions only, no credentials required. Verify the SHA-256 of the response bytes; on 409 refresh the playbook and contract. product is the shared structural entity schema; apply all V4 semantic rules below and use authoring.validate_product_bundle for final validation.",
       semanticRules: {
@@ -1353,17 +1354,30 @@ export function productBundleV3Contract() {
         article: "Require nonempty sections, empty top-level blocks, and nonempty ordered parts in every section block. Part, relation and worked-step IDs are unique across the Article. A supplied contentMarkdown must equal the projection derived from parts; omit it to let the server derive it.",
         mathematics: "Each math_unit has meaningMarkdown and exactly one of latex or relations. Cases require conditionLatex for each relation. symbolRefs resolve within that math_unit. Use explicit math delimiters in prose and scientific multiplication by powers of ten, never numeric e notation.",
         references: "visual_ref.visualId resolves in the Article visuals registry. focusRefs resolve to Article elements. Worked-step sourceElementRefs resolve to previously available elements, not forward references.",
-        visuals: "Use the visual schema for the exact family, parameters, controls and bindings. Renderer-owned behavior only; no executable code or persistent remote image URLs. A valid structural visual still requires model, domain, state and print verification.",
+        visuals: "Use the visual schema for the exact family, parameters, controls and bindings. Renderer-owned behavior only; no executable code or persistent remote image URLs. Logic verification checks supported models, domains and references without browser captures. Existing assets retain admission checks. Authors still review scientific assumptions, units and meaning; a supported numerical check does not prove arbitrary mathematics.",
         diktat: "Require authored units. For a standalone Diktat, omit Article lineage and unit sourceElementRefs. Unit Idea coverage matches the Diktat Idea links. Optional Diktat-owned visuals use the typed visual registry and trusted static print assets. For a derived Diktat, supply all three sourceArticle fields, the exact bundled Article, its locked Product dependency, and valid unit sourceElementRefs with complete Article Idea and formula coverage. contentMarkdown equals the projection of units. Each top-level visual_ref requires staticMarkdown; omit staticSnapshot for server derivation or provide the current exact pin.",
         flashcards: "Cards may omit setId and use the default course/chapter collection at publication. A standalone set uses cards: []. Explicitly linked sets and cards resolve in the same bundle.",
-        review: "Combine the pedagogicReview schema with v4ReviewContext for authoring.review_product_bundle. Approval requires current revision, content fingerprint, policy, verification plan and receipt signature, all rubric criteria, and an approved semanticHash decision for every included Article section. For an Article-free bundle use document anchors and no section decisions. Read exact scoped content and references through authoring.get_product_review_context.",
-        verification: "After authorized staging, obtain the exact checksum and staging run from authoring.get_product_review_context. Read verification.execution for the configured target: server_job uses the MCP request/status tools; an available local_operator uses its private launcher. Inspect the actual plan, receipt and artifacts. Structural JSON Schema does not encode cross-reference, lineage, security, numerical, editorial or readiness refinements. Never infer publication readiness from schema validation alone.",
+        review: "Combine the pedagogicReview schema with v4ReviewContext for authoring.review_product_bundle. Approval binds the current revision, content fingerprint, policy and logic plan/receipt, all rubric criteria, and an approved semanticHash decision for every included Article section. Review content, reasoning, sources and supported model assumptions; browser screenshots and visual inspection are optional. For an Article-free bundle use document anchors and no section decisions. Read exact scoped content and references through authoring.get_product_review_context.",
+        verification: "After authorized staging, obtain the exact content hash and staging run from authoring.get_product_review_context. verify_product_bundle and get_verification accept purpose logic (default) or pdf. Logic verifies structure, references, notation, schemas and supported models without browser, PNG or PDF work. Request purpose pdf only when preparing final Diktat artifacts. The server computes a separate print plan and reuses unchanged authenticated PDFs. Review binds the logic receipt; publication additionally requires each present Diktat's canonical current PDF. Structural validation and supported model checks do not prove all scientific claims or replace authored semantic review.",
       },
       capabilities: VISUAL_CAPABILITIES, unsupportedCapabilities: UNSUPPORTED_VISUAL_CAPABILITIES,
       verification: {
         policyVersion: PRODUCT_V4_VERIFICATION_POLICY, requestTool: "authoring.verify_product_bundle", getTool: "authoring.get_verification", origin: "server_observed", localReportsGrantReadiness: false, reviewContextTool: "authoring.get_product_review_context",
+        defaultPurpose: "logic", purposes: ["logic", "pdf"],
         execution,
+        logic: {
+          purpose: "logic", checks: ["structure", "references", "notation", "schemas", "supported_models"],
+          browserRequired: false, screenshotsRequired: false, pdfRequired: false,
+          boundary: "Use during content iteration and before semantic review. The exact logic receipt is separate from PDF readiness and does not prove arbitrary mathematics or observed visual behavior.",
+        },
+        pdf: {
+          purpose: "pdf", execution: pdfExecution, products: ["diktat"],
+          screenshotsRequired: false, pageImagesRequired: false, visualInspectionRequired: false,
+          boundary: "Request explicitly when final Diktat PDFs are needed. The server derives the print plan, checks exact canonical bytes and lineage, and reuses unchanged targets with matching runtime. Changed targets require new artifacts. Article-only bundles need no PDF. Publication still requires current canonical PDFs for every included Diktat.",
+        },
         localOperator: {
+          purpose: "pdf",
+          purposeSelection: "Fixed by the private operator; do not add a purpose field to its input file.",
           launcher: "scripts/authoring/run-product-v4-local.mjs",
           capabilitiesCommand: "node scripts/authoring/run-product-v4-local.mjs --capabilities",
           command: "node scripts/authoring/run-product-v4-local.mjs --input <absolute-input-json-path>",
@@ -1383,10 +1397,10 @@ export function productBundleV3Contract() {
           },
           inputSchemaId: "zyx-product-v4-local-input.v1",
           resultSchemaId: "zyx-product-v4-local-result.v1",
-          result: { successStatuses: ["ready", "not_ready"], attemptStatuses: ["failed", "stale", "execution_failed"], identityFields: ["importId", "runId", "checksum", "planHash", "attemptId"], readyFields: ["sourceRevision", "receiptSignature", "browserProvider", "chromium", "requirementCount", "ready", "artifactCount", "outputDirectory", "planFile", "receiptFile", "inventory"], failure: "A sanitized JSON object with status=error, code and recovery is written to stderr; not_ready and failed attempts exit nonzero." },
+          result: { successStatuses: ["ready", "not_ready"], attemptStatuses: ["failed", "stale", "execution_failed"], identityFields: ["importId", "runId", "checksum", "planHash", "attemptId"], readyFields: ["purpose", "sourceRevision", "receiptSignature", "browserProvider", "chromium", "requirementCount", "ready", "artifactCount", "outputDirectory", "planFile", "receiptFile", "inventory"], failure: "A sanitized JSON object with status=error, code and recovery is written to stderr; not_ready and failed attempts exit nonzero." },
           runtimePins: "Discover browser version, revision, configuredVersion, pinsMatch and runtime fingerprints from --capabilities for the exact clean deployed checkout. The launcher checks the reviewed local provider pin against the installed Playwright browser manifest; do not hard-code a version from an old contract.",
-          applicable: execution.mode === "local_operator" && execution.available,
-          constraints: "Use only when verification.execution reports an available local_operator. Server-job providers use the advertised MCP request/status tools. One local attempt at a time. Input JSON is at most 16 KiB; private settings JSON is at most 128 KiB and never belongs in a bundle or MCP response. The launcher enforces the exact target, staging audit, checksum, source revision and dependency bindings before writing.",
+          applicable: pdfExecution.mode === "local_operator" && pdfExecution.available,
+          constraints: "PDF purpose only, when verification.pdf.execution reports an available local_operator. Logic uses the server job without browser setup. Hosted PDF providers use the MCP request/status tools with purpose pdf. One local attempt at a time. Input JSON is at most 16 KiB; private settings JSON is at most 128 KiB and never belongs in a bundle or MCP response. The launcher enforces the exact target, staging audit, checksum, source revision and dependency bindings before writing.",
         },
       },
       sourceFigures: { extractTool: "source.extract_figure", getTool: "source.get_figure", provenanceRequired: true },
@@ -1452,6 +1466,7 @@ export function productBundleV3Contract() {
       boundary: "Initial V4 Article/Diktat/flashcards or one standalone V5 solution collection. A derived Diktat can refer to an Article in the same request. Binary assets and external Article lineage retain the archive workflow. V5 retains all provenance and release rules and does not accept source figures or interactive-document assets. This tool stages only; profile-specific verification, independent review and explicit publication remain required.",
     },
     localPreview: {
+      optional: true, requiredForPublication: false, defaultAction: "preflightCommand",
       command: "bun run authoring:preview --input <draft-json> --out <preview-directory>",
       watchCommand: "bun run authoring:preview --input <draft-json> --out <preview-directory> --watch",
       preflightCommand: "bun run authoring:preview --input <draft-json> --check",
@@ -1460,7 +1475,7 @@ export function productBundleV3Contract() {
       viewports: [380, 1536], themes: ["light", "dark"],
       outputs: ["Article screenshots", "Diktat PDF and page images", "outline", "bounded diagnostics", "input hash"],
       supportedProducts: ["article", "diktat"],
-      boundary: "Local preview accepts Article/Diktat only; flashcards and V5 use their staged readers and profile review. Requires a local repository checkout and Chromium. Uses shared learner/print renderers without login, database or network. Watch keeps the browser and compiled assets alive. It does not check live references, grade answers, execute coding exercises, persist progress, issue trusted verification or grant publication readiness. Binary source figures and HTML documents require the existing admitted-asset verifier. An explicit local Chromium executable may be selected for preview; trusted runtime pins are unchanged.",
+      boundary: "Use --check for browser-free structural preflight during iteration. Rendering and --watch are optional, explicitly requested inspection tools for Article/Diktat, requiring a local checkout and Chromium. Flashcards and V5 use their staged readers and profile review. Preview uses shared renderers without login, database or network; it cannot check live references, grade answers, execute coding exercises, persist progress or issue trusted evidence. Missing preview setup, screenshots or visual inspection never blocks V4 publication. Binary figures and HTML documents retain admitted-asset checks; final canonical Diktat PDFs come from purpose pdf.",
     },
     legacyV2ValidationRecovery: { optionalInputs: ["replaceImportId", "expectedRevision"], boundary: "Pass the exact existing V2 learning-only draft and caller-observed checksum with its verified run/bootstrap when validating a restage under the structured-reader flag. New V2 submissions remain blocked." },
     submitTool: "authoring.submit_product_bundle",
@@ -1476,7 +1491,7 @@ export function productBundleV3Contract() {
     reviewRequired: true,
     ideaPublicationRequired: true,
     publicationPermitted: true,
-    publicationScope: "Explicit admin action with authoring:publish, a verified product bootstrap, course/chapter run and exact checksum; learning products only. Every existing quality, review, PDF, trusted verification and traceability gate still applies where relevant.",
+    publicationScope: "Explicit admin action with authoring:publish, a verified product bootstrap, course/chapter run and exact checksum; learning products only. V4 requires content validity, logic verification, semantic review and traceability, plus current canonical PDF evidence when Diktat is present. Optional preview and visual inspection cannot block V4 publication. Legacy V2/V3 and V5 retain their separate profile gates.",
     legacyReview: "V2/V3 learning-only imports use exact-revision pedagogic review with explicit section decisions when an Article is present, or a whole-bundle decision for non-Article products. Every Article requires current PDF evidence through its linked Diktat or its direct Article-only export. V2 assessment entities are excluded.",
     legacyLocalOperator: {
       articleOnlyRecovery: "Render the current unlinked Article directly with the private local operator. Supply articleId when there is more than one export target; never create a Diktat or placeholder solely for evidence.",
@@ -1516,8 +1531,9 @@ export function productBundleV3Contract() {
       authorPreflight: "Local AST compilation, schema validation, and quality policy gate checking prior to submission.",
       deterministicValid: "Pure content validity checking pedagogy references, payloads, and typed visuals. Independent from admin review and PDF evidence.",
       adminReview: "Pedagogic quality assessment across eight criteria with content anchors and approved exceptions.",
-      pdfEvidence: "Diktat PDF rendering evidence states: pending, ready, failed, stale; ready requires 1-4 pages.",
-      publicationReady: "Final readiness requiring valid content, approved review with matching fingerprint and policy, and ready PDF evidence.",
+      logicVerification: "V4 purpose logic checks structure, references, notation and supported models without rendering. Semantic approval binds this current plan and receipt.",
+      pdfEvidence: "V4 purpose pdf separately prepares final Diktat artifacts. States: pending, ready, failed, stale; ready requires exact canonical bytes, current lineage and 1-4 pages, without screenshot or page-image requirements.",
+      publicationReady: "V4 requires valid content, current logic receipt and approved semantic review with matching fingerprint/policy; included Diktats also require their current canonical PDFs. V2/V3 retain their legacy PDF policy.",
     },
     pedagogyFields: {
       section: {
@@ -1585,7 +1601,7 @@ export function productBundleV3Contract() {
     remediationWorkflow: {
       deterministicIssues: "Resolve reported diagnostic issues pointing to specific section, block, or visual targets.",
       staleReview: "Resubmit modified draft and record fresh review matching the updated content fingerprint.",
-      stalePdfEvidence: "Re-render PDF artifact against modified article or diktat generation hash.",
+      stalePdfEvidence: "For V4, request purpose pdf for final Diktat artifacts after content is settled; the server reuses unchanged current targets and generates changed ones. Do not render during every edit. V2/V3 retain their legacy PDF recovery.",
     },
   };
 }

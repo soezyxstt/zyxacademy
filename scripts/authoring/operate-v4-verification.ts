@@ -50,9 +50,11 @@ async function inspectRunTrace(planHash: string, attemptId: string, createdAt: D
 async function main() {
   const action = process.env.V4_OPERATION;
   const revision = process.env.V4_REVISION ?? "";
+  const purpose = process.env.V4_PURPOSE ?? "logic";
+  if (purpose !== "logic" && purpose !== "pdf") throw new Error("V4_OPERATION_PURPOSE_INVALID");
   if (!["inspect", "retry", "evidence", "cancel"].includes(action ?? "")) throw new Error("V4_OPERATION_INVALID");
   const target = assertV4OperationTarget(process.env);
-  console.log(JSON.stringify({ ...target, action }));
+  console.log(JSON.stringify({ ...target, action, purpose }));
   const [{ db }, { courses, imporBundle }, { getProductV4VerificationReadiness, requestProductV4Verification, cancelProductV4VerificationJob }, { parseStagedProductBundle }, { storage }, { latestProductV4StagingAudit }] = await Promise.all([
     import("@/db"),
     import("@/db/schema"),
@@ -62,27 +64,28 @@ async function main() {
     import("@/lib/bundle/product-v4-staging-identity"),
   ]);
   const rows = await db.select({ row: imporBundle, course: courses.title }).from(imporBundle).leftJoin(courses, eq(courses.id, imporBundle.courseId)).where(and(eq(imporBundle.bundleType, "product"), eq(imporBundle.version, 4), eq(imporBundle.status, "draft")));
+  const refKey = purpose === "pdf" ? "productV4PdfGeneration" : "productV4Verification";
   if (action === "inspect" && !revision) {
-    for (const { row, course } of rows) console.log(JSON.stringify({ course, title: row.validationReport.bundleTitle, revision: row.checksum, status: row.status, hasVerification: Boolean(row.validationReport.productV4Verification) }));
+    for (const { row, course } of rows) console.log(JSON.stringify({ course, title: row.validationReport.bundleTitle, revision: row.checksum, status: row.status, purpose, hasVerification: Boolean(row.validationReport[refKey]) }));
     return;
   }
   if (!/^[a-f0-9]{64}$/.test(revision)) throw new Error("V4_OPERATION_EXACT_REVISION_REQUIRED");
   const matches = rows.filter(({ row }) => row.checksum === revision);
   if (matches.length !== 1) throw new Error("V4_OPERATION_REVISION_NOT_UNIQUE_OR_NOT_DRAFT");
   const { row, course } = matches[0];
-  const ref = row.validationReport.productV4Verification as { runId?: unknown; planHash?: unknown; attemptId?: unknown } | undefined;
+  const ref = row.validationReport[refKey] as { runId?: unknown; planHash?: unknown; attemptId?: unknown } | undefined;
   const staging = await latestProductV4StagingAudit(db, row.id);
   if (!staging?.correlationId || staging.afterSnapshot?.checksum !== row.checksum) throw new Error("V4_OPERATION_EXACT_STAGING_RUN_REQUIRED");
   const runId = staging.correlationId;
   console.log(JSON.stringify({ course, title: row.validationReport.bundleTitle, revision: row.checksum, status: row.status }));
   const queueProvider = v4OperationQueueProvider();
-  let result = await getProductV4VerificationReadiness(row.id, runId);
+  let result = await getProductV4VerificationReadiness(row.id, runId, purpose);
   if (action === "cancel") {
     if (typeof ref?.planHash !== "string" || !/^[a-f0-9]{64}$/.test(ref.planHash) || typeof ref.attemptId !== "string" || !/^[a-f0-9-]{36}$/.test(ref.attemptId)) throw new Error("V4_OPERATION_ATTEMPT_INVALID");
     if (result.plan.planHash !== ref.planHash || !("attemptId" in result) || result.attemptId !== ref.attemptId) throw new Error("V4_OPERATION_ATTEMPT_STALE");
     if (queueProvider === "cloud-tasks") {
-      const delivery = await operateCloudTask({ importId: row.id, runId, planHash: ref.planHash, attemptId: ref.attemptId, environment: target.environment, action: "cancel", verificationStatus: result.state.status });
-      const cancelled = await cancelProductV4VerificationJob({ importId: row.id, runId, planHash: ref.planHash, attemptId: ref.attemptId });
+      const delivery = await operateCloudTask({ importId: row.id, runId, planHash: ref.planHash, attemptId: ref.attemptId, purpose, environment: target.environment, action: "cancel", verificationStatus: result.state.status });
+      const cancelled = await cancelProductV4VerificationJob({ importId: row.id, runId, planHash: ref.planHash, attemptId: ref.attemptId, purpose });
       console.log(JSON.stringify({ ...delivery, attemptRevoked: cancelled.state.status === "cancelled", retryAvailable: true }));
       return;
     }
@@ -94,7 +97,7 @@ async function main() {
     if (!response.ok) throw new Error("V4_OPERATION_CANCEL_FAILED");
     const after = await fetch(endpoint, { headers, redirect: "error", signal: AbortSignal.timeout(30_000) });
     const observed = after.ok ? await after.json() : null;
-    const cancelled = await cancelProductV4VerificationJob({ importId: row.id, runId, planHash: ref.planHash, attemptId: ref.attemptId });
+    const cancelled = await cancelProductV4VerificationJob({ importId: row.id, runId, planHash: ref.planHash, attemptId: ref.attemptId, purpose });
     console.log(JSON.stringify({ cancellationRequested: true, before: current.status, after: observed?.data?.status ?? null, attemptRevoked: cancelled.state.status === "cancelled", executionStopped: false, retryAvailable: true }));
     return;
   }
@@ -109,17 +112,17 @@ async function main() {
     console.log(JSON.stringify({ currentLayer: currentCheck?.layer, currentState: currentCheck?.state, viewport: currentCheck?.viewport,
       updatedAt: "updatedAt" in result.state ? result.state.updatedAt : null, persistedArtifacts: artifacts.length, persistedBytes: artifacts.reduce((sum, item) => sum + item.size, 0) }));
     if (attemptId) {
-      if (queueProvider === "cloud-tasks") console.log(JSON.stringify(await operateCloudTask({ importId: row.id, runId, planHash: result.plan.planHash, attemptId, environment: target.environment, action: "inspect" })));
+      if (queueProvider === "cloud-tasks") console.log(JSON.stringify(await operateCloudTask({ importId: row.id, runId, planHash: result.plan.planHash, attemptId, purpose, environment: target.environment, action: "inspect" })));
       else await inspectRunTrace(result.plan.planHash, attemptId, row.createdAt);
     }
     return;
   }
   if (action === "retry") {
-    await requestProductV4Verification({ importId: row.id, runId, expectedPlanHash: result.plan.planHash, retry: true });
+    await requestProductV4Verification({ importId: row.id, runId, expectedPlanHash: result.plan.planHash, retry: true, purpose });
     const deadline = Date.now() + 35 * 60_000;
     while (Date.now() < deadline) {
       await new Promise(resolve => setTimeout(resolve, 15_000));
-      result = await getProductV4VerificationReadiness(row.id, runId);
+      result = await getProductV4VerificationReadiness(row.id, runId, purpose);
       report();
       if ("retryAt" in result.state && result.state.retryAt && result.state.retryAt > Date.now() + 60_000) {
         console.log(JSON.stringify({ verificationDeferredUntil: toIsoTimestamp(result.state.retryAt), verificationComplete: false }));
@@ -165,7 +168,7 @@ async function main() {
   const bundle = await parseStagedProductBundle(row.id);
   // Export learning content for independent review, omitting account/storage/identity metadata.
   const learningContent = bundle.products.map(product => product.productType === "article" ? { type: "article", title: product.title, sections: product.sections, visuals: product.visuals } : product.productType === "diktat" ? { type: "diktat", title: product.title, contentMarkdown: product.contentMarkdown } : { type: product.productType });
-  await writeFile(`${output}/index.json`, JSON.stringify({ revision, checks: result.plan.requirements.length, artifacts: index, learningContent }, null, 2));
+  await writeFile(`${output}/index.json`, JSON.stringify({ revision, purpose, checks: result.plan.requirements.length, artifacts: index, learningContent }, null, 2));
   console.log(JSON.stringify({ exportedArtifacts: index.length }));
 }
 

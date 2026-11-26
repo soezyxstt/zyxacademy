@@ -1,4 +1,4 @@
-﻿import { test, expect } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 import { spawn } from "node:child_process";
 import { createServer, type Server } from "node:http";
 import { once } from "node:events";
@@ -15,8 +15,8 @@ async function runFixture(script: string, args: string[]): Promise<string> {
   return output;
 }
 
-// One Playwright project is sufficient: the trusted runner applies both plan viewports itself.
-test("admitted formative fields use scoped preview, reveal and trusted runner", async ({}, info) => {
+// One Playwright project is sufficient: this optional UI fixture opens both local viewports itself.
+test("optional formative UI regression keeps preview and reveal scoped at both viewports", async ({}, info) => {
   test.setTimeout(300_000);
   const script = info.outputPath("runner.mjs");
   await build({ entryPoints: ["tests/visual/fixtures/formative-verification-runner.ts"], outfile: script, bundle: true, platform: "node", format: "esm", packages: "external", banner: { js: "import {createRequire as fixtureRequire} from 'node:module'; const require = fixtureRequire(import.meta.url);" }, plugins: [{ name: "fixture-server-boundaries", setup(builder) {
@@ -41,7 +41,12 @@ test("admitted formative fields use scoped preview, reveal and trusted runner", 
     expect(results).toHaveLength(8);
     for (const result of results) {
       expect(result.status, `${result.field} ${result.width}: ${result.observed}`).toBe("PASS");
-      expect(result.observed).toContain("simulated reveal");
+      expect(result.states).toEqual(["default", "keyboard-change", "reset"]);
+      expect(result.scientificModel).toBe("NOT_TESTED");
+      if (["answer", "explanation"].includes(result.field)) {
+        expect(result.observed).toContain("simulated reveal");
+        expect(result.reveal).toBe("simulated scoped response");
+      } else expect(result.reveal).toBe("not required");
       expect(result.paths.length).toBeGreaterThan(0);
       for (const [index, path] of result.paths.entries()) await info.attach(`${result.field}-${result.width}-${index + 1}`, { path, contentType: "image/png" });
     }

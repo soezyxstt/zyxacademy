@@ -37,6 +37,15 @@ test("full playbook and contract reject conditional omissions unless compact is 
   expect(() => compactContractView(original, { productProfile: "v4" })).toThrow("PROJECTION_REQUIRES_COMPACT");
 });
 
+test("compact discovery retains an available PDF operator independently of browser-free logic", () => {
+  const verification = { execution: { mode: "server_job", available: true }, pdf: { execution: { mode: "local_operator", available: true } }, localOperator: { purpose: "pdf" } };
+  const input = { stage: "product", rules: [], outputs: { productBundle: { verification } } };
+  const local = compactContractView(input, { responseMode: "compact" });
+  expect(local.outputs).toMatchObject({ productBundle: { verification: { localOperator: { purpose: "pdf" } } } });
+  const unavailable = compactContractView({ ...input, outputs: { productBundle: { verification: { ...verification, pdf: { execution: { mode: "local_operator", available: false } } } } } }, { responseMode: "compact" });
+  expect((unavailable.outputs?.productBundle as Record<string, unknown>).verification).not.toHaveProperty("localOperator");
+});
+
 test("compact contract selects the bound stage/profile and skips only the exact cached view", () => {
   const bootstrap = getMcpPlaybook({ ...input, ...actor });
   const runToken = issueMcpRunToken({ workflow: "idea_product", courseId: "course", chapterId: "chapter", bootstrap: readMcpBootstrapToken(bootstrap.bootstrapToken!) });

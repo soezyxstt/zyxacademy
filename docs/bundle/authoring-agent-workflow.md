@@ -1,20 +1,20 @@
 # Simpler Idea and Product authoring
 
-Status: `ACTIVE`. Updated 2026-11-26 with compact discovery, typed V4/V5 creation and exact-target proof reuse. Local synthetic measurements do not establish hosted latency, token billing, visual quality or installed-host refresh.
+Status: `ACTIVE`. Updated 2026-11-26 with separate V4 logic verification and final Diktat PDF generation. Earlier response-size fixtures remain historical measurements, not current hosted latency, token billing or visual-quality claims.
 
 ## Implemented scope
 
 | Friction | Change | Boundary |
 | --- | --- | --- |
 | Agent builds Idea source records, offsets, metadata and ZIP | `authoring.create_idea_draft` accepts atomic Ideas, teaching sections, explained relations and exact source quotes. The server reads the bound validated Source Pack and builds V3. | All documents and units remain in coverage checks. Ambiguous quotes require a longer unique quote or an exact offset. |
-| Agent cannot inspect a raw draft cheaply | `bun run authoring:preview` renders the same Product draft JSON with shared learner and print components, without login, DB or network. `--watch` reuses compiled assets, server and browser. | Local preview, never trusted release evidence. Reports retain exact input hash and honest untested states. |
+| Agent cannot inspect a raw draft cheaply | `bun run authoring:preview --check` checks the same Product draft JSON without a browser. Optional render/watch modes remain available. | Preview is not required for V4 publication and cannot issue trusted evidence. |
 | Agent assembles Product manifests, hashes and ZIP bytes | `authoring.create_product_draft` accepts Article, Diktat, flashcard/set and standalone V5 collection content with source/Idea IDs. The server binds references and creates the archive. | Initial V4 or one V5 collection; canonical admission and staging still run. |
 | Every edit returns the entire artifact and review state | Opt-in `responseMode: "compact"` on context, create, patch and restore. A `target` selects one stable unit on context reads. | Full remains the default. Integrity and scope still load and validate the stored archive; compact saves response size and review/readiness queries. |
 | Agent manually tracks successor IDs and run tokens | `createIdeaAuthoringClient` and `createProductAuthoringClient` wrap existing revision MCP calls through an injected transport. Exact reads cannot silently adopt a different kind/import/revision; `readFull()` obtains review context. | In-repo helper, not a published SDK. Errors preserve the last observed identity; no automatic write retries, reviews or publication. |
 | One validation failure starts another blind loop | Error responses add `category`, `retryable`, `nextAction` and bounded `diagnostics`. Final draft validation preserves all independent issues. | Existing error fields and OAuth challenges remain. Transient failures require a status check before retry. |
-| Browser work runs before deterministic findings are resolved | Structure/model checks run first and collect their findings. | Blocked browser/print checks remain `NOT_TESTED`. The requirement matrix and final acceptance are unchanged. |
-| PDF renders twice for its file and page images | The PDF check captures every page from the same bytes. The paired image check reuses those captures. | Older executors that return only a PDF keep the separate image execution fallback. |
-| Failed attempts or unrelated edits repeat rendering | Signed checkpoints and target proofs verify metadata and bytes before copying artifacts to a new exact-plan attempt. | Reuse needs the same target, relevant upstream graph, assets, environment, course, revision root and runtime. Structure always reruns. Cold, incomplete or damaged proof rerenders. |
+| Iterative verification opens a browser | Default `purpose: "logic"` checks structure, references, notation and supported models without browser, PNG or PDF work. | Authored semantic review remains separate; supported checks do not prove arbitrary mathematics. |
+| Print artifacts repeat during content edits | Explicit `purpose: "pdf"` prepares final Diktat PDFs, without required screenshots or page captures. | Publication still requires current canonical PDF bytes and lineage for every included Diktat. |
+| Failed attempts or unrelated edits repeat rendering | Purpose-bound proofs reuse unchanged authenticated PDF targets with matching runtime. | Missing or changed target evidence needs a new artifact only when PDF generation is requested. Logic and PDF receipts are separate. |
 
 ## Idea authoring
 
@@ -42,9 +42,9 @@ Opt-in compact `list_imports` supports course/chapter/query/statuses/headsOnly a
 
 Compact playbooks return changed module bodies once; `knownModuleChecksums` refers to already retained content. Compatibility and bootstrap remain fresh. Compact contracts select the active stage and Product profile, omit the duplicate pilot body and support `knownViewChecksum` for that exact view. Descriptor checksums still pin schemas. Content caching never authorizes writes or replaces tokens.
 
-### Measured response sizes, 2026-11-26
+### Version 0.5.5 response-size measurements, 2026-11-26
 
-The current contract fixtures measure UTF-8 JSON bytes. Playbook measurements use the same API, actor and bootstrap envelope. Cached requests retain previously verified document bytes; bootstrap and run checks remain current.
+The recorded 0.5.5 contract fixtures measure UTF-8 JSON bytes. Playbook measurements used the same API, actor and bootstrap envelope. Cached requests retained verified document bytes with fresh bootstrap/run checks. The new logic/PDF contract changes these documents, so this table is not a new 0.5.6 measurement.
 
 | Fixture | Full or baseline | Compact | Cached compact |
 | --- | ---: | ---: | ---: |
@@ -54,22 +54,30 @@ The current contract fixtures measure UTF-8 JSON bytes. Playbook measurements us
 
 The import baseline is the synthetic stored-row fixture, not the old full MCP response. Unfiltered discovery makes one query and zero ZIP reads. Course filtering also resolves course identity. An admitted compact patch reads the predecessor ZIP once; exact retry reads its existing successor. The warm card-edit integration needs only the structural executor check and no new PDF render; it still produces a new receipt for all current requirements. Missing proof advances the print version. These measurements do not establish hosted latency, token charges, money saved or teaching quality.
 
-## Preview the same draft JSON
+## Check the same draft JSON
+
+Use browser-free preflight during editing:
+
+```sh
+bun run authoring:preview --input /absolute/path/draft.json --check
+```
+
+When visual inspection would help, the optional render and watch modes remain available:
 
 ```sh
 bun run authoring:preview --input /absolute/path/draft.json --out artifacts/authoring-preview
 bun run authoring:preview --input /absolute/path/draft.json --out artifacts/authoring-preview --watch
 ```
 
-Use `--check` for structural checks and an outline without a browser. `--example short` and `--example long` create deterministic examples. `--executable-path /path/to/chromium` selects a local browser explicitly; its recorded version does not change trusted release pins. The raw input is the same `productDraftInput` object sent to the creation tool, without fake source hashes or preview-only fields.
+`--check` reports structural checks and an outline without a browser. `--example short` and `--example long` create deterministic examples. `--executable-path /path/to/chromium` selects a local browser explicitly; its recorded version does not change trusted release pins. The raw input is the same `productDraftInput` object sent to the creation tool, without fake source hashes or preview-only fields.
 
-`preview-report.json` records input hash, check states, issues, timing, browser launches, PDF renders and capture paths. `outline.json` lists teaching order, objectives, Ideas and parts. Article captures cover 380 by 844 and 1536 by 864 in both themes. Diktat output includes the actual PDF and every page image from its bytes, with page-budget and overflow checks.
+When optional rendering runs, `preview-report.json` records input hash, check states, issues, timing, browser launches, PDF renders and capture paths. `outline.json` lists teaching order, objectives, Ideas and parts. Article captures cover 380 by 844 and 1536 by 864 in both themes. Diktat output includes the actual PDF and every page image from its bytes, with page-budget and overflow checks.
 
 The server binds loopback only and serves fixed in-memory routes under a random prefix. Browser requests outside that route are blocked. Input/output aliases are rejected; report writes use exclusive temporary files and atomic rename. Missing browser setup is a runtime issue, not an instruction to rewrite the draft. Watch replaces stale success on invalid edits and keeps one browser alive between valid edits.
 
-Preview explicitly leaves live references, human visual review and publication unverified. Server grading, coding execution and saved progress require hosted checks. Binary figures and HTML documents use the admitted-asset verifier. Inspect the initial render locally, then inspect all required control states and PDF evidence through the trusted verifier before release.
+Preview leaves live references, visual inspection and publication unverified. Server grading, coding execution and saved progress have their own checks. Binary assets retain admission requirements. During V4 iteration, use browser-free preflight and `purpose: "logic"`; request final Diktat PDFs separately with `purpose: "pdf"`. Optional local rendering, screenshots and visual inspection do not block V4 review or publication.
 
-## Repeatable measurement
+## Repeatable measurement and historical baseline
 
 ```sh
 bun scripts/authoring/benchmark-agent-workflow.ts
@@ -85,7 +93,18 @@ The benchmark uses actual builders, response projections and verification coordi
 | Compact reduction | 97.73% | 99.68% |
 | Selected-block reduction | 93.20% | 99.04% |
 
-The PDF scenario reduces PDF calls from 2 to 1 and retains all 10 requirements. After an interruption, retry uses 5 executor calls instead of 8 and retains all 8 requirements. Failed structural preflight starts no browser work and records blocked checks as untested.
+### Current V4 verification schedule, source 0.5.6
+
+For the synthetic fixture with eight Article visuals and one Diktat, the benchmark compares the deployed visual policy v2 against the new purpose-separated policy v3. The old policy already shared one rendered PDF with its derived page images.
+
+| Scheduled work | Deployed visual policy v2 | Default `logic` | Explicit final `pdf` |
+| --- | ---: | ---: | ---: |
+| Required checks | 31 | 9 | 10 |
+| Browser checks | 21 | 0 | 1 |
+| PDF renders | 1 | 0 | 1 |
+| Required screenshot or page-image capture | Yes | None | None |
+
+The nine cheap checks cover structure and supported models. Final PDF purpose includes those checks plus the Diktat print artifact. It runs only on explicit request; unchanged valid artifacts can be reused. These are counts from real scheduling code with synthetic observations, not measured browser duration, hosted latency or monetary cost. Passing supported checks does not prove arbitrary mathematics or replace semantic review.
 
 Direct JSON is not always smaller than ZIP transport: these examples use 9,537/81,078 bytes of author input versus 6,884/12,716 bytes of ZIP base64. The creation benefit is removing metadata/hash/archive work. Do not report response or call reductions as measured token or monetary savings.
 
@@ -95,9 +114,9 @@ Both creation tools use existing `authoring:stage` consent. No new OAuth scope, 
 
 Runtime discovery includes limits, compact response semantics and recovery fields. The MCP tool catalog carries small input envelopes; agents fetch full checksum-pinned `ideaDraftInput` and `productDraftInput` schemas on demand. Idea descriptors use `/api/authoring/contracts/idea-v3`. The server still parses the complete strict schema before loading references or staging. The Idea, Product and pipeline playbooks, repository plugin skill sources and their host prompts use the new path only when advertised by the connected server. Existing archive tools and full responses remain available. Initial authoring remains discoverable through `workflow.get_contract`; `admin.capabilities` continues to advertise its existing revision-only authoring surface.
 
-The hosted skill build uses `authoring-skills.lock.json` pins in the separate `zyx-authoring-mcp` repository. [Package PR #3](https://github.com/soezyxstt/zyx-authoring-mcp/pull/3) released staging 0.5.2 after bot review completed without findings, advancing the older six-skill staging package to all 12 workflows. The staging lock now selects its merge commit `dcb6098002e4e730f7da610d6c13417388cd45fc`; the production lock is unchanged. Package source, external release, server build and installed-host refresh are distinct states; this PR does not claim installed clients or deployed servers have changed.
+The hosted skill build uses separate environment pins in `authoring-skills.lock.json`; the matching release manifest provides the version and payload digest. Source 0.5.6 adds the logic/PDF split. External package review, the staging pin, the deployed server and an installed host each require their own acceptance. The production pin remains unchanged.
 
-## Twelve-skill refresh
+## Historical twelve-skill refresh
 
 Release 0.5.2 updates every skill and its host prompt against the current runtime:
 
@@ -125,7 +144,7 @@ Compared with the previous PR head, Idea and Product skill files plus host promp
 1. **New draft authority and content:** Confirm source/course/chapter/version checks, deterministic retry identity, unchanged canonical admission, valid generated IDs and Article-to-Diktat lineage. Check the optional authored Idea weights and compatible equal-share default.
 2. **Revision compatibility:** Confirm full responses remain usable, compact/target reads clearly defer review, successor imports and execution tokens stay bound, and stale/CAS failures cannot become automatic retries.
 3. **Evidence trust:** Confirm a checkpoint cannot cross plans, audits, requirements, batches or executor identity; corrupted metadata/bytes rerun; artifacts retain the current attempt prefix; final receipt/PDF attachment checks still reject stale evidence.
-4. **Print completeness:** Confirm one PDF yields every required page, preserves the page budget and overflow checks, and cannot approve an incomplete or failed capture. Inspect actual PDF and page images during hosted acceptance.
+4. **PDF artifact integrity:** Confirm final PDF purpose preserves exact canonical bytes, lineage and page bounds without requiring PNG captures or visual inspection. Missing, stale or invalid artifacts must still block publication of their Diktats.
 5. **Agent usability:** Run one new Article, one standalone Diktat and one small edit with the advertised tools. Record tool calls, response bytes, render invocations, wall time and manual recovery steps.
 
 ## Remaining hosted acceptance
