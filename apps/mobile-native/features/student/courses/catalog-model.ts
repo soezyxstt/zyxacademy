@@ -24,7 +24,7 @@ export function getCatalogGroups(courses: readonly CourseCard[], query: Readonly
     courses: term ? group.courses.filter(course =>
       [course.title, course.description, course.category].some(text => text.toLocaleLowerCase().includes(term))) : group.courses,
   })).filter(group => group.courses.length > 0);
-  return { groups, active, visible };
+  return { groups, active, visible, hasSearch: Boolean(term) };
 }
 
 const englishCounts = { course: ["course", "courses"], material: ["material", "materials"], quiz: ["quiz", "quizzes"], tryout: ["tryout", "tryouts"] };

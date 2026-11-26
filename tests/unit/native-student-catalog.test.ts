@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { catalogCopy, getCatalogGroups, getCatalogOffer, getCatalogOfferWindow, getCatalogRow, nextCatalogOfferChange } from "../../apps/mobile-native/features/student/courses/catalog-model";
+import { studentFixturePath } from "../../apps/mobile-native/features/student/fixture-location";
 import { matchStudentRoute, studentPathWithQuery } from "../../apps/mobile-native/features/student/routes";
 import { learningEndpoint, type CatalogData, type CourseData } from "../../packages/native-parity/student/courses/contract";
 import { createCourseFixtureRequest } from "../../packages/native-parity/student/courses/fixtures";
@@ -22,14 +23,33 @@ test("catalog uses the same groups and addressable tabs as the web fixture", asy
   expect(getCatalogGroups(data.courses, { jurusan: "pka", q: "lanjut" }).visible).toEqual([]);
 });
 
+test("the flat fixture search shows no results and clearing restores only the selected group", async () => {
+  const { data } = await catalogFixture();
+  const path = studentFixturePath({ path: "/courses", query_jurusan: "tpb", query_q: "no-match" }, "catalog-parity");
+  const route = matchStudentRoute(path)!;
+  expect(getCatalogGroups(data.courses, route.query)).toMatchObject({ active: "tpb", hasSearch: true, visible: [] });
+
+  const restored = matchStudentRoute(studentPathWithQuery(route.path, { q: undefined }))!;
+  const groups = getCatalogGroups(data.courses, restored.query);
+  expect(groups).toMatchObject({ active: "tpb", hasSearch: false });
+  expect(groups.visible.map(group => [group.id, group.courses.length])).toEqual([["tpb", 4]]);
+});
+
 test("clearing a legacy catalog search keeps the selected major and other link parameters", async () => {
   const { data } = await catalogFixture();
   const path = "/courses?jurusan=tpb&source=first&source=second&q=no-match#catalog";
   const route = matchStudentRoute(path)!;
-  expect(getCatalogGroups(data.courses, route.query).visible).toEqual([]);
+  expect(getCatalogGroups(data.courses, route.query)).toMatchObject({ active: "tpb", hasSearch: true, visible: [] });
   const cleared = studentPathWithQuery(route.path, { q: undefined });
   expect(cleared).toBe("/courses?jurusan=tpb&source=first&source=second#catalog");
-  expect(getCatalogGroups(data.courses, matchStudentRoute(cleared)!.query).visible.map(group => group.id)).toEqual(["tpb"]);
+  const restored = getCatalogGroups(data.courses, matchStudentRoute(cleared)!.query);
+  expect(restored).toMatchObject({ active: "tpb", hasSearch: false });
+  expect(restored.visible.map(group => group.id)).toEqual(["tpb"]);
+
+  for (const q of ["", "   "]) {
+    const blank = getCatalogGroups(data.courses, { jurusan: "tpb", q });
+    expect(blank).toEqual(restored);
+  }
   expect(studentPathWithQuery("/courses?q=", { q: undefined })).toBe("/courses");
 });
 

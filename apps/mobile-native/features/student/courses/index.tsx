@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState, type ComponentRef, type ReactNode } from "react";
-import { PixelRatio, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, useColorScheme, type TextStyle } from "react-native";
+import { Dimensions, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, useColorScheme, type TextStyle } from "react-native";
 import { nativeColors, nativeRadii } from "../../../../../packages/design-tokens/native-colors";
 import {
   canShowOfflineCourse, coursePath, coursesEndpoint, learningEndpoint, materialPath, materialRowPath, materialTabs, normalizeMaterialTab,
@@ -524,7 +524,7 @@ function CourseEntry(props: StudentScreenProps & { query: LearningQuery }) {
   const { resource, reload: loadAgain } = useLearningData(request, learningEndpoint(query), query.view, !revoked);
   const cached = offline?.course;
   const useOfflineMetadata = canShowOfflineCourse(query.view, "courseId" in query ? query.courseId : undefined, cached?.id, offline?.status, resource);
-  const androidDensity = Platform.OS === "android" ? PixelRatio.get() : undefined;
+  const androidDensity = Platform.OS === "android" ? Dimensions.get("screen").scale : undefined;
   const restoreOffset = useRef({ x: 0, y: courseScrollOffsetForMount(initialScrollY, androidDensity) });
   const lastOffset = useRef(initialScrollY);
   const isReady = !revoked && (resource.kind === "ready" || Boolean(useOfflineMetadata));

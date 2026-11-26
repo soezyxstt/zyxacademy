@@ -13,12 +13,13 @@ import { courseCopy } from "./copy";
 type Theme = keyof typeof nativeColors;
 type Copy = ReturnType<typeof catalogCopy>;
 
+// sRGB equivalents of the Tailwind badge colors used by the web catalog.
 const badgeColors = {
-  math: { accent: "#3b82f6", light: "#2563eb", dark: "#60a5fa" },
-  physics: { accent: "#10b981", light: "#059669", dark: "#34d399" },
-  chemistry: { accent: "#f59e0b", light: "#b45309", dark: "#fbbf24" },
-  computing: { accent: "#06b6d4", light: "#0e7490", dark: "#22d3ee" },
-  pka: { accent: "#a855f7", light: "#9333ea", dark: "#c084fc" },
+  math: { accent: "#2b7fff", light: "#155dfb", dark: "#51a2ff" },
+  physics: { accent: "#00bc7d", light: "#009966", dark: "#00d492" },
+  chemistry: { accent: "#fe9a00", light: "#bb4d00", dark: "#ffb900" },
+  computing: { accent: "#00b8db", light: "#0092b8", dark: "#00d3f2" },
+  pka: { accent: "#ad46ff", light: "#9810fa", dark: "#c27aff" },
 };
 
 function useCatalogTime(data: CatalogData) {
@@ -59,7 +60,7 @@ function CatalogRow({ course, copy, locale, now, theme, navigate }: {
       </View>
       <View style={styles.rowText}>
         <Text style={[styles.rowTitle, { color: hasContent ? colors.foreground : colors.mutedForeground }]}>{course.title}</Text>
-        <Text style={[styles.meta, muted]}>{summary}</Text>
+        <Text style={[styles.meta, muted]} textBreakStrategy="simple">{summary}</Text>
         {offer && <Text style={[styles.meta, muted]}>
           <Text style={[nativeTypography.bodyMedium, { color: offer.state === "offerEnded" ? colors.mutedForeground : theme === "dark" ? nativeLinkInks.success : colors.foreground }]}>
             {copy.row[offer.state]}
@@ -71,18 +72,6 @@ function CatalogRow({ course, copy, locale, now, theme, navigate }: {
   );
 }
 
-function CatalogFooterLink({ label, onPress, theme }: { label: string; onPress: () => void; theme: Theme }) {
-  const colors = nativeColors[theme];
-  const [focused, setFocused] = useState(false);
-  return <Pressable accessibilityRole="link" accessibilityLabel={label} onPress={onPress}
-    onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} style={({ pressed }) => [
-      styles.helpAction, pressed && { backgroundColor: `${colors.muted}66` },
-      focused && { outlineColor: colors.accent, outlineWidth: 2, outlineOffset: -2 },
-    ]}>
-    <Text style={[styles.meta, styles.helpLink, { color: colors.mutedForeground }]}>{label}</Text>
-  </Pressable>;
-}
-
 export function Catalog({ data, navigate, query, onSelectGroup, onClearSearch, openExternal, locale, theme }: {
   data: CatalogData; locale: string; theme: Theme; query: StudentScreenProps["route"]["query"];
   onSelectGroup: (id: string) => void; onClearSearch: () => void;
@@ -90,8 +79,7 @@ export function Catalog({ data, navigate, query, onSelectGroup, onClearSearch, o
   const copy = catalogCopy(locale);
   const colors = nativeColors[theme];
   const now = useCatalogTime(data);
-  const { groups, active, visible } = getCatalogGroups(data.courses, query);
-  const hasSearch = Boolean(query.q?.trim());
+  const { groups, active, visible, hasSearch } = getCatalogGroups(data.courses, query);
   const { supportUrl } = data;
   const muted = { color: colors.mutedForeground };
   return (
@@ -102,7 +90,7 @@ export function Catalog({ data, navigate, query, onSelectGroup, onClearSearch, o
           activeIndicatorColor={colors.foreground} moreLabel={locale.startsWith("en") ? "More" : "Lainnya"}
           closeLabel={locale.startsWith("en") ? "Close" : "Tutup"} testID="student-catalog-tab" />
       </View>}
-      {query.q !== undefined && <Button variant="outline" theme={theme} testID="student-catalog-clear-search"
+      {hasSearch && <Button variant="outline" theme={theme} testID="student-catalog-clear-search"
         style={styles.clearSearch} onPress={onClearSearch}>{copy.catalog.clearSearch}</Button>}
       <View style={styles.sections}>
         {visible.map(group => <View key={group.id} style={styles.section}>
@@ -122,14 +110,19 @@ export function Catalog({ data, navigate, query, onSelectGroup, onClearSearch, o
           {!hasSearch && <Text style={[styles.meta, muted]}>{copy.catalog.emptyDescription}</Text>}
         </View>}
       </View>
-      {openExternal && <View style={styles.help}>
-        <Text style={[styles.meta, muted]}>{copy.catalog.needMoreAccess}</Text>
-        <CatalogFooterLink label={copy.catalog.viewPlans} theme={theme} onPress={() => openExternal("/plans")} />
+      {openExternal && <Text style={[styles.meta, styles.help, muted]} textBreakStrategy="simple">
+        {copy.catalog.needMoreAccess}{" "}
+        <Text accessibilityRole="link" style={styles.helpLink} onPress={() => openExternal("/plans")}>
+          {copy.catalog.viewPlans}
+        </Text>
         {supportUrl && <>
-          <Text style={[styles.meta, muted]}>{copy.catalog.or}</Text>
-          <CatalogFooterLink label={copy.catalog.contactWhatsApp} theme={theme} onPress={() => openExternal(supportUrl)} />
+          {` ${copy.catalog.or} `}
+          <Text accessibilityRole="link" style={styles.helpLink} onPress={() => openExternal(supportUrl)}>
+            {copy.catalog.contactWhatsApp}
+          </Text>
         </>}
-      </View>}
+        {"."}
+      </Text>}
     </View>
   );
 }
@@ -148,10 +141,10 @@ const styles = StyleSheet.create({
   badgeText: { ...nativeTypography.bodySemibold, fontSize: 12, lineHeight: 18, letterSpacing: -0.3, includeFontPadding: false },
   rowText: { minWidth: 0, flex: 1, gap: 2 },
   rowTitle: { ...nativeTypography.headingSemibold, fontSize: 14, lineHeight: 20, includeFontPadding: false },
-  meta: { ...nativeTypography.bodyRegular, fontSize: 12, lineHeight: 18, includeFontPadding: false },
+  // Keep catalog metadata wrapping close to the web Inter metrics.
+  meta: { ...nativeTypography.bodyRegular, fontSize: 12, lineHeight: 18, letterSpacing: 0.18, includeFontPadding: false },
   lock: { alignSelf: "center" },
   empty: { alignItems: "center", gap: 4, paddingVertical: 48 },
-  help: { marginTop: 12, flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: 2 },
-  helpAction: { minHeight: 44, maxWidth: "100%", paddingHorizontal: 2, justifyContent: "center", borderRadius: nativeRadii.sm },
+  help: { marginTop: 24 },
   helpLink: { textDecorationLine: "underline" },
 });
