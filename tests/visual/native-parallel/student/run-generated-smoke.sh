@@ -24,16 +24,13 @@ for area in courses assessment learning community; do
     printf 'No runnable cases for %s\n' "$area" > "$output/$area/missing.txt"
     continue
   fi
-  if (cd "$output/$area" && "$install_dir/maestro/bin/maestro" --platform "$platform" --device "$device" test \
-    --format junit --output "$output/$area/report.xml" --test-output-dir "$output/$area/results" \
-    --debug-output "$output/$area/logs" "${files[@]}"); then
-    continue
+  if [[ "$platform" == android ]]; then
+    python "$scripts/run-android-smoke.py" "$install_dir/maestro/bin/maestro" "$device" "$generated/$area" "$output/$area" || status=1
+  else
+    (cd "$output/$area" && "$install_dir/maestro/bin/maestro" --platform "$platform" --device "$device" test \
+      --format junit --output "$output/$area/report.xml" --test-output-dir "$output/$area/results" \
+      --debug-output "$output/$area/logs" "${files[@]}") || status=1
   fi
-  if [[ "$platform" == android ]] &&
-    python "$scripts/retry-android-smoke.py" "$install_dir/maestro/bin/maestro" "$device" "$generated/$area" "$output/$area"; then
-    continue
-  fi
-  status=1
 done
 python "$root/tests/visual/native-parallel/student/summarize-smoke.py" --manifest "$generated/manifest.json" --output "$output" || status=1
 exit "$status"

@@ -30,7 +30,13 @@ def attempt(case, folder, results):
     name = case['testName']
     result = results.get(name, 'not_run')
     screenshots = []
-    for path in sorted((folder / 'results').glob(f'*/{name}/takeScreenshot/{case["capture"]}')):
+    capture = f'results/*/{name}/takeScreenshot/{case["capture"]}'
+    if folder in partitions:
+        roots = [folder / record['partition'] for record in partitions[folder] if name in record['cases']]
+        paths = roots[0].glob(capture) if len(roots) == 1 else []
+    else:
+        paths = folder.glob(capture)
+    for path in sorted(paths):
         with path.open('rb') as stream:
             if stream.read(8) == b'\x89PNG\r\n\x1a\n':
                 screenshots.append(str(path.relative_to(out)))
@@ -42,6 +48,8 @@ def attempt(case, folder, results):
 observed = {report.parent.name: report_results(report) for report in out.glob('*/report.xml')}
 selected = {path.parent.parent.name: set(json.loads(path.read_text())) for path in out.glob('*/retry/selected.json')}
 retried = {area: report_results(out / area / 'retry' / 'report.xml') for area in selected}
+partitions = {path.parent: json.loads(path.read_text())
+              for pattern in ('*/partitions.json', '*/retry/partitions.json') for path in out.glob(pattern)}
 for route in manifest['routes']:
     for case in route['cases']:
         name = case.get('testName')
