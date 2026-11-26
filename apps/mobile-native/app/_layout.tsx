@@ -9,6 +9,7 @@ import { NativeSessionProvider } from "../auth/session-provider";
 import { NATIVE_STAGING_ORIGIN } from "../auth/session-api";
 import { startNativeFileCacheLifecycle } from "../device/files";
 import { NotificationsProvider } from "../device/notifications-provider";
+import { LocalReminderResponseLifecycle } from "../device/notification-response";
 import { LocalReminderLifecycle } from "../device/reminder-lifecycle";
 import { OfflineMetadataProvider } from "../offline/lifecycle-provider";
 import { nativeFontSources } from "../typography";
@@ -28,6 +29,7 @@ export default function RootLayout() {
       <NativeSessionProvider origin={NATIVE_STAGING_ORIGIN}>
         <NativeAccountContextProvider>
           <LocalReminderLifecycle />
+          <LocalReminderResponseLifecycle />
           <NotificationsProvider>
             <OfflineMetadataProvider>
               <Stack screenOptions={{ headerShown: false, animation: "none" }} />
