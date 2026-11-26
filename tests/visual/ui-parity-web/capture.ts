@@ -106,10 +106,19 @@ try {
 
   const radioGroup = control("radio-group-unchecked-light");
   const standard = radioGroup.getByRole("radio", { name: "Standar" });
+  const exam = radioGroup.getByRole("radio", { name: "Ketik jawaban" });
   await standard.click();
   await expect(standard).toBeChecked();
-  await standard.press("ArrowRight");
-  await expect(radioGroup.getByRole("radio", { name: "Ketik jawaban" })).toBeChecked();
+  await expect(standard).toBeFocused();
+  // Radix moves focus asynchronously and selects the radio while the arrow key is held.
+  await page.keyboard.down("ArrowRight");
+  try {
+    await expect(exam).toBeFocused();
+    await expect(exam).toBeChecked();
+  } finally {
+    await page.keyboard.up("ArrowRight");
+  }
+  await expect(standard).not.toBeChecked();
   await expect(control("radio-group-disabled-dark").getByRole("radio").first()).toBeDisabled();
   if (errors.length > 0) throw new Error(errors.join("\n"));
   const cases = galleryCases.map(({ id, component }) => ({ id, component }));

@@ -1,6 +1,6 @@
 # Audit kesiapan aplikasi Expo
 
-**Baseline 26 November 2026. Sasaran 95% belum tercapai.** Audit membandingkan klien Expo dengan web Zyx pada commit `fa3ce04ed78181810b31ff1b3bf5852c24f6ec5f`. Entry Expo membuka `ParityGallery` tanpa rute produk, sesi, atau klien data LMS. Aplikasi Capacitor memiliki jalur distribusi dan implementasi tersendiri. Bukti pengujian bersumber dari CI PR 511 pada commit tersebut. Perubahan lokal setelah commit ini memerlukan bukti baru. [PR 511](https://github.com/soezyxstt/zyxacademy/pull/511), [entry Expo](../apps/mobile-native/App.tsx), [aplikasi Capacitor](../apps/mobile/README.md).
+**Baseline 26 November 2026. Sasaran 95% belum tercapai.** Audit membandingkan klien Expo dengan web Zyx pada commit `fa3ce04ed78181810b31ff1b3bf5852c24f6ec5f`. Entry Expo membuka `ParityGallery` tanpa rute produk, sesi, atau klien data LMS. Aplikasi Capacitor memiliki jalur distribusi dan implementasi tersendiri. Bukti pengujian bersumber dari CI PR 511 pada commit tersebut. Perubahan lokal setelah commit ini memerlukan bukti baru. [PR 511](https://github.com/soezyxstt/zyxacademy/pull/511), [entry Expo](https://github.com/soezyxstt/zyxacademy/blob/fa3ce04ed78181810b31ff1b3bf5852c24f6ec5f/apps/mobile-native/App.tsx), [aplikasi Capacitor](../apps/mobile/README.md).
 
 | Sumbu | Cakupan pada baseline | Bukti Expo yang lulus | Ambang |
 |---|---|---|---|

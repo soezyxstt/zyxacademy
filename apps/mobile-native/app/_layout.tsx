@@ -1,11 +1,11 @@
 import { useFonts } from "expo-font";
+import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider, initialWindowMetrics } from "react-native-safe-area-context";
 
-import ParityGallery from "./ParityGallery";
-import { nativeFontSources } from "./typography";
+import { nativeFontSources } from "../typography";
 
-export default function App() {
+export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts(nativeFontSources);
 
   if (fontError) {
@@ -16,7 +16,7 @@ export default function App() {
   return (
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
       <StatusBar style="auto" />
-      <ParityGallery />
+      <Stack screenOptions={{ headerShown: false, animation: "none" }} />
     </SafeAreaProvider>
   );
 }

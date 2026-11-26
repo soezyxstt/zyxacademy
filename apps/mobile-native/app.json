@@ -4,7 +4,10 @@
     "scheme": "zyx-native-parity",
     "slug": "zyx-academy-native",
     "version": "0.1.0",
-    "platforms": ["android", "ios"],
+    "platforms": [
+      "android",
+      "ios"
+    ],
     "userInterfaceStyle": "automatic",
     "android": {
       "package": "com.zyx.academy.nativeparity"
@@ -12,6 +15,17 @@
     "ios": {
       "bundleIdentifier": "com.zyx.academy.nativeparity",
       "supportsTablet": true
-    }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "defaultChannel": "zyx_updates",
+          "enableRemoteNotifications": false
+        }
+      ]
+    ]
   }
 }

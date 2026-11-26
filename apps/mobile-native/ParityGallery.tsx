@@ -1,6 +1,6 @@
 import { componentNames, galleryCases, type GalleryCase } from "../../packages/ui-parity/gallery";
-import { useEffect, useState, type ReactNode } from "react";
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { type ReactNode } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { nativeColors } from "../../packages/design-tokens/native-colors";
@@ -49,30 +49,19 @@ function Specimen({ item }: { item: GalleryCase }) {
   }
 }
 
-export default function ParityGallery() {
-  const [component, setComponent] = useState(componentNames[0]);
+type GalleryProps = {
+  component: GalleryCase["component"];
+  onSelect: (name: GalleryCase["component"]) => void;
+};
 
-  useEffect(() => {
-    function open(url: string | null | undefined) {
-      const name = componentNames.find((candidate) => url === `zyx-native-parity://gallery/${candidate}`);
-      if (name) setComponent(name);
-    }
-    let initial = true;
-    const subscription = Linking.addEventListener("url", ({ url }) => {
-      initial = false;
-      open(url);
-    });
-    void Linking.getInitialURL().then((url) => { if (initial) open(url); });
-    return () => { initial = false; subscription.remove(); };
-  }, []);
-
+export default function ParityGallery({ component, onSelect }: GalleryProps) {
   return (
     <SafeAreaView style={styles.screen}>
       <View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {componentNames.map((name) => (
             <Pressable accessibilityRole="button" accessibilityState={{ selected: component === name }}
-              key={name} onPress={() => setComponent(name)} style={styles.tab}>
+              key={name} onPress={() => onSelect(name)} style={styles.tab}>
               <Text style={{ color: nativeColors.light.foreground }}>{name}</Text>
             </Pressable>
           ))}
