@@ -72,17 +72,23 @@ function Specimen({ item }: { item: GalleryCase }) {
 type GalleryProps = {
   component: GalleryCase["component"];
   onSelect: (name: GalleryCase["component"]) => void;
+  onOpenCaptureMenu?: () => void;
 };
 
-export default function ParityGallery({ component, onSelect }: GalleryProps) {
+export default function ParityGallery({ component, onSelect, onOpenCaptureMenu }: GalleryProps) {
   return (
     <SafeAreaView style={styles.screen}>
-      <View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      <View style={onOpenCaptureMenu && styles.toolbar}>
+        {onOpenCaptureMenu && (
+          <Pressable accessibilityRole="button" testID="parity-capture-menu" onPress={onOpenCaptureMenu} style={styles.tab}>
+            <Text style={styles.label}>Ambil gambar</Text>
+          </Pressable>
+        )}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={onOpenCaptureMenu && styles.tabs}>
           {componentNames.map((name) => (
             <Pressable accessibilityRole="button" accessibilityState={{ selected: component === name }}
               key={name} onPress={() => onSelect(name)} style={styles.tab}>
-              <Text style={{ color: nativeColors.light.foreground }}>{name}</Text>
+              <Text style={styles.label}>{name}</Text>
             </Pressable>
           ))}
         </ScrollView>
@@ -90,7 +96,7 @@ export default function ParityGallery({ component, onSelect }: GalleryProps) {
       <ScrollView key={component} contentContainerStyle={styles.gallery} showsVerticalScrollIndicator={false}>
         <View style={[styles.marker, { width: 16 + componentNames.indexOf(component) }]} />
         {galleryCases.filter((item) => item.component === component).map((item) => (
-          <ParityCaseFrame key={item.id} id={item.id} theme={item.theme} height={getParityFrameHeight(component)}>
+          <ParityCaseFrame key={item.id} id={item.id} theme={item.theme} height={getParityFrameHeight(item.id)}>
             <Specimen item={item} />
           </ParityCaseFrame>
         ))}
@@ -100,7 +106,10 @@ export default function ParityGallery({ component, onSelect }: GalleryProps) {
 }
 
 const styles = StyleSheet.create({
+  toolbar: { flexDirection: "row" },
+  tabs: { flex: 1 },
   tab: { minHeight: 44, paddingHorizontal: 12, justifyContent: "center" },
+  label: { color: nativeColors.light.foreground },
   screen: { flex: 1, backgroundColor: nativeColors.light.background },
   gallery: { alignItems: "center", gap: parityFrame.gap, paddingVertical: parityFrame.gap },
   marker: {

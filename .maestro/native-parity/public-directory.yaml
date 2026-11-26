@@ -5,14 +5,23 @@ name: Published link directory in Indonesian and English
 - extendedWaitUntil:
     visible: separator
     timeout: 20000
-- openLink: zyx-native-parity://internal/public-links/empty
+- runFlow:
+    file: helpers/open-directory.yaml
+    env:
+      CASE_ID: empty
 - assertVisible: "Belum ada tautan"
 - takeScreenshot: directory-empty
-- openLink: zyx-native-parity://internal/public-links/single
+- runFlow:
+    file: helpers/open-directory.yaml
+    env:
+      CASE_ID: single
 - assertVisible: "Zyx Academy links"
 - assertVisible: "Komunitas mahasiswa"
 - takeScreenshot: directory-single
-- openLink: zyx-native-parity://internal/public-links/grouped
+- runFlow:
+    file: helpers/open-directory.yaml
+    env:
+      CASE_ID: grouped
 - assertVisible: "Komunitas"
 - assertVisible: "Umum"
 - takeScreenshot: directory-grouped
