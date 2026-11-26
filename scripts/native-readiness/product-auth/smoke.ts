@@ -188,7 +188,7 @@ try {
       response: { kind: "choice", optionId: "area" } });
     check(evaluation.ok && (await evaluation.json() as { result?: { verdict?: string } }).result?.verdict === "correct", "Formative evaluation failed");
     const show = await learn({ ...art, action: "reveal", sectionId: articleSectionId, blockId: formativeBlockId });
-    check(show.ok && (await show.json() as { answer?: string }).answer === "Luas", "Explicit reveal did not return the answer");
+    check(show.ok && (await show.json() as { answer?: string }).answer === "A.\n\nLuas", "Explicit reveal did not return the answer");
     const done = await learn({ ...pkaScope, action: "status", status: "completed" });
     check(done.ok && (await done.json() as { success?: boolean }).success, "Canonical Diktat completion failed");
     const doneRead = await binding.request(studyPath + "?" + new URLSearchParams(pkaScope), { headers: readingHeaders });
