@@ -10,7 +10,7 @@ import { groupPublicLinks, type PublicLink } from "../../../../packages/public-l
 import { Button } from "../../components/Button";
 import { nativeTypography } from "../../typography";
 import { openPublicLink } from "./client";
-import { BrandSymbol } from "./symbol";
+import { BrandSymbol } from "../shared-ui/navigation-icons";
 
 export type DirectoryState = { status: "loading" | "error" } | { status: "ready"; links: PublicLink[] };
 const recovery = {
@@ -57,7 +57,9 @@ export function PublicDirectory({ state, retry, locale, theme: preference }: {
     <ScrollView contentContainerStyle={styles.scroll}>
       <View style={styles.page}>
         <View style={styles.header}>
-          <BrandSymbol dark={theme === "dark"} />
+          <Svg accessibilityRole="image" accessibilityLabel="Zyx Academy" width={54.4} height={32} viewBox="0 0 34 20">
+            <BrandSymbol color={theme === "dark" ? "#F3F4F5" : "#2A3C6A"} />
+          </Svg>
           <Text accessibilityRole="header" style={[styles.title, fg]}>{copy.title}</Text>
           <Text style={[styles.intro, muted]}>{copy.description}</Text>
         </View>
