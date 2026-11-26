@@ -1,6 +1,6 @@
 import {
   ManagementFailure, articleTitle, managementRoutes, managementSlug, validateArticle, validateForm, validateFormSettings,
-  type Article, type DiscussionMessage, type DiscussionThread, type FormDetails, type ManagementAction, type ManagementClient,
+  type Article, type FormPreset, type DiscussionMessage, type DiscussionThread, type FormDetails, type ManagementAction, type ManagementClient,
   type ManagementMode, type ManagementReads, type ManagementReceipt, type MediaFile, type MeetingDetails,
   type MeetingDirectory, type MeetingSpace, type PricingData, type PublicLink, type Voucher,
 } from "./management-contract";
@@ -76,6 +76,10 @@ export function createManagementFixture({ mode = "populated", admin = true }: Ma
   const data = mode !== "empty";
   const articles = data ? clone(initialArticles) : [];
   const forms = data ? clone(initialForms) : [];
+  const presets: FormPreset[] = data ? [{
+    id: "preset-local", revision: "preset-1", name: "Umpan balik sesi", description: "Pertanyaan dan pengaturan setelah sesi.", category: "feedback",
+    questions: [{ type: "PARAGRAPH", title: "Apa yang perlu diperbaiki?" }], settings: { displayMode: "section" },
+  }] : [];
   const meetings = data ? clone(initialMeetings) : [];
   const threads = data ? clone(initialThreads) : [];
   const messages = data ? clone(initialMessages) : {};
@@ -97,6 +101,7 @@ export function createManagementFixture({ mode = "populated", admin = true }: Ma
     article: id => required(articles.find(article => article.id === id)),
     forms: () => forms.map(detail => detail.form),
     form: id => required(forms.find(detail => detail.form.id === id)),
+    presets: () => presets,
     media: ({ space, folder }) => {
       const prefix = folder || (space === "media" ? "media" : "");
       return { folders: (space === "media" ? folders : storageFolders).filter(key => directChild(key, prefix)), files: (space === "media" ? files : storage).filter(file => directChild(file.key, prefix)) };
@@ -150,6 +155,24 @@ export function createManagementFixture({ mode = "populated", admin = true }: Ma
         checkRevision(action.revision, detail.form.revision);
         forms.splice(forms.indexOf(detail), 1);
         return { id: action.id };
+      }
+      case "form.preset.create": {
+        invalid(action.fields.name.trim() ? undefined : "Nama preset wajib diisi.");
+        const preset = { ...clone(action.fields), name: action.fields.name.trim(), id: nextId("preset"), revision: nextId("revision") };
+        presets.unshift(preset);
+        return { id: preset.id, revision: preset.revision };
+      }
+      case "form.preset.update":
+      case "form.preset.delete": {
+        const preset = required(presets.find(item => item.id === action.id));
+        checkRevision(action.revision, preset.revision);
+        if (action.type === "form.preset.delete") {
+          presets.splice(presets.indexOf(preset), 1);
+          return { id: preset.id };
+        }
+        invalid(action.name.trim() ? undefined : "Nama preset wajib diisi.");
+        Object.assign(preset, { name: action.name.trim(), description: action.description.trim(), revision: nextId("revision") });
+        return { id: preset.id, revision: preset.revision };
       }
       case "media.folder": {
         validateFileName(action.name);

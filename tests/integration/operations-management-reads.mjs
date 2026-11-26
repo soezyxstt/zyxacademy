@@ -48,6 +48,7 @@ try {
     for (const view of [
       "articles",
       "article",
+      "form-presets",
       "pricing",
       "discussions",
       "discussion",
@@ -91,6 +92,7 @@ try {
   await check("article", 404, "absent");
   await check("article", 400);
   await check("article", 400, "x/y");
+  assert.deepEqual(await check("form-presets", 200), []);
   const p = await check("pricing", 200);
   assert.ok(p.discounts.platform);
   assert.deepEqual(p.vouchers, []);

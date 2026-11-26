@@ -5,6 +5,7 @@ import {
   auditMutasi,
   blogArticles,
   customForms,
+  customFormPresets,
   customFormResponses,
   penggunaPeran,
   peran,
@@ -24,6 +25,7 @@ try {
   const { ensureLegacyIdentity } = await import(
     "../../lib/auth/legacy-identity"
   );
+  const { readFormPresets } = await import("../../app/api/native/operations/management/presets");
   const { nativeAuthoringMutation, nativeAuthoringStatus } = await import(
     "../../app/api/native/operations/management/authoring"
   );
@@ -147,6 +149,19 @@ try {
   assert.equal(row.settings.closedMessage, "Ditutup.");
   assert.equal(row.questions[0].title, "Tanggapan?");
   assert.equal((await testDb.select().from(auditMutasi)).length, 4);
+  const presetFields = { name: "Preset latihan", description: "Susun ulang nanti", category: "survey", questions: [{ title: "", type: "RADIO", options: [""] }], settings: { displayMode: "section" } };
+  const createPreset = { type: "form.preset.create", fields: presetFields };
+  const preset = await apply("create-preset-request", createPreset);
+  assert.deepEqual(await apply("create-preset-request", createPreset), preset);
+  assert.equal((await testDb.select().from(customFormPresets)).length, 1);
+  assert.deepEqual((await readFormPresets())[0].questions, presetFields.questions);
+  const renamed = await apply("rename-preset-request", { type: "form.preset.update", id: preset.id, revision: preset.revision, name: "Preset baru", description: "" });
+  await failure(409, "stale-preset-delete-request", { type: "form.preset.delete", id: preset.id, revision: preset.revision });
+  await apply("delete-preset-request", { type: "form.preset.delete", id: preset.id, revision: renamed.revision });
+  assert.deepEqual(await readFormPresets(), []);
+  assert.equal((await testDb.select().from(customForms)).length, 1);
+  await testDb.insert(customFormPresets).values({ id: "legacy-preset", name: "Legacy", questions: [], settings: { openAt: "2026-12-01T09:00", closeAt: "2026-12-02T09:00" } });
+  assert.equal((await readFormPresets())[0].settings.openAt, "2026-12-01T02:00:00.000Z");
   await testDb
     .delete(penggunaPeran)
     .where(eq(penggunaPeran.penggunaId, admin.id));

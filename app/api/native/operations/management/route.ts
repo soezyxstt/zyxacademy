@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { blogArticles, googleMeetSessions, session } from "@/db/schema";
 import { getDiscountVouchers } from "@/app/(admin)/admin/pricing/actions";
 import { getAuthSession } from "@/lib/auth-session";
+import { readFormPresets } from "./presets";
 import { nativeAuthoringMutation, nativeAuthoringStatus } from "./authoring";
 import { invokeOperationsProvider, isProviderOperation, nativeProviderMutation } from "./provider";
 import { isDiscussionOperation, nativeDiscussionMutation } from "./discussions";
@@ -61,6 +62,7 @@ export async function GET(request: NextRequest) {
     if (cursor && cursor.length > 4096) return reply({ error: "invalid" }, 400);
     if (id !== null && !/^[A-Za-z0-9_-]{1,180}$/.test(id)) return reply({ error: "invalid" }, 400);
     switch (view) {
+      case "form-presets": return reply(await readFormPresets());
       case "articles": {
         const items = await db.query.blogArticles.findMany({ orderBy: [desc(blogArticles.createdAt)], with: { author: { columns: { name: true } } } });
         return reply(items.map(article => ({ id: article.id, title: article.title, slug: article.slug, category: article.category, status: article.status, author: article.author?.name ?? "Anonim" })));

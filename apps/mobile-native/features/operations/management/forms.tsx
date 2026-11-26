@@ -5,6 +5,7 @@ import { buildFormSteps, isEmptyFormAnswer } from "../../../../../lib/forms/pres
 import { summarizeFormResponses, type FormQuestion as ValidatedFormQuestion } from "../../../../../lib/forms/validation";
 import { ManagementFailure, formCategories, newForm, newQuestion, questionTypes, validateForm, validateFormSettings, type FormDefinition, type FormDetails, type FormFields, type FormQuestion, type FormSettings } from "../../../../../packages/native-parity/operations/management-contract";
 import { formAcceptanceChanged, sameDraftValue } from "../../../../../packages/native-parity/operations/management-revisions";
+import { FormPresets } from "./form-presets";
 import { RevisionReview } from "./revisions";
 import { Action, Choices, Confirm, Copy, Feedback, Field, Heading, Item, LoadState, Screen, Section, Sections, formatTimestamp, styles, useAction, useDraft, useManagement, useRead, type Confirmation } from "./ui";
 
@@ -128,7 +129,9 @@ function FormBuilder({ form, initialTab }: { form?: FormDefinition; initialTab?:
       <Field label="Deskripsi" multiline value={value.description} onChangeText={next => edit("description", next)} />
       <Field label="Slug tautan" value={value.slug} onChangeText={next => edit("slug", next)} autoCapitalize="none" />
       <Copy strong>Kategori</Copy><Choices values={categories} current={value.category} onChange={next => edit("category", next)} />
-      {!responseCount && <View style={styles.row}><Action onPress={applyStandardPreset}>Preset 12 jenis soal</Action></View>}
+      <FormPresets fields={value} questionsLocked={responseCount > 0} disabled={action.busy || mustReview}
+        onApply={fields => { draft.change(fields); setActiveQuestion(0); }} />
+      {!responseCount && <View style={styles.row}><Action disabled={action.busy || mustReview} onPress={applyStandardPreset}>Preset 12 jenis soal</Action></View>}
       {responseCount > 0 && <Copy muted>Pertanyaan dengan respons tersimpan dipertahankan.</Copy>}
       {value.questions.map((question, index) => <Section key={index} title={`${index + 1}. ${questionTypes[question.type]}`}>
         {responseCount > 0 ? <Copy>{question.title}</Copy> : <>
@@ -155,7 +158,10 @@ function FormBuilder({ form, initialTab }: { form?: FormDefinition; initialTab?:
       </View>}
     </>}
     {tab === "preview" && <FormPreview fields={value} />}
-    {tab === "settings" && <Settings settings={value.settings} update={next => edit("settings", next)} />}
+    {tab === "settings" && <>
+      <FormPresets fields={value} settingsOnly disabled={action.busy || mustReview} onApply={fields => edit("settings", fields.settings)} />
+      <Settings settings={value.settings} update={next => edit("settings", next)} />
+    </>}
     {tab === "forms" && <>
       <Field label="Cari formulir" value={search} onChangeText={setSearch} />
       <LoadState {...read} retry={read.reload} />

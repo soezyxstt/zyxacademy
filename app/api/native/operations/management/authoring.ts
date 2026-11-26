@@ -9,6 +9,7 @@ import { assertAuthoringActor } from "@/lib/auth/authoring-actor";
 import { blogFieldsSchema, createBlogArticle, updateBlogArticle } from "@/lib/blog/service";
 import { nextMonotonicTimestamp } from "@/lib/date-utils";
 import { formDefinitionSchema, formQuestionSchema, formSettingsSchema } from "@/lib/forms/validation";
+import { applyPreset, presetOperations } from "./presets";
 import { applyConfiguration, configurationOperations } from "./configuration";
 import { ManagementFailure } from "@/packages/native-parity/operations/management-contract";
 
@@ -33,6 +34,7 @@ const nativeAuthoring = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("form.save"), id: id.optional(), revision: z.iso.datetime().optional(), fields: formFields }),
   z.strictObject({ type: z.literal("form.settings"), id, revision: z.iso.datetime(), settings: formSettingsSchema }),
   z.strictObject({ type: z.literal("form.delete"), id, revision: z.iso.datetime() }),
+  ...presetOperations,
   ...configurationOperations,
 ]);
 
@@ -102,6 +104,9 @@ export async function nativeAuthoringMutation(actor: { id: string; sessionId: st
         receipt = { id: saved.id, revision: saved.updatedAt.toISOString(), slug: saved.slug };
         break;
       }
+      case "form.preset.create": case "form.preset.update": case "form.preset.delete":
+        receipt = await applyPreset(tx, actor.id, action);
+        break;
       default: receipt = await applyConfiguration(tx, actor.id, action);
     }
     await tx.insert(auditMutasi).values({ id: receiptId, actorId: actor.id, entityType: "native_operations", entityId: receipt.id, action: action.type, correlationId: requestKey, outcome: "success", afterSnapshot: { inputHash, sessionHash: revisionOf(actor.sessionId), result: receipt } });
@@ -112,6 +117,8 @@ export async function nativeAuthoringMutation(actor: { id: string; sessionId: st
     revalidatePath("/admin/blog");
     revalidatePath("/blog");
     if (result.slug) revalidatePath(`/blog/${result.slug}`);
+  } else if (action.type.startsWith("form.preset.")) {
+    revalidatePath("/admin/forms");
   } else if (action.type.startsWith("form.")) {
     revalidatePath("/admin/forms");
     revalidatePath(`/admin/forms/${result.id}`);

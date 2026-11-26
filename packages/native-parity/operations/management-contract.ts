@@ -69,6 +69,10 @@ export type FormFields = {
 export type FormDefinition = FormFields & { id: string; revision: string; totalResponses: number };
 export type FormResponse = { id: string; responderEmail?: string; answers: Record<string, unknown>; submittedAt: string };
 export type FormDetails = { form: FormDefinition; responses: FormResponse[] };
+export type FormPresetFields = {
+  name: string; description: string; category: FormFields["category"]; questions: FormQuestion[]; settings?: FormSettings;
+};
+export type FormPreset = FormPresetFields & { id: string; revision: string; canApplyQuestions?: boolean; invalidSettings?: boolean };
 export const newQuestion = (): FormQuestion => ({ title: "", type: "TEXT", required: true });
 export const newForm = (): FormFields => ({ title: "", description: "", category: "survey", slug: "", questions: [newQuestion()], settings: { acceptingResponses: true } });
 
@@ -92,7 +96,7 @@ export type PricingDiscounts = Record<"platform" | "tutorial", { percent: number
 export type PricingData = { vouchers: Voucher[]; discounts: PricingDiscounts; now: string };
 
 export type ManagementReads = {
-  articles: [undefined, ArticleSummary[]]; article: [string, Article]; forms: [undefined, FormDefinition[]]; form: [string, FormDetails];
+  articles: [undefined, ArticleSummary[]]; article: [string, Article]; forms: [undefined, FormDefinition[]]; form: [string, FormDetails]; presets: [undefined, FormPreset[]];
   media: [MediaLocation, MediaLibrary]; meetings: [string | undefined, ManagementPage<MeetingRecord>]; meeting: [string, MeetingDetails]; meetingDirectory: [undefined, MeetingDirectory];
   discussions: [{ cursor?: string; search?: string; status?: DiscussionThread["status"] }, ManagementPage<DiscussionThread>]; discussion: [{ id: string; cursor?: string }, DiscussionPage]; pricing: [undefined, PricingData]; links: [undefined, PublicLink[]];
 };
@@ -102,6 +106,9 @@ export type ManagementAction =
   | { type: "form.save"; fields: FormFields; id?: string; revision?: string }
   | { type: "form.settings"; id: string; settings: FormSettings; revision: string }
   | { type: "form.delete"; id: string; revision: string }
+  | { type: "form.preset.create"; fields: FormPresetFields }
+  | { type: "form.preset.update"; id: string; revision: string; name: string; description: string }
+  | { type: "form.preset.delete"; id: string; revision: string }
   | { type: "media.folder"; folder: string; name: string }
   | { type: "media.rename"; key: string; name: string }
   | { type: "media.delete"; key: string; folder: boolean }
