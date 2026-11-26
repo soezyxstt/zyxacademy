@@ -22,12 +22,13 @@ def load_directory_manifest(path):
     return manifest
 
 
-def load_case_groups(path):
+def load_case_layout(path):
     entries = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(entries, list) or not entries:
         raise ValueError("Expected a nonempty case manifest")
 
     groups = {}
+    heights = {}
     case_ids = set()
     for entry in entries:
         if not isinstance(entry, dict):
@@ -39,10 +40,19 @@ def load_case_groups(path):
                 raise ValueError(f"Invalid case id or component name in {entry!r}")
         if case_id in case_ids:
             raise ValueError(f"Duplicate case id {case_id}")
+        # The native gallery stacks all three cases in one device viewport.
+        height = entry.get("height", 100)
+        if type(height) is not int or not 1 <= height <= 200:
+            raise ValueError(f"Invalid capture height for {case_id}")
         case_ids.add(case_id)
         groups.setdefault(component, []).append(case_id)
+        heights[case_id] = height
 
     for component, cases in groups.items():
         if len(cases) != 3:
             raise ValueError(f"Expected three cases for {component}, found {len(cases)}")
-    return groups
+    return groups, heights
+
+
+def load_case_groups(path):
+    return load_case_layout(path)[0]

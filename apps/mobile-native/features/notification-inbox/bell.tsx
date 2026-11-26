@@ -1,7 +1,7 @@
 import { useIsFocused, useSitemap } from "expo-router";
 import { addNotificationReceivedListener } from "expo-notifications";
 import { useEffect, useRef, useState, type ComponentRef } from "react";
-import { ActivityIndicator, AppState, Pressable, StyleSheet, Text, View } from "react-native";
+import { AppState, Pressable, StyleSheet, Text, View } from "react-native";
 import en from "../../../../messages/en/notifications.json";
 import id from "../../../../messages/id/notifications.json";
 import { nativeColors, nativeRadii } from "../../../../packages/design-tokens/native-colors";
@@ -15,6 +15,7 @@ import { nativeTypography } from "../../typography";
 import { NavigationIcon } from "../shared-ui/navigation-icons";
 import { SharedPopover } from "../shared-ui/overlays";
 import { loadInbox, markInboxRead, type InboxPage, type InboxRow } from "./client";
+import { InboxContent } from "./content";
 
 type BellProps = { locale: "id" | "en"; theme: "dark" | "light"; visit(href: string): void };
 
@@ -105,42 +106,14 @@ function InboxBell({ session, account, locale, theme, visit }: BellProps & { ses
     </View>}
     <SharedPopover open={open} anchorRef={anchor} align="end" title={copy.title} theme={theme} onDismiss={dismiss}
       closeLabel={locale === "id" ? "Tutup" : "Close"}>
-      {!!unread && <Button variant="link" disabled={saving} onPress={() => void select()}>{copy.markAllRead}</Button>}
-      {loading ? <ActivityIndicator color={colors.primary} /> : null}
-      {error && <Text accessibilityRole="alert" style={[styles.body, { color: colors.destructive }]}>
-        {locale === "id" ? (error === "read" ? "Notifikasi belum dapat dimuat." : "Status baca belum tersimpan.") :
-          (error === "read" ? "Could not load notifications." : "Could not save read status.")}
-      </Text>}
-      {error === "read" && <Button variant="outline" onPress={() => setRefresh(value => value + 1)}>{locale === "id" ? "Coba lagi" : "Try again"}</Button>}
-      {!loading && data?.rows.length === 0 && <Text style={[styles.body, { color: colors.mutedForeground }]}>{copy.empty}</Text>}
-      {!loading && data?.rows.map(row => <Pressable key={row.id} accessibilityRole="button" disabled={saving}
-        accessibilityLabel={[row.title, row.body, row.read ? null : locale === "en" ? "Unread" : "Belum dibaca"].filter(Boolean).join(". ")}
-        onPress={() => void select(row)} style={[styles.row, { borderColor: colors.border }]}>
-        <Text style={[row.read ? nativeTypography.bodyRegular : nativeTypography.bodySemibold, styles.title, { color: colors.foreground }]}>{row.title}</Text>
-        <Text style={[nativeTypography.bodyRegular, styles.body, { color: colors.mutedForeground }]}>{row.body}</Text>
-        <Text style={[nativeTypography.bodyRegular, styles.body, { color: colors.mutedForeground }]}>{formatInboxTime(row.createdAt, locale, copy.relative)}</Text>
-      </Pressable>)}
+      <InboxContent locale={locale} theme={theme} unread={unread ?? 0} rows={data?.rows}
+        loading={loading} saving={saving} error={error} onRetry={() => setRefresh(value => value + 1)}
+        onMarkAllRead={() => void select()} onSelect={row => void select(row)} />
     </SharedPopover>
   </View>;
-}
-
-function formatInboxTime(value: string, locale: BellProps["locale"], copy: typeof en.relative) {
-  const date = new Date(value);
-  if (!Number.isFinite(date.getTime())) return "";
-  const minutes = Math.floor((Date.now() - date.getTime()) / 60_000);
-  if (minutes < 1) return copy.justNow;
-  if (minutes < 60) return copy.minutes.replace("{count}", String(minutes));
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return copy.hours.replace("{count}", String(hours));
-  const days = Math.floor(hours / 24);
-  if (days < 7) return copy.days.replace("{count}", String(days));
-  return date.toLocaleDateString(locale === "id" ? "id-ID" : "en-US", { day: "numeric", month: "short" });
 }
 
 const styles = StyleSheet.create({
   badge: { position: "absolute", top: 0, end: -2, minWidth: 14, alignItems: "center", borderRadius: nativeRadii.sm, paddingHorizontal: 2 },
   count: { fontSize: 10, lineHeight: 14 },
-  row: { borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 8, gap: 2 },
-  body: { fontSize: 12, lineHeight: 16 },
-  title: { fontSize: 14, lineHeight: 20 },
 });

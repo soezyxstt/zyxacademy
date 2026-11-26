@@ -1,6 +1,7 @@
 @import "../../../../app/globals.css";
 
 @source "../../../../components/ui/*.tsx";
+@source "../../../../components/notifications/notification-inbox-panel.tsx";
 @source "./";
 @source "../../../../app/tautan/directory.tsx";
 @source "../../../../components/logo.tsx";

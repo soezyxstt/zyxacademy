@@ -5,6 +5,7 @@ import { choiceCases } from "./choice-cases";
 import { controlCases } from "./control-cases";
 import { progressCases } from "./progress-cases";
 import { formattedDateCases } from "./formatted-date-cases";
+import { notificationInboxCases } from "./notification-inbox-cases";
 import { separatorCases } from "./separator-cases";
 import { skeletonCases } from "./skeleton-cases";
 
@@ -19,6 +20,7 @@ export const galleryCases = [
   ...badgeCases.map((item) => ({ ...item, family: "badge" as const, component: "badge" as const })),
   ...betaBadgeCases.map((item) => ({ ...item, family: "beta-badge" as const, component: "beta-badge" as const })),
   ...formattedDateCases.map((item) => ({ ...item, family: "formatted-date" as const, component: "formatted-date" as const })),
+  ...notificationInboxCases.map((item) => ({ ...item, family: "notification-inbox" as const, component: "notification-inbox" as const })),
 ];
 export type GalleryCase = (typeof galleryCases)[number];
 

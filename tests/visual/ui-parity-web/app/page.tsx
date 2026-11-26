@@ -2,7 +2,7 @@ import { galleryCases, type GalleryCase } from "@/packages/ui-parity/gallery";
 import type { ReactNode } from "react";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { parityFrame } from "@/packages/ui-parity/frame";
+import { getParityFrameHeight, parityFrame } from "@/packages/ui-parity/frame";
 import { getSeparatorPosition } from "@/packages/ui-parity/separator-cases";
 import { getSkeletonPosition } from "@/packages/ui-parity/skeleton-cases";
 
@@ -13,16 +13,17 @@ import { ProgressCase } from "./ProgressCases";
 import { ChoiceCase } from "./ChoiceCases";
 import { ControlCase } from "./ControlCases";
 import { FormattedDateCase } from "./FormattedDateCases";
+import { NotificationInboxCase } from "./NotificationInboxCases";
 import { MobileReference } from "./MobileReference";
 
-type ParityCaseFrameProps = { id: string; theme: "light" | "dark"; children: ReactNode };
+type ParityCaseFrameProps = { id: string; theme: "light" | "dark"; height: number; children: ReactNode };
 
-function ParityCaseFrame({ id, theme, children }: ParityCaseFrameProps) {
+function ParityCaseFrame({ id, theme, height, children }: ParityCaseFrameProps) {
   return (
     <div
       className={theme === "dark" ? "dark bg-background text-foreground" : "bg-background text-foreground"}
       data-parity-case={id}
-      style={{ position: "relative", width: parityFrame.width, height: parityFrame.height }}
+      style={{ position: "relative", width: parityFrame.width, height }}
     >
       {children}
     </div>
@@ -45,6 +46,8 @@ function Specimen({ item }: { item: GalleryCase }) {
       return <ProgressCase item={item} />;
     case "formatted-date":
       return <FormattedDateCase item={item} />;
+    case "notification-inbox":
+      return <NotificationInboxCase item={item} />;
     case "choice":
       return <ChoiceCase id={item.id} />;
     case "skeleton":
@@ -67,7 +70,7 @@ export default function ParityPage() {
     <>
       <main style={{ display: "grid", justifyContent: "center", gap: parityFrame.gap, paddingBlock: parityFrame.gap }}>
         {galleryCases.map((item) => (
-          <ParityCaseFrame key={item.id} id={item.id} theme={item.theme}>
+          <ParityCaseFrame key={item.id} id={item.id} theme={item.theme} height={getParityFrameHeight(item.component)}>
             <Specimen item={item} />
           </ParityCaseFrame>
         ))}
