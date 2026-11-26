@@ -1,5 +1,5 @@
-import { chromium, expect, type BrowserContext, type ConsoleMessage, type Locator, type Page } from "@playwright/test";
-import { mkdir, writeFile } from "node:fs/promises";
+import { chromium, expect, type BrowserContext, type ConsoleMessage, type Locator, type Page, type Response } from "@playwright/test";
+import { mkdir, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { assessmentEvidence as data } from "./assessment-data";
 import { localStudentCookie } from "./session";
@@ -16,18 +16,21 @@ const course = `/courses/${data.course}`;
 const quiz = `${course}/quiz/${data.quiz}`;
 const tryout = `${course}/tryout/${data.tryout}`;
 const results = `${course}/my-results`;
+const quizMetrics = (page: Page) => page.locator("[data-quiz-analysis-metrics]").filter({ hasText: "85%" });
 const resultReport: Record<string, unknown>[] = [];
 
 const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH });
 await mkdir(output, { recursive: true });
 
 async function saveReport() {
-  await writeFile(join(output, "web.json"), JSON.stringify({ serverSha, browser: browser.version(), theme, locale: "id-ID",
+  const temporary = join(output, `web.${process.pid}.json`);
+  await writeFile(temporary, JSON.stringify({ serverSha, browser: browser.version(), theme, locale: "id-ID",
     timeZone: "Asia/Jakarta", ...viewport, dpr: 1, results: resultReport }, null, 2) + "\n");
+  await rename(temporary, join(output, "web.json"));
 }
 
 async function ready(page: Page, marker: Locator) {
-  await marker.first().waitFor({ state: "visible", timeout: 45000 });
+  await marker.first().waitFor({ state: "visible", timeout: 90000 });
   await page.evaluate(() => document.fonts.ready);
   await page.addStyleTag({ content: "nextjs-portal { display:none !important }" });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
@@ -38,15 +41,23 @@ async function capture(page: Page, id: string, path: string, marker: (page: Page
   const start = Date.now();
   const hydration: string[] = [];
   const runtimeErrors: string[] = [];
+  const httpErrors: string[] = [];
   const onPageError = (error: Error) => runtimeErrors.push(error.message.slice(0, 240));
   const onConsole = (message: ConsoleMessage) => {
     if (message.type() === "error" && /hydrat/i.test(message.text())) hydration.push(message.text().slice(0, 240));
   };
+  const onResponse = (response: Response) => {
+    const url = new URL(response.url());
+    if (url.origin === origin && response.status() >= 400 && httpErrors.length < 8) {
+      httpErrors.push(`${response.status()} ${url.pathname}`);
+    }
+  };
+  page.on("response", onResponse);
   page.on("pageerror", onPageError);
   page.on("console", onConsole);
   let status: number | undefined;
   try {
-    const response = await page.goto(origin + path, { timeout: 240000, waitUntil: "domcontentloaded" });
+    const response = await page.goto(origin + path, { timeout: 300000, waitUntil: "domcontentloaded" });
     status = response?.status();
     const rendered = new URL(page.url());
     const expected = new URL(path, origin);
@@ -55,14 +66,15 @@ async function capture(page: Page, id: string, path: string, marker: (page: Page
     }
     await ready(page, marker(page));
     if (action) await action(page);
-    await page.screenshot({ path: join(output, `${id}.png`), animations: "disabled" });
     if (hydration.length || runtimeErrors.length) throw new Error("Browser runtime or hydration errors");
+    await page.screenshot({ path: join(output, `${id}.png`), animations: "disabled" });
     resultReport.push({ id, path, status, elapsedMs: Date.now() - start });
     console.log(id, status);
   } catch (error) {
-    resultReport.push({ id, path, status, error: String(error).slice(0, 550), hydration, runtimeErrors, elapsedMs: Date.now() - start });
+    resultReport.push({ id, path, status, error: String(error).slice(0, 550), hydration, runtimeErrors, httpErrors, elapsedMs: Date.now() - start });
     console.log(id, "capture unavailable");
   } finally {
+    page.off("response", onResponse);
     page.off("pageerror", onPageError);
     page.off("console", onConsole);
   }
@@ -97,7 +109,7 @@ try {
     await ready(p, answer);
     await expect(answer).toBeChecked();
   });
-  await capture(page, "quiz-summary", `${quiz}/summary/${data.finished}`, p => p.locator("[data-quiz-analysis-metrics]"));
+  await capture(page, "quiz-summary", `${quiz}/summary/${data.finished}`, quizMetrics);
   await capture(page, "tryout-list", `${course}/tryout`, p => p.getByText(data.tryoutTitle, { exact: true }));
   await capture(page, "tryout-draft-restored", tryout, p => p.getByRole("radio", { name: /\bDua\b/ }), async p => {
     const answer = p.getByRole("radio", { name: /\bDua\b/ });
@@ -107,9 +119,12 @@ try {
     await ready(p, answer);
     await expect(answer).toBeChecked();
   });
-  await capture(page, "results-list", results, p => p.getByText(data.tryoutTitle, { exact: true }));
+  await capture(page, "results-list", results, p => p.getByText(data.tryoutTitle, { exact: true }), async p => {
+    await expect(p.getByRole("link", { name: new RegExp(data.quizTitle) })).toHaveAttribute("href", `${results}/${data.finished}`);
+    await expect(p.getByRole("link", { name: new RegExp(data.tryoutTitle) })).toHaveAttribute("href", `${results}/${data.submission}`);
+  });
   await capture(page, "tryout-review", `${results}/${data.submission}`, p => p.getByText("Pilih bilangan genap.", { exact: true }));
-  await capture(page, "results-diagnosis", `${results}/${data.finished}/summary`, p => p.locator("[data-quiz-analysis-metrics]"));
+  await capture(page, "results-diagnosis", `${results}/${data.finished}/summary`, quizMetrics);
   await capture(page, "solution-reveal", `${course}/solutions/${data.solution}`, p => p.getByRole("button", { name: "Lihat pembahasan", exact: true }), async p => {
     await expect(p.getByRole("heading", { name: data.solutionTitle, exact: true })).toBeVisible();
     await expect(p.getByRole("heading", { name: "Jawaban", exact: true })).toHaveCount(0);
@@ -126,4 +141,6 @@ try {
 } finally {
   await browser.close();
 }
-if (!resultReport.length || resultReport.some(result => result.error)) process.exitCode = 1;
+const unknownCases = [...requestedCases].filter(id => !resultReport.some(result => result.id === id));
+if (unknownCases.length) console.error("Unknown assessment capture cases", unknownCases);
+if (!resultReport.length || resultReport.some(result => result.error) || unknownCases.length) process.exitCode = 1;

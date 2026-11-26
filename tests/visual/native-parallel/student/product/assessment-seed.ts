@@ -3,6 +3,7 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { Client } from "pg";
 import * as schema from "../../../../../db/schema";
 import { PERAN_SEEDS, membershipIdFor } from "../../../../../lib/auth/peran";
+import type { ComputedQuizMetrics } from "../../../../../lib/student-quiz-analytics/types";
 import { solutionCollectionFixture } from "../../../../../app/visual-fixtures/solution-collection/fixture";
 import { assessmentEvidence as data } from "./assessment-data";
 
@@ -59,7 +60,7 @@ try {
     await tx.insert(schema.studentQuizAttempts).values({ id: data.finished, studentId: learner, templateId: data.quiz, startedAt: new Date(submittedAt.getTime() - 78_000), submittedAt,
       status: "completed", score: 85, durationSeconds: 78, gradingStatus: "graded", questionsSnapshot: bank,
       answersSnapshot: { [bank[0].id]: [2], [bank[1].id]: { text: "Substitusi pada fungsi linear." } } }).onConflictDoNothing();
-    const computedMetrics = { quizTitle: data.quizTitle, courseId: data.course, templateId: data.quiz, attemptId: data.finished, score: 85,
+    const computedMetrics: ComputedQuizMetrics = { quizTitle: data.quizTitle, courseId: data.course, templateId: data.quiz, attemptId: data.finished, score: 85,
       correctCount: 1, incorrectCount: 1, unansweredCount: 0, totalQuestions: 2, durationSeconds: 78,
       conceptMastery: [{ concept: "Limit fungsi", totalQuestions: 2, correctCount: 1, incorrectCount: 1, accuracyPercent: 50, status: "developing" }],
       cognitiveSkills: [], difficultyBreakdown: [], timeAnalysis: { totalDurationSeconds: 78, avgTimePerQuestionSeconds: 39, fastAnswerCount: 0, fastIncorrectCount: 0, slowAnswerCount: 0 },

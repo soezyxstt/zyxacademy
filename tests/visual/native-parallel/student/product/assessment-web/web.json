@@ -6,6 +6,12 @@
   "timeZone": "Asia/Jakarta",
   "results": [
     {
+      "id": "quiz-list",
+      "path": "/courses/assessment-evidence-mathematics/quiz",
+      "status": 200,
+      "elapsedMs": 79459
+    },
+    {
       "id": "quiz-gateway",
       "path": "/courses/assessment-evidence-mathematics/quiz/assessment-evidence-limit-quiz",
       "status": 200,
@@ -16,6 +22,18 @@
       "path": "/courses/assessment-evidence-mathematics/quiz/assessment-evidence-limit-quiz?attemptId=assessment-evidence-quiz-active",
       "status": 200,
       "elapsedMs": 56272
+    },
+    {
+      "id": "tryout-draft-restored",
+      "path": "/courses/assessment-evidence-mathematics/tryout/assessment-evidence-tryout",
+      "status": 200,
+      "elapsedMs": 95919
+    },
+    {
+      "id": "results-list",
+      "path": "/courses/assessment-evidence-mathematics/my-results",
+      "status": 200,
+      "elapsedMs": 241989
     }
   ],
   "width": 380,
