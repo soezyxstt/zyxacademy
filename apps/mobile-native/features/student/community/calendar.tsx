@@ -1,4 +1,4 @@
-import { useRef, useState, type ComponentRef } from "react";
+import { useEffect, useRef, useState, type ComponentRef } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Button } from "../../../components/Button";
 import { nativeTypography } from "../../../typography";
@@ -8,6 +8,8 @@ import type { CalendarEventItem } from "../../../../../lib/student/agenda-contra
 import { calendarFilters, describeAgendaEvent, formatAgendaDay, groupCalendarEvents, type CalendarFilter } from "../../../../../lib/student/agenda-presentation";
 import studentEn from "../../../../../messages/en/student.json";
 import studentId from "../../../../../messages/id/student.json";
+import type { StudentCalendarPath } from "../../../../../packages/student-community/calendar-link";
+import { studentPathWithQuery } from "../routes";
 import type { AgendaData } from "../../../../../packages/native-parity/student/community/contracts";
 import { Action, Actions, Copy, Notice, Page, Remote, communityPath, dateLabel, isHttps, operationResult, post, useCommunity, useOperation, useRemote } from "./ui";
 
@@ -119,19 +121,34 @@ function AgendaRow({ event, first }: { event: CalendarEventItem; first: boolean 
     </View>
   </View>;
 }
-export function CalendarSync({ status, path, reload }: { status: AgendaData["sync"]; path: string; reload(): void }) {
-  const { request, nativeAuthScheme, openExternal, tr, session } = useCommunity();
+export function CalendarSync({ status, path, reload }: { status: AgendaData["sync"]; path: StudentCalendarPath; reload(): void }) {
+  const { request, calendarLink, focused, route, replace, tr, session } = useCommunity();
   const action = useOperation();
+  const [cancelled, setCancelled] = useState(false);
+  useEffect(() => {
+    if (!status || !calendarLink || focused === false || action.pending) return;
+    const returned = calendarLink.takeReturn(path, route.query.linkState, route.query.calendarSync);
+    if (!returned) return;
+    replace(studentPathWithQuery(route.path, { linkState: undefined, calendarSync: undefined }));
+    setCancelled(returned === "cancelled");
+    if (returned === "linked") {
+      void action.run(async () => {
+        await calendarLink.confirmAndSync();
+        reload();
+      }, undefined, tr("Koneksi Kalender belum terkonfirmasi. Perbarui status lalu coba lagi.", "Calendar connection is unconfirmed. Refresh status and try again."));
+    }
+  }, [action, calendarLink, focused, path, reload, replace, request, route, status, tr]);
+
   if (!status) return null;
-  const connect = () => void action.run(async () => {
-    const result = await post<{ url: string | null; nativeBrowser: boolean }>(request, "calendar-connect", { path, scheme: nativeAuthScheme });
-    if (!result.nativeBrowser || !result.url?.startsWith("/api/auth/native/google-link/start?")) throw new Error("Calendar connection unavailable");
-    openExternal?.(result.url);
-  });
+  const reconnecting = status.error === "reconnect";
   return <>
     <Actions>
-      {!status.connected || status.error === "reconnect" ?
-        nativeAuthScheme && openExternal && <Action label={tr("Hubungkan Google Calendar", "Connect Google Calendar")} busy={action.pending} onPress={connect} />
+      {!status.connected || reconnecting ?
+        calendarLink && <Action label={reconnecting ? tr("Hubungkan ulang Google Calendar", "Reconnect Google Calendar")
+          : tr("Hubungkan Google Calendar", "Connect Google Calendar")} busy={action.pending} onPress={() => {
+          setCancelled(false);
+          void action.run(() => calendarLink.connect(path));
+        }} />
         : <Action label={status.pending ? tr("Sinkronisasi berjalan", "Sync pending") : tr("Sinkronkan Google Calendar", "Sync Google Calendar")}
           busy={action.pending} disabled={status.pending} onPress={() => void action.run(async () => {
             operationResult(await post(request, "calendar-sync", {}));
@@ -141,6 +158,7 @@ export function CalendarSync({ status, path, reload }: { status: AgendaData["syn
     </Actions>
     {status.lastSyncedAt && <Copy kind="muted">{tr("Terakhir disinkronkan", "Last synced")} {dateLabel(status.lastSyncedAt, session.locale, true)}</Copy>}
     {status.error === "failed" && <Copy kind="error">{tr("Sinkronisasi belum berhasil.", "Sync failed.")}</Copy>}
+    {cancelled && <Copy kind="error">{tr("Koneksi Google Calendar belum selesai.", "Google Calendar connection did not complete.")}</Copy>}
     <Notice notice={action.notice} />
   </>;
 }

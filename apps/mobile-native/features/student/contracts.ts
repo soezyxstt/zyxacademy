@@ -55,7 +55,7 @@ export interface StudentServices {
   openExternal?: (path: string) => void;
   /** Opens the browser notification settings in an existing browser profile. */
   openBrowserNotifications?: () => void;
-  nativeAuthScheme?: string;
+  calendarLink?: import("./community/calendar-link").StudentCalendarLink;
   onLocaleChanged?(locale: "id" | "en"): void;
   localReminderSettings?: ReactNode;
   devicePush?: {

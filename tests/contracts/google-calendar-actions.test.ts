@@ -11,6 +11,7 @@ mock.module("@/db", () => ({ db: {} }));
 mock.module("@/jobs/client", () => ({ inngest: {} }));
 mock.module("@/lib/google-calendar/sync", () => ({ centralCalendarConfigured: () => true, personalCalendarAccount: async () => null }));
 const issuedHandoffs: Array<{ googleUrl: string; setCookies: string[] }> = [];
+const callbacks: { success: string; error: string }[] = [];
 let sessionEmail: string | undefined = "student@example.com";
 const realHandoff = await import("@/lib/native/google-link-handoff");
 mock.module("@/lib/native/google-link-handoff", () => ({
@@ -24,6 +25,7 @@ mock.module("@/lib/auth", () => ({ auth: { api: {
   getSession: async () => ({ user: { id: "fixture-user", email: sessionEmail } }),
   linkSocialAccount: async (input: any) => {
     expect(input.returnHeaders).toBe(true);
+    callbacks.push({ success: input.body.callbackURL, error: input.body.errorCallbackURL });
     expect(input.body.scopes).toContain("https://www.googleapis.com/auth/calendar.events");
     const responseHeaders = new Headers();
     responseHeaders.append("Set-Cookie", "better-auth.oauth_state=fixture-signed-state; Path=/; Max-Age=600; HttpOnly; SameSite=Lax; Secure");
@@ -68,4 +70,27 @@ test("native personal consent issues a single-use system-browser handoff and str
 test("unauthorized roles cannot start personal consent", async () => {
   roles = ["admin"];
   await expect(connectGoogleCalendar("/calendar")).rejects.toThrow("Forbidden");
+});
+
+test("Expo scope linking uses exact same-account handoff state for provider success and cancellation", async () => {
+  roles = ["murid"];
+  const state = "525bfd44-97a7-495e-b1f0-ca84d41d7a0a";
+  const previous = process.env.BETTER_AUTH_URL;
+  try {
+    process.env.BETTER_AUTH_URL = "https://staging.zyxacademy.com";
+    const exposed = await connectGoogleCalendar("/dashboard/schedule", { nativeScheme: "zyx-native-parity", linkState: state });
+    expect(exposed.nativeBrowser).toBe(true);
+    for (const [key, value] of Object.entries(callbacks.at(-1)!)) {
+      const target = new URL(value, process.env.BETTER_AUTH_URL);
+      expect(target.pathname).toBe("/api/auth/native/google-link/complete");
+      expect(target.searchParams.get("next")).toBe("/dashboard/schedule");
+      expect(target.searchParams.get("linkState")).toBe(state);
+      expect(target.searchParams.get("status")).toBe(key === "success" ? "ok" : "error");
+    }
+    await expect(connectGoogleCalendar("/calendar", { nativeScheme: "zyx-native-parity" })).rejects.toThrow("Invalid calendar callback");
+    await expect(connectGoogleCalendar("/tutor/schedule", { nativeScheme: "zyx-native-parity", linkState: state })).rejects.toThrow("Invalid calendar callback");
+  } finally {
+    if (previous === undefined) delete process.env.BETTER_AUTH_URL;
+    else process.env.BETTER_AUTH_URL = previous;
+  }
 });

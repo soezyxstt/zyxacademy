@@ -1,6 +1,7 @@
 import { useCallback, useLayoutEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { Redirect, useIsFocused, useNavigation, useRouter } from "expo-router";
 import { Alert, Linking, Platform, Text, View } from "react-native";
+import { randomUUID } from "expo-crypto";
 import { openBrowserAsync } from "expo-web-browser";
 import { authLocale } from "../../auth/auth-copy";
 import { useNativeAccountContext } from "../../auth/use-account-context";
@@ -15,6 +16,7 @@ import { useOfflineReadingPackages } from "../../offline/reading-hooks";
 import { useOfflineReadingSession } from "../../offline/use-reading-session";
 import type { NativeOfflineLocale } from "../../offline/sync-contract";
 import { useOfflineCourseMetadata } from "../../offline/lifecycle-provider";
+import { bindCalendarLink } from "./community/calendar-link";
 import { StudentCelebrations } from "./community/celebrations";
 import { ScheduleResources } from "../schedule/resources";
 import { studentBrowserNotificationsAction } from "./browser-handoff";
@@ -30,7 +32,7 @@ const notBlocked = () => false;
 const diktatPdfPolicy = { mimeTypes: ["application/pdf"], maxBytes: 50 * 1024 * 1024 } as const;
 const discussionImagePolicy = { mimeTypes: ["image/jpeg", "image/png", "image/webp"], maxBytes: 8 * 1024 * 1024 } as const;
 
-export type VerifiedEntryProps = Omit<StudentEntryProps, "session" | "request" | "devicePush" | "openOfflineMaterial" | "saveDiktatPdf" | "shareDiscussionImage" | "renderScheduleResources" | "pdfReader" | "focused" | "resultsTimeZone"> & {
+export type VerifiedEntryProps = Omit<StudentEntryProps, "session" | "request" | "devicePush" | "openOfflineMaterial" | "saveDiktatPdf" | "shareDiscussionImage" | "renderScheduleResources" | "pdfReader" | "calendarLink" | "focused" | "resultsTimeZone"> & {
   offlineLocale?: NativeOfflineLocale;
   openOfflineMaterial?: (material: VerifiedOfflineMaterial) => void | Promise<void>;
 };
@@ -141,6 +143,8 @@ export function VerifiedStudentEntry({ offlineLocale, openOfflineMaterial, ...pr
       if (transport?.isCurrent()) void openBrowserAsync(url.href).catch(showExternalError);
     } catch { showExternalError(); }
   }
+  const calendarLink = (Platform.OS === "android" || Platform.OS === "ios") && ["/calendar", "/dashboard/schedule"].includes(props.path.split(/[?#]/, 1)[0])
+    ? bindCalendarLink(transport, { current: isTargetCurrent, nonce: randomUUID, open: openBrowserAsync }) : undefined;
   const openBrowserNotifications = studentBrowserNotificationsAction({
     origin,
     platform: Platform.OS,
@@ -154,7 +158,7 @@ export function VerifiedStudentEntry({ offlineLocale, openOfflineMaterial, ...pr
     {focused && !revalidating && context.roles.length === 1 && context.accountId === accountId && context.sessionId === sessionId
       ? <StudentCelebrations key={identityKey} transport={transport} locale={context.locale} navigate={props.navigate} /> : null}
     <StudentEntry {...props} focused={focused} openExternal={props.openExternal ?? openExternal} openBrowserNotifications={openBrowserNotifications} openOfflineMaterial={openSaved} openOfflineLibrary={target.kind === "course" || target.kind === "material" || matchStudentRoute(props.path)?.pattern === "/settings" ? openLibrary : undefined} request={transport.request} devicePush={push} assessmentPhotos={props.assessmentPhotos ?? assessmentPhotos} drafts={props.drafts ?? drafts}
-    pdfReader={pdfReader}
+    pdfReader={pdfReader} calendarLink={calendarLink}
     saveDiktatPdf={Platform.OS === "android" || Platform.OS === "ios" ? saveDiktatPdf : undefined}
     shareDiscussionImage={Platform.OS === "android" || Platform.OS === "ios" ? shareDiscussionImage : undefined}
     renderScheduleResources={(bookingId, theme) => <ScheduleResources key={bookingId} bookingId={bookingId} theme={theme} role="murid" />}

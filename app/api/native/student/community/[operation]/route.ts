@@ -9,7 +9,9 @@ import * as social from "@/lib/gamification/social";
 import { getDiscussionActor, requireDiscussionCourse, resolveDiscussionCourses } from "@/lib/discussions/access";
 import { listChannelMetadataPage } from "@/lib/discussions/service";
 import { getEquippedZyraAppearance } from "@/lib/gamification/queries";
-import { normalizeNativeAuthScheme } from "@/lib/native/auth-handoff";
+import { resolveAuthBaseUrl } from "@/lib/auth-site-url";
+import { EXPO_STAGING_SCHEME, normalizeCalendarLinkScheme } from "@/lib/native/expo-auth-config";
+import { studentCalendarPath } from "@/packages/student-community/calendar-link";
 import { saveUserLocalePreference } from "@/lib/i18n/preferences";
 import { changeReward } from "@/app/(student)/achievements/actions";
 import { submitStudentFeedbackAction } from "@/app/(student)/feedback/actions";
@@ -171,10 +173,14 @@ export async function POST(request: Request, { params }: Context) {
         return json(await requestGoogleCalendarSync());
       }
       case "calendar-connect": {
-        const { path, scheme } = z.strictObject({ path: workPaths, scheme: z.string().max(80) }).parse(body);
-        const nativeScheme = normalizeNativeAuthScheme(scheme);
-        if (!nativeScheme) return json({ code: "invalid" }, 400);
-        return json(await connectGoogleCalendar(path, { nativeScheme }));
+        const { path, scheme, linkState } = z.strictObject({
+          path: workPaths, scheme: z.string().max(80), linkState: z.uuidv4().optional(),
+        }).parse(body);
+        const nativeScheme = normalizeCalendarLinkScheme(scheme, linkState, new URL(resolveAuthBaseUrl()).origin);
+        if (!nativeScheme || (nativeScheme === EXPO_STAGING_SCHEME && !studentCalendarPath(path))) {
+          return json({ code: "invalid" }, 400);
+        }
+        return json(await connectGoogleCalendar(path, { nativeScheme, linkState }));
       }
       case "reward": {
         await requireStudentGamificationAccess();

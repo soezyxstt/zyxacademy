@@ -190,6 +190,20 @@ export const operationsCatalog = [
     "reason": "Web and Expo show personal achievement notifications for the active learner and acknowledge only that account's displayed events. These participant actions use the existing learner session."
   },
   {
+    "source": "app/api/auth/native/google-link/start/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The interactive Calendar handoff sends only one-time Google OAuth state to the system browser for an account that explicitly chose to link. Better Auth owns scope consent."
+  },
+  {
+    "source": "app/api/auth/native/google-link/complete/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The Calendar browser return only delivers a scoped UI callback. Expo verifies the original session and current Calendar connection before using the existing personal sync operation."
+  },
+  {
     "source": "app/api/native/student/community/[operation]/route.ts",
     "actions": ["GET", "POST"],
     "tools": [],

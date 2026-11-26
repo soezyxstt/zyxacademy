@@ -11,7 +11,9 @@ import { inngest } from "@/jobs/client";
 import { minutesFrom } from "@/lib/date-utils";
 import { centralCalendarConfigured, personalCalendarAccount } from "@/lib/google-calendar/sync";
 import { CALENDAR_SCOPE, type CalendarSyncStatus } from "@/lib/google-calendar/shared";
-import { normalizeNativeAuthScheme } from "@/lib/native/auth-handoff";
+import { resolveAuthBaseUrl } from "@/lib/auth-site-url";
+import { EXPO_STAGING_SCHEME, normalizeCalendarLinkScheme } from "@/lib/native/expo-auth-config";
+import { studentCalendarPath } from "@/packages/student-community/calendar-link";
 import {
   extractOAuthStateSetCookies,
   issueNativeGoogleLinkHandoff,
@@ -55,13 +57,16 @@ export async function requestGoogleCalendarSync(central = false) {
 }
 export async function connectGoogleCalendar(
   callbackPath: string,
-  options?: { nativeScheme?: string | null },
+  options?: { nativeScheme?: string | null; linkState?: string },
 ) {
   const { email } = await authorizedTarget(false);
   // Keep OAuth callbacks on the existing schedule surfaces.
   const allowed = ["/dashboard/schedule", "/tutor/schedule", "/calendar"];
   const callbackURL = allowed.includes(callbackPath) ? callbackPath : "/dashboard/schedule";
-  const nativeScheme = normalizeNativeAuthScheme(options?.nativeScheme);
+  const nativeScheme = normalizeCalendarLinkScheme(options?.nativeScheme, options?.linkState, new URL(resolveAuthBaseUrl()).origin);
+  const expo = options?.nativeScheme === EXPO_STAGING_SCHEME;
+  if (expo && (!nativeScheme || !studentCalendarPath(callbackURL))) throw new Error("Invalid calendar callback");
+  const linkState: Record<string, string> = expo && options?.linkState ? { linkState: options.linkState } : {};
 
   const successCallbackURL = nativeScheme
     ? `/api/auth/native/google-link/complete?${new URLSearchParams({
@@ -69,6 +74,7 @@ export async function connectGoogleCalendar(
         next: callbackURL,
         param: "calendarSync",
         status: "ok",
+        ...linkState,
       }).toString()}`
     : `${callbackURL}?calendarSync=1`;
   const errorCallbackURL = nativeScheme
@@ -77,6 +83,7 @@ export async function connectGoogleCalendar(
         next: callbackURL,
         param: "calendarSync",
         status: "error",
+        ...linkState,
       }).toString()}`
     : `${callbackURL}?calendarSync=error`;
 

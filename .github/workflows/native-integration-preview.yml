@@ -68,6 +68,11 @@ on:
       - 'tests/unit/expo-native-video-management.test.ts'
       - 'tests/unit/native-course-video-upload-grants.test.ts'
       - 'tests/unit/expo-native-course-intake.test.ts'
+      - 'tests/unit/expo-calendar-link.test.ts'
+      - 'tests/contracts/google-calendar-actions.test.ts'
+      - 'tests/native-google-link-handoff.test.ts'
+      - 'app/api/auth/native/google-link/**'
+      - 'app/actions/google-calendar.ts'
       - 'app/api/admin/course-materials/batch/**'
       - 'app/api/admin/bundles/idea/route.ts'
       - 'app/api/admin/bundles/product/route.ts'
@@ -329,6 +334,12 @@ jobs:
       - name: Account connection management and OAuth consent
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: bun tests/integration/authoring-oauth-consent.ts
+      - name: Expo Calendar link and browser return
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          bun test tests/unit/expo-calendar-link.test.ts
+          bun test tests/native-google-link-handoff.test.ts
+          bun scripts/test-contracts.ts tests/contracts/google-calendar-actions.test.ts
       - name: Native Tutor legacy material Admin override
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: |

@@ -124,7 +124,7 @@ community	/calendar	murid	calendar.filter	Native agenda filters by type and open
 community	/calendar	murid	calendar.meet	Opens approved Meet URL from agenda in system browser.	browser	source
 community	/calendar	murid	calendar.sync-status	Displays connected, pending, retry and last synchronization state from existing calendar service.	connected	fixture
 community	/calendar	murid	calendar.sync-request	POST queues deduplicated sync for active account; Google event delivery needs provider proof.	connected	fixture
-community	/calendar	murid	calendar.google-connect	CalendarSync needs nativeAuthScheme to show Connect or Reconnect. The signed host supplies openExternal and omits the scheme. Endpoint and fixture alone do not make the button reachable.	absent	source
+community	/calendar	murid	calendar.google-connect	Verified host mounts staging browser consent from Calendar and Schedule. Exact account/session/surface return is consumed once, then protected connection is verified before sync.	connected	contract
 community	/courses/[id]/discussions	murid	discussion.course-scope	Loads only available course channels under matching identity alias and active rights; loopback evidence for role denial is recorded on the dashboard role guard.	connected	fixture
 community	/dashboard/discussions	murid	discussion.channel-scope	Loads authorized public/course channels and requester context from signed actor.	connected	local-http
 community	/dashboard/discussions	murid	discussion.thread-read	GET workspace lists active threads and pages resolved history, supports search and opens messages.	connected	fixture
