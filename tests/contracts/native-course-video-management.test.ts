@@ -87,7 +87,7 @@ test("a signed video and thumbnail attach only under the originating role and se
   const thumbnail = await prepareVideoUpload(tutor, { kind: "thumbnail", name: "Cover.png", mime: "image/png", size: 60, uploadId: crypto.randomUUID() });
   const command = { action: "new-video", fields: {
     title: "Uploaded lesson", description: null, playlistId: playlist.id, chapterId: null,
-    source: { kind: "uploaded", token: video.token }, thumbnail: { kind: "uploaded", token: thumbnail.token },
+    source: { kind: "uploaded", token: video.token, duration: 42 }, thumbnail: { kind: "uploaded", token: thumbnail.token },
   } } as const;
   await expect(writeVideoManagement(admin, command, crypto.randomUUID())).rejects.toThrow("INVALID_VIDEO");
   expect(promoted).toHaveLength(0);
@@ -95,7 +95,7 @@ test("a signed video and thumbnail attach only under the originating role and se
   const added = await writeVideoManagement(tutor, command, idempotency);
   expect(await writeVideoManagement(tutor, command, idempotency)).toEqual(added);
   const [row] = await database.testDb.select().from(schema.courseVideos).where(eq(schema.courseVideos.id, added.id));
-  expect(row).toMatchObject({ courseId: "legacy-video-a", playlistId: playlist.id, fileSize: 120,
+  expect(row).toMatchObject({ courseId: "legacy-video-a", playlistId: playlist.id, fileSize: 120, duration: 42,
     videoUrl: "courses/legacy-video-a/videos/promoted.mp4", thumbnailUrl: "courses/legacy-video-a/videos/thumbnails/promoted.png" });
   expect(promoted.map(entry => entry.kind)).toEqual(["video", "thumbnail"]);
   expect(cleaned).toEqual(promoted.map(entry => entry.key));

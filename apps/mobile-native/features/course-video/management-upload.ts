@@ -1,5 +1,9 @@
 import { randomUUID } from "expo-crypto";
-import { File } from "expo-file-system";
+import { File, Paths } from "expo-file-system";
+import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
+import type { VideoPlayer } from "expo-video";
+import { Platform } from "react-native";
+import { isPhotoCacheFile } from "../../device/photo-image";
 import { fetch } from "expo/fetch";
 import {
   ALLOWED_IMAGE_MIME_TYPES, ALLOWED_VIDEO_MIME_TYPES, MAX_THUMBNAIL_SIZE_BYTES, MAX_VIDEO_SIZE_BYTES,
@@ -26,13 +30,44 @@ export function pickCourseVideoAsset(scope: UploadScope, kind: VideoUploadKind, 
   });
 }
 
-export async function uploadCourseVideoAsset(scope: UploadScope, kind: VideoUploadKind, document: DraftDocument, signal: AbortSignal) {
+function assertCourseDraft(scope: UploadScope, kind: VideoUploadKind, document: DraftDocument, signal: AbortSignal) {
   const { session, role, courseId, locale } = scope;
   const route = videoManagementPath(role, courseId);
   if (!route || !scopedFiles.belongsToDocumentDraft(document, {
     session, target: { route: `${route}?asset=${kind}`, locale, draftId: document.target.draftId },
     signal, policy: policy(kind), isDraftCurrent: () => session.isCurrent() && !signal.aborted,
   })) throw new VideoManagementFailure(403);
+}
+
+export async function uploadCourseVideoAsset(scope: UploadScope, kind: VideoUploadKind, document: DraftDocument, signal: AbortSignal) {
+  assertCourseDraft(scope, kind, document, signal);
+  return uploadFile(scope, kind, document, signal);
+}
+
+export async function uploadCourseCoverFrame(scope: UploadScope, document: DraftDocument, player: VideoPlayer, second: number, signal: AbortSignal) {
+  assertCourseDraft(scope, "video", document, signal);
+  const [thumbnail] = await player.generateThumbnailsAsync(second, { maxWidth: 960, maxHeight: 540 });
+  if (!thumbnail) throw new VideoManagementFailure(422);
+  try {
+    const context = ImageManipulator.manipulate(thumbnail);
+    try {
+      const image = await context.renderAsync();
+      try {
+        const saved = await image.saveAsync({ format: SaveFormat.JPEG, compress: 0.82 });
+        if (!isPhotoCacheFile(saved.uri, Paths.cache.uri, Platform.OS === "ios")) throw new VideoManagementFailure(422);
+        const file = new File(saved.uri);
+        try {
+          assertCourseDraft(scope, "video", document, signal);
+          if (!file.exists || file.size <= 0 || file.size > MAX_THUMBNAIL_SIZE_BYTES) throw new VideoManagementFailure(422);
+          return await uploadFile(scope, "thumbnail", { uri: file.uri, size: file.size, name: "video-cover.jpg", mimeType: "image/jpeg" }, signal);
+        } finally { if (file.exists) file.delete(); }
+      } finally { image.release(); }
+    } finally { context.release(); }
+  } finally { thumbnail.release(); }
+}
+
+async function uploadFile(scope: UploadScope, kind: VideoUploadKind, document: Pick<DraftDocument, "uri" | "name" | "size" | "mimeType">, signal: AbortSignal) {
+  const { session, role, courseId } = scope;
   const grant = await prepareManagedVideoUpload(session, role, courseId, {
     kind, uploadId: randomUUID(), name: document.name, mime: document.mimeType, size: document.size,
   }, signal);

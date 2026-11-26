@@ -1,4 +1,5 @@
 import { randomUUID } from "expo-crypto";
+import type { VideoPlayer } from "expo-video";
 import { useIsFocused } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Platform, View } from "react-native";
@@ -11,7 +12,8 @@ import type { NativeSessionTransport } from "../../network/transport";
 import { useProtectedInteraction } from "../../routing/protected-interaction";
 import { Action, CourseDialog, CourseTheme, DataRow, Field, Ink, layout, Picker } from "../academic/courses/ui";
 import { readManagedVideos, readYouTubeVideoTitle, submitManagedVideo, VideoManagementFailure, type VideoManagementAttempt } from "./management-client";
-import { pickCourseVideoAsset, uploadCourseVideoAsset } from "./management-upload";
+import { VideoCoverPreview } from "./VideoCoverPreview";
+import { pickCourseVideoAsset, uploadCourseCoverFrame, uploadCourseVideoAsset } from "./management-upload";
 
 type Form = { kind: "playlist"; playlist?: ManagedPlaylist }
   | { kind: "video"; playlist: ManagedPlaylist; video?: ManagedVideo };
@@ -214,6 +216,8 @@ function CatalogForm({ form, catalog, locale, session, role, courseId, disabled,
   const [youtube, setYoutube] = useState(form.kind === "video" ? form.video?.youtube ?? "" : "");
   const [files, setFiles] = useState<Partial<Record<VideoUploadKind, DraftDocument>>>({});
   const selectedFiles = useRef(files);
+  const player = useRef<VideoPlayer | null>(null);
+  const [coverSecond, setCoverSecond] = useState<number>();
   const [resetThumbnail, setResetThumbnail] = useState(false);
   const [activity, setActivity] = useState<"pick" | "metadata" | VideoUploadKind>();
   const [error, setError] = useState("");
@@ -254,7 +258,9 @@ function CatalogForm({ form, catalog, locale, session, role, courseId, disabled,
       if (result.status === "ready") {
         if (signal.aborted) { result.document.release(); return; }
         replaceFile(kind, result.document);
+        setCoverSecond(undefined);
         if (kind === "thumbnail") setResetThumbnail(false);
+        if (kind === "video" && !title.trim()) setTitle(result.document.name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").slice(0, 500));
       } else if (result.status !== "cancelled" && result.status !== "stale") {
         setError(kind === "video" ? tr("Pilih video yang didukung hingga 100 MB.", "Choose a supported video up to 100 MB.")
           : tr("Pilih JPG, PNG, atau WebP hingga 5 MB.", "Choose a JPG, PNG, or WebP up to 5 MB."));
@@ -275,7 +281,13 @@ function CatalogForm({ form, catalog, locale, session, role, courseId, disabled,
       let thumbnail: VideoFields["thumbnail"] = resetThumbnail ? { kind: "default" } : undefined;
       if (source === "upload" && files.video) {
         setActivity("video");
-        selectedSource = { kind: "uploaded", token: await uploadCourseVideoAsset(scope, "video", files.video, signal) };
+        const duration = player.current?.duration;
+        const seconds = duration && Number.isFinite(duration) && duration > 0 ? Math.max(1, Math.round(duration)) : undefined;
+        if (coverSecond !== undefined && !files.thumbnail && !resetThumbnail) {
+          if (!player.current) throw new VideoManagementFailure(422);
+          thumbnail = { kind: "uploaded", token: await uploadCourseCoverFrame(scope, files.video, player.current, coverSecond, signal) };
+        }
+        selectedSource = { kind: "uploaded", duration: seconds, token: await uploadCourseVideoAsset(scope, "video", files.video, signal) };
       }
       if (files.thumbnail) {
         setActivity("thumbnail");
@@ -321,11 +333,13 @@ function CatalogForm({ form, catalog, locale, session, role, courseId, disabled,
         <Action label={tr("Pilih video", "Choose video")} onPress={() => pick("video")} disabled={locked} />
         {files.video ? <Ink>{files.video.name}</Ink> : null}
       </View> : null}
+      {source === "upload" && files.video && <VideoCoverPreview key={files.video.uri} uri={files.video.uri} handle={player} locale={locale} disabled={locked}
+        select={second => { replaceFile("thumbnail"); setResetThumbnail(false); setCoverSecond(second); }} selected={coverSecond} />}
       {device ? <View style={layout.row}>
         <Action label={tr("Pilih gambar sampul", "Choose thumbnail")} onPress={() => pick("thumbnail")} disabled={locked} />
         {files.thumbnail ? <Ink>{files.thumbnail.name}</Ink> : null}
-        {(files.thumbnail || form.video) && !resetThumbnail ? <Action label={tr("Gunakan gambar bawaan", "Use default thumbnail")}
-          onPress={() => { replaceFile("thumbnail"); setResetThumbnail(true); }} disabled={locked} /> : null}
+        {(files.thumbnail || coverSecond !== undefined || form.video) && !resetThumbnail ? <Action label={tr("Gunakan gambar bawaan", "Use default thumbnail")}
+          onPress={() => { replaceFile("thumbnail"); setCoverSecond(undefined); setResetThumbnail(true); }} disabled={locked} /> : null}
       </View> : null}
     </> : null}
     <View style={layout.row}>

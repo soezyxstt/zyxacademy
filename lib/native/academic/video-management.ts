@@ -195,7 +195,7 @@ export async function writeVideoManagement(context: Context, command: ManagedVid
       await writeCourseVideo(tx, {
         id, courseId: existing?.courseId ?? playlist.courseId, userId: context.viewer.user.id, create: !existing,
         accessChanged: Boolean(existing && (sourceChanged || existing.chapterId !== fields.chapterId)),
-        draft: { ...fields, videoUrl, thumbnailUrl, duration: sourceChanged ? null : existing?.duration, fileSize },
+        draft: { ...fields, videoUrl, thumbnailUrl, duration: fields.source.kind === "uploaded" ? fields.source.duration ?? null : sourceChanged ? null : existing?.duration, fileSize },
       });
       return receipt;
     },

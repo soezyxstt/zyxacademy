@@ -24,7 +24,7 @@ const videoFields = fields.extend({
   source: z.discriminatedUnion("kind", [
     z.strictObject({ kind: z.literal("keep") }),
     z.strictObject({ kind: z.literal("youtube"), video: z.string().trim().min(1).max(2048) }),
-    uploaded,
+    uploaded.extend({ duration: z.number().int().positive().max(2_147_483_647).optional() }),
   ]),
   thumbnail: z.discriminatedUnion("kind", [z.strictObject({ kind: z.literal("default") }), uploaded]).optional(),
 });

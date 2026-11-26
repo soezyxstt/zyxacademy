@@ -20,7 +20,7 @@ export type VideoManagementCatalog = {
 export type PlaylistFields = { title: string; description: string | null };
 export type VideoFields = PlaylistFields & {
   playlistId: string; chapterId: string | null;
-  source: { kind: "keep" } | { kind: "youtube"; video: string } | { kind: "uploaded"; token: string };
+  source: { kind: "keep" } | { kind: "youtube"; video: string } | { kind: "uploaded"; token: string; duration?: number };
   thumbnail?: { kind: "default" } | { kind: "uploaded"; token: string };
 };
 
