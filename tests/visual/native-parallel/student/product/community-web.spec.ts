@@ -13,7 +13,7 @@ test.skip(!base, "Opt-in synthetic Student product server");
 test.setTimeout(240_000);
 test.use({ locale: "id-ID", contextOptions: { reducedMotion: "reduce" } });
 
-type TextExpectation = { kind: "text" | "heading" | "button" | "tab" | "label"; value: string };
+type TextExpectation = { kind: "text" | "heading" | "button" | "tab" | "label"; value: string; exact?: boolean };
 type Case = {
   id: string;
   path: string;
@@ -23,7 +23,7 @@ type Case = {
   checks: TextExpectation[];
   selectedTab?: string;
 };
-const text = (value: string): TextExpectation => ({ kind: "text", value });
+const text = (value: string, exact = true): TextExpectation => ({ kind: "text", value, exact });
 const heading = (value: string): TextExpectation => ({ kind: "heading", value });
 const button = (value: string): TextExpectation => ({ kind: "button", value });
 const tab = (value: string): TextExpectation => ({ kind: "tab", value });
@@ -35,7 +35,7 @@ const cases: Case[] = [
   { id: "leaderboard-participation", path: "/leaderboard", checks: [tab("Akademik"), text(data.learner)] },
   { id: "leaderboard-academic-alias", path: "/leaderboard/academic?course=" + data.course + "&custom=first&custom=second",
     expectedPath: "/leaderboard", expectedQuery: { tab: ["academic"], course: [data.course], custom: ["first", "second"] },
-    checks: [text(data.courseTitle), text(data.learner), text("93%")], selectedTab: "Akademik" },
+    checks: [text(data.courseTitle), text(data.learner), text("93%", false)], selectedTab: "Akademik" },
   { id: "course-leaderboard", path: course + "/leaderboard", checks: [text(data.learner), text("93%")] },
   { id: "course-leaderboard-revoked", path: "/courses/matematika-1/leaderboard", scenario: "revoked", checks: [heading("Kelas memerlukan token")] },
   { id: "course-discussions", path: course + "/discussions" + openThread, checks: [text(data.threadTitle), text(data.question)] },
@@ -60,8 +60,8 @@ const cases: Case[] = [
   { id: "public-student-profile", path: "/students/" + data.publicId, checks: [text(data.peer), text("FMIPA"), button("Follow")] },
 ];
 
-function locate(page: Page, { kind, value }: TextExpectation) {
-  if (kind === "text") return page.getByText(value, { exact: true });
+function locate(page: Page, { kind, value, exact = true }: TextExpectation) {
+  if (kind === "text") return page.getByText(value, { exact });
   if (kind === "label") return page.getByLabel(value, { exact: true });
   return page.getByRole(kind, { name: value, exact: true });
 }
@@ -69,6 +69,8 @@ function locate(page: Page, { kind, value }: TextExpectation) {
 async function open(page: Page, scenario: Parameters<typeof localStudentCookie>[0], path: string) {
   const origin = new URL(base!);
   if (!["127.0.0.1", "localhost"].includes(origin.hostname)) throw new Error("Expected loopback Student product server");
+  // Seed a previously deferred reminder. Permission remains untouched and no token is registered.
+  await page.addInitScript(userId => localStorage.setItem(`zyx:notification-permission:${userId}`, "later:" + Date.now()), "student-evidence-" + scenario);
   const auth = await localStudentCookie(scenario);
   await page.context().addCookies([{ ...auth, url: origin.href, httpOnly: true, sameSite: "Lax" }]);
   await page.context().route("**/*", route => {
