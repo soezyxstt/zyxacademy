@@ -28,6 +28,7 @@ Alur ini memakai kontrak belajar dan penukaran token UI yang ada. Katalog operas
 bun test tests/contracts/native-student-courses.test.ts
 bun test tests/unit/native-student-course-data.test.ts
 bun test tests/unit/native-student-dashboard-extras.test.ts
+bun test tests/unit/native-student-offline-courses.test.ts
 bun test tests/unit/native-student-assessment-drafts.test.ts
 ```
 
@@ -38,6 +39,6 @@ Jalankan setiap berkas tersebut dalam proses Bun terpisah karena kontrak HTTP da
 - Entry renderer menerima `courseId`, `materialId`, dan posisi opsional `section` atau `page`. Artikel, diktat, PDF, rumus, dan ilustrasi interaktif menunggu pemasangan renderer integrator. Entry lokal memakai status yang dapat dibaca saat renderer belum tersedia.
 - Dashboard native memakai ringkasan pencapaian dan refleksi yang membuka halaman lengkap. Karya visual peringkat, format matematika pada ringkasan dan rincian presentasi web masih memerlukan verifikasi.
 - Ringkasan kursus menampilkan harga, lajur perhatian, daftar bab, aksi baca, kuis dan jadwal, serta pintasan kelas. Tata letak dan semua variasi bahasa masih memerlukan perbandingan perangkat.
-- Daftar atau detail materi dapat menampilkan judul yang masih memiliki lease dari pustaka offline integrator saat jaringan terputus atau server tidak dapat dijangkau. Penolakan akses server dan pencabutan lease menutup metadata tersebut. Host memasang pembuka materi offline yang berhak melalui `openOfflineMaterial`.
+- Saat perangkat mengonfirmasi jaringan terputus, `VerifiedStudentEntry` menggunakan scope baca lokal integrator, termasuk saat aplikasi baru dibuka dan sesi HTTPS belum dapat diverifikasi. Dashboard dan katalog membuka kelas tersimpan. Daftar dan detail hanya memproyeksikan dokumen dengan lease yang aktif. Penolakan akses server dan pencabutan lease menutup metadata. Host dapat memasang `openOfflineMaterial` untuk membuka paket pembaca yang cocok dengan descriptor dan scope yang diberikan. Pembuka dan penyimpanan isi paket masih menunggu integrasi. [Kontrak host](../../../../apps/mobile-native/features/student/README.md).
 - Urutan, kepadatan, dan metadata tampilan katalog serta dokumen perlu diperiksa terhadap web dan build Android serta iOS. Maestro dan Playwright merupakan sumber bukti interaksi dan tampilan yang berbeda.
 - Draft penilaian memakai SQLite Expo dengan kunci origin, akun, sesi, locale dan percobaan. Host memasang `AssessmentDraftCleanup` di bawah provider sesi selama masa hidup aplikasi. Saat sesi baru terverifikasi, penyimpanan membuang draft sesi terdahulu di origin itu. [Penyimpanan](../../../../apps/mobile-native/features/student/assessment-draft-store.ts) · [Hook host](../../../../apps/mobile-native/features/student/assessment-drafts.tsx).

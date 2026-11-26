@@ -13,6 +13,7 @@ import { nativeTypography } from "../../../typography";
 import type { StudentScreenProps } from "../contracts";
 import { StudentListRow } from "../ListRow";
 import { matchStudentRoute } from "../routes";
+import type { OfflineCourseMetadata, OfflineCourseTarget } from "../offline-courses";
 import { DashboardBottom, DashboardTop, useDashboardExtras } from "./dashboard-extra";
 import { courseCopy, type CourseCopy } from "./copy";
 
@@ -457,7 +458,8 @@ function OfflineDocuments({ data, query, route, replace, navigate, retry, openOf
 } & Pick<StudentScreenProps, "navigate" | "replace" | "route" | "openOfflineMaterial">) {
   const copy = useContext(CopyContext);
   const theme = useContext(ThemeContext);
-  const selected = query.view === "material-detail" ? data.materials.find(item => item.id === query.materialId) : undefined;
+  const matching = query.view === "material-detail" ? data.materials.filter(item => item.id === query.materialId) : [];
+  const selected = matching.length === 1 ? matching[0] : undefined;
   const tab = normalizeMaterialTab(route.query.tab);
   const records = tab === "all" ? data.materials : data.materials.filter(row => row.kind === (tab === "materi" ? "article" : tab));
   return <>
@@ -467,7 +469,9 @@ function OfflineDocuments({ data, query, route, replace, navigate, retry, openOf
     </Notice>
     {query.view === "material-detail" ? selected ? (
       <Section title={selected.title}>
-        {openOfflineMaterial ? <Button theme={theme} onPress={() => openOfflineMaterial(data.id, selected.id)}>{copy.readMaterials}</Button> : null}
+        {openOfflineMaterial
+          ? <Button theme={theme} onPress={() => openOfflineMaterial(data.id, selected.id)}>{copy.readMaterials}</Button>
+          : <LearningText role="meta">{copy.offlineReaderPending}</LearningText>}
       </Section>
     ) : <LearningText>{copy.noDocuments}</LearningText> : <>
       <View style={styles.toggles} accessibilityRole="tablist">
@@ -475,11 +479,72 @@ function OfflineDocuments({ data, query, route, replace, navigate, retry, openOf
           onPress={() => updateListQuery(route, replace, { tab: key === "all" ? undefined : key })} />)}
       </View>
       {records.length === 0 ? <LearningText>{copy.noDocuments}</LearningText> : <Section>
-        {records.map(item => <Row key={item.id} title={item.title} testID={`student-material-${item.id}`}
+        {records.map(item => <Row key={`${item.kind}/${item.id}`} title={item.title} testID={`student-material-${item.id}`}
           onPress={() => navigate(materialPath(data.id, item.id))} />)}
       </Section>}
     </>}
   </>;
+}
+
+export function OfflineCourseScreen({
+  path, target, courses, status, locale, retry, navigate, replace, back, devicePreferences,
+  initialScrollY, onScrollY, openOfflineMaterial,
+}: {
+  path: string;
+  target: OfflineCourseTarget;
+  courses: OfflineCourseMetadata[];
+  status: string;
+  locale: string;
+  retry(): void;
+} & Pick<StudentScreenProps, "navigate" | "replace" | "back" | "devicePreferences" | "initialScrollY" | "onScrollY" | "openOfflineMaterial">) {
+  const systemTheme = useColorScheme() === "dark" ? "dark" : "light";
+  const preference = devicePreferences?.theme;
+  const theme = preference && preference !== "system" ? preference : systemTheme;
+  const copy = courseCopy(locale);
+  const colors = nativeColors[theme];
+  const route = matchStudentRoute(path);
+  const course = "courseId" in target ? courses.find(({ id }) => id === target.courseId) : undefined;
+  const ready = status === "offline" || status === "error";
+  const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
+  const restore = useRef(initialScrollY);
+  const viewport = useRef(0);
+  const content = useRef(0);
+  const restorePosition = () => {
+    if (!ready || restore.current <= 0 || viewport.current <= 0 || content.current <= 0) return;
+    const y = Math.min(restore.current, Math.max(0, content.current - viewport.current));
+    restore.current = 0;
+    scroll.current?.scrollTo({ y, animated: false });
+  };
+
+  return <ThemeContext.Provider value={theme}>
+    <CopyContext.Provider value={copy}>
+      <ScrollView ref={scroll} style={{ backgroundColor: colors.background }} contentContainerStyle={styles.content}
+        testID={target.kind === "course" ? "student-materials-list" : "student-offline-courses"}
+        scrollEventThrottle={16}
+        onLayout={event => { viewport.current = event.nativeEvent.layout.height; restorePosition(); }}
+        onContentSizeChange={(_width, height) => { if (ready) { content.current = height; restorePosition(); } }}
+        onScroll={event => { if (ready && restore.current <= 0) onScrollY(Math.max(0, event.nativeEvent.contentOffset.y)); }}>
+        {target.kind !== "library" ? <Button theme={theme} variant="ghost" testID="student-learning-back" style={styles.back} onPress={back}>{copy.back}</Button> : null}
+        {ready && course && route && "courseId" in target ? <OfflineDocuments
+          data={course}
+          query={target.kind === "course"
+            ? { view: "material-list", courseId: target.courseId }
+            : { view: "material-detail", courseId: target.courseId, materialId: target.materialId }}
+          route={route} navigate={navigate} replace={replace} retry={retry} openOfflineMaterial={openOfflineMaterial} />
+          : <>
+            <Notice title={target.kind === "library" ? copy.savedCourses : copy.offline}
+              detail={!ready ? copy.loading : target.kind === "library" && courses.length > 0 ? copy.offlineMetadata : copy.offlineUnavailable}>
+              <Button theme={theme} variant="outline" testID="student-learning-retry" onPress={retry}>{copy.retry}</Button>
+            </Notice>
+            {ready && target.kind === "library" ? <Section>
+              {courses.map(({ id, title }) => <Row key={id} testID={`student-course-${id}`} title={title}
+                onPress={() => navigate(materialPath(id))} />)}
+            </Section> : null}
+            {ready && target.kind !== "library" ? <Button theme={theme} variant="outline" onPress={() => navigate("/courses")}>{copy.savedCourses}</Button> : null}
+          </>}
+      </ScrollView>
+    </CopyContext.Provider>
+  </ThemeContext.Provider>;
 }
 
 function CourseEntry(props: StudentScreenProps & { query: LearningQuery }) {
