@@ -1,6 +1,6 @@
 # Native Admin evaluation handoff
 
-The native entry is `EvaluationScreen` in `apps/mobile-native/features/operations/evaluation/index.tsx`. `evaluationRoutes` covers the 13 files under the operations content and evaluation route groups. The host passes a session-bound `request`, an `accountKey` incorporating account and origin, and `navigate(href, { replace })`. The host owns protected entry, the shared rich text and AST renderers, native file access, and the canonical academic destinations.
+The native entry is `EvaluationScreen` in `apps/mobile-native/features/operations/evaluation/index.tsx`. `evaluationRoutes` covers the 13 files under the operations content and evaluation route groups. The host passes a session-bound `request`, an `accountKey` incorporating account and origin, and `navigate(href, { replace })`. The protected product entry mounts it through `AdminOperationsScreen`, which supplies the shared native Markdown/LaTeX renderer, compiled AST preview, scoped file access and navigation to canonical academic destinations.
 
 | Route | Implementation |
 | --- | --- |
@@ -12,7 +12,7 @@ The native entry is `EvaluationScreen` in `apps/mobile-native/features/operation
 | `/admin/questions` | Active and historical bank, server filters and pages, selection, review, question create/edit/delete and Markdown import |
 | `/admin/jobs` | Course, chapter and active knowledge-object selection, queued generation, running and terminal statuses, progress logs and status recovery |
 | `/admin/distractors` | Question option ratios, correct option, misconception and question totals |
-| `/admin/ast-inspector` | Local shared compiler and demos, source entry, block explorer, diagnostics, JSON, pipeline and metrics. Rich preview and import/export use renderer and file props |
+| `/admin/ast-inspector` | Local shared compiler and demos, source entry, block explorer, diagnostics, JSON, pipeline and metrics. Signed host previews compiled prose, math, table, media, flowchart, chart and graph blocks using native renderers. The same host binds JSON file and clipboard actions |
 
 ## HTTPS and local operations
 
@@ -33,7 +33,7 @@ Both `/api/native/operations/evaluation` and its `/actions` route require the sa
 | `evaluation.distractors.read` | Distractors screen → GET evaluation → shared `readDistractors` | Returns attempted questions sorted by attempts. Records authorized disclosures before response. GET can be retried |
 | `evaluation.ast.access`, `evaluation.ast.compile` | AST Inspector → GET evaluation to check access, then local shared compiler | Markdown stays on device. JSON file pick, share and copy are supplied by the host. AST draft is scoped to the mounted account and route |
 
-MCP review confirmed that the native adapter uses existing domain services and authoring actions. It adds no MCP tool registration, discovery, scope, consent, packaged skill, host prompt, or environment binding. Generation remains on the existing job queue. The web source remains the operations coverage catalog reference.
+MCP review confirmed that the native adapter uses existing domain services and authoring actions. It adds no MCP tool registration, discovery, scope, consent, packaged skill, host prompt, or environment binding. Generation remains on the existing job queue. The coverage catalog records native evaluation as an interactive adapter alongside its web sources. Existing authoring tools and `jobs.list` retain their independent contracts and environment bindings.
 
 ## Fixture and evidence
 
@@ -41,7 +41,7 @@ MCP review confirmed that the native adapter uses existing domain services and a
 - `tests/visual/native-parallel/operations/capture-evaluation.ts` exercises the actual web AST Inspector and generation client under the local fixture harness. Run it from the repository root against the operations harness on port 3211. It saves six states in both themes at 380 × 844 and 1536 × 864, DPR 1, under `artifacts/native-parity/operations-web/evaluation/`. The browser timezone defaults to the invoking system’s timezone. Set `PARITY_OPERATIONS_TIME_ZONE` to the harness timezone when the two differ.
 - The local capture command exited 0 for 24 screenshots using Indonesian and Asia/Jakarta. The 24 synthetic reference images and full manifest are stored in `tests/visual/native-parallel/operations/references/evaluation/`. HTTP, redirect, browser error and horizontal overflow assertions passed. The actual fixture clients render with the browser application’s KaTeX stylesheet.
 - Mount the repository operations fixture route using `node scripts/native-parity/operations/mount.mjs` in an isolated checkout. Open `zyx-native-parity://operations-fixture?path=%2Fadmin%2Fquestions` for the populated Bank Soal. The evaluation Maestro flow under `.maestro/native-parallel/operations/` covers an assessment alias, active and historical data, jobs recovery, distractors empty state and denied AST access.
-- Visual differences awaiting Android and iOS review include the inline native form and selector presentation, rich AST/Markdown rendering, and narrow vs. wide web placement. Device screenshots, pixel diffs and authorized deployment verification are pending. The device flow exercises synthetic records and sends no job to a remote queue.
+- Visual differences awaiting Android and iOS review include the inline native form and selector presentation, the rich AST/Markdown presentation and narrow vs. wide web placement. Device screenshots, pixel diffs and authorized deployment verification are pending. The device flow exercises synthetic records and sends no job to a remote queue.
 
 ## Legacy alias verification
 

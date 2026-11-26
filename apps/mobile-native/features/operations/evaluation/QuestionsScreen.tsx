@@ -280,7 +280,7 @@ function HistoricalRow({ question, course, presentation, selected, busy, toggle,
       <Copy theme={theme} tone="muted">{[question.sourceQuestionNumber, question.sourceQuestionPart, question.sourcePage ? interpolate(t.pageNumber, { page: question.sourcePage }) : undefined].filter(Boolean).join(" · ")}</Copy>
       {options.map((option, index) => {
         const source = typeof option === "string" ? option : option && typeof option === "object" && "text" in option && typeof option.text === "string" ? option.text : null;
-        return source && <Row key={index}><Copy theme={theme}>{String.fromCharCode(65 + index)}{option && typeof option === "object" && "isCorrect" in option && option.isCorrect === true ? " ✓" : ""}</Copy><Source source={source} presentation={presentation} /></Row>;
+        return source && <Row key={index}><Copy theme={theme}>{String.fromCharCode(65 + index)}{option && typeof option === "object" && "isCorrect" in option && option.isCorrect === true ? " ✓" : ""}</Copy><View style={{ flex: 1, minWidth: 0 }}><Source source={source} presentation={presentation} /></View></Row>;
       })}
       {question.answerMarkdown && <Source source={question.answerMarkdown} kind="markdown" presentation={presentation} />}
       {question.answerProvenance && <Copy theme={theme} tone="muted">{t.answerLabel} · {t.provenance[question.answerProvenance as keyof typeof t.provenance] ?? question.answerProvenance}</Copy>}

@@ -5,6 +5,7 @@ import { connectTutorDiscussionImages, TutorDiscussionImages } from "../academic
 import type { NativeAccountContext } from "../../../../packages/native-session/context";
 import type { NativeSessionTransport } from "../../network/transport";
 import { EvaluationScreen, type EvaluationScreenProps } from "./evaluation";
+import { EvaluationAstPreview } from "./evaluation/AstPreview";
 import { connectAstFiles } from "./evaluation/expo-ast-files";
 import { createManagementClient, ManagementScreen, type ManagementScreenProps } from "./management";
 import { connectFormAttachment, connectFormImagePicker } from "./management/form-media";
@@ -53,7 +54,11 @@ export function AdminOperationsScreen(props: AdminOperationsScreenProps) {
       return <AdminManagement key={key} {...props} accountKey={key} client={clients.management} pickBlogMedia={clients.pickBlogMedia} pickMediaFile={clients.pickMediaFile} openFormAttachment={clients.openFormAttachment} pickFormImage={clients.pickFormImage} />;
     case "evaluation":
       return <EvaluationScreen {...props.evaluation} href={href} navigate={navigate} accountKey={key}
-        request={clients.evaluation} files={props.evaluation?.files ?? clients.astFiles} locale={context.locale} theme={theme} />;
+        request={clients.evaluation} files={props.evaluation?.files ?? clients.astFiles} locale={context.locale} theme={theme}
+        renderText={props.evaluation?.renderText ?? (source => <AdminMarkdownPreview source={source} audience="course"
+          session={session} locale={context.locale} theme={theme ?? "light"} origin={session.scope.origin} />)}
+        renderAst={props.evaluation?.renderAst ?? (ast => <EvaluationAstPreview key={JSON.stringify([ast.documentMetadata.lastModified, ast.blocks.length])}
+          ast={ast} session={session} locale={context.locale} theme={theme ?? "light"} />)} />;
     case "monitoring":
       return <MonitoringScreen links={{ origin: session.scope.origin, ...props.monitoring?.links }} href={href} onNavigate={navigate} sessionKey={key}
         access="allowed" reader={clients.monitoring} actions={{ ...clients.actions, ...props.monitoring?.actions }}

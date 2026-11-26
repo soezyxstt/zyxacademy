@@ -1645,7 +1645,7 @@ export const operationsCatalog = [
     "actions": [],
     "tools": [],
     "status": "excluded",
-    "reason": "No operations tool implemented for this source; mutations require service invariants and concurrency review."
+    "reason": "Compiling and previewing draft Markdown, reading local JSON, and exporting or copying the compiled AST are interactive Admin actions."
   },
   {
     "source": "app/(admin)/admin/(content)/diktats/actions.ts",
@@ -2093,11 +2093,25 @@ export const operationsCatalog = [
     "reason": "Model assignments, Gateway catalog observations and billed latency refresh use the Admin UI. Feature flag reads do not expose these actions or authorize provider probes."
   },
   {
+    "source": "app/api/native/operations/evaluation/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The interactive Admin route resolves legacy destinations and reads evaluation models with the existing role and disclosure checks. Registered authoring and jobs tools retain their independent scopes and usage."
+  },
+  {
+    "source": "app/api/native/operations/evaluation/actions/route.ts",
+    "actions": ["GET", "POST", "PUT", "DELETE"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Signed native Evaluation uses existing interactive Admin services for question authoring, review and queued generation. MCP authoring and jobs operations keep their registered scopes, consent and environment bindings."
+  },
+  {
     "source": "app/api/admin/ops-ai/execute/route.ts",
     "actions": ["confirmAdminOperation", "revokeChatOperationGrants"],
     "tools": [],
     "status": "excluded",
-    "reason": "Ops AI chat approvals require the active browser admin session and specific chat. Shared domain operations retain the MCP signed-plan and consent contracts."
+    "reason": "Ops AI chat approvals require the active interactive Admin session and specific chat in the web or native client. Shared domain operations retain the MCP signed-plan and consent contracts."
   },
   {
     "source": "components/auth/sidebar-account-menu.tsx",

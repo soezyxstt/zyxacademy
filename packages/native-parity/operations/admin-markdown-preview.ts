@@ -13,7 +13,7 @@ export type MarkdownPreviewBlock =
 
 const nodeLimit = 80;
 const edgeLimit = 160;
-function makeDiagram(nodes: DiagramNode[], edges: DiagramEdge[], direction: MarkdownDiagram["direction"], reverse = false): MarkdownDiagram | null {
+export function createPreviewDiagram(nodes: DiagramNode[], edges: DiagramEdge[], direction: MarkdownDiagram["direction"], reverse = false): MarkdownDiagram | null {
   const ids = new Set(nodes.map(node => node.id));
   if (nodes.length === 0 || ids.size !== nodes.length || nodes.length > nodeLimit || edges.length > edgeLimit ||
     edges.some(edge => !ids.has(edge.source) || !ids.has(edge.target))) return null;
@@ -56,7 +56,7 @@ function parseMermaidFlowchart(markdown: string): MarkdownDiagram | null {
     }
   }
   const orientation = header[1].toUpperCase();
-  return makeDiagram([...nodes.values()], edges, ["LR", "RL"].includes(orientation) ? "right" : "down", ["RL", "BT"].includes(orientation));
+  return createPreviewDiagram([...nodes.values()], edges, ["LR", "RL"].includes(orientation) ? "right" : "down", ["RL", "BT"].includes(orientation));
 }
 
 function readDirective(source: string): MarkdownPreviewBlock {
@@ -70,7 +70,7 @@ function readDirective(source: string): MarkdownPreviewBlock {
   }));
   const direction = /^(?:LR|RL|RIGHT)$/i.test(data.diagramType ?? "") ? "right" : "down";
   return { type: "diagram", source, title: block.title, caption: block.caption,
-    diagram: makeDiagram(nodes, data.edges, direction, /^(?:RL|BT)$/i.test(data.diagramType ?? "")) };
+    diagram: createPreviewDiagram(nodes, data.edges, direction, /^(?:RL|BT)$/i.test(data.diagramType ?? "")) };
 }
 
 export function splitMarkdownPreview(markdown: string): MarkdownPreviewBlock[] {

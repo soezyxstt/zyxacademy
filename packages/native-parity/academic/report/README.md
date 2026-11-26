@@ -9,7 +9,7 @@ Source snapshot: `native-migration/academic` at `f4ed84dc`. The merge base with 
 
 ## Integrated private workflows
 
-`admin-signed-actions.tsv` traces the 36 Admin academic routes in the integrated Expo app. Each row identifies a user action or a redirect, its web entry and its native entry. Related controls sharing a lifecycle appear together. A connected row records source wiring through the authenticated route. Device runs, external delivery and visual comparison require separate evidence. The Tutor action inventory is in `../tutor/signed-action-crosswalk.tsv`.
+`admin-signed-actions.tsv` traces the 36 Admin academic routes, 13 Evaluation routes and aliases, and the Admin Ops AI navbar action in the integrated Expo app. Each row identifies a user action or a redirect, its web entry and its native entry. Related controls sharing a lifecycle appear together. A connected row records source wiring through the authenticated route. Device runs, external delivery and visual comparison require separate evidence. The Tutor action inventory is in `../tutor/signed-action-crosswalk.tsv`.
 
 ## Verified first traces
 

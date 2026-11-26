@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Image, Linking, StyleSheet, Text, View } from "react-native";
 import { nativeColors } from "../../../../packages/design-tokens/native-colors";
 import { previewExternalHref, previewMedia, type MarkdownPreviewAudience, type MarkdownPreviewMedia } from "../../../../packages/native-parity/operations/admin-markdown-media";
-import { splitMarkdownPreview } from "../../../../packages/native-parity/operations/admin-markdown-preview";
+import { splitMarkdownPreview, type MarkdownPreviewBlock } from "../../../../packages/native-parity/operations/admin-markdown-preview";
 import { Button } from "../../components/Button";
 import { scopedFiles } from "../../device/files";
 import type { NativeSessionTransport } from "../../network/transport";
@@ -32,6 +32,7 @@ const pageSize = 12;
 
 type PreviewProps = {
   source: string;
+  previewBlocks?: readonly MarkdownPreviewBlock[];
   audience: MarkdownPreviewAudience;
   origin: string;
   theme: keyof typeof nativeColors;
@@ -42,14 +43,14 @@ type PreviewProps = {
 
 type Selection = { source: string; media: MarkdownPreviewMedia; title: string };
 
-export function AdminMarkdownPreview({ source, audience, origin, locale, theme, session, openExternal }: PreviewProps) {
+export function AdminMarkdownPreview({ source, previewBlocks, audience, origin, locale, theme, session, openExternal }: PreviewProps) {
   const { canInteract, suspended } = useProtectedInteraction();
   const focused = useIsFocused();
   const [visible, setVisible] = useState(pageSize);
   const [selected, setSelected] = useState<Selection | null>(null);
   const active = focused && !suspended;
   const current = useCallback(() => active && canInteract() && session?.isCurrent() === true, [active, canInteract, session]);
-  const blocks = useMemo(() => splitMarkdownPreview(source), [source]);
+  const blocks = useMemo(() => previewBlocks ?? splitMarkdownPreview(source), [previewBlocks, source]);
   const t = labels[locale];
   const colors = nativeColors[theme];
   const tone = [styles.caption, { color: colors.mutedForeground }];

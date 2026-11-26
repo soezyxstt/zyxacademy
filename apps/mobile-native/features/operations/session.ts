@@ -16,6 +16,7 @@ export function createEvaluationRequest(session: NativeSessionTransport): Evalua
     const method = options.method ?? "GET";
     const response = await session.request(path, {
       method,
+      requiredRole: "admin",
       signal: options.signal,
       headers: options.body === undefined ? { Accept: "application/json" } :
         { Accept: "application/json", "Content-Type": "application/json" },

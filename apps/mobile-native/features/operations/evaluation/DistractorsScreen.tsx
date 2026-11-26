@@ -1,7 +1,7 @@
 import { View } from "react-native";
 import { nativeColors } from "../../../../../packages/design-tokens/native-colors";
 import { evaluationRead, type Distractors, type EvaluationRequest } from "../../../../../packages/native-parity/operations/evaluation-contract";
-import { Copy, Heading, Load, Row, Section, Source, strings, useRead, type Presentation } from "./ui";
+import { Copy, Heading, Load, Section, Source, strings, useRead, type Presentation } from "./ui";
 
 export function DistractorsScreen({ request, presentation }: { request: EvaluationRequest; presentation: Presentation }) {
   const { theme, locale } = presentation;
@@ -17,7 +17,8 @@ export function DistractorsScreen({ request, presentation }: { request: Evaluati
         <Copy theme={theme} tone="muted">{item.course} · {item.total} {copy.answers}</Copy>
         {item.options.map((option, index) => <View key={index} style={{ gap: 4 }}>
           <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 8 }}>
-            <Row><Source source={option.text} presentation={presentation} />{option.isCorrect && <Copy theme={theme} tone="strong">✓</Copy>}</Row>
+            <View style={{ flex: 1, minWidth: 0 }}><Source source={option.text} presentation={presentation} /></View>
+            {option.isCorrect && <Copy theme={theme} tone="strong">✓</Copy>}
             <Copy theme={theme} tone="muted">{option.percentage}%</Copy>
           </View>
           <View style={{ height: 6, borderRadius: 4, backgroundColor: colors.muted }}>
