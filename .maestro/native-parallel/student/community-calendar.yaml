@@ -3,6 +3,9 @@ name: Student calendar filters assessments and opens tutorial history
 ---
 - launchApp:
     clearState: true
+- extendedWaitUntil:
+    visible: separator
+    timeout: 30000
 - openLink: "zyx-native-parity://student-fixture?scenario=loaded&path=%2Fcalendar"
 - extendedWaitUntil:
     visible: "Kuis limit"

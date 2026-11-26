@@ -3,6 +3,9 @@ name: Student quiz saves and restores its draft
 ---
 - launchApp:
     clearState: true
+- extendedWaitUntil:
+    visible: separator
+    timeout: 30000
 - openLink: "zyx-native-parity://student-fixture?scenario=populated&path=%2Fcourses%2Fnative-assessment-course%2Fquiz"
 - extendedWaitUntil:
     visible:
