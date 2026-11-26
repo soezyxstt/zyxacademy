@@ -24,3 +24,16 @@ STUDENT_SERVER_SHA=$(git rev-parse HEAD) \
 Jika server berjalan dari checkout yang berbeda, gunakan SHA checkout server. Playwright memakai Chromium terpasang dari `bunx playwright install chromium` atau executable yang ditentukan oleh `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`. Capture menolak origin selain loopback dan menghentikan proses dengan status gagal bila ada rute tanpa judul produk. Berkas PNG serta `web.json` ditulis ke `artifacts/student-evidence/product/` atau `STUDENT_CAPTURE_DIR`.
 
 Smoke HTTP menjalankan enam proyeksi untuk masing-masing akun. Pengujian menerima 18 respons 200 dan memeriksa isi dashboard, mastery, enrollment serta dokumen terkunci. Tiga permintaan dengan akun berbeda menghasilkan 409 dan tiga permintaan dokumen tidak dikenal menghasilkan 404. Pengujian konkurensi streak menggunakan dua pembacaan pertama secara bersamaan pada basis data pengujian.
+
+## Referensi asesmen
+
+Jalankan seed asesmen sebelum capture untuk memperbarui waktu mulai percobaan kuis sintetis dan sesi kedua peserta. Capture mengambil halaman produk pada viewport 380 × 820, termasuk pemeriksaan isi halaman, pemulihan jawaban setelah muat ulang, dan pesan akses peserta tanpa pendaftaran. Manifest mencatat hasil per skenario. Gunakan `STUDENT_ASSESSMENT_CAPTURE_CASES` dengan daftar ID dipisah koma untuk mengulang sebagian skenario. Arahkan pengulangan ke direktori keluaran terpisah agar manifest run lengkap tetap tersedia.
+
+```sh
+bun --env-file=.env.local tests/visual/native-parallel/student/product/assessment-seed.ts
+STUDENT_SERVER_SHA=$(git rev-parse HEAD) \
+  bun --env-file=.env.local tests/visual/native-parallel/student/product/assessment-capture.ts
+bun --env-file=.env.local tests/visual/native-parallel/student/product/assessment-http.ts
+```
+
+Smoke HTTP memakai sesi peserta sintetis yang ditandatangani dan resource sementara. Pengujian memeriksa identitas yang sama ketika permintaan mulai atau kirim diulang, jumlah rekaman tersimpan, pelepasan pembahasan, hasil dan kuota, serta penolakan ketika hasil diminta oleh peserta lain.

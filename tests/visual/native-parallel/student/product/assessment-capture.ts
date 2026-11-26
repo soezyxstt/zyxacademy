@@ -29,9 +29,9 @@ async function saveReport() {
   await rename(temporary, join(output, "web.json"));
 }
 
-async function ready(page: Page, marker: Locator) {
-  await marker.first().waitFor({ state: "visible", timeout: 90000 });
-  await page.evaluate(() => document.fonts.ready);
+async function ready(page: Page, marker: Locator, timeout = 90_000) {
+  await marker.first().waitFor({ state: "visible", timeout });
+  await page.waitForFunction(() => document.fonts.status === "loaded", undefined, { timeout: 45_000 });
   await page.addStyleTag({ content: "nextjs-portal { display:none !important }" });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 }
@@ -57,17 +57,19 @@ async function capture(page: Page, id: string, path: string, marker: (page: Page
   page.on("console", onConsole);
   let status: number | undefined;
   try {
-    const response = await page.goto(origin + path, { timeout: 300000, waitUntil: "domcontentloaded" });
+    const response = await page.goto(origin + path, { timeout: 300_000, waitUntil: "domcontentloaded" });
     status = response?.status();
     const rendered = new URL(page.url());
     const expected = new URL(path, origin);
     if (!response?.ok() || rendered.pathname !== expected.pathname || rendered.search !== expected.search) {
       throw new Error(`HTTP ${response?.status()} at ${rendered.pathname}`);
     }
-    await ready(page, marker(page));
+    const needsAnalytics = expected.pathname.split("/").includes("summary");
+    await ready(page, marker(page), needsAnalytics ? 300_000 : undefined);
     if (action) await action(page);
+    const screenshot = await page.screenshot({ animations: "disabled", timeout: 45_000 });
     if (hydration.length || runtimeErrors.length) throw new Error("Browser runtime or hydration errors");
-    await page.screenshot({ path: join(output, `${id}.png`), animations: "disabled" });
+    await writeFile(join(output, `${id}.png`), screenshot);
     resultReport.push({ id, path, status, elapsedMs: Date.now() - start });
     console.log(id, status);
   } catch (error) {
@@ -105,7 +107,7 @@ try {
     await answer.click();
     await expect(answer).toBeChecked();
     await p.waitForFunction(id => localStorage.getItem(`zyx-quiz-answers-${id}`) !== null, data.active);
-    await p.reload({ waitUntil: "domcontentloaded", timeout: 120000 });
+    await p.reload({ waitUntil: "domcontentloaded", timeout: 120_000 });
     await ready(p, answer);
     await expect(answer).toBeChecked();
   });
@@ -115,7 +117,7 @@ try {
     const answer = p.getByRole("radio", { name: /\bDua\b/ });
     await answer.click();
     await p.waitForFunction(id => Object.entries(localStorage).some(([key, value]) => key.includes(id) && value.includes('"index":1')), data.tryout);
-    await p.reload({ waitUntil: "domcontentloaded", timeout: 120000 });
+    await p.reload({ waitUntil: "domcontentloaded", timeout: 120_000 });
     await ready(p, answer);
     await expect(answer).toBeChecked();
   });
