@@ -43,6 +43,8 @@ test("account menus expose only mounted destinations authorized for the current 
   const sitemap = { ...node("/"), children: ["/profile", "/settings", "/dashboard", "/tutor", "/admin"].map(node) };
   expect(accountMenuEntries(context, sitemap).map(item => item.href)).toEqual(["/profile", "/settings", "/dashboard", "/tutor"]);
   expect(accountMenuEntries({ ...context, roles: ["admin"], dashboard: "/admin", locale: "en" }, sitemap)).toEqual([
+    { id: "profile", href: "/profile", label: "Profile" },
+    { id: "preferences", href: "/settings", label: "Preferences" },
     { id: "adminPanel", href: "/admin", label: "Admin panel" },
   ]);
   expect(accountMenuEntries(context, { ...sitemap, children: [node("/profile")] }).map(item => item.href)).toEqual(["/profile"]);

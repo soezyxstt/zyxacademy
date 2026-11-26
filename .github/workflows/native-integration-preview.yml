@@ -7,6 +7,10 @@ on:
       - 'packages/**'
       - 'app/api/auth/native/**'
       - 'app/api/native/context/**'
+      - 'app/api/native/student/_session.ts'
+      - 'app/api/native/student/community/**'
+      - 'tests/contracts/native-student-session.test.ts'
+      - 'tests/unit/expo-personal-account.test.ts'
       - 'app/api/native/academic/tutor-support/**'
       - 'tests/contracts/native-tutor-discussion-mentions.test.ts'
       - 'app/api/native/academic-administration/**'
@@ -261,6 +265,11 @@ jobs:
           bun test tests/unit/expo-native-files.test.ts tests/unit/expo-material-pdf.test.ts
           bun test tests/contracts/native-student-material-pdf.test.ts
           bun scripts/test-contracts.ts tests/contracts/native-admin-material-pdf.test.ts tests/contracts/native-admin-course-pdf-source.test.ts
+      - name: Personal profile and settings across signed roles
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          bun test tests/unit/expo-personal-account.test.ts tests/unit/native-account-context.test.ts tests/unit/expo-staff-navigation.test.ts
+          bun scripts/test-contracts.ts tests/contracts/native-student-session.test.ts
       - name: Student learning and live-session operations
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: |

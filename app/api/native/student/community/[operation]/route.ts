@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireNativeStudent } from "../../_session";
+import { requireNativePersonalAccount, requireNativeStudent } from "../../_session";
+import { isPersonalCommunityOperation } from "@/packages/student-community/account-access";
 import { readNativeStudentJson } from "../../_request";
 import { getStudentGamificationAccess, requireStudentGamificationAccess } from "@/lib/gamification/access";
 import { getGamificationLeaderboard } from "@/lib/gamification/leaderboard";
@@ -79,9 +80,10 @@ async function readDiscussionScope(userId: string, id?: string) {
 }
 
 export async function GET(request: Request, { params }: Context) {
-  const actor = await requireNativeStudent(request);
-  if (actor instanceof Response) return actor;
   const { operation } = await params;
+  const authorize = isPersonalCommunityOperation("GET", operation) ? requireNativePersonalAccount : requireNativeStudent;
+  const actor = await authorize(request);
+  if (actor instanceof Response) return actor;
   const { searchParams: query } = new URL(request.url);
   const { userId } = actor;
   const id = () => identifier.parse(query.get("id"));
@@ -139,9 +141,10 @@ export async function GET(request: Request, { params }: Context) {
 }
 
 export async function POST(request: Request, { params }: Context) {
-  const actor = await requireNativeStudent(request);
-  if (actor instanceof Response) return actor;
   const { operation } = await params;
+  const authorize = isPersonalCommunityOperation("POST", operation) ? requireNativePersonalAccount : requireNativeStudent;
+  const actor = await authorize(request);
+  if (actor instanceof Response) return actor;
   const { userId } = actor;
   try {
     const body = await readNativeStudentJson(request);

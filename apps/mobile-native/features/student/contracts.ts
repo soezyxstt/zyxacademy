@@ -6,7 +6,7 @@ import type { NativeResponse } from "../../network/transport";
 
 export interface StudentSession {
   userId: string;
-  role: "student";
+  role: "student" | "tutor" | "admin";
   sessionId?: string;
   origin: string;
   locale: string;

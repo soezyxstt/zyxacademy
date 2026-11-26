@@ -47,13 +47,13 @@ function People({ section }: { section: Section }) {
 }
 
 export function ProfileScreen() {
-  const { tr, navigate } = useCommunity();
+  const { tr, navigate, session } = useCommunity();
   const state = useRemote<Profile>(communityPath("profile"));
   const [section, setSection] = useState<Section | null>(null);
   return <Page title={tr("Profil", "Profile")}>
     <Remote state={state}>{profile => <ProfileOverview profile={profile} />}</Remote>
     <Actions><Action label={tr("Edit profil", "Edit profile")} onPress={() => navigate("/settings?tab=profile")} />
-      <Action label={tr("Refleksi mingguan", "Weekly reflections")} onPress={() => navigate("/profile/reflections")} /></Actions>
+      {session.role === "student" && <Action label={tr("Refleksi mingguan", "Weekly reflections")} onPress={() => navigate("/profile/reflections")} />}</Actions>
     {state.data?.customization && <>
       <Choices value={section} options={[
         { value: "followers", label: tr("Pengikut", "Followers") }, { value: "following", label: tr("Mengikuti", "Following") },

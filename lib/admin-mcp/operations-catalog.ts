@@ -194,7 +194,7 @@ export const operationsCatalog = [
     "actions": ["GET", "POST"],
     "tools": [],
     "status": "excluded",
-    "reason": "Native Student community requests bind the verified learner session to existing ranking, profile, privacy, schedule, discussion, group, rewards, feedback and personal notification operations. These participant and device choices retain existing authorization and OAuth consent. Administrative MCP scopes, discovery, tools, playbooks, packaged skills, host prompts and environment bindings stay as registered."
+    "reason": "Native accounts use the current signed session for their own profile, locale and notification preferences. Ranking, social privacy, schedule, discussion, group, rewards and feedback operations retain the learner gate and their existing authorization and OAuth consent. Administrative MCP scopes, discovery, tools, playbooks, packaged skills, host prompts and environment bindings stay as registered."
   },
   {
     "source": "app/api/native/student/assessment/[courseId]/[...segments]/route.ts",

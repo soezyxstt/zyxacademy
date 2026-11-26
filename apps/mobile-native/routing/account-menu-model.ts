@@ -24,6 +24,5 @@ export function accountMenuEntries(account: NativeAccountContext, sitemap: Nativ
 export function accountMenuCopy(locale: NativeAccountContext["locale"]) {
   return {
     ...common[locale], account: locale === "id" ? "Akun" : "Account", close: locale === "id" ? "Tutup" : "Close",
-    haptics: locale === "id" ? "Getaran" : "Haptics", devicePreferences: locale === "id" ? "Preferensi perangkat" : "Device preferences",
   };
 }

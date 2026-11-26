@@ -13,6 +13,7 @@ import idAdmin from "../../../messages/id/admin.json";
 import enTutor from "../../../messages/en/tutor.json";
 import idTutor from "../../../messages/id/tutor.json";
 import type { NativeAccountContext } from "../../../packages/native-session/context";
+import { isPersonalAccountRoute } from "../../../packages/student-community/account-access";
 import { resolveNativeProtectedDestination, type NativeRouteNode } from "../auth/login-intent";
 
 type Scope = Pick<NativeAccountContext, "locale" | "roles">;
@@ -44,7 +45,18 @@ const tutorQuizEditor = /^\/tutor\/[^/]+\/quizzes\/(?:new|[^/]+\/edit)$/;
 export function staffNavigation(role: Role, href: string, locale: Scope["locale"]) {
   const pathname = pathnameOf(href);
   const catalog = labels[locale];
-  const fallbackTitle = getRouteTitle(pathname, role, key => message(catalog, key));
+  const accountTitles: Record<string, readonly [string, string]> = {
+    "/profile": ["Profil", "Profile"],
+    "/profile/edit": ["Edit profil", "Edit profile"],
+    "/settings": ["Pengaturan", "Settings"],
+    "/settings/notifications": ["Preferensi notifikasi", "Notification preferences"],
+    "/settings/notifications/browser": ["Notifikasi browser", "Browser notifications"],
+  };
+  const personalAccount = isPersonalAccountRoute(pathname);
+  const fallbackTitle = personalAccount ? accountTitles[pathname][locale === "id" ? 0 : 1]
+    : getRouteTitle(pathname, role, key => message(catalog, key));
+  const accountBack = pathname === "/settings/notifications/browser" ? "/settings/notifications"
+    : pathname === "/settings/notifications" ? "/settings" : pathname === "/profile/edit" ? "/profile" : `/${role}`;
   const closeLabel = locale === "id" ? "Tutup" : "Close";
   if (role === "admin") {
     const detail = getAdminDetailTitleKey(pathname);
@@ -54,7 +66,7 @@ export function staffNavigation(role: Role, href: string, locale: Scope["locale"
       active: getActiveAdminBottomTab(pathname),
       title: detail ? catalog.admin.mobile.detailTitles[detail] : fallbackTitle,
       homeLabel: catalog.admin.navigation.dashboard,
-      backTo: /^\/admin\/quizzes\//.test(pathname) ? "/admin/quizzes"
+      backTo: personalAccount ? accountBack : /^\/admin\/quizzes\//.test(pathname) ? "/admin/quizzes"
         : pathname.startsWith("/admin/materials/review/") ? "/admin/materials/review"
         : pathname === "/admin/materials/manual" ? "/admin/materials"
         : isAdminRootHub(pathname) ? null : getAdminMobileBackHref(pathname),
@@ -68,7 +80,7 @@ export function staffNavigation(role: Role, href: string, locale: Scope["locale"
     active: getActiveTutorBottomTab(pathname),
     title: detail ? catalog.tutor.routeTitles[detail] : fallbackTitle,
     homeLabel: catalog.tutor.routeTitles.dashboardTitle,
-    backTo: isTutorRootHub(pathname) ? null : backTo === pathname ? tutorMobileHrefs.home : backTo,
+    backTo: personalAccount ? accountBack : isTutorRootHub(pathname) ? null : backTo === pathname ? tutorMobileHrefs.home : backTo,
     hideBottom: isTutorQuizFormOrDetailRoute(pathname) && tutorQuizEditor.test(pathname),
   } as const;
 }

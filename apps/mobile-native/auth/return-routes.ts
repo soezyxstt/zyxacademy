@@ -1,7 +1,9 @@
+import { personalAccountRoutes } from "../../../packages/student-community/account-access";
+
 // Canonical product routes from plans/native-parallel/routes.tsv.
 // Auth, consent, internal tooling and action-only redirects are excluded.
 export const returnRoutes = {
-  account: ["/mcp/connections"],
+  account: ["/mcp/connections", ...personalAccountRoutes],
   student: [
     "/achievements",
     "/calendar",
@@ -47,12 +49,7 @@ export const returnRoutes = {
     "/leaderboard/academic",
     "/offline",
     "/pet",
-    "/profile",
-    "/profile/edit",
     "/profile/reflections",
-    "/settings",
-    "/settings/notifications",
-    "/settings/notifications/browser",
     "/students/[publicId]",
   ],
   tutor: [

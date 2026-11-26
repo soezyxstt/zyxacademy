@@ -20,7 +20,7 @@ function SessionScreen({ path, entryKey, ...props }: StudentEntryProps) {
   const route = useMemo(() => matchStudentRoute(path), [path]);
   const { session, request: transport } = props;
   const request = useMemo(() => bindStudentRequest(session, transport),
-    [session.userId, session.origin, session.locale, transport]);
+    [session.userId, session.sessionId, session.role, session.origin, session.locale, transport]);
   if (!route) return <Text accessibilityRole="alert">Halaman tidak ditemukan.</Text>;
   const Screen = screens[route.area];
   return <Screen key={entryKey} {...props} route={route} request={request} />;
