@@ -10,8 +10,9 @@
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { db } from "@/db";
-import { notifications, courses, user } from "@/db/schema";
+import { notifications, user } from "@/db/schema";
 import { desc, eq, count, sql } from "drizzle-orm";
+import { adminBroadcastCourseEnrollments, adminBroadcastCourses } from "@/lib/notifications/admin-broadcast-audience";
 import { sendAdminBroadcast } from "@/lib/notifications/send";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -63,13 +64,7 @@ export async function sendBroadcastAction(
  if (target === "all") {
  resolvedTarget = "all";
  } else if (target === "course" && targetId) {
- // Fetch enrolled user IDs for the course
- const { enrollments } = await import("@/db/schema");
- const enrolled = await db
- .select({ userId: enrollments.userId })
- .from(enrollments)
- .where(eq(enrollments.courseId, targetId));
- resolvedTarget = enrolled.map((e) => e.userId);
+ resolvedTarget = (await adminBroadcastCourseEnrollments(db, targetId)).map(({ id }) => id);
  } else if (target === "user" && targetId) {
  resolvedTarget = [targetId];
  } else {
@@ -160,5 +155,5 @@ export async function getNotificationHistoryAction(
 export async function getCoursesForTargetingAction(): Promise<{ id: string; title: string }[]> {
  await requireAdmin();
 
- return db.select({ id: courses.id, title: courses.title }).from(courses);
+ return adminBroadcastCourses(db);
 }

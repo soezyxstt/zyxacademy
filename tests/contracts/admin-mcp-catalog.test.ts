@@ -46,7 +46,7 @@ test("Expo download and storage recovery stay device-local", () => {
   const entry = operationsCatalog.find(item => item.source === "apps/mobile-native/app/offline.tsx");
   expect(entry?.status).toBe("excluded");
   expect(entry?.tools).toEqual([]);
-  expect(entry?.actions).toEqual(["download", "forget", "revalidateSaved", "purgeUnavailable"]);
+  expect(entry?.actions).toEqual(["download", "read", "forget", "revalidateSaved", "purgeUnavailable"]);
 });
 
 test("device sign-in, role context, photo recovery and OS permissions stay user-scoped", () => {
@@ -89,6 +89,8 @@ test("native academic reads and legacy Diktat PDF keep signed-in UI authorizatio
   expect(native.status).toBe("excluded");
   expect(native.actions).toEqual(["GET", "POST", "PATCH"]);
   expect(native.tools).toEqual([]);
+  expect(native.reason).toContain("confirmed audience snapshot");
+  expect(native.reason).toContain("receipts isolated from MCP jobs");
   expect(pdf.status).toBe("excluded");
   expect(pdf.actions).toEqual(["GET", "POST"]);
   expect(pdf.tools).toEqual([]);
@@ -108,9 +110,9 @@ test("native academic transports use interactive sessions", () => {
 
 test("native course commands reuse administrative projections with session authorization", () => {
   const entry = operationsCatalog.find(item => item.source === "app/api/native/academic/[...resource]/route.ts")!;
-  expect(entry.actions).toEqual(["GET", "POST", "PATCH"]);
+  expect(entry.actions).toEqual(["GET", "POST", "PATCH", "DELETE"]);
   expect(entry.tools).toEqual([]);
-  expect(entry.reason).toContain("chapters.create");
-  expect(entry.reason).toContain("chapters.update");
+  expect(entry.reason).toContain("chapters.*");
+  expect(entry.reason).toContain("Chapter reorder");
   expect(entry.reason).toContain("materials.update_metadata");
 });

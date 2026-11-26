@@ -6,6 +6,7 @@ import {
 import { matchAdministrationRoute, type AdministrationPattern } from "../../../../../packages/native-parity/academic/administration/routes";
 import { nativeTypography } from "../../../typography";
 import { NativeListRow, NativeStatusPanel, ResponsiveTable, type SharedUiAction, type SharedUiActionHandler } from "../../shared-ui";
+import { BroadcastComposer } from "./broadcast-composer";
 import { AdministrationCalendar } from "./calendar";
 import { LiveEnrollmentTokenEditor } from "./enrollment-token-editor";
 import type { EnrollmentTokenUnavailable } from "./enrollment-token-client";
@@ -103,6 +104,7 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
   const [groupMembersDraft, setGroupMembersDraft] = useState<{ actorTransport: AcademicTransport; id: string }>();
   const [tokenDraft, setTokenDraft] = useState<{ actorTransport: AcademicTransport; id?: string }>();
   const [success, setSuccess] = useState("");
+  const [broadcastTransport, setBroadcastTransport] = useState<AcademicTransport>();
   const groupEditor = groupDraft?.actorTransport === transport ? groupDraft : undefined;
   const groupMembersEditor = pattern === "/admin/groups" && groupMembersDraft?.actorTransport === transport ? groupMembersDraft : undefined;
   const tokenEditor = tokenDraft?.actorTransport === transport ? tokenDraft : undefined;
@@ -166,7 +168,15 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
   const filtered = Boolean(filters.search || filters.status || filters.role);
   return <AdministrationPage title={title} back={back}>
     {pkaTab ? <Tabs options={pkaTabs} selected={pkaTab} onSelect={(id) => navigate(`/admin/tutorial-pka/${id}`)} /> : null}
-    {pattern === "/admin/notifications" ? <Ink kind="heading">Riwayat notifikasi</Ink> : null}
+    {pattern === "/admin/notifications" ? <View style={layout.row}>
+      <Ink kind="heading">Riwayat notifikasi</Ink>
+      {data && transport.command ? <Action label="Tulis notifikasi" variation="default" onPress={() => setBroadcastTransport(transport)} testID="academic-live-broadcast-open" /> : null}
+    </View> : null}
+    {pattern === "/admin/notifications" && broadcastTransport === transport && state.status !== "denied" ? <BroadcastComposer
+      transport={transport} close={() => setBroadcastTransport(undefined)} refreshHistory={() => {
+        setBroadcastTransport(undefined);
+        retry();
+      }} /> : null}
     {searchEnabled && (!tokenPage || data) ? <View style={layout.row}>
       <View style={layout.flex}><SearchBox label="Cari" value={search} onChange={setSearch} /></View>
       <Action label="Cari" onPress={() => filter("search", search.trim())} />

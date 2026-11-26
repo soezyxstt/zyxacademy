@@ -82,7 +82,7 @@ export const operationsCatalog = [
     "actions": ["GET", "POST", "PATCH"],
     "tools": [],
     "status": "excluded",
-    "reason": "The Expo adapter reads administrative data and uses active Admin sessions for study groups, enrollment tokens, user status, PKA and Idea item review. Idea item review uses the staged artifact and the canonical reviewer decision operation with a session-scoped receipt. MCP operations retain their registered scopes and consent."
+    "reason": "The Expo adapter reads administrative data and uses active Admin sessions for study groups, enrollment tokens, user status, PKA and Idea item review. Idea item review uses the staged artifact and the canonical reviewer decision operation with a session-scoped receipt. Native notification broadcasts require a live Admin session and a confirmed audience snapshot, with receipts isolated from MCP jobs. MCP operations retain their registered scopes and consent."
   },
   {
     "source": "app/api/admin/bundles/product/[id]/pdf/route.ts",

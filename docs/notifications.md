@@ -68,6 +68,12 @@ All interval jobs are registered in [`jobs/compute.ts`](../jobs/compute.ts), [`l
 - **Broadcast inbox completeness**: [`sendBroadcast`](../lib/notifications/send.ts) targets all accounts in `user` rather than only `user_push_tokens`, ensuring users without push tokens still receive broadcasts in their in-app inbox.
 - **Role-aware fallback routing**: Missing or invalid deep links fall back to `/admin`, `/tutor`, or `/dashboard` according to the signed-in role.
 
+### Native Admin broadcast
+
+The Admin `/admin/notifications` composer targets all accounts, a course's enrolled accounts, or one account by ID. The explicit review shows the message, destination, audience and recipient count. The 15-minute review is bound to the Admin session. Confirmation and the queue worker each verify that the exact recipient membership still matches. Changed membership requires a new review even when the count stays the same.
+
+Confirmation creates one durable operation. Repeating the same confirmation returns its recorded status. The worker rechecks the active Admin role and originating session before claiming delivery, then uses the existing inbox and push sender. An interrupted claim stays uncertain and is never replayed automatically. Check history for partial or uncertain outcomes. The operation binds to the application's exact auth origin. It uses a distinct outbox namespace from OAuth-delegated MCP operations.
+
 ## Context and optional activity
 
 Discussion activity is scoped to the thread author and recorded participants at the event's sequence cutoff. A channel subscription, staff role, or mention alone does not enroll someone in a thread. Moderation reports remain separately authorized for admins. The worker rechecks participation, access, account opt-out, channel mute and read state before inbox insertion and push retries. Private academic and technical discussion remote pushes keep generic copy; the authenticated inbox carries a bounded title and message preview. Deleted or superseded message revisions use a status fallback. Admin cross-account history does not expose authored previews. Existing notification rows are not rewritten.

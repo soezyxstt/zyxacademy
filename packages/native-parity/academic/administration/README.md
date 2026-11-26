@@ -4,6 +4,8 @@ Gunakan `AdministrationProvider` untuk membungkus navigator fixture dan `Adminis
 
 `AdministrationLiveScreen` menerima transport akun aktif. GET pada `/api/native/academic-administration/` memakai sesi yang sama dengan web, memproyeksikan bidang untuk UI native, dan menolak peran selain Admin setelah memeriksa identitas kanonik. Pembacaan meminta ulang data saat gagal, mengikat hasil ke route dan akun aktif, serta mengirim respons `private, no-store`.
 
+Pada `/admin/notifications`, tombol Tulis notifikasi membuka komposer yang terhubung ke `GET/POST /api/native/academic-administration/notifications/broadcast`. Admin memilih audiens, meninjau jumlah penerima serta pesan, lalu mengonfirmasi snapshot. Sesi yang sama dapat memeriksa kembali status setelah respons terputus. Riwayat pengiriman tetap memakai pembacaan administrasi yang ada.
+
 | Alur | Pembacaan produksi | Aksi fixture |
 | --- | --- | --- |
 | Pengguna, kelompok dan token | `getAdminUsersData`, `getAdminStudyGroups`, `getEnrollmentTokens` | Perubahan peran dan pengelolaan anggota kelompok bertoken |

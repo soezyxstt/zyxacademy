@@ -17,8 +17,20 @@ import { readNativeIdeaReview, writeNativeIdeaReview } from "@/lib/native/academ
 import { handleAdministrationRead } from "@/lib/native/academic/administration/handle-read";
 import { administrationReadServices } from "@/lib/native/academic/administration/read-services";
 
+import { handleNativeBroadcast } from "@/lib/native/academic/administration/broadcast-handler";
+import { prepareNativeBroadcast, readNativeBroadcast, transitionNativeBroadcast } from "@/lib/native/academic/administration/broadcast-service";
+
+const isBroadcast = (resource: string[]) => resource.length === 2 && resource[0] === "notifications" && resource[1] === "broadcast";
+
+function broadcast(request: Request) {
+  return handleNativeBroadcast(request, new URL(resolveAuthBaseUrl()).origin, {
+    session: getAuthSession, read: readNativeBroadcast, prepare: prepareNativeBroadcast, transition: transitionNativeBroadcast,
+  });
+}
+
 export async function GET(request: Request, context: { params: Promise<{ resource: string[] }> }) {
   const { resource } = await context.params;
+  if (isBroadcast(resource)) return broadcast(request);
   if (isNativeIdeaReviewPath(resource)) return ideaReview(request, resource);
   return handleAdministrationRead(resource, new URL(request.url).searchParams, administrationReadServices);
 }
@@ -74,5 +86,6 @@ function enrollmentTokenWrite(request: Request, resource: string[]) {
 
 export async function POST(request: Request, context: { params: Promise<{ resource: string[] }> }) {
   const { resource } = await context.params;
+  if (isBroadcast(resource)) return broadcast(request);
   return resource[0] === "tokens" ? enrollmentTokenWrite(request, resource) : studyGroupWrite(request, resource);
 }

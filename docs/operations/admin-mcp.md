@@ -25,6 +25,8 @@ Google Sheets exports use the existing entity spreadsheet, owned A1 block, finge
 
 Notification targets are explicit active user snapshots. Course and group audiences cannot silently widen to all users. A snapshot is limited to 1000 recipients. Email preferences are not bypassed by reusing generic broadcasts for campaign mail. The generic notification tool sends the existing in-app/FCM broadcast, not campaign email.
 
+The Expo Admin composer uses its own authenticated session and durable, origin-bound audience review. Its receipts are isolated from MCP job listing, claim, cancellation and reconciliation. MCP tools keep their OAuth and consent requirements.
+
 Meet operations use the existing Google adapter and member provisioning. A created provider reference is checkpointed before subsequent calls. Partial member provisioning is reported; an uncertain creation must be reconciled rather than recreated. Generation uses the existing KO pipeline and its existing accounting path.
 
 ## Forms and media boundaries
