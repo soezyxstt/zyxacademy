@@ -100,6 +100,8 @@ jobs:
         working-directory: apps/mobile-native
       - run: npx --no-install tsc --noEmit
         working-directory: apps/mobile-native
+      - name: Install workspace dependencies for shared server and client contract tests
+        run: bun install --frozen-lockfile
       - name: Check device, session, transport and offline contracts
         run: |
           bun test tests/unit/expo-*.test.ts \
