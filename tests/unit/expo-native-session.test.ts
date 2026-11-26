@@ -206,7 +206,7 @@ describe("Expo staging session", () => {
     expect(harness.requests.some(request => request.url.endsWith("/sign-out"))).toBe(true);
   });
 
-  test("prevents an unavailable validation from exposing the previous scope and retries once available", async () => {
+  test("a connection failure disables the authenticated transport and preserves only the local reading identity", async () => {
     const harness = createHarness();
     const session = harness.controller();
     await session.refresh();
@@ -216,7 +216,7 @@ describe("Expo staging session", () => {
     const validating = session.refresh();
     expect(session.getSnapshot().revalidating).toBe(true);
     await validating;
-    expect(session.getSnapshot()).toEqual({ state: { status: "unavailable" }, transport: null, revalidating: false });
+    expect(session.getSnapshot()).toEqual({ state: { status: "unavailable", offlineIdentity: identity }, transport: null, revalidating: false });
     expect(activeTransport?.isCurrent()).toBe(false);
     expect(harness.readStored()).toBeTruthy();
     harness.setOffline(false);
@@ -262,4 +262,25 @@ describe("Expo staging session", () => {
       expect(harness.readStored()).toBeNull();
     }
   });
+});
+
+
+test("cold offline launch cannot use invalid identities, malformed server responses or revocation tombstones for local reading", async () => {
+  const harness = createHarness();
+  harness.setStored({ origin, status: "active", cookie, ...identity });
+  harness.setOffline(true);
+  const restored = harness.controller();
+  await restored.refresh();
+  expect(restored.getSnapshot().state).toEqual({ status: "unavailable", offlineIdentity: identity });
+  expect(restored.getSnapshot().transport).toBeNull();
+  harness.setOffline(false);
+  harness.setServerSession({ invalid: true });
+  await restored.refresh();
+  expect(restored.getSnapshot().state).toEqual({ status: "unavailable" });
+  harness.setOffline(true);
+  harness.setStored({ origin, status: "revoking", cookie, ...identity });
+  const pending = harness.controller();
+  await pending.refresh();
+  expect(pending.getSnapshot().state.status).toBe("logout-pending");
+  expect(pending.getSnapshot().transport).toBeNull();
 });

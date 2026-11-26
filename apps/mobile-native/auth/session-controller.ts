@@ -1,6 +1,7 @@
 import type { NativeSessionScope, NativeSessionTransport, createNativeTransport } from "../network/transport";
 import { parseNativeLoginIntent, type NativeLoginIntent } from "./login-intent";
 import {
+  NativeSessionConnectionError,
   isSignedSessionCookie,
   readSignedSessionCookie,
   type SessionHeaders,
@@ -20,7 +21,8 @@ type BeforeLocalLogout = (scope: NativeSessionScope) => void | Promise<void>;
 const PUSH_CLEANUP_PATH = "/api/notifications/register-token";
 
 export type NativeSessionState =
-  | { status: "loading" | "signed-out" | "unavailable" }
+  | { status: "loading" | "signed-out" }
+  | { status: "unavailable"; offlineIdentity?: SessionIdentity }
   | { status: "logout-pending"; retry: boolean }
   | ({ status: "signed-in" } & SessionIdentity);
 
@@ -191,10 +193,17 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
           record = updated;
         }
         if (revision === expectedRevision) publishVerified(identity);
-      } catch {
+      } catch (error) {
         if (revision === expectedRevision) {
           dataTransport.clearSession();
-          publish(record?.status === "revoking" ? { status: "logout-pending", retry: true } : { status: "unavailable" });
+          if (record?.status === "revoking") {
+            publish({ status: "logout-pending", retry: true });
+          } else if (error instanceof NativeSessionConnectionError && record?.status === "active" && record.expiresAt > now()) {
+            const { accountId, sessionId, expiresAt } = record;
+            publish({ status: "unavailable", offlineIdentity: { accountId, sessionId, expiresAt } });
+          } else {
+            publish({ status: "unavailable" });
+          }
         }
       } finally {
         validation = null;
