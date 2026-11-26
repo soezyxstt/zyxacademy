@@ -14,21 +14,23 @@ async function render() {
   const request = createAssessmentFixtureRequest(quizGatewayScenario(scenario));
   const response = await request(assessmentApiPath(assessmentFixturePaths.quiz));
   const data: AssessmentPage = await response.json();
-  if (!response.ok || data.kind !== "quiz-detail" || data.assessment.questionCount === null) throw new Error("Quiz gateway fixture is unavailable");
+  if (!response.ok || data.kind !== "quiz-detail") throw new Error("Quiz gateway fixture is unavailable");
   const { assessment, history } = data;
+  const { questionCount } = assessment;
+  if (questionCount === null) throw new Error("Quiz gateway fixture question count is unavailable");
   const courseId = location.pathname.split("/")[2];
 
   createRoot(document.getElementById("root")!).render(
     <NextIntlClientProvider locale={quizGatewayEvidence.locale} timeZone="Asia/Jakarta" messages={{ learning }}>
       <main>
         <StudentQuizGateway id={courseId} courseTitle={data.courseTitle}
-          template={{ id: assessment.id, title: assessment.title, selectionRules: { count: assessment.questionCount },
+          template={{ id: assessment.id, title: assessment.title, selectionRules: { count: questionCount },
             timeLimitSeconds: assessment.durationSeconds, maxAttempts: assessment.maxAttempts }}
           completedAttempts={history.map(({ id, score, submittedAt, durationSeconds }) => ({
             id, score, submittedAt: submittedAt ? new Date(submittedAt) : null, durationSeconds: durationSeconds ?? null,
           }))}
           inProgressAttempt={assessment.activeAttemptId ? { id: assessment.activeAttemptId } : null}
-          questionsCount={assessment.questionCount}
+          questionsCount={questionCount}
           startAction={<QuizStartButton courseId={courseId} templateId={assessment.id} />}
         />
       </main>
