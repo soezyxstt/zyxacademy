@@ -1,6 +1,7 @@
 name: Native authenticated preview
 
 on:
+  workflow_call:
   workflow_dispatch:
   pull_request:
     paths:
