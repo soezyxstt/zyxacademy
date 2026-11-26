@@ -48,11 +48,24 @@ if [[ ${3:-parity} == product ]]; then
     xcrun simctl openurl "$device" zyx-native-parity://admin
   else
     adb -s "$device" shell am force-stop "$app"
-    adb -s "$device" shell am start -W -a android.intent.action.VIEW -d zyx-native-parity://admin "$app"
+    adb -s "$device" shell am start -W -a android.intent.action.VIEW -d zyx-native-parity://admin "$app" | tee "$output/cold-start.txt"
   fi
   "$install_dir/maestro/bin/maestro" --platform "$platform" --device "$device" test \
     --format junit --output "$output/cold-entry.xml" --test-output-dir "$output/cold-results" \
     --debug-output "$output/cold-logs" "$flows/helpers/cold-private-entry.yaml"
+  if [[ $platform == android ]]; then
+    adb -s "$device" shell dumpsys meminfo "$app" > "$output/sign-in-meminfo.txt"
+    # Keep raw emulator measurements next to the route assertion and source
+    # tree. The activity launch timing ends before the Maestro assertion.
+    {
+      echo "### Android emulator, cold guest entry"
+      echo
+      echo '```text'
+      grep -E '^(LaunchState|TotalTime|WaitTime):' "$output/cold-start.txt" || true
+      grep -E 'TOTAL PSS:|TOTAL RSS:' "$output/sign-in-meminfo.txt" || true
+      echo '```'
+    } >> "$GITHUB_STEP_SUMMARY"
+  fi
 fi
 "$install_dir/maestro/bin/maestro" --platform "$platform" --device "$device" test \
   --format junit --output "$output/report.xml" \
