@@ -12,7 +12,6 @@ import {
   aiQuestionBank,
   exams,
   questions,
-  submissions,
   mataKuliah,
 } from "@/db/schema";
 import { eq, and, inArray, asc, or, sql, notInArray } from "drizzle-orm";
