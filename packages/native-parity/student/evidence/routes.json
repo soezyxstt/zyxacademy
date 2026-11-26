@@ -1,8 +1,8 @@
 {
-  "generated_from_head": "67e77c726d8353fab31a76bb842f9a463d583ebd",
+  "generated_from_head": "ec96f022f9bd4d8b7323fd6e06b84cb926c2e132",
   "note": "HEAD identifies the checkout at generation time; an uncommitted working tree may differ. Evidence retains its own provenance. No platform pass or parity is inferred from fixtures.",
   "smoke_manifest": "artifacts/student-evidence/generated/manifest.json",
-  "smoke_generated_from_head": "67e77c726d8353fab31a76bb842f9a463d583ebd",
+  "smoke_generated_from_head": "ec96f022f9bd4d8b7323fd6e06b84cb926c2e132",
   "product_capture_manifest": "tests/visual/native-parallel/student/product/web/web.json",
   "ci_history": "packages/native-parity/student/evidence/ci-history.json",
   "device_evidence_summary": {
@@ -61,8 +61,8 @@
       "contract_doc": "packages/native-parity/student/community/README.md",
       "checks": [
         "packages/native-parity/student/community/community.test.ts",
-        "tests/visual/native-parallel/student/product/community-http.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/contracts/native-student-community-http.test.ts",
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": null,
       "web_evidence": [
@@ -418,8 +418,8 @@
       "contract_doc": "packages/native-parity/student/community/README.md",
       "checks": [
         "packages/native-parity/student/community/community.test.ts",
-        "tests/visual/native-parallel/student/product/community-http.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/contracts/native-student-community-http.test.ts",
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": {
         "source": "packages/native-parity/student/community/README.md",
@@ -885,7 +885,7 @@
       "checks": [
         "tests/contracts/native-student-learning.test.ts",
         "tests/contracts/native-student-learning-postgres.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": null,
       "web_evidence": [
@@ -1173,8 +1173,8 @@
       "contract_doc": "packages/native-parity/student/community/README.md",
       "checks": [
         "packages/native-parity/student/community/community.test.ts",
-        "tests/visual/native-parallel/student/product/community-http.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/contracts/native-student-community-http.test.ts",
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": {
         "source": "packages/native-parity/student/community/README.md",
@@ -1438,7 +1438,7 @@
       "checks": [
         "tests/contracts/native-student-learning.test.ts",
         "tests/contracts/native-student-learning-postgres.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": null,
       "web_evidence": [
@@ -1901,8 +1901,8 @@
       "contract_doc": "packages/native-parity/student/community/README.md",
       "checks": [
         "packages/native-parity/student/community/community.test.ts",
-        "tests/visual/native-parallel/student/product/community-http.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/contracts/native-student-community-http.test.ts",
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": {
         "source": "packages/native-parity/student/community/README.md",
@@ -2351,7 +2351,7 @@
       "checks": [
         "tests/contracts/native-student-learning.test.ts",
         "tests/contracts/native-student-learning-postgres.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": null,
       "web_evidence": [
@@ -2614,7 +2614,7 @@
       "checks": [
         "tests/contracts/native-student-learning.test.ts",
         "tests/contracts/native-student-learning-postgres.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": null,
       "web_evidence": [
@@ -2919,7 +2919,7 @@
       "checks": [
         "tests/contracts/native-student-learning.test.ts",
         "tests/contracts/native-student-learning-postgres.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": null,
       "web_evidence": [
@@ -3270,7 +3270,7 @@
         "tests/contracts/native-student-courses.test.ts",
         "tests/unit/native-student-course-data.test.ts",
         "tests/unit/native-student-dashboard-extras.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": {
         "source": "tests/visual/native-parallel/student/product/README.md",
@@ -3708,7 +3708,7 @@
         "tests/contracts/native-student-courses.test.ts",
         "tests/unit/native-student-course-data.test.ts",
         "tests/unit/native-student-dashboard-extras.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": {
         "source": "tests/visual/native-parallel/student/product/README.md",
@@ -4181,7 +4181,7 @@
         "tests/contracts/native-student-assessment.test.ts",
         "tests/unit/native-student-assessment-drafts.test.ts",
         "tests/visual/native-parallel/student/assessment-reference.spec.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": {
         "source": "tests/visual/native-parallel/student/product/assessment-http.ts",
@@ -4721,7 +4721,7 @@
         "tests/contracts/native-student-assessment.test.ts",
         "tests/unit/native-student-assessment-drafts.test.ts",
         "tests/visual/native-parallel/student/assessment-reference.spec.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": null,
       "web_evidence": [
@@ -5264,7 +5264,7 @@
         "tests/contracts/native-student-assessment.test.ts",
         "tests/unit/native-student-assessment-drafts.test.ts",
         "tests/visual/native-parallel/student/assessment-reference.spec.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": {
         "source": "tests/visual/native-parallel/student/product/assessment-http.ts",
@@ -5971,7 +5971,7 @@
         "tests/contracts/native-student-courses.test.ts",
         "tests/unit/native-student-course-data.test.ts",
         "tests/unit/native-student-dashboard-extras.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": {
         "source": "tests/visual/native-parallel/student/product/README.md",
@@ -6440,7 +6440,7 @@
       "checks": [
         "tests/contracts/native-student-learning.test.ts",
         "tests/contracts/native-student-learning-postgres.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": null,
       "web_evidence": [
@@ -6746,7 +6746,7 @@
       "checks": [
         "tests/contracts/native-student-learning.test.ts",
         "tests/contracts/native-student-learning-postgres.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": null,
       "web_evidence": [
@@ -7063,7 +7063,7 @@
       "checks": [
         "tests/contracts/native-student-learning.test.ts",
         "tests/contracts/native-student-learning-postgres.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": null,
       "web_evidence": [
@@ -7379,7 +7379,7 @@
         "tests/contracts/native-student-assessment.test.ts",
         "tests/unit/native-student-assessment-drafts.test.ts",
         "tests/visual/native-parallel/student/assessment-reference.spec.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": {
         "source": "tests/visual/native-parallel/student/product/assessment-http.ts",
@@ -8817,7 +8817,7 @@
         "tests/contracts/native-student-assessment.test.ts",
         "tests/unit/native-student-assessment-drafts.test.ts",
         "tests/visual/native-parallel/student/assessment-reference.spec.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": null,
       "web_evidence": [
@@ -9340,7 +9340,7 @@
         "tests/contracts/native-student-assessment.test.ts",
         "tests/unit/native-student-assessment-drafts.test.ts",
         "tests/visual/native-parallel/student/assessment-reference.spec.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": null,
       "web_evidence": [
@@ -9900,7 +9900,7 @@
         "tests/contracts/native-student-assessment.test.ts",
         "tests/unit/native-student-assessment-drafts.test.ts",
         "tests/visual/native-parallel/student/assessment-reference.spec.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": null,
       "web_evidence": [
@@ -10438,7 +10438,7 @@
         "tests/contracts/native-student-assessment.test.ts",
         "tests/unit/native-student-assessment-drafts.test.ts",
         "tests/visual/native-parallel/student/assessment-reference.spec.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": {
         "source": "tests/visual/native-parallel/student/product/assessment-http.ts",
@@ -11031,7 +11031,7 @@
         "tests/contracts/native-student-assessment.test.ts",
         "tests/unit/native-student-assessment-drafts.test.ts",
         "tests/visual/native-parallel/student/assessment-reference.spec.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": null,
       "web_evidence": [
@@ -11580,7 +11580,7 @@
       "checks": [
         "tests/contracts/native-student-learning.test.ts",
         "tests/contracts/native-student-learning-postgres.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": null,
       "web_evidence": [
@@ -11887,7 +11887,7 @@
         "tests/contracts/native-student-courses.test.ts",
         "tests/unit/native-student-course-data.test.ts",
         "tests/unit/native-student-dashboard-extras.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": {
         "source": "tests/visual/native-parallel/student/product/README.md",
@@ -12285,7 +12285,7 @@
       "checks": [
         "tests/contracts/native-student-learning.test.ts",
         "tests/contracts/native-student-learning-postgres.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": null,
       "web_evidence": [
@@ -12590,7 +12590,7 @@
       "checks": [
         "tests/contracts/native-student-learning.test.ts",
         "tests/contracts/native-student-learning-postgres.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": null,
       "web_evidence": [
@@ -12895,7 +12895,7 @@
       "checks": [
         "tests/contracts/native-student-learning.test.ts",
         "tests/contracts/native-student-learning-postgres.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": null,
       "web_evidence": [
@@ -13186,7 +13186,7 @@
       "checks": [
         "tests/contracts/native-student-learning.test.ts",
         "tests/contracts/native-student-learning-postgres.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": null,
       "web_evidence": [
@@ -13448,7 +13448,7 @@
       "checks": [
         "tests/contracts/native-student-learning.test.ts",
         "tests/contracts/native-student-learning-postgres.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": null,
       "web_evidence": [
@@ -13709,7 +13709,7 @@
       "checks": [
         "tests/contracts/native-student-learning.test.ts",
         "tests/contracts/native-student-learning-postgres.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": null,
       "web_evidence": [
@@ -14015,7 +14015,7 @@
       "checks": [
         "tests/contracts/native-student-learning.test.ts",
         "tests/contracts/native-student-learning-postgres.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": null,
       "web_evidence": [
@@ -14319,7 +14319,7 @@
       "checks": [
         "tests/contracts/native-student-learning.test.ts",
         "tests/contracts/native-student-learning-postgres.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": null,
       "web_evidence": [
@@ -14625,8 +14625,8 @@
       "contract_doc": "packages/native-parity/student/community/README.md",
       "checks": [
         "packages/native-parity/student/community/community.test.ts",
-        "tests/visual/native-parallel/student/product/community-http.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/contracts/native-student-community-http.test.ts",
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": {
         "source": "packages/native-parity/student/community/README.md",
@@ -14912,8 +14912,8 @@
       "contract_doc": "packages/native-parity/student/community/README.md",
       "checks": [
         "packages/native-parity/student/community/community.test.ts",
-        "tests/visual/native-parallel/student/product/community-http.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/contracts/native-student-community-http.test.ts",
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": null,
       "web_evidence": [
@@ -15178,7 +15178,7 @@
         "tests/contracts/native-student-courses.test.ts",
         "tests/unit/native-student-course-data.test.ts",
         "tests/unit/native-student-dashboard-extras.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": {
         "source": "tests/visual/native-parallel/student/product/README.md",
@@ -15697,8 +15697,8 @@
       "contract_doc": "packages/native-parity/student/community/README.md",
       "checks": [
         "packages/native-parity/student/community/community.test.ts",
-        "tests/visual/native-parallel/student/product/community-http.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/contracts/native-student-community-http.test.ts",
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": {
         "source": "packages/native-parity/student/community/README.md",
@@ -16019,8 +16019,8 @@
       "contract_doc": "packages/native-parity/student/community/README.md",
       "checks": [
         "packages/native-parity/student/community/community.test.ts",
-        "tests/visual/native-parallel/student/product/community-http.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/contracts/native-student-community-http.test.ts",
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": {
         "source": "packages/native-parity/student/community/README.md",
@@ -16282,8 +16282,8 @@
       "contract_doc": "packages/native-parity/student/community/README.md",
       "checks": [
         "packages/native-parity/student/community/community.test.ts",
-        "tests/visual/native-parallel/student/product/community-http.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/contracts/native-student-community-http.test.ts",
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": null,
       "web_evidence": [
@@ -16613,8 +16613,8 @@
       "contract_doc": "packages/native-parity/student/community/README.md",
       "checks": [
         "packages/native-parity/student/community/community.test.ts",
-        "tests/visual/native-parallel/student/product/community-http.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/contracts/native-student-community-http.test.ts",
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": {
         "source": "packages/native-parity/student/community/README.md",
@@ -16966,8 +16966,8 @@
       "contract_doc": "packages/native-parity/student/community/README.md",
       "checks": [
         "packages/native-parity/student/community/community.test.ts",
-        "tests/visual/native-parallel/student/product/community-http.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/contracts/native-student-community-http.test.ts",
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": {
         "source": "packages/native-parity/student/community/README.md",
@@ -17441,8 +17441,8 @@
       "contract_doc": "packages/native-parity/student/community/README.md",
       "checks": [
         "packages/native-parity/student/community/community.test.ts",
-        "tests/visual/native-parallel/student/product/community-http.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/contracts/native-student-community-http.test.ts",
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": null,
       "web_evidence": [
@@ -17758,8 +17758,8 @@
       "contract_doc": "packages/native-parity/student/community/README.md",
       "checks": [
         "packages/native-parity/student/community/community.test.ts",
-        "tests/visual/native-parallel/student/product/community-http.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/contracts/native-student-community-http.test.ts",
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": null,
       "web_evidence": [
@@ -18101,8 +18101,8 @@
       "contract_doc": "packages/native-parity/student/community/README.md",
       "checks": [
         "packages/native-parity/student/community/community.test.ts",
-        "tests/visual/native-parallel/student/product/community-http.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/contracts/native-student-community-http.test.ts",
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": {
         "source": "packages/native-parity/student/community/README.md",
@@ -18415,8 +18415,8 @@
       "contract_doc": "packages/native-parity/student/community/README.md",
       "checks": [
         "packages/native-parity/student/community/community.test.ts",
-        "tests/visual/native-parallel/student/product/community-http.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/contracts/native-student-community-http.test.ts",
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": {
         "source": "packages/native-parity/student/community/README.md",
@@ -18734,8 +18734,8 @@
       "contract_doc": "packages/native-parity/student/community/README.md",
       "checks": [
         "packages/native-parity/student/community/community.test.ts",
-        "tests/visual/native-parallel/student/product/community-http.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/contracts/native-student-community-http.test.ts",
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": null,
       "web_evidence": [
@@ -18989,8 +18989,8 @@
       "contract_doc": "packages/native-parity/student/community/README.md",
       "checks": [
         "packages/native-parity/student/community/community.test.ts",
-        "tests/visual/native-parallel/student/product/community-http.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/contracts/native-student-community-http.test.ts",
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": {
         "source": "packages/native-parity/student/community/README.md",
@@ -19335,8 +19335,8 @@
       "contract_doc": "packages/native-parity/student/community/README.md",
       "checks": [
         "packages/native-parity/student/community/community.test.ts",
-        "tests/visual/native-parallel/student/product/community-http.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/contracts/native-student-community-http.test.ts",
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": null,
       "web_evidence": [
@@ -19696,8 +19696,8 @@
       "contract_doc": "packages/native-parity/student/community/README.md",
       "checks": [
         "packages/native-parity/student/community/community.test.ts",
-        "tests/visual/native-parallel/student/product/community-http.test.ts",
-        "tests/visual/native-parallel/student/expanded-fixtures.test.ts"
+        "tests/contracts/native-student-community-http.test.ts",
+        "tests/unit/native-student-expanded-fixtures.test.ts"
       ],
       "http_evidence": {
         "source": "packages/native-parity/student/community/README.md",
