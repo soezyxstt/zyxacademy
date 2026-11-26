@@ -9,6 +9,9 @@ export class OnlineReadingError extends Error {
 }
 
 const path = "/api/native/student/reading";
+function assertActive(signal: AbortSignal) {
+  if (signal.aborted) throw new Error("Reading cancelled.");
+}
 const toMime = (response: StudentResponse) => response.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase() ?? "";
 const isImage = (mime: string) => /^image\/(?:png|jpeg|webp|gif|avif|svg\+xml)$/.test(mime);
 const safeReference = (source: unknown): source is string => typeof source === "string" && source.length <= 4096
@@ -26,7 +29,7 @@ async function bytes(response: StudentResponse, limit: number) {
 export async function readOnlineMaterial(request: StudentRequest, target: Target, locale: ReadingContent["locale"], signal: AbortSignal): Promise<ReadingContent> {
   const { courseId, materialId, kind, section } = target;
   const query = { courseId, materialId };
-  signal.throwIfAborted();
+  assertActive(signal);
   const response = await request(path + "?" + new URLSearchParams(query), { signal });
   let value: unknown;
   let remaining = READING_PACKAGE_LIMIT;
@@ -37,7 +40,7 @@ export async function readOnlineMaterial(request: StudentRequest, target: Target
     remaining -= body.byteLength;
     value = JSON.parse(new TextDecoder().decode(body));
   } finally { response.dispose?.(); }
-  signal.throwIfAborted();
+  assertActive(signal);
   if (!value || typeof value !== "object") throw new OnlineReadingError(502);
   const row = value as Record<string, unknown>;
   if (row.courseId !== courseId || row.id !== materialId || row.kind !== kind || typeof row.title !== "string"
@@ -47,7 +50,7 @@ export async function readOnlineMaterial(request: StudentRequest, target: Target
   const sources = new Map<string, string>();
   for (const asset of new Set(row.assets as string[])) {
     if (remaining <= 0) break;
-    signal.throwIfAborted();
+    assertActive(signal);
     const assetResponse = await request(path + "?" + new URLSearchParams({ ...query, asset, revision: row.revision }), { signal });
     try {
       if ([401, 403, 409].includes(assetResponse.status)) throw new OnlineReadingError(assetResponse.status);
@@ -59,6 +62,6 @@ export async function readOnlineMaterial(request: StudentRequest, target: Target
       if (src) sources.set(asset, src);
     } finally { assetResponse.dispose?.(); }
   }
-  signal.throwIfAborted();
+  assertActive(signal);
   return { kind, title: row.title, data, locale, section, resolveImage: source => sources.get(source) };
 }
