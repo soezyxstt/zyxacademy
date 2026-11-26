@@ -4,6 +4,7 @@ import { adminCoursePath } from "../../../../../packages/native-parity/academic/
 import type { AdminCourseArchiver, AdminCourseEditor, AdminMaterialEditor } from "../../../../../packages/native-parity/academic/courses/edit-contract";
 import type { AdminCourseLiveRead } from "../../../../../packages/native-parity/academic/courses/model";
 import type { AdminCourseSectionResult } from "../../../../../packages/native-parity/academic/courses/sections";
+import { Pagination } from "../../shared-ui/data-controls";
 import { CourseLeaderboard } from "./leaderboard";
 import { CourseDeleteDialog } from "./live-delete";
 import { LiveQuizAttempts } from "./live-quiz-attempts";
@@ -104,7 +105,7 @@ export function LiveCourseSection({ data, query, navigate, updateSettings, updat
         </>
       );
     case "questions":
-      return <LiveQuestions data={data} query={query} remove={removeQuestion} refresh={refresh} />;
+      return <LiveQuestions data={data} query={query} navigate={navigate} remove={removeQuestion} refresh={refresh} />;
   }
 }
 
@@ -283,7 +284,7 @@ function ChapterPicker({ chapters, chapter, onSelect }: ChapterFilterProps) {
     selected={chapter} onSelect={onSelect} />;
 }
 
-function LiveQuestions({ data, query, remove, refresh }: { data: SectionOf<"questions">; query: Query;
+function LiveQuestions({ data, query, navigate, remove, refresh }: { data: SectionOf<"questions">; query: Query; navigate: Navigate;
   remove?: AdminCourseLiveRead["removeQuestion"]; refresh(): void;
 }) {
   const [search, setSearch] = useState("");
@@ -293,23 +294,34 @@ function LiveQuestions({ data, query, remove, refresh }: { data: SectionOf<"ques
   const [selected, setSelected] = useState<string | null>(null);
   const [answers, setAnswers] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [page, setPage] = useState(1);
+  const [size, setSize] = useState(10);
+  const changeFilter = (update: (value: string) => void) => (value: string) => { update(value); setPage(1); };
   const questions = data.questions.filter((question) => (!chapter || question.chapterId === chapter) &&
-    (!difficulty || question.difficulty === difficulty) && (!origin || (origin === "zyx_original" ? question.origin === origin : question.origin !== "zyx_original")) &&
-    match(`${question.prompt} ${question.explanation ?? ""}`, search));
+    (!difficulty || question.difficulty === difficulty) && (!origin || (origin === "zyx_original" ? question.origin === origin : (question.origin === "historical_reference" || question.origin === "itb_example"))) &&
+    match(`${question.prompt} ${question.explanation ?? ""} ${question.sourceEventName ?? ""}`, search));
+  const pageCount = Math.ceil(questions.length / size);
+  const current = Math.max(1, Math.min(pageCount, page));
   const question = questions.find(({ id }) => id === selected);
   const target = question?.origin === "zyx_original" && question.deleteRevision ? remove?.(data.course.id, question.id) : undefined;
   return (
     <>
-      <SearchBox label="Cari soal" value={search} onChange={setSearch} />
+      <SearchBox label="Cari soal" value={search} onChange={changeFilter(setSearch)} />
       <View style={layout.row}>
-        {data.chapters.length ? <ChapterPicker chapters={data.chapters} chapter={chapter} onSelect={setChapter} /> : null}
-        <Picker label="Asal soal" selected={origin} onSelect={setOrigin} options={[{ id: "", label: "Semua asal" },
+        {data.chapters.length ? <ChapterPicker chapters={data.chapters} chapter={chapter} onSelect={changeFilter(setChapter)} /> : null}
+        <Picker label="Asal soal" selected={origin} onSelect={changeFilter(setOrigin)} options={[{ id: "", label: "Semua asal" },
           { id: "zyx_original", label: "Zyx asli" }, { id: "reference", label: "Referensi" }]} />
-        <Picker label="Kesulitan" selected={difficulty} onSelect={setDifficulty} options={[{ id: "", label: "Semua tingkat" },
+        <Picker label="Kesulitan" selected={difficulty} onSelect={changeFilter(setDifficulty)} options={[{ id: "", label: "Semua tingkat" },
           ...["easy", "medium", "hard"].map((id) => ({ id, label: labels[id] }))]} />
+        <Picker label="Soal per halaman" selected={String(size)} onSelect={value => { setSize(Number(value)); setPage(1); }}
+          options={[10, 25, 50].map(value => ({ id: String(value), label: String(value) }))} />
+        <Action label="Buka studio bank soal" onPress={() => navigate("/admin/questions?qCourse=" + encodeURIComponent(data.course.id))} />
       </View>
-      {questions.length ? questions.map((row) => <DataRow key={row.id} title={row.prompt} description={[localLabel(row.origin), localLabel(row.difficulty)].filter(Boolean).join(" · ")}
+      {questions.length ? questions.slice((current - 1) * size, current * size).map((row) => <DataRow key={row.id} title={row.prompt} description={[row.sourceEventName || localLabel(row.origin), localLabel(row.difficulty)].filter(Boolean).join(" · ")}
         onPress={() => { setAnswers(false); setDeleting(false); setSelected(row.id); }} />) : <CourseStatus label="Tidak ada soal pada pilihan ini." />}
+      {pageCount > 1 && <Pagination page={current} pageCount={pageCount} onPageChange={setPage} testID="course-questions-page"
+        labels={{ previous: "Halaman sebelumnya", next: "Halaman berikutnya", busy: "Memuat soal" }}
+        formatSummary={(number, total) => `Halaman ${number} dari ${total}`} />}
       {question && deleting && target && question.deleteRevision ? (
         <CourseDeleteDialog label="Hapus soal" name={question.prompt} detail="Soal ini akan dihapus permanen."
           dependencyError="Soal masih digunakan pada kuis, materi, atau referensi terkait."

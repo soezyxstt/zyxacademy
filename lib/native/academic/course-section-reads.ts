@@ -202,7 +202,7 @@ export async function readAdminCourseSection(slug: string, section: string, item
     type: "questions", course, chapters,
     questions: data.questions.map((question) => ({
       id: question.id, prompt: question.prompt, explanation: question.explanation,
-      options: strings(question.options), correctIndices: indices(question.correctIndices),
+      sourceEventName: question.sourceEventName, options: strings(question.options), correctIndices: indices(question.correctIndices),
       chapterId: chapterByQuestion.get(question.id) ?? null, difficulty: question.difficulty, origin: question.origin,
       deleteRevision: deleteRevisions.get(question.id),
     })),

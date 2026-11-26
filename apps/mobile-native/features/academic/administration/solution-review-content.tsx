@@ -7,7 +7,9 @@ import copyId from "../../../../../messages/id/admin.json";
 import copyEn from "../../../../../messages/en/admin.json";
 import { useProtectedInteraction } from "../../../routing/protected-interaction";
 import { partText } from "../../solutions/semantic";
-import { SolutionGeometry } from "../../solutions/geometry";
+import { solutionFallback } from "../../solutions/visual-preview-model";
+import { CanvasTable } from "../../student/zyra/LearningCanvas";
+import { SolutionVisualPreview } from "../../solutions/SolutionVisualPreview";
 import { CourseMarkdown } from "../../student/CourseMarkdown";
 import { CourseTheme } from "../courses/ui";
 import { Action, Ink, layout } from "./ui";
@@ -34,15 +36,17 @@ export function SolutionReviewContent({ item, origin, locale, webReview }: {
   const parts = (entries: ArticlePart[]) => entries.map(part => {
     if (part.kind === "visual_ref") {
       const visual = item.visuals.find(value => value.id === part.visualId);
+      const sourceFallback = visual?.kind === "source_figure" ? solutionFallback(visual) : null;
       return <View key={part.id} style={layout.compact}>
-        {visual && <Ink kind="strong">{visual.label}</Ink>}
-        {visual && markdown(visual.description)}
-        {visual?.kind === "geometry_2d" ? <SolutionGeometry visual={visual} /> : null}
-        {visual && "staticFallback" in visual ? <>
-          {markdown(visual.staticFallback.summary)}
-          {visual.staticFallback.type === "text" ? markdown(visual.staticFallback.content) : null}
-        </> : null}
-        {visual?.kind !== "geometry_2d" && webReview ? <View style={layout.row}>
+        {visual && visual.kind !== "source_figure" ? <SolutionVisualPreview value={visual} locale={en ? "en" : "id"} origin={origin} theme={theme} />
+          : visual && <>
+            <Ink kind="strong">{visual.label}</Ink>
+            {markdown(visual.description)}
+            {visual.captionMarkdown ? markdown(visual.captionMarkdown) : null}
+            {sourceFallback && ("table" in sourceFallback ? <CanvasTable table={sourceFallback.table} locale={en ? "en" : "id"} theme={theme} origin={origin} />
+              : <>{markdown(sourceFallback.summary)}{sourceFallback.content !== sourceFallback.summary && markdown(sourceFallback.content)}</>)}
+          </>}
+        {webReview && visual && ["source_figure", "interactive_document", "interactive_scene", "epsilon_delta_graph"].includes(visual.kind) ? <View style={layout.row}>
           <Action label={en ? "View full visual on the web" : "Lihat visual lengkap di web"} onPress={() => {
             if (canInteract()) void openBrowserAsync(new URL(webReview, origin).href).catch(() => {});
           }} />
