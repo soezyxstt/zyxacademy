@@ -2,22 +2,33 @@ import { useRef, useState } from "react";
 import { Linking, View } from "react-native";
 import type { SolutionPart as ArticlePart, SolutionItem as SolutionCollectionItem, SolutionProvenance } from "../../../../../packages/native-parity/student/assessment/solution-contract";
 import type { AssessmentPage } from "../../../../../packages/native-parity/student/assessment/contract";
+import { SolutionVisualPreview } from "../../solutions/SolutionVisualPreview";
 import { partText } from "../../solutions/semantic";
 import { Input } from "../../../components/Input";
 import { assessmentCoursePath, assessmentRequest, AssessmentRequestError, jsonBody } from "./client";
 import { Body, Button, ButtonRow, fill, Frame, Heading, Markdown, Message, Row, Section, styles, useAssessment, useAssessmentCopy } from "./ui";
 
 function Parts({ parts, item }: { parts: ArticlePart[]; item: SolutionCollectionItem }) {
-  const { renderAssessmentParts, route } = useAssessment();
-  const { tx } = useAssessmentCopy();
+  const { renderAssessmentParts, route, session, devicePreferences } = useAssessment();
+  const locale = /^en(?:-|$)/i.test(session.locale) ? "en" : "id";
+  const theme = devicePreferences?.theme === "system" ? undefined : devicePreferences?.theme;
   if (renderAssessmentParts) return <>{renderAssessmentParts(parts, route.params.id, item.visuals)}</>;
   return <>{parts.map((part) => {
     if (part.kind === "visual_ref") {
       const visual = item.visuals.find(({ id }) => id === part.visualId);
-      const description = visual && "description" in visual && typeof visual.description === "string" ? visual.description : undefined;
-      const title = visual && "title" in visual && typeof visual.title === "string" ? visual.title : undefined;
-      return <Body key={part.id} tone="muted">{description || title || tx("Buka materi di web untuk melihat visual ini.", "Open this lesson on the web to view this visual.")}</Body>;
+      return <SolutionVisualPreview key={part.id} value={visual} origin={session.origin} locale={locale} theme={theme} />;
     }
+    if (part.kind === "worked_example") return <Section key={part.id}>
+      <Heading level={3}>{part.title}</Heading>
+      <Markdown value={part.problemMarkdown} />
+      {part.steps.map((step, index) => <Section key={index}>
+        <Markdown value={step.operationMarkdown} />
+        <Parts parts={step.parts} item={item} />
+        <Markdown value={step.reasonMarkdown} />
+        {step.conditionsMarkdown ? <Markdown value={step.conditionsMarkdown} /> : null}
+      </Section>)}
+      <Markdown value={part.verificationMarkdown} />
+    </Section>;
     return <Markdown key={part.id} value={partText(part)} />;
   })}</>;
 }

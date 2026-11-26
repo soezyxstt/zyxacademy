@@ -31,7 +31,7 @@ function CanvasText({ text, locale, theme, origin, muted }: CanvasDisplay & { te
     paragraphStyle={styles.text} />;
 }
 
-function CanvasTable({ table, locale, theme, origin }: CanvasDisplay & { table: CanvasFallback; origin: string }) {
+export function CanvasTable({ table, locale, theme, origin }: CanvasDisplay & { table: CanvasFallback; origin: string }) {
   const [page, setPage] = useState(0);
   const size = 8;
   const offset = page * size;
@@ -126,7 +126,7 @@ const chemicalFormula = (items: ChemistryCanvas["reactants"]) => items.map(item 
   return coefficient + item.formula.replace(/\d/g, digit => subscripts[Number(digit)]);
 }).join(" + ");
 
-export function LearningCanvas({ initialExpanded, ...props }: CanvasProps & { initialExpanded: boolean }) {
+export function LearningCanvas({ initialExpanded, interactive = true, ...props }: CanvasProps & { initialExpanded: boolean; interactive?: boolean }) {
   const { spec, locale, theme, origin } = props;
   const colors = nativeColors[theme];
   const copy = labels[locale];
@@ -138,7 +138,7 @@ export function LearningCanvas({ initialExpanded, ...props }: CanvasProps & { in
       renderIcon={(color, size) => <NavigationIcon name={expanded ? "chevron" : "chevron-right"} color={color} size={size} />}
       onPress={() => setExpanded(previous => !previous)}>{spec.title}</Button>
     {expanded ? <>
-      {spec.type === "function_plot" || spec.type === "data_plot" ? <CanvasPlot spec={spec} locale={locale} theme={theme}
+      {spec.type === "function_plot" || spec.type === "data_plot" ? <CanvasPlot spec={spec} locale={locale} theme={theme} interactive={interactive}
         renderValues={values => <CanvasTable table={values} locale={locale} theme={theme} origin={origin} />} /> : null}
       {spec.type === "derivation" ? <View style={styles.stack} accessibilityLabel={copy.steps}>
         {spec.steps.map((step, index) => <View key={index} style={[styles.step, { borderBottomColor: colors.border }]}>

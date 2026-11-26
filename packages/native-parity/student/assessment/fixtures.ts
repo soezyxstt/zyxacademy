@@ -209,7 +209,18 @@ export function createAssessmentFixtureRequest(scenario: AssessmentFixtureScenar
         id: "solution-item-1", title: "Turunan fungsi kuadrat", template: "calculation", prompt: md("prompt", questions[2].prompt), options: [],
         answer: { parts: md("answer", "$2x$"), optionIds: [] }, hintMarkdown: "Gunakan aturan pangkat.",
         strategy: md("strategy", "Turunkan pangkat lalu kurangi pangkat satu satuan."), steps: [{ id: "step", operationMarkdown: "Gunakan $n = 2$.", reasonMarkdown: "Aturan pangkat berlaku untuk bilangan bulat positif." }],
-        verification: md("verify", "Cek gradien pada $x=1$."), provenance: { problem: provenance, solution: provenance }, visuals: [],
+        verification: [...md("verify", "Cek gradien pada $x=1$."), { id: "tangent-ref", kind: "visual_ref", visualId: "tangent" }],
+        provenance: { problem: provenance, solution: provenance },
+        visuals: [{
+          id: "tangent", kind: "geometry_2d", label: "Garis singgung di x = 1", interactive: false,
+          description: "Garis singgung pada kurva y = x² melalui (1, 1).",
+          bounds: { xMin: -1, xMax: 3, yMin: -2, yMax: 4 },
+          geometry: {
+            points: [{ id: "A", x: 0, y: -1 }, { id: "P", x: 1, y: 1 }, { id: "B", x: 2, y: 3 }],
+            segments: [{ id: "line", from: "A", to: "B" }], polygons: [], circles: [],
+          },
+          staticFallback: { type: "text", summary: "Garis singgung mempunyai gradien 2.", content: "Nilai y naik 4 ketika x naik 2." },
+        }],
       }] } });
     return missing();
   };

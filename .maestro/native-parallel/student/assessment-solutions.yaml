@@ -11,8 +11,14 @@ name: Student reads and completes a solution collection
     visible:
       id: student-assessment-reveal
     timeout: 30000
+- assertNotVisible:
+    id: student-solution-visual-geometry_2d
 - tapOn:
     id: student-assessment-reveal
+- scrollUntilVisible:
+    element:
+      id: student-solution-visual-geometry_2d
+    direction: DOWN
 - scrollUntilVisible:
     element:
       id: student-assessment-solution-mark

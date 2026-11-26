@@ -6,8 +6,9 @@ import { geometryHeight, geometryProjection, geometryWidth } from "../../../../l
 import { nativeColors } from "../../../../packages/design-tokens/native-colors";
 import { CourseTheme } from "../academic/courses/ui";
 
-export function SolutionGeometry({ visual }: { visual: Geometry2dVisualSpec }) {
-  const colors = nativeColors[useContext(CourseTheme)];
+export function SolutionGeometry({ visual, theme }: { visual: Geometry2dVisualSpec; theme?: keyof typeof nativeColors }) {
+  const inheritedTheme = useContext(CourseTheme);
+  const colors = nativeColors[theme ?? inheritedTheme];
   const height = geometryHeight(visual.bounds);
   const { x, y, scale } = geometryProjection(visual.bounds, height);
   const geometry = visual.geometry;

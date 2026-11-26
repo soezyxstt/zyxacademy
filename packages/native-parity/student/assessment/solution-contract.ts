@@ -1,3 +1,5 @@
+import type { VisualSpec } from "../../../../lib/materials/visual-contract";
+
 export type SolutionPart =
   | { id: string; kind: "markdown"; markdown: string }
   | { id: string; kind: "math_unit"; latex?: string; meaningMarkdown: string; conditionsMarkdown?: string;
@@ -22,7 +24,7 @@ export type SolutionItem = {
   steps: { id: string; operationMarkdown: string; reasonMarkdown: string; conditionsMarkdown?: string; parts?: SolutionPart[] }[];
   verification: SolutionPart[];
   misconceptions?: { id: string; misconceptionMarkdown: string; correctionMarkdown: string }[];
-  visuals: { id: string; kind: string; title?: string; description?: string }[];
+  visuals: VisualSpec[];
   provenance: { problem: SolutionProvenance; solution: SolutionProvenance };
 };
 export type SolutionCollection = { title: string; chapter: { title: string }; items: SolutionItem[] };

@@ -23,8 +23,9 @@ const labels = {
 export type CanvasDisplay = { locale: "en" | "id"; theme: keyof typeof nativeColors };
 export const quantityLabel = (label: string, unit?: string | null) => unit ? `${label} (${unit})` : label;
 
-export function CanvasPlot({ spec, locale, theme, renderValues }: CanvasDisplay & {
+export function CanvasPlot({ spec, locale, theme, renderValues, interactive = true }: CanvasDisplay & {
   spec: FunctionPlotCanvas | DataPlotCanvas;
+  interactive?: boolean;
   renderValues(table: CanvasFallback): ReactNode;
 }) {
   const uid = "zyra" + useId().replace(/[^a-zA-Z0-9]/g, "");
@@ -107,15 +108,16 @@ export function CanvasPlot({ spec, locale, theme, renderValues }: CanvasDisplay 
     {bounds ? <Text style={muted}>{spec.type === "function_plot" ? quantityLabel("x", spec.domain.unit) + " / y"
       : quantityLabel(spec.xLabel, spec.xUnit) + " / " + quantityLabel(spec.yLabel, spec.yUnit)}</Text> : null}
     {spec.type === "function_plot" ? <View style={styles.row}>
-      {spec.series.map((item, index) => <Button key={item.id} theme={theme} variant="outline" accessibilityState={{ selected: !hidden.has(item.id) }}
+      {spec.series.map((item, index) => interactive ? <Button key={item.id} theme={theme} variant="outline" accessibilityState={{ selected: !hidden.has(item.id) }}
         onPress={() => setHidden(previous => {
           const next = new Set(previous);
           if (next.has(item.id)) next.delete(item.id);
           else next.add(item.id);
           return next;
-        })} labelStyle={{ color: hidden.has(item.id) ? colors.mutedForeground : seriesColor(index) }} style={styles.legend} wrapLabel>{item.label}</Button>)}
+        })} labelStyle={{ color: hidden.has(item.id) ? colors.mutedForeground : seriesColor(index) }} style={styles.legend} wrapLabel>{item.label}</Button>
+        : <Text key={item.id} style={[styles.text, { color: seriesColor(index) }]}>{item.label}</Text>)}
     </View> : null}
-    <View style={styles.row}>
+    {interactive ? <View style={styles.row}>
       {bounds ? <>
         <Button theme={theme} variant="outline" accessibilityLabel={copy.zoomIn} disabled={zoom <= 0.125} onPress={() => setZoom(value => value / 2)}>+</Button>
         <Button theme={theme} variant="outline" accessibilityLabel={copy.zoomOut} disabled={zoom >= 8} onPress={() => setZoom(value => value * 2)}>-</Button>
@@ -129,7 +131,7 @@ export function CanvasPlot({ spec, locale, theme, renderValues }: CanvasDisplay 
         {bounds ? <Button theme={theme} variant="ghost" accessibilityState={{ expanded: pane === "values" }}
           onPress={() => setPane(pane === "values" ? null : "values")}>{copy.values}</Button> : null}
       </> : null}
-    </View>
+    </View> : null}
     {spec.type === "function_plot" && pane === "parameters" ? spec.controls.map((control, index) => {
       const variable = spec.variables.find(item => item.id === control.variableId);
       if (!variable) return null;
