@@ -8,6 +8,7 @@ on:
       - 'app/api/auth/native/**'
       - 'app/api/native/context/**'
       - 'app/api/native/academic/tutor-support/**'
+      - 'tests/contracts/native-tutor-discussion-mentions.test.ts'
       - 'app/api/native/academic-administration/**'
       - 'app/api/native/academic-assessment/**'
       - 'lib/native/academic/assessment/**'
@@ -260,6 +261,9 @@ jobs:
           bun scripts/test-contracts.ts tests/contracts/native-admin-schedule-events.test.ts tests/contracts/native-admin-tutorial-operations.test.ts tests/contracts/native-admin-user-roles.test.ts tests/contracts/authoring-role-lock-order.test.ts
           bun scripts/test-contracts.ts tests/contracts/native-admin-course-management.test.ts tests/contracts/native-tutor-slot.test.ts tests/contracts/native-tryout-draft.test.ts
           bun test packages/native-parity/academic/assessment/read-handler.test.ts tests/unit/expo-admin-tutorial-operations.test.ts packages/native-parity/academic/tutor/tutor-support.test.ts
+      - name: Tutor discussion mentions and Zyra outbox
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: bun scripts/test-contracts.ts tests/contracts/native-tutor-discussion-mentions.test.ts tests/contracts/discussion-actions.test.ts tests/contracts/discussion-read-policy.test.ts
       - name: Admin PKA schedule and announcement delivery
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: |

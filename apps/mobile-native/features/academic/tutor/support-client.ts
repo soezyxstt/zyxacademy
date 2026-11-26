@@ -1,5 +1,7 @@
 import { createCalendarEditor } from "./calendar-client";
-import type { TutorDiscussionDraft, TutorDiscussionSendResult, TutorSupportClient } from "../../../../../packages/academic/tutor-support";
+import type { TutorDiscussionComposerDraft, TutorDiscussionDraft, TutorDiscussionSendResult, TutorDiscussionTarget, TutorSupportClient } from "../../../../../packages/academic/tutor-support";
+import { z } from "zod";
+import { tutorDiscussionProfile, tutorMentionCandidate } from "../../../../../packages/academic/tutor-discussion-mentions";
 import { tutorPlaybackUrl } from "../../../../../packages/academic/tutor-support";
 import { TutorDataError } from "../../../../../packages/native-parity/academic/tutor/model";
 import { NativeRequestNotDispatched } from "../../../network/transport";
@@ -28,6 +30,8 @@ function isSendResult(value: unknown): value is TutorDiscussionSendResult {
 
 export function createTutorSupportClient(transport: AcademicTransport): TutorSupportClient {
   const pending = new Map<string, TutorDiscussionDraft>();
+  const drafts = new Map<string, TutorDiscussionComposerDraft>();
+  const unverified = new Map<string, TutorDiscussionTarget>();
   const command = transport.command?.bind(transport);
   async function read<T>(path: string, signal: AbortSignal, query?: URLSearchParams): Promise<T> {
     const response = await transport.get(`${apiRoot}${path}${query ? `?${query}` : ""}`, signal);
@@ -62,6 +66,30 @@ export function createTutorSupportClient(transport: AcademicTransport): TutorSup
       if (targetMessageId) query.set("message", targetMessageId);
       return read(discussionsPath(courseId), signal, query);
     },
+    locale: transport.locale,
+    async discussionMentions(courseId, threadId, search, signal) {
+      const result = z.array(tutorMentionCandidate).max(100).safeParse(await read(discussionsPath(courseId), signal,
+        new URLSearchParams({ thread: threadId, mention: search })));
+      if (!result.success) throw new TutorDataError(502);
+      return result.data;
+    },
+    async discussionProfile(courseId, threadId, personId, signal) {
+      const result = tutorDiscussionProfile.safeParse(await read(discussionsPath(courseId), signal,
+        new URLSearchParams({ thread: threadId, profile: personId })));
+      if (!result.success) throw new TutorDataError(502);
+      return result.data;
+    },
+    discussionDraft: threadId => drafts.get(threadId),
+    rememberDiscussionDraft(threadId, draft) {
+      drafts.delete(threadId);
+      if (draft.body.trim() || draft.replyTo || draft.images.length) {
+        drafts.set(threadId, draft);
+        if (drafts.size > 50) {
+          const oldest = drafts.keys().next().value;
+          if (oldest) drafts.delete(oldest);
+        }
+      }
+    },
     materials: (courseId, signal) => read(coursePath(courseId, "materials"), signal),
     videos: (courseId, signal) => read(coursePath(courseId, "videos"), signal),
     live: (courseId, signal) => read(coursePath(courseId, "live"), signal),
@@ -73,11 +101,28 @@ export function createTutorSupportClient(transport: AcademicTransport): TutorSup
     },
     ...(command ? {
       pendingAnswer: (threadId) => pending.get(threadId),
+      unverifiedDiscussionAnswer: (threadId) => unverified.get(threadId),
+      discardUnverifiedDiscussionAnswer(threadId, messageId) {
+        if (unverified.get(threadId)?.messageId !== messageId) return false;
+        pending.delete(threadId);
+        unverified.delete(threadId);
+        drafts.delete(threadId);
+        return true;
+      },
       async answer(courseId, threadId, draft, signal) {
         const existing = pending.get(threadId);
         if (existing && (existing.body !== draft.body || existing.replyTo !== draft.replyTo ||
-          JSON.stringify(existing.attachmentIds ?? []) !== JSON.stringify(draft.attachmentIds ?? []))) return { ok: false, error: "unknown" };
-        const attempt = existing ?? draft;
+          Boolean(existing.askZyra) !== Boolean(draft.askZyra) ||
+          JSON.stringify([existing.attachmentIds ?? [], existing.mentionIds ?? [], existing.mentionHandles ?? []]) !==
+            JSON.stringify([draft.attachmentIds ?? [], draft.mentionIds ?? [], draft.mentionHandles ?? []]))) return { ok: false, error: "unknown" };
+        const recovery = unverified.get(threadId);
+        if (recovery) return { ok: false, error: "replay_unverified", value: recovery };
+        const attempt = existing ?? {
+          ...draft,
+          ...(draft.attachmentIds ? { attachmentIds: [...draft.attachmentIds] } : {}),
+          ...(draft.mentionIds ? { mentionIds: [...draft.mentionIds] } : {}),
+          ...(draft.mentionHandles ? { mentionHandles: [...draft.mentionHandles] } : {}),
+        };
         pending.set(threadId, attempt);
         const response = await command(apiRoot + discussionsPath(courseId), {
           method: "POST",
@@ -98,7 +143,8 @@ export function createTutorSupportClient(transport: AcademicTransport): TutorSup
         const result = await response.json();
         if (!isSendResult(result)) throw new TutorDataError(502);
         if ((result.ok || result.error === "replay_unverified") && result.value.threadId !== threadId) throw new TutorDataError(502);
-        if (result.ok || !["unknown", "rate_limited", "replay_unverified"].includes(result.error)) pending.delete(threadId);
+        if (!result.ok && result.error === "replay_unverified") unverified.set(threadId, result.value);
+        else if (result.ok || !["unknown", "rate_limited"].includes(result.error)) pending.delete(threadId);
         return result;
       },
       async changeDiscussion(courseId, threadId, change, requestId, signal) {
@@ -107,6 +153,6 @@ export function createTutorSupportClient(transport: AcademicTransport): TutorSup
         const result = await response.json();
         if (!result || typeof result !== "object" || !("ok" in result) || result.ok !== true) throw new TutorDataError(502);
       },
-    } satisfies Pick<TutorSupportClient, "pendingAnswer" | "answer" | "changeDiscussion"> : {}),
+    } satisfies Pick<TutorSupportClient, "pendingAnswer" | "answer" | "changeDiscussion" | "unverifiedDiscussionAnswer" | "discardUnverifiedDiscussionAnswer"> : {}),
   };
 }

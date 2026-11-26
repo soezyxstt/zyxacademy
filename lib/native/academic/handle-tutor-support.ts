@@ -1,4 +1,6 @@
 import { DISCUSSION_REACTIONS, validDiscussionId, validDiscussionText } from "@/lib/discussions/policy";
+import type { DiscussionMention } from "@/lib/discussions/contracts";
+import { tutorMentionInput, validTutorMentionInput, type TutorDiscussionProfile } from "@/packages/academic/tutor-discussion-mentions";
 import { DISCUSSION_IMAGE_MAX_COUNT } from "@/lib/discussions/image-limits";
 import { z } from "zod";
 import type {
@@ -16,6 +18,8 @@ export type TutorSupportServices = {
   authorizeCourse(userId: string, courseId: string): Promise<void>;
   discussion(userId: string, courseId: string | undefined, threadId: string, cursor: string | undefined, targetMessageId?: string): Promise<TutorDiscussionDetail>;
   answer(userId: string, courseId: string | undefined, threadId: string, draft: TutorDiscussionDraft): Promise<TutorDiscussionSendResult>;
+  mentions?(userId: string, courseId: string | undefined, threadId: string, search: string): Promise<DiscussionMention[]>;
+  profile?(userId: string, courseId: string | undefined, threadId: string, personId: string): Promise<TutorDiscussionProfile>;
   changeDiscussion?(userId: string, courseId: string | undefined, threadId: string, change: TutorDiscussionChange): Promise<void>;
 } & {
   [Key in keyof Omit<TutorSupportReads, "discussion">]: (
@@ -44,9 +48,17 @@ export async function handleTutorSupport(url: URL, parts: string[], services: Tu
   const message = searchParams.get("message") ?? undefined;
   const cursor = searchParams.get("cursor") ?? undefined;
   const search = searchParams.get("search") ?? "";
+  const mention = searchParams.get("mention");
+  const person = searchParams.get("profile");
+  const lookup = mention !== null || person !== null;
   if (parts.some((part) => !safeId(part)) || (thread && !safeId(thread)) ||
       (message && (!validDiscussionId(message) || !thread || cursor)) ||
       (cursor && cursor.length > 2048) || search.length > 160 || search.includes("\0")) {
+    return reply(400, { error: "INVALID_INPUT" });
+  }
+  if (lookup && (!thread || searchParams.getAll("thread").length !== 1 || !validDiscussionId(thread) || message || cursor || search ||
+    (mention !== null && (person !== null || searchParams.getAll("mention").length !== 1 || mention.trim().length < 2 || mention.length > 80 || /[\u0000-\u001f]/.test(mention))) ||
+    (person !== null && (searchParams.getAll("profile").length !== 1 || !validDiscussionId(person))))) {
     return reply(400, { error: "INVALID_INPUT" });
   }
   try {
@@ -55,6 +67,15 @@ export async function handleTutorSupport(url: URL, parts: string[], services: Tu
     const userId = session.user.id;
     if (!(await services.hasTutor(userId))) return reply(403, { error: "FORBIDDEN" });
 
+    if (lookup && thread) {
+      const global = section === "discussions" && parts.length === 1;
+      const courseId = section === "courses" && parts.length === 3 && operation === "discussions" ? id : undefined;
+      if (!global && !courseId) return reply(404, { error: "NOT_FOUND" });
+      if (courseId) await services.authorizeCourse(userId, courseId);
+      if (mention !== null && services.mentions) return reply(200, await services.mentions(userId, courseId, thread, mention.trim()));
+      if (person !== null && services.profile) return reply(200, await services.profile(userId, courseId, thread, person));
+      return reply(404, { error: "NOT_FOUND" });
+    }
     if (section === "schedule" && parts.length === 1) {
       return reply(200, await services.schedule(userId, parseTutorWeek(searchParams.get("week"))));
     }
@@ -135,13 +156,14 @@ export async function handleTutorDiscussionAnswer(request: Request, parts: strin
     if (courseId) await services.authorizeCourse(userId, courseId);
     const value = await readTutorCommandBody(request);
     if (!value || typeof value !== "object") return reply(400, { error: "INVALID_INPUT" });
-    const { threadId, body, requestId, replyTo, attachmentIds, ...extra } = value as Record<string, unknown>;
+    const { threadId, body, requestId, replyTo, attachmentIds, mentionIds, mentionHandles, askZyra, ...extra } = value as Record<string, unknown>;
     if (!validDiscussionId(threadId) || !validDiscussionId(requestId) || requestId !== request.headers.get("Idempotency-Key")) {
       return reply(400, { error: "INVALID_INPUT" });
     }
     if (extra.action !== undefined) {
       const parsed = discussionChange.safeParse(extra);
-      if (!parsed.success || body !== undefined || replyTo !== undefined || attachmentIds !== undefined || !services.changeDiscussion) {
+      if (!parsed.success || body !== undefined || replyTo !== undefined || attachmentIds !== undefined || mentionIds !== undefined ||
+        mentionHandles !== undefined || askZyra !== undefined || !services.changeDiscussion) {
         return reply(400, { error: "INVALID_INPUT" });
       }
       await services.changeDiscussion(userId, courseId, threadId, parsed.data);
@@ -154,7 +176,11 @@ export async function handleTutorDiscussionAnswer(request: Request, parts: strin
     }
     const ids = Array.isArray(attachmentIds) ? attachmentIds as string[] : [];
     if (!validDiscussionText(body, 12000) && !(body === "" && ids.length > 0)) return reply(400, { error: "INVALID_INPUT" });
+    const mentions = tutorMentionInput.safeParse({ mentionIds, mentionHandles, askZyra });
+    if (!mentions.success || !validTutorMentionInput(body, mentions.data)) return reply(400, { error: "INVALID_INPUT" });
     return reply(200, await services.answer(userId, courseId, threadId, { body, requestId,
+      ...(mentions.data.mentionIds?.length ? { mentionIds: mentions.data.mentionIds, mentionHandles: mentions.data.mentionHandles } : {}),
+      ...(mentions.data.askZyra !== undefined ? { askZyra: mentions.data.askZyra } : {}),
       ...(typeof replyTo === "string" ? { replyTo } : {}), ...(ids.length ? { attachmentIds: ids } : {}),
     }));
   } catch (error) {

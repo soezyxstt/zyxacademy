@@ -9,7 +9,7 @@ import { ensureLegacyIdentity } from "@/lib/auth/legacy-identity";
 import { hasAnyPeran, listTutorAccessibleCourses, requireTutorCourseAccess } from "@/lib/auth/request-cache";
 import { requireDiscussionMessageAccess, requireDiscussionThreadAccess } from "@/lib/discussions/access";
 import { reply } from "@/lib/discussions/actions";
-import { getThread, listChannelMetadataPage, listThreadsAcrossChannels, markRead, setReaction, setResolved } from "@/lib/discussions/service";
+import { getDiscussionAuthorProfile, getThread, listChannelMetadataPage, listThreadsAcrossChannels, markRead, searchMentions, setReaction, setResolved } from "@/lib/discussions/service";
 import { env } from "@/lib/env";
 import { listPublishedCodingProblems } from "@/lib/coding/published-problems";
 import { addCalendarDays, getCalendarWeekRange, getJakartaCalendarDate } from "@/lib/schedule/calendar-date";
@@ -84,22 +84,35 @@ export const tutorSupportServices = {
   },
   async discussion(userId, courseId, threadId, cursor, targetMessageId) {
     if (courseId) await requireCourseThread(userId, courseId, threadId);
-    const { thread, messages, readThroughSeq } = await getThread(userId, threadId, cursor, targetMessageId);
+    const { thread, messages, readThroughSeq, aiStatuses } = await getThread(userId, threadId, cursor, targetMessageId);
     return {
       thread: { id: thread.id, title: thread.title, status: thread.status, answerCount: thread.answerCount, canReply: thread.canReply,
         channelId: thread.channelId, canResolve: thread.canResolve, unreadCount: thread.unreadCount },
       messages: {
-        items: messages.items.map(({ id, seq, author, body, attachments, messageType, replyTo, reactions, canReply, canReact }) => ({
-          id, seq, author: author?.name ?? null, body, attachments, attachmentCount: attachments.length, messageType, replyTo, reactions, canReply, canReact,
+        items: messages.items.map(({ id, seq, author, kind, mentionedPeople, body, attachments, messageType, replyTo, reactions, canReply, canReact }) => ({
+          id, seq, author: author?.name ?? null, kind, mentionedPeople,
+          body, attachments, attachmentCount: attachments.length, messageType, replyTo, reactions, canReply, canReact,
         })),
         nextCursor: messages.nextCursor,
       },
+      aiStatuses,
       observed: { receipt: messages.observationReceipt, throughSeq: readThroughSeq, items: messages.items.map(({ id, seq }) => ({ id, seq })) },
     };
   },
+  async mentions(userId, courseId, threadId, search) {
+    if (courseId) await requireCourseThread(userId, courseId, threadId);
+    return (await searchMentions(userId, threadId, search)).map(({ id, name, role, context, hasNamesake, ambiguous }) =>
+      ({ id, name, role, context, hasNamesake, ambiguous }));
+  },
+  async profile(userId, courseId, threadId, personId) {
+    if (courseId) await requireCourseThread(userId, courseId, threadId);
+    const result = await getDiscussionAuthorProfile(userId, threadId, personId);
+    return { name: result.name, role: result.role,
+      ...(result.kind === "student" ? { major: result.profile.major, faculty: result.profile.faculty } : {}) };
+  },
   async answer(userId, courseId, threadId, draft) {
     if (courseId) await requireCourseThread(userId, courseId, threadId);
-    const input = { threadId, body: draft.body, requestId: draft.requestId, attachmentIds: draft.attachmentIds ?? [], mentionIds: [], askZyra: false };
+    const input = { threadId, body: draft.body, requestId: draft.requestId, attachmentIds: draft.attachmentIds ?? [], mentionIds: draft.mentionIds ?? [], mentionHandles: draft.mentionHandles, askZyra: draft.askZyra ?? false };
     return reply(draft.replyTo ? { ...input, messageType: "reply", replyTo: draft.replyTo } : { ...input, messageType: "answer" });
   },
   async changeDiscussion(userId, courseId, threadId, change) {

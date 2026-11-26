@@ -7,6 +7,7 @@ import { openBrowserAsync } from "expo-web-browser";
 import { AccessibilityInfo, ActivityIndicator, AppState, View } from "react-native";
 import type {
   TutorDiscussionChange,
+  TutorDiscussionComposerDraft,
   TutorDiscussionDetail,
   TutorDiscussThread,
   TutorDiscussionList,
@@ -17,7 +18,11 @@ import type {
   TutorSupportClient,
   TutorVideosData,
 } from "../../../../../packages/academic/tutor-support";
-import { DISCUSSION_REACTIONS } from "../../../../../lib/discussions/policy";
+import { DISCUSSION_REACTIONS, discussionMentionTokens } from "../../../../../lib/discussions/policy";
+import type { DiscussionMention } from "../../../../../lib/discussions/contracts";
+import { activeTutorMentions, insertTutorMention, tutorMentionSubmission } from "../../../../../packages/academic/tutor-discussion-mentions";
+import { discussionAiMessage, threadRefreshDelay } from "../../student/community/discussion-refresh";
+import { TutorDiscussionMentionPicker, TutorDiscussionPerson } from "./discussion-mentions";
 import type { TutorSlotEditor, TutorSlotPending } from "../../../../../packages/academic/tutor-slot";
 import { TutorDataError } from "../../../../../packages/native-parity/academic/tutor/model";
 import { Button } from "../../../components/Button";
@@ -311,6 +316,16 @@ function accessEnded(error: unknown) {
   return error instanceof TutorDataError && [401, 403, 404].includes(error.status);
 }
 
+const discussionSessionKeys = new WeakMap<TutorSupportClient, number>();
+let nextDiscussionSession = 0;
+function discussionSessionKey(service: TutorSupportClient) {
+  const existing = discussionSessionKeys.get(service);
+  if (existing !== undefined) return existing;
+  const key = nextDiscussionSession++;
+  discussionSessionKeys.set(service, key);
+  return key;
+}
+
 export function ConnectedDiscussions({ theme, back, replace, query, courseId, service }: Navigation & {
   courseId?: string;
   service: TutorSupportClient;
@@ -388,7 +403,7 @@ export function ConnectedDiscussions({ theme, back, replace, query, courseId, se
           isLoading={loadingMore} onPress={more}>Tampilkan lebih banyak</Button> : null}
       </View> : null}
     </TutorPage>
-    {active ? <ConnectedDiscussionDetail key={active} theme={theme} courseId={courseId} threadId={active}
+    {active ? <ConnectedDiscussionDetail key={JSON.stringify([active, discussionSessionKey(service)])} theme={theme} courseId={courseId} threadId={active}
       targetMessage={active === target?.thread ? target.message : undefined} service={service}
       close={() => {
         setActive(null);
@@ -404,9 +419,11 @@ export function ConnectedDiscussions({ theme, back, replace, query, courseId, se
 
 function mergeDiscussionMessages(previous: TutorDiscussionDetail | undefined, next: TutorDiscussionDetail, keepCursor = false) {
   const unique = new Map([...previous?.messages.items ?? [], ...next.messages.items].map((message) => [message.id, message]));
+  const refreshedIds = new Set(next.messages.items.map(message => message.id));
   return {
     thread: next.thread,
     observed: next.observed,
+    aiStatuses: [...(previous?.aiStatuses ?? []).filter(status => !refreshedIds.has(status.messageId)), ...(next.aiStatuses ?? [])],
     messages: {
       items: [...unique.values()].sort((left, right) => left.seq - right.seq),
       nextCursor: keepCursor && previous ? previous.messages.nextCursor : next.messages.nextCursor,
@@ -434,16 +451,62 @@ function ConnectedDiscussionDetail({ theme, courseId, threadId, targetMessage, s
   const sendRequest = useRef<AbortController | null>(null);
   const imageRequest = useRef<AbortController | null>(null);
   const changeRequest = useRef<AbortController | null>(null);
-  const [draft, setDraft] = useState(() => service.pendingAnswer?.(threadId)?.body ?? "");
-  const [replyTo, setReplyTo] = useState(() => service.pendingAnswer?.(threadId)?.replyTo);
-  const [images, setImages] = useState(() => (service.pendingAnswer?.(threadId)?.attachmentIds ?? []).map(id => ({ id, name: "Gambar" })));
+  const [composer, setComposer] = useState<TutorDiscussionComposerDraft>(() => {
+    const saved = service.discussionDraft?.(threadId);
+    const inFlight = service.pendingAnswer?.(threadId);
+    if (!inFlight) return saved ?? { body: "", images: [], mentions: [] };
+    return {
+      body: inFlight.body, replyTo: inFlight.replyTo,
+      mentions: (inFlight.mentionIds ?? []).flatMap((id, index) => {
+        const handle = inFlight.mentionHandles?.[index];
+        return handle ? [{ id, handle }] : [];
+      }),
+      images: (inFlight.attachmentIds ?? []).map(id => ({ id, name: saved?.images.find(image => image.id === id)?.name ?? "Gambar" })),
+    };
+  });
+  const { body: draft, mentions, replyTo, images } = composer;
+  const editor = useRef<ComponentRef<typeof Input>>(null);
+  const selection = useRef({ start: draft.length, end: draft.length });
+  const [requestedSelection, setRequestedSelection] = useState<typeof selection.current>();
+  const [mentionOpen, setMentionOpen] = useState(false);
+  const [person, setPerson] = useState<{ id: string; messageId: string }>();
   const [pending, setPending] = useState(() => Boolean(service.pendingAnswer?.(threadId)));
+  const [legacyMessageId, setLegacyMessageId] = useState(() => service.unverifiedDiscussionAnswer?.(threadId)?.messageId);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [sending, setSending] = useState(false);
   const [sendMessage, setSendMessage] = useState("");
   const [readback, setReadback] = useState<string>();
   const [picking, setPicking] = useState(false);
   const [changing, setChanging] = useState(false);
   const [reactionMenu, setReactionMenu] = useState<string>();
+  const askingZyra = discussionMentionTokens(draft).has("zyra");
+  const aiStatuses = data?.aiStatuses ?? [];
+  const pendingAi = aiStatuses.find(status => status.status === "pending" || status.status === "processing")?.messageId;
+  const aiPollDelay = threadRefreshDelay({ aiStatuses });
+
+  useEffect(() => { service.rememberDiscussionDraft?.(threadId, composer); }, [service, threadId, composer]);
+
+  useEffect(() => {
+    if (!pendingAi || unavailable) return;
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout>;
+    const schedule = () => {
+      timer = setTimeout(async () => {
+        if (controller.signal.aborted) return;
+        if (AppState.currentState === "active" && canInteract()) {
+          try {
+            const next = await service.discussion(courseId, threadId, undefined, controller.signal, pendingAi);
+            if (!controller.signal.aborted) setData(previous => mergeDiscussionMessages(previous, next, true));
+          } catch (failure) {
+            if (!controller.signal.aborted && accessEnded(failure)) setUnavailable(true);
+          }
+        }
+        if (!controller.signal.aborted) schedule();
+      }, aiPollDelay);
+    };
+    schedule();
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [aiPollDelay, canInteract, courseId, pendingAi, service, threadId, unavailable]);
 
   useEffect(() => () => {
     sendRequest.current?.abort();
@@ -516,18 +579,19 @@ function ConnectedDiscussionDetail({ theme, courseId, threadId, targetMessage, s
     setSendMessage("");
     try {
       const attempt = service.pendingAnswer?.(threadId) ?? { body: draft.trim(), requestId: randomUUID(),
+        ...tutorMentionSubmission(draft, mentions),
         ...(replyTo ? { replyTo } : {}), ...(images.length ? { attachmentIds: images.map(image => image.id) } : {}),
       };
       const result = await service.answer(courseId, threadId, attempt, signal);
       if (signal.aborted) return;
       setPending(Boolean(service.pendingAnswer?.(threadId)));
       if (result.ok) {
-        setDraft("");
-        setReplyTo(undefined);
-        setImages([]);
+        setComposer({ body: "", mentions: [], images: [] });
+        setMentionOpen(false);
         setSendMessage(attempt.replyTo ? "Balasan terkirim." : "Jawaban terkirim.");
         await receiveMessage(result.value.messageId, signal);
       } else if (result.error === "replay_unverified") {
+        setLegacyMessageId(result.value.messageId);
         setSendMessage("Pengiriman belum terkonfirmasi. Periksa jawaban yang ditemukan.");
         await receiveMessage(result.value.messageId, signal);
       } else {
@@ -562,7 +626,7 @@ function ConnectedDiscussionDetail({ theme, courseId, threadId, targetMessage, s
     setPicking(true); setSendMessage("");
     try {
       const image = await imageActions.pick(data.thread.channelId, threadId, controller.signal);
-      if (image && !controller.signal.aborted) setImages(previous => [...previous, image]);
+      if (image && !controller.signal.aborted) setComposer(previous => ({ ...previous, images: [...previous.images, image] }));
     } catch (error) {
       if (!controller.signal.aborted) setSendMessage(error instanceof Error && error.message === "size" ? "Gambar melebihi 8 MB." : "Gambar gagal dilampirkan.");
     } finally {
@@ -596,6 +660,20 @@ function ConnectedDiscussionDetail({ theme, courseId, threadId, targetMessage, s
     }
   }
 
+  function chooseMention(candidate?: DiscussionMention) {
+    if (!canInteract() || sending || pending || !data?.thread.canReply) return;
+    const result = insertTutorMention(draft, selection.current, mentions, candidate);
+    if (!result) {
+      setSendMessage("Gunakan maksimal 10 sebutan dan 12.000 karakter.");
+      return;
+    }
+    setComposer(previous => ({ ...previous, body: result.body, mentions: result.bindings }));
+    setRequestedSelection(result.selection);
+    setSendMessage("");
+    setMentionOpen(false);
+    requestAnimationFrame(() => editor.current?.focus());
+  }
+
   function markPageRead() {
     if (!data?.observed) return;
     const { receipt, items } = data.observed;
@@ -604,12 +682,12 @@ function ConnectedDiscussionDetail({ theme, courseId, threadId, targetMessage, s
     void change({ action: "read", throughSeq, receipt, messageIds: items.map(item => item.id) });
   }
 
-  async function retryReadback() {
-    if (!readback || sendRequest.current) return;
+  async function retryReadback(messageId = readback) {
+    if (!messageId || sendRequest.current || !canInteract()) return;
     const controller = new AbortController();
     sendRequest.current = controller;
     try {
-      await receiveMessage(readback, controller.signal);
+      await receiveMessage(messageId, controller.signal);
     } finally {
       sendRequest.current = null;
     }
@@ -620,17 +698,39 @@ function ConnectedDiscussionDetail({ theme, courseId, threadId, targetMessage, s
     footer={service.answer && (data?.thread.canReply || pending) && !unavailable ? <View style={tutorLayout.group}>
       {replyTo ? <View style={tutorLayout.cluster}>
         <Label theme={theme}>{`Balas ${data?.messages.items.find(item => item.id === replyTo)?.author ?? "pesan"}`}</Label>
-        <Button theme={theme} variant="outline" disabled={sending || pending} onPress={() => setReplyTo(undefined)}>Batal balas</Button>
+        <Button theme={theme} variant="outline" disabled={sending || pending} onPress={() => setComposer(previous => ({ ...previous, replyTo: undefined }))}>Batal balas</Button>
       </View> : null}
       {images.length ? <View style={tutorLayout.cluster}>{images.map(image => <Button key={image.id} theme={theme} variant="outline"
-        accessibilityLabel={`Lepas ${image.name}`} disabled={sending || pending} onPress={() => setImages(previous => previous.filter(item => item.id !== image.id))}>{image.name}</Button>)}</View> : null}
-      <Input theme={theme} multiline maxLength={12000} accessibilityLabel={replyTo ? "Balasan" : "Jawaban"}
-        placeholder={replyTo ? "Tulis balasan" : "Tulis jawaban"} value={draft} onChangeText={setDraft} editable={!sending && !pending} />
-      {imageActions && data?.thread.channelId && <Button theme={theme} variant="outline" style={tutorLayout.action}
-        disabled={sending || pending || images.length >= 4} isLoading={picking} onPress={() => void pickImage()}>Lampirkan gambar</Button>}
-      <Button theme={theme} style={tutorLayout.action} disabled={(!draft.trim() && !images.length) || picking} isLoading={sending} onPress={sendAnswer}>
+        accessibilityLabel={`Lepas ${image.name}`} disabled={sending || pending} onPress={() => setComposer(previous => ({ ...previous, images: previous.images.filter(item => item.id !== image.id) }))}>{image.name}</Button>)}</View> : null}
+      <Input ref={editor} theme={theme} multiline maxLength={12000} accessibilityLabel={replyTo ? "Balasan" : "Jawaban"}
+        placeholder={replyTo ? "Tulis balasan" : "Tulis jawaban"} value={draft} selection={requestedSelection}
+        onSelectionChange={event => { selection.current = event.nativeEvent.selection; if (requestedSelection) setRequestedSelection(undefined); }}
+        onChangeText={body => setComposer(previous => ({ ...previous, body, mentions: activeTutorMentions(body, previous.mentions) }))}
+        editable={!sending && !pending} />
+      <View style={tutorLayout.cluster}>
+        {imageActions && data?.thread.channelId && <Button theme={theme} variant="outline" style={tutorLayout.action}
+          disabled={sending || pending || images.length >= 4} isLoading={picking} onPress={() => void pickImage()}>Lampirkan gambar</Button>}
+        {service.discussionMentions && <Button theme={theme} variant="outline" disabled={sending || pending}
+          accessibilityState={{ expanded: mentionOpen }} testID="tutor-discussion-mention-open"
+          onPress={() => { if (canInteract()) setMentionOpen(value => !value); }}>Sebut peserta</Button>}
+        <Button theme={theme} variant="outline" disabled={sending || pending || askingZyra} onPress={() => chooseMention()}>Tanya Zyra</Button>
+      </View>
+      {mentionOpen && !sending && !pending ? <TutorDiscussionMentionPicker {...{ service, courseId, threadId, theme }}
+        select={chooseMention} close={() => setMentionOpen(false)} /> : null}
+      {legacyMessageId ? <View style={tutorLayout.group}>
+        <Label theme={theme} tone="muted">Isi kiriman lama belum terkonfirmasi.</Label>
+        <View style={tutorLayout.cluster}>
+          <Button theme={theme} onPress={() => void retryReadback(legacyMessageId)}>Periksa kiriman</Button>
+          {!confirmDiscard ? <Button theme={theme} variant="outline" onPress={() => setConfirmDiscard(true)}>Tinggalkan percobaan</Button>
+            : <Button theme={theme} variant="destructive" onPress={() => {
+              if (!canInteract() || !service.discardUnverifiedDiscussionAnswer?.(threadId, legacyMessageId)) return;
+              setComposer({ body: "", mentions: [], images: [] }); setLegacyMessageId(undefined);
+              setPending(false); setConfirmDiscard(false); setSendMessage("");
+            }}>Buang draf</Button>}
+        </View>
+      </View> : <Button theme={theme} style={tutorLayout.action} disabled={(!draft.trim() && !images.length) || picking} isLoading={sending} onPress={sendAnswer}>
         {pending ? "Coba kirim lagi" : replyTo ? "Kirim balasan" : "Kirim jawaban"}
-      </Button>
+      </Button>}
     </View> : undefined}>
     {unavailable ? <Empty theme={theme} title="Diskusi tidak tersedia" /> : null}
     {!data && !error && !unavailable ? <ActivityIndicator accessibilityLabel="Memuat pesan" /> : null}
@@ -643,13 +743,25 @@ function ConnectedDiscussionDetail({ theme, courseId, threadId, targetMessage, s
         {data.thread.status === "resolved" ? "Buka kembali" : "Tandai selesai"}
       </Button> : null}
     </View> : null}
-    {!unavailable && data?.messages.items.map((message) => <Row key={message.id} theme={theme} title={message.author ?? "Pengguna"}
+    {!unavailable && data?.messages.items.map((message) => <Row key={message.id} theme={theme}
+      title={message.kind === "zyra" ? "Zyra" : message.author ?? "Pengguna"}
       subtitle={message.body} meta={!imageActions && message.attachmentCount ? `${message.attachmentCount} lampiran` : undefined}>
+      {data.aiStatuses?.filter(status => status.messageId === message.id).map(status => <Label key={status.messageId}
+        theme={theme} tone={status.status === "failed" || status.status === "uncertain" ? "error" : "muted"}>
+        {discussionAiMessage(status, service.locale ?? "id")}
+      </Label>)}
+      {service.discussionProfile && message.mentionedPeople?.length ? <View style={tutorLayout.cluster}>
+        {message.mentionedPeople.map(recipient => <Button theme={theme} key={recipient.id} variant="outline"
+          accessibilityLabel={`Lihat profil ${recipient.name}`}
+          onPress={() => { if (canInteract()) setPerson({ id: recipient.id, messageId: message.id }); }}>@{recipient.name}</Button>)}
+      </View> : null}
+      {person?.messageId === message.id ? <TutorDiscussionPerson key={person.id} {...{ service, courseId, threadId, theme }}
+        personId={person.id} close={() => setPerson(undefined)} /> : null}
       {message.id === targetMessage ? <Label theme={theme}>Pesan yang dibuka</Label> : null}
       {message.replyTo ? <Label theme={theme} tone="muted">{message.replyTo.excerpt ?? "Balasan pada pesan sebelumnya"}</Label> : null}
       {message.attachments?.map(image => <TutorDiscussionImage key={image.id} theme={theme} image={image} />)}
       <View style={tutorLayout.cluster}>
-        {message.canReply && <Button theme={theme} variant="outline" disabled={pending || sending} onPress={() => setReplyTo(message.id)}>Balas</Button>}
+        {message.canReply && <Button theme={theme} variant="outline" disabled={pending || sending} onPress={() => setComposer(previous => ({ ...previous, replyTo: message.id }))}>Balas</Button>}
         {message.reactions?.map(reaction => <Button key={reaction.emoji} theme={theme} variant={reaction.selected ? "default" : "outline"}
           disabled={!message.canReact || changing} onPress={() => void change({ action: "reaction", messageId: message.id,
             emoji: reaction.emoji, selected: !reaction.selected })}>{`${reaction.emoji} ${reaction.count}`}</Button>)}
@@ -663,7 +775,7 @@ function ConnectedDiscussionDetail({ theme, courseId, threadId, targetMessage, s
     {error ? <LoadFailure theme={theme} error={error} retry={data ? more : () => setAttempt((value) => value + 1)} /> : null}
     {data?.messages.nextCursor && !error && !unavailable ? <Button theme={theme} variant="outline" style={tutorLayout.action}
       isLoading={loadingMore} onPress={more}>Tampilkan lebih banyak</Button> : null}
-    {readback ? <LoadFailure theme={theme} error="Jawaban belum dapat ditampilkan." retry={retryReadback} /> : null}
+    {readback ? <LoadFailure theme={theme} error="Jawaban belum dapat ditampilkan." retry={() => void retryReadback()} /> : null}
   </TutorDetail>;
 }
 

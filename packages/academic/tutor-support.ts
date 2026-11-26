@@ -1,3 +1,5 @@
+import type { DiscussionMention, DiscussionMessage } from "../../lib/discussions/contracts";
+import type { MentionBinding, TutorDiscussionProfile, TutorMentionInput } from "./tutor-discussion-mentions";
 import type { CalendarEditor } from "./tutor-calendar";
 import type { TutorTicketEditor } from "./tutor-ticket";
 import type { TryoutGradeEditor } from "./tryout-grade";
@@ -49,6 +51,8 @@ export type TutorDiscussionDetail = {
       id: string;
       seq: number;
       author: string | null;
+      kind?: DiscussionMessage["kind"];
+      mentionedPeople?: DiscussionMessage["mentionedPeople"];
       body: string;
       attachmentCount: number;
       attachments?: import("../../lib/discussions/contracts").DiscussionAttachment[];
@@ -61,6 +65,7 @@ export type TutorDiscussionDetail = {
     nextCursor: string | null;
   };
   observed?: { receipt: string; throughSeq: number; items: { id: string; seq: number }[] };
+  aiStatuses?: { messageId: string; status: string; reason: string | null }[];
 };
 
 export type TutorMaterialsData = { title: string; items: { id: string; title: string; summary: string }[] };
@@ -100,7 +105,10 @@ export type TutorDiscussionSendResult =
   | { ok: false; error: "replay_unverified"; value: TutorDiscussionTarget }
   | { ok: false; error: "invalid" | "unavailable" | "rate_limited" | "conflict" | "resolved" | "attachment_expired" | "unknown" };
 
-export type TutorDiscussionDraft = { body: string; requestId: string; replyTo?: string; attachmentIds?: string[] };
+export type TutorDiscussionDraft = TutorMentionInput & { body: string; requestId: string; replyTo?: string; attachmentIds?: string[] };
+export type TutorDiscussionComposerDraft = {
+  body: string; replyTo?: string; mentions: MentionBinding[]; images: { id: string; name: string }[];
+};
 export type TutorDiscussionChange =
   | { action: "read"; throughSeq: number; receipt: string; messageIds: string[] }
   | { action: "reaction"; messageId: string; emoji: string; selected: boolean }
@@ -127,7 +135,14 @@ export type TutorSupportClient = TutorSupportReads & {
     load(videoId: string, signal: AbortSignal): Promise<{ url: unknown; fallbackUrl?: unknown }>;
   };
   playback?(videoId: string, signal: AbortSignal): Promise<string>;
+  locale?: string;
+  discussionMentions?(courseId: string | undefined, threadId: string, search: string, signal: AbortSignal): Promise<DiscussionMention[]>;
+  discussionProfile?(courseId: string | undefined, threadId: string, personId: string, signal: AbortSignal): Promise<TutorDiscussionProfile>;
+  discussionDraft?(threadId: string): TutorDiscussionComposerDraft | undefined;
+  rememberDiscussionDraft?(threadId: string, draft: TutorDiscussionComposerDraft): void;
   pendingAnswer?(threadId: string): TutorDiscussionDraft | undefined;
+  unverifiedDiscussionAnswer?(threadId: string): TutorDiscussionTarget | undefined;
+  discardUnverifiedDiscussionAnswer?(threadId: string, messageId: string): boolean;
   answer?(courseId: string | undefined, threadId: string, draft: TutorDiscussionDraft, signal: AbortSignal): Promise<TutorDiscussionSendResult>;
   changeDiscussion?(courseId: string | undefined, threadId: string, change: TutorDiscussionChange, requestId: string, signal: AbortSignal): Promise<void>;
 };
