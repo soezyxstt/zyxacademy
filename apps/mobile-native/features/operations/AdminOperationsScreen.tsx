@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Text } from "react-native";
+import { NativeStatusPanel } from "../shared-ui/layout";
 import type { NativeAccountContext } from "../../../../packages/native-session/context";
 import type { NativeSessionTransport } from "../../network/transport";
 import { EvaluationScreen, type EvaluationScreenProps } from "./evaluation";
@@ -31,7 +31,7 @@ export function AdminOperationsScreen(props: AdminOperationsScreenProps) {
 
   if (!session.isCurrent() || session.scope.accountId !== context.accountId ||
       session.scope.sessionId !== context.sessionId || !context.roles.includes("admin")) {
-    return <Text accessibilityRole="alert">{context.locale === "id" ? "Akses ditolak" : "Access denied"}</Text>;
+    return <NativeStatusPanel tone="error" theme={theme} title={context.locale === "id" ? "Akses ditolak" : "Access denied"} />;
   }
   const key = operationsAccountKey(session, context);
   switch (resolveOperationsArea(href)) {
