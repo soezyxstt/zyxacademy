@@ -1,0 +1,20 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+  <testsuite name="Test Suite" device="test" tests="5" failures="5" time="1.369" timestamp="2026-11-26T18:05:34">
+    <testcase id="Student quiz player answer and draft states" name="Student quiz player answer and draft states" classname="Student quiz player answer and draft states" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/quiz-player.yaml" time="1.147" timestamp="2026-11-26T18:05:34" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="Student course results history states" name="Student course results history states" classname="Student course results history states" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/results.yaml" time="0.019" timestamp="2026-11-26T18:05:35" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="Student course revoked fixture" name="Student course revoked fixture" classname="Student course revoked fixture" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/revoked.yaml" time="0.037" timestamp="2026-11-26T18:05:35" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="Student settings language selection states" name="Student settings language selection states" classname="Student settings language selection states" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/settings-parity.yaml" time="0.018" timestamp="2026-11-26T18:05:35" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="Student course unenrolled fixture" name="Student course unenrolled fixture" classname="Student course unenrolled fixture" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/unenrolled.yaml" time="0.103" timestamp="2026-11-26T18:05:35" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+  </testsuite>
+</testsuites>
