@@ -69,6 +69,8 @@ export const Button = forwardRef<ComponentRef<typeof Pressable>, ButtonProps>(fu
   const dark = resolvedTheme === "dark";
   const [focused, setFocused] = useState(false);
   const blocked = Boolean(disabled || isLoading);
+  // Android needs an explicit false to clear the busy suffix from the accessible name.
+  const busy = isLoading || accessibilityState?.busy === true;
   const dimensions = buttonSizes[size];
   const iconOnly = "width" in dimensions;
   const borderRadius = size === "marketing" || variant.startsWith("marketing") || compactSizes.has(size)
@@ -97,7 +99,7 @@ export const Button = forwardRef<ComponentRef<typeof Pressable>, ButtonProps>(fu
       ref={ref}
       accessibilityRole={accessibilityRole}
       accessibilityLabel={accessibilityLabel ?? children}
-      accessibilityState={{ ...accessibilityState, disabled: blocked, busy: isLoading || accessibilityState?.busy }}
+      accessibilityState={{ ...accessibilityState, disabled: blocked, busy }}
       disabled={blocked}
       hitSlop={hitSlop ?? Math.max(0, (44 - dimensions.height) / 2)}
       needsOffscreenAlphaCompositing={blocked || needsOffscreenAlphaCompositing}

@@ -23,6 +23,7 @@ name: Student quiz gateway attempt states
 - assertVisible: 'Jika aplikasi ditutup, Anda dapat melanjutkan kuis selama batas waktu belum habis\.'
 - assertVisible: "Batal"
 - assertVisible: "Riwayat percobaan"
+# The enabled control must expose its own label after the draft lookup clears loading.
 - assertVisible:
     id: student-assessment-start
     text: "Mulai kuis"
