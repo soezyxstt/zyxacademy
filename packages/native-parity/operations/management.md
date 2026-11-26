@@ -6,9 +6,9 @@
 | --- | --- | --- |
 | `/admin/blog` | Daftar dari `blogArticles` dengan urutan tanggal pembuatan. Artikel publik menuju proyeksi blog publik. Draf menuju pratinjau editor Admin. | Handoff berbagi bergantung pada host native. |
 | `/admin/blog/new` | Isi judul atau heading Markdown, ringkasan, konten, media URL, kategori, status, dan tag. Pratinjau terpisah dari tulis. Terbit membutuhkan konfirmasi dan publikasi terjadwal ditolak. Simpan memakai `createBlogArticle`. | Unggah thumbnail atau media dari perangkat dan ringkasan AI web belum terhubung. Editor memakai ringkasan deterministik dari layanan blog ketika ringkasan kosong. |
-| `/admin/blog/[id]/edit` | Baca dan simpan melalui `getBlogArticle` dan `updateBlogArticle` dengan revisi teramati. Konflik menahan perubahan lokal sampai editor memilih revisi yang ditinjau. Penarikan publikasi membutuhkan konfirmasi. | Renderer Markdown kompleks berasal dari host. Tanpa renderer, pratinjau menampilkan teks sumber. |
+| `/admin/blog/[id]/edit` | Baca dan simpan melalui `getBlogArticle` dan `updateBlogArticle` dengan revisi teramati. Konflik menggabungkan bidang independen dan meminta pilihan per bidang yang diubah kedua pihak. Konfirmasi publikasi mengikuti status terbaru yang ditinjau. Penarikan publikasi membutuhkan konfirmasi. | Renderer Markdown kompleks berasal dari host. Tanpa renderer, pratinjau menampilkan teks sumber. |
 | `/admin/forms` | Editor, pratinjau, pengaturan, daftar dan pencarian. Konfirmasi saat preset 12 tipe mengganti isi draf dan saat membuat atau menghapus formulir. Baca melalui API custom forms. Simpan, konflik dan idempotensi melalui adapter Admin. | Preset tersimpan, lampiran gambar, opsi lanjutan per jenis dan ekspor belum terhubung. Pratinjau berkas memakai nama sintetis. |
-| `/admin/forms/[id]` | Ringkasan, pertanyaan, individu, dan pengaturan memakai form dan respons yang telah diotorisasi. Denominator adalah jumlah responden. Pengaturan waktu dan perubahan penerimaan divalidasi. | Grafik web, tautan lampiran, dan Google Sheets memerlukan implementasi tambahan. |
+| `/admin/forms/[id]` | Ringkasan, pertanyaan, individu, dan pengaturan memakai form dan respons yang telah diotorisasi. Denominator adalah jumlah responden. Pengaturan waktu dan perubahan penerimaan divalidasi. Konflik pengaturan dapat ditinjau per bidang. | Grafik web, tautan lampiran, dan Google Sheets memerlukan implementasi tambahan. |
 | `/admin/media` | Buka folder, pustaka dan storage. Gunakan endpoint media yang sama untuk membuat folder, mengganti nama berkas, penghapusan dengan konfirmasi dan penyalinan dari storage. | Picker dokumen dan unggah/replace, pemindahan, rename folder, dan seleksi massal belum terhubung. |
 | `/admin/docs` | Pencarian dan kelompok kategori memakai `searchAdminDocs` untuk katalog ID/EN. | Padding dan tipografi belum dibandingkan per perangkat. |
 | `/admin/docs/[slug]` | Isi katalog yang sama, termasuk bagian, langkah, callout, tabel, kode, tautan cepat, Sebelumnya dan Berikutnya. Slug yang tidak dikenal menghasilkan pesan tidak ditemukan. | Diagram dan rich text inline web belum memiliki padanan penuh. |
@@ -28,7 +28,7 @@
 ## Verifikasi lokal
 
 ```sh
-bun test packages/native-parity/operations/management.test.ts
+bun test packages/native-parity/operations/management.test.ts packages/native-parity/operations/management-revisions.test.ts
 SKIP_ENV_VALIDATION=1 bun tests/integration/operations-management-authoring.mjs
 SKIP_ENV_VALIDATION=1 bun tests/integration/operations-management-provider.mjs
 ```

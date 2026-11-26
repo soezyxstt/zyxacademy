@@ -4,10 +4,17 @@ import {
   ManagementFailure, articleCategories, articleTitle, emptyArticle, validateArticle,
   type Article, type ArticleFields,
 } from "../../../../../packages/native-parity/operations/management-contract";
+import { articlePublicationIntent } from "../../../../../packages/native-parity/operations/management-revisions";
+import { RevisionReview } from "./revisions";
 import { Action, Choices, Confirm, Copy, Feedback, Field, Heading, Item, LoadState, Screen, Section, Sections, styles, useAction, useDraft, useManagement, useRead, type Confirmation } from "./ui";
 
 const articleStatuses: readonly (readonly [ArticleFields["status"], string])[] = [["draft", "Draf"], ["published", "Terbit"], ["scheduled", "Terjadwal (akan datang)"]];
 const categories = Object.entries(articleCategories) as [ArticleFields["category"], string][];
+
+function articleFields(article: Article): ArticleFields {
+  const { id: _id, revision: _revision, slug: _slug, author: _author, ...fields } = article;
+  return fields;
+}
 
 export function BlogList() {
   const { navigate, share } = useManagement();
@@ -36,8 +43,8 @@ export function BlogEditorRoute({ id, tab }: { id?: string; tab?: string }) {
 
 function BlogEditor({ article, initialTab }: { article?: Article; initialTab?: string }) {
   const { client, navigate, renderMarkdown } = useManagement();
-  const { id, revision, slug: _slug, author: _author, ...fields } = article ?? { ...emptyArticle, id: undefined, revision: undefined, slug: undefined, author: undefined };
-  const draft = useDraft<ArticleFields>(`blog:${id ?? "new"}`, fields, revision);
+  const id = article?.id;
+  const draft = useDraft<ArticleFields>(`blog:${id ?? "new"}`, article ? articleFields(article) : emptyArticle, article?.revision);
   const value = draft.value;
   const action = useAction();
   const [mode, setMode] = useState<"write" | "preview">(initialTab === "preview" ? "preview" : "write");
@@ -48,17 +55,21 @@ function BlogEditor({ article, initialTab }: { article?: Article; initialTab?: s
   const [mediaSource, setMediaSource] = useState("");
   const [mediaSourceUrl, setMediaSourceUrl] = useState("");
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
-  const [latest, setLatest] = useState<Article | null>(null);
+  const [needsReview, setNeedsReview] = useState(Boolean(article && article.revision !== draft.revision));
+  const [latest, setLatest] = useState<Article | null>(() => needsReview ? article ?? null : null);
   const [checking, setChecking] = useState(false);
+  const mustReview = needsReview || (action.error instanceof ManagementFailure && action.error.code === "conflict");
   const edit = <K extends keyof ArticleFields>(key: K, next: ArticleFields[K]) => { if (!action.busy) draft.change({ ...value, [key]: next }); };
   const leave = () => navigate("/admin/blog");
 
   function submit() {
+    if (mustReview) return;
     const error = validateArticle(value);
     if (error) return action.setError(new ManagementFailure("invalid", error));
     const save = () => action.run({ type: "article.save", id, revision: draft.revision, fields: value }, () => { draft.clear(); leave(); });
-    if (value.status === "published") setConfirmation({ title: "Terbitkan artikel?", description: `Artikel ${articleTitle(value)} akan tampil di blog.`, label: "Terbitkan", run: save });
-    else if (article?.status === "published") setConfirmation({ title: "Tarik artikel dari blog?", description: `Artikel ${articleTitle(value)} akan disimpan sebagai draf.`, label: "Simpan draf", run: save });
+    const intent = articlePublicationIntent(draft.baseline.status, value.status);
+    if (intent === "publish") setConfirmation({ title: "Terbitkan artikel?", description: `Artikel ${articleTitle(value)} akan tampil di blog.`, label: "Terbitkan", run: save });
+    else if (intent === "withdraw") setConfirmation({ title: "Tarik artikel dari blog?", description: `Artikel ${articleTitle(value)} akan disimpan sebagai draf.`, label: "Simpan draf", run: save });
     else void save();
   }
 
@@ -76,6 +87,7 @@ function BlogEditor({ article, initialTab }: { article?: Article; initialTab?: s
 
   async function inspectLatest() {
     if (!id || checking) return;
+    setNeedsReview(true);
     setChecking(true);
     try { setLatest(await client.read("article", id)); }
     catch (error) { action.setError(error); }
@@ -85,14 +97,17 @@ function BlogEditor({ article, initialTab }: { article?: Article; initialTab?: s
   return <Screen title={article ? "Sunting" : "Tulis artikel"} description={article?.title} back={{ label: "Blog", run: leave }}>
     <View style={styles.row}>
       <Action onPress={leave} disabled={action.busy}>Batal</Action>
-      <Action variant="default" onPress={submit} busy={action.busy}>Simpan artikel</Action>
+      <Action variant="default" onPress={submit} busy={action.busy} disabled={mustReview}>Simpan artikel</Action>
     </View>
     <Feedback {...action} />
-    {action.error instanceof ManagementFailure && action.error.code === "conflict" && <Action onPress={inspectLatest} busy={checking}>Muat revisi terbaru</Action>}
-    {latest && <Section title="Revisi tersimpan">
-      <Copy strong>{latest.title}</Copy><Copy muted>{latest.summary}</Copy><Copy>{latest.content}</Copy>
-      <Action onPress={() => { draft.reviewRevision(latest.revision); setLatest(null); action.setError(undefined); }}>Lanjutkan dengan perubahan lokal</Action>
-    </Section>}
+    {mustReview && !latest && <Action onPress={inspectLatest} busy={checking}>Muat revisi terbaru</Action>}
+    {latest && <RevisionReview key={latest.revision} baseline={draft.baseline} local={value} saved={articleFields(latest)}
+      onClose={() => setLatest(null)} onResolve={fields => {
+        draft.resolve(fields, articleFields(latest), latest.revision);
+        setNeedsReview(false);
+        setLatest(null);
+        action.setError(undefined);
+      }} />}
     <Field label="Judul artikel (opsional)" value={value.title} placeholder="Judul dapat diambil dari heading pertama" onChangeText={next => edit("title", next)} />
     <Field label="Ringkasan / Summary (opsional)" value={value.summary} multiline onChangeText={next => edit("summary", next)} />
     <Heading>Konten (Markdown)</Heading>

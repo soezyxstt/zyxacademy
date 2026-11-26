@@ -4,6 +4,8 @@ import { createStandardFormQuestions } from "../../../../../lib/forms/standard-t
 import { buildFormSteps, isEmptyFormAnswer } from "../../../../../lib/forms/presentation";
 import { summarizeFormResponses, type FormQuestion as ValidatedFormQuestion } from "../../../../../lib/forms/validation";
 import { ManagementFailure, formCategories, newForm, newQuestion, questionTypes, validateForm, validateFormSettings, type FormDefinition, type FormDetails, type FormFields, type FormQuestion, type FormSettings } from "../../../../../packages/native-parity/operations/management-contract";
+import { formAcceptanceChanged, sameDraftValue } from "../../../../../packages/native-parity/operations/management-revisions";
+import { RevisionReview } from "./revisions";
 import { Action, Choices, Confirm, Copy, Feedback, Field, Heading, Item, LoadState, Screen, Section, Sections, formatTimestamp, styles, useAction, useDraft, useManagement, useRead, type Confirmation } from "./ui";
 
 const builderTabs = [["builder", "Editor pertanyaan"], ["preview", "Pratinjau"], ["settings", "Pengaturan"], ["forms", "Daftar terbit"]] as const;
@@ -12,6 +14,10 @@ const categories = Object.entries(formCategories) as [FormFields["category"], st
 const types = Object.entries(questionTypes) as [FormQuestion["type"], string][];
 const optionTypes: ReadonlySet<FormQuestion["type"]> = new Set(["RADIO", "CHECKBOX", "DROP_DOWN"]);
 const nonAnswers = (q: FormQuestion) => q.type === "SECTION" || q.type === "STATEMENT";
+
+function formFields(form: FormDefinition): FormFields {
+  return { title: form.title, description: form.description, slug: form.slug, category: form.category, questions: form.questions, settings: form.settings };
+}
 
 export function FormBuilderRoute({ id, tab }: { id?: string; tab?: string }) {
   const { navigate } = useManagement();
@@ -27,11 +33,15 @@ function FormBuilder({ form, initialTab }: { form?: FormDefinition; initialTab?:
   const [search, setSearch] = useState("");
   const [activeQuestion, setActiveQuestion] = useState(0);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
-  const [latest, setLatest] = useState<FormDefinition | null>(null);
   const [reading, setReading] = useState(false);
   const read = useRead("forms", undefined, tab === "forms");
   const action = useAction();
-  const draft = useDraft<FormFields>(`forms:${form?.id ?? "new"}`, form ? { title: form.title, description: form.description, slug: form.slug, category: form.category, questions: form.questions, settings: form.settings } : newForm(), form?.revision);
+  const draft = useDraft<FormFields>(`forms:${form?.id ?? "new"}`, form ? formFields(form) : newForm(), form?.revision);
+  const [responseCount, setResponseCount] = useState(form?.totalResponses ?? 0);
+  const [needsReview, setNeedsReview] = useState(Boolean(form && form.revision !== draft.revision));
+  const [latest, setLatest] = useState<FormDefinition | null>(() => needsReview ? form ?? null : null);
+  const mustReview = needsReview || (action.error instanceof ManagementFailure && action.error.code === "conflict");
+  const lockedQuestionsChanged = responseCount > 0 && !sameDraftValue(draft.value.questions, draft.baseline.questions);
   const value = draft.value;
   const edit = <K extends keyof FormFields>(key: K, next: FormFields[K]) => { if (!action.busy) draft.change({ ...value, [key]: next }); };
   const questionEdit = (index: number, changes: Partial<FormQuestion>) => {
@@ -58,18 +68,20 @@ function FormBuilder({ form, initialTab }: { form?: FormDefinition; initialTab?:
   }
 
   function submit() {
+    if (mustReview || lockedQuestionsChanged) return;
     const error = validateForm(value);
     if (error) { setTab("builder"); return action.setError(new ManagementFailure("invalid", error)); }
     const doSave = () => action.run({ type: "form.save", id: form?.id, revision: draft.revision, fields: value }, result => {
-      draft.clear();
-      if (form && result.revision) draft.reviewRevision(result.revision);
+      draft.saved(value, result.revision);
       if (!form) {
         // Following creation, the web switches to the form list.
         navigate("/admin/forms?tab=forms");
       }
       read.reload();
     });
-    if (form) void doSave();
+    if (form && formAcceptanceChanged(draft.baseline.settings, value.settings)) {
+      setConfirmation({ title: "Ubah penerimaan respons?", description: "Perubahan berlaku pada halaman formulir.", label: "Simpan perubahan", run: doSave });
+    } else if (form) void doSave();
     else setConfirmation({ title: "Publikasikan formulir?", description: `${value.title} akan dapat diakses melalui tautan formulir.`, label: "Publikasikan", run: doSave });
   }
 
@@ -81,8 +93,13 @@ function FormBuilder({ form, initialTab }: { form?: FormDefinition; initialTab?:
 
   async function inspectLatest() {
     if (!form || reading) return;
+    setNeedsReview(true);
     setReading(true);
-    try { setLatest((await client.read("form", form.id)).form); }
+    try {
+      const { form: saved } = await client.read("form", form.id);
+      setResponseCount(saved.totalResponses);
+      setLatest(saved);
+    }
     catch (error) { action.setError(error); }
     finally { setReading(false); }
   }
@@ -90,25 +107,31 @@ function FormBuilder({ form, initialTab }: { form?: FormDefinition; initialTab?:
   const listedForms = read.data?.filter(item => `${item.title} ${item.slug} ${item.description}`.toLocaleLowerCase().includes(search.toLocaleLowerCase().trim()));
   return <Screen title="Formulir">
     <Sections values={builderTabs} current={tab} onChange={setTab} />
-    {tab !== "forms" && <View style={styles.row}><Action variant="default" onPress={submit} busy={action.busy}>{form ? "Simpan perubahan" : "Publikasikan formulir"}</Action>
+    {tab !== "forms" && <View style={styles.row}><Action variant="default" onPress={submit} busy={action.busy} disabled={mustReview || lockedQuestionsChanged}>{form ? "Simpan perubahan" : "Publikasikan formulir"}</Action>
       {form && <Action onPress={() => navigate("/admin/forms?tab=forms")}>Batal</Action>}
     </View>}
     <Feedback {...action} />
-    {action.error instanceof ManagementFailure && action.error.code === "conflict" && form && <Action onPress={inspectLatest} busy={reading}>Muat revisi terbaru</Action>}
-    {latest && <Section title="Revisi tersimpan">
-      <Copy strong>{latest.title}</Copy><Copy muted>{latest.description}</Copy>
-      {latest.questions.map((question, index) => <Copy key={index}>{question.title}</Copy>)}
-      <Action onPress={() => { draft.reviewRevision(latest.revision); setLatest(null); action.setError(undefined); }}>Lanjutkan dengan perubahan lokal</Action>
+    {mustReview && !latest && form && <Action onPress={inspectLatest} busy={reading}>Muat revisi terbaru</Action>}
+    {latest && <RevisionReview key={latest.revision} baseline={draft.baseline} local={value} saved={formFields(latest)}
+      onClose={() => setLatest(null)} onResolve={fields => {
+        draft.resolve(fields, formFields(latest), latest.revision);
+        setNeedsReview(false);
+        setLatest(null);
+        action.setError(undefined);
+      }} />}
+    {lockedQuestionsChanged && !mustReview && <Section>
+      <Copy status="error">Formulir sudah menerima respons. Simpan perubahan lain dengan susunan pertanyaan tersimpan.</Copy>
+      <Action onPress={() => setConfirmation({ title: "Gunakan pertanyaan tersimpan?", description: "Susunan pertanyaan pada draf akan dikembalikan ke revisi tersimpan.", label: "Gunakan pertanyaan tersimpan", run: () => edit("questions", draft.baseline.questions) })}>Gunakan pertanyaan tersimpan</Action>
     </Section>}
     {tab === "builder" && <>
       <Field label="Judul formulir" value={value.title} onChangeText={next => edit("title", next)} />
       <Field label="Deskripsi" multiline value={value.description} onChangeText={next => edit("description", next)} />
       <Field label="Slug tautan" value={value.slug} onChangeText={next => edit("slug", next)} autoCapitalize="none" />
       <Copy strong>Kategori</Copy><Choices values={categories} current={value.category} onChange={next => edit("category", next)} />
-      {!form?.totalResponses && <View style={styles.row}><Action onPress={applyStandardPreset}>Preset 12 jenis soal</Action></View>}
-      {Boolean(form?.totalResponses) && <Copy muted>Pertanyaan dengan respons tersimpan dipertahankan.</Copy>}
+      {!responseCount && <View style={styles.row}><Action onPress={applyStandardPreset}>Preset 12 jenis soal</Action></View>}
+      {responseCount > 0 && <Copy muted>Pertanyaan dengan respons tersimpan dipertahankan.</Copy>}
       {value.questions.map((question, index) => <Section key={index} title={`${index + 1}. ${questionTypes[question.type]}`}>
-        {form?.totalResponses ? <Copy>{question.title}</Copy> : <>
+        {responseCount > 0 ? <Copy>{question.title}</Copy> : <>
         <Field label={nonAnswers(question) ? "Judul" : "Teks pertanyaan"} value={question.title} onFocus={() => setActiveQuestion(index)} onChangeText={next => questionEdit(index, { title: next })} />
         <Field label="Deskripsi" value={question.description ?? ""} onChangeText={next => questionEdit(index, { description: next })} multiline />
         {!nonAnswers(question) && <>
@@ -125,7 +148,7 @@ function FormBuilder({ form, initialTab }: { form?: FormDefinition; initialTab?:
         </View>
         </>}
       </Section>)}
-      {!form?.totalResponses && <View style={styles.row}>
+      {!responseCount && <View style={styles.row}>
         <Action onPress={() => insertAfter(activeQuestion, newQuestion())}>Tambah pertanyaan</Action>
         <Action onPress={() => insertAfter(activeQuestion, { title: "", type: "STATEMENT" })}>Tambah pernyataan</Action>
         <Action onPress={() => insertAfter(activeQuestion, { title: "Bagian baru", type: "SECTION" })}>Tambah bagian</Action>
@@ -268,21 +291,34 @@ function formatAnswer(value: unknown): string {
 
 function FormDetail({ details, initialTab }: { details: FormDetails; initialTab?: string }) {
   const { form, responses } = details;
-  const { navigate, locale } = useManagement();
+  const { navigate, locale, client } = useManagement();
   const [tab, setTab] = useState<typeof detailTabs[number][0]>(detailTabs.find(([key]) => key === initialTab)?.[0] ?? "summary");
   const [questionIndex, setQuestionIndex] = useState(0);
   const [respondentIndex, setRespondentIndex] = useState(0);
   const draft = useDraft(`forms-settings:${form.id}`, form.settings, form.revision);
   const action = useAction();
+  const [needsReview, setNeedsReview] = useState(form.revision !== draft.revision);
+  const [latest, setLatest] = useState<FormDefinition | null>(() => needsReview ? form : null);
+  const [reading, setReading] = useState(false);
+  const mustReview = needsReview || (action.error instanceof ManagementFailure && action.error.code === "conflict");
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const summary = summarizeFormResponses(form.questions as ValidatedFormQuestion[], responses);
   const respondent = responses[respondentIndex];
   const question = summary.questions[questionIndex];
+  async function inspectSettings() {
+    if (reading) return;
+    setNeedsReview(true);
+    setReading(true);
+    try { setLatest((await client.read("form", form.id)).form); }
+    catch (error) { action.setError(error); }
+    finally { setReading(false); }
+  }
   function saveSettings() {
+    if (mustReview) return;
     const error = validateFormSettings(draft.value);
     if (error) return action.setError(new ManagementFailure("invalid", error));
-    const save = () => action.run({ type: "form.settings", id: form.id, settings: draft.value, revision: draft.revision ?? form.revision }, result => { draft.clear(); if (result.revision) draft.reviewRevision(result.revision); });
-    if ((draft.value.acceptingResponses ?? true) !== (form.settings.acceptingResponses ?? true)) setConfirmation({ title: "Ubah penerimaan respons?", description: "Perubahan berlaku pada halaman formulir.", label: "Simpan setelan", run: save });
+    const save = () => action.run({ type: "form.settings", id: form.id, settings: draft.value, revision: draft.revision ?? form.revision }, result => draft.saved(draft.value, result.revision));
+    if (formAcceptanceChanged(draft.baseline, draft.value)) setConfirmation({ title: "Ubah penerimaan respons?", description: "Perubahan berlaku pada halaman formulir.", label: "Simpan setelan", run: save });
     else void save();
   }
   return <>
@@ -304,7 +340,17 @@ function FormDetail({ details, initialTab }: { details: FormDetails; initialTab?
       </>}
     </Section>}
     {tab === "settings" && <>
-      <Feedback {...action} /><Action variant="default" busy={action.busy} onPress={saveSettings}>Simpan setelan</Action><Settings settings={draft.value} update={draft.change} />
+      <Feedback {...action} />
+      {mustReview && !latest && <Action onPress={inspectSettings} busy={reading}>Muat revisi terbaru</Action>}
+      {latest && <RevisionReview key={latest.revision} baseline={draft.baseline} local={draft.value} saved={latest.settings}
+        onClose={() => setLatest(null)} onResolve={settings => {
+          draft.resolve(settings, latest.settings, latest.revision);
+          setNeedsReview(false);
+          setLatest(null);
+          action.setError(undefined);
+        }} />}
+      <Action variant="default" busy={action.busy} disabled={mustReview} onPress={saveSettings}>Simpan setelan</Action>
+      <Settings settings={draft.value} update={draft.change} />
     </>}
     <Confirm value={confirmation} onClose={() => setConfirmation(null)} />
   </>;

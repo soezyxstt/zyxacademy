@@ -8,7 +8,8 @@ import { Input } from "../../../components/Input";
 import { nativeTypography } from "../../../typography";
 
 export type ManagementTheme = keyof typeof nativeColors;
-export type ManagementDraftStore = Map<string, { value: unknown; revision?: string }>;
+type Draft<T> = { value: T; baseline: T; revision?: string; changed: boolean };
+export type ManagementDraftStore = Map<string, Draft<unknown>>;
 export type ManagementRuntime = {
   client: ManagementClient;
   theme: ManagementTheme;
@@ -112,24 +113,25 @@ export function useAction() {
 
 export function useDraft<T>(key: string, initialValue: T, initialRevision?: string) {
   const { drafts } = useManagement();
-  const initial = drafts.get(key);
-  const [value, setValue] = useState<T>(() => initial ? initial.value as T : initialValue);
-  const [revision, setRevision] = useState(initial?.revision ?? initialRevision);
-  const [changed, setChanged] = useState(Boolean(initial));
-  const change = (next: T) => {
-    setValue(next);
-    setChanged(true);
-    drafts.set(key, { value: next, revision });
+  const [state, setState] = useState<Draft<T>>(() => drafts.get(key) as Draft<T> | undefined ?? {
+    value: initialValue, baseline: initialValue, revision: initialRevision, changed: false,
+  });
+  const current = useRef(state);
+  function write(next: Draft<T>) {
+    current.current = next;
+    setState(next);
+    if (next.changed) drafts.set(key, next);
+    else drafts.delete(key);
+  }
+  return {
+    ...state,
+    change: (value: T) => write({ ...current.current, value, changed: true }),
+    resolve: (value: T, baseline: T, revision: string) => write({ value, baseline, revision, changed: true }),
+    saved: (baseline: T, revision?: string) => write({
+      ...current.current, baseline, revision: revision ?? current.current.revision, changed: current.current.value !== baseline,
+    }),
+    clear: () => write({ ...current.current, changed: false }),
   };
-  const reviewRevision = (next: string) => {
-    setRevision(next);
-    if (changed) drafts.set(key, { value, revision: next });
-  };
-  const clear = () => {
-    drafts.delete(key);
-    setChanged(false);
-  };
-  return { value, change, revision, reviewRevision, changed, clear };
 }
 
 export function Screen({ title, description, back, actions, children }: { title: string; description?: string; back?: { label: string; run: () => void }; actions?: ReactNode; children: ReactNode }) {
