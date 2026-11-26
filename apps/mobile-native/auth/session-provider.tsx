@@ -88,6 +88,7 @@ export function useNativeSession() {
   return {
     ...snapshot,
     getSnapshot: controller.getSnapshot,
+    getPendingRefresh: controller.getPendingRefresh,
     subscribeSession: controller.subscribe,
     acceptLogin: controller.acceptLogin,
     clearLoginIntent: controller.clearLoginIntent,

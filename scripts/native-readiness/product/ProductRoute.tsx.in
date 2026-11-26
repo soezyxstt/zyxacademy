@@ -1,14 +1,15 @@
 import { Redirect, useFocusEffect, useIsFocused, useLocalSearchParams, useNavigation, useRoute, useRouter, type Href } from "expo-router";
 import { CommonActions } from "expo-router/react-navigation";
-import { useCallback, useMemo, useRef, useState, type ComponentProps } from "react";
-import { ActivityIndicator, Text, useColorScheme } from "react-native";
+import { useCallback, useMemo, useRef, useState, type ComponentProps, type ReactNode } from "react";
+import { ActivityIndicator, Text, View, useColorScheme } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { getSafeRedirectPath } from "../../../packages/native-session/auth-redirect";
+import type { NativeAccountContext } from "../../../packages/native-session/context";
 import { AuthSessionStatus } from "../auth/auth-continuation";
 import { authLocale } from "../auth/auth-copy";
 import { authEntryHref } from "../auth/login-intent";
 import { NATIVE_STAGING_ORIGIN } from "../auth/session-api";
-import { useNativeAccountContext } from "../auth/use-account-context";
+import { NativeRouteAccountContext, useNativeRouteAccountContext } from "../auth/use-account-context";
 import { useNativeSession } from "../auth/session-provider";
 import { nativeUiLocale } from "../auth/ui-locale";
 import { Button } from "../components/Button";
@@ -18,7 +19,7 @@ import { AdminOperationsScreen, PublicOperationsScreen } from "../features/opera
 import { VerifiedStudentEntry } from "../features/student/VerifiedStudentEntry";
 import { academicRouteCanRead, productLocation, productQueryUpdate } from "./product-location";
 import { expoRouteHistory } from "./route-history-expo";
-import { canNavigateNativeSession } from "./session-stack";
+import { createDeferredSessionNavigation, nativeSessionNavigationStatus } from "./session-stack";
 import { StudentChrome } from "./student-chrome";
 import { StaffChrome } from "./staff-chrome";
 
@@ -41,36 +42,56 @@ function ProductRoute({ href, pattern, owner }: { href: string; pattern: string;
   const router = useRouter();
   const screenNavigation = useNavigation();
   const isFocused = useIsFocused();
-  const { state, transport, getSnapshot } = useNativeSession();
-  const access = useNativeAccountContext();
+  const { state, transport, getSnapshot, getPendingRefresh } = useNativeSession();
+  const [deferredNavigation] = useState(createDeferredSessionNavigation);
+  const tutor = owner === "academic" && href.startsWith("/tutor");
+  const studentAssessment = owner === "student" && (
+    pattern === "/courses/[id]/quiz/[quizId]" || pattern === "/courses/[id]/tryout/[tryoutId]" ||
+    pattern === "/courses/tutorial-pka/simulasi/[subject]/[stage]"
+  );
+  const access = useNativeRouteAccountContext(studentAssessment || tutor);
+  const context = access.context;
   const devicePreferences = useDevicePreferences();
   const scheme = useColorScheme();
   const theme = devicePreferences.theme === "system" ? (scheme === "dark" ? "dark" : "light") : devicePreferences.theme;
-  const locale = nativeUiLocale(state, access.context, authLocale());
-  const canNavigate = useCallback(() => owner === "public" || (screenNavigation.isFocused() &&
-    canNavigateNativeSession(state, transport, getSnapshot())), [getSnapshot, owner, screenNavigation, state, transport]);
-  const navigate = useCallback((path: string, options?: { replace?: boolean }) => {
-    if (!canNavigate() || getSafeRedirectPath(path) !== path) return;
-    if (options?.replace) router.replace(path as Href);
+  const locale = nativeUiLocale(state, context, authLocale());
+  const navigationStatus = useCallback(() => {
+    if (owner === "public") return "ready";
+    if (!screenNavigation.isFocused()) return "blocked";
+    return nativeSessionNavigationStatus(state, transport, getSnapshot());
+  }, [getSnapshot, owner, screenNavigation, state, transport]);
+  useFocusEffect(useCallback(() => deferredNavigation.cancel, [deferredNavigation]));
+  const commitPath = useCallback((path: string, replace?: boolean) => {
+    if (replace) router.replace(path as Href);
     else router.push(path as Href);
-  }, [canNavigate, router]);
-  const replace = useCallback((path: string) => navigate(path, { replace: true }), [navigate]);
+  }, [router]);
+  const navigate = useCallback((path: string) => {
+    if (getSafeRedirectPath(path) !== path) return;
+    deferredNavigation.run(() => commitPath(path), navigationStatus);
+  }, [commitPath, deferredNavigation, navigationStatus]);
   const back = useCallback((fallback = "/") => {
-    if (!canNavigate()) return;
-    if (router.canGoBack()) router.back();
-    else replace(fallback);
-  }, [canNavigate, replace, router]);
-  const context = access.context;
+    deferredNavigation.run(() => {
+      if (router.canGoBack()) router.back();
+      else if (getSafeRedirectPath(fallback) === fallback) commitPath(fallback, true);
+    }, navigationStatus);
+  }, [commitPath, deferredNavigation, navigationStatus, router]);
   const navigateInScreen = useCallback((path: string, options?: { replace?: boolean }) => {
-    if (!canNavigate() || getSafeRedirectPath(path) !== path) return;
+    if (getSafeRedirectPath(path) !== path) return;
     const update = productQueryUpdate(pattern, href, path);
-    if (update === null) navigate(path, options);
-    else if (Object.keys(update).length) screenNavigation.dispatch(CommonActions.setParams(update));
-  }, [canNavigate, href, navigate, pattern, screenNavigation]);
+    if (update !== null && !Object.keys(update).length) return;
+    // A Student submission may finish while the same session is being reverified.
+    const waitForRefresh = studentAssessment && options?.replace;
+    deferredNavigation.run(() => {
+      if (update === null) commitPath(path, options?.replace);
+      else screenNavigation.dispatch(CommonActions.setParams(update));
+    }, navigationStatus, waitForRefresh ? getPendingRefresh : undefined);
+  }, [commitPath, deferredNavigation, getPendingRefresh, href, navigationStatus, pattern, screenNavigation, studentAssessment]);
   const replaceInScreen = useCallback((path: string) => navigateInScreen(path, { replace: true }), [navigateInScreen]);
   const visit = useCallback((path: string) => {
-    if (canNavigate() && getSafeRedirectPath(path) === path && path !== href.split(/[?#]/, 1)[0]) router.navigate(path as Href);
-  }, [canNavigate, href, router]);
+    if (getSafeRedirectPath(path) !== path || path === href.split(/[?#]/, 1)[0]) return;
+    // The Tutor course picker can automatically open the only course after loading.
+    deferredNavigation.run(() => router.navigate(path as Href), navigationStatus, tutor ? getPendingRefresh : undefined);
+  }, [deferredNavigation, getPendingRefresh, href, navigationStatus, router, tutor]);
   const loadTutorCourses = useCallback(async (signal: AbortSignal) => {
     if (!transport?.isCurrent() || !context?.roles.includes("tutor")) return [];
     const dashboard = await createAcademicClient(bindAcademicSession(transport, locale)).tutor.dashboard(signal);
@@ -79,9 +100,9 @@ function ProductRoute({ href, pattern, owner }: { href: string; pattern: string;
   }, [context, locale, transport]);
 
   useFocusEffect(useCallback(() => {
-    if (owner === "public" || state.status !== "signed-in" || !transport || !context) return;
-    expoRouteHistory.remember(transport.scope, context, href, canNavigate);
-  }, [canNavigate, context, href, owner, state, transport]));
+    if (owner === "public" || access.retaining || state.status !== "signed-in" || !transport || !context) return;
+    expoRouteHistory.remember(transport.scope, context, href, () => navigationStatus() === "ready");
+  }, [access.retaining, context, href, navigationStatus, owner, state, transport]));
 
   if (owner === "public") return <SafeAreaView testID={pattern === "/" ? "product-landing" : undefined} style={{ flex: 1 }}>
     <PublicOperationsScreen href={href} origin={NATIVE_STAGING_ORIGIN} locale={locale} theme={theme} onNavigate={navigate} onBack={back} />
@@ -91,10 +112,12 @@ function ProductRoute({ href, pattern, owner }: { href: string; pattern: string;
   }
   if (owner === "student" && (state.status === "signed-in" || (state.status === "unavailable" && state.offlineIdentity))) {
     const identity = state.status === "signed-in" ? state : state.offlineIdentity;
-    return <StudentRoute key={JSON.stringify([identity?.accountId, identity?.sessionId])} href={href} pattern={pattern}
-      locale={locale} theme={theme} showChrome={access.context?.roles.includes("murid") === true}
-      devicePreferences={devicePreferences}
-      navigate={navigate} replace={replaceInScreen} visit={visit} back={back} />;
+    return <RecheckingRoute enabled={studentAssessment} checking={access.retaining}>
+      <StudentRoute key={JSON.stringify([identity?.accountId, identity?.sessionId])} href={href} pattern={pattern}
+        locale={locale} theme={theme} showChrome={!access.retaining && context?.roles.includes("murid") === true}
+        context={context} devicePreferences={devicePreferences}
+        navigate={navigate} replace={replaceInScreen} visit={visit} back={back} />
+    </RecheckingRoute>;
   }
   if (state.status !== "signed-in") return <AuthSessionStatus locale={locale} />;
   if (access.failed) return <SafeAreaView><Text accessibilityRole="alert">
@@ -109,13 +132,23 @@ function ProductRoute({ href, pattern, owner }: { href: string; pattern: string;
     {locale === "en" ? "Access denied." : "Akses ditolak."}
   </Text><Button onPress={() => back()}>{locale === "en" ? "Back" : "Kembali"}</Button></SafeAreaView>;
   const accountKey = JSON.stringify([context.accountId, context.sessionId, locale]);
-  return <StaffChrome key={accountKey} role={role} href={href} theme={theme} focused={isFocused} context={context}
-    session={transport} visit={visit} back={back} loadTutorCourses={loadTutorCourses}>
-    {owner === "academic" ? <AcademicRoute href={href} session={transport} accountId={context.accountId}
-      role={role} locale={locale} navigate={navigateInScreen} replace={replaceInScreen}
-      back={() => back(role === "admin" ? "/admin" : "/tutor")} theme={theme} /> :
-      <AdminOperationsScreen href={href} session={transport} context={context} navigate={navigateInScreen} theme={theme} />}
-  </StaffChrome>;
+  return <RecheckingRoute enabled={tutor} checking={access.retaining}>
+    <StaffChrome key={accountKey} role={role} href={href} theme={theme} focused={isFocused} context={context}
+      checkingAccess={access.retaining} session={transport} visit={visit} back={back} loadTutorCourses={loadTutorCourses}>
+      {owner === "academic" ? <AcademicRoute href={href} session={transport} accountId={context.accountId}
+        role={role} locale={locale} navigate={navigateInScreen} replace={replaceInScreen}
+        back={() => back(role === "admin" ? "/admin" : "/tutor")} theme={theme} /> :
+        <AdminOperationsScreen href={href} session={transport} context={context} navigate={navigateInScreen} theme={theme} />}
+    </StaffChrome>
+  </RecheckingRoute>;
+}
+
+function RecheckingRoute({ enabled, checking, children }: { enabled: boolean; checking: boolean; children: ReactNode }) {
+  if (!enabled) return children;
+  return <>
+    <View style={checking ? { display: "none" } : { flex: 1 }}>{children}</View>
+    {checking && <ActivityIndicator />}
+  </>;
 }
 
 function AcademicRoute({ session, locale, accountId, role, ...props }: {
@@ -137,8 +170,9 @@ function AcademicRoute({ session, locale, accountId, role, ...props }: {
   return <AcademicLiveScreen {...props} transport={transport} actor={{ id: accountId, role }} refresh={refresh} />;
 }
 
-function StudentRoute({ href, pattern, locale, theme, showChrome, devicePreferences, navigate, replace, visit, back }: {
+function StudentRoute({ href, pattern, locale, theme, showChrome, context, devicePreferences, navigate, replace, visit, back }: {
   href: string; pattern: string; locale: "id" | "en"; theme: "light" | "dark"; showChrome: boolean;
+  context: NativeAccountContext | null;
   devicePreferences: ReturnType<typeof useDevicePreferences>;
   navigate(path: string): void; replace(path: string): void; visit(path: string): void; back(fallback?: string): void;
 }) {
@@ -146,8 +180,10 @@ function StudentRoute({ href, pattern, locale, theme, showChrome, devicePreferen
   const entry = useRef(href.split(/[?#]/, 1)[0]);
 
   return <StudentChrome href={href} pattern={pattern} locale={locale} theme={theme} enabled={showChrome} visit={visit} back={back}>
-    <VerifiedStudentEntry path={href} entryKey={entry.current} offlineLocale={locale} devicePreferences={devicePreferences}
-      initialScrollY={scroll.current} onScrollY={value => { scroll.current = value; }}
-      navigate={navigate} replace={replace} back={() => back("/dashboard")} />
+    <NativeRouteAccountContext context={context}>
+      <VerifiedStudentEntry path={href} entryKey={entry.current} offlineLocale={locale} devicePreferences={devicePreferences}
+        initialScrollY={scroll.current} onScrollY={value => { scroll.current = value; }}
+        navigate={navigate} replace={replace} back={() => back("/dashboard")} />
+    </NativeRouteAccountContext>
   </StudentChrome>;
 }

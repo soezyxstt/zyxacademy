@@ -152,6 +152,8 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
         origin,
         accountId: identity.accountId,
         sessionId: identity.sessionId,
+        // Keep submitted requests alive without starting new writes during verification.
+        canStartRequest: method => !snapshot.revalidating || method === "GET" || method === "HEAD",
         readCookie: scope => record?.status === "active" && record.expiresAt > now()
           && record.origin === scope.origin && record.sessionId === scope.sessionId && record.accountId === scope.accountId
           ? record.cookie : null,
@@ -395,6 +397,7 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
 
   return {
     getSnapshot: () => snapshot,
+    getPendingRefresh: () => snapshot.revalidating ? refreshOperation : null,
     subscribe(handler: () => void) {
       subscriptions.add(handler);
       return () => { subscriptions.delete(handler); };

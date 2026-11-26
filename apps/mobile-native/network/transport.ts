@@ -7,6 +7,8 @@ export type NativeSessionScope = Readonly<{
 export type NativeSessionCredentials = NativeSessionScope & {
   /** Read the cookie header for this verified session from the caller's credential store. */
   readCookie(scope: NativeSessionScope): string | null | Promise<string | null>;
+  /** Recheck immediately before dispatching a new request. */
+  canStartRequest?(method: string): boolean;
 };
 
 export type NativeRequestInit = Pick<RequestInit, "body" | "headers" | "method" | "signal"> & {
@@ -283,16 +285,20 @@ export function createNativeTransport({ origin: configuredOrigin, fetcher }: { o
             for (let remaining = retry === "transient-read" ? 1 : 0; ; remaining--) {
               let response: FetchResponse;
               try {
-                response = await untilAborted(lifetime.signal, () => fetcher(url, {
-                  method: requestMethod,
-                  body,
-                  headers,
-                  credentials: "omit",
-                  redirect: "manual",
-                  signal: lifetime.signal,
-                }), discardResponse);
-              } catch {
+                response = await untilAborted(lifetime.signal, () => {
+                  if (credentials.canStartRequest?.(requestMethod) === false) throw new NativeTransportError("credentials");
+                  return fetcher(url, {
+                    method: requestMethod,
+                    body,
+                    headers,
+                    credentials: "omit",
+                    redirect: "manual",
+                    signal: lifetime.signal,
+                  });
+                }, discardResponse);
+              } catch (error) {
                 lifetime.assertCurrent();
+                if (error instanceof NativeTransportError && error.code === "credentials") throw error;
                 if (remaining) continue;
                 throw new NativeTransportError("network");
               }
