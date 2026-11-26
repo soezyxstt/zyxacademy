@@ -1,18 +1,16 @@
 import { useEffect, useRef, useState, type ComponentRef } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { ScrollView, View } from "react-native";
 import enTutor from "../../../../../messages/en/tutor.json";
 import idTutor from "../../../../../messages/id/tutor.json";
-import { readDocInline } from "../../../../../packages/academic/docs/inline";
 import { docSectionId } from "../../../../../packages/academic/docs/search";
 import { getTutorDocBySlug, getTutorDocs, searchTutorDocs } from "../../../../../packages/academic/docs/tutor";
 import { getTutorDocDiagram } from "../../../../../packages/academic/docs/tutor/diagrams";
 import type { DocEntry, DocLocale } from "../../../../../packages/academic/docs/types";
-import { nativeColors } from "../../../../../packages/design-tokens/native-colors";
 import { getSafeRedirectPath } from "../../../../../packages/native-session/auth-redirect";
 import { Button } from "../../../components/Button";
 import { Input } from "../../../components/Input";
-import { nativeTypography } from "../../../typography";
 import { SharedSheet } from "../../shared-ui";
+import { DocInlineContent } from "../../shared-ui/DocInlineContent";
 import type { AcademicScreenProps } from "../contracts";
 import { Empty, Heading, Label, Row, TutorPage, tutorLayout } from "./ui";
 
@@ -49,17 +47,7 @@ export function TutorDocs(props: Props) {
 }
 
 function DocText({ value, theme, navigate }: DocNav & { value: string }) {
-  return <Label theme={theme}>{readDocInline(value).map((part, index) => {
-    if (part.kind === "link") {
-      const href = safeDocHref(part.href);
-      if (href) return <Text accessibilityRole="link" key={index}
-        style={{ color: nativeColors[theme].primary, textDecorationLine: "underline" }}
-        onPress={() => navigate(href)}>{part.text}</Text>;
-    }
-    if (part.kind === "code") return <Text key={index} style={nativeTypography.mono}>{part.text}</Text>;
-    if (part.kind === "strong") return <Text key={index} style={nativeTypography.bodySemibold}>{part.text}</Text>;
-    return part.text;
-  })}</Label>;
+  return <Label theme={theme}><DocInlineContent value={value} theme={theme} navigate={navigate} /></Label>;
 }
 
 function TutorDocArticle({ doc, path, theme, back, replace, navigate, locale }: Props & { doc: DocEntry }) {

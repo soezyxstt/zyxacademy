@@ -89,7 +89,7 @@ The crosswalk covers 25 page patterns grouped into 21 families. It includes comm
 | `/admin/meet` | Conference history; compose with participant/course targeting and access policy; end and delete with confirmation; Google API and OAuth setup guidance with external provider links. The native provider adapter calls the existing protected handlers. | | | 4 / 0 / 0 |
 | `/admin/meet/[id]` | Conference stats, participants, sessions and linked recordings; transcript entries and document links; Admin-confirmed Drive permission synchronization under the existing feature gate. Native `MeetDetails` loads authorized conference-specific pages and the signed provider adapter reconciles Drive permissions for that conference. | | | 3 / 0 / 0 |
 | `/admin/discussions` | Search/select/mute channels; create and reply with mentions/Zyra/attachments; read observations, reactions, edit/delete/forward/report and resolution; report queue and moderation. Normal Expo mounts the role-bound Admin workspace and canonical discussion actions. | Web has ongoing channel metadata refresh and read-by-visible-message observations. The native workspace acknowledges an observed page and polls pending Zyra responses. | | 4 / 1 / 0 |
-| `/admin/docs`, `/[slug]` | Browse/search by locale; open documents, related pages and quick links. Native uses the same documentation catalog. | Native document blocks cover headings, body, callouts, lists, tables and code. Web MDX inline styles and diagram components have additional presentation. | | 2 / 1 / 0 |
+| `/admin/docs`, `/[slug]` | Browse/search by locale; open documents, related pages and quick links. rich body with inline links and source diagrams in ordered rows. Native uses the same documentation catalog and inline parser. | | | 3 / 0 / 0 |
 | `/admin/pricing` | Student calculator; Tutor fee calculator; create/toggle/delete vouchers; edit pricing discounts. Expo uses the shared formulas and protected pricing adapter. | | | 4 / 0 / 0 |
 | `/admin/tautan` | Category/list and open links; create/update/activate/reorder/delete. Normal native management connects the same operations and confirmation. | | | 2 / 0 / 0 |
 | `/admin/notifications` | Recipient/channel selection and confirmed dispatch with stable identity; paginated delivery history and detail; notification type, read state and delivery outcome. Expo uses `BroadcastComposer` and the shared Admin history query. | | | 3 / 0 / 0 |
@@ -102,7 +102,7 @@ The crosswalk covers 25 page patterns grouped into 21 families. It includes comm
 | `/admin/ops/keys`, `/models` | Read masked key diagnostics; inspect configured models and filters; save/reset revision; billed latency refresh with cooldown. | | | 4 / 0 / 0 |
 | `/admin/ops/offline` | Read policy/catalog; save policy with revision; revalidate authorized scope. | | | 3 / 0 / 0 |
 | `/admin/ops/short-links` | List/copy; create with duplicate slug handling; view and share QR PNG. | | | 3 / 0 / 0 |
-| **Total** | | | | **66 / 5 / 0** |
+| **Total** | | | | **67 / 4 / 0** |
 
 Verification provenance for this baseline:
 
