@@ -1,5 +1,5 @@
 import { useCallback, useLayoutEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { Redirect, useRouter } from "expo-router";
+import { Redirect, useIsFocused, useRouter } from "expo-router";
 import { Alert, Text, View } from "react-native";
 import { openBrowserAsync } from "expo-web-browser";
 import { authLocale } from "../../auth/auth-copy";
@@ -23,7 +23,7 @@ import { useOpenAuthorizedOfflineMaterial, useStudentOfflineCourses } from "./us
 
 const notBlocked = () => false;
 
-export type VerifiedEntryProps = Omit<StudentEntryProps, "session" | "request" | "devicePush" | "openOfflineMaterial"> & {
+export type VerifiedEntryProps = Omit<StudentEntryProps, "session" | "request" | "devicePush" | "openOfflineMaterial" | "focused" | "resultsTimeZone"> & {
   offlineLocale?: NativeOfflineLocale;
   openOfflineMaterial?: (material: VerifiedOfflineMaterial) => void | Promise<void>;
 };
@@ -31,6 +31,7 @@ export type VerifiedEntryProps = Omit<StudentEntryProps, "session" | "request" |
 /** Mount below the application's session and notification providers, inside its route shell. */
 export function VerifiedStudentEntry({ offlineLocale, openOfflineMaterial, ...props }: VerifiedEntryProps) {
   const router = useRouter();
+  const focused = useIsFocused();
   const { state, transport, refresh } = useNativeSession();
   const { context, failed, retry } = useNativeAccountContext();
   const push = useDeviceNotificationSettings();
@@ -115,7 +116,7 @@ export function VerifiedStudentEntry({ offlineLocale, openOfflineMaterial, ...pr
       if (transport?.isCurrent()) void openBrowserAsync(url.href).catch(showError);
     } catch { showError(); }
   }
-  return <StudentEntry {...props} openExternal={props.openExternal ?? openExternal} openOfflineMaterial={openSaved} openOfflineLibrary={target.kind === "course" || target.kind === "material" ? openLibrary : undefined} request={transport.request} devicePush={push} assessmentPhotos={props.assessmentPhotos ?? assessmentPhotos} drafts={props.drafts ?? drafts}
+  return <StudentEntry {...props} focused={focused} openExternal={props.openExternal ?? openExternal} openOfflineMaterial={openSaved} openOfflineLibrary={target.kind === "course" || target.kind === "material" ? openLibrary : undefined} request={transport.request} devicePush={push} assessmentPhotos={props.assessmentPhotos ?? assessmentPhotos} drafts={props.drafts ?? drafts}
     offlineCourse={{ status: revoked ? "revoked" : metadata.status, course: revoked ? null : metadata.snapshot?.courses.find(course => course.id === courseIds[0]) ?? null, retry: metadata.retry }}
     session={{ role: "student", userId: accountId, origin, sessionId, locale: context.locale }}
     onLocaleChanged={locale => { props.onLocaleChanged?.(locale); retry(); }} />;

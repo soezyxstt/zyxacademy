@@ -59,4 +59,10 @@ Riwayat hasil kursus memakai tiga payload sintetis yang sama pada Playwright dan
 PLAYWRIGHT_BASE_URL=http://student-results-reference.invalid bunx playwright test tests/visual/native-parallel/student/results-reference.spec.ts --project=mobile-380
 ```
 
-Referensi memakai bahasa Indonesia, tema terang, zona UTC dan aset font Expo pada Android 380 × 820 DPR 1 dan iOS 402 × 874 DPR 3. Tanggal hasil memakai zona waktu perangkat, jadi samakan zona simulator saat membandingkan. Playwright merender komponen web produksi dengan transport fixture lokal. Maestro memerlukan build internal dengan entry fixture Student. Pengambilan gambar Expo dan perbandingan piksel tetap memerlukan eksekusi perangkat. Bagian web memuat bilah navigasi atas web dan Expo memakai header asesmen serta safe area native.
+Referensi memakai bahasa Indonesia, tema terang, zona UTC dan aset font Expo pada Android 380 × 820 DPR 1 dan iOS 402 × 874 DPR 3. Fixture hasil Expo memakai UTC yang sama dengan referensi web dan Maestro memeriksa jam tiap baris sebelum mengambil gambar. Riwayat produk memakai zona waktu perangkat. Playwright merender komponen web produksi dengan transport fixture lokal. Maestro memerlukan build internal dengan entry fixture Student. Pengambilan gambar Expo dan perbandingan piksel tetap memerlukan eksekusi perangkat. Bagian web memuat bilah navigasi atas web dan Expo memakai header asesmen serta safe area native.
+
+Saat kembali ke riwayat, review hasil atau diagnosis yang masih ada di stack, entry produk memuat ulang izin dan respons. Skor, jawaban dan diagnosis sebelumnya baru ditampilkan lagi setelah permintaan aktif berhasil. Fixture `results-refocus` di Maestro mempertahankan entri riwayat dan memeriksa perubahan skor lalu 403 pada akun yang sama. Pengujian React di browser menunda respons lama hingga sesudah respons aktif, menguji 403 pada riwayat, review, dan kedua URL diagnosis, dan memeriksa identitas Student pada setiap permintaan.
+
+```sh
+PLAYWRIGHT_BASE_URL=http://student-results-refocus.invalid bunx playwright test tests/visual/native-parallel/student/results-refocus.spec.ts --project=mobile-380
+```

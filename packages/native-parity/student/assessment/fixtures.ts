@@ -17,8 +17,10 @@ export const resultsEvidence = {
 export type ResultsEvidenceState = (typeof resultsEvidence.states)[number];
 export const resultsScenario = <T extends ResultsEvidenceState>(state: T) => `results-${state}` as const;
 
+export const resultsRefocusScenario = "results-refocus";
+
 export const assessmentFixtureScenarios = ["populated", "empty", "locked", "offline", "long", "retry",
-  ...quizGatewayEvidence.states.map(quizGatewayScenario), ...resultsEvidence.states.map(resultsScenario)] as const;
+  ...quizGatewayEvidence.states.map(quizGatewayScenario), ...resultsEvidence.states.map(resultsScenario), resultsRefocusScenario] as const;
 export type AssessmentFixtureScenario = (typeof assessmentFixtureScenarios)[number];
 
 const courseId = "native-assessment-course";
@@ -83,7 +85,9 @@ export function createAssessmentFixtureRequest(scenario: AssessmentFixtureScenar
   const fixtureStartAt = new Date(Date.now() - 1000).toISOString();
   const activeAttempts = new Map<string, string>(resumableGateway ? [[activeAttemptId, fixtureStartAt]] : []);
   const priorQuiz = gatewayEvidence ? { ...fixtureQuiz, submittedAt: "2026-10-05T12:00:00.000Z" } : fixtureQuiz;
-  const resultsState = resultsEvidence.states.find(state => resultsScenario(state) === scenario);
+  const refocusResults = scenario === resultsRefocusScenario;
+  const resultsState = refocusResults ? "mixed" : resultsEvidence.states.find(state => resultsScenario(state) === scenario);
+  let historyReads = 0;
   const results = empty || newGateway || resultsState === "empty" ? []
     : resultsState === "mixed" ? [...mixedResults] : resultsState === "graded" ? [...gradedResults] : [priorQuiz, fixtureTryout];
   const quizDiscussionSealed = gatewayEvidence || resultsState !== undefined;
@@ -158,6 +162,14 @@ export function createAssessmentFixtureRequest(scenario: AssessmentFixtureScenar
     }
     if (family === "quiz" && !id) return ok({ kind: "quiz-list", courseTitle, fullAccess: !locked, rows: empty || url.searchParams.get("access") === "premium" ? [] : [simulatedQuiz()] });
     if (family === "tryout" && !id) return ok({ kind: "tryout-list", courseTitle, fullAccess: !locked, rows: empty ? [] : [tryout] });
+    if (refocusResults && family === "my-results") {
+      if (!id) historyReads += 1;
+      if (historyReads >= 3) return json({ error: "Asesmen tidak tersedia." }, 403);
+      if (!id && historyReads === 2) {
+        const updatedQuiz = results.findIndex(row => row.kind === "quiz");
+        if (updatedQuiz >= 0) results[updatedQuiz] = { ...results[updatedQuiz], score: 95 };
+      }
+    }
     if (family === "my-results" && !id) return ok({ kind: "results", courseTitle, fullAccess: !locked, results: locked ? [] : results });
     if (family === "quiz" && id === quizId && !action) {
       const target = url.searchParams.get("attemptId");

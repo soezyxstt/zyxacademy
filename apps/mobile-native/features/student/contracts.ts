@@ -65,10 +65,14 @@ export interface StudentServices {
   assessmentPhotos?: import("./assessment/device-contract").AssessmentPhotoPicker;
   renderAssessmentMarkdown?: (markdown: string, courseId: string) => ReactNode;
   renderAssessmentParts?: (parts: unknown[], courseId: string, visuals?: unknown[]) => ReactNode;
+  /** Fixed timezone for results screenshots from the internal synthetic fixture. */
+  resultsTimeZone?: string;
 }
 
 export interface StudentScreenProps extends StudentServices {
   route: StudentRoute;
+  /** Mounted stack entries may be covered by another route. Defaults to focused for standalone screens. */
+  focused?: boolean;
   navigate(path: string): void;
   replace(path: string): void;
   back(): void;

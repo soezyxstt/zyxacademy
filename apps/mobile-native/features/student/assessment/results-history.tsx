@@ -16,12 +16,12 @@ type ResultLinkProps = {
 
 function ResultLink({ result, status, divided, onPress }: ResultLinkProps) {
   const { messages } = useAssessmentCopy();
-  const { session } = useAssessment();
+  const { session, resultsTimeZone } = useAssessment();
   const colors = useAssessmentColors();
   const [focused, setFocused] = useState(false);
   const pendingReview = result.status === "pending_review";
   const submittedAt = result.submittedAt ? resolveDateDisplay({
-    date: result.submittedAt, options: { dateStyle: "medium", timeStyle: "short" },
+    date: result.submittedAt, options: { dateStyle: "medium", timeStyle: "short", timeZone: resultsTimeZone },
   }, session.locale.toLowerCase().startsWith("en") ? "en" : "id")?.text : undefined;
   const submitted = [messages.results[result.kind], submittedAt].filter(Boolean).join(", ");
   const visibleStatus = result.score == null && pendingReview ? null : status;

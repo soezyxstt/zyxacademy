@@ -14,11 +14,11 @@ name: Student course results history states
 - assertVisible: "Hasil ujian: Kalkulus dasar"
 - assertVisible:
     id: student-assessment-native-tryout-submission
-    text: 'Simulasi turunan untuk sains dan rekayasa, Tryout, 6 Okt 2026, .*, Menunggu penilaian'
+    text: 'Simulasi turunan untuk sains dan rekayasa, Tryout, 6 Okt 2026, 13[.:]30, Menunggu penilaian'
     enabled: true
 - assertVisible:
     id: student-assessment-native-completed-attempt
-    text: 'Fungsi, limit, dan turunan, Kuis, 5 Okt 2026, .*, Selesai, 80%'
+    text: 'Fungsi, limit, dan turunan, Kuis, 5 Okt 2026, 12[.:]00, Selesai, 80%'
     enabled: true
 - assertNotVisible:
     id: student-assessment-start-practice
@@ -74,12 +74,45 @@ name: Student course results history states
 - assertVisible: "Hasil ujian: Kalkulus dasar"
 - assertVisible:
     id: student-assessment-native-tryout-submission
-    text: 'Simulasi Ujian Tengah Semester, Tryout, 6 Okt 2026, .*, Sudah dinilai, 0%'
+    text: 'Simulasi Ujian Tengah Semester, Tryout, 6 Okt 2026, 14[.:]05, Sudah dinilai, 0%'
     enabled: true
 - assertVisible:
     id: student-assessment-native-late-tryout-submission
-    text: 'Simulasi limit fungsi, Tryout, 5 Okt 2026, .*, Terlambat, Menunggu'
+    text: 'Simulasi limit fungsi, Tryout, 5 Okt 2026, 12[.:]00, Terlambat, Menunggu'
     enabled: true
 - assertNotVisible:
     id: student-assessment-start-practice
 - takeScreenshot: student-results-graded
+
+- openLink: "zyx-native-parity://student-fixture?scenario=results-refocus&theme=light&locale=id&path=%2Fcourses%2Fnative-assessment-course%2Fmy-results"
+- extendedWaitUntil:
+    visible:
+      id: student-assessment-native-completed-attempt
+      text: 'Fungsi, limit, dan turunan, Kuis, 5 Okt 2026, 12[.:]00, Selesai, 80%'
+    timeout: 30000
+- tapOn:
+    id: student-assessment-native-completed-attempt
+- extendedWaitUntil:
+    visible: "Skor akhir"
+    timeout: 30000
+- tapOn:
+    id: 'student\.back'
+- extendedWaitUntil:
+    visible:
+      id: student-assessment-native-completed-attempt
+      text: 'Fungsi, limit, dan turunan, Kuis, 5 Okt 2026, 12[.:]00, Selesai, 95%'
+    timeout: 30000
+- tapOn:
+    id: student-assessment-native-completed-attempt
+- extendedWaitUntil:
+    visible: "95%"
+    timeout: 30000
+- tapOn:
+    id: 'student\.back'
+- extendedWaitUntil:
+    visible: "Asesmen tidak tersedia"
+    timeout: 30000
+- assertNotVisible:
+    id: student-assessment-native-completed-attempt
+- assertNotVisible:
+    id: student-assessment-native-tryout-submission

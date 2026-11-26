@@ -33,7 +33,7 @@ const dbProxy = new Proxy({} as typeof database.testDb, {
 mock.module("@/db", () => ({ db: dbProxy }));
 mock.module("@/lib/auth", () => ({ auth: { api: { getSession: async () => userId ? { user: { id: userId, role: "student" } } : null } } }));
 mock.module("next/headers", () => ({ headers: async () => new Headers() }));
-mock.module("next/cache", () => ({ revalidatePath: () => {}, revalidateTag: () => {}, unstable_cache: (callback: Function) => callback }));
+mock.module("next/cache", () => ({ revalidatePath: () => {}, revalidateTag: () => {}, unstable_cache: <Args extends unknown[], Result>(callback: (...args: Args) => Result) => callback }));
 mock.module("@/lib/inngest", () => ({ inngest: { send: async () => ({ ids: [] }) } }));
 const uploads = new Map<string, string>();
 mock.module("@/lib/storage", () => ({ STORAGE_PROVIDER_MODE: "r2", storage: {
@@ -142,7 +142,14 @@ describe("native Student assessment against PostgreSQL and legacy quiz/tryout ha
     userId = other;
     expect((await call(["my-results", ids[0]])).status).toBe(404);
     userId = learner;
+    const history = () => call(["my-results"]);
+    expect(await (await history()).json()).toMatchObject({ kind: "results", fullAccess: true,
+      results: expect.arrayContaining([expect.objectContaining({ id: ids[0], score: 100 })]) });
+    await database.testDb.update(schema.submissions).set({ score: 90 }).where(eq(schema.submissions.id, ids[0]));
+    expect(await (await history()).json()).toMatchObject({ kind: "results", fullAccess: true,
+      results: expect.arrayContaining([expect.objectContaining({ id: ids[0], score: 90 })]) });
     await database.testDb.delete(schema.enrollments).where(eq(schema.enrollments.userId, learner));
+    expect(await (await history()).json()).toMatchObject({ kind: "results", fullAccess: false, results: [] });
     expect((await send(tryoutKey, answers)).status).toBe(403);
     expect((await call(["my-results", ids[0]])).status).toBe(404);
   });

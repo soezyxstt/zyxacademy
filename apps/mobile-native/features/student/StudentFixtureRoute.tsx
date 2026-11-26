@@ -6,6 +6,7 @@ import { Alert, Appearance, BackHandler, View, useColorScheme } from "react-nati
 import { SafeAreaView } from "react-native-safe-area-context";
 import { nativeColors } from "../../../../packages/design-tokens/native-colors";
 import { createStudentFixtureRequest } from "../../../../packages/native-parity/student/fixture-request";
+import { resultsEvidence, resultsRefocusScenario, resultsScenario } from "../../../../packages/native-parity/student/assessment/fixtures";
 import { dashboardFixtureState } from "../../../../packages/native-parity/student/dashboard/fixtures";
 import studentEn from "../../../../messages/en/student.json";
 import studentId from "../../../../messages/id/student.json";
@@ -24,9 +25,11 @@ const fixtureDestinations = { home: "/dashboard", courses: "/courses", schedule:
 function Fixture({ scenario, initialPath, theme, locale, persistent }: { persistent: boolean; scenario: string; initialPath: string; theme?: "light" | "dark"; locale: "en" | "id" }) {
   const request = useMemo(() => createStudentFixtureRequest(scenario), [scenario]);
   const dashboardState = dashboardFixtureState(scenario);
+  const refocusResults = scenario === resultsRefocusScenario;
   const session = useMemo(() => ({ ...baseSession, locale,
     userId: dashboardState ? `student-evidence-${dashboardState}` : baseSession.userId,
-  }), [locale, dashboardState]);
+    sessionId: refocusResults ? "student-results-fixture-session" : baseSession.sessionId,
+  }), [locale, dashboardState, refocusResults]);
   const drafts = useMemo(() => {
     if (persistent) return fixtureRepository.bind({
       origin: session.origin, accountId: session.userId, sessionId: "student-device-evidence", locale,
@@ -45,12 +48,19 @@ function Fixture({ scenario, initialPath, theme, locale, persistent }: { persist
   }, [theme]);
   const nextId = useRef(0);
   const offsets = useRef(new Map<number, number>());
-  const [stack, setStack] = useState([{ id: 0, path: initialPath }]);
+  const [stack, setStack] = useState([{ id: 0, path: initialPath, initialScrollY: 0 }]);
   const active = stack[stack.length - 1];
-  const back = useCallback(() => setStack(current => current.length > 1 ? current.slice(0, -1) : current), []);
+  const back = useCallback(() => {
+    const savedOffsets = new Map(offsets.current);
+    setStack(current => {
+      if (current.length < 2) return current;
+      const previous = current[current.length - 2];
+      return [...current.slice(0, -2), { ...previous, initialScrollY: savedOffsets.get(previous.id) ?? 0 }];
+    });
+  }, []);
   const navigate = useCallback((path: string) => {
     const id = ++nextId.current;
-    setStack(current => [...current, { id, path }]);
+    setStack(current => [...current, { id, path, initialScrollY: 0 }]);
   }, []);
   useEffect(() => {
     if (stack.length < 2) return;
@@ -64,6 +74,22 @@ function Fixture({ scenario, initialPath, theme, locale, persistent }: { persist
   const activeDestination = (Object.keys(fixtureDestinations) as (keyof typeof fixtureDestinations)[])
     .find(id => fixtureDestinations[id] === active.path.split("?")[0]);
 
+  const resultsTimeZone = refocusResults || resultsEvidence.states.some(state => resultsScenario(state) === scenario)
+    ? resultsEvidence.timeZone : undefined;
+  const renderEntry = (entry: (typeof stack)[number], focused?: boolean) => (
+    <StudentEntry path={entry.path} entryKey={String(entry.id)} focused={focused} resultsTimeZone={resultsTimeZone}
+      session={session} request={request} drafts={drafts}
+      initialScrollY={entry.initialScrollY}
+      onScrollY={value => offsets.current.set(entry.id, value)}
+      back={back} navigate={navigate}
+      openExternal={isCatalogFixture || dashboardState ? path => Alert.alert(mobile.courses, new URL(path, session.origin).href) : undefined}
+      replace={path => {
+        const initialScrollY = offsets.current.get(entry.id) ?? 0;
+        setStack(current => [...current.slice(0, -1), { ...current[current.length - 1], path, initialScrollY }]);
+      }}
+    />
+  );
+
   return <SafeAreaView testID={dashboardState ? `student-dashboard-case-${dashboardState}` : undefined}
     style={{ flex: 1, backgroundColor: colors.background }}>
     {dashboardState && active.path === "/dashboard" && <MobileNavbar role="student" title={messages.routeTitles.dashboard}
@@ -71,13 +97,11 @@ function Fixture({ scenario, initialPath, theme, locale, persistent }: { persist
     {stack.length > 1 && <View style={{ alignItems: "flex-start", paddingHorizontal: 12 }}>
       <Button variant="ghost" accessibilityLabel="Kembali" testID="student.back" onPress={back}>Kembali</Button>
     </View>}
-    <StudentEntry path={active.path} entryKey={String(active.id)} session={session} request={request} drafts={drafts}
-      initialScrollY={offsets.current.get(active.id) ?? 0}
-      onScrollY={value => offsets.current.set(active.id, value)}
-      back={back} navigate={navigate}
-      openExternal={isCatalogFixture || dashboardState ? path => Alert.alert(mobile.courses, new URL(path, session.origin).href) : undefined}
-      replace={path => setStack(current => [...current.slice(0, -1), { ...current[current.length - 1], path }])}
-    />
+    {refocusResults
+      ? stack.map(entry => <View key={entry.id} style={{ flex: 1, display: entry.id === active.id ? "flex" : "none" }}>
+        {renderEntry(entry, entry.id === active.id)}
+      </View>)
+      : renderEntry(active)}
     {(isCatalogFixture || dashboardState) && activeDestination && <RoleBottomNavigation role="student" labels={mobile} activeId={activeDestination}
       accessibilityLabel={mobile.bottomNavLabel} includeSafeArea={false} onDestinationPress={id => {
         if (id !== activeDestination) navigate(fixtureDestinations[id]);

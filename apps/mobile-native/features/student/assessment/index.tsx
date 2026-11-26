@@ -8,7 +8,13 @@ import { AssessmentContext, Busy, Frame, Message, useAssessment, useAssessmentCo
 
 export { assessmentPatterns };
 
-type ReadState = { path: string; revision: number; page?: AssessmentPage; error?: unknown };
+type ReadState = {
+  path: string;
+  revision: number;
+  request: StudentScreenProps["request"];
+  page?: AssessmentPage;
+  error?: unknown;
+};
 
 function expectedPage(pattern: string): AssessmentPage["kind"] | undefined {
   switch (pattern) {
@@ -23,12 +29,15 @@ function expectedPage(pattern: string): AssessmentPage["kind"] | undefined {
   }
 }
 
-function AssessmentContent() {
+function isPrivateResultRead(kind: AssessmentPage["kind"] | undefined) {
+  return kind === "results" || kind === "review" || kind === "summary";
+}
+
+function AssessmentContent({ expected }: { expected: AssessmentPage["kind"] | undefined }) {
   const props = useAssessment();
   const { route, request } = props;
   const { tx, messages } = useAssessmentCopy();
   const path = assessmentRoutePath(route);
-  const expected = expectedPage(route.pattern);
   const version = route.query.submitted ?? "";
   const [revision, setRevision] = useState(0);
   const [read, setRead] = useState<ReadState | null>(null);
@@ -38,14 +47,15 @@ function AssessmentContent() {
     const controller = new AbortController();
     void assessmentRequest<AssessmentPage>(request, path, { signal: controller.signal }).then((page) => {
       if (page.kind !== expected || typeof page.courseTitle !== "string") throw new Error("Unexpected assessment page");
-      if (!controller.signal.aborted) setRead({ path: identity, revision, page });
+      if (!controller.signal.aborted) setRead({ path: identity, revision, request, page });
     }).catch((error: unknown) => {
-      if (!controller.signal.aborted) setRead({ path: identity, revision, error });
+      if (!controller.signal.aborted) setRead({ path: identity, revision, request, error });
     });
     return () => controller.abort();
   }, [expected, identity, path, request, revision]);
-  const data = read?.path === identity ? read.page : undefined;
-  const error = read?.path === identity && read.revision === revision ? read.error : undefined;
+  const currentRead = read?.path === identity && read.revision === revision && read.request === request;
+  const data = read?.path === identity && (!isPrivateResultRead(expected) || currentRead) ? read.page : undefined;
+  const error = currentRead ? read.error : undefined;
   const loadingTitle = expected === "solutions" ? messages.solutionCollection.solution : tx("Asesmen", "Assessment");
   if (error) {
     const status = error instanceof AssessmentRequestError ? error.status : null;
@@ -67,5 +77,8 @@ function AssessmentContent() {
 }
 
 export function AssessmentScreen(props: StudentScreenProps) {
-  return <AssessmentContext.Provider value={props}><AssessmentContent /></AssessmentContext.Provider>;
+  const expected = expectedPage(props.route.pattern);
+  // Reauthorize a preserved result entry before painting private data on Back.
+  if (isPrivateResultRead(expected) && props.focused === false) return null;
+  return <AssessmentContext.Provider value={props}><AssessmentContent expected={expected} /></AssessmentContext.Provider>;
 }
