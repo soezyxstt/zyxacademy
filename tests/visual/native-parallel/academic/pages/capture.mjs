@@ -43,6 +43,7 @@ const defs = [
  ['missing-product-bundle','admin','/admin/courses/biologi-dasar/review/product/not-seeded','/admin/courses/biologi-dasar/review/product/not-seeded',null],
  ['missing-tutor-quiz','tutor','/tutor/academic-course-1/quizzes/not-seeded/edit','/tutor/academic-course-1/quizzes/not-seeded/edit',null],
 ];
+const strictContentIds = new Set(['admin-analytics','admin-groups','tutor-quiz-grading','tutor-tryout-grading']);
 const selected = new Set(process.argv.slice(2));
 let entries = [];
 let previous = {};
@@ -62,7 +63,8 @@ try {
     ctx=await browser.newContext({viewport:{width:380,height:844},deviceScaleFactor:1,locale:'id-ID',timezoneId:'Asia/Jakarta',colorScheme:theme,reducedMotion:'reduce',serviceWorkers:'block'});
     const [name,value]=fixtureCookie(role).split('=');await ctx.addCookies([{name,value,url:origin}]);
     await ctx.addInitScript(v=>localStorage.setItem('theme',v),theme);
-    const page=await ctx.newPage();const blocked=[];
+    const page=await ctx.newPage();const blocked=[];const insightResponses=[];
+    page.on('response', r=>{if(new URL(r.url()).pathname==='/api/admin/quiz-insights')insightResponses.push(r.status());});
     await page.route('**/*',route=>{const u=new URL(route.request().url()); if(u.origin===origin)return route.continue();blocked.push(u.origin);return route.abort();});
     const response=await page.goto(origin+path,{waitUntil:'domcontentloaded',timeout:90000});
     item.status=response?.status() ?? null;
@@ -74,9 +76,38 @@ try {
      const found=page.getByText(label,{exact:false}).filter({visible:true}).first();
      item.labelVisible=await found.waitFor({timeout:30000}).then(()=>true,()=>false);
      item.landed=new URL(page.url()).pathname;item.expectedPathOk=item.landed===expectedPath;
-     item.pass=item.status>=200 && item.status<300 && item.expectedPathOk && item.labelVisible;
+     if(strictContentIds.has(id)) {
+      item.contentReady=await page.waitForFunction((target)=>{
+       const visible=el=>{const r=el.getBoundingClientRect();return r.width>0 && r.height>0 && getComputedStyle(el).visibility!=='hidden';};
+       if(target==='tutor-quiz-grading'||target==='tutor-tryout-grading'){
+        const surface=target==='tutor-quiz-grading'?'mobile-quiz-grading-queue':'mobile-tryout-grading-queue';
+        const root=document.querySelector(`[data-surface="${surface}"]`);if(!root||!visible(root))return false;
+        const empty=target==='tutor-quiz-grading'?'Tidak ada kuis yang menunggu penilaian':'Semua tugas telah dinilai';
+        return root.innerText.includes(empty)||[...root.querySelectorAll('button[class*="min-h-11"]')].some(visible);
+       }
+       const tables=[...document.querySelectorAll('.admin-table')].filter(visible);
+       return tables.some(table=>{
+        if([...table.querySelectorAll('.animate-pulse,[role="status"]')].some(visible))return false;
+        const t=table.innerText.trim();if(!t || /Memuat/i.test(t))return false;
+        if(target==='admin-groups')return t.includes('Tidak ada kelompok belajar')||[...table.querySelectorAll('button.font-heading.font-bold')].some(visible);
+        return t.includes('Tidak ada kuis yang ditemukan')||[...table.querySelectorAll('a[href]')].some(visible);
+       });
+      },id,{timeout:45000}).then(()=>true,()=>false);
+      if(id==='admin-analytics'){
+       item.insightsHttpStatuses=insightResponses;
+       item.contentReady=item.contentReady && insightResponses.some(status=>status>=200 && status<300);
+      }
+      item.contentState=item.contentReady ? await page.evaluate(target=>{
+       const el=target==='tutor-quiz-grading'?document.querySelector('[data-surface="mobile-quiz-grading-queue"]'):
+        target==='tutor-tryout-grading'?document.querySelector('[data-surface="mobile-tryout-grading-queue"]'):
+        [...document.querySelectorAll('.admin-table')].find(x=>x.getBoundingClientRect().height>0);
+       const t=el?.innerText ?? '';return /Tidak ada kuis yang menunggu penilaian|Semua tugas telah dinilai|Tidak ada kuis yang ditemukan|Tidak ada kelompok belajar/.test(t)?'empty':'populated';
+      },id) : 'shell-only or loading; expected content not observed';
+     }
+     item.pass=item.status>=200 && item.status<300 && item.expectedPathOk && item.labelVisible && (!strictContentIds.has(id)||item.contentReady);
+     if(strictContentIds.has(id)&&!item.contentReady)item.classification='shell-only or loading: expected task content not observed';
      item.textExcerpt=(await page.locator('body').innerText()).slice(0,900);
-     if(item.pass){item.screenshot=`captures/${id}-${theme}.png`; await page.screenshot({path:resolve(root,item.screenshot),animations:'disabled',style:'nextjs-portal { display: none !important; }'});}
+     if(item.pass || (strictContentIds.has(id)&&!item.contentReady)){item.screenshot=`captures/${id}-${theme}${item.pass?'':'-shell-only'}.png`; await page.screenshot({path:resolve(root,item.screenshot),animations:'disabled',style:'nextjs-portal { display: none !important; }'});}
     }else{
      item.pass=false;item.notFoundVisible=await page.getByRole('heading',{name:'404',exact:true}).waitFor({timeout:30000}).then(()=>true,()=>false);
      item.classification=item.notFoundVisible ? (item.status===404?'unseeded/missing: HTTP 404 and 404 UI':'unseeded/missing: streamed HTTP '+item.status+' and 404 UI') : 'missing fixture: 404 UI not observed';
@@ -86,7 +117,7 @@ try {
     console.log(id,theme,item.status,item.landed,item.pass ? 'PASS':item.classification ?? 'LABEL_OR_PATH_MISMATCH');
    } catch(e){item.pass=false; item.error=String(e).slice(0,500);console.log(id,theme,'ERROR',item.error.slice(0,130));}
    finally{if(ctx)await ctx.close();await save();}
-   if(!item.pass)break;
+   if(!item.pass&&!strictContentIds.has(id))break;
   }
  }
 } finally {await browser.close();await save();}

@@ -34,10 +34,9 @@ def run(args):
 
 def open_url(platform, device, url):
     if platform == "ios":
-        run(["xcrun", "simctl", "openurl", device, url])
-    else:
-        android_intent = shlex.join(["am", "start", "-W", "-a", "android.intent.action.VIEW", "-d", url, APP_ID])
-        run(["adb", "-s", device, "shell", android_intent])
+        return run(["xcrun", "simctl", "openurl", device, url])
+    android_intent = shlex.join(["am", "start", "-W", "-a", "android.intent.action.VIEW", "-d", url, APP_ID])
+    return run(["adb", "-s", device, "shell", android_intent])
 
 
 def screenshot(platform, device, scratch):

@@ -73,7 +73,7 @@ def main():
     statuses = []
     for name, (required, forbidden) in ACCESSIBILITY.items():
         output = args.output / name
-        flow = run_flow(prefix, flows / f"{name}.yaml", output, timeout=90)
+        flow = run_flow(args.platform, args.device, prefix, flows / f"{name}.yaml", output, timeout=90)
         tree, error = capture_hierarchy(prefix, output)
         labels = accessible_labels(tree) if tree else set()
         missing = [name for name in required if not any(name.casefold() in label for label in labels)]

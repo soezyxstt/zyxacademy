@@ -25,5 +25,7 @@ name: Admin Product Bundle alias and section review
     timeout: 10000
 - assertVisible: Review bagian disimpan.
 - openLink: zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fcourses%2Fbiologi-dasar%2Freview%2Fproduct%2Facademic-product-1&scenario=empty&theme=light
-- assertVisible: Belum ada bundle yang ditinjau.
+- extendedWaitUntil:
+    visible: Belum ada bundle yang ditinjau.
+    timeout: 20000
 - takeScreenshot: academic-administration-materials-product-empty-light

@@ -22,7 +22,16 @@ Tangkapan mobile menggunakan viewport 380 × 844 CSS px, DPR 1 atau 3, locale `i
 
 ## Perbandingan perangkat
 
-Workflow `.github/workflows/academic-native-evidence.yml` menjalankan job Android dan iOS secara independen dari galeri komponen. Setiap job mengambil sembilan kasus prioritas, menjalankan setiap berkas Maestro akademik dalam proses terpisah, lalu melanjutkan tangkapan 162 kasus dari manifest akademik. Penanda sesaat di kedua sudut frame memverifikasi identitas kasus dan mengukur batas konten setelah safe area. Job menyimpan frame bersih setelah dua frame konten berturut-turut sama dan menandai kasus yang gagal diverifikasi. Arsip `academic-android-evidence` dan `academic-ios-evidence` menyimpan PNG mentah, manifest rute, log, status tiap alur, dan hasil pembandingan selama tujuh hari. Job Linux menyiapkan referensi Playwright pada viewport terukur serta menyimpan referensi, selisih, dan status dalam arsip `academic-matched-viewport`.
+Workflow `.github/workflows/academic-native-evidence.yml` menjalankan job Android dan iOS secara independen dari galeri komponen. Setiap job mengambil sembilan kasus prioritas, menjalankan alur Maestro akademik, lalu melanjutkan tangkapan 162 kasus dari manifest akademik. Runner memulai proses aplikasi baru untuk setiap segmen `openLink`, membuka fixture lewat intent Android atau `simctl openurl`, lalu menjalankan segmen Maestro yang dimulai dengan pemeriksaan layar tujuan. Arsip `academic-android-evidence` dan `academic-ios-evidence` menyimpan PNG mentah, manifest rute dan interaksi, log pembukaan fixture, tangkapan Maestro, serta laporan dan status tiap segmen selama tujuh hari. Penanda sesaat pada tangkapan rute mengukur batas konten setelah safe area. Job Linux menyiapkan referensi Playwright pada viewport terukur serta menyimpan referensi, selisih, dan hasil pembandingan dalam arsip `academic-matched-viewport`.
+
+Dengan build fixture terpasang di emulator atau simulator lokal, jalankan runner dari root repositori. Gunakan `ios` dan UDID simulator untuk iOS.
+
+```sh
+python3 scripts/native-parity/academic/interactions.py android "<serial>" "$(command -v maestro)" \
+  artifacts/native-parity/academic/android/interactions
+python3 scripts/native-parity/academic/accessibility.py android "<serial>" "$(command -v maestro)" \
+  artifacts/native-parity/academic/android/accessibility
+```
 
 Folder `accessibility/` di setiap arsip berisi hierarki perangkat, screenshot, dan hasil pemeriksaan nama yang terbaca di detail peserta Tutor dan daftar kursus Admin. Alur penolakan memeriksa bahwa data kedua halaman tidak muncul dalam hierarki akun murid. Pemeriksaan TalkBack dan VoiceOver memerlukan pengujian tersendiri.
 

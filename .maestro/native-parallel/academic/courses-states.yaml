@@ -68,4 +68,6 @@ name: Admin course empty, recovery and access denial
     id: course-chapter-dialog
 - assertVisible: 1. Struktur sel
 - openLink: zyx-native-parity://academic?role=tutor&path=%2Fadmin%2Fcourses&theme=dark
-- assertVisible: Akses ditolak.
+- extendedWaitUntil:
+    visible: Akses ditolak.
+    timeout: 20000

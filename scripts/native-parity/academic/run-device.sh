@@ -14,11 +14,11 @@ priority_status=null
 accessibility_status=null
 maestro_status=null
 capture_status=null
-compare_status=null
+manifest_status=null
 
 write_status() {
-  printf '{"stage":"%s","priorityExitCode":%s,"accessibilityExitCode":%s,"interactionExitCode":%s,"captureExitCode":%s,"comparisonExitCode":%s}\n' \
-    "$stage" "$priority_status" "$accessibility_status" "$maestro_status" "$capture_status" "$compare_status" > "$output/status.json"
+  printf '{"stage":"%s","priorityExitCode":%s,"accessibilityExitCode":%s,"interactionExitCode":%s,"captureExitCode":%s,"interactionManifestExitCode":%s}\n' \
+    "$stage" "$priority_status" "$accessibility_status" "$maestro_status" "$capture_status" "$manifest_status" > "$output/status.json"
 }
 trap write_status EXIT
 write_status
@@ -84,22 +84,20 @@ else
   accessibility_status=1
 fi
 
-stage=comparison
+stage=interaction-manifest
 write_status
-compare_status=0
-python "$scripts/evaluate.py" "$output" || compare_status=$?
+manifest_status=0
+python "$scripts/evaluate.py" "$output" || manifest_status=$?
 
 stage=remaining-routes
 write_status
 capture_status=0
 python "$scripts/capture.py" "$platform" "$device" "$output/cases.json" "$output/routes" --resume || capture_status=$?
-if [[ ! -s "$output/interaction-manifest.json" ]]; then
-  stage=comparison-retry
-  write_status
-  compare_status=0
-  python "$scripts/evaluate.py" "$output" || compare_status=$?
-fi
+stage=interaction-manifest
+write_status
+manifest_status=0
+python "$scripts/evaluate.py" "$output" || manifest_status=$?
 stage=finished
-if (( accessibility_status || maestro_status || capture_status || compare_status )); then
+if (( accessibility_status || maestro_status || capture_status || manifest_status )); then
   exit 1
 fi

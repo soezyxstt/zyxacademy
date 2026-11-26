@@ -1,43 +1,12 @@
 {
   "origin": "http://127.0.0.1:3314",
-  "observedAt": "2026-11-26T11:08:22.679Z",
+  "observedAt": "2026-11-26T11:15:00.541Z",
   "viewport": {
     "width": 380,
     "height": 844,
     "dpr": 1
   },
   "entries": [
-    {
-      "id": "admin-groups",
-      "role": "admin",
-      "path": "/admin/groups",
-      "expectedPath": "/admin/groups",
-      "expectedLabel": "Kelompok Belajar",
-      "cases": [
-        {
-          "theme": "light",
-          "status": 200,
-          "landed": "/admin/groups",
-          "offOriginBlocked": [],
-          "expectedPathOk": true,
-          "labelVisible": true,
-          "pass": true,
-          "textExcerpt": "Langsung ke isi utama\nKelompok belajar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nPengguna\nKelompok\nToken\nHarga\nNotif\nKelompok Belajar\nTidak ada kelompok belajar yang sesuai dengan filter.\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-groups-light.png"
-        },
-        {
-          "theme": "dark",
-          "status": 200,
-          "landed": "/admin/groups",
-          "offOriginBlocked": [],
-          "expectedPathOk": true,
-          "labelVisible": true,
-          "pass": true,
-          "textExcerpt": "Langsung ke isi utama\nKelompok belajar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nPengguna\nKelompok\nToken\nHarga\nNotif\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-groups-dark.png"
-        }
-      ]
-    },
     {
       "id": "admin-schedules",
       "role": "admin",
@@ -411,68 +380,6 @@
       ]
     },
     {
-      "id": "tutor-quiz-grading",
-      "role": "tutor",
-      "path": "/tutor/academic-course-1/quizzes/grading",
-      "expectedPath": "/tutor/academic-course-1/quizzes/grading",
-      "expectedLabel": "Penilaian kuis",
-      "cases": [
-        {
-          "theme": "light",
-          "status": 200,
-          "landed": "/tutor/academic-course-1/quizzes/grading",
-          "offOriginBlocked": [],
-          "expectedPathOk": true,
-          "labelVisible": true,
-          "pass": true,
-          "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nPenilaian kuis\nPenilaian tryout\nPeserta\nLive\nMateri\nVideo\nBeranda\nJadwal\nDiskusi\nKelas",
-          "screenshot": "captures/tutor-quiz-grading-light.png"
-        },
-        {
-          "theme": "dark",
-          "status": 200,
-          "landed": "/tutor/academic-course-1/quizzes/grading",
-          "offOriginBlocked": [],
-          "expectedPathOk": true,
-          "labelVisible": true,
-          "pass": true,
-          "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nPenilaian kuis\nPenilaian tryout\nPeserta\nLive\nMateri\nVideo\nBeranda\nJadwal\nDiskusi\nKelas",
-          "screenshot": "captures/tutor-quiz-grading-dark.png"
-        }
-      ]
-    },
-    {
-      "id": "tutor-tryout-grading",
-      "role": "tutor",
-      "path": "/tutor/academic-course-1/grading",
-      "expectedPath": "/tutor/academic-course-1/grading",
-      "expectedLabel": "Penilaian tryout",
-      "cases": [
-        {
-          "theme": "light",
-          "status": 200,
-          "landed": "/tutor/academic-course-1/grading",
-          "offOriginBlocked": [],
-          "expectedPathOk": true,
-          "labelVisible": true,
-          "pass": true,
-          "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nPenilaian kuis\nPenilaian tryout\nPeserta\nLive\nMateri\nVideo\nBeranda\nJadwal\nDiskusi\nKelas",
-          "screenshot": "captures/tutor-tryout-grading-light.png"
-        },
-        {
-          "theme": "dark",
-          "status": 200,
-          "landed": "/tutor/academic-course-1/grading",
-          "offOriginBlocked": [],
-          "expectedPathOk": true,
-          "labelVisible": true,
-          "pass": true,
-          "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nPenilaian kuis\nPenilaian tryout\nPeserta\nLive\nMateri\nVideo\nBeranda\nJadwal\nDiskusi\nKelas",
-          "screenshot": "captures/tutor-tryout-grading-dark.png"
-        }
-      ]
-    },
-    {
       "id": "tutor-docs",
       "role": "tutor",
       "path": "/tutor/docs",
@@ -755,46 +662,6 @@
           "pass": true,
           "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nacademic-course-1\nBiologi\nSemua\nMateri\nDiktat\nSoal\nMateri PDF\nBelum ada dokumen\n\nDokumen mata kuliah ini belum tersedia.\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
           "screenshot": "captures/admin-documents-dark.png"
-        }
-      ],
-      "previousAttempts": [
-        [
-          {
-            "theme": "light",
-            "pass": false,
-            "error": "Error: browser.newContext: Target page, context or browser has been closed"
-          }
-        ]
-      ]
-    },
-    {
-      "id": "admin-analytics",
-      "role": "admin",
-      "path": "/admin/courses/biologi-dasar/analytics",
-      "expectedPath": "/admin/courses/biologi-dasar/analytics",
-      "expectedLabel": "Analitik",
-      "cases": [
-        {
-          "theme": "light",
-          "status": 200,
-          "landed": "/admin/courses/biologi-dasar/analytics",
-          "offOriginBlocked": [],
-          "expectedPathOk": true,
-          "labelVisible": true,
-          "pass": true,
-          "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nacademic-course-1\nBiologi\nTotal kuis dan simulasi\n0\nTotal pengerjaan\n0\n(Pengerjaan selesai oleh siswa)\nRata-rata nilai\n0 / 100\n(Rata-rata dari kuis terpilih)\nDianalisis\n0 / 0\nPerbarui\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-analytics-light.png"
-        },
-        {
-          "theme": "dark",
-          "status": 200,
-          "landed": "/admin/courses/biologi-dasar/analytics",
-          "offOriginBlocked": [],
-          "expectedPathOk": true,
-          "labelVisible": true,
-          "pass": true,
-          "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nacademic-course-1\nBiologi\nTotal kuis dan simulasi\n0\nTotal pengerjaan\n0\n(Pengerjaan selesai oleh siswa)\nRata-rata nilai\n0 / 100\n(Rata-rata dari kuis terpilih)\nDianalisis\n0 / 0\nPerbarui\nBeranda\nKelas\nPengguna\nOps\nLainnya",
-          "screenshot": "captures/admin-analytics-dark.png"
         }
       ],
       "previousAttempts": [
@@ -1278,6 +1145,265 @@
             "theme": "light",
             "pass": false,
             "error": "Error: browser.newContext: Target page, context or browser has been closed"
+          }
+        ]
+      ]
+    },
+    {
+      "id": "admin-groups",
+      "role": "admin",
+      "path": "/admin/groups",
+      "expectedPath": "/admin/groups",
+      "expectedLabel": "Kelompok Belajar",
+      "cases": [
+        {
+          "theme": "light",
+          "status": 200,
+          "landed": "/admin/groups",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "contentReady": true,
+          "contentState": "empty",
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nKelompok belajar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nPengguna\nKelompok\nToken\nHarga\nNotif\nKelompok Belajar\nTidak ada kelompok belajar yang sesuai dengan filter.\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-groups-light.png"
+        },
+        {
+          "theme": "dark",
+          "status": 200,
+          "landed": "/admin/groups",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "contentReady": true,
+          "contentState": "empty",
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nKelompok belajar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nPengguna\nKelompok\nToken\nHarga\nNotif\nKelompok Belajar\nTidak ada kelompok belajar yang sesuai dengan filter.\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-groups-dark.png"
+        }
+      ],
+      "previousAttempts": [
+        [
+          {
+            "theme": "light",
+            "status": 200,
+            "landed": "/admin/groups",
+            "offOriginBlocked": [],
+            "expectedPathOk": true,
+            "labelVisible": true,
+            "pass": true,
+            "textExcerpt": "Langsung ke isi utama\nKelompok belajar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nPengguna\nKelompok\nToken\nHarga\nNotif\nKelompok Belajar\nTidak ada kelompok belajar yang sesuai dengan filter.\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+            "screenshot": "captures/admin-groups-light.png"
+          },
+          {
+            "theme": "dark",
+            "status": 200,
+            "landed": "/admin/groups",
+            "offOriginBlocked": [],
+            "expectedPathOk": true,
+            "labelVisible": true,
+            "pass": true,
+            "textExcerpt": "Langsung ke isi utama\nKelompok belajar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nPengguna\nKelompok\nToken\nHarga\nNotif\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+            "screenshot": "captures/admin-groups-dark.png"
+          }
+        ]
+      ]
+    },
+    {
+      "id": "admin-analytics",
+      "role": "admin",
+      "path": "/admin/courses/biologi-dasar/analytics",
+      "expectedPath": "/admin/courses/biologi-dasar/analytics",
+      "expectedLabel": "Analitik",
+      "cases": [
+        {
+          "theme": "light",
+          "status": 200,
+          "landed": "/admin/courses/biologi-dasar/analytics",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "contentReady": true,
+          "insightsHttpStatuses": [
+            200,
+            200
+          ],
+          "contentState": "empty",
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nBiologi Dasar\nA\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nLebih\nBiologi Dasar\nacademic-course-1\nBiologi\nTotal kuis dan simulasi\n0\nTotal pengerjaan\n0\n(Pengerjaan selesai oleh siswa)\nRata-rata nilai\n0 / 100\n(Rata-rata dari kuis terpilih)\nDianalisis\n0 / 0\nSemua kategori\nPerbarui\n\nTidak ada kuis yang ditemukan\n\nBelum ada kuis untuk mata kuliah ini atau kuis tidak cocok dengan filter.\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-analytics-light.png"
+        },
+        {
+          "theme": "dark",
+          "status": 200,
+          "landed": "/admin/courses/biologi-dasar/analytics",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "contentReady": true,
+          "insightsHttpStatuses": [
+            200,
+            200
+          ],
+          "contentState": "empty",
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\nBiologi Dasar\nA\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nLebih\nBiologi Dasar\nacademic-course-1\nBiologi\nTotal kuis dan simulasi\n0\nTotal pengerjaan\n0\n(Pengerjaan selesai oleh siswa)\nRata-rata nilai\n0 / 100\n(Rata-rata dari kuis terpilih)\nDianalisis\n0 / 0\nSemua kategori\nPerbarui\n\nTidak ada kuis yang ditemukan\n\nBelum ada kuis untuk mata kuliah ini atau kuis tidak cocok dengan filter.\n\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+          "screenshot": "captures/admin-analytics-dark.png"
+        }
+      ],
+      "previousAttempts": [
+        [
+          {
+            "theme": "light",
+            "pass": false,
+            "error": "Error: browser.newContext: Target page, context or browser has been closed"
+          }
+        ],
+        [
+          {
+            "theme": "light",
+            "status": 200,
+            "landed": "/admin/courses/biologi-dasar/analytics",
+            "offOriginBlocked": [],
+            "expectedPathOk": true,
+            "labelVisible": true,
+            "pass": true,
+            "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nacademic-course-1\nBiologi\nTotal kuis dan simulasi\n0\nTotal pengerjaan\n0\n(Pengerjaan selesai oleh siswa)\nRata-rata nilai\n0 / 100\n(Rata-rata dari kuis terpilih)\nDianalisis\n0 / 0\nPerbarui\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+            "screenshot": "captures/admin-analytics-light.png"
+          },
+          {
+            "theme": "dark",
+            "status": 200,
+            "landed": "/admin/courses/biologi-dasar/analytics",
+            "offOriginBlocked": [],
+            "expectedPathOk": true,
+            "labelVisible": true,
+            "pass": true,
+            "textExcerpt": "Langsung ke isi utama\nbiologi-dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nBab\nDokumen\nVideo\nKuis\nTryout\nSoal\nFlashcard\nHasil\nPeringkat\nAnalitik\nReview\nPengaturan\nBiologi Dasar\nacademic-course-1\nBiologi\nTotal kuis dan simulasi\n0\nTotal pengerjaan\n0\n(Pengerjaan selesai oleh siswa)\nRata-rata nilai\n0 / 100\n(Rata-rata dari kuis terpilih)\nDianalisis\n0 / 0\nPerbarui\nBeranda\nKelas\nPengguna\nOps\nLainnya",
+            "screenshot": "captures/admin-analytics-dark.png"
+          }
+        ]
+      ]
+    },
+    {
+      "id": "tutor-quiz-grading",
+      "role": "tutor",
+      "path": "/tutor/academic-course-1/quizzes/grading",
+      "expectedPath": "/tutor/academic-course-1/quizzes/grading",
+      "expectedLabel": "Penilaian kuis",
+      "cases": [
+        {
+          "theme": "light",
+          "status": 200,
+          "landed": "/tutor/academic-course-1/quizzes/grading",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "contentReady": true,
+          "contentState": "empty",
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nT\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nLebih\nMenampilkan 0 antrean\n\nTidak ada kuis yang menunggu penilaian\n\nTidak ada esai yang menunggu penilaian.\n\nBeranda\nJadwal\nDiskusi\nKelas",
+          "screenshot": "captures/tutor-quiz-grading-light.png"
+        },
+        {
+          "theme": "dark",
+          "status": 200,
+          "landed": "/tutor/academic-course-1/quizzes/grading",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "contentReady": true,
+          "contentState": "empty",
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nT\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nLebih\nMenampilkan 0 antrean\n\nTidak ada kuis yang menunggu penilaian\n\nTidak ada esai yang menunggu penilaian.\n\nBeranda\nJadwal\nDiskusi\nKelas",
+          "screenshot": "captures/tutor-quiz-grading-dark.png"
+        }
+      ],
+      "previousAttempts": [
+        [
+          {
+            "theme": "light",
+            "status": 200,
+            "landed": "/tutor/academic-course-1/quizzes/grading",
+            "offOriginBlocked": [],
+            "expectedPathOk": true,
+            "labelVisible": true,
+            "pass": true,
+            "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nPenilaian kuis\nPenilaian tryout\nPeserta\nLive\nMateri\nVideo\nBeranda\nJadwal\nDiskusi\nKelas",
+            "screenshot": "captures/tutor-quiz-grading-light.png"
+          },
+          {
+            "theme": "dark",
+            "status": 200,
+            "landed": "/tutor/academic-course-1/quizzes/grading",
+            "offOriginBlocked": [],
+            "expectedPathOk": true,
+            "labelVisible": true,
+            "pass": true,
+            "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nPenilaian kuis\nPenilaian tryout\nPeserta\nLive\nMateri\nVideo\nBeranda\nJadwal\nDiskusi\nKelas",
+            "screenshot": "captures/tutor-quiz-grading-dark.png"
+          }
+        ]
+      ]
+    },
+    {
+      "id": "tutor-tryout-grading",
+      "role": "tutor",
+      "path": "/tutor/academic-course-1/grading",
+      "expectedPath": "/tutor/academic-course-1/grading",
+      "expectedLabel": "Penilaian tryout",
+      "cases": [
+        {
+          "theme": "light",
+          "status": 200,
+          "landed": "/tutor/academic-course-1/grading",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "contentReady": true,
+          "contentState": "empty",
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nT\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nLebih\nPenilaian tryout: Biologi Dasar\nPerlu dinilai\n0\nLebih\n\nSemua tugas telah dinilai\n\nBeranda\nJadwal\nDiskusi\nKelas",
+          "screenshot": "captures/tutor-tryout-grading-light.png"
+        },
+        {
+          "theme": "dark",
+          "status": 200,
+          "landed": "/tutor/academic-course-1/grading",
+          "offOriginBlocked": [],
+          "expectedPathOk": true,
+          "labelVisible": true,
+          "contentReady": true,
+          "contentState": "empty",
+          "pass": true,
+          "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nT\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nLebih\nPenilaian tryout: Biologi Dasar\nPerlu dinilai\n0\nLebih\n\nSemua tugas telah dinilai\n\nBeranda\nJadwal\nDiskusi\nKelas",
+          "screenshot": "captures/tutor-tryout-grading-dark.png"
+        }
+      ],
+      "previousAttempts": [
+        [
+          {
+            "theme": "light",
+            "status": 200,
+            "landed": "/tutor/academic-course-1/grading",
+            "offOriginBlocked": [],
+            "expectedPathOk": true,
+            "labelVisible": true,
+            "pass": true,
+            "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nPenilaian kuis\nPenilaian tryout\nPeserta\nLive\nMateri\nVideo\nBeranda\nJadwal\nDiskusi\nKelas",
+            "screenshot": "captures/tutor-tryout-grading-light.png"
+          },
+          {
+            "theme": "dark",
+            "status": 200,
+            "landed": "/tutor/academic-course-1/grading",
+            "offOriginBlocked": [],
+            "expectedPathOk": true,
+            "labelVisible": true,
+            "pass": true,
+            "textExcerpt": "Langsung ke isi utama\n∑\n∫\nπ\n∇\nφ\n∞\nΔ\n∂\nλ\nBiologi Dasar\nCari di seluruh Zyx\nTarik untuk memuat ulang\nRingkasan\nKuis\nPenilaian kuis\nPenilaian tryout\nPeserta\nLive\nMateri\nVideo\nBeranda\nJadwal\nDiskusi\nKelas",
+            "screenshot": "captures/tutor-tryout-grading-dark.png"
           }
         ]
       ]

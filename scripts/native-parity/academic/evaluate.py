@@ -1,4 +1,4 @@
-"""Use measured native geometry to compare the vetted Maestro screenshot subset."""
+"""Record measured native geometry for the matched-viewport comparison job."""
 
 import argparse
 from collections import Counter
@@ -33,29 +33,20 @@ def main():
         (output / "comparison-status.json").write_text(json.dumps(status, indent=2) + "\n")
         return 1
     tests = Path("tests/visual/native-parallel/academic")
-    device = output / "interaction-manifest.json"
     prepared = subprocess.run([
-        sys.executable, str(tests / "device-manifest.py"), str(output / "interactions"), str(device),
+        sys.executable, str(tests / "device-manifest.py"), str(output / "interactions"), str(output / "interaction-manifest.json"),
         "--platform", report["platform"], "--device", report.get("device", report["platform"]),
         "--revision", report["revision"], "--dpr", str(dpr), "--viewport", str(width // dpr), str(height // dpr),
         "--bounds", str(x), str(y), str(width), str(height),
     ]).returncode
-    compared = None
-    if prepared == 0:
-        reference = tests / "web" / f"dpr{dpr}" / "manifest.json"
-        if reference.is_file():
-            compared = subprocess.run([
-                sys.executable, str(tests / "compare.py"), str(reference), str(device), str(output / "diffs"),
-            ]).returncode
     status = {
-        "status": "passed" if compared == 0 else "unverified" if compared is None else "differences-or-missing-cases",
+        "status": "ready" if prepared == 0 else "unverified",
         "manifestExitCode": prepared,
-        "comparisonExitCode": compared,
         "bounds": {"x": x, "y": y, "width": width, "height": height},
         "contentViewport": {"width": width // dpr, "height": height // dpr},
     }
     (output / "comparison-status.json").write_text(json.dumps(status, indent=2) + "\n")
-    return 0 if compared == 0 else 1
+    return prepared
 
 
 if __name__ == "__main__":
