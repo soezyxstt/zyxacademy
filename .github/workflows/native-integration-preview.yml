@@ -15,12 +15,17 @@ on:
       - 'scripts/native-parity/capture-*.sh'
       - '.maestro/native-integration/**'
       - '.github/workflows/native-integration-preview.yml'
+      - '.github/workflows/native-authenticated-preview.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
+  authenticated-session:
+    if: github.head_ref == 'soezyxst/react-native-monorepo' || (github.event_name == 'workflow_dispatch' && github.ref_name == 'soezyxst/react-native-monorepo')
+    uses: ./.github/workflows/native-authenticated-preview.yml
+
   combined-native:
     if: github.head_ref == 'soezyxst/react-native-monorepo' || (github.event_name == 'workflow_dispatch' && github.ref_name == 'soezyxst/react-native-monorepo')
     concurrency:
