@@ -288,8 +288,8 @@ export function NavigationTabs<Id extends string>({
 }: NavigationTabsProps<Id>) {
   const systemTheme = useColorScheme();
   const resolvedTheme = theme ?? systemTheme ?? "light";
-  const colors = nativeColors[resolvedTheme];
-  const indicatorColor = activeIndicatorColor ?? colors.primary;
+  const palette = nativeColors[resolvedTheme];
+  const colors = { ...palette, primary: activeIndicatorColor ?? palette.primary };
   const moreRef = useRef<ComponentRef<typeof Pressable>>(null);
   const [availableWidth, setAvailableWidth] = useState(0);
   const [trailingWidth, setTrailingWidth] = useState(0);
@@ -356,7 +356,7 @@ export function NavigationTabs<Id extends string>({
             testID={testID ? `${testID}-${tab.id}` : undefined}
             style={({ pressed }) => [
               styles.tabControl,
-              { borderBottomColor: tab.id === activeId ? indicatorColor : "transparent",
+              { borderBottomColor: tab.id === activeId ? colors.primary : "transparent",
                 backgroundColor: pressed ? `${colors.muted}66` : undefined },
               tab.disabled && styles.disabled,
             ]}
@@ -381,7 +381,7 @@ export function NavigationTabs<Id extends string>({
                 styles.tabControl,
                 styles.moreTab,
                 {
-                  borderBottomColor: activeInOverflow ? indicatorColor : "transparent",
+                  borderBottomColor: activeInOverflow ? colors.primary : "transparent",
                   backgroundColor: pressed ? `${colors.muted}66` : undefined,
                 },
               ]}
