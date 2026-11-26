@@ -314,9 +314,6 @@ export function OfflineReadingLibrary() {
                   data-section-slug={section.slug}
                   className="space-y-(--compact-gap) border-t border-border/60 pt-(--section-gap) first:border-t-0 first:pt-0"
                 >
-                  <h2 className="font-heading text-body-base font-bold text-foreground">
-                    {section.title}
-                  </h2>
                   <StructuredArticleSectionContent
                     section={section}
                     articleId={activeRecord.article!.id}

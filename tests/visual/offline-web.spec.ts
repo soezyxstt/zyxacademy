@@ -56,6 +56,7 @@ for (const theme of ["light", "dark"] as const) test(`web offline library, reade
   await capture(page, info, `offline-web-course-${theme}`, failures);
   await page.locator("li").filter({ hasText: "Limit fungsi" }).getByRole("button", { name: "Buka", exact: true }).click();
   await expect(page.locator("article .katex").first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Mendekati suatu nilai", exact: true })).toHaveCount(1);
   await capture(page, info, `offline-web-reader-${theme}`, failures);
   await page.evaluate(() => window.__offlineWebControls.updateReading());
   await expect(page.getByRole("button", { name: "Buka versi baru", exact: true })).toBeVisible();
