@@ -4,7 +4,7 @@ import { NextRequest } from "next/server";
 import { eq } from "drizzle-orm";
 import { createPostgresTestDb } from "../helpers/postgres";
 import { PERAN_SEEDS } from "../../lib/auth/peran";
-import { blogArticles, penggunaPeran, peran, user } from "../../db/schema";
+import { blogArticles, customFormPresets, penggunaPeran, peran, user } from "../../db/schema";
 const { client, testDb } = await createPostgresTestDb();
 let current = null,
   googleCalls = 0;
@@ -49,6 +49,7 @@ try {
       "articles",
       "article",
       "form-presets",
+      "form-preset",
       "pricing",
       "discussions",
       "discussion",
@@ -92,7 +93,23 @@ try {
   await check("article", 404, "absent");
   await check("article", 400);
   await check("article", 400, "x/y");
-  assert.deepEqual(await check("form-presets", 200), []);
+  assert.deepEqual(await check("form-presets", 200), { items: [] });
+  const preset = {
+    id: "synth-preset", name: "Preset sintetis", description: "Deskripsi lengkap", category: "survey",
+    questions: [{ title: "Topik?", type: "RADIO", options: ["Materi"] }], settings: { displayMode: "section" },
+  };
+  await testDb.insert(customFormPresets).values(preset);
+  assert.deepEqual(await check("form-presets", 200), {
+    items: [{ id: preset.id, name: preset.name, category: preset.category, hasSettings: true }],
+  });
+  const detail = await check("form-preset", 200, preset.id);
+  assert.deepEqual(detail.questions, preset.questions);
+  assert.deepEqual(detail.settings, preset.settings);
+  assert.equal(detail.description, preset.description);
+  assert.match(detail.revision, /^[a-f0-9]{64}$/);
+  await check("form-preset", 403, preset.id, "other");
+  await check("form-preset", 404, "absent");
+  await check("form-preset", 400);
   const p = await check("pricing", 200);
   assert.ok(p.discounts.platform);
   assert.deepEqual(p.vouchers, []);
