@@ -132,8 +132,8 @@ jobs:
       - name: Install contracts from the combined product tree
         id: install
         run: bun install --frozen-lockfile
-      - name: Host inbox recipient reads and acknowledgements
-        run: bun scripts/test-contracts.ts tests/contracts/notifications-history.test.ts
+      - name: Host inbox and device push recipient isolation
+        run: bun scripts/test-contracts.ts tests/contracts/notifications-history.test.ts tests/contracts/notification-device-sessions.test.ts
       - name: Offline authorization, cursors and revocation
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: bun scripts/test-contracts.ts tests/contracts/offline-server-sync.test.ts
