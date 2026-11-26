@@ -75,10 +75,10 @@ export function Copy({ children, heading = false, muted = false, level, style }:
   );
 }
 
-export function Body({ source }: { source: string }) {
+export function Body({ source, centered = false }: { source: string; centered?: boolean }) {
   return (
     <View style={styles.body}>
-      {source.split(/\n\s*\n/).filter(Boolean).map((paragraph, index) => <Copy key={index} style={{ lineHeight: 23 }}>{paragraph}</Copy>)}
+      {source.split(/\n\s*\n/).filter(Boolean).map((paragraph, index) => <Copy key={index} style={{ lineHeight: 23, textAlign: centered ? "center" : undefined }}>{paragraph}</Copy>)}
     </View>
   );
 }

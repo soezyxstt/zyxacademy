@@ -70,7 +70,7 @@ async function readCourse(options: {
       const difficulty = card.metadata && typeof card.metadata === "object" && "recallDifficulty" in card.metadata
         ? card.metadata.recallDifficulty : null;
       return { id: card.id, front: card.front, back: card.back, explanation: card.explanation ?? null, dueStatus, priorityReason,
-        recallDifficulty: typeof difficulty === "string" ? difficulty : null };
+        recallDifficulty: typeof difficulty === "number" && Number.isFinite(difficulty) ? difficulty : null };
     }) };
   }
   const access = await resolveCourseAccess({ courseId, userId });

@@ -10,7 +10,7 @@ const longTitle = "Limit fungsi aljabar dengan pendekatan tabel nilai dan pembuk
 const schedule: PkaSchedule = { id: "session-1", title: "Pembahasan fungsi limit", sessionAt: "2026-07-21T08:00:00.000Z", isPast: true, meetLink: null };
 const upcoming: PkaSchedule = { id: "session-2", title: "Latihan Matematika terarah", sessionAt: "2026-07-22T08:00:00.000Z", isPast: false, meetLink: "https://meet.google.com/abc-defg-hij" };
 const card: Flashcard = { id: "card-1", front: "Kapan lim x → a f(x) ada?", back: "Ketika limit dari kiri dan kanan sama.",
-  explanation: "Nilai fungsi di a dapat berbeda dari limitnya.", dueStatus: "new", priorityReason: "new", recallDifficulty: "beginner" };
+  explanation: "Nilai fungsi di a dapat berbeda dari limitnya.", dueStatus: "new", priorityReason: "Kartu baru", recallDifficulty: 2 };
 const simulation = { id: "pka-fixture-quiz", title: "Matematika, tahap satu", timeLimitSeconds: null, stage: { subject: "matematika", number: 1 } } as const;
 
 const stageAssessmentPath = `/api/native/student/assessment/tutorial-pka/quiz/${simulation.id}`;

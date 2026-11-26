@@ -9,6 +9,12 @@ import { Body, Copy, Message, Progress, Section, english, postJson, readJson, Re
 
 const batchSize = 10;
 const gradeLabels = ["again", "hard", "understood", "easy"];
+const reasonLabels: Record<string, string> = {
+  "Tanpa pemetaan Idea": "reasonUnmapped",
+  "Perlu dikuasai": "reasonMastery",
+  "Kartu baru": "reasonNew",
+  "Waktunya mengulang": "reasonDue",
+};
 
 export function FlashcardsContent({ cards, props, t, reload }: { cards: Flashcard[]; props: StudentScreenProps; t: Translate; reload: () => void }) {
   const [queue, setQueue] = useState(cards);
@@ -35,7 +41,7 @@ export function FlashcardsContent({ cards, props, t, reload }: { cards: Flashcar
   const reset = () => {
     setAnswer(""); setFlipped(false); setChecked(null); setFailure(null);
   };
-  const render = (source: string) => props.renderAssessmentMarkdown?.(source, courseId) ?? <Body source={source} />;
+  const render = (source: string, centered = false) => props.renderAssessmentMarkdown?.(source, courseId) ?? <Body source={source} centered={centered} />;
   const check = () => {
     const normalize = (value: string) => value.toLowerCase().trim().replace(/[^\w\s]/g, " ").replace(/\s+/g, " ").trim();
     if (!card || !answer.trim()) { setFailure("answer"); return; }
@@ -46,7 +52,7 @@ export function FlashcardsContent({ cards, props, t, reload }: { cards: Flashcar
     setFlipped(true);
   };
   const grade = async (value: number) => {
-    if (!card || !flipped || busy.current || failure === "uncertain") return;
+    if (!card || (!flipped && checked === null) || busy.current || failure === "uncertain") return;
     busy.current = true;
     setPending(true);
     setFailure(null);
@@ -75,6 +81,10 @@ export function FlashcardsContent({ cards, props, t, reload }: { cards: Flashcar
       <Button variant="outline" style={styles.action} onPress={() => props.navigate(courseHref(courseId))}>{label("backToOverview")}</Button>
     </Section>;
   }
+  const reason = reasonLabels[card.priorityReason] ? label(reasonLabels[card.priorityReason]) : card.priorityReason;
+  const flipLabel = label(flipped ? "flipToQuestion" : "flipCard");
+  const allowFlip = mode === "standard" || checked !== null;
+  const flip = () => { void hapticSelection(); setFlipped(!flipped); };
   return <>
     <Section>
       <Copy muted>{label("sessionProgress", { session, total, current: index + 1, count: batchLength, all: queue.length })}</Copy>
@@ -85,23 +95,28 @@ export function FlashcardsContent({ cards, props, t, reload }: { cards: Flashcar
           onPress={() => { void hapticSelection(); setMode(option); reset(); }}>{label(option === "standard" ? "standard" : "typeAnswer")}</Button>)}
       </View>
     </Section>
-    <Pressable accessibilityRole="button" accessibilityLabel={label(flipped ? "flipToQuestion" : "flipCard")}
-      disabled={pending || failure === "uncertain" || (mode === "exam" && checked === null)} onPress={() => { void hapticSelection(); setFlipped(!flipped); }}
-      style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 10, minHeight: 148, padding: 16, gap: 10 }}>
-      <Copy muted>{label(flipped ? "answer" : "question")}</Copy>
-      {render(flipped ? card.back : card.front)}
+    {card.dueStatus === "review" ? <Copy muted>{label("dueForReview")}</Copy> : null}
+    <Pressable accessible={false} disabled={pending || failure === "uncertain" || !allowFlip} onPress={flip}
+      style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 10, minHeight: 256, padding: 16, gap: 10, justifyContent: "space-between" }}>
+      <View style={styles.rowMain}>
+        <Copy>{flipped ? label("answer") : reason}</Copy>
+        <Copy muted>{flipped && card.recallDifficulty !== null ? label("recallLevel", { level: card.recallDifficulty }) : label(flipped ? "details" : "question")}</Copy>
+      </View>
+      {render(flipped ? card.back : card.front, true)}
       {flipped && card.explanation ? <Section title={label("details")}>{render(card.explanation)}</Section> : null}
+      {allowFlip ? <Button variant="ghost" style={{ ...styles.action, alignSelf: "center" }} disabled={pending || failure === "uncertain"}
+        onPress={(event) => { event.stopPropagation(); flip(); }}>{flipLabel}</Button> : null}
     </Pressable>
-    {mode === "exam" && checked === null ? <Section>
+    {mode === "exam" ? <Section>
+      {checked !== null ? <Copy>{label(checked ? "correctMatch" : "incorrect")}</Copy> : null}
       <Input accessibilityLabel={label("yourAnswer")} placeholder={label("answerPlaceholder")} value={answer} onChangeText={setAnswer}
-        onSubmitEditing={check} maxLength={4000} style={styles.field} />
-      <Button onPress={check} style={styles.action}>{label("check")}</Button>
+        onSubmitEditing={check} disabled={checked !== null || pending} maxLength={4000} style={styles.field} />
+      <Button onPress={checked === null ? check : reset} disabled={pending || failure === "uncertain"} style={styles.action}>{label(checked === null ? "check" : "tryAgain")}</Button>
     </Section> : null}
-    {checked !== null ? <Copy>{label(checked ? "correctMatch" : "incorrect")}</Copy> : null}
-    {flipped ? <View style={styles.wrap}>
+    {flipped || checked !== null ? <View style={styles.wrap}>
       {gradeLabels.map((key, index) => <Button key={key} onPress={() => void grade(index + 1)} style={styles.action}
-        variant={index === 2 ? "default" : "outline"} disabled={pending || failure === "uncertain"}>{label(key)}</Button>)}
-    </View> : mode === "standard" ? <Button variant="outline" style={styles.action} onPress={() => setFlipped(true)} disabled={failure === "uncertain"}>{label("flipCard")}</Button> : null}
+        variant={index === 0 ? "destructive" : index === 2 ? "default" : "outline"} disabled={pending || failure === "uncertain"}>{label(key)}</Button>)}
+    </View> : null}
     {queue.length - position > 1 ? <Button variant="ghost" style={styles.action} disabled={pending || failure === "uncertain"} onPress={() => {
       setQueue((current) => [...current.slice(0, position), ...current.slice(position + 1), card]); reset();
     }}>{label("skip")}</Button> : null}

@@ -70,7 +70,7 @@ export type Flashcard = {
   explanation: string | null;
   dueStatus: "new" | "review";
   priorityReason: string;
-  recallDifficulty: string | null;
+  recallDifficulty: number | null;
 };
 
 export type CourseVideo = {
