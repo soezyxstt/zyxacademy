@@ -14,6 +14,7 @@ import { getLegacyMasteryReadModel } from "@/lib/student/legacy-mastery-read";
 import { acknowledgeNativePkaAnnouncement, readNativePkaLearning } from "@/lib/student/native-pka-learning";
 import { courseHref, type CourseLearningView, type LearningData } from "@/packages/native-parity/student/learning/contracts";
 import { requireNativeStudent } from "../_session";
+import { readNativeStudentJson } from "../_request";
 
 const key = z.string().trim().min(1).max(256).refine((value) => value !== "." && value !== ".." && !/[\/\\\u0000-\u001f]/.test(value));
 const localeQuery = { locale: z.string().max(32).optional() };
@@ -124,7 +125,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const session = await requireNativeStudent(request);
   if (session instanceof Response) return session;
-  const parsed = inputSchema.safeParse(await request.json().catch(() => null));
+  const parsed = inputSchema.safeParse(await readNativeStudentJson(request).catch(() => null));
   if (!parsed.success) return json({ error: "Invalid learning request" }, 400);
   const input = parsed.data;
   try {

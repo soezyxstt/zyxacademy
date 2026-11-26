@@ -164,3 +164,12 @@ export function externalVideoPath(path: string | null) {
   const id = path.slice("youtube/".length);
   return /^[A-Za-z0-9_-]{11}$/.test(id) ? `https://www.youtube.com/watch?v=${id}` : null;
 }
+
+export function isFlashcardReviewReceipt(value: unknown) {
+  if (!value || typeof value !== "object") return false;
+  const receipt = value as Record<string, unknown>;
+  return typeof receipt.nextReviewDue === "string" && Number.isFinite(Date.parse(receipt.nextReviewDue))
+    && typeof receipt.nextIntervalDays === "number" && Number.isFinite(receipt.nextIntervalDays) && receipt.nextIntervalDays >= 0
+    && typeof receipt.nextBox === "number" && Number.isInteger(receipt.nextBox) && receipt.nextBox >= 0
+    && (receipt.examInputPassed === undefined || typeof receipt.examInputPassed === "boolean");
+}

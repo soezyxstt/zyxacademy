@@ -1,6 +1,6 @@
 # Pembelajaran Student di Expo
 
-Status implementasi lokal. `LearningScreen` menerima sesi, transport, navigasi, renderer Markdown, dan pembuka browser dari entry Student. `createLearningFixtureRequest` menyediakan data sintetis untuk rute belajar, dan `learningFixtureCases` menetapkan tiga kasus untuk masing-masing 17 pola rute. Fixture materi PKA memakai layanan fixture kursus. [Entry Expo](../../../../apps/mobile-native/features/student/learning/index.tsx) · [Kontrak](contracts.ts) · [Fixture](fixtures.ts)
+Status implementasi lokal. `LearningScreen` menerima sesi, transport, navigasi, renderer Markdown, dan pembuka browser dari entry Student. `createLearningFixtureRequest` menyediakan data sintetis untuk rute belajar, dan `learningFixtureCases` menetapkan tiga kasus untuk masing-masing 17 pola rute. Fixture materi PKA memakai layanan fixture kursus. Skenario tahap PKA memakai kontrak assessment untuk mulai, menjawab, mengirim, dan membuka skor. [Entry Expo](../../../../apps/mobile-native/features/student/learning/index.tsx) · [Kontrak](contracts.ts) · [Fixture](fixtures.ts)
 
 ## Operasi dan pemilik
 

@@ -1,3 +1,4 @@
+import type { AssessmentPage, AssessmentQuestion, AssessmentResult, AssessmentRow } from "../assessment/contract";
 import { learningApi, learningLiveJoinApi, learningRouteViews, liveHostPattern, PKA_PATH, type Flashcard, type LearningData, type LearningView, type PkaSchedule, type StudyPathData } from "./contracts";
 
 export type LearningFixtureScenario = "enrolled" | "empty" | "no-enrollment" | "revoked" | "offline" | "long";
@@ -10,9 +11,57 @@ const schedule: PkaSchedule = { id: "session-1", title: "Pembahasan fungsi limit
 const upcoming: PkaSchedule = { id: "session-2", title: "Latihan Matematika terarah", sessionAt: "2026-07-22T08:00:00.000Z", isPast: false, meetLink: "https://meet.google.com/abc-defg-hij" };
 const card: Flashcard = { id: "card-1", front: "Kapan lim x → a f(x) ada?", back: "Ketika limit dari kiri dan kanan sama.",
   explanation: "Nilai fungsi di a dapat berbeda dari limitnya.", dueStatus: "new", priorityReason: "new", recallDifficulty: "beginner" };
-const simulation = { id: "pka-fixture-quiz", title: "Matematika, tahap satu", timeLimitSeconds: 1800, stage: { subject: "matematika", number: 1 } } as const;
+const simulation = { id: "pka-fixture-quiz", title: "Matematika, tahap satu", timeLimitSeconds: null, stage: { subject: "matematika", number: 1 } } as const;
 
-function payload(view: LearningView, url: URL, scenario: LearningFixtureScenario, removedAnnouncements: Set<string>, reviewedCards: Set<string>): LearningData | null {
+const stageAssessmentPath = `/api/native/student/assessment/tutorial-pka/quiz/${simulation.id}`;
+const stageDraft = "pka-attempt-draft";
+const stageComplete = "pka-attempt-complete";
+const stageQuestions: AssessmentQuestion[] = [
+  { id: "pka-limit", type: "multiple_choice", prompt: "Berapakah nilai limit fungsi f(x) = 2x ketika x mendekati 3?", options: ["3", "5", "6"] },
+  { id: "pka-sequence", type: "short_answer", prompt: "Tulis bilangan berikutnya pada barisan 2, 4, 6.", options: [] },
+];
+
+export function isPkaLearningFixturePath(path: string) {
+  const pathname = path.split("?", 1)[0];
+  return pathname === stageAssessmentPath || pathname.startsWith(`${stageAssessmentPath}/`);
+}
+
+function assessmentResult(id: string): AssessmentResult {
+  return { id, assessmentId: simulation.id, assessmentTitle: simulation.title, kind: "quiz", status: "completed", score: 75, submittedAt: "2026-07-21T08:00:00.000Z" };
+}
+
+function pkaAssessmentFixture(url: URL, init: RequestInit | undefined, completed: Set<string>, started: { value: boolean }, scenario: LearningFixtureScenario) {
+  if (scenario === "no-enrollment" || scenario === "revoked") return json({ error: "Course access denied" }, 403);
+  const path = url.pathname;
+  if (init?.method === "POST") {
+    if (path === stageAssessmentPath) {
+      started.value = true;
+      return json({ attemptId: stageDraft, templateId: simulation.id });
+    }
+    if (path === `${stageAssessmentPath}/attempt/${stageDraft}`) {
+      completed.add(stageDraft);
+      return json({ attemptId: stageDraft, status: "completed" });
+    }
+  }
+  const id = url.searchParams.get("attemptId");
+  const assessment: AssessmentRow = { id: simulation.id, title: simulation.title, category: "simulation", availability: "open", durationSeconds: null,
+    questionCount: stageQuestions.length, openAt: null, closeAt: null, maxAttempts: 3, attempts: started.value ? 1 : 0,
+    activeAttemptId: started.value && !completed.has(stageDraft) ? stageDraft : undefined };
+  if (path === stageAssessmentPath) {
+    return json({ kind: "quiz-detail", courseTitle: pkaTitle, assessment, history: [], review: null,
+      player: id === stageDraft && !completed.has(stageDraft) ? { questions: stageQuestions, answers: {}, startAt: null,
+        durationSeconds: null, closeAt: null, canGoBack: true, requireAllAnswered: false, perQuestionSeconds: null } : null,
+    } satisfies AssessmentPage);
+  }
+  const summaryId = path.slice(`${stageAssessmentPath}/summary/`.length);
+  if (path.startsWith(`${stageAssessmentPath}/summary/`) && completed.has(summaryId)) {
+    return json({ kind: "summary", courseTitle: pkaTitle, result: assessmentResult(summaryId), discussionAvailable: false,
+      analytics: { status: "not_available", computedMetrics: null, aiDiagnosis: null } } satisfies AssessmentPage);
+  }
+  return json({ error: "Assessment unavailable" }, 404);
+}
+
+function payload(view: LearningView, url: URL, scenario: LearningFixtureScenario, removedAnnouncements: Set<string>, reviewedCards: Set<string>, stageResults: Set<string>): LearningData | null {
   const pka = view.startsWith("pka-");
   const courseTitle = pka ? pkaTitle : sampleCourse;
   const enrolled = scenario !== "no-enrollment" && scenario !== "revoked";
@@ -58,10 +107,12 @@ function payload(view: LearningView, url: URL, scenario: LearningFixtureScenario
       const stage = Number(url.searchParams.get("stage")) as 1 | 2 | 3;
       const attemptId = url.searchParams.get("attemptId");
       if (![1, 2, 3].includes(stage) || !["matematika", "fisika", "kimia"].includes(url.searchParams.get("subject") ?? "")) return null;
-      if (attemptId && !["pka-attempt-complete", "pka-attempt-draft"].includes(attemptId)) return null;
-      return { ...ready, view, template: simulation, stage: { stage, bestScore: null, passed: null, attemptId: null, quizTemplateId: simulation.id,
-        passScoreThreshold: 70, status: stage > 1 ? "locked" : "unlocked" },
-        attempt: !attemptId || stage > 1 ? null : { id: attemptId, templateId: simulation.id, status: attemptId === "pka-attempt-complete" ? "completed" : "in_progress", score: attemptId === "pka-attempt-complete" ? 75 : null } };
+      if (attemptId && attemptId !== stageDraft && attemptId !== stageComplete) return null;
+      const passed = stageResults.has(stageDraft);
+      return { ...ready, view, template: simulation, stage: { stage, bestScore: stage === 1 && passed ? 75 : null,
+        passed: stage === 1 && passed ? true : null, attemptId: stage === 1 && passed ? stageDraft : null, quizTemplateId: simulation.id,
+        passScoreThreshold: 70, status: stage > 1 ? (passed ? "skipped" : "locked") : passed ? "completed" : "unlocked" },
+        attempt: !attemptId || stage > 1 ? null : { id: attemptId, templateId: simulation.id, status: stageResults.has(attemptId) ? "completed" : "in_progress", score: stageResults.has(attemptId) ? 75 : null } };
     }
   }
   return null;
@@ -80,6 +131,8 @@ export function createLearningFixtureRequest(scenario: LearningFixtureScenario =
   const removedAnnouncements = new Set<string>();
   const reviewedCards = new Set<string>();
   const failedReads = new Set<string>();
+  const stageResults = new Set([stageComplete]);
+  const stageStarted = { value: false };
   return async (path, init) => {
     if (init?.signal?.aborted) throw new Error("Request aborted");
     if (scenario === "offline" && !failedReads.has(path)) {
@@ -88,6 +141,7 @@ export function createLearningFixtureRequest(scenario: LearningFixtureScenario =
     }
     const url = new URL(path, "https://student.fixture.invalid");
     const fail = (status = 404) => json({ error: "Unavailable" }, status);
+    if (isPkaLearningFixturePath(path)) return pkaAssessmentFixture(url, init, stageResults, stageStarted, scenario);
     if (url.pathname === learningApi) {
       if (init?.method === "POST") {
         const body = JSON.parse(String(init.body ?? "{}"));
@@ -103,7 +157,7 @@ export function createLearningFixtureRequest(scenario: LearningFixtureScenario =
         return fail(400);
       }
       const view = url.searchParams.get("view") as LearningView;
-      const data = payload(view, url, scenario, removedAnnouncements, reviewedCards);
+      const data = payload(view, url, scenario, removedAnnouncements, reviewedCards, stageResults);
       return data ? json(data) : fail();
     }
     if (url.pathname === "/api/student/study-path") {

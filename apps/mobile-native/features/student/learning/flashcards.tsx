@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Pressable, View } from "react-native";
-import { courseHref, learningApi, type Flashcard } from "../../../../../packages/native-parity/student/learning/contracts";
+import { courseHref, isFlashcardReviewReceipt, learningApi, type Flashcard } from "../../../../../packages/native-parity/student/learning/contracts";
 import { Button } from "../../../components/Button";
 import { Input } from "../../../components/Input";
 import { hapticSelection } from "../../../device/haptics";
@@ -51,8 +51,9 @@ export function FlashcardsContent({ cards, props, t, reload }: { cards: Flashcar
     setPending(true);
     setFailure(null);
     try {
-      await readJson(props.request, learningApi, postJson({ action: "flashcard-review", courseId, flashcardId: card.id,
+      const receipt = await readJson<unknown>(props.request, learningApi, postJson({ action: "flashcard-review", courseId, flashcardId: card.id,
         grade: value, isExamMode: mode === "exam", manualAnswer: mode === "exam" ? answer : undefined }));
+      if (!isFlashcardReviewReceipt(receipt)) throw new Error("Invalid flashcard receipt");
       if (value === 1) setQueue((current) => [...current, { ...card, dueStatus: "review" }]);
       void hapticSelection();
       setCompleted((current) => current + 1);

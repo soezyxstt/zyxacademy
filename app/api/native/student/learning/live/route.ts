@@ -6,6 +6,7 @@ import { env } from "@/lib/env";
 import { mintStudentLiveJoin } from "@/lib/live-student-join";
 import { resolveCourseAccess } from "@/lib/student/course-access";
 import { requireNativeStudent } from "../../_session";
+import { readNativeStudentJson } from "../../_request";
 
 const joinSchema = z.object({ code: z.string().trim().length(6), courseId: z.string().trim().min(1).max(256) }).strict();
 const json = (body: unknown, status: number) => Response.json(body, { status, headers: { "Cache-Control": "private, no-store" } });
@@ -14,7 +15,7 @@ export async function POST(request: Request) {
   if (env.FEATURE_LIVE !== "1" || !env.NEXT_PUBLIC_REALTIME_URL) return json({ error: "Disabled" }, 404);
   const actor = await requireNativeStudent(request);
   if (actor instanceof Response) return actor;
-  const input = joinSchema.safeParse(await request.json().catch(() => null));
+  const input = joinSchema.safeParse(await readNativeStudentJson(request, 4 * 1024).catch(() => null));
   if (!input.success) return json({ error: "Invalid live join request" }, 400);
   try {
     const access = await resolveCourseAccess({ courseId: input.data.courseId, userId: actor.userId });

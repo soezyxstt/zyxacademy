@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { externalVideoPath, learningApi, learningRequestPath, learningRouteViews, liveHostPattern } from "@/packages/native-parity/student/learning/contracts";
+import { externalVideoPath, isFlashcardReviewReceipt, learningApi, learningRequestPath, learningRouteViews, liveHostPattern } from "@/packages/native-parity/student/learning/contracts";
+import { createStudentFixtureRequest } from "@/packages/native-parity/student/fixture-request";
 import { applyLiveStateSync, type LiveQuizState } from "@/packages/native-parity/student/learning/live-socket";
 import { createLearningFixtureRequest, learningFixtureCases } from "@/packages/native-parity/student/learning/fixtures";
 
@@ -56,6 +57,13 @@ describe("native student learning HTTPS boundary", () => {
     const forged = await POST(request("", { action: "flashcard-review", courseId: "calc", flashcardId: "card", grade: 3,
       isExamMode: false, studentId: "student-b" }));
     expect(forged.status).toBe(400);
+    expect(submitReview).not.toHaveBeenCalled();
+  });
+
+  test("limits streamed JSON before the review service sees oversized input", async () => {
+    const oversized = request("", { action: "flashcard-review", courseId: "calc", flashcardId: "card", grade: 3,
+      isExamMode: true, manualAnswer: "x".repeat(65_537) });
+    expect((await POST(oversized)).status).toBe(400);
     expect(submitReview).not.toHaveBeenCalled();
   });
 
@@ -142,4 +150,28 @@ test("restores the revealed question, options, and score from the worker after r
     sessionState: "reveal", revealCorrectIndex: 1, yourScore: 100,
     currentQuestion: { questionIndex: 1, prompt: "Which value is correct?", options: ["One", "Two"], deadline: 0, total: 0 },
   });
+});
+
+test("accepts flashcard advancement only after the SM-2 receipt validates", () => {
+  const receipt = { nextReviewDue: "2026-07-23T10:00:00.000Z", nextIntervalDays: 3, nextBox: 2 };
+  expect(isFlashcardReviewReceipt(receipt)).toBeTrue();
+  expect(isFlashcardReviewReceipt({ ...receipt, nextBox: -1 })).toBeFalse();
+  expect(isFlashcardReviewReceipt({ ...receipt, nextReviewDue: "unparseable" })).toBeFalse();
+  expect(isFlashcardReviewReceipt({ success: true })).toBeFalse();
+});
+
+test("composes the PKA stage fixture through the assessment start, answer, submit, and result endpoints", async () => {
+  const learner = createStudentFixtureRequest("enrolled");
+  const stage = (number: string, attemptId?: string) => learningRequestPath("pka-stage", { subject: "matematika", stage: number }, attemptId ? { attemptId } : {});
+  const api = "/api/native/student/assessment/tutorial-pka/quiz/pka-fixture-quiz";
+  const gateway = await (await learner(stage("1"))).json();
+  expect(gateway.stage.status).toBe("unlocked");
+  const started = await (await learner(api, { method: "POST", body: JSON.stringify({ requestId: "fixture-start" }) })).json();
+  const player = await (await learner(`${api}?attemptId=${started.attemptId}`)).json();
+  expect(player.player.questions).toHaveLength(2);
+  expect(player.player.questions[0]).not.toHaveProperty("correctIndex");
+  expect((await learner(`${api}/attempt/${started.attemptId}`, { method: "POST", body: JSON.stringify({ answers: { "pka-limit": 2 } }) })).status).toBe(200);
+  expect(await (await learner(stage("1", started.attemptId))).json()).toMatchObject({ attempt: { status: "completed", score: 75 } });
+  expect(await (await learner(stage("2"))).json()).toMatchObject({ stage: { status: "skipped" } });
+  expect(await (await learner(`${api}/summary/${started.attemptId}`)).json()).toMatchObject({ kind: "summary", result: { score: 75 } });
 });

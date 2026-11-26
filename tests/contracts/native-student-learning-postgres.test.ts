@@ -55,7 +55,7 @@ afterAll(async () => { await fixture?.client.close(); });
 
 describe("native live Student access", () => {
   const join = (code: string) => POST(new Request("https://student.example/api/native/student/learning/live", {
-    method: "POST", body: JSON.stringify({ code, courseId: "canon-1" }),
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code, courseId: "canon-1" }),
   }));
 
   test("rechecks account, resource entitlement, and room on mint or reconnect", async () => {

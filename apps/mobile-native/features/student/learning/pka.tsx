@@ -42,7 +42,8 @@ function Announcement({ announcement, props, t, dismiss }: { announcement: PkaAn
     setPending(true);
     setFailed(false);
     try {
-      await readJson(props.request, learningApi, postJson({ action: "pka-announcement-read", announcementId: announcement.id }));
+      const receipt = await readJson<{ success?: boolean } | null>(props.request, learningApi, postJson({ action: "pka-announcement-read", announcementId: announcement.id }));
+      if (receipt?.success !== true) throw new Error("Invalid announcement receipt");
       dismiss();
     } catch {
       setFailed(true);

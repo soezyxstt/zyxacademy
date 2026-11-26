@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireNativeStudent } from "../../_session";
+import { readNativeStudentJson } from "../../_request";
 import { getStudentGamificationAccess, requireStudentGamificationAccess } from "@/lib/gamification/access";
 import { getGamificationLeaderboard } from "@/lib/gamification/leaderboard";
 import * as social from "@/lib/gamification/social";
@@ -137,36 +138,13 @@ export async function GET(request: Request, { params }: Context) {
   }
 }
 
-async function readJson(request: Request) {
-  const reader = request.body?.getReader();
-  if (!reader || !/^application\/json\b/i.test(request.headers.get("content-type") ?? "")) throw new SyntaxError("Expected JSON");
-  const decoder = new TextDecoder();
-  let bytes = 0;
-  let body = "";
-  try {
-    for (;;) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      bytes += value.byteLength;
-      if (bytes > 65536) {
-        await reader.cancel();
-        throw new SyntaxError("Request too large");
-      }
-      body += decoder.decode(value, { stream: true });
-    }
-  } finally {
-    reader.releaseLock();
-  }
-  return JSON.parse(body + decoder.decode()) as unknown;
-}
-
 export async function POST(request: Request, { params }: Context) {
   const actor = await requireNativeStudent(request);
   if (actor instanceof Response) return actor;
   const { operation } = await params;
   const { userId } = actor;
   try {
-    const body = await readJson(request);
+    const body = await readNativeStudentJson(request);
     switch (operation) {
       case "feedback": {
         const input = z.strictObject({ category: z.enum(feedbackCategories), rating: z.number().int().min(1).max(5),

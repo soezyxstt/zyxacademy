@@ -1,7 +1,7 @@
 import { createAssessmentFixtureRequest, assessmentFixtureScenarios } from "./assessment/fixtures";
 import { isCommunityFixturePath, createCommunityFixtureRequest } from "./community/fixtures";
 import { createCourseFixtureRequest, courseFixtureScenarios } from "./courses/fixtures";
-import { createLearningFixtureRequest, type LearningFixtureScenario } from "./learning/fixtures";
+import { createLearningFixtureRequest, isPkaLearningFixturePath, type LearningFixtureScenario } from "./learning/fixtures";
 
 export function createStudentFixtureRequest(scenario: string) {
   const courses = createCourseFixtureRequest(courseFixtureScenarios.find(value => value === scenario) ?? "enrolled");
@@ -14,6 +14,7 @@ export function createStudentFixtureRequest(scenario: string) {
     assessmentFixtureScenarios.find(value => value === scenario) ?? "populated");
   return (path: string, init?: RequestInit) => {
     if (path.startsWith("/api/native/student/courses?") || path === "/api/native/student/courses") return courses(path, init);
+    if (isPkaLearningFixturePath(path)) return learning(path, init);
     if (path.startsWith("/api/native/student/assessment/")) return assessment(path, init);
     if (isCommunityFixturePath(path)) return community(path, init);
     return learning(path, init);
