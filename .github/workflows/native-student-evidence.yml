@@ -167,6 +167,9 @@ jobs:
           mv "$cli/cmdline-tools" "$sdk_cli"
           printf '%s\n' "$sdk_cli/bin" >> "$GITHUB_PATH"
       - if: matrix.platform == 'android'
+        name: Prepare the Android emulator image after compilation
+        run: bash scripts/native-parity/prepare-android-emulator.sh
+      - if: matrix.platform == 'android'
         uses: reactivecircus/android-emulator-runner@v2.38.0
         with:
           api-level: 35
@@ -177,7 +180,7 @@ jobs:
             adb shell wm density 160
             adb shell wm size 380x820
             adb shell settings put system font_scale 1
-            adb install apps/mobile-native/android/app/build/outputs/apk/release/app-release.apk
+            adb install "$PARITY_APK_PATH"
             bash tests/visual/native-parallel/student/run-device-smoke.sh android "$(adb get-serialno)"
       - if: matrix.platform == 'ios'
         name: Boot simulator and install iOS release

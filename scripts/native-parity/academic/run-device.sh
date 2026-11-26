@@ -38,7 +38,7 @@ case "$platform" in
       adb -s "$device" shell wm density
       adb -s "$device" shell settings get system font_scale
     } > "$output/device.txt"
-    adb -s "$device" install -r apps/mobile-native/android/app/build/outputs/apk/release/app-release.apk 2>&1 | tee "$output/install.log"
+    adb -s "$device" install -r "${PARITY_APK_PATH:-apps/mobile-native/android/app/build/outputs/apk/release/app-release.apk}" 2>&1 | tee "$output/install.log"
     adb -s "$device" shell am start -W -n "$app_id/.MainActivity"
     ;;
   ios)

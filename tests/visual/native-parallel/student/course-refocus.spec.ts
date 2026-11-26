@@ -39,6 +39,9 @@ const nativeViews: Plugin = {
             onScroll: event => onScroll({ nativeEvent: { contentOffset: { y: event.currentTarget.scrollTop } } }) }, refreshControl, children);
         export const Dimensions = { get: () => ({ scale: 2.75 }) };
         export const Platform = { OS: "ios" }, StyleSheet = { create: value => value }, useColorScheme = () => "light";`,
+      "../../../routing/student-chrome": "export const useStudentChromeVisibility = () => {};",
+      "./MaterialPdf": "export const MaterialPdf = () => null;",
+      "./OnlineReading": "export const OnlineReading = () => null;",
       "./catalog": "export const Catalog = () => null;",
       "./dashboard-extra": "export const DashboardBottom = () => null, DashboardTop = () => null, useDashboardExtras = () => null;",
       "./dashboard-overview": "export const ActiveDashboardCourses = () => null, DashboardPreviewCourses = () => null, dashboardMessages = {};",
