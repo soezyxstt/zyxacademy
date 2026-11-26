@@ -127,14 +127,16 @@ export async function createReadingPreview(runHandler: (request: Request, handle
         id: articleId + "-body", artikelId: articleId, bagianArtikelId: id, blockKey: "body", blockType: "explanation", orderIndex: 1,
         content: `${markdown}\n<!--__ZYX_V4_BLOCK_PAYLOAD__:${authored}-->`, version: 3, generationHash: details.generationHash, status: "published",
       });
+      const prompt = "Apa yang diukur dalam satuan persegi?";
       const check = Buffer.from(JSON.stringify({
+        parts: [{ id: "area-prompt", kind: "markdown", markdown: prompt }],
         formativeCheckPayload: { checkKind: "multiple_choice", answer: "Luas", explanation: "Luas berdimensi panjang kuadrat.",
           options: [{ id: "area", text: "Luas", isCorrect: true }, { id: "length", text: "Panjang", isCorrect: false }],
           evaluation: { mode: "choice" } },
       })).toString("base64url");
       await tx.insert(schema.blokArtikel).values({
         id: formativeBlockId, artikelId: articleId, bagianArtikelId: id, blockKey: "check", blockType: "retrieval_close", orderIndex: 2,
-        content: `Apa yang diukur dalam satuan persegi?\n<!--__ZYX_V4_BLOCK_PAYLOAD__:${check}-->`,
+        content: `${prompt}\n<!--__ZYX_V4_BLOCK_PAYLOAD__:${check}-->`,
         version: 3, generationHash: details.generationHash, status: "published",
       });
       await tx.insert(schema.courseMaterials).values({

@@ -120,6 +120,13 @@ export const operationsCatalog = [
     "reason": "Learner Article and Diktat progress, completion and formative responses require an active Student session, exact course and current published revision. Tutorial PKA still checks registration. These operations reuse learner web evidence and feedback rules. MCP authoring grants do not expose learner progress, answers or formative submissions."
   },
   {
+    "source": "app/api/account/sessions/route.ts",
+    "actions": ["GET", "DELETE"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Web and Expo account settings list the active user's sessions and allow personal revocation of another device after confirmation. The current session uses the existing sign-out flow. Session tokens stay server-side."
+  },
+  {
     "source": "app/api/student/gamification/celebrations/route.ts",
     "actions": ["GET", "POST"],
     "tools": [],

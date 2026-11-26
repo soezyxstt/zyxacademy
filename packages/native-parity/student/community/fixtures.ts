@@ -138,6 +138,7 @@ export function createCommunityFixtureRequest(scenario: CommunityFixtureScenario
   let balance = summary.lpBalance as number;
   let synced = false;
   let quietHours = { enabled: false, startMinute: 1320, endMinute: 420, timeZone: "Asia/Jakarta" };
+  let otherDevice = populated;
   let booked = false;
   const threads = populated ? [clone(sampleThread)] : [];
   const messages = populated ? [clone(sampleMessage)] : [];
@@ -151,6 +152,18 @@ export function createCommunityFixtureRequest(scenario: CommunityFixtureScenario
     if (firstFailure && url.pathname !== endpoint + "calendar-status") {
       firstFailure = false;
       throw new TypeError("Network request failed");
+    }
+    if (url.pathname === "/api/account/sessions") {
+      const dates = { createdAt: "2026-11-10T09:00:00.000Z", updatedAt: "2026-11-11T09:00:00.000Z" };
+      if (init?.method === "DELETE") {
+        const { id } = JSON.parse(String(init.body));
+        if (id === "phone") return response({}, 409);
+        if (!otherDevice || id !== "laptop") return response({}, 404);
+        otherDevice = false;
+        return response({ success: true });
+      }
+      return response({ sessions: [{ id: "phone", current: true, label: "Android", ...dates },
+        ...(otherDevice ? [{ id: "laptop", current: false, label: "Firefox", ...dates }] : [])] });
     }
     if (url.pathname === "/api/notifications/quiet-hours") {
       if (init?.method === "PUT") quietHours = JSON.parse(String(init.body ?? "{}"));
@@ -336,6 +349,6 @@ export function createCommunityFixtureRequest(scenario: CommunityFixtureScenario
 }
 
 export function isCommunityFixturePath(path: string) {
-  return path.startsWith(endpoint) || path === "/api/notifications/quiet-hours" ||
+  return path.startsWith(endpoint) || path === "/api/account/sessions" || path === "/api/notifications/quiet-hours" ||
     path === "/api/discussions/workspace" || path.startsWith("/api/discussions/workspace?");
 }

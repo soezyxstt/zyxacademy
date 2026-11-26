@@ -6,6 +6,7 @@ import { isTutorialEmailSchedule } from "../../../../../packages/student-communi
 import { activityPreferenceKeys, emailPreferenceKeys, feedbackCategories } from "../../../../../packages/native-parity/student/community/contracts";
 import type { ActivityPreferenceKey, FeedbackCategory, NotificationPreferences, TutorialEmailSchedule } from "../../../../../packages/native-parity/student/community/contracts";
 import { studentBrowserNotificationsUrl } from "../browser-handoff";
+import { AccountSessionsPanel } from "./account-sessions";
 import { ProfileEditorPanel } from "./profile";
 import { Action, Actions, Choices, Copy, Field, Notice, Page, Remote, Toggle, communityPath, operationResult, post, readJson, styles, useCommunity, useOperation, useRemote } from "./ui";
 
@@ -177,6 +178,7 @@ function GeneralPanel() {
       }, tr("Bahasa tersimpan.", "Language saved."))} />
     {devicePreferences && <Toggle label={tr("Getaran", "Haptics")} value={devicePreferences.haptics} onChange={devicePreferences.setHaptics} />}
     <Notice notice={state.notice} />
+    <AccountSessionsPanel />
   </>;
 }
 
