@@ -16,6 +16,28 @@ const checked = z.object({ ok: z.literal(true), result: z.object({
 const revealed = z.object({ answer: z.string(), explanation: z.string() });
 export type ReadProgress = z.infer<typeof articleProgressSchema> | z.infer<typeof materialStatus>;
 export type CheckResult = z.infer<typeof checked>["result"];
+const publicCheck = z.object({
+  checkKind: z.enum(["multiple_choice", "short_answer", "numeric_answer", "conceptual_explanation"]),
+  evaluationMode: z.enum(["choice", "text_exact", "numeric", "ai_rubric"]).nullable(),
+  unit: z.string().optional(),
+  options: z.array(z.object({ id: z.string(), text: z.string() })).optional(),
+  feedbackPolicy: z.object({ hints: z.array(z.string()), allowRetry: z.boolean() }).optional(),
+});
+export type StudyBlock = { id: string; title: string | null; content: string; formativeCheck: z.infer<typeof publicCheck> };
+export type StudySection = { id: string; slug: string; checks: StudyBlock[] };
+
+export function readingStudySections(content: OnlineReadingContent): StudySection[] {
+  if (!content.structured || !("sections" in content.data)) return [];
+  return content.data.sections.map(section => ({
+    id: section.id,
+    slug: section.slug,
+    checks: section.blocks.flatMap(block => {
+      const parsed = publicCheck.safeParse(block.formativeCheck);
+      return parsed.success ? [{ id: block.id, content: block.content, title: typeof block.title === "string" ? block.title : null,
+        formativeCheck: parsed.data }] : [];
+    }),
+  }));
+}
 
 export function readingLearning(request: StudentRequest, courseId: string, content: OnlineReadingContent) {
   const materialId = content.data.id;

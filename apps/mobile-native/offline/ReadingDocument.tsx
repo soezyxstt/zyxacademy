@@ -6,6 +6,9 @@ import { buildReadingContentHtml, savedReadingContent, type ReadingContent, type
 import { readingKatexCss } from "./reading-katex.generated";
 
 const initialPage = "about:blank";
+type ReadingScrollEvent = { nativeEvent: {
+  layoutMeasurement: { height: number }; contentSize: { height: number }; contentOffset: { y: number };
+} };
 
 export function ReadingDocument(props: ReadingDocumentProps) {
   const { saved, locale, section } = props;
@@ -29,7 +32,7 @@ export function ReadingContentDocument({ content, testID = "offline-reading-docu
     </Text>
   </View>;
   if (!source) return unavailable();
-  const scroll: ComponentProps<typeof WebView>["onScroll"] = onProgress ? ({ nativeEvent }) => {
+  const scroll: ComponentProps<typeof WebView>["onScroll"] = onProgress ? ({ nativeEvent }: ReadingScrollEvent) => {
     const visible = nativeEvent.layoutMeasurement?.height ?? 0;
     const total = nativeEvent.contentSize?.height ?? 0;
     if (visible > 0 && total > 0) onProgress(Math.min(100, Math.round((Math.max(0, nativeEvent.contentOffset.y) + visible) * 100 / total)));

@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { bindStudentRequest } from "../../apps/mobile-native/features/student/transport";
 import type { StudentRequest } from "../../apps/mobile-native/features/student/contracts";
 import { OnlineReadingError, readOnlineMaterial } from "../../apps/mobile-native/features/student/courses/online-reading";
-import { readingLearning, resumeReadingSection } from "../../apps/mobile-native/features/student/courses/reading-learning";
+import { readingLearning, readingStudySections, resumeReadingSection } from "../../apps/mobile-native/features/student/courses/reading-learning";
 import { buildReadingContentHtml } from "../../apps/mobile-native/offline/reading-document";
 
 const target = { courseId: "course", materialId: "material", kind: "article" as const, section: "one" };
@@ -79,6 +79,20 @@ test("Article progress resumes its newest section and sends formative responses 
   await expect(study.reveal("recent", "block", signal)).rejects.toMatchObject({ status: 409 });
   expect(requested[2]).toMatchObject({ courseId: target.courseId, materialId: target.materialId, revision, action: "evaluate", sectionId: "recent",
     blockId: "block", response: { kind: "numeric", value: "2,4" } });
+});
+
+test("the study controls accept only the public formative projection", async () => {
+  const valid = { id: "q", blockType: "retrieval_close", title: "Cek", content: "Pertanyaan",
+    formativeCheck: { checkKind: "multiple_choice", evaluationMode: "choice", answer: "private",
+      options: [{ id: "choice-a", text: "Pilihan", isCorrect: true }] } };
+  const content = await readOnlineMaterial(async () => Response.json({
+    ...data, structured: true, assets: [], data: { ...article, sections: [{ ...article.sections[0], blocks: [
+      valid, { ...valid, id: "invalid", formativeCheck: { checkKind: "missing" } },
+    ] }] },
+  }), target, "id", controller().signal);
+  expect(readingStudySections(content)[0].checks).toEqual([{ id: "q", title: "Cek", content: "Pertanyaan",
+    formativeCheck: { checkKind: "multiple_choice", evaluationMode: "choice", options: [{ id: "choice-a", text: "Pilihan" }] },
+  }]);
 });
 
 test("resource mismatch and authorization errors never expose a partially loaded document", async () => {

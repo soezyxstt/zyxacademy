@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Modal, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import type { PublicBlockReadModel, PublicSectionReadModel } from "../../../../../lib/articles/structured-read-model";
 import { mergeArticleSectionProgress, type ArticleProgressUpdate } from "../../../../../lib/articles/progress-contract";
 import type { FormativeLearnerResponse } from "../../../../../lib/materials/formative-evaluation";
 import { nativeColors } from "../../../../../packages/design-tokens/native-colors";
@@ -12,7 +11,7 @@ import { useProtectedInteraction } from "../../../routing/protected-interaction"
 import { CourseMarkdown } from "../CourseMarkdown";
 import type { StudentRequest, StudentSession } from "../contracts";
 import { OnlineReadingError, type OnlineReadingContent } from "./online-reading";
-import { readingLearning, resumeReadingSection, type CheckResult, type ReadProgress } from "./reading-learning";
+import { readingLearning, readingStudySections, resumeReadingSection, type CheckResult, type ReadProgress, type StudyBlock, type StudySection } from "./reading-learning";
 
 type Theme = keyof typeof nativeColors;
 type Study = ReturnType<typeof readingLearning>;
@@ -20,7 +19,6 @@ type Props = { content: OnlineReadingContent; courseId: string; request: Student
   theme: Theme; onCompleted(): void; reload(): void };
 
 const toolbar = { flexDirection: "row" as const, flexWrap: "wrap" as const, gap: 8 };
-const blankSections: PublicSectionReadModel[] = [];
 const stale = (error: unknown) => error instanceof OnlineReadingError && [401, 403, 404, 409].includes(error.status);
 type Visit = { id: string; start: number; percent: number; autoCompleted: boolean };
 
@@ -34,13 +32,13 @@ function takeVisit(visit: Visit) {
 export function ReadingStudy({ content, courseId, request, session, theme, onCompleted, reload }: Props) {
   const { canInteract } = useProtectedInteraction();
   const study = useMemo(() => readingLearning(request, courseId, content), [request, courseId, content]);
-  const sections = content.structured && "sections" in content.data ? content.data.sections as PublicSectionReadModel[] : blankSections;
+  const sections = useMemo(() => readingStudySections(content), [content]);
   const [selected, setSelected] = useState<string>();
   const [progress, setProgress] = useState<ReadProgress>();
   const [attempt, setAttempt] = useState(0);
   const [error, setError] = useState<"unavailable" | "stale">();
   const [busy, setBusy] = useState(false);
-  const [check, setCheck] = useState<PublicBlockReadModel>();
+  const [check, setCheck] = useState<StudyBlock>();
   const pending = useRef<AbortController | null>(null);
   const visit = useRef<Visit | undefined>(undefined);
   const locale = content.locale;
@@ -51,7 +49,7 @@ export function ReadingStudy({ content, courseId, request, session, theme, onCom
   const completed = progress && ("status" in progress ? progress.status === "completed"
     : sections.length > 0 && sections.every(section => sectionProgress[section.id]?.completed));
   const completionReported = useRef(false);
-  const checks = active?.blocks.filter(value => value.formativeCheck) ?? [];
+  const checks = active?.checks ?? [];
   const selectedContent = useMemo(() => active ? { ...content, section: active.slug } : content, [active, content]);
 
   useEffect(() => {
@@ -141,7 +139,7 @@ export function ReadingStudy({ content, courseId, request, session, theme, onCom
   }
 
   const page = active ? sections.indexOf(active) : -1;
-  function select(section: PublicSectionReadModel | undefined) {
+  function select(section: StudySection | undefined) {
     if (section && !busy && canInteract()) setSelected(section.id);
   }
   return <>
@@ -178,8 +176,8 @@ export function ReadingStudy({ content, courseId, request, session, theme, onCom
 }
 
 function ReadingCheck({ block, blocks, sectionId, study, session, locale, theme, select, close }: {
-  block: PublicBlockReadModel; blocks: PublicBlockReadModel[]; sectionId: string; study: Study; theme: Theme;
-  session: StudentSession; locale: "id" | "en"; select(block: PublicBlockReadModel): void; close(): void;
+  block: StudyBlock; blocks: StudyBlock[]; sectionId: string; study: Study; theme: Theme;
+  session: StudentSession; locale: "id" | "en"; select(block: StudyBlock): void; close(): void;
 }) {
   const { canInteract } = useProtectedInteraction();
   const [choice, setChoice] = useState<string>();
