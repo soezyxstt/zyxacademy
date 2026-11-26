@@ -15,6 +15,7 @@ import { StudentListRow } from "../ListRow";
 import { matchStudentRoute, studentMaterialReaderTarget, studentPathWithQuery } from "../routes";
 import { canonicalStudentArticleHref, offlineMaterialRecovery, type OfflineCourseMetadata, type OfflineCourseTarget } from "../offline-courses";
 import { DashboardBottom, DashboardTop, useDashboardExtras } from "./dashboard-extra";
+import { ActiveDashboardCourses, DashboardPreviewCourses, dashboardMessages } from "./dashboard-overview";
 import { Catalog } from "./catalog";
 import { courseCopy, type CourseCopy } from "./copy";
 import { courseScrollOffsetForMount } from "./scroll-offset";
@@ -145,7 +146,7 @@ function Notice({ title, detail, testID, children }: { title: string; detail?: s
   );
 }
 
-function Enrollment({ request, reload }: { request: Request; reload: () => void }) {
+function Enrollment({ request, reload, title }: { request: Request; reload: () => void; title?: string }) {
   const copy = useContext(CopyContext);
   const theme = useContext(ThemeContext);
   const submitting = useRef(false);
@@ -201,7 +202,7 @@ function Enrollment({ request, reload }: { request: Request; reload: () => void 
   }
 
   return (
-    <Notice title={copy.activation} detail={copy.activationHint}>
+    <Notice title={title ?? copy.activation} detail={copy.activationHint}>
       <Input
         theme={theme}
         accessibilityLabel={copy.token}
@@ -220,7 +221,7 @@ function Enrollment({ request, reload }: { request: Request; reload: () => void 
   );
 }
 
-function getOffer(course: CourseCard, locale: string, copy: CourseCopy): string | undefined {
+function getOffer(course: Pick<CourseCard, "pricing">, locale: string, copy: CourseCopy): string | undefined {
   const pricing = course.pricing;
   if (!pricing || pricing.category !== "limited_time_free" || !pricing.startsAt || !pricing.endsAt) return undefined;
   const start = new Date(pricing.startsAt);
@@ -247,32 +248,47 @@ function CourseRows({ courses, navigate }: { courses: CourseCard[]; navigate: Na
   });
 }
 
-function Dashboard({ data, navigate, request, reload, locale }: { data: DashboardData; locale: string } & Pick<StudentScreenProps, "navigate" | "request"> & { reload: () => void }) {
+function Dashboard({ data, navigate, request, reload, locale, openExternal }: { data: DashboardData; locale: string } & Pick<StudentScreenProps, "navigate" | "request" | "openExternal"> & { reload: () => void }) {
   const copy = useContext(CopyContext);
   const theme = useContext(ThemeContext);
   const extra = useDashboardExtras(request, data.enrolled.length > 0);
+  const [showActivation, setShowActivation] = useState(false);
+  const messages = dashboardMessages(locale);
+  if (data.preview && !data.enrolled.length) {
+    return <>
+      <DashboardPreviewCourses preview={data.preview} navigate={navigate} openExternal={openExternal} theme={theme} locale={locale}
+        offerLabel={course => getOffer(course, locale, copy)} />
+      <Enrollment request={request} reload={reload} title={messages.hasClassToken} />
+      <Button theme={theme} variant="outline" size="lg" onPress={() => navigate("/courses")}>{copy.browse}</Button>
+    </>;
+  }
   return (
     <>
-      {data.firstName ? <LearningText role="title">{`${copy.greeting}, ${data.firstName}`}</LearningText> : null}
+      {data.firstName && !data.completedMaterialsByCourse ? <LearningText role="title">{`${copy.greeting}, ${data.firstName}`}</LearningText> : null}
       <DashboardTop data={extra.data} request={request} navigate={navigate} copy={copy} theme={theme} locale={locale} />
+      {data.completedMaterialsByCourse && data.enrolled.length > 0 ? <>
+        <ActiveDashboardCourses courses={data.enrolled} completed={data.completedMaterialsByCourse}
+          activate={() => setShowActivation(previous => !previous)} activationOpen={showActivation} navigate={navigate} locale={locale} theme={theme} />
+        {showActivation && <Enrollment request={request} reload={reload} title={messages.activateClassTitle} />}
+      </> : null}
       {data.continueReading.length > 0 && (
-        <Section title={copy.continue}>
+        <Section title={data.completedMaterialsByCourse ? messages.openMaterials : copy.continue}>
           {data.continueReading.map((item) => (
             <Row key={`${item.courseId}/${item.materialId}`} title={item.title} meta={`${item.courseTitle} · ${item.completionPercent}%`} onPress={() => navigate(materialPath(item.courseId, item.materialId, item.section))} />
           ))}
         </Section>
       )}
       {data.enrolled.length > 0 ? (
-        <Section title={copy.enrolled}><CourseRows courses={data.enrolled} navigate={navigate} /></Section>
+        !data.completedMaterialsByCourse && <Section title={copy.enrolled}><CourseRows courses={data.enrolled} navigate={navigate} /></Section>
       ) : (
         <>
           <LearningText role="heading">{copy.noEnrollment}</LearningText>
           <Enrollment request={request} reload={reload} />
         </>
       )}
-      {data.recommended.length > 0 ? <Section title={copy.recommended}><CourseRows courses={data.recommended} navigate={navigate} /></Section> : null}
       <DashboardBottom state={extra} navigate={navigate} copy={copy} theme={theme} locale={locale} />
-      <Button theme={theme} variant="outline" size="lg" onPress={() => navigate("/courses")}>{copy.browse}</Button>
+      {data.recommended.length > 0 ? <Section title={data.completedMaterialsByCourse ? messages.recommendedCourses : copy.recommended}><CourseRows courses={data.recommended} navigate={navigate} /></Section> : null}
+      {!data.completedMaterialsByCourse && <Button theme={theme} variant="outline" size="lg" onPress={() => navigate("/courses")}>{copy.browse}</Button>}
     </>
   );
 }
@@ -561,7 +577,7 @@ function CourseEntry(props: StudentScreenProps & { query: LearningQuery }) {
     );
   } else {
     switch (resource.data.view) {
-      case "dashboard": content = <Dashboard data={resource.data} navigate={navigate} request={request} reload={reload} locale={locale} />; break;
+      case "dashboard": content = <Dashboard data={resource.data} navigate={navigate} request={request} reload={reload} locale={locale} openExternal={openExternal} />; break;
       case "dashboard-extras": content = null; break;
       case "catalog": content = <Catalog data={resource.data} navigate={navigate} query={route.query} openExternal={openExternal} locale={locale} theme={theme}
         onClearSearch={() => updateListQuery(route, replace, { q: undefined })}

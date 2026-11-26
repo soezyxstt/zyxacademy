@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Client } from "pg";
-import { artikel, bab, chapters, courses, enrollments, mataKuliah, pendaftaranMurid, pengguna, penggunaPeran, peran, session, user } from "../../../../../db/schema";
+import { artikel, bab, chapters, courses, enrollments, mataKuliah, onboardingTours, pendaftaranMurid, pengguna, penggunaPeran, peran, session, user } from "../../../../../db/schema";
 import { PERAN_SEEDS, membershipIdFor } from "../../../../../lib/auth/peran";
+import { TOUR_VERSION } from "../../../../../lib/onboarding/tour-state";
 
 // Use a newly migrated, disposable PostgreSQL database for authenticated product captures.
 const url = new URL(process.env.DATABASE_URL ?? "");
@@ -21,6 +22,7 @@ try {
       await tx.insert(pengguna).values({ id: uid, status: "active" });
       await tx.insert(penggunaPeran).values({ id: membershipIdFor(uid, "murid"), penggunaId: uid, peranId: "peran-murid", source: "better_auth_user_create" });
       await tx.insert(session).values({ id: uid, userId: uid, token: randomUUID(), expiresAt: new Date(Date.now() + 24 * 3600000) });
+      await tx.insert(onboardingTours).values({ userId: uid, role: "student", status: "skipped", version: TOUR_VERSION, generation: 1 });
     }
     const cid = "matematika-1", mid = "mk-matematika-1";
     await tx.insert(courses).values({ id: cid, title: "Matematika I", category: "Matematika", description: "Fungsi, limit, turunan dan integral." });

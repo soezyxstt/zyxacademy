@@ -6,10 +6,11 @@ import { Alert, Appearance, BackHandler, View, useColorScheme } from "react-nati
 import { SafeAreaView } from "react-native-safe-area-context";
 import { nativeColors } from "../../../../packages/design-tokens/native-colors";
 import { createStudentFixtureRequest } from "../../../../packages/native-parity/student/fixture-request";
+import { dashboardFixtureState } from "../../../../packages/native-parity/student/dashboard/fixtures";
 import studentEn from "../../../../messages/en/student.json";
 import studentId from "../../../../messages/id/student.json";
 import { Button } from "../../components/Button";
-import { RoleBottomNavigation } from "../shared-ui/navigation";
+import { MobileNavbar, RoleBottomNavigation } from "../shared-ui/navigation";
 import { StudentEntry } from "./StudentEntry";
 import type { StudentSession } from "./contracts";
 import { matchStudentRoute } from "./routes";
@@ -22,7 +23,10 @@ const fixtureDestinations = { home: "/dashboard", courses: "/courses", schedule:
 
 function Fixture({ scenario, initialPath, theme, locale, persistent }: { persistent: boolean; scenario: string; initialPath: string; theme?: "light" | "dark"; locale: "en" | "id" }) {
   const request = useMemo(() => createStudentFixtureRequest(scenario), [scenario]);
-  const session = useMemo(() => ({ ...baseSession, locale }), [locale]);
+  const dashboardState = dashboardFixtureState(scenario);
+  const session = useMemo(() => ({ ...baseSession, locale,
+    userId: dashboardState ? `student-evidence-${dashboardState}` : baseSession.userId,
+  }), [locale, dashboardState]);
   const drafts = useMemo(() => {
     if (persistent) return fixtureRepository.bind({
       origin: session.origin, accountId: session.userId, sessionId: "student-device-evidence", locale,
@@ -55,11 +59,15 @@ function Fixture({ scenario, initialPath, theme, locale, persistent }: { persist
   }, [back, stack.length]);
   const colors = nativeColors[useColorScheme() ?? "light"];
   const isCatalogFixture = scenario === "catalog-parity";
-  const mobile = locale === "en" ? studentEn.mobile : studentId.mobile;
+  const messages = locale === "en" ? studentEn : studentId;
+  const mobile = messages.mobile;
   const activeDestination = (Object.keys(fixtureDestinations) as (keyof typeof fixtureDestinations)[])
     .find(id => fixtureDestinations[id] === active.path.split("?")[0]);
 
-  return <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+  return <SafeAreaView testID={dashboardState ? `student-dashboard-case-${dashboardState}` : undefined}
+    style={{ flex: 1, backgroundColor: colors.background }}>
+    {dashboardState && active.path === "/dashboard" && <MobileNavbar role="student" title={messages.routeTitles.dashboard}
+      home={{ label: mobile.home }} includeSafeArea={false} onAction={() => {}} />}
     {stack.length > 1 && <View style={{ alignItems: "flex-start", paddingHorizontal: 12 }}>
       <Button variant="ghost" accessibilityLabel="Kembali" testID="student.back" onPress={back}>Kembali</Button>
     </View>}
@@ -67,10 +75,10 @@ function Fixture({ scenario, initialPath, theme, locale, persistent }: { persist
       initialScrollY={offsets.current.get(active.id) ?? 0}
       onScrollY={value => offsets.current.set(active.id, value)}
       back={back} navigate={navigate}
-      openExternal={isCatalogFixture ? path => Alert.alert(mobile.courses, new URL(path, session.origin).href) : undefined}
+      openExternal={isCatalogFixture || dashboardState ? path => Alert.alert(mobile.courses, new URL(path, session.origin).href) : undefined}
       replace={path => setStack(current => [...current.slice(0, -1), { ...current[current.length - 1], path }])}
     />
-    {isCatalogFixture && activeDestination && <RoleBottomNavigation role="student" labels={mobile} activeId={activeDestination}
+    {(isCatalogFixture || dashboardState) && activeDestination && <RoleBottomNavigation role="student" labels={mobile} activeId={activeDestination}
       accessibilityLabel={mobile.bottomNavLabel} includeSafeArea={false} onDestinationPress={id => {
         if (id !== activeDestination) navigate(fixtureDestinations[id]);
       }} />}
@@ -82,7 +90,8 @@ export default function StudentFixtureRoute() {
   const params = useLocalSearchParams<{ scenario?: string; path?: string; theme?: string; locale?: string; store?: string }>();
   const scenario = typeof params.scenario === "string" ? params.scenario : "enrolled";
   const path = typeof params.path === "string" && matchStudentRoute(params.path) ? params.path : scenario === "catalog-parity" ? "/courses" : "/dashboard";
-  const theme = params.theme === "light" || params.theme === "dark" ? params.theme : scenario === "catalog-parity" ? "dark" : undefined;
+  const theme = params.theme === "light" || params.theme === "dark" ? params.theme
+    : scenario === "catalog-parity" ? "dark" : dashboardFixtureState(scenario) ? "light" : undefined;
   const locale = params.locale === "en" || scenario === "catalog-parity" ? "en" : "id";
   return <Fixture key={JSON.stringify([scenario, path, theme, locale])} initialPath={path} scenario={scenario} theme={theme} locale={locale} persistent={params.store === "disk"} />;
 }
