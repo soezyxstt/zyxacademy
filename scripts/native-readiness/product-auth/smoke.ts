@@ -157,7 +157,12 @@ try {
     await fixture.withdrawOfflineEnrollment();
     const updated = await sync([courseId], cursor);
     check(updated.ok && fixture.sawOfflineRevocation(), "Access revocation missing from sync");
-    check((await local(resource, { headers })).status === 403, "Withdrawn reading remained downloadable");
+    const { access } = await updated.json();
+    check(access?.some((grant: { courseId: string; fullContent: boolean }) => grant.courseId === courseId && grant.fullContent === false),
+      "The same session retained the full course grant");
+    const denied = await local(resource, { headers });
+    check(denied.status === 404 && (await denied.json()).code === "OFFLINE_MATERIAL_UNAVAILABLE",
+      "Withdrawn reading returned unexpected HTTP " + denied.status);
   }
 
   stage = "revoke the authenticated session";
