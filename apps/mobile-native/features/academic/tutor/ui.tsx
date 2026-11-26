@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState, type ComponentRef, type ReactNode, type Ref } from "react";
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, type ViewProps } from "react-native";
 import { useProtectedInteraction } from "../../../routing/protected-interaction";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -39,14 +39,15 @@ export function Label({ theme, children, tone = "body", compactTitle = false }: 
   >{children}</Text>;
 }
 
-export function TutorPage({ theme, title, subtitle, onBack, children, dashboard = false, header, contentStyle }: {
+export function TutorPage({ theme, title, subtitle, onBack, children, dashboard = false, header, contentStyle, scrollRef }: {
   theme: TutorTheme; title: string; subtitle?: string; onBack?: () => void; children: ReactNode; dashboard?: boolean;
-  header?: ReactNode; contentStyle?: ViewProps["style"];
+  header?: ReactNode; contentStyle?: ViewProps["style"]; scrollRef?: Ref<ComponentRef<typeof ScrollView>>;
 }) {
   const colors = nativeColors[theme];
   const density = readingDensityScales[useNativeAppearance().density];
   return (
     <ScrollView
+      ref={scrollRef}
       style={{ flex: 1, backgroundColor: colors.background }}
       contentContainerStyle={[styles.page, dashboard && styles.dashboardPage, density !== 1 && { gap: (dashboard ? 20 : 16) * density }, contentStyle]}
       keyboardShouldPersistTaps="handled"

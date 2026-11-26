@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { getTutorDocs, searchTutorDocs } from "../../../academic/docs/tutor";
+import { getTutorDocDiagram } from "../../../academic/docs/tutor/diagrams";
+import { docSectionId } from "../../../academic/docs/search";
+import { readDocInline } from "../../../academic/docs/inline";
 import { createTutorFixtureData, tutorFixtureCourses } from "./fixtures";
 import { filterGroups, filterParticipants, parseGrade, readAnswers } from "./model";
 
@@ -108,6 +111,27 @@ test("tutor native documentation reuses the translated web guides", () => {
   expect(getTutorDocs()).toHaveLength(6);
   expect(getTutorDocs("en")[0].slug).toBe(getTutorDocs()[0].slug);
   expect(searchTutorDocs("kuis langsung").some((doc) => doc.slug === "kuis-langsung")).toBe(true);
+  expect(searchTutorDocs("live quiz", "en").some((doc) => doc.slug === "kuis-langsung")).toBe(true);
+  for (const locale of ["id", "en"] as const) {
+    const ids = getTutorDocs(locale).flatMap(doc => doc.sections.flatMap(section => section.diagram ? [section.diagram] : []));
+    expect(ids).toHaveLength(4);
+    for (const id of ids) {
+      const diagram = getTutorDocDiagram(id, locale);
+      expect(diagram?.caption).toBeTruthy();
+      expect(diagram?.rows.length).toBe(id === "tutorial-schedule-lifecycle" || id === "tutor-live-quiz-flow" ? 3 : 2);
+      expect(diagram?.rows.every(row => row.title && row.note)).toBe(true);
+    }
+  }
+  expect(docSectionId(1)).toBe("bagian-2");
+  expect(readDocInline("Buka [Jadwal](/tutor/schedule#bagian-2), pilih **Tambah**, lalu ketik `lokasi`.")).toEqual([
+    { kind: "text", text: "Buka " },
+    { kind: "link", text: "Jadwal", href: "/tutor/schedule#bagian-2" },
+    { kind: "text", text: ", pilih " },
+    { kind: "strong", text: "Tambah" },
+    { kind: "text", text: ", lalu ketik " },
+    { kind: "code", text: "lokasi" },
+    { kind: "text", text: "." },
+  ]);
 });
 
 describe("session-owned tutor fixture interactions", () => {

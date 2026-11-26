@@ -9,7 +9,8 @@ import { ConnectedDiscussions, ConnectedLive, ConnectedMaterials, ConnectedSched
 import { TutorLive, TutorMaterials, TutorVideos } from "./content";
 import { TutorCourseOverview, TutorDashboard, TutorGrading } from "./core";
 import { TutorParticipants } from "./participants";
-import { TutorDiscussions, TutorDocs, TutorSchedule } from "./support";
+import { TutorDiscussions, TutorSchedule } from "./support";
+import { TutorDocs } from "./docs";
 import { Empty, TutorPage, tutorLayout } from "./ui";
 
 export type { TutorDataSource } from "../../../../../packages/native-parity/academic/tutor/model";
@@ -40,7 +41,8 @@ export function TutorScreen({ dataSource, ...props }: TutorScreenProps) {
     {(data) => <TutorDashboard {...props} data={data} />}
   </DataView>;
 
-  if (route === "docs") return <TutorDocs key={key} {...props} slug={nested ? params.slug ?? nested : undefined} />;
+  if (route === "docs") return <TutorDocs key={path.split("#", 1)[0]} {...props}
+    slug={nested ? params.slug ?? nested : undefined} locale={source.locale ?? "id"} />;
 
   if (source.support && route === "schedule") {
     const service = source.support;
