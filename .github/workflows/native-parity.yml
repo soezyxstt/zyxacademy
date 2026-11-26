@@ -9,7 +9,10 @@ on:
       - 'app/globals.css'
       - 'components/ui/**'
       - 'tests/visual/ui-parity-web/**'
+      - 'tests/visual/fixtures/fonts/**'
       - 'scripts/native-parity/**'
+      - 'scripts/native-readiness/**'
+      - '.maestro/native-parity/**'
       - '.github/workflows/native-parity.yml'
       - 'postcss.config.mjs'
       - 'tsconfig.json'
@@ -30,6 +33,22 @@ env:
   NEXT_TELEMETRY_DISABLED: '1'
 
 jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: python3 -m unittest discover -s scripts/native-readiness -p 'test_*.py'
+      - name: Inventory product page dependencies
+        run: python3 scripts/native-readiness/scan.py --all --max-depth 2 > "$RUNNER_TEMP/page-dependencies.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: page-dependencies
+          path: ${{ runner.temp }}/page-dependencies.json
+          retention-days: 7
+
   reference:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -90,13 +109,12 @@ jobs:
         working-directory: apps/mobile-native
       - run: npx --no-install tsc --noEmit
         working-directory: apps/mobile-native
-      - if: matrix.platform == 'ios'
-        run: bash scripts/native-parity/capture-ios.sh
-      - if: matrix.platform == 'android'
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
+      - if: matrix.platform == 'ios'
+        run: bash scripts/native-parity/capture-ios.sh
       - if: matrix.platform == 'android'
         name: Build emulator APK
         working-directory: apps/mobile-native

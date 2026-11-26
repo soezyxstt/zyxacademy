@@ -11,24 +11,28 @@ from PIL import Image, ImageChops, ImageCms, ImageOps
 MARKER = (224, 0, 239)
 
 
-def crop_positions(frame, scale):
+def crop_positions(frame, scale, identity_width):
     width = 320 * scale
     # Only the first row of each full-width marker starts a case.
     positions = []
+    identified = False
     for y in range(frame.height):
         line = frame.crop((0, y, frame.width, y + 1)).tobytes()
+        if not identified and line.count(bytes(MARKER)) == identity_width:
+            identified = bytes(MARKER) * identity_width in line
         offset = line.find(bytes(MARKER) * width)
         if offset >= 0 and offset % 3 == 0:
             x = offset // 3
             if y == 0 or frame.getpixel((x, y - 1)) != MARKER:
                 positions.append((x, y + scale))
-    return positions
+    return positions if identified else []
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("frame", type=Path)
     parser.add_argument("scale", type=int, choices=(1, 3))
+    parser.add_argument("component")
     parser.add_argument("--ready", action="store_true")
     args = parser.parse_args()
     frame = Image.open(args.frame)
@@ -41,7 +45,9 @@ def main():
     counts = Counter(case.split("-", 1)[0] for case in cases)
     if not cases or len(set(cases)) != len(cases) or set(counts.values()) != {3}:
         raise ValueError("Expected three unique cases per component")
-    positions = crop_positions(frame, args.scale)
+    ordinal = list(counts).index(args.component)
+    cases = [case for case in cases if case.split("-", 1)[0] == args.component]
+    positions = crop_positions(frame, args.scale, (16 + ordinal) * args.scale)
     if len(positions) != len(cases):
         raise SystemExit(f"Expected {len(cases)} marker strips, found {len(positions)}")
     if args.ready:
@@ -64,10 +70,14 @@ def main():
         passed = changed == 0 and not blank_reference
         if not passed:
             mismatches.append(case)
-        rows.append(f"| {case} | {changed} | {'Pass' if passed else 'Fail'} |")
+        bounds = difference.getbbox()
+        extent = ", ".join(map(str, bounds)) if bounds else ""
+        max_delta = max(hi for _, hi in difference.getextrema())
+        rows.append(f"| {case} | {changed} | {max_delta} | {extent} | {'Pass' if passed else 'Fail'} |")
     report = "\n".join([
-        f"### {args.frame.parent.name} at DPR {args.scale}", "",
-        "| Case | Different pixels | Result |", "| --- | ---: | --- |", *rows, "",
+        f"### {args.frame.parent.name}: {args.component} at DPR {args.scale}", "",
+        "| Case | Different pixels | Maximum RGB delta | Difference bounds (px) | Result |",
+        "| --- | ---: | ---: | --- | --- |", *rows, "",
     ])
     print(report)
     if summary := os.environ.get("GITHUB_STEP_SUMMARY"):

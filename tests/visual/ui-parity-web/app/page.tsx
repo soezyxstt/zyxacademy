@@ -1,16 +1,20 @@
+import { galleryCases, type GalleryCase } from "@/packages/ui-parity/gallery";
 import type { ReactNode } from "react";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { parityFrame } from "@/packages/ui-parity/frame";
-import { getSeparatorPosition, separatorCases } from "@/packages/ui-parity/separator-cases";
-import { getSkeletonPosition, skeletonCases } from "@/packages/ui-parity/skeleton-cases";
+import { getSeparatorPosition } from "@/packages/ui-parity/separator-cases";
+import { getSkeletonPosition } from "@/packages/ui-parity/skeleton-cases";
+
+import { ChoiceCase } from "./ChoiceCases";
+import { ControlCase } from "./ControlCases";
 
 type ParityCaseFrameProps = { id: string; theme: "light" | "dark"; children: ReactNode };
 
 function ParityCaseFrame({ id, theme, children }: ParityCaseFrameProps) {
   return (
     <div
-      className={theme === "dark" ? "dark bg-background" : "bg-background"}
+      className={theme === "dark" ? "dark bg-background text-foreground" : "bg-background text-foreground"}
       data-parity-case={id}
       style={{ position: "relative", width: parityFrame.width, height: parityFrame.height }}
     >
@@ -19,19 +23,33 @@ function ParityCaseFrame({ id, theme, children }: ParityCaseFrameProps) {
   );
 }
 
+function Specimen({ item }: { item: GalleryCase }) {
+  switch (item.family) {
+    case "control":
+      return <ControlCase id={item.id} />;
+    case "choice":
+      return <ChoiceCase id={item.id} />;
+    case "skeleton":
+      return <Skeleton style={getSkeletonPosition(item.width, item.height)} />;
+    case "separator":
+      return (
+        <div style={getSeparatorPosition(item.orientation)}>
+          {item.orientation === "vertical" ? (
+            <Separator orientation={item.orientation} decorative={false} aria-label="Pemisah bagian" />
+          ) : (
+            <Separator orientation={item.orientation} />
+          )}
+        </div>
+      );
+  }
+}
+
 export default function ParityPage() {
   return (
     <main style={{ display: "grid", justifyContent: "center", gap: parityFrame.gap, paddingBlock: parityFrame.gap }}>
-      {separatorCases.map(({ id, orientation, theme }) => (
-        <ParityCaseFrame key={id} id={id} theme={theme}>
-          <div style={getSeparatorPosition(orientation)}>
-            <Separator orientation={orientation} />
-          </div>
-        </ParityCaseFrame>
-      ))}
-      {skeletonCases.map(({ id, theme, width, height }) => (
-        <ParityCaseFrame key={id} id={id} theme={theme}>
-          <Skeleton style={getSkeletonPosition(width, height)} />
+      {galleryCases.map((item) => (
+        <ParityCaseFrame key={item.id} id={item.id} theme={item.theme}>
+          <Specimen item={item} />
         </ParityCaseFrame>
       ))}
     </main>

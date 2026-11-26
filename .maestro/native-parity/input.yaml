@@ -1,0 +1,26 @@
+appId: com.zyx.academy.nativeparity
+name: Input editing and disabled value retention
+---
+- launchApp
+- openLink: zyx-native-parity://gallery/input
+- assertVisible:
+    id: input-long-dark-control
+    text: Penilaian praktikum gelombang
+- tapOn:
+    id: input-disabled-light-control
+- assertVisible:
+    id: input-disabled-light-control
+    text: Preset bawaan
+    enabled: false
+    focused: false
+- tapOn:
+    id: input-empty-light-control
+- inputText: Preset 123
+- assertVisible:
+    id: input-empty-light-control
+    text: Preset 123
+- eraseText: 3
+- inputText: "456"
+- assertVisible:
+    id: input-empty-light-control
+    text: Preset 456

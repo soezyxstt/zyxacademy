@@ -11,13 +11,7 @@ adb shell settings put global transition_animation_scale 0
 adb shell settings put global animator_duration_scale 0
 adb install apps/mobile-native/android/app/build/outputs/apk/release/app-release.apk
 adb shell am start -W -n com.zyx.academy.nativeparity/.MainActivity
-for attempt in {1..45}; do
-  adb exec-out screencap -p > "$output/frame.png"
-  if python scripts/native-parity/compare.py "$output/frame.png" 1 --ready; then
-    python scripts/native-parity/compare.py "$output/frame.png" 1
-    exit 0
-  fi
-  sleep 2
-done
-adb logcat -d -s ReactNativeJS AndroidRuntime | tail -80
-exit 1
+status=0
+python scripts/native-parity/capture-gallery.py android || status=1
+bash scripts/native-parity/check-interactions.sh android "$(adb get-serialno)" || status=1
+exit "$status"

@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import {
-  AccessibilityInfo,
   Animated,
   Easing,
   StyleSheet,
@@ -10,6 +9,7 @@ import {
 } from "react-native";
 
 import { nativeColors, nativeRadii } from "../../../packages/design-tokens/native-colors";
+import { useReducedMotion } from "../device/reduced-motion";
 
 type SkeletonProps = {
   theme?: keyof typeof nativeColors;
@@ -21,24 +21,8 @@ const pulseEasing = Easing.bezier(0.4, 0, 0.6, 1);
 export function Skeleton({ theme, style }: SkeletonProps) {
   const systemTheme = useColorScheme();
   const colors = nativeColors[theme ?? systemTheme ?? "light"];
-  const [reduceMotion, setReduceMotion] = useState(true);
+  const reduceMotion = useReducedMotion();
   const [opacity] = useState(() => new Animated.Value(1));
-
-  useEffect(() => {
-    let applyInitialPreference = true;
-    const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", (enabled) => {
-      applyInitialPreference = false;
-      setReduceMotion(enabled);
-    });
-    void AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
-      if (applyInitialPreference) setReduceMotion(enabled);
-    }, () => undefined);
-
-    return () => {
-      applyInitialPreference = false;
-      subscription.remove();
-    };
-  }, []);
 
   useEffect(() => {
     if (reduceMotion) return;

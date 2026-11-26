@@ -6,17 +6,21 @@ type SeparatorProps = {
   orientation?: "horizontal" | "vertical";
   theme?: keyof typeof nativeColors;
   style?: StyleProp<ViewStyle>;
-};
+} & (
+  | { decorative?: true; accessibilityLabel?: never }
+  | { decorative: false; accessibilityLabel: string }
+);
 
-export function Separator({ orientation = "horizontal", theme, style }: SeparatorProps) {
+export function Separator({ orientation = "horizontal", theme, style, decorative = true, accessibilityLabel }: SeparatorProps) {
   const systemTheme = useColorScheme();
   const colors = nativeColors[theme ?? systemTheme ?? "light"];
 
   return (
     <View
-      accessible={false}
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
+      accessible={!decorative}
+      accessibilityElementsHidden={decorative}
+      accessibilityLabel={decorative ? undefined : accessibilityLabel}
+      importantForAccessibility={decorative ? "no-hide-descendants" : "yes"}
       style={[styles.base, styles[orientation], { backgroundColor: colors.border }, style]}
     />
   );

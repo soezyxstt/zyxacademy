@@ -15,3 +15,11 @@ npm start
 Buka di Expo Go yang mendukung SDK 58. Untuk build pengembangan lokal, gunakan `npm run android` dengan Android SDK atau `npm run ios` dengan Xcode di macOS. Expo menghasilkan direktori `android` dan `ios` dari `app.json`.
 
 Build lokal menggunakan ID `com.zyx.academy.nativeparity` agar dapat dipasang berdampingan dengan paket Capacitor di `apps/mobile`.
+
+## Galeri dan bukti paritas
+
+Pilih komponen di atas galeri untuk membuka tiga kasusnya. Pada build internal, tautan seperti `zyx-native-parity://gallery/button` membuka komponen yang sama. Galeri memuat Inter dan Lexend dari aset lokal agar capture dapat diulang tanpa akses jaringan.
+
+Workflow `Native component parity` menjalankan referensi Next.js pada skala 1 dan 3. Android dan iOS membuka setiap komponen pada perangkat virtual, memeriksa identitas galeri, lalu mengambil ketiga crop tanpa resize. Ringkasan job mencatat jumlah piksel berbeda, selisih kanal RGB terbesar dan batas area yang berbeda. Artifact mencakup frame asli, crop dan diff. Satu piksel berbeda menggagalkan kasus tersebut.
+
+Hasil visual, pemeriksaan interaksi dan kesiapan produk dilacak terpisah di [audit kesiapan](../../docs/native-readiness.md).

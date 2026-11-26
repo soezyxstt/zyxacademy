@@ -1,0 +1,40 @@
+appId: com.zyx.academy.nativeparity
+---
+# Both platforms expose the fixture value through the control's test ID.
+- assertVisible:
+    id: ${CONTROL}-unchecked-light-control-off
+    text: ${CONTROL_NAME}
+    enabled: true
+- assertVisible:
+    id: ${CONTROL}-checked-light-control-on
+    enabled: true
+- assertVisible:
+    id: ${CONTROL}-disabled-dark-control-on
+    enabled: false
+- tapOn:
+    id: ${CONTROL}-disabled-dark-control-on
+- assertVisible:
+    id: ${CONTROL}-disabled-dark-control-on
+    enabled: false
+- tapOn:
+    id: ${CONTROL}-unchecked-light-control-off
+- assertVisible:
+    id: ${CONTROL}-unchecked-light-control-on
+- tapOn:
+    id: ${CONTROL}-checked-light-control-on
+- assertVisible:
+    id: ${CONTROL}-checked-light-control-off
+# Android exposes checked directly. The iOS driver only does so for specific element types.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertVisible:
+          id: ${CONTROL}-unchecked-light-control-on
+          checked: true
+      - assertVisible:
+          id: ${CONTROL}-checked-light-control-off
+          checked: false
+      - assertVisible:
+          id: ${CONTROL}-disabled-dark-control-on
+          checked: true

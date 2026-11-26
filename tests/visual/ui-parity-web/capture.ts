@@ -5,6 +5,10 @@ import { parityFrame } from "../../../packages/ui-parity/frame";
 import { getSeparatorPosition, separatorCases } from "../../../packages/ui-parity/separator-cases";
 import { skeletonCases } from "../../../packages/ui-parity/skeleton-cases";
 
+import { choiceCases } from "../../../packages/ui-parity/choice-cases";
+import { controlCases } from "../../../packages/ui-parity/control-cases";
+import { galleryCases } from "../../../packages/ui-parity/gallery";
+
 const skeletonSelector = '[data-slot="skeleton"]';
 const cases = [
   ...separatorCases.map(({ id, orientation }) => ({
@@ -17,6 +21,7 @@ const cases = [
     selector: skeletonSelector,
     size: { width, height },
   })),
+  ...[...controlCases, ...choiceCases].map(({ id }) => ({ id, selector: "[data-parity-control]", size: null })),
 ];
 
 const url = process.env.PARITY_WEB_URL ?? "http://localhost:3210";
@@ -53,13 +58,17 @@ try {
   await expect(skeleton).toHaveCSS("animation-name", "none");
   await expect(skeleton).toHaveCSS("opacity", "0.65");
 
+  await page.evaluate(() => document.fonts.ready);
   for (const { id, selector, size } of cases) {
     const frame = page.locator(`[data-parity-case="${id}"]`);
     const specimen = frame.locator(selector);
     await expect(frame).toHaveCSS("width", `${parityFrame.width}px`);
     await expect(frame).toHaveCSS("height", `${parityFrame.height}px`);
-    await expect(specimen).toHaveCSS("width", `${size.width}px`);
-    await expect(specimen).toHaveCSS("height", `${size.height}px`);
+    await expect(specimen).toBeVisible();
+    if (size) {
+      await expect(specimen).toHaveCSS("width", `${size.width}px`);
+      await expect(specimen).toHaveCSS("height", `${size.height}px`);
+    }
     await frame.screenshot({
       path: fileURLToPath(new URL(`${id}.png`, outputDirectory)),
       animations: "disabled",
@@ -67,7 +76,30 @@ try {
     });
   }
 
+  await expect(page.getByRole("separator", { name: "Pemisah bagian" })).toBeVisible();
+  const control = (id: string) => page.locator(`[data-parity-case="${id}"] [data-parity-control]`);
+  await control("button-default-light").click();
+  await expect(page.getByText("Tersimpan", { exact: true })).toBeVisible();
+  await expect(control("button-disabled-dark")).toBeDisabled();
+  await expect(control("button-icon-light")).toHaveAccessibleName("Tambah");
+  await control("button-icon-light").click();
+  await expect(page.getByText("Ditambahkan", { exact: true })).toBeVisible();
+  await control("label-empty-light").click();
+  await expect(page.locator("#label-empty-light-input")).toBeFocused();
+  await control("input-empty-light").fill("Preset baru");
+  await expect(control("input-empty-light")).toHaveValue("Preset baru");
+  await expect(control("input-disabled-light")).toBeDisabled();
+  for (const component of ["checkbox", "switch"]) {
+    const toggle = control(`${component}-unchecked-light`);
+    await toggle.click();
+    await expect(toggle).toBeChecked();
+    await toggle.press("Space");
+    await expect(toggle).not.toBeChecked();
+    await expect(control(`${component}-disabled-dark`)).toBeDisabled();
+  }
+
   if (errors.length > 0) throw new Error(errors.join("\n"));
+  expect(cases.map(({ id }) => id)).toEqual(galleryCases.map(({ id }) => id));
   await writeFile(manifest, `${JSON.stringify(cases.map(({ id }) => id), null, 2)}\n`);
 } finally {
   await browser.close();

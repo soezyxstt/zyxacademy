@@ -1,6 +1,7 @@
 {
   "expo": {
     "name": "Zyx Academy Native",
+    "scheme": "zyx-native-parity",
     "slug": "zyx-academy-native",
     "version": "0.1.0",
     "platforms": ["android", "ios"],

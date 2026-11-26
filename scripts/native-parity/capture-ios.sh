@@ -9,12 +9,7 @@ xcrun simctl spawn "$device" defaults write com.apple.Accessibility ReduceMotion
 cd apps/mobile-native
 npx --no-install expo run:ios --configuration Release --device "$device" --no-bundler
 cd ../..
-for attempt in {1..45}; do
-  xcrun simctl io "$device" screenshot "$output/frame.png"
-  if python scripts/native-parity/compare.py "$output/frame.png" 3 --ready; then
-    python scripts/native-parity/compare.py "$output/frame.png" 3
-    exit 0
-  fi
-  sleep 2
-done
-exit 1
+status=0
+python scripts/native-parity/capture-gallery.py ios "$device" || status=1
+bash scripts/native-parity/check-interactions.sh ios "$device" || status=1
+exit "$status"

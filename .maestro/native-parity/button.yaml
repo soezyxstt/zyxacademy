@@ -1,0 +1,26 @@
+appId: com.zyx.academy.nativeparity
+name: Button press and disabled state
+---
+- launchApp
+- openLink: zyx-native-parity://gallery/button
+- assertVisible:
+    id: button-disabled-dark-control
+    text: Simpan
+    enabled: false
+- tapOn:
+    id: button-disabled-dark-control
+- assertNotVisible: Tersimpan
+- assertVisible:
+    id: button-default-light-control
+    text: Simpan
+    enabled: true
+- tapOn:
+    id: button-default-light-control
+- assertVisible: Tersimpan
+- assertVisible:
+    id: button-icon-light-control
+    text: Tambah
+    enabled: true
+- tapOn:
+    id: button-icon-light-control
+- assertVisible: Ditambahkan

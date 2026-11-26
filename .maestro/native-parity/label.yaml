@@ -1,0 +1,26 @@
+appId: com.zyx.academy.nativeparity
+name: Label focuses the associated input
+---
+- launchApp
+- openLink: zyx-native-parity://gallery/label
+- assertVisible:
+    id: label-long-dark-control
+    text: Nama template evaluasi praktikum
+- assertVisible:
+    id: label-long-dark-input
+    text: Penilaian praktikum
+- tapOn:
+    id: label-disabled-light-control
+- assertVisible:
+    id: label-disabled-light-input
+    text: Preset bawaan
+    enabled: false
+    focused: false
+- tapOn:
+    id: label-empty-light-control
+    text: Nama preset
+# Only the label is tapped before typing into its field.
+- inputText: Preset 789
+- assertVisible:
+    id: label-empty-light-input
+    text: Preset 789

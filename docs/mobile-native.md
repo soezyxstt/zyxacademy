@@ -11,6 +11,8 @@ Status: **prototipe lokal dan rencana, belum menjadi kontrak runtime atau rilis*
 - `apps/mobile-native` adalah scaffold Expo lokal untuk galeri separator dengan fixture `packages/ui-parity` dan alat perbandingan `scripts/native-parity`. Ini belum menjadi klien LMS, dan keberadaan fixture tidak membuktikan paritas piksel atau perilaku perangkat. Petunjuk menjalankan ada di [README prototipe](../apps/mobile-native/README.md).
 - Root memakai Bun dan saat ini tidak mendeklarasikan workspace; scaffold memiliki lockfile npm sendiri. Penambahan workspace bersama merupakan keputusan lanjutan. [Expo mendukung monorepo Bun](https://docs.expo.dev/guides/monorepos/), tetapi versi dan resolusi modul native harus diuji bersama.
 
+Lihat [audit kesiapan Expo](native-readiness.md) untuk cakupan komponen, halaman dan fungsi backend serta bukti per platform.
+
 ## Urutan dan gerbang paritas
 
 1. Bangun inventaris komponen web dan token dari `app/globals.css` dan `components/ui/`. Buat padanan native terisolasi dan galeri untuk pemeriksaan. **Setiap komponen memiliki tiga kasus yang diperiksa satu per satu** terhadap referensi web dengan viewport, skala, font, tema dan state yang ditentukan. Kasus awal separator adalah horizontal light, vertikal light, dan horizontal dark. Catat ukuran, warna, posisi dan hasil perbandingan piksel untuk tiap kasus; perbedaan font rasterization, density dan platform perlu dicatat, bukan diam-diam dianggap identik. Lanjut hanya setelah ketiganya memenuhi paritas piksel yang diminta dan interaksinya terverifikasi bila ada.

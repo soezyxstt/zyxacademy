@@ -15,6 +15,7 @@ docs/
 ├── DEPLOYMENT.md                             # Production/Staging Topology, Workers, AI Gateway, and Native Releases
 ├── FILE_NAMING_CONVENTIONS.md                # Academic Asset Naming Formula and Directory Hierarchy
 ├── data-fetching.md                          # Client Data Fetching and TanStack Query Standard
+├── native-readiness.md                       # Expo readiness evidence and scope
 ├── mobile-native.md                          # Expo and Next.js Mobile Migration Roadmap
 ├── coding-foundation.md                      # Python Learning, Playground, Live Quiz, and Zyra Coaching
 ├── discussions.md                            # Bilingual Scoped Discussions Contract
@@ -77,6 +78,7 @@ docs/
 | --- | --- | --- | --- |
 | [data-fetching.md](data-fetching.md) | Architecture | `ACTIVE` | TanStack Query 5 standard: account-scoped keys, validated API functions, freshness/retry/invalidation policies, student return navigation, and RSC boundaries. |
 | [mobile-native.md](mobile-native.md) | Plan | `OPEN / IN PROGRESS` | Staged Expo and Next.js mobile migration, component inventory, library selection, pixel parity gates, and native capability boundaries. |
+| [native-readiness.md](native-readiness.md) | Audit | `OPEN / IN PROGRESS` | Independent baseline and evidence for native component, page and backend readiness. |
 | [coding-foundation.md](coding-foundation.md) | Feature Contract | `ACTIVE` | Editable Python Markdown in Articles, viewport-aware Playground, Pyodide/WASI execution, Submit grading, Live Quiz, and Zyra Python coaching. |
 | [discussions.md](discussions.md) | Feature Contract | `ACTIVE` | Bilingual scoped Q&A discussions, compact composer, immutable retries, mention handles, full-text search, and single-dispatch `@Zyra` AI cooldowns. |
 | [gamification.md](gamification.md) | Feature Contract | `ACTIVE` | Student-only ranks, XP/LP ledgers, achievements, animated frames, 6 Zyra chat skins, Pet Studio (4 GLB pets + 15 fitted suits), leaderboards, and public profile privacy boundaries. |
