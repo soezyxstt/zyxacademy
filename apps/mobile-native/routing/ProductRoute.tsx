@@ -68,7 +68,9 @@ function ProductRoute({ href, pattern, owner, StudentScreen }: {
   const { state, transport, getSnapshot, getPendingRefresh } = useNativeSession();
   const [deferredNavigation] = useState(createDeferredSessionNavigation);
   const tutor = owner === "academic" && href.startsWith("/tutor");
-  const adminVideo = owner === "academic" && pattern === "/admin/courses/[slug]/videos";
+  const adminCourseFiles = owner === "academic" && (
+    pattern === "/admin/courses/[slug]/videos" || pattern === "/admin/courses/[slug]/documents" || pattern === "/admin/courses/[slug]/review"
+  );
   const studentAssessment = owner === "student" && (
     pattern === "/courses/[id]/quiz/[quizId]" || pattern === "/courses/[id]/tryout/[tryoutId]" ||
     pattern === "/courses/tutorial-pka/simulasi/[subject]/[stage]"
@@ -76,7 +78,7 @@ function ProductRoute({ href, pattern, owner, StudentScreen }: {
   const studentReading = owner === "student" && (
     pattern === "/courses/[id]/material/[materialId]" || pattern === "/courses/tutorial-pka/material/[materialId]"
   );
-  const access = useNativeRouteAccountContext(studentAssessment || studentReading || tutor || adminVideo);
+  const access = useNativeRouteAccountContext(studentAssessment || studentReading || tutor || adminCourseFiles);
   const context = access.context;
   const devicePreferences = useDevicePreferences();
   const scheme = useColorScheme();
@@ -161,7 +163,7 @@ function ProductRoute({ href, pattern, owner, StudentScreen }: {
   const accountKey = JSON.stringify([context.accountId, context.sessionId, locale]);
   if (role === "murid") return isFocused ? <StudentBrowserPage key={accountKey} locale={locale} href={href}
     canNavigate={() => navigationStatus() === "ready"} signOut={() => navigate("/sign-out")} /> : null;
-  return <RecheckingRoute enabled={tutor || adminVideo} checking={access.retaining} canInteract={canInteract}>
+  return <RecheckingRoute enabled={tutor || adminCourseFiles} checking={access.retaining} canInteract={canInteract}>
     <StaffChrome key={accountKey} role={role} href={href} theme={theme} focused={isFocused} context={context}
       checkingAccess={access.retaining} session={transport} visit={visit} back={back} loadTutorCourses={loadTutorCourses}>
       {owner === "academic" ? <AcademicRoute href={href} session={transport} accountId={context.accountId}

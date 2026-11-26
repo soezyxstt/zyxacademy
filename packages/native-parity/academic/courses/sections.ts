@@ -52,9 +52,9 @@ export type CourseSectionPayload =
         minScore: number; maxScore: number; medianScore: number; avgDurationSeconds: number; scoreRanges: number[] };
       questions: QuizInsightItem[]; attempts: { id: string; name: string | null; status: string; score: number | null;
         durationSeconds: number | null; startedAt: string; submittedAt: string | null }[]; latestInsight: { summary: string | null; sampleSize: number; report?: QuizInsightReport } | null }
-  | { type: "documents"; chapters: CourseChapterLabel[]; documents: CourseDocumentRow[] }
+  | { type: "documents"; chapters: (CourseChapterLabel & { orderIndex?: number })[]; documents: CourseDocumentRow[]; pdfUpload?: boolean }
   | { type: "document"; document: CourseDocumentRow; chapters: CourseChapterLabel[]; titleEdit?: AdminMaterialTitleEdit | null; pdfPreview?: boolean }
-  | { type: "review"; bundles: CourseReviewRow[] }
+  | { type: "review"; bundles: CourseReviewRow[]; bundleUpload?: { idea: boolean; product: boolean } }
   | { type: "leaderboard"; attempts: CourseLeaderboardAttempt[] }
   | { type: "videos"; playlists: { id: string; title: string; description: string | null; revision?: string | null; videos:
       { id: string; title: string; description: string | null; playable: boolean; revision?: string | null }[] }[] }

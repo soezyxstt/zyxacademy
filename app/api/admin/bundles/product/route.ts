@@ -1,3 +1,6 @@
+import { readNativeBundleIntake } from "@/lib/native/academic/bundle-intake";
+import { intakeJson, isNativeIntake, requireNativeIntake } from "@/lib/native/academic/intake-scope";
+import { bundleIntakeBytes } from "@/packages/native-parity/academic/courses/intake";
 import { hasAuthoringActor } from "@/lib/auth/authoring-actor";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
@@ -9,7 +12,7 @@ import { createProductBundleDraft, finalizeProductBundleDraft, type ProductBundl
 
 export const runtime = "nodejs";
 
-const MAX_UPLOAD_BYTES = 32 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = bundleIntakeBytes;
 
 function errorResponse(error: unknown, fallback = "PRODUCT_BUNDLE_REQUEST_FAILED") {
   const code = error instanceof Error ? error.message.split(":", 1)[0] : fallback;
@@ -50,7 +53,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const actor = await requireAdmin();
+  const native = isNativeIntake(request) ? await requireNativeIntake(request) : null;
+  if (native?.response) return native.response;
+  const actor = native ? { id: native.scope.accountId } : await requireAdmin();
   if (actor instanceof NextResponse) return actor;
 
   try {
@@ -61,6 +66,13 @@ export async function POST(request: NextRequest) {
     const uploadedBytes = new Uint8Array(await file.arrayBuffer());
     const validation = await validateProductBundleAdmission(uploadedBytes);
     if (!validation.success) return NextResponse.json({ error: "PRODUCT_BUNDLE_VALIDATION_FAILED", reasonCodes: validation.issues.map((issue) => issue.code), issues: validation.issues }, { status: 422 });
+    if (native) {
+      const result = readNativeBundleIntake(native, "product", form, uploadedBytes, validation.data.manifest, () => ({
+        total: validation.data.products.length,
+        titles: validation.data.products.slice(0, 5).map(product => product.title),
+      }));
+      if (result) return result;
+    }
     const intent = form.get("intent");
     if (intent !== "stage") {
       const counts = Object.fromEntries(validation.data.products.reduce((entries, product) => entries.set(product.productType, (entries.get(product.productType) ?? 0) + 1), new Map<string, number>()));
@@ -75,8 +87,9 @@ export async function POST(request: NextRequest) {
       });
     }
     const draftValue = form.get("draft");
-    if (typeof draftValue !== "string" || draftValue.length > 12 * 1024 * 1024) return NextResponse.json({ error: "PRODUCT_BUNDLE_DRAFT_REQUIRED" }, { status: 400 });
-    const finalized = finalizeProductBundleDraft(validation.data, JSON.parse(draftValue) as ProductBundleDraft);
+    if (!native && (typeof draftValue !== "string" || draftValue.length > 12 * 1024 * 1024)) return NextResponse.json({ error: "PRODUCT_BUNDLE_DRAFT_REQUIRED" }, { status: 400 });
+    const draft = native ? createProductBundleDraft(validation.data) : JSON.parse(draftValue as string) as ProductBundleDraft;
+    const finalized = finalizeProductBundleDraft(validation.data, draft);
     const bundle = finalized.bundle;
     const result = await stageProductBundle({
       runId: request.headers.get("x-correlation-id") ?? `api-${Date.now()}`,
@@ -87,9 +100,10 @@ export async function POST(request: NextRequest) {
       requestedBy: actor.id,
       bundle,
       filename: file.name || "product-bundle-v2.zip",
-      expectedPreviousChecksum: typeof form.get("expectedRevision") === "string" ? String(form.get("expectedRevision")) : undefined,
+      expectedPreviousChecksum: !native && typeof form.get("expectedRevision") === "string" ? String(form.get("expectedRevision")) : undefined,
     });
-    return NextResponse.json({ result }, { status: result.created ? 201 : 200 });
+    return native ? intakeJson({ result: { importId: result.importId } }, result.created ? 201 : 200)
+      : NextResponse.json({ result }, { status: result.created ? 201 : 200 });
   } catch (error) {
     return errorResponse(error);
   }

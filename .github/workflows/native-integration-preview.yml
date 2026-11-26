@@ -60,6 +60,10 @@ on:
       - 'tests/contracts/native-course-video-management.test.ts'
       - 'tests/unit/expo-native-video-management.test.ts'
       - 'tests/unit/native-course-video-upload-grants.test.ts'
+      - 'tests/unit/expo-native-course-intake.test.ts'
+      - 'app/api/admin/course-materials/batch/**'
+      - 'app/api/admin/bundles/idea/route.ts'
+      - 'app/api/admin/bundles/product/route.ts'
       - 'tests/unit/expo-native-solution-review.test.ts'
       - 'tests/contracts/solution-review-ui.test.ts'
       - 'packages/academic/solution-review-*.ts'
@@ -316,6 +320,9 @@ jobs:
         run: |
           bun test packages/native-parity/academic/assessment/read-handler.test.ts
           bun scripts/test-contracts.ts tests/contracts/tutor-quiz-manual-grading.test.ts tests/contracts/scoped-storage-file-authorization.test.ts
+      - name: Admin PDF and private bundle intake
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: bun test tests/unit/expo-native-course-intake.test.ts tests/unit/expo-native-files.test.ts
       - name: Tutor Live ownership, client and Worker contracts
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: |

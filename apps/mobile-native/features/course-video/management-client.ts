@@ -1,3 +1,4 @@
+import { signedStoragePutUrl } from "../../network/signed-storage-url";
 import { z } from "zod";
 import { videoManagerAccount, videoManagerSession, videoManagementPath,
   type ManagedVideoCommand, type VideoManagementCatalog, type VideoManagerRole, type VideoUploadGrant, type VideoUploadInput } from "../../../../packages/course-video/management";
@@ -58,14 +59,7 @@ export async function submitManagedVideo(session: NativeSessionTransport, role: 
   } finally { response.dispose(); }
 }
 
-export function signedCourseVideoUploadUrl(value: string) {
-  try {
-    const url = new URL(value);
-    return url.protocol === "https:" && !url.username && !url.password && !url.hash &&
-      url.searchParams.get("X-Amz-Algorithm") === "AWS4-HMAC-SHA256" &&
-      /^[a-f0-9]{64}$/.test(url.searchParams.get("X-Amz-Signature") ?? "") ? url.href : null;
-  } catch { return null; }
-}
+export const signedCourseVideoUploadUrl = signedStoragePutUrl;
 
 export async function prepareManagedVideoUpload(session: NativeSessionTransport, role: VideoManagerRole, courseId: string,
   fields: VideoUploadInput, signal: AbortSignal): Promise<VideoUploadGrant> {

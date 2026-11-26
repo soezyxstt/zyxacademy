@@ -1,3 +1,6 @@
+import { readNativeBundleIntake } from "@/lib/native/academic/bundle-intake";
+import { intakeJson, isNativeIntake, requireNativeIntake } from "@/lib/native/academic/intake-scope";
+import { bundleIntakeBytes } from "@/packages/native-parity/academic/courses/intake";
 import { hasAuthoringActor } from "@/lib/auth/authoring-actor";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
@@ -11,7 +14,7 @@ import { createIdeaBundleDraft, finalizeIdeaBundleDraft, type IdeaBundleDraft } 
 
 export const runtime = "nodejs";
 
-const MAX_UPLOAD_BYTES = 32 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = bundleIntakeBytes;
 
 function errorResponse(error: unknown, fallback = "IDEA_BUNDLE_REQUEST_FAILED") {
   const code = error instanceof ZipSecurityError ? error.code : error instanceof Error ? error.message.split(":", 1)[0] : fallback;
@@ -57,7 +60,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const actor = await requireAdmin();
+  const native = isNativeIntake(request) ? await requireNativeIntake(request) : null;
+  if (native?.response) return native.response;
+  const actor = native ? { id: native.scope.accountId } : await requireAdmin();
   if (actor instanceof NextResponse) return actor;
 
   try {
@@ -76,6 +81,13 @@ export async function POST(request: NextRequest) {
       }, { status: 422 });
     }
 
+    if (native) {
+      const result = readNativeBundleIntake(native, "idea", form, uploadedBytes, validation.data.manifest, () => ({
+        total: validation.data.entities.ideas.length,
+        titles: validation.data.entities.learningSections.slice(0, 5).map(section => section.title),
+      }));
+      if (result) return result;
+    }
     const intent = form.get("intent");
     if (intent !== "stage") {
       return NextResponse.json({
@@ -88,10 +100,11 @@ export async function POST(request: NextRequest) {
     }
 
     const draftValue = form.get("draft");
-    if (typeof draftValue !== "string" || draftValue.length > 8 * 1024 * 1024) {
+    if (!native && (typeof draftValue !== "string" || draftValue.length > 8 * 1024 * 1024)) {
       return NextResponse.json({ error: "IDEA_BUNDLE_DRAFT_REQUIRED" }, { status: 400 });
     }
-    const finalized = finalizeIdeaBundleDraft(validation.data, JSON.parse(draftValue) as IdeaBundleDraft);
+    const draft = native ? createIdeaBundleDraft(validation.data) : JSON.parse(draftValue as string) as IdeaBundleDraft;
+    const finalized = finalizeIdeaBundleDraft(validation.data, draft);
     const bundle = finalized.bundle;
     const items = [
       ...bundle.entities.sourceMaterials.map((entity) => ({ entityType: "source_material", entityId: entity.id, entityVersion: entity.version, entityHash: sha256Text(serializeDeterministically(entity)) })),
@@ -122,7 +135,8 @@ export async function POST(request: NextRequest) {
       },
       filename: file.name || "idea-bundle-v2.zip",
     });
-    return NextResponse.json({ result }, { status: result.created ? 201 : 200 });
+    return native ? intakeJson({ result: { importId: result.importId } }, result.created ? 201 : 200)
+      : NextResponse.json({ result }, { status: result.created ? 201 : 200 });
   } catch (error) {
     return errorResponse(error);
   }

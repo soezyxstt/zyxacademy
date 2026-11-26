@@ -554,3 +554,36 @@ test("Tutor can open an exact tryout answer PDF with native session binding and 
   expect(await fixture.controller.shareAuthorizedDownload(request)).toEqual({ status: "error", issue: "size" });
   expect(fixture.shares).toHaveLength(1);
 });
+
+test("native PDF batch picker bounds total bytes and purges partial selections", async () => {
+  const second = { ...providerAsset, uri: "content://documents/second", name: "Kedua.pdf" };
+  const selected = setup({
+    async pick(types, multiple) {
+      expect(types).toEqual(["application/pdf"]);
+      expect(multiple).toBe(true);
+      return [providerAsset, second];
+    },
+  });
+  const tooLarge = await selected.controller.pickDocuments(selected.request, { count: 2, bytes: fixturePdf.length + 1 });
+  expect(tooLarge).toEqual({ status: "error", issue: "size" });
+  expect(selected.files.size).toBe(0);
+  expect(selected.discarded).toEqual([providerAsset.uri, second.uri]);
+  const good = await selected.controller.pickDocuments(selected.request, { count: 2, bytes: fixturePdf.length * 2 });
+  expect(good.status).toBe("ready");
+  if (good.status !== "ready") throw new Error("Expected both PDF files");
+  expect(good.documents.map(file => file.name)).toEqual(["Dokumen.pdf", "Kedua.pdf"]);
+  selected.transport.clearSession();
+  expect(selected.files.size).toBe(0);
+});
+
+test("native ZIP intake accepts a platform ZIP alias but checks actual file bytes", async () => {
+  const asset = { uri: "content://documents/bundle", name: "Idea.zip", mimeType: "application/x-zip-compressed", size: 4 };
+  const sample = (bytes: Uint8Array) => setup({ async pick() { return [asset]; }, open: () => stream(bytes) });
+  const valid = sample(Uint8Array.of(80, 75, 3, 4));
+  const draft = { ...valid.request, policy: { mimeTypes: ["application/zip"], maxBytes: 10 } };
+  const good = await valid.controller.pickDocument(draft);
+  expect(good).toMatchObject({ status: "ready", document: { name: "Idea.zip", mimeType: "application/zip" } });
+  const invalid = sample(Uint8Array.of(0, 1, 2, 3));
+  expect(await invalid.controller.pickDocument({ ...draft, session: invalid.session })).toEqual({ status: "error", issue: "type" });
+  expect(invalid.files.size).toBe(0);
+});

@@ -13,6 +13,8 @@ import { LiveVideos } from "./live-videos";
 import { AdminCoursePdfPreview } from "./admin-pdf-preview";
 import { LivePdfTitleEdit } from "./live-material";
 import { LiveCourseEdit } from "./live-settings";
+import { LivePdfIntake } from "./live-pdf-intake";
+import { LiveBundleIntake } from "./live-bundle-intake";
 import { LiveTextCourseDocument } from "./live-text-document";
 import { LiveCourseArchive } from "./live-management";
 import { QuizAttemptsTable, QuizResultsTable } from "./tables";
@@ -51,7 +53,7 @@ export function LiveCourseSection({ data, query, navigate, updateSettings, updat
     case "quiz-insight":
       return <LiveQuizInsight data={data} initialTab={query.tab} refresh={refresh} />;
     case "documents":
-      return <LiveDocuments data={data} query={query} navigate={navigate} />;
+      return <LiveDocuments data={data} query={query} navigate={navigate} refresh={refresh} />;
     case "document": {
       const { document, chapters, titleEdit } = data;
       const editTitle = titleEdit && updateMaterial ? (
@@ -231,7 +233,7 @@ const documentTabs = [
   { id: "bank_soal", label: "Bank soal" }, { id: "pdf", label: "PDF" },
 ] as const;
 
-function LiveDocuments({ data, query, navigate }: { data: SectionOf<"documents">; query: Query; navigate: Navigate }) {
+function LiveDocuments({ data, query, navigate, refresh }: { data: SectionOf<"documents">; query: Query; navigate: Navigate; refresh(): void }) {
   const [tab, setTab] = useState(() => documentTabs.find(({ id }) => id === (query.tab === "bank-soal" ? "bank_soal" : query.tab))?.id ?? "all");
   const [chapter, setChapter] = useState(query.chapter ?? "");
   const [search, setSearch] = useState("");
@@ -240,6 +242,8 @@ function LiveDocuments({ data, query, navigate }: { data: SectionOf<"documents">
   return (
     <>
       <Tabs<(typeof documentTabs)[number]["id"]> options={documentTabs} selected={tab} onSelect={setTab} testID="course-document-tab" />
+      {data.pdfUpload && data.chapters.length ? <LivePdfIntake courseId={data.course.id} refresh={refresh}
+        chapters={data.chapters.map((row, index) => ({ ...row, orderIndex: row.orderIndex ?? index + 1 }))} /> : null}
       <SearchBox label="Cari dokumen" value={search} onChange={setSearch} />
       {data.chapters.length ? <ChapterPicker chapters={data.chapters} chapter={chapter} onSelect={setChapter} /> : null}
       {visible.length ? visible.map((row) => (
@@ -256,6 +260,8 @@ function LiveReview({ data, query, navigate }: { data: SectionOf<"review">; quer
   return (
     <>
       <Tabs<"idea" | "product"> options={[{ id: "idea", label: "Idea Bundle" }, { id: "product", label: "Product Bundle" }]} selected={tab} onSelect={setTab} />
+      {data.bundleUpload?.[tab] ? <LiveBundleIntake key={tab + ":" + data.course.id} courseId={data.course.id} kind={tab}
+        onStaged={id => navigate(adminCoursePath(data.course.slug, `review/${tab}`, id))} /> : null}
       {list.length ? list.map((row) => <DataRow key={row.id} title={row.title} description={row.subtitle} detail={localLabel(row.status) ?? undefined}
         onPress={() => navigate(adminCoursePath(data.course.slug, `review/${tab}`, row.id))} testID={`course-review-${row.id}`} />)
         : <CourseStatus label="Belum ada bundle untuk ditinjau." />}

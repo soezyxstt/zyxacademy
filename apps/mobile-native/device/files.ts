@@ -90,8 +90,8 @@ export const scopedFiles = createNativeFileController({
   available: native,
   resetOwnedCache,
   androidExports: Platform.OS === "android",
-  async pick(mimeTypes) {
-    const result = await getDocumentAsync({ type: [...mimeTypes], multiple: false, copyToCacheDirectory: false });
+  async pick(mimeTypes, multiple = false) {
+    const result = await getDocumentAsync({ type: [...mimeTypes], multiple, copyToCacheDirectory: false });
     if (result.canceled) return null;
     return result.assets.map(asset => {
       if (Platform.OS === "android" && asset.uri.startsWith("content://") && (asset.size ?? 0) <= 0) {

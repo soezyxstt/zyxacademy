@@ -96,6 +96,7 @@ This catalog documents the active user-facing and operational capabilities of Zy
 - **Form Studio (`/admin/forms`)**: Revamped Google Forms style builder with less-cards layout, per-question or per-section publication, upload size labels, submission confirmation, and Google Sheets export with attachment URLs.
 - **Pricing & Discounts (`/admin/pricing`)**: Admin-managed platform and tutorial discount schedules backed by singleton `pricing_settings`.
 - **Course Access Categories**: Admin-managed free/paid course access categories and scheduled free access windows.
+- **Expo course intake**: Admin Documents accepts one or several PDFs for an active course with a compatible PDF catalog. Admins choose how to handle checksum matches and link each PDF to course chapters. Private Review accepts Idea and Product ZIPs for the selected course and presents a validation preview before staging. Staged bundles open in the existing review workspace.
 
 ### Authoring and Admin MCP (`/api/mcp/authoring`)
 - Streamable HTTP MCP endpoint supporting OAuth PKCE with 4 default scopes plus explicit publication and admin consent grants.

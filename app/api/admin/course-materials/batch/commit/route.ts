@@ -1,3 +1,4 @@
+import { isNativeIntake } from "@/lib/native/academic/intake-scope";
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { and, eq, inArray } from "drizzle-orm";
@@ -40,6 +41,10 @@ const BodySchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  if (isNativeIntake(req)) {
+    const { handleNativeCoursePdfIntake } = await import("@/lib/native/academic/course-pdf-intake");
+    return handleNativeCoursePdfIntake(req, "commit");
+  }
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user || session.user.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

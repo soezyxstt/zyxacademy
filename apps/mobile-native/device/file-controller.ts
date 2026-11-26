@@ -52,6 +52,7 @@ export type NativeDownloadRequest = {
 
 type Issue = "policy" | "invalid-target" | "type" | "size" | "incomplete" | "picker" | "read" | "fetch" | "share" | "unauthorized" | "not-found" | "changed";
 type FileRejection = { status: "error"; issue: Issue } | { status: "cancelled" | "stale" | "busy" | "unavailable" };
+export type DocumentsResult = { status: "ready"; documents: DraftDocument[] } | FileRejection;
 export type DocumentResult = { status: "ready"; document: DraftDocument } | FileRejection;
 export type ShareFileResult = { status: "finished" } | FileRejection;
 export type PdfGrant = { revision: string; expiresAt: number };
@@ -83,7 +84,7 @@ type NativeFileDevice = {
   available: boolean;
   resetOwnedCache?(): void;
   androidExports?: boolean;
-  pick(mimeTypes: readonly string[]): Promise<PickerDocument[] | null>;
+  pick(mimeTypes: readonly string[], multiple?: boolean): Promise<PickerDocument[] | null>;
   inspect(asset: PickerDocument): { mimeType?: string; size?: number };
   open(asset: PickerDocument): ReadableStream<Uint8Array>;
   discard(asset: PickerDocument): void;
@@ -128,6 +129,7 @@ export function sanitizeNativeFileName(raw: string | undefined, fallback: string
 
 const EXTENSIONS = new Map([
   ["application/pdf", "pdf"],
+  ["application/zip", "zip"],
   ["image/png", "png"],
   ["image/jpeg", "jpg"],
   ["image/webp", "webp"],
@@ -241,6 +243,7 @@ function matchesFileHeader(prefix: Uint8Array, mimeType: string): boolean {
   if (mimeType === "image/gif") return ["GIF87a", "GIF89a"].includes(ascii(0, 6));
   if (mimeType === "image/webp") return ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP";
   if (mimeType.startsWith("video/")) return matchesCourseVideoUploadHeader(prefix, mimeType);
+  if (mimeType === "application/zip") return [80, 75, 3, 4].every((byte, index) => prefix[index] === byte);
   if (mimeType === "application/pdf") return /%PDF-\d\.\d/.test(ascii(0, prefix.length));
   return true;
 }
@@ -313,9 +316,15 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
   }
 
   async function pickDocument(request: DocumentDraftRequest): Promise<DocumentResult> {
+    const result = await pickDocuments(request, { count: 1, bytes: request.policy.maxBytes });
+    return result.status === "ready" ? { status: "ready", document: result.documents[0] } : result;
+  }
+
+  async function pickDocuments(request: DocumentDraftRequest, limits: { count: number; bytes: number }): Promise<DocumentsResult> {
     if (!device.available) return { status: "unavailable" };
     if (picking) return { status: "busy" };
-    if (!validPolicy(request.policy)) return { status: "error", issue: "policy" };
+    if (!validPolicy(request.policy) || !Number.isSafeInteger(limits.count) || limits.count < 1 ||
+      !Number.isSafeInteger(limits.bytes) || limits.bytes < 1) return { status: "error", issue: "policy" };
     const sessionSignal = request.session.signal;
     const callerSignal = request.signal;
     const binding = { scope: Object.freeze({ ...request.session.scope }), target: Object.freeze({ ...request.target }) };
@@ -333,46 +342,66 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
     let assets: PickerDocument[] | null = null;
     let file: TemporaryFile | undefined;
     let errorStage: Issue = "picker";
+    let ready = false;
+    let remaining = limits.bytes;
+    const documents: DraftDocument[] = [];
     try {
       initialize();
-      assets = await device.pick(permitted);
+      const chooserTypes = permitted.includes("application/zip") ? [...permitted, "application/x-zip-compressed", "application/x-zip"] : permitted;
+      assets = await device.pick(chooserTypes, limits.count > 1);
       assertCurrent();
       if (!assets) return { status: "cancelled" };
-      if (assets.length !== 1) return { status: "error", issue: "picker" };
-      const asset = assets[0];
-      errorStage = "read";
-      const observed = device.inspect(asset);
-      const reported = normalizeMimeType(asset.mimeType);
-      const observedMime = normalizeMimeType(observed.mimeType);
-      const mimeType = reported && reported !== "application/octet-stream" ? reported : observedMime;
-      if (!permitted.includes(mimeType) || (observedMime && observedMime !== "application/octet-stream" && observedMime !== mimeType)) {
-        return { status: "error", issue: "type" };
-      }
-      const issue = sizeIssue(asset.size, maxBytes) ?? sizeIssue(observed.size, maxBytes);
-      if (issue) return { status: "error", issue };
-      const name = fileName(asset.name, mimeType);
-      file = device.createTemporary(name);
-      const size = await copyBytes(device.open(asset), file, mimeType, maxBytes, observed.size ?? asset.size, assertCurrent,
-        [sessionSignal, callerSignal]);
-      assertCurrent();
+      if (!assets.length || (limits.count === 1 && assets.length !== 1)) return { status: "error", issue: "picker" };
+      if (assets.length > limits.count) return { status: "error", issue: "size" };
+      for (const asset of assets) {
+        errorStage = "read";
+        const observed = device.inspect(asset);
+        const mime = (value?: string) => {
+          const normalized = normalizeMimeType(value);
+          return permitted.includes("application/zip") && ["application/x-zip-compressed", "application/x-zip"].includes(normalized)
+            ? "application/zip" : normalized;
+        };
+        const reported = mime(asset.mimeType);
+        const observedMime = mime(observed.mimeType);
+        let mimeType = reported && reported !== "application/octet-stream" ? reported : observedMime;
+        if ((!mimeType || mimeType === "application/octet-stream") && permitted.includes("application/zip") && /\.zip$/i.test(asset.name)) {
+          mimeType = "application/zip";
+        }
+        if (!permitted.includes(mimeType) || (observedMime && observedMime !== "application/octet-stream" && observedMime !== mimeType)) {
+          return { status: "error", issue: "type" };
+        }
+        const limit = Math.min(maxBytes, remaining);
+        if (limit <= 0) return { status: "error", issue: "size" };
+        const issue = sizeIssue(asset.size, limit) ?? sizeIssue(observed.size, limit);
+        if (issue) return { status: "error", issue };
+        const name = fileName(asset.name, mimeType);
+        file = device.createTemporary(name);
+        const size = await copyBytes(device.open(asset), file, mimeType, limit, observed.size ?? asset.size, assertCurrent,
+          [sessionSignal, callerSignal]);
+        assertCurrent();
 
-      const held = file;
-      const release = () => {
-        if (!heldDocuments.delete(document)) return;
-        sessionSignal.removeEventListener("abort", release);
-        callerSignal?.removeEventListener("abort", release);
-        removeTemporary(held);
-      };
-      const document: DraftDocument = Object.freeze({ ...binding, name, mimeType, size, uri: held.uri, release });
-      heldDocuments.set(document, sessionSignal);
-      sessionSignal.addEventListener("abort", release, { once: true });
-      callerSignal?.addEventListener("abort", release, { once: true });
-      file = undefined;
-      return { status: "ready", document };
+        const held = file;
+        const release = () => {
+          if (!heldDocuments.delete(document)) return;
+          sessionSignal.removeEventListener("abort", release);
+          callerSignal?.removeEventListener("abort", release);
+          removeTemporary(held);
+        };
+        const document: DraftDocument = Object.freeze({ ...binding, name, mimeType, size, uri: held.uri, release });
+        heldDocuments.set(document, sessionSignal);
+        sessionSignal.addEventListener("abort", release, { once: true });
+        callerSignal?.addEventListener("abort", release, { once: true });
+        documents.push(document);
+        remaining -= size;
+        file = undefined;
+      }
+      ready = true;
+      return { status: "ready", documents };
     } catch (error) {
       return current() ?? resultFrom(error, errorStage);
     } finally {
       for (const asset of assets ?? []) device.discard(asset);
+      if (!ready) for (const document of documents) document.release();
       removeTemporary(file);
       picking = false;
     }
@@ -660,6 +689,6 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
     }
   }
 
-  return { initialize, expireExports, pickDocument, belongsToDocumentDraft, shareDocument, shareAuthorizedDownload,
+  return { initialize, expireExports, pickDocument, pickDocuments, belongsToDocumentDraft, shareDocument, shareAuthorizedDownload,
     prepareFormQuestionImage, prepareAdminMarkdownImage, prepareCourseVideo, prepareMaterialPdf, renewMaterialPdf };
 }

@@ -120,7 +120,7 @@ export async function readAdminCourseSection(slug: string, section: string, item
 
   const data = await getCourseDetailData(slug, section === "questions");
   if (!data) return null;
-  const chapters = data.chapters.map(({ id, title }) => ({ id, title }));
+  const chapters = data.chapters.map(({ id, title, orderIndex }) => ({ id, title, orderIndex }));
 
   if (section === "analytics" || section === "results") {
     const { totalAttempts, avgScore, passRate } = data.stats;
@@ -164,13 +164,15 @@ export async function readAdminCourseSection(slug: string, section: string, item
       ]);
       return { type: "document", course, chapters, document: documentRow(material), titleEdit, pdfPreview: Boolean(pdf) };
     }
-    return { type: "documents", course, chapters, documents: materials.map(documentRow) };
+    return { type: "documents", course, chapters, documents: materials.map(documentRow),
+      pdfUpload: identity.status === "active" && Boolean(identity.legacyId) };
   }
 
   if (section === "review") {
     const workspace = await loadMaterialWorkspaceData({ courseIds: identity.allIds });
     return {
       type: "review", course,
+      bundleUpload: { idea: identity.status === "active" && workspace.ideaEnabled, product: identity.status === "active" && workspace.productEnabled },
       bundles: [
         ...(workspace.ideaEnabled ? workspace.initialIdeaImports : []).filter((row) => matchesCourseIdentity(row.courseId, identity)).map((row) => ({
           id: row.id, type: "idea" as const, title: row.bundleTitle ?? row.bundleId, subtitle: row.chapterLabel ?? null, status: row.status,
