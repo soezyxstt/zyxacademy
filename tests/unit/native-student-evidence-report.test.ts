@@ -1,4 +1,6 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
+import { createHash } from "node:crypto";
+import { verifyWebCaptures } from "../visual/native-parallel/student/verify-web-captures";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -126,4 +128,15 @@ test("a newer partial run retains the older measured comparisons without changin
   ]);
   expect(comparisons.filter(row => !row.primary).every(row => row.differingPixels !== null)).toBe(true);
   expect(markdown).toContain("results-mixed · 45829658265");
+});
+
+test("a changed Playwright screenshot loses evidence credit in both product manifest formats", () => {
+  const file = "student-capture.png";
+  writeFileSync(join(workspace, file), "first snapshot");
+  const digest = createHash("sha256").update("first snapshot").digest("hex");
+  const flat = { id: "settings", screenshot: file, screenshotSha256: digest };
+  const multiple = { id: "material", screenshots: [{ file, sha256: digest }] };
+  for (const entry of [flat, multiple]) expect(verifyWebCaptures(entry, workspace, true)[0].status).toBe("available");
+  writeFileSync(join(workspace, file), "changed snapshot");
+  for (const entry of [flat, multiple]) expect(verifyWebCaptures(entry, workspace, true)[0].status).toBe("sha256_mismatch");
 });

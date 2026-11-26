@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
+import { verifyWebCaptures } from "./verify-web-captures";
 import { matchStudentRoute, studentPatterns, type StudentArea } from "../../../../apps/mobile-native/features/student/routes";
 
 // Generate smoke metadata first, then run this script. Optional platform summary
@@ -148,15 +149,7 @@ for (const manifestFile of optionalManifests.filter(existsSync)) {
     if (!pattern) continue;
     const error = entry.error ?? null;
     const passed = !error && (entry.status === "passed" || entry.status === 200);
-    const names = Array.isArray(entry.screenshots) ? entry.screenshots :
-      entry.screenshot ? [{ file: entry.screenshot }] : passed ? [{ file: `${entry.id}.png` }] : [];
-    const files = names.map((item: any) => typeof item === "string" ? { file: item } : item).map((item: any) => {
-      if (typeof item.file !== "string" || basename(item.file) !== item.file) return { status: "invalid_path", name: item.file };
-      const file = join(dirname(manifestFile), item.file);
-      if (!existsSync(file)) return { status: "missing", file };
-      const digest = createHash("sha256").update(readFileSync(file)).digest("hex");
-      return { status: item.sha256 && item.sha256 !== digest ? "sha256_mismatch" : "available", file, sha256: digest };
-    });
+    const files = verifyWebCaptures(entry, dirname(manifestFile), passed);
     const status = error || !passed ? "failed" : files.length && files.every((file: any) => file.status === "available") ? "passed" : "capture_missing_or_invalid";
     optionalAttempts.push({ pattern, id: entry.id, path: entry.path, status, error, files, manifest: manifestFile,
       sourceHead: input.serverSha ?? null, project: input.project ?? null, viewport: entry.viewport ?? (input.width && input.height ? { width: input.width, height: input.height } : null),
