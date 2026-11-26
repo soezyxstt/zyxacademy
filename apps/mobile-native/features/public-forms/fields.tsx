@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View, useColorScheme } from "react-native";
 import { nativeColors, nativeRadii } from "../../../../packages/design-tokens/native-colors";
+import { formScaleValues } from "../../../../packages/forms/presentation";
 import { formFileAccept } from "../../../../packages/forms/file-types";
 import { NATIVE_STAGING_ORIGIN } from "../../auth/session-api";
 import { Input, Textarea } from "../../components/Input";
@@ -123,7 +124,15 @@ function QuestionImage({ uri, title, failure, colors }: { uri: string; title: st
   return <Image accessibilityLabel={title} accessibilityRole="image" source={{ uri }} style={styles.image} resizeMode="contain" onError={() => setFailed(true)} />;
 }
 
-type FileField = { filename?: string; pending: boolean; error?: string; pick(): void; clear(): void };
+type FileField = {
+  blocked?: boolean;
+  openWeb?: () => void;
+  filename?: string;
+  pending: boolean;
+  error?: string;
+  pick(): void;
+  clear(): void;
+};
 
 export function FormField({ index, question, value, detail, issue, onValue, onDetail, disabled, locale, file, colors }: {
   index: number; question: PublicQuestion; value?: PublicAnswer; detail: string; issue?: FieldIssue; onValue: (value: PublicAnswer | undefined) => void;
@@ -164,7 +173,7 @@ export function FormField({ index, question, value, detail, issue, onValue, onDe
         <Text style={[formStyles.meta, { color: colors.mutedForeground }]}>{question.scaleLowLabel || copy.scaleLow}</Text>
         <Text style={[formStyles.meta, { color: colors.mutedForeground }]}>{question.scaleHighLabel || copy.scaleHigh}</Text>
       </View>}
-      <View style={formStyles.row}>{[1, 2, 3, 4, 5].map(rating => {
+      <View style={formStyles.row}>{formScaleValues(type === "SCALE" ? question : {}).map(rating => {
         const key = String(rating);
         return <Choice key={key} label={key} accessibilityLabel={type === "RATING" ? copy.starRating.replace("{rating}", key) : undefined}
           selected={scalar === key} disabled={disabled} onPress={() => onValue(key)} />;
@@ -192,10 +201,15 @@ export function FormField({ index, question, value, detail, issue, onValue, onDe
       {file.filename && <Text style={[formStyles.body, { color: colors.foreground }]}>{file.filename}</Text>}
       <View style={formStyles.row}>
         <SharedUiActionButton
-          action={{ id: "choose", label: file.pending ? copy.uploading : file.filename ? copy.replaceFile : copy.chooseFile, pending: file.pending, disabled }}
+          action={{ id: "choose", label: file.pending ? copy.uploading : file.filename ? copy.replaceFile : copy.chooseFile, pending: file.pending, disabled: disabled || file.blocked }}
           onAction={file.pick} />
         {file.filename && <SharedUiActionButton action={{ id: "remove", label: copy.removeFile, disabled, variant: "ghost" }} onAction={file.clear} />}
       </View>
+      {file.openWeb && policy.authoredMaxMb > policy.maxMb && <>
+        <Text style={[formStyles.meta, { color: colors.mutedForeground }]}>{copy.largerUpload.replace("{maximum}",
+          new Intl.NumberFormat(locale).format(policy.authoredMaxMb))}</Text>
+        <SharedUiActionButton action={{ id: "upload-web", label: copy.openWeb, variant: "ghost" }} onAction={file.openWeb} />
+      </>}
       {file.error && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[formStyles.meta, { color: colors.destructive }]}>{file.error}</Text>}
     </View>;
   }

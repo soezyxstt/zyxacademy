@@ -1,5 +1,9 @@
 type RouteParameters = Readonly<Record<string, string | readonly string[] | undefined>>;
 
+export function academicRouteCanRead(href: string, focused: boolean, focusedOnce: boolean) {
+  return focused || (focusedOnce && href.split(/[?#]/, 1)[0] === "/admin/courses");
+}
+
 // Rebuild the product URL from this stack entry's local parameters. A hidden
 // screen must not start loading the URL of the next screen pushed above it.
 export function productLocation(pattern: string, params: RouteParameters): string | null {

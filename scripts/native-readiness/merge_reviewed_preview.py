@@ -93,7 +93,7 @@ REVIEWED = {
     )),
     "tests/contracts/admin-mcp-catalog.test.ts": (combine_catalog_checks, (
         "10e8d08c1cd43b0e2b203286ba17087a8422da84",
-        "d2bec2c58c54f9753d502f23a231d9693f3f6ea5",
+        "0076a986b6c3dc0cc84e0efdbd4b7ba0c1dc927a",
         "7a3108126b63a3453759a3798304e5c28a61d699",
     )),
 }

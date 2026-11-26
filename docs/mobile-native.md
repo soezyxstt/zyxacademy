@@ -20,6 +20,12 @@ Manifest terbaru dapat memperbarui verifikasi paket yang masih berlaku. Lease ga
 
 Migrasi menghapus tabel paket v1 secara atomik dan menyimpan unduhan baru dalam tabel v2. Setelah kembali ke build lama, daftar unduhan lokal mulai kosong dan paket v2 tetap terisolasi dari pembaca v1. Pengujian Bun memeriksa rollback transaksi, batas kuota dan pembaruan, serta perlindungan paket baru dari respons 409 lama. Fixture Maestro mencakup konfirmasi hapus dan hasil pembaruan pada tampilan pustaka. [Fixture pustaka Expo](../.maestro/native-parallel/offline-library.yaml), [katalog operasi MCP](../lib/admin-mcp/operations-catalog.ts).
 
+## Formulir publik di Expo
+
+Rute `/f/<slug>` mendahulukan slug formulir yang aktif atau ditutup, lalu tautan Google Meet dan alias ID. `/forms/<id>` mengutamakan ID. Formulir yang sudah dimuat menggunakan ID yang sama saat mengirim jawaban atau mengunggah berkas. Penulisan dari pengguna yang masuk memerlukan cookie Better Auth untuk akun dan sesi yang diperiksa Expo. Pemeriksaan saat kembali dari pemilih berkas mempertahankan draf selama identitas tetap sama. Identitas baru atau keluar menghapus draf dalam memori.
+
+Unggahan Expo memakai batas pertanyaan hingga 10 MiB karena SDK menyimpan salinan berkas dan badan multipart di memori JavaScript. Untuk batas pertanyaan di atas 10 MiB, klien menyediakan tautan ke formulir yang sama di browser. Sesi dan draf browser dapat berbeda. Verifikasi Android dan iOS untuk kembali dari pemilih, serta unggahan native di atas 10 MiB, masih terbuka. Admin MCP menggunakan alur simulasi formulir dengan cakupan, persetujuan, discovery, playbook dan paket skill yang sama. Pengiriman responden dan unggahan publik memakai API formulir di origin masing-masing.
+
 ## Kondisi yang ada
 
 - `apps/mobile` adalah Capacitor 7 alpha yang memuat origin Next.js jarak jauh dalam WebView. Konfigurasi memisahkan aplikasi dan origin nightly/staging dan stable/production. `www/index.html` menguji koneksi lalu membuka aplikasi online. Saat offline, Android menampilkan pustaka dan reader lokal. iOS menyediakan tampilan coba lagi. Paket bacaan mengikat akun, origin, bahasa, masa akses, dan hak bab. Klien Expo perlu menggunakan [kontrak sinkronisasi yang sudah ada](operations/offline-data-sync.md).

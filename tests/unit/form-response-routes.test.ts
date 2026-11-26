@@ -56,7 +56,7 @@ function fixture() {
     "@/db/schema": { customForms, customFormResponses: {} },
     "@/lib/auth": { auth: { api: { getSession: async () => current.user ? { user: current.user } : null } } },
     "@/lib/auth/authorization": { hasPeran: async (_id: string, role: string) => role === "admin" && current.isAdmin },
-    "@/lib/forms/short-entry": { findShortFormMeeting: async () => null },
+    "@/lib/forms/short-entry": { findShortFormEntry: async () => null, findFullFormEntry: async () => form },
     "@/lib/forms/file-types": fileTypes,
     "@/lib/forms/presentation": presentation,
     "@/lib/forms/response-policy": responsePolicy,
