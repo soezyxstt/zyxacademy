@@ -1,5 +1,6 @@
 import { productVersionId } from "@/lib/bundle/product-identity";
 import { verificationBrowserIdentity } from "./product-v4-browser-config";
+import { productV4ExecutionCapability } from "./product-v4-execution";
 import { createHash } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -62,6 +63,7 @@ export const PRODUCT_V4_RUNTIME_FILES = [
   "lib/compute/runtime.ts", "lib/compute/pdf-pages.ts", "lib/compute/pdf-worker.ts",
   "lib/compute/browser-pdf.ts", "lib/compute/pdf-inspection.ts", "scripts/neon/build-worker.mjs",
   "lib/compute/product-v4-print-artifacts.ts", "lib/bundle/product-v4-verification-checkpoint.ts",
+  "lib/bundle/product-v4-verification-reuse.ts", "lib/compute/product-v4-execution.ts", "lib/bundle/product-import-id.mjs",
   "lib/compute/product-v4-diagnostics.ts",
   "lib/authoring/product-draft-builder.ts",
   "app/globals.css", "app/layout.tsx", "app/authoring-verification/page.tsx",
@@ -208,6 +210,55 @@ export function productV4DependencyChecksum(bundle: Bundle, rows: readonly Produ
   return hash({ dependencies: [...bundle.dependencies].sort((a, b) => a.id.localeCompare(b.id)), live: [...rows].sort((a, b) => `${a.type}:${a.id}`.localeCompare(`${b.type}:${b.id}`)) });
 }
 
+type VerifiedAssets = {
+  figures: Array<{ metadata: { assetId: string; materialId: string }; variants: unknown[] }>;
+  documents: Array<{ id: string; document: string; print: string }>;
+};
+
+/** Complete renderer inputs for a product and its upstream closure, never its dependents. */
+export function productV4TargetInputHashes(bundle: Bundle, rows: readonly ProductV4LiveDependency[], assets: VerifiedAssets, prospectiveContext?: string): Record<string, string> {
+  // Admission of the full graph always precedes selective reuse.
+  productV4DependencyChecksum(bundle, rows);
+  const byId = new Map(bundle.products.map(product => [product.id, product]));
+  return Object.fromEntries(bundle.products.filter(product => product.productType === "article" || product.productType === "diktat").map(product => {
+    const ids = new Set<string>();
+    const visit = (id: string) => {
+      if (ids.has(id)) return;
+      const current = byId.get(id);
+      if (!current) return;
+      ids.add(id);
+      if (current.productType === "diktat" && current.sourceArticleId) visit(current.sourceArticleId);
+      for (const dependency of bundle.dependencies) if (dependency.downstreamEntityId === id && dependency.upstreamEntityType === "product") visit(dependency.upstreamEntityId);
+    };
+    visit(product.id);
+    const products = bundle.products.filter(item => ids.has(item.id)).sort((a, b) => a.id.localeCompare(b.id));
+    const dependencies = bundle.dependencies.filter(item => ids.has(item.downstreamEntityId));
+    const needed = new Set<string>();
+    for (const item of products) {
+      for (const idea of item.ideaLinks) needed.add(`idea:${idea.id}`);
+      for (const source of item.sourceRefs) {
+        needed.add(`source_material:${source.sourceId}`);
+        for (const excerpt of source.excerptIds) needed.add(`source_chunk:${excerpt}`);
+      }
+    }
+    for (const dependency of dependencies) if (dependency.upstreamEntityType !== "product" || !ids.has(dependency.upstreamEntityId)) {
+      needed.add(`${dependency.upstreamEntityType}:${dependency.upstreamEntityType === "product" ? productVersionId(dependency.upstreamEntityId, dependency.upstreamVersion) : dependency.upstreamEntityId}`);
+    }
+    for (const row of rows) if (row.type === "source_chunk" && needed.has(`source_chunk:${row.id}`)) needed.add(`source_material:${row.sourceId}`);
+    const selected = { ...bundle, products, dependencies };
+    const figures = figureSpecs(selected);
+    const documents = productInteractiveDocuments(products);
+    const digest = hash({
+      schema: "product-v4-target-input.v1", courseId: bundle.manifest.courseId, schemaVersion: bundle.manifest.schemaVersion,
+      products, dependencyChecksum: productV4DependencyChecksum(selected, rows.filter(row => needed.has(`${row.type}:${row.id}`))),
+      figures: assets.figures.filter(item => figures.some(spec => spec.assetId === item.metadata.assetId && spec.materialId === item.metadata.materialId)),
+      documents: assets.documents.filter(item => documents.some(spec => spec.id === item.id && spec.documentSha256 === item.document && spec.printSha256 === item.print)),
+      prospectiveContext: prospectiveContext ?? null,
+    });
+    return [product.id, digest];
+  }));
+}
+
 export async function buildProductV4RuntimeBinding(input: { row: ImportRow; bundle: Bundle; runId: string }, injected?: RuntimePorts, read?: DocumentAssetReader, connection?: ProductV4RuntimeConnection): Promise<ProductV4VerificationBinding> {
   const { row, bundle, runId } = input;
   if (bundle.manifest.schemaVersion !== "product-bundle.v4" || row.bundleType !== "product" || row.bundleId !== bundle.manifest.bundleId || !/^[a-f0-9]{64}$/i.test(row.checksum)) throw new Error("PRODUCT_V4_IMPORT_MISMATCH");
@@ -229,11 +280,23 @@ export async function buildProductV4RuntimeBinding(input: { row: ImportRow; bund
       documentAssets.push({ id: spec.id, document: bytesHash(document), print: bytesHash(print) });
     }
   }
+  const verifiedAssets = { figures: figures.map(figure => ({ metadata: figure.metadata, variants: figure.variants.map(({ bytes, ...variant }) => ({ ...variant, byteLength: bytes.length, readbackChecksum: bytesHash(bytes) })) })), documents: documentAssets };
+  const execution = productV4ExecutionCapability();
   return { importId: row.id, courseId: course.id, runId, revision: Number.parseInt(row.checksum.slice(0, 8), 16) + 1,
     ...(process.env.NODE_ENV === "production" || process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER ? verificationBrowserIdentity() : {}),
     ...runtime, policyRevision: PRODUCT_V4_VERIFICATION_POLICY, dependencyChecksum,
-    assetChecksum: hash({ figures: figures.map(figure => ({ metadata: figure.metadata, variants: figure.variants.map(({ bytes, ...variant }) => ({ ...variant, byteLength: bytes.length, readbackChecksum: bytesHash(bytes) })) })), documents: documentAssets }),
+    assetChecksum: hash(verifiedAssets),
+    ...(execution.available && execution.origin ? { executionOrigin: execution.origin, targetInputHashes: productV4TargetInputHashes(bundle, resolved.rows, verifiedAssets, resolved.contextDigest) } : {}),
   };
+}
+
+/** Read-only optimization for an admitted revision candidate before it has a DB row.
+ * The complete live dependency graph still validates. Prospective release contexts
+ * must use the normal staged verifier and are deliberately ineligible here.
+ */
+export async function buildProductV4RevisionReuseBinding(input: { row: ImportRow; bundle: Bundle; runId: string }): Promise<ProductV4VerificationBinding> {
+  const ports = await defaultPorts();
+  return buildProductV4RuntimeBinding(input, { ...ports, revisionDependencies: undefined });
 }
 
 export function expectedChromiumRuntime(): { browserVersion: string; revision: string } {

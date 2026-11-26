@@ -21,6 +21,7 @@ const nextConfig: NextConfig = {
       "./node_modules/katex/package.json",
       "./node_modules/pdfjs-dist/{package.json,standard_fonts/**}", "./node_modules/@napi-rs/canvas*/**",
       "./lib/{authoring,materials,math,bundle,compute,articles,zyra,ide,sumber}/**/*.ts",
+      "./lib/bundle/product-import-id.mjs",
       "./lib/query/{client,http,keys,invalidation}.ts", "./lib/{activity-signal,auth-client}.ts",
       "./hooks/{use-article-reading-progress,use-query-account}.ts",
       "./lib/question-authoring-contract.ts", "./lib/authoring/playbooks/**/*",

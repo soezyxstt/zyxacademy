@@ -65,7 +65,10 @@ export function prepareProductDraftPreview(raw: unknown): ProductDraftPreview {
     return false;
   }
   for (const [index, product] of input.products.entries()) {
-    if (hasDocument(product) || product.visuals?.some(visual => visual.kind === "interactive_document" || visual.kind === "source_figure")) {
+    if (product.productType !== "article" && product.productType !== "diktat") {
+      result.issues.push({ code: "PREVIEW_PROFILE_UNSUPPORTED", path: `products.${index}.productType`, message: "This local preview renders Articles and Diktats. Use the staged product preview for flashcards and solution collections.", severity: "error" });
+    }
+    if (hasDocument(product) || ("visuals" in product && product.visuals?.some(visual => visual.kind === "interactive_document" || visual.kind === "source_figure"))) {
       result.issues.push({ code: "PREVIEW_BINARY_ASSET_REQUIRED", path: `products.${index}.visuals`, message: "This local preview supports typed visuals. Use the admitted-asset verification workflow for source figures and HTML documents.", severity: "error" });
     }
   }
