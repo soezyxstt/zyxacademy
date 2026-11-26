@@ -38,6 +38,10 @@ Prefix operasi baru adalah `/api/native/student/community/`. GET dan POST memeri
 
 Pada 26 November 2026, suite komunitas lulus 4 dari 4 kasus dengan 41 assertion pada Next.js Turbopack dan PostgreSQL sintetis `student_evidence`. Server loopback memakai snapshot `7d93b3a5984814ee382ccd36d9ceff8cb34abbcd`. Pengujian membuktikan sesi dan kecocokan akun, penolakan aktor diskusi berperan ganda, filter enrollment yang diarsipkan atau dicabut, pemisahan skor akademik dan XP partisipasi, proyeksi profil dan blokir, tujuh tanggal WIB pada jadwal, respons arsip refleksi kosong, serta isolasi penyimpanan jadwal notifikasi antara dua akun. Data sintetis dibersihkan setelah suite.
 
+Pengujian ulang seluruh suite pada checkout bersih `e2b8f44a7885a87e20eb2ff71f937ed66aae7218` lulus 5 dari 5 kasus dan 46 assertion melalui Next.js 16.3.0 Turbopack dan PostgreSQL 16.13 di loopback. Database `student_evidence` dibuat khusus untuk pengujian, memakai 49 migrasi dari jurnal Drizzle dan seed Student untuk enrollment yang sudah berakhir. Sebanyak 24 permintaan suite menghasilkan 14 respons 200, dua 400, dua 401, empat 403, satu 404, dan satu 409.
+
+Ranking kursus memakai lima peserta sintetis. Respons 200 bertanda `private, no-store` memuat tiga nama podium serta `ownRank: 5` dan `totalStudents: 5`. Simulasi kosong mendapat 200, sesi anonim 401, dan enrollment yang tidak ada atau sudah berakhir 403. Suite juga memeriksa penolakan akun yang tidak cocok dan aktor diskusi berperan ganda, filter kelas aktif pada ranking akademik dan agenda, tujuh tanggal jadwal WIB dan offset tidak valid, arsip refleksi kosong, isolasi preferensi pengingat, lingkup partisipasi, serta privasi profil setelah pemblokiran. Pemeriksaan database setelah suite menemukan nol pengguna, kursus, dan sesi yang dibuat suite. Server dan database uji kemudian dihentikan.
+
 ```sh
 STUDENT_COMMUNITY_HTTP_BASE=http://127.0.0.1:3140 \
   bun --env-file="$STUDENT_EVIDENCE_ENV" test \
