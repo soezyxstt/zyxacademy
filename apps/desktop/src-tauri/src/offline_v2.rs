@@ -74,6 +74,14 @@ pub(crate) fn quotas(library: Option<&Value>) -> (usize, u64) {
     (entries as usize, bytes)
 }
 
+pub(crate) fn metadata_budget(max_bytes: u64) -> u64 {
+    (8 * 1024 * 1024).min(max_bytes / 4)
+}
+
+pub(crate) fn reading_budget(max_bytes: u64) -> u64 {
+    max_bytes.saturating_sub(metadata_budget(max_bytes))
+}
+
 fn clear_store(dir: &Path) {
     STORE_GENERATION.fetch_add(1, Ordering::SeqCst);
     if let Ok(files) = std::fs::read_dir(dir) {
@@ -89,6 +97,9 @@ pub async fn save_offline_library_snapshot(app: AppHandle, payload_json: String)
         let _guard = STORE_LOCK.lock().map_err(|_| "Offline storage unavailable")?;
         if payload_json.len() > super::OFFLINE_MAX_SINGLE_BYTES { return Err("Offline library exceeds storage limit".into()); }
         let snapshot: Value = serde_json::from_str(&payload_json).map_err(|_| "Invalid offline library")?;
+        if payload_json.len() as u64 > metadata_budget(quotas(Some(&snapshot)).1) {
+            return Err("Offline library exceeds metadata budget".into());
+        }
         let origin = super::get_desktop_server_origin();
         if !valid_library(&snapshot, &origin, now_ms()) { return Err("Offline library scope or access has expired".into()); }
         let dir = super::offline_store_dir(&app)?;
@@ -198,6 +209,15 @@ pub async fn offline_request(app: AppHandle, path: String, method: Option<String
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn metadata_and_readings_share_one_total_byte_limit() {
+        let mib = 1024 * 1024;
+        for (total, metadata, readings) in [(8 * mib, 2 * mib, 6 * mib), (100 * mib, 8 * mib, 92 * mib), (1024 * mib, 8 * mib, 1016 * mib)] {
+            assert_eq!(metadata_budget(total), metadata);
+            assert_eq!(reading_budget(total), readings);
+            assert_eq!(metadata_budget(total) + reading_budget(total), total);
+        }
+    }
     #[test]
     fn transport_is_fixed_to_read_only_offline_routes() {
         assert!(allowed_path("POST", "/api/offline/sync"));

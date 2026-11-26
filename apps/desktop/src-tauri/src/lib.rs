@@ -109,11 +109,10 @@ fn load_all_offline_entries(dir: &std::path::Path) -> Vec<OfflineEntryMeta> {
             .get("lastAccessedAt")
             .and_then(|v| v.as_i64())
             .unwrap_or(0);
-        let declared_size = json.get("sizeBytes").and_then(|v| v.as_u64()).unwrap_or(0);
         entries.push(OfflineEntryMeta {
             path,
             last_accessed_at,
-            size_bytes: declared_size.max(meta.len()),
+            size_bytes: meta.len(),
             json,
         });
     }
@@ -124,6 +123,7 @@ fn enforce_offline_quota(dir: &std::path::Path) {
     let mut entries = load_all_offline_entries(dir);
     let library = offline_v2::read_library(dir);
     let (max_entries, max_bytes) = offline_v2::quotas(library.as_ref());
+    let max_bytes = offline_v2::reading_budget(max_bytes);
     entries.sort_by_key(|e| e.last_accessed_at);
     let mut total_bytes: u64 = entries.iter().map(|e| e.size_bytes).sum();
     let mut remaining = entries.len();
@@ -218,9 +218,6 @@ async fn save_offline_reading(
         let pinned: Vec<_> = load_all_offline_entries(&dir).into_iter()
             .filter(|entry| entry.json["pinned"] == true && entry.json["key"].as_str() != Some(key.as_str())).collect();
         let pinned_bytes: u64 = pinned.iter().map(|entry| entry.size_bytes).sum();
-        if pinned.len() + 1 > max_entries || pinned_bytes + payload_json.len() as u64 > max_bytes {
-            return Err("Offline storage is full".to_string());
-        }
         let target = dir.join(file_name);
         if target.is_file() {
             if let Ok(raw) = std::fs::read_to_string(&target) {
@@ -231,6 +228,10 @@ async fn save_offline_reading(
         }
         let serialized = serde_json::to_string(&incoming)
             .map_err(|e| format!("Failed to serialize offline reading: {e}"))?;
+        if serialized.len() > OFFLINE_MAX_SINGLE_BYTES || pinned.len() + 1 > max_entries
+            || pinned_bytes + serialized.len() as u64 > offline_v2::reading_budget(max_bytes) {
+            return Err("Offline storage is full".to_string());
+        }
         write_file_atomic(&target, &serialized)?;
         enforce_offline_quota(&dir);
         Ok(true)
@@ -296,17 +297,17 @@ async fn list_offline_readings(app: AppHandle, include_expired: Option<bool>) ->
         let _guard = offline_v2::STORE_LOCK.lock().map_err(|_| "Offline storage unavailable")?;
         let dir = offline_store_dir(&app)?;
         let mut entries = load_all_offline_entries(&dir);
+        let total_bytes: u64 = entries.iter().map(|entry| entry.size_bytes).sum::<u64>()
+            + std::fs::metadata(dir.join(offline_v2::LIBRARY_FILE)).map(|file| file.len()).unwrap_or(0);
         let library = offline_v2::read_library(&dir);
         let (max_entries, max_bytes) = offline_v2::quotas(library.as_ref());
         entries.retain(|entry| offline_v2::readable(&entry.json, library.as_ref(), &get_desktop_server_origin(), offline_v2::now_ms())
             || (include_expired == Some(true) && library.as_ref().map(|v| v["scopeKey"] == entry.json["scopeKey"] && v["userId"] == entry.json["userId"]).unwrap_or(false)));
         entries.sort_by(|a, b| b.last_accessed_at.cmp(&a.last_accessed_at));
 
-        let mut total_bytes: u64 = 0;
         let mut items = Vec::with_capacity(entries.len());
         for entry in &entries {
             let readable = offline_v2::readable(&entry.json, library.as_ref(), &get_desktop_server_origin(), offline_v2::now_ms());
-            total_bytes += entry.size_bytes;
             items.push(serde_json::json!({
                 "key": entry.json.get("key").and_then(|v| v.as_str()).unwrap_or(""),
                 "title": if readable { entry.json["title"].as_str().unwrap_or("") } else { "" },

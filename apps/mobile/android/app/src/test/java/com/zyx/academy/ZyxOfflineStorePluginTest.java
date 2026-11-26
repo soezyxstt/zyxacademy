@@ -1,11 +1,22 @@
 package com.zyx.academy;
 
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
 public class ZyxOfflineStorePluginTest {
+    @Test
+    public void metadataAndReadingsShareOneTotalByteLimit() {
+        long mib = 1024L * 1024L;
+        long[][] cases = {{8 * mib, 2 * mib, 6 * mib}, {100 * mib, 8 * mib, 92 * mib}, {1024 * mib, 8 * mib, 1016 * mib}};
+        for (long[] values : cases) {
+            assertEquals(values[1], ZyxOfflineStorePlugin.metadataBudget(values[0]));
+            assertEquals(values[2], ZyxOfflineStorePlugin.readingBudget(values[0]));
+            assertEquals(values[0], ZyxOfflineStorePlugin.metadataBudget(values[0]) + ZyxOfflineStorePlugin.readingBudget(values[0]));
+        }
+    }
     @Test
     public void transportAllowsOnlyFixedOfflineApiRoutes() {
         assertTrue(ZyxOfflineStorePlugin.isAllowedOfflinePath("POST", "/api/offline/sync"));

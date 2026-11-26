@@ -125,6 +125,10 @@ public class ZyxOfflineStorePlugin extends Plugin {
             && lease <= verified + 7L * 86_400_000L;
     }
 
+    static long metadataBudget(long maxBytes) { return Math.min(8L * 1024 * 1024, maxBytes / 4); }
+
+    static long readingBudget(long maxBytes) { return Math.max(0, maxBytes - metadataBudget(maxBytes)); }
+
     static boolean isReadable(JSONObject reading, JSONObject library, String origin, long now) {
         return isValidLibrary(library, origin, now) && reading != null
             && hasCourseAccess(reading, library, now)
@@ -194,6 +198,11 @@ public class ZyxOfflineStorePlugin extends Plugin {
             try {
                 if (raw.getBytes(StandardCharsets.UTF_8).length > MAX_SINGLE_BYTES) throw new IOException();
                 JSONObject snapshot = new JSONObject(raw);
+                JSONObject policy = snapshot.optJSONObject("policy");
+                long totalBudget = policy == null ? MAX_TOTAL_BYTES : Math.max(8L * 1024 * 1024, Math.min(1024L * 1024 * 1024, policy.optLong("maxBytes", MAX_TOTAL_BYTES)));
+                if (raw.getBytes(StandardCharsets.UTF_8).length > metadataBudget(totalBudget)) {
+                    call.reject("Offline library exceeds metadata budget"); return;
+                }
                 if (!isValidLibrary(snapshot, serverOrigin(), System.currentTimeMillis())) {
                     call.reject("Offline library scope or access has expired"); return;
                 }
@@ -372,8 +381,7 @@ public class ZyxOfflineStorePlugin extends Plugin {
                 String raw = readFileUtf8(f);
                 JSONObject obj = new JSONObject(raw);
                 long accessed = obj.optLong("lastAccessedAt", f.lastModified());
-                long size = obj.optLong("sizeBytes", f.length());
-                entries.add(new EntryMeta(f, accessed, Math.max(size, f.length()), obj));
+                entries.add(new EntryMeta(f, accessed, f.length(), obj));
             } catch (IOException | JSONException ignored) {
                 // Skip unreadable/corrupt file
             }
@@ -387,6 +395,7 @@ public class ZyxOfflineStorePlugin extends Plugin {
         JSONObject policy = snapshot != null ? snapshot.optJSONObject("policy") : null;
         int maxEntries = policy == null ? MAX_ENTRIES : Math.max(25, Math.min(1000, policy.optInt("maxEntries", MAX_ENTRIES)));
         long maxBytes = policy == null ? MAX_TOTAL_BYTES : Math.max(8L * 1024 * 1024, Math.min(1024L * 1024 * 1024, policy.optLong("maxBytes", MAX_TOTAL_BYTES)));
+        maxBytes = readingBudget(maxBytes);
         entries.sort(Comparator.comparingLong(e -> e.lastAccessedAt));
         long totalBytes = 0;
         for (EntryMeta entry : entries) {
@@ -437,9 +446,6 @@ public class ZyxOfflineStorePlugin extends Plugin {
                         pinnedBytes += entry.sizeBytes; pinnedCount++;
                     }
                 }
-                if (pinnedBytes + utf8.length > maxBytes || pinnedCount + 1 > maxEntries) {
-                    call.reject("Offline storage is full"); return;
-                }
                 File target = new File(dir, fileName);
                 // Preserve newer locally saved readingPosition when re-saving a snapshot
                 if (target.isFile() && target.length() <= MAX_SINGLE_BYTES) {
@@ -458,7 +464,12 @@ public class ZyxOfflineStorePlugin extends Plugin {
                         // Best-effort position preservation
                     }
                 }
-                writeFileUtf8(target, incoming.toString());
+                String serialized = incoming.toString();
+                int serializedBytes = serialized.getBytes(StandardCharsets.UTF_8).length;
+                if (serializedBytes > MAX_SINGLE_BYTES || pinnedBytes + serializedBytes > readingBudget(maxBytes) || pinnedCount + 1 > maxEntries) {
+                    call.reject("Offline storage is full"); return;
+                }
+                writeFileUtf8(target, serialized);
                 enforceQuota(dir);
                 JSObject res = new JSObject();
                 res.put("saved", true);
@@ -520,13 +531,13 @@ public class ZyxOfflineStorePlugin extends Plugin {
             entries.sort((a, b) -> Long.compare(b.lastAccessedAt, a.lastAccessedAt));
 
             JSArray items = new JSArray();
-            long totalBytes = 0;
+            long totalBytes = new File(dir, LIBRARY_FILE).length();
+            for (EntryMeta entry : entries) totalBytes += entry.sizeBytes;
             for (EntryMeta entry : entries) {
                 boolean readable = isReadable(entry.json, library, serverOrigin(), System.currentTimeMillis());
                 if (!readable && !(includeExpired && library != null
                     && library.optString("scopeKey").equals(entry.json.optString("scopeKey"))
                     && library.optString("userId").equals(entry.json.optString("userId")))) continue;
-                totalBytes += entry.sizeBytes;
                 JSObject summary = new JSObject();
                 summary.put("key", entry.json.optString("key", ""));
                 summary.put("title", readable ? entry.json.optString("title", "") : "");

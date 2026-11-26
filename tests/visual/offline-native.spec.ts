@@ -153,6 +153,16 @@ for (const platform of ["desktop", "android"] as const) test(`${platform} Englis
   await expect(page.locator(".offline-v2-notice")).toContainText("Could not update");
   await expect(page.locator("#reconnect-banner-text")).toHaveText("Connection restored");
   await expect(page.locator("#banner-online-btn")).toHaveText("Return online");
+  if (platform === "android") {
+    for (const lang of ["id", "en"]) {
+      await page.locator(`#lang-${lang}`).click();
+      await expect(page.locator("#conn-label")).toHaveText("Online");
+      const bounds = await page.locator("#channel-badge, #conn-pill, .nav-right .lang-switch").evaluateAll(elements => elements.map(element => { const rect = element.getBoundingClientRect(); return { left: rect.left, right: rect.right }; }));
+      expect(bounds).toHaveLength(3);
+      expect(bounds[0].right).toBeLessThanOrEqual(bounds[1].left);
+      expect(bounds[1].right).toBeLessThanOrEqual(bounds[2].left);
+    }
+  }
   expect(page.url()).toContain(`${origin}/native-offline/${platform}/`);
   await page.locator('[data-section="readings"]').click();
   await expect(page.locator(".offline-v2-row")).toHaveCount(3);
