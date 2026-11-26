@@ -90,6 +90,7 @@ export function VideoPlayerModal({
   useEffect(() => {
     recoveryAbortRef.current?.abort();
     recoveryAbortRef.current = null;
+    setRecovery(null);
     return () => {
       recoveryAbortRef.current?.abort();
       recoveryAbortRef.current = null;
