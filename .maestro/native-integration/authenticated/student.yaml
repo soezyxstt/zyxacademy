@@ -8,15 +8,6 @@ name: Verified Student dashboard, inbox acknowledgement and logout
     visible: "(Masuk dengan Google|Sign in with Google)"
     timeout: 30000
 - tapOn: "(Masuk dengan Google|Sign in with Google)"
-- tapOn:
-    text: "(Accept & continue|Accept and continue)"
-    optional: true
-- tapOn:
-    text: "(Use without an account|Continue without an account|No thanks)"
-    optional: true
-- tapOn:
-    text: "(Got it|No thanks)"
-    optional: true
 - extendedWaitUntil:
     visible: Native Preview Sign-in
     timeout: 30000

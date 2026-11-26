@@ -14,16 +14,20 @@ device=$(adb devices | awk '$1 ~ /^emulator-[0-9]+$/ && $2 == "device" { print $
 emulator() { adb -s "$device" "$@"; }
 trap 'emulator reverse --remove tcp:9443 >/dev/null 2>&1 || true; rm -rf -- "$private"' EXIT
 
-emulator root
-emulator wait-for-device
-emulator remount || true
-if ! emulator shell test -w /system/etc/security/cacerts; then
-  emulator disable-verity
+reboot_emulator() {
   emulator reboot
   emulator wait-for-device
   timeout 90 bash -c 'until [[ $(adb -s "$1" shell getprop sys.boot_completed | tr -d "\r") == 1 ]]; do sleep 2; done' _ "$device"
   emulator root
   emulator wait-for-device
+}
+
+emulator root
+emulator wait-for-device
+emulator remount || true
+if ! emulator shell test -w /system/etc/security/cacerts; then
+  emulator disable-verity
+  reboot_emulator
   emulator remount
 fi
 [[ $(emulator shell id -u | tr -d "\r") == 0 ]]
@@ -34,6 +38,12 @@ emulator push "$private/cert.pem" "$cert" >/dev/null
 emulator shell chown root:root "$cert"
 emulator shell chmod 644 "$cert"
 emulator shell restorecon "$cert"
+reboot_emulator
+emulator shell test -r "$cert"
+emulator shell input keyevent 224
+emulator shell input keyevent 82
+emulator shell wm dismiss-keyguard
+emulator shell settings put system screen_off_timeout 2147483647
 
 # ADB reverse carries fixture traffic. Block app and isolated-process egress
 # while the Android network service can still validate the emulator network.

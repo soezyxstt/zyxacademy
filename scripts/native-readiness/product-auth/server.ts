@@ -96,7 +96,8 @@ export async function startAuthFixture(certPath: string, keyPath: string, { stud
   ]) : null;
 
   const claim = randomBytes(32).toString("hex");
-  const claimExpiresAt = Date.now() + 120_000;
+  let claimExpiresAt = 0;
+  let startStatus: number | undefined;
   let confirmedState: string | null = null;
   let claimed = false;
   let completedHandoff = false;
@@ -105,6 +106,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, { stud
   let signedOut = false;
   let loadedDashboard = false;
   let acknowledgedInbox = false;
+  let visitedHealth = false;
   let browserIdentity: Awaited<ReturnType<typeof seedBrowserSession>> | null = null;
   const server = Bun.serve({
     hostname: fixtureHost,
@@ -127,10 +129,19 @@ export async function startAuthFixture(certPath: string, keyPath: string, { stud
         method: request.method, headers, body: body?.byteLength ? body : undefined,
       });
       const route = request.method + " " + url.pathname;
+      if (route === "GET /__preview/health") {
+        visitedHealth = true;
+        return new Response('<!doctype html><html lang="en"><meta charset="utf-8"><title>Preview HTTPS ready</title><h1>Preview HTTPS ready</h1></html>',
+          { headers: { ...noStore, "Content-Type": "text/html; charset=utf-8", "Content-Security-Policy": "default-src 'none'" } });
+      }
       if (route === "GET /api/auth/native/start") {
         const response = await start(upstream);
         const query = handoffQuery(url);
-        if (response.status === 302 && query && !claimed) confirmedState = query.get("state");
+        startStatus = response.status;
+        if (response.status === 302 && query && !claimed) {
+          confirmedState = query.get("state");
+          claimExpiresAt ||= Date.now() + 120_000;
+        }
         return localizeRedirect(response);
       }
       if (route === "GET " + browserPage) {
@@ -194,6 +205,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, { stud
 
   return {
     claim,
+    browserTrustVerified: () => visitedHealth,
     identity: () => browserIdentity && { accountId: browserIdentity.accountId, sessionId: browserIdentity.sessionId },
     progress() {
       if (signedOut) return "sign-out";
@@ -204,6 +216,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, { stud
       if (completedHandoff) return "browser completion";
       if (claimed) return "browser form";
       if (confirmedState) return "native start";
+      if (startStatus) return "native start HTTP " + startStatus;
       return "no auth request";
     },
     async verifiedAndRevoked() {
