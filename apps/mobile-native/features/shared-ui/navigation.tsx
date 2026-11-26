@@ -138,16 +138,19 @@ export function MobileNavbar({
             disabled={course.disabled}
             testID={testID ? `${testID}-switch-course` : undefined}
             onPress={() => activate("switch-course")}
-            style={({ pressed }) => [
-              styles.courseButton,
-              { borderColor: colors.border, backgroundColor: pressed ? colors.muted : colors.background },
-              course.disabled && styles.disabled,
-            ]}
+            style={[styles.courseButton, course.disabled && styles.disabled]}
           >
-            <Text numberOfLines={2} style={[styles.courseTitle, nativeTypography.bodyMedium, { color: colors.foreground }]}>
-              {course.title}
-            </Text>
-            <NavigationIcon name="switch-course" color={colors.mutedForeground} size={14} />
+            {({ pressed }) => (
+              <View pointerEvents="none" style={[
+                styles.courseSurface,
+                { borderColor: colors.border, backgroundColor: pressed ? colors.muted : colors.card },
+              ]}>
+                <Text numberOfLines={1} style={[styles.courseTitle, nativeTypography.bodyMedium, { color: colors.foreground }]}>
+                  {course.title}
+                </Text>
+                <NavigationIcon name={role === "student" ? "chevron" : "switch-course"} color={colors.mutedForeground} size={14} />
+              </View>
+            )}
           </NavigationControl>
         ) : (
           <View style={styles.navbarTitle}>
@@ -495,8 +498,9 @@ const styles = StyleSheet.create({
   navbarTitle: { flex: 1, minWidth: 0, paddingHorizontal: 3 },
   heading: { fontSize: 14, lineHeight: 18 },
   subtitle: { fontSize: 11, lineHeight: 14 },
-  courseButton: { flex: 1, minWidth: 44, minHeight: 44, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12, borderWidth: 1, flexDirection: "row", alignItems: "center", gap: 5 },
-  courseTitle: { flexShrink: 1, minWidth: 0, fontSize: 14, lineHeight: 18 },
+  courseButton: { flex: 1, minWidth: 44, minHeight: 44, justifyContent: "center", borderRadius: 12 },
+  courseSurface: { minHeight: 36, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12, borderWidth: 1, flexDirection: "row", alignItems: "center", gap: 8 },
+  courseTitle: { flex: 1, minWidth: 0, fontSize: 14, lineHeight: 18 },
   bottomNavigation: { minHeight: 60, paddingHorizontal: 8, paddingVertical: 6, gap: 4, flexDirection: "row" },
   destination: { flex: 1, minHeight: 48, minWidth: 0, paddingHorizontal: 2, paddingVertical: 3, alignItems: "center", justifyContent: "center", gap: 2, borderRadius: 16 },
   destinationLabel: { fontSize: 11, lineHeight: 13, textAlign: "center" },

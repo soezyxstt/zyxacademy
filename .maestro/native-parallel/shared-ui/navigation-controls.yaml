@@ -18,6 +18,9 @@ name: Role navigation and tab overflow
     text: Cari
 - openLink: zyx-native-parity://internal/shared-ui/mobile-navbar-tutor-light
 - runFlow: helpers/confirm-ios-link.yaml
+- assertVisible:
+    id: mobile-navbar-tutor-light-switch-course
+    text: "Ganti kelas: Dasar Pemrograman dan Penyelesaian Masalah"
 - tapOn:
     id: mobile-navbar-tutor-light-switch-course
 - assertVisible:
@@ -27,6 +30,7 @@ name: Role navigation and tab overflow
     id: mobile-navbar-tutor-light-course-sheet
 - assertVisible:
     id: mobile-navbar-tutor-light-switch-course
+    text: "Ganti kelas: Matematika Dasar"
 - openLink: zyx-native-parity://internal/shared-ui/mobile-navbar-admin-dark
 - runFlow: helpers/confirm-ios-link.yaml
 - tapOn:

@@ -5,7 +5,8 @@ const paths = {
   home: "m3 10 9-7 9 7v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM9 21v-7h6v7",
   book: "M12 7v14M3 18V5c4-1 6 0 9 2 3-2 5-3 9-2v13c-4-1-6 0-9 2-3-2-5-3-9-2Z",
   schedule: "M8 2v4m8-4v4M3 10h18M3 6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1zM8 15h3m3 0h2",
-  discuss: "M21 11a8 8 0 0 1-8 8H7l-4 2v-6a8 8 0 0 1 8-12h2a8 8 0 0 1 8 8ZM8 9h8m-8 4h5",
+  // MessageSquareText, used in the Student and Tutor web destinations.
+  discuss: "M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2zM7 11h10M7 15h6M7 7h8",
   account: "M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2m12-14a4 4 0 1 1-8 0 4 4 0 0 1 8 0",
   classes: "m2 10 10-5 10 5-10 5-10-5Zm4 2v5c3 3 9 3 12 0v-5m4-2v6",
   people: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2m20 0v-2a4 4 0 0 0-3-4m-3-12a4 4 0 0 1 0 8m-3-4a4 4 0 1 1-8 0 4 4 0 0 1 8 0",
@@ -14,7 +15,7 @@ const paths = {
   search: "M20 20l-4-4m2-5a7 7 0 1 1-14 0 7 7 0 0 1 14 0",
   notifications: "M18 8a6 6 0 0 0-12 0c0 6-3 7-3 9h18c0-2-3-3-3-9m-8 12a2 2 0 0 0 4 0",
   "ops-ai": "m7 8 3 3-3 3m6 0h4M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z",
-  "switch-course": "m8 9 4-4 4 4m-8 6 4 4 4-4",
+  "switch-course": "m7 15 5 5 5-5m-10-6 5-5 5 5",
   chevron: "m6 9 6 6 6-6",
   close: "m6 6 12 12M18 6 6 18",
   lock: "M7 11V7a5 5 0 0 1 10 0v4M5 11h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2Zm7 4v3",

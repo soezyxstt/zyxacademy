@@ -6,7 +6,7 @@ import {
   BookOpen,
   CalendarDays,
   CalendarRange,
-  ChevronDown,
+  ChevronsUpDown,
   GraduationCap,
   Home,
   MessageSquareText,
@@ -185,11 +185,11 @@ export function NavigationReferences({ id }: { id: string }) {
           fixture.role === "tutor" ? (
             <Button
               variant="outline"
-              className="min-w-0 max-w-full"
+              className="h-9 min-w-0 max-w-full flex-1 rounded-xl border-border/60 bg-card/85 px-2.5 text-left text-body-sm font-medium text-foreground shadow-xs backdrop-blur-md [&>span]:justify-between"
               aria-label={`${f.navbarLabels["switch-course"]}: ${f.tutorCourse}`}
             >
-              <span className="truncate">{f.tutorCourse}</span>
-              <ChevronDown />
+              <span className="min-w-0 flex-1 truncate">{f.tutorCourse}</span>
+              <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
             </Button>
           ) : undefined
         }
@@ -197,7 +197,7 @@ export function NavigationReferences({ id }: { id: string }) {
           <>
             {fixture.role === "admin" && (
               <MobileTopNavActionButton label={f.navbarLabels["ops-ai"]}>
-                <SquareTerminal />
+                <SquareTerminal className="text-primary" aria-hidden="true" />
               </MobileTopNavActionButton>
             )}
             <MobileTopNavActionButton label={f.navbarLabels.search}>
