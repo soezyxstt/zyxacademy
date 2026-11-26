@@ -16,11 +16,30 @@ test("same-day quiet window and invalid settings", () => {
 test("quiet hours use the selected time zone at a DST transition", () => {
  expect(quietHoursEnd({enabled:true,startMinute:60,endMinute:180,timeZone:"America/New_York"},new Date("2026-03-08T06:30:00Z"))?.toISOString()).toBe("2026-03-08T07:00:00.000Z");
 });
-test("only suppress the visible matching discussion", () => {
- const location={pathname:"/discussions",search:"?thread=abc"};
- expect(notificationMatchesVisibleDiscussion("/discussions?thread=abc&message=123",location,true)).toBe(true);
- expect(notificationMatchesVisibleDiscussion("/discussions?thread=xyz",location,true)).toBe(false);
- expect(notificationMatchesVisibleDiscussion("/discussions?thread=abc",location,false)).toBe(false);
+test("suppress matching visible discussions across student, tutor, admin and course routes", () => {
+ const routes = ["/discussions", "/dashboard/discussions", "/admin/discussions", "/tutor/discussions", "/courses/course-123/discussions", "/tutor/course-123/discussions"];
+ for (const pathname of routes) {
+  const location = { pathname, search: "?channel=course&thread=abc" };
+  expect(notificationMatchesVisibleDiscussion("/discussions?thread=abc&message=123", location, true)).toBe(true);
+  expect(notificationMatchesVisibleDiscussion(pathname + "?thread=abc", location, true)).toBe(true);
+  expect(notificationMatchesVisibleDiscussion("/discussions?thread=xyz", location, true)).toBe(false);
+  expect(notificationMatchesVisibleDiscussion("/discussions?thread=abc", location, false)).toBe(false);
+ }
+});
+test("keep notices for reports, discussion lists, other pages and unrelated URLs", () => {
+ const location = { pathname: "/dashboard/discussions", search: "?thread=abc" };
+ for (const url of [undefined, "/discussions", "/discussions?discussionTab=reports", "/discussions?discussionTab=reports&thread=abc", "/dashboard?thread=abc", "https://example.com/discussions?thread=abc", "//example.com/discussions?thread=abc", "/discussions/extra?thread=abc"]) {
+  expect(notificationMatchesVisibleDiscussion(url, location, true)).toBe(false);
+ }
+ for (const current of [
+  { pathname: "/admin/discussions", search: "?discussionTab=reports&thread=abc" },
+  { pathname: "/dashboard/discussions", search: "?channel=course" },
+  { pathname: "/dashboard", search: "?thread=abc" },
+  { pathname: "/courses/course-123/materials", search: "?thread=abc" },
+  { pathname: "/dashboard/discussions/extra", search: "?thread=abc" },
+ ]) {
+  expect(notificationMatchesVisibleDiscussion("/discussions?thread=abc", current, true)).toBe(false);
+ }
 });
 test("native and browser user agents have readable labels", () => {
  expect(describeDeviceSession("Mozilla Android ZyxMobileApp/1.2 (Capacitor)")).toBe("Zyx Academy · Android");
