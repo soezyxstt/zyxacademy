@@ -46,12 +46,25 @@ export type ReadingLink = {
   section?: string | null;
 };
 
+export type DashboardPreview = {
+  targetCategory: string | null;
+  courses: Array<Pick<CourseCard, "id" | "title" | "category" | "pricing"> & {
+    freeChapters: Pick<CourseChapter, "id" | "title" | "completed">[];
+    freeMaterialCount: number;
+    completedFreeMaterialCount: number;
+    freeQuizCount: number;
+    firstIncompleteMaterialId: string | null;
+  }>;
+};
+
 export type DashboardData = {
   view: "dashboard";
   firstName: string;
   enrolled: CourseCard[];
   recommended: CourseCard[];
   continueReading: ReadingLink[];
+  preview?: DashboardPreview;
+  completedMaterialsByCourse?: Record<string, number>;
 };
 
 export type DashboardPlanItem = {

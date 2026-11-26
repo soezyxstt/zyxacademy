@@ -55,13 +55,27 @@ async function loadDashboard(studentId: string): Promise<LearningData> {
   const firstName = profile?.name?.trim().split(/\s+/u)[0] ?? "";
 
   if (enrollments.length === 0) {
-    const { catalogCourses } = await loadOnboardingData(userSeed);
+    const { catalogCourses, studentTargetCategory } = await loadOnboardingData(userSeed);
     return {
       view: "dashboard",
       firstName,
       enrolled: [],
       continueReading: [],
       recommended: catalogCourses.map((course) => ({ ...projectCourse(course, false), materialsCount: course.materialsCount, quizzesCount: course.quizzesCount, tryoutsCount: course.tryoutsCount })),
+      preview: {
+        targetCategory: studentTargetCategory,
+        courses: catalogCourses.map(course => ({
+          id: course.id,
+          title: course.title,
+          category: course.category,
+          pricing: course.pricing ? serializePricing(course.pricing) : undefined,
+          freeChapters: course.freeChapters.map(({ id, title, completed }) => ({ id, title, completed })),
+          freeMaterialCount: course.freeMaterialCount,
+          completedFreeMaterialCount: course.completedFreeMaterialCount,
+          freeQuizCount: course.freeQuizCount,
+          firstIncompleteMaterialId: course.firstIncompleteMaterialId,
+        })),
+      },
     };
   }
 
@@ -88,6 +102,9 @@ async function loadDashboard(studentId: string): Promise<LearningData> {
       ...projectCourse(course, true),
       materialsCount: primary.materialsByCourseId.get(course.id)?.length ?? 0,
     })),
+    completedMaterialsByCourse: Object.fromEntries(activeCourses.map(course => [course.id,
+      (primary.materialsByCourseId.get(course.id) ?? []).filter(material => material.completed || primary.completedIds.has(material.id)).length,
+    ])),
     recommended: recommendedCourses.map((course) => ({
       ...projectCourse({ ...course, description: "" }, false),
       materialsCount: course.materialsCount,

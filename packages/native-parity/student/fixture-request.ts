@@ -4,9 +4,11 @@ import { isCommunityFixturePath, createCommunityFixtureRequest } from "./communi
 import { createCourseFixtureRequest, courseFixtureScenarios } from "./courses/fixtures";
 import { createLearningFixtureRequest, isPkaLearningFixturePath, type LearningFixtureScenario } from "./learning/fixtures";
 import { flashcardEvidence } from "./learning/flashcard-fixture";
+import { dashboardFixtureState, readDashboardFixture } from "./dashboard/fixtures";
 
 export function createStudentFixtureRequest(scenario: string) {
-  const courses = createCourseFixtureRequest(courseFixtureScenarios.find(value => value === scenario) ?? "enrolled");
+  const dashboardState = dashboardFixtureState(scenario);
+  const courses = createCourseFixtureRequest(dashboardState ?? courseFixtureScenarios.find(value => value === scenario) ?? "enrolled");
   const community = createCommunityFixtureRequest(
     ["offline", "revoked", "unavailable"].includes(scenario) ? "unavailable" : ["empty", "unenrolled"].includes(scenario) ? "empty" : "loaded",
     calendarFixtureForScenario(scenario),
@@ -17,6 +19,10 @@ export function createStudentFixtureRequest(scenario: string) {
   const assessment = createAssessmentFixtureRequest(scenario === "revoked" ? "locked" : scenario === "long-content" ? "long" :
     assessmentFixtureScenarios.find(value => value === scenario) ?? "populated");
   return (path: string, init?: RequestInit) => {
+    if (dashboardState) {
+      const response = readDashboardFixture(dashboardState, path, init);
+      if (response) return Promise.resolve(response);
+    }
     if (path.startsWith("/api/native/student/courses?") || path === "/api/native/student/courses") return courses(path, init);
     if (isPkaLearningFixturePath(path)) return learning(path, init);
     if (path.startsWith("/api/native/student/assessment/")) return assessment(path, init);

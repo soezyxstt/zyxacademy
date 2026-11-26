@@ -1,0 +1,60 @@
+appId: com.zyx.academy.nativeparity
+name: Student dashboard enrollment states
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: separator
+    timeout: 30000
+- openLink: "zyx-native-parity://student-fixture?scenario=dashboard-parity-enrolled"
+- extendedWaitUntil:
+    visible:
+      id: student-dashboard-achievements
+    timeout: 30000
+- assertVisible:
+    id: student-dashboard-case-enrolled
+- assertVisible: Dashboard Siswa
+- assertVisible: Kelas aktif
+- assertVisible: Aktivasi kelas
+- assertVisible:
+    id: student-course-matematika-1
+- assertVisible: Spaced repetition
+- assertVisible: Semua kartu tuntas
+- assertNotVisible: Course untukmu
+- takeScreenshot: student-dashboard-enrolled
+- openLink: "zyx-native-parity://student-fixture?scenario=dashboard-parity-unenrolled"
+- extendedWaitUntil:
+    visible:
+      id: student-dashboard-first-chapter-matematika-1
+    timeout: 30000
+- assertVisible:
+    id: student-dashboard-case-unenrolled
+- assertVisible: Dashboard Siswa
+- assertVisible: Course untukmu
+- assertVisible: Paket Free
+- assertVisible: Mulai bab 1
+- assertVisible: 0/1 materi
+- assertVisible: Sistem bilangan real
+- assertVisible: Yang tersedia di Free
+- assertNotVisible: Kelas aktif
+- assertNotVisible:
+    id: student-dashboard-achievements
+- takeScreenshot: student-dashboard-unenrolled
+- openLink: "zyx-native-parity://student-fixture?scenario=dashboard-parity-revoked"
+- extendedWaitUntil:
+    visible:
+      id: student-dashboard-first-chapter-matematika-1
+    timeout: 30000
+- assertVisible:
+    id: student-dashboard-case-revoked
+- assertVisible: Dashboard Siswa
+- assertVisible: Course untukmu
+- assertVisible: Paket Free
+- assertVisible: Mulai bab 1
+- assertVisible: 0/1 materi
+- assertVisible: Sistem bilangan real
+- assertVisible: Yang tersedia di Free
+- assertNotVisible: Kelas aktif
+- assertNotVisible:
+    id: student-dashboard-achievements
+- takeScreenshot: student-dashboard-revoked
