@@ -20,8 +20,9 @@ export function dashboardMessages(locale: string): DashboardMessages {
 function countLabel(pattern: string, count: number, locale: string) {
   const parts = pattern.match(/one \{([^}]+)\} other \{([^}]+)\}/u);
   if (!parts) return String(count);
-  const category = new Intl.PluralRules(locale).select(count);
-  return parts[category === "one" ? 1 : 2].replace("#", new Intl.NumberFormat(locale).format(count));
+  // Student supports English and Indonesian. Indonesian uses the same form for every count.
+  const singular = locale.startsWith("en") && count === 1;
+  return parts[singular ? 1 : 2].replace("#", new Intl.NumberFormat(locale).format(count));
 }
 
 function Heading({ title, icon, theme, tone = "muted" }: { title: string; icon: NavigationIconName; theme: Theme; tone?: "muted" | "primary" }) {
