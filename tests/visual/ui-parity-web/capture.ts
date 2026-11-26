@@ -23,6 +23,10 @@ function specimenCapture(item: GalleryCase) {
       return { selector: skeletonSelector, size: { width: item.width, height: item.height } };
     case "avatar":
       return { selector: avatarSelector, size: avatarPosition };
+    case "badge":
+      return { selector: "[data-parity-badge]", size: null };
+    case "beta-badge":
+      return { selector: "[data-parity-beta] > span:last-child", size: null };
     case "progress":
       return { selector: '[data-slot="progress"]', size: getProgressPosition() };
     case "control":
@@ -114,6 +118,26 @@ try {
         await expect(specimen.locator(avatarImageSelector)).toHaveCount(0);
       }
     }
+    if (item.family === "badge") {
+      await expect(specimen).toHaveText(item.label);
+      await expect(specimen).toHaveCSS("font-size", "12px");
+      await expect(specimen).toHaveCSS("font-weight", "500");
+      await expect(specimen).toHaveCSS("height", "24px");
+      await expect(frame.getByRole("button")).toHaveCount(0);
+      await expect(frame.getByRole("link")).toHaveCount(0);
+    }
+    if (item.family === "beta-badge") {
+      const evaluation = frame.getByRole("tab", { name: /^Evaluasi AI Beta$/i });
+      const questions = frame.getByRole("tab", { name: "Analisis soal" });
+      await expect(evaluation).toHaveAttribute("aria-selected", String(item.selected === "ai-insights"));
+      await expect(questions).toHaveAttribute("aria-selected", String(item.selected === "questions"));
+      await expect(specimen).toHaveText("Beta");
+      await expect(specimen).toHaveCSS("font-size", "10px");
+      await expect(specimen).toHaveCSS("font-weight", "600");
+      await expect(specimen).toHaveCSS("letter-spacing", "0.5px");
+      await expect(specimen).toHaveCSS("height", "16px");
+      await expect(specimen).toHaveCSS("text-transform", "uppercase");
+    }
     await frame.screenshot({
       path: fileURLToPath(new URL(`${item.id}.png`, outputDirectory)),
       animations: "disabled",
@@ -122,6 +146,11 @@ try {
   }
 
   await expect(page.getByRole("separator", { name: "Pemisah bagian" })).toBeVisible();
+  const betaTabs = page.locator('[data-parity-case="beta-badge-inactive-light"]');
+  const evaluation = betaTabs.getByRole("tab", { name: /^Evaluasi AI Beta$/i });
+  await evaluation.click();
+  await expect(evaluation).toHaveAttribute("aria-selected", "true");
+  await expect(evaluation.getByText("Beta", { exact: true })).toBeVisible();
   const control = (id: string) => page.locator(`[data-parity-case="${id}"] [data-parity-control]`);
   await control("button-default-light").click();
   await expect(page.getByText("Tersimpan", { exact: true })).toBeVisible();

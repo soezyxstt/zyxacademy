@@ -5,9 +5,9 @@ const config = getDefaultConfig(__dirname);
 const sharedSources = path.resolve(__dirname, "../../packages");
 const galleryPortraits = path.resolve(__dirname, "../../public/founders");
 const contentCompiler = path.resolve(__dirname, "../../lib");
-const messages = path.resolve(__dirname, "../../messages");
+const localizedMessages = path.resolve(__dirname, "../../messages");
 
-config.watchFolders = [...config.watchFolders, sharedSources, galleryPortraits, contentCompiler, messages];
+config.watchFolders = [...config.watchFolders, sharedSources, galleryPortraits, contentCompiler, localizedMessages];
 
 config.resolver.nodeModulesPaths = [
   ...config.resolver.nodeModulesPaths,

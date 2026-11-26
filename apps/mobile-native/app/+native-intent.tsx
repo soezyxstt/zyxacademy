@@ -2,7 +2,7 @@ import { rewriteNativeBrowserIntent } from "../auth/browser-intent";
 import { consentIntake } from "../routing/consent-intent";
 
 function newConsentId() {
-  const { randomUUID } = require("expo-crypto") as typeof import("expo-crypto");
+  const { randomUUID }: { randomUUID(): string } = require("expo-crypto");
   return randomUUID();
 }
 

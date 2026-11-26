@@ -149,3 +149,20 @@ describe("Expo offline metadata lifecycle", () => {
     lifecycle.dispose();
   });
 });
+
+
+test("the whole library discovers enrollments without a known course and stops on exit", async () => {
+  const { lifecycle, commands } = harness();
+  lifecycle.setEnvironment(active);
+  const empty = lifecycle.register([]);
+  await flush();
+  expect(commands).toEqual([]);
+  const close = lifecycle.register(null);
+  await flush();
+  expect(commands).toEqual([[]]);
+  expect(lifecycle.getSnapshot().status).toBe("ready");
+  close();
+  expect(lifecycle.getSnapshot().status).toBe("inactive");
+  empty();
+  lifecycle.dispose();
+});

@@ -133,19 +133,21 @@ export function OfflineMetadataProvider({ children }: { children: ReactNode }) {
   return <OfflineMetadataContext.Provider value={{ drivers: currentDrivers, verifiedUntil }}>{children}</OfflineMetadataContext.Provider>;
 }
 
-export function useOfflineCourseMetadata(courseIds: readonly string[], locale: NativeOfflineLocale) {
+// null opens the library and discovers enrollments from the authorized sync response.
+export function useOfflineCourseMetadata(courseIds: readonly string[] | null, locale: NativeOfflineLocale) {
   const context = useContext(OfflineMetadataContext);
-  const selectedKey = JSON.stringify([...new Set(courseIds.filter(id => id.trim() && id.length <= 256))].sort().slice(0, NATIVE_OFFLINE_COURSE_LIMIT));
+  const all = courseIds === null;
+  const selectedKey = JSON.stringify([...new Set((courseIds ?? []).filter(id => id.trim() && id.length <= 256))].sort().slice(0, NATIVE_OFFLINE_COURSE_LIMIT));
   const selection = useMemo(() => JSON.parse(selectedKey) as string[], [selectedKey]);
-  const driver = selection.length ? context?.drivers?.[locale] ?? null : null;
+  const driver = all || selection.length ? context?.drivers?.[locale] ?? null : null;
   const metadata = useSyncExternalStore(driver?.subscribe ?? inactiveSubscribe, driver?.getSnapshot ?? inactiveSnapshot, inactiveSnapshot);
 
-  useEffect(() => driver?.register(selection), [driver, selection]);
+  useEffect(() => driver?.register(all ? null : selection), [driver, all, selection]);
 
   if (!context) throw new Error("OfflineMetadataProvider is required for course metadata.");
   const now = Date.now();
   if (!driver || !context.drivers?.transport.isCurrent() || context.verifiedUntil <= now) {
     return { ...inactiveCourseMetadata, retry: inactiveRetry };
   }
-  return { status: metadata.status, snapshot: visibleCourseMetadata(metadata.snapshot, now, new Set(selection)), retry: driver.retry };
+  return { status: metadata.status, snapshot: visibleCourseMetadata(metadata.snapshot, now, all ? undefined : new Set(selection)), retry: driver.retry };
 }

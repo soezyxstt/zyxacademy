@@ -8,6 +8,7 @@ import { parityFrame } from "../../packages/ui-parity/frame";
 import { getSeparatorPosition } from "../../packages/ui-parity/separator-cases";
 import { getSkeletonPosition } from "../../packages/ui-parity/skeleton-cases";
 import { AvatarCase } from "./AvatarCases";
+import { BadgeCase, BetaBadgeCase } from "./BadgeCases";
 import { Separator } from "./components/Separator";
 import { ProgressCase } from "./ProgressCases";
 import { RadioCase } from "./RadioCases";
@@ -36,6 +37,10 @@ function Specimen({ item }: { item: GalleryCase }) {
       return <RadioCase id={item.id} />;
     case "avatar":
       return <AvatarCase item={item} />;
+    case "badge":
+      return <BadgeCase item={item} />;
+    case "beta-badge":
+      return <BetaBadgeCase item={item} />;
     case "progress":
       return <ProgressCase item={item} />;
     case "choice":

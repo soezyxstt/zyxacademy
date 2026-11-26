@@ -1,0 +1,25 @@
+appId: com.zyx.academy.nativeparity
+name: Beta label on the AI evaluation tab
+---
+- runFlow:
+    file: helpers/open-gallery.yaml
+    env:
+      COMPONENT: beta-badge
+- assertVisible:
+    id: beta-badge-active-light-ai-insights
+    text: Evaluasi AI Beta
+    selected: true
+- assertVisible:
+    id: beta-badge-inactive-light-ai-insights
+    text: Evaluasi AI Beta
+    selected: false
+- assertVisible:
+    id: beta-badge-active-dark-ai-insights
+    text: Evaluasi AI Beta
+    selected: true
+- tapOn:
+    id: beta-badge-inactive-light-ai-insights
+- assertVisible:
+    id: beta-badge-inactive-light-ai-insights
+    text: Evaluasi AI Beta
+    selected: true

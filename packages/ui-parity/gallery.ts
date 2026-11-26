@@ -1,5 +1,6 @@
 import { radioCases } from "./radio-cases";
 import { avatarCases } from "./avatar-cases";
+import { badgeCases, betaBadgeCases } from "./badge-cases";
 import { choiceCases } from "./choice-cases";
 import { controlCases } from "./control-cases";
 import { progressCases } from "./progress-cases";
@@ -14,6 +15,8 @@ export const galleryCases = [
   ...radioCases.map((item) => ({ ...item, family: "radio" as const })),
   ...progressCases.map((item) => ({ ...item, family: "progress" as const, component: "progress" as const })),
   ...avatarCases.map((item) => ({ ...item, family: "avatar" as const, component: "avatar" as const })),
+  ...badgeCases.map((item) => ({ ...item, family: "badge" as const, component: "badge" as const })),
+  ...betaBadgeCases.map((item) => ({ ...item, family: "beta-badge" as const, component: "beta-badge" as const })),
 ];
 export type GalleryCase = (typeof galleryCases)[number];
 
