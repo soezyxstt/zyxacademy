@@ -112,7 +112,7 @@ function LiveCourseRoute({ live, isList, section, actor, navigate, replace, quer
             <>
               <Ink kind="heading">{sections.find((item) => item.id === section)?.label}</Ink>
               <LiveCourseSection data={payload} query={query} navigate={navigate} updateSettings={live.updateSettings} updateMaterial={live.updateMaterial}
-                archiveCourse={live.archiveCourse} onArchived={() => replace("/admin/courses")} refresh={live.retry} />
+                removeVideo={live.removeVideo} videoPlayer={live.videoPlayer} archiveCourse={live.archiveCourse} onArchived={() => replace("/admin/courses")} refresh={live.retry} />
             </>
           )}
         </LiveStatus>

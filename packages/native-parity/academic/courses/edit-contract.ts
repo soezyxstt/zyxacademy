@@ -51,3 +51,6 @@ export function validAdminMaterialTitle(title: string) {
   const trimmed = title.trim();
   return trimmed.length > 0 && trimmed.length <= 500 && !trimmed.includes("\0");
 }
+
+export type AdminEntityDeleteDraft = { expectedRevision: string; confirmed: true };
+export type AdminVideoRemover = (courseId: string, playlistId: string, videoId?: string) => CourseWriteTarget<AdminEntityDeleteDraft>;

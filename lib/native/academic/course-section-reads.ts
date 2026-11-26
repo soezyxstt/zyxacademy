@@ -14,6 +14,7 @@ import { assertAdmin } from "@/lib/auth/admin-guards-server";
 import type { CourseMaterial } from "@/lib/student-course-fixtures";
 import { isAdminCourseLiveSection, type AdminCourseSectionResult, type CourseDocumentRow } from "@/packages/native-parity/academic/courses/sections";
 
+import { videoEntryRevision, videoPlaylistRevision } from "@/lib/video/catalog-revisions";
 import { readCoursePdfTitleEdit } from "./course-material-service";
 import { readCourseSettingsEditView } from "./course-settings-service";
 
@@ -80,12 +81,15 @@ export async function readAdminCourseSection(slug: string, section: string, item
   }
 
   if (section === "videos") {
-    const data = await getCourseVideosData(slug);
+    const data = await getCourseVideosData(slug, { includePlayback: false });
     if (!data) return null;
     return {
-      type: "videos", course, playlists: data.playlists.map(({ id, title, description, videos }) => ({
-        id, title, description, videos: videos.map(({ id, title, description, locked, videoUrl }) => ({
-          id, title, description, playable: !locked && Boolean(videoUrl),
+      type: "videos", course, playlists: data.playlists.map((playlist) => ({
+        id: playlist.id, title: playlist.title, description: playlist.description,
+        revision: identity.status === "active" ? videoPlaylistRevision(playlist, playlist.videos) : null,
+        videos: playlist.videos.map((video) => ({
+          id: video.id, title: video.title, description: video.description, playable: !video.locked && Boolean(video.hasSource),
+          revision: identity.status === "active" ? videoEntryRevision(video) : null,
         })),
       })),
     };

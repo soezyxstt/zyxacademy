@@ -1,3 +1,5 @@
+import { handleAdminCourseVideoCommand } from "@/lib/native/academic/course-video-command";
+import { deleteAdminCourseVideoEntry } from "@/lib/native/academic/course-video-service";
 import { resolveAuthBaseUrl } from "@/lib/auth-site-url";
 import { getAuthSession } from "@/lib/auth-session";
 import { handleAdminCourseChapterCommand } from "@/lib/native/academic/course-chapter-command";
@@ -29,7 +31,12 @@ export async function POST(request: Request, { params }: Context) {
 }
 
 export async function DELETE(request: Request, { params }: Context) {
-  return handleAdminCourseChapterCommand(request, (await params).resource, new URL(resolveAuthBaseUrl()).origin, chapter);
+  const { resource } = await params;
+  const origin = new URL(resolveAuthBaseUrl()).origin;
+  if (resource[3] === "videos") {
+    return handleAdminCourseVideoCommand(request, resource, origin, { ...auth, remove: deleteAdminCourseVideoEntry });
+  }
+  return handleAdminCourseChapterCommand(request, resource, origin, chapter);
 }
 
 export async function PATCH(request: Request, { params }: Context) {

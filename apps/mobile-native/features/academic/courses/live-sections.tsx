@@ -2,8 +2,10 @@ import { useState } from "react";
 import { View } from "react-native";
 import { adminCoursePath } from "../../../../../packages/native-parity/academic/courses/model";
 import type { AdminCourseArchiver, AdminCourseEditor, AdminMaterialEditor } from "../../../../../packages/native-parity/academic/courses/edit-contract";
+import type { AdminCourseLiveRead } from "../../../../../packages/native-parity/academic/courses/model";
 import type { AdminCourseSectionResult } from "../../../../../packages/native-parity/academic/courses/sections";
 import { CourseLeaderboard } from "./leaderboard";
+import { LiveVideos } from "./live-videos";
 import { LivePdfTitleEdit } from "./live-material";
 import { LiveCourseEdit } from "./live-settings";
 import { LiveCourseArchive } from "./live-management";
@@ -32,7 +34,7 @@ function match(text: string, query: string) {
   return text.toLocaleLowerCase("id").includes(query.trim().toLocaleLowerCase("id"));
 }
 
-export function LiveCourseSection({ data, query, navigate, updateSettings, updateMaterial, archiveCourse, onArchived, refresh }: {
+export function LiveCourseSection({ data, query, navigate, updateSettings, updateMaterial, removeVideo, videoPlayer, archiveCourse, onArchived, refresh }: Pick<AdminCourseLiveRead, "removeVideo" | "videoPlayer"> & {
   data: AdminCourseSectionResult; query: Query; navigate: Navigate; updateSettings?: AdminCourseEditor; updateMaterial?: AdminMaterialEditor; refresh(): void;
   archiveCourse?: AdminCourseArchiver; onArchived(): void;
 }) {
@@ -63,7 +65,7 @@ export function LiveCourseSection({ data, query, navigate, updateSettings, updat
     case "leaderboard":
       return <CourseLeaderboard attempts={data.attempts} />;
     case "videos":
-      return <LiveVideos data={data} />;
+      return <LiveVideos data={data} player={videoPlayer} remove={removeVideo} refresh={refresh} />;
     case "flashcards":
       return <LiveFlashcards data={data} />;
     case "settings":
@@ -244,25 +246,6 @@ function LiveReview({ data, query, navigate }: { data: SectionOf<"review">; quer
       {list.length ? list.map((row) => <DataRow key={row.id} title={row.title} description={row.subtitle} detail={localLabel(row.status) ?? undefined}
         onPress={() => navigate(adminCoursePath(data.course.slug, `review/${tab}`, row.id))} testID={`course-review-${row.id}`} />)
         : <CourseStatus label="Belum ada bundle untuk ditinjau." />}
-    </>
-  );
-}
-
-function LiveVideos({ data }: { data: SectionOf<"videos"> }) {
-  const [search, setSearch] = useState("");
-  const [open, setOpen] = useState<string | null>(null);
-  const playlists = data.playlists.filter((list) => match(list.title, search) || list.videos.some((row) => match(row.title, search)));
-  return (
-    <>
-      <SearchBox label="Cari video atau daftar putar" value={search} onChange={setSearch} />
-      {playlists.length ? playlists.map((list) => (
-        <View key={list.id}>
-          <DataRow title={list.title} description={list.description} detail={`${list.videos.length} video`}
-            expanded={open === list.id} onPress={() => setOpen(open === list.id ? null : list.id)} />
-          {open === list.id ? list.videos.map((video) => <DataRow key={video.id} title={video.title}
-            description={video.description} detail={video.playable ? "Putar di web" : undefined} />) : null}
-        </View>
-      )) : <CourseStatus label="Tidak ada daftar putar pada pilihan ini." />}
     </>
   );
 }

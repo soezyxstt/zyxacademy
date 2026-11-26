@@ -66,7 +66,7 @@ function LiveCourseDetail(props: AcademicScreenProps & Pick<AdminCourseLiveRead,
     reorderChapters: props.reorderChapters }} />;
 }
 
-function LiveCourseSectionScreen(props: AcademicScreenProps & Pick<AdminCourseLiveRead, "archiveCourse" | "updateSettings"> & {
+function LiveCourseSectionScreen(props: AcademicScreenProps & Pick<AdminCourseLiveRead, "archiveCourse" | "updateSettings" | "removeVideo" | "videoPlayer"> & {
   section: string;
   refresh?: number;
   updateMaterial?: AdminMaterialEditor;
@@ -77,7 +77,7 @@ function LiveCourseSectionScreen(props: AcademicScreenProps & Pick<AdminCourseLi
   const load = useCallback((signal: AbortSignal) => read(slug, section, itemId, signal), [read, slug, section, itemId]);
   const [readSection, retry] = useCourseRead(load, props.refresh);
   return <CourseScreen {...props} live={{ section: readSection, retry, updateSettings: props.updateSettings,
-    updateMaterial: props.updateMaterial, archiveCourse: props.archiveCourse }} />;
+    updateMaterial: props.updateMaterial, removeVideo: props.removeVideo, videoPlayer: props.videoPlayer, archiveCourse: props.archiveCourse }} />;
 }
 
 /** Product entry. Transport and actor must come from the same authenticated host session. */
@@ -102,7 +102,8 @@ export function AcademicLiveScreen({ href, transport, refresh, ...host }: LivePr
     const itemId = match.params.quizId ?? match.params.materialId;
     if (isAdminCourseLiveSection(section, itemId)) {
       return <LiveCourseSectionScreen key={key} {...props} read={client.courseSection} section={section} itemId={itemId}
-        refresh={refresh} updateSettings={client.updateCourseSettings} updateMaterial={client.updateMaterial} archiveCourse={client.archiveCourse} />;
+        refresh={refresh} updateSettings={client.updateCourseSettings} updateMaterial={client.updateMaterial} removeVideo={client.removeVideo}
+        videoPlayer={client.tutor.support?.videoPlayer} archiveCourse={client.archiveCourse} />;
     }
   }
   return <AcademicMessage {...host}>Sumber data halaman ini belum terhubung.</AcademicMessage>;

@@ -24,12 +24,12 @@ export async function courseWrite<T extends object>({
   draft: T;
   requestId: string;
   viewer: CourseCommandViewer;
-  entityType: "native_course_settings" | "native_course_chapter" | "native_course_material" | "native_course_management" | "native_chapter_management";
-  action: "create" | "update" | "archive" | "reorder";
+  entityType: "native_course_settings" | "native_course_chapter" | "native_course_material" | "native_course_management" | "native_chapter_management" | "native_course_video";
+  action: "create" | "update" | "archive" | "reorder" | "delete";
   write(tx: CourseWriteTransaction): Promise<Saved>;
   validateReplay(tx: CourseWriteTransaction, result: Saved): Promise<void>;
 }) {
-  const receiptScope = entityType === "native_course_management" || entityType === "native_chapter_management"
+  const receiptScope = entityType === "native_course_management" || entityType === "native_chapter_management" || entityType === "native_course_video"
     ? { sessionHash: revisionOf(viewer.session.id) } : {};
   const receiptId = `native_course_${revisionOf({ actorId: viewer.user.id, requestId })}`;
   const inputHash = revisionOf({ slug, targetId, draft });

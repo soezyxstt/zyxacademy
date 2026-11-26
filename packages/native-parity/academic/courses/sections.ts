@@ -55,8 +55,8 @@ export type CourseSectionPayload =
   | { type: "document"; document: CourseDocumentRow; chapters: CourseChapterLabel[]; titleEdit?: AdminMaterialTitleEdit | null }
   | { type: "review"; bundles: CourseReviewRow[] }
   | { type: "leaderboard"; attempts: CourseLeaderboardAttempt[] }
-  | { type: "videos"; playlists: { id: string; title: string; description: string | null; videos:
-      { id: string; title: string; description: string | null; playable: boolean }[] }[] }
+  | { type: "videos"; playlists: { id: string; title: string; description: string | null; revision?: string | null; videos:
+      { id: string; title: string; description: string | null; playable: boolean; revision?: string | null }[] }[] }
   | { type: "flashcards"; chapters: CourseChapterLabel[]; sets: { id: string; title: string; status: string; chapterId: string | null;
       cards: { id: string; front: string; back: string; explanation: string | null }[] }[] }
   | { type: "settings"; description: string | null; isDemo: boolean; revision: string; canonicalOnly: boolean;
