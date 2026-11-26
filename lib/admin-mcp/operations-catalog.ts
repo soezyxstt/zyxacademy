@@ -8,6 +8,20 @@ export const operationsCatalog = [
     "reason": "The Expo client reads the active account's own role memberships and locale for routing. Each product API still enforces object permissions. MCP client identity, consent, scopes, discovery, playbooks, packaged skills and environment bindings are independent."
   },
   {
+    "source": "app/api/native/academic-administration/[...resource]/route.ts",
+    "actions": ["GET", "PATCH"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The Expo adapter reads authenticated administrative data and updates PKA announcement text in the active Admin session. PKA remains outside MCP scope; client consent, scopes, discovery, skills, host prompts and environment bindings are unchanged."
+  },
+  {
+    "source": "app/api/admin/bundles/product/[id]/pdf/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The V2/V3 draft PDF queue uses the signed-in Admin UI and an exact Diktat, revision and request identity. V4 uses its separate trusted verification workflow and scoped authoring tools."
+  },
+  {
     "source": "app/api/auth/native/expo/exchange/route.ts",
     "actions": ["POST"],
     "tools": [],

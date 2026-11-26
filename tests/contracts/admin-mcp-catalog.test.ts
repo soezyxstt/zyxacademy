@@ -33,3 +33,15 @@ test("article reading presentation remains browser-only", () => {
   expect(entry.tools).toEqual([]);
   expect(entry.actions).toContain("toggleReadingFocus");
 });
+
+
+test("native academic reads and legacy Diktat PDF keep signed-in UI authorization", () => {
+  const native = operationsCatalog.find(item => item.source === "app/api/native/academic-administration/[...resource]/route.ts")!;
+  const pdf = operationsCatalog.find(item => item.source === "app/api/admin/bundles/product/[id]/pdf/route.ts")!;
+  expect(native.status).toBe("excluded");
+  expect(native.actions).toEqual(["GET", "PATCH"]);
+  expect(native.tools).toEqual([]);
+  expect(pdf.status).toBe("excluded");
+  expect(pdf.actions).toEqual(["GET", "POST"]);
+  expect(pdf.tools).toEqual([]);
+});
