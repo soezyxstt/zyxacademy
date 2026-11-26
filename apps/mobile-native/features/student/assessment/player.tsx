@@ -5,7 +5,7 @@ import { File } from "expo-file-system";
 import type { Answer, AssessmentKind, AssessmentPlayer, AssessmentQuestion, AssessmentRow } from "../../../../../packages/native-parity/student/assessment/contract";
 import { Input } from "../../../components/Input";
 import { hapticSelection } from "../../../device/haptics";
-import type { AssessmentFile } from "./device";
+import { assessmentAttachmentLimit, type AssessmentFile } from "./device-contract";
 import { assessmentCoursePath, assessmentRequest, AssessmentRequestError, answered, choice, draftKey, jsonBody, pkaReturnPath, playerDeadline, quizAttemptPath, remaining, restoreAssessmentDraft, toTryoutAnswers, type AssessmentDraft } from "./client";
 import { Body, Busy, Button, ButtonRow, fill, Frame, Heading, Markdown, Message, Section, styles, useAssessment, useAssessmentColors, useAssessmentCopy } from "./ui";
 
@@ -174,6 +174,7 @@ export function AssessmentPlay({ player, assessment, kind, attemptId }: {
     const target = {
       route: attemptId ? quizAttemptPath(base, attemptId, stage) : base,
       kind, assessmentId: assessment.id, attemptId, questionId: currentQuestion.id, requestId: local.requestId,
+      signal: controller.signal,
       isDraftCurrent: () => alive.current && !controller.signal.aborted && state.current?.requestId === local.requestId
         && !state.current.pending && player.questions[state.current.index]?.id === currentQuestion.id,
     };
@@ -190,7 +191,7 @@ export function AssessmentPlay({ player, assessment, kind, attemptId }: {
       if (!file || !target.isDraftCurrent()) return;
       const source = new File(file.uri);
       if (!source.exists || source.size === 0) throw new Error("Unreadable assessment file");
-      const limit = (kind === "quiz" ? 4 : 10) * 1024 * 1024;
+      const limit = assessmentAttachmentLimit(kind);
       if (source.size > limit || (file.size !== undefined && file.size > limit)) {
         setNotice(tx("Ukuran berkas melebihi batas.", "The file exceeds the size limit."));
         return;
@@ -211,8 +212,11 @@ export function AssessmentPlay({ player, assessment, kind, attemptId }: {
         ...assessmentText(state.current?.answers[currentQuestion.id]),
         fileName: result.fileName, fileSize: result.fileSize, fileKey: result.key, receipt: result.receipt,
       });
-    } catch {
-      if (target.isDraftCurrent()) setNotice(kind === "quiz" ? messages.quiz.uploadFailed : tryout.uploadFailed);
+    } catch (error) {
+      if (target.isDraftCurrent()) {
+        if (error instanceof AssessmentRequestError && [401, 403, 404].includes(error.status)) setAccessLost(true);
+        else setNotice(kind === "quiz" ? messages.quiz.uploadFailed : tryout.uploadFailed);
+      }
     } finally {
       try { file?.release?.(); } catch { /* Continue clearing the upload state. */ }
       if (uploadAbort.current === controller) uploadAbort.current = null;

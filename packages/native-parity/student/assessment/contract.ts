@@ -42,6 +42,7 @@ export type AssessmentRow = {
   id: string;
   title: string;
   availability: Availability;
+  stageLocked?: boolean;
   durationSeconds: number | null;
   questionCount: number | null;
   openAt: string | null;

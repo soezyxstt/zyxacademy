@@ -69,6 +69,7 @@ export function ResultsPage({ data }: { data: Extract<AssessmentPage, { kind: "r
 
 function AvailabilityMessage({ assessment, kind }: { assessment: AssessmentRow; kind: "quiz" | "tryout" }) {
   const { messages, tx, date } = useAssessmentCopy();
+  if (assessment.stageLocked) return <Message title={tx("Tahap simulasi belum tersedia", "Simulation stage unavailable")} />;
   if (assessment.availability === "locked") return <Activation detail={fill(messages.tryoutTake.activateToOpen, { exam: assessment.title })} />;
   if (assessment.availability === "closed") return <Message title={kind === "quiz" ? messages.quizTake.closed : messages.tryoutTake.closed} detail={date(assessment.closeAt) || undefined} />;
   if (assessment.availability === "upcoming") return <Message title={kind === "quiz" ? messages.quizTake.notOpen : messages.tryoutTake.notOpen} detail={date(assessment.openAt) || undefined} />;

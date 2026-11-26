@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, mock, test } from "bun:test";
 import { and, eq } from "drizzle-orm";
+import { NextRequest } from "next/server";
 import { createPostgresTestDb } from "../helpers/postgres";
 import * as schema from "@/db/schema";
 import { PERAN_SEEDS, membershipIdFor } from "@/lib/auth/peran";
@@ -43,6 +44,7 @@ mock.module("@/lib/storage", () => ({ STORAGE_PROVIDER_MODE: "r2", storage: {
 } }));
 
 import { GET, POST } from "@/app/api/native/student/assessment/[courseId]/[...segments]/route";
+import { POST as startLegacyQuiz } from "@/app/api/quiz/attempts/route";
 import { signTryoutAttachment, verifyTryoutAttachment } from "@/lib/student/tryout-attachment-receipt";
 
 beforeAll(async () => {
@@ -143,6 +145,29 @@ describe("native Student assessment against PostgreSQL and legacy quiz/tryout ha
     await database.testDb.delete(schema.enrollments).where(eq(schema.enrollments.userId, learner));
     expect((await send(tryoutKey, answers)).status).toBe(403);
     expect((await call(["my-results", ids[0]])).status).toBe(404);
+  });
+
+  test("a legacy chapter-category PKA template remains locked from the generic quiz gateway", async () => {
+    const pka = "tutorial-pka";
+    const templateId = "pka-matematika-stage2";
+    const attemptId = "legacy-pka-in-progress";
+    const db = database.testDb;
+    await db.insert(schema.courses).values({ id: pka, title: "Tutorial PKA", category: "Matematika" }).onConflictDoNothing();
+    await db.insert(schema.enrollments).values({ id: "assessment-pka-enrollment", userId: other, courseId: pka, enrolledAt: new Date(0), expiresAt: new Date(Date.now() + 86_400_000) });
+    await db.insert(schema.quizTemplates).values({ id: templateId, courseId: pka, title: "Stage 2", category: "chapter", status: "published", selectionRules: {} });
+    await db.insert(schema.pkaSimulationStages).values({ id: "assessment-pka-stage-math-2", subject: "matematika", stage: 2, quizTemplateId: templateId, passScoreThreshold: 75 });
+    await db.insert(schema.studentQuizAttempts).values({ id: attemptId, studentId: other, templateId,
+      questionsSnapshot: [{ id: "pka-q", prompt: "Solve x", options: ["1", "2"], correct_indices: [0] }], status: "in_progress" });
+    userId = other;
+    expect((await (await call(["quiz", templateId], { course: pka })).json()).assessment).toMatchObject({ availability: "locked", stageLocked: true });
+    expect((await call(["quiz", templateId], { course: pka, method: "POST", body: { requestId: quizKey } })).status).toBe(403);
+    const legacy = await startLegacyQuiz(new NextRequest("http://localhost:3000/api/quiz/attempts", { method: "POST", body: JSON.stringify({ courseId: pka, templateId }) }));
+    expect(legacy.status).toBe(403);
+    expect((await legacy.json()).error).toBe("Tahap simulasi belum tersedia.");
+    expect((await call(["quiz", templateId], { course: pka, query: `?attemptId=${attemptId}` })).status).toBe(404);
+    await db.update(schema.pkaStageProgress).set({ status: "unlocked" }).where(and(eq(schema.pkaStageProgress.studentId, other), eq(schema.pkaStageProgress.stage, 2)));
+    expect((await (await call(["quiz", templateId], { course: pka, query: `?attemptId=${attemptId}` })).json()).player.questions[0].id).toBe("pka-q");
+    userId = learner;
   });
 
   test("a tryout image upload and its draft-bound receipt round trip through the original attachment handler", async () => {

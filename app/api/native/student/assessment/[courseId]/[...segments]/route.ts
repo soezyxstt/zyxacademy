@@ -8,7 +8,7 @@ import { POST as uploadQuizFile, DELETE as removeQuizFile } from "@/app/api/quiz
 import { completeGamificationExplanation } from "@/lib/gamification/receipts";
 import { quizAnalyticsSchema } from "@/lib/quiz/analytics-client";
 import {
-  findQuiz, findQuizAttempt, loadAssessmentCourse, readQuizDetail, readQuizList, readResultReview, readResults,
+  findQuiz, findQuizAttempt, loadAssessmentCourse, mayUseQuizStage, readQuizDetail, readQuizList, readResultReview, readResults,
   readSolutionCollection, readSummary, readTryoutDetail, readTryoutList,
 } from "@/lib/student/assessment-read";
 import { objectRecord, projectQuestion, records, validTryoutAnswer } from "@/lib/student/assessment-projection";
@@ -201,7 +201,7 @@ async function write(request: Request, route: Route) {
     if (!value.success) return invalid();
     const quiz = await findQuiz(context, id);
     if (!quiz) return missing();
-    if (!canAccessStudentQuizTemplate(context.access, quiz)) return forbidden();
+    if (!canAccessStudentQuizTemplate(context.access, quiz) || !await mayUseQuizStage(context, quiz)) return forbidden();
     return withoutCache(await startQuiz(legacyJson(request, { courseId: context.courseId, templateId: id, requestId: value.data.requestId })));
   }
   if (section === "quiz" && operation === "attempt" && segments.length === 4) {

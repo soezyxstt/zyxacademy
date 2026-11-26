@@ -52,8 +52,8 @@ export interface StudentServices {
     setHaptics(enabled: boolean): void;
   };
   notifications?: { enabled: boolean; setEnabled(enabled: boolean): Promise<void> };
-  pickAssessmentFile?: () => Promise<import("./assessment/device").AssessmentFile | null>;
-  assessmentPhotos?: import("./assessment/device").AssessmentPhotoPicker;
+  pickAssessmentFile?: () => Promise<import("./assessment/device-contract").AssessmentFile | null>;
+  assessmentPhotos?: import("./assessment/device-contract").AssessmentPhotoPicker;
   renderAssessmentMarkdown?: (markdown: string, courseId: string) => ReactNode;
   renderAssessmentParts?: (parts: unknown[], courseId: string, visuals?: unknown[]) => ReactNode;
 }

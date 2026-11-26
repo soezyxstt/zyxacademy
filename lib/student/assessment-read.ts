@@ -9,6 +9,7 @@ import { canAccessQuizSnapshot, freeQuizQuestionScope } from "@/lib/quiz/questio
 import { canViewAttemptDiscussion, canViewQuizDiscussion, isQuizDiscussionClosed } from "@/lib/quiz/review-release";
 import { canAccessStudentQuizTemplate, validatedQuizScope } from "@/lib/quiz/student-access";
 import { isPkaStageAttemptAllowed } from "@/lib/pka-simulation";
+import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { getPublishedSolutionCollection } from "@/lib/solutions/repository";
 import { resolveCourseAccess } from "@/lib/student/course-access";
 import { assessmentAvailability, objectRecord, projectQuestion, readQuizAnswers, records, reviewQuizQuestion, reviewTryoutQuestion } from "./assessment-projection";
@@ -21,6 +22,9 @@ type Submission = typeof submissions.$inferSelect;
 type Context = NonNullable<Awaited<ReturnType<typeof loadAssessmentCourse>>>;
 const iso = (date: Date | null) => date?.toISOString() ?? null;
 const positiveInt = (value: unknown) => typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? value : null;
+export function mayUseQuizStage(ctx: Context, quiz: Quiz) {
+  return quiz.category !== "simulation" && !ctx.ids.includes(PKA_COURSE_ID) ? true : isPkaStageAttemptAllowed(ctx.userId, quiz.id);
+}
 
 export async function loadAssessmentCourse(courseId: string, userId: string) {
   const [course, access] = await Promise.all([getCourse(courseId), resolveCourseAccess({ courseId, userId })]);
@@ -105,7 +109,7 @@ export async function findQuizAttempt(ctx: Context, attemptId: string, quizId?: 
     .where(and(eq(studentQuizAttempts.id, attemptId), eq(studentQuizAttempts.studentId, ctx.userId), inArray(quizTemplates.courseId, ctx.ids),
       eq(quizTemplates.status, "published"), quizId === undefined ? undefined : eq(quizTemplates.id, quizId))).limit(1);
   if (!entry || !canAccessStudentQuizTemplate(ctx.access, entry.template) || !await canAccessQuizSnapshot(ctx.access, entry.attempt.questionsSnapshot)) return null;
-  if (entry.attempt.status === "in_progress" && entry.template.category === "simulation" && !await isPkaStageAttemptAllowed(ctx.userId, entry.template.id)) return null;
+  if (entry.attempt.status === "in_progress" && !await mayUseQuizStage(ctx, entry.template)) return null;
   return entry;
 }
 
@@ -193,9 +197,12 @@ function quizPlayer(attempt: Attempt, template: Quiz): AssessmentPlayer {
 export async function readQuizDetail(ctx: Context, quizId: string, attemptId: string | null, discussion: boolean): Promise<AssessmentPage | null> {
   const quiz = await findQuiz(ctx, quizId);
   if (!quiz) return null;
-  const allowed = canAccessStudentQuizTemplate(ctx.access, quiz)
-    && (attemptId !== null || quiz.category !== "simulation" || await isPkaStageAttemptAllowed(ctx.userId, quizId));
-  if (!allowed) return attemptId ? null : { kind: "quiz-detail", courseTitle: ctx.courseTitle, assessment: quizRows(quiz, [], false), history: [], player: null, review: null };
+  const hasAccess = canAccessStudentQuizTemplate(ctx.access, quiz);
+  const stageLocked = hasAccess && attemptId === null && !await mayUseQuizStage(ctx, quiz);
+  if (!hasAccess || stageLocked) return attemptId ? null : {
+    kind: "quiz-detail", courseTitle: ctx.courseTitle,
+    assessment: { ...quizRows(quiz, [], false), stageLocked }, history: [], player: null, review: null,
+  };
   const attempts = await db.select(attemptProjection).from(studentQuizAttempts)
     .where(and(eq(studentQuizAttempts.studentId, ctx.userId), eq(studentQuizAttempts.templateId, quizId)))
     .orderBy(desc(studentQuizAttempts.startedAt));

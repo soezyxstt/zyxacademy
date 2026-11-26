@@ -15,6 +15,7 @@ import { canAccessStudentQuizTemplate } from '@/lib/quiz/student-access';
 import { canAccessQuizSnapshot, canAccessQuizSnapshots, freeQuizQuestionScope } from '@/lib/quiz/question-scope';
 import { studentAssessmentRequestId } from '@/lib/student/assessment-idempotency';
 import { isPkaStageAttemptAllowed } from '@/lib/pka-simulation';
+import { PKA_COURSE_ID } from '@/lib/pka-config';
 import { getAdaptiveDifficultyProportions } from '@/lib/adaptive-quiz';
 import { canViewAttemptDiscussion } from '@/lib/quiz/review-release';
 import { serializeStudentQuizAttempt } from '@/lib/assessment-serialization';
@@ -329,7 +330,7 @@ export async function POST(req: NextRequest) {
   if (template.status === 'draft' && !isStaff) {
     return NextResponse.json({ error: 'Template kuis belum dipublikasi.' }, { status: 403 });
   }
-  if (!isStaff && template.category === 'simulation' && !await isPkaStageAttemptAllowed(studentId, templateId)) {
+  if (!isStaff && (template.category === 'simulation' || matchesCourseIdentity(PKA_COURSE_ID, courseIdentity)) && !await isPkaStageAttemptAllowed(studentId, templateId)) {
     return NextResponse.json({ error: 'Tahap simulasi belum tersedia.' }, { status: 403 });
   }
 
