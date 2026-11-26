@@ -10,7 +10,10 @@ import {
   type NativeBrowserCallback,
 } from "../../apps/mobile-native/auth/browser-intent";
 import { NATIVE_STAGING_ORIGIN } from "../../apps/mobile-native/auth/session-api";
-import { parseNativeLoginIntent, resolveNativeLoginReturn, type NativeLoginIntent } from "../../apps/mobile-native/auth/login-intent";
+import {
+  authEntryHref, parseNativeLoginIntent, readAuthReturnTo, resolveNativeLoginReturn, rewriteNativeAuthEntry,
+  type NativeLoginIntent,
+} from "../../apps/mobile-native/auth/login-intent";
 
 const state = "01".repeat(24);
 const verifier = "01".repeat(32);
@@ -290,14 +293,73 @@ describe("native browser login", () => {
 
 describe("native login destination", () => {
   const account = { dashboard: "/dashboard", roles: ["murid"] } as const;
+  const nestedNext = "/courses/course-1/material/m1?percent=%2525&plus=a+b%2Bc&part=a%26b&anchor=%23ref#example%25~.a";
   type RouteNode = NonNullable<Parameters<typeof resolveNativeLoginReturn>[2]>;
   const leaf = (href: string, config?: Partial<RouteNode>): RouteNode => ({
     href, contextKey: `.${href}.tsx`, children: [], isInternal: false, isGenerated: false, ...config,
   });
   const sitemap = (...children: RouteNode[]) => leaf("/", { contextKey: "./_layout.tsx", children });
 
+  test("captures the raw sign-in destination before Expo Router can decode it", () => {
+    const params = new URLSearchParams({ next: nestedNext, locale: "en", error: "access_denied" });
+    const links = [
+      ["/sign-in", "/sign-in"],
+      ["sign-up/", "/sign-up"],
+      [`${NATIVE_STAGING_ORIGIN}/sign-in`, "/sign-in"],
+      ["zyx-native-parity://sign-up", "/sign-up"],
+      ["zyx-native-parity:///sign-in", "/sign-in"],
+    ];
+    for (const [input, screen] of links) {
+      const rewritten = redirectSystemPath({ path: `${input}?${params}#outer`, initial: true });
+      const [pathname, query] = decodeURIComponent(rewritten).split("?");
+      const routerParams = new URLSearchParams(query);
+      const returnTo = routerParams.get("returnTo") ?? "";
+      expect(pathname).toBe(screen);
+      expect(returnTo).toMatch(/^[A-Za-z0-9._-]+$/);
+      expect(readAuthReturnTo(decodeURIComponent(returnTo))).toBe(nestedNext);
+      expect(routerParams.get("locale")).toBe("en");
+      expect(routerParams.get("error")).toBe("access_denied");
+      expect(routerParams.has("next")).toBe(false);
+      expect(rewriteNativeAuthEntry(rewritten)).toBe(rewritten);
+    }
+  });
+
+  test("preserves the destination through internal sign-in, sign-up, and retry navigation", () => {
+    const original = { entry: "sign-in", locale: "id", next: nestedNext } as const;
+    const initial = authEntryHref(original);
+    function throughRouter(href: ReturnType<typeof authEntryHref>) {
+      const query = new URLSearchParams({ locale: href.params.locale, returnTo: href.params.returnTo ?? "" });
+      const params = new URLSearchParams(decodeURIComponent(query.toString()));
+      return readAuthReturnTo(decodeURIComponent(params.get("returnTo") ?? ""));
+    }
+    const signUp = authEntryHref({ ...original, entry: "sign-up", next: throughRouter(initial) });
+    expect(signUp.pathname).toBe("/sign-up");
+    expect(signUp.params.locale).toBe("id");
+    const retrySignUp = authEntryHref({ ...original, entry: "sign-up", next: throughRouter(signUp) });
+    expect(retrySignUp).toEqual(signUp);
+    expect(authEntryHref({ ...original, next: throughRouter(retrySignUp) })).toEqual(initial);
+    expect(throughRouter(initial)).toBe(nestedNext);
+  });
+
+  test("drops mixed, repeated or unsafe destinations without changing other native intents", () => {
+    const safe = authEntryHref({ entry: "sign-in", locale: "id", next: "/profile" }).params.returnTo;
+    for (const query of [
+      "next=%2Fprofile&next=%2Fdashboard",
+      `next=%2Fprofile&returnTo=${safe}`,
+      `returnTo=${safe}&returnTo=${safe}`,
+      "next=%2F%2Foutside.test%2Fprofile",
+      "returnTo=.2F.2Foutside.test.2Fprofile",
+      "returnTo=.2Gprofile",
+    ]) {
+      expect(rewriteNativeAuthEntry(`/sign-in?${query}&locale=id`)).toBe("/sign-in?locale=id");
+    }
+    expect(readAuthReturnTo([safe, safe])).toBeUndefined();
+    expect(rewriteNativeAuthEntry("https://outside.test/sign-in?next=/profile")).toBeNull();
+    expect(rewriteNativeAuthEntry("/mcp/authorize?state=unchanged")).toBeNull();
+  });
+
   test("rejects external, ambiguous, encoded separator, auth and unsanctioned application paths", () => {
-    const intent = { entry: "sign-in", locale: "id" };
+    const intent = { entry: "sign-in", locale: "id" } as const;
     for (const next of [
       "https://staging.zyxacademy.com/profile", "//staging.zyxacademy.com/profile", "/\\external.invalid/profile",
       ["/dashboard", "/admin"], "/courses/a%2Fb", "/courses/a%5cb", "/courses/[id]", "/courses/a/./material",
@@ -318,6 +380,10 @@ describe("native login destination", () => {
     expect(resolveNativeLoginReturn(undefined, { dashboard: "/admin", roles: ["admin"] }, app))
       .toEqual({ status: "ready", href: "/admin" });
     expect(resolveNativeLoginReturn("/tutor", { dashboard: "/admin", roles: ["admin"] }, app))
+      .toEqual({ status: "denied", dashboard: "/admin" });
+    expect(resolveNativeLoginReturn("/tutor", { dashboard: "/admin", roles: ["admin", "tutor"] }, app))
+      .toEqual({ status: "ready", href: "/tutor" });
+    expect(resolveNativeLoginReturn(undefined, { dashboard: "/tutor", roles: ["tutor"] }, app))
       .toEqual({ status: "ready", href: "/tutor" });
     expect(resolveNativeLoginReturn("/meet/session-name?from=schedule", account, app))
       .toEqual({ status: "ready", href: "/meet/session-name?from=schedule" });

@@ -1,5 +1,6 @@
 import { academicIntentPath } from "../routing/academic-intent";
 import { rewriteNativeBrowserIntent } from "../auth/browser-intent";
+import { rewriteNativeAuthEntry } from "../auth/login-intent";
 import { consentIntake } from "../routing/consent-intent";
 
 function newConsentId() {
@@ -8,5 +9,5 @@ function newConsentId() {
 }
 
 export function redirectSystemPath({ path }: { path: string; initial: boolean }): string {
-  return consentIntake.capture(path, newConsentId) ?? academicIntentPath(path) ?? rewriteNativeBrowserIntent(path);
+  return consentIntake.capture(path, newConsentId) ?? rewriteNativeAuthEntry(path) ?? academicIntentPath(path) ?? rewriteNativeBrowserIntent(path);
 }

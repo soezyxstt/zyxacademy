@@ -1,10 +1,10 @@
 import { openDatabaseAsync } from "expo-sqlite";
-import { createOfflineMetadataStore, type NativeOfflineMetadataStore } from "./metadata-store";
+import { createOfflineMetadataStore, EXPO_OFFLINE_DATABASE_NAME, type NativeOfflineMetadataStore } from "./metadata-store";
 
 let repository: Promise<NativeOfflineMetadataStore> | undefined;
 
 export function openExpoOfflineMetadataStore(): Promise<NativeOfflineMetadataStore> {
-  repository ??= openDatabaseAsync("zyx-offline-reading-metadata.db")
+  repository ??= openDatabaseAsync(EXPO_OFFLINE_DATABASE_NAME)
     .then(createOfflineMetadataStore)
     .catch(error => {
       repository = undefined;

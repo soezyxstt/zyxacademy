@@ -1,6 +1,8 @@
-import { getSafeRedirectPath } from "../../../packages/native-session/auth-redirect";
+import { getOAuthCallbackErrorKey, getSafeRedirectPath } from "../../../packages/native-session/auth-redirect";
 import type { NativeAccountContext } from "../../../packages/native-session/context";
+import { NATIVE_BROWSER_SCHEME } from "./browser-intent";
 import { returnRoutes } from "./return-routes";
+import { NATIVE_STAGING_ORIGIN } from "./session-api";
 
 export type NativeAuthLocale = NativeAccountContext["locale"];
 export type NativeAuthEntry = "sign-in" | "sign-up";
@@ -10,11 +12,64 @@ export type NativeLoginIntent = Readonly<{
   next?: string;
 }>;
 
+const maxReturnLength = 1024;
+
 export function authEntryHref({ entry, locale, next }: NativeLoginIntent) {
+  const destination = resolveDestination(next);
   return {
     pathname: entry === "sign-up" ? "/sign-up" as const : "/sign-in" as const,
-    params: next ? { locale, next } : { locale },
+    params: destination ? { locale, returnTo: encodeReturnTo(destination.href) } : { locale },
   };
+}
+
+// Expo Router can decode an href before reading its query parameters. Keep nested
+// escapes, plus signs and URL delimiters in an alphabet that survives both steps.
+function encodeReturnTo(href: string): string {
+  return encodeURIComponent(href)
+    .replace(/[.!~'()*]/g, char => "%" + char.charCodeAt(0).toString(16).toUpperCase())
+    .replaceAll("%", ".");
+}
+
+export function readAuthReturnTo(value: unknown): string | undefined {
+  if (typeof value !== "string" || value.length > maxReturnLength * 3 || !/^[A-Za-z0-9._-]+$/.test(value)) return;
+  try {
+    return resolveDestination(decodeURIComponent(value.replaceAll(".", "%")))?.href;
+  } catch {
+    return;
+  }
+}
+
+const authEntryPaths = new Map<string, NativeAuthEntry>();
+for (const entry of ["sign-in", "sign-up"] as const) {
+  for (const prefix of ["", "/", NATIVE_STAGING_ORIGIN + "/", NATIVE_BROWSER_SCHEME + "://", NATIVE_BROWSER_SCHEME + ":///"]) {
+    authEntryPaths.set(prefix + entry, entry);
+  }
+}
+
+function singleParam(params: URLSearchParams, key: string): string | undefined {
+  const values = params.getAll(key);
+  return values.length === 1 ? values[0] : undefined;
+}
+
+export function rewriteNativeAuthEntry(path: string): string | null {
+  const base = path.split(/[?#]/, 1)[0];
+  const entry = authEntryPaths.get(base.replace(/\/$/, ""));
+  if (!entry) return null;
+  const route = "/" + entry;
+  if (path.length > 8192 || path[base.length] !== "?") return route;
+
+  const params = new URLSearchParams(path.slice(base.length + 1).split("#", 1)[0]);
+  const locale = singleParam(params, "locale");
+  const error = getOAuthCallbackErrorKey(singleParam(params, "error"));
+  const next = params.has("returnTo")
+    ? params.has("next") ? undefined : readAuthReturnTo(singleParam(params, "returnTo"))
+    : resolveDestination(singleParam(params, "next"))?.href;
+  const safe = new URLSearchParams();
+  if (locale === "id" || locale === "en") safe.set("locale", locale);
+  if (error) safe.set("error", error === "accessDenied" ? "access_denied" : error);
+  if (next) safe.set("returnTo", encodeReturnTo(next));
+  const query = safe.toString();
+  return query ? route + "?" + query : route;
 }
 
 type Area = keyof typeof returnRoutes;
@@ -45,7 +100,7 @@ function readPathSegment(part: string): string {
 
 function resolveDestination(raw: unknown): Destination | null {
   // The next value shares the SecureStore write with the verifier and the session.
-  if (typeof raw !== "string" || raw.length > 1024 || !raw.startsWith("/") ||
+  if (typeof raw !== "string" || raw.length > maxReturnLength || !raw.startsWith("/") ||
     raw.startsWith("//") || /[\\\s\u0000-\u001f\u007f]/.test(raw)) return null;
   const href = getSafeRedirectPath(raw);
   if (href !== raw) return null;
@@ -72,7 +127,7 @@ function canOpen(area: Area, roles: NativeAccountContext["roles"]): boolean {
   switch (area) {
     case "public": return true;
     case "admin": return roles.includes("admin");
-    case "tutor": return roles.includes("tutor") || roles.includes("admin");
+    case "tutor": return roles.includes("tutor");
     case "student": return roles.includes("murid");
   }
 }
@@ -89,8 +144,9 @@ export function resolveNativeLoginReturn(
   account: Pick<NativeAccountContext, "dashboard" | "roles">,
   sitemap: RouteNode | null,
 ) {
-  const destination = next ? resolveDestination(next) : resolveDestination(account.dashboard);
-  const dashboard = hasNativeRoute(sitemap, account.dashboard) ? account.dashboard : null;
+  const home = resolveDestination(account.dashboard);
+  const destination = next ? resolveDestination(next) : home;
+  const dashboard = home && canOpen(home.area, account.roles) && hasNativeRoute(sitemap, home.pattern) ? home.href : null;
   if (!destination) return { status: "unavailable", dashboard } as const;
   if (!canOpen(destination.area, account.roles)) return { status: "denied", dashboard } as const;
   return hasNativeRoute(sitemap, destination.pattern)
