@@ -4,24 +4,26 @@ import { View } from "react-native";
 import {
   validAdminMaterialTitle, type AdminMaterialEditor, type AdminMaterialTitleDraft, type AdminMaterialTitleEdit, type CourseWriteTarget,
 } from "../../../../../packages/native-parity/academic/courses/edit-contract";
+import { DocumentSuggestion } from "./document-suggestion";
 import { LiveCourseDelete } from "./live-delete";
 import { useCourseWrite } from "./live-write";
 import { Action, CourseDialog, CourseStatus, Field, Ink, Picker, layout } from "./ui";
 
 type Props = {
   initial: AdminMaterialTitleEdit;
+  slug: string; documentId: string;
   target: CourseWriteTarget<AdminMaterialTitleDraft>;
   refresh(): void;
 };
 
-export function LivePdfTitleEdit({ initial, target, refresh, onDeleted }: Props & { target: ReturnType<AdminMaterialEditor>; onDeleted(): void }) {
+export function LivePdfTitleEdit({ initial, target, slug, documentId, refresh, onDeleted }: Props & { target: ReturnType<AdminMaterialEditor>; onDeleted(): void }) {
   const [open, setOpen] = useState(false);
   return (
     <>
       <Action label={target.pending() ? "Periksa penyimpanan" : "Edit dokumen"} onPress={() => setOpen(true)} testID="course-material-edit-title" />
       {target.remove && <LiveCourseDelete label="Hapus dokumen" name={initial.title} detail="PDF ini akan dihapus dari materi mata kuliah."
         target={target.remove} revision={initial.revision} refresh={onDeleted} />}
-      {open ? <PdfTitleForm initial={initial} target={target} close={() => setOpen(false)} refresh={refresh} /> : null}
+      {open ? <PdfTitleForm slug={slug} documentId={documentId} initial={initial} target={target} close={() => setOpen(false)} refresh={refresh} /> : null}
     </>
   );
 }
@@ -34,7 +36,7 @@ const errors = {
   retry: "Status penyimpanan belum diketahui. Coba lagi untuk memeriksa hasil.",
 };
 
-function PdfTitleForm({ initial, target, close, refresh }: Props & { close(): void }) {
+function PdfTitleForm({ initial, target, close, refresh, slug, documentId }: Props & { close(): void }) {
   const previous = target.pending();
   const [title, setTitle] = useState(previous?.draft.title ?? initial.title);
   const [metadata, setMetadata] = useState(previous?.draft.metadata ?? initial.metadata);
@@ -68,6 +70,15 @@ function PdfTitleForm({ initial, target, close, refresh }: Props & { close(): vo
       <Field label="Judul dokumen" value={title} maxLength={500} disabled={!mutation.editable} testID="course-material-title"
         onChangeText={(value) => { setTitle(value); mutation.setStatus(null); }} />
       {metadata && initial.chapters && <>
+        <DocumentSuggestion slug={slug} id={documentId} source="pdf"
+          values={{ title, category: metadata.type, subcategory: metadata.subcategory, year: year ? Number(year) : null }}
+          disabled={!mutation.editable} onSuggested={suggestion => {
+            setTitle(suggestion.title);
+            if (suggestion.year !== null) setYear(String(suggestion.year));
+            setMetadata({ ...metadata, type: suggestion.category, subcategory: suggestion.subcategory,
+              chapterIds: suggestion.chapterIds.length ? suggestion.chapterIds : metadata.chapterIds });
+            setEditingMetadata(true);
+          }} />
         <Picker label="Kategori" selected={metadata.type} options={LEVEL1_CATEGORIES.map(({ value, label }) => ({ id: value, label }))}
           disabled={!mutation.editable} onSelect={type => { setMetadata({ ...metadata, type: type as MaterialLevel1Category, subcategory: null }); setEditingMetadata(true); }} />
         <Picker label="Subkategori" selected={metadata.subcategory ?? ""} disabled={!mutation.editable}

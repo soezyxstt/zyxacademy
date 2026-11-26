@@ -355,3 +355,29 @@ test("Admin course questions preserve fixed quiz links, historical references an
   expect(jobs).toHaveLength(3);
   expect(jobs.every(row => row.action === "delete")).toBe(true);
 });
+
+
+test("document suggestions check Admin authority and course scope before calling the standardizer and leave the draft unsaved", async () => {
+  const { testDb: db } = database;
+  const course = "suggestion-course";
+  const other = "suggestion-other";
+  for (const id of [course, other]) expect((await command("native-create-" + id, create(id))).status).toBe(200);
+  const chapter = await saveChapterWithCanonicalProjection({ courseId: course, title: "Integral", orderIndex: 1 });
+  const [pdf] = await db.insert(tables.courseMaterials).values({ id: "suggestion-doc", courseId: course, title: "draft", type: "materi",
+    fileUrl: "https://example.invalid/private/Integral.pdf?token=private", chapterIds: [] }).returning();
+  const values = { title: "Judul sementara", category: "materi", subcategory: "ebook", year: null } as const;
+  const result = { ...values, title: "Integral", chapterIds: [chapter.canonicalChapterId], reasoning: "private", matchedChapterOrderIndex: 1 };
+  const standardize = mock(async (_: unknown) => result);
+  mock.module("@/lib/academic/ai-document-standardizer", () => ({ standardizeDocumentMetadataWithAi: standardize }));
+  const { suggestCourseDocument } = await import("@/lib/native/academic/document-suggestion");
+  const viewer = { user: { id: admin }, session: { id: "admin-first" } };
+  const suggest = (slug: string, actor = viewer) => suggestCourseDocument(actor, slug, pdf.id, "pdf", values);
+  await expect(suggest(other)).rejects.toThrow("NOT_FOUND");
+  await expect(suggest(course, { user: { id: student }, session: { id: "student-first" } })).rejects.toThrow("FORBIDDEN");
+  await expect(suggest(course, { ...viewer, session: { id: "absent" } })).rejects.toThrow("UNAUTHENTICATED");
+  expect(standardize).toHaveBeenCalledTimes(0);
+  expect(await suggest(course)).toEqual({ ...values, title: result.title, chapterIds: result.chapterIds });
+  expect(standardize.mock.calls[0]?.[0]).toMatchObject({ filename: "Integral.pdf", userId: admin, courseCode: course, currentValues: values,
+    chapters: [{ id: chapter.canonicalChapterId, title: "Integral", orderIndex: 1 }] });
+  expect((await db.select().from(tables.courseMaterials).where(eq(tables.courseMaterials.id, pdf.id)))[0].title).toBe("draft");
+});

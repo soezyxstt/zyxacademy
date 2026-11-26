@@ -78,6 +78,13 @@ export const operationsCatalog = [
     "reason": "Student coding history and graded attempts use the learner's verified account, existing course access and the authorized article or live room. Live grading uses the existing attempt reservation and score delivery. Interactive practice and exercise help provide no MCP capability or scope."
   },
   {
+    "source": "app/api/native/academic-document/[slug]/[materialId]/suggestion/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The native Admin document editor requests a course-scoped metadata suggestion through the existing academic document standardizer. An explicit save applies the draft under the existing revision and session checks. MCP materials.update_metadata retains its registered scope and consent."
+  },
+  {
     "source": "app/api/native/student/learning/live/route.ts",
     "actions": ["POST"],
     "tools": [],

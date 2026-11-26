@@ -11,6 +11,9 @@ type Pdf = typeof courseMaterials.$inferSelect;
 /** The caller holds the document row lock and has checked the owning course. */
 export async function removeCoursePdf(tx: Tx, pdf: Pdf, courseIds: readonly string[]) {
   const projectionId = "sm-legacy-" + pdf.id;
+  const [projection] = await tx.select({ courseId: sumberMateri.mataKuliahId }).from(sumberMateri)
+    .where(eq(sumberMateri.id, projectionId)).limit(1).for("update");
+  if (projection && !courseIds.includes(projection.courseId)) throw new Error("DEPENDENCIES_EXIST");
   const [linked] = await tx.select({ id: blokArtikelSumber.id }).from(blokArtikelSumber)
     .where(eq(blokArtikelSumber.sumberMateriId, projectionId)).limit(1);
   if (linked) throw new Error("DEPENDENCIES_EXIST");
