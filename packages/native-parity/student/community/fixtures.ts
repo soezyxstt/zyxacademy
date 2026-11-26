@@ -247,7 +247,7 @@ export function createCommunityFixtureRequest(scenario: CommunityFixtureScenario
       case "public-profile": return populated && !blocked && query.get("id") === identity.publicId ? response(publicProfile) : response({ code: "unavailable" }, 404);
       case "people": return response(populated && !blocked ? [identity] : []);
       case "following": return response({ entries: populated && !blocked ? [identity] : [], nextCursor: null });
-      case "reflections": return response(populated ? reflections : []);
+      case "reflections": return response({ entries: populated ? reflections : [], nextCursor: null });
       case "notifications": return response(preferences);
       case "discussion-scope": return response({ catalog: {
         items: query.has("course") ? channels.filter(channel => channel.courseId === query.get("course")) : channels, nextCursor: null,

@@ -1,5 +1,5 @@
 import "server-only";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, lt } from "drizzle-orm";
 import { db } from "@/db";
 import { user, weeklyReflections } from "@/db/schema";
 import { checkFullCourseContentAccess } from "@/app/(student)/dashboard/actions";
@@ -129,10 +129,13 @@ export async function getNativeProfile(userId: string, gamification: boolean, in
   return { account, customization: { settings, badges, rewards }, summary, courses, stats };
 }
 
-export async function getNativeReflections(userId: string) {
-  return db.select({ id: weeklyReflections.id, weekStart: weeklyReflections.weekStart, payload: weeklyReflections.payload })
-    .from(weeklyReflections).where(eq(weeklyReflections.studentId, userId))
-    .orderBy(desc(weeklyReflections.weekStart)).limit(100);
+export async function getNativeReflections(userId: string, before?: string) {
+  const pageSize = 30;
+  const rows = await db.select({ id: weeklyReflections.id, weekStart: weeklyReflections.weekStart, payload: weeklyReflections.payload })
+    .from(weeklyReflections).where(and(eq(weeklyReflections.studentId, userId), before ? lt(weeklyReflections.weekStart, before) : undefined))
+    .orderBy(desc(weeklyReflections.weekStart)).limit(pageSize + 1);
+  const entries = rows.slice(0, pageSize);
+  return { entries, nextCursor: rows.length > pageSize ? entries.at(-1)?.weekStart ?? null : null };
 }
 
 export async function getNativeNotificationPreferences(userId: string): Promise<NotificationPreferences> {

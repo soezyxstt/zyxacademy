@@ -67,6 +67,7 @@ export type Reflection = {
     streak: { currentStreak: number; longestStreak: number };
   };
 };
+export type ReflectionPage = { entries: Reflection[]; nextCursor: string | null };
 export const emailPreferenceKeys = ["emailEnabled", "courseUpdates", "eventsAndSchedules", "learningReminders", "newsAndOffers"] as const;
 export const activityPreferenceKeys = ["discussionsEnabled", "flashcardsEnabled", "tutorAvailabilityEnabled", "tutorialSessionEmailEnabled"] as const;
 export type EmailPreferenceKey = typeof emailPreferenceKeys[number];

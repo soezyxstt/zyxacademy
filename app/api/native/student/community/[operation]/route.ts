@@ -121,7 +121,7 @@ export async function GET(request: Request, { params }: Context) {
         const profile = await social.getPublicStudentProfile(userId, id());
         return profile ? json(profile) : json({ code: "unavailable" }, 404);
       }
-      case "reflections": return json(await getNativeReflections(userId));
+      case "reflections": return json(await getNativeReflections(userId, z.iso.date().optional().parse(query.get("before") ?? undefined)));
       case "notifications": return json(await getNativeNotificationPreferences(userId));
       case "discussion-scope": return json(await readDiscussionScope(userId, identifier.optional().parse(query.get("course") ?? undefined)));
       case "people":

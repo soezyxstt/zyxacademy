@@ -2,7 +2,7 @@ import { useState } from "react";
 import { View } from "react-native";
 import { getMajorsForFaculty, ITB_FACULTIES } from "../../../../../packages/student-community/itb-academic-data";
 import type { StudentSocialSettingsInput } from "../../../../../lib/gamification/social-contracts";
-import type { Profile, PublicStudentProfile, Reflection, StudentIdentity } from "../../../../../packages/native-parity/student/community/contracts";
+import type { Profile, PublicStudentProfile, ReflectionPage, StudentIdentity } from "../../../../../packages/native-parity/student/community/contracts";
 import { BadgeRows, RankSummary, RewardRows } from "./achievements";
 import { Action, Actions, Avatar, Choices, Copy, Field, Notice, Page, Remote, Row, Rows, Toggle, communityPath, dateLabel, operationResult, post, styles, useCommunity, useOperation, useRemote } from "./ui";
 
@@ -31,9 +31,9 @@ function People({ section }: { section: Section }) {
       return <>
         {!entries.length && <Copy kind="muted">{tr("Belum ada siswa.", "No students found.")}</Copy>}
         <Rows>{entries.map(student => <Row key={student.publicId} title={student.displayName} meta={student.rankKey} onPress={() => navigate(profilePath(student.publicId))}>
-          {section === "followers" && <Actions><Action label={tr("Hapus pengikut", "Remove follower")} disabled={action.pending}
-            onPress={() => void action.run(async () => {
-              operationResult(await post(request, "social", { id: student.publicId, action: "remove" }));
+          {section !== "search" && <Actions><Action label={section === "followers" ? tr("Hapus pengikut", "Remove follower") : tr("Berhenti mengikuti", "Unfollow")}
+            disabled={action.pending} onPress={() => void action.run(async () => {
+              operationResult(await post(request, "social", { id: student.publicId, action: section === "followers" ? "remove" : "unfollow" }));
               state.reload();
             })} /></Actions>}
         </Row>)}</Rows>
@@ -215,12 +215,13 @@ export function PublicProfileScreen() {
 
 export function ReflectionsScreen() {
   const { tr, session } = useCommunity();
-  const state = useRemote<Reflection[]>(communityPath("reflections"));
+  const [before, setBefore] = useState<string>();
   const [expanded, setExpanded] = useState<string>();
+  const state = useRemote<ReflectionPage>(communityPath("reflections", { before }));
   return <Page title={tr("Refleksi mingguan", "Weekly reflections")}>
-    <Remote state={state}>{reflections => <>
-      {!reflections.length && <Copy kind="muted">{tr("Belum ada refleksi mingguan.", "No weekly reflections yet.")}</Copy>}
-      <Rows>{reflections.map(({ id, weekStart, payload }) => <Row key={id} title={dateLabel(weekStart, session.locale)}
+    <Remote state={state}>{({ entries, nextCursor }) => <>
+      {!entries.length && <Copy kind="muted">{tr("Belum ada refleksi mingguan.", "No weekly reflections yet.")}</Copy>}
+      <Rows>{entries.map(({ id, weekStart, payload }) => <Row key={id} title={dateLabel(weekStart, session.locale)}
         onPress={() => setExpanded(expanded === id ? undefined : id)}>
         {expanded === id && <View style={styles.field}>
           <Copy>{tr("Kuis", "Quizzes")} {payload.completed.quizzes} · {tr("Flashcard", "Flashcards")} {payload.completed.flashcards} · {tr("Materi", "Materials")} {payload.completed.modules}</Copy>
@@ -229,6 +230,12 @@ export function ReflectionsScreen() {
           <Copy>{tr("Runtun saat ini", "Current streak")} {payload.streak.currentStreak} · {tr("Terpanjang", "Longest streak")} {payload.streak.longestStreak}</Copy>
         </View>}
       </Row>)}</Rows>
+      <Actions>
+        {before && <Action label={tr("Refleksi terbaru", "Latest reflections")} onPress={() => { setBefore(undefined); setExpanded(undefined); }} />}
+        {nextCursor && <Action label={tr("Refleksi sebelumnya", "Older reflections")} onPress={() => {
+          setBefore(nextCursor); setExpanded(undefined);
+        }} />}
+      </Actions>
     </>}</Remote>
   </Page>;
 }
