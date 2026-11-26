@@ -30,6 +30,13 @@ async function serveGradeAttachment(request: Request, key: string, download: Ser
   return new Response(response.body, { headers });
 }
 
+export async function serveVerifiedQuizAttachment(request: Request, attachment: { templateId: string; key: string }, download: Services["download"]) {
+  if (!isSafeKey(attachment.key)) return notFound();
+  const prefix = quizAttachmentPrefix(attachment.templateId);
+  if (!attachment.key.startsWith(prefix) || !/^[a-z0-9][a-z0-9._-]*$/i.test(attachment.key.slice(prefix.length))) return notFound();
+  return serveGradeAttachment(request, attachment.key, download, 4 * 1024 * 1024);
+}
+
 export async function handleGradeAttachment(request: Request, parts: string[], services: Services) {
   const [role, courseId, operation, attemptId, action, questionId] = parts;
   if (parts.length !== 6 || role !== "tutor" || operation !== "grading" || action !== "attachment" ||
@@ -38,10 +45,7 @@ export async function handleGradeAttachment(request: Request, parts: string[], s
     const viewer = await services.session();
     if (!viewer?.user.id || !viewer.session.id) return notFound();
     const attachment = await services.find(courseId, attemptId, questionId, viewer);
-    if (!attachment || !isSafeKey(attachment.key)) return notFound();
-    const prefix = quizAttachmentPrefix(attachment.templateId);
-    if (!attachment.key.startsWith(prefix) || !/^[a-z0-9][a-z0-9._-]*$/i.test(attachment.key.slice(prefix.length))) return notFound();
-    return await serveGradeAttachment(request, attachment.key, services.download, 4 * 1024 * 1024);
+    return attachment ? await serveVerifiedQuizAttachment(request, attachment, services.download) : notFound();
   } catch {
     return notFound();
   }

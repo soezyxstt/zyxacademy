@@ -1,4 +1,4 @@
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, type ComponentProps, type ReactNode } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, useColorScheme, View, type TextStyle } from "react-native";
 import { nativeColors, nativeRadii } from "../../../../../packages/design-tokens/native-colors";
 import { nativeTypography } from "../../../typography";
@@ -103,10 +103,13 @@ export function Busy() {
   return <ActivityIndicator accessibilityLabel={tx("Memuat", "Loading")} style={styles.busy} color={colors.primary} />;
 }
 
-export function Markdown({ value, allowLinks }: { value: string; allowLinks?: boolean }) {
+export function Markdown({ value, allowLinks, renderPreviewImage }: {
+  value: string; allowLinks?: boolean; renderPreviewImage?: ComponentProps<typeof CourseMarkdown>["renderPreviewImage"];
+}) {
   const props = useAssessment();
   return props.renderAssessmentMarkdown?.(value, props.route.params.id) ??
-    <CourseMarkdown source={value} services={props} paragraphStyle={styles.body} allowLinks={allowLinks} />;
+    <CourseMarkdown source={value} services={props} paragraphStyle={styles.body} allowLinks={allowLinks}
+      renderPreviewImage={renderPreviewImage} />;
 }
 
 export const styles = StyleSheet.create({

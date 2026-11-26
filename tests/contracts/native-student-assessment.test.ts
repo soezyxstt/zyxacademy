@@ -3,6 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { NextRequest } from "next/server";
 import { createPostgresTestDb } from "../helpers/postgres";
 import * as schema from "@/db/schema";
+import { quizAttachmentPrefix } from "@/lib/storage/keys";
 import { PERAN_SEEDS, membershipIdFor } from "@/lib/auth/peran";
 import { projectQuestion, readQuizAnswers } from "@/lib/student/assessment-projection";
 import { choice, playerDeadline, restoreAssessmentDraft, toTryoutAnswers } from "../../apps/mobile-native/features/student/assessment/client";
@@ -42,6 +43,14 @@ mock.module("@/lib/storage", () => ({ STORAGE_PROVIDER_MODE: "r2", storage: {
     return { key, size: file.size, url: `/attachment-fixture/${key}` };
   },
 } }));
+
+let deliveredQuizAttachment: string | undefined;
+mock.module("@/app/api/storage/file/[...key]/route", () => ({
+  GET: async (_request: Request, { params }: { params: Promise<{ key: string[] }> }) => {
+    deliveredQuizAttachment = (await params).key.join("/");
+    return new Response("%PDF-1.7", { headers: { "Content-Type": "application/pdf", "Content-Length": "8" } });
+  },
+}));
 
 import { GET, POST } from "@/app/api/native/student/assessment/[courseId]/[...segments]/route";
 import { POST as startLegacyQuiz } from "@/app/api/quiz/attempts/route";
@@ -120,6 +129,41 @@ describe("native Student assessment against PostgreSQL and legacy quiz/tryout ha
     expect(released.review.items[0]).toMatchObject({ correct: true, expected: "A. 5", explanation: "Two plus three is five" });
     expect((await start()).status).toBe(200);
     expect((await call(["my-results", attemptId], { course: wrongCourse })).status).toBe(404);
+  });
+
+  test("the released essay file link only serves the owner's exact snapshot question and course", async () => {
+    const templateId = "assessment-essay-template";
+    const attempt = "assessment-essay-attempt";
+    const questionId = "assessment-essay-question";
+    const fileKey = quizAttachmentPrefix(templateId) + "answer.pdf";
+    await database.testDb.insert(schema.quizTemplates).values({
+      id: templateId, courseId, title: "Essay", category: "chapter", status: "published", visibility: "paid",
+      selectionRules: { explanationRelease: "after_close" },
+    });
+    await database.testDb.insert(schema.studentQuizAttempts).values({
+      id: attempt, templateId, studentId: learner, status: "completed", score: 75,
+      questionsSnapshot: [{ id: questionId, prompt: "Explain", question_type: "essay" }],
+      answersSnapshot: { [questionId]: { text: "Evidence", fileName: "answer.pdf", fileKey } },
+    });
+    const path = ["my-results", attempt, "attachment", questionId];
+    userId = learner;
+    expect((await call(path)).status).toBe(404);
+    expect(deliveredQuizAttachment).toBeUndefined();
+    await database.testDb.update(schema.quizTemplates).set({ manualStatus: "closed" }).where(eq(schema.quizTemplates.id, templateId));
+    expect((await call(path, { course: wrongCourse })).status).toBe(404);
+    expect((await call([...path.slice(0, 3), "other-question"])).status).toBe(404);
+    userId = other;
+    expect((await call(path)).status).toBe(404);
+    expect(deliveredQuizAttachment).toBeUndefined();
+    userId = learner;
+    const metadata = await (await call(["my-results", attempt])).json();
+    expect(metadata.review.items[0]).toMatchObject({ attachment: { fileName: "answer.pdf" }, selected: "Evidence" });
+    expect(JSON.stringify(metadata)).not.toContain(fileKey);
+    const response = await call(path);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(deliveredQuizAttachment).toBe(fileKey);
+    expect(await response.text()).toBe("%PDF-1.7");
   });
 
   test("tryout validates answers and deduplicates concurrent and lost-response retries", async () => {

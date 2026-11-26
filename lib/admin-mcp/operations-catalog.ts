@@ -250,7 +250,7 @@ export const operationsCatalog = [
     "actions": ["readStudentAssessment", "startQuizAttempt", "submitQuizAttempt", "submitTryout", "manageAssessmentAttachment", "regenerateQuizAnalytics", "completeSolutionCollection"],
     "tools": [],
     "status": "excluded",
-    "reason": "Learner assessment requires the native Student session, course eligibility and attempt ownership. Tryout submission checks publication under the same exam lock as Admin lifecycle writes. The learner API uses existing academic services through app HTTPS and does not accept MCP credentials."
+    "reason": "Learner assessment requires the native Student session, course eligibility and attempt ownership. Tryout submission checks publication under the same exam lock as Admin lifecycle writes. The learner API uses existing academic services through app HTTPS and does not accept MCP credentials. Released quiz feedback links only the exact owner’s essay attachment through the same authorization. Learner visual controls consume admitted assets with no MCP authority."
   },
   {
     "source": "app/api/tutor/analytics/refresh/route.ts",

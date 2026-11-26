@@ -40,6 +40,11 @@ on:
       - 'tests/contracts/native-student-reading.test.ts'
       - 'tests/unit/expo-online-reading.test.ts'
       - 'tests/unit/expo-interactive-document.test.ts'
+      - 'tests/unit/expo-assessment-visuals.test.ts'
+      - 'tests/contracts/native-student-assessment.test.ts'
+      - 'app/api/native/student/assessment/**'
+      - 'lib/student/assessment-read.ts'
+      - 'lib/student/assessment-projection.ts'
       - 'tests/unit/expo-google-credential-login.test.ts'
       - 'tests/unit/expo-android-update.test.ts'
       - 'tests/unit/expo-staging-app-links.test.ts'
@@ -287,6 +292,11 @@ jobs:
           bun test tests/contracts/interactive-document-foundation.test.tsx tests/contracts/interactive-document-grant.test.ts
           bun test tests/contracts/native-student-reading.test.ts
           bun test tests/contracts/native-article-coding-access.test.ts
+      - name: Student assessment visuals and released attachment authorization
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          bun test tests/unit/expo-assessment-visuals.test.ts tests/unit/expo-student-solution-visuals.test.ts tests/unit/expo-native-files.test.ts
+          bun test tests/contracts/native-student-assessment.test.ts
       - name: Native Student PDF authorization and private file lifecycle
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: |

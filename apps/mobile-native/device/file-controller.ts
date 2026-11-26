@@ -37,6 +37,7 @@ export type NativeDownloadTarget =
   | { kind: "admin-media"; key: string }
   | { kind: "diktat-pdf"; courseId: string; diktatId: string }
   | ({ kind: "course-material-pdf" } & MaterialPdfTarget)
+  | { kind: "quiz-review-attachment"; courseId: string; attemptId: string; questionId: string }
   | { kind: "quiz-grade-attachment"; courseId: string; attemptId: string; questionId: string }
   | ({ kind: "tryout-grade-attachment" } & TryoutGradeAttachment)
   | { kind: "discussion-image"; attachmentId: string }
@@ -176,6 +177,10 @@ function downloadPath(target: NativeDownloadTarget): string | null {
   if (target.kind === "form-response-attachment" && id(target.formId) && id(target.responseId) &&
     Number.isSafeInteger(target.index) && target.index >= 0 && target.index < 1_000_000) {
     return `/api/native/operations/forms/${encodeURIComponent(target.formId)}/responses/${encodeURIComponent(target.responseId)}/attachment/${target.index}`;
+  }
+  if (target.kind === "quiz-review-attachment" && [target.courseId, target.attemptId, target.questionId].every(id)) {
+    const [course, attempt, question] = [target.courseId, target.attemptId, target.questionId].map(encodeURIComponent);
+    return `/api/native/student/assessment/${course}/my-results/${attempt}/attachment/${question}`;
   }
   if (target.kind === "quiz-grade-attachment" && [target.courseId, target.attemptId, target.questionId].every(id)) {
     const [course, attempt, question] = [target.courseId, target.attemptId, target.questionId].map(encodeURIComponent);
@@ -511,7 +516,8 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
     if (before) return before;
     const diskImages = request.target.kind === "discussion-image";
     const materialPdf = request.target.kind === "course-material-pdf";
-    const quiz = request.target.kind === "quiz-grade-attachment";
+    const studentQuiz = request.target.kind === "quiz-review-attachment";
+    const quiz = studentQuiz || request.target.kind === "quiz-grade-attachment";
     const tryout = request.target.kind === "tryout-grade-attachment";
     const form = request.target.kind === "form-response-attachment";
     const media = request.target.kind === "admin-media";
@@ -540,10 +546,10 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
       if (!await device.canShare()) return { status: "unavailable" };
       assertCurrent();
       errorStage = "fetch";
-      response = await request.session.request(path, { signal: request.signal, requiredRole: schedule?.role ?? (form || media ? "admin" : (quiz || tryout) ? "tutor" : materialPdf ? "murid" : undefined),
+      response = await request.session.request(path, { signal: request.signal, requiredRole: schedule?.role ?? (form || media ? "admin" : studentQuiz || materialPdf ? "murid" : (quiz || tryout) ? "tutor" : undefined),
         headers: {
           Accept: permitted.join(", "),
-          ...(materialPdf ? { "x-student-id": request.session.scope.accountId } : {}),
+          ...(materialPdf || studentQuiz ? { "x-student-id": request.session.scope.accountId } : {}),
           ...(tryout ? { [TRYOUT_GRADE_ATTACHMENT_ACCOUNT]: request.session.scope.accountId, [TRYOUT_GRADE_ATTACHMENT_SESSION]: request.session.scope.sessionId } : {}),
           ...(form ? { "x-native-operations-user-id": request.session.scope.accountId, "x-native-operations-session-id": request.session.scope.sessionId } : {}),
           ...(schedule ? { [SCHEDULE_ACCOUNT]: request.session.scope.accountId, [SCHEDULE_SESSION]: request.session.scope.sessionId } : {}),
@@ -586,22 +592,28 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
 
   async function prepareFormQuestionImage(session: NativeSessionTransport, url: string, signal: AbortSignal, isCurrent?: () => boolean) {
     const path = formQuestionImageProxyPath(url, session.scope.origin);
-    return prepareAdminAsset(session, path, "form-question-image", PUBLIC_FORM_MAX_FILE_SIZE_MB * 1024 * 1024, signal, isCurrent);
+    return prepareScopedAsset(session, path, "form-question-image", PUBLIC_FORM_MAX_FILE_SIZE_MB * 1024 * 1024, signal, isCurrent);
   }
 
   async function prepareAdminMarkdownImage(session: NativeSessionTransport, url: string, audience: MarkdownPreviewAudience, signal: AbortSignal, isCurrent: () => boolean) {
     const path = previewStoragePath(url, session.scope.origin, audience);
-    return prepareAdminAsset(session, path, "document-image", blogUploadMaxBytes, signal, isCurrent);
+    return prepareScopedAsset(session, path, "document-image", blogUploadMaxBytes, signal, isCurrent);
   }
 
   async function prepareAdminMedia(session: NativeSessionTransport, key: string, signal: AbortSignal, isCurrent: () => boolean) {
     const path = adminMediaFilePath(key);
     const policy = adminMediaPreviewPolicy(key);
-    return prepareAdminAsset(session, path, key.split("/").at(-1) ?? "media", policy.maxBytes, signal, isCurrent, policy.mimeTypes);
+    return prepareScopedAsset(session, path, key.split("/").at(-1) ?? "media", policy.maxBytes, signal, isCurrent, policy.mimeTypes);
   }
 
-  async function prepareAdminAsset(session: NativeSessionTransport, path: string | null, name: string, limit: number, signal: AbortSignal, isCurrent?: () => boolean,
-    mimeTypes: readonly string[] = FORM_IMAGE_MIMES) {
+  async function prepareAssessmentImage(session: NativeSessionTransport, url: string, signal: AbortSignal, isCurrent: () => boolean) {
+    const path = previewStoragePath(url, session.scope.origin, "course");
+    return prepareScopedAsset(session, path, "question-image", 8 * 1024 * 1024, signal, isCurrent,
+      ["image/jpeg", "image/png", "image/gif", "image/webp"], "murid");
+  }
+
+  async function prepareScopedAsset(session: NativeSessionTransport, path: string | null, name: string, limit: number, signal: AbortSignal, isCurrent?: () => boolean,
+    mimeTypes: readonly string[] = FORM_IMAGE_MIMES, role: "admin" | "murid" = "admin") {
     if (!device.available || !path || !mimeTypes.length) throw new FileIssue("invalid-target");
     const current = () => {
       session.assertCurrent();
@@ -609,7 +621,7 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
     };
     current();
     initialize();
-    const response = await session.request(path, { signal, requiredRole: "admin", headers: { Accept: mimeTypes.join(", ") } });
+    const response = await session.request(path, { signal, requiredRole: role, headers: { Accept: mimeTypes.join(", ") } });
     const staged = stageExport({ session, signal });
     try {
       current();
@@ -757,5 +769,5 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
   }
 
   return { initialize, expireExports, pickDocument, pickDocuments, belongsToDocumentDraft, shareDocument, shareGeneratedJson, shareAuthorizedDownload,
-    prepareFormQuestionImage, prepareAdminMarkdownImage, prepareAdminMedia, prepareCourseVideo, prepareMaterialPdf, renewMaterialPdf };
+    prepareFormQuestionImage, prepareAdminMarkdownImage, prepareAssessmentImage, prepareAdminMedia, prepareCourseVideo, prepareMaterialPdf, renewMaterialPdf };
 }

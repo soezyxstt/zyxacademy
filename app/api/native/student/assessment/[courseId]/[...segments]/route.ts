@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
+import { serveVerifiedQuizAttachment } from "@/lib/native/academic/assessment/grade-attachment";
 import { GET as getAnalytics, POST as regenerateAnalytics } from "@/app/api/quiz/attempts/[id]/analytics/route";
 import { POST as submitQuiz } from "@/app/api/quiz/attempts/[id]/route";
 import { POST as startQuiz } from "@/app/api/quiz/attempts/route";
@@ -9,7 +10,7 @@ import { completeGamificationExplanation } from "@/lib/gamification/receipts";
 import { quizAnalyticsSchema } from "@/lib/quiz/analytics-client";
 import {
   findQuiz, findQuizAttempt, loadAssessmentCourse, mayUseQuizStage, readQuizDetail, readQuizList, readResultReview, readResults,
-  readSolutionCollection, readSummary, readTryoutDetail, readTryoutList,
+  readQuizReviewAttachment, readSolutionCollection, readSummary, readTryoutDetail, readTryoutList,
 } from "@/lib/student/assessment-read";
 import { objectRecord, projectQuestion, records, validTryoutAnswer } from "@/lib/student/assessment-projection";
 import { canAccessStudentQuizTemplate } from "@/lib/quiz/student-access";
@@ -88,6 +89,12 @@ async function read(request: Request, route: Route) {
   if (section === "tryout" && segments.length === 1) return page(await readTryoutList(context));
   if (section === "tryout" && segments.length === 2) return page(await readTryoutDetail(context, id));
   if (section === "my-results" && segments.length === 1) return page(await readResults(context));
+  if (section === "my-results" && tail === "attachment" && segments.length === 4) {
+    const file = await readQuizReviewAttachment(context, id, segments[3]);
+    if (!file) return missing();
+    const { GET: getStorageFile } = await import("@/app/api/storage/file/[...key]/route");
+    return serveVerifiedQuizAttachment(request, file, (request, key) => getStorageFile(request, { params: Promise.resolve({ key }) }));
+  }
   if (section === "my-results" && segments.length === 2) return page(await readResultReview(context, id));
   if (section === "solutions" && segments.length === 2) return page(await readSolutionCollection(context, id));
   const quizSummary = section === "quiz" && tail === "summary" && segments.length === 4;

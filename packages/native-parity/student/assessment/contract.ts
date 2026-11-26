@@ -36,6 +36,7 @@ export type ReviewedQuestion = AssessmentQuestion & {
   correct: boolean | null;
   explanation: string;
   feedback?: string;
+  attachment?: Pick<Attachment, "fileName" | "fileSize">;
 };
 
 export type AssessmentRow = {

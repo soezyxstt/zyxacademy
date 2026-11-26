@@ -52,8 +52,6 @@ export function SolutionVisualPreview({ value, origin, locale, theme }: Props) {
       <SolutionEpsilonGraph key={visual.id} spec={visual} locale={locale} theme={chosenTheme} />
     </>}
     {visual.kind === "interactive_scene" && <SolutionInteractiveScene key={visual.id} spec={visual} locale={locale} theme={chosenTheme} />}
-    {visual.kind === "interactive_document" && ("table" in fallback || visual.printCaption !== fallback.content)
-      ? markdown(visual.printCaption, true) : null}
     {"table" in fallback ? <CanvasTable table={fallback.table} {...common} /> : <>
       {markdown(fallback.summary)}
       {fallback.content !== fallback.summary && fallback.content !== visual.description ? markdown(fallback.content) : null}

@@ -95,15 +95,25 @@ function textAnswers(raw: unknown): string | null {
   return Array.isArray(list) ? list.filter((value) => typeof value === "string").join(" / ") || null : null;
 }
 
+export function quizReviewAttachment(question: AssessmentQuestion, submitted: unknown) {
+  if (question.type !== "essay") return null;
+  const { fileName, fileKey, fileSize } = objectRecord(submitted);
+  if (typeof fileName !== "string" || !fileName.trim() || typeof fileKey !== "string" || !fileKey.trim()) return null;
+  return { fileKey, fileName, fileSize: typeof fileSize === "string" ? fileSize : undefined };
+}
+
 export function reviewQuizQuestion(raw: Record<string, unknown>, submitted: unknown, feedback?: string): ReviewedQuestion {
   const question = projectQuestion(raw);
   const choice = question.type === "multiple_choice" || question.type === "multiple_choices";
-  const selected = choice ? optionLabels(question.options, optionIndices(submitted, raw.stable_option_ids ?? raw.stableOptionIds)) : textLabel(submitted);
+  const file = quizReviewAttachment(question, submitted);
+  const selected = choice ? optionLabels(question.options, optionIndices(submitted, raw.stable_option_ids ?? raw.stableOptionIds))
+    : file ? textLabel(objectRecord(submitted).text) : textLabel(submitted);
   const expected = choice
     ? optionLabels(question.options, optionIndices(raw.correct_indices ?? raw.correctIndices ?? raw.correctIndex, undefined))
     : textAnswers(raw.acceptable_answers ?? raw.acceptableAnswers);
   return {
     ...question, selected, expected,
+    ...(file ? { attachment: { fileName: file.fileName, fileSize: file.fileSize } } : {}),
     correct: typeof raw.gradedCorrect === "boolean" ? raw.gradedCorrect : question.type === "essay" ? null : checkAnswerCorrectness(raw, submitted),
     explanation: typeof raw.explanation === "string" ? raw.explanation : "", feedback,
   };

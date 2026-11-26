@@ -78,6 +78,8 @@ export interface StudentServices {
   notifications?: { enabled: boolean; setEnabled(enabled: boolean): Promise<void> };
   pickAssessmentFile?: () => Promise<import("./assessment/device-contract").AssessmentFile | null>;
   assessmentPhotos?: import("./assessment/device-contract").AssessmentPhotoPicker;
+  shareQuizReviewAttachment?: (courseId: string, attemptId: string, questionId: string, fileName: string, signal: AbortSignal) => Promise<ShareFileResult>;
+  openAssessmentImage?: (path: string, signal: AbortSignal) => Promise<{ uri: string; release(): void }>;
   renderAssessmentMarkdown?: (markdown: string, courseId: string) => ReactNode;
   renderAssessmentParts?: (parts: unknown[], courseId: string, visuals?: unknown[]) => ReactNode;
   /** Fixed timezone for results screenshots from the internal synthetic fixture. */

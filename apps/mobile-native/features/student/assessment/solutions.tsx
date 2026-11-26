@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { Linking, View } from "react-native";
 import type { SolutionPart as ArticlePart, SolutionItem as SolutionCollectionItem, SolutionProvenance } from "../../../../../packages/native-parity/student/assessment/solution-contract";
 import type { AssessmentPage } from "../../../../../packages/native-parity/student/assessment/contract";
+import { InteractiveAssessmentMarkdown } from "./InteractiveAssessmentMarkdown";
 import { SolutionVisualPreview } from "../../solutions/SolutionVisualPreview";
 import { partText } from "../../solutions/semantic";
 import { Input } from "../../../components/Input";
@@ -14,6 +15,8 @@ function Parts({ parts, item }: { parts: ArticlePart[]; item: SolutionCollection
   const theme = devicePreferences?.theme === "system" ? undefined : devicePreferences?.theme;
   if (renderAssessmentParts) return <>{renderAssessmentParts(parts, route.params.id, item.visuals)}</>;
   return <>{parts.map((part) => {
+    if (part.kind === "markdown") return <InteractiveAssessmentMarkdown key={part.id} value={part.markdown} scope={null} />;
+
     if (part.kind === "visual_ref") {
       const visual = item.visuals.find(({ id }) => id === part.visualId);
       return <SolutionVisualPreview key={part.id} value={visual} origin={session.origin} locale={locale} theme={theme} />;

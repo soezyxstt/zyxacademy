@@ -671,3 +671,28 @@ test("Admin media previews and downloads use the exact storage key and release p
   }
   expect(requests).toHaveLength(2);
 });
+
+test("released Student quiz attachments use an exact scope URL and verified raster preview uses private temporary bytes", async () => {
+  const calls: Array<{ path: string; student: string | null }> = [];
+  const fixture = setup({}, async (value, init) => {
+    const path = new URL(value).pathname;
+    calls.push({ path, student: new Headers(init.headers).get("x-student-id") });
+    return path.endsWith(".png")
+      ? new Response(fixtureImage, { headers: { "Content-Type": "image/png" } })
+      : new Response(fixturePdf, { headers: { "Content-Type": "application/pdf" } });
+  });
+  const { controller, session, shares, files } = fixture;
+  const signal = new AbortController().signal;
+  const prepared = await controller.prepareAssessmentImage(session, "/api/storage/file/materials/course/chart.png", signal, () => true);
+  expect(files.has(prepared.uri)).toBe(true);
+  prepared.release();
+  expect(files.has(prepared.uri)).toBe(false);
+  await expect(controller.prepareAssessmentImage(session, "https://outside.example/chart.png", signal, () => true)).rejects.toThrow();
+  expect(await controller.shareAuthorizedDownload({ session, policy, fileName: "answer.pdf", signal,
+    target: { kind: "quiz-review-attachment", courseId: "course", attemptId: "attempt", questionId: "question" } })).toEqual({ status: "finished" });
+  expect(calls).toEqual([
+    { path: "/api/storage/file/materials/course/chart.png", student: null },
+    { path: "/api/native/student/assessment/course/my-results/attempt/attachment/question", student: "account" },
+  ]);
+  expect(shares[0]?.mimeType).toBe("application/pdf");
+});

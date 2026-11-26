@@ -12,7 +12,7 @@ import { isPkaStageAttemptAllowed } from "@/lib/pka-simulation";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { getPublishedSolutionCollection } from "@/lib/solutions/repository";
 import { resolveCourseAccess } from "@/lib/student/course-access";
-import { assessmentAvailability, objectRecord, projectQuestion, readQuizAnswers, records, reviewQuizQuestion, reviewTryoutQuestion } from "./assessment-projection";
+import { assessmentAvailability, objectRecord, projectQuestion, quizReviewAttachment, readQuizAnswers, records, reviewQuizQuestion, reviewTryoutQuestion } from "./assessment-projection";
 import type { AssessmentPage, AssessmentPlayer, AssessmentResult, AssessmentRow, Review } from "@/packages/native-parity/student/assessment/contract";
 
 type Quiz = typeof quizTemplates.$inferSelect;
@@ -290,6 +290,15 @@ export async function readResultReview(ctx: Context, submissionId: string): Prom
   const answers = objectRecord(tryout.sub.answersSnapshot);
   return { kind: "review", courseTitle: ctx.courseTitle, review: { result: tryoutResult(tryout.sub, tryout.exam), discussionAvailable: true,
     items: records(tryout.sub.questionsSnapshot).map((question) => reviewTryoutQuestion(question, answers[String(question.id)])), teacherNotes: tryout.sub.teacherNotes ?? undefined } };
+}
+
+export async function readQuizReviewAttachment(ctx: Context, attemptId: string, questionId: string) {
+  const entry = await findQuizAttempt(ctx, attemptId);
+  if (!entry || entry.attempt.status !== "completed" || !canViewAttemptDiscussion(entry.template, entry.attempt.status)) return null;
+  const questions = records(entry.attempt.questionsSnapshot).filter(question => question.id === questionId);
+  if (questions.length !== 1) return null;
+  const attachment = quizReviewAttachment(projectQuestion(questions[0]), objectRecord(entry.attempt.answersSnapshot)[questionId]);
+  return attachment ? { templateId: entry.template.id, key: attachment.fileKey } : null;
 }
 
 export async function readSummary(ctx: Context, attemptId: string, quizId?: string) {

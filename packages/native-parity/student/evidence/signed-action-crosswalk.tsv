@@ -54,12 +54,14 @@ assessment	/courses/[id]/quiz/[quizId]	murid	quiz.start	POST reserves a particip
 assessment	/courses/[id]/quiz/[quizId]	murid	quiz.resume	Opens stored active attempt and scopes recovery to participant, attempt and course.	connected	fixture
 assessment	/courses/[id]/quiz/[quizId]	murid	quiz.answer	Native player supports selection, essay response, question navigation and flags.	connected	fixture
 assessment	/courses/[id]/quiz/[quizId]	murid	quiz.local-draft	Restores scoped local answers and marks after leaving the player.	connected	fixture
-assessment	/courses/[id]/quiz/[quizId]	murid	quiz.question-image	Native renderer admits supported images and on-device question content. Interactive typed visuals need per-type proof.	partial	source
+assessment	/courses/[id]/quiz/[quizId]	murid	quiz.question-image	Quiz prompts, options and review display inline and first-party raster images. Protected storage uses current scoped file preparation. External authored images use fallback and signed device coverage is pending.	partial	source
+assessment	/courses/[id]/quiz/[quizId]	murid	quiz.question-visualization	Quiz Markdown mounts supported legacy graph, diagram and chart controls and validated typed visuals. Choice controls stay independent of selection. Signed device coverage is pending.	connected	contract
 assessment	/courses/[id]/quiz/[quizId]	murid	quiz.interactive-document	Owned attempt snapshot opens admitted V4 prompts and options. Explanations use the same review release as web. Signed device coverage is pending.	connected	contract
 assessment	/courses/[id]/quiz/[quizId]	murid	quiz.attachment-pick-upload	Android/iOS host injects scoped photo/file bridges. Server checks current attempt, question and bytes.	connected	contract
 assessment	/courses/[id]/quiz/[quizId]	murid	quiz.attachment-delete	Authorized attachment delete checks exact active attempt and linked key.	connected	contract
 assessment	/courses/[id]/quiz/[quizId]	murid	quiz.timer-submit	Uses active deadline and explicit confirmation. Shared grading and stable submission retry apply.	connected	local-http
 assessment	/courses/[id]/quiz/[quizId]	murid	quiz.review-release	Published review opens only after existing release and grading rules allow it.	connected	local-http
+assessment	/courses/[id]/my-results/[submissionId]	murid	quiz.review-attachment	Released essay review opens only the current learner’s exact course, completed attempt and question through the scoped download. Quiz attachment media remains typed and size-bounded. Signed device coverage is pending.	connected	contract
 assessment	/courses/[id]/quiz/[quizId]/summary/[attemptId]	murid	quiz.diagnosis-read	Reads own eligible summary and indicates proof or asynchronous analysis state.	connected	contract
 assessment	/courses/[id]/quiz/[quizId]/summary/[attemptId]	murid	quiz.diagnosis-run	POST starts or regenerates diagnosis under owned resolved attempt and release checks. Native UI refreshes job status.	connected	contract
 assessment	/courses/[id]/quiz/[quizId]/summary/[attemptId]	murid	quiz.diagnosis-open-resource	Opens native course resource links returned for admitted diagnosis.	connected	fixture
@@ -78,7 +80,7 @@ assessment	/courses/[id]/solutions/[collectionId]	murid	solutions.read	Retrieves
 assessment	/courses/[id]/solutions/[collectionId]	murid	solutions.filter	Filters and jumps to solution entries scoped to published collection.	connected	fixture
 assessment	/courses/[id]/solutions/[collectionId]	murid	solutions.hint-reveal	Native reveals per-item hint, strategy, worked steps and verification.	connected	fixture
 assessment	/courses/[id]/solutions/[collectionId]	murid	solutions.provenance	Offers source details and HTTPS source handoff for a published item.	connected	source
-assessment	/courses/[id]/solutions/[collectionId]	murid	solutions.visuals	SolutionVisualPreview renders structured learning canvases, geometry and authored fallback. Interactive document runtime uses its static fallback; compare per visual kind and controls.	partial	contract
+assessment	/courses/[id]/solutions/[collectionId]	murid	solutions.visuals	V5 renders the admitted structured canvas, scene, geometry and epsilon-delta visuals and legacy diagrams or graphs. Interactive document metadata uses the same text fallback as the unscoped web reader. Source figures are not admitted by V5. Signed device coverage is pending.	connected	contract
 assessment	/courses/[id]/solutions/[collectionId]	murid	solutions.complete	Posts collection version and completed item IDs through shared achievement completion under full access.	connected	contract
 learning	/courses/[id]/concept/[slug]	murid	concept.read	GET learning concept requires full course access and shows concept and mastery.	connected	local-http
 learning	/courses/[id]/concept/[slug]	murid	concept.related-links	Opens authorized prerequisites and practice destinations for the course.	connected	fixture

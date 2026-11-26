@@ -89,6 +89,11 @@ export function VerifiedStudentEntry({ offlineLocale, openOfflineMaterial, ...pr
       else void metadata.retry();
     },
   });
+  const prepareAssessmentImage = useCallback((path: string, signal: AbortSignal) => {
+    if (!transport) return Promise.reject(new Error("Assessment image unavailable."));
+    return scopedFiles.prepareAssessmentImage(transport, path, signal,
+      () => navigation.isFocused() && getSnapshot().transport === transport && transport.isCurrent());
+  }, [transport, navigation, getSnapshot]);
   const assessmentPhotos = useAssessmentPhotos(context?.roles.includes("murid") ? transport : null, context?.locale ?? "id");
   const drafts = useAssessmentDrafts(context?.roles.includes("murid") ? transport : null, context?.locale ?? "id");
   if (reading.offline) {
@@ -148,6 +153,9 @@ export function VerifiedStudentEntry({ offlineLocale, openOfflineMaterial, ...pr
   const shareDiscussionImage: StudentEntryProps["shareDiscussionImage"] = (attachmentId, signal) => scopedFiles.shareAuthorizedDownload({
     session: transport, target: { kind: "discussion-image", attachmentId }, policy: discussionImagePolicy, signal, isTargetCurrent,
   });
+  const shareQuizReviewAttachment: StudentEntryProps["shareQuizReviewAttachment"] = (courseId, attemptId, questionId, fileName, signal) =>
+    scopedFiles.shareAuthorizedDownload({ session: transport, target: { kind: "quiz-review-attachment", courseId, attemptId, questionId }, fileName,
+      policy: { mimeTypes: ["application/pdf", "image/jpeg", "image/png", "image/webp"], maxBytes: 4 * 1024 * 1024 }, signal, isTargetCurrent });
   const pdfReader: StudentEntryProps["pdfReader"] = (Platform.OS === "android" || Platform.OS === "ios") ? {
     open: (target, signal) => scopedFiles.prepareMaterialPdf({ session: transport, target, signal, sessionExpiresAt: state.expiresAt, isTargetCurrent }),
     search: bindPdfSearch(transport, isTargetCurrent),
@@ -175,6 +183,8 @@ export function VerifiedStudentEntry({ offlineLocale, openOfflineMaterial, ...pr
     {focused && !revalidating && context.roles.length === 1 && context.accountId === accountId && context.sessionId === sessionId
       ? <StudentCelebrations key={identityKey} transport={transport} locale={context.locale} navigate={props.navigate} /> : null}
     <StudentEntry {...props} focused={focused} openExternal={props.openExternal ?? openExternal} openBrowserNotifications={openBrowserNotifications} openOfflineMaterial={openSaved} openOfflineLibrary={target.kind === "course" || target.kind === "material" || matchStudentRoute(props.path)?.pattern === "/settings" ? openLibrary : undefined} request={transport.request} devicePush={push} assessmentPhotos={props.assessmentPhotos ?? assessmentPhotos} drafts={props.drafts ?? drafts}
+    openAssessmentImage={prepareAssessmentImage}
+    shareQuizReviewAttachment={Platform.OS === "android" || Platform.OS === "ios" ? shareQuizReviewAttachment : undefined}
     pdfReader={pdfReader} calendarLink={calendarLink} recordOfflineReadingVisit={recordOfflineReadingVisit}
     saveCourseMaterialPdf={Platform.OS === "android" || Platform.OS === "ios" ? saveCourseMaterialPdf : undefined}
     shareMaterialLink={Platform.OS === "android" || Platform.OS === "ios" ? shareMaterialLink : undefined}

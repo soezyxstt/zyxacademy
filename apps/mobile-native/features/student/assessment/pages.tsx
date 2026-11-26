@@ -1,3 +1,4 @@
+import { QuizReviewAttachment } from "./QuizReviewAttachment";
 import { InteractiveAssessmentMarkdown } from "./InteractiveAssessmentMarkdown";
 import { interactiveMarkdownFallback } from "../../../../../lib/materials/interactive-document-display";
 import { useEffect, useRef, useState } from "react";
@@ -238,6 +239,7 @@ function ReviewQuestion({ item, index, showAnswer, visualContext }: {
     </View>)}
     {showAnswer ? <><Body tone="muted">{messages.review.yourAnswer}</Body><Markdown value={item.selected ? interactiveMarkdownFallback(item.selected) : tx("Belum diisi", "Unanswered")} /></> : null}
     {item.expected ? <><Body tone="muted">{messages.review.correctAnswer}</Body><Markdown value={interactiveMarkdownFallback(item.expected)} /></> : null}
+    {showAnswer && item.attachment && visualContext ? <QuizReviewAttachment attachment={item.attachment} attemptId={visualContext.attemptId} questionId={item.id} /> : null}
     {item.explanation ? <><Heading level={3}>{messages.review.explanation}</Heading><InteractiveAssessmentMarkdown value={item.explanation} scope={scope && { ...scope, field: "explanation" }} /></> : null}
     {item.feedback ? <><Body tone="muted">{messages.review.teacherNote}</Body><Markdown value={item.feedback} /></> : null}
   </Section>;
