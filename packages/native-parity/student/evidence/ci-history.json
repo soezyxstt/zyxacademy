@@ -408,7 +408,91 @@
       "ios": {
         "jobId": 139927769305,
         "status": "pending_at_observation"
-      }
+      },
+      "laterObservations": [
+        {
+          "observedAt": "2026-11-26T13:37:13Z",
+          "android": {
+            "jobId": 139927769797,
+            "status": "device_flows_completed_with_failures",
+            "reason": "Android captured 156 generated smoke passes. One targeted replay recovered 63 of 107 transport failures, leaving 44 transport failures and three blocked cases. Nineteen of 20 standalone scenarios passed; the quiz gateway start assertion failed. Material scroll restoration passed and six matched catalog and flashcard pairs differed from web.",
+            "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45824831032/artifacts/15121682481",
+            "summaryCounts": {
+              "passed": 156,
+              "blocked": 3,
+              "failed": 44
+            },
+            "standaloneCounts": {
+              "passed": 19,
+              "failed": 1
+            },
+            "comparison": [
+              {
+                "id": "catalog-all",
+                "status": "different",
+                "differing_pixels": 52809,
+                "max_channel_difference": 227
+              },
+              {
+                "id": "catalog-tpb",
+                "status": "different",
+                "differing_pixels": 44768,
+                "max_channel_difference": 227
+              },
+              {
+                "id": "catalog-pka",
+                "status": "different",
+                "differing_pixels": 28237,
+                "max_channel_difference": 227
+              },
+              {
+                "id": "flashcard-question",
+                "status": "different",
+                "differing_pixels": 23351,
+                "max_channel_difference": 214
+              },
+              {
+                "id": "flashcard-review-pending",
+                "status": "different",
+                "differing_pixels": 45757,
+                "max_channel_difference": 255
+              },
+              {
+                "id": "flashcard-review-failed",
+                "status": "different",
+                "differing_pixels": 68129,
+                "max_channel_difference": 255
+              }
+            ],
+            "scrollRestoration": {
+              "status": "pass",
+              "region": [
+                38,
+                205,
+                342,
+                615
+              ],
+              "dimensions": [
+                380,
+                820
+              ],
+              "different_pixels": 0,
+              "before": "results/2026-11-26_131656/Student course long material list fixture/takeScreenshot/student-long-content.png",
+              "after": "results/2026-11-26_131656/Student course long material list fixture/takeScreenshot/student-long-content-restored.png"
+            },
+            "transportRetry": {
+              "initialFailed": 107,
+              "retryPassed": 63,
+              "retryFailed": 44,
+              "failureClassification": "generated-failure-classification.json"
+            }
+          },
+          "ios": {
+            "jobId": 139927769305,
+            "status": "cancelled_before_device_flows"
+          }
+        }
+      ]
     }
   ]
 }
