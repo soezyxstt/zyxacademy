@@ -1,0 +1,131 @@
+{
+  "server": "Actual Next.js evaluation alias page functions with fixture Admin authorization and course/quiz identities",
+  "screen": "Local fixture destinations",
+  "cases": [
+    {
+      "id": "assessments",
+      "path": "/admin/assessments",
+      "status": 307,
+      "location": "/admin/questions",
+      "reachedPath": "/admin/questions",
+      "reachedStatus": 200,
+      "browserBack": "/admin/evaluation-alias-origin",
+      "backReachedOrigin": true,
+      "native": {
+        "kind": "redirect",
+        "href": "/admin/questions"
+      }
+    },
+    {
+      "id": "assessment-detail",
+      "path": "/admin/assessments/asesmen-lama",
+      "status": 307,
+      "location": "/admin/questions",
+      "reachedPath": "/admin/questions",
+      "reachedStatus": 200,
+      "browserBack": "/admin/evaluation-alias-origin",
+      "backReachedOrigin": true,
+      "native": {
+        "kind": "redirect",
+        "href": "/admin/questions"
+      }
+    },
+    {
+      "id": "diktats",
+      "path": "/admin/diktats",
+      "status": 307,
+      "location": "/admin/materials/review?section=product",
+      "reachedPath": "/admin/materials/review?section=product",
+      "reachedStatus": 200,
+      "browserBack": "/admin/evaluation-alias-origin",
+      "backReachedOrigin": true,
+      "native": {
+        "kind": "redirect",
+        "href": "/admin/materials/review?section=product"
+      }
+    },
+    {
+      "id": "leaderboard-known",
+      "path": "/admin/leaderboard?courseId=mekanika-legacy",
+      "status": 307,
+      "location": "/admin/courses/mekanika-dasar/leaderboard",
+      "reachedPath": "/admin/courses/mekanika-dasar/leaderboard",
+      "reachedStatus": 200,
+      "browserBack": "/admin/evaluation-alias-origin",
+      "backReachedOrigin": true,
+      "native": {
+        "kind": "redirect",
+        "href": "/admin/courses/mekanika-dasar/leaderboard"
+      }
+    },
+    {
+      "id": "insights-known",
+      "path": "/admin/quiz-insights?courseId=mekanika-legacy",
+      "status": 307,
+      "location": "/admin/courses/mekanika-dasar/analytics",
+      "reachedPath": "/admin/courses/mekanika-dasar/analytics",
+      "reachedStatus": 200,
+      "browserBack": "/admin/evaluation-alias-origin",
+      "backReachedOrigin": true,
+      "native": {
+        "kind": "redirect",
+        "href": "/admin/courses/mekanika-dasar/analytics"
+      }
+    },
+    {
+      "id": "insight-unknown",
+      "path": "/admin/quiz-insights/kuis-tidak-ada",
+      "status": 404,
+      "location": null,
+      "reachedPath": "/admin/quiz-insights/kuis-tidak-ada",
+      "reachedStatus": 404,
+      "browserBack": "/admin/evaluation-alias-origin",
+      "backReachedOrigin": true,
+      "native": {
+        "status": 404
+      }
+    },
+    {
+      "id": "quizzes-known",
+      "path": "/admin/quizzes?courseId=mekanika-legacy&tags=ignored",
+      "status": 307,
+      "location": "/admin/courses/mekanika-dasar/quizzes",
+      "reachedPath": "/admin/courses/mekanika-dasar/quizzes",
+      "reachedStatus": 200,
+      "browserBack": "/admin/evaluation-alias-origin",
+      "backReachedOrigin": true,
+      "native": {
+        "kind": "redirect",
+        "href": "/admin/courses/mekanika-dasar/quizzes"
+      }
+    },
+    {
+      "id": "quiz-new-tags",
+      "path": "/admin/quizzes/new?courseSlug=mekanika-legacy&tags=panas%2Fdalam%2Cenergi",
+      "status": 307,
+      "location": "/admin/courses/mekanika-dasar/quizzes/new?tags=panas%2Fdalam%2Cenergi",
+      "reachedPath": "/admin/courses/mekanika-dasar/quizzes/new?tags=panas%2Fdalam%2Cenergi",
+      "reachedStatus": 200,
+      "browserBack": "/admin/evaluation-alias-origin",
+      "backReachedOrigin": true,
+      "native": {
+        "kind": "redirect",
+        "href": "/admin/courses/mekanika-dasar/quizzes/new?tags=panas%2Fdalam%2Cenergi"
+      }
+    },
+    {
+      "id": "quiz-edit-known",
+      "path": "/admin/quizzes/kuis-energi/edit?courseId=other&returnUrl=%2Fexternal",
+      "status": 307,
+      "location": "/admin/courses/mekanika-dasar/quizzes/kuis-energi/edit",
+      "reachedPath": "/admin/courses/mekanika-dasar/quizzes/kuis-energi/edit",
+      "reachedStatus": 200,
+      "browserBack": "/admin/evaluation-alias-origin",
+      "backReachedOrigin": true,
+      "native": {
+        "kind": "redirect",
+        "href": "/admin/courses/mekanika-dasar/quizzes/kuis-energi/edit"
+      }
+    }
+  ]
+}

@@ -53,14 +53,17 @@ async function main() {
       }
 
       await page.goBack({ waitUntil: "domcontentloaded", timeout: 60000 });
-      expect(page.url()).toBe(origin.href);
-      await expect(page.getByRole("heading", { name: "Legacy evaluation route origins" })).toBeVisible();
+      await page.waitForURL(origin.href, { timeout: 5000 }).catch(() => undefined);
+      const backUrl = new URL(page.url());
+      const backReachedOrigin = backUrl.href === origin.href;
+      if (backReachedOrigin) await expect(page.getByRole("heading", { name: "Legacy evaluation route origins" })).toBeVisible();
       cases.push({
         id: entry.id, path: entry.href, status: source.status(),
         location: source.headers().location ?? null,
         reachedPath: new URL(final).pathname + new URL(final).search, reachedStatus: reached.status(),
-        browserBack: origin.pathname, native,
+        browserBack: backUrl.pathname + backUrl.search, backReachedOrigin, native,
       });
+      if (!backReachedOrigin) await page.goto(origin.href, { waitUntil: "domcontentloaded" });
     }
     expect(errors).toEqual([]);
     await mkdir(destination, { recursive: true });
@@ -68,10 +71,11 @@ async function main() {
       server: "Actual Next.js evaluation alias page functions with fixture Admin authorization and course/quiz identities",
       screen: "Local fixture destinations", cases,
     }, null, 2) + "\n");
+    expect(cases.every(item => item.backReachedOrigin === true)).toBe(true);
   } finally {
     await browser.close();
   }
-  console.log(`${cases.length} alias paths verified with browser Back and native fixture comparison`);
+  console.log(`${cases.length} alias paths recorded with observed browser Back destinations and native fixture comparison`);
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1; });
