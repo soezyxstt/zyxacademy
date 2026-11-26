@@ -48,6 +48,10 @@ on:
       - 'lib/native/academic/administration/user-*.ts'
       - 'tests/contracts/native-admin-course-management.test.ts'
       - 'tests/contracts/native-admin-tutorial-operations.test.ts'
+      - 'tests/contracts/native-pka-lifecycle-integration.test.ts'
+      - 'tests/unit/expo-native-pka-lifecycle.test.ts'
+      - 'lib/pka/**'
+      - 'jobs/pka-delivery.ts'
       - 'app/api/native/academic-administration/tutorial-operations/**'
       - 'tests/contracts/native-admin-text-document.test.ts'
       - 'tests/unit/expo-native-text-document.test.ts'
@@ -246,6 +250,11 @@ jobs:
           bun scripts/test-contracts.ts tests/contracts/native-admin-schedule-events.test.ts tests/contracts/native-admin-tutorial-operations.test.ts tests/contracts/native-admin-user-roles.test.ts tests/contracts/authoring-role-lock-order.test.ts
           bun scripts/test-contracts.ts tests/contracts/native-admin-course-management.test.ts tests/contracts/native-tutor-slot.test.ts tests/contracts/native-tryout-draft.test.ts
           bun test packages/native-parity/academic/assessment/read-handler.test.ts tests/unit/expo-admin-tutorial-operations.test.ts packages/native-parity/academic/tutor/tutor-support.test.ts
+      - name: Admin PKA schedule and announcement delivery
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          bun test tests/unit/expo-native-pka-lifecycle.test.ts tests/contracts/queue-cron.test.ts
+          bun scripts/test-contracts.ts tests/contracts/native-pka-lifecycle-integration.test.ts
       - name: Admin native text document edits and publication
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: |
