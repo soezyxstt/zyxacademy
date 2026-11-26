@@ -33,3 +33,16 @@ Kampanye PKA mengikuti `isPkaEnrolled` pada web. Keberadaan rekam enrollment men
 - Uji kontrak lokal mencakup penolakan sesi, locators, review flashcard, proyeksi video, alias PKA, fixture offline, dan pemulihan pertanyaan setelah menyambung ulang. PGlite memeriksa tanda tangan token, batas kelas, dan aturan tahap PKA. Tes web yang difilter memeriksa tujuan alias Tutor. [Kontrak HTTP dan fixture](../../../../tests/contracts/native-student-learning.test.ts) · [Fixture PGlite](../../../../tests/contracts/native-student-learning-postgres.test.ts)
 - Gambar Playwright per rute, perbandingan piksel Android dan iOS, interaksi pembaca layar, putar video, masuk browser, dan koneksi layanan real-time masih memerlukan bukti perangkat. Browser sistem memerlukan `openExternal` dari host. Rumus dan Markdown menggunakan renderer terinjeksi bila tersedia, dengan teks sumber sebagai tampilan cadangan. [Kriteria paritas](../../../../plans/native-parallel/README.md)
 - Katalog operasi menandai endpoint belajar, penilaian recall, pengumuman pribadi, dan bergabung ruang live sebagai operasi UI Student. Registrasi tool MCP, scope OAuth, consent, discovery, playbook, packaged skill, prompt host, dan binding lingkungan menggunakan kontrak yang berlaku. [Katalog operasi](../../../../lib/admin-mcp/operations-catalog.ts)
+
+### HTTP belajar dengan akun sintetis
+
+Probe pada checkout server bersih `28b8dd941b665105ebe0f6331d6b594abc06ed08` lulus dengan Next.js 16.3 dan PostgreSQL 16.13 di loopback. Sebanyak 36 permintaan menghasilkan 28 respons 200, dua 401 untuk sesi anonim, empat 403 untuk operasi yang membutuhkan akses penuh, dan dua 409 untuk identitas akun yang tidak cocok. Seluruh respons adapter native dan respons sukses jalur belajar memakai `private, no-store`.
+
+Probe memeriksa penguasaan Idea, isi konsep, rencana belajar, katalog video tanpa URL putar, agenda dan diagnostik PKA, tahap PKA terkunci, serta pengalihan pengunjung ke pendaftaran PKA. Peserta tanpa enrollment atau dengan enrollment yang dibuat kedaluwarsa pada sesi yang sama tetap mendapat flashcard bab pratinjau sesuai kebijakan web. Penguasaan, jalur, konsep, serta kartu di luar bab pratinjau tetap dibatasi. Katalog menandai video sebagai terkunci tanpa menyertakan URL putar. Grade 3 menyimpan satu review SM-2 milik peserta berhak dan mengeluarkan kartu dari antrean saat ini. Permintaan tanpa izin tidak menambah rekaman review. Kedua tanggal enrollment fixture dipulihkan setelah pemeriksaan akses.
+
+Siapkan database PostgreSQL kosong `student_evidence` dan server Next.js di loopback sesuai dokumentasi reproduksi produk. Probe menambahkan satu kartu uji pada bab kedua dan memerlukan database baru untuk setiap pengulangan karena review berhasil tersimpan. [Reproduksi produk](../../../../tests/visual/native-parallel/student/product/README.md) · [Probe HTTP](../../../../tests/visual/native-parallel/student/product/learning-http.ts)
+
+```sh
+bun --env-file=.env.local tests/visual/native-parallel/student/product/learning-seed.ts
+bun --env-file=.env.local tests/visual/native-parallel/student/product/learning-http.ts
+```
