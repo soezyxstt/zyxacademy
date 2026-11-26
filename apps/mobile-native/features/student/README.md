@@ -20,7 +20,11 @@ cd apps/mobile-native
 npm run android
 ```
 
-Untuk simulator macOS, gunakan `npm run ios`. Buka `zyx-native-parity://student-fixture?scenario=enrolled`. Skenario kursus lain adalah `unenrolled`, `revoked`, `offline`, dan `long-content`. Untuk langsung membuka halaman, tambahkan parameter `path` dengan URL encoding. Contohnya `zyx-native-parity://student-fixture?scenario=retry&path=%2Fcourses%2Fnative-assessment-course%2Fquiz%2Fnative-quiz`. Setiap fixture memakai data sintetis lokal. Entry fixture menggunakan Map untuk jawaban selama skenario. Parameter `store=disk` menggunakan repository jawaban produksi pada database SQLite fixture tersendiri untuk menguji pemulihan setelah proses aplikasi ditutup. Entry terverifikasi menggunakan penyimpanan SQLite terikat sesi pada perangkat.
+Untuk simulator macOS, gunakan `npm run ios`. Buka `zyx-native-parity://student-fixture?scenario=enrolled`. Skenario kursus lain adalah `unenrolled`, `revoked`, `offline`, dan `long-content`. Parameter `path` memilih halaman. Tulis parameter halaman pada tautan fixture sebagai `query_<nama>` dan enkode setiap nilai sebagai parameter URL. Misalnya, `zyx-native-parity://student-fixture?scenario=catalog-parity&path=/courses&query_jurusan=tpb&query_q=no-match` membuka `/courses?jurusan=tpb&q=no-match` pada fixture. Bentuk datar ini memungkinkan Expo membaca setiap parameter setelah Android mendekode tautan. [Parser tautan fixture](fixture-location.ts)
+
+`student-fixture` adalah rute diagnostik yang dipasang di checkout uji dan CI. Fixture katalog dan dashboard menampilkan dialog berisi tujuan tautan eksternal. Pada entry Student terverifikasi, tujuan HTTPS yang lolos validasi dibuka melalui browser sistem.
+
+Fixture memakai data sintetis lokal. Entry fixture menggunakan Map untuk jawaban selama skenario. Parameter `store=disk` menggunakan repository jawaban produksi pada database SQLite fixture tersendiri untuk menguji pemulihan setelah proses aplikasi ditutup. Entry terverifikasi menggunakan penyimpanan SQLite terikat sesi pada perangkat.
 
 ## Verifikasi
 

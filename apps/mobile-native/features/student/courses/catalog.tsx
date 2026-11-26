@@ -72,7 +72,7 @@ function CatalogRow({ course, copy, locale, now, theme, navigate }: {
   );
 }
 
-function CatalogFooterLink({ label, period, theme, onPress }: { label: string; period: boolean; theme: Theme; onPress: () => void }) {
+function CatalogFooterLink({ label, conjunction, period, theme, onPress }: { label: string; conjunction?: string; period: boolean; theme: Theme; onPress: () => void }) {
   const colors = nativeColors[theme];
   const [focused, setFocused] = useState(false);
   return <Pressable accessibilityRole="link" accessibilityLabel={label} onPress={onPress}
@@ -80,7 +80,8 @@ function CatalogFooterLink({ label, period, theme, onPress }: { label: string; p
       styles.helpAction, pressed && { backgroundColor: `${colors.muted}66` },
       focused && { outlineColor: colors.accent, outlineWidth: 2, outlineOffset: -2 },
     ]}>
-    <Text style={[styles.meta, { color: colors.mutedForeground }]}>
+    <Text style={[styles.meta, styles.helpText, { color: colors.mutedForeground }]} textBreakStrategy="simple">
+      {conjunction ? `${conjunction} ` : null}
       <Text style={styles.helpLink}>{label}</Text>{period ? "." : null}
     </Text>
   </Pressable>;
@@ -125,12 +126,10 @@ export function Catalog({ data, navigate, query, onSelectGroup, onClearSearch, o
         </View>}
       </View>
       {openExternal && <View style={styles.help}>
-        <Text style={[styles.meta, muted]}>{copy.catalog.needMoreAccess}</Text>
+        <Text style={[styles.meta, styles.helpText, muted]} textBreakStrategy="simple">{copy.catalog.needMoreAccess}</Text>
         <CatalogFooterLink label={copy.catalog.viewPlans} period={!supportUrl} theme={theme} onPress={() => openExternal("/plans")} />
-        {supportUrl && <>
-          <Text style={[styles.meta, muted]}>{copy.catalog.or}</Text>
-          <CatalogFooterLink label={copy.catalog.contactWhatsApp} period theme={theme} onPress={() => openExternal(supportUrl)} />
-        </>}
+        {supportUrl && <CatalogFooterLink label={copy.catalog.contactWhatsApp} conjunction={copy.catalog.or} period
+          theme={theme} onPress={() => openExternal(supportUrl)} />}
       </View>}
     </View>
   );
@@ -155,6 +154,7 @@ const styles = StyleSheet.create({
   lock: { alignSelf: "center" },
   empty: { alignItems: "center", gap: 4, paddingVertical: 48 },
   help: { marginTop: 12, flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: 2 },
-  helpAction: { minHeight: 44, minWidth: 44, maxWidth: "100%", paddingHorizontal: 2, justifyContent: "center", borderRadius: nativeRadii.sm },
+  helpAction: { minHeight: 44, minWidth: 44, maxWidth: "100%", flexShrink: 1, paddingHorizontal: 2, justifyContent: "center", borderRadius: nativeRadii.sm },
+  helpText: { maxWidth: "100%", letterSpacing: 0 },
   helpLink: { textDecorationLine: "underline" },
 });
