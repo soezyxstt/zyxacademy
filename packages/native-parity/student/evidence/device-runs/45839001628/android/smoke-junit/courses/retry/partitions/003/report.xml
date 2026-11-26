@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+  <testsuite name="Test Suite" device="test" tests="2" failures="0" time="10.827" timestamp="2026-11-26T15:04:53">
+    <testcase id="smoke-017" name="smoke-017" classname="smoke-017" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/courses/smoke-017.yaml" time="4.296" timestamp="2026-11-26T15:04:53" status="SUCCESS"/>
+    <testcase id="smoke-020" name="smoke-020" classname="smoke-020" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/courses/smoke-020.yaml" time="6.516" timestamp="2026-11-26T15:04:57" status="SUCCESS"/>
+  </testsuite>
+</testsuites>

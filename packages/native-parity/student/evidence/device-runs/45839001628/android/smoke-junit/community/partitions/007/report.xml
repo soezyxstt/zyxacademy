@@ -1,0 +1,12 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+  <testsuite name="Test Suite" device="test" tests="7" failures="0" time="30.587" timestamp="2026-11-26T15:19:31">
+    <testcase id="smoke-069" name="smoke-069" classname="smoke-069" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-069.yaml" time="4.759" timestamp="2026-11-26T15:19:31" status="SUCCESS"/>
+    <testcase id="smoke-070" name="smoke-070" classname="smoke-070" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-070.yaml" time="8.546" timestamp="2026-11-26T15:19:36" status="SUCCESS"/>
+    <testcase id="smoke-071" name="smoke-071" classname="smoke-071" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-071.yaml" time="3.545" timestamp="2026-11-26T15:19:44" status="SUCCESS"/>
+    <testcase id="smoke-072" name="smoke-072" classname="smoke-072" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-072.yaml" time="3.335" timestamp="2026-11-26T15:19:48" status="SUCCESS"/>
+    <testcase id="smoke-075" name="smoke-075" classname="smoke-075" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-075.yaml" time="3.048" timestamp="2026-11-26T15:19:51" status="SUCCESS"/>
+    <testcase id="smoke-076" name="smoke-076" classname="smoke-076" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-076.yaml" time="3.54" timestamp="2026-11-26T15:19:54" status="SUCCESS"/>
+    <testcase id="smoke-077" name="smoke-077" classname="smoke-077" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-077.yaml" time="3.786" timestamp="2026-11-26T15:19:58" status="SUCCESS"/>
+  </testsuite>
+</testsuites>
