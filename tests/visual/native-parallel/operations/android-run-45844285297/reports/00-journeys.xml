@@ -1,0 +1,15 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+  <testsuite name="Test Suite" device="test" tests="8" failures="1" time="224.234" timestamp="2026-11-26T15:17:23">
+    <testcase id="Operations Admin home to Web Analytics and access denial" name="Operations Admin home to Web Analytics and access denial" classname="Operations Admin home to Web Analytics and access denial" file="/tmp/tmp.qNzcD6kTFe/operations/admin-analytics.yaml" time="43.386" timestamp="2026-11-26T15:17:23" status="SUCCESS"/>
+    <testcase id="Operations question Idea weights and draft revision" name="Operations question Idea weights and draft revision" classname="Operations question Idea weights and draft revision" file="/tmp/tmp.qNzcD6kTFe/operations/evaluation-ideas.yaml" time="43.184" timestamp="2026-11-26T15:18:06" status="ERROR">
+      <failure>Assertion is false: "Perubahan disimpan sebagai draf." is visible</failure>
+    </testcase>
+    <testcase id="Operations evaluation question and generation recovery" name="Operations evaluation question and generation recovery" classname="Operations evaluation question and generation recovery" file="/tmp/tmp.qNzcD6kTFe/operations/evaluation.yaml" time="12.737" timestamp="2026-11-26T15:18:49" status="SUCCESS"/>
+    <testcase id="Operations admin authoring, recovery and confirmation" name="Operations admin authoring, recovery and confirmation" classname="Operations admin authoring, recovery and confirmation" file="/tmp/tmp.qNzcD6kTFe/operations/management.yaml" time="22.898" timestamp="2026-11-26T15:19:02" status="SUCCESS"/>
+    <testcase id="Operations short link copy and QR" name="Operations short link copy and QR" classname="Operations short link copy and QR" file="/tmp/tmp.qNzcD6kTFe/operations/monitoring-short-links.yaml" time="11.875" timestamp="2026-11-26T15:19:25" status="SUCCESS"/>
+    <testcase id="Operations public blog list, detail, Back and retry" name="Operations public blog list, detail, Back and retry" classname="Operations public blog list, detail, Back and retry" file="/tmp/tmp.qNzcD6kTFe/operations/public-blog.yaml" time="14.01" timestamp="2026-11-26T15:19:37" status="SUCCESS"/>
+    <testcase id="Operations public demo completion, study planning and tryout list" name="Operations public demo completion, study planning and tryout list" classname="Operations public demo completion, study planning and tryout list" file="/tmp/tmp.qNzcD6kTFe/operations/public-demo-learning.yaml" time="34.212" timestamp="2026-11-26T15:19:51" status="SUCCESS"/>
+    <testcase id="Operations public homepage learning interactions" name="Operations public homepage learning interactions" classname="Operations public homepage learning interactions" file="/tmp/tmp.qNzcD6kTFe/operations/public-landing-learning.yaml" time="41.858" timestamp="2026-11-26T15:20:25" status="SUCCESS"/>
+  </testsuite>
+</testsuites>
