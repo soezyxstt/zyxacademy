@@ -8,7 +8,9 @@ import argparse
 import glob
 import hashlib
 import json
+import re
 import sys
+from urllib.parse import quote
 from xml.etree import ElementTree
 from pathlib import Path
 from PIL import Image, ImageChops
@@ -28,6 +30,8 @@ standalone = StandaloneEvidence(args.native)
 # input mismatch visible, not as an image comparison.
 flashcard_states = ('question', 'review-pending', 'review-failed')
 state_groups = json.loads(Path(__file__).with_name('matched-reference-groups.json').read_text())
+signed_review = json.loads(Path(__file__).with_name('signed-assessment-review.json').read_text())
+signed_review_root = Path(__file__).parent / signed_review['referencePath']
 pairs = [
     *[
         {'id': f'catalog-{state}', 'web': f'**/{args.platform}/catalog-{state}.png',
@@ -44,6 +48,11 @@ pairs = [
          'native': f'**/student-{group}-{state}.png', 'verification': group, 'state': state,
          'dependency': config.get('dependencies', {}).get(state)}
         for group, config in state_groups.items() for state in config['states']
+    ],
+    *[
+        {'id': f'{signed_review["group"]}-{state}', 'web': f'**/android/review-{state}.png',
+         'native': f'**/student-{signed_review["group"]}-{state}.png', 'verification': 'signed-review', 'state': state}
+        for state in signed_review['states'] if args.platform == signed_review['platform']
     ],
     {'id': 'catalog-versus-enrolled-dashboard', 'web': '**/catalog-populated.png',
      'native': '**/student-enrolled-dashboard.png',
@@ -64,14 +73,16 @@ def describe(path):
         return {'path': str(path), 'width': im.width, 'height': im.height,
                 'sha256': hashlib.sha256(path.read_bytes()).hexdigest()}
 
-def native_capture_problem(native, testcase, markers=()):
+def native_capture_problem(native, testcase, markers=(), *, hidden=(), link=None):
     try:
         pieces = native.relative_to(standalone.folder(testcase)).parts
         if len(pieces) != 5 or pieces[0] != 'results' or pieces[2:4] != (testcase, 'takeScreenshot'):
             return 'The screenshot is outside the expected Maestro testcase.'
         commands = json.loads((native.parents[1] / 'commands.json').read_text())
         relative_image = '/'.join(pieces[-2:])
+        assertions = [('visible', marker) for marker in markers] + [('notVisible', marker) for marker in hidden]
         seen = set()
+        opened = None
         for item in commands:
             result = item['metadata']
             if result['status'] == 'FAILED':
@@ -81,17 +92,22 @@ def native_capture_problem(native, testcase, markers=()):
                 continue
             if 'launchAppCommand' in command or 'openLinkCommand' in command:
                 seen.clear()
+                opening = command.get('openLinkCommand', {})
+                opened = opening.get('link') if not opening.get('optional') else None
             check = command.get('assertConditionCommand', {})
-            visible = check.get('condition', {}).get('visible', {})
-            if visible and not check.get('optional') and not visible.get('optional'):
-                for i, marker in enumerate(markers):
-                    if all(visible.get({'text': 'textRegex', 'id': 'idRegex'}.get(key, key)) == value for key, value in marker.items()):
-                        seen.add(i)
+            for index, (condition, marker) in enumerate(assertions):
+                selector = check.get('condition', {}).get(condition, {})
+                if selector and not check.get('optional') and not selector.get('optional') and all(
+                    selector.get({'text': 'textRegex', 'id': 'idRegex'}.get(key, key)) == value for key, value in marker.items()
+                ):
+                    seen.add(index)
             capture = command.get('takeScreenshotCommand')
             if capture and capture.get('path') == native.stem and result['status'] == 'COMPLETED':
                 recorded = {'type': 'TAKE_SCREENSHOT', 'path': relative_image}
                 if recorded in result.get('artifacts', []):
-                    if len(seen) != len(markers):
+                    if link is not None and opened != link:
+                        return 'The screenshot did not follow the expected signed-result replay route.'
+                    if len(seen) != len(assertions):
                         return 'The expected state assertions did not complete before this screenshot.'
                     return None
             if capture:
@@ -159,6 +175,55 @@ def verify_state(group, state, web, native):
         return f'Unreadable {group} input manifest, image or device report.'
     return None
 
+def verify_signed_review(state, web, native):
+    scenario = signed_review['states'][state]
+    submission = scenario['submissionId']
+    path = signed_review['route'].replace('[id]', 'assessment-evidence-mathematics').replace('[submissionId]', submission)
+    endpoint = f'/api/native/student/assessment/assessment-evidence-mathematics/my-results/{submission}'
+    root = Path(__file__).resolve().parents[4]
+    snapshot = root / 'packages/native-parity/student/assessment/signed-results-responses.json'
+    try:
+        manifest = (signed_review_root / 'android' / 'manifest.json').read_bytes()
+        receipt = (signed_review_root / 'http.json').read_bytes()
+        if (web.parent / 'manifest.json').read_bytes() != manifest or (web.parent.parent / 'http.json').read_bytes() != receipt:
+            return 'Signed review provenance differs from the committed manifests.'
+        reference = json.loads(manifest)
+        expected = {'platform': 'android', 'viewport': {'width': 380, 'height': 820}, 'deviceScaleFactor': 1,
+                    'locale': 'id-ID', 'theme': 'light', 'timeZone': 'Asia/Jakarta'}
+        capture = reference['captures'][web.name]
+        if (any(reference.get(key) != value for key, value in expected.items()) or
+                capture['path'] != path or capture['nativeResponse'] != endpoint or capture['status'] != 200 or
+                not re.fullmatch(r'[0-9a-f]{40}', capture['serverSha'])):
+            return 'Signed review route or capture inputs differ from the Android reference.'
+        if hashlib.sha256(web.read_bytes()).hexdigest() != capture['sha256']:
+            return 'Signed review capture differs from the committed server capture.'
+        snapshot_bytes = snapshot.read_bytes()
+        if hashlib.sha256(snapshot_bytes).hexdigest() != reference['nativeSnapshotSha256']:
+            return 'Signed review response snapshot differs from the recorded owner response.'
+        payload = json.loads(snapshot_bytes)[endpoint]
+        result = payload['review']['result']
+        if payload['kind'] != 'review' or (result['id'], result['kind'], result['status'], result['score']) != (submission, scenario['kind'], scenario['status'], scenario['score']):
+            return 'Signed review response does not describe the expected result state.'
+        http = json.loads(receipt)['http']
+        for account, status in (('owner', 200), ('enrolled-peer', 404)):
+            if {'method': 'GET', 'path': endpoint, 'account': account, 'status': status,
+                'cacheControl': 'private, no-store'} not in http:
+                return 'Signed review lacks the expected owner and peer authorization receipts.'
+        with Image.open(web) as image:
+            if image.size != (380, 820):
+                return 'Signed review capture does not match the Android pixel extent.'
+        testcase = signed_review['testcase']
+        attempt = (standalone.cases or {}).get(testcase, {})
+        if attempt.get('flow') != signed_review['flow'] or standalone.status(testcase) != 'SUCCESS':
+            return 'The effective assessment-result-review Maestro flow did not finish successfully.'
+        return native_capture_problem(
+            native, testcase, [{'id': 'student-fixture-id-light'}, *[{'text': text} for text in scenario['visible']]],
+            hidden=[{'text': text} for text in scenario['hidden']],
+            link=f'zyx-native-parity://student-fixture?scenario=assessment-signed-results&locale=id&theme=light&path={quote(path, safe="")}',
+        )
+    except (AttributeError, KeyError, OSError, ValueError, TypeError):
+        return 'Unreadable signed review capture, response or authorization receipt.'
+
 def verify_flashcard(web):
     marker = locate(args.web, f'**/{args.platform}/flashcard-reference.json')
     if not marker or marker.parent != web.parent:
@@ -192,6 +257,8 @@ def verification_problem(pair, web, native):
         return native_capture_problem(native, 'Catalog comparable fixture all TPB and PKA')
     if kind == 'flashcard':
         return verify_flashcard(web) or native_capture_problem(native, 'Learning flashcard flip and grade')
+    if kind == 'signed-review':
+        return verify_signed_review(pair['state'], web, native)
     if kind in state_groups:
         return verify_state(kind, pair['state'], web, native)
     return pair['reason']
@@ -201,7 +268,8 @@ for pair in pairs:
     kind = pair.get('verification')
     testcase = (state_groups[kind]['testcase'].format(state=pair['state']) if kind in state_groups else
                 'Catalog comparable fixture all TPB and PKA' if kind == 'catalog' else
-                'Learning flashcard flip and grade' if kind == 'flashcard' else None)
+                'Learning flashcard flip and grade' if kind == 'flashcard' else
+                signed_review['testcase'] if kind == 'signed-review' else None)
     web = locate(args.web, pair['web'])
     if testcase:
         matches = standalone.captures(testcase, Path(pair['native']).name)
@@ -211,6 +279,8 @@ for pair in pairs:
     item = {'id': pair['id'], 'platform': args.platform, 'web': describe(web), 'native': describe(native)}
     if kind in state_groups and state_groups[kind].get('scope'):
         item['comparison_scope'] = state_groups[kind]['scope']
+    if kind == 'signed-review':
+        item['comparison_scope'] = signed_review['scope']
     if testcase:
         status = standalone.status(testcase)
         item['native_scenario'] = {'name': testcase, 'status': status}

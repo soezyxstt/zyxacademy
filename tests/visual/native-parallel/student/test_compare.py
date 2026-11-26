@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from urllib.parse import quote
 
 from PIL import Image
 
@@ -72,7 +73,7 @@ class MatchedReferenceTest(unittest.TestCase):
         repo = self.root / 'source'
         scripts = repo / 'tests/visual/native-parallel/student'
         scripts.mkdir(parents=True)
-        for name in ('compare.py', 'standalone_evidence.py'):
+        for name in ('compare.py', 'standalone_evidence.py', 'signed-assessment-review.json'):
             shutil.copyfile(self.script.parent / name, scripts / name)
         self.script = scripts / 'compare.py'
         source = repo / 'fixture-input.json'
@@ -121,6 +122,108 @@ class MatchedReferenceTest(unittest.TestCase):
         mismatch = self.compare()
         self.assertEqual(mismatch['status'], 'not_comparable')
         self.assertEqual(mismatch['native_scenario']['status'], 'not_recorded')
+
+
+class SignedReviewReferenceTest(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        original = Path(__file__).resolve().parent
+        repo = self.root / 'source'
+        scripts = repo / 'tests/visual/native-parallel/student'
+        scripts.mkdir(parents=True)
+        for name in ('compare.py', 'standalone_evidence.py', 'signed-assessment-review.json'):
+            shutil.copyfile(original / name, scripts / name)
+        (scripts / 'matched-reference-groups.json').write_text('{}')
+        self.script = scripts / 'compare.py'
+        self.config = json.loads((scripts / 'signed-assessment-review.json').read_text())
+        reference = self.config['referencePath']
+        shutil.copytree(original / reference, scripts / reference)
+        self.web = self.root / 'web' / reference
+        shutil.copytree(original / reference, self.web)
+        snapshot = 'packages/native-parity/student/assessment/signed-results-responses.json'
+        self.snapshot = repo / snapshot
+        self.snapshot.parent.mkdir(parents=True)
+        shutil.copyfile(original.parents[3] / snapshot, self.snapshot)
+        self.native = self.root / 'native'
+        testcase = self.config['testcase']
+        flow = self.config['flow']
+        self.trace = self.native / 'results' / 'unit-test' / testcase / 'commands.json'
+        self.trace.parent.mkdir(parents=True)
+        (self.native / 'report.xml').write_text(
+            f'<testsuite><testcase name="{testcase}" file="{flow}" status="SUCCESS"/></testsuite>'
+        )
+        (self.native / 'standalone-attempts.json').write_text(json.dumps({
+            'version': 1, 'cases': {testcase: {'flow': flow, 'initial': 'passed', 'effective': '.'}},
+        }))
+        self.commands = []
+        self.images = {}
+        for state, config in self.config['states'].items():
+            path = '/courses/assessment-evidence-mathematics/my-results/' + config['submissionId']
+            filename = f"student-{self.config['group']}-{state}.png"
+            image = self.trace.parent / 'takeScreenshot' / filename
+            image.parent.mkdir(exist_ok=True)
+            shutil.copyfile(self.web / 'android' / f'review-{state}.png', image)
+            self.images[state] = image
+            self.add_command('openLinkCommand', {
+                'link': 'zyx-native-parity://student-fixture?scenario=assessment-signed-results&locale=id&theme=light&path=' + quote(path, safe=''),
+            })
+            for when, selections in (
+                ('visible', [{'idRegex': 'student-fixture-id-light'}, *[{'textRegex': text} for text in config['visible']]]),
+                ('notVisible', [{'textRegex': text} for text in config['hidden']]),
+            ):
+                for selector in selections:
+                    self.add_command('assertConditionCommand', {'condition': {when: selector}})
+            self.add_command('takeScreenshotCommand', {'path': image.stem}, [{'type': 'TAKE_SCREENSHOT', 'path': 'takeScreenshot/' + filename}])
+
+    def add_command(self, name, command, artifacts=()):
+        self.commands.append({'command': {name: command}, 'metadata': {'status': 'COMPLETED', 'artifacts': artifacts}})
+
+    def compare(self, platform='android'):
+        self.trace.write_text(json.dumps(self.commands))
+        out = self.root / 'comparison'
+        process = subprocess.run([sys.executable, str(self.script), '--platform', platform,
+                                  '--web', str(self.root / 'web'), '--native', str(self.native),
+                                  '--output', str(out)], capture_output=True, text=True)
+        self.assertEqual(process.returncode, 1, process.stderr)
+        prefix = self.config['group'] + '-'
+        return {row['id'].removeprefix(prefix): row for row in json.loads((out / 'comparison.json').read_text())
+                if row['id'].startswith(prefix)}
+
+    def test_committed_signed_web_inputs_require_no_ios_pairs(self):
+        self.assertEqual({state: row['status'] for state, row in self.compare().items()},
+                         {'released-quiz': 'pass', 'pending-tryout': 'pass', 'graded-tryout': 'pass'})
+        self.assertEqual(self.compare('ios'), {})
+
+    def test_rejects_wrong_route_and_missing_hidden_assertion(self):
+        route = next(item for item in self.commands if 'openLinkCommand' in item['command'])
+        route['command']['openLinkCommand']['link'] += '-wrong'
+        self.commands = [item for item in self.commands
+                         if item['command'].get('assertConditionCommand', {}).get('condition', {}).get('notVisible') != {'textRegex': '95%'}]
+        rows = self.compare()
+        self.assertIn('replay route', rows['released-quiz']['reason'])
+        self.assertIn('expected state assertions', rows['pending-tryout']['reason'])
+        self.assertEqual(rows['graded-tryout']['status'], 'pass')
+
+    def test_rejects_wrong_extent_and_unpinned_web_bytes(self):
+        Image.new('RGB', (380, 819)).save(self.images['released-quiz'])
+        web = self.web / 'android' / 'review-pending-tryout.png'
+        shutil.copyfile(self.images['graded-tryout'], web)
+        rows = self.compare()
+        self.assertIn('Image dimensions differ', rows['released-quiz']['reason'])
+        self.assertIn('committed server capture', rows['pending-tryout']['reason'])
+
+    def test_rejects_changed_snapshot_or_unfinished_flow(self):
+        (self.native / 'report.xml').write_text(
+            f'<testsuite><testcase name="{self.config["testcase"]}" file="{self.config["flow"]}" status="ERROR"><failure/></testcase></testsuite>'
+        )
+        self.assertTrue(all('effective Maestro attempt' in row['reason'] for row in self.compare().values()))
+        (self.native / 'report.xml').write_text(
+            f'<testsuite><testcase name="{self.config["testcase"]}" file="{self.config["flow"]}" status="SUCCESS"/></testsuite>'
+        )
+        self.snapshot.write_bytes(self.snapshot.read_bytes() + b'\n')
+        self.assertTrue(all('response snapshot differs' in row['reason'] for row in self.compare().values()))
 
 
 if __name__ == '__main__':
