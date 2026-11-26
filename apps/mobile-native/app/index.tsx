@@ -1,11 +1,8 @@
 import { Redirect } from "expo-router";
-import { productRoute } from "../routing/ProductRoute";
-
-const PublicLanding = productRoute("/", "public");
 import { useNetworkState } from "expo-network";
 import { deviceIsOffline } from "../offline/reading-access";
 import { ActivityIndicator } from "react-native";
-import { AuthContinuation } from "../auth/auth-continuation";
+import { AuthContinuation, AuthSessionStatus } from "../auth/auth-continuation";
 import { authLocale } from "../auth/auth-copy";
 import { useNativeSession } from "../auth/session-provider";
 
@@ -21,5 +18,6 @@ export default function InternalAppEntry() {
   }
   if (state.status === "loading") return <ActivityIndicator />;
   if (state.status === "signed-in") return <AuthContinuation fallbackLocale={authLocale()} />;
-  return <PublicLanding />;
+  if (state.status === "signed-out") return <Redirect href="/sign-in" />;
+  return <AuthSessionStatus locale={authLocale()} />;
 }

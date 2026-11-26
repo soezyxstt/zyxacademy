@@ -18,14 +18,7 @@ class ProductMountTests(unittest.TestCase):
         mobile = patch.object(product_mount, "MOBILE", self.mobile)
         mobile.start()
         self.addCleanup(mobile.stop)
-        self.write("app/index.tsx", '''import { Redirect } from "expo-router";
-export default function App() {
-  const { state, loginIntent } = useNativeSession();
-  const network = useNetworkState();
-  if (state.status === "signed-in" && loginIntent) return <AuthContinuation />;
-  return <Redirect href="/gallery/separator" />;
-}
-''')
+        self.write("app/index.tsx", (product_mount.ROOT / "apps/mobile-native/app/index.tsx").read_text())
         self.write("app/_layout.tsx", 'import { nativeFontSources } from "../typography";\n<NativeAccountContextProvider>\n')
         for feature, anchor in {
             "academic/index.ts": "",
@@ -92,11 +85,12 @@ export default function App() {
         self.assertIn('productRoute("/dashboard", "student")', self.read("app/dashboard.tsx"))
         self.assertIn('productLocation("/dashboard"', self.read("app/murid.tsx"))
         index = self.read("app/index.tsx")
-        self.assertIn('productRoute("/", "public")', index)
+        self.assertIn('state.status === "signed-out") return <Redirect href="/sign-in" />', index)
+        self.assertIn('publicWebRoute("/blog/[slug]")', self.read("app/blog/[slug].tsx"))
         self.assertIn('if (process.env.EXPO_PUBLIC_PARITY_WEBVIEW === "1" || '
                       'process.env.EXPO_PUBLIC_PARITY_CAPTURE_NAVIGATION === "1") {\n'
                       '    return <Redirect href="/gallery/separator" />;\n  }', index)
-        self.assertTrue(index.endswith('  return <PublicLanding />;\n}\n'))
+        self.assertIn("<AuthSessionStatus", index)
         self.assertNotIn("features/student", self.read("routing/ProductRoute.tsx"))
         self.assertNotIn("AssessmentDraftCleanup", self.read("app/_layout.tsx"))
         self.assertFalse((self.mobile / "app/dashboard/discussions.tsx").exists())

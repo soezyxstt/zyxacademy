@@ -17,14 +17,14 @@ import { nativeUiLocale } from "../auth/ui-locale";
 import { Button } from "../components/Button";
 import { useDevicePreferences } from "../device/preferences-provider";
 import { AcademicLiveScreen, bindAcademicSession, createAcademicClient } from "../features/academic";
-import { AdminOperationsScreen, PublicOperationsScreen } from "../features/operations";
+import { AdminOperationsScreen } from "../features/operations/AdminOperationsScreen";
 import { academicRouteCanRead, productLocation, productQueryUpdate } from "./product-location";
 import { ProtectedInteractionContext } from "./protected-interaction";
 import { expoRouteHistory } from "./route-history-expo";
 import { createDeferredSessionNavigation, nativeSessionNavigationStatus } from "./session-stack";
 import { StaffChrome } from "./staff-chrome";
 
-type Owner = "public" | "student" | "academic" | "operations";
+type Owner = "student" | "academic" | "operations";
 
 export type StudentRouteProps = {
   href: string; pattern: string; locale: "id" | "en"; theme: "light" | "dark"; showChrome: boolean;
@@ -39,7 +39,7 @@ export function productRoute(pattern: string, owner: Owner, StudentScreen?: Comp
     const route = useRoute();
     // SDK 58 decodes useLocalSearchParams values again. Product filters can
     // contain literal percent sequences, so take the entry's decoded query as stored.
-    const local = owner === "public" ? params : { ...params, ...route.params, "#": params["#"] };
+    const local = { ...params, ...route.params, "#": params["#"] };
     const href = productLocation(pattern, local);
     if (!href) return <Redirect href="/" />;
     return <ProductRoute href={href} pattern={pattern} owner={owner} StudentScreen={StudentScreen} />;
@@ -66,10 +66,9 @@ function ProductRoute({ href, pattern, owner, StudentScreen }: {
   const theme = devicePreferences.theme === "system" ? (scheme === "dark" ? "dark" : "light") : devicePreferences.theme;
   const locale = nativeUiLocale(state, context, authLocale());
   const navigationStatus = useCallback(() => {
-    if (owner === "public") return "ready";
     if (!screenNavigation.isFocused()) return "blocked";
     return nativeSessionNavigationStatus(state, transport, getSnapshot());
-  }, [getSnapshot, owner, screenNavigation, state, transport]);
+  }, [getSnapshot, screenNavigation, state, transport]);
   const canInteract = useCallback(() => !access.retaining && getSnapshot().state === state &&
     navigationStatus() === "ready", [access.retaining, getSnapshot, navigationStatus, state]);
   useFocusEffect(useCallback(() => deferredNavigation.cancel, [deferredNavigation]));
@@ -112,13 +111,10 @@ function ProductRoute({ href, pattern, owner, StudentScreen }: {
   }, [context, locale, transport]);
 
   useFocusEffect(useCallback(() => {
-    if (owner === "public" || access.retaining || state.status !== "signed-in" || !transport || !context) return;
+    if (access.retaining || state.status !== "signed-in" || !transport || !context) return;
     expoRouteHistory.remember(transport.scope, context, href, () => navigationStatus() === "ready");
   }, [access.retaining, context, href, navigationStatus, owner, state, transport]));
 
-  if (owner === "public") return <SafeAreaView testID={pattern === "/" ? "product-landing" : undefined} style={{ flex: 1 }}>
-    <PublicOperationsScreen href={href} origin={NATIVE_STAGING_ORIGIN} locale={locale} theme={theme} onNavigate={navigate} onBack={back} />
-  </SafeAreaView>;
   if (state.status === "signed-out") {
     return isFocused ? <Redirect href={authEntryHref({ entry: "sign-in", locale, next: href })} /> : null;
   }

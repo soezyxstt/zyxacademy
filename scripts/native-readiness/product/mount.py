@@ -53,6 +53,9 @@ def insert_hook(path, hook_import, anchor, hook):
 
 def route_source(file, pattern, owner, *, student=False):
     routing = MOBILE / "routing"
+    if owner == "public":
+        module = os.path.relpath(routing / "PublicWebsiteRoute", file.parent)
+        return f'import {{ publicWebRoute }} from "{module}";\n\nexport default publicWebRoute("{pattern}");\n'
     product = os.path.relpath(routing / "ProductRoute", file.parent)
     imports = f'import {{ productRoute }} from "{product}";\n'
     entry = ""
@@ -88,23 +91,14 @@ def mount(*, with_student=True):
             file = MOBILE / "app" / (path[1:] + ".tsx")
             put(file, route_source(file, path, "student"))
 
-    root = MOBILE / "app/index.tsx"
-    rewrite_once(root, 'import { Redirect } from "expo-router";',
-                 'import { Redirect } from "expo-router";\nimport { productRoute } from "../routing/ProductRoute";\n\nconst PublicLanding = productRoute("/", "public");')
-    rewrite_once(root, 'if (state.status === "signed-in" && loginIntent)', 'if (state.status === "signed-in")')
-    rewrite_once(root, 'const { state, loginIntent } = useNativeSession();', 'const { state } = useNativeSession();')
-    rewrite_once(root, '  return <Redirect href="/gallery/separator" />;\n}', '  return <PublicLanding />;\n}')
-    rewrite_once(root, '  const network = useNetworkState();', '''  const network = useNetworkState();
-  if (process.env.EXPO_PUBLIC_PARITY_WEBVIEW === "1" || process.env.EXPO_PUBLIC_PARITY_CAPTURE_NAVIGATION === "1") {
-    return <Redirect href="/gallery/separator" />;
-  }''')
     put(MOBILE / "app/murid.tsx", (HERE / "MuridRoute.tsx.in").read_text())
 
     mount_staff_chrome()
     if with_student:
         mount_student_integration()
 
-    print(f"Mounted {len(routes)} canonical product routes and the Murid alias."
+    native_count = sum(owner != "public" for owner in routes.values())
+    print(f"Mounted {native_count} private product routes with public browser handoffs and the Murid alias."
           + (" Student dashboard opens in the browser." if not with_student else ""))
 
 

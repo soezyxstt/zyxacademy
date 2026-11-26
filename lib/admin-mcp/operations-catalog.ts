@@ -47,7 +47,7 @@ export const operationsCatalog = [
     "actions": ["POST"],
     "tools": [],
     "status": "excluded",
-    "reason": "Public file uploads attach files to a live respondent form under its current upload and authentication policy. Native camera capture and document selection are input sources for that same interactive upload. Admin MCP preview and simulation do not upload respondent files."
+    "reason": "Public file uploads attach files to a live respondent form under its current upload and authentication policy. Respondents opening an Expo link choose and submit files on the website under their browser session. Admin MCP preview and simulation do not upload respondent files."
   },
   {
     "source": "app/api/meet/[slug]/route.ts",
@@ -160,6 +160,13 @@ export const operationsCatalog = [
     "tools": [],
     "status": "excluded",
     "reason": "The app opens the staging Next consent or account connections URL in the system browser. The browser owns the session. Consent, registration, scopes, redirect validation, revocation and environment binding stay on their existing server paths."
+  },
+  {
+    "source": "apps/mobile-native/routing/PublicWebsiteRoute.tsx",
+    "actions": ["open"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The Expo client opens public marketing, blog, form, short-link and meeting URLs in the browser on the configured website origin. Each browser request follows the website's session and permissions. Administrative MCP tools use their existing scopes and consent."
   },
   {
     "source": "apps/mobile-native/app/meet/[slug].tsx",

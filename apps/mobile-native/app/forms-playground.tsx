@@ -1,3 +1,3 @@
-import { productRoute } from "../routing/ProductRoute";
+import { publicWebRoute } from "../routing/PublicWebsiteRoute";
 
-export default productRoute("/forms-playground", "public");
+export default publicWebRoute("/forms-playground");
