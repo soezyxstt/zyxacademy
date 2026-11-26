@@ -21,6 +21,41 @@ function client(packageName = ANDROID_PACKAGE) {
 
 const firebase = { project_info: { project_id: "zyx-academy-staging", project_number: "12345" }, client: [client(releasePackage), client()] };
 
+const publicProject = { ...firebase.project_info, storage_bucket: "fixture.appspot.com", firebase_url: "https://fixture.firebaseio.com" };
+const webOAuth = { client_type: 3, client_id: "fixture.apps.googleusercontent.com" };
+const publicServices = {
+  maps_service: { status: 2 },
+  analytics_service: { status: "2", analytics_property: { tracking_id: "UA-12345-1" } },
+};
+const publicFirebase = {
+  project_info: publicProject,
+  client: [{ ...client(), oauth_client: [webOAuth], services: publicServices }],
+};
+const taintedFirebase = {
+  configuration_version: "1",
+  refresh_token: "fixture-root-refresh",
+  project_info: { ...publicProject, client_secret: "fixture-project-secret" },
+  client: [client(releasePackage), {
+    ...client(),
+    client_secret: "fixture-client-secret",
+    client_info: {
+      mobilesdk_app_id: client().client_info.mobilesdk_app_id,
+      refresh_token: "fixture-client-info-refresh",
+      android_client_info: { package_name: ANDROID_PACKAGE, client_secret: "fixture-android-info-secret" },
+    },
+    api_key: [{ current_key: clientKey, refresh_token: "fixture-api-key-refresh" }],
+    oauth_client: [
+      { client_type: 1, client_id: "other-fixture.apps.googleusercontent.com", client_secret: "fixture-android-oauth-secret" },
+      { ...webOAuth, client_secret: "fixture-web-oauth-secret", refresh_token: "fixture-web-oauth-refresh" },
+    ],
+    services: {
+      maps_service: { ...publicServices.maps_service, client_secret: "fixture-maps-secret" },
+      analytics_service: { status: "2", analytics_property: { tracking_id: "UA-12345-1", refresh_token: "fixture-analytics-refresh" } },
+      appinvite_service: { other_platform_oauth_client: [{ client_secret: "fixture-unused-secret" }] },
+    },
+  }],
+};
+
 test("the Android build selects exactly one staging client for the Expo application", () => {
   const check = (data: unknown, packageName = ANDROID_PACKAGE) => validateStagingFirebase(JSON.stringify(data), packageName);
   expect(JSON.parse(readFileSync(join(project, "app.json"), "utf8")).expo.android.package).toBe(ANDROID_PACKAGE);
@@ -36,6 +71,16 @@ test("the Android build selects exactly one staging client for the Expo applicat
   expect(() => check({ type: "service_account", private_key: "fixture-private-key" })).toThrow("Server credentials are prohibited");
   expect(() => check({ ...firebase, client: [{ ...client(), private_key: "fixture-private-key" }] })).toThrow("Server credentials are prohibited");
   expect(() => validateStagingFirebase(`invalid ${clientKey}`, ANDROID_PACKAGE)).toThrow(/^Expo Android Firebase requires valid client JSON\.$/);
+});
+
+test("the staging config keeps only allowlisted public Gradle inputs at every nesting level", () => {
+  const sanitized = validateStagingFirebase(JSON.stringify(taintedFirebase), ANDROID_PACKAGE);
+  expect(sanitized).toEqual(publicFirebase);
+  expect(JSON.stringify(sanitized)).not.toMatch(/refresh_token|client_secret/);
+  expect(validateStagingFirebase(JSON.stringify({
+    project_info: { ...firebase.project_info, firebase_url: { refresh_token: "fixture-wrong-shape" }, storage_bucket: ["fixture"] },
+    client: [{ ...client(), oauth_client: [{ client_type: 3, client_id: { client_secret: "fixture-wrong-shape" } }] }],
+  }), ANDROID_PACKAGE)).toEqual({ ...firebase, client: [client()] });
 });
 
 type Gradle = { language: "groovy"; contents: string };
@@ -84,7 +129,7 @@ test("the native mods enable the installed capability and can remove it on a cre
     const platformProjectRoot = join(root, "android");
     mkdirSync(join(platformProjectRoot, "app"), { recursive: true });
     const explicit = join(root, "local-client.json");
-    writeFileSync(explicit, JSON.stringify(firebase));
+    writeFileSync(explicit, JSON.stringify(taintedFirebase));
     const disabled = { package: ANDROID_PACKAGE };
     expect(readStagingFirebase(root, disabled)).toBeNull();
     expect(() => readStagingFirebase(root, { ...disabled, googleServicesFile: "missing-client.json" })).toThrow(
@@ -111,7 +156,7 @@ test("the native mods enable the installed capability and can remove it on a cre
     expect(applied.project).toContain("classpath 'com.google.gms:google-services:");
     expect(applied.app).toContain("apply plugin: 'com.google.gms.google-services'");
     expect(manifest.metadata).toEqual({ unrelated: "preserved", [CAPABILITY]: client().client_info.mobilesdk_app_id });
-    expect(JSON.parse(readFileSync(target, "utf8")).client).toEqual([client()]);
+    expect(JSON.parse(readFileSync(target, "utf8"))).toEqual(publicFirebase);
     await apply(buildConfig(root, { ...disabled, googleServicesFile: explicit }));
     expect(gradle.project.contents).toBe(applied.project);
     expect(gradle.app.contents).toBe(applied.app);

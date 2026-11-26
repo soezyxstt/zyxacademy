@@ -13,7 +13,7 @@ export default function InternalPublicFormFixture() {
   const state: PublicFormLoad = status === "missing" ? { status } : parsePublicForm(publicFormFixtureEnvelope(caseId), entry);
   const back = () => router.replace("/");
   const noOp = () => {};
-  const screen = <PublicFormScreen key={caseId} state={state} locale="id" access="anonymous" onBack={back} insideSafeArea={frame === "1"}
+  const screen = <PublicFormScreen key={caseId} state={state} locale="id" access="anonymous" onBack={back} onHome={back} insideSafeArea={frame === "1"}
     onRetry={noOp} onLogin={noOp} onWeb={noOp} onMeet={noOp}>
     {state.status === "ready" && <PublicFormResponse form={state.form} locale="id" signedIn={false}
       onSubmit={async () => {

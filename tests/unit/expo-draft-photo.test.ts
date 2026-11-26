@@ -280,6 +280,27 @@ test("rejects unreadable and oversized inputs before decoding and oversized outp
   expect(removed).toEqual(["file:///cache/quality-0.86.jpg", "file:///cache/quality-0.7.jpg"]);
 });
 
+test("a form camera request saves JPEG with the authored byte limit", async () => {
+  const outputs: string[] = [];
+  const discarded: string[] = [];
+  const result = await prepareDraftPhoto({ ...asset, mimeType: "image/png" }, {
+    fileSize: uri => uri.endsWith("0.7.jpg") ? 400 : 600,
+    discard: uri => { discarded.push(uri); },
+    async render() {
+      return {
+        async save(format, quality) {
+          outputs.push(`${format}:${quality}`);
+          return { uri: `file:///cache/quality-${quality}.jpg`, width: 640, height: 480 };
+        },
+        release() {},
+      };
+    },
+  }, { format: "jpeg", maxBytes: 500 });
+  expect(outputs).toEqual(["jpeg:0.86", "jpeg:0.7"]);
+  expect(discarded).toEqual(["file:///cache/quality-0.86.jpg"]);
+  expect(result).toMatchObject({ photo: { mimeType: "image/jpeg", size: 400 } });
+});
+
 test("photo byte reads and cleanup are restricted to app cache file URIs", () => {
   expect(isPhotoCacheFile("file:///app/cache/ImagePicker/photo.jpg", "file:///app/cache/")).toBe(true);
   expect(isPhotoCacheFile(

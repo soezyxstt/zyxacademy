@@ -3,6 +3,7 @@ import { Platform, StyleSheet, TextInput, useColorScheme, type TextInputProps } 
 
 import { nativeColors, nativeRadii } from "../../../packages/design-tokens/native-colors";
 import { nativeTypography } from "../typography";
+import { disabledControlStyle } from "./control-opacity";
 
 type InputProps = TextInputProps & {
   disabled?: boolean;
@@ -60,7 +61,7 @@ export const Input = forwardRef<ComponentRef<typeof TextInput>, InputProps>(func
       style={[
         styles.input,
         multiline && styles.multiline,
-        multiline && disabled && styles.disabled,
+        multiline && disabled && disabledControlStyle,
         Platform.OS === "android" && androidInset,
         nativeTypography.bodyRegular,
         { backgroundColor: colors.background, borderColor: colors.input, color: colors.foreground },
@@ -93,7 +94,6 @@ const styles = StyleSheet.create({
   multiline: { height: "auto", minHeight: 80, borderRadius: nativeRadii.lg, textAlignVertical: "top" },
   hintInset: { paddingTop: 9, paddingBottom: 7 },
   multilineInset: { paddingTop: 7, paddingBottom: 9 },
-  disabled: { opacity: 0.5 },
 });
 
 

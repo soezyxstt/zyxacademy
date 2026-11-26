@@ -15,6 +15,7 @@ export const nativeFontSources = {
 };
 
 export const nativeTypography = {
+  mono: { fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace" },
   bodyRegular: { fontFamily: interRegular, fontWeight: "400" },
   bodyMedium: { fontFamily: interMedium, fontWeight: "500" },
   bodySemibold: { fontFamily: interSemibold, fontWeight: "600" },

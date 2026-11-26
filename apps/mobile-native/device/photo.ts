@@ -65,7 +65,7 @@ export const scopedPhotos = createDraftPhotoController({
       const result = await ImagePicker.getPendingResultAsync();
       return result ? pickerResult(result) : null;
     },
-    prepare: asset => prepareDraftPhoto(asset, {
+    prepare: (asset, output) => prepareDraftPhoto(asset, {
       fileSize(uri) {
         const file = privatePhotoFile(uri);
         return file?.exists ? file.size : null;
@@ -91,7 +91,7 @@ export const scopedPhotos = createDraftPhotoController({
           throw error;
         }
       },
-    }),
+    }, output),
     discard,
   },
 });

@@ -1,8 +1,16 @@
 import type { NativeAccountContext } from "../../../../packages/native-session/context";
 import { resolveNativeLoginReturn, type NativeRouteNode } from "../../auth/login-intent";
+import type { NativePushPermission } from "../../device/notifications-controller";
 import type { NativeSessionTransport } from "../../network/transport";
 
 export type InboxSurfaceRole = "student" | "tutor" | "admin";
+export type StaffInboxPushAction = "request" | "settings";
+
+export function staffInboxPushAction(role: InboxSurfaceRole, open: boolean, verified: boolean,
+  permission: NativePushPermission | null): StaffInboxPushAction | null {
+  if (role === "student" || !open || !verified || !permission || permission.status === "unsupported") return null;
+  return permission.status === "granted" || !permission.canAskAgain ? "settings" : "request";
+}
 
 export function hasVerifiedInboxAccess(
   role: InboxSurfaceRole,

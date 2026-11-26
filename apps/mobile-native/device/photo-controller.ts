@@ -1,5 +1,5 @@
 import type { NativeSessionScope, NativeSessionTransport } from "../network/transport";
-import type { PhotoImageIssue, PhotoPreparation, PickerPhoto, PreparedPhoto } from "./photo-image";
+import type { PhotoImageIssue, PhotoOutputPolicy, PhotoPreparation, PickerPhoto, PreparedPhoto } from "./photo-image";
 
 export const DRAFT_PHOTO_RECOVERY_TTL_MS = 15 * 60 * 1000;
 
@@ -15,6 +15,7 @@ export type PhotoDraftTarget = Readonly<{
 export type PhotoDraftRequest = {
   session: PhotoSession;
   target: PhotoDraftTarget;
+  output?: PhotoOutputPolicy;
   isDraftCurrent(): boolean;
 };
 
@@ -46,7 +47,7 @@ type PhotoDevice = {
   requestCameraPermission(): Promise<{ granted: boolean; canAskAgain: boolean }>;
   launch(source: PhotoSource): Promise<PhotoPickerResult>;
   getPending(): Promise<PhotoPickerResult | null>;
-  prepare(asset: PickerPhoto): Promise<PhotoPreparation>;
+  prepare(asset: PickerPhoto, output?: PhotoOutputPolicy): Promise<PhotoPreparation>;
   discard(uri: string): void;
 };
 
@@ -155,7 +156,7 @@ export function createDraftPhotoController({
     if (result.status === "cancelled") return { status: "cancelled" };
     if (result.status === "error") return { status: "error", issue: "picker" };
     try {
-      const normalized = await device.prepare(result.asset);
+      const normalized = await device.prepare(result.asset, request.output);
       if ("issue" in normalized) {
         return isCurrent(binding, request) ? { status: "error", issue: normalized.issue } : { status: "stale" };
       }

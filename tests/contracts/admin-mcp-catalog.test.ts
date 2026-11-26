@@ -58,11 +58,19 @@ test("device sign-in, role context, photo recovery and OS permissions stay user-
     "apps/mobile-native/device/audio-controller.ts",
     "apps/mobile-native/device/photo-controller.ts",
     "apps/mobile-native/device/notifications-controller.ts",
+    "apps/mobile-native/features/notification-inbox/staff-device-push.tsx",
   ]) {
     const entry = operationsCatalog.find(item => item.source === source);
     expect(entry?.status).toBe("excluded");
     expect(entry?.tools).toEqual([]);
   }
+});
+
+test("staff inbox push opt-in stays an interactive OS action", () => {
+  const entry = operationsCatalog.find(item => item.source === "apps/mobile-native/features/notification-inbox/staff-device-push.tsx");
+  expect(entry?.actions).toEqual(["requestPermission", "openSettings"]);
+  expect(entry?.status).toBe("excluded");
+  expect(entry?.tools).toEqual([]);
 });
 
 test("live public form writes stay separate from MCP preview and simulation", () => {

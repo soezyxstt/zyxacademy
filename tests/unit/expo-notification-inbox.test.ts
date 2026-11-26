@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { loadInbox, markInboxRead } from "../../apps/mobile-native/features/notification-inbox/client";
-import { hasVerifiedInboxAccess, inboxDestination } from "../../apps/mobile-native/features/notification-inbox/access";
+import { hasVerifiedInboxAccess, inboxDestination, staffInboxPushAction } from "../../apps/mobile-native/features/notification-inbox/access";
 import type { NativeRouteNode } from "../../apps/mobile-native/auth/login-intent";
 import type { NativeRequestInit, NativeSessionTransport } from "../../apps/mobile-native/network/transport";
 
@@ -56,6 +56,24 @@ test("only a matching current session and verified surface role can mount the in
   expect(hasVerifiedInboxAccess("tutor", { ...tutor, accountId: "someone-else" }, session)).toBe(false);
   expect(hasVerifiedInboxAccess("tutor", { ...tutor, sessionId: "replaced" }, session)).toBe(false);
   expect(hasVerifiedInboxAccess("admin", admin, inboxSession({}, 200, false).session)).toBe(false);
+});
+
+test("only an open, verified staff inbox on a supported build shows a permission action", () => {
+  const prompt = { status: "prompt", canAskAgain: true } as const;
+  const { session } = inboxSession({});
+  const tutor = { accountId: session.scope.accountId, sessionId: session.scope.sessionId, locale: "en",
+    dashboard: "/tutor", roles: ["tutor"] } as const;
+  expect(staffInboxPushAction("admin", true, true, prompt)).toBe("request");
+  expect(staffInboxPushAction("tutor", true, hasVerifiedInboxAccess("tutor", tutor, session), prompt)).toBe("request");
+  expect(staffInboxPushAction("tutor", true,
+    hasVerifiedInboxAccess("tutor", { ...tutor, sessionId: "old" }, session), prompt)).toBeNull();
+  expect(staffInboxPushAction("tutor", false, true, prompt)).toBeNull();
+  expect(staffInboxPushAction("student", true, true, prompt)).toBeNull();
+  expect(staffInboxPushAction("admin", true, true, null)).toBeNull();
+  expect(staffInboxPushAction("admin", true, true, { status: "unsupported", canAskAgain: false })).toBeNull();
+  expect(staffInboxPushAction("admin", true, true, { status: "denied", canAskAgain: true })).toBe("request");
+  expect(staffInboxPushAction("admin", true, true, { status: "denied", canAskAgain: false })).toBe("settings");
+  expect(staffInboxPushAction("tutor", true, true, { status: "granted", canAskAgain: true })).toBe("settings");
 });
 
 test("staff inbox resolves role-neutral discussion URLs through installed scoped routes", () => {

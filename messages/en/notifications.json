@@ -26,6 +26,12 @@
   "unread": "Unread",
   "loading": "Loading notifications…",
   "empty": "No notifications yet.",
+  "devicePush": {
+    "enable": "Enable device notifications",
+    "settings": "Open app settings",
+    "requestFailed": "Could not check notification permission. Try again.",
+    "settingsFailed": "Could not open app settings. Try again."
+  },
   "relative": {
     "justNow": "Just now",
     "minutes": "{count} min ago",

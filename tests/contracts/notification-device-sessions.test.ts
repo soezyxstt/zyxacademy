@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, beforeEach, expect, mock, test } from "bun:test";
+import type { MulticastMessage } from "firebase-admin/messaging";
 import { readFileSync } from "node:fs";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
@@ -15,6 +16,7 @@ let sessions: typeof import("@/app/api/account/sessions/route");
 let sender: typeof import("@/lib/notifications/send");
 let active = { user: { id: "owner" }, session: { id: "phone" } };
 const deliveries: string[] = [];
+const messages: MulticastMessage[] = [];
 const revoked: string[] = [];
 
 function req(path: string, method = "GET", body?: object) {
@@ -59,9 +61,10 @@ beforeAll(async () => {
   mock.module("next/headers", () => ({ headers: async () => new Headers({ cookie: "session=fake" }) }));
   mock.module("@/lib/firebase/admin", () => ({
     isFirebaseAdminConfigured: () => true,
-    adminMessaging: () => ({ sendEachForMulticast: async ({ tokens }: { tokens: string[] }) => {
-      deliveries.push(...tokens);
-      return { responses: tokens.map(() => ({ success: true })) };
+    adminMessaging: () => ({ sendEachForMulticast: async (message: MulticastMessage) => {
+      messages.push(message);
+      deliveries.push(...message.tokens);
+      return { responses: message.tokens.map(() => ({ success: true })) };
     } }),
   }));
   mock.module("@/lib/notifications/apns", () => ({
@@ -85,7 +88,7 @@ beforeEach(async () => {
     ('expired','expired-session-secret','owner',now()-interval '1 day'),
     ('foreign','foreign-session-secret','other',now()+interval '1 day');`);
   active = { user: { id: "owner" }, session: { id: "phone" } };
-  deliveries.length = 0; revoked.length = 0;
+  deliveries.length = 0; messages.length = 0; revoked.length = 0;
 });
 afterAll(async () => { await client?.close(); });
 
@@ -152,4 +155,43 @@ test("single and batched push skip expired or mismatched sessions while preservi
   expect(result.get("owner")).toMatchObject({ attempted: 2, succeeded: 2 });
   expect(deliveries.sort()).toEqual(["active-token", "legacy-token"].map(token).sort());
   expect(await testDb.select().from(userPushTokens)).toHaveLength(4);
+});
+
+test("Expo Android gets private inbox details only after the tap and lookup, for immediate and batched sends", async () => {
+  const register = await registration.POST(req("/api/notifications/register-token", "POST", {
+    token: token("expo"), device: "expo-android", platform: "android", transport: "fcm",
+  }));
+  expect(register.status).toBe(200);
+  await add("capacitor", "laptop");
+  const notice = {
+    title: "Grade for a student", body: "You scored 85", type: "quiz_graded" as const,
+    link: "/courses/private-course", imageUrl: "https://example.test/private.jpg",
+    notificationId: "9658a2c1-e9b3-4ad7-8e8b-b78b600273c3",
+    metadata: { threadId: "private discussion", notificationId: "untrusted" },
+  };
+  async function assertDelivery(send: () => Promise<unknown>) {
+    messages.length = 0;
+    await send();
+    expect(messages).toHaveLength(2);
+    const expo = messages.find(message => message.tokens.includes(token("expo")));
+    expect(expo).toEqual({
+      tokens: [token("expo")], data: { notificationId: notice.notificationId },
+      notification: { title: "Zyx Academy" },
+      android: { priority: "normal", notification: {
+        channelId: "zyx_learning", sound: "default", bodyLocKey: "zyx_inbox_new_notification", tag: `zyx:${notice.notificationId}`,
+      } },
+    });
+    const legacy = messages.find(message => message.tokens.includes(token("capacitor")));
+    expect(legacy?.notification).toMatchObject({ title: notice.title, body: notice.body, imageUrl: notice.imageUrl });
+  }
+  await assertDelivery(() => sender.sendPushToUserNow("owner", notice));
+  await assertDelivery(() => sender.sendPushToUsers([{ userId: "owner", payload: notice }]));
+  messages.length = 0;
+  await sender.sendPushToUserNow("owner", {
+    ...notice, notificationId: undefined,
+    metadata: { quietDigest: "true", groupKey: "quiet-digest", count: "19" },
+  });
+  const digest = messages.find(message => message.tokens.includes(token("expo")));
+  expect(digest?.data).toEqual({ quietDigest: "true", groupKey: "quiet-digest" });
+  expect(digest?.android?.notification?.tag).toBe("zyx:quiet-digest");
 });

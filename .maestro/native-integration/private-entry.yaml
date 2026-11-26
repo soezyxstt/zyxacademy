@@ -1,5 +1,5 @@
 appId: com.zyx.academy.nativeparity
-name: Canonical Student, Tutor and Admin entries require sign-in
+name: Warm Student, Tutor and Admin entries require sign-in
 ---
 - launchApp
 - extendedWaitUntil:
@@ -7,6 +7,12 @@ name: Canonical Student, Tutor and Admin entries require sign-in
       id: product-landing
     timeout: 30000
 - openLink: zyx-native-parity://sign-up?locale=en
+- runFlow:
+    when:
+      platform: iOS
+    file: helpers/accept-ios-private-link.yaml
+    env:
+      EXPECTED: Sign up with Google
 - assertVisible: "Sign up with Google"
 - openLink: zyx-native-parity://murid
 - extendedWaitUntil:

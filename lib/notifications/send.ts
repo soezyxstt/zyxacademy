@@ -23,6 +23,7 @@ import {
  user,
 } from "@/db/schema";
 import { and, asc, eq, gt, gte, inArray, sql } from "drizzle-orm";
+import type { MulticastMessage } from "firebase-admin/messaging";
 import { adminMessaging } from "@/lib/firebase/admin";
 import { randomUUID } from "crypto";
 import { getUserLocalePreference } from "@/lib/i18n/preferences";
@@ -102,10 +103,63 @@ function androidNotificationChannel(type: NotificationType): string {
  if (["quiz_published", "quiz_graded", "flashcard_reminder", "weekly_progress", "study_reengagement", "tutor_digest"].includes(type)) return "zyx_learning";
  return "zyx_updates";
 }
+// The OS may display an already queued push after logout. Only a verified
+// inbox lookup may disclose its content on an Expo Android installation.
+function expoAndroidMessage(payload: NotificationPayload): Omit<MulticastMessage, "tokens"> {
+ const data: Record<string, string> = {};
+ if (payload.notificationId && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(payload.notificationId)) {
+  data.notificationId = payload.notificationId;
+ } else if (payload.metadata?.quietDigest === "true" && payload.metadata.groupKey === "quiet-digest") {
+  data.quietDigest = "true";
+  data.groupKey = "quiet-digest";
+ }
+ return {
+  notification: { title: "Zyx Academy" },
+  data,
+  android: {
+   priority: androidDeliveryPriority(payload.type),
+   notification: {
+    channelId: androidNotificationChannel(payload.type), bodyLocKey: "zyx_inbox_new_notification", sound: "default",
+    tag: data.notificationId ? `zyx:${data.notificationId}` : data.quietDigest ? "zyx:quiet-digest" : undefined,
+   },
+  },
+ };
+}
+
+function androidDeliveryPriority(type: NotificationType) {
+ return type === "discussion" || type === "tutor_reminder" || type === "tutor_booking" ? "high" : "normal";
+}
+
+function standardFcmMessage(payload: NotificationPayload): Omit<MulticastMessage, "tokens"> {
+ return {
+  notification: { title: payload.title, body: payload.body, imageUrl: payload.imageUrl },
+  data: {
+   type: payload.type,
+   url: payload.link ?? "/dashboard",
+   ...(payload.notificationId ? { notificationId: payload.notificationId } : {}),
+   ...(payload.metadata ?? {}),
+  },
+  webpush: {
+   fcmOptions: { link: payload.link ?? "/dashboard" },
+   notification: {
+    icon: "/brand/zyx-notif-icon-192.png",
+    badge: "/brand/zyx-notif-badge-96.png",
+    tag: getPushGroupKey(payload),
+    renotify: false,
+   },
+  },
+  android: {
+   priority: androidDeliveryPriority(payload.type),
+   notification: { channelId: androidNotificationChannel(payload.type), tag: getPushGroupKey(payload), sound: "default" },
+  },
+  apns: { payload: { aps: { sound: "default" } } },
+ };
+}
+
 async function sendMulticast(
  tokens: string[],
  payload: NotificationPayload,
- prune = true,
+ display?: "expo-android",
 ): Promise<{ succeeded: number; failedTokens: string[]; errors: string[] }> {
  if (tokens.length === 0) {
  return { succeeded: 0, failedTokens: [], errors: [] };
@@ -115,6 +169,7 @@ async function sendMulticast(
  const errors: string[] = [];
  let succeeded = 0;
 
+ const message = display === "expo-android" ? expoAndroidMessage(payload) : standardFcmMessage(payload);
  // FCM sendEachForMulticast accepts up to 500 tokens at once
  const BATCH_SIZE = 500;
  for (let i = 0; i < tokens.length; i += BATCH_SIZE) {
@@ -123,41 +178,7 @@ async function sendMulticast(
  try {
  const response = await adminMessaging().sendEachForMulticast({
  tokens: batch,
- notification: {
- title: payload.title,
- body: payload.body,
- imageUrl: payload.imageUrl,
- },
- data: {
- type: payload.type,
- url: payload.link ?? "/dashboard",
- ...(payload.notificationId ? { notificationId: payload.notificationId } : {}),
- ...(payload.metadata ?? {}),
- },
- webpush: {
- fcmOptions: { link: payload.link ?? "/dashboard" },
- notification: {
-          icon: "/brand/zyx-notif-icon-192.png",
-          badge: "/brand/zyx-notif-badge-96.png",
-          tag: getPushGroupKey(payload),
-          renotify: false,
- },
- },
- android: {
- priority: payload.type === "discussion" || payload.type === "tutor_reminder" || payload.type === "tutor_booking" ? "high" : "normal",
- notification: {
- channelId: androidNotificationChannel(payload.type),
- tag: getPushGroupKey(payload),
- sound: "default",
- },
- },
- apns: {
- payload: {
- aps: {
- sound: "default",
- },
- },
- },
+ ...message,
  });
 
  response.responses.forEach((res, idx) => {
@@ -177,9 +198,6 @@ async function sendMulticast(
  errors.push(`Batch ${i}-${i + BATCH_SIZE}: ${message}`);
  }
  }
-
- // Prune invalid tokens from the database
- if (prune) await pruneInvalidTokens(failedTokens);
 
  return { succeeded, failedTokens, errors };
 }
@@ -238,7 +256,7 @@ async function sendToTargets(
  prune = true,
 ): Promise<SendResult> {
  const result = await dispatchTokensByTransport(targets, payload, {
-  sendFcm: (tokens, p) => sendMulticast(tokens, p, false),
+  sendFcm: (tokens, p, display) => sendMulticast(tokens, p, display),
   sendApns: (tokens, p) => sendApnsNotifications(tokens, p),
  });
  if (prune && result.failedTokens.length > 0) {
@@ -271,7 +289,7 @@ export async function sendPushToUserNow(userId: string, renderedPayload: Notific
  const hasTransportColumn = Boolean((userPushTokens as unknown as Record<string, unknown>).transport);
  const rows: PushTokenTarget[] = hasTransportColumn
   ? await db
-    .select({ token: userPushTokens.token, transport: userPushTokens.transport })
+    .select({ token: userPushTokens.token, transport: userPushTokens.transport, device: userPushTokens.device })
     .from(userPushTokens)
     .where(and(eq(userPushTokens.userId, userId), activePushSessionPredicate()))
   : await db
@@ -295,13 +313,13 @@ export async function sendPushToUsers(items: { userId: string; payload: Notifica
  items = items.filter(item => !deferred.has(item.userId));
  if (!items.length) return results;
  const hasTransportColumn = Boolean((userPushTokens as unknown as Record<string, unknown>).transport);
- const rows = (await db.execute<{ id: string; userId: string; token: string; transport?: string }>(
+ const rows = (await db.execute<{ id: string; userId: string; token: string; transport?: string; device?: string }>(
   hasTransportColumn
    ? sql`
-    select registry.id, recipient.user_id as "userId", registry.token, registry.transport
+    select registry.id, recipient.user_id as "userId", registry.token, registry.transport, registry.device
     from jsonb_to_recordset(${JSON.stringify(items.map(item => ({ user_id: item.userId, after_id: item.after ?? null })))}::jsonb) as recipient(user_id text, after_id text)
     cross join lateral (
-     select id, token, transport from ${userPushTokens} where user_id = recipient.user_id
+     select id, token, transport, device from ${userPushTokens} where user_id = recipient.user_id
       and ${activePushSessionPredicate()}
       and (user_id, id) >= (recipient.user_id, coalesce(recipient.after_id, ''))
       and (recipient.after_id is null or id > recipient.after_id) order by user_id, id limit 101
@@ -328,7 +346,7 @@ export async function sendPushToUsers(items: { userId: string; payload: Notifica
  for (let i = 0; i < items.length; i += 10) {
   await Promise.all(items.slice(i, i + 10).map(async ({ userId, payload }) => {
    const page = tokens.get(userId) ?? [];
-   const userTargets = page.slice(0, 100).map(row => ({ token: row.token, transport: row.transport }));
+   const userTargets = page.slice(0, 100).map(row => ({ token: row.token, transport: row.transport, device: row.device }));
    try {
     const result = await sendToTargets(userTargets, payload, false);
     invalid.push(...result.failedTokens);

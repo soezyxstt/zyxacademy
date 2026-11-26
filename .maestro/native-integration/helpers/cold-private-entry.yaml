@@ -1,6 +1,12 @@
 appId: com.zyx.academy.nativeparity
 name: Cold deep link to a protected product route
 ---
+- runFlow:
+    when:
+      platform: iOS
+    file: accept-ios-private-link.yaml
+    env:
+      EXPECTED: Sign in with Google|Masuk dengan Google
 - extendedWaitUntil:
     visible: "(Sign in with Google|Masuk dengan Google)"
     timeout: 30000

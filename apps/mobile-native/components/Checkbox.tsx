@@ -4,6 +4,7 @@ import Svg, { Path } from "react-native-svg";
 
 import { nativeColors, nativeRadii } from "../../../packages/design-tokens/native-colors";
 import { hapticSelection } from "../device/haptics";
+import { disabledControlStyle } from "./control-opacity";
 
 type CheckedState = boolean | "indeterminate";
 type CheckboxProps = Omit<PressableProps, "children" | "onPress" | "accessibilityRole"> & {
@@ -64,7 +65,7 @@ export const Checkbox = forwardRef<ComponentRef<typeof Pressable>, CheckboxProps
           borderColor: selected ? colors.primary : colors.input,
         },
         focused && !blocked && [styles.focused, { outlineColor: colors.accent }],
-        blocked && styles.disabled,
+        blocked && disabledControlStyle,
         typeof style === "function" ? style(state) : style,
       ]}
     >
@@ -95,5 +96,4 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   focused: { outlineWidth: 2, outlineOffset: 2 },
-  disabled: { opacity: 0.5 },
 });

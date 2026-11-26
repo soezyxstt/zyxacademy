@@ -38,6 +38,7 @@ export type PreparedPhoto = {
 
 export type PhotoImageIssue = "image-size" | "unsupported-image" | "decode";
 export type PhotoPreparation = { photo: PreparedPhoto } | { issue: PhotoImageIssue };
+export type PhotoOutputPolicy = Readonly<{ format: "jpeg"; maxBytes: number }>;
 
 type PhotoFormat = "jpeg" | "png";
 type PhotoResize = { width: number } | { height: number };
@@ -55,7 +56,7 @@ function positiveInteger(value: unknown): value is number {
   return typeof value === "number" && Number.isSafeInteger(value) && value > 0;
 }
 
-export async function prepareDraftPhoto(asset: PickerPhoto, device: PhotoImageDevice): Promise<PhotoPreparation> {
+export async function prepareDraftPhoto(asset: PickerPhoto, device: PhotoImageDevice, policy?: PhotoOutputPolicy): Promise<PhotoPreparation> {
   const { uri, width, height, mimeType, type } = asset;
   if ((type && type !== "image") || (mimeType && !mimeType.toLowerCase().startsWith("image/"))) {
     return { issue: "unsupported-image" };
@@ -73,7 +74,8 @@ export async function prepareDraftPhoto(asset: PickerPhoto, device: PhotoImageDe
 
     const rendered = await device.render(uri, resize);
     try {
-      const formats: PhotoFormat[] = mimeType?.toLowerCase() === "image/png" ? ["png", "jpeg", "jpeg"] : ["jpeg", "jpeg"];
+      const formats: PhotoFormat[] = policy?.format !== "jpeg" && mimeType?.toLowerCase() === "image/png" ? ["png", "jpeg", "jpeg"] : ["jpeg", "jpeg"];
+      const maxBytes = Math.min(policy?.maxBytes ?? DRAFT_PHOTO_MAX_BYTES, DRAFT_PHOTO_MAX_BYTES);
       for (const [index, format] of formats.entries()) {
         const quality = index === formats.length - 1 ? 0.7 : 0.86;
         const output = await rendered.save(format, quality);
@@ -83,7 +85,7 @@ export async function prepareDraftPhoto(asset: PickerPhoto, device: PhotoImageDe
             || Math.max(output.width, output.height) > DRAFT_PHOTO_MAX_EDGE) return { issue: "image-size" };
           const size = device.fileSize(output.uri);
           if (!positiveInteger(size)) return { issue: "decode" };
-          if (size <= DRAFT_PHOTO_MAX_BYTES) {
+          if (size <= maxBytes) {
             keep = true;
             return { photo: { ...output, size, mimeType: format === "jpeg" ? "image/jpeg" : "image/png" } };
           }

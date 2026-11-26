@@ -10,6 +10,7 @@
  */
 
 import type { CSSProperties } from "react";
+import { plansGlowOffsets, plansOrnaments } from "@/packages/design-tokens/plans-ornaments";
 import {
   ornamentCircles, ornamentCornerOffsets, ornamentGlowStop, ornamentPolygonPoints, ornamentViewBox,
   testimonialOrnaments, type TestimonialOrnamentColor,
@@ -156,26 +157,6 @@ function MathLayer({ symbols }: { symbols: MathSpec[] }) {
 
 // ─── Variant data ─────────────────────────────────────────────────────────────
 
-const P_SHAPES: ShapeSpec[] = [
-  { type: "hex", cx: 6,  cy: 8,  r: 72,  rotation: 0,   color: "var(--primary)",               opacity: 0.085 },
-  { type: "hex", cx: 95, cy: 12, r: 52,  rotation: 30,  color: "var(--primary)",               opacity: 0.09  },
-  { type: "hex", cx: 91, cy: 87, r: 68,  rotation: 15,  color: "var(--color-brand-secondary)", opacity: 0.095 },
-  { type: "tri", cx: 7,  cy: 87, r: 48,  rotation: 0,   color: "var(--color-tertiary-1)",      opacity: 0.1   },
-  { type: "tri", cx: 50, cy: 6,  r: 38,  rotation: 30,  color: "var(--color-brand-secondary)", opacity: 0.085 },
-  { type: "hex", cx: 44, cy: 95, r: 42,  rotation: 0,   color: "var(--primary)",               opacity: 0.075 },
-  { type: "tri", cx: 22, cy: 45, r: 30,  rotation: 60,  color: "var(--primary)",               opacity: 0.07  },
-];
-
-const P_MATH: MathSpec[] = [
-  { symbol: "∑", x: "89%", y: "26%", size: 88,  rotation: 10,  opacity: 0.085 },
-  { symbol: "×", x: "11%", y: "24%", size: 78,  rotation: -15, color: "var(--color-brand-secondary)", opacity: 0.09 },
-  { symbol: "∂", x: "79%", y: "74%", size: 84,  rotation: 8,   opacity: 0.08  },
-  { symbol: "∇", x: "17%", y: "76%", size: 76,  rotation: -5,  color: "var(--color-tertiary-1)",      opacity: 0.085 },
-  { symbol: "λ", x: "48%", y: "16%", size: 66,  rotation: 5,   opacity: 0.08  },
-  { symbol: "σ", x: "61%", y: "89%", size: 62,  rotation: -10, color: "var(--color-brand-secondary)", opacity: 0.085 },
-  { symbol: "θ", x: "36%", y: "60%", size: 54,  rotation: 0,   opacity: 0.065 },
-];
-
 const A_SHAPES: ShapeSpec[] = [
   { type: "hex", cx: 3,  cy: 7,  r: 85,  rotation: 30,  color: "var(--primary)",               opacity: 0.09  },
   { type: "hex", cx: 96, cy: 5,  r: 62,  rotation: 0,   color: "var(--primary)",               opacity: 0.08  },
@@ -210,31 +191,26 @@ type VariantConfig = {
   math: MathSpec[];
 };
 
-function testimonialColor(color: TestimonialOrnamentColor) {
+function ornamentColor(color: TestimonialOrnamentColor) {
   return color === "primary" ? "var(--primary)" : `var(--color-${color})`;
 }
 
 const CONFIGS: Record<Variant, VariantConfig> = {
   testimonial: {
     glows: testimonialOrnaments.glows.map(({ color, corner, offsetRem, ...glow }) => ({
-      ...glow, colorVar: testimonialColor(color), position: ornamentCornerOffsets(corner, `${offsetRem}rem`),
+      ...glow, colorVar: ornamentColor(color), position: ornamentCornerOffsets(corner, `${offsetRem}rem`),
     })),
-    rings: testimonialOrnaments.rings.map(ring => ({ ...ring, color: testimonialColor(ring.color) })),
-    shapes: testimonialOrnaments.shapes.map(shape => ({ ...shape, color: testimonialColor(shape.color) })),
-    math: testimonialOrnaments.math.map(symbol => ({ ...symbol, color: testimonialColor(symbol.color) })),
+    rings: testimonialOrnaments.rings.map(ring => ({ ...ring, color: ornamentColor(ring.color) })),
+    shapes: testimonialOrnaments.shapes.map(shape => ({ ...shape, color: ornamentColor(shape.color) })),
+    math: testimonialOrnaments.math.map(symbol => ({ ...symbol, color: ornamentColor(symbol.color) })),
   },
   plans: {
-    glows: [
-      { colorVar: "var(--primary)",               positionClasses: "-top-56 -left-48", size: 800, intensity: 0.20 },
-      { colorVar: "var(--color-brand-secondary)", positionClasses: "-bottom-52 -right-44", size: 680, intensity: 0.18 },
-      { colorVar: "var(--color-tertiary-1)",      positionClasses: "top-1/3 -right-56", size: 500, intensity: 0.15 },
-    ],
-    rings: [
-      { corner: "top-right",   size: 620, color: "var(--primary)",          count: 8, r0: 100, gap: 78, opacity: 0.14 },
-      { corner: "bottom-left", size: 420, color: "var(--color-tertiary-1)", count: 5, r0: 85,  gap: 72, opacity: 0.13 },
-    ],
-    shapes: P_SHAPES,
-    math:   P_MATH,
+    glows: plansOrnaments.glows.map(({ color, position, ...glow }) => ({
+      ...glow, colorVar: ornamentColor(color), position: plansGlowOffsets(position, value => `${value}rem`),
+    })),
+    rings: plansOrnaments.rings.map(ring => ({ ...ring, color: ornamentColor(ring.color) })),
+    shapes: plansOrnaments.shapes.map(shape => ({ ...shape, color: ornamentColor(shape.color) })),
+    math: plansOrnaments.math.map(symbol => ({ ...symbol, color: ornamentColor(symbol.color) })),
   },
   about: {
     glows: [
@@ -253,9 +229,10 @@ const CONFIGS: Record<Variant, VariantConfig> = {
 
 export function PageOrnaments({ variant }: { variant: Variant }) {
   const cfg = CONFIGS[variant];
-  const opacity = variant === "testimonial" ? {
-    "--ornament-opacity": testimonialOrnaments.opacity.light,
-    "--ornament-opacity-dark": testimonialOrnaments.opacity.dark,
+  const themeOpacity = variant === "testimonial" ? testimonialOrnaments.opacity : variant === "plans" ? plansOrnaments.opacity : null;
+  const opacity = themeOpacity ? {
+    "--ornament-opacity": themeOpacity.light,
+    "--ornament-opacity-dark": themeOpacity.dark,
   } as CSSProperties : undefined;
   return (
     <div

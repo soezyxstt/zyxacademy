@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View, useColorScheme } from "react-native";
+import Svg, { Circle, Path } from "react-native-svg";
 import { nativeColors, nativeRadii } from "../../../../packages/design-tokens/native-colors";
 import { formScaleValues } from "../../../../packages/forms/presentation";
 import { formFileAccept } from "../../../../packages/forms/file-types";
@@ -130,15 +131,18 @@ type FileField = {
   filename?: string;
   pending: boolean;
   error?: string;
+  capture?: () => void;
+  openSettings?: () => void;
   pick(): void;
   clear(): void;
 };
 
-export function FormField({ index, question, value, detail, issue, onValue, onDetail, disabled, locale, file, colors }: {
-  index: number; question: PublicQuestion; value?: PublicAnswer; detail: string; issue?: FieldIssue; onValue: (value: PublicAnswer | undefined) => void;
+export function FormField({ index, number, question, value, detail, issue, onValue, onDetail, disabled, locale, file, colors }: {
+  index: number; number?: number; question: PublicQuestion; value?: PublicAnswer; detail: string; issue?: FieldIssue; onValue: (value: PublicAnswer | undefined) => void;
   onDetail: (detail: string) => void; disabled: boolean; locale: FormLocale; file?: FileField; colors: FormColors;
 }) {
   const copy = publicFormCopy(locale);
+  const [focusedText, setFocusedText] = useState(false);
   const type = question.type;
   const readOnly = type === "SECTION" || type === "STATEMENT";
   const image = sourceUrl(question.imageUrl);
@@ -149,8 +153,12 @@ export function FormField({ index, question, value, detail, issue, onValue, onDe
   let control;
   if (type === "TEXT" || type === "PARAGRAPH") {
     const TextField = type === "TEXT" ? Input : Textarea;
-    control = <TextField accessibilityLabel={question.title} disabled={disabled} maxLength={50_000} value={scalar} testID={`public-form-field-${index}`}
-      style={formStyles.input} onChangeText={onValue} />;
+    control = <TextField accessibilityLabel={question.title} accessibilityHint={question.required ? copy.required : undefined}
+      placeholder={type === "TEXT" ? copy.textPlaceholder : copy.paragraphPlaceholder}
+      placeholderTextColor={colors.mutedForeground + "66"} disabled={disabled} maxLength={50_000} value={scalar}
+      testID={`public-form-field-${index}`} onFocus={() => setFocusedText(true)} onBlur={() => setFocusedText(false)}
+      style={type === "TEXT" ? [styles.lineInput, { borderBottomColor: focusedText ? colors.brandPrimary : colors.border + "cc" }]
+        : styles.paragraph} onChangeText={onValue} />;
   } else if (type === "CHECKBOX" || type === "RADIO") {
     const multiple = type === "CHECKBOX";
     const choices = question.otherOption?.enabled ? [...options, otherOption] : options;
@@ -203,6 +211,14 @@ export function FormField({ index, question, value, detail, issue, onValue, onDe
         <SharedUiActionButton
           action={{ id: "choose", label: file.pending ? copy.uploading : file.filename ? copy.replaceFile : copy.chooseFile, pending: file.pending, disabled: disabled || file.blocked }}
           onAction={file.pick} />
+        {file.capture && policy.mimeTypes.includes("image/jpeg") && <SharedUiActionButton testID={`public-form-camera-${index}`}
+          action={{ id: "camera", label: copy.takePhoto, accessibilityLabel: `${copy.takePhoto}, ${title}`, iconOnly: true,
+            variant: "outline", disabled: disabled || file.blocked,
+            renderIcon: (color, size) => <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
+              strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" accessible={false}>
+              <Path d="M14.5 4h-5l-2 3H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3.5z" />
+              <Circle cx={12} cy={13} r={3} />
+            </Svg> }} onAction={file.capture} />}
         {file.filename && <SharedUiActionButton action={{ id: "remove", label: copy.removeFile, disabled, variant: "ghost" }} onAction={file.clear} />}
       </View>
       {file.openWeb && policy.authoredMaxMb > policy.maxMb && <>
@@ -211,13 +227,22 @@ export function FormField({ index, question, value, detail, issue, onValue, onDe
         <SharedUiActionButton action={{ id: "upload-web", label: copy.openWeb, variant: "ghost" }} onAction={file.openWeb} />
       </>}
       {file.error && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[formStyles.meta, { color: colors.destructive }]}>{file.error}</Text>}
+      {file.openSettings && <SharedUiActionButton action={{ id: "camera-settings", label: copy.openDeviceSettings,
+        variant: "ghost", disabled: disabled || file.blocked }} onAction={file.openSettings} />}
     </View>;
   }
 
-  return <View style={formStyles.group}>
-    <Text accessibilityRole="header" style={[formStyles.heading, { color: colors.foreground }]}>{title}</Text>
-    {!readOnly && question.required && <Text style={[formStyles.meta, { color: colors.mutedForeground }]}>{copy.required}</Text>}
-    {Boolean(question.description) && <Text style={[formStyles.body, { color: colors.mutedForeground }]}>{question.description}</Text>}
+  return <View style={styles.field}>
+    <View style={formStyles.group}>
+      <View style={styles.fieldTitle}>
+        {number !== undefined && <Text accessible={false} importantForAccessibility="no" style={[styles.number, { color: colors.brandPrimary }]}>{number}.</Text>}
+        <Text accessibilityRole="header" accessibilityLabel={!readOnly && question.required ? `${title}, ${copy.required}` : title}
+          style={[formStyles.heading, nativeTypography.headingSemibold, styles.titleText, { color: colors.foreground }]}>
+          {title}{!readOnly && question.required && <Text style={{ color: colors.destructive }}> *</Text>}
+        </Text>
+      </View>
+      {Boolean(question.description) && <Text style={[formStyles.body, { color: colors.mutedForeground }]}>{question.description}</Text>}
+    </View>
     {image && <QuestionImage key={image} uri={image} title={question.title} failure={copy.mediaFailed} colors={colors} />}
     {control}
     {issue && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[formStyles.meta, { color: colors.destructive }]}>{fieldIssueMessage(locale, issue)}</Text>}
@@ -228,6 +253,13 @@ export function FormField({ index, question, value, detail, issue, onValue, onDe
 }
 
 const styles = StyleSheet.create({
+  field: { gap: 16 },
+  fieldTitle: { flexDirection: "row", gap: 8, alignItems: "flex-start" },
+  number: { ...nativeTypography.mono, fontSize: 14, lineHeight: 20, paddingTop: 2 },
+  titleText: { flex: 1 },
+  lineInput: { height: 36, paddingTop: 0, paddingBottom: 12, paddingHorizontal: 0, borderRadius: 0,
+    borderWidth: 0, borderBottomWidth: 2, outlineWidth: 0, boxShadow: "none", backgroundColor: "transparent" },
+  paragraph: { minHeight: 112, padding: 12 },
   choice: { minHeight: 44, minWidth: 44, flexDirection: "row", alignItems: "center", gap: 8, padding: 8, borderWidth: 1, borderRadius: nativeRadii.md },
   choiceText: { flexShrink: 1 },
   choiceMark: { width: 16, height: 16, borderRadius: 8, borderWidth: 1, alignItems: "center", justifyContent: "center" },

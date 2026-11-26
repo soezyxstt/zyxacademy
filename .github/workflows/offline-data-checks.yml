@@ -13,6 +13,8 @@ on:
       - 'lib/academic/course-canonical-sync.ts'
       - 'lib/migrasi/repository-kompatibilitas.ts'
       - 'components/offline/**'
+      - 'components/navigation/student/student-mobile-destinations.ts'
+      - 'components/navigation/student/student-mobile-hrefs.mjs'
       - 'components/providers/query-provider.tsx'
       - 'components/admin/offline-cache-settings.tsx'
       - 'components/course/structured-article-reader.tsx'

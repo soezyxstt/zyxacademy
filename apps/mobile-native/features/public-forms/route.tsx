@@ -1,5 +1,5 @@
 import { randomUUID } from "expo-crypto";
-import { useRouter } from "expo-router";
+import { useNavigation, useRouter } from "expo-router";
 import { openBrowserAsync } from "expo-web-browser";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { authLocale } from "../../auth/auth-copy";
@@ -9,7 +9,7 @@ import { useNativeSession } from "../../auth/session-provider";
 import { useNativeAccountContext } from "../../auth/use-account-context";
 import type { NativeSessionScope } from "../../network/transport";
 import { createFormSubmissionGate, loadPublicForm, submitPublicForm } from "./client";
-import { pickAndUploadFormFile, requestPublicForm } from "./expo-client";
+import { nativeFormCameraAvailable, pickAndUploadFormFile, requestPublicForm } from "./expo-client";
 import { formIdentifier, formUploadPolicy, publicFormPath, type FormEntry, type FormLocale, type PublicForm, type PublicFormLoad } from "./model";
 import { PublicFormResponse } from "./response";
 import { PublicFormScreen } from "./screen";
@@ -104,7 +104,8 @@ function PublicFormLocation({ id, entry, locale }: { id: string | null; entry: F
   const formKey = JSON.stringify([owner, form]);
 
   return <PublicFormScreen state={data} locale={locale} access={access} opening={web === "opening"} browserFailed={web === "error"}
-    onRetry={tryAgain} onLogin={login} onWeb={openWeb} onMeet={() => void open(data?.status === "meeting" ? data.url : null)} onBack={leave}>
+    onRetry={tryAgain} onLogin={login} onWeb={openWeb} onMeet={() => void open(data?.status === "meeting" ? data.url : null)}
+    onBack={leave} onHome={() => router.replace("/")}>
     {form && route && owner && (
       <FormSession key={formKey}
         locale={locale} route={route} form={form} owner={owner} session={session} access={access}
@@ -121,6 +122,7 @@ function FormSession({ form, locale, route, owner, session, access, onLogin, onW
   onLogin(): void; onWeb(): void; onUploadWeb(): void; onCheck(): void; onDone(): void; statusCheck: number; checking: boolean; checkFailed: boolean;
   submissionGate: ReturnType<typeof createFormSubmissionGate>;
 }) {
+  const navigation = useNavigation();
   const lifetime = useRef<AbortController | null>(null);
   const [draftId] = useState(randomUUID);
   const submissionKey = JSON.stringify([form.id, owner]);
@@ -141,7 +143,7 @@ function FormSession({ form, locale, route, owner, session, access, onLogin, onW
 
   return <PublicFormResponse form={form} locale={locale} signedIn={owner !== "anonymous"}
     sessionStatus={access === "waiting" || access === "unavailable" ? access : undefined}
-    onSessionRetry={() => void session.refresh()} onUploadWeb={onUploadWeb}
+    onSessionRetry={() => void session.refresh()} onUploadWeb={onUploadWeb} cameraAvailable={nativeFormCameraAvailable}
     onLogin={onLogin} onWeb={onWeb} onCheck={onCheck} onDone={onDone} statusCheck={statusCheck} checking={checking} checkFailed={checkFailed}
     onRepeat={() => submissionGate.fillAgain(submissionKey)}
     onSubmit={async draft => {
@@ -159,15 +161,17 @@ function FormSession({ form, locale, route, owner, session, access, onLogin, onW
       });
       return isDraftCurrent(local) ? result : { status: "session-pending" };
     }}
-    onUpload={async index => {
+    onUpload={async (index, source) => {
       const local = lifetime.current;
       const question = form.questions[index];
       const current = formWriteAccess(session.getSnapshot(), owner);
       if (!local || !current || question?.type !== "FILE_UPLOAD") return { status: "cancelled" };
-      const isUploadCurrent = () => isDraftCurrent(local);
+      const isUploadCurrent = () => navigation.isFocused() && isDraftCurrent(local);
+      if (!isUploadCurrent()) return { status: "cancelled" };
       const policy = formUploadPolicy(question);
-      const result = await pickAndUploadFormFile(async () => {
+      const result = await pickAndUploadFormFile(source, async () => {
         // The system picker can return before the foreground refresh notification reaches React.
+        if (!isUploadCurrent()) return null;
         if (owner !== "anonymous") await session.refresh();
         if (!isUploadCurrent()) return null;
         const verified = formWriteAccess(session.getSnapshot(), owner);

@@ -1,0 +1,16 @@
+appId: com.android.chrome
+name: Chrome trusts the disposable loopback HTTPS listener
+---
+- tapOn:
+    text: "(Accept & continue|Accept and continue)"
+    optional: true
+- tapOn:
+    text: "(Use without an account|Continue without an account|No thanks)"
+    optional: true
+- tapOn:
+    text: "(Got it|No thanks)"
+    optional: true
+- openLink: "https://127.0.0.1:9443/__preview/health"
+- extendedWaitUntil:
+    visible: Preview HTTPS ready
+    timeout: 30000

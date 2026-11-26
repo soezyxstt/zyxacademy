@@ -1,7 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { buildFormSteps, formFileSizeLimitMb, isEmptyFormAnswer } from "@/lib/forms/presentation";
+import { buildFormSteps, formFileSizeLimitMb, formQuestionNumbers, isEmptyFormAnswer } from "@/lib/forms/presentation";
 
 describe("Form presentation", () => {
+  it("keeps answer numbers aligned across sections, statements and upload fields", () => {
+    expect([...formQuestionNumbers(["SECTION", "TEXT", "STATEMENT", "FILE_UPLOAD", "SECTION", "DATE"].map(type => ({ type })))])
+      .toEqual([[1, 1], [3, 2], [5, 3]]);
+  });
   it("keeps legacy one-question pages without a review step", () => {
     expect(buildFormSteps([{ type: "TEXT" }, { type: "SECTION" }, { type: "RADIO" }], undefined, true))
       .toEqual([{ kind: "cover" }, { kind: "email" }, { kind: "question", questionIndex: 0 },

@@ -1,9 +1,11 @@
 import { createHash, randomBytes } from "node:crypto";
 import { createNativeSessionApi, readSignedSessionCookie } from "../../../apps/mobile-native/auth/session-api";
+import { loadInbox, markInboxRead } from "../../../apps/mobile-native/features/notification-inbox/client";
 import { loadNativeAccountContext } from "../../../apps/mobile-native/network/account-context";
 import { createNativeTransport } from "../../../apps/mobile-native/network/transport";
 import { NATIVE_AUTH_HANDOFF_COOKIE } from "@/lib/native/auth-handoff";
 import { EXPO_STAGING_ORIGIN, EXPO_STAGING_SCHEME } from "@/lib/native/expo-auth-config";
+import { notificationId } from "./inbox-fixture";
 import { fixtureOrigin, fixtureSessionSeconds } from "./scope";
 import { startAuthFixture } from "./server";
 
@@ -25,7 +27,8 @@ let signOutStatus: number | undefined;
 let fixture: Awaited<ReturnType<typeof startAuthFixture>> | undefined;
 try {
   check(certificate && key, "TLS material is required");
-  fixture = await startAuthFixture(certificate, key);
+  const studentProduct = process.env.AUTH_STUDENT_PRODUCT === "true";
+  fixture = await startAuthFixture(certificate, key, { studentProduct });
   const ca = await Bun.file(certificate).text();
   const local = (path: string, init?: RequestInit) => {
     const url = new URL(path, fixtureOrigin);
@@ -106,10 +109,33 @@ try {
   const context = await loadNativeAccountContext(binding);
   check(context.roles.length === 1 && context.roles[0] === "murid" && context.dashboard === "/dashboard", "Unexpected fixture privileges");
 
+  if (studentProduct) {
+    stage = "read the actual Student dashboard";
+    const dashboard = await binding.request("/api/native/student/courses?view=dashboard", {
+      headers: { "x-student-id": session.accountId, "x-app-locale": context.locale },
+    });
+    try {
+      check(dashboard.ok, "The dashboard returned HTTP " + dashboard.status);
+      const model = await dashboard.json();
+      check(model && typeof model === "object" && "view" in model && model.view === "dashboard" &&
+        "enrolled" in model && Array.isArray(model.enrolled) && model.enrolled.length === 0 && "preview" in model && model.preview,
+      "Expected the real unenrolled Student dashboard projection");
+    } finally {
+      dashboard.dispose();
+    }
+    stage = "read and acknowledge one owned notification";
+    const signal = new AbortController().signal;
+    const inbox = await loadInbox(binding, true, signal);
+    check(inbox.unread === 1 && inbox.rows.length === 1 && inbox.rows[0]?.id === notificationId, "Unexpected inbox scope");
+    await markInboxRead(binding, { id: notificationId }, signal);
+    check((await loadInbox(binding, false, signal)).unread === 0, "The read notification remained unread");
+  }
+
   stage = "revoke the authenticated session";
   await api.revoke(sessionCookie);
   check((await local("/api/native/context", { headers: { Cookie: sessionCookie } })).status === 401, "Revoked context stayed active");
-  console.log("Verified loopback Native start, complete, exchange, session, Student context and logout");
+  check(await fixture.verifiedAndRevoked(), "Expected authenticated database changes or revocation missing");
+  console.log("Verified loopback Native start, complete, exchange, session, Student context and logout" + (studentProduct ? ", plus mounted Student dashboard and inbox" : ""));
 } catch (error) {
   // Response bodies, cookies, verifier and grant never appear in job logs.
   console.error("Native authenticated fixture failed to " + stage +

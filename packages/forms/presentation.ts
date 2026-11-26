@@ -12,6 +12,14 @@ export interface FormQuestion {
   gridRows?: string[];
 }
 
+export function formQuestionNumbers(questions: readonly FormQuestion[]) {
+  const numbers = new Map<number, number>();
+  questions.forEach((question, index) => {
+    if (question.type !== "SECTION" && question.type !== "STATEMENT") numbers.set(index, numbers.size + 1);
+  });
+  return numbers;
+}
+
 // The first section is implicit. An explicit SECTION starts a new page and
 // stays with the questions that follow it, including empty or closing sections.
 export function buildFormSteps(

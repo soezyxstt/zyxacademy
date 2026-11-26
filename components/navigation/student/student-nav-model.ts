@@ -1,19 +1,8 @@
 import { PKA_COURSE_ID } from "../../../lib/pka-config";
+import { studentMobileHrefs } from "./student-mobile-hrefs.mjs";
 
-export type StudentBottomNavTabId =
-  | "home"
-  | "courses"
-  | "schedule"
-  | "discuss"
-  | "me";
-
-export const studentMobileHrefs = {
-  home: "/dashboard",
-  courses: "/courses",
-  schedule: "/dashboard/schedule",
-  discuss: "/dashboard/discussions",
-  me: "/profile",
-} as const satisfies Record<StudentBottomNavTabId, string>;
+export { studentMobileHrefs };
+export type StudentBottomNavTabId = keyof typeof studentMobileHrefs;
 
 export interface StudentCourseSummary {
   id: string;

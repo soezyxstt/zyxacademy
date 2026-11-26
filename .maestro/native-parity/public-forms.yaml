@@ -11,22 +11,38 @@ name: Public and short form capture states and accessible controls
       CASE_ID: forms-ready
 - assertVisible: Pendaftaran tutorial
 - assertVisible: Nama peserta
+- assertNotVisible:
+    id: shared-ui-back
 - assertVisible:
     id: public-form-field-0
 - assertVisible:
     id: public-form-next
+- assertVisible: Bagian 1 / 1
+- assertVisible: "0%"
+- assertVisible:
+    text: Kembali
+    enabled: false
 - runFlow:
     file: helpers/open-public-form.yaml
     env:
       CASE_ID: forms-closed
 - assertVisible: .*Formulir ditutup.*
+- assertVisible: Pendaftaran tutorial
 - assertVisible: .*Pendaftaran sesi ini telah berakhir.*
+- assertVisible:
+    id: public-form-home
+- assertNotVisible:
+    id: public-form-recheck
+- assertNotVisible:
+    id: shared-ui-back
 - runFlow:
     file: helpers/open-public-form.yaml
     env:
       CASE_ID: forms-missing
 - assertVisible: .*Formulir tidak ditemukan.*
 - assertVisible: Kembali ke beranda
+- assertNotVisible:
+    id: shared-ui-back
 - runFlow:
     file: helpers/open-public-form.yaml
     env:
@@ -46,3 +62,8 @@ name: Public and short form capture states and accessible controls
       CASE_ID: short-missing
 - assertVisible: .*Formulir tidak ditemukan.*
 - assertVisible: Kembali ke beranda
+- tapOn:
+    id: public-form-home
+- extendedWaitUntil:
+    visible: separator
+    timeout: 20000

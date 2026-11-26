@@ -12,6 +12,11 @@ function containsServerCredentials(value) {
     || Object.values(value).some(containsServerCredentials);
 }
 
+function serviceStatus(service) {
+  const status = service?.status;
+  return status === 1 || status === 2 || status === '1' || status === '2' ? status : undefined;
+}
+
 function validateStagingFirebase(raw, androidPackage) {
   let config;
   try {
@@ -39,7 +44,35 @@ function validateStagingFirebase(raw, androidPackage) {
       || !keys.every(key => typeof key?.current_key === 'string' && /^[A-Za-z0-9_-]+$/.test(key.current_key))) {
     throw new Error('Expo Android Firebase client is missing a valid Android app ID or client API key.');
   }
-  return { ...config, client: matching };
+
+  // Emit only the public fields read by GoogleServicesTask in the pinned Gradle plugin.
+  const projectInfo = { project_id: project.project_id, project_number: project.project_number };
+  if (typeof project.firebase_url === 'string') projectInfo.firebase_url = project.firebase_url;
+  if (typeof project.storage_bucket === 'string') projectInfo.storage_bucket = project.storage_bucket;
+
+  const selected = {
+    client_info: { mobilesdk_app_id: applicationId, android_client_info: { package_name: androidPackage } },
+    api_key: keys.map(({ current_key }) => ({ current_key })),
+  };
+  const webOAuth = Array.isArray(client.oauth_client) && client.oauth_client.find(entry =>
+    (entry?.client_type === 3 || entry?.client_type === '3') && typeof entry.client_id === 'string');
+  if (webOAuth) selected.oauth_client = [{ client_type: webOAuth.client_type, client_id: webOAuth.client_id }];
+
+  const mapsStatus = serviceStatus(client.services?.maps_service);
+  const analytics = client.services?.analytics_service;
+  const analyticsStatus = serviceStatus(analytics);
+  const trackingId = analytics?.analytics_property?.tracking_id;
+  if (mapsStatus !== undefined || analyticsStatus !== undefined) {
+    selected.services = {};
+    if (mapsStatus !== undefined) selected.services.maps_service = { status: mapsStatus };
+    if (analyticsStatus !== undefined) {
+      selected.services.analytics_service = {
+        status: analyticsStatus,
+        ...(typeof trackingId === 'string' && { analytics_property: { tracking_id: trackingId } }),
+      };
+    }
+  }
+  return { project_info: projectInfo, client: [selected] };
 }
 
 function readStagingFirebase(projectRoot, android) {

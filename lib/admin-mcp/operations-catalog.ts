@@ -47,7 +47,7 @@ export const operationsCatalog = [
     "actions": ["POST"],
     "tools": [],
     "status": "excluded",
-    "reason": "Public file uploads attach files to a live respondent form under its current upload and authentication policy. Admin MCP preview and simulation do not upload respondent files."
+    "reason": "Public file uploads attach files to a live respondent form under its current upload and authentication policy. Native camera capture and document selection are input sources for that same interactive upload. Admin MCP preview and simulation do not upload respondent files."
   },
   {
     "source": "app/api/meet/[slug]/route.ts",
@@ -188,6 +188,13 @@ export const operationsCatalog = [
     "tools": [],
     "status": "excluded",
     "reason": "The account holder opens their own notification history and acknowledges visible notifications through their interactive session. Administrative notification history and sending retain their existing MCP authorization."
+  },
+  {
+    "source": "apps/mobile-native/features/notification-inbox/staff-device-push.tsx",
+    "actions": ["requestPermission", "openSettings"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "A verified Tutor or Admin explicitly chooses a device notification action from an open inbox on a supported build. The OS manages user consent and app settings. Existing registration uses the same verified account session and app origin. Administrative MCP tools and bindings remain unchanged."
   },
   {
     "source": "apps/mobile-native/device/reminder-controller.ts",

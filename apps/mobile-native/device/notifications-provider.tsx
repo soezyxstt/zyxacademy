@@ -1,12 +1,13 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 
 import { useNativeSession } from "../auth/session-provider";
+import type { NativeSessionTransport } from "../network/transport";
 import type { NativePushStatus } from "./notifications-controller";
 import { createExpoNotificationController } from "./notifications";
 
 type DeviceNotificationSettings = {
   status: NativePushStatus | null;
-  requestPermission(): Promise<NativePushStatus | null>;
+  requestPermission(canPrompt?: () => boolean): Promise<NativePushStatus | null>;
   refresh(): Promise<NativePushStatus | null>;
 };
 
@@ -22,7 +23,11 @@ export function NotificationsProvider({
   const { state, transport, subscribeBeforeLogout } = useNativeSession();
   const controller = useRef<ReturnType<typeof createExpoNotificationController> | null>(null);
   const currentLocale = useRef(locale);
-  const [status, setStatus] = useState<NativePushStatus | null>(null);
+  const attached = useRef<NativeSessionTransport | null>(null);
+  const [observation, setObservation] = useState<{
+    transport: NativeSessionTransport | null;
+    status: NativePushStatus | null;
+  } | null>(null);
   const activeTransport = state.status === "signed-in" ? transport : null;
   const loggingOut = state.status === "logout-pending";
 
@@ -33,7 +38,7 @@ export function NotificationsProvider({
   useEffect(() => {
     const instance = createExpoNotificationController({
       getLocale: () => currentLocale.current,
-      onStatusChange: setStatus,
+      onStatusChange: status => setObservation({ transport: attached.current, status }),
     });
     controller.current = instance;
     return () => {
@@ -43,22 +48,24 @@ export function NotificationsProvider({
   }, []);
 
   useEffect(() => {
-    if (!loggingOut) void controller.current?.setAccount(activeTransport);
+    if (!loggingOut) {
+      attached.current = activeTransport;
+      void controller.current?.setAccount(activeTransport);
+    }
   }, [activeTransport, loggingOut]);
 
   useEffect(() => subscribeBeforeLogout(async cleanupTransport => {
+    attached.current = null;
     await controller.current?.setAccount(null, cleanupTransport);
   }), [subscribeBeforeLogout]);
 
+  const currentController = () => activeTransport?.isCurrent() && attached.current === activeTransport
+    ? controller.current : null;
   return (
     <NotificationsContext.Provider value={{
-      status: activeTransport ? status : null,
-      requestPermission: () => activeTransport?.isCurrent()
-        ? controller.current?.requestPermission() ?? Promise.resolve(null)
-        : Promise.resolve(null),
-      refresh: () => activeTransport?.isCurrent()
-        ? controller.current?.sync() ?? Promise.resolve(null)
-        : Promise.resolve(null),
+      status: activeTransport && observation?.transport === activeTransport ? observation.status : null,
+      requestPermission: canPrompt => currentController()?.requestPermission(canPrompt) ?? Promise.resolve(null),
+      refresh: () => currentController()?.sync() ?? Promise.resolve(null),
     }}>
       {children}
     </NotificationsContext.Provider>
