@@ -1,4 +1,4 @@
-import type { PublicStudentProfile } from "@/lib/gamification/social-contracts";
+import type { PublicStudentProfile } from "../gamification/social-contracts";
 
 export type DiscussionRole = "student" | "tutor" | "admin";
 export type DiscussionChannelKind = "global" | "course" | "technical" | "academic";

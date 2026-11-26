@@ -13,22 +13,8 @@ import { getJakartaCalendarDate } from "@/lib/date-utils";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 
-export type CalendarEventItem = {
-  id: string;
-  title: string;
-  courseTitle: string;
-  category: "quiz" | "tryout" | "tutorial";
-  categoryLabel: "quiz" | "quizSimulation" | "tryout" | "exam" | "tutorialGroup";
-  dateValue: string;
-  timeKind: "deadline" | "opens" | "time" | "range";
-  scheduledRange?: string;
-  tutorialTopic?: string | null;
-  tutorName?: string | null;
-  actionUrl: string;
-  meetUrl?: string | null;
-  cancelled?: boolean;
-  status: "upcoming" | "today" | "past";
-};
+import type { CalendarEventItem } from "@/lib/student/agenda-contract";
+export type { CalendarEventItem } from "@/lib/student/agenda-contract";
 
 const CALENDAR_FILTERS = {
   all: "calendar.filterAll",
