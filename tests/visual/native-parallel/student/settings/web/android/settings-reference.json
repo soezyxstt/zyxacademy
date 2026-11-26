@@ -1,0 +1,178 @@
+{
+  "platform": "android",
+  "viewport": {
+    "width": 380,
+    "height": 820
+  },
+  "deviceScaleFactor": 1,
+  "locale": "per-state",
+  "theme": "per-state",
+  "timeZone": "Asia/Jakarta",
+  "motion": "reduced",
+  "fonts": "fixture Inter and Lexend",
+  "scope": "Settings language selection control with surrounding frame retained for diagnostic context",
+  "scopeLimit": "Web dropdown and native inline selection share the language choice. Account sessions, device settings and navigation shell are outside this comparison.",
+  "sourceDigests": {
+    ".maestro/native-parallel/student/settings-parity.yaml": "1f12414be549a6b4e8c60c6dc731718ec3706e83871c267b8061cd54eb693d61",
+    "app/(student)/settings/settings-client.tsx": "bc9c61e77aabab3ffcd1cc0aa6adc88f231033621cd985ac5bf5f6c9b25459ed",
+    "apps/mobile-native/features/student/StudentFixtureRoute.tsx": "c163e21fa4dc3e1d9fa694a851891cefee4ead769713bada0bde4ab94c49034f",
+    "apps/mobile-native/features/student/community/settings.tsx": "f20754a7da23e64d4f63a7ceb6cf3c8d6bee8cb621873f78528a7298d4407cda",
+    "apps/mobile-native/features/student/community/ui.tsx": "4a63a9b1a4173a4dd931e2d629b3c60fdd0f065796be28f1ba0cdac12a0d9f99",
+    "packages/design-tokens/native-colors.ts": "6c0c10749bec30e43417c658e0b995f9a4b35b0c44e17e21182b29455fabcbc6",
+    "packages/native-parity/student/community/fixtures.ts": "27a7e52a38ac47fb1960b983d65a3fcfb231673d7f876b9959b168bc6520c305",
+    "packages/native-parity/student/fixture-request.ts": "a854f6bedaa2866884d10bcfbd25637bcd8c9b72a262c0b8a84eb2c30bc805e9",
+    "tests/visual/fixtures/settings-preferences.tsx": "b5d8d143d971edf3b8dfd71ebf81712cc7e7886b9ee473fc612dfd50f974354c",
+    "tests/visual/fixtures/settings-preferences-build.ts": "810af5768d64ca130446fc5e568ac232d20fd90c1a758709ee4fc26b3798edda",
+    "tests/visual/fixtures/fonts/inter-latin.woff2": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62",
+    "tests/visual/fixtures/fonts/lexend-latin.woff2": "52dcdaa127bac4a5ea4c39ee17a3f454ceacc18d9f2a45cc453eeab68d378588",
+    "tests/visual/native-parallel/student/settings-reference.spec.ts": "eb0bbe78a85e4ca4b60026fd8334739d75da86c3577018a16794788c016b2d7c"
+  },
+  "states": {
+    "id-light": {
+      "native": {
+        "scenario": "loaded",
+        "theme": "light",
+        "locale": "id",
+        "path": "/settings"
+      },
+      "nativeMarkers": [
+        {
+          "text": "^Pengaturan$"
+        },
+        {
+          "text": "^Umum$",
+          "selected": true
+        },
+        {
+          "text": "^Bahasa$"
+        },
+        {
+          "text": "^Bahasa Indonesia$",
+          "selected": true
+        },
+        {
+          "text": "^English$",
+          "selected": false
+        }
+      ],
+      "web": {
+        "viewport": {
+          "width": 380,
+          "height": 820
+        },
+        "deviceScaleFactor": 1,
+        "locale": "id",
+        "theme": "light",
+        "mediaTheme": "light",
+        "overflow": false,
+        "path": "/settings",
+        "tab": "Umum",
+        "label": "Bahasa",
+        "displayedOptions": [
+          "Bahasa Indonesia",
+          "English"
+        ],
+        "selected": "Bahasa Indonesia"
+      }
+    },
+    "en-light": {
+      "native": {
+        "scenario": "loaded",
+        "theme": "light",
+        "locale": "en",
+        "path": "/settings"
+      },
+      "nativeMarkers": [
+        {
+          "text": "^Settings$"
+        },
+        {
+          "text": "^General$",
+          "selected": true
+        },
+        {
+          "text": "^Language$"
+        },
+        {
+          "text": "^Bahasa Indonesia$",
+          "selected": false
+        },
+        {
+          "text": "^English$",
+          "selected": true
+        }
+      ],
+      "web": {
+        "viewport": {
+          "width": 380,
+          "height": 820
+        },
+        "deviceScaleFactor": 1,
+        "locale": "en",
+        "theme": "light",
+        "mediaTheme": "light",
+        "overflow": false,
+        "path": "/settings",
+        "tab": "General",
+        "label": "Language",
+        "displayedOptions": [
+          "Bahasa Indonesia",
+          "English"
+        ],
+        "selected": "English"
+      }
+    },
+    "id-dark": {
+      "native": {
+        "scenario": "loaded",
+        "theme": "dark",
+        "locale": "id",
+        "path": "/settings"
+      },
+      "nativeMarkers": [
+        {
+          "text": "^Pengaturan$"
+        },
+        {
+          "text": "^Umum$",
+          "selected": true
+        },
+        {
+          "text": "^Bahasa$"
+        },
+        {
+          "text": "^Bahasa Indonesia$",
+          "selected": true
+        },
+        {
+          "text": "^English$",
+          "selected": false
+        }
+      ],
+      "web": {
+        "viewport": {
+          "width": 380,
+          "height": 820
+        },
+        "deviceScaleFactor": 1,
+        "locale": "id",
+        "theme": "dark",
+        "mediaTheme": "dark",
+        "overflow": false,
+        "path": "/settings",
+        "tab": "Umum",
+        "label": "Bahasa",
+        "displayedOptions": [
+          "Bahasa Indonesia",
+          "English"
+        ],
+        "selected": "Bahasa Indonesia"
+      }
+    }
+  },
+  "captures": {
+    "settings-id-light.png": "a6a117b3a26f8658a2c2d421948691d27a5befe219fc745ca74e331e0290b556",
+    "settings-en-light.png": "8c077c69a11257c3af71c31dd5d0f38eddc5fdb756eecd67a9a46ccfd58347ae",
+    "settings-id-dark.png": "a73e40a062427cadcc02012a62392ffb94d54109fc4bd0b7fe5a08b43fc549b4"
+  }
+}
