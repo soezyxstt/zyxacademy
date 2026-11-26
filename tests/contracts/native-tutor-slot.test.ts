@@ -151,3 +151,42 @@ describe("native Tutor availability against PostgreSQL", () => {
     expect((await write(fields)).status).toBe(200);
   });
 });
+
+test("Tutor replies once to an owned Student ticket and decides it with the web schedule rules", async () => {
+  mock.module("server-only", () => ({}));
+  mock.module("next/cache", () => ({ revalidatePath() {} }));
+  const notifyReply = mock(async () => {});
+  const notifyDecision = mock(async () => {});
+  mock.module("@/lib/schedule/tutor-ticket-notifications", () => ({ notifyTutorTicketReply: notifyReply, notifyTutorTicketDecision: notifyDecision }));
+  const { writeTutorTicket } = await import("@/lib/native/academic/tutor-ticket-service");
+  const { handleTutorTicket } = await import("@/lib/native/academic/handle-tutor-ticket");
+  const { testDb } = database;
+  const { slotId } = await readCreated(await write(fields));
+  const bookingId = "native-tutor-ticket-booking";
+  const ticketId = "native-tutor-ticket";
+  await testDb.insert(schema.bookings).values({ id: bookingId, slotId, studentId: student, courseId: "slot-course",
+    groupId: "slot-group", status: "scheduled", sessionDate: date });
+  await testDb.insert(schema.bookingRescheduleTickets).values({ id: ticketId, bookingId, groupId: "slot-group",
+    requestedById: student, type: "cancellation", reason: "Ujian" });
+  const submit = (body: object, key: string, account = tutor, sessionId = account + "-session") => handleTutorTicket(
+    new Request(origin, { method: "POST", headers: { Origin: origin, "Content-Type": "application/json", "Idempotency-Key": key }, body: JSON.stringify(body) }),
+    ["schedule", "tickets", ticketId], origin, { session: async () => ({ user: { id: account }, session: { id: sessionId } }),
+      hasTutor: async () => true, save: writeTutorTicket });
+  const reply = { action: "reply", message: "Ada jadwal pengganti?" };
+  const replyKey = "native-ticket-message";
+  expect((await submit(reply, replyKey, student)).status).toBe(403);
+  expect((await submit(reply, replyKey, secondTutor)).status).toBe(404);
+  expect((await submit(reply, replyKey)).status).toBe(200);
+  expect((await submit(reply, replyKey)).status).toBe(200);
+  expect((await submit({ ...reply, message: "Pesan lain" }, replyKey)).status).toBe(409);
+  expect((await submit(reply, replyKey, tutor, tutor + "-second-session")).status).toBe(409);
+  expect(await testDb.select().from(schema.bookingTicketMessages).where(eq(schema.bookingTicketMessages.ticketId, ticketId))).toHaveLength(1);
+  expect(notifyReply).toHaveBeenCalledTimes(1);
+  const decision = { action: "decide", decision: "rejected", notes: "Sesi awal tetap berjalan." };
+  expect((await submit(decision, "native-ticket-decision")).status).toBe(200);
+  expect((await submit(decision, "native-ticket-decision")).status).toBe(200);
+  expect((await submit({ ...decision, decision: "approved" }, "native-ticket-another")).status).toBe(409);
+  expect((await testDb.select().from(schema.bookingRescheduleTickets).where(eq(schema.bookingRescheduleTickets.id, ticketId)))[0])
+    .toMatchObject({ status: "rejected", decisionNotes: decision.notes, decidedById: tutor });
+  expect(notifyDecision).toHaveBeenCalledTimes(1);
+});

@@ -24,6 +24,7 @@ import { useProtectedInteraction } from "../../../routing/protected-interaction"
 import type { AcademicScreenProps } from "../contracts";
 import { CourseVideoDialog } from "../../course-video/CourseVideoDialog";
 import { SharedDialog } from "../../shared-ui";
+import { TicketActions } from "./ticket-actions";
 import { TutorLiveHostPanel } from "./live-host";
 import { TutorWeekCalendar, tutorJakartaToday } from "./schedule-calendar";
 import { Choices, Empty, Heading, Label, Row, TutorDetail, TutorPage, tutorLayout } from "./ui";
@@ -45,10 +46,11 @@ function times(start: string | null, end: string | null) {
 type ScheduleTab = "calendar" | "tickets" | "groups";
 const ticketStatuses = { pending: "Menunggu keputusan", approved: "Disetujui", rejected: "Ditolak" };
 
-export function ConnectedSchedule({ data: initial, week, theme, back, replace, query, editor, reload }: Navigation & {
+export function ConnectedSchedule({ data: initial, week, theme, back, replace, query, editor, ticketEditor, reload }: Navigation & {
   week: number;
   data: TutorScheduleData;
   editor?: TutorSlotEditor;
+  ticketEditor?: TutorSupportClient["ticketEditor"];
   reload(signal: AbortSignal): Promise<TutorScheduleData>;
 }) {
   const { canInteract } = useProtectedInteraction();
@@ -218,6 +220,8 @@ export function ConnectedSchedule({ data: initial, week, theme, back, replace, q
         title={ticket.type === "reschedule" ? "Penjadwalan ulang" : "Pembatalan"}
         subtitle={ticket.reason} meta={ticketStatuses[ticket.status]}>
         {ticket.proposedDate ? <Label theme={theme} tone="muted">Usulan {dated(ticket.proposedDate)}</Label> : null}
+        {ticketEditor ? <TicketActions ticket={ticket} editor={ticketEditor} theme={theme} refresh={refreshSchedule}
+          denied={() => loseAccess("Akses tiket berakhir.")} /> : null}
       </Row>)}
       {data.tickets.length === 0 ? <Empty theme={theme} title="Tidak ada tiket penjadwalan ulang atau pembatalan" /> : null}
     </View> : null}

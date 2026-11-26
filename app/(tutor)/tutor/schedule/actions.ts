@@ -58,9 +58,8 @@ import { sendToMany } from "@/lib/notifications/send";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import {
   tutorScheduleMovedPayload,
-  tutorTicketDecisionPayload,
-  tutorTicketMessagePayload,
 } from "@/lib/notifications/templates";
+import { notifyTutorTicketDecision, notifyTutorTicketReply } from "@/lib/schedule/tutor-ticket-notifications";
 import { sendOptionalEmail } from "@/lib/email-preferences/send";
 import { renderScheduleEventEmail } from "@/lib/notifications/email-templates";
 import {
@@ -2840,60 +2839,8 @@ export async function executeDecideTutorRescheduleTicket(
     };
   }
 
-  // 7. AFTER COMMIT: Notifications
   if (!options?.skipNotifications) {
-    try {
-      const memberRows = await client
-        .select({ userId: groupMembers.userId })
-        .from(groupMembers)
-        .where(eq(groupMembers.groupId, ticket.groupId));
-
-      const memberUserIds = memberRows.map((m: { userId: string }) => m.userId);
-      if (memberUserIds.length > 0) {
-        await sendToMany(memberUserIds, tutorTicketDecisionPayload({
-          ticketType: ticket.type,
-          decision,
-          notes: notes || null,
-          courseTitle: (await resolveCourseIdentity(booking.courseId).catch(() => null))?.title,
-        }));
-        if (process.env.RESEND_API_KEY) {
-          await Promise.allSettled(
-            memberUserIds.map((uid: string) =>
-              sendOptionalEmail({
-                userId: uid,
-                category: "events_and_schedules",
-                render: (locale) => {
-                  const isEn = locale === "en";
-                  const typeLabel = ticket.type === "reschedule"
-                    ? "Reschedule"
-                    : isEn ? "Cancellation" : "Pembatalan";
-                  const decisionLabel = decision === "approved"
-                    ? isEn ? "approved" : "disetujui"
-                    : isEn ? "declined" : "ditolak";
-                  return renderScheduleEventEmail({
-                    locale,
-                    recipientName: isEn ? "Student" : "Siswa",
-                    title: isEn
-                      ? `${typeLabel} request ${decisionLabel}`
-                      : `Tiket ${typeLabel} ${decisionLabel}`,
-                    summary: notes || (isEn
-                      ? `Your tutor has ${decisionLabel} the ${typeLabel.toLowerCase()} request.`
-                      : `Pengajar telah memutuskan tiket ${typeLabel.toLowerCase()} (${decisionLabel}).`),
-                    details: [
-                      { label: isEn ? "Request" : "Jenis tiket", value: typeLabel },
-                      { label: isEn ? "Decision" : "Keputusan", value: decisionLabel },
-                    ],
-                    link: "/dashboard/schedule",
-                  });
-                },
-              }),
-            ),
-          );
-        }
-      }
-    } catch (notifErr) {
-      console.error("[TUTOR_SCHEDULE] Ticket decision notification error:", notifErr);
-    }
+    await notifyTutorTicketDecision({ groupId: ticket.groupId, courseId: booking.courseId, type: ticket.type }, decision, notes, client);
   }
 
   try {
@@ -3086,7 +3033,7 @@ export async function executeReplyTutorTicketMessage(
 
   // 3. Persist message and touch the ticket
   try {
-    await db.transaction(async (tx) => {
+    await client.transaction(async (tx) => {
       await tx.insert(bookingTicketMessages).values({
         id: `btm-${randomUUID()}`,
         ticketId: targetTicketId,
@@ -3141,25 +3088,8 @@ export async function executeReplyTutorTicketMessage(
     };
   }
 
-  // 4. AFTER COMMIT: notify group members about the new tutor message
   if (!options?.skipNotifications) {
-    try {
-      const memberRows = await client
-        .select({ userId: groupMembers.userId })
-        .from(groupMembers)
-        .where(eq(groupMembers.groupId, ticket.groupId));
-
-      const memberUserIds = memberRows.map((m: { userId: string }) => m.userId);
-      if (memberUserIds.length > 0) {
-        await sendToMany(memberUserIds, tutorTicketMessagePayload(
-          messageText,
-          "/dashboard/schedule",
-          { courseTitle: (await resolveCourseIdentity(booking.courseId).catch(() => null))?.title, senderName: authContext.name ?? undefined },
-        ));
-      }
-    } catch (notifErr) {
-      console.error("[TUTOR_SCHEDULE] Ticket message notification error:", notifErr);
-    }
+    await notifyTutorTicketReply({ groupId: ticket.groupId, courseId: booking.courseId }, messageText, authContext.name, client);
   }
 
   try {

@@ -1,5 +1,7 @@
 import { resolveAuthBaseUrl } from "@/lib/auth-site-url";
 import { handleTryoutGrade } from "@/lib/native/academic/handle-tryout-grade";
+import { handleTutorTicket } from "@/lib/native/academic/handle-tutor-ticket";
+import { writeTutorTicket } from "@/lib/native/academic/tutor-ticket-service";
 import { handleTutorSlotWrite } from "@/lib/native/academic/handle-tutor-slot";
 import { handleTutorDiscussionAnswer, handleTutorSupport } from "@/lib/native/academic/handle-tutor-support";
 import { tutorSupportServices } from "@/lib/native/academic/tutor-support-services";
@@ -22,6 +24,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ resou
 
 export async function POST(request: Request, context: { params: Promise<{ resource: string[] }> }) {
   const { resource } = await context.params;
+  if (resource[0] === "schedule" && resource[1] === "tickets") return handleTutorTicket(request, resource, new URL(resolveAuthBaseUrl()).origin, {
+    session: tutorSupportServices.session, hasTutor: tutorSupportServices.hasTutor, save: writeTutorTicket,
+  });
   if (resource[0] === "schedule") return writeSlot(request, resource);
   const origin = new URL(resolveAuthBaseUrl()).origin;
   if (resource[0] === "courses" && resource[2] === "grading") {

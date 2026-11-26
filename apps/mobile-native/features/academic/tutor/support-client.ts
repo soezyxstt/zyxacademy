@@ -5,6 +5,7 @@ import { NativeRequestNotDispatched } from "../../../network/transport";
 import type { AcademicTransport } from "../client";
 import { createTutorLiveHost } from "./live-client";
 import { createTryoutGradeEditor } from "./tryout-grade-client";
+import { createTutorTicketEditor } from "./ticket-client";
 import { createTutorSlotEditor } from "./slot-client";
 
 function coursePath(courseId: string, page: string) {
@@ -45,6 +46,7 @@ export function createTutorSupportClient(transport: AcademicTransport): TutorSup
     videoPlayer: { origin: transport.origin, locale: transport.locale, load: loadVideo },
     liveHost: createTutorLiveHost(transport),
     slotEditor: createTutorSlotEditor(transport),
+    ticketEditor: createTutorTicketEditor(transport),
     tryoutGrade: createTryoutGradeEditor(transport),
     schedule: (week, signal) => read("schedule", signal, new URLSearchParams({ week: String(week) })),
     discussions: (courseId, search, cursor, signal) => {

@@ -53,6 +53,7 @@ export const tutorSupportServices = {
   async schedule(userId, week) {
     const { startIso: from, endIso: to } = getCalendarWeekRange(addCalendarDays(getJakartaCalendarDate(), week * 7));
     const schedule = await getTutorScheduleReadModel({ tutorId: userId, allowAdmin: false, fromDate: from, toDate: to }, undefined, listTutorAccessibleCourses);
+    const groupNames = new Map(schedule.eligibleGroups.map(group => [group.id, group.name]));
     const details = new Map((await tutorSlotDetails(userId, schedule.ownedSlots.map((slot) => slot.id))).map((slot) => [slot.id, slot]));
     return {
       from, to,
@@ -65,7 +66,10 @@ export const tutorSupportServices = {
       sessions: schedule.ownedBookings.map(({ id, sessionDate, startTime, endTime, course, group, topic, status }) => ({
         id, date: sessionDate, start: startTime, end: endTime, courseTitle: course?.title ?? null, groupName: group?.name ?? null, topic, status,
       })),
-      tickets: schedule.ownedTickets.map(({ id, type, status, reason, proposedDate }) => ({ id, type, status, reason, proposedDate })),
+      tickets: schedule.ownedTickets.map(({ id, type, status, reason, proposedDate, decisionNotes, groupId, messages }) => ({
+        id, type, status, reason, proposedDate, decisionNotes, groupName: groupNames.get(groupId) ?? null,
+        messages: messages.map(({ id, senderName, message }) => ({ id, sender: senderName, message })),
+      })),
       groups: schedule.eligibleGroups.map(({ id, name, packageName, usedQuotaSessions, totalQuotaSessions, membersCount }) => ({
         id, name, packageName, used: usedQuotaSessions, total: totalQuotaSessions, members: membersCount,
       })),

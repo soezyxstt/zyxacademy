@@ -1,3 +1,4 @@
+import type { TutorTicketEditor } from "./tutor-ticket";
 import type { TryoutGradeEditor } from "./tryout-grade";
 import type { TutorSlotEditor } from "./tutor-slot";
 
@@ -17,7 +18,8 @@ export type TutorScheduleData = {
     revision?: string;
   }[];
   sessions: { id: string; date: string | null; start: string | null; end: string | null; courseTitle: string | null; groupName: string | null; topic: string | null; status: string }[];
-  tickets: { id: string; type: "reschedule" | "cancellation"; status: "approved" | "rejected" | "pending"; reason: string; proposedDate: string | null }[];
+  tickets: { id: string; type: "reschedule" | "cancellation"; status: "approved" | "rejected" | "pending"; reason: string; proposedDate: string | null; groupName?: string | null; decisionNotes?: string | null;
+    messages?: { id: string; sender: string | null; message: string }[] }[];
   groups: { id: string; name: string; packageName: string; used: number; total: number; members: number }[];
 };
 
@@ -96,6 +98,7 @@ export type TutorSupportReads = {
 export type TutorSupportClient = TutorSupportReads & {
   liveHost?: TutorLiveHost;
   slotEditor?: TutorSlotEditor;
+  ticketEditor?: TutorTicketEditor;
   tryoutGrade?: TryoutGradeEditor;
   videoPlayer?: {
     origin: string;
