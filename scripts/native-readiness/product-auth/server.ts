@@ -93,6 +93,9 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
   process.env.NEXT_PUBLIC_APP_URL = EXPO_STAGING_ORIGIN;
 
   const tutorLive = staff === "tutor" ? createTutorLiveFixture() : null;
+  const petModel = "/gamification/mascots/v10.1/models/base-full.glb";
+  const petPoster = "/gamification/mascots/v10.1/posters/cat.webp";
+  let petRead = false, petModelLoaded = false;
 
   // Route handlers still call the actual Better Auth, role and DB implementations.
   // The CI process uses a short nonrenewable session policy on the real Better Auth instance.
@@ -327,6 +330,19 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
       if (product && route === "GET /api/notifications/history") {
         return requestContext.run(upstream, () => product[1].GET(upstream));
       }
+      if (product && request.method === "GET" && (url.pathname === petModel || url.pathname === petPoster)) {
+        if (request.headers.has("cookie") || request.headers.has("authorization")) return result(403);
+        const file = Bun.file("public" + url.pathname);
+        if (!await file.exists()) return result(404);
+        if (url.pathname === petModel) petModelLoaded = true;
+        return new Response(file, { headers: { "Content-Type": url.pathname === petModel ? "model/gltf-binary" : "image/webp",
+          "Access-Control-Allow-Origin": fixtureOrigin } });
+      }
+      if (product && route === "GET /api/native/student/community/pet") {
+        const response = await requestContext.run(upstream, () => product[3].GET(upstream, { params: Promise.resolve({ operation: "pet" }) }));
+        petRead ||= response.ok;
+        return response;
+      }
       if (product && route === "GET /api/native/student/community/notifications") {
         return requestContext.run(upstream, () => product[3].GET(upstream, { params: Promise.resolve({ operation: "notifications" }) }));
       }
@@ -394,6 +410,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
       if (sawStartRequest) return "native start request without response";
       return "no auth request";
     },
+    verifiedPetScene: () => petRead && petModelLoaded,
     async verifiedAndRevoked() {
       if (!verifiedContext || !signedOut || !browserIdentity) return false;
       if (staff && (!verifiedStaffRead || !deniedOppositeRole || unauthorizedRead)) return false;

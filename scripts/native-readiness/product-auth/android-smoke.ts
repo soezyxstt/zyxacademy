@@ -67,6 +67,8 @@ async function runFlow(name: string, inputs: string[] = [], label = name) {
       ["PREVIEW_RECORD", "protected staff read"],
       ["Kuis Live Preview", "Tutor live quiz"],
       ["native-reading-screen", "Student native reading"],
+      ["pet-scene-rendered", "Pet Studio first rendered 3D frame"], ["Latihan berhitung", "Pet practice"],
+      ["Benar 1", "Pet practice score"],
       ["artikel kanonis", "canonical Article body"],
       ["diktat PKA", "canonical PKA Diktat body"],
       ["student-pdf-thumbnail", "Student PDF local thumbnail"],
@@ -234,6 +236,10 @@ try {
     await runFlow("student-reading-denied");
     if (!fixture.verifiedOnlineReading()) throw new Error();
     console.log("Android displayed the current Article and PKA Diktat, received the admitted image and denied the withdrawn reading");
+    step = "load the equipped Pet Studio model, rotate it and solve a practice question";
+    await runFlow("student-pet");
+    if (!fixture.verifiedPetScene()) throw new Error("The signed pet read and credential-free model load were not both observed");
+    console.log("Android rendered the equipped Student mascot and completed one mental-math round");
     step = "sign out from the Student account menu";
     await runFlow("student-sign-out");
     step = "verify the dashboard, recipient-scoped inbox update and revoked session";

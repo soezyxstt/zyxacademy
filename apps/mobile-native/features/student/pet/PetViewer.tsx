@@ -42,7 +42,7 @@ export function PetViewer({ pet, suit, action, pose, replay = 0, posterOnly = fa
   const artwork = glb?.poster ?? avatar.src;
   return <View style={{ alignItems: "center" }}>
     <View style={{ width: 240, maxWidth: "100%", height: 240 }}>
-      {source && status !== "unavailable" && <WebView<WebViewProps> key={attempt} testID="pet-scene" ref={web} source={source}
+      {source && status !== "unavailable" && <WebView<WebViewProps> key={attempt} testID={status === "ready" ? "pet-scene-rendered" : "pet-scene-loading"} ref={web} source={source}
         style={{ flex: 1, backgroundColor: "transparent" }} scrollEnabled={false} incognito sharedCookiesEnabled={false}
         thirdPartyCookiesEnabled={false} allowFileAccess={false} allowFileAccessFromFileURLs={false}
         allowUniversalAccessFromFileURLs={false} originWhitelist={["*"]} setSupportMultipleWindows={false}
