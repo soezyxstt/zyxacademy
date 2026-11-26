@@ -10,6 +10,14 @@ Gunakan build galeri dari commit yang diperiksa, Python 3.10+ dengan Pillow, Mae
 
 Artefak menyertakan `checkout-sha.txt`, `test-build.patch`, laporan interaksi JUnit, dan `ci-summary.json` per grup. Baca `compare/results.json` untuk status per kasus. Bandingkan PNG web dan native bersama diff. Diff viewport mencakup kontrol fixture di sekeliling komponen, seperti filter peran dan status di referensi pagination Admin. Perubahan bentuk atau status tombol pagination tetap terlihat di area komponen itu sendiri. [Rincian pemeriksaan hosted](../../../../../packages/native-parity/shared-ui/REPORT.md#hasil-github-actions-pada-emulator-dan-simulator)
 
+## Gerbang relatif Android
+
+Dispatch `Shared UI device evidence` pada branch induk menjalankan Android terlebih dahulu. Pilih `include_ios` untuk menambah pembanding historis iOS. Android memakai 36 kasus, masing-masing tiga untuk shell, header, daftar, navbar, navigasi bawah, tab, dialog, sheet, popover, grid, tabel dan kalender. Grid dan tabel lebar memakai viewport tablet. Kasus daftar lebar tambahan serta kontrol dan pagination tetap tersedia sebagai diagnostik dan pemeriksaan interaksi.
+
+Build internal memakai kedua flag capture dan WebView. ADB meneruskan loopback perangkat ke server Next.js pada runner. Marker WebView menunggu kasus dan SHA yang cocok, viewport DPR 1, locale Indonesia, zona Asia/Jakarta, font, dan state fixture. Setiap perbandingan memakai frame Expo dan Next WebView pada emulator yang sama. Crop hanya mengeluarkan inset sistem, sehingga backdrop, panel, navigasi dan konten yang hilang tetap terlihat pada diff. Dua tangkapan berturut-turut harus cocok untuk setiap crop. [Gerbang relatif](../../../../../docs/native-readiness.md#gerbang-visual-relatif-android-webview).
+
+Laporan `relative/results.json` menyimpan SSIM frame dan konten, batas konten, warna, kontras, jumlah piksel berbeda, dimensi dan hash frame. Ringkasan memerlukan tiga kasus sah untuk setiap komponen dan satu identitas emulator. `compare/results.json` menyimpan pembanding Chromium yang terpisah. Laporan Maestro dan audit teks besar tetap menjadi bukti perilaku dan aksesibilitas tersendiri.
+
 ## Cocokkan geometri dengan referensi
 
 `capture.ts` menulis referensi Playwright ke `tests/visual/native-parallel/shared-ui/references/dpr<DPR>/`. Setiap `results.json` berisi ID kasus, komponen, tema, lebar dan tinggi CSS, DPR, status capture, error, dan ID kesiapan. Jalankan satu kali per ukuran viewport di manifest dan per platform. Opsi `--viewport WIDTHxHEIGHT` memilih semua kasus pada ukuran tersebut. Gunakan `--case ID` untuk mengulang kasus tunggal. Ukuran yang dicatat pada kasus adalah area konten setelah safe area.

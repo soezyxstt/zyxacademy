@@ -5,11 +5,18 @@ on:
     branches: [soezyxst/react-native-monorepo]
     paths:
       - 'apps/mobile-native/features/shared-ui/**'
+      - 'apps/mobile-native/app/internal/shared-ui-reference/**'
       - 'packages/native-parity/shared-ui/**'
       - 'tests/visual/native-parallel/shared-ui/**'
       - '.maestro/native-parallel/shared-ui/**'
       - '.github/workflows/shared-ui-device-evidence.yml'
+      - 'scripts/native-parity/relative_*.py'
   workflow_dispatch:
+    inputs:
+      include_ios:
+        description: Also capture historical iOS exact-pixel diagnostics
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -28,6 +35,7 @@ jobs:
       NEXT_TELEMETRY_DISABLED: '1'
       EXPO_NO_TELEMETRY: '1'
       EXPO_PUBLIC_PARITY_CAPTURE_NAVIGATION: '1'
+      EXPO_PUBLIC_PARITY_WEBVIEW: '1'
       MAESTRO_CLI_NO_ANALYTICS: 'true'
       MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: 'true'
       SHARED_BUILD: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -62,7 +70,8 @@ jobs:
           test "$(git rev-parse HEAD)" = "$SHARED_BUILD"
           bun install --frozen-lockfile
           npm ci --prefix apps/mobile-native
-          python -m pip install Pillow==12.2.0
+          python -m pip install Pillow==12.2.0 numpy==2.3.5
+          python -m unittest discover -s tests/visual/native-parallel/shared-ui/device -p 'test_*.py'
           node_modules/.bin/playwright install --with-deps chromium
       - &maestro
         name: Install verified Maestro CLI
@@ -99,6 +108,9 @@ jobs:
           target: google_apis
           disable-animations: true
           script: bash tests/visual/native-parallel/shared-ui/device/ci-android.sh
+      - name: Summarize the three Android WebView cases per Shared UI component
+        if: always()
+        run: python3 tests/visual/native-parallel/shared-ui/device/relative-summary.py artifacts/native-parity/shared-ui/android "$SHARED_BUILD" | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Archive evidence and diagnostic logs
         id: evidence-artifact
         if: always()
@@ -152,7 +164,7 @@ jobs:
           PY
 
   ios-build:
-    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'native-migration/shared-ui'
+    if: (github.event_name == 'workflow_dispatch' && inputs.include_ios) || github.head_ref == 'native-migration/shared-ui'
     name: Shared UI (iOS build)
     runs-on: macos-26
     timeout-minutes: 120

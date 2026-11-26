@@ -150,8 +150,7 @@ export function DataReferences({ id }: { id: string }) {
       decliningConcepts: row.concepts.split(", "),
       activeInterventionCount: 0,
       lastActiveAt: new Date(
-        Date.UTC(2026, 2, 2, 5) -
-          (row.id === "sinta" ? 1 : row.id === "maya" ? 7 : 0) * 86400000,
+        Date.now() - (row.id === "sinta" ? 1.5 : row.id === "maya" ? 7.5 : 0.5) * 86400000,
       ).toISOString(),
     }));
     return <WatchlistTable students={students} />;

@@ -11,6 +11,7 @@ import platform
 import plistlib
 import re
 import subprocess
+import time
 from tempfile import TemporaryDirectory
 
 from PIL import Image, ImageChops, ImageCms, ImageOps
@@ -314,6 +315,23 @@ def device_screenshot(platform, device, path):
             )
 
 
+def stable_crop(platform, device, first_path, dimensions, insets):
+    previous, _ = crop_viewport(load_png(first_path), dimensions, insets)
+    sample = first_path.with_suffix(".sample.png")
+    try:
+        for _ in range(8):
+            time.sleep(0.4)
+            device_screenshot(platform, device, sample)
+            current, _ = crop_viewport(load_png(sample), dimensions, insets)
+            if ImageChops.difference(previous, current).getbbox() is None:
+                sample.replace(first_path)
+                return
+            previous = current
+    finally:
+        sample.unlink(missing_ok=True)
+    raise ValueError("No two consecutive captures agreed inside the safe area")
+
+
 def command_text(output):
     return (output or b"").decode("utf-8", errors="replace").strip()
 
@@ -364,7 +382,13 @@ def capture_frame(args, case_id, flow, path):
 def capture_case(case, args, device, scratch):
     case_id = case["id"]
     dimensions = pixel_size(case, args.scale)
-    _, reference_digest = validate_reference(case, args)
+    relative = case_id in getattr(args, "relative_case", [])
+    try:
+        _, reference_digest = validate_reference(case, args)
+    except (OSError, ValueError, ImageCms.PyCMSError):
+        if not relative:
+            raise
+        reference_digest = None
     ready_id = case.get("readyId", f"shared-ui-case-{case_id}")
     marker = geometry_id(dimensions, args.scale, args.insets)
     target = args.raw_dir / f"{case_id}.png"
@@ -374,6 +398,12 @@ def capture_case(case, args, device, scratch):
     flow.write_text(maestro_case_flow(case_id, ready_id, marker), encoding="utf-8")
     path = scratch / f"{case_id}.png"
     capture_frame(args, case_id, flow, path)
+    if relative:
+        try:
+            stable_crop(args.platform, args.device, path, dimensions, args.insets)
+        except (OSError, ValueError, subprocess.SubprocessError, ImageCms.PyCMSError):
+            path.replace(args.raw_dir / f"{case_id}-unstable.png")
+            raise
     frame = load_png(path)
     path.replace(target)
     crop_viewport(frame, dimensions, args.insets)
@@ -386,7 +416,8 @@ def capture_case(case, args, device, scratch):
         "method": "maestro-ready-and-geometry",
         "readyId": ready_id,
         "geometryId": marker,
-        "referenceSha256": reference_digest,
+        **({"referenceSha256": reference_digest} if reference_digest else {}),
+        **({"stableCrop": True} if relative else {}),
         "rawSha256": sha256(target),
         "dpr": scale_label(args.scale),
         "nativeViewport": dimensions,
@@ -425,6 +456,7 @@ def read_args():
     capture.add_argument("--insets", required=True, **inset_flags)
     capture.add_argument("--device", required=True, help="Explicit adb serial or booted simulator UDID")
     capture.add_argument("--build", required=True, help="Commit or artifact identifier of the installed build")
+    capture.add_argument("--relative-case", action="append", default=[], help="Require a stable Expo capture independent of Chromium for this case")
     capture.add_argument(
         "--ios-executable-sha256", default=os.environ.get("SHARED_IOS_EXECUTABLE_SHA256"),
         help="Expected SHA-256 of the iOS build executable (defaults to SHARED_IOS_EXECUTABLE_SHA256)",
@@ -440,6 +472,8 @@ def read_args():
     if args.command == "capture" and args.ios_executable_sha256 is not None:
         if args.platform != "ios" or not re.fullmatch(r"[a-fA-F0-9]{64}", args.ios_executable_sha256):
             parser.error("--ios-executable-sha256 requires iOS capture and a 64-character hexadecimal digest")
+    if args.command == "capture" and args.relative_case and (args.platform != "android" or args.scale != 1):
+        parser.error("Relative device evidence requires Android at DPR 1")
     return args
 
 

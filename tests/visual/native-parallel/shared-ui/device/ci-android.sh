@@ -143,6 +143,9 @@ cd "$root"
 adb_device=(adb -s "$SHARED_DEVICE")
 "${adb_device[@]}" shell wm user-rotation lock 0
 "${adb_device[@]}" shell settings put system font_scale 1
+"${adb_device[@]}" shell settings put global auto_time_zone 0
+"${adb_device[@]}" shell cmd alarm set-timezone Asia/Jakarta
+"${adb_device[@]}" shell cmd uimode night no
 "${adb_device[@]}" shell input keyevent KEYCODE_WAKEUP
 "${adb_device[@]}" shell wm dismiss-keyguard
 "${adb_device[@]}" shell settings put global window_animation_scale 0
@@ -150,19 +153,21 @@ adb_device=(adb -s "$SHARED_DEVICE")
 "${adb_device[@]}" shell settings put global animator_duration_scale 0
 "${adb_device[@]}" install -r "$apk"
 "${adb_device[@]}" shell cmd locale set-app-locales "$app_id" --user 0 --locales id-ID
+"${adb_device[@]}" reverse tcp:3211 tcp:3217
+trap '"${adb_device[@]}" reverse --remove tcp:3211 >/dev/null 2>&1 || true' EXIT
 
 flows="$root/.maestro/native-parallel/shared-ui"
 status=0
 for group in phone tablet wide; do
   case "$group" in
     phone)
-      physical_size=760x1600
-      density=320
+      physical_size=380x800
+      density=160
       group_flows=("$flows"/*.yaml)
       ;;
     tablet)
-      physical_size=1536x1680
-      density=320
+      physical_size=768x840
+      density=160
       group_flows=("$flows"/data-wide/*.yaml)
       ;;
     wide)

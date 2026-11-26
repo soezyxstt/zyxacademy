@@ -28,6 +28,7 @@ export default async function ReferencePage({
   return (
     <div
       data-reference={id}
+      data-shared-build={process.env.SHARED_BUILD}
       className="min-h-dvh bg-background text-foreground"
     >
       {inPage ? <ApplicationPage>{content}</ApplicationPage> : content}

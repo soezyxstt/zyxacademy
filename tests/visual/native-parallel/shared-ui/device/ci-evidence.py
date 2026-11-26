@@ -10,6 +10,7 @@ import sys
 import tempfile
 
 from evidence import command_text, device_screenshot, maestro_case_flow, transient_android_failure, wait_for_android_device
+from relative_catalog import expected_relative_cases
 
 ROOT = Path(__file__).resolve().parents[5]
 DEVICE_DIR = Path(__file__).resolve().parent
@@ -150,6 +151,7 @@ def main():
     status = 1
     try:
         expected = shard_cases(expected_cases(group), shard_index, shard_count)
+        primary = [item["id"] for item in expected_relative_cases() if item["id"] in expected] if platform == "android" else []
         summary["expectedCases"] = len(expected)
         summary["expectedCaseIds"] = expected
         (output / "expected-cases.json").write_text(json.dumps(expected, indent=2) + "\n", encoding="utf-8")
@@ -194,7 +196,11 @@ def main():
         report = output / "compare"
         common = ["--platform", platform, "--scale", scale, "--reference-dir", str(reference), "--raw-dir", str(raw)]
         evidence = ["python3", str(DEVICE_DIR / "evidence.py")]
-        summary["nativeExit"] = command("native-capture", [*evidence, "capture", *common, "--device", device, "--build", build, "--insets", *map(str, geometry["insets"])], output)
+        relative_args = [value for case in primary for value in ("--relative-case", case)]
+        summary["nativeExit"] = command("native-capture", [
+            *evidence, "capture", *common, "--device", device, "--build", build, "--insets", *map(str, geometry["insets"]),
+            *relative_args,
+        ], output)
         # Compare even after capture failure; preserve valid crops and diffs.
         summary["compareExit"] = command("compare", [*evidence, "compare", *common, "--build", build, "--out-dir", str(report)], output)
         results = report / "results.json"
@@ -207,7 +213,18 @@ def main():
                 summary["errors"].append("comparison report is incomplete")
         else:
             summary["errors"].append("comparison report is missing")
-        status = int(bool(web_result or summary["nativeExit"] or summary["compareExit"] or summary["errors"]))
+        if primary:
+            selection = output / "relative-cases.json"
+            selection.write_text(json.dumps(primary) + "\n", encoding="utf-8")
+            relative = output / "relative"
+            summary["relativeExit"] = command("relative", [
+                "python3", str(DEVICE_DIR / "relative-evidence.py"),
+                "--manifest", str(manifest), "--cases", str(selection), "--raw", str(raw), "--output", str(relative),
+                "--device", device, "--build", build, "--insets", *map(str, geometry["insets"]),
+            ], output)
+            summary["relativeCases"] = primary
+        status = (int(bool(summary.get("relativeExit") or summary["errors"])) if platform == "android"
+                  else int(bool(web_result or summary["nativeExit"] or summary["compareExit"] or summary["errors"])))
     except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError) as error:
         summary["errors"].append(str(error))
         print(f"CI evidence error: {error}", file=sys.stderr, flush=True)
