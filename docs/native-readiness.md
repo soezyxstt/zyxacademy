@@ -65,6 +65,8 @@ python3 scripts/native-parity/verify-android-webview-review.py \
   /tmp/zyx-review-45877794715/android-measurements
 ```
 
+Pada `81b9cd096`, review independen meluluskan seluruh 51 pasangan Expo dan Android WebView yang stabil, termasuk ketiga keadaan kotak masuk setelah perbaikan ikon dan waktu relatif. Sebanyak 17 dari 18 komponen memiliki tiga kasus yang lulus review. Ketiga kasus Textarea belum memiliki pasangan stabil. Gerbang otomatis meluluskan 18 dari 54 target dan lima komponen. Maestro meluluskan 17 alur interaksi. [Review per SHA dan provenance](../packages/native-parity/evidence/android-webview-review-45882580656.md)
+
 ## Review integrasi 26 November 2026
 
 Reviewer independen GPT-6.2 Sol High memeriksa revisi induk `be5e5e13`. Empat branch dapat digabung di checkout CI sementara. Generator memasang 153 entry kanonik dari inventaris eksternal: 50 halaman Student, 54 Academic, 36 Admin Operations dan 13 publik. Tipe Expo gabungan gagal pada implementasi formulir publik dan dua atribut pada baris daftar bersama. Angka 153 mengukur pemasangan rute di checkout tersebut. Gerbang halaman tetap membutuhkan navigasi, otorisasi dan data yang teruji melalui entry produk di perangkat. [Uji gabungan](https://github.com/soezyxstt/zyxacademy/actions/runs/45808986956).
