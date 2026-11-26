@@ -52,7 +52,7 @@ export type CourseSectionPayload =
       questions: QuizInsightItem[]; attempts: { id: string; name: string | null; status: string; score: number | null;
         durationSeconds: number | null; startedAt: string; submittedAt: string | null }[]; latestInsight: { summary: string | null; sampleSize: number } | null }
   | { type: "documents"; chapters: CourseChapterLabel[]; documents: CourseDocumentRow[] }
-  | { type: "document"; document: CourseDocumentRow; chapters: CourseChapterLabel[]; titleEdit?: AdminMaterialTitleEdit | null }
+  | { type: "document"; document: CourseDocumentRow; chapters: CourseChapterLabel[]; titleEdit?: AdminMaterialTitleEdit | null; pdfPreview?: boolean }
   | { type: "review"; bundles: CourseReviewRow[] }
   | { type: "leaderboard"; attempts: CourseLeaderboardAttempt[] }
   | { type: "videos"; playlists: { id: string; title: string; description: string | null; revision?: string | null; videos:

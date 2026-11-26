@@ -454,3 +454,34 @@ test("PDF views reject stale sessions, expired grants and unexpected file parts"
   expect(fixture.files.size).toBe(0);
   expect(await fixture.controller.prepareMaterialPdf(input)).toEqual({ status: "stale" });
 });
+
+test("Admin PDF staging and metadata renewal use the fixed Admin route and never use Student credentials", async () => {
+  const clock = fileClock();
+  const revision = "3".repeat(64);
+  const phases: Array<[string, string | undefined]> = [];
+  const fixture = setup({}, async (url, init) => {
+    expect(url).toBe(origin + "/api/native/academic/material-pdf?courseId=course&materialId=manual");
+    const headers = new Headers(init.headers);
+    expect(headers.get("x-native-account")).toBe("account");
+    expect(headers.get("x-native-session")).toBe("session");
+    expect(headers.get("x-student-id")).toBeNull();
+    return new Response(init.method === "HEAD" ? null : stream(fixturePdf), { headers: {
+      "Content-Type": "application/pdf", "x-zyx-pdf-revision": revision,
+      "x-zyx-pdf-view-until": String(clock.now() + 100_000),
+    } });
+  }, clock);
+  const admin = fixture.transport.setSession({ ...fixture.identity, canStartRequest: (method, role) => {
+    phases.push([method, role]);
+    return role === "admin";
+  } });
+  const screen = new AbortController();
+  const input = { audience: "admin" as const, session: admin, target: { courseId: "course", materialId: "manual" },
+    signal: screen.signal, sessionExpiresAt: clock.now() + 50_000, isTargetCurrent: () => true };
+  expect(await fixture.controller.prepareMaterialPdf(input)).toMatchObject({ status: "ready" });
+  expect(await fixture.controller.renewMaterialPdf(input, revision)).toMatchObject({ status: "ready" });
+  expect(phases).toEqual([["GET", "admin"], ["HEAD", "admin"]]);
+  expect(fixture.files.size).toBe(1);
+  expect(fixture.shares).toEqual([]);
+  screen.abort();
+  expect(fixture.files.size).toBe(0);
+});

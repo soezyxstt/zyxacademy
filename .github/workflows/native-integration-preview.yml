@@ -225,6 +225,7 @@ jobs:
         run: |
           bun test tests/unit/expo-native-files.test.ts tests/unit/expo-material-pdf.test.ts
           bun test tests/contracts/native-student-material-pdf.test.ts
+          bun scripts/test-contracts.ts tests/contracts/native-admin-material-pdf.test.ts tests/contracts/native-admin-course-pdf-source.test.ts
       - name: Student learning and live-session operations
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: |

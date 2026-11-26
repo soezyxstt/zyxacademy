@@ -1,5 +1,6 @@
 import type { NativeSessionScope, NativeSessionTransport } from "../network/transport";
 import { MATERIAL_PDF_HEADERS, MATERIAL_PDF_MAX_BYTES, materialPdfPath, type MaterialPdfTarget } from "../../../packages/native-parity/student/courses/pdf";
+import { adminMaterialPdfPath, ADMIN_PDF_ACCOUNT, ADMIN_PDF_SESSION } from "../../../packages/native-parity/academic/courses/pdf";
 import { courseVideoSource } from "../../../packages/course-video/source";
 import type { PhotoDraftTarget } from "./photo-controller";
 
@@ -44,6 +45,7 @@ export type ShareFileResult = { status: "finished" } | FileRejection;
 export type PdfGrant = { revision: string; expiresAt: number };
 export type PreparedMaterialPdf = PdfGrant & { uri: string; release(): void };
 export type MaterialPdfRequest = {
+  audience?: "admin";
   session: NativeSessionTransport;
   target: MaterialPdfTarget;
   signal: AbortSignal;
@@ -507,9 +509,20 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
       ? { revision, expiresAt } : null;
   }
 
+  function materialPdfDownload(request: MaterialPdfRequest): {
+    path: string | null; requiredRole: "admin" | "murid"; headers: Record<string, string>;
+  } {
+    if (request.audience === "admin") return {
+      path: adminMaterialPdfPath(request.target), requiredRole: "admin",
+      headers: { [ADMIN_PDF_ACCOUNT]: request.session.scope.accountId, [ADMIN_PDF_SESSION]: request.session.scope.sessionId },
+    };
+    return { path: materialPdfPath(request.target), requiredRole: "murid",
+      headers: { "x-student-id": request.session.scope.accountId } };
+  }
+
   async function prepareMaterialPdf(request: MaterialPdfRequest): Promise<MaterialPdfResult> {
     if (!device.available) return { status: "unavailable" };
-    const path = materialPdfPath(request.target);
+    const { path, requiredRole, headers } = materialPdfDownload(request);
     if (!path) return { status: "error", issue: "invalid-target" };
     const current = () => rejectCurrent(request, request.isTargetCurrent);
     const before = current();
@@ -519,8 +532,8 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
     let ready = false;
     try {
       initialize();
-      response = await request.session.request(path, { signal: request.signal, requiredRole: "murid",
-        headers: { Accept: "application/pdf", "x-student-id": request.session.scope.accountId } });
+      response = await request.session.request(path, { signal: request.signal, requiredRole,
+        headers: { ...headers, Accept: "application/pdf" } });
       const issue = pdfResponseIssue(response);
       if (issue) return issue;
       if (!response.body || normalizeMimeType(response.headers.get("Content-Type")) !== "application/pdf") return { status: "error", issue: "type" };
@@ -548,15 +561,15 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
   }
 
   async function renewMaterialPdf(request: MaterialPdfRequest, revision: string): Promise<MaterialPdfRenewal> {
-    const path = materialPdfPath(request.target);
+    const { path, requiredRole, headers } = materialPdfDownload(request);
     if (!path || !/^[a-f0-9]{64}$/.test(revision)) return { status: "error", issue: "invalid-target" };
     const current = () => rejectCurrent(request, request.isTargetCurrent);
     const before = current();
     if (before) return before;
     let response: Awaited<ReturnType<NativeSessionTransport["request"]>> | undefined;
     try {
-      response = await request.session.request(path, { method: "HEAD", signal: request.signal, requiredRole: "murid",
-        headers: { "If-Match": `"${revision}"`, "x-student-id": request.session.scope.accountId } });
+      response = await request.session.request(path, { method: "HEAD", signal: request.signal, requiredRole,
+        headers: { ...headers, "If-Match": `"${revision}"` } });
       const issue = current() ?? pdfResponseIssue(response);
       if (issue) return issue;
       const grant = pdfGrant(response, request.sessionExpiresAt);

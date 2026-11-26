@@ -3,6 +3,13 @@ import { readFileSync, readdirSync } from "node:fs";
 import { ADMIN_MCP_SCOPES } from "@/lib/admin-mcp/registry";
 import { operationsCatalog } from "@/lib/admin-mcp/operations-catalog";
 
+test("Admin PDF viewing uses the interactive Admin session and grants no MCP scope", () => {
+  const entry = operationsCatalog.find(item => item.source === "app/api/native/academic/material-pdf/route.ts");
+  expect(entry?.status).toBe("excluded");
+  expect(entry?.actions).toEqual(["GET", "HEAD"]);
+  expect(entry?.tools).toEqual([]);
+});
+
 test("live coding question and grade operations stay in the verified learner experience", () => {
   for (const source of ["app/api/coding/problems/[problemId]/route.ts", "app/api/coding/submissions/route.ts"]) {
     const entry = operationsCatalog.find(item => item.source === source);

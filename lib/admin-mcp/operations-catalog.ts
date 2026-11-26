@@ -85,6 +85,13 @@ export const operationsCatalog = [
     "reason": "Joining a live room requires an interactive Student session, an active course enrollment and a valid room code. The short-lived token is specific to the learner and room. Tutor hosting remains independently authorized."
   },
   {
+    "source": "app/api/native/academic/material-pdf/route.ts",
+    "actions": ["GET", "HEAD"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Admin document PDF preview and lease renewal require the live Admin account, session and current course document binding. Native display has no storage URL handoff, share or download capability and does not enable an MCP tool or scope."
+  },
+  {
     "source": "app/api/native/student/material-pdf/route.ts",
     "actions": ["GET", "HEAD"],
     "tools": [],

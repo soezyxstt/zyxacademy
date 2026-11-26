@@ -17,6 +17,7 @@ import { isAdminCourseLiveSection, type AdminCourseSectionResult, type CourseDoc
 
 import { flashcardRevision, flashcardSetRevision } from "@/lib/academic/flashcard-admin-revisions";
 import { videoEntryRevision, videoPlaylistRevision } from "@/lib/video/catalog-revisions";
+import { findAdminCoursePdf } from "./course-pdf";
 import { readCoursePdfTitleEdit } from "./course-material-service";
 import { readCourseSettingsEditView } from "./course-settings-service";
 
@@ -156,8 +157,11 @@ export async function readAdminCourseSection(slug: string, section: string, item
       const matches = materials.filter((material) => material.id === itemId);
       if (matches.length !== 1) return null;
       const material = matches[0];
-      const titleEdit = material.source === "legacy-pdf" ? await readCoursePdfTitleEdit(identity, itemId, data.chapters) : null;
-      return { type: "document", course, chapters, document: documentRow(material), titleEdit };
+      const [titleEdit, pdf] = await Promise.all([
+        material.source === "legacy-pdf" ? readCoursePdfTitleEdit(identity, itemId, data.chapters) : null,
+        material.kind === "pdf" || material.source === "canonical-diktat" ? findAdminCoursePdf(identity, itemId) : null,
+      ]);
+      return { type: "document", course, chapters, document: documentRow(material), titleEdit, pdfPreview: Boolean(pdf) };
     }
     return { type: "documents", course, chapters, documents: materials.map(documentRow) };
   }
