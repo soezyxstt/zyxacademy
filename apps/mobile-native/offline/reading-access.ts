@@ -1,3 +1,4 @@
+import { observedConnectivity } from "../device/connectivity";
 import type { SessionIdentity } from "../auth/session-api";
 import type { NativeSessionScope } from "../network/transport";
 import type { NativeOfflineLocale, NativeOfflineScope } from "./sync-contract";
@@ -24,6 +25,5 @@ export function readingAccess({
 }
 
 export function deviceIsOffline(network: { type?: string; isConnected?: boolean; isInternetReachable?: boolean }) {
-  return Boolean(network.type && network.type !== "UNKNOWN"
-    && (network.isConnected === false || network.isInternetReachable === false));
+  return observedConnectivity(network) === false;
 }

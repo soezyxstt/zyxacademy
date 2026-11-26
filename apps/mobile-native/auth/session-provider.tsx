@@ -1,8 +1,10 @@
 import * as SecureStore from "expo-secure-store";
+import { addNetworkStateListener, getNetworkStateAsync } from "expo-network";
 import { fetch } from "expo/fetch";
 import { createContext, useContext, useEffect, useSyncExternalStore, type ReactNode } from "react";
 import { AppState, Platform } from "react-native";
 
+import { createNativeConnectivity, initialConnectivity } from "../device/connectivity";
 import { createExpoNativeTransport } from "../network/expo-transport";
 import { createNativeSessionApi, NATIVE_STAGING_ORIGIN } from "./session-api";
 import { createNativeSessionController } from "./session-controller";
@@ -20,6 +22,13 @@ const session = createNativeSessionController({
   },
 });
 
+export const nativeConnectivity = createNativeConnectivity({ reverify: () => { void session.refresh(); } });
+const getServerConnectivity = () => initialConnectivity;
+
+export function useNativeConnectivity() {
+  return useSyncExternalStore(nativeConnectivity.subscribe, nativeConnectivity.getSnapshot, getServerConnectivity);
+}
+
 const SessionContext = createContext<typeof session | null>(null);
 const serverSnapshot: ReturnType<typeof session.getSnapshot> = {
   state: { status: "loading" }, transport: null, revalidating: false,
@@ -31,11 +40,24 @@ export function NativeSessionProvider({ children, origin }: { children: ReactNod
 
   useEffect(() => {
     if (Platform.OS !== "ios" && Platform.OS !== "android") return;
-    void session.refresh();
-    const subscription = AppState.addEventListener("change", state => {
-      if (state === "active") void session.refresh();
+    let active = true;
+    let networkChanged = false;
+    const network = addNetworkStateListener(state => {
+      if (!active) return;
+      networkChanged = true;
+      nativeConnectivity.updateNetwork(state);
     });
-    return () => subscription.remove();
+    const app = AppState.addEventListener("change", state => nativeConnectivity.updateForeground(state === "active"));
+    nativeConnectivity.updateForeground(!AppState.currentState || AppState.currentState === "active");
+    void getNetworkStateAsync().then(state => {
+      if (active && !networkChanged) nativeConnectivity.updateNetwork(state);
+    }).catch(() => {});
+    return () => {
+      active = false;
+      app.remove();
+      network.remove();
+      nativeConnectivity.updateForeground(false);
+    };
   }, []);
 
   useEffect(() => {
@@ -56,6 +78,7 @@ export function useNativeSession() {
   return {
     ...snapshot,
     getSnapshot: controller.getSnapshot,
+    subscribeSession: controller.subscribe,
     acceptLogin: controller.acceptLogin,
     clearLoginIntent: controller.clearLoginIntent,
     rememberAccountAccess: controller.rememberAccountAccess,

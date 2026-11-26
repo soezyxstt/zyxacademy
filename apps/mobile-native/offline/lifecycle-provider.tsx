@@ -1,8 +1,7 @@
-import { addNetworkStateListener, getNetworkStateAsync, type NetworkState } from "expo-network";
 import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
-import { AppState, Platform } from "react-native";
+import { Platform } from "react-native";
 
-import { useNativeSession } from "../auth/session-provider";
+import { nativeConnectivity, useNativeSession } from "../auth/session-provider";
 import { useNativeAccountContext } from "../auth/use-account-context";
 import type { NativeSessionTransport } from "../network/transport";
 import { openExpoOfflineMetadataStore } from "./metadata-expo";
@@ -61,18 +60,12 @@ function createDriver(session: NativeSessionTransport, locale: NativeOfflineLoca
 type SessionDrivers = { transport: NativeSessionTransport; id: ReturnType<typeof createDriver>; en: ReturnType<typeof createDriver> };
 const OfflineMetadataContext = createContext<{ drivers: SessionDrivers | null; verifiedUntil: number } | null>(null);
 
-function isOnline(state: NetworkState) {
-  return state.isConnected !== false && state.isInternetReachable !== false;
-}
-
 export function OfflineMetadataProvider({ children }: { children: ReactNode }) {
-  const { state, transport, revalidating, refresh, subscribeBeforeLocalLogout } = useNativeSession();
+  const { state, transport, revalidating, refresh, getSnapshot, subscribeSession, subscribeBeforeLocalLogout } = useNativeSession();
   const { context, denied } = useNativeAccountContext();
   const roleDenied = denied || Boolean(context && !context.roles.includes("murid"));
   const student = Boolean(context?.roles.includes("murid"));
   const [drivers, setDrivers] = useState<SessionDrivers | null>(null);
-  const [foreground, setForeground] = useState(() => !AppState.currentState || AppState.currentState === "active");
-  const [online, setOnline] = useState(true);
 
   useLayoutEffect(() => {
     if (!supported) return;
@@ -87,32 +80,6 @@ export function OfflineMetadataProvider({ children }: { children: ReactNode }) {
     }
     void purgeOfflineReadingSession(transport.scope).catch(() => {});
   }, [drivers, roleDenied, transport]);
-
-  useEffect(() => {
-    if (!supported) return;
-    let active = true;
-    let networkChanged = false;
-    let lastOnline: boolean | undefined;
-    const updateNetwork = (network: NetworkState) => {
-      const next = isOnline(network);
-      if (lastOnline === false && next) void refresh();
-      lastOnline = next;
-      setOnline(next);
-    };
-    const network = addNetworkStateListener(state => {
-      networkChanged = true;
-      updateNetwork(state);
-    });
-    void getNetworkStateAsync().then(state => {
-      if (active && !networkChanged) updateNetwork(state);
-    }).catch(() => {});
-    const app = AppState.addEventListener("change", value => setForeground(value === "active"));
-    return () => {
-      active = false;
-      network.remove();
-      app.remove();
-    };
-  }, [refresh]);
 
   useEffect(() => {
     if (!supported || !transport || !student) {
@@ -152,11 +119,28 @@ export function OfflineMetadataProvider({ children }: { children: ReactNode }) {
 
   const currentDrivers = student && drivers?.transport === transport ? drivers : null;
   const verifiedUntil = state.status === "signed-in" && !revalidating ? state.expiresAt : 0;
-  useEffect(() => {
-    const environment = { foreground, online, verified: verifiedUntil > Date.now(), expiresAt: verifiedUntil };
-    currentDrivers?.id.setEnvironment(environment);
-    currentDrivers?.en.setEnvironment(environment);
-  }, [currentDrivers, foreground, online, verifiedUntil]);
+  useLayoutEffect(() => {
+    if (!currentDrivers) return;
+    const applyEnvironment = () => {
+      const device = nativeConnectivity.getSnapshot();
+      const latest = getSnapshot();
+      const verified = latest.state === state && !latest.revalidating && latest.transport === currentDrivers.transport
+        && currentDrivers.transport.isCurrent() && verifiedUntil > Date.now();
+      const environment = { foreground: device.foreground, online: device.online !== false, verified, expiresAt: verifiedUntil };
+      currentDrivers.id.setEnvironment(environment);
+      currentDrivers.en.setEnvironment(environment);
+    };
+    const stopNetwork = nativeConnectivity.subscribe(applyEnvironment);
+    const stopSession = subscribeSession(applyEnvironment);
+    applyEnvironment();
+    return () => {
+      stopNetwork();
+      stopSession();
+      const inactive = { foreground: false, online: false, verified: false, expiresAt: 0 };
+      currentDrivers.id.setEnvironment(inactive);
+      currentDrivers.en.setEnvironment(inactive);
+    };
+  }, [currentDrivers, getSnapshot, state, subscribeSession, verifiedUntil]);
 
   return <OfflineMetadataContext.Provider value={{ drivers: currentDrivers, verifiedUntil }}>{children}</OfflineMetadataContext.Provider>;
 }
