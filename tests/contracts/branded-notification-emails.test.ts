@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { appendEmailUnsubscribeFooter } from "@/lib/email-preferences/delivery-contract";
 import { EMAIL_OPTIONAL_FOOTER_MARKER, emailColors, renderEmailDetails } from "@/lib/notifications/email-layout";
-import { renderPaymentSuccessEmail, renderScheduleEventEmail, renderStudyReengagementEmail, renderUpcomingSessionEmail } from "@/lib/notifications/email-templates";
+import { renderPaymentSuccessEmail, renderScheduleEventEmail, renderStudyReengagementEmail } from "@/lib/notifications/email-templates";
+import { renderTutorialSessionReminderEmail } from "@/lib/notifications/tutorial-reminder-emails";
 import { pkaAnnouncementEmailHtml, scheduleEmailHtml } from "@/lib/pka-email-template";
 import { renderReflectionEmail } from "@/lib/reflection-email-template";
 
@@ -12,7 +13,7 @@ describe("branded notification emails", () => {
         renderPaymentSuccessEmail({ locale, name: "Ari <Learner>", groupName: "TPB", courseCount: 2 }).html,
         renderScheduleEventEmail({ locale, recipientName: "Ari", title: "Updated <schedule>", summary: "Moved", details: [{ label: "Date", value: "26 Nov" }], link: "/dashboard/schedule" }).html,
         renderStudyReengagementEmail({ locale, name: "Ari", inactiveDays: 7, courseTitle: "Physics", link: "/courses/physics" }).html,
-        renderUpcomingSessionEmail({ locale, recipientName: "Ari", courseTitle: "Physics", sessionDate: "2026-11-26", startTime: "19:00", endTime: "20:00", link: "/dashboard/schedule" }).html,
+        renderTutorialSessionReminderEmail({ locale, name: "Ari", courseTitle: "Physics", groupName: "TPB", tutorName: "Tutor", date: "2026-11-26", startTime: "19:00", endTime: "20:00", mode: "online", location: null, meetUrl: "https://meet.google.com/abc-defg-hij", topic: null, audience: "student", resources: [], minutesBefore: 60 }).html,
         scheduleEmailHtml("PKA", new Date("2026-11-26T12:00:00Z"), "https://meet.google.com/abc-defg-hij", locale),
         pkaAnnouncementEmailHtml("PKA", "**Materials**", locale),
         renderReflectionEmail({ locale, name: "Ari", weekStart: "2026-11-23", completed: { quizzes: 1, flashcards: 2, modules: 3 }, masteryGrowth: 4, mostImproved: "Limits", currentStreak: 5, longestStreak: 6 }).html,
@@ -30,6 +31,8 @@ describe("branded notification emails", () => {
       }
       expect(html[0]).toContain("Ari &lt;Learner&gt;");
       expect(html[1]).toContain("Updated &lt;schedule&gt;");
+      expect(html[3]).toContain('href="https://meet.google.com/abc-defg-hij"');
+      expect(html[3]).toContain(locale === "en" ? "1 hour" : "1 jam");
       expect(html[4]).toContain('href="https://meet.google.com/abc-defg-hij"');
       expect(html[5]).toContain("<strong>Materials</strong>");
       expect(html[6]).toContain("+4%");

@@ -4,7 +4,7 @@ import { buildFixture } from "./interactive-document-build";
 export function buildSettingsPreferencesFixture() {
   const notificationRuntime = `export const ZYX_NOTIFICATIONS_CHANGED='zyx:notifications-changed'; export function NotificationRuntime(){return null;} export function NotificationRuntimeForAccount(){return null;}`;
   return buildFixture("tests/visual/fixtures/settings-preferences.tsx", "", {
-    "./actions": `export async function updateNotificationPreferencesAction(){throw new Error('Saving server preferences is outside this visual fixture');} export async function updateActivityNotificationPreferenceAction(){return {success:true};}`,
+    "./actions": `export async function updateNotificationPreferencesAction(){throw new Error('Saving server preferences is outside this visual fixture');} export async function updateActivityNotificationPreferenceAction(){return {success:true};} export async function updateTutorialEmailScheduleAction(){return {success:true};}`,
     "@/lib/i18n/actions": `export async function saveLocaleSelection(){return {success:true};} export async function mirrorResolvedAccountLocaleCookie(){return {success:true};}`,
     "@/components/providers/locale-provider": `export {LocaleProvider,useAppLocale} from './components/providers/locale-provider';`,
     "@/components/student-experience-provider": `export {StudentExperienceProvider,useStudentExperience} from './components/student-experience-provider';`,
