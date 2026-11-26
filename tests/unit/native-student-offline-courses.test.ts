@@ -7,10 +7,10 @@ import type { NativeOfflineResourceDescriptor } from "@/apps/mobile-native/offli
 import { attachAuthorizedOfflinePackage, createStudentOfflineCourseLifecycle, offlineCourseTarget, offlineLibraryHref, selectAuthorizedOfflineMaterial, studentOfflineCourses } from "@/apps/mobile-native/features/student/offline-courses";
 
 const scope = { origin: "https://student.example", accountId: "student-a", sessionId: "session-a", locale: "en" } as const;
-const article: NativeOfflineResourceDescriptor = {
+const article = {
   key: '["article","math","limits"]',
   courseId: "math", id: "limits", kind: "article", title: "Limits", chapterIds: ["chapter-1"], revision: "r2", updatedAt: 10, estimatedBytes: 500,
-};
+} satisfies NativeOfflineResourceDescriptor;
 const snapshot: NativeOfflineMetadataSnapshot = {
   cursor: null,
   knownCourseIds: ["math", "tutorial-pka"],
