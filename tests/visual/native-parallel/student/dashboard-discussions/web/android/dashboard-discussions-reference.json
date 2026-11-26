@@ -1,0 +1,346 @@
+{
+  "platform": "android",
+  "viewport": {
+    "width": 380,
+    "height": 820
+  },
+  "deviceScaleFactor": 1,
+  "locale": "id",
+  "theme": "light",
+  "timeZone": "Asia/Jakarta",
+  "motion": "reduced",
+  "scope": "Discussion list and targeted thread state with a synthetic Student session",
+  "sourceDigests": {
+    "app/(student)/discussions/page.tsx": "e021a6f9b7b181c103aff1cd5704f80461c7a2f0b43d707472ddd7d37e165014",
+    "app/(student)/dashboard/discussions/page.tsx": "9e894701cafd65fce32e79e2ab4df035f91b167f001fd7f6e73f9fc8fb0bbbff",
+    "app/(student)/courses/[id]/discussions/page.tsx": "9ef41ccb953279ef5018e85279860d118a54ea6805b39396197d8a1e6cc46ba8",
+    "components/discussions/discussion-page.tsx": "95cb587ac92116dbae8d48b0e9df73c171b9c3f832f1e2b05d59f9ad8922b59b",
+    "components/discussions/discussion-client.tsx": "c120cfe8764236ef184cbd3e937ff410cc6a66aa8974541cdfa3f68bb6a1a5fb",
+    "components/discussions/discussion-workspace.tsx": "30836d43d9e0c9efaa8d271418bee2587a9847543efb0993de192219eb76f29a",
+    "components/discussions/discussion-message.tsx": "b3e8e3998d2f92d1642390f113d78005a6f327d16b867f2bf5a099b322bb8b6d",
+    "components/discussions/discussion-adapter.ts": "57febfb6ab81298003981dd3fa8874cd4004ddec6fc5b10ec23aa870f3ef694a",
+    "features/discussions/ui/mobile/discussion-workspace-mobile.tsx": "7bbb7c2eb86378239b2aca561837b48d9fb9edba172da81e578254fa0a5994ac",
+    "features/discussions/ui/shared/discussion-workspace-parts.tsx": "f49896e650a97a758dbf9e9050ba4c875157239a39f05f8e99d948438077c0d9",
+    "messages/id/discussions.json": "1a391cc88326c95b2b0c54042b536403bac1184ab9305dc8632ecc89c80cdd60",
+    "app/globals.css": "be812b64b005159daf0c3db873b0a8571952834222d9c8906019650388becf83",
+    "apps/mobile-native/features/student/StudentFixtureRoute.tsx": "9d137376881ead4134ec428c5957ed21afa3fdf9f7d094e431a186ca123984bd",
+    "apps/mobile-native/features/student/fixture-location.ts": "b76c1fe2b5093cd7e3f65aa6396c79d5d51670b61813d4af1c0ca2a890b0c2ce",
+    "apps/mobile-native/features/student/community/discussions.tsx": "8b252190793f677a779eb8cd78a44544edc0782aba1566b13722d6967b99383f",
+    "apps/mobile-native/features/student/community/index.tsx": "53640c9675a4cd26b866dd67620f8249f76273c1a999d470a837928612505780",
+    "packages/native-parity/student/fixture-request.ts": "0d3cb6ff191a057fbdf73f638a3c6af054f13ee99c089ea6aaa6ae0743c16c7b",
+    "packages/native-parity/student/community/fixtures.ts": "27a7e52a38ac47fb1960b983d65a3fcfb231673d7f876b9959b168bc6520c305",
+    "packages/native-parity/student/community/routes.ts": "992cfff02a64ebb42713a06690c939302cb3fd8d5f16ae8f8b72aa7a19375d41",
+    "tests/visual/fixtures/interactive-document-build.ts": "dc51a2f41b0a567504d40004f1ec44e9469601c8e74eb6fd71b6da23ebd45053",
+    "tests/visual/fixtures/fonts/inter-latin.woff2": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62",
+    "tests/visual/fixtures/fonts/lexend-latin.woff2": "52dcdaa127bac4a5ea4c39ee17a3f454ceacc18d9f2a45cc453eeab68d378588",
+    "tests/visual/fixtures/student-discussions-reference.tsx": "3ad8fda8e6e2d0a599f725667f41688f8a88020fbcc02c2bcf6cded9183b91d1",
+    "tests/visual/fixtures/student-discussions-reference-build.ts": "c752cab6c34f529c2c57af3d2c99711368badbc7688df052844345a7ad1d16f5",
+    "tests/visual/native-parallel/student/discussions-reference.spec.ts": "6785c40c8d37cbbe513b8aefe4a73c8b2325ef7b4f1be46cdcea9f2181e1ff13",
+    ".maestro/native-parallel/student/dashboard-discussions-parity.yaml": "239d11f20c529df3e2b6ffe0d42656f299598b6d07413a166a33af798d0afb33"
+  },
+  "states": {
+    "list": {
+      "entry": "/dashboard/discussions",
+      "terminal": "/dashboard/discussions",
+      "documents": [
+        "/dashboard/discussions"
+      ],
+      "repeatQueryProof": null,
+      "fixture": "loaded",
+      "nativeMarkers": [
+        {
+          "id": "student-fixture-id-light"
+        },
+        {
+          "text": "^Limit kiri dan kanan pada fungsi potongan(?:,.*)?$"
+        },
+        {
+          "text": "^Semua kanal$",
+          "selected": true
+        }
+      ],
+      "native": {
+        "params": {
+          "scenario": "loaded",
+          "theme": "light",
+          "locale": "id",
+          "path": "/dashboard/discussions"
+        },
+        "entry": "/dashboard/discussions",
+        "resolvedPath": "/dashboard/discussions"
+      },
+      "web": {
+        "viewport": {
+          "width": 380,
+          "height": 820
+        },
+        "deviceScaleFactor": 1,
+        "locale": "id",
+        "theme": "light",
+        "overflow": false
+      },
+      "course": null,
+      "scope": {
+        "catalog": {
+          "items": [
+            {
+              "id": "channel-general",
+              "title": "Umum",
+              "kind": "global",
+              "muted": false,
+              "courseId": null
+            },
+            {
+              "id": "channel-math",
+              "title": "Matematika I",
+              "courseTitle": "Matematika I",
+              "kind": "course",
+              "muted": false,
+              "courseId": "matematika-1"
+            }
+          ],
+          "nextCursor": null
+        },
+        "courseId": null,
+        "skinId": null
+      },
+      "list": {
+        "items": [
+          {
+            "id": "thread-limit",
+            "channelId": "channel-math",
+            "title": "Limit kiri dan kanan pada fungsi potongan",
+            "status": "open",
+            "labels": [],
+            "helpKind": null,
+            "createdAt": "2026-11-22T12:24:00.000Z",
+            "lastActivityAt": "2026-11-22T12:24:00.000Z",
+            "answerCount": 0,
+            "unreadCount": 1,
+            "canReply": true,
+            "canResolve": true
+          }
+        ],
+        "nextCursor": null
+      },
+      "detail": null
+    },
+    "thread": {
+      "entry": "/dashboard/discussions?channel=channel-math&thread=thread-limit&message=message-limit",
+      "terminal": "/dashboard/discussions?channel=channel-math&thread=thread-limit&message=message-limit",
+      "documents": [
+        "/dashboard/discussions?channel=channel-math&thread=thread-limit&message=message-limit"
+      ],
+      "repeatQueryProof": null,
+      "fixture": "loaded",
+      "nativeMarkers": [
+        {
+          "id": "student-fixture-id-light"
+        },
+        {
+          "text": "^Pesan yang dibuka$"
+        },
+        {
+          "text": "^Limit kiri dan kanan pada fungsi potongan$"
+        },
+        {
+          "text": "^Bagaimana cara menentukan limit kiri dan kanan jika nilai fungsi pada titik sambung berbeda\\?$"
+        }
+      ],
+      "native": {
+        "params": {
+          "scenario": "loaded",
+          "theme": "light",
+          "locale": "id",
+          "path": "/dashboard/discussions",
+          "query_channel": "channel-math",
+          "query_thread": "thread-limit",
+          "query_message": "message-limit"
+        },
+        "entry": "/dashboard/discussions?channel=channel-math&thread=thread-limit&message=message-limit",
+        "resolvedPath": "/dashboard/discussions?channel=channel-math&thread=thread-limit&message=message-limit"
+      },
+      "web": {
+        "viewport": {
+          "width": 380,
+          "height": 820
+        },
+        "deviceScaleFactor": 1,
+        "locale": "id",
+        "theme": "light",
+        "overflow": false
+      },
+      "course": null,
+      "scope": {
+        "catalog": {
+          "items": [
+            {
+              "id": "channel-general",
+              "title": "Umum",
+              "kind": "global",
+              "muted": false,
+              "courseId": null
+            },
+            {
+              "id": "channel-math",
+              "title": "Matematika I",
+              "courseTitle": "Matematika I",
+              "kind": "course",
+              "muted": false,
+              "courseId": "matematika-1"
+            }
+          ],
+          "nextCursor": null
+        },
+        "courseId": null,
+        "skinId": null
+      },
+      "list": {
+        "items": [
+          {
+            "id": "thread-limit",
+            "channelId": "channel-math",
+            "title": "Limit kiri dan kanan pada fungsi potongan",
+            "status": "open",
+            "labels": [],
+            "helpKind": null,
+            "createdAt": "2026-11-22T12:24:00.000Z",
+            "lastActivityAt": "2026-11-22T12:24:00.000Z",
+            "answerCount": 0,
+            "unreadCount": 1,
+            "canReply": true,
+            "canResolve": true
+          }
+        ],
+        "nextCursor": null
+      },
+      "detail": {
+        "thread": {
+          "id": "thread-limit",
+          "channelId": "channel-math",
+          "title": "Limit kiri dan kanan pada fungsi potongan",
+          "status": "open",
+          "labels": [],
+          "helpKind": null,
+          "createdAt": "2026-11-22T12:24:00.000Z",
+          "lastActivityAt": "2026-11-22T12:24:00.000Z",
+          "answerCount": 0,
+          "unreadCount": 1,
+          "canReply": true,
+          "canResolve": true
+        },
+        "readThroughSeq": 0,
+        "aiStatuses": [],
+        "messages": {
+          "items": [
+            {
+              "id": "message-limit",
+              "threadId": "thread-limit",
+              "seq": 1,
+              "author": {
+                "id": "peer",
+                "name": "Nara Putri",
+                "role": "student"
+              },
+              "kind": "human",
+              "messageType": "question",
+              "body": "Bagaimana cara menentukan limit kiri dan kanan jika nilai fungsi pada titik sambung berbeda?",
+              "createdAt": "2026-11-22T12:24:00.000Z",
+              "editedAt": null,
+              "revision": 0,
+              "replyTo": null,
+              "forwardedFrom": null,
+              "skinId": null,
+              "attachments": [],
+              "reactions": [],
+              "canEdit": false,
+              "canDelete": false,
+              "canReport": true,
+              "canReply": true,
+              "canForward": true,
+              "canReact": true
+            }
+          ],
+          "nextCursor": null,
+          "observationReceipt": "fixture-observation"
+        }
+      }
+    },
+    "empty": {
+      "entry": "/dashboard/discussions",
+      "terminal": "/dashboard/discussions",
+      "documents": [
+        "/dashboard/discussions"
+      ],
+      "repeatQueryProof": null,
+      "fixture": "empty",
+      "nativeMarkers": [
+        {
+          "id": "student-fixture-id-light"
+        },
+        {
+          "text": "^Belum ada diskusi\\.$"
+        },
+        {
+          "text": "^Semua kanal$",
+          "selected": true
+        }
+      ],
+      "native": {
+        "params": {
+          "scenario": "empty",
+          "theme": "light",
+          "locale": "id",
+          "path": "/dashboard/discussions"
+        },
+        "entry": "/dashboard/discussions",
+        "resolvedPath": "/dashboard/discussions"
+      },
+      "web": {
+        "viewport": {
+          "width": 380,
+          "height": 820
+        },
+        "deviceScaleFactor": 1,
+        "locale": "id",
+        "theme": "light",
+        "overflow": false
+      },
+      "course": null,
+      "scope": {
+        "catalog": {
+          "items": [
+            {
+              "id": "channel-general",
+              "title": "Umum",
+              "kind": "global",
+              "muted": false,
+              "courseId": null
+            },
+            {
+              "id": "channel-math",
+              "title": "Matematika I",
+              "courseTitle": "Matematika I",
+              "kind": "course",
+              "muted": false,
+              "courseId": "matematika-1"
+            }
+          ],
+          "nextCursor": null
+        },
+        "courseId": null,
+        "skinId": null
+      },
+      "list": {
+        "items": [],
+        "nextCursor": null
+      },
+      "detail": null
+    }
+  },
+  "captures": {
+    "dashboard-discussions-list.png": "cdfca2a464ab2f4ee6c851dba0cf4d504fb3403d7ef22cadc79979101bbb4a40",
+    "dashboard-discussions-thread.png": "5763aec26e703d18f75440c7072f2321d182b1fc78eb5e43220f24b6f09e019c",
+    "dashboard-discussions-empty.png": "5cc3951dc4f493efb2954e36a74686a1538576720e7151f980467a367ad0f851"
+  }
+}
