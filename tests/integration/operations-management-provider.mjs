@@ -19,6 +19,12 @@ mock.module("@/app/api/admin/meet/create/route", () => ({ POST: async request =>
   return Response.json({ success: true, space: { name: "spaces/local", title: value.title, meetingCode: "loc-alco-dee", invitedEmails: [], slug: value.slug }, warnings: ["synthetic warning"] });
 } }));
 
+mock.module("@/app/api/admin/meet/records/[id]/delete/route", () => ({ DELETE: async () => Response.json({ success: true }) }));
+mock.module("@/lib/google-meet", () => ({ getConferenceRecord: async id => {
+  if (id === "gone") throw new Error("Google Meet API error (404 Not Found) for synthetic record");
+  return { name: `conferenceRecords/${id}`, space: "spaces/local" };
+} }));
+
 try {
   const { ensureLegacyIdentity } = await import("../../lib/auth/legacy-identity");
   const { invokeOperationsProvider, nativeProviderMutation } = await import("../../app/api/native/operations/management/provider");
@@ -54,7 +60,10 @@ try {
   await outcome;
   await assert.rejects(apply("placeholder-meet-end", end, () => assert.fail("unknown execution")), { code: "uncertain" });
   await assert.rejects(apply("fresh-key-meet-end", end, () => assert.fail("unknown replay with new identity")), { code: "uncertain" });
-  assert.equal((await testDb.select().from(auditMutasi)).length, 3);
+  const record = await apply("placeholder-deleted-meet", { type: "meet.delete", id: "gone" });
+  assert.deepEqual(record, { id: "gone" });
+  await assert.rejects(apply("placeholder-remaining-meet", { type: "meet.delete", id: "still" }), { code: "uncertain" });
+  assert.equal((await testDb.select().from(auditMutasi)).length, 5);
   await testDb.delete(session).where(eq(session.id, actor.sessionId));
   await assert.rejects(apply("placeholder-meet-create", meet, () => assert.fail("expired session")), { code: "forbidden" });
   console.log("Mocked provider dispatch, partial warning, pending, uncertain, replay and session revocation checks passed");

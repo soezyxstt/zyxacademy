@@ -25,6 +25,7 @@ function FormBuilder({ form, initialTab }: { form?: FormDefinition; initialTab?:
   const { navigate, client } = useManagement();
   const [tab, setTab] = useState<typeof builderTabs[number][0]>(builderTabs.find(([key]) => key === initialTab)?.[0] ?? "builder");
   const [search, setSearch] = useState("");
+  const [activeQuestion, setActiveQuestion] = useState(0);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const [latest, setLatest] = useState<FormDefinition | null>(null);
   const [reading, setReading] = useState(false);
@@ -33,15 +34,24 @@ function FormBuilder({ form, initialTab }: { form?: FormDefinition; initialTab?:
   const draft = useDraft<FormFields>(`forms:${form?.id ?? "new"}`, form ? { title: form.title, description: form.description, slug: form.slug, category: form.category, questions: form.questions, settings: form.settings } : newForm(), form?.revision);
   const value = draft.value;
   const edit = <K extends keyof FormFields>(key: K, next: FormFields[K]) => { if (!action.busy) draft.change({ ...value, [key]: next }); };
-  const questionEdit = (index: number, changes: Partial<FormQuestion>) => edit("questions", value.questions.map((question, order) => order === index ? { ...question, ...changes } : question));
+  const questionEdit = (index: number, changes: Partial<FormQuestion>) => {
+    setActiveQuestion(index);
+    edit("questions", value.questions.map((question, order) => order === index ? { ...question, ...changes } : question));
+  };
+  const insertAfter = (index: number, question: FormQuestion) => {
+    const at = Math.min(index + 1, value.questions.length);
+    edit("questions", [...value.questions.slice(0, at), question, ...value.questions.slice(at)]);
+    setActiveQuestion(at);
+  };
   const move = (index: number, amount: number) => {
     const items = [...value.questions];
     [items[index], items[index + amount]] = [items[index + amount], items[index]];
     edit("questions", items);
+    setActiveQuestion(index + amount);
   };
 
   function applyStandardPreset() {
-    const apply = () => edit("questions", createStandardFormQuestions());
+    const apply = () => { edit("questions", createStandardFormQuestions()); setActiveQuestion(0); };
     const edited = value.questions.length !== 1 || Boolean(value.questions[0].title.trim() || value.questions[0].description?.trim());
     if (edited) setConfirmation({ title: "Ganti daftar pertanyaan?", description: "Preset 12 jenis soal akan mengganti pertanyaan yang ada di draf.", label: "Muat preset", run: apply });
     else apply();
@@ -99,7 +109,7 @@ function FormBuilder({ form, initialTab }: { form?: FormDefinition; initialTab?:
       {Boolean(form?.totalResponses) && <Copy muted>Pertanyaan dengan respons tersimpan dipertahankan.</Copy>}
       {value.questions.map((question, index) => <Section key={index} title={`${index + 1}. ${questionTypes[question.type]}`}>
         {form?.totalResponses ? <Copy>{question.title}</Copy> : <>
-        <Field label={nonAnswers(question) ? "Judul" : "Teks pertanyaan"} value={question.title} onChangeText={next => questionEdit(index, { title: next })} />
+        <Field label={nonAnswers(question) ? "Judul" : "Teks pertanyaan"} value={question.title} onFocus={() => setActiveQuestion(index)} onChangeText={next => questionEdit(index, { title: next })} />
         <Field label="Deskripsi" value={question.description ?? ""} onChangeText={next => questionEdit(index, { description: next })} multiline />
         {!nonAnswers(question) && <>
           <Choices current={question.type} values={types.filter(([type]) => type !== "SECTION" && type !== "STATEMENT")} onChange={type => questionEdit(index, { type })} />
@@ -110,15 +120,15 @@ function FormBuilder({ form, initialTab }: { form?: FormDefinition; initialTab?:
         <View style={styles.row}>
           <Action disabled={index === 0} onPress={() => move(index, -1)}>Naik</Action>
           <Action disabled={index === value.questions.length - 1} onPress={() => move(index, 1)}>Turun</Action>
-          <Action onPress={() => edit("questions", [...value.questions.slice(0, index + 1), { ...question }, ...value.questions.slice(index + 1)])}>Duplikat</Action>
-          <Action disabled={value.questions.length === 1} onPress={() => edit("questions", value.questions.filter((_, order) => order !== index))}>Hapus</Action>
+          <Action onPress={() => insertAfter(index, { ...question })}>Duplikat</Action>
+          <Action disabled={value.questions.length === 1} onPress={() => { edit("questions", value.questions.filter((_, order) => order !== index)); setActiveQuestion(Math.max(0, index - 1)); }}>Hapus</Action>
         </View>
         </>}
       </Section>)}
       {!form?.totalResponses && <View style={styles.row}>
-        <Action onPress={() => edit("questions", [...value.questions, newQuestion()])}>Tambah pertanyaan</Action>
-        <Action onPress={() => edit("questions", [...value.questions, { title: "", type: "STATEMENT" }])}>Tambah pernyataan</Action>
-        <Action onPress={() => edit("questions", [...value.questions, { title: "Bagian baru", type: "SECTION" }])}>Tambah bagian</Action>
+        <Action onPress={() => insertAfter(activeQuestion, newQuestion())}>Tambah pertanyaan</Action>
+        <Action onPress={() => insertAfter(activeQuestion, { title: "", type: "STATEMENT" })}>Tambah pernyataan</Action>
+        <Action onPress={() => insertAfter(activeQuestion, { title: "Bagian baru", type: "SECTION" })}>Tambah bagian</Action>
       </View>}
     </>}
     {tab === "preview" && <FormPreview fields={value} />}
@@ -183,6 +193,10 @@ function FormPreview({ fields }: { fields: FormFields }) {
     setError("");
     setAnswers(previous => ({ ...previous, [key]: value }));
   };
+  function toggleAnswer(key: string, option: string, multiple: boolean) {
+    const selected = (answers[key] ?? "").split("\n").filter(Boolean);
+    answer(key, multiple ? (selected.includes(option) ? selected.filter(value => value !== option) : [...selected, option]).join("\n") : option);
+  }
   function next() {
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((answers.email ?? "").trim())) return setError("Masukkan alamat email yang valid.");
     for (const questionIndex of shownQuestions) {
@@ -213,10 +227,19 @@ function FormPreview({ fields }: { fields: FormFields }) {
         <View style={styles.row}>{question.options.filter(Boolean).map((option, order) => {
           const entries = (answers[key] ?? "").split("\n").filter(Boolean);
           const selected = entries.includes(option);
-          return <Action key={order} selected={selected} variant={selected ? "default" : "outline"} onPress={() => answer(key, question.type === "CHECKBOX" ? (selected ? entries.filter(value => value !== option) : [...entries, option]).join("\n") : option)}>{option}</Action>;
+          return <Action key={order} selected={selected} variant={selected ? "default" : "outline"} onPress={() => toggleAnswer(key, option, question.type === "CHECKBOX")}>{option}</Action>;
         })}</View>
       </View>;
-      if (question.type.startsWith("GRID_")) return <View key={key} style={styles.field}><Heading>{question.title || questionTypes[question.type]}</Heading>{question.gridRows?.filter(Boolean).map((row, order) => <View key={order} style={styles.field}><Copy strong>{row}</Copy><Choices current={answers[`${key}-${order}`] ?? ""} values={(question.gridColumns ?? []).filter(Boolean).map(column => [column, column] as const)} onChange={next => answer(`${key}-${order}`, next)} /></View>)}</View>;
+      if (question.type.startsWith("GRID_")) return <View key={key} style={styles.field}>
+        <Heading>{question.title || questionTypes[question.type]}</Heading>
+        {question.gridRows?.filter(Boolean).map((row, order) => {
+          const rowKey = `${key}-${order}`;
+          const selected = (answers[rowKey] ?? "").split("\n");
+          return <View key={order} style={styles.field}><Copy strong>{row}</Copy><View style={styles.row}>
+            {(question.gridColumns ?? []).filter(Boolean).map((column, index) => <Action key={index} variant={selected.includes(column) ? "default" : "outline"} selected={selected.includes(column)} onPress={() => toggleAnswer(rowKey, column, question.type === "GRID_CHECKBOX")}>{column}</Action>)}
+          </View></View>;
+        })}
+      </View>;
       if (question.type === "SCALE" || question.type === "RATING") return <View key={key} style={styles.field}><Heading>{question.title || questionTypes[question.type]}</Heading><Choices current={answers[key] ?? ""} values={Array.from({ length: Math.max(0, (question.scaleHigh ?? 5) - (question.scaleLow ?? 1) + 1) }, (_, offset) => String(offset + (question.scaleLow ?? 1))).map(value => [value, value] as const)} onChange={next => answer(key, next)} /></View>;
       return <Field key={key} label={question.title || questionTypes[question.type]} value={answers[key] ?? ""} onChangeText={next => answer(key, next)} multiline={question.type === "PARAGRAPH"} />;
     })}
