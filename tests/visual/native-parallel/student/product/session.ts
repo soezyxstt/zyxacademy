@@ -1,7 +1,7 @@
 import { makeSignature } from "better-auth/crypto";
 import { Client } from "pg";
 
-export async function localStudentCookie(scenario: "enrolled" | "unenrolled" | "revoked") {
+export async function localStudentCookie(scenario: "enrolled" | "unenrolled" | "revoked" | "community-enrolled" | "community-peer") {
   const database = new URL(process.env.DATABASE_URL ?? "");
   const secret = process.env.BETTER_AUTH_SECRET;
   if (!secret || secret.length < 32 || !["127.0.0.1", "localhost"].includes(database.hostname) ||
