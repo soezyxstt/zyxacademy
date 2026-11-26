@@ -22,4 +22,6 @@ Pilih komponen di atas galeri untuk membuka tiga kasusnya. Pada build internal, 
 
 Workflow `Native component parity` menjalankan referensi Next.js pada skala 1 dan 3. Android WebView dan iOS WKWebView juga merender ekspor Next.js yang sama pada perangkat masing-masing. Android dan iOS membuka setiap komponen Expo pada perangkat virtual, memeriksa identitas galeri, lalu mengambil ketiga crop tanpa resize. Ringkasan job mencatat jumlah piksel berbeda, selisih kanal RGB terbesar dan batas area yang berbeda. Job `visual-summary` menggabungkan hasil tiga kasus pada Android dan iOS serta mencatat commit PR dan commit checkout yang diuji. Artefak perangkat mencakup frame asli, crop dan diff. Satu piksel berbeda menggagalkan kasus tersebut.
 
+Ringkasan yang sama mencatat tiga kasus layar penuh `/tautan` secara terpisah dari hitungan komponen. Pengecekan memakai viewport logis 380 × 640 dan DPR yang sama antara Expo dan referensi Chromium. Kredit rute memerlukan manifest dan pengukuran untuk commit PR serta checkout yang sama, dengan nol piksel berbeda pada kedua perangkat.
+
 Hasil visual, pemeriksaan interaksi dan kesiapan produk dilacak terpisah di [audit kesiapan](../../docs/native-readiness.md).

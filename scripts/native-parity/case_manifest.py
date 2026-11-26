@@ -4,6 +4,24 @@ import json
 import re
 
 
+def valid_case_id(name):
+    return isinstance(name, str) and re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", name) is not None
+
+
+def load_directory_manifest(path):
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(manifest, dict) or manifest.get("route") != "/tautan":
+        raise ValueError("Expected the /tautan case manifest")
+    if any(type(manifest.get(axis)) is not int or manifest[axis] <= 0 for axis in ("width", "height")):
+        raise ValueError("Invalid directory viewport")
+    cases = manifest.get("cases")
+    if not isinstance(cases, list) or len(cases) != 3 or not all(map(valid_case_id, cases)) or len(set(cases)) != 3:
+        raise ValueError("Expected three distinct directory cases")
+    if any(not isinstance(manifest.get(key), str) or not manifest[key] for key in ("commit", "buildCommit")):
+        raise ValueError("Missing directory reference revisions")
+    return manifest
+
+
 def load_case_groups(path):
     entries = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(entries, list) or not entries:
@@ -17,7 +35,7 @@ def load_case_groups(path):
         case_id = entry.get("id")
         component = entry.get("component")
         for name in (case_id, component):
-            if not isinstance(name, str) or not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", name):
+            if not valid_case_id(name):
                 raise ValueError(f"Invalid case id or component name in {entry!r}")
         if case_id in case_ids:
             raise ValueError(f"Duplicate case id {case_id}")
