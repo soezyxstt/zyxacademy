@@ -106,7 +106,7 @@ REVIEWED = {
     "app/actions/tutor-management.ts": (combine_tutor_actions, (
         "6a120d445b0f1556d1bad1b4bdf726b28e5bf887",
         "fa7dbf5c667cf6c09d6d11605d009fc87836ab7b",
-        "12f2cf10a8aa9689c4b1cecd00ee789905bb4430",
+        "cc4f3739af8158d6348c1dc3f91404c1d4d8cad3",
     )),
     "tests/gamification/question-disclosure-calls.test.ts": (combine_disclosure_checks, (
         "3c38389c1281bc19b3547ba77ecc0e4c7348829e",

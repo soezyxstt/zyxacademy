@@ -85,7 +85,7 @@ for lane in shared-ui student academic operations; do
           python3 scripts/native-readiness/merge-catalog-preview.py
           git add -- "$conflict"
           ;;
-        app/actions/tutor-management.ts:12f2cf10a8aa9689c4b1cecd00ee789905bb4430|\
+        app/actions/tutor-management.ts:cc4f3739af8158d6348c1dc3f91404c1d4d8cad3|\
         tests/gamification/question-disclosure-calls.test.ts:4885627aaf0124bedf92991befcc551bf05fbb58|\
         apps/mobile-native/offline/library-view.tsx:e5effb595b5d85823a8ac9973d6c1549b9a64b35|\
         tests/contracts/admin-mcp-catalog.test.ts:*)
