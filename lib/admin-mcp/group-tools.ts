@@ -10,6 +10,7 @@ import { normalizeGroupName, validateGroupName } from "@/lib/groups/group-name-p
 import { normalizeDate } from "@/lib/date-utils";
 import { expireEnrollmentToken, generateEnrollmentTokenCode } from "@/lib/groups/enrollment-token-lifecycle";
 import { insertStudyGroupMember, lockStudyGroupMembership, removeStudyGroupMember } from "@/lib/groups/study-group-members";
+import { replaceStudyGroupCourses } from "@/lib/groups/study-group-records";
 import { adminToolkit, adminId, adminRevision } from "./toolkit";
 import { AdminMcpError, revisionOf, type AdminTransaction } from "./mutations";
 type Source = typeof db | AdminTransaction;
@@ -60,8 +61,7 @@ export function registerGroupTools(server: McpServer, principal: McpPrincipal) {
     const values = packageValues(input); if (values.totalQuotaSessions < old.group.usedQuotaSessions) throw new AdminMcpError("QUOTA_BELOW_USAGE");
     await validCourses(tx, input.courseIds);
     await tx.update(groups).set({ ...values, updatedAt: new Date() }).where(eq(groups.id, id));
-    await tx.delete(groupCourses).where(eq(groupCourses.groupId, id));
-    for (const courseId of input.courseIds) await tx.insert(groupCourses).values({ id: crypto.randomUUID(), groupId: id, courseId, createdAt: new Date() });
+    await replaceStudyGroupCourses(tx, id, input.courseIds, new Date());
     const members = await tx.select({ userId: groupMembers.userId }).from(groupMembers).where(eq(groupMembers.groupId, id));
     for (const member of members) await enrollMember(tx, member.userId, input.courseIds, values.endDate, principal.actorId);
     return { id, ...await inspectGroup(id, tx) };

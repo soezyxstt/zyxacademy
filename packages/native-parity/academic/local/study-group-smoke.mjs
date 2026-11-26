@@ -63,7 +63,7 @@ try {
   const recordPath = `/group-editor/${one.id}`;
   const current = (await read(recordPath)).record;
   const edit = { ...current.fields, notes: "Catatan tersimpan", expectedRevision: current.revision };
-  assert.equal((await command("PATCH", one.id, { ...edit, courseIds: [] }, randomUUID())).status, 422);
+  assert.equal((await command("PATCH", one.id, { ...edit, courseIds: ["unknown-group-course"] }, randomUUID())).status, 422);
   const editKey = randomUUID();
   await success(await command("PATCH", one.id, edit, editKey));
   const updated = (await read(recordPath)).record;
@@ -84,8 +84,12 @@ try {
 
   await pool.query("insert into enrollment_tokens(id,token,group_id,expires_at) values ($1,$2,$3,now()+interval '1 month')",
     [`fixture-group-token-${marker}`, `fixture-token-${marker}`, one.id]);
-  assert.equal((await fetch(api + recordPath, { headers: admin })).status, 404);
-  assert.equal((await command("PATCH", one.id, reapplied, randomUUID())).status, 404);
+  const tokenRecord = (await read(recordPath)).record;
+  assert.equal((await command("POST", null, draft, createKey)).status, 200);
+  assert.equal((await command("PATCH", one.id, edit, editKey)).status, 200);
+  const tokenEdit = { ...tokenRecord.fields, notes: "Catatan kelompok bertoken", courseIds: [], expectedRevision: tokenRecord.revision };
+  assert.equal((await command("PATCH", one.id, tokenEdit, randomUUID())).status, 200);
+  assert.deepEqual((await read(recordPath)).record.courses, []);
   async function verifyDeniedReplays() {
     const attempts = await Promise.all([
       command("POST", null, draft, createKey),
@@ -98,16 +102,15 @@ try {
     assert.equal((await command("POST", null, { ...draft, notes: "Payload berbeda" }, createKey)).status, 409);
     assert.equal((await command("PATCH", one.id, { ...edit, notes: "Payload berbeda" }, editKey)).status, 409);
     const after = await pool.query("select count(*)::int as count from audit_mutasi where entity_type = 'native_study_group' and entity_id = $1", [one.id]);
-    assert.equal(after.rows[0].count, receipts.rows[0].count);
+    assert.equal(after.rows[0].count, receipts.rows[0].count + 1);
   }
 
-  await verifyDeniedReplays();
   const tokenLinked = await pool.query("select name, notes from groups where id = $1", [one.id]);
-  assert.deepEqual(tokenLinked.rows, [{ name: reapplied.name, notes: reapplied.notes }]);
+  assert.deepEqual(tokenLinked.rows, [{ name: reapplied.name, notes: tokenEdit.notes }]);
   await pool.query("delete from groups where id = $1", [one.id]);
   await verifyDeniedReplays();
   assert.equal((await pool.query("select id from groups where name like $1", [prefix + "%"])).rowCount, 0);
-  console.log("Study group local HTTP/PG: authorization, canonical association, durable create and edit replay, revision conflict and replay denial after token attachment or deletion passed");
+  console.log("Study group local HTTP/PG: authorized assignments, token-linked edits, revision conflicts, and replay checks passed");
 } finally {
   try {
     if (verifiedLocal) {

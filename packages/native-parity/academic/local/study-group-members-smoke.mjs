@@ -116,10 +116,10 @@ try {
   assert.deepEqual(inactive.candidates, []);
   assert.equal((await patch({ ...add, expectedRevision: inactive.revision })).status, 422);
   await pool.query("insert into enrollment_tokens (id, token, group_id, expires_at) values ($1,$1,$2,$3)", [`token-${id}`, id, endDate]);
-  assert.equal((await fetch(path, { headers })).status, 404);
-  assert.equal((await recover(remove, removeKey)).status, 404);
-  assert.equal((await patch(add, addKey)).status, 404);
-  console.log("Study group members local HTTP/PG: authorized search, add/remove, enrollment preservation, conflicts and token-linked replay denial passed");
+  assert.equal((await fetch(path, { headers })).status, 200);
+  assert.equal((await recover(remove, removeKey)).status, 200);
+  assert.equal((await patch(add, addKey)).status, 200);
+  console.log("Study group members local HTTP/PG: authorized search, add/remove, enrollment preservation, conflicts and token-linked replay passed");
 } finally {
   try {
     if (fixtureVerified) {

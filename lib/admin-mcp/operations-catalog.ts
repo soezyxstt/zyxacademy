@@ -197,6 +197,13 @@ export const operationsCatalog = [
     "reason": "The Expo adapter reads administrative data and uses active Admin sessions for study groups, enrollment tokens, user roles and status, PKA and Idea item review. Idea item review uses the staged artifact and the canonical reviewer decision operation with a session-scoped receipt. Role changes retain the self-demotion guard, compare current memberships and require an explicit human confirmation. MCP users.set_roles retains its scoped confirmation and elevated Admin grant permission. PKA schedule and announcement actions reuse the interactive Admin session, revision-bound receipts and preference-aware delivery on a separate product queue. PKA remains outside MCP. Native notification broadcasts require a live Admin session and a confirmed audience snapshot, with receipts isolated from MCP jobs. Native Product Bundle reads and editorial actions call the existing product HTTP endpoints with the signed-in Admin session and selected revision. MCP operations retain their registered scopes and consent."
   },
   {
+    "source": "app/api/native/academic-administration/group-deletion/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Admin hard deletion checks the live session, exact group or token association, observed revision and confirmed impact. Enrollment access keeps its existing independent lifecycle. MCP tokens.revoke retains expiry semantics and group or token hard deletion remains an administrative app operation."
+  },
+  {
     "source": "app/api/admin/bundles/product/[id]/pdf/route.ts",
     "actions": ["GET", "POST"],
     "tools": [],

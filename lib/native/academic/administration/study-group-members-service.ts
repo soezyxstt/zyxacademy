@@ -2,7 +2,7 @@ import "server-only";
 import { revalidatePath } from "next/cache";
 import { and, asc, eq, ilike, notExists, or } from "drizzle-orm";
 import { db } from "@/db";
-import { auditMutasi, enrollmentTokens, groupCourses, groupMembers, groups, pengguna, user } from "@/db/schema";
+import { auditMutasi, groupCourses, groupMembers, groups, pengguna, user } from "@/db/schema";
 import { revisionOf } from "@/lib/admin-mcp/revision";
 import { addStudyGroupMember, lockStudyGroupMembership, removeStudyGroupMember } from "@/lib/groups/study-group-members";
 import { getSemesterEndDate } from "@/lib/utils";
@@ -27,8 +27,6 @@ function matchesReceipt(receipt: typeof auditMutasi.$inferSelect, id: string, dr
 
 async function readMembershipContext(tx: Transaction, group: typeof groups.$inferSelect) {
   const id = group.id;
-  const [token] = await tx.select({ id: enrollmentTokens.id }).from(enrollmentTokens).where(eq(enrollmentTokens.groupId, id)).limit(1);
-  if (token) return null;
   const [courses, members] = await Promise.all([
     tx.select({ id: groupCourses.id, courseId: groupCourses.courseId }).from(groupCourses)
       .where(eq(groupCourses.groupId, id)).orderBy(asc(groupCourses.id)),

@@ -206,3 +206,12 @@ test("native reading progress and formative feedback remain scoped learner inter
   expect(entry.reason).toContain("current published revision");
   expect(entry.reason).toContain("Tutorial PKA still checks registration");
 });
+
+test("confirmed native group deletion is independent of MCP token expiry", () => {
+  const entry = operationsCatalog.find(item => item.source === "app/api/native/academic-administration/group-deletion/route.ts")!;
+  expect(entry.actions).toEqual(["GET", "POST"]);
+  expect(entry.tools).toEqual([]);
+  expect(entry.status).toBe("excluded");
+  expect(entry.reason).toContain("confirmed impact");
+  expect(entry.reason).toContain("MCP tokens.revoke retains expiry");
+});

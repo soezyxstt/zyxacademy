@@ -23,7 +23,10 @@ const fields = z.object({
   notes: z.string().trim().max(2000),
 }).strict();
 const createSchema = fields.extend({ courseIds: z.array(nativeAdminIdSchema).max(100) });
-const editSchema = fields.extend({ expectedRevision: z.string().regex(/^[a-f0-9]{64}$/) });
+const editSchema = fields.extend({
+  expectedRevision: z.string().regex(/^[a-f0-9]{64}$/),
+  courseIds: z.array(nativeAdminIdSchema).max(100).refine(ids => new Set(ids).size === ids.length).optional(),
+});
 
 const reply = (status: number, body: unknown) => Response.json(body, { status, headers: { "Cache-Control": "private, no-store" } });
 

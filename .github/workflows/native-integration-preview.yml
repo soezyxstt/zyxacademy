@@ -256,6 +256,11 @@ jobs:
         run: |
           bun test tests/unit/expo-native-pka-lifecycle.test.ts tests/contracts/queue-cron.test.ts
           bun scripts/test-contracts.ts tests/contracts/native-pka-lifecycle-integration.test.ts
+      - name: Admin study group assignments, membership and confirmed deletion
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          bun test packages/native-parity/academic/administration/administration.test.ts
+          bun scripts/test-contracts.ts tests/contracts/native-admin-study-groups.test.ts
       - name: Admin native text document edits and publication
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: |

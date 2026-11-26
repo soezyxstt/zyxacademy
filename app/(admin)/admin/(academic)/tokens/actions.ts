@@ -2,10 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { enrollmentTokens, courses, groups } from "@/db/schema";
+import { enrollmentTokens, courses } from "@/db/schema";
 import { assertAdmin } from "@/lib/auth/admin-guards";
-import { eq, desc, inArray } from "drizzle-orm";
+import { desc, inArray } from "drizzle-orm";
 import { PACKAGE_PRESETS, type PackageType } from "@/lib/group-constants";
+import { deleteEnrollmentTokenGroup } from "@/lib/groups/enrollment-token-lifecycle";
 
 /**
  * Get all enrollment tokens for the admin panel
@@ -164,14 +165,7 @@ export async function deleteEnrollmentToken(tokenId: string) {
   await assertAdmin();
 
   try {
-    const tokenRecord = await db.query.enrollmentTokens.findFirst({
-      where: eq(enrollmentTokens.id, tokenId),
-    });
-
-    if (tokenRecord) {
-      // Deleting the group will cascade to the token, courses, and bookings
-      await db.delete(groups).where(eq(groups.id, tokenRecord.groupId));
-    }
+    await db.transaction(tx => deleteEnrollmentTokenGroup(tx, tokenId));
 
     revalidatePath("/admin/tokens");
     revalidatePath("/admin/groups");

@@ -20,7 +20,7 @@ import { getSemesterEndDate } from "@/lib/utils";
 import { dualWriteEnrollment } from "@/lib/migrasi/repository-kompatibilitas";
 import type { PackageType } from "@/lib/group-constants";
 import { computeWeeklySessionStats } from "@/lib/schedule-lock";
-import { insertStudyGroupCourses, insertStudyGroupRecord, updateStudyGroupRecord } from "@/lib/groups/study-group-records";
+import { deleteStudyGroupRecord, insertStudyGroupCourses, insertStudyGroupRecord, replaceStudyGroupCourses, updateStudyGroupRecord } from "@/lib/groups/study-group-records";
 import { addStudyGroupMember, lockStudyGroupMembership, removeStudyGroupMember } from "@/lib/groups/study-group-members";
 
 export type AdminGroupsQuery = { page?: number; search?: string; status?: string; packageType?: string; courseId?: string };
@@ -362,8 +362,7 @@ export async function updateStudyGroup(groupId: string, data: UpdateGroupInput) 
       if (!existing) throw new Error("GROUP_NOT_FOUND");
       await updateStudyGroupRecord(tx, existing, data);
       if (data.courseIds !== undefined) {
-        await tx.delete(groupCourses).where(eq(groupCourses.groupId, groupId));
-        await insertStudyGroupCourses(tx, groupId, data.courseIds, new Date());
+        await replaceStudyGroupCourses(tx, groupId, data.courseIds, new Date());
       }
     });
 
@@ -384,7 +383,9 @@ export async function deleteStudyGroup(groupId: string) {
   await assertAdmin();
 
   try {
-    await db.delete(groups).where(eq(groups.id, groupId));
+    await db.transaction(async tx => {
+      if (await lockStudyGroupMembership(tx, groupId)) await deleteStudyGroupRecord(tx, groupId);
+    });
     revalidatePath("/admin/groups");
     revalidatePath("/admin/tokens");
     revalidatePath("/dashboard/groups");

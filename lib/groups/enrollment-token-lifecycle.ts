@@ -1,11 +1,13 @@
 import "server-only";
 import { randomBytes, randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { db } from "@/db";
 import { enrollmentTokenCourses, enrollmentTokens, groupCourses, groups } from "@/db/schema";
 import { minutesAgo } from "@/lib/date-utils";
 import { PACKAGE_PRESETS, type PackageType } from "@/lib/group-constants";
 import { getSemesterEndDate } from "@/lib/utils";
+import { lockStudyGroupMembership } from "./study-group-members";
+import { deleteStudyGroupRecord } from "./study-group-records";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -59,4 +61,13 @@ export async function issueEnrollmentTokenWithGroup(tx: Transaction, input: {
 export async function expireEnrollmentToken(tx: Transaction, id: string, now = new Date()) {
   const [row] = await tx.update(enrollmentTokens).set({ expiresAt: minutesAgo(1, now) }).where(eq(enrollmentTokens.id, id)).returning();
   return row;
+}
+
+export async function deleteEnrollmentTokenGroup(tx: Transaction, id: string) {
+  const [binding] = await tx.select({ groupId: enrollmentTokens.groupId }).from(enrollmentTokens)
+    .where(eq(enrollmentTokens.id, id)).limit(1);
+  if (!binding || !await lockStudyGroupMembership(tx, binding.groupId)) return null;
+  const [token] = await tx.select({ id: enrollmentTokens.id }).from(enrollmentTokens)
+    .where(and(eq(enrollmentTokens.id, id), eq(enrollmentTokens.groupId, binding.groupId))).limit(1).for("update");
+  return token ? deleteStudyGroupRecord(tx, binding.groupId) : null;
 }

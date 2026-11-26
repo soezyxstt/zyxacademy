@@ -1,13 +1,13 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
-import { asc, eq, sql } from "drizzle-orm";
+import { asc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { auditMutasi, bookings, courses, enrollmentTokens, groupCourses, groups } from "@/db/schema";
 import { listNativeCourseChoices, lockNativeCourseAssignments } from "./course-assignments";
 import { revisionOf } from "@/lib/admin-mcp/revision";
 import { assertNativeAdminTransaction, postgresCode, type NativeAdminViewer } from "./admin-transaction";
-import { insertStudyGroupCourses, insertStudyGroupRecord, updateStudyGroupRecord } from "@/lib/groups/study-group-records";
+import { insertStudyGroupCourses, insertStudyGroupRecord, replaceStudyGroupCourses, updateStudyGroupRecord } from "@/lib/groups/study-group-records";
 import { getSemesterEndDate } from "@/lib/utils";
 import { validateStudyGroupFields, type StudyGroupEditorRead, type StudyGroupRecord, type StudyGroupWrite } from "@/packages/academic/study-group-edit";
 
@@ -41,13 +41,17 @@ async function readGroup(tx: Transaction, id: string, lock = false) {
       notes: group.notes ?? "",
     },
   };
-  return { group, view, tokenLinked: token.length > 0 };
+  return { group, view };
 }
 
 export async function readNativeStudyGroupEditor(id?: string): Promise<StudyGroupEditorRead | null> {
   if (!id) return { type: "create", courses: await listNativeCourseChoices() };
-  const result = await db.transaction((tx) => readGroup(tx, id), { isolationLevel: "repeatable read", accessMode: "read only" });
-  return result && !result.tokenLinked ? { type: "edit", record: result.view } : null;
+  return db.transaction(async tx => {
+    const result = await readGroup(tx, id);
+    if (!result) return null;
+    const choices = await tx.select({ id: courses.id, title: courses.title }).from(courses).orderBy(asc(courses.title), asc(courses.id));
+    return { type: "edit" as const, record: result.view, choices };
+  }, { isolationLevel: "repeatable read", accessMode: "read only" });
 }
 
 
@@ -66,15 +70,15 @@ export async function saveNativeStudyGroup(command: StudyGroupWrite, requestId: 
           throw new Error("REQUEST_CONFLICT");
         }
         const savedGroup = command.type === "edit" ? current : await readGroup(tx, receipt.entityId, true);
-        if (!savedGroup || savedGroup.tokenLinked) throw new Error("GROUP_NOT_FOUND");
+        if (!savedGroup) throw new Error("GROUP_NOT_FOUND");
         return { status: "saved" as const, id: receipt.entityId };
       }
 
       let id: string;
       if (command.type === "edit") {
-        if (!current || current.tokenLinked) throw new Error("GROUP_NOT_FOUND");
+        if (!current) throw new Error("GROUP_NOT_FOUND");
         if (current.view.revision !== command.fields.expectedRevision) return { status: "conflict" as const, record: current.view };
-        const { totalQuotaSessions, weeklyQuotaSessions, ...fields } = command.fields;
+        const { totalQuotaSessions, weeklyQuotaSessions, courseIds, ...fields } = command.fields;
         const isUnchangedZero = current.group.totalQuotaSessions === 0 && current.group.weeklyQuotaSessions === 0;
         if (validateStudyGroupFields(command.fields, isUnchangedZero) || totalQuotaSessions < current.view.usedQuotaSessions) {
           throw new Error("INVALID_QUOTA");
@@ -86,6 +90,15 @@ export async function saveNativeStudyGroup(command: StudyGroupWrite, requestId: 
           ...(weeklyQuotaSessions !== current.group.weeklyQuotaSessions ? { weeklyQuotaSessions } : {}),
           ...(command.fields.packageType === current.group.packageType ? { packageName: current.group.packageName } : {}),
         });
+        if (courseIds !== undefined) {
+          const rows = courseIds.length ? await tx.select({ id: courses.id }).from(courses).where(inArray(courses.id, courseIds))
+            .orderBy(asc(courses.id)).for("key share") : [];
+          if (rows.length !== courseIds.length) throw new Error("INVALID_COURSE");
+          const previousIds = new Set(current.view.courses.map(course => course.id));
+          if (courseIds.length !== previousIds.size || courseIds.some(courseId => !previousIds.has(courseId))) {
+            await replaceStudyGroupCourses(tx, id, courseIds, new Date());
+          }
+        }
       } else {
         if (validateStudyGroupFields(command.fields)) throw new Error("INVALID_GROUP");
         const courseIds = await lockNativeCourseAssignments(tx, command.fields.courseIds);

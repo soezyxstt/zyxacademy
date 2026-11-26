@@ -13,7 +13,7 @@ import {
   layout, normalSearch, numberValue, splitDateTime,
 } from "./ui";
 
-type Pending = { command: StudyGroupWrite; requestId: string; baseline: StudyGroupFields };
+type Pending = { command: StudyGroupWrite; requestId: string; baseline: StudyGroupFields; originalCourses: string[] };
 const pendingGroups = new WeakMap<AcademicTransport, Map<string, Pending>>();
 const slots = [
   { id: "reguler_15", label: "Reguler", quota: 15 }, { id: "intensif_30", label: "Intensif", quota: 30 },
@@ -85,7 +85,8 @@ function StudyGroupForm({ data, transport, cancel, saved }: {
   const [weekly, setWeekly] = useState(String(initial.weeklyQuotaSessions));
   const [start, setStart] = useState(dateInput(initial.startDate));
   const [end, setEnd] = useState(dateInput(initial.endDate));
-  const [courseIds, setCourseIds] = useState(recovered?.command.type === "create" ? recovered.command.fields.courseIds : []);
+  const [originalCourses, setOriginalCourses] = useState(recovered?.originalCourses ?? current?.courses.map(course => course.id) ?? []);
+  const [courseIds, setCourseIds] = useState(recovered?.command.fields.courseIds ?? originalCourses);
   const [query, setQuery] = useState("");
   const [revision, setRevision] = useState(recovered?.command.type === "edit" ? recovered.command.fields.expectedRevision : current?.revision);
   const [conflict, setConflict] = useState<StudyGroupRecord>();
@@ -99,7 +100,8 @@ function StudyGroupForm({ data, transport, cancel, saved }: {
     setDraft((previous) => ({ ...previous, [name]: value }));
     setError("");
   };
-  const courses = data.type === "create" ? data.courses : reference?.courses ?? data.record.courses;
+  const courses = data.type === "create" ? data.courses
+    : [...new Map([...data.choices ?? [], ...reference?.courses ?? data.record.courses].map(course => [course.id, course])).values()];
   const chosen = new Set(courseIds);
   const courseChoices = [
     ...courses.filter((course) => chosen.has(course.id)),
@@ -152,8 +154,10 @@ function StudyGroupForm({ data, transport, cancel, saved }: {
       setError("Total kuota harus mencakup sesi yang sudah dipakai.");
       return;
     }
-    if (current && revision) submit({ command: { type: "edit", id: current.id, fields: { ...fields, expectedRevision: revision } }, requestId: randomUUID(), baseline });
-    else if (!current) submit({ command: { type: "create", fields: { ...fields, courseIds } }, requestId: randomUUID(), baseline });
+    if (current && revision) submit({ command: { type: "edit", id: current.id, fields: { ...fields, expectedRevision: revision,
+      ...(data.type === "edit" && data.choices ? { courseIds } : {}) },
+    }, requestId: randomUUID(), baseline, originalCourses });
+    else if (!current) submit({ command: { type: "create", fields: { ...fields, courseIds } }, requestId: randomUUID(), baseline, originalCourses });
   }
 
   const disabled = busy || Boolean(uncertain || conflict);
@@ -186,7 +190,7 @@ function StudyGroupForm({ data, transport, cancel, saved }: {
     <Field label="Tanggal mulai (WIB)" value={start} placeholder="2026-11-26" onChangeText={setStart} maxLength={10} editable={!disabled} />
     <Field label="Tanggal selesai (WIB)" value={end} placeholder="2027-01-31" onChangeText={setEnd} maxLength={10} editable={!disabled} />
     <Field label="Catatan" value={draft.notes} onChangeText={(value) => change("notes", value)} maxLength={2000} multiline editable={!disabled} />
-    {data.type === "create" ? <>
+    {data.type === "create" || data.choices ? <>
       {courses.length > 8 ? <SearchBox label="Cari mata kuliah" value={query} onChange={setQuery} /> : null}
       <MultiChoice label="Mata kuliah" options={courseChoices} chosen={courseIds} change={setCourseIds} disabled={disabled} />
       {!courseChoices.length ? <Ink kind="meta" tone="muted">Mata kuliah aktif tidak ditemukan.</Ink> : null}
@@ -208,6 +212,10 @@ function StudyGroupForm({ data, transport, cancel, saved }: {
           setStart(dateInput(merged.startDate));
           setEnd(dateInput(merged.endDate));
           setBaseline(conflict.fields);
+          const latest = conflict.courses.map(course => course.id);
+          const removed = new Set(originalCourses.filter(id => !courseIds.includes(id)));
+          setCourseIds([...new Set([...latest.filter(id => !removed.has(id)), ...courseIds.filter(id => !originalCourses.includes(id))])]);
+          setOriginalCourses(latest);
           setReference(conflict);
           setRevision(conflict.revision);
           setConflict(undefined);

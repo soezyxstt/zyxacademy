@@ -60,3 +60,13 @@ export async function insertStudyGroupCourses(tx: Transaction, groupId: string, 
   if (!courseIds.length) return;
   await tx.insert(groupCourses).values(courseIds.map((courseId) => ({ id: randomUUID(), groupId, courseId, createdAt: now })));
 }
+
+export async function replaceStudyGroupCourses(tx: Transaction, groupId: string, courseIds: readonly string[], now: Date) {
+  await tx.delete(groupCourses).where(eq(groupCourses.groupId, groupId));
+  await insertStudyGroupCourses(tx, groupId, courseIds, now);
+}
+
+export async function deleteStudyGroupRecord(tx: Transaction, groupId: string) {
+  const [deleted] = await tx.delete(groups).where(eq(groups.id, groupId)).returning({ id: groups.id });
+  return deleted ?? null;
+}

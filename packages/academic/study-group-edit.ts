@@ -16,11 +16,11 @@ export type StudyGroupFields = {
 };
 
 export type StudyGroupCreate = StudyGroupFields & { courseIds: string[] };
-export type StudyGroupEdit = StudyGroupFields & { expectedRevision: string };
+export type StudyGroupEdit = StudyGroupFields & { expectedRevision: string; courseIds?: string[] };
 export type StudyGroupWrite = { type: "create"; fields: StudyGroupCreate } | { type: "edit"; id: string; fields: StudyGroupEdit };
 export type StudyGroupCourse = { id: string; title: string };
 export type StudyGroupRecord = { id: string; revision: string; fields: StudyGroupFields; courses: StudyGroupCourse[]; usedQuotaSessions: number };
-export type StudyGroupEditorRead = { type: "create"; courses: StudyGroupCourse[] } | { type: "edit"; record: StudyGroupRecord };
+export type StudyGroupEditorRead = { type: "create"; courses: StudyGroupCourse[] } | { type: "edit"; record: StudyGroupRecord; choices?: StudyGroupCourse[] };
 
 export function validateStudyGroupFields(fields: StudyGroupFields, allowZeroQuota = false): string | undefined {
   if (!fields.name.trim() || fields.name.length > 180) return "Isi nama kelompok, maksimal 180 karakter.";
@@ -74,5 +74,6 @@ export function isStudyGroupRecord(value: unknown): value is StudyGroupRecord {
 
 export function isStudyGroupEditorRead(value: unknown): value is StudyGroupEditorRead {
   return object(value) && ((value.type === "create" && Array.isArray(value.courses) && value.courses.every(isStudyGroupCourse))
-    || (value.type === "edit" && isStudyGroupRecord(value.record)));
+    || (value.type === "edit" && isStudyGroupRecord(value.record)
+      && (value.choices === undefined || Array.isArray(value.choices) && value.choices.every(isStudyGroupCourse))));
 }

@@ -16,6 +16,7 @@ import { LiveEnrollmentTokenEditor } from "./enrollment-token-editor";
 import type { EnrollmentTokenUnavailable } from "./enrollment-token-client";
 import { LiveStudyGroupEditor } from "./study-group-editor";
 import { StudyGroupMembersEditor } from "./study-group-members-editor";
+import { CopyActivationToken, GroupDeletionControl } from "./group-deletion";
 import { PkaAnnouncementEditor } from "./pka-edit";
 import { clearPkaLifecycle, PkaLifecycleDialog, recoverPkaLifecycle, type PkaLifecycleTarget } from "./pka-lifecycle";
 import { clearPkaScheduleRecovery, PkaScheduleEditor } from "./pka-schedule-editor";
@@ -449,9 +450,17 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
       {selectedTutorialSlot && transport.command && !tutorialPending
         ? <TutorialSlotActions slot={selectedTutorialSlot} activate={showTutorial} /> : null}
       {tokenPage ? <Text selectable style={{ ...nativeTypography.bodyRegular, color: palette.foreground, fontSize: 16, lineHeight: 24 }}>{visibleSelection.title}</Text> : null}
+      {tokenPage ? <CopyActivationToken key={visibleSelection.id} value={visibleSelection.title} /> : null}
       {visibleSelection.fields?.map((item) => <View key={item.label} style={layout.compact}>
         <Ink kind="strong">{item.label}</Ink><Ink>{item.value}</Ink>
       </View>)}
+      {data && (tokenPage || pattern === "/admin/groups") ? <GroupDeletionControl
+        key={JSON.stringify([tokenPage, visibleSelection.id])} transport={transport}
+        target={{ kind: tokenPage ? "token" : "group", id: visibleSelection.id }} deleted={() => {
+          setSelected(undefined);
+          setSuccess(tokenPage ? "Token dan kelompok dihapus." : "Kelompok dihapus.");
+          retry();
+        }} /> : null}
     </CourseDialog> : null}
   </AdministrationPage>;
 }

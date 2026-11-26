@@ -190,7 +190,7 @@ export const administrationReadServices: AdministrationReadServices = {
         const { groups, total, page, stats } = await getAdminStudyGroups(query);
         return rowsPage(groups.map((entry) => ({
           id: entry.id, title: entry.name, subtitle: entry.courses.map((course) => course.title).join(", "),
-          detail: `${entry.memberCount} anggota`, groupEditable: !entry.hasEnrollmentToken, fields: [field("Paket", entry.packageName),
+          detail: `${entry.memberCount} anggota`, groupEditable: true, fields: [field("Paket", entry.packageName),
             field("Kuota sesi", `${entry.usedQuotaSessions}/${entry.totalQuotaSessions}`), field("Status", groupStatus[entry.status]),
             field("Tahun ajaran", entry.academicYear), field("Catatan", entry.notes)],
         })), total > page * 25, [field("Kelompok aktif", stats.activeGroups), field("Anggota", stats.totalMembers)]);
