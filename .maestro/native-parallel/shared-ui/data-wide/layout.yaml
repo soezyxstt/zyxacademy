@@ -1,0 +1,19 @@
+appId: com.zyx.academy.nativeparity
+name: Shared grid columns and table header on a 768dp or wider device
+---
+- launchApp
+- extendedWaitUntil:
+    visible: separator
+    timeout: 20000
+- openLink: zyx-native-parity://shared-ui/shared-ui-grid-wide
+- assertVisible:
+    id: shared-ui-grid-wide-grid-item-mechanics-column-1
+- assertVisible:
+    id: shared-ui-grid-wide-grid-item-thermodynamics-column-2
+- assertVisible:
+    id: shared-ui-grid-wide-grid-item-waves-column-3
+- openLink: zyx-native-parity://shared-ui/shared-ui-table-many
+- assertVisible:
+    id: shared-ui-table-many-table-head
+- assertVisible: Peserta
+- assertVisible: Terakhir aktif
