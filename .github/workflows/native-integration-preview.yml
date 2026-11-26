@@ -53,6 +53,13 @@ on:
       - 'tests/unit/expo-native-pka-lifecycle.test.ts'
       - 'lib/pka/**'
       - 'jobs/pka-delivery.ts'
+      - 'app/api/native/course-videos/**'
+      - 'lib/native/academic/video-management*.ts'
+      - 'lib/video/verified-upload.ts'
+      - 'lib/video/upload-*.ts'
+      - 'tests/contracts/native-course-video-management.test.ts'
+      - 'tests/unit/expo-native-video-management.test.ts'
+      - 'tests/unit/native-course-video-upload-grants.test.ts'
       - 'tests/unit/expo-native-solution-review.test.ts'
       - 'tests/contracts/solution-review-ui.test.ts'
       - 'packages/academic/solution-review-*.ts'
@@ -277,6 +284,11 @@ jobs:
       - name: Admin V5 solution collection review
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: bun test tests/unit/expo-native-solution-review.test.ts tests/contracts/solution-review-ui.test.ts
+      - name: Admin and assigned Tutor video management
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          bun test tests/unit/expo-native-video-management.test.ts tests/unit/native-course-video-upload-grants.test.ts
+          bun scripts/test-contracts.ts tests/contracts/native-course-video-management.test.ts
       - name: Admin native text document edits and publication
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: |

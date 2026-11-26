@@ -201,7 +201,7 @@ export const operationsCatalog = [
     "actions": ["GET", "POST"],
     "tools": [],
     "status": "excluded",
-    "reason": "Interactive Admin and assigned Tutor video management verifies the exact course, session and revision, then applies shared web catalog operations. MCP videos.* retains its existing scopes, discovery, confirmation and environment bindings."
+    "reason": "Interactive Admin and assigned Tutor video management verifies the exact course, session and revision and uses shared web catalog operations. Upload grants bind the file type and byte length to the verified account and course. Only provider-verified video and thumbnail versions attach. MCP videos.* retains its existing scopes, consent, discovery and environment bindings."
   },
   {
     "source": "app/api/native/schedule/[role]/[bookingId]/route.ts",

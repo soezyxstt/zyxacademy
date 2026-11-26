@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { resolveAuthBaseUrl } from "@/lib/auth-site-url";
 import { handleVideoManagement } from "@/lib/native/academic/video-management-handler";
-import { readVideoManagement, writeVideoManagement } from "@/lib/native/academic/video-management";
+import { lookupManagedYouTubeVideo, prepareVideoUpload, readVideoManagement, writeVideoManagement } from "@/lib/native/academic/video-management";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,6 +14,8 @@ const services = {
   },
   read: readVideoManagement,
   write: writeVideoManagement,
+  prepare: prepareVideoUpload,
+  metadata: lookupManagedYouTubeVideo,
 };
 
 function gateway(request: Request, context: Context) {

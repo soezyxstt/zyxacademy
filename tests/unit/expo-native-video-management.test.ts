@@ -72,3 +72,22 @@ test("client publishes only a matching receipt and preserves the Tutor write rol
   expect(await submitManagedVideo(session, "tutor", "course-a", attempt, signal)).toEqual({ id: "saved-id", requestId: key });
   expect(receivedRole).toBe("tutor");
 });
+
+test("upload preparation binds the grant to a single request and current verified course route", async () => {
+  const fields = { kind: "thumbnail", name: "Cover.webp", mime: "image/webp", size: 23, uploadId: key };
+  const seen: unknown[] = [];
+  const services = {
+    session: async () => viewer, read: async () => read,
+    write: async () => { throw new Error("Unexpected catalog write"); },
+    prepare: async (scope: unknown, input: unknown) => {
+      seen.push({ scope, input });
+      return { uploadUrl: "https://storage.example", token: "fixture-token", expiresAt: Date.now() + 120_000 };
+    },
+  };
+  const preparation = { action: "prepare-upload", fields };
+  expect((await handleVideoManagement(post(preparation, { [videoManagerAccount]: "another" }), input, origin, services)).status).toBe(409);
+  expect((await handleVideoManagement(post(preparation, { "Idempotency-Key": "73ae3fb1-e55d-4fe9-a31c-d24737e62ee6" }), input, origin, services)).status).toBe(422);
+  expect(seen).toHaveLength(0);
+  expect((await handleVideoManagement(post(preparation), input, origin, services)).status).toBe(200);
+  expect(seen).toEqual([{ scope: { ...input, viewer }, input: fields }]);
+});

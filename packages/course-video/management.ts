@@ -20,8 +20,13 @@ export type VideoManagementCatalog = {
 export type PlaylistFields = { title: string; description: string | null };
 export type VideoFields = PlaylistFields & {
   playlistId: string; chapterId: string | null;
-  source: { kind: "keep" } | { kind: "youtube"; video: string };
+  source: { kind: "keep" } | { kind: "youtube"; video: string } | { kind: "uploaded"; token: string };
+  thumbnail?: { kind: "default" } | { kind: "uploaded"; token: string };
 };
+
+export type VideoUploadKind = "video" | "thumbnail";
+export type VideoUploadInput = { kind: VideoUploadKind; size: number; mime: string; name: string; uploadId: string };
+export type VideoUploadGrant = { uploadUrl: string; token: string; expiresAt: number };
 export type ManagedVideoCommand =
   | { action: "new-playlist"; fields: PlaylistFields }
   | { action: "edit-playlist"; id: string; expectedRevision: string; fields: PlaylistFields }

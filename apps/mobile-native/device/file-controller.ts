@@ -2,6 +2,7 @@ import type { NativeSessionScope, NativeSessionTransport } from "../network/tran
 import { MATERIAL_PDF_HEADERS, MATERIAL_PDF_MAX_BYTES, materialPdfPath, type MaterialPdfTarget } from "../../../packages/native-parity/student/courses/pdf";
 import { adminMaterialPdfPath, ADMIN_PDF_ACCOUNT, ADMIN_PDF_SESSION } from "../../../packages/native-parity/academic/courses/pdf";
 import { courseVideoSource } from "../../../packages/course-video/source";
+import { matchesCourseVideoUploadHeader } from "../../../lib/video/upload-policy";
 import { SCHEDULE_ACCOUNT, SCHEDULE_SESSION, scheduleFilePolicy, scheduleResourcePath, type ScheduleRole } from "../../../packages/native-parity/schedule/resources";
 import { formQuestionImageProxyPath } from "../../../lib/forms/attachment";
 import { FORM_FILE_MIMES, FORM_IMAGE_MIMES } from "../../../packages/forms/file-types";
@@ -65,7 +66,9 @@ export type MaterialPdfRenewal = { status: "ready"; grant: PdfGrant } | FileReje
 export type MaterialPdfResult = { status: "ready"; document: PreparedMaterialPdf } | FileRejection;
 
 export type PickerDocument = { uri: string; name: string; mimeType?: string; size?: number };
-const videoExtensions = new Map([["video/mp4", "mp4"], ["video/webm", "webm"], ["video/quicktime", "mov"]]);
+const videoExtensions = new Map([
+  ["video/mp4", "mp4"], ["video/webm", "webm"], ["video/quicktime", "mov"], ["video/x-matroska", "mkv"], ["video/x-m4v", "m4v"],
+]);
 
 type TemporaryFile = {
   uri: string;
@@ -127,6 +130,11 @@ const EXTENSIONS = new Map([
   ["image/jpeg", "jpg"],
   ["image/webp", "webp"],
   ["image/gif", "gif"],
+  ["video/mp4", "mp4"],
+  ["video/webm", "webm"],
+  ["video/quicktime", "mov"],
+  ["video/x-matroska", "mkv"],
+  ["video/x-m4v", "m4v"],
 ]);
 
 function fileName(raw: string | undefined, mimeType: string): string {
@@ -230,8 +238,7 @@ function matchesFileHeader(prefix: Uint8Array, mimeType: string): boolean {
   const ascii = (start: number, end: number) => String.fromCharCode(...prefix.subarray(start, end));
   if (mimeType === "image/gif") return ["GIF87a", "GIF89a"].includes(ascii(0, 6));
   if (mimeType === "image/webp") return ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP";
-  if (mimeType === "video/mp4" || mimeType === "video/quicktime") return ascii(4, 8) === "ftyp" || (mimeType === "video/quicktime" && ascii(4, 8) === "moov");
-  if (mimeType === "video/webm") return [0x1a, 0x45, 0xdf, 0xa3].every((byte, i) => prefix[i] === byte);
+  if (mimeType.startsWith("video/")) return matchesCourseVideoUploadHeader(prefix, mimeType);
   if (mimeType === "application/pdf") return /%PDF-\d\.\d/.test(ascii(0, prefix.length));
   return true;
 }

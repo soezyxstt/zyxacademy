@@ -5,16 +5,23 @@ import { db } from "@/db";
 import { chapters, courses, courseVideoPlaylists, courseVideos } from "@/db/schema";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { checkTutorCourseAccess } from "@/lib/auth/tutor-access";
+import { env } from "@/lib/env";
 import { recordOfflineChange } from "@/lib/offline/server-events";
+import { storage } from "@/lib/storage";
+import { buildCourseVideoKey } from "@/lib/storage/keys";
 import { writeCoursePlaylist, writeCourseVideo } from "@/lib/video/catalog-write";
 import { revalidateVideoPaths } from "@/lib/video/catalog-invalidation";
 import { videoEntryRevision, videoPlaylistRevision } from "@/lib/video/catalog-revisions";
-import { extractYouTubeVideoId, getCanonicalYouTubeUrl, getYouTubeThumbnailUrl } from "@/lib/video/youtube";
-import type { ManagedVideoCommand, VideoManagementCatalog, VideoManagerRole } from "@/packages/course-video/management";
+import { decodeVideoUploadToken, encodeVideoUploadToken, validVideoUpload, videoUploadLeaseSeconds } from "@/lib/video/upload-grant";
+import { verifyAndPromoteVideoUpload } from "@/lib/video/verified-upload";
+import { extractYouTubeVideoId, fetchYouTubeVideoMetadata, getCanonicalYouTubeUrl, getYouTubeThumbnailUrl } from "@/lib/video/youtube";
+import type { ManagedVideoCommand, VideoManagementCatalog, VideoManagerRole, VideoUploadInput, VideoUploadKind } from "@/packages/course-video/management";
 import type { CourseCommandViewer } from "./course-command";
 import { assertCourseWriteAuthority, courseWrite, type CourseWriteTransaction } from "./course-write";
 
 type Context = { courseId: string; role: VideoManagerRole; viewer: CourseCommandViewer };
+const uploadScope = (context: Context, courseId: string) => ({ courseId, role: context.role,
+  accountId: context.viewer.user.id, sessionId: context.viewer.session.id });
 
 async function authorizedCourse(tx: CourseWriteTransaction, context: Context) {
   await assertCourseWriteAuthority(tx, context.viewer, context.role);
@@ -61,7 +68,42 @@ export async function readVideoManagement(context: Context): Promise<VideoManage
   });
 }
 
+export async function prepareVideoUpload(context: Context, input: VideoUploadInput) {
+  if (!validVideoUpload(input)) throw new Error("INVALID_VIDEO");
+  const scope = await db.transaction(tx => authorizedCourse(tx, context));
+  if (!storage.getSignedUrl) throw new Error("S3_PRESIGN_UNAVAILABLE");
+  // Both draft types use the protected video prefix to keep unlinked image drafts private.
+  const key = buildCourseVideoKey({ courseSlug: scope.catalogId, filename: `native-upload-${input.name}` });
+  const expiresAt = Date.now() + videoUploadLeaseSeconds * 1000;
+  const { uploadId, kind, size, mime } = input;
+  const token = encodeVideoUploadToken(uploadScope(context, scope.primaryId), {
+    expiresAt, uploadId, kind, size, mime, key,
+  }, env.BETTER_AUTH_SECRET);
+  const uploadUrl = await storage.getSignedUrl(key, "put", mime, videoUploadLeaseSeconds, { contentLength: size });
+  return { token, uploadUrl, expiresAt };
+}
+
+export async function lookupManagedYouTubeVideo(context: Context, youtube: string) {
+  await db.transaction(tx => authorizedCourse(tx, context));
+  const metadata = await fetchYouTubeVideoMetadata(youtube);
+  if (!metadata.success || !metadata.title) throw new Error("INVALID_VIDEO");
+  return { title: metadata.title };
+}
+
+function consumeUpload(context: Context, courseId: string, token: string, kind: VideoUploadKind) {
+  const claims = decodeVideoUploadToken(token, uploadScope(context, courseId), kind, env.BETTER_AUTH_SECRET);
+  if (!claims) throw new Error("INVALID_VIDEO");
+  return claims;
+}
+
 export async function writeVideoManagement(context: Context, command: ManagedVideoCommand, requestId: string) {
+  const attachments = new Set<string>();
+  async function promote(courseId: string, token: string, kind: VideoUploadKind) {
+    const claims = consumeUpload(context, courseId, token, kind);
+    const key = await verifyAndPromoteVideoUpload(claims);
+    attachments.add(claims.key);
+    return { key, size: claims.size };
+  }
   const id = "id" in command ? command.id : randomUUID();
   const action = command.action.startsWith("new-") ? "create" : command.action.startsWith("edit-") ? "update" : "delete";
   const result = await courseWrite({
@@ -129,23 +171,36 @@ export async function writeVideoManagement(context: Context, command: ManagedVid
       }
       let videoUrl = existing?.videoUrl ?? "";
       let thumbnailUrl = existing?.thumbnailUrl ?? null;
+      let fileSize = existing?.fileSize ?? null;
       if (fields.source.kind === "youtube") {
         const youtube = extractYouTubeVideoId(fields.source.video);
         if (!youtube) throw new Error("INVALID_VIDEO");
         videoUrl = getCanonicalYouTubeUrl(youtube);
         if (videoUrl !== existing?.videoUrl) thumbnailUrl = getYouTubeThumbnailUrl(youtube, "hq");
+        if (videoUrl !== existing?.videoUrl) fileSize = null;
+      } else if (fields.source.kind === "uploaded") {
+        const verified = await promote(scope.primaryId, fields.source.token, "video");
+        videoUrl = verified.key;
+        thumbnailUrl = null;
+        fileSize = verified.size;
+      }
+      if (fields.thumbnail?.kind === "uploaded") {
+        thumbnailUrl = (await promote(scope.primaryId, fields.thumbnail.token, "thumbnail")).key;
+      } else if (fields.thumbnail?.kind === "default") {
+        const youtube = extractYouTubeVideoId(videoUrl);
+        thumbnailUrl = youtube ? getYouTubeThumbnailUrl(youtube, "hq") : null;
       }
       if (!videoUrl) throw new Error("INVALID_VIDEO");
       const sourceChanged = existing?.videoUrl !== videoUrl;
       await writeCourseVideo(tx, {
         id, courseId: existing?.courseId ?? playlist.courseId, userId: context.viewer.user.id, create: !existing,
         accessChanged: Boolean(existing && (sourceChanged || existing.chapterId !== fields.chapterId)),
-        draft: { ...fields, videoUrl, thumbnailUrl,
-          duration: sourceChanged ? null : existing?.duration, fileSize: sourceChanged ? null : existing?.fileSize },
+        draft: { ...fields, videoUrl, thumbnailUrl, duration: sourceChanged ? null : existing?.duration, fileSize },
       });
       return receipt;
     },
   });
+  await Promise.allSettled([...attachments].map(key => storage.delete(key)));
   revalidateVideoPaths(result.canonicalCourseId, context.courseId);
   if (result.legacyCourseId) revalidateVideoPaths(result.legacyCourseId);
   return { id: result.id };
