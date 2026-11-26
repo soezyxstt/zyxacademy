@@ -1,0 +1,60 @@
+appId: com.zyx.academy.nativeparity
+name: Student course and material reference enrolled
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: separator
+    timeout: 30000
+- openLink: "zyx-native-parity://student-fixture?scenario=course-material-enrolled&theme=light&locale=id&path=%2Fcourses%2Fmatematika-1"
+- extendedWaitUntil:
+    visible: "Matematika I"
+    timeout: 30000
+- assertVisible: "Daftar bab"
+- assertVisible: "4 dokumen tersedia"
+- assertNotVisible: "Token kelas"
+- takeScreenshot: student-course-detail-enrolled
+- tapOn:
+    id: student-course-open-materials
+- extendedWaitUntil:
+    visible: "Semua"
+    timeout: 30000
+- assertVisible: "Matematika I"
+- assertVisible:
+    id: student-material-dokumen-1
+- assertNotVisible: "Token kelas"
+- takeScreenshot: student-material-list-enrolled
+- scrollUntilVisible:
+    element:
+      id: student-material-dokumen-4
+    direction: DOWN
+- tapOn:
+    id: student-material-dokumen-4
+- extendedWaitUntil:
+    visible: "Turunan"
+    timeout: 30000
+- assertVisible: "Matematika I"
+- assertNotVisible:
+    id: student-material-locked
+- assertNotVisible: "Token kelas"
+- assertVisible: 'Pembaca materi belum tersedia di aplikasi ini\.'
+- assertNotVisible: 'Catatan belajar mengenai Turunan\.'
+- takeScreenshot: student-material-reader-enrolled
+- tapOn:
+    id: student-learning-back
+- extendedWaitUntil:
+    visible:
+      id: student-material-dokumen-4
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: student-material-dokumen-1
+    direction: UP
+- tapOn:
+    id: student-material-dokumen-1
+- extendedWaitUntil:
+    visible: "Sistem bilangan real"
+    timeout: 30000
+- assertNotVisible:
+    id: student-material-locked
+- assertVisible: 'Pembaca materi belum tersedia di aplikasi ini\.'

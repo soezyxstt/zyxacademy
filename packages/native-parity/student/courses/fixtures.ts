@@ -2,8 +2,9 @@ import {
   coursesEndpoint,
   type CourseCard, type CourseData, type MaterialListData, type MaterialRow,
 } from "./contract";
+import { courseMaterialReferenceRequest, materialReferenceScenarios } from "./material-reference";
 
-export const courseFixtureScenarios = ["enrolled", "unenrolled", "revoked", "offline", "long-content", "catalog-parity"] as const;
+export const courseFixtureScenarios = ["enrolled", "unenrolled", "revoked", "offline", "long-content", "catalog-parity", ...materialReferenceScenarios] as const;
 export type CourseFixtureScenario = (typeof courseFixtureScenarios)[number];
 
 export const studentCourseCases = [
@@ -79,6 +80,9 @@ function json(data: unknown, status = 200) {
 }
 
 export function createCourseFixtureRequest(scenario: CourseFixtureScenario): (path: string, init?: RequestInit) => Promise<Response> {
+  const referenceScenario = materialReferenceScenarios.find(value => value === scenario);
+  if (referenceScenario) return courseMaterialReferenceRequest(referenceScenario);
+
   let firstRead = true;
   let activated = false;
   let accessRevoked = false;
