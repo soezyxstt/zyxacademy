@@ -41,6 +41,19 @@ if [[ $platform == ios ]]; then
   "$install_dir/maestro/bin/maestro" --platform ios --device "$device" test \
     "$root/.maestro/native-parity/helpers/confirm-ios-gallery.yaml"
 fi
+if [[ ${3:-parity} == product ]]; then
+  app=com.zyx.academy.nativeparity
+  if [[ $platform == ios ]]; then
+    xcrun simctl terminate "$device" "$app"
+    xcrun simctl openurl "$device" zyx-native-parity://admin
+  else
+    adb -s "$device" shell am force-stop "$app"
+    adb -s "$device" shell am start -W -a android.intent.action.VIEW -d zyx-native-parity://admin "$app"
+  fi
+  "$install_dir/maestro/bin/maestro" --platform "$platform" --device "$device" test \
+    --format junit --output "$output/cold-entry.xml" --test-output-dir "$output/cold-results" \
+    --debug-output "$output/cold-logs" "$flows/helpers/cold-private-entry.yaml"
+fi
 "$install_dir/maestro/bin/maestro" --platform "$platform" --device "$device" test \
   --format junit --output "$output/report.xml" \
   --test-output-dir "$output/results" --debug-output "$output/logs" \
