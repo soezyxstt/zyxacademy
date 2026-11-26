@@ -7,13 +7,13 @@ import { Reference, referenceOrigin } from "../../../features/parity/WebViewRefe
 import { sharedUiReferenceScript } from "../../../features/shared-ui/reference-ready";
 
 export default function SharedUiReferenceRoute() {
-  const { caseId, viewport, build } = useLocalSearchParams<{ caseId: string; viewport?: string; build?: string }>();
+  const { caseId, capture } = useLocalSearchParams<{ caseId: string; capture?: string }>();
   const fixture = sharedUiRelativeCases.find(item => item.id === caseId);
-  const dimensions = typeof viewport === "string" ? /^(\d{2,4})x(\d{2,4})$/.exec(viewport) : null;
+  const dimensions = typeof capture === "string" ? /^(\d{2,4})x(\d{2,4})\.([0-9a-f]{40})$/.exec(capture) : null;
   if (process.env.EXPO_PUBLIC_PARITY_CAPTURE_NAVIGATION !== "1" || process.env.EXPO_PUBLIC_PARITY_WEBVIEW !== "1"
     || Platform.OS !== "android" || PixelRatio.get() !== 1 || PixelRatio.getFontScale() !== 1
-    || !fixture || !dimensions || typeof build !== "string" || !/^[0-9a-f]{40}$/.test(build)) return <Redirect href="/" />;
-  return <SharedUiReference key={JSON.stringify([caseId, viewport, build])} fixture={fixture} build={build}
+    || !fixture || !dimensions) return <Redirect href="/" />;
+  return <SharedUiReference key={JSON.stringify([caseId, capture])} fixture={fixture} build={dimensions[3]}
     width={Number(dimensions[1])} height={Number(dimensions[2])} />;
 }
 

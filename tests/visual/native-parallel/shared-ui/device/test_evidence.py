@@ -257,6 +257,17 @@ class EvidenceTest(unittest.TestCase):
         self.assertIn("Maestro fixture setup failed on attempt 1/3", output.getvalue())
         self.assertIn("device 'test-serial' not found", output.getvalue())
 
+    def test_webview_restores_reverse_port_on_reconnect(self):
+        args = SimpleNamespace(platform="android", device="emulator-5554")
+        ok = subprocess.CompletedProcess([], 0, stdout=b"")
+        offline = subprocess.CalledProcessError(1, "adb", output=b"device offline")
+        with patch("evidence.subprocess.run", side_effect=[offline, ok, ok, ok, ok]) as run, redirect_stdout(StringIO()):
+            capture_frame(args, CASE["id"], self.root / "flow.yml", self.raw / self.image_name, reference_tunnel=True)
+        commands = [call.args[0] for call in run.call_args_list]
+        reverse = ["adb", "-s", args.device, "reverse", "tcp:3211", "tcp:3217"]
+        self.assertEqual(commands[:3], [reverse, ["adb", "-s", args.device, "wait-for-device"], reverse])
+        self.assertEqual(commands[3][0], "maestro")
+
     def test_capture_stops_on_assertion_even_when_driver_reports_offline(self):
         args = SimpleNamespace(platform="android", device="test-serial")
         failure = subprocess.CalledProcessError(1, "maestro", output=b"Assertion is false: marker\ndevice offline")

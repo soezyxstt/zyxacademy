@@ -354,11 +354,15 @@ def wait_for_android_device(device, context):
         print(f"[{context}] ADB readiness check failed: {error}", flush=True)
 
 
-def capture_frame(args, case_id, flow, path):
+def capture_frame(args, case_id, flow, path, *, reference_tunnel=False):
     attempts, timeout = (3, 120) if args.platform == "android" else (1, 240)
     for attempt in range(1, attempts + 1):
         fixture_setup = True
         try:
+            if reference_tunnel:
+                # An ADB reconnect drops reverse mappings between cases.
+                subprocess.run(["adb", "-s", args.device, "reverse", "tcp:3211", "tcp:3217"],
+                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=15, check=True)
             result = subprocess.run(
                 ["maestro", "--device", args.device, "test", str(flow)],
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout, check=True,

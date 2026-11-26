@@ -21,7 +21,7 @@ from relative_visual import measure_relative
 def webview_flow(case_id, build, dimensions):
     width, height = dimensions
     size = f"{width}x{height}"
-    uri = f"zyx-native-parity://internal/shared-ui-reference/{case_id}?viewport={size}&build={build}"
+    uri = f"zyx-native-parity://internal/shared-ui-reference/{case_id}?capture={size}.{build}"
     return (f'appId: {APP_ID}\n---\n- openLink: "{uri}"\n- extendedWaitUntil:\n    visible:\n'
             f"      id: shared-ui-webview-ready-{case_id}-{size}\n    timeout: 30000\n")
 
@@ -51,7 +51,7 @@ def compare_relative_case(case, args, scratch):
     target = args.output / f"{case_id}-webview-frame.png"
     flow = scratch / f"{case_id}.yaml"
     flow.write_text(webview_flow(case_id, args.build, dimensions), encoding="utf-8")
-    capture_frame(args, case_id, flow, target)
+    capture_frame(args, case_id, flow, target, reference_tunnel=True)
     stable_crop("android", args.device, target, dimensions, args.insets)
     reference, box = crop_viewport(load_png(target), dimensions, args.insets)
     reference.save(args.output / f"{case_id}-webview.png")
