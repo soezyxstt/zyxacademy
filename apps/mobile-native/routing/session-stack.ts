@@ -1,4 +1,17 @@
 import type { NativeSessionState } from "../auth/session-controller";
+import type { NativeSessionTransport } from "../network/transport";
+
+export function canNavigateNativeSession(
+  state: NativeSessionState,
+  transport: NativeSessionTransport | null,
+  current: { state: NativeSessionState; transport: NativeSessionTransport | null; revalidating: boolean },
+  now = Date.now(),
+) {
+  // A retained callback must match the session snapshot that rendered it.
+  if (current.state !== state || current.transport !== transport || current.revalidating) return false;
+  if (state.status === "signed-in") return state.expiresAt > now && transport?.isCurrent() === true;
+  return state.status === "unavailable" && !!state.offlineIdentity && state.offlineIdentity.expiresAt > now;
+}
 
 export function navigationSessionKey(state: NativeSessionState): string | null | undefined {
   const identity = state.status === "signed-in" ? state
