@@ -46,6 +46,12 @@ const cases: Capture[] = [
   { id: "pka-simulation-visitor", pattern: `${pka}/simulasi`, path: `${pka}/simulasi`, text: ["Pendaftaran ditutup"], scenario: "visitor",
     redirects: [`${pka}/daftar`], terminal: `${pka}/daftar` },
 ];
+const pkaGuardCases: Capture[] = [
+  ["home", ""], ["schedule", "/jadwal"], ["report", "/laporan"],
+].map(([view, suffix]) => ({
+  id: `pka-${view}-visitor`, pattern: pka + suffix, path: pka + suffix,
+  scenario: "visitor", terminal: `${pka}/daftar`, redirects: [`${pka}/daftar`], text: ["Pendaftaran ditutup"],
+}));
 
 const origin = new URL(process.env.BETTER_AUTH_URL ?? "").origin;
 if (!["127.0.0.1", "localhost", "[::1]"].includes(new URL(origin).hostname)) throw new Error("Expected loopback Next.js origin");
@@ -54,12 +60,18 @@ if (!serverSha || !/^[a-f0-9]{40}$/.test(serverSha)) throw new Error("Set STUDEN
 const out = process.env.STUDENT_CAPTURE_DIR ?? "artifacts/student-evidence/learning-product";
 const ids = process.env.STUDENT_LEARNING_CAPTURE_IDS?.split(",").filter(Boolean);
 const selected = ids ? ids.map(id => {
-  const item = cases.find(value => value.id === id);
+  const item = [...cases, ...pkaGuardCases].find(value => value.id === id);
   if (!item) throw new Error(`Unrecognized learning capture ID ${id}`);
   return item;
 }) : cases;
 if (!selected.length || new Set(selected.map(item => item.id)).size !== selected.length) throw new Error("Select unique learning cases");
-const width = 380, height = 844, dpr = 1;
+const viewport = process.env.STUDENT_LEARNING_CAPTURE_TARGET;
+const dimensions = {
+  android: { width: 380, height: 820, dpr: 1 },
+  ios: { width: 402, height: 874, dpr: 3 },
+};
+if (viewport && viewport !== "android" && viewport !== "ios") throw new Error("Expected android or ios capture target");
+const { width, height, dpr } = viewport ? dimensions[viewport] : { width: 380, height: 844, dpr: 1 };
 const theme = "light", locale = "id-ID", timezone = "Asia/Jakarta";
 
 const secret = process.env.BETTER_AUTH_SECRET;
