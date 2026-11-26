@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+  <testsuite name="Test Suite" device="iPhone 17 Pro - iOS 26.2 - EED6FB0A-E273-43C6-B5DE-3DF739543042" tests="1" failures="1" time="28.208" timestamp="2026-11-26T16:08:01">
+    <testcase id="confirm-ios-gallery" name="confirm-ios-gallery" classname="confirm-ios-gallery" file="/Users/runner/work/zyxacademy/zyxacademy/.maestro/native-parity/helpers/confirm-ios-gallery.yaml" time="28.166" timestamp="2026-11-26T16:08:01" status="ERROR">
+      <failure>Assertion is false: "Pemisah bagian" is visible</failure>
+    </testcase>
+  </testsuite>
+</testsuites>
