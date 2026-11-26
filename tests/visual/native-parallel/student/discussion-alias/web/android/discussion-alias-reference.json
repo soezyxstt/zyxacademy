@@ -33,7 +33,7 @@
     "tests/visual/fixtures/interactive-document-build.ts": "dc51a2f41b0a567504d40004f1ec44e9469601c8e74eb6fd71b6da23ebd45053",
     "tests/visual/fixtures/fonts/inter-latin.woff2": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62",
     "tests/visual/fixtures/fonts/lexend-latin.woff2": "52dcdaa127bac4a5ea4c39ee17a3f454ceacc18d9f2a45cc453eeab68d378588",
-    "tests/visual/fixtures/student-discussions-reference.tsx": "56038d29836b0f84f8ef71c515cde67e9e46f689afcfd6e58ac1a51f17fd2a63",
+    "tests/visual/fixtures/student-discussions-reference.tsx": "6b1d10fc55fb647587c2c963fed7067ef0454cf77b82772e198ff6ede1683747",
     "tests/visual/fixtures/student-discussions-reference-build.ts": "c752cab6c34f529c2c57af3d2c99711368badbc7688df052844345a7ad1d16f5",
     "tests/visual/native-parallel/student/discussions-reference.spec.ts": "e0c7886226c38ad7b295cc716780e1e24d1829a76096d54e489a1a1686665ef1",
     ".maestro/native-parallel/student/discussion-alias-parity.yaml": "67b98a6e786d35cddf14bb71476b46aa8426256a5020cb95539383fc5155e457"
@@ -349,7 +349,7 @@
   },
   "captures": {
     "discussion-alias-list.png": "cdfca2a464ab2f4ee6c851dba0cf4d504fb3403d7ef22cadc79979101bbb4a40",
-    "discussion-alias-thread.png": "8ba2004fd9b0672e96dd966d82f91c430d723d5ba638ebdc86ce33f0101f1b43",
+    "discussion-alias-thread.png": "848428e995d7a67178d3dfc297d0696a1243142d58f813590673bc56e836bd8d",
     "discussion-alias-empty.png": "5cc3951dc4f493efb2954e36a74686a1538576720e7151f980467a367ad0f851"
   }
 }
