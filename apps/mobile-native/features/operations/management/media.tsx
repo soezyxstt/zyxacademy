@@ -1,23 +1,33 @@
 import { randomUUID } from "expo-crypto";
-import { useEffect, useRef, useState } from "react";
+import { useFocusEffect } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import { ManagementFailure, type MediaLocation } from "../../../../../packages/native-parity/operations/management-contract";
-import { mediaDestination, mediaSelection, runMediaBatch, type MediaItem } from "./media-batch";
+import { useProtectedInteraction } from "../../../routing/protected-interaction";
+import { mediaDestination, mediaSelection, runMediaBatch, type MediaItem, type MediaMutation } from "./media-batch";
 import type { PickMediaFile } from "./media-upload";
 import { Action, Choices, Confirm, Copy, Feedback, Field, Item, LoadState, Screen, Section, Sections, styles,
   useAction, useManagement, useRead, type Confirmation } from "./ui";
 
 type Editor = { name: string; item?: MediaItem };
+type CopySelection = { items: MediaItem[]; bulk: boolean; retry: boolean };
+type BatchAction = { type: "media.delete" } | { type: "media.move" | "media.copy"; destination: string };
 type Prepared = Extract<Awaited<ReturnType<PickMediaFile>>, { status: "ready" }>["file"];
 
 export function MediaLibrary({ initialSpace }: { initialSpace?: string }) {
   const { client, retries, locale, openExternal, pickMediaFile } = useManagement();
+  const { canInteract } = useProtectedInteraction();
+  const activeRoute = useRef<symbol | null>(null);
+  useFocusEffect(useCallback(() => {
+    activeRoute.current = Symbol();
+    return () => { activeRoute.current = null; };
+  }, []));
   const [location, setLocation] = useState<MediaLocation>({ space: initialSpace === "storage" ? "storage" : "media", folder: "" });
   const { space, folder } = location;
   const [editor, setEditor] = useState<Editor>();
   const [selected, setSelected] = useState<MediaItem[] | null>(null);
   const [moving, setMoving] = useState<MediaItem[]>();
-  const [copying, setCopying] = useState<MediaItem>();
+  const [copying, setCopying] = useState<CopySelection>();
   const [destination, setDestination] = useState("");
   const [confirm, setConfirm] = useState<Confirmation | null>(null);
   const [upload, setUpload] = useState<{ file: Prepared; item?: MediaItem }>();
@@ -36,7 +46,7 @@ export function MediaLibrary({ initialSpace }: { initialSpace?: string }) {
   const targets = [["", "Pustaka media"], ...(read.data?.destinations ?? read.data?.folders ?? []).map(key => [key, key.slice(6)] as const)] as const;
   const options = moving ? targets.filter(([key]) => mediaDestination(moving, key)) : [];
   const copyOptions = copying
-    ? (isMedia ? targets.filter(([key]) => mediaDestination([copying], key))
+    ? (isMedia ? targets.filter(([key]) => mediaDestination(copying.items, key))
       : [["", "Pustaka media"], ...(library.data?.destinations ?? library.data?.folders ?? []).map(key => [key, key.slice(6)] as const)] as const) : [];
 
   function browse(next: MediaLocation) {
@@ -60,22 +70,29 @@ export function MediaLibrary({ initialSpace }: { initialSpace?: string }) {
     setDestination(first?.[0] ?? "");
   }
 
-  async function batch(items: MediaItem[], target?: string) {
-    if (operation.current) return;
+  async function batch(items: MediaItem[], mutation: BatchAction) {
+    if (operation.current || !activeRoute.current || !canInteract()) return;
     const controller = new AbortController();
     operation.current = controller;
     setWorking(true); setError(undefined); setMessage("");
-    const commands = mediaSelection(items).map(item => target === undefined ? ({ ...item, type: "media.delete" } as const)
-      : ({ ...item, type: "media.move", destination: target } as const));
+    const commands: MediaMutation[] = mediaSelection(items).map(item => mutation.type === "media.delete"
+      ? { ...item, type: mutation.type } : { type: mutation.type, ...item, destination: mutation.destination });
     try {
       const result = await runMediaBatch(client, retries, commands, randomUUID, controller.signal);
       if (controller.signal.aborted) return;
       const count = result.failed.length;
       setMessage(`${result.succeeded} selesai${count ? `, ${count} belum selesai` : ""}.`);
-      if (result.failed.some(entry => entry.uncertain)) setError(new ManagementFailure("uncertain"));
-      setSelected(current => current ? result.failed.map(({ item }) => item) : null);
-      setMoving(target !== undefined && count ? result.failed.map(({ item }) => item) : undefined);
-      read.reload();
+      if (result.denied) setError(new ManagementFailure("forbidden"));
+      else if (result.failed.some(entry => entry.uncertain)) setError(new ManagementFailure("uncertain"));
+      const remaining = result.failed.map(({ item }) => item);
+      setSelected(previous => previous ? remaining : null);
+      setMoving(mutation.type === "media.move" && count ? remaining : undefined);
+      if (mutation.type === "media.copy") {
+        setCopying(count ? { items: remaining, bulk: true, retry: true } : undefined);
+        if (!isMedia) library.reload();
+      } else {
+        read.reload();
+      }
     } finally {
       if (operation.current === controller) operation.current = null;
       if (!controller.signal.aborted) setWorking(false);
@@ -87,14 +104,30 @@ export function MediaLibrary({ initialSpace }: { initialSpace?: string }) {
     const count = mediaSelection(items).length;
     setConfirm({ title: count === 1 ? "Hapus dari media?" : `Hapus ${count} item?`,
       description: items.some(item => item.folder) ? "Folder yang dipilih akan dihapus beserta isinya." : "Berkas yang dipilih akan dihapus dari pustaka media.",
-      label: "Hapus", danger: true, run: () => void batch(items) });
+      label: "Hapus", danger: true, run: () => void batch(items, { type: "media.delete" }) });
   }
 
-  function copy(item: MediaItem) {
+  function copy(items: MediaItem[], bulk = false) {
+    if (!canInteract()) return;
     discardUpload();
     setMoving(undefined);
-    setDestination(isMedia ? targets.find(([key]) => mediaDestination([item], key))?.[0] ?? "" : "");
-    setCopying(item);
+    setMessage("");
+    setError(undefined);
+    const effective = mediaSelection(items);
+    setDestination(isMedia ? targets.find(([key]) => mediaDestination(effective, key))?.[0] ?? "" : "");
+    setCopying({ items: effective, bulk, retry: false });
+  }
+
+  function submitCopy() {
+    if (busy || !copying || !activeRoute.current || !canInteract()) return;
+    if (copying.bulk) {
+      void batch(copying.items, { type: "media.copy", destination });
+      return;
+    }
+    void action.run({ type: "media.copy", ...copying.items[0], destination }, () => {
+      setCopying(undefined);
+      if (isMedia) read.reload();
+    }, "Media disalin.");
   }
 
   function discardUpload() {
@@ -152,14 +185,14 @@ export function MediaLibrary({ initialSpace }: { initialSpace?: string }) {
   }
 
   function rowActions(item: MediaItem, title: string) {
-    if (!isMedia) return <Action disabled={busy} onPress={() => copy(item)}>Salin ke media</Action>;
-    if (selected) return <Action disabled={busy} onPress={() => toggle(item)}>
+    if (selected) return <Action disabled={busy || Boolean(copying)} onPress={() => toggle(item)}>
       {selected.some(value => value.key === item.key) ? "Batal pilih" : "Pilih"}
     </Action>;
+    if (!isMedia) return <Action disabled={busy} onPress={() => copy([item])}>Salin ke media</Action>;
     return <>
       <Action disabled={busy} onPress={() => { discardUpload(); setEditor({ item, name: title }); }}>Ganti nama</Action>
       <Action disabled={busy} onPress={() => move([item])}>Pindah</Action>
-      <Action disabled={busy} onPress={() => copy(item)}>Salin</Action>
+      <Action disabled={busy} onPress={() => copy([item])}>Salin</Action>
       {!item.folder && pickMediaFile && <Action disabled={busy || Boolean(upload)} onPress={() => void choose(item)}>Ganti berkas</Action>}
       <Action disabled={busy} variant="destructive" onPress={() => remove([item])}>Hapus</Action>
     </>;
@@ -173,8 +206,8 @@ export function MediaLibrary({ initialSpace }: { initialSpace?: string }) {
       {isMedia && <>
         {pickMediaFile && <Action disabled={busy || Boolean(upload)} onPress={() => void choose()}>Unggah</Action>}
         <Action disabled={busy} onPress={() => { discardUpload(); setEditor({ name: "" }); }}>Folder baru</Action>
-        <Action disabled={busy} onPress={() => setSelected(selected ? null : [])}>{selected ? "Selesai memilih" : "Pilih item"}</Action>
       </>}
+      <Action disabled={busy || Boolean(copying)} onPress={() => setSelected(selected ? null : [])}>{selected ? "Selesai memilih" : "Pilih item"}</Action>
     </View>
     {folder && <Copy muted>{folder}</Copy>}
     <Feedback error={action.error} status={action.status} />
@@ -197,25 +230,29 @@ export function MediaLibrary({ initialSpace }: { initialSpace?: string }) {
     </Section>}
     {selected && selected.length > 0 && <View style={styles.row}>
       <Copy>{selected.length} dipilih</Copy>
-      <Action disabled={busy} onPress={() => move(selected)}>Pindah pilihan</Action>
-      <Action disabled={busy} variant="destructive" onPress={() => remove(selected)}>Hapus pilihan</Action>
+      {isMedia ? <>
+        <Action disabled={busy} onPress={() => move(selected)}>Pindah pilihan</Action>
+        <Action disabled={busy} variant="destructive" onPress={() => remove(selected)}>Hapus pilihan</Action>
+      </> : <Action disabled={busy || Boolean(copying)} onPress={() => copy(selected, true)} testID="admin-storage-copy-selection">Salin pilihan ke media</Action>}
     </View>}
     {moving && <Section title="Folder tujuan">
       {options.length ? <Choices current={destination} values={options} onChange={setDestination} /> : <Copy>Folder tujuan belum tersedia.</Copy>}
       <View style={styles.row}>
         <Action disabled={busy} onPress={() => setMoving(undefined)}>Batal</Action>
         <Action variant="default" busy={working} disabled={!options.some(([key]) => key === destination)}
-          onPress={() => void batch(moving, destination)}>Pindah</Action>
+          onPress={() => void batch(moving, { type: "media.move", destination })}>Pindah</Action>
       </View>
     </Section>}
     {copying && <Section title="Salin ke folder">
-      <Copy>{copying.key}</Copy>
+      <Copy>{copying.bulk ? `${copying.items.length} item` : copying.items[0].key}</Copy>
       {!isMedia && <LoadState {...library} retry={library.reload} />}
-      {copyOptions.length ? <Choices current={destination} values={copyOptions} onChange={setDestination} /> : <Copy>Folder tujuan belum tersedia.</Copy>}
+      {copying.retry ? <Copy>{copyOptions.find(([key]) => key === destination)?.[1] ?? destination}</Copy>
+        : copyOptions.length ? <Choices current={destination} values={copyOptions} onChange={value => { if (!busy) setDestination(value); }} />
+        : !library.loading && <Copy>Folder tujuan belum tersedia.</Copy>}
       <View style={styles.row}>
         <Action disabled={busy} onPress={() => setCopying(undefined)}>Batal</Action>
         <Action variant="default" busy={busy} disabled={!copyOptions.some(([key]) => key === destination)}
-          onPress={() => action.run({ type: "media.copy", ...copying, destination }, () => { setCopying(undefined); read.reload(); }, "Media disalin.")}>Salin</Action>
+          onPress={submitCopy} testID="admin-storage-submit-copy">{copying.retry ? "Coba lagi" : "Salin"}</Action>
       </View>
     </Section>}
     <LoadState {...read} retry={read.reload} />

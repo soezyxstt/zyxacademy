@@ -70,3 +70,45 @@ test("bulk selection excludes descendants and retries uncertain items with their
   expect(calls).toEqual(["id-0", "id-1", "id-1"]);
   expect(ids.size).toBe(0);
 });
+
+test("copies Storage folders and files independently to one library destination", async () => {
+  const items = [
+    { key: "inputs/lessons", folder: true },
+    { key: "inputs/lessons/nested.pdf", folder: false },
+    { key: "inputs/handout.pdf", folder: false },
+  ];
+  const commands = mediaSelection(items).map(item => ({ type: "media.copy" as const, ...item, destination: "media/kelas" }));
+  const calls: Array<{ action: ManagementAction; id: string }> = [];
+  const client = createManagementFixture();
+  client.mutate = async (action, id) => {
+    calls.push({ action, id });
+    if (calls.length === 2) throw new ManagementFailure("pending");
+    return {};
+  };
+
+  const ids = new Map<string, string>();
+  const first = await runMediaBatch(client, ids, commands, () => `copy-${calls.length}`, signal);
+  expect(first).toEqual({ succeeded: 1, failed: [{ item: items[2], uncertain: true }] });
+  const retry = commands.filter(command => first.failed.some(({ item }) => command.key === item.key));
+  expect(await runMediaBatch(client, ids, retry, () => "unused", signal)).toEqual({ succeeded: 1, failed: [] });
+  expect(calls).toEqual([
+    { action: commands[0], id: "copy-0" },
+    { action: commands[1], id: "copy-1" },
+    { action: commands[1], id: "copy-1" },
+  ]);
+});
+
+test("stops on revoked Admin access and retains unsent selections", async () => {
+  const client = createManagementFixture();
+  const commands = ["one", "two", "three"].map(key => ({ type: "media.copy" as const, key, folder: false, destination: "" }));
+  const seen: string[] = [];
+  client.mutate = async action => {
+    if (action.type !== "media.copy") throw new Error("Wrong operation");
+    seen.push(action.key);
+    if (action.key === "two") throw new ManagementFailure("forbidden");
+    return {};
+  };
+  const result = await runMediaBatch(client, new Map(), commands, () => "copy-id", signal);
+  expect(seen).toEqual(["one", "two"]);
+  expect(result.failed.map(({ item }) => item.key)).toEqual(["two", "three"]);
+});

@@ -1,7 +1,7 @@
 import { ManagementFailure, type ManagementAction, type ManagementClient } from "../../../../../packages/native-parity/operations/management-contract";
 
 export type MediaItem = { key: string; folder: boolean };
-type MediaMutation = Extract<ManagementAction, { type: "media.move" | "media.delete" }>;
+export type MediaMutation = Extract<ManagementAction, { type: "media.move" | "media.delete" | "media.copy" }>;
 
 export function mediaSelection(items: MediaItem[]) {
   const unique = [...new Map(items.map(item => [item.key, item])).values()];
@@ -30,8 +30,15 @@ export async function runMediaBatch(client: ManagementClient, retries: Map<strin
       succeeded++;
     } catch (error) {
       const uncertain = !(error instanceof ManagementFailure) || ["unavailable", "pending", "uncertain"].includes(error.code);
-      if (!uncertain) retries.delete(fingerprint);
+      const denied = error instanceof ManagementFailure && error.code === "forbidden";
+      if (!uncertain && !denied) retries.delete(fingerprint);
       failed.push({ item: { key: command.key, folder: command.folder }, uncertain });
+      if (denied) {
+        for (const remaining of commands.slice(succeeded + failed.length)) {
+          failed.push({ item: { key: remaining.key, folder: remaining.folder }, uncertain: false });
+        }
+        return { succeeded, failed, denied: true };
+      }
     }
   }
   return { succeeded, failed };
