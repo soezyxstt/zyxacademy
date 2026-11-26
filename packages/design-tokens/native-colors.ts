@@ -2,6 +2,7 @@
 export const nativeColors = {
   "light": {
     "background": "#ffffff",
+    "card": "#ffffff",
     "border": "#e0e0e0",
     "muted": "#e0e0e0",
     "foreground": "#333333",
@@ -23,6 +24,7 @@ export const nativeColors = {
   },
   "dark": {
     "background": "#1d1d1d",
+    "card": "#282828",
     "border": "#4f4f4f",
     "muted": "#4f4f4f",
     "foreground": "#ffffff",
@@ -53,4 +55,4 @@ export const nativeLinkInks = {
   "warning": "#e2b93b",
   "error": "#eb5757"
 } as const;
-export const nativeRadii = { sm: 6, md: 8, lg: 10 } as const;
+export const nativeRadii = { sm: 6, md: 8, lg: 10, xl: 14, "2xl": 18 } as const;

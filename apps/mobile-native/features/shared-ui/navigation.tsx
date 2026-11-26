@@ -446,7 +446,7 @@ export function NavigationTabs<Id extends string>({
                       }}
                       style={({ pressed }) => [
                         styles.overflowItem,
-                        { borderStartColor: active ? colors.primary : "transparent",
+                        { borderStartColor: active ? indicatorColor : "transparent",
                           backgroundColor: active || pressed ? `${colors.muted}80` : "transparent" },
                         disabled && styles.disabled,
                       ]}

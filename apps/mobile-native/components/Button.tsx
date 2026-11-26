@@ -11,7 +11,7 @@ import {
   type TextStyle,
 } from "react-native";
 
-import { nativeColors, nativeRadii } from "../../../packages/design-tokens/native-colors";
+import { nativeColors, nativeLinkInks, nativeRadii } from "../../../packages/design-tokens/native-colors";
 import { nativeControlLabelPosition, nativeTypography } from "../typography";
 
 type ButtonVariant = "default" | "outline" | "secondary" | "ghost" | "destructive" | "link" | "marketingPrimary" | "marketingSecondary";
@@ -25,6 +25,10 @@ type ButtonProps = Omit<PressableProps, "children"> & {
   renderIcon?: (color: string, size: number) => ReactNode;
   iconPosition?: "start" | "end";
   labelStyle?: StyleProp<TextStyle>;
+  /** Tinted feedback surface with readable label ink. */
+  softTone?: "brand" | "error" | "warning" | "success";
+  /** Allows labels to wrap when the caller provides a flexible button height. */
+  wrapLabel?: boolean;
 };
 
 const buttonSizes = {
@@ -56,9 +60,11 @@ export const Button = forwardRef<ComponentRef<typeof Pressable>, ButtonProps>(fu
   onFocus,
   renderIcon,
   size = "default",
+  softTone,
   style,
   theme,
   variant = "default",
+  wrapLabel,
   ...props
 }, ref) {
   const systemTheme = useColorScheme();
@@ -67,13 +73,19 @@ export const Button = forwardRef<ComponentRef<typeof Pressable>, ButtonProps>(fu
   const dark = resolvedTheme === "dark";
   const [focused, setFocused] = useState(false);
   const blocked = Boolean(disabled || isLoading);
+  // Android needs an explicit false to clear the busy suffix from the accessible name.
+  const busy = isLoading || accessibilityState?.busy === true;
   const dimensions = buttonSizes[size];
   const iconOnly = "width" in dimensions;
   const borderRadius = size === "marketing" || variant.startsWith("marketing") || compactSizes.has(size)
     ? nativeRadii.md : nativeRadii.lg;
   const borderWidth = variant === "marketingSecondary" ? 2 : 1;
 
-  const palette = {
+  const softInk = softTone === "brand" ? colors.brandPrimary : softTone && nativeLinkInks[softTone];
+  const palette = softInk ? {
+    fill: `${softInk}1a`, pressedFill: `${softInk}33`,
+    ink: softTone === "brand" ? colors.brandPrimary : softTone === "error" ? colors.destructive : colors.foreground,
+  } : {
     marketingPrimary: { fill: colors.marketingNavy, pressedFill: colors.marketingNavy, ink: "#ffffff" },
     marketingSecondary: { fill: colors.background, pressedFill: colors.background, ink: colors.marketingNavy },
     default: { fill: colors.primary, pressedFill: colors.primaryHover, ink: colors.primaryForeground },
@@ -91,7 +103,7 @@ export const Button = forwardRef<ComponentRef<typeof Pressable>, ButtonProps>(fu
       ref={ref}
       accessibilityRole={accessibilityRole}
       accessibilityLabel={accessibilityLabel ?? children}
-      accessibilityState={{ ...accessibilityState, disabled: blocked, busy: isLoading }}
+      accessibilityState={{ ...accessibilityState, disabled: blocked, busy }}
       disabled={blocked}
       hitSlop={hitSlop ?? Math.max(0, (44 - dimensions.height) / 2)}
       needsOffscreenAlphaCompositing={blocked || needsOffscreenAlphaCompositing}
@@ -140,18 +152,21 @@ export const Button = forwardRef<ComponentRef<typeof Pressable>, ButtonProps>(fu
             {isLoading && (
               <ActivityIndicator accessible={false} color={palette.ink} size="small" style={styles.loading} />
             )}
-            <View style={[
+            {/* Keep the content wrapper mounted when loading changes its opacity. */}
+            <View collapsable={false} style={[
               styles.content,
+              wrapLabel && styles.wrappedContent,
               !iconOnly && { gap: dimensions.gap },
               iconPosition === "end" && styles.contentReversed,
               isLoading && styles.hidden,
             ]}>
               {icon}
               {children != null && (
-                <Text numberOfLines={1} style={[
+                <Text numberOfLines={wrapLabel ? undefined : 1} style={[
                   styles.label,
-                  nativeTypography.bodyMedium,
+                  softTone ? nativeTypography.bodySemibold : nativeTypography.bodyMedium,
                   nativeControlLabelPosition,
+                  wrapLabel && styles.wrappedLabel,
                   { color: palette.ink },
                   labelStyle,
                 ]}>
@@ -174,6 +189,8 @@ const styles = StyleSheet.create({
   loading: { position: "absolute" },
   hidden: { opacity: 0 },
   content: { flexDirection: "row", alignItems: "center", justifyContent: "center" },
+  wrappedContent: { maxWidth: "100%" },
   contentReversed: { flexDirection: "row-reverse" },
   label: { fontSize: 14, lineHeight: 20, includeFontPadding: false },
+  wrappedLabel: { flexShrink: 1, textAlign: "center" },
 });

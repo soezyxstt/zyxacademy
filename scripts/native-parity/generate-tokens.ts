@@ -5,7 +5,7 @@ import postcss from "postcss";
 const cssFile = new URL("../../app/globals.css", import.meta.url);
 const outputFile = new URL("../../packages/design-tokens/native-colors.ts", import.meta.url);
 const colorProperties = {
-  background: "background", border: "border", muted: "muted", foreground: "foreground",
+  background: "background", card: "card", border: "border", muted: "muted", foreground: "foreground",
   popover: "popover", popoverForeground: "popover-foreground",
   input: "input", mutedForeground: "muted-foreground", primary: "primary",
   primaryForeground: "primary-foreground", primaryHover: "primary-hover", secondary: "secondary",
@@ -45,7 +45,9 @@ const themes = Object.fromEntries(
 const base = /^(\d*\.?\d+)rem$/.exec(readProperty(":root", "--radius"));
 const smallFactor = /^calc\(var\(--radius\) \* (\d*\.?\d+)\)$/.exec(readProperty("@theme inline", "--radius-sm"));
 const factor = /^calc\(var\(--radius\) \* (\d*\.?\d+)\)$/.exec(readProperty("@theme inline", "--radius-md"));
-if (!base || !smallFactor || !factor || readProperty("@theme inline", "--radius-lg") !== "var(--radius)") throw new Error("Unsupported radius expression");
+const noticeFactor = /^calc\(var\(--radius\) \* (\d*\.?\d+)\)$/.exec(readProperty("@theme inline", "--radius-xl"));
+const cardFactor = /^calc\(var\(--radius\) \* (\d*\.?\d+)\)$/.exec(readProperty("@theme inline", "--radius-2xl"));
+if (!base || !smallFactor || !factor || !noticeFactor || !cardFactor || readProperty("@theme inline", "--radius-lg") !== "var(--radius)") throw new Error("Unsupported radius expression");
 const mediumRadius = Number(base[1]) * 16 * Number(factor[1]);
 const output = [
   "// Generated from app/globals.css by scripts/native-parity/generate-tokens.ts.",
@@ -54,7 +56,7 @@ const output = [
     const token = ["success", "info", "warning", "error"].includes(key) ? "status-" + key : key;
     return [key, readColor("@theme inline", "color-" + token)];
   })), null, 2)} as const;`,
-  `export const nativeRadii = { sm: ${Number(base[1]) * 16 * Number(smallFactor[1])}, md: ${mediumRadius}, lg: ${Number(base[1]) * 16} } as const;`,
+  `export const nativeRadii = { sm: ${Number(base[1]) * 16 * Number(smallFactor[1])}, md: ${mediumRadius}, lg: ${Number(base[1]) * 16}, xl: ${Number(base[1]) * 16 * Number(noticeFactor[1])}, "2xl": ${Number(base[1]) * 16 * Number(cardFactor[1])} } as const;`,
   "",
 ].join("\n");
 
