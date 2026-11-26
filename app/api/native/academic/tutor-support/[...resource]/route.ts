@@ -5,12 +5,16 @@ import { handleTutorCalendar, handleTutorTicket } from "@/lib/native/academic/ha
 import { writeTutorTicket } from "@/lib/native/academic/tutor-ticket-service";
 import { handleTutorSlotWrite } from "@/lib/native/academic/handle-tutor-slot";
 import { handleTutorDiscussionAnswer, handleTutorSupport } from "@/lib/native/academic/handle-tutor-support";
+import { handleTutorDiscussionWorkspace, isTutorDiscussionWorkspace } from "@/lib/native/academic/handle-tutor-discussion-workspace";
+import { tutorDiscussionWorkspaceServices } from "@/lib/native/academic/tutor-discussion-workspace-services";
 import { tutorSupportServices } from "@/lib/native/academic/tutor-support-services";
 import { saveTutorSlot } from "@/lib/native/academic/tutor-slot-service";
 import { gradeTryoutSubmission } from "@/lib/tutor/tryout-grading";
 
 export async function GET(request: Request, context: { params: Promise<{ resource: string[] }> }) {
-  return handleTutorSupport(new URL(request.url), (await context.params).resource, tutorSupportServices);
+  const { resource } = await context.params;
+  if (isTutorDiscussionWorkspace(resource)) return handleTutorDiscussionWorkspace(request, resource, new URL(resolveAuthBaseUrl()).origin, tutorDiscussionWorkspaceServices);
+  return handleTutorSupport(new URL(request.url), resource, tutorSupportServices);
 }
 
 function writeSlot(request: Request, parts: string[]) {
@@ -33,6 +37,7 @@ export async function POST(request: Request, context: { params: Promise<{ resour
   });
   if (resource[0] === "schedule") return writeSlot(request, resource);
   const origin = new URL(resolveAuthBaseUrl()).origin;
+  if (isTutorDiscussionWorkspace(resource)) return handleTutorDiscussionWorkspace(request, resource, origin, tutorDiscussionWorkspaceServices);
   if (resource[0] === "courses" && resource[2] === "grading") {
     return handleTryoutGrade(request, resource, origin, {
       session: tutorSupportServices.session,

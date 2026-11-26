@@ -5,6 +5,8 @@ import { DISCUSSION_IMAGE_MAX_COUNT } from "@/lib/discussions/image-limits";
 import { z } from "zod";
 import type {
   TutorDiscussionDetail,
+  TutorDiscussionList,
+  TutorDiscussionListFilter,
   TutorDiscussionDraft,
   TutorDiscussionChange,
   TutorDiscussionSendResult,
@@ -16,13 +18,14 @@ export type TutorSupportServices = {
   session(): Promise<{ user: { id: string } } | null>;
   hasTutor(userId: string): Promise<boolean>;
   authorizeCourse(userId: string, courseId: string): Promise<void>;
+  discussions(userId: string, courseId: string | undefined, search: string, cursor: string | undefined, filter?: TutorDiscussionListFilter): Promise<TutorDiscussionList>;
   discussion(userId: string, courseId: string | undefined, threadId: string, cursor: string | undefined, targetMessageId?: string): Promise<TutorDiscussionDetail>;
   answer(userId: string, courseId: string | undefined, threadId: string, draft: TutorDiscussionDraft): Promise<TutorDiscussionSendResult>;
   mentions?(userId: string, courseId: string | undefined, threadId: string, search: string): Promise<DiscussionMention[]>;
   profile?(userId: string, courseId: string | undefined, threadId: string, personId: string): Promise<TutorDiscussionProfile>;
   changeDiscussion?(userId: string, courseId: string | undefined, threadId: string, change: TutorDiscussionChange): Promise<void>;
 } & {
-  [Key in keyof Omit<TutorSupportReads, "discussion">]: (
+  [Key in keyof Omit<TutorSupportReads, "discussion" | "discussions">]: (
     userId: string,
     ...input: Parameters<TutorSupportReads[Key]> extends [...infer Args, AbortSignal] ? Args : never
   ) => ReturnType<TutorSupportReads[Key]>;
@@ -51,6 +54,11 @@ export async function handleTutorSupport(url: URL, parts: string[], services: Tu
   const mention = searchParams.get("mention");
   const person = searchParams.get("profile");
   const lookup = mention !== null || person !== null;
+  const channelId = searchParams.get("channel") ?? undefined;
+  const status = searchParams.get("status") ?? undefined;
+  if ((channelId !== undefined && !validDiscussionId(channelId)) || (status !== undefined && status !== "open" && status !== "resolved") ||
+    (thread && (channelId || status))) return reply(400, { error: "INVALID_INPUT" });
+  const filter = channelId || status ? { channelId, status } : undefined;
   if (parts.some((part) => !safeId(part)) || (thread && !safeId(thread)) ||
       (message && (!validDiscussionId(message) || !thread || cursor)) ||
       (cursor && cursor.length > 2048) || search.length > 160 || search.includes("\0")) {
@@ -82,7 +90,7 @@ export async function handleTutorSupport(url: URL, parts: string[], services: Tu
     if (section === "discussions" && parts.length === 1) {
       return reply(200, thread
         ? await services.discussion(userId, undefined, thread, cursor, message)
-        : await services.discussions(userId, undefined, search, cursor));
+        : await services.discussions(userId, undefined, search, cursor, filter));
     }
     if (section === "courses" && id && parts.length === 3) {
       await services.authorizeCourse(userId, id);
@@ -92,7 +100,7 @@ export async function handleTutorSupport(url: URL, parts: string[], services: Tu
         case "live": return reply(200, await services.live(userId, id));
         case "discussions": return reply(200, thread
           ? await services.discussion(userId, id, thread, cursor, message)
-          : await services.discussions(userId, id, search, cursor));
+          : await services.discussions(userId, id, search, cursor, filter));
       }
     }
     return reply(404, { error: "NOT_FOUND" });

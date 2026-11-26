@@ -12,7 +12,8 @@ export const discussionRoleLabel: Record<DiscussionRole, string> = { student: "P
 
 type Scope = { service: TutorSupportClient; courseId?: string; threadId: string; theme: TutorTheme };
 
-export function TutorDiscussionMentionPicker({ service, courseId, threadId, theme, select, close }: Scope & {
+export function TutorDiscussionMentionPicker({ service, courseId, threadId, theme, select, close, channelId }: Omit<Scope, "threadId"> & {
+  threadId?: string; channelId?: string;
   select(person?: DiscussionMention): void;
   close(): void;
 }) {
@@ -22,24 +23,27 @@ export function TutorDiscussionMentionPicker({ service, courseId, threadId, them
   const [retry, setRetry] = useState(0);
   const [result, setResult] = useState<{ query: string; items?: DiscussionMention[]; failed?: boolean }>();
   const search = query.trim();
+  const canSearch = Boolean(channelId ? service.discussionWorkspace?.channelMentions : threadId && service.discussionMentions);
   const matches = result?.query === search ? result : undefined;
   useEffect(() => {
-    if (!service.discussionMentions || search.length < 2 || suspended) return;
+    if (!canSearch || search.length < 2 || suspended) return;
     const controller = new AbortController();
     const timer = setTimeout(() => {
       if (!canInteract()) return;
-      void service.discussionMentions?.(courseId, threadId, search, controller.signal).then(items => {
+      const task = channelId ? service.discussionWorkspace?.channelMentions(courseId, channelId, search, controller.signal)
+        : threadId ? service.discussionMentions?.(courseId, threadId, search, controller.signal) : undefined;
+      void task?.then(items => {
         if (!controller.signal.aborted) setResult({ query: search, items });
       }).catch(() => { if (!controller.signal.aborted) setResult({ query: search, failed: true }); });
     }, 300);
     return () => { clearTimeout(timer); controller.abort(); };
-  }, [canInteract, suspended, service, courseId, threadId, search, retry]);
+  }, [canInteract, canSearch, suspended, service, courseId, channelId, threadId, search, retry]);
   return <View style={tutorLayout.group}>
     <View style={tutorLayout.cluster}>
       <Button theme={theme} variant="outline" onPress={() => { if (canInteract()) select(); }} testID="tutor-discussion-mention-zyra">@Zyra</Button>
       <Button theme={theme} variant="outline" onPress={close}>Tutup pilihan</Button>
     </View>
-    {service.discussionMentions ? <>
+    {canSearch ? <>
       <Input theme={theme} autoFocus accessibilityLabel="Cari peserta diskusi" placeholder="Cari nama peserta"
         testID="tutor-discussion-mention-search" autoCorrect={false} maxLength={80} value={query}
         onChangeText={value => { setQuery(value); setResult(undefined); setPage(1); }} />

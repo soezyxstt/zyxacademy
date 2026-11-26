@@ -19,9 +19,11 @@ import type {
   TutorVideosData,
 } from "../../../../../packages/academic/tutor-support";
 import { DISCUSSION_REACTIONS, discussionMentionTokens } from "../../../../../lib/discussions/policy";
-import type { DiscussionMention } from "../../../../../lib/discussions/contracts";
+import type { DiscussionChannelMetadata, DiscussionMention } from "../../../../../lib/discussions/contracts";
 import { activeTutorMentions, insertTutorMention, tutorMentionSubmission } from "../../../../../packages/academic/tutor-discussion-mentions";
 import { discussionAiMessage, threadRefreshDelay } from "../../student/community/discussion-refresh";
+import { TutorDiscussionChannels } from "./discussion-channels";
+import { TutorDiscussionQuestion } from "./discussion-question";
 import { TutorDiscussionMentionPicker, TutorDiscussionPerson } from "./discussion-mentions";
 import type { TutorSlotEditor, TutorSlotPending } from "../../../../../packages/academic/tutor-slot";
 import { TutorDataError } from "../../../../../packages/native-parity/academic/tutor/model";
@@ -340,6 +342,11 @@ export function ConnectedDiscussions({ theme, back, replace, query, courseId, se
   const pageRequest = useRef<AbortController | null>(null);
   const target = discussionDestination(new URLSearchParams(query));
   const [active, setActive] = useState<string | null>(target?.thread ?? null);
+  const [channel, setChannel] = useState<DiscussionChannelMetadata>();
+  const [creating, setCreating] = useState<DiscussionChannelMetadata>();
+  const [submittedMessage, setSubmittedMessage] = useState<{ threadId: string; messageId: string }>();
+  const [discussionStatus, setDiscussionStatus] = useState<"open" | "resolved">("open");
+  const listChannel = courseId ? undefined : channel?.id;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -348,7 +355,7 @@ export function ConnectedDiscussions({ theme, back, replace, query, courseId, se
     setListError("");
     setListUnavailable(false);
     setLoadingMore(false);
-    service.discussions(courseId, term, undefined, signal)
+    service.discussions(courseId, term, undefined, signal, service.discussionWorkspace ? { channelId: listChannel, status: discussionStatus } : undefined)
       .then((data) => { if (!signal.aborted) setPage(data); })
       .catch((error: unknown) => {
         if (signal.aborted) return;
@@ -359,7 +366,7 @@ export function ConnectedDiscussions({ theme, back, replace, query, courseId, se
       controller.abort();
       pageRequest.current?.abort();
     };
-  }, [service, courseId, term, attempt]);
+  }, [service, courseId, term, attempt, listChannel, discussionStatus]);
 
   async function more() {
     if (!page?.nextCursor || loadingMore) return;
@@ -368,7 +375,7 @@ export function ConnectedDiscussions({ theme, back, replace, query, courseId, se
     setLoadingMore(true);
     setListError("");
     try {
-      const next = await service.discussions(courseId, term, page.nextCursor, controller.signal);
+      const next = await service.discussions(courseId, term, page.nextCursor, controller.signal, service.discussionWorkspace ? { channelId: listChannel, status: discussionStatus } : undefined);
       if (!controller.signal.aborted) setPage({ items: [...page.items, ...next.items], nextCursor: next.nextCursor });
     } catch (error) {
       if (!controller.signal.aborted) {
@@ -386,6 +393,12 @@ export function ConnectedDiscussions({ theme, back, replace, query, courseId, se
 
   return <>
     <TutorPage title="Diskusi" theme={theme} onBack={back}>
+      {service.discussionWorkspace ? <>
+        <TutorDiscussionChannels client={service.discussionWorkspace} {...{ courseId, theme }} selected={channel}
+          choose={setChannel} create={setCreating} />
+        <Choices theme={theme} label="Status diskusi" value={discussionStatus} change={setDiscussionStatus} tabBar
+          options={[["open", "Terbuka"], ["resolved", "Selesai"]]} />
+      </> : null}
       <Input theme={theme} accessibilityLabel="Cari diskusi" placeholder="Cari diskusi"
         maxLength={160} returnKeyType="search" value={search}
         onChangeText={setSearch} onSubmitEditing={() => setTerm(search.trim())} style={tutorLayout.input} />
@@ -403,10 +416,16 @@ export function ConnectedDiscussions({ theme, back, replace, query, courseId, se
           isLoading={loadingMore} onPress={more}>Tampilkan lebih banyak</Button> : null}
       </View> : null}
     </TutorPage>
+    {creating ? <TutorDiscussionQuestion key={JSON.stringify([creating.id, discussionSessionKey(service)])} channel={creating}
+      {...{ theme, courseId, service }} close={() => setCreating(undefined)} sent={submitted => {
+        setCreating(undefined); setSubmittedMessage(submitted); setActive(submitted.threadId);
+        setDiscussionStatus("open"); setAttempt(value => value + 1);
+      }} /> : null}
     {active ? <ConnectedDiscussionDetail key={JSON.stringify([active, discussionSessionKey(service)])} theme={theme} courseId={courseId} threadId={active}
-      targetMessage={active === target?.thread ? target.message : undefined} service={service}
+      targetMessage={submittedMessage?.threadId === active ? submittedMessage.messageId : active === target?.thread ? target.message : undefined} service={service}
       close={() => {
         setActive(null);
+        setSubmittedMessage(undefined);
         if (active === target?.thread) {
           const path = courseId ? `/tutor/${encodeURIComponent(courseId)}/discussions` : "/tutor/discussions";
           replace(discussionWorkspaceHref(path, new URLSearchParams(query)));

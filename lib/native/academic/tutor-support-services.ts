@@ -76,11 +76,12 @@ export const tutorSupportServices = {
       })),
     };
   },
-  async discussions(userId, courseId, search, cursor) {
-    const channelId = courseId ? await courseChannel(userId, courseId) : undefined;
+  async discussions(userId, courseId, search, cursor, filter) {
+    const channelId = courseId ? await courseChannel(userId, courseId) : filter?.channelId;
+    if (courseId && filter?.channelId && filter.channelId !== channelId) throw new Error("DISCUSSION_UNAVAILABLE");
     if (courseId && !channelId) return { items: [], nextCursor: null };
-    const result = await listThreadsAcrossChannels(userId, { channelId, search, cursor });
-    return { items: result.items.map(({ id, title, status, answerCount, canReply, unreadCount }) => ({ id, title, status, answerCount, canReply, unreadCount })), nextCursor: result.nextCursor };
+    const result = await listThreadsAcrossChannels(userId, { channelId, search, cursor, status: filter?.status });
+    return { items: result.items.map(({ id, channelId, title, status, answerCount, canReply, unreadCount }) => ({ id, channelId, title, status, answerCount, canReply, unreadCount })), nextCursor: result.nextCursor };
   },
   async discussion(userId, courseId, threadId, cursor, targetMessageId) {
     if (courseId) await requireCourseThread(userId, courseId, threadId);

@@ -16,6 +16,8 @@ mock.module("@/lib/queue/outbox", () => ({
 }));
 const { provisionPenggunaForNewUser } = await import("@/lib/auth/authorization");
 const { tutorSupportServices } = await import("@/lib/native/academic/tutor-support-services");
+const { handleTutorDiscussionWorkspace } = await import("@/lib/native/academic/handle-tutor-discussion-workspace");
+const { tutorDiscussionWorkspaceServices } = await import("@/lib/native/academic/tutor-discussion-workspace-services");
 const { handleTutorDiscussionAnswer, handleTutorSupport } = await import("@/lib/native/academic/handle-tutor-support");
 
 const origin = "https://integration.example.test";
@@ -45,6 +47,28 @@ afterAll(async () => {
   if (previousSecret === undefined) delete process.env.BETTER_AUTH_SECRET;
   else process.env.BETTER_AUTH_SECRET = previousSecret;
   await client.close();
+});
+
+test("native Tutor can create one real course question and change the verified channel preference", async () => {
+  const path = scope + "/workspace";
+  const segments = [...parts, "workspace"];
+  const read = (query: string) => handleTutorDiscussionWorkspace(new Request(path + query), segments, origin, tutorDiscussionWorkspaceServices);
+  expect(await (await read("?view=catalog")).json()).toMatchObject({ items: [{ id: "course-channel", muted: false }] });
+  const write = (body: object, requestId: string) => handleTutorDiscussionWorkspace(new Request(path, {
+    method: "POST", headers: { Origin: origin, "Content-Type": "application/json", "Idempotency-Key": requestId }, body: JSON.stringify(body),
+  }), segments, origin, tutorDiscussionWorkspaceServices);
+  const requestId = "new-native-question";
+  const input = { action: "create", requestId, input: {
+    channelId: "course-channel", title: "Pertanyaan dari tutor", body: "Apa perbedaan kedua jenis sel?",
+  } };
+  expect((await write({ ...input, input: { ...input.input, channelId: "another-channel" } }, requestId)).status).toBe(404);
+  const first = await (await write(input, requestId)).json();
+  expect(first).toMatchObject({ ok: true, value: { threadId: expect.any(String), messageId: expect.any(String) } });
+  expect(await (await write(input, requestId)).json()).toEqual(first);
+  expect(await testDb.select().from(schema.discussionMessages).where(eq(schema.discussionMessages.requestId, requestId))).toHaveLength(1);
+  expect(await (await write({ action: "mute", requestId: "mute-course", channelId: "course-channel", muted: true }, "mute-course")).json())
+    .toEqual({ ok: true });
+  expect(await (await read("?view=catalog")).json()).toMatchObject({ items: [{ id: "course-channel", muted: true }] });
 });
 
 test("native Tutor mention search and writes use the current course audience and enqueue Zyra exactly once", async () => {

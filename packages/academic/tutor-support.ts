@@ -1,3 +1,4 @@
+import type { TutorDiscussionWorkspaceClient } from "./tutor-discussion-workspace";
 import type { DiscussionMention, DiscussionMessage } from "../../lib/discussions/contracts";
 import type { MentionBinding, TutorDiscussionProfile, TutorMentionInput } from "./tutor-discussion-mentions";
 import type { CalendarEditor } from "./tutor-calendar";
@@ -114,9 +115,11 @@ export type TutorDiscussionChange =
   | { action: "reaction"; messageId: string; emoji: string; selected: boolean }
   | { action: "resolve"; resolved: boolean };
 
+export type TutorDiscussionListFilter = { channelId?: string; status?: "open" | "resolved" };
+
 export type TutorSupportReads = {
   schedule(week: number, signal: AbortSignal): Promise<TutorScheduleData>;
-  discussions(courseId: string | undefined, search: string, cursor: string | undefined, signal: AbortSignal): Promise<TutorDiscussionList>;
+  discussions(courseId: string | undefined, search: string, cursor: string | undefined, signal: AbortSignal, filter?: TutorDiscussionListFilter): Promise<TutorDiscussionList>;
   discussion(courseId: string | undefined, threadId: string, cursor: string | undefined, signal: AbortSignal, targetMessageId?: string): Promise<TutorDiscussionDetail>;
   materials(courseId: string, signal: AbortSignal): Promise<TutorMaterialsData>;
   videos(courseId: string, signal: AbortSignal): Promise<TutorVideosData>;
@@ -125,6 +128,7 @@ export type TutorSupportReads = {
 
 export type TutorSupportClient = TutorSupportReads & {
   liveHost?: TutorLiveHost;
+  discussionWorkspace?: TutorDiscussionWorkspaceClient;
   slotEditor?: TutorSlotEditor;
   ticketEditor?: TutorTicketEditor;
   calendarEditor?: CalendarEditor;
