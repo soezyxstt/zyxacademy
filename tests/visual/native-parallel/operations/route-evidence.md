@@ -8,6 +8,8 @@ A later [Android run at SHA `72be4055`](android-run-45806987342/README.md) passe
 
 Web evidence comes from isolated local Chromium harnesses. The table identifies saved screenshots and the recorded browser alias outcomes. Alias destinations are local fixtures. The alias runs verified status, redirect target and Back. [Alias manifest](references/evaluation/legacy-browser.json)
 
+At 402 × 874 CSS px and DPR 3, Chromium captured Admin home, Web Analytics, 30-day Feature Usage, the public landing hero, form entry and demo empty state. The source captures and checks are recorded in the [monitoring manifest](references/monitoring/cases-402-dpr3.json) and the [public manifest](public-pages/references/manifest-402-dpr3.json).
+
 Five matched web and Android viewports have measured differences. They cover the [populated blog list and detail](android-run-45801930588/diff/metrics.json) and the [English dark empty blog, Web Analytics and completed generation](android-run-45801930588/supplemental/README.md). The later run also records [seven matched comparisons](android-run-45806987342/README.md#whole-viewport-comparisons). Full interaction coverage, visual parity and iOS rendering remain unverified.
 
 | Owned route | Area | Case suffixes | Historical Android observations | Saved web evidence |

@@ -34,4 +34,14 @@ The Web Analytics component has an independently captured populated, empty and u
 
 The focused 7-day Feature Usage URL returned HTTP 200 and rendered the selected range, three zero metrics and the empty chart state at 380×844, DPR 1, in light theme. The screenshot was opened for inspection. The complete selector-click matrix did not finish. The shared Next dev runner initially hit an unrelated native dependency import, then intermittent client-mount timeouts during sibling route recompiles. The other scenarios remain reproducible in the harness, with outcomes pending. [Seven-day feature reference](references/monitoring/feature-empty-direct-light-380.png)
 
+## 402 px references
+
+Three initial populated states passed in Indonesian and light theme at 402 × 874 CSS px, DPR 3. The Admin home test verifies the failed-job count and Web Analytics link. The 30-day Web Analytics test verifies the view count and both chart lines. The 30-day Feature Usage test verifies the range selector and a populated bar. Chromium measured no horizontal overflow. Recharts reported initial container-size warnings before the chart assertions passed. Each PNG is 1206 × 2622 px. [Capture manifest](references/monitoring/cases-402-dpr3.json)
+
+```sh
+PARITY_CHROMIUM_EXECUTABLE=/usr/bin/chromium PARITY_MONITORING_CASES=home-populated,web-populated,features-30-days \
+  PARITY_MONITORING_THEME=light PARITY_MONITORING_WIDTHS=402 \
+  node --import tsx tests/visual/native-parallel/operations/capture-monitoring.ts
+```
+
 A follow-up on a dedicated local Next server passed the 380×844 light-theme range journey on one browser page. The real selector moved from the default 30 days to 7 empty days and then to 90 populated days. The two selected URLs carried the expected `range` query, the populated chart had visible bars, the empty state appeared, and Playwright recorded no unexpected HTTP, runtime, console or horizontal-overflow errors. The 30-day dark view also passed as a separate checkpoint. All four viewport screenshots were opened for inspection. The full light/dark desktop and remaining secondary-route matrix is still incomplete. [Range journey results and PNGs](references/monitoring/feature-range-flow-results.json)

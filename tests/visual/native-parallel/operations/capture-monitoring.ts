@@ -9,7 +9,7 @@ const destination = "artifacts/native-parity/operations-web/monitoring";
 const root = process.env.PARITY_OPERATIONS_WEB_URL ?? "http://localhost:3211";
 const localOrigin = new URL(root).origin;
 const timeZone = "Asia/Jakarta";
-const viewports = [{ width: 380, height: 844 }, { width: 1536, height: 864 }];
+const viewports = [{ width: 380, height: 844 }, { width: 1536, height: 864 }, { width: 402, height: 874 }];
 const errors: string[] = [];
 const intentionallyFailed = new Set<string>();
 const scenarios: { screen: string; id: string; mode?: string; query?: Record<string, string>; verify: (page: Page) => Promise<void> }[] = [
@@ -233,11 +233,13 @@ async function main() {
   const failures: string[] = [];
   try {
     const widths = new Set(process.env.PARITY_MONITORING_WIDTHS?.split(",").map(Number));
-    const sizes = viewports.filter(viewport => !widths.size || widths.has(viewport.width));
+    const sizes = viewports.filter(viewport => widths.size ? widths.has(viewport.width) : viewport.width !== 402);
     if (!sizes.length) throw new Error("No monitoring viewports matched.");
-    for (const scenario of cases) for (const theme of ["light", "dark"] as const) {
+    const themes = (["light", "dark"] as const).filter(theme => !process.env.PARITY_MONITORING_THEME || theme === process.env.PARITY_MONITORING_THEME);
+    for (const scenario of cases) for (const theme of themes) for (const viewport of sizes) {
+      const dpr = viewport.width === 402 ? 3 : 1;
       const page = await browser.newPage({
-        viewport: sizes[0], deviceScaleFactor: 1, locale: "id-ID", timezoneId: timeZone, reducedMotion: "reduce", colorScheme: theme,
+        viewport, deviceScaleFactor: dpr, locale: "id-ID", timezoneId: timeZone, reducedMotion: "reduce", colorScheme: theme,
       });
       await page.clock.setFixedTime(new Date("2026-11-26T07:00:00.000Z"));
       await page.addInitScript(dark => document.documentElement?.classList.toggle("dark", dark), theme === "dark");
@@ -265,18 +267,15 @@ async function main() {
         await page.evaluate(dark => document.documentElement.classList.toggle("dark", dark), theme === "dark");
         await scenario.verify(page);
         await page.evaluate(() => document.fonts.ready);
-        for (const viewport of sizes) {
-          await page.setViewportSize(viewport);
-          await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-          expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(viewport.width);
-          expect(errors.slice(errorStart)).toEqual([]);
-          const screenshot = `${name}-${viewport.width}.png`;
-          await page.screenshot({ path: `${destination}/${screenshot}`, fullPage: true, animations: "disabled", timeout: 120000 });
-          const viewportScreenshot = `${name}-${viewport.width}-viewport.png`;
-          await page.screenshot({ path: `${destination}/${viewportScreenshot}`, animations: "disabled", timeout: 120000 });
-          captures.push({ id: scenario.id, screen: scenario.screen, theme, viewport, screenshot, viewportScreenshot, url: page.url() });
-          process.stdout.write(`passed ${name}-${viewport.width}\n`);
-        }
+        await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(viewport.width);
+        expect(errors.slice(errorStart)).toEqual([]);
+        const screenshot = dpr === 1 ? `${name}-${viewport.width}.png` : undefined;
+        if (screenshot) await page.screenshot({ path: `${destination}/${screenshot}`, fullPage: true, animations: "disabled", timeout: 120000 });
+        const viewportScreenshot = `${name}-${viewport.width}${dpr === 3 ? "-dpr3" : "-viewport"}.png`;
+        await page.screenshot({ path: `${destination}/${viewportScreenshot}`, animations: "disabled", timeout: 120000 });
+        captures.push({ id: scenario.id, screen: scenario.screen, theme, viewport, dpr, screenshot, viewportScreenshot, url: page.url() });
+        process.stdout.write(`passed ${name}-${viewport.width}\n`);
       } catch (error) {
         failures.push(`${name}: ${String(error)} ${errors.slice(errorStart).join("\n")}`);
         process.stderr.write(failures.at(-1) + "\n");
@@ -289,7 +288,7 @@ async function main() {
     const suffix = process.env.PARITY_MONITORING_SCREENS?.replaceAll(",", "-");
     await writeFile(`${destination}/cases${suffix ? "-" + suffix : ""}.json`, JSON.stringify({
       sha: execFileSync("git", ["rev-parse", "HEAD"]).toString().trim(),
-      dpr: 1, locale: "id-ID", timeZone, captures, failures, errors,
+      locale: "id-ID", timeZone, captures, failures, errors,
     }, null, 2));
   }
   if (failures.length || errors.length) process.exitCode = 1;
