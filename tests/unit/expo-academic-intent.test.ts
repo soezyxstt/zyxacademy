@@ -1,16 +1,18 @@
 import { expect, test } from "bun:test";
 
-import { redirectSystemPath } from "../../apps/mobile-native/app/+native-intent";
 import { NATIVE_BROWSER_REDIRECT } from "../../apps/mobile-native/auth/browser-intent";
 import { readAuthReturnTo } from "../../apps/mobile-native/auth/login-intent";
 import { createNativeIntentRedirect } from "../../apps/mobile-native/routing/consent-intent";
 
 test("the host router preserves both exact Academic aliases and their encoded parameters", async () => {
+  const redirect = createNativeIntentRedirect(async () => {
+    throw new Error("Academic aliases must not allocate a consent handoff");
+  });
   const path = "/admin/users?search=Adi%20%26%20Dewi&status=active";
   const query = new URLSearchParams({ path, role: "admin", evidence: "7", evidenceNonce: "a+&" });
   for (const name of ["academic", "internal/academic"]) {
     for (const input of [name, "/" + name, name + "/"]) {
-      const route = await redirectSystemPath({ path: `zyx-native-parity://${input}?${query}`, initial: input === name });
+      const route = await redirect({ path: `zyx-native-parity://${input}?${query}`, initial: input === name });
       expect(route).toBe(`/${name}?${query}`);
       expect(new URL(route, "https://fixture.invalid").searchParams.get("path")).toBe(path);
     }

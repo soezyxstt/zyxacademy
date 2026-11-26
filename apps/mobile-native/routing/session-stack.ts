@@ -1,5 +1,3 @@
-import type { NavigationState } from "expo-router";
-
 import type { NativeSessionState } from "../auth/session-controller";
 
 export function navigationSessionKey(state: NativeSessionState): string | null | undefined {
@@ -24,10 +22,13 @@ export function isSessionRoute(name: string) {
   return !sharedRoutes.has(name) && !sharedRouteRoots.has(name.split("/", 1)[0]);
 }
 
-export function resetSessionStack(state: NavigationState, logoutPending: boolean) {
-  const active = state.routes[state.index];
+export function resetSessionStack<Route extends { name: string }, State extends object>(
+  { index, routes, ...state }: State & { index: number; routes: readonly Route[] },
+  logoutPending: boolean,
+) {
+  const active = routes[index];
   const preserve = active && !isSessionRoute(active.name);
-  if (preserve && state.routes.length === 1) return null;
+  if (preserve && routes.length === 1) return null;
   return {
     ...state,
     index: 0,
