@@ -1,5 +1,6 @@
 import { Fragment, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
+import { nativeTypography } from "../../../typography";
 import { BlogShareCard } from "./blog-share";
 import { sharePublicLink } from "../../../device/share";
 import { localizedPublicPath } from "../../../../../lib/public-locale-routes";
@@ -11,7 +12,7 @@ import {
   type BlogCategory,
   type PublicBlogCard,
 } from "../../../../../packages/native-parity/operations/public-contract";
-import { Action, Divider, Figure, Hero, Label, layout, RowLink, StatePanel, textWith, usePublic, usePublicResource } from "./ui";
+import { Action, Divider, Figure, Label, layout, RowLink, StatePanel, textWith, usePublic, usePublicResource } from "./ui";
 
 function CategoryTitle(category: BlogCategory | null, copy: ReturnType<typeof usePublic>["copy"]["blog"]) {
   const key = blogCategories.find((item) => item.id === category)?.key;
@@ -23,7 +24,7 @@ function BlogCard({ card, featured = false, related = false }: {
 }) {
   const { colors, copy: { blog } } = usePublic();
   const date = card.publishedAt && new Intl.DateTimeFormat(blog.dateLocale, {
-    month: "short", day: "numeric", year: "numeric",
+    month: "short", day: "numeric", year: "numeric", timeZone: "UTC",
   }).format(new Date(card.publishedAt));
   const minutes = textWith(related ? blog.minutesShort : blog.minutes, { count: card.readMinutes });
   return (
@@ -36,9 +37,9 @@ function BlogCard({ card, featured = false, related = false }: {
       {featured && <Figure source={card.thumbnailUrl} style={styles.leadPhoto} />}
       <View style={[layout.item, styles.cardCopy, featured && styles.leadCopy]}>
         {featured || !related ? <Label tone="meta">{[date, minutes].filter(Boolean).join("  ")}</Label> : null}
-        <Label tone={featured ? "subheading" : "body"} style={featured ? undefined : styles.articleTitle}>{card.title}</Label>
+        <Label tone={featured ? "subheading" : "body"} style={featured ? styles.featuredTitle : styles.articleTitle}>{card.title}</Label>
         {related ? <Label tone="meta">{[date, minutes].filter(Boolean).join("  ")}</Label> : null}
-        {!related && !!card.summary && <Label tone="muted" numberOfLines={featured ? 3 : 2}>{card.summary}</Label>}
+        {!related && !!card.summary && <Label tone="muted" style={featured ? styles.featuredSummary : undefined} numberOfLines={featured ? 3 : 2}>{card.summary}</Label>}
       </View>
       {!featured && <Figure source={card.thumbnailUrl} style={related ? styles.relatedPhoto : styles.cardPhoto} />}
     </RowLink>
@@ -50,25 +51,27 @@ export function BlogList({ category, page }: { category: BlogCategory | null; pa
   const { resource, retry } = usePublicResource(blogListHref(category, page), client, (api, signal) => api.blog(category, page, signal));
   const activeTitle = CategoryTitle(category, blog);
   return (
-    <View style={layout.stack} testID="public-blog">
-      <Hero title={blog.heroTitle} description={blog.heroDescription} />
-      <View style={layout.row} accessibilityLabel={blog.categoryNav}>
+    <View style={styles.blogList} testID="public-blog">
+      <View style={styles.blogHero}>
+        <Label tone="display">{blog.heroTitle}</Label>
+        <Label tone="muted" style={styles.heroDescription}>{blog.heroDescription}</Label>
+      </View>
+      <View style={[styles.categories, { borderBottomColor: colors.border }]} accessibilityLabel={blog.categoryNav}>
         {[null, ...blogCategories.map((item) => item.id)].map((item) => (
           <RowLink
             key={item ?? "all"} active={item === category} href={blogListHref(item)} id={`public-blog-filter-${item ?? "all"}`}
-            style={{ borderBottomColor: item === category ? colors.primary : "transparent", borderBottomWidth: 2, marginRight: 12 }}
+            style={{ borderBottomColor: item === category ? colors.primary : "transparent", borderBottomWidth: 2, minHeight: 40, flexShrink: 0 }}
           >
-            <Label tone={item === category ? "link" : "muted"} style={styles.articleTitle}>{CategoryTitle(item, blog)}</Label>
+            <Label tone={item === category ? "link" : "body"} style={styles.categoryTitle}>{CategoryTitle(item, blog)}</Label>
           </RowLink>
         ))}
       </View>
-      <Divider />
       {resource.status !== "ready" ? <StatePanel kind={resource.status} retry={resource.status === "error" ? retry : undefined} /> : (() => {
         const { articles, sections, total } = resource.value;
         return (
-          <View style={layout.stack}>
-            <View style={layout.between}>
-              <Label tone="subheading">{category ? activeTitle : blog.latest}</Label>
+          <View style={styles.blogSections}>
+            <View style={category ? layout.between : undefined}>
+              <Label tone="subheading" style={styles.sectionTitle}>{category ? activeTitle : blog.latest}</Label>
               {category && total > 0 && <Label tone="meta">{textWith(blog.available, { count: total })}</Label>}
             </View>
             {articles.length ? <View>
@@ -76,7 +79,7 @@ export function BlogList({ category, page }: { category: BlogCategory | null; pa
                 <BlogCard card={card} featured={!category && index === 0} />
                 {index < articles.length - 1 && <Divider />}
               </Fragment>)}
-            </View> : <StatePanel kind="empty" title={blog.emptyTitle} />}
+            </View> : <View style={[styles.empty, { borderColor: colors.border }]}><Label tone="subheading" style={styles.emptyTitle}>{blog.emptyTitle}</Label></View>}
             {category ? <View style={layout.row} accessibilityLabel={blog.pagination}>
               {page > 1 && <Action href={blogListHref(category, Math.min(page - 1, Math.max(1, Math.ceil(total / blogPageSize))))}>{blog.previous}</Action>}
               {page * blogPageSize < total && <Action href={blogListHref(category, page + 1)}>{blog.next}</Action>}
@@ -116,7 +119,7 @@ export function ReadMarkdown({ markdown, onLink }: { markdown: string; onLink: (
     const image = /^!\[([^\]]*)\]\(([^\s)]+)\)$/.exec(block);
     if (image) return <Figure key={index} source={image[2]} title={image[1]} />;
     const heading = /^#{1,6}\s+(.+)$/.exec(block);
-    if (heading) return <Label key={index} tone="subheading">{inline(heading[1])}</Label>;
+    if (heading) return <Label key={index} tone="subheading" style={styles.markdownHeading}>{inline(heading[1])}</Label>;
     return <Label key={index}>{block.split(/\r?\n/).map((line, lineIndex) => (
       <Fragment key={lineIndex}>{lineIndex > 0 ? "\n" : ""}{inline(line.replace(/^\s*[-+*]\s+/, "• "))}</Fragment>
     ))}</Label>;
@@ -185,9 +188,21 @@ export function BlogArticle({ slug }: { slug: string }) {
 }
 
 const styles = StyleSheet.create({
+  blogList: { gap: 0 },
+  blogHero: { paddingVertical: 32, gap: 16 },
+  heroDescription: { fontSize: 16, lineHeight: 24 },
+  categories: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: 20, rowGap: 4, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, marginBottom: 32 },
+  categoryTitle: { fontSize: 14, lineHeight: 20, fontWeight: "600" },
+  blogSections: { gap: 16 },
+  sectionTitle: { fontSize: 24, lineHeight: 32 },
+  empty: { borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 24 },
+  emptyTitle: { fontSize: 16, lineHeight: 24 },
   featured: { gap: 0, borderWidth: 1, borderRadius: 12, overflow: "hidden" },
   card: { alignItems: "flex-start", flexDirection: "row", gap: 12, paddingVertical: 16 },
-  articleTitle: { fontWeight: "700" },
+  articleTitle: { ...nativeTypography.headingBold, fontSize: 16, lineHeight: 22 },
+  featuredTitle: { fontSize: 24, lineHeight: 30 },
+  featuredSummary: { fontSize: 16, lineHeight: 24 },
+  markdownHeading: { fontSize: 24, lineHeight: 32 },
   cardCopy: { flex: 1 },
   leadCopy: { padding: 16 },
   leadPhoto: { borderRadius: 0 },

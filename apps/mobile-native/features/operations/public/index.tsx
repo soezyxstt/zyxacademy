@@ -79,7 +79,7 @@ export function PublicScreen(props: PublicScreenProps) {
         <Action href="/sign-in" variant="default">{copy.nav.signIn}</Action>
       </View>}
       {failedLink && <View style={styles.linkError}><Label tone="error" live="assertive">{props.locale === "id" ? "Tautan tidak dapat dibuka." : "Unable to open link."}</Label></View>}
-      <ScrollView ref={scroll} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={scroll} contentContainerStyle={[styles.body, (route?.kind === "blog" || route?.kind === "article") && styles.blogBody, route?.kind === "blog" && styles.blogListBody]} keyboardShouldPersistTaps="handled">
         <RouteContent route={route} scroller={scroll} key={href} />
         <View style={styles.footer}>
           <Divider />
@@ -99,6 +99,8 @@ const styles = StyleSheet.create({
   navbar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, borderBottomWidth: StyleSheet.hairlineWidth },
   menu: { alignItems: "flex-start", borderBottomWidth: StyleSheet.hairlineWidth, paddingHorizontal: 16, paddingBottom: 8 },
   body: { maxWidth: 960, width: "100%", alignSelf: "center", paddingHorizontal: 24, paddingTop: 16, paddingBottom: 32, gap: 32 },
+  blogBody: { paddingHorizontal: 16 },
+  blogListBody: { paddingTop: 0 },
   footer: { gap: 8 },
   linkError: { padding: 12 },
 });
