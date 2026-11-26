@@ -155,7 +155,8 @@ def verify_flashcard(web):
     expected = {'platform': args.platform, 'viewport': viewport, 'deviceScaleFactor': scale,
                 'scenario': 'flashcard-parity', 'courseId': 'matematika-1', 'courseTitle': 'Kalkulus Dasar', 'grade': 3,
                 'rejectionStatus': 422, 'rejection': {'error': 'Review rejected'}, 'locale': 'id', 'theme': 'light',
-                'font': 'Inter from native assets', 'motion': 'reduced'}
+                'font': 'Inter from native assets', 'motion': 'reduced',
+                'webComposition': 'Student application and course navigation with fixture transport'}
     try:
         manifest = json.loads(marker.read_text())
         if any(manifest.get(name) != value for name, value in expected.items()):

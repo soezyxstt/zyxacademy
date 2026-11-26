@@ -1,6 +1,6 @@
 # Laporan rute Student
 
-Dihasilkan dari HEAD `5562a783b1ea9d525e96cda617f68f0b4bb4fce9`; working tree dapat memiliki perubahan. Detail setiap fixture, jumlah assertion, status run dan blocker tersedia di [routes.json](routes.json). Hasil fixture bukan bukti perangkat atau kelulusan paritas.
+Dihasilkan dari HEAD `7cff0b9b0225013613715b803139415a32b8554d`; working tree dapat memiliki perubahan. Detail setiap fixture, jumlah assertion, status run dan blocker tersedia di [routes.json](routes.json). Hasil fixture bukan bukti perangkat atau kelulusan paritas.
 
 Referensi web produk dan SHA server tersedia di [web.json](../../../../tests/visual/native-parallel/student/product/web/web.json). Cakupan HTTP lokal tercatat di [laporan kursus](../../../../tests/visual/native-parallel/student/product/README.md) dan [laporan komunitas](../../../../packages/native-parity/student/community/README.md). [Riwayat CI](ci-history.json) mencatat SHA dan waktu pengamatan.
 
