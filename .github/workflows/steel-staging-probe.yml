@@ -1,10 +1,6 @@
 name: Steel staging browser smoke
 
 on:
-  push:
-    branches: [staging, ops/steel-staging-probe-20261126]
-    paths:
-      - '.github/workflows/steel-staging-probe.yml'
   workflow_dispatch:
 
 permissions: {}
@@ -15,7 +11,7 @@ concurrency:
 
 jobs:
   probe:
-    if: github.repository == 'soezyxstt/zyxacademy' && (github.ref == 'refs/heads/staging' || (github.event_name == 'push' && github.ref == 'refs/heads/ops/steel-staging-probe-20261126'))
+    if: github.repository == 'soezyxstt/zyxacademy' && github.ref == 'refs/heads/staging'
     runs-on: ubuntu-24.04
     environment: staging
     timeout-minutes: 5

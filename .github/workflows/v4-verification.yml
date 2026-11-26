@@ -56,7 +56,12 @@ jobs:
           AWS_REGION: ${{ vars.AWS_REGION || secrets.AWS_REGION }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        run: bun --conditions=react-server scripts/authoring/operate-v4-verification.ts
+        run: |
+          if [ "$ZYX_ENVIRONMENT" = staging ]; then
+            python3 .github/scripts/staging_authoring_browser.py bun --conditions=react-server scripts/authoring/operate-v4-verification.ts
+          else
+            bun --conditions=react-server scripts/authoring/operate-v4-verification.ts
+          fi
       - uses: actions/upload-artifact@v4
         if: success() && inputs.action == 'evidence'
         with:
@@ -136,5 +141,5 @@ jobs:
           R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID || secrets.CF_R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY || secrets.CF_R2_SECRET_ACCESS_KEY }}
-        run: bun scripts/staging/prepare-v4-verification-fixture.ts
+        run: python3 .github/scripts/staging_authoring_browser.py bun scripts/staging/prepare-v4-verification-fixture.ts
     env: *a1
