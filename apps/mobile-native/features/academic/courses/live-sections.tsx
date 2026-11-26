@@ -6,6 +6,7 @@ import type { AdminCourseLiveRead } from "../../../../../packages/native-parity/
 import type { AdminCourseSectionResult } from "../../../../../packages/native-parity/academic/courses/sections";
 import { CourseLeaderboard } from "./leaderboard";
 import { CourseDeleteDialog } from "./live-delete";
+import { LiveQuizAttempts } from "./live-quiz-attempts";
 import { QuizAnalysisAction, QuizInsightDetails } from "./live-quiz-insight";
 import { LiveFlashcards } from "./live-flashcards";
 import { LiveVideos } from "./live-videos";
@@ -171,7 +172,9 @@ function LiveQuizInsight({ data, initialTab, refresh }: { data: SectionOf<"quiz-
             : <CourseStatus label="Belum ada skor." />}
         </Panel>
       ) : null}
-      {tab === "attempts-sheet" ? <QuizAttemptRows attempts={data.attempts} /> : null}
+      {tab === "attempts-sheet" && (data.quiz.courseId
+        ? <LiveQuizAttempts key={data.quiz.courseId + ":" + data.quiz.id} courseId={data.quiz.courseId} quizId={data.quiz.id} title={data.quiz.title} />
+        : <QuizAttemptRows attempts={data.attempts} />)}
       {tab === "questions" ? (
         <Panel title="Akurasi per soal">
           {data.questions.length ? data.questions.map((row) => (

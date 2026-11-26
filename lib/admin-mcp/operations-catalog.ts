@@ -120,6 +120,20 @@ export const operationsCatalog = [
     "reason": "Learner Article and Diktat progress, completion and formative responses require an active Student session, exact course and current published revision. Tutorial PKA still checks registration. These operations reuse learner web evidence and feedback rules. MCP authoring grants do not expose learner progress, answers or formative submissions."
   },
   {
+    "source": "app/api/admin/quiz-insights/[id]/attempts/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Authenticated Admin and assigned Tutor screens read course-bound attempt snapshots and record authorized disclosures. This private inspection has no operations tool."
+  },
+  {
+    "source": "app/api/admin/export-spreadsheet/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Signed-in Admins export the selected dataset to Google Sheets. Web and native screens confirm filtered exports and conflicts against the current revision. No operations tool initiates these interactive exports."
+  },
+  {
     "source": "app/api/admin/quiz-insights/[id]/analyze/route.ts",
     "actions": ["POST"],
     "tools": [],
