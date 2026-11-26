@@ -14,6 +14,8 @@ type Props = {
   muted?: boolean;
   paragraphStyle?: TextStyle;
   allowLinks?: boolean;
+  /** Markdown prepared by the discussion grammar has its own link targets and math budget. */
+  onPreparedLinkPress?: (url: string) => void;
 };
 
 const flags = { latexMath: true, hardSoftBreaks: true };
@@ -30,13 +32,14 @@ function CourseImage({ uri, alt, label, style }: { uri?: string; alt: string; la
 }
 
 /** Learner prose, formulas and code share a renderer. Raw authored input stays in the model. */
-export function CourseMarkdown({ source, services, centered, muted, paragraphStyle, allowLinks = true }: Props) {
+export function CourseMarkdown({ source, services, centered, muted, paragraphStyle, allowLinks = true, onPreparedLinkPress }: Props) {
   const { canInteract } = useProtectedInteraction();
   const system = useColorScheme() ?? "light";
   const preferred = services.devicePreferences?.theme;
   const colors = nativeColors[preferred && preferred !== "system" ? preferred : system];
   const en = /^en(?:-|$)/i.test(services.session.locale);
-  const { markdown, rich } = useMemo(() => prepareCourseMarkdown(source), [source]);
+  const prepared = Boolean(onPreparedLinkPress);
+  const { markdown, rich } = useMemo(() => prepared ? { markdown: source, rich: true } : prepareCourseMarkdown(source), [source, prepared]);
   const fontFamily = paragraphStyle?.fontFamily ?? nativeTypography.bodyRegular.fontFamily;
   const fontWeight = String(paragraphStyle?.fontWeight ?? nativeTypography.bodyRegular.fontWeight);
   const fontSize = paragraphStyle?.fontSize ?? 16;
@@ -73,7 +76,9 @@ export function CourseMarkdown({ source, services, centered, muted, paragraphSty
     <EnrichedMarkdownText testID="student-rich-markdown" markdown={markdown} markdownStyle={markdownStyle} flavor="github"
       md4cFlags={flags} selectable={false} enableTaskListItemToggle={false} enableLinkPreview={false}
       renderers={renderers} resolveImageSource={resolveImageSource} onLinkPress={({ url }) => {
-        if (!allowLinks || !services.openExternal || !canInteract()) return;
+        if (!allowLinks || !canInteract()) return;
+        if (onPreparedLinkPress) { onPreparedLinkPress(url); return; }
+        if (!services.openExternal) return;
         const path = safeCourseMarkdownLink(url, services.session.origin);
         if (path) services.openExternal(path);
       }} />

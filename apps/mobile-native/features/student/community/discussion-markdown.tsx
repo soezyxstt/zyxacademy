@@ -1,9 +1,11 @@
 import type { ReactNode } from "react";
-import { Text, View } from "react-native";
+import { Platform, Text, View } from "react-native";
 import {
   DISCUSSION_HEADING_LINE, DISCUSSION_INLINE_PATTERN, safeDiscussionLink,
 } from "../../../../../packages/student-community/discussion-markdown";
 import type { DiscussionMessage } from "../../../../../lib/discussions/contracts";
+import { CourseMarkdown } from "../CourseMarkdown";
+import { formatDiscussionMath } from "./discussion-math";
 import { matchStudentRoute } from "../routes";
 import { Copy, styles, useCommunity } from "./ui";
 
@@ -12,10 +14,13 @@ type Person = NonNullable<DiscussionMessage["mentionedPeople"]>[number];
 export function DiscussionMessageBody({ content, people, onPerson }: {
   content: string; people?: readonly Person[]; onPerson(id: string): void;
 }) {
-  const { colors, navigate, openExternal } = useCommunity();
+  const services = useCommunity();
+  const { colors, navigate, openExternal } = services;
   const linkStyle = { textDecorationLine: "underline", color: colors.primary } as const;
   const codeStyle = { fontFamily: "monospace" } as const;
-  const peopleByMention = new Map(people?.map(person => [person.mention?.toLowerCase(), person]));
+  const peopleByMention = new Map<string, Person>();
+  for (const person of people ?? []) if (person.mention) peopleByMention.set(person.mention.toLowerCase(), person);
+  const budget = { remaining: 30 };
 
   function renderInline(body: string, depth = 0): ReactNode[] {
     if (depth >= 4) return [body];
@@ -51,6 +56,16 @@ export function DiscussionMessageBody({ content, people, onPerson }: {
   return <View style={styles.field}>
     {content.split(/(```[\s\S]*?```|\$\$[\s\S]*?\$\$|\\\[[\s\S]*?\\\])/g).map((part, block) => {
       if (part.startsWith("```") && part.endsWith("```")) return <Copy key={block}><Text style={codeStyle}>{part.slice(3, -3).replace(/^\w*\n/, "")}</Text></Copy>;
+      const formatted = (Platform.OS === "android" || Platform.OS === "ios") && formatDiscussionMath(part, peopleByMention, budget);
+      if (formatted) return <CourseMarkdown key={block} source={formatted.markdown} services={services}
+        paragraphStyle={{ fontSize: 14, lineHeight: 21 }} onPreparedLinkPress={url => {
+          const target = formatted.links.get(url);
+          if (!target) return;
+          if ("person" in target) { onPerson(target.person); return; }
+          const route = matchStudentRoute(target.href);
+          if (route) navigate(route.path);
+          else openExternal?.(target.href);
+        }} />;
       if ((part.startsWith("$$") && part.endsWith("$$")) || (part.startsWith("\\[") && part.endsWith("\\]"))) {
         return <Copy key={block}><Text style={codeStyle}>{part}</Text></Copy>;
       }

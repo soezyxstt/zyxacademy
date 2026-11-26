@@ -49,6 +49,7 @@ jobs:
         run: |
           bun test tests/unit/native-student-ios-evidence-menu.test.ts tests/unit/expo-course-content.test.ts
           bun test tests/unit/native-student-course-data.test.ts
+          bun test tests/unit/expo-course-markdown.test.ts tests/unit/expo-discussion-math.test.ts
       - run: bunx playwright install --with-deps chromium
       - name: Capture web reference cases
         run: |
