@@ -20,6 +20,7 @@ import { readPkaDeliveryStatuses } from "@/lib/pka/native-delivery-queue";
 import type { ReviewKind } from "@/packages/native-parity/academic/administration/fixtures";
 import type { DiktatEvidenceStatus, LiveField, LivePage, LiveRow } from "@/packages/native-parity/academic/administration/live";
 import { readNativeEnrollmentToken } from "./enrollment-token-service";
+import { tutorialOperationsView } from "./tutorial-operations-view";
 import { readNativeStudyGroupEditor } from "./study-group-service";
 import { readNativeStudyGroupMembers } from "./study-group-members-service";
 import { announcementRevision } from "./announcement-edit-transaction";
@@ -35,12 +36,12 @@ function rowsPage(rows: LiveRow[], nextPage = false, summary?: LiveField[]): Liv
 function paginate(rows: LiveRow[], page: number, summary?: LiveField[]) {
   return rowsPage(rows.slice((page - 1) * listPageSize, page * listPageSize), rows.length > page * listPageSize, summary);
 }
-function matches(term: string, values: (string | null | undefined)[]) {
 
 async function withPkaDelivery(page: LivePage, section: "announcements" | "sessions") {
   const statuses = await readPkaDeliveryStatuses(page.rows.map(row => row.id), section);
   return { ...page, rows: page.rows.map(row => ({ ...row, pkaDelivery: statuses.get(row.id) })) };
 }
+function matches(term: string, values: (string | null | undefined)[]) {
   const query = term.toLocaleLowerCase("id-ID");
   return !query || values.some((value) => value?.toLocaleLowerCase("id-ID").includes(query));
 }
@@ -65,10 +66,10 @@ async function schedules(query: AdministrationQuery) {
   const schedule = await getAdminScheduleData(query.week);
   const span = [field("Periode", `${schedule.weekRange.startIso} sampai ${schedule.weekRange.endIso}`)];
   if (query.tab === "tutors") {
-    return paginate(schedule.tutors.map((entry) => ({
+    return { ...paginate(schedule.tutors.map((entry) => ({
       id: entry.id, title: entry.name, subtitle: entry.tutorCourses.map((assignment) => assignment.course.title).join(", "),
       detail: `${schedule.slots.filter((slot) => slot.tutorId === entry.id).length} slot`,
-    })), query.page, span);
+    })), query.page, span), scheduleTutorials: tutorialOperationsView(schedule, true) };
   }
   if (query.tab === "tickets") {
     return paginate(schedule.tickets.map((entry) => ({
@@ -102,7 +103,7 @@ async function schedules(query: AdministrationQuery) {
   if (query.tab === "academic") return { ...paginate(chronological, query.page, span), scheduleCourses };
   const size = 100;
   return { ...rowsPage(chronological.slice((query.page - 1) * size, query.page * size), chronological.length > query.page * size),
-    scheduleCourses, week: { start: schedule.weekRange.startIso, today: getJakartaCalendarDate() } };
+    scheduleCourses, scheduleTutorials: tutorialOperationsView(schedule, false), week: { start: schedule.weekRange.startIso, today: getJakartaCalendarDate() } };
 }
 
 async function readBundle(kind: ReviewKind, slug: string, bundleId: string, page: number) {
@@ -231,8 +232,8 @@ export const administrationReadServices: AdministrationReadServices = {
             announcementState: pkaAnnouncementState(entry),
             fields: [field("Isi", entry.body), field("Penerima", entry.recipientCount)],
           })), query.page);
-      }
         return withPkaDelivery(page, "announcements");
+      }
       case "sessions": {
         const entries = await getPkaSchedulesAction();
         const now = Date.now();
@@ -242,8 +243,8 @@ export const administrationReadServices: AdministrationReadServices = {
           pkaScheduleEdit: pkaScheduleRevision(entry.id, entry),
           fields: [field("Tautan Meet", entry.meetLink), field("Penerima", entry.recipientCount)],
         })), query.page);
-      }
         return withPkaDelivery(page, "sessions");
+      }
     }
   },
 };

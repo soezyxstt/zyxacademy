@@ -1,9 +1,10 @@
+import { isAdminTutorialSchedule, type AdminTutorialSchedule } from "../../../academic/admin-tutorial-operations";
 import { isAcademicEventView, type AcademicEventView } from "../../../academic/admin-schedule-events";
 import { isAdminUserRolesRevision, type AdminUserRolesRevision } from "../../../academic/admin-user-roles";
 import { isPkaAnnouncementRevision, type PkaAnnouncementRevision } from "../../../academic/pka-announcement-edit";
 import { isPkaAnnouncementState, type PkaAnnouncementState } from "../../../academic/pka-lifecycle";
-import { isPkaScheduleRevision, type PkaScheduleRevision } from "../../../academic/pka-schedule-edit";
 import { isPkaDeliveryStatus, type PkaDeliveryStatus } from "../../../academic/pka-delivery";
+import { isPkaScheduleRevision, type PkaScheduleRevision } from "../../../academic/pka-schedule-edit";
 import { isAdminUserStatusRevision, type AdminUserStatusRevision } from "../../../academic/admin-user-status";
 import type { AdministrationPattern } from "./routes";
 
@@ -13,7 +14,7 @@ export type DiktatEvidenceStatus = "ready" | "pending" | "failed" | "stale" | "u
 export type DiktatPdfRequest = DiktatPdfTarget & { requestId: string };
 export type LiveRow = { academicEvent?: AcademicEventView; id: string; title: string; subtitle?: string; detail?: string; fields?: LiveField[]; pdf?: DiktatPdfTarget; ideaReviewId?: string; announcementEdit?: PkaAnnouncementRevision; announcementState?: PkaAnnouncementState; pkaDelivery?: PkaDeliveryStatus; pkaScheduleEdit?: PkaScheduleRevision; dateId?: string; groupEditable?: boolean; tokenActive?: boolean; userRolesEdit?: AdminUserRolesRevision; userStatusEdit?: AdminUserStatusRevision };
 export type LiveProductBundle = { id: string; courseId: string; checksum: string };
-export type LivePage = { productBundle?: LiveProductBundle; scheduleCourses?: { id: string; label: string }[]; type: "page"; rows: LiveRow[]; nextPage: boolean; summary?: LiveField[]; week?: { start: string; today: string } };
+export type LivePage = { productBundle?: LiveProductBundle; scheduleTutorials?: AdminTutorialSchedule; scheduleCourses?: { id: string; label: string }[]; type: "page"; rows: LiveRow[]; nextPage: boolean; summary?: LiveField[]; week?: { start: string; today: string } };
 export type LiveRedirect = { type: "redirect"; target: string };
 export type LiveAdministrationRead = LivePage | LiveRedirect;
 export type LiveListSection = "users" | "groups" | "tokens" | "notifications" | "schedules" | "registrations" | "announcements" | "sessions";
@@ -77,8 +78,8 @@ function row(value: unknown): value is LiveRow {
     && (value.ideaReviewId === undefined || typeof value.ideaReviewId === "string")
     && (value.announcementEdit === undefined || isPkaAnnouncementRevision(value.announcementEdit))
     && (value.announcementState === undefined || isPkaAnnouncementState(value.announcementState))
-    && (value.pkaScheduleEdit === undefined || isPkaScheduleRevision(value.pkaScheduleEdit));
     && (value.pkaDelivery === undefined || isPkaDeliveryStatus(value.pkaDelivery))
+    && (value.pkaScheduleEdit === undefined || isPkaScheduleRevision(value.pkaScheduleEdit));
 }
 
 function isDateId(value: unknown): value is string {
@@ -91,6 +92,7 @@ export function isLiveAdministrationRead(value: unknown): value is LiveAdministr
   if (!object(value)) return false;
   if (value.type === "redirect") return typeof value.target === "string" && /^\/admin\/[^\\\s]*$/.test(value.target);
   return value.type === "page" && Array.isArray(value.rows) && value.rows.every(row) && typeof value.nextPage === "boolean"
+    && (value.scheduleTutorials === undefined || isAdminTutorialSchedule(value.scheduleTutorials))
     && (value.scheduleCourses === undefined || (Array.isArray(value.scheduleCourses) && value.scheduleCourses.every(course => object(course) && typeof course.id === "string" && typeof course.label === "string")))
     && (value.productBundle === undefined || (object(value.productBundle) && typeof value.productBundle.id === "string"
       && typeof value.productBundle.courseId === "string" && typeof value.productBundle.checksum === "string" && /^[a-f0-9]{64}$/.test(value.productBundle.checksum)))

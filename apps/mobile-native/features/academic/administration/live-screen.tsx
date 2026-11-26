@@ -9,6 +9,8 @@ import { NativeListRow, NativeStatusPanel, ResponsiveTable, type SharedUiAction,
 import { ProductReviewWorkspace } from "./product-review-workspace";
 import { BroadcastComposer } from "./broadcast-composer";
 import { ScheduleEventEditor } from "./schedule-event-editor";
+import { AdminTutorialEditor, type TutorialTarget } from "./tutorial-operations-editor";
+import { pendingTutorialOperation } from "./tutorial-operations-client";
 import { AdministrationCalendar } from "./calendar";
 import { LiveEnrollmentTokenEditor } from "./enrollment-token-editor";
 import type { EnrollmentTokenUnavailable } from "./enrollment-token-client";
@@ -66,12 +68,12 @@ function useRead(transport: AcademicTransport, path: string) {
 const pkaTabs = [
   { id: "registrations", label: "Pendaftaran" }, { id: "announcements", label: "Pengumuman" }, { id: "schedules", label: "Jadwal" },
 ] as const;
-const scheduleTabs = [
-  { id: "calendar", label: "Kalender" }, { id: "academic", label: "Daftar jadwal" },
 const pkaDeliveryLabels = {
   queued: "Pengiriman dalam antrean", running: "Sedang mengirim", succeeded: "Pengiriman selesai",
   partial: "Sebagian pengiriman gagal", failed: "Pengiriman gagal", unknown: "Hasil pengiriman belum diketahui",
 } as const;
+const scheduleTabs = [
+  { id: "calendar", label: "Kalender" }, { id: "academic", label: "Daftar jadwal" },
   { id: "tutors", label: "Tutor" }, { id: "tickets", label: "Tiket" }, { id: "audit", label: "Jejak audit" },
 ] as const;
 const usersRole = [
@@ -116,6 +118,13 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
   const [groupDraft, setGroupDraft] = useState<{ actorTransport: AcademicTransport; id?: string }>();
   const [groupMembersDraft, setGroupMembersDraft] = useState<{ actorTransport: AcademicTransport; id: string }>();
   const [tokenDraft, setTokenDraft] = useState<{ actorTransport: AcademicTransport; id?: string }>();
+  const [tutorialEditor, setTutorialEditor] = useState<{ transport: AcademicTransport; target: TutorialTarget }>();
+  const tutorialTarget = tutorialEditor?.transport === transport ? tutorialEditor.target : undefined;
+  const showTutorial = (target: TutorialTarget) => {
+    setSelected(undefined);
+    setSuccess("");
+    setTutorialEditor({ transport, target });
+  };
   const [success, setSuccess] = useState("");
   const [broadcastTransport, setBroadcastTransport] = useState<AcademicTransport>();
   const groupEditor = groupDraft?.actorTransport === transport ? groupDraft : undefined;
@@ -138,6 +147,10 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
   const page = Math.max(1, Number(filters.page) || 1);
   const week = Number(filters.week) || 0;
   const data = state.status === "ready" && state.data.type === "page" ? state.data : undefined;
+  const scheduleTutorials = pattern === "/admin/schedules" ? data?.scheduleTutorials : undefined;
+  const tutorialPending = scheduleTutorials ? pendingTutorialOperation(transport) : undefined;
+  const selectedTutorialSlot = selected ? scheduleTutorials?.slots.find(slot => slot.id === selected.id) : undefined;
+
   const recoveredPka = data ? recoverPkaLifecycle(transport) : undefined;
   const canRecoverPka = Boolean(recoveredPka && (pkaAnnouncementPage
     ? recoveredPka.attempt.command.action === "announcement-state" || recoveredPka.attempt.command.action === "send-announcement"
@@ -256,8 +269,14 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
         ? <Action label="Periksa perubahan jadwal" onPress={() => startPkaLifecycle(recoveredPka.target)} />
         : <Action label="Buat jadwal PKA" variation="default" testID="academic-live-pka-create" disabled={Boolean(recoveredPka)}
           onPress={() => startPkaLifecycle({ action: "create-schedule" })} /> : null}
+      {deliveryPending ? <Action label="Periksa pengiriman" onPress={retry} /> : null}
     </View> : null}
     {pattern === "/admin/schedules" ? <Tabs options={scheduleTabs} selected={scheduleTab} onSelect={(id) => filter("tab", id)} /> : null}
+    {scheduleTutorials && transport.command ? <View style={layout.row}>
+      {tutorialPending
+        ? <Action label="Periksa perubahan tutorial" onPress={() => showTutorial({ kind: "recover" })} />
+        : data?.week ? <Action label="Tambah ketersediaan" onPress={() => showTutorial({ kind: "create-availability" })} testID="admin-schedule-create-availability" /> : null}
+    </View> : null}
     {data?.week ? <>
       <View style={layout.row}><Action label="Hari ini" onPress={() => filter("week", "0")} /></View>
       <AdministrationCalendar start={data.week.start} today={data.week.today} dayOffset={week}
@@ -269,7 +288,6 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
       <Action label="Minggu sebelumnya" onPress={() => filter("week", String(week - 1))} disabled={week <= -520} />
       <Action label="Hari ini" onPress={() => filter("week", "0")} />
       <Action label="Minggu berikutnya" onPress={() => filter("week", String(week + 1))} disabled={week >= 520} />
-      {deliveryPending ? <Action label="Periksa pengiriman" onPress={retry} /> : null}
     </View> : null}
     {state.status === "loading" ? <PendingCourses /> : null}
     {state.status === "denied" && (tokenPage || pkaSchedulePage || ideaReviewPage
@@ -297,8 +315,11 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
         { id: "failure", label: "Gagal", renderCell: (row) => row.fields?.find((field) => field.label === "Gagal")?.value ?? "0" },
       ]} /> : !data?.week ? data?.rows.map((row) => {
       type ActionId = "pdf" | "review-idea" | "edit" | "edit-pka-schedule" | "edit-group" | "group-members" | "revoke-token" | "user-status" | "user-roles"
-        | "pka-pin" | "pka-archive" | "pka-delete";
+        | "pka-pin" | "pka-archive" | "pka-delete" | "tutorial-qualifications";
       const actions: SharedUiAction<ActionId>[] = [];
+      const scheduleTutor = scheduleTab === "tutors" ? scheduleTutorials?.tutors.find(tutor => tutor.id === row.id) : undefined;
+      if (scheduleTutor && transport.command && !tutorialPending) actions.push({ id: "tutorial-qualifications", label: "Edit kualifikasi" });
+
       if (row.pdf && transport.command && !pdfPending) actions.push({ id: "pdf", label: "Minta PDF" });
       if (ideaReviewPage && row.ideaReviewId) actions.push({ id: "review-idea", label: "Review Idea" });
       if (row.tokenActive !== undefined && transport.command) actions.push({ id: "revoke-token", label: row.tokenActive ? "Cabut token" : "Status token" });
@@ -312,6 +333,8 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
       if (row.userRolesEdit && transport.command) actions.push({ id: "user-roles", label: "Kelola peran" });
       if (row.userStatusEdit && transport.command) actions.push({ id: "user-status", label: "Ubah status" });
       const onAction: SharedUiActionHandler<ActionId> = (id) => {
+        if (id === "tutorial-qualifications" && scheduleTutor) { showTutorial({ kind: "qualifications", tutor: scheduleTutor }); return; }
+
         if (id === "pdf") setPdfRow(row);
         else {
           setSuccess("");
@@ -408,16 +431,48 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
         setTokenDraft(undefined);
         retry();
       }} /> : null}
+    {scheduleTutorials && tutorialTarget ? <AdminTutorialEditor target={tutorialTarget} data={scheduleTutorials} transport={transport}
+      close={() => setTutorialEditor(undefined)}
+      refresh={() => { setTutorialEditor(undefined); retry(); }}
+      denied={() => { setTutorialEditor(undefined); invalidate("denied"); }}
+      saved={(action) => {
+        setTutorialEditor(undefined);
+        setSuccess(action === "create-availability" ? "Ketersediaan tersimpan." : action === "delete-availability" ? "Ketersediaan dihapus."
+          : action === "qualifications" ? "Kualifikasi tutor diperbarui." : action === "assign" ? "Sesi ditugaskan."
+          : action === "move" ? "Sesi dipindahkan." : "Sesi dibatalkan.");
+        retry();
+      }} /> : null}
     {visibleSelection ? <CourseDialog title={tokenPage ? "Token pendaftaran" : visibleSelection.title} onClose={() => setSelected(undefined)}>
       {visibleSelection.academicEvent && data?.scheduleCourses && transport.command ? <Action label="Kelola agenda" onPress={() => {
         setSelected(undefined); setEventDraft({ transport, row: visibleSelection });
       }} /> : null}
+      {selectedTutorialSlot && transport.command && !tutorialPending
+        ? <TutorialSlotActions slot={selectedTutorialSlot} activate={showTutorial} /> : null}
       {tokenPage ? <Text selectable style={{ ...nativeTypography.bodyRegular, color: palette.foreground, fontSize: 16, lineHeight: 24 }}>{visibleSelection.title}</Text> : null}
       {visibleSelection.fields?.map((item) => <View key={item.label} style={layout.compact}>
         <Ink kind="strong">{item.label}</Ink><Ink>{item.value}</Ink>
       </View>)}
     </CourseDialog> : null}
   </AdministrationPage>;
+}
+
+function TutorialSlotActions({ slot, activate }: {
+  slot: NonNullable<Extract<LiveAdministrationRead, { type: "page" }>["scheduleTutorials"]>["slots"][number];
+  activate(target: TutorialTarget): void;
+}) {
+  const { booking } = slot;
+  if (booking && (booking.status === "scheduled" || booking.status === "rescheduled")) {
+    return <View style={layout.row}>
+      <Action label="Pindahkan sesi" onPress={() => activate({ kind: "move", slot, booking })} />
+      <Action label="Batalkan sesi" variation="destructive" onPress={() => activate({ kind: "cancel", slot, booking })} />
+    </View>;
+  }
+  if (booking) return null;
+  return <View style={layout.row}>
+    <Action label="Tugaskan sesi" onPress={() => activate({ kind: "assign", slot })} />
+    {slot.deletable ? <Action label="Hapus ketersediaan" variation="destructive"
+      onPress={() => activate({ kind: "delete-availability", slot })} /> : null}
+  </View>;
 }
 
 export function AdministrationLiveScreen(props: LiveProps) {

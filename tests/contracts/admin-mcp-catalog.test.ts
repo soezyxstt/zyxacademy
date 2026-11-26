@@ -25,6 +25,14 @@ test("native Admin discussion targets and report reads stay in the interactive w
   expect(entry.actions).toEqual(["GET", "POST"]);
 });
 
+test("native tutorial booking overrides remain human Admin operations", () => {
+  const entry = operationsCatalog.find(item => item.source === "app/api/native/academic-administration/tutorial-operations/route.ts");
+  expect(entry?.status).toBe("excluded");
+  expect(entry?.actions).toEqual(["POST"]);
+  expect(entry?.tools).toEqual([]);
+  expect(entry?.reason).toContain("quota");
+});
+
 test("native Admin media file writes keep their interactive authorization and MCP media grants", () => {
   const entry = operationsCatalog.find(item => item.source === "app/api/native/operations/management/media/route.ts")!;
   expect(entry.status).toBe("excluded");
