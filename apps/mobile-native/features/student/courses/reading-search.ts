@@ -48,7 +48,8 @@ export function findReadingSections(items: readonly ReadingNavigationItem[], que
   const target = compare(query);
   if (target.length < 2) return items.map(item => ({ ...item, snippet: "" }));
   return items.flatMap(item => {
-    const chunk = (item.chunks ?? [{ text: item.text }]).find(entry => compare(entry.text).includes(target));
+    const chunks: readonly ReadingSearchText[] = item.chunks ?? [{ text: item.text }];
+    const chunk = chunks.find(entry => compare(entry.text).includes(target));
     if (!chunk) return [];
     const text = clean(chunk.text);
     const offset = compare(text).indexOf(target);
