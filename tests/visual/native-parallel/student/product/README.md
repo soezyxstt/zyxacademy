@@ -45,3 +45,15 @@ Smoke HTTP memakai sesi peserta sintetis yang ditandatangani dan resource sement
 Kedua skrip lulus pada checkout bersih `e2b8f44a7885a87e20eb2ff71f937ed66aae7218`, dengan Next.js 16.3.0 Turbopack dan PostgreSQL 16.13 di loopback. Database uji `student_evidence` memakai 49 migrasi dari jurnal Drizzle, seed kursus untuk tiga akun sintetis, dan seed asesmen untuk dua sesi tambahan. Skrip kursus menerima 18 respons 200 untuk enam proyeksi pada tiga akun, tiga 409 saat identitas akun tidak cocok, serta tiga 404 untuk dokumen yang tidak dikenal. Status enrollment dan penguncian dokumen sesuai dengan seed.
 
 Skrip asesmen menerima sembilan respons 200, tiga 201, dua 404, dan satu 409. Seluruh respons asesmen memakai `private, no-store`. Pengulangan mulai dan pengumpulan kuis serta pengulangan pengumpulan tryout mempertahankan identitas hasil dan menyimpan satu percobaan serta satu pengumpulan. Kedua skor bernilai 100. Pembahasan kuis baru terbuka setelah kuis ditutup. Permintaan tryout baru setelah kuota habis mendapat 409. Peserta kedua yang terdaftar memperoleh daftar hasil pribadi kosong dan 404 saat membuka kedua hasil milik peserta pertama. Setelah skrip selesai, pemeriksaan database menemukan nol rekaman asesmen sementara pada tabel kursus, enrollment, kuis, tryout, soal, percobaan, dan pengumpulan yang diperiksa. Kedua layanan uji dihentikan.
+
+### Suite Playwright Student pada viewport seluler
+
+Pada checkout `0cc3c835251cead65ff838cde0c3e9c9ad3ccc0b`, Playwright menjalankan seluruh direktori Student dengan proyek `mobile-380`, Next.js 16.3 dan PostgreSQL 16.13 lokal. Sebanyak **41 dari 44 tes lulus**, tiga gagal dan tidak ada yang dilewati. Semua 19 tes komponen, referensi dan siklus layar lulus. Sebanyak 22 dari 25 skenario web komunitas bersesi lulus pada run pertama.
+
+| Halaman produk | Run pertama | Satu percobaan ulang pada server yang sama dengan konteks browser baru |
+| --- | --- | --- |
+| `/feedback` | HTTP 200. Form terlihat. React melaporkan ketidakcocokan hidrasi pada pemicu popover `NotificationBellContent`. | Lulus, termasuk pemeriksaan hidrasi. |
+| `/settings/notifications` | HTTP 200. Preferensi terlihat. Label SSR pada kontrol bersama berbunyi “Cari (Ctrl + K)”, sementara klien mengharapkan “Notifikasi”. | Lulus, termasuk pemeriksaan hidrasi. |
+| `/settings`, pemuatan langsung | HTTP 200. Setelah tombol Bahasa ditekan, opsi menu “Bahasa Indonesia” tidak terlihat dalam 25 detik. | Mengulang kegagalan yang sama. Navigasi ke Pengaturan melalui profil lulus pada run pertama. |
+
+Status pemuatan langsung tetap tercatat sebagai gagal. Rujukan gambar Pengaturan yang berhasil memakai jalur melalui profil. [Skenario dan assertion](community-web.spec.ts)
