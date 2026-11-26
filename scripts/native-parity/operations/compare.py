@@ -6,6 +6,9 @@ from pathlib import Path
 from PIL import Image, ImageChops, ImageOps
 
 PAIRS = {
+    "cases/operations-public-blog-list-open-back": "blog-list-light",
+    "cases/operations-public-blog-detail-content": "blog-detail-light",
+    "cases/operations-public-blog-list-empty": "blog-empty-dark-en",
     "blog-list": "blog-list-light",
     "blog-detail": "blog-detail-light",
     "blog-empty-dark": "blog-empty-dark",
@@ -22,6 +25,12 @@ def compare(device_dir, reference_dir, width_dp, density):
             "cases/operations-evaluation-jobs-alternate": "evaluation/jobs-empty-dark-380.png",
             "cases/operations-evaluation-ast-inspector-populated": "evaluation/ast-preview-light-380.png",
             "cases/operations-monitoring-admin-populated": "monitoring/home-populated-light-380.png",
+            "cases/operations-monitoring-admin-ops-web-analytics-populated": "analytics-data-light.png",
+            "cases/operations-monitoring-admin-ops-feature-usage-populated": "monitoring/features-30-days-light-380-viewport.png",
+            "feature-usage": "monitoring/features-30-days-light-380-viewport.png",
+            "feature-usage-empty-range": "monitoring/features-7-days-light-380-viewport.png",
+            "cases/operations-public-hero-id": "../public-pages/references/hero-id-380-dpr1.png",
+            "cases/operations-public-form-empty": "../public-pages/references/form-empty-380-dpr1.png",
             "web-analytics": "analytics-data-light.png",
             "web-analytics-empty-dark": "analytics-empty-dark.png",
         })
