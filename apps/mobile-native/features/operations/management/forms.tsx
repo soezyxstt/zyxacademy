@@ -7,12 +7,12 @@ import { FormSheets } from "./form-sheets";
 import { FormImagePreview } from "./form-image-preview";
 import { FormAttachment } from "./form-attachment";
 import { createStandardFormQuestions } from "../../../../../lib/forms/standard-template";
-import { buildFormSteps, formFileSizeLimitMb, isEmptyFormAnswer } from "../../../../../lib/forms/presentation";
-import { summarizeFormResponses } from "../../../../../lib/forms/validation";
+import { buildFormSteps, formFileSizeLimitMb, formQuestionNumbers, isEmptyFormAnswer } from "../../../../../lib/forms/presentation";
 import { ManagementFailure, formCategories, newForm, newQuestion, questionTypes, validateForm, validateFormSettings, type FormDefinition, type FormDetails, type FormFields, type FormQuestion, type FormSettings } from "../../../../../packages/native-parity/operations/management-contract";
 import { formAcceptanceChanged, sameDraftValue } from "../../../../../packages/native-parity/operations/management-revisions";
 import { FormPresets } from "./form-presets";
-import { respondentLink } from "./links";
+import { PublishedFormActions } from "./form-copy";
+import { FormQuestionDistribution } from "./form-distribution";
 import { RevisionReview } from "./revisions";
 import { Action, Choices, Confirm, Copy, Feedback, Field, Heading, Item, LoadState, Screen, Section, Sections, formatTimestamp, styles, useAction, useDraft, useManagement, useRead, type Confirmation } from "./ui";
 
@@ -235,6 +235,7 @@ function FormBuilder({ form, initialTab }: { form?: FormDefinition; initialTab?:
         {!listedForms.length && <Copy muted>Belum ada formulir yang sesuai.</Copy>}
         {listedForms.map(item => <Item key={item.id} title={item.title} meta={`${formCategories[item.category]} · ${item.totalResponses} respons`}
           onPress={() => navigate(`/admin/forms/${encodeURIComponent(item.id)}`)} actions={<>
+            <PublishedFormActions key={JSON.stringify([item.id, item.slug])} id={item.id} slug={item.slug} />
             <Action onPress={() => navigate(`/admin/forms?edit=${encodeURIComponent(item.id)}`)}>Sunting</Action>
             <Action onPress={() => deleteForm(item)} disabled={action.busy} variant="destructive">Hapus</Action>
           </>} />)}
@@ -444,10 +445,9 @@ function FormDetail({ details, initialTab }: { details: FormDetails; initialTab?
   const [reading, setReading] = useState(false);
   const mustReview = needsReview || (action.error instanceof ManagementFailure && action.error.code === "conflict");
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
-  const summary = summarizeFormResponses(form.questions, responses);
-  const publicLink = respondentLink(form.slug);
+  const visibleQuestions = Array.from(formQuestionNumbers(form.questions).keys(), index => ({ index, title: form.questions[index].title }));
   const respondent = responses[respondentIndex];
-  const question = summary.questions[questionIndex];
+  const question = visibleQuestions[questionIndex];
   async function inspectSettings() {
     if (reading) return;
     setNeedsReview(true);
@@ -467,23 +467,24 @@ function FormDetail({ details, initialTab }: { details: FormDetails; initialTab?
   return <>
     <View style={styles.row}>
       <Action onPress={() => navigate(`/admin/forms?edit=${encodeURIComponent(form.id)}`)}>Sunting formulir</Action>
-      {publicLink && <Action onPress={() => navigate(publicLink)}>{publicLink}</Action>}
+      <PublishedFormActions key={JSON.stringify([form.id, form.slug])} id={form.id} slug={form.slug} />
     </View>
     <Sections current={tab} values={detailTabs} onChange={setTab} />
-    {tab === "summary" && <Section title={`${summary.totalResponses} respons`}>
+    {tab === "summary" && <Section title={`${responses.length} respons`}>
       <FormSheets form={form} />
-      {summary.questions.map(item => <Item key={item.index} title={item.title} meta={`${item.answered} / ${item.denominator} respons`} actions={Object.keys(item.counts).length > 0 ? <View style={styles.field}>{Object.entries(item.counts).map(([label, count]) => <Copy key={label}>{`${label} · ${count} (${Math.round(100 * count / item.denominator)}%)`}</Copy>)}</View> : undefined} />)}
+      {visibleQuestions.map(item => <FormQuestionDistribution key={item.index} index={item.index} question={form.questions[item.index]} responses={responses}
+        answer={(response, index) => <FormResponseItem key={response.id} form={form} response={response} index={item.index} title={`Jawaban ${index + 1}`} />} />)}
     </Section>}
     {tab === "question" && <Section title={question?.title ?? "Belum ada pertanyaan"}>
       {question && <>
-        <View style={styles.row}><Action disabled={!questionIndex} onPress={() => setQuestionIndex(questionIndex - 1)}>Sebelumnya</Action><Action disabled={questionIndex >= summary.questions.length - 1} onPress={() => setQuestionIndex(questionIndex + 1)}>Berikutnya</Action></View>
+        <View style={styles.row}><Action disabled={!questionIndex} onPress={() => setQuestionIndex(questionIndex - 1)}>Sebelumnya</Action><Action disabled={questionIndex >= visibleQuestions.length - 1} onPress={() => setQuestionIndex(questionIndex + 1)}>Berikutnya</Action></View>
         {responses.filter(response => response.answers[question.index] != null || response.answers[question.title] != null).map(response => <FormResponseItem key={response.id} form={form} response={response} index={question.index} title={response.responderEmail ?? "Anonim"} />)}
       </>}
     </Section>}
     {tab === "individual" && <Section title={respondent ? `Responden ${respondentIndex + 1} dari ${responses.length}` : "Belum ada respons"}>
       {respondent && <><Copy muted>{`${respondent.responderEmail ?? "Anonim"} · ${formatTimestamp(respondent.submittedAt, locale)}`}</Copy>
         <View style={styles.row}><Action disabled={!respondentIndex} onPress={() => setRespondentIndex(respondentIndex - 1)}>Sebelumnya</Action><Action disabled={respondentIndex >= responses.length - 1} onPress={() => setRespondentIndex(respondentIndex + 1)}>Berikutnya</Action></View>
-        {summary.questions.map(item => <FormResponseItem key={item.index} form={form} response={respondent} index={item.index} title={item.title} />)}
+        {visibleQuestions.map(item => <FormResponseItem key={item.index} form={form} response={respondent} index={item.index} title={item.title} />)}
       </>}
     </Section>}
     {tab === "settings" && <>

@@ -6,6 +6,15 @@ export function respondentLink(slug: string | undefined): string | null {
   return slug && /^[A-Za-z0-9_-]{1,256}$/.test(slug) ? `/f/${slug}` : null;
 }
 
+export function publishedFormLinks(id: string, slug: string, origin: string) {
+  const short = respondentLink(slug);
+  const full = /^[A-Za-z0-9_-]{1,256}$/.test(id) ? `/forms/${id}` : null;
+  return {
+    short: short ? resolvePublicShareUrl(short, origin) : null,
+    full: full ? resolvePublicShareUrl(full, origin) : null,
+  };
+}
+
 export function meetingLinks(space: Pick<MeetingSpace, "slug" | "meetingUri" | "hostEmail">) {
   const short = respondentLink(space.slug);
   const publicUrl = publicMeetingUrl(space.meetingUri);
