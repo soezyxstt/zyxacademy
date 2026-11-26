@@ -9,6 +9,8 @@ on:
       - 'app/globals.css'
       - 'components/ui/**'
       - 'tests/visual/ui-parity-web/**'
+      - 'tests/unit/expo-*.test.ts'
+      - 'tests/unit/native-*.test.ts'
       - 'tests/unit/progress-parity.test.ts'
       - 'tests/unit/avatar-parity.test.ts'
       - 'tests/visual/fixtures/fonts/**'
@@ -74,9 +76,9 @@ jobs:
         working-directory: apps/mobile-native
       - run: npx --no-install tsc --noEmit
         working-directory: apps/mobile-native
-      - name: Check session, transport and offline contracts
+      - name: Check device, session, transport and offline contracts
         run: |
-          bun test tests/unit/expo-native-*.test.ts tests/unit/expo-offline-*.test.ts \
+          bun test tests/unit/expo-*.test.ts \
             tests/unit/native-authenticated-transport.test.ts tests/unit/native-browser-login.test.ts \
             tests/unit/native-account-context.test.ts tests/unit/native-zyra-stream.test.ts
 
