@@ -1,5 +1,5 @@
 import { expect, mock, test } from "bun:test";
-import { matchesPkaSearch, pkaProofTarget, pkaRegistrationSheet } from "../../packages/academic/pka-registrations";
+import { matchesPkaSearch, pkaInstagramProfile, pkaMeetingLink, pkaProofTarget, pkaRegistrationSheet } from "../../packages/academic/pka-registrations";
 import { handleAdministrationRead, type AdministrationReadServices } from "../../lib/native/academic/administration/handle-read";
 import { inlineImage } from "../../apps/mobile-native/network/inline-image";
 
@@ -17,6 +17,13 @@ test("registration search and export include every matching page and the same ac
   expect(pkaProofTarget("https://archive.ufs.sh/f/proof", origin)?.path).toBeNull();
   expect(pkaProofTarget("/api/admin/users", origin)).toBeNull();
   expect(pkaProofTarget("//external.example/", origin)).toBeNull();
+});
+
+test("PKA external actions admit literal handles and HTTPS meeting links", () => {
+  expect(pkaInstagramProfile("@nina_1")).toBe("https://instagram.com/nina_1");
+  for (const handle of ["../name", "..", "person?token=x", "", "@site.tld/xyz"]) expect(pkaInstagramProfile(handle)).toBeNull();
+  expect(pkaMeetingLink("https://meet.google.com/abc-defg-hij")).toBe("https://meet.google.com/abc-defg-hij");
+  for (const link of ["http://example.org/", "https://user:secret@example.org/conference", "javascript:noop", "//example.org/"]) expect(pkaMeetingLink(link)).toBeNull();
 });
 
 test("only an Admin can prepare the complete registration export", async () => {

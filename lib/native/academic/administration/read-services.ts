@@ -229,7 +229,7 @@ export const administrationReadServices: AdministrationReadServices = {
       case "registrations": {
         const entries = await getPkaRegistrationsAction();
         return paginate(entries.filter((entry) => matchesPkaSearch(entry, query.search)).map((entry) => ({
-          id: entry.id, title: entry.fullName, subtitle: entry.faculty, detail: jakDateTime(entry.createdAt), pkaProof: entry.proofUrl,
+          id: entry.id, title: entry.fullName, subtitle: entry.faculty, detail: jakDateTime(entry.createdAt), pkaProof: entry.proofUrl, pkaInstagram: entry.instagramUsername,
           fields: [field("Email", entry.email), field("Instagram", entry.instagramUsername),
             field("Nama akun", entry.accountName), field("Pengumuman", entry.receiveAnnouncements ? "Aktif" : "Nonaktif")],
         })), query.page);

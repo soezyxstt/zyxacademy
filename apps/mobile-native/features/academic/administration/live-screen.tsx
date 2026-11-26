@@ -19,7 +19,7 @@ import type { EnrollmentTokenUnavailable } from "./enrollment-token-client";
 import { LiveStudyGroupEditor } from "./study-group-editor";
 import { StudyGroupMembersEditor } from "./study-group-members-editor";
 import { CopyActivationToken, GroupDeletionControl } from "./group-deletion";
-import { PkaRegistrationExport, RegistrationProof } from "./pka-registrations";
+import { PkaBrowserLink, PkaRegistrationExport, RegistrationProof } from "./pka-registrations";
 import { PkaAnnouncementEditor } from "./pka-edit";
 import { clearPkaLifecycle, PkaLifecycleDialog, recoverPkaLifecycle, type PkaLifecycleTarget } from "./pka-lifecycle";
 import { clearPkaScheduleRecovery, PkaScheduleEditor } from "./pka-schedule-editor";
@@ -466,6 +466,7 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
         retry();
       }} /> : null}
     {visibleSelection ? <CourseDialog title={tokenPage ? "Token pendaftaran" : visibleSelection.title} onClose={() => setSelected(undefined)}>
+      {(pkaTab === "registrations" || pkaTab === "schedules") && <PkaBrowserLink key={visibleSelection.id} row={visibleSelection} transport={transport} />}
       {pkaTab === "registrations" && <RegistrationProof key={visibleSelection.id} row={visibleSelection} transport={transport} />}
       {visibleSelection.academicEvent && data?.scheduleCourses && transport.command ? <Action label="Kelola agenda" onPress={() => {
         setSelected(undefined); setEventDraft({ transport, row: visibleSelection });

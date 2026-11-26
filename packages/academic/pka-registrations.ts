@@ -11,6 +11,20 @@ export function matchesPkaSearch(row: { fullName: string; faculty: string; email
   return [row.fullName, row.faculty, row.email, row.instagramUsername, row.accountEmail ?? ""].join(" ").toLowerCase().includes(search.trim().toLowerCase());
 }
 
+export function pkaInstagramProfile(username: string | undefined) {
+  const handle = username?.trim().replace(/^@/, "");
+  return handle && /^[A-Za-z0-9._]{1,30}$/.test(handle) && handle !== "." && handle !== ".."
+    ? "https://instagram.com/" + handle : null;
+}
+
+export function pkaMeetingLink(value: string | null | undefined) {
+  if (!value?.startsWith("https://") || /[\\\s]/.test(value)) return null;
+  try {
+    const url = new URL(value);
+    return url.username || url.password ? null : url.href;
+  } catch { return null; }
+}
+
 export function pkaProofTarget(value: string, origin: string) {
   if (!value || /[\\\u0000-\u001f]/.test(value) || value.startsWith("//")) return null;
   try {

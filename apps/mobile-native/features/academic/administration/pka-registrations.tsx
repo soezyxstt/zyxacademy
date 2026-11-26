@@ -1,7 +1,8 @@
 import { fetch as expoFetch } from "expo/fetch";
+import { openBrowserAsync } from "expo-web-browser";
 import { Image } from "react-native";
 import { useEffect, useState } from "react";
-import { pkaProofTarget, pkaRegistrationSheet } from "../../../../../packages/academic/pka-registrations";
+import { pkaInstagramProfile, pkaMeetingLink, pkaProofTarget, pkaRegistrationSheet } from "../../../../../packages/academic/pka-registrations";
 import type { LiveRow } from "../../../../../packages/native-parity/academic/administration/live";
 import { useNativeSession } from "../../../auth/session-provider";
 import { inlineImage } from "../../../network/inline-image";
@@ -18,6 +19,24 @@ export function PkaRegistrationExport({ transport, search, count }: { transport:
       if (!result.ok) throw new Error("Registrations unavailable");
       return pkaRegistrationSheet(await result.json(), applied, transport.origin, transport.locale);
     }} />;
+}
+
+export function PkaBrowserLink({ row, transport }: { row: LiveRow; transport: AcademicTransport }) {
+  const { transport: session, revalidating } = useNativeSession();
+  const { canInteract } = useProtectedInteraction();
+  const [failed, setFailed] = useState(false);
+  const profile = pkaInstagramProfile(row.pkaInstagram);
+  const url = profile ?? pkaMeetingLink(row.pkaScheduleEdit?.meetLink);
+  if (!url) return null;
+  return <>
+    <Action label={profile ? "Buka profil Instagram" : "Buka pertemuan"} disabled={revalidating} onPress={() => {
+      if (!canInteract() || revalidating || !session?.isCurrent() || session.scope.accountId !== transport.accountId ||
+          session.scope.origin !== transport.origin) return;
+      setFailed(false);
+      void openBrowserAsync(url).catch(() => setFailed(true));
+    }} />
+    {failed && <Ink kind="meta">Tautan belum dapat dibuka. Coba lagi.</Ink>}
+  </>;
 }
 
 export function RegistrationProof({ row, transport }: { row: LiveRow; transport: AcademicTransport }) {
