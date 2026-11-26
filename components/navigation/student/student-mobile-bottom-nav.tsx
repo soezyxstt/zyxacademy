@@ -15,6 +15,7 @@ import { discussionCountsQuery } from "@/lib/discussions/counts-query";
 import { useTranslations } from "@/lib/i18n/client";
 import { queryKeys } from "@/lib/query/keys";
 import { STUDENT_MOBILE_DESTINATIONS } from "./student-mobile-destinations";
+import { useStudentTabLinkOptions } from "./student-tab-reuse";
 import { getActiveStudentBottomTab } from "./student-nav-model";
 
 export function StudentMobileBottomNav() {
@@ -48,23 +49,28 @@ export function StudentMobileBottomNav() {
   }, [client, countsEnabled, userId]);
 
   const unreadDiscussions = discussionCounts?.total.unreadThreads ?? 0;
+  const optionsFor = useStudentTabLinkOptions();
   const activeTab = getActiveStudentBottomTab(pathname);
 
   const items = useMemo<MobileBottomNavItem[]>(() => {
     const toHref = (path: string) => (resolveHref ? resolveHref(path) : path);
-    return STUDENT_MOBILE_DESTINATIONS.map(({ id, href, icon }) => ({
-      id,
-      label: t(id),
-      icon,
-      href: toHref(href),
-      active: activeTab === id,
-      badgeCount: !demo && id === "discuss" ? unreadDiscussions : undefined,
-      badgeLabel:
-        !demo && id === "discuss" && unreadDiscussions > 0
-          ? tDiscussions("unreadQuestions", { count: unreadDiscussions })
-          : undefined,
-    }));
-  }, [activeTab, demo, resolveHref, t, tDiscussions, unreadDiscussions]);
+    return STUDENT_MOBILE_DESTINATIONS.map(({ id, href, icon }) => {
+      const resolvedHref = toHref(href);
+      return {
+        id,
+        label: t(id),
+        icon,
+        href: resolvedHref,
+        ...optionsFor(resolvedHref),
+        active: activeTab === id,
+        badgeCount: !demo && id === "discuss" ? unreadDiscussions : undefined,
+        badgeLabel:
+          !demo && id === "discuss" && unreadDiscussions > 0
+            ? tDiscussions("unreadQuestions", { count: unreadDiscussions })
+            : undefined,
+      };
+    });
+  }, [activeTab, demo, optionsFor, resolveHref, t, tDiscussions, unreadDiscussions]);
 
   if (viewportMode === "desktop") {
     return null;

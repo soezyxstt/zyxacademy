@@ -25,10 +25,10 @@ import {
   bookingAuditLogs,
   bookingRescheduleTickets,
   bookingTicketMessages,
-  academicSchedules,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { eq, and, desc, inArray, notInArray, sql, gte, lte, lt, gt, isNotNull, isNull, or } from "drizzle-orm";
+import { getStudentAcademicCalendar } from "@/lib/schedule/student-academic-calendar";
 import { daysFrom } from "@/lib/date-utils";
 import { canBookTutorialSlot } from "@/lib/schedule/week-policy";
 import {
@@ -177,22 +177,7 @@ export async function getScheduleData(weekOffset = 0, courseId?: string) {
   );
 
   // Fetch Academic Schedules (Exams, Tryouts, Quizzes) for the calendar
-  const allAcademicSchedules = await db.query.academicSchedules.findMany({
-    where: and(
-      eq(academicSchedules.status, "published"),
-      courseIds ? inArray(academicSchedules.courseId, courseIds) : undefined,
-      lte(academicSchedules.startDate, new Date(`${viewWeekEnd}T23:59:59.999+07:00`)),
-      or(
-        isNull(academicSchedules.endDate),
-        gte(academicSchedules.endDate, new Date(`${viewWeekStart}T00:00:00.000+07:00`)),
-      ),
-    ),
-    with: {
-      course: true,
-      creator: true,
-    },
-    orderBy: [desc(academicSchedules.startDate)],
-  });
+  const allAcademicSchedules = await getStudentAcademicCalendar(viewWeekStart, viewWeekEnd, courseIds);
 
   // ── STUDENT ROLE DATA ───────────────────────────────────────────────────────
   // 1. Get student study groups (including courses linked directly or via enrollment tokens)

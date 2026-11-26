@@ -16,7 +16,7 @@ function setup(sessionId: string | null = "viewer") {
     return { view: name };
   };
   const dependencies: Record<string, unknown> = {
-    "@/lib/auth-session": { getAuthSession: async () => sessionId ? { user: { id: sessionId } } : null },
+    "@/lib/auth-session": { getAuthSession: async () => sessionId ? { user: { id: sessionId }, session: { id: "active-session" } } : null },
     "@/lib/discussions/service": {
       getThread: invoke("thread"),
       listThreadsAcrossChannels: invoke("threads"),
@@ -74,6 +74,7 @@ test("workspace rejects absent or switched accounts before loading data", async 
   const switched = setup("another-viewer");
   expect((await absent.request(path, init)).status).toBe(401);
   expect((await switched.request(path, init)).status).toBe(409);
+  expect((await setup().request(path, { headers: { ...init.headers, "x-discussion-session-id": "old-session" } })).status).toBe(409);
   expect(absent.calls).toEqual([]);
   expect(switched.calls).toEqual([]);
 });
