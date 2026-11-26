@@ -1,3 +1,4 @@
+import { isStudyGroupEditorRead, type StudyGroupEditorRead } from "../../../../packages/academic/study-group-edit";
 import {
   isLiveAdministrationRead, type DiktatEvidenceStatus, type DiktatPdfTarget, type LiveAdministrationRead, type LiveListSection, type LivePage,
 } from "../../../../packages/native-parity/academic/administration/live";
@@ -22,6 +23,7 @@ export type AdministrationReadServices = {
   session(): Promise<{ user: { id: string } } | null>;
   hasAdmin(id: string): Promise<boolean>;
   list(section: LiveListSection, query: AdministrationQuery): Promise<LivePage>;
+  groupEditor?(id?: string): Promise<StudyGroupEditorRead | null>;
   bundle(kind: ReviewKind, slug: string, bundleId: string, page: number): Promise<LivePage | null>;
   pdfStatus(slug: string, target: DiktatPdfTarget, attemptId: string): Promise<DiktatEvidenceStatus | null>;
   courseSlug(id: string): Promise<string | null>;
@@ -61,6 +63,11 @@ export async function handleAdministrationRead(parts: string[], search: URLSearc
     const query = options(search);
     if (parts.length === 1 && sections.includes(section as LiveListSection)) {
       return output(await services.list(section as LiveListSection, query));
+    }
+    if (section === "group-editor" && parts.length <= 2 && services.groupEditor) {
+      const result = await services.groupEditor(kind);
+      if (!result) return notFound();
+      return isStudyGroupEditorRead(result) ? Response.json(result, { headers }) : problem(500, "READ_FAILED");
     }
     if (section === "pdf-status" && parts.length === 3) {
       const productId = search.get("productId") ?? "";

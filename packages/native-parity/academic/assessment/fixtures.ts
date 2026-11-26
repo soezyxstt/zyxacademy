@@ -339,6 +339,7 @@ export function createAssessmentFixtureGateway(): AssessmentGateway {
     canMutate: true,
     canGrade: true,
     canSaveQuiz: true,
+    canSaveTryoutDraft: true,
     takeQuizSaveNotice(context, requestId) {
       try {
         const course = authorize(context);

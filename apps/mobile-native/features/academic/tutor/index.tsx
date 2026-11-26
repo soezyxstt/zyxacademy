@@ -62,7 +62,8 @@ export function TutorScreen({ dataSource, ...props }: TutorScreenProps) {
   </DataView>;
 
   if (nested === "grading") return <DataView key={key} theme={theme} back={back} title="Penilaian tryout" load={(signal) => source.grading(courseId, signal)}>
-    {(data) => <TutorGrading {...props} data={data} onSave={source.saveGrade ? (id, grade) => source.saveGrade!(courseId, id, grade) : undefined} />}
+    {(data) => <TutorGrading {...props} data={data} editor={source.support?.tryoutGrade}
+      reload={(signal) => source.grading(courseId, signal)} onSave={source.saveGrade ? (id, grade) => source.saveGrade!(courseId, id, grade) : undefined} />}
   </DataView>;
 
   if (source.support) {

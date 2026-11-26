@@ -2,17 +2,17 @@
 export const operationsCatalog = [
   {
     "source": "app/api/native/academic/[...resource]/route.ts",
-    "actions": ["GET", "PATCH"],
+    "actions": ["GET", "POST", "PATCH"],
     "tools": [],
     "status": "excluded",
-    "reason": "Mobile course and roster reads use the signed-in role and assigned course. The course settings edit delegates to the canonical admin projection with a session-scoped retry receipt. MCP course tools keep their existing authorization and input schema."
+    "reason": "Course and roster reads use the signed-in role and course assignment. Settings and chapter edits use the canonical projection, revision checks and session-authorized retry receipts. MCP courses.update, chapters.create and chapters.update retain their registered authorization and input contracts."
   },
   {
     "source": "app/api/native/academic/tutor-support/[...resource]/route.ts",
     "actions": ["GET", "POST"],
     "tools": [],
     "status": "excluded",
-    "reason": "Schedule, live class, materials and discussions use the current Tutor assignment. Replies reuse the signed-in discussion service and its scoped replay identity. MCP tokens cannot substitute for the learner-platform session."
+    "reason": "Schedule, live class, materials and discussions use the current Tutor assignment. Replies reuse the signed-in discussion service. Tryout grades use the same web grading operation, with a submitted-answer revision and durable receipt scoped to the active Tutor session. The routes require a learner-platform session."
   },
   {
     "source": "app/api/native/academic-assessment/[...resource]/route.ts",
@@ -23,10 +23,10 @@ export const operationsCatalog = [
   },
   {
     "source": "app/api/native/academic-administration/[...resource]/route.ts",
-    "actions": ["GET", "PATCH"],
+    "actions": ["GET", "POST", "PATCH"],
     "tools": [],
     "status": "excluded",
-    "reason": "The Expo adapter reads authenticated administrative data and updates PKA announcement text in the active Admin session. PKA remains outside MCP scope; client consent, scopes, discovery, skills, host prompts and environment bindings are unchanged."
+    "reason": "The Expo adapter reads administrative data, creates or edits study groups, and updates PKA announcement text in an active Admin session. PKA remains outside MCP scope; client consent, scopes, discovery, skills, host prompts and environment bindings are unchanged."
   },
   {
     "source": "app/api/admin/bundles/product/[id]/pdf/route.ts",

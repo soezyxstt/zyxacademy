@@ -84,7 +84,7 @@ export interface TryoutInput {
 
 export type TryoutQuestionInput = QuestionInput & { order: number; acceptsFile: boolean };
 export type TryoutQuestion = TryoutQuestionInput & Versioned & { bankQuestionId?: string };
-export type AssessmentTryout = TryoutInput & Versioned & { questions: TryoutQuestion[] };
+export type AssessmentTryout = TryoutInput & Versioned & { questions: TryoutQuestion[]; metadataRevision?: string };
 
 export type QuizAttemptSummary = {
   id: string;
@@ -121,7 +121,7 @@ export type GradeItem = { questionId: string; score: number; reviewNotes: string
 
 export type QuizCollection = { course: AssessmentCourse; quizzes: AssessmentQuiz[]; bank: BankQuestion[] };
 export type QuizPreviewQuestion = QuestionInput & Versioned & { explanation?: string };
-export type TryoutCollection = { course: AssessmentCourse; tryouts: AssessmentTryout[]; bank: BankQuestion[] };
+export type TryoutCollection = { course: AssessmentCourse; tryouts: AssessmentTryout[]; bank: BankQuestion[]; canSaveDraft?: boolean };
 
 export type AssessmentErrorCode = "forbidden" | "not_found" | "invalid" | "conflict" | "unavailable";
 export type AssessmentResult<T> =
@@ -134,7 +134,7 @@ export type AssessmentCommand =
   | { kind: "quiz.delete"; target: VersionRef; courseId?: string }
   | { kind: "bank.save"; target: VersionRef | null; input: BankQuestionInput }
   | { kind: "bank.delete"; target: VersionRef }
-  | { kind: "tryout.save"; target: VersionRef | null; input: TryoutInput }
+  | { kind: "tryout.save"; target: (VersionRef & { metadataRevision?: string }) | null; input: TryoutInput; courseId?: string }
   | { kind: "tryout.delete"; target: VersionRef }
   | { kind: "tryout.question.save"; examId: string; target: VersionRef | null; input: TryoutQuestionInput }
   | { kind: "tryout.question.delete"; examId: string; target: VersionRef }
@@ -159,6 +159,9 @@ export interface AssessmentGateway {
   readonly canMutate: boolean;
   readonly canGrade: boolean;
   readonly canSaveQuiz: boolean;
+  readonly canSaveTryoutDraft: boolean;
+  pendingTryoutDraft?(context: AssessmentContext): { requestId: string; command: Extract<AssessmentCommand, { kind: "tryout.save" }>; confirmed: boolean } | null;
+  confirmTryoutDraft?(context: AssessmentContext, requestId: string): void;
   takeQuizSaveNotice?(context: AssessmentContext, requestId: string): string | null;
   pendingQuizSave?(context: AssessmentContext, quizId: string | null): OutstandingQuizSave | null;
   listQuizzes(context: AssessmentContext, signal?: AbortSignal): Promise<AssessmentResult<QuizCollection>>;

@@ -15,6 +15,7 @@ import { getTutorQuestionBank, getTutorQuizzesWithAttribution, getTutorQuizWithA
 import { parseSelectionRulesInput, resolveEffectiveAssessmentType } from "@/lib/tutor/assessment-policy";
 import { quizTemplateRevision } from "@/lib/asesmen/quiz-template-write";
 import { defaultQuiz, questionTypes, type AssessmentCourse, type AssessmentQuiz, type AssessmentTryout, type BankQuestion, type QuestionType } from "@/packages/native-parity/academic/assessment/model";
+import { tryoutMetadataRevision } from "@/lib/tutor/tryout-authoring";
 import { tryoutCorrectIndices } from "./tryout-answer";
 import type { AssessmentReadScope, AssessmentReadServices } from "./handle-read";
 
@@ -107,7 +108,7 @@ function quizRow(row: TutorQuizWithAttribution, role: AssessmentReadScope["role"
   };
 }
 
-async function authorizedCourse(scope: AssessmentReadScope): Promise<{ course: AssessmentCourse; legacyId: string | null } | null> {
+async function authorizedCourse(scope: AssessmentReadScope): Promise<{ course: AssessmentCourse; legacyId: string | null; status?: string } | null> {
   if (scope.role === "tutor") {
     const access = await requireTutorCourseAccess(scope.actorId, scope.courseKey, { allowAdmin: false });
     const { courseId, legacyCourseId } = access;
@@ -120,7 +121,7 @@ async function authorizedCourse(scope: AssessmentReadScope): Promise<{ course: A
   }
   const identity = await resolveCourseIdentity(scope.courseKey);
   if (!identity || (identity.status !== "active" && !identity.legacyId)) return null;
-  return { course: { id: identity.primaryId, slug: identity.slug, title: identity.title }, legacyId: identity.legacyId };
+  return { course: { id: identity.primaryId, slug: identity.slug, title: identity.title }, legacyId: identity.legacyId, status: identity.status };
 }
 
 function snapshotAnswer(value: unknown, options: string[]): string {
@@ -280,11 +281,11 @@ export const assessmentReadServices: AssessmentReadServices = {
       userId: scope.actorId, questions: disclosures, requestId: crypto.randomUUID(),
     }));
     return {
-      course, bank: [],
+      course, bank: [], canSaveDraft: resolved.status === "active" && legacyId !== null,
       tryouts: rows.map((row) => {
         const settings = object(row.settings);
         return {
-          id: row.id, revision: 0, title: row.title, status: row.status,
+          id: row.id, revision: 0, metadataRevision: tryoutMetadataRevision(row), title: row.title, status: row.status,
           timeLimitMinutes: number(settings.timeLimitMinutes, 90), maxAttempts: number(settings.maxAttempts, 2),
           openAt: iso(row.openAt), closeAt: iso(row.closeAt), questions: questionsByExam.get(row.id) ?? [],
         };

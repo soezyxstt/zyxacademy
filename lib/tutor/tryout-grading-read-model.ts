@@ -4,6 +4,7 @@ import { courses, exams, mataKuliah, questions, submissions, user } from "@/db/s
 import { recordStaffCourseDisclosures } from "@/lib/gamification/question-exposure";
 import { REVIEWABLE_SUBMISSION_STATUSES } from "@/lib/tutor/assessment-policy";
 import { requireTutorCourseAccess } from "@/lib/auth/request-cache";
+import { tryoutGradeSequence, tryoutReviewRevision } from "./tryout-grading-revision";
 
 export async function readAuthorizedTryoutGrading(userId: string, courseId: string, allowAdmin: boolean) {
   const access = await requireTutorCourseAccess(userId, courseId, { allowAdmin });
@@ -32,9 +33,13 @@ export async function readAuthorizedTryoutGrading(userId: string, courseId: stri
   const courseTitle = mk?.title ?? legacyCourse?.title ?? courseId;
 
   // Load student submissions for tryout exams in this course only
-  const submissionsList = await db
+  const rows = await db
     .select({
       id: submissions.id,
+      studentId: submissions.userId,
+      examId: submissions.examId,
+      examCourseId: exams.courseId,
+      reviewSequence: tryoutGradeSequence,
       studentName: user.name,
       studentEmail: user.email,
       examTitle: exams.title,
@@ -58,6 +63,10 @@ export async function readAuthorizedTryoutGrading(userId: string, courseId: stri
       ),
     )
     .orderBy(desc(submissions.submittedAt));
+  const submissionsList = rows.map((row) => {
+    const { studentId, examId, examCourseId, reviewSequence, ...submission } = row;
+    return { ...submission, reviewRevision: tryoutReviewRevision({ ...submission, studentId, examId, examCourseId, reviewSequence }) };
+  });
 
   // Older tryout snapshots retain the tryout question ID, not its bank ID.
   // Resolve those IDs in one course-scoped query before releasing scores or keys.

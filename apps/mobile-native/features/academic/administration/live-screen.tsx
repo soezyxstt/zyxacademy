@@ -6,6 +6,7 @@ import {
 import { matchAdministrationRoute, type AdministrationPattern } from "../../../../../packages/native-parity/academic/administration/routes";
 import { NativeListRow, NativeStatusPanel, ResponsiveTable, type SharedUiAction, type SharedUiActionHandler } from "../../shared-ui";
 import { AdministrationCalendar } from "./calendar";
+import { LiveStudyGroupEditor } from "./study-group-editor";
 import { PkaAnnouncementEditor } from "./pka-edit";
 import { DiktatPdfControls, readDiktatScope } from "./diktat-controls";
 import type { AcademicTransport } from "../client";
@@ -77,7 +78,9 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
   const [selected, setSelected] = useState<LiveRow>();
   const [pdfRow, setPdfRow] = useState<LiveRow>();
   const [pkaDraft, setPkaDraft] = useState<{ actorTransport: AcademicTransport; row: LiveRow }>();
-  const [success, setSuccess] = useState(false);
+  const [groupDraft, setGroupDraft] = useState<{ actorTransport: AcademicTransport; id?: string }>();
+  const [success, setSuccess] = useState("");
+  const groupEditor = groupDraft?.actorTransport === transport ? groupDraft : undefined;
   const announcement = pkaDraft?.actorTransport === transport ? pkaDraft.row : undefined;
   const theme = useContext(CourseTheme);
   const palette = useCourseColors();
@@ -94,7 +97,7 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
   const scheduleTab = scheduleTabs.find((item) => item.id === filters.tab)?.id ?? "calendar";
   function filter(name: string, value: string) {
     setSelected(undefined);
-    setSuccess(false);
+    setSuccess("");
     setFilters((previous) => ({ ...previous, [name]: value, ...(name === "page" ? {} : { page: "1" }) }));
   }
   const filtered = Boolean(filters.search || filters.status || filters.role);
@@ -110,6 +113,10 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
       <Picker label="Status" options={usersStatus} selected={filters.status ?? ""} onSelect={(id) => filter("status", id)} />
     </View> : null}
     {pattern === "/admin/groups" ? <View style={layout.row}>
+      {data && transport.command ? <Action label="Buat kelompok" variation="default" testID="academic-live-group-create" onPress={() => {
+        setSuccess("");
+        setGroupDraft({ actorTransport: transport });
+      }} /> : null}
       <Picker label="Status" options={groupsStatus} selected={filters.status ?? ""} onSelect={(id) => filter("status", id)} />
     </View> : null}
     {pattern === "/admin/tutorial-pka/announcements" ? <View style={layout.row}>
@@ -138,7 +145,7 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
     {state.status === "missing" ? <CourseStatus label="Halaman atau data tidak ditemukan." error /> : null}
     {state.status === "error" ? <NativeStatusPanel title="Data administrasi gagal dimuat." tone="error" theme={theme} action={{ id: "retry", label: "Coba lagi" }} onAction={retry} /> : null}
     {target ? <CourseStatus label="Membuka halaman tujuan…" /> : null}
-    {success ? <View accessibilityLiveRegion="polite"><Ink>Pengumuman diperbarui.</Ink></View> : null}
+    {success ? <View accessibilityLiveRegion="polite"><Ink>{success}</Ink></View> : null}
     {data?.summary?.length ? <Metrics values={data.summary} /> : null}
     {data?.rows.length === 0 && !data.week && pattern !== "/admin/notifications" ? <RecordsEmpty label={emptyMessages[pattern] ?? "Belum ada item."} filtered={filtered} /> : null}
     {article && (data || pdfPending) ? <DiktatPdfControls {...props} authorized={data?.rows.flatMap((row) => row.pdf ? [row.pdf] : []) ?? []}
@@ -153,13 +160,18 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
         { id: "success", label: "Berhasil", renderCell: (row) => row.fields?.find((field) => field.label === "Berhasil")?.value ?? "0" },
         { id: "failure", label: "Gagal", renderCell: (row) => row.fields?.find((field) => field.label === "Gagal")?.value ?? "0" },
       ]} /> : !data?.week ? data?.rows.map((row) => {
-      type ActionId = "pdf" | "edit";
+      type ActionId = "pdf" | "edit" | "edit-group";
       const actions: SharedUiAction<ActionId>[] = [];
       if (row.pdf && transport.command && !pdfPending) actions.push({ id: "pdf", label: "Minta PDF" });
+      if (row.groupEditable && transport.command) actions.push({ id: "edit-group", label: "Edit kelompok" });
       if (row.announcementEdit && transport.command) actions.push({ id: "edit", label: "Edit pengumuman" });
       const onAction: SharedUiActionHandler<ActionId> = (id) => {
         if (id === "pdf") setPdfRow(row);
-        else { setSuccess(false); setPkaDraft({ actorTransport: transport, row }); }
+        else {
+          setSuccess("");
+          if (id === "edit-group") setGroupDraft({ actorTransport: transport, id: row.id });
+          else setPkaDraft({ actorTransport: transport, row });
+        }
       };
       return <View key={row.id} style={{ borderBottomWidth: StyleSheet.hairlineWidth, borderColor: palette.border }}>
         <NativeListRow theme={theme} layout={width >= 768 * fontScale ? "wide" : "compact"} title={row.title}
@@ -175,7 +187,13 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
     </View> : null}
     {announcement?.announcementEdit ? <PkaAnnouncementEditor id={announcement.id} initial={announcement.announcementEdit}
       transport={transport} cancel={() => { setPkaDraft(undefined); retry(); }}
-      saved={() => { setPkaDraft(undefined); setSuccess(true); retry(); }} /> : null}
+      saved={() => { setPkaDraft(undefined); setSuccess("Pengumuman diperbarui."); retry(); }} /> : null}
+    {groupEditor ? <LiveStudyGroupEditor key={groupEditor.id ?? "create"} id={groupEditor.id} transport={transport}
+      cancel={() => setGroupDraft(undefined)} saved={() => {
+        setSuccess(groupEditor.id ? "Kelompok diperbarui." : "Kelompok dibuat.");
+        setGroupDraft(undefined);
+        retry();
+      }} /> : null}
     {selected ? <CourseDialog title={selected.title} onClose={() => setSelected(undefined)}>
       {selected.fields?.map((item) => <View key={item.label} style={layout.compact}>
         <Ink kind="strong">{item.label}</Ink><Ink>{item.value}</Ink>

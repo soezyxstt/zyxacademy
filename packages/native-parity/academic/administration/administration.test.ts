@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { AcademicCommand } from "../../../../apps/mobile-native/features/academic/client";
+import { saveStudyGroup } from "../../../../apps/mobile-native/features/academic/administration/study-group-client";
+import { handleStudyGroupWrite } from "../../../../lib/native/academic/administration/study-group-handler";
+import { rebaseStudyGroupFields, type StudyGroupCreate, type StudyGroupFields } from "../../../academic/study-group-edit";
 import { savePkaAnnouncement } from "../../../../apps/mobile-native/features/academic/administration/pka-edit-client";
 import { readAdministration } from "../../../../apps/mobile-native/features/academic/administration/live-client";
 import { checkDiktatPdfEvidence, checkDiktatPdfRequest, requestDiktatPdf } from "../../../../apps/mobile-native/features/academic/administration/diktat-client";
@@ -260,4 +263,50 @@ test("the native PKA editor replays lost saves and exposes current text after a 
   assert.deepEqual(conflict, { status: "conflict", announcement: announcementRevision(id, stored) });
   assert.equal((await savePkaAnnouncement(transport, id, { ...draft, title: "Judul lain" }, requestId, signal)).status, "request_conflict");
   assert.equal(writes, 1);
+});
+
+
+const groupBaseline: StudyGroupFields = {
+  name: "Kelompok biologi", packageType: "reguler_15", totalQuotaSessions: 15, weeklyQuotaSessions: 15,
+  academicYear: "2026/2027", semester: "Ganjil", startDate: null, endDate: null, status: "active", notes: "",
+};
+
+test("group conflict recovery keeps the local edits and incorporates other changes", () => {
+  const draft = { ...groupBaseline, notes: "Catatan dari formulir" };
+  const current = { ...groupBaseline, name: "Kelompok B", status: "inactive" as const, notes: "Catatan lama" };
+  const merged = rebaseStudyGroupFields(groupBaseline, draft, current);
+  assert.equal(merged.name, "Kelompok B");
+  assert.equal(merged.status, "inactive");
+  assert.equal(merged.notes, "Catatan dari formulir");
+});
+
+test("the Admin study group transport forwards a bounded command and matches its receipt", async () => {
+  const origin = "https://academic.invalid";
+  const draft: StudyGroupCreate = { ...groupBaseline, courseIds: ["academic-course-1"] };
+  const seen: string[] = [];
+  const transport = {
+    origin, accountId: "signed-admin", locale: "id", get: async () => Response.json({}),
+    command: async (path: string, request: AcademicCommand) => {
+      assert.equal(path, "/api/native/academic-administration/groups");
+      return handleStudyGroupWrite(new Request(origin + path, {
+        method: request.method,
+        headers: { Origin: origin, "Content-Type": "application/json", "Idempotency-Key": request.requestId },
+        body: JSON.stringify(request.body),
+      }), ["groups"], origin, {
+        session: async () => ({ user: { id: "signed-admin" }, session: { id: "signed-session" } }),
+        hasAdmin: async (id) => id === "signed-admin",
+        write: async (command, requestId, viewer) => {
+          assert.equal(viewer.session.id, "signed-session");
+          assert.deepEqual(command, { type: "create", fields: draft });
+          seen.push(requestId);
+          return { status: "saved", id: "saved-group" };
+        },
+      });
+    },
+  };
+  const signal = new AbortController().signal;
+  const requestId = "academic-group-request";
+  assert.deepEqual(await saveStudyGroup(transport, { type: "create", fields: draft }, requestId, signal), { status: "saved", id: "saved-group" });
+  assert.equal((await saveStudyGroup(transport, { type: "create", fields: { ...draft, weeklyQuotaSessions: 99 } }, requestId, signal)).status, "error");
+  assert.deepEqual(seen, [requestId]);
 });

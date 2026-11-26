@@ -1,3 +1,5 @@
+import type { TryoutGradeEditor } from "./tryout-grade";
+
 export type TutorScheduleData = {
   from: string;
   to: string;
@@ -71,6 +73,7 @@ export type TutorSupportReads = {
 };
 
 export type TutorSupportClient = TutorSupportReads & {
+  tryoutGrade?: TryoutGradeEditor;
   playback?(videoId: string, signal: AbortSignal): Promise<string>;
   pendingAnswer?(threadId: string): TutorDiscussionDraft | undefined;
   answer?(courseId: string | undefined, threadId: string, draft: TutorDiscussionDraft, signal: AbortSignal): Promise<TutorDiscussionSendResult>;

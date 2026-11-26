@@ -1,7 +1,8 @@
 import type {
-  AssessmentContext, AssessmentErrorCode, AssessmentGateway, AssessmentResult, MutationEffect, OutstandingQuizSave,
+  AssessmentCommand, AssessmentContext, AssessmentErrorCode, AssessmentGateway, AssessmentResult, MutationEffect, OutstandingQuizSave,
 } from "../../../../../packages/native-parity/academic/assessment/model";
 import { quizAuthoringPayload } from "../../../../../packages/native-parity/academic/assessment/quiz-payload";
+import type { TryoutDraftWrite } from "../../../../../packages/native-parity/academic/assessment/tryout-draft";
 import type { AcademicTransport } from "../client";
 
 const forbidden = { ok: false, code: "forbidden", message: "Akun ini tidak memiliki akses ke data penilaian kursus." } as const;
@@ -28,6 +29,14 @@ function responseError(status: number): { ok: false; code: AssessmentErrorCode; 
 
 type SaveResult = AssessmentResult<MutationEffect>;
 type SaveCommand = OutstandingQuizSave["command"];
+type TryoutDraftCommand = Extract<AssessmentCommand, { kind: "tryout.save" }>;
+type PendingTryoutDraft = {
+  requestId: string;
+  fingerprint: string;
+  effect?: MutationEffect;
+  inFlight?: Promise<SaveResult>;
+};
+
 type SaveEntry = OutstandingQuizSave & {
   scope: string;
   fingerprint: string;
@@ -40,6 +49,7 @@ export function createAssessmentReadGateway(transport: AcademicTransport): Asses
   const existing = sessionGateways.get(transport);
   if (existing) return existing;
   const outstanding = new Map<string, SaveEntry>();
+  const tryoutDrafts = new Map<string, PendingTryoutDraft>();
   const scopeKey = (context: AssessmentContext) => JSON.stringify([context.actor.id, context.scope]);
   const quizKey = (context: AssessmentContext, quizId: string | null) => JSON.stringify([scopeKey(context), quizId]);
   function accountMatches(context: AssessmentContext) {
@@ -122,10 +132,74 @@ export function createAssessmentReadGateway(transport: AcademicTransport): Asses
     }
   }
 
+  async function saveTryoutDraft(context: AssessmentContext, requestId: string, command: TryoutDraftCommand, signal?: AbortSignal): Promise<SaveResult> {
+    const { courseId, target, input } = command;
+    const send = transport.command?.bind(transport);
+    if (!send || context.scope.kind !== "admin" || !courseId || input.status !== "draft" ||
+      (target && !target.metadataRevision)) return forbidden;
+
+    const key = scopeKey(context);
+    const previous = tryoutDrafts.get(key);
+    const fingerprint = JSON.stringify(command);
+    if (previous && (previous.requestId !== requestId || previous.fingerprint !== fingerprint)) return uncertain;
+    if (previous?.effect) return { ok: true, value: previous.effect };
+    if (previous?.inFlight) return previous.inFlight;
+
+    const entry: PendingTryoutDraft = previous ?? { requestId, fingerprint };
+    const body: TryoutDraftWrite = {
+      courseId, expectedRevision: target?.metadataRevision ?? null,
+      title: input.title, timeLimitMinutes: input.timeLimitMinutes, maxAttempts: input.maxAttempts,
+      openAt: input.openAt, closeAt: input.closeAt,
+    };
+    const path = endpoint(context, target ? `tryouts/${encodeURIComponent(target.id)}` : "tryouts");
+    tryoutDrafts.set(key, entry);
+    const operation: Promise<SaveResult> = (async () => {
+      try {
+        const response = await send(path, { method: target ? "PATCH" : "POST", requestId, body },
+          signal ?? new AbortController().signal);
+        if (!response.ok) {
+          if (response.status >= 500 || response.status === 429) return uncertain;
+          tryoutDrafts.delete(key);
+          const error = responseError(response.status);
+          if (error.code === "invalid") return { ...error, message: "Periksa judul, durasi, batas percobaan, dan jadwal tryout." };
+          if (error.code === "conflict") return { ...error, message: "Draf tryout atau kursus telah berubah. Muat versi terbaru." };
+          return error;
+        }
+        const data = await response.json();
+        if (!data || typeof data !== "object") return uncertain;
+        const receipt = data as Record<string, unknown>;
+        if (receipt.requestId !== requestId || typeof receipt.examId !== "string" || typeof receipt.revision !== "string" ||
+          !/^[a-f0-9]{64}$/.test(receipt.revision) || (target && receipt.examId !== target.id)) return uncertain;
+        entry.effect = { id: receipt.examId, message: "Draf tryout tersimpan." };
+        return { ok: true, value: entry.effect };
+      } catch {
+        return uncertain;
+      }
+    })();
+    entry.inFlight = operation;
+    try {
+      return await operation;
+    } finally {
+      entry.inFlight = undefined;
+    }
+  }
+
   const gateway: AssessmentGateway = {
     canMutate: false,
     canGrade: Boolean(transport.command),
     canSaveQuiz: Boolean(transport.command),
+    canSaveTryoutDraft: Boolean(transport.command),
+    pendingTryoutDraft(context) {
+      if (!accountMatches(context)) return null;
+      const entry = tryoutDrafts.get(scopeKey(context));
+      return entry ? { requestId: entry.requestId, command: JSON.parse(entry.fingerprint) as TryoutDraftCommand, confirmed: Boolean(entry.effect) } : null;
+    },
+    confirmTryoutDraft(context, requestId) {
+      if (!accountMatches(context)) return;
+      const key = scopeKey(context);
+      const entry = tryoutDrafts.get(key);
+      if (entry?.requestId === requestId && entry.effect) tryoutDrafts.delete(key);
+    },
     takeQuizSaveNotice(context, requestId) {
       if (!accountMatches(context)) return null;
       for (const [key, entry] of outstanding) {
@@ -152,6 +226,7 @@ export function createAssessmentReadGateway(transport: AcademicTransport): Asses
     async mutate(context, requestId, command, signal) {
       if (!accountMatches(context) || !transport.command) return forbidden;
       if (command.kind === "quiz.save") return saveQuiz(context, requestId, command, signal);
+      if (command.kind === "tryout.save") return saveTryoutDraft(context, requestId, command, signal);
       if (command.kind === "quiz.status" || command.kind === "quiz.delete") {
         const { target, courseId } = command;
         const isDelete = command.kind === "quiz.delete";

@@ -55,6 +55,7 @@ export type TutorParticipants = {
 
 export type TutorSubmission = {
   id: string;
+  reviewRevision?: string;
   studentName: string | null;
   studentEmail: string | null;
   examTitle: string;

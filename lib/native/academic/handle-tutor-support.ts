@@ -78,7 +78,7 @@ function failure(error: unknown) {
   return reply(500, { error: "REQUEST_FAILED" });
 }
 
-async function readAnswerBody(request: Request): Promise<unknown> {
+export async function readTutorCommandBody(request: Request): Promise<unknown> {
   const reader = request.body?.getReader();
   if (!reader) return null;
   const decoder = new TextDecoder();
@@ -122,7 +122,7 @@ export async function handleTutorDiscussionAnswer(request: Request, parts: strin
     if (!(await services.hasTutor(userId))) return reply(403, { error: "FORBIDDEN" });
     const courseId = global ? undefined : id;
     if (courseId) await services.authorizeCourse(userId, courseId);
-    const value = await readAnswerBody(request);
+    const value = await readTutorCommandBody(request);
     if (!value || typeof value !== "object") return reply(400, { error: "INVALID_INPUT" });
     const { threadId, body, requestId } = value as Record<string, unknown>;
     if (!validDiscussionId(threadId) || !validDiscussionText(body, 12000) ||

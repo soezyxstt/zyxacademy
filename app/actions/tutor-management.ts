@@ -26,6 +26,7 @@ import { verifyQuestionVisualBinding } from "@/lib/materials/question-visual-bin
 import { parseMaterialIntoSections } from "@/lib/ingestion-parser";
 import { revalidatePath } from "next/cache";
 import { notifyQuizPublishedBestEffort } from "@/lib/notifications/send";
+import { lockTryoutExam, saveTryoutRecord } from "@/lib/tutor/tryout-authoring";
 import { normalizeQuestionProvenance, questionProvenanceSnapshot } from "@/lib/asesmen/question-provenance";
 import {
   createAssessmentWithLegacyProjection,
@@ -40,14 +41,13 @@ import {
   resolveEffectiveAssessmentType,
   assertTutorQuizCapability,
   checkCourseMatch,
-  buildGradingSnapshots,
-  isReviewableSubmissionStatus,
   isSqliteBusyError,
   isUniqueConstraintError,
   recordTutorFailureAudit,
   recordTutorMutationAuditSafe,
 } from "@/lib/tutor/assessment-policy";
 import { recordTutorMutationAudit } from "@/lib/audit/mutasi";
+import { gradeTryoutSubmission } from "@/lib/tutor/tryout-grading";
 
 function publishedQuizQuestionCondition() {
   return and(
@@ -1326,19 +1326,6 @@ export async function saveTryoutAction(
   const identity = await resolveCourseIdentity(courseId);
   const legacyCourseId = identity?.legacyId;
   if (!legacyCourseId) throw new Error("COURSE_LEGACY_MAPPING_REQUIRED");
-  const settings = {
-    timeLimitMinutes: data.timeLimitMinutes,
-    maxAttempts: data.maxAttempts,
-  };
-
-  const dbData = {
-    title: data.title,
-    status: data.status,
-    settings: settings,
-    openAt: data.openAt ? new Date(data.openAt) : null,
-    closeAt: data.closeAt ? new Date(data.closeAt) : null,
-  };
-
   const requestId = newAuditRequestId();
   const auditBase = {
     actorId: session.user.id,
@@ -1352,19 +1339,9 @@ export async function saveTryoutAction(
 
   try {
     await db.transaction(async (tx) => {
-      if (examId) {
-        await tx
-          .update(exams)
-          .set(dbData)
-          .where(eq(exams.id, examId));
-      } else {
-        await tx.insert(exams).values({
-          id: targetId,
-          courseId: legacyCourseId,
-          type: "tryout",
-          ...dbData,
-        });
-      }
+      const previous = examId ? await lockTryoutExam(tx, legacyCourseId, examId) : null;
+      if (examId && !previous) throw new Error("TRYOUT_NOT_FOUND");
+      await saveTryoutRecord(tx, { id: targetId, legacyCourseId, previous }, data);
 
       await recordTutorMutationAudit({
         ...auditBase,
@@ -2048,199 +2025,17 @@ export async function gradeSubmissionAction(
   submissionId: string,
   score: number,
   teacherNotes: string,
+  expectedRevision?: string,
 ) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) {
     throw new Error("Unauthorized: Silakan masuk terlebih dahulu.");
   }
 
-  const { roles, isAdmin } = await resolveActorRoles(
-    session.user.id,
-    (session.user as { role?: string | null }).role,
+  await gradeTryoutSubmission(
+    { id: session.user.id, role: (session.user as { role?: string | null }).role },
+    { courseId, submissionId, score, notes: teacherNotes ?? "", expectedRevision },
   );
-
-  let access;
-  try {
-    access = await requireTutorCourseAccess(session.user.id, courseId, { allowAdmin: isAdmin });
-  } catch (err: any) {
-    await recordTutorMutationAuditSafe({
-      actorId: session.user.id,
-      actorRoles: roles,
-      courseId,
-      entityType: "submission",
-      entityId: submissionId,
-      entityVersion: 1,
-      action: "submission:grade",
-      outcome: "rejected",
-      reason: err?.message || TUTOR_CAPABILITY_ERRORS.ACCESS_DENIED,
-    });
-    throw err;
-  }
-
-  const gradingInput = z
-    .object({
-      score: z.number().min(0).max(100),
-      teacherNotes: z.string().max(4000).optional(),
-    })
-    .safeParse({ score, teacherNotes });
-  if (!gradingInput.success) {
-    const validationError = `Validasi gagal: ${formatValidationIssues(gradingInput.error)}`;
-    await recordTutorFailureAudit({
-      actorId: session.user.id,
-      actorRoles: roles,
-      courseId: access.courseId ?? courseId,
-      entityType: "submission",
-      entityId: submissionId,
-      entityVersion: 1,
-      action: "submission:grade",
-      outcome: "rejected",
-      requestId: newAuditRequestId(),
-      reason: validationError,
-    });
-    throw new Error(validationError);
-  }
-
-  const [submissionWithExam] = await db
-    .select({
-      id: submissions.id,
-      status: submissions.status,
-      score: submissions.score,
-      examId: submissions.examId,
-      examCourseId: exams.courseId,
-      examType: exams.type,
-    })
-    .from(submissions)
-    .innerJoin(exams, eq(submissions.examId, exams.id))
-    .where(eq(submissions.id, submissionId))
-    .limit(1);
-
-  if (!submissionWithExam) {
-    await recordTutorMutationAuditSafe({
-      actorId: session.user.id,
-      actorRoles: roles,
-      courseId: access.courseId ?? courseId,
-      entityType: "submission",
-      entityId: submissionId,
-      entityVersion: 1,
-      action: "submission:grade",
-      outcome: "rejected",
-      reason: TUTOR_CAPABILITY_ERRORS.SUBMISSION_NOT_FOUND,
-    });
-    throw new Error(TUTOR_CAPABILITY_ERRORS.SUBMISSION_NOT_FOUND);
-  }
-
-  const isCourseMatch = checkCourseMatch(
-    submissionWithExam.examCourseId,
-    access.courseId!,
-    access.legacyCourseId,
-  );
-
-  if (!isCourseMatch) {
-    await recordTutorMutationAuditSafe({
-      actorId: session.user.id,
-      actorRoles: roles,
-      courseId: access.courseId ?? courseId,
-      entityType: "submission",
-      entityId: submissionId,
-      entityVersion: 1,
-      action: "submission:grade",
-      outcome: "rejected",
-      reason: TUTOR_CAPABILITY_ERRORS.GRADING_COURSE_MISMATCH,
-    });
-    throw new Error(TUTOR_CAPABILITY_ERRORS.GRADING_COURSE_MISMATCH);
-  }
-
-  if (submissionWithExam.examType !== "tryout") {
-    await recordTutorMutationAuditSafe({
-      actorId: session.user.id,
-      actorRoles: roles,
-      courseId: access.courseId ?? courseId,
-      entityType: "submission",
-      entityId: submissionId,
-      entityVersion: 1,
-      action: "submission:grade",
-      outcome: "rejected",
-      reason: TUTOR_CAPABILITY_ERRORS.GRADING_NON_TRYOUT_FORBIDDEN,
-    });
-    throw new Error(TUTOR_CAPABILITY_ERRORS.GRADING_NON_TRYOUT_FORBIDDEN);
-  }
-
-  if (!isReviewableSubmissionStatus(submissionWithExam.status)) {
-    await recordTutorMutationAuditSafe({
-      actorId: session.user.id,
-      actorRoles: roles,
-      courseId: access.courseId ?? courseId,
-      entityType: "submission",
-      entityId: submissionId,
-      entityVersion: 1,
-      action: "submission:grade",
-      outcome: "rejected",
-      reason: TUTOR_CAPABILITY_ERRORS.GRADING_NOT_REVIEWABLE,
-    });
-    throw new Error(TUTOR_CAPABILITY_ERRORS.GRADING_NOT_REVIEWABLE);
-  }
-
-  const { beforeSnapshot, afterSnapshot } = buildGradingSnapshots(
-    submissionWithExam,
-    score,
-    teacherNotes,
-  );
-
-  const requestId = newAuditRequestId();
-  try {
-    await db.transaction(async (tx) => {
-      const updatedRows = await tx
-        .update(submissions)
-        .set({
-          score,
-          teacherNotes: teacherNotes || "",
-          status: "graded",
-        })
-        .where(
-          and(
-            eq(submissions.id, submissionId),
-            eq(submissions.status, submissionWithExam.status),
-          ),
-        )
-        .returning({ id: submissions.id });
-
-      if (updatedRows.length === 0) {
-        throw new Error(TUTOR_CAPABILITY_ERRORS.GRADING_CONCURRENT_CONFLICT);
-      }
-
-      await recordTutorMutationAudit({
-        actorId: session.user.id,
-        actorRoles: roles,
-        courseId: access.courseId ?? courseId,
-        entityType: "submission",
-        entityId: submissionId,
-        entityVersion: 1,
-        requestId,
-        action: "submission:grade",
-        outcome: "success",
-        reason: "Tryout submission graded",
-        before: beforeSnapshot,
-        after: afterSnapshot,
-      }, tx);
-    });
-  } catch (err: any) {
-    await recordTutorMutationAuditSafe({
-      actorId: session.user.id,
-      actorRoles: roles,
-      courseId: access.courseId ?? courseId,
-      entityType: "submission",
-      entityId: submissionId,
-      entityVersion: 1,
-      requestId,
-      action: "submission:grade",
-      outcome: "failed",
-      reason: err?.message || "Failed to update submission",
-      before: beforeSnapshot,
-      after: afterSnapshot,
-    });
-    throw err;
-  }
-
   revalidatePath(`/tutor/${courseId}/grading`);
   return { success: true };
 }

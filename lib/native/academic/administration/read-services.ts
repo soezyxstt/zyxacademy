@@ -15,6 +15,7 @@ import { getIdeaBundleImport } from "@/lib/bundle/staging";
 import { formatJakartaDatetimeLocal, getJakartaCalendarDate, toIsoTimestamp } from "@/lib/date-utils";
 import type { ReviewKind } from "@/packages/native-parity/academic/administration/fixtures";
 import type { DiktatEvidenceStatus, LiveField, LivePage, LiveRow } from "@/packages/native-parity/academic/administration/live";
+import { readNativeStudyGroupEditor } from "./study-group-service";
 import { announcementRevision } from "./announcement-edit-transaction";
 import type { AdministrationQuery, AdministrationReadServices } from "./handle-read";
 
@@ -119,6 +120,7 @@ export const administrationReadServices: AdministrationReadServices = {
     return hasPeran(id, "admin");
   },
   bundle: readBundle,
+  groupEditor: readNativeStudyGroupEditor,
   async pdfStatus(slug, { importId, productId, expectedRevision }, attemptId): Promise<DiktatEvidenceStatus | null> {
     const [identity, bundle] = await Promise.all([resolveCourseIdentity(slug), getProductBundleImport(importId)]);
     if (!identity || !bundle || !matchesCourseIdentity(bundle.courseId, identity)) return null;
@@ -168,7 +170,7 @@ export const administrationReadServices: AdministrationReadServices = {
         const { groups, total, page, stats } = await getAdminStudyGroups(query);
         return rowsPage(groups.map((entry) => ({
           id: entry.id, title: entry.name, subtitle: entry.courses.map((course) => course.title).join(", "),
-          detail: `${entry.memberCount} anggota`, fields: [field("Paket", entry.packageName),
+          detail: `${entry.memberCount} anggota`, groupEditable: !entry.hasEnrollmentToken, fields: [field("Paket", entry.packageName),
             field("Kuota sesi", `${entry.usedQuotaSessions}/${entry.totalQuotaSessions}`), field("Status", groupStatus[entry.status]),
             field("Tahun ajaran", entry.academicYear), field("Catatan", entry.notes)],
         })), total > page * 25, [field("Kelompok aktif", stats.activeGroups), field("Anggota", stats.totalMembers)]);

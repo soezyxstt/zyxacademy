@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { View } from "react-native";
 import {
-  dateRangeError, targetVersion, type AssessmentContext, type AssessmentGateway, type AssessmentTryout,
+  targetVersion, tryoutDraftValidationError, type AssessmentContext, type AssessmentGateway, type AssessmentTryout,
   type MutationEffect, type TryoutCollection, type TryoutInput, type TryoutQuestion,
 } from "../../../../../packages/native-parity/academic/assessment";
 import type { AcademicScreenProps } from "../contracts";
@@ -31,9 +31,11 @@ export function Tryouts({ gateway, context, back }: Props) {
   const [listPage, setListPage] = useState(0);
   const [questionPage, setQuestionPage] = useState(0);
   const active = result?.ok ? result.value.tryouts.find((tryout) => tryout.id === activeId) : undefined;
+  const recovery = gateway.pendingTryoutDraft?.(context);
+  const unknownDraft = modal?.kind === "edit" && !gateway.canMutate && mutation.problem?.code === "unavailable";
 
   function close() {
-    if (mutation.pending) return;
+    if (mutation.pending || unknownDraft) return;
     mutation.reset();
     setModal(null);
     setSelected([]);
@@ -45,7 +47,8 @@ export function Tryouts({ gateway, context, back }: Props) {
     setModal(action);
   }
 
-  function finished(effect: MutationEffect) {
+  function finished(effect: MutationEffect, requestId: string) {
+    gateway.confirmTryoutDraft?.(context, requestId);
     setNotice(effect.message);
     setModal(null);
     setSelected([]);
@@ -83,8 +86,16 @@ export function Tryouts({ gateway, context, back }: Props) {
     }
     const filtered = data.tryouts.filter((tryout) => tryout.title.toLowerCase().includes(search.trim().toLowerCase()));
     const shown = Math.min(listPage, Math.max(0, Math.ceil(filtered.length / pageSize) - 1));
+    const canSaveDraft = gateway.canSaveTryoutDraft && data.canSaveDraft !== false;
     return <>
-      {gateway.canMutate ? <View style={layout.row}><Action label="Buat tryout" variation="default" onPress={() => open({ kind: "edit" })} testID="academic-tryout-new" /></View> : null}
+      {recovery && !modal ? <AssessmentNotice
+        error={!recovery.confirmed}
+        message={recovery.confirmed ? "Draf tryout sudah tersimpan." : "Hasil penyimpanan draf belum diketahui."}
+        action={<Action label={recovery.confirmed ? "Muat daftar" : "Coba lagi"} disabled={mutation.pending}
+          onPress={() => mutation.resume(recovery.requestId, recovery.command, finished)} testID="academic-tryout-restore" />}
+      /> : null}
+      {canSaveDraft ? <View style={layout.row}><Action label={gateway.canMutate ? "Buat tryout" : "Buat draf tryout"} variation="default" disabled={Boolean(recovery)}
+        onPress={() => open({ kind: "edit" })} testID="academic-tryout-new" /></View> : null}
       <SearchBox label="Cari tryout" value={search} onChange={(value) => { setSearch(value); setListPage(0); }} />
       {!filtered.length ? <AssessmentNotice message={search ? "Tryout yang cocok tidak ditemukan." : "Belum ada tryout."} /> : null}
       {filtered.slice(shown * pageSize, (shown + 1) * pageSize).map((exam) => (
@@ -93,8 +104,9 @@ export function Tryouts({ gateway, context, back }: Props) {
           <Ink kind="meta" tone="muted">{statuses[exam.status]} · {exam.questions.length} soal · {exam.timeLimitMinutes} menit · {exam.maxAttempts} percobaan</Ink>
           <View style={layout.row}>
             <Action label={gateway.canMutate ? "Kelola soal" : "Lihat soal"} onPress={() => { setNotice(""); setQuestionPage(0); setActiveId(exam.id); }} testID={`academic-tryout-questions-${exam.id}`} />
-            {gateway.canMutate ? <><Action label="Edit" onPress={() => open({ kind: "edit", exam })} testID={`academic-tryout-edit-${exam.id}`} />
-            <Action label="Hapus" variation="ghost" onPress={() => open({ kind: "delete", exam })} /></> : null}
+            {canSaveDraft && (gateway.canMutate || (exam.status === "draft" && exam.metadataRevision))
+              ? <Action label="Edit" disabled={Boolean(recovery)} onPress={() => open({ kind: "edit", exam })} testID={`academic-tryout-edit-${exam.id}`} /> : null}
+            {gateway.canMutate ? <Action label="Hapus" variation="ghost" onPress={() => open({ kind: "delete", exam })} /> : null}
           </View>
         </SectionRow>
       ))}
@@ -110,8 +122,11 @@ export function Tryouts({ gateway, context, back }: Props) {
     <ReadState result={result} retry={retry}>{(data) => <>
       {render(data)}
       {modal?.kind === "edit" ? <CourseDialog title={modal.exam ? "Edit tryout" : "Buat tryout"} onClose={close}>
-        <TryoutEditor initial={modal.exam} busy={mutation.pending} feedback={feedback} cancel={close}
-          save={(input) => mutation.send({ kind: "tryout.save", target: modal.exam ? targetVersion(modal.exam) : null, input }, finished)} />
+        <TryoutEditor initial={modal.exam} canChangeStatus={gateway.canMutate} busy={mutation.pending || unknownDraft} feedback={feedback} cancel={close}
+          save={(input) => mutation.send({
+            kind: "tryout.save", target: modal.exam ? { ...targetVersion(modal.exam), metadataRevision: modal.exam.metadataRevision } : null,
+            input, courseId: data.course.id,
+          }, finished)} />
       </CourseDialog> : null}
       {modal?.kind === "delete" ? <ConfirmAction title="Hapus tryout" message={`Hapus “${modal.exam.title}” beserta soalnya?`}
         confirmLabel="Hapus tryout" destructive busy={mutation.pending} cancel={close}
@@ -143,8 +158,8 @@ export function Tryouts({ gateway, context, back }: Props) {
   </AssessmentPage>;
 }
 
-function TryoutEditor({ initial, busy, feedback, cancel, save }: {
-  initial?: TryoutInput; busy: boolean; feedback: React.ReactNode; cancel(): void; save(value: TryoutInput): void;
+function TryoutEditor({ initial, busy, canChangeStatus, feedback, cancel, save }: {
+  initial?: TryoutInput; busy: boolean; canChangeStatus: boolean; feedback: React.ReactNode; cancel(): void; save(value: TryoutInput): void;
 }) {
   const [input, setInput] = useState<TryoutInput>(initial ?? {
     title: "", status: "draft", openAt: null, closeAt: null, timeLimitMinutes: 90, maxAttempts: 2,
@@ -158,7 +173,7 @@ function TryoutEditor({ initial, busy, feedback, cancel, save }: {
       ...input, title: input.title.trim(), timeLimitMinutes: Number(duration), maxAttempts: Number(maxAttempts),
       openAt: input.openAt?.trim() || null, closeAt: input.closeAt?.trim() || null,
     };
-    const issue = !value.title ? "Judul tryout wajib diisi." : dateRangeError(value.openAt, value.closeAt);
+    const issue = tryoutDraftValidationError(value);
     setValidation(issue ?? "");
     if (!issue) save(value);
   }
@@ -166,7 +181,7 @@ function TryoutEditor({ initial, busy, feedback, cancel, save }: {
   return (
     <View style={layout.group}>
       <Field label="Judul tryout" value={input.title} onChangeText={(title) => setInput({ ...input, title })} testID="academic-tryout-title" />
-      <SelectField label="Status" options={statuses} value={input.status} change={(status) => setInput({ ...input, status })} />
+      {canChangeStatus ? <SelectField label="Status" options={statuses} value={input.status} change={(status) => setInput({ ...input, status })} /> : null}
       <Field label="Durasi dalam menit" keyboardType="number-pad" value={duration} onChangeText={setDuration} />
       <Field label="Batas percobaan" keyboardType="number-pad" value={maxAttempts} onChangeText={setMaxAttempts} />
       <ScheduleFields openAt={input.openAt} closeAt={input.closeAt}
@@ -174,7 +189,7 @@ function TryoutEditor({ initial, busy, feedback, cancel, save }: {
       {validation ? <AssessmentNotice message={validation} error /> : null}
       {feedback}
       <View style={layout.row}>
-        <Action label="Simpan tryout" onPress={submit} disabled={busy} variation="default" testID="academic-tryout-save" />
+        <Action label={canChangeStatus ? "Simpan tryout" : "Simpan draf"} onPress={submit} disabled={busy} variation="default" testID="academic-tryout-save" />
         <Action label="Batal" onPress={cancel} disabled={busy} variation="ghost" />
       </View>
     </View>

@@ -19,5 +19,8 @@ INSERT INTO mata_kuliah(id,code,title,legacy_course_id) VALUES
   ('academic-course-2','FIS101','Fisika Dasar','fisika-dasar'),
   ('academic-course-3','KIM101','Kimia Dasar','kimia-dasar');
 INSERT INTO penugasan_tutor(id,pengguna_id,mata_kuliah_id) VALUES ('assign-1','academic-tutor','academic-course-1'),('assign-2','academic-tutor','academic-course-2');
-INSERT INTO enrollments(id,user_id,course_id,expires_at) VALUES ('academic-enrollment','academic-student','biologi-dasar',now()+interval '1 year');
+INSERT INTO enrollments(id,user_id,course_id,enrolled_at,expires_at) VALUES
+  ('academic-enrollment','academic-student','biologi-dasar','2026-11-26T00:00:00Z','2099-11-26T00:00:00Z');
+-- These journeys represent a returning tutor opening an assigned course.
+INSERT INTO onboarding_tours(user_id,role,status,step_index) VALUES ('academic-tutor','tutor','completed',9);
 COMMIT;

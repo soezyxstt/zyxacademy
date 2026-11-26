@@ -55,7 +55,7 @@ test("native academic reads and legacy Diktat PDF keep signed-in UI authorizatio
   const native = operationsCatalog.find(item => item.source === "app/api/native/academic-administration/[...resource]/route.ts")!;
   const pdf = operationsCatalog.find(item => item.source === "app/api/admin/bundles/product/[id]/pdf/route.ts")!;
   expect(native.status).toBe("excluded");
-  expect(native.actions).toEqual(["GET", "PATCH"]);
+  expect(native.actions).toEqual(["GET", "POST", "PATCH"]);
   expect(native.tools).toEqual([]);
   expect(pdf.status).toBe("excluded");
   expect(pdf.actions).toEqual(["GET", "POST"]);
@@ -72,4 +72,12 @@ test("native academic transports use interactive sessions", () => {
     expect(entry?.status).toBe("excluded");
     expect(entry?.tools).toEqual([]);
   }
+});
+
+test("native chapter commands reuse the administrative projection with session authorization", () => {
+  const entry = operationsCatalog.find(item => item.source === "app/api/native/academic/[...resource]/route.ts")!;
+  expect(entry.actions).toEqual(["GET", "POST", "PATCH"]);
+  expect(entry.tools).toEqual([]);
+  expect(entry.reason).toContain("chapters.create");
+  expect(entry.reason).toContain("chapters.update");
 });

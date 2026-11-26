@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import { randomUUID } from "expo-crypto";
 import { ActivityIndicator, View } from "react-native";
+import { tryoutGradeNotesLimit, type TryoutGradeEditor } from "../../../../../packages/academic/tryout-grade";
 import {
   filterGroups,
   filterParticipants,
@@ -260,28 +262,42 @@ type GradeDraft = { score: string; notes: string };
 const gradingTypes: Record<string, string> = { multiple_choice: "Pilihan ganda", multiple_choices: "Pilihan ganda kompleks", short_answer: "Jawaban singkat", essay: "Esai" };
 const gradingStatus = { completed: "Selesai", pending_review: "Menunggu penilaian", graded: "Sudah dinilai", late: "Terlambat" };
 
-export function TutorGrading({ theme, back, data, onSave }: Navigation & {
+export function TutorGrading({ theme, back, data, onSave, editor, reload }: Navigation & {
   data: GradingData;
   onSave?: (submissionId: string, grade: TutorGrade) => Promise<void>;
+  editor?: TryoutGradeEditor;
+  reload?: (signal: AbortSignal) => Promise<GradingData>;
 }) {
   const [tab, setTab] = useState<GradeTab>("pending");
   const [active, setActive] = useState<TutorSubmission | null>(null);
   const [drafts, setDrafts] = useState<Record<string, GradeDraft>>({});
   const [saved, setSaved] = useState<Record<string, TutorGrade>>({});
+  const [refreshed, setRefreshed] = useState<GradingData>();
+  const [refreshError, setRefreshError] = useState(false);
   const [notice, setNotice] = useState("");
   const [saveError, setSaveError] = useState("");
+  const [conflictedSubmission, setConflictedSubmission] = useState<string>();
   const [saving, setSaving] = useState(false);
   const [feedbackExpanded, setFeedbackExpanded] = useState(false);
   const savingRef = useRef(false);
+  const controllerRef = useRef<AbortController | null>(null);
+  useEffect(() => () => controllerRef.current?.abort(), []);
 
-  const submissions = data.submissions.map((submission) => {
+  const courseId = data.course.courseId;
+  const submissions = (refreshed ?? data).submissions.map((submission) => {
     const grade = saved[submission.id];
     return grade ? { ...submission, score: grade.score, teacherNotes: grade.notes, status: "graded" as const } : submission;
   });
-  const pending = submissions.filter((submission) => submission.status === "pending_review");
+  const pending = submissions.filter((submission) => submission.status === "pending_review" || submission.status === "late" || editor?.pending(courseId, submission.id));
   const graded = submissions.filter((submission) => submission.status === "graded");
   const items = { pending, graded, all: submissions }[tab];
-  const draft = active ? drafts[active.id] ?? { score: active.score?.toString() ?? "", notes: active.teacherNotes ?? "" } : null;
+  const awaiting = active ? editor?.pending(courseId, active.id) : undefined;
+  const stored = active ? editor?.draft(courseId, active.id) : undefined;
+  const draft = active ? awaiting ? { score: String(awaiting.score), notes: awaiting.notes }
+    : drafts[active.id] ?? stored ?? { score: active.score?.toString() ?? "", notes: active.teacherNotes ?? "" } : null;
+  const outdated = Boolean(!awaiting && stored && active?.reviewRevision !== stored.expectedRevision);
+  const blocked = Boolean(active && conflictedSubmission === active.id);
+  const canSave = Boolean(onSave || (editor && active?.reviewRevision));
   const answers = active ? readAnswers(active) : [];
 
   function closeReview() {
@@ -290,8 +306,67 @@ export function TutorGrading({ theme, back, data, onSave }: Navigation & {
     setActive(null);
   }
 
+  function changeDraft(next: GradeDraft) {
+    if (!active) return;
+    setDrafts((previous) => ({ ...previous, [active.id]: next }));
+    if (active.reviewRevision && editor) {
+      editor.changeDraft(courseId, active.id, { ...next, expectedRevision: active.reviewRevision });
+    }
+  }
+
+  function clearDraft(id: string) {
+    editor?.changeDraft(courseId, id);
+    setDrafts((previous) => {
+      const next = { ...previous };
+      delete next[id];
+      return next;
+    });
+  }
+
+  async function refresh(signal: AbortSignal, activeId?: string) {
+    if (!reload) return;
+    try {
+      const result = await reload(signal);
+      if (signal.aborted) return;
+      setRefreshed(result);
+      setSaved({});
+      setRefreshError(false);
+      if (activeId) {
+        clearDraft(activeId);
+        setActive(result.submissions.find((submission) => submission.id === activeId) ?? null);
+        setConflictedSubmission(undefined);
+        setSaveError("");
+      }
+    } catch (error) {
+      if (signal.aborted) return;
+      if (error instanceof TutorDataError && [401, 403, 404].includes(error.status)) {
+        setActive(null);
+        setRefreshed({ ...data, submissions: [] });
+        setSaved({});
+        setNotice("Akses penilaian ditolak.");
+        return;
+      }
+      if (activeId) setSaveError("Nilai terbaru gagal dimuat. Coba lagi.");
+      else setRefreshError(true);
+    }
+  }
+
+  async function refreshQueue(activeId?: string) {
+    if (savingRef.current) return;
+    savingRef.current = true;
+    setSaving(true);
+    const controller = new AbortController();
+    controllerRef.current = controller;
+    try {
+      await refresh(controller.signal, activeId);
+    } finally {
+      savingRef.current = false;
+      if (!controller.signal.aborted) setSaving(false);
+    }
+  }
+
   async function publish() {
-    if (!active || !onSave || !draft || savingRef.current) return;
+    if (!active || !canSave || !draft || savingRef.current || blocked || outdated) return;
     const score = parseGrade(draft.score);
     if (score === null) {
       setSaveError("Masukkan nilai 0 sampai 100.");
@@ -300,28 +375,55 @@ export function TutorGrading({ theme, back, data, onSave }: Navigation & {
     savingRef.current = true;
     setSaving(true);
     setSaveError("");
+    const controller = new AbortController();
+    controllerRef.current = controller;
+    const { signal } = controller;
     try {
       const grade = { score, notes: draft.notes };
-      await onSave(active.id, grade);
-      setSaved((previous) => ({ ...previous, [active.id]: grade }));
-      setDrafts((previous) => {
-        const next = { ...previous };
-        delete next[active.id];
-        return next;
-      });
+      if (editor && active.reviewRevision) {
+        const result = await editor.publish(courseId, active.id, awaiting ?? { ...grade, expectedRevision: active.reviewRevision }, randomUUID(), signal);
+        if (signal.aborted) return;
+        if (result.status !== "saved") {
+          if (result.status === "denied") {
+            clearDraft(active.id);
+            setActive(null);
+            setRefreshed({ ...data, submissions: [] });
+            setSaved({});
+            setNotice("Akses penilaian ditolak.");
+            return;
+          }
+          if (result.status === "conflict") setConflictedSubmission(active.id);
+          setSaveError({
+            invalid: "Periksa nilai dan catatan tutor.",
+            conflict: "Penilaian telah berubah. Muat nilai terbaru.",
+            unknown: "Pengiriman nilai belum terkonfirmasi. Coba kirim lagi.",
+          }[result.status]);
+          return;
+        }
+      } else {
+        await onSave?.(active.id, grade);
+        if (!signal.aborted) setSaved((previous) => ({ ...previous, [active.id]: grade }));
+      }
+      if (signal.aborted) return;
+      clearDraft(active.id);
       setNotice("Nilai berhasil disimpan.");
       setActive(null);
+      if (editor) await refresh(signal);
     } catch {
-      setSaveError("Nilai belum tersimpan. Coba simpan lagi.");
+      if (!signal.aborted) setSaveError("Nilai belum tersimpan. Coba simpan lagi.");
     } finally {
       savingRef.current = false;
-      setSaving(false);
+      if (!signal.aborted) setSaving(false);
     }
   }
 
   return <>
     <TutorPage theme={theme} title="Penilaian tryout" subtitle={data.course.title} onBack={back}>
       {notice ? <Label theme={theme} tone="strong">{notice}</Label> : null}
+      {refreshError ? <View style={tutorLayout.group}>
+        <Label theme={theme} tone="error">Antrean gagal diperbarui.</Label>
+        <Button theme={theme} variant="outline" style={tutorLayout.action} isLoading={saving} onPress={() => refreshQueue()}>Muat ulang antrean</Button>
+      </View> : null}
       <Choices theme={theme} label="Filter penilaian tryout" value={tab} change={setTab} tabBar
         options={[["pending", `Perlu dinilai (${pending.length})`], ["graded", `Sudah dinilai (${graded.length})`], ["all", "Semua"]]} />
       {items.length === 0
@@ -331,27 +433,34 @@ export function TutorGrading({ theme, back, data, onSave }: Navigation & {
             subtitle={`${submission.studentName ?? "Siswa"} · ${displayDate(submission.submittedAt, "Tanggal belum tercatat", submissionDateFormat)}`}
             meta={submission.score == null ? undefined : `${submission.score}%`}
             onPress={() => {
+              if (savingRef.current) return;
               setFeedbackExpanded(false);
               setNotice("");
               setActive(submission);
             }}
           >
-            <Label theme={theme} tone="muted">{gradingStatus[submission.status]}</Label>
+            <Label theme={theme} tone="muted">{editor?.pending(courseId, submission.id) ? "Pengiriman belum dikonfirmasi" : gradingStatus[submission.status]}</Label>
           </Row>
         ))}</View>}
     </TutorPage>
     {active && draft ? <TutorDetail
       theme={theme} title={active.examTitle} subtitle={active.studentName ?? "Siswa"} onBack={closeReview}
-      footer={onSave ? <>
+      footer={canSave ? <>
         {saveError ? <Label theme={theme} tone="error">{saveError}</Label> : null}
+        {outdated || (blocked && !saveError) ? <Label theme={theme} tone="error">Penilaian telah berubah. Muat nilai terbaru.</Label> : null}
         {feedbackExpanded ? <Input theme={theme} accessibilityLabel="Catatan tutor" placeholder="Catatan tutor"
-          multiline value={draft.notes} editable={!saving} onChangeText={(notes) => setDrafts((previous) => ({ ...previous, [active.id]: { ...draft, notes } }))} /> : null}
+          multiline maxLength={tryoutGradeNotesLimit} value={draft.notes} editable={!saving && !awaiting && !blocked && !outdated}
+          onChangeText={(notes) => changeDraft({ ...draft, notes })} /> : null}
         <View style={tutorLayout.cluster}>
           <Input theme={theme} accessibilityLabel="Nilai akhir" placeholder="0-100" inputMode="numeric" style={{ width: 76, minHeight: 44 }}
-            value={draft.score} editable={!saving} onChangeText={(score) => setDrafts((previous) => ({ ...previous, [active.id]: { ...draft, score } }))} />
+            value={draft.score} editable={!saving && !awaiting && !blocked && !outdated} onChangeText={(score) => changeDraft({ ...draft, score })} />
           <Button theme={theme} variant="outline" style={tutorLayout.action}
             accessibilityState={{ expanded: feedbackExpanded }} onPress={() => setFeedbackExpanded((value) => !value)}>Catatan tutor</Button>
-          <Button theme={theme} style={tutorLayout.action} isLoading={saving} onPress={publish}>Simpan dan terbitkan</Button>
+          {blocked || outdated
+            ? <Button theme={theme} style={tutorLayout.action} isLoading={saving} onPress={() => refreshQueue(active.id)}>Muat nilai terbaru</Button>
+            : <Button theme={theme} style={tutorLayout.action} isLoading={saving} onPress={publish}>
+              {awaiting ? "Coba kirim lagi" : "Simpan dan terbitkan"}
+            </Button>}
         </View>
       </> : undefined}
     >
@@ -368,7 +477,7 @@ export function TutorGrading({ theme, back, data, onSave }: Navigation & {
         {answer.accepted.length ? <Label theme={theme} tone="muted">Kunci {answer.accepted.join(", ")}</Label> : null}
       </Row>)}
       {answers.length === 0 ? <Empty theme={theme} title="Jawaban tidak tersedia" /> : null}
-      {!onSave && active.teacherNotes ? <Row theme={theme} title="Catatan tutor" subtitle={active.teacherNotes} /> : null}
+      {!canSave && active.teacherNotes ? <Row theme={theme} title="Catatan tutor" subtitle={active.teacherNotes} /> : null}
     </TutorDetail> : null}
   </>;
 }

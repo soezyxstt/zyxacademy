@@ -231,3 +231,45 @@ test("a lost create response preserves the same immutable command and key across
   assert.equal(remounted.takeQuizSaveNotice?.(context, key), "Kuis tersimpan.");
   assert.equal(remounted.pendingQuizSave?.(context, null), null);
 });
+
+test("Admin tryout draft writes keep the scoped payload and request across navigation", async () => {
+  const commands: Array<{ path: string; init: import("../../../../apps/mobile-native/features/academic/client").AcademicCommand }> = [];
+  const transport = {
+    accountId: "admin", origin: "https://example.test", locale: "id",
+    get: async () => Response.json(null, { status: 404 }),
+    command: async (path: string, init: import("../../../../apps/mobile-native/features/academic/client").AcademicCommand) => {
+      commands.push({ path, init });
+      if (commands.length === 1) throw new Error("Lost response");
+      return Response.json({ requestId: init.requestId, examId: "draft", revision: "b".repeat(64) });
+    },
+  };
+  const context = { actor: { id: "admin", role: "admin" }, scope: { kind: "admin", slug: "biologi" }, scenario: "populated" } as const;
+  const gateway = createAssessmentReadGateway(transport);
+  assert.equal(gateway.canSaveTryoutDraft, true);
+  const input = { title: "Tryout", status: "draft", timeLimitMinutes: 90, maxAttempts: 2, openAt: null, closeAt: null } as const;
+  const draft = { kind: "tryout.save", input, target: null, courseId: "mk-bio" } as const;
+  assert.equal(await gateway.mutate(context, "draft-save", { ...draft, input: { ...input, status: "published" } }).then((value) => value.ok), false);
+  assert.equal(commands.length, 0);
+  assert.equal(await gateway.mutate(context, "draft-save", draft).then((value) => value.ok), false);
+  const remounted = createAssessmentReadGateway(transport);
+  const pending = remounted.pendingTryoutDraft?.(context);
+  assert.ok(pending);
+  assert.equal(pending.confirmed, false);
+  assert.equal(await remounted.mutate(context, "another-id", draft).then((value) => value.ok), false);
+  assert.equal(await remounted.mutate(context, pending.requestId, pending.command).then((value) => value.ok), true);
+  assert.deepEqual(commands[0], commands[1]);
+  assert.deepEqual(commands[0], {
+    path: "/api/native/academic-assessment/admin/biologi/tryouts",
+    init: {
+      method: "POST", requestId: "draft-save", body: { courseId: "mk-bio", expectedRevision: null, title: "Tryout",
+        timeLimitMinutes: 90, maxAttempts: 2, openAt: null, closeAt: null },
+    },
+  });
+  remounted.confirmTryoutDraft?.(context, pending.requestId);
+  assert.equal(remounted.pendingTryoutDraft?.(context), null);
+  const edit = { ...draft, target: { id: "draft", expectedRevision: 0, metadataRevision: "a".repeat(64) } };
+  assert.equal(await remounted.mutate(context, "draft-edit", edit).then((value) => value.ok), true);
+  assert.equal(commands[2].path, "/api/native/academic-assessment/admin/biologi/tryouts/draft");
+  assert.equal(commands[2].init.method, "PATCH");
+  assert.equal((commands[2].init.body as { expectedRevision: string }).expectedRevision, "a".repeat(64));
+});
