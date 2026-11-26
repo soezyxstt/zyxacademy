@@ -54,5 +54,11 @@ emulator shell am force-stop com.android.chrome
 emulator install "$private/preview.apk" >/dev/null
 mkdir "$private/maestro"
 bash "$root/scripts/native-parity/install-maestro.sh" "$private/maestro"
-bun --no-env-file "$root/scripts/native-readiness/product-auth/android-smoke.ts" \
-  "$private/cert.pem" "$private/key.pem" "$private/maestro/maestro/bin/maestro" "$device"
+roles=(student)
+if [[ ${NATIVE_PRODUCT_AUTH_STAFF:-} == true ]]; then roles=(tutor admin); fi
+status=0
+for role in "${roles[@]}"; do
+  NATIVE_PRODUCT_AUTH_ROLE="$role" bun --no-env-file "$root/scripts/native-readiness/product-auth/android-smoke.ts" \
+    "$private/cert.pem" "$private/key.pem" "$private/maestro/maestro/bin/maestro" "$device" || status=1
+done
+exit "$status"

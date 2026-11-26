@@ -35,11 +35,12 @@ permissions:
 
 jobs:
   authenticated-session:
-    if: github.head_ref == 'soezyxst/react-native-monorepo' || (github.event_name == 'workflow_dispatch' && github.ref_name == 'soezyxst/react-native-monorepo' && inputs.include_pending_student)
+    if: github.head_ref == 'soezyxst/react-native-monorepo' || (github.event_name == 'workflow_dispatch' && github.ref_name == 'soezyxst/react-native-monorepo')
     needs: combined-native
     uses: ./.github/workflows/native-authenticated-preview.yml
     with:
-      android: ${{ github.event_name == 'workflow_dispatch' }}
+      android: ${{ github.event_name == 'workflow_dispatch' && inputs.include_pending_student }}
+      staff: ${{ github.event_name == 'workflow_dispatch' && !inputs.include_pending_student }}
 
   combined-native:
     if: github.head_ref == 'soezyxst/react-native-monorepo' || (github.event_name == 'workflow_dispatch' && github.ref_name == 'soezyxst/react-native-monorepo')

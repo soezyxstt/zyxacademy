@@ -7,9 +7,14 @@ if [[ ${GITHUB_ACTIONS:-} != true || ${RUNNER_ENVIRONMENT:-} != github-hosted ||
 fi
 
 snapshot="$RUNNER_TEMP/product-source"
-gzip -dc "$snapshot/changes.patch.gz" | git apply --binary --index --whitespace=nowarn
+gzip -dc "$snapshot/changes.patch.gz" | git apply --allow-empty --binary --index --whitespace=nowarn
 tree=$(git write-tree)
 test "$tree" = "$(cat "$snapshot/tree")"
+if [[ ${NATIVE_PRODUCT_AUTH_STAFF:-} == true ]]; then
+  test "$tree" = "$(git rev-parse 'HEAD^{tree}')"
+  git ls-tree -r --name-only HEAD -- apps/mobile-native/app/tutor.tsx apps/mobile-native/app/admin/forms.tsx |
+    diff -u <(printf '%s\n' apps/mobile-native/app/admin/forms.tsx apps/mobile-native/app/tutor.tsx) -
+fi
 python3 - <<'PY'
 from collections import Counter
 from runpy import run_path

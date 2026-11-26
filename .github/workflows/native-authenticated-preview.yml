@@ -6,6 +6,9 @@ on:
       android:
         type: boolean
         default: false
+      staff:
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -72,7 +75,7 @@ jobs:
 
   authenticated-android:
     needs: authenticated-routes
-    if: inputs.android
+    if: inputs.android || inputs.staff
     runs-on: ubuntu-latest
     timeout-minutes: 50
     services:
@@ -92,6 +95,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://native_preview:native_preview@127.0.0.1:55453/native_preview
       NATIVE_PRODUCT_AUTH_FIXTURE: '1'
+      NATIVE_PRODUCT_AUTH_STAFF: ${{ inputs.staff }}
       EXPO_NO_TELEMETRY: '1'
       NEXT_TELEMETRY_DISABLED: '1'
       PUPPETEER_SKIP_DOWNLOAD: 'true'

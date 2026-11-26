@@ -1,0 +1,38 @@
+appId: com.zyx.academy.nativeparity
+name: Verified staff role, protected read, wrong-role denial and logout
+---
+- launchApp:
+    clearState: true
+- openLink: "${PREVIEW_SIGN_IN_URL}"
+- extendedWaitUntil:
+    visible:
+      id: native-auth-google
+    timeout: 30000
+- tapOn:
+    id: native-auth-google
+    enabled: true
+- extendedWaitUntil:
+    visible: Native Preview Sign-in
+    timeout: 30000
+- tapOn: Runner code
+- inputText: ${PREVIEW_CLAIM}
+- hideKeyboard
+- tapOn: "${PREVIEW_BROWSER_BUTTON}"
+- extendedWaitUntil:
+    visible: ".*${PREVIEW_RECORD}.*"
+    timeout: 45000
+- openLink: "${PREVIEW_WRONG_ROLE_URL}"
+- extendedWaitUntil:
+    visible: "(Akses ditolak\\.|Access denied\\.)"
+    timeout: 30000
+- assertNotVisible: ".*${PREVIEW_OTHER_RECORD}.*"
+- openLink: "zyx-native-parity://sign-out?locale=id"
+- extendedWaitUntil:
+    visible: '(Kamu sudah keluar\.|You are signed out\.)'
+    timeout: 30000
+- openLink: "${PREVIEW_READ_URL}"
+- extendedWaitUntil:
+    visible:
+      id: native-auth-google
+    timeout: 30000
+- assertNotVisible: ".*${PREVIEW_RECORD}.*"

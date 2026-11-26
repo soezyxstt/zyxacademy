@@ -4,6 +4,7 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { Client } from "pg";
 import { assertFixtureRunner, fixtureDatabase, fixtureSessionSeconds } from "./scope";
+import { staffRoles, type StaffRole } from "./staff-role";
 
 export async function prepareFixtureDatabase() {
   assertFixtureRunner();
@@ -19,15 +20,16 @@ export async function prepareFixtureDatabase() {
   }
 }
 
-export async function seedBrowserSession() {
+export async function seedBrowserSession(role?: StaffRole) {
   assertFixtureRunner();
   const { auth } = await import("@/lib/auth");
   const context = await auth.$context;
   const user = await context.internalAdapter.createUser({
-    name: "Expo Preview Student",
+    name: "Expo Preview " + (role ? staffRoles[role].label : "Student"),
     email: `expo-preview-${randomBytes(8).toString("hex")}@example.test`,
     emailVerified: true,
   });
+  if (role) await (await import("./staff-fixture")).seedStaffRole(user.id, role);
   const session = await context.internalAdapter.createSession(user.id);
   if (session.expiresAt.getTime() > Date.now() + fixtureSessionSeconds * 1000) throw new Error("Fixture session exceeds its lease");
   const signature = await makeSignature(session.token, context.secret);

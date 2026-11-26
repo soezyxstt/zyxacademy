@@ -8,6 +8,7 @@ import { EXPO_STAGING_ORIGIN, EXPO_STAGING_SCHEME } from "@/lib/native/expo-auth
 import { assertFixtureRunner, fixtureHost, fixtureOrigin, fixturePort, fixtureSessionSeconds } from "./scope";
 import { prepareFixtureDatabase, seedBrowserSession } from "./seed";
 import { notificationId, seedStudentInbox, verifiedInboxAcknowledgement } from "./inbox-fixture";
+import { containsStaffRecord, matchesStaffContext, oppositeStaffRole, staffRoles, type StaffRole } from "./staff-role";
 
 const noStore = { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" };
 const browserPage = "/auth/native-start";
@@ -38,20 +39,21 @@ function localizeRedirect(response: Response) {
   return new Response(response.body, { status: response.status, headers });
 }
 
-function browserFixturePage(query: URLSearchParams) {
+function browserFixturePage(query: URLSearchParams, staff?: StaffRole) {
   const action = browserSubmit + "?" + query.toString().replaceAll("&", "&amp;");
   return new Response(`<!doctype html><html lang="en"><meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Native Preview Sign-in</title><main><h1>Native Preview Sign-in</h1>
     <form method="post" action="${action}">
     <label>Runner code <input type="password" name="claim" required autocomplete="off"></label>
-    <button>Continue as preview student</button></form></main></html>`, {
+    <button>Continue as preview ${staff ?? "student"}</button></form></main></html>`, {
     headers: { ...noStore, "Content-Type": "text/html; charset=utf-8",
       "Content-Security-Policy": "default-src 'none'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'" },
   });
 }
 
-export async function startAuthFixture(certPath: string, keyPath: string, { studentProduct = false } = {}) {
+export async function startAuthFixture(certPath: string, keyPath: string, options: { studentProduct?: boolean; staff?: StaffRole } = {}) {
+  const { studentProduct = false, staff } = options;
   assertFixtureRunner();
   process.env.SKIP_ENV_VALIDATION = "1";
   process.env.QUEUE_PROVIDER = "noop";
@@ -94,6 +96,8 @@ export async function startAuthFixture(certPath: string, keyPath: string, { stud
     import("@/app/api/notifications/history/route"),
     import("@/app/api/notifications/read/route"),
   ]) : null;
+  const staffReads = staff ? await (await import("./staff-fixture")).loadStaffReads() : null;
+  const opposite = staff ? oppositeStaffRole(staff) : null;
 
   const claim = randomBytes(32).toString("hex");
   let claimExpiresAt = 0;
@@ -107,6 +111,9 @@ export async function startAuthFixture(certPath: string, keyPath: string, { stud
   let signedOut = false;
   let loadedDashboard = false;
   let acknowledgedInbox = false;
+  let verifiedStaffRead = false;
+  let deniedOppositeRole = false;
+  let unauthorizedRead = false;
   let visitedHealth = false;
   let browserIdentity: Awaited<ReturnType<typeof seedBrowserSession>> | null = null;
   const server = Bun.serve({
@@ -149,7 +156,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, { stud
       if (route === "GET " + browserPage) {
         const query = handoffQuery(url);
         return query && confirmedState === query.get("state") && !claimed && Date.now() < claimExpiresAt
-          ? browserFixturePage(query) : result(403);
+          ? browserFixturePage(query, staff) : result(403);
       }
       if (route === "POST " + browserSubmit) {
         const query = handoffQuery(url);
@@ -159,7 +166,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, { stud
         if (typeof submitted !== "string" || !/^[a-f\d]{64}$/.test(submitted) ||
           !timingSafeEqual(Buffer.from(claim, "hex"), Buffer.from(submitted, "hex"))) return result(403);
         claimed = true;
-        browserIdentity = await seedBrowserSession();
+        browserIdentity = await seedBrowserSession(staff);
         if (studentProduct) await seedStudentInbox(browserIdentity.accountId);
         return new Response(null, { status: 303, headers: {
           ...noStore, Location: fixtureOrigin + nativeComplete + "?" + query, "Set-Cookie": browserIdentity.cookie,
@@ -177,8 +184,22 @@ export async function startAuthFixture(certPath: string, keyPath: string, { stud
       }
       if (route === "GET /api/native/context") {
         const response = await requestContext.run(upstream, accountContext);
-        if (response.ok) verifiedContext = true;
+        if (response.ok && (!staff || (browserIdentity && matchesStaffContext(staff, await response.clone().json(), browserIdentity)))) {
+          verifiedContext = true;
+        }
         return response;
+      }
+      if (staff && opposite && staffReads && request.method === "GET") {
+        if (url.pathname === staffRoles[staff].apiPath) {
+          const response = await requestContext.run(upstream, () => staffReads[staff](upstream));
+          if (response.ok && containsStaffRecord(staff, await response.clone().json())) verifiedStaffRead = true;
+          return response;
+        }
+        if (url.pathname === staffRoles[opposite].apiPath) {
+          const response = await requestContext.run(upstream, () => staffReads[opposite](upstream));
+          if (response.ok) unauthorizedRead = true;
+          return response;
+        }
       }
       if (product && route === "GET /api/native/student/courses" && url.searchParams.get("view") === "dashboard") {
         const response = await requestContext.run(upstream, () => product[0].GET(upstream));
@@ -197,6 +218,16 @@ export async function startAuthFixture(certPath: string, keyPath: string, { stud
         return response;
       }
       if (route === "GET /api/auth/get-session" || route === "POST /api/auth/sign-out") {
+        if (route === "POST /api/auth/sign-out" && staffReads && opposite && browserIdentity && verifiedStaffRead) {
+          const session = await auth.api.getSession({ headers: upstream.headers, query: { disableCookieCache: true, disableRefresh: true } });
+          if (session?.user.id === browserIdentity.accountId && session.session.id === browserIdentity.sessionId) {
+            // The UI should reject navigation without dispatching a read. Probe
+            // the canonical handler separately with the same still-active cookie.
+            const unauthorized = new NextRequest(EXPO_STAGING_ORIGIN + staffRoles[opposite].apiPath, { headers: upstream.headers });
+            const denial = await requestContext.run(unauthorized, () => staffReads[opposite](unauthorized));
+            deniedOppositeRole = denial.status === 403;
+          }
+        }
         const response = await auth.handler(upstream);
         if (route === "POST /api/auth/sign-out" && response.ok) signedOut = true;
         return response;
@@ -211,6 +242,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, { stud
     identity: () => browserIdentity && { accountId: browserIdentity.accountId, sessionId: browserIdentity.sessionId },
     progress() {
       if (signedOut) return "sign-out";
+      if (verifiedStaffRead) return "authorized staff read";
       if (acknowledgedInbox) return "inbox acknowledgement";
       if (loadedDashboard) return "Student dashboard";
       if (verifiedContext) return "authorized context";
@@ -224,6 +256,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, { stud
     },
     async verifiedAndRevoked() {
       if (!verifiedContext || !signedOut || !browserIdentity) return false;
+      if (staff && (!verifiedStaffRead || !deniedOppositeRole || unauthorizedRead)) return false;
       if (studentProduct && (!loadedDashboard || !acknowledgedInbox ||
         !await verifiedInboxAcknowledgement(browserIdentity.accountId))) return false;
       const headers = new Headers({ Cookie: browserIdentity.cookie.split(";", 1)[0] });
