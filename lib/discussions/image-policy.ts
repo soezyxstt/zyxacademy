@@ -1,12 +1,7 @@
 import { readBoundedMultipart } from "../bounded-multipart";
 
-export const DISCUSSION_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
-export const DISCUSSION_IMAGE_MAX_PIXELS = 16_000_000;
-export const DISCUSSION_IMAGE_MAX_EDGE = 4096;
-export const DISCUSSION_IMAGE_MAX_COUNT = 4;
-export const DISCUSSION_IMAGE_SMALL_BYTES = 1024 * 1024;
-export const DISCUSSION_IMAGE_PREVIEW_MAX_BYTES = 128 * 1024;
-export const DISCUSSION_IMAGE_PREVIEW_MAX_EDGE = 480;
+import { DISCUSSION_IMAGE_MAX_BYTES, DISCUSSION_IMAGE_PREVIEW_MAX_BYTES } from "./image-limits";
+export * from "./image-limits";
 
 export type DiscussionImageMime = "image/jpeg" | "image/png" | "image/webp";
 export type DiscussionImageExtension = "jpg" | "png" | "webp";

@@ -3,7 +3,7 @@ import { randomUUID } from "expo-crypto";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { Image, View } from "react-native";
 import type { DiscussionAttachment } from "../../../../../lib/discussions/contracts";
-import { DISCUSSION_IMAGE_MAX_BYTES } from "../../../../../lib/discussions/image-policy";
+import { DISCUSSION_IMAGE_MAX_BYTES } from "../../../../../lib/discussions/image-limits";
 import { Button } from "../../../components/Button";
 import { scopedFiles } from "../../../device/files";
 import type { NativeSessionTransport } from "../../../network/transport";

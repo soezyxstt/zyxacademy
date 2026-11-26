@@ -1,5 +1,5 @@
 import { DISCUSSION_REACTIONS, validDiscussionId, validDiscussionText } from "@/lib/discussions/policy";
-import { DISCUSSION_IMAGE_MAX_COUNT } from "@/lib/discussions/image-policy";
+import { DISCUSSION_IMAGE_MAX_COUNT } from "@/lib/discussions/image-limits";
 import { z } from "zod";
 import type {
   TutorDiscussionDetail,
