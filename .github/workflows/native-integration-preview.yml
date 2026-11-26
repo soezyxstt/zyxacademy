@@ -118,23 +118,32 @@ jobs:
         id: install
         run: bun install --frozen-lockfile
       - name: Host inbox recipient reads and acknowledgements
-        run: bun test tests/contracts/notifications-history.test.ts
+        run: bun scripts/test-contracts.ts tests/contracts/notifications-history.test.ts
       - name: Offline authorization, cursors and revocation
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
-        run: bun test tests/contracts/offline-server-sync.test.ts
+        run: bun scripts/test-contracts.ts tests/contracts/offline-server-sync.test.ts
       - name: Student learning and live-session operations
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
-        run: bun test tests/contracts/native-student-learning-postgres.test.ts
+        run: bun scripts/test-contracts.ts tests/contracts/native-student-learning-postgres.test.ts
       - name: Academic scheduling and tryout operations
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: |
-          bun test tests/contracts/native-tutor-slot.test.ts
-          bun test tests/contracts/native-tryout-draft.test.ts
+          bun scripts/test-contracts.ts tests/contracts/native-tutor-slot.test.ts tests/contracts/native-tryout-draft.test.ts
       - name: Operations authorization and native handlers
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: |
           bun tests/integration/operations-admin-access.ts
           bun tests/integration/operations-admin-handlers.mjs
+      - name: Save backend contract results and source identity
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: product-backend-contracts
+          path: |
+            artifacts/test-contracts/*/results.json
+            ${{ runner.temp }}/product-source/tree
+            ${{ runner.temp }}/product-source/commits
+          retention-days: 7
 
   product-entry:
     needs: combined-native
