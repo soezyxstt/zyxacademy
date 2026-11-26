@@ -38,7 +38,9 @@ afterEach(() => {
   for (const db of databases.splice(0)) db.close();
 });
 
-function descriptor(selection = target, version = revision): NativeOfflineResourceDescriptor {
+type ReadingFixtureDescriptor = NativeOfflineResourceDescriptor & OfflineReadingTarget;
+
+function descriptor(selection = target, version = revision): ReadingFixtureDescriptor {
   return { ...selection, key: readingKey(selection), chapterIds: ["chapter-1"], title: "Peluang", revision: version, updatedAt: now, estimatedBytes: 1024 };
 }
 
@@ -215,7 +217,7 @@ const deniedGrant = { ...grant, allowed: false, fullContent: false, chapterIds: 
 
 async function pinFixtures(store: ReturnType<typeof createOfflineReadingStore>, guard: {
   verifiedUntil: number; assertCurrent(): void;
-}, languageScope: NativeOfflineScope, materials: NativeOfflineResourceDescriptor[]) {
+}, languageScope: NativeOfflineScope, materials: ReadingFixtureDescriptor[]) {
   for (const material of materials) {
     const authority = await store.authorize(languageScope, material, guard);
     expect(authority).not.toBeNull();
