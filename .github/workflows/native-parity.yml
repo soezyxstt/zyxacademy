@@ -206,6 +206,9 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - if: ${{ inputs.include_public_fixtures }}
+        name: Mount historical public screens for this device build
+        run: python3 scripts/native-parity/mount-public-fixtures.py
       - if: matrix.platform == 'ios'
         run: bash scripts/native-parity/capture-ios.sh
       - if: matrix.platform == 'android'
