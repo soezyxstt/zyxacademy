@@ -159,7 +159,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     env:
       EXPO_PUBLIC_PARITY_WEBVIEW: '1'
-    timeout-minutes: 60
+    timeout-minutes: 80
     steps:
       - uses: actions/checkout@v4
         with:

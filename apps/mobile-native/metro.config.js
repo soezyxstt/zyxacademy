@@ -2,16 +2,17 @@ const path = require("node:path");
 const { getDefaultConfig } = require("expo/metro-config");
 
 const config = getDefaultConfig(__dirname);
-const sharedSources = path.resolve(__dirname, "../../packages");
-const galleryPortraits = path.resolve(__dirname, "../../public/founders");
-const contentCompiler = path.resolve(__dirname, "../../lib");
-const localizedMessages = path.resolve(__dirname, "../../messages");
+const sharedPaths = ["packages", "public/founders", "messages", "lib"];
+config.watchFolders = [...new Set([
+  ...config.watchFolders,
+  ...sharedPaths.map(folder => path.resolve(__dirname, "../..", folder)),
+])];
 
-config.watchFolders = [...config.watchFolders, sharedSources, galleryPortraits, contentCompiler, localizedMessages];
-
-config.resolver.nodeModulesPaths = [
-  ...config.resolver.nodeModulesPaths,
+// Resolve assets and native dependencies imported by shared modules from the Expo installation.
+config.transformer.assetRegistryPath = require.resolve("react-native/asset-registry");
+config.resolver.nodeModulesPaths = [...new Set([
+  ...(config.resolver.nodeModulesPaths ?? []),
   path.resolve(__dirname, "node_modules"),
-];
+])];
 
 module.exports = config;
