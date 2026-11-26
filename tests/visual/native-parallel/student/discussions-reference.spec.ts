@@ -154,9 +154,14 @@ test("Student discussion route references share the native workspace input", asy
               if (url.pathname === workspace || url.pathname === "/api/native/student/community/discussion") {
                 if (url.pathname === workspace) {
                   expect(http.headers()["x-student-id"]).toBe("student-fixture");
-                  if (url.searchParams.get("view") === "catalog" && group.course) expect(url.searchParams.get("courseId")).toBe(group.course);
-                  if (url.searchParams.get("view") === "threads" && group.course) expect(url.searchParams.get("channelId")).toBe(channel);
-                  observed.add(url.searchParams.get("view") ?? "");
+                  const view = url.searchParams.get("view");
+                  if (view === "catalog") expect(url.searchParams.get("courseId")).toBe(group.course);
+                  if (view === "threads" && state !== "thread") expect(url.searchParams.get("channelId")).toBe(group.course ? channel : null);
+                  if (view === "thread" && state === "thread") {
+                    expect(url.searchParams.get("threadId")).toBe(thread);
+                    expect(url.searchParams.get("messageId")).toBe(message);
+                  }
+                  observed.add(view ?? "");
                 }
                 const reply = await request(url.pathname + url.search, { method: http.method(), body: http.postData() });
                 return route.fulfill({ status: reply.status, contentType: "application/json", body: await reply.text() });

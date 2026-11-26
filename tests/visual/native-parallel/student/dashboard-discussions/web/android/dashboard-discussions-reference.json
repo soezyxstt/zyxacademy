@@ -35,7 +35,7 @@
     "tests/visual/fixtures/fonts/lexend-latin.woff2": "52dcdaa127bac4a5ea4c39ee17a3f454ceacc18d9f2a45cc453eeab68d378588",
     "tests/visual/fixtures/student-discussions-reference.tsx": "3ad8fda8e6e2d0a599f725667f41688f8a88020fbcc02c2bcf6cded9183b91d1",
     "tests/visual/fixtures/student-discussions-reference-build.ts": "c752cab6c34f529c2c57af3d2c99711368badbc7688df052844345a7ad1d16f5",
-    "tests/visual/native-parallel/student/discussions-reference.spec.ts": "6785c40c8d37cbbe513b8aefe4a73c8b2325ef7b4f1be46cdcea9f2181e1ff13",
+    "tests/visual/native-parallel/student/discussions-reference.spec.ts": "e0c7886226c38ad7b295cc716780e1e24d1829a76096d54e489a1a1686665ef1",
     ".maestro/native-parallel/student/dashboard-discussions-parity.yaml": "239d11f20c529df3e2b6ffe0d42656f299598b6d07413a166a33af798d0afb33"
   },
   "states": {
