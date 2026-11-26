@@ -1,3 +1,7 @@
+import { openBrowserAsync } from "expo-web-browser";
+import { useNativeSession } from "../../../auth/session-provider";
+import { useNativeAccountContext } from "../../../auth/use-account-context";
+import { coursePath } from "../../../../../packages/native-parity/student/courses/contract";
 import { usePageTitle } from "../../../routing/visible-navbar-title";
 import { useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { ScrollView, View } from "react-native";
@@ -89,6 +93,25 @@ function CoursePage({ title, subtitle, back, children, scroll = true }: {
   );
 }
 
+function StudentViewLink({ courseId, navigate }: { courseId: string; navigate(path: string): void }) {
+  const { context } = useNativeAccountContext();
+  const { transport, revalidating } = useNativeSession();
+  const [failed, setFailed] = useState(false);
+  const current = Boolean(transport?.isCurrent() && !revalidating && context?.roles.includes("admin") &&
+    context.accountId === transport.scope.accountId && context.sessionId === transport.scope.sessionId);
+  const en = context?.locale === "en";
+  return <>
+    <Action variation="ghost" label={en ? "Student view" : "Tampilan murid"} disabled={!current} onPress={() => {
+      if (!current || !transport?.isCurrent()) return;
+      const path = coursePath(courseId);
+      if (context?.roles.includes("murid")) return navigate(path);
+      setFailed(false);
+      void openBrowserAsync(new URL(path, transport.scope.origin).href).catch(() => setFailed(true));
+    }} />
+    {failed && <CourseStatus error label={en ? "Could not open the course." : "Halaman kursus belum dapat dibuka."} />}
+  </>;
+}
+
 function LiveStatus<T>({ read, retry, children }: {
   read: LiveCourseRead<T> | undefined; retry(): void; children(data: T): ReactNode;
 }) {
@@ -107,6 +130,7 @@ function LiveCourseRoute({ live, isList, section, actor, navigate, replace, quer
     return (
       <CoursePage title={data?.course.title ?? "Mata kuliah"} back={back}
         subtitle={data ? `${data.course.category} · ${data.course.id}` : undefined}>
+        {data && <StudentViewLink courseId={data.course.id} navigate={navigate} />}
         <LiveStatus read={live.section} retry={live.retry}>
           {(payload) => (
             <>
@@ -136,6 +160,7 @@ function LiveCourseRoute({ live, isList, section, actor, navigate, replace, quer
   const detail = live.detail?.status === "ready" ? live.detail.data : null;
   return (
     <CoursePage title={detail?.course.title ?? "Mata kuliah"} back={back}>
+      {detail && <StudentViewLink courseId={detail.course.id} navigate={navigate} />}
       <LiveStatus read={live.detail} retry={live.retry}>
         {(data) => <CourseOverview data={data} actor={actor} navigate={navigate}
           liveChapterEditor={live.saveChapter ? { save: live.saveChapter, archive: live.archiveChapter,

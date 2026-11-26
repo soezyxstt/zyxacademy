@@ -6,6 +6,7 @@ route	action_family	source_status	web_entry	native_entry
 /admin/courses	Create a course with its category, description and access period	connected	components/admin/courses-dashboard.tsx	apps/mobile-native/features/academic/courses/live-management.tsx
 /admin/courses/[slug]	Archive a chapter after confirmation	connected	components/admin/course-detail/chapters-tab.tsx	apps/mobile-native/features/academic/courses/live-chapters.tsx
 /admin/courses/[slug]	Create and rename chapters	connected	components/admin/course-detail/chapters-tab.tsx	apps/mobile-native/features/academic/courses/live-chapters.tsx
+/admin/courses/[slug]	Open the student view for the exact course; Admin-only accounts use the separately authorized website	connected	components/admin/course-detail/course-detail-header.tsx	apps/mobile-native/features/academic/courses/index.tsx
 /admin/courses/[slug]	Reorder chapters	connected	components/admin/course-detail/chapters-tab.tsx	apps/mobile-native/features/academic/courses/live-chapters.tsx
 /admin/courses/[slug]/analytics	Filter quiz insights by title and category and open the selected quiz	connected	app/(admin)/admin/(eval)/quiz-insights/quiz-insights-list-client.tsx	apps/mobile-native/features/academic/courses/live-sections.tsx
 /admin/courses/[slug]/analytics/[quizId]	Export authorized attempt data to a spreadsheet	connected	app/(admin)/admin/(eval)/quiz-insights/quiz-insight-detail-client.tsx	apps/mobile-native/features/academic/courses/live-quiz-attempts.tsx
@@ -48,6 +49,7 @@ route	action_family	source_status	web_entry	native_entry
 /admin/courses/[slug]/tryouts	Create, edit and delete tryouts	connected	app/(tutor)/tutor/[courseId]/tryouts/tryouts-client.tsx	apps/mobile-native/features/academic/assessment/tryouts.tsx
 /admin/courses/[slug]/tryouts	Create, edit and remove tryout questions	connected	app/(tutor)/tutor/[courseId]/tryouts/tryouts-client.tsx	apps/mobile-native/features/academic/assessment/tryouts.tsx
 /admin/courses/[slug]/tryouts	Import questions from the bank into the selected tryout	connected	app/(tutor)/tutor/[courseId]/tryouts/tryouts-client.tsx	apps/mobile-native/features/academic/assessment/tryouts.tsx
+/admin/courses/[slug]/videos	Create and edit playlists and video details or upload a course video	connected	components/course/video/course-videos-client.tsx	apps/mobile-native/features/academic/courses/live-videos.tsx
 /admin/courses/[slug]/videos	Delete a playlist or individual video	connected	components/course/video/course-videos-client.tsx	apps/mobile-native/features/academic/courses/live-videos.tsx
 /admin/courses/[slug]/videos	Search playlists and play their videos	connected	components/course/video/course-videos-client.tsx	apps/mobile-native/features/academic/courses/live-videos.tsx
 /admin/groups	Inspect affected members and confirm group deletion	connected	components/admin/groups-dashboard.tsx	apps/mobile-native/features/academic/administration/group-deletion.tsx
