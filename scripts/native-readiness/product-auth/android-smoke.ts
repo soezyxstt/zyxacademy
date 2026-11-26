@@ -224,8 +224,11 @@ try {
   if (fixture) {
     let timeout: ReturnType<typeof setTimeout> | undefined;
     try {
+      // Assertions and revocation checks have completed. Release client sockets
+      // before stopping their loopback listener, also when a test failed.
+      if (process.env.NATIVE_PRODUCT_AUTH_ROLE !== "probe") await emulator("shell", "am", "force-stop", "com.zyx.academy.nativeparity");
       await Promise.race([fixture.stop(), new Promise<never>((_, reject) => {
-        timeout = setTimeout(() => reject(new Error("Fixture shutdown timed out")), 8_000);
+        timeout = setTimeout(() => reject(new Error("Fixture shutdown timed out")), 35_000);
       })]);
       console.log("Closed the loopback listener and PostgreSQL pool");
     } catch {

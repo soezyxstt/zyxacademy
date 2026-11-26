@@ -80,7 +80,7 @@ export function createTutorLiveFixture() {
       return row?.state === "ended" && row.tutorId === owner && row.courseId === legacyId && row.templateId === templateId;
     },
     closeSockets() {
-      for (const socket of sockets) socket.close(1001, "fixture completed");
+      for (const socket of sockets) socket.terminate();
       sockets.clear();
     },
     async worker(request: Request, listener: Server<SocketData>) {
