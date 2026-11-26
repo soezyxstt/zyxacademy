@@ -6,6 +6,8 @@ import { BlogEditorRoute, BlogList } from "./blog";
 import type { PickBlogThumbnail } from "./blog-upload";
 import type { PickMediaFile } from "./media-upload";
 import { Documentation } from "./docs";
+import type { PickFormImage } from "./form-image-upload";
+import type { OpenFormAttachment } from "./form-media";
 import { FormBuilderRoute, FormDetailRoute } from "./forms";
 import { Pricing } from "./pricing";
 import { Discussions, ImportantLinks, MeetDetails, MeetList } from "./tools";
@@ -31,6 +33,8 @@ export type ManagementScreenProps = {
   share?: (url: string, title?: string) => void | Promise<void>;
   linkError?: string;
   pickBlogThumbnail?: PickBlogThumbnail;
+  openFormAttachment?: OpenFormAttachment;
+  pickFormImage?: PickFormImage;
   pickMediaFile?: PickMediaFile;
   renderMarkdown?: (markdown: string) => ReactNode;
 };
@@ -39,7 +43,7 @@ export function ManagementScreen(props: ManagementScreenProps) {
   return <AccountManagement key={`${props.accountKey}:${props.access}`} {...props} />;
 }
 
-function AccountManagement({ path, navigate, client, access, theme, locale = "id", openExternal, share, linkError, pickBlogThumbnail, pickMediaFile, renderMarkdown }: ManagementScreenProps) {
+function AccountManagement({ path, navigate, client, access, theme, locale = "id", openExternal, share, linkError, pickBlogThumbnail, pickMediaFile, openFormAttachment, pickFormImage, renderMarkdown }: ManagementScreenProps) {
   const systemTheme = useColorScheme();
   const [drafts] = useState<ManagementDraftStore>(() => new Map());
   const [retries] = useState(() => new Map<string, string>());
@@ -70,7 +74,7 @@ function AccountManagement({ path, navigate, client, access, theme, locale = "id
       case "/admin/tautan": screen = <ImportantLinks />; break;
     }
   }
-  return <ManagementContext.Provider value={{ client, navigate, theme: theme ?? systemTheme ?? "light", locale, drafts, retries, openExternal, share, pickBlogThumbnail, pickMediaFile, renderMarkdown }}>
+  return <ManagementContext.Provider value={{ client, navigate, theme: theme ?? systemTheme ?? "light", locale, drafts, retries, openExternal, share, pickBlogThumbnail, pickMediaFile, openFormAttachment, pickFormImage, renderMarkdown }}>
     <View key={path} style={{ flex: 1 }}>
       {linkError && <NativeStatusPanel title={linkError} tone="error" theme={theme} />}
       {screen}

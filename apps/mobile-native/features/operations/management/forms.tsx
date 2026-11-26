@@ -1,5 +1,10 @@
-import { useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useFocusEffect } from "expo-router";
+import { useProtectedInteraction } from "../../../routing/protected-interaction";
 import { View } from "react-native";
+import { formAttachmentUrl } from "../../../../../lib/forms/attachment";
+import { FormSheets } from "./form-sheets";
+import { FormAttachment } from "./form-attachment";
 import { createStandardFormQuestions } from "../../../../../lib/forms/standard-template";
 import { buildFormSteps, formFileSizeLimitMb, isEmptyFormAnswer } from "../../../../../lib/forms/presentation";
 import { summarizeFormResponses } from "../../../../../lib/forms/validation";
@@ -32,7 +37,17 @@ export function FormBuilderRoute({ id, tab }: { id?: string; tab?: string }) {
 }
 
 function FormBuilder({ form, initialTab }: { form?: FormDefinition; initialTab?: string }) {
-  const { navigate, client } = useManagement();
+  const { navigate, client, locale, pickFormImage } = useManagement();
+  const { canInteract } = useProtectedInteraction();
+  const focused = useRef(false);
+  const upload = useRef<AbortController | null>(null);
+  const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
+  const [imageError, setImageError] = useState<{ index: number; message: string } | null>(null);
+  useFocusEffect(useCallback(() => {
+    focused.current = true;
+    setUploadingIndex(null);
+    return () => { focused.current = false; upload.current?.abort(); upload.current = null; };
+  }, [form?.id]));
   const [tab, setTab] = useState<typeof builderTabs[number][0]>(builderTabs.find(([key]) => key === initialTab)?.[0] ?? "builder");
   const [search, setSearch] = useState("");
   const [activeQuestion, setActiveQuestion] = useState(0);
@@ -47,6 +62,43 @@ function FormBuilder({ form, initialTab }: { form?: FormDefinition; initialTab?:
   const mustReview = needsReview || (action.error instanceof ManagementFailure && action.error.code === "conflict");
   const lockedQuestionsChanged = responseCount > 0 && !sameDraftValue(draft.value.questions, draft.baseline.questions);
   const value = draft.value;
+  const imageScope = useRef({ value, tab, actionBusy: action.busy, responseCount, mustReview });
+  useLayoutEffect(() => { imageScope.current = { value, tab, actionBusy: action.busy, responseCount, mustReview }; });
+
+  async function uploadQuestionImage(index: number) {
+    if (!pickFormImage || upload.current || responseCount || mustReview || action.busy || !focused.current || !canInteract()) return;
+    const original = value.questions[index];
+    if (!original || original.type === "SECTION") return;
+    const controller = new AbortController();
+    upload.current = controller;
+    setUploadingIndex(index);
+    setImageError(null);
+    const current = () => {
+      const scope = imageScope.current;
+      return focused.current && upload.current === controller && !controller.signal.aborted && scope.tab === "builder" &&
+        !scope.actionBusy && !scope.responseCount && !scope.mustReview && scope.value.questions[index] === original && canInteract();
+    };
+    try {
+      const result = await pickFormImage({ draft: { route: "/admin/forms", locale, draftId: `form:${form?.id ?? "new"}:${index}` },
+        formTitle: value.title, questionIndex: index, signal: controller.signal, isCurrent: current });
+      if (!current() || result.status === "cancelled") return;
+      if (result.status === "uploaded") {
+        draft.update(fields => ({ ...fields, questions: fields.questions.map((question, at) =>
+          at === index && question === original ? { ...question, imageUrl: result.url } : question) }));
+        return;
+      }
+      setImageError({ index, message: {
+        unavailable: "Gambar belum dapat dipilih.", type: "Pilih gambar JPEG, PNG, WebP, atau GIF.",
+        size: "Ukuran gambar maksimal 50 MB.", forbidden: "Sesi Admin diperlukan untuk mengunggah gambar.",
+        uncertain: "Hasil unggahan belum diketahui. Periksa lampiran gambar sebelum memilih ulang.",
+      }[result.status] });
+    } catch {
+      if (current()) setImageError({ index, message: "Gambar belum dapat diunggah." });
+    } finally {
+      if (upload.current === controller) { upload.current = null; setUploadingIndex(null); }
+    }
+  }
+
   const edit = <K extends keyof FormFields>(key: K, next: FormFields[K]) => { if (!action.busy) draft.change({ ...value, [key]: next }); };
   const questionEdit = (index: number, changes: Partial<FormQuestion>) => {
     setActiveQuestion(index);
@@ -111,7 +163,7 @@ function FormBuilder({ form, initialTab }: { form?: FormDefinition; initialTab?:
   const listedForms = read.data?.filter(item => `${item.title} ${item.slug} ${item.description}`.toLocaleLowerCase().includes(search.toLocaleLowerCase().trim()));
   return <Screen title="Formulir">
     <Sections values={builderTabs} current={tab} onChange={setTab} />
-    {tab !== "forms" && <View style={styles.row}><Action variant="default" onPress={submit} busy={action.busy} disabled={mustReview || lockedQuestionsChanged}>{form ? "Simpan perubahan" : "Publikasikan formulir"}</Action>
+    {tab !== "forms" && <View style={styles.row}><Action variant="default" onPress={submit} busy={action.busy} disabled={mustReview || lockedQuestionsChanged || uploadingIndex !== null}>{form ? "Simpan perubahan" : "Publikasikan formulir"}</Action>
       {form && <Action onPress={() => navigate("/admin/forms?tab=forms")}>Batal</Action>}
     </View>}
     <Feedback {...action} />
@@ -144,6 +196,17 @@ function FormBuilder({ form, initialTab }: { form?: FormDefinition; initialTab?:
           <Toggle label="Wajib diisi" value={question.required ?? false} onChange={next => questionEdit(index, { required: next })} />
         </>}
         <QuestionOptions question={question} edit={next => questionEdit(index, next)} />
+        {question.type !== "SECTION" && (pickFormImage || question.imageUrl) ? <>
+          <View style={styles.row}>
+            {pickFormImage ? <Action busy={uploadingIndex === index} disabled={mustReview || action.busy || uploadingIndex !== null}
+              onPress={() => void uploadQuestionImage(index)} testID={`admin-form-upload-image-${index}`}>
+              {question.imageUrl ? "Ganti gambar" : "Unggah gambar"}
+            </Action> : null}
+            {question.imageUrl ? <Action disabled={action.busy || uploadingIndex !== null}
+              onPress={() => questionEdit(index, { imageUrl: undefined })}>Hapus gambar</Action> : null}
+          </View>
+          {imageError?.index === index ? <Copy status="error">{imageError.message}</Copy> : null}
+        </> : null}
         <View style={styles.row}>
           <Action disabled={index === 0} onPress={() => move(index, -1)}>Naik</Action>
           <Action disabled={index === value.questions.length - 1} onPress={() => move(index, 1)}>Turun</Action>
@@ -352,6 +415,18 @@ function formatAnswer(value: unknown): string {
   return String(value);
 }
 
+function FormResponseItem({ form, response, index, title }: { form: FormDefinition; response: FormDetails["responses"][number]; index: number; title: string }) {
+  const { openFormAttachment } = useManagement();
+  const question = form.questions[index];
+  const value = response.answers[index] ?? response.answers[question.title];
+  if (question.type !== "FILE_UPLOAD") return <Item title={title} meta={formatAnswer(value)} />;
+  const hasAttachment = formAttachmentUrl(value) !== null;
+  const action = hasAttachment && openFormAttachment ? <FormAttachment key={JSON.stringify([response.id, index])}
+    open={openFormAttachment} formId={form.id} responseId={response.id} index={index} /> : null;
+  return <Item title={title} meta={action ? undefined : value == null || value === "" ? "Belum dijawab" : "Lampiran tidak tersedia"}
+    actions={action} />;
+}
+
 function FormDetail({ details, initialTab }: { details: FormDetails; initialTab?: string }) {
   const { form, responses } = details;
   const { navigate, locale, client } = useManagement();
@@ -392,18 +467,19 @@ function FormDetail({ details, initialTab }: { details: FormDetails; initialTab?
     </View>
     <Sections current={tab} values={detailTabs} onChange={setTab} />
     {tab === "summary" && <Section title={`${summary.totalResponses} respons`}>
+      <FormSheets form={form} />
       {summary.questions.map(item => <Item key={item.index} title={item.title} meta={`${item.answered} / ${item.denominator} respons`} actions={Object.keys(item.counts).length > 0 ? <View style={styles.field}>{Object.entries(item.counts).map(([label, count]) => <Copy key={label}>{`${label} · ${count} (${Math.round(100 * count / item.denominator)}%)`}</Copy>)}</View> : undefined} />)}
     </Section>}
     {tab === "question" && <Section title={question?.title ?? "Belum ada pertanyaan"}>
       {question && <>
         <View style={styles.row}><Action disabled={!questionIndex} onPress={() => setQuestionIndex(questionIndex - 1)}>Sebelumnya</Action><Action disabled={questionIndex >= summary.questions.length - 1} onPress={() => setQuestionIndex(questionIndex + 1)}>Berikutnya</Action></View>
-        {responses.filter(response => response.answers[question.index] != null || response.answers[question.title] != null).map(response => <Item key={response.id} title={response.responderEmail ?? "Anonim"} meta={formatAnswer(response.answers[question.index] ?? response.answers[question.title])} />)}
+        {responses.filter(response => response.answers[question.index] != null || response.answers[question.title] != null).map(response => <FormResponseItem key={response.id} form={form} response={response} index={question.index} title={response.responderEmail ?? "Anonim"} />)}
       </>}
     </Section>}
     {tab === "individual" && <Section title={respondent ? `Responden ${respondentIndex + 1} dari ${responses.length}` : "Belum ada respons"}>
       {respondent && <><Copy muted>{`${respondent.responderEmail ?? "Anonim"} · ${formatTimestamp(respondent.submittedAt, locale)}`}</Copy>
         <View style={styles.row}><Action disabled={!respondentIndex} onPress={() => setRespondentIndex(respondentIndex - 1)}>Sebelumnya</Action><Action disabled={respondentIndex >= responses.length - 1} onPress={() => setRespondentIndex(respondentIndex + 1)}>Berikutnya</Action></View>
-        {summary.questions.map(item => <Item key={item.index} title={item.title} meta={formatAnswer(respondent.answers[item.index] ?? respondent.answers[item.title])} />)}
+        {summary.questions.map(item => <FormResponseItem key={item.index} form={form} response={respondent} index={item.index} title={item.title} />)}
       </>}
     </Section>}
     {tab === "settings" && <>

@@ -65,7 +65,7 @@ export type FormSettings = {
 export type FormFields = {
   title: string; description: string; category: keyof typeof formCategories; slug: string; questions: FormQuestion[]; settings: FormSettings;
 };
-export type FormDefinition = FormFields & { id: string; revision: string; totalResponses: number };
+export type FormDefinition = FormFields & { id: string; revision: string; totalResponses: number; spreadsheetUrl?: string | null };
 export type FormResponse = { id: string; responderEmail?: string; answers: Record<string, unknown>; submittedAt: string };
 export type FormDetails = { form: FormDefinition; responses: FormResponse[] };
 export type FormPresetFields = {
@@ -115,6 +115,7 @@ export type ManagementAction =
   | { type: "form.save"; fields: FormFields; id?: string; revision?: string }
   | { type: "form.settings"; id: string; settings: FormSettings; revision: string }
   | { type: "form.delete"; id: string; revision: string }
+  | { type: "form.export"; id: string; confirmedRevision?: string }
   | { type: "form.preset.create"; fields: FormPresetFields }
   | { type: "form.preset.update"; id: string; revision: string; name: string; description: string }
   | { type: "form.preset.delete"; id: string; revision: string }
@@ -139,7 +140,11 @@ export type ManagementAction =
   | { type: "voucher.delete"; id: string }
   | { type: "pricing.discounts"; discounts: PricingDiscounts };
 
-export type ManagementReceipt = { id?: string; revision?: string; space?: MeetingSpace; warningCount?: number };
+export type FormSheetConflict = "block_modified" | "manual_rows" | "manual_columns";
+export type FormSheetReceipt =
+  | { kind: "confirm"; revision: string; conflicts: FormSheetConflict[] }
+  | { kind: "saved"; url: string; created: boolean; sharingIncomplete: boolean };
+export type ManagementReceipt = { id?: string; revision?: string; space?: MeetingSpace; warningCount?: number; formSheet?: FormSheetReceipt };
 export interface ManagementClient {
   read<K extends keyof ManagementReads>(view: K, input: ManagementReads[K][0], signal?: AbortSignal): Promise<ManagementReads[K][1]>;
   mutate(action: ManagementAction, requestKey: string): Promise<ManagementReceipt>;

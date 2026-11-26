@@ -34,6 +34,17 @@ test("native Admin media file writes keep their interactive authorization and MC
   expect(entry.reason).toContain("MCP media.list and media.upload");
 });
 
+test("native form media and native Sheets exports preserve separate MCP response grants", () => {
+  for (const source of ["app/api/native/operations/forms/[formId]/responses/[responseId]/attachment/[index]/route.ts", "app/api/admin/custom-forms/image/route.ts"]) {
+    const entry = operationsCatalog.find(item => item.source === source);
+    expect(entry?.status).toBe("excluded");
+    expect(entry?.tools).toEqual([]);
+  }
+  const native = operationsCatalog.find(item => item.source === "app/api/native/operations/management/route.ts");
+  expect(native?.reason).toContain("observed sheet revision");
+  expect(native?.reason).toContain("MCP forms.responses.* scopes");
+});
+
 test("model configuration and billed latency refresh remain explicitly UI-only", () => {
   const entry = operationsCatalog.find(item => item.source === "app/(admin)/admin/ops/models/page.tsx")!;
   expect(entry.status).toBe("excluded");

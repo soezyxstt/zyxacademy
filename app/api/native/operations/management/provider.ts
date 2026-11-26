@@ -12,6 +12,8 @@ const name = z.string().trim().min(1).max(240).refine(value => isSafeKey(value) 
 const mediaKey = path.refine(value => value.startsWith("media/"));
 const mediaFolder = z.union([mediaKey, z.literal("")]);
 const providerOperations = z.discriminatedUnion("type", [
+  z.strictObject({ type: z.literal("form.export"), id: z.string().regex(/^[A-Za-z0-9:_-][A-Za-z0-9._:-]{0,255}$/),
+    confirmedRevision: z.string().regex(/^[a-f0-9]{64}$/).optional() }),
   z.strictObject({ type: z.literal("media.folder"), folder: mediaFolder, name }),
   z.strictObject({ type: z.literal("media.rename"), key: mediaKey, name, folder: z.boolean().optional() }),
   z.strictObject({ type: z.literal("media.move"), key: mediaKey, destination: mediaFolder, folder: z.boolean() }),
@@ -31,7 +33,7 @@ const providerEntity = "native_operations_provider";
 const unknownAfterMs = 15 * 60 * 1000;
 
 export function isProviderOperation(value: unknown) {
-  return value !== null && typeof value === "object" && "type" in value && typeof value.type === "string" && /^(media|meet)\./.test(value.type);
+  return value !== null && typeof value === "object" && "type" in value && typeof value.type === "string" && (value.type === "form.export" || /^(media|meet)\./.test(value.type));
 }
 
 function readOutcome(row: AuditEntry): ManagementReceipt {
@@ -54,7 +56,8 @@ export async function nativeProviderMutation(actor: { id: string; sessionId: str
   const sessionHash = revisionOf(actor.sessionId);
   const inputHash = revisionOf(action);
   const receiptId = `native_ops_provider_${revisionOf({ actor: actor.id, origin, requestKey })}`;
-  const intentId = revisionOf({ actor: actor.id, origin, action });
+  const intentId = action.type === "form.export" ? revisionOf({ origin, formId: action.id, type: action.type }) :
+    revisionOf({ actor: actor.id, origin, action });
   const prior = await db.transaction(async tx => {
     await assertAuthoringActor(tx, actor.id, { roles: ["admin"], error: "NATIVE_OPERATIONS_ADMIN_REQUIRED", lock: true });
     const [active] = await tx.select({ id: session.id }).from(session).where(and(eq(session.id, actor.sessionId), eq(session.userId, actor.id), gt(session.expiresAt, new Date()))).for("share").limit(1);
@@ -66,7 +69,7 @@ export async function nativeProviderMutation(actor: { id: string; sessionId: str
       return previous;
     }
     // A restarted application also cannot replay an unresolved provider effect with a fresh key.
-    const [unresolved] = await tx.select().from(auditMutasi).where(and(eq(auditMutasi.actorId, actor.id), eq(auditMutasi.entityType, providerEntity), eq(auditMutasi.entityId, intentId), sql`${auditMutasi.afterSnapshot}->>'state' in ('running', 'uncertain')`)).limit(1);
+    const [unresolved] = await tx.select().from(auditMutasi).where(and(action.type === "form.export" ? undefined : eq(auditMutasi.actorId, actor.id), eq(auditMutasi.entityType, providerEntity), eq(auditMutasi.entityId, intentId), sql`${auditMutasi.afterSnapshot}->>'state' in ('running', 'uncertain')`)).limit(1);
     if (unresolved) return unresolved;
     await tx.insert(auditMutasi).values({ id: receiptId, actorId: actor.id, entityType: providerEntity, entityId: intentId, action: action.type, correlationId: requestKey, afterSnapshot: { inputHash, sessionHash, state: "running" } });
     return null;
@@ -101,6 +104,10 @@ export function invokeOperationsProvider(origin: string, headers: Headers): Invo
   const folderOf = (value: string) => value.replace(/^media\//, "");
   return async action => {
     switch (action.type) {
+      case "form.export": {
+        const { exportNativeFormResults } = await import("./form-sheets");
+        return exportNativeFormResults(action.id, origin, action.confirmedRevision);
+      }
       case "media.folder": {
         const { POST } = await import("@/app/api/admin/media/route");
         const folderPath = [folderOf(action.folder), action.name].filter(Boolean).join("/");

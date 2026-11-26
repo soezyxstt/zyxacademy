@@ -1,5 +1,6 @@
 import { ManagementFailure, type FormDefinition, type FormDetails, type ManagementClient, type ManagementReads, type ManagementReceipt, type MediaFile, type MeetingDirectory, type PublicLink } from "../../../../../packages/native-parity/operations/management-contract";
 
+import { readFormSheetReceipt, validFormSheetUrl } from "../../../../../packages/native-parity/operations/form-sheets";
 import type { NativeRequestInit, NativeResponse, NativeSessionTransport } from "../../../network/transport";
 
 export type ManagementRequest = (path: string, init: NativeRequestInit) => Promise<Pick<NativeResponse, "status" | "ok" | "json" | "dispose">>;
@@ -43,7 +44,7 @@ export function createManagementHttpClient({ request, userId, sessionId, assertC
   const formDefinition = (form: RawForm, responses = form.totalResponses ?? 0): FormDefinition => ({
     id: form.id, slug: form.slug, title: form.title, description: form.description ?? "", category: form.category,
     questions: form.questions, settings: form.settings ?? {}, totalResponses: responses,
-    revision: form.updatedAt ?? form.createdAt,
+    revision: form.updatedAt ?? form.createdAt, spreadsheetUrl: form.spreadsheetUrl ?? null,
   });
   const read = async <K extends keyof ManagementReads>(view: K, input: ManagementReads[K][0], signal?: AbortSignal): Promise<ManagementReads[K][1]> => {
     const reads: { [T in keyof ManagementReads]: (value: ManagementReads[T][0]) => Promise<ManagementReads[T][1]> } = {
@@ -53,7 +54,12 @@ export function createManagementHttpClient({ request, userId, sessionId, assertC
       form: async id => {
         const result = await get<{ form: RawForm; responses: FormDetails["responses"]; totalSubmissions?: number }>(`/api/admin/custom-forms/${encodeURIComponent(id)}`, signal);
         if (result.form.deletedAt) throw new ManagementFailure("not-found");
-        return { form: formDefinition(result.form, result.totalSubmissions ?? result.responses.length), responses: result.responses };
+        const form = formDefinition(result.form, result.totalSubmissions ?? result.responses.length);
+        if (!validFormSheetUrl(form.spreadsheetUrl)) {
+          const sheet = await get<{ spreadsheetUrl?: unknown }>(`/api/admin/export-spreadsheet?entityType=form&entityId=${encodeURIComponent(id)}`, signal).catch(() => null);
+          form.spreadsheetUrl = validFormSheetUrl(sheet?.spreadsheetUrl);
+        }
+        return { form, responses: result.responses };
       },
       presets: ({ cursor, settingsOnly }) => nativeRead("form-presets", { cursor, settingsOnly: settingsOnly ? "true" : undefined }, signal),
       preset: id => nativeRead("form-preset", { id }, signal),
@@ -80,9 +86,13 @@ export function createManagementHttpClient({ request, userId, sessionId, assertC
   return {
     read,
     async mutate(action, requestKey) {
-      return query<ManagementReceipt>("/api/native/operations/management", {
+      const receipt = await query<ManagementReceipt>("/api/native/operations/management", {
         method: "POST", headers: { "Content-Type": "application/json", "x-native-operations-request-key": requestKey }, body: JSON.stringify(action),
       });
+      if (action.type !== "form.export") return receipt;
+      const formSheet = readFormSheetReceipt(receipt, action.id);
+      if (!formSheet) throw new ManagementFailure("uncertain");
+      return { id: action.id, formSheet };
     },
   };
 }

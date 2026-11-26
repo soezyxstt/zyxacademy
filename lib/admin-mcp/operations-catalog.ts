@@ -1866,7 +1866,21 @@ export const operationsCatalog = [
     "actions": ["GET", "POST"],
     "tools": [],
     "status": "excluded",
-    "reason": "The native Admin workspace uses the verified Admin account. Discussion targets, report reads and moderation use the existing role and channel authorization. Moderators resolve or dismiss a pending report through the same locked transition as the website. Management writes retain their interactive authorization and retry rules. No new MCP capability or scope is granted."
+    "reason": "The native Admin workspace uses the verified Admin account. Discussion targets, report reads and moderation use the existing role and channel authorization. Moderators resolve or dismiss a pending report through the same locked transition as the website. Native Forms Sheets export builds rows from authorized stored responses and confirms conflicts against the observed sheet revision. Its provider receipt is scoped to the Admin session. MCP forms.responses.* scopes, consent, job workflow and environment bindings retain their existing contracts. Management writes retain their interactive authorization and retry rules."
+  },
+  {
+    "source": "app/api/native/operations/forms/[formId]/responses/[responseId]/attachment/[index]/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "An interactive Admin attachment download binds the verified account to one stored file-upload response slot and reuses protected storage delivery. MCP response read and export tools retain their existing disclosure scopes."
+  },
+  {
+    "source": "app/api/admin/custom-forms/image/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Interactive form question and statement images use the existing Admin storage upload. Expo binds the local image choice to the current Admin account and session. MCP media and forms operations keep their existing limits and consent."
   },
   {
     "source": "app/api/native/operations/management/media/route.ts",

@@ -9,6 +9,8 @@ import { Input } from "../../../components/Input";
 import { NativeListRow } from "../../shared-ui/layout";
 import { NavigationTabs } from "../../shared-ui/navigation";
 import { nativeTypography } from "../../../typography";
+import type { PickFormImage } from "./form-image-upload";
+import type { OpenFormAttachment } from "./form-media";
 import type { PickBlogThumbnail } from "./blog-upload";
 import type { PickMediaFile } from "./media-upload";
 
@@ -23,6 +25,8 @@ export type ManagementRuntime = {
   openExternal?: (url: string) => void | Promise<void>;
   share?: (url: string, title?: string) => void | Promise<void>;
   pickBlogThumbnail?: PickBlogThumbnail;
+  openFormAttachment?: OpenFormAttachment;
+  pickFormImage?: PickFormImage;
   pickMediaFile?: PickMediaFile;
   drafts: ManagementDraftStore;
   retries: Map<string, string>;
