@@ -232,6 +232,13 @@ export const operationsCatalog = [
     "reason": "Native Admin tutorial availability, booking overrides and qualifications use the active human session and protected revision receipt. Override reasons, quota, assignment and post-commit Calendar behavior reuse the web operations. Existing MCP schedules and tutor assignment contracts keep their scopes, consent and environment bindings."
   },
   {
+    "source": "app/api/native/academic-administration/schedule-meet/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "A signed-in Admin can provision missing tutorial booking links using an interactive batch. Each booking reserves its shared Google Meet effect before delivery. MCP meet.create creates standalone meeting spaces with its own consent and job contract."
+  },
+  {
     "source": "app/api/native/academic-administration/schedule-events/route.ts",
     "actions": ["POST"],
     "tools": [],

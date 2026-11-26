@@ -8,6 +8,7 @@ import { nativeTypography } from "../../../typography";
 import { NativeListRow, NativeStatusPanel, ResponsiveTable, type SharedUiAction, type SharedUiActionHandler } from "../../shared-ui";
 import { ProductReviewWorkspace } from "./product-review-workspace";
 import { BroadcastComposer } from "./broadcast-composer";
+import { ScheduleMeet } from "./schedule-meet";
 import { ScheduleEventEditor } from "./schedule-event-editor";
 import { AdminTutorialEditor, type TutorialTarget } from "./tutorial-operations-editor";
 import { pendingTutorialOperation } from "./tutorial-operations-client";
@@ -231,6 +232,7 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
     {article && data?.productBundle && !pdfPending && transport.command ? <Action label="Review dan publikasi" onPress={() => setProductEditor({ transport, id: params.bundleId })} /> : null}
     {pkaTab ? <Tabs options={pkaTabs} selected={pkaTab} onSelect={(id) => navigate(`/admin/tutorial-pka/${id}`)} /> : null}
     {pattern === "/admin/schedules" && data?.scheduleCourses && transport.command ? <View style={layout.row}>
+      <ScheduleMeet transport={transport} refresh={retry} />
       <Action label="Buat agenda" onPress={() => setEventDraft({ transport })} />
       {eventDraft?.transport === transport ? <ScheduleEventEditor row={eventDraft.row} courses={data.scheduleCourses}
         transport={transport} send={transport.command} close={() => setEventDraft(undefined)}

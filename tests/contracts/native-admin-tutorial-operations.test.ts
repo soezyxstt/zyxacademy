@@ -16,6 +16,10 @@ mock.module("@/lib/google-calendar/trigger", () => ({
   async triggerGoogleCalendarSyncForBookingId(id: string, former?: readonly (string | undefined)[]) { enqueued.push({ id, former }); },
 }));
 
+let googleEffect: () => Promise<{ name: string; meetingUri: string }> = async () => { throw new Error("unexpected Meet call"); };
+class GoogleMeetRequestRejected extends Error {}
+mock.module("@/lib/google-meet", () => ({ GoogleMeetRequestRejected, createGoogleMeetSpace: () => googleEffect() }));
+const { pendingBookingMeets, provisionBookingMeet } = await import("@/lib/schedule/booking-meet");
 const { saveNativeTutorialOperation } = await import("@/lib/native/academic/administration/tutorial-operations-service");
 const actor = "native-tutorial-admin";
 const tutor = "native-tutorial-tutor";
@@ -87,4 +91,33 @@ test("all six Admin tutorial writes preserve revisions, audit, quota and post-co
   expect(enqueued).toEqual([{ id: booking.id, former: undefined }, { id: booking.id, former: [tutor] }, { id: booking.id, former: undefined }]);
   const receipts = await testDb.select().from(tables.auditMutasi).where(eq(tables.auditMutasi.entityType, "native_admin_tutorial"));
   expect(receipts).toHaveLength(7);
+});
+
+
+test("web and native provisioning share one booking reservation across retries, role loss and uncertain delivery", async () => {
+  for (const [index, id] of ["meet-a", "meet-b"].entries()) {
+    await testDb.insert(tables.tutorSlots).values({ id, tutorId: tutor, dayOfWeek: "Senin", sessionDate: "2026-12-07", startTime: index ? "11:00" : "09:00", endTime: index ? "12:30" : "10:30" });
+    await testDb.insert(tables.bookings).values({ id, slotId: id, studentId: student, groupId, courseId, mode: "online", status: "scheduled" });
+  }
+  const expired = { ...viewer, session: { id: "revoked" } };
+  await expect(pendingBookingMeets(expired, null)).rejects.toThrow("UNAUTHENTICATED");
+  expect((await pendingBookingMeets(viewer, null)).ids).toEqual(["meet-a", "meet-b"]);
+  await expect(provisionBookingMeet("meet-a", expired)).rejects.toThrow("UNAUTHENTICATED");
+  let calls = 0;
+  const uri = "https://meet.google.com/abc-defg-hij";
+  googleEffect = async () => { calls++; throw new GoogleMeetRequestRejected("denied"); };
+  expect(await provisionBookingMeet("meet-a", viewer)).toEqual({ status: "rejected" });
+  googleEffect = async () => { calls++; return { name: "spaces/example", meetingUri: uri }; };
+  const values = await Promise.all([provisionBookingMeet("meet-a"), provisionBookingMeet("meet-a", viewer)]);
+  expect(values.some(item => item.url === uri)).toBe(true);
+  expect(await provisionBookingMeet("meet-a", viewer)).toEqual({ status: "ready", url: uri });
+  expect(calls).toBe(2);
+  expect((await pendingBookingMeets(viewer, null)).ids).toEqual(["meet-b"]);
+  googleEffect = async () => { calls++; throw Error("connection lost"); };
+  expect(await provisionBookingMeet("meet-b", viewer)).toEqual({ status: "uncertain" });
+  expect(await provisionBookingMeet("meet-b")).toEqual({ status: "uncertain" });
+  expect(calls).toBe(3);
+  await testDb.update(tables.bookings).set({ status: "cancelled" }).where(eq(tables.bookings.id, "meet-b"));
+  expect((await pendingBookingMeets(viewer, null)).ids).toEqual([]);
+  expect(await provisionBookingMeet("meet-b", viewer)).toEqual({ status: "skipped" });
 });

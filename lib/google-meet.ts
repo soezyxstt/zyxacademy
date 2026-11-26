@@ -238,11 +238,17 @@ export async function getGoogleMeetAccessToken(): Promise<string> {
 /**
  * Base HTTP fetch wrapper with OAuth Bearer Token header for Google Meet API.
  */
+export class GoogleMeetRequestRejected extends Error {}
+
 async function meetApiFetch<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const accessToken = await getGoogleMeetAccessToken();
+  const creatingSpace = endpoint === "spaces" && options.method === "POST";
+  const accessToken = await getGoogleMeetAccessToken().catch(error => {
+    if (creatingSpace) throw new GoogleMeetRequestRejected("Google Meet authorization is unavailable");
+    throw error;
+  });
   const url = endpoint.startsWith("https://")
     ? endpoint
     : `https://meet.googleapis.com/v2/${endpoint.replace(/^\//, "")}`;
@@ -256,6 +262,7 @@ async function meetApiFetch<T>(
   const res = await fetch(url, { ...options, headers });
 
   if (!res.ok) {
+    if (creatingSpace && [400, 401, 403, 404, 422, 429].includes(res.status)) throw new GoogleMeetRequestRejected(`Google Meet rejected the request (${res.status})`);
     const errorText = await res.text();
     throw new Error(`Google Meet API error (${res.status} ${res.statusText}) on ${url}: ${errorText}`);
   }
