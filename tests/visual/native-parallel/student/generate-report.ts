@@ -21,6 +21,7 @@ const web = JSON.parse(readFileSync("tests/visual/native-parallel/student/produc
 const webRoot = "tests/visual/native-parallel/student/product/web";
 const base = "packages/native-parity/student/evidence";
 const ciHistory = JSON.parse(readFileSync(`${base}/ci-history.json`, "utf8"));
+const webRun = ciHistory.runs.findLast((run: any) => run.web?.status === "passed" && run.web.artifact);
 const sha = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
 const optionalManifests = ["tests/visual/native-parallel/student/product/assessment-web/web.json",
   "tests/visual/native-parallel/student/learning/product/web.json"];
@@ -155,7 +156,6 @@ const rows = manifest.routes.map((route: any) => {
     pattern === "/calendar" ? "Calendar all, tutorial filter and empty filter" :
     pattern === "/courses/[id]/quiz/[quizId]" ? "Quiz player states and gateway reference in light/dark" :
     pattern === "/courses/[id]/my-results" ? "Populated and empty results reference in light/dark" : null;
-  const webRun = ciHistory.runs.find((run: any) => run.runId === 45803927675);
   const cases = route.cases.map((entry: any) => ({
     id: entry.id, scenario: entry.scenario, theme: entry.theme, path: entry.path, fixture_status: entry.flow ? "generated_not_executed" : "blocked",
     marker: entry.marker ?? null, steps: entry.steps ?? [], assertion_count: entry.marker ? 1 + (entry.steps ?? []).filter((step: any) => step.assert || step.absent || step.scroll).length : 0,
@@ -192,8 +192,19 @@ const report = { generated_from_head: sha, note: "HEAD identifies the checkout a
 writeFileSync(`${base}/routes.json`, JSON.stringify(report, null, 2) + "\n");
 const link = (path: string, title: string) => `[${title.replaceAll("[", "\\[").replaceAll("]", "\\]")}](../../../../${path.replaceAll(" ", "%20").replaceAll("(", "%28").replaceAll(")", "%29").replaceAll("[", "%5B").replaceAll("]", "%5D")})`;
 const lines = ["# Laporan rute Student", "", `Dihasilkan dari HEAD \`${sha}\`; working tree dapat memiliki perubahan. Detail setiap fixture, jumlah assertion, status run dan blocker tersedia di [routes.json](routes.json). Hasil fixture bukan bukti perangkat atau kelulusan paritas.`, "",
-  `Referensi web produk dan SHA server: ${link(`${webRoot}/web.json`, "web.json")}; cakupan HTTP lokal dibatasi oleh ${link("tests/visual/native-parallel/student/product/README.md", "laporan kursus")} dan ${link("packages/native-parity/student/community/README.md", "laporan komunitas")}. [Riwayat CI](ci-history.json) mencatat SHA dan waktu pengamatan; status lama bukan status run terbaru.`, "",
-  "| Rute dan sumber web | Implementasi dan operasi | Fixture runnable / blocked; assertion | Bukti web | Android / iOS |", "|---|---|---|---|---|"];
+  `Referensi web produk dan SHA server tersedia di ${link(`${webRoot}/web.json`, "web.json")}. Cakupan HTTP lokal tercatat di ${link("tests/visual/native-parallel/student/product/README.md", "laporan kursus")} dan ${link("packages/native-parity/student/community/README.md", "laporan komunitas")}. [Riwayat CI](ci-history.json) mencatat SHA dan waktu pengamatan.`, ""];
+for (const [platform, label] of [["android", "Android"], ["ios", "iOS"]] as const) {
+  const summary = summaries[platform];
+  if (!summary) {
+    lines.push(`- **${label}** belum memiliki ringkasan perangkat.`);
+    continue;
+  }
+  const counts = Object.entries(summary.data.counts ?? {}).map(([status, count]) => `${count} \`${status}\``).join(", ");
+  const run = summary.data.workflowRun ?? summary.provenance.workflowRun;
+  const detail = [counts, summary.provenance.reason, link(summary.path, "Ringkasan kasus"), run ? `[Run GitHub](${run})` : null].filter(Boolean);
+  lines.push(`- **${label}** ${detail.join(" · ")}`);
+}
+lines.push("", "| Rute dan sumber web | Implementasi dan operasi | Fixture runnable / blocked; assertion | Bukti web | Android / iOS |", "|---|---|---|---|---|");
 for (const row of rows) {
   const cases = row.fixture_cases;
   const available = cases.filter((x: any) => x.fixture_status !== "blocked");
