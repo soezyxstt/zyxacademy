@@ -8,7 +8,7 @@ import { hasPeran } from "@/lib/auth/authorization";
 import { resolveAuthBaseUrl } from "@/lib/auth-site-url";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { canAccessCourseContent, resolveCourseAccess } from "@/lib/student/course-access";
-import { isPrivateAttachmentKey, isProtectedCourseDiktatPdfKey, isProtectedProductDiktatPdfKey, isSafeKey, leafFilename, quizAttachmentPrefix, scopedStorageFileKind } from "@/lib/storage/keys";
+import { isCourseVideoKey, isCourseVideoThumbnailKey, isPrivateAttachmentKey, isProtectedCourseDiktatPdfKey, isProtectedProductDiktatPdfKey, isSafeKey, leafFilename, quizAttachmentPrefix, scopedStorageFileKind } from "@/lib/storage/keys";
 import { getS3StorageConfig } from "@/lib/storage/r2";
 
 const config = getS3StorageConfig(process.env.STORAGE_PROVIDER_MODE === "neon" ? "neon" : "r2");
@@ -234,8 +234,7 @@ type CourseVideoAuthorization = {
  * Ensures course videos can only be streamed or downloaded by enrolled students, assigned tutors, or admins.
  */
 async function resolveCourseVideoAuthorization(key: string): Promise<CourseVideoAuthorization> {
-  const isVideoFile = key.startsWith("courses/") && key.includes("/videos/") && !key.includes("/videos/thumbnails/");
-  if (!isVideoFile) return { matched: false, allowed: true };
+  if (!isCourseVideoKey(key)) return { matched: false, allowed: true };
 
   try {
     const parts = key.split("/");
@@ -252,17 +251,238 @@ async function resolveCourseVideoAuthorization(key: string): Promise<CourseVideo
     });
 
     if (!access.hasFullContentAccess) return { matched: true, allowed: false };
-    const rows = await db.select({ courseId: courseVideos.courseId, chapterId: courseVideos.chapterId })
-      .from(courseVideos).where(eq(courseVideos.videoUrl, key));
-    const validCourseIds = new Set([access.courseId, access.canonicalCourseId, access.legacyCourseId].filter(Boolean));
-    return { matched: true, allowed: rows.length > 0 && rows.every((row) => validCourseIds.has(row.courseId) && (!row.chapterId || access.scopedChapterIds.includes(row.chapterId))) };
+    const validCourseIdList = [...new Set([access.courseId, access.canonicalCourseId, access.legacyCourseId].filter((id): id is string => Boolean(id)))];
+    if (validCourseIdList.length === 0) return { matched: true, allowed: false };
+    const rows = await db
+      .select({ courseId: courseVideos.courseId, chapterId: courseVideos.chapterId })
+      .from(courseVideos)
+      .where(and(inArray(courseVideos.courseId, validCourseIdList), eq(courseVideos.videoUrl, key)));
+    return {
+      matched: true,
+      allowed:
+        rows.length > 0 &&
+        (access.tier === "staff" ||
+          rows.every((row) => !row.chapterId || access.scopedChapterIds.includes(row.chapterId))),
+    };
   } catch {
     return { matched: true, allowed: false };
   }
 }
 
+type AuthorizedStorageRequest =
+  | { ok: false; response: Response; isScopedFile: boolean }
+  | {
+      ok: true;
+      key: string;
+      isDownload: boolean;
+      isScopedFile: boolean;
+      isFormFile: boolean;
+      isVideoThumbnail: boolean;
+      diktatAuthorization: DiktatAuthorization;
+      quizAuthorization: QuizAttachmentAuthorization;
+      videoAuthorization: CourseVideoAuthorization;
+      objectVersion?: string;
+    };
+
+async function authorizeStorageRequest(
+  req: Request,
+  params: Promise<{ key: string[] }>,
+): Promise<AuthorizedStorageRequest> {
+  const { key: keyParts } = await params;
+  const requestedKey = Array.isArray(keyParts) ? keyParts.join("/") : keyParts;
+  const key = normalizeStorageKey(requestedKey) ?? requestedKey;
+
+  if (!key) {
+    return { ok: false, response: new Response("Missing file key", { status: 400 }), isScopedFile: false };
+  }
+
+  if (isPrivateAttachmentKey(requestedKey) || isPrivateAttachmentKey(key)) {
+    return { ok: false, response: privateFileNotFound(), isScopedFile: false };
+  }
+
+  // Private interactive assets are available only through scoped routes.
+  const normalizedPath = new URL(`/${key.replace(/\\/g, "/").replace(/\/+/g, "/")}`, "http://storage.invalid").pathname.replace(/^\/+/, "");
+  if ([key, normalizedPath].some((value) => /^overhaul\/(interactive-documents|question-visual-bindings)(?:\/|$)/.test(value))) {
+    return { ok: false, response: new Response("File not found", { status: 404 }), isScopedFile: false };
+  }
+
+  // Product Bundle Diktat PDFs carry enrollment-gated course material. They
+  // are served only by the authenticated admin preview and learner routes.
+  if (isProtectedProductDiktatPdfKey(key)) {
+    return { ok: false, response: new Response("File not found", { status: 404 }), isScopedFile: false };
+  }
+
+  const urlObj = new URL(req.url);
+  const isDownload = urlObj.searchParams.get("download") === "1" || urlObj.searchParams.get("download") === "true";
+  const scopedKind = scopedStorageFileKind(key) ?? scopedStorageFileKind(requestedKey);
+  const isScopedFile = scopedKind !== null;
+  let objectVersion: string | undefined;
+  if (scopedKind) {
+    if (!isSafeKey(key) || key.split("/").length !== 4 || key.split("/").some((part) => !part || part === ".")
+      || scopedStorageFileKind(key) !== scopedKind) {
+      return { ok: false, response: privateFileNotFound(), isScopedFile };
+    }
+    const session = await auth.api.getSession({ headers: await nextHeaders() });
+    if (!session?.user?.id) return { ok: false, response: privateFileNotFound(), isScopedFile };
+    const { authorizeScopedStorageFile } = await import("@/lib/storage/scoped-file-authorization");
+    const authorization = await authorizeScopedStorageFile(
+      scopedKind, key, session.user.id, storageKeyCandidates(key), urlObj.searchParams.get("submissionId"),
+    );
+    if (!authorization.allowed) return { ok: false, response: privateFileNotFound(), isScopedFile };
+    if (authorization.owners) {
+      // Submission snapshots come from the client. Confirm the uploader at the object boundary.
+      const object = await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+      if (!object.Metadata?.uploadedby || !authorization.owners.has(object.Metadata.uploadedby) || !object.ETag) {
+        return { ok: false, response: privateFileNotFound(), isScopedFile };
+      }
+      objectVersion = object.ETag;
+    }
+  }
+
+  const isFormFile = key === "forms" || key.startsWith("forms/") || normalizedPath === "forms" || normalizedPath.startsWith("forms/");
+  if (isFormFile && !(await canAccessFormFile(key, urlObj.search))) {
+    return {
+      ok: false,
+      response: new Response("File not found", { status: 404, headers: { "Cache-Control": "private, no-store" } }),
+      isScopedFile,
+    };
+  }
+
+  const isVideoThumbnail = isCourseVideoThumbnailKey(key);
+  const isCourseVideoAsset = isCourseVideoKey(key) || isVideoThumbnail;
+
+  // Authorize Diktat delivery before fetching the object. The disposition
+  // query only changes a browser hint and must never decide authorization.
+  // Course video files and thumbnails cannot be Diktats, so skip the two
+  // Diktat lookups on those hot media paths.
+  const diktatAuthorization = isScopedFile || isCourseVideoAsset
+    ? { matched: false, allowed: true }
+    : await resolveDiktatAuthorization(key);
+  if (diktatAuthorization.matched && !diktatAuthorization.allowed) {
+    return { ok: false, response: new Response("File not found", { status: 404 }), isScopedFile };
+  }
+
+  // Authorize quiz attachment delivery before fetching the object
+  const quizAuthorization = await resolveQuizAttachmentAuthorization(key);
+  if (quizAuthorization.matched && !quizAuthorization.allowed) {
+    return { ok: false, response: new Response("File not found", { status: 404 }), isScopedFile };
+  }
+
+  // Authorize course video delivery before fetching the object
+  const videoAuthorization = await resolveCourseVideoAuthorization(key);
+  if (videoAuthorization.matched && !videoAuthorization.allowed) {
+    return { ok: false, response: new Response("File not found", { status: 404 }), isScopedFile };
+  }
+
+  return {
+    ok: true,
+    key,
+    isDownload,
+    isScopedFile,
+    isFormFile,
+    isVideoThumbnail,
+    diktatAuthorization,
+    quizAuthorization,
+    videoAuthorization,
+    objectVersion,
+  };
+}
+
+function buildStorageResponseHeaders(
+  authResult: Extract<AuthorizedStorageRequest, { ok: true }>,
+  s3Res: {
+    ContentType?: string;
+    ContentLength?: number;
+    ContentRange?: string;
+    ETag?: string;
+    LastModified?: Date;
+  },
+): Headers {
+  const {
+    key,
+    isDownload,
+    isScopedFile,
+    isFormFile,
+    isVideoThumbnail,
+    diktatAuthorization,
+    quizAuthorization,
+    videoAuthorization,
+  } = authResult;
+  const headers = new Headers();
+  if (s3Res.ContentType) {
+    headers.set("Content-Type", s3Res.ContentType);
+  } else {
+    headers.set("Content-Type", "application/octet-stream");
+  }
+
+  if (s3Res.ContentLength !== undefined) {
+    headers.set("Content-Length", s3Res.ContentLength.toString());
+  }
+
+  headers.set("Accept-Ranges", "bytes");
+  if (s3Res.ContentRange) {
+    headers.set("Content-Range", s3Res.ContentRange);
+  }
+  if (s3Res.ETag) {
+    headers.set("ETag", s3Res.ETag);
+  }
+  if (s3Res.LastModified) {
+    headers.set("Last-Modified", s3Res.LastModified.toUTCString());
+  }
+
+  // Only protected delivery depends on the current session. Keep unrelated
+  // public storage objects on the cacheable response path.
+  if (isScopedFile || isFormFile || diktatAuthorization.matched || quizAuthorization.matched || videoAuthorization.matched) {
+    headers.set("Cache-Control", "private, no-store");
+  } else if (isVideoThumbnail) {
+    headers.set("Cache-Control", "public, max-age=31536000, immutable");
+  }
+  if (isScopedFile || isFormFile) {
+    headers.set("Content-Security-Policy", "sandbox");
+    headers.set("X-Content-Type-Options", "nosniff");
+  }
+
+  // Extract clean filename (last path segment minus the {timestamp}-{hash}- prefix)
+  const filename = leafFilename(key);
+
+  headers.set(
+    "Content-Disposition",
+    `${isDownload ? "attachment" : "inline"}; filename="${filename.replace(/"/g, '\\"')}"; filename*=UTF-8''${encodeURIComponent(filename)}`
+  );
+
+  headers.set("Access-Control-Allow-Origin", "*");
+  headers.set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+  headers.set("Access-Control-Expose-Headers", "Content-Range, Content-Length, Accept-Ranges, ETag");
+
+  return headers;
+}
+
+function handleStorageProxyError(err: any, isScopedFile: boolean): Response {
+  if (isScopedFile) return privateFileNotFound();
+  if (err?.name === "NoSuchKey" || err?.name === "NotFound" || err?.$metadata?.httpStatusCode === 404) {
+    return new Response("File not found", {
+      status: 404,
+      headers: { "Access-Control-Allow-Origin": "*" },
+    });
+  }
+  if (err?.name === "InvalidRange" || err?.$metadata?.httpStatusCode === 416) {
+    return new Response("Range Not Satisfiable", {
+      status: 416,
+      headers: {
+        "Accept-Ranges": "bytes",
+        "Access-Control-Allow-Origin": "*",
+      },
+    });
+  }
+  console.error("Storage proxy route error:", err);
+  return new Response(err?.message || "Internal server error", {
+    status: 500,
+    headers: { "Access-Control-Allow-Origin": "*" },
+  });
+}
+
 /**
- * Handles object retrieval and streaming from Cloudflare R2 storage proxy.
+ * Handles object retrieval and streaming from storage proxy.
  */
 export async function GET(
   req: Request,
@@ -270,85 +490,17 @@ export async function GET(
 ) {
   let isScopedFile = false;
   try {
-    const { key: keyParts } = await params;
-    const requestedKey = Array.isArray(keyParts) ? keyParts.join("/") : keyParts;
-    const key = normalizeStorageKey(requestedKey) ?? requestedKey;
-    
-    if (!key) {
-      return new Response("Missing file key", { status: 400 });
-    }
-
-    if (isPrivateAttachmentKey(requestedKey) || isPrivateAttachmentKey(key)) {
-      return privateFileNotFound();
-    }
-
-    // Private interactive assets are available only through scoped routes.
-    const normalizedPath = new URL(`/${key.replace(/\\/g, "/").replace(/\/+/g, "/")}`, "http://storage.invalid").pathname.replace(/^\/+/, "");
-    if ([key, normalizedPath].some((value) => /^overhaul\/(interactive-documents|question-visual-bindings)(?:\/|$)/.test(value))) {
-      return new Response("File not found", { status: 404 });
-    }
-
-    // Product Bundle Diktat PDFs carry enrollment-gated course material. They
-    // are served only by the authenticated admin preview and learner routes.
-    if (isProtectedProductDiktatPdfKey(key)) {
-      return new Response("File not found", { status: 404 });
-    }
-
-    const urlObj = new URL(req.url);
-    const isDownload = urlObj.searchParams.get("download") === "1" || urlObj.searchParams.get("download") === "true";
-    const scopedKind = scopedStorageFileKind(key) ?? scopedStorageFileKind(requestedKey);
-    isScopedFile = scopedKind !== null;
-    let objectVersion: string | undefined;
-    if (scopedKind) {
-      if (!isSafeKey(key) || key.split("/").length !== 4 || key.split("/").some((part) => !part || part === ".")
-        || scopedStorageFileKind(key) !== scopedKind) return privateFileNotFound();
-      const session = await auth.api.getSession({ headers: await nextHeaders() });
-      if (!session?.user?.id) return privateFileNotFound();
-      const { authorizeScopedStorageFile } = await import("@/lib/storage/scoped-file-authorization");
-      const authorization = await authorizeScopedStorageFile(
-        scopedKind, key, session.user.id, storageKeyCandidates(key), urlObj.searchParams.get("submissionId"),
-      );
-      if (!authorization.allowed) return privateFileNotFound();
-      if (authorization.owners) {
-        // Submission snapshots come from the client. Confirm the uploader at the object boundary.
-        const object = await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
-        if (!object.Metadata?.uploadedby || !authorization.owners.has(object.Metadata.uploadedby) || !object.ETag) {
-          return privateFileNotFound();
-        }
-        objectVersion = object.ETag;
-      }
-    }
-
-    const isFormFile = key === "forms" || key.startsWith("forms/") || normalizedPath === "forms" || normalizedPath.startsWith("forms/");
-    if (isFormFile && !(await canAccessFormFile(key, urlObj.search))) {
-      return new Response("File not found", { status: 404, headers: { "Cache-Control": "private, no-store" } });
-    }
-    // Authorize Diktat delivery before fetching the object. The disposition
-    // query only changes a browser hint and must never decide authorization.
-    const diktatAuthorization = isScopedFile ? { matched: false, allowed: true } : await resolveDiktatAuthorization(key);
-    if (diktatAuthorization.matched && !diktatAuthorization.allowed) {
-      return new Response("File not found", { status: 404 });
-    }
-
-    // Authorize quiz attachment delivery before fetching the object
-    const quizAuthorization = await resolveQuizAttachmentAuthorization(key);
-    if (quizAuthorization.matched && !quizAuthorization.allowed) {
-      return new Response("File not found", { status: 404 });
-    }
-
-    // Authorize course video delivery before fetching the object
-    const videoAuthorization = await resolveCourseVideoAuthorization(key);
-    if (videoAuthorization.matched && !videoAuthorization.allowed) {
-      return new Response("File not found", { status: 404 });
-    }
+    const authResult = await authorizeStorageRequest(req, params);
+    isScopedFile = authResult.isScopedFile;
+    if (!authResult.ok) return authResult.response;
 
     const rangeHeader = req.headers.get("range");
 
     const command = new GetObjectCommand({
       Bucket: bucket,
-      Key: key,
+      Key: authResult.key,
       Range: rangeHeader || undefined,
-      ...(objectVersion ? { IfMatch: objectVersion } : {}),
+      ...(authResult.objectVersion ? { IfMatch: authResult.objectVersion } : {}),
     });
 
     const s3Res = await s3.send(command);
@@ -364,44 +516,8 @@ export async function GET(
       const { Readable } = require("stream");
       webStream = Readable.toWeb(stream);
     }
-    
-    const headers = new Headers();
-    if (s3Res.ContentType) {
-      headers.set("Content-Type", s3Res.ContentType);
-    } else {
-      headers.set("Content-Type", "application/octet-stream");
-    }
-    
-    if (s3Res.ContentLength) {
-      headers.set("Content-Length", s3Res.ContentLength.toString());
-    }
 
-    headers.set("Accept-Ranges", "bytes");
-    if (s3Res.ContentRange) {
-      headers.set("Content-Range", s3Res.ContentRange);
-    }
-    
-    // Only protected delivery depends on the current session. Keep unrelated
-    // public storage objects on the cacheable response path.
-    if (isScopedFile || isFormFile || diktatAuthorization.matched || quizAuthorization.matched || videoAuthorization.matched) {
-      headers.set("Cache-Control", "private, no-store");
-    }
-    if (isScopedFile || isFormFile) {
-      headers.set("Content-Security-Policy", "sandbox");
-      headers.set("X-Content-Type-Options", "nosniff");
-    }
-
-    // Extract clean filename (last path segment minus the {timestamp}-{hash}- prefix)
-    const filename = leafFilename(key);
-
-    headers.set(
-      "Content-Disposition",
-      `${isDownload ? "attachment" : "inline"}; filename="${filename.replace(/"/g, '\\"')}"; filename*=UTF-8''${encodeURIComponent(filename)}`
-    );
-
-    headers.set("Access-Control-Allow-Origin", "*");
-    headers.set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
-
+    const headers = buildStorageResponseHeaders(authResult, s3Res);
     const statusCode = s3Res.ContentRange || s3Res.$metadata?.httpStatusCode === 206 ? 206 : 200;
 
     return new Response(webStream, {
@@ -409,18 +525,38 @@ export async function GET(
       headers,
     });
   } catch (err: any) {
-    if (isScopedFile) return privateFileNotFound();
-    if (err.name === "NoSuchKey") {
-      return new Response("File not found", {
-        status: 404,
-        headers: { "Access-Control-Allow-Origin": "*" },
-      });
-    }
-    console.error("Storage proxy route error:", err);
-    return new Response(err.message || "Internal server error", {
-      status: 500,
-      headers: { "Access-Control-Allow-Origin": "*" },
+    return handleStorageProxyError(err, isScopedFile);
+  }
+}
+
+/**
+ * Handles metadata-only HEAD probes without opening an object body stream.
+ */
+export async function HEAD(
+  req: Request,
+  { params }: { params: Promise<{ key: string[] }> }
+) {
+  let isScopedFile = false;
+  try {
+    const authResult = await authorizeStorageRequest(req, params);
+    isScopedFile = authResult.isScopedFile;
+    if (!authResult.ok) return authResult.response;
+
+    const command = new HeadObjectCommand({
+      Bucket: bucket,
+      Key: authResult.key,
+      ...(authResult.objectVersion ? { IfMatch: authResult.objectVersion } : {}),
     });
+
+    const s3Res = await s3.send(command);
+    const headers = buildStorageResponseHeaders(authResult, s3Res);
+
+    return new Response(null, {
+      status: 200,
+      headers,
+    });
+  } catch (err: any) {
+    return handleStorageProxyError(err, isScopedFile);
   }
 }
 

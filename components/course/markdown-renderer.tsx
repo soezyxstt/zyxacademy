@@ -1129,6 +1129,7 @@ function ASTBlockRenderer({ block, density, standaloneInlineMath = false }: { bl
           <video
             src={src}
             controls
+            preload="metadata"
             className="mx-auto rounded-2xl border border-border shadow-sm max-w-full h-auto max-h-[450px]"
           />
         );
