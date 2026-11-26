@@ -12,6 +12,9 @@ import { useNativeSession } from "../auth/session-provider";
 export default function InternalAppEntry() {
   const { state } = useNativeSession();
   const network = useNetworkState();
+  if (process.env.EXPO_PUBLIC_PARITY_WEBVIEW === "1" || process.env.EXPO_PUBLIC_PARITY_CAPTURE_NAVIGATION === "1") {
+    return <Redirect href="/gallery/separator" />;
+  }
   if (state.status === "unavailable" && state.offlineIdentity) {
     if (!network.type) return <ActivityIndicator />;
     if (deviceIsOffline(network)) return <Redirect href="/offline" />;

@@ -58,6 +58,7 @@ jobs:
     env:
       CI: '1'
       EXPO_NO_TELEMETRY: '1'
+      EXPO_PUBLIC_PARITY_CAPTURE_NAVIGATION: '1'
     steps:
       - uses: actions/checkout@v4
         with:

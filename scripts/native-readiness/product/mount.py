@@ -92,7 +92,11 @@ def mount(*, with_student=True):
                  'import { Redirect } from "expo-router";\nimport { productRoute } from "../routing/ProductRoute";\n\nconst PublicLanding = productRoute("/", "public");')
     rewrite_once(root, 'if (state.status === "signed-in" && loginIntent)', 'if (state.status === "signed-in")')
     rewrite_once(root, 'const { state, loginIntent } = useNativeSession();', 'const { state } = useNativeSession();')
-    rewrite_once(root, 'return <Redirect href="/gallery/separator" />;', 'return <PublicLanding />;')
+    rewrite_once(root, '  return <Redirect href="/gallery/separator" />;\n}', '  return <PublicLanding />;\n}')
+    rewrite_once(root, '  const network = useNetworkState();', '''  const network = useNetworkState();
+  if (process.env.EXPO_PUBLIC_PARITY_WEBVIEW === "1" || process.env.EXPO_PUBLIC_PARITY_CAPTURE_NAVIGATION === "1") {
+    return <Redirect href="/gallery/separator" />;
+  }''')
     put(MOBILE / "app/murid.tsx", (HERE / "MuridRoute.tsx.in").read_text())
 
     mount_staff_chrome()

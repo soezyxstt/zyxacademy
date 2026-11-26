@@ -37,6 +37,8 @@ Each module includes a hash, declarations that may render, imports, export bindi
 
 From a checkout that contains the Shared UI, Academic, and Operations lanes, run `python3 scripts/native-readiness/product/mount.py --without-student` to install the canonical Expo routes. The Student dashboard and `/murid` entry require sign-in and verified Student access, then offer an explicit handoff to the dashboard at the configured staging origin. Existing Student subroutes are mounted only once the Student source is present. Run `python3 scripts/native-readiness/product/mount.py` with all four lanes to install those screens and upgrade the dashboard entry. The full mount accepts the exact previously generated dashboard handoff and requires review of other existing route edits.
 
+Ordinary and authenticated preview builds open the product entry from `/`. Gallery builds set `EXPO_PUBLIC_PARITY_WEBVIEW=1` or `EXPO_PUBLIC_PARITY_CAPTURE_NAVIGATION=1` at build time to launch `/gallery/separator`. The Operations and Shared UI evidence jobs set the capture-navigation flag for their device fixtures. Academic evidence opens its fixture routes directly.
+
 The GitHub Actions preview composes the four migration branches on a disposable checkout. The host dispatches staged OAuth consent, native authentication and the two Academic aliases. The preview retains the reviewed host router when a branch carries an earlier copy.
 
 The host shared row combines the Student title role and actionable test ID with the Academic primary-action test ID. The preview retains this component for the reviewed Student and Academic blobs, including when Git merges both JSX attributes cleanly.

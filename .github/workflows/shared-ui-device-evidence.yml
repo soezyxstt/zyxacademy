@@ -27,6 +27,7 @@ jobs:
       CI: '1'
       NEXT_TELEMETRY_DISABLED: '1'
       EXPO_NO_TELEMETRY: '1'
+      EXPO_PUBLIC_PARITY_CAPTURE_NAVIGATION: '1'
       MAESTRO_CLI_NO_ANALYTICS: 'true'
       MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: 'true'
       SHARED_BUILD: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -164,6 +165,7 @@ jobs:
     env:
       CI: '1'
       EXPO_NO_TELEMETRY: '1'
+      EXPO_PUBLIC_PARITY_CAPTURE_NAVIGATION: '1'
       SHARED_BUILD: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - *checkout

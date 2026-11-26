@@ -21,6 +21,7 @@ class ProductMountTests(unittest.TestCase):
         self.write("app/index.tsx", '''import { Redirect } from "expo-router";
 export default function App() {
   const { state, loginIntent } = useNativeSession();
+  const network = useNetworkState();
   if (state.status === "signed-in" && loginIntent) return <AuthContinuation />;
   return <Redirect href="/gallery/separator" />;
 }
@@ -68,7 +69,12 @@ export default function App() {
         self.assertEqual(self.snapshot(), without_student)
         self.assertIn('productRoute("/dashboard", "student")', self.read("app/dashboard.tsx"))
         self.assertIn('productLocation("/dashboard"', self.read("app/murid.tsx"))
-        self.assertIn('productRoute("/", "public")', self.read("app/index.tsx"))
+        index = self.read("app/index.tsx")
+        self.assertIn('productRoute("/", "public")', index)
+        self.assertIn('if (process.env.EXPO_PUBLIC_PARITY_WEBVIEW === "1" || '
+                      'process.env.EXPO_PUBLIC_PARITY_CAPTURE_NAVIGATION === "1") {\n'
+                      '    return <Redirect href="/gallery/separator" />;\n  }', index)
+        self.assertTrue(index.endswith('  return <PublicLanding />;\n}\n'))
         self.assertNotIn("features/student", self.read("routing/ProductRoute.tsx"))
         self.assertNotIn("AssessmentDraftCleanup", self.read("app/_layout.tsx"))
         self.assertFalse((self.mobile / "app/dashboard/discussions.tsx").exists())
