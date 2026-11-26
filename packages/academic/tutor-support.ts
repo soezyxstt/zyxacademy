@@ -62,6 +62,12 @@ export type TutorDiscussionDetail = {
       canReply?: boolean;
       canReact?: boolean;
       messageType: "question" | "answer" | "reply" | "forward";
+      revision?: number;
+      bodyKind?: DiscussionMessage["bodyKind"];
+      canEdit?: boolean;
+      canDelete?: boolean;
+      canReport?: boolean;
+      canForward?: boolean;
     }[];
     nextCursor: string | null;
   };

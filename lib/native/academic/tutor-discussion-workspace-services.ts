@@ -1,7 +1,9 @@
 import "server-only";
-import { createThread } from "@/lib/discussions/actions";
-import { listChannelMetadataPage, searchChannelMentions, setMute } from "@/lib/discussions/service";
-import { requireDiscussionChannelAccess } from "@/lib/discussions/access";
+import { createThread, forward } from "@/lib/discussions/actions";
+import { deleteMessage, edit, listChannelMetadata, listChannelMetadataPage, listThreadsAcrossChannels, report, searchChannelMentions, setMute } from "@/lib/discussions/service";
+import { requireDiscussionChannelAccess, requireDiscussionMessageAccess } from "@/lib/discussions/access";
+import { canForwardDiscussion } from "@/lib/discussions/policy";
+import type { TutorDiscussionMessageScope } from "@/packages/academic/tutor-discussion-workspace";
 import { requireTutorCourseAccess } from "@/lib/auth/request-cache";
 import { tutorSupportServices } from "./tutor-support-services";
 import type { TutorDiscussionWorkspaceServices } from "./handle-tutor-discussion-workspace";
@@ -13,6 +15,19 @@ async function authorizeChannel(actorId: string, courseId: string | undefined, c
   const aliases = [access.courseId, access.legacyCourseId].filter(Boolean);
   const channelIds = [channel.courseId, channel.legacyCourseId].filter(Boolean);
   if (channel.kind !== "course" || !channelIds.length || !channelIds.every(id => aliases.includes(id))) throw new Error("DISCUSSION_UNAVAILABLE");
+  return channel;
+}
+
+async function authorizeMessage(actorId: string, courseId: string | undefined, { threadId, messageId }: TutorDiscussionMessageScope) {
+  const viewed = await requireDiscussionMessageAccess({ id: actorId, role: "tutor" }, messageId);
+  if (viewed.thread.id !== threadId || viewed.message.deletedAt) throw new Error("DISCUSSION_UNAVAILABLE");
+  if (courseId) await authorizeChannel(actorId, courseId, viewed.channel.id);
+  return viewed;
+}
+
+async function authorizeForward(actorId: string, courseId: string | undefined, scope: TutorDiscussionMessageScope) {
+  const { channel, message } = await authorizeMessage(actorId, courseId, scope);
+  if (message.messageType === "forward" || !canForwardDiscussion(channel, channel)) throw new Error("DISCUSSION_UNAVAILABLE");
   return channel;
 }
 
@@ -32,6 +47,33 @@ export const tutorDiscussionWorkspaceServices = {
     const channel = await authorizeChannel(actorId, courseId, input.channelId);
     if (channel.kind !== "course" && channel.kind !== "global") throw new Error("DISCUSSION_UNAVAILABLE");
     return createThread({ ...input, requestId, attachmentIds: input.attachmentIds ?? [], mentionIds: input.mentionIds ?? [], askZyra: input.askZyra ?? false });
+  },
+  async forwardChannels(actorId, courseId, scope, search, cursor) {
+    const source = await authorizeForward(actorId, courseId, scope);
+    if (source.kind !== "global") {
+      return { items: await listChannelMetadata(actorId, [source.id]), nextCursor: null };
+    }
+    return listChannelMetadataPage(actorId, { kinds: ["global", "course"], search, cursor, limit: 20 });
+  },
+  async forwardTargets(actorId, courseId, scope, channelId, search, cursor) {
+    const source = await authorizeForward(actorId, courseId, scope);
+    const destination = await requireDiscussionChannelAccess({ id: actorId, role: "tutor" }, channelId);
+    if (!canForwardDiscussion(source, destination)) throw new Error("DISCUSSION_UNAVAILABLE");
+    const page = await listThreadsAcrossChannels(actorId, { channelId, status: "open", search, cursor });
+    return { items: page.items.filter(item => item.id !== scope.threadId).map(({ id, channelId, title }) => ({ id, channelId, title })),
+      nextCursor: page.nextCursor };
+  },
+  async forward(actorId, courseId, action) {
+    await authorizeForward(actorId, courseId, action);
+    return forward(action.messageId, action.destinationId, action.requestId);
+  },
+  async message(actorId, courseId, action) {
+    await authorizeMessage(actorId, courseId, action);
+    switch (action.action) {
+      case "edit": await edit(actorId, action.messageId, action.body, action.revision); break;
+      case "delete": await deleteMessage(actorId, action.messageId); break;
+      case "report": await report(actorId, action.messageId, action.reason); break;
+    }
   },
   async mute(actorId, courseId, channelId, muted) {
     await authorizeChannel(actorId, courseId, channelId);

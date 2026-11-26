@@ -71,6 +71,43 @@ test("native Tutor can create one real course question and change the verified c
   expect(await (await read("?view=catalog")).json()).toMatchObject({ items: [{ id: "course-channel", muted: true }] });
 });
 
+test("native Tutor edit, delete, report and forward share the web permission checks", async () => {
+  await testDb.insert(schema.discussionThreads).values({ id: "public-destination", channelId: "course-channel", authorId: "eligible", title: "Tujuan" });
+  await testDb.insert(schema.discussionChannels).values({ id: "private-channel", title: "Akademik", kind: "academic", requesterId: "eligible",
+    courseId: "course-canonical", legacyCourseId: "course-legacy" });
+  await testDb.insert(schema.discussionThreads).values({ id: "private-destination", channelId: "private-channel", authorId: "eligible", title: "Privat", nextSeq: 2 });
+  await testDb.insert(schema.discussionMessages).values({ id: "private-message", threadId: "private-destination", authorId: "eligible", kind: "human",
+    messageType: "question", body: "Permintaan privat", seq: 1, requestId: "fixture-private" });
+  const write = (body: object, requestId: string, route = [...parts, "workspace"]) =>
+    handleTutorDiscussionWorkspace(new Request(origin + "/api/native/academic/tutor-support/" + route.join("/"), {
+      method: "POST", headers: { Origin: origin, "Content-Type": "application/json", "Idempotency-Key": requestId },
+      body: JSON.stringify({ requestId, ...body }),
+    }), route, origin, tutorDiscussionWorkspaceServices);
+  const global = ["discussions", "workspace"];
+  const requestId = "editable-native-question";
+  const input = { action: "create", input: { channelId: "course-channel", title: "Pesan tutor", body: "Draf awal" } };
+  const created = await (await write(input, requestId)).json();
+  expect(created.ok).toBe(true);
+  const editable = { threadId: created.value.threadId, messageId: created.value.messageId };
+  const edit = { action: "edit", ...editable, body: "Draf diperbarui", revision: 1 };
+  expect((await write({ ...edit, threadId }, "bad-thread")).status).toBe(404);
+  expect((await write(edit, "edit-new")).status).toBe(200);
+  expect((await write(edit, "edit-stale")).status).toBe(409);
+  expect((await write({ action: "report", ...editable, reason: "Laporan diri" }, "own-report")).status).toBe(404);
+  expect((await write({ action: "report", threadId: "private-destination", messageId: "private-message", reason: "Alasan laporan" }, "valid-report", global)).status).toBe(200);
+  expect((await testDb.select().from(schema.discussionReports)).map(row => row.messageId)).toEqual(["private-message"]);
+  const forward = { action: "forward", threadId, messageId: "first-message", destinationId: "public-destination" };
+  expect(await (await write({ ...forward, destinationId: "private-destination" }, "public-private")).json())
+    .toMatchObject({ ok: false, error: "unavailable" });
+  expect((await write({ ...forward, threadId: "private-destination", messageId: "private-message" }, "private-outside", global)).status).toBe(404);
+  const first = await (await write(forward, "valid-forward")).json();
+  expect(first).toMatchObject({ ok: true, value: { threadId: "public-destination" } });
+  expect(await (await write(forward, "valid-forward")).json()).toEqual(first);
+  expect((await write({ action: "delete", ...editable }, "delete-own")).status).toBe(200);
+  const [deleted] = await testDb.select().from(schema.discussionMessages).where(eq(schema.discussionMessages.id, editable.messageId));
+  expect(deleted?.deletedById).toBe("tutor");
+});
+
 test("native Tutor mention search and writes use the current course audience and enqueue Zyra exactly once", async () => {
   const lookup = (query: Record<string, string>) => handleTutorSupport(new URL(scope + "?" + new URLSearchParams({ thread: threadId, ...query })), parts, tutorSupportServices);
   const results = await lookup({ mention: "Nadia" });

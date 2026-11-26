@@ -1,6 +1,6 @@
 import type { DiscussionChannelMetadata, DiscussionMention, DiscussionPage, DiscussionSendResult } from "@/lib/discussions/contracts";
 import { validDiscussionId, validDiscussionText } from "@/lib/discussions/policy";
-import { tutorDiscussionWorkspaceAction, type TutorQuestionAttempt } from "@/packages/academic/tutor-discussion-workspace";
+import { tutorDiscussionWorkspaceAction, type TutorQuestionAttempt, type TutorDiscussionMessageCommand, type TutorDiscussionMessageScope, type TutorDiscussionForward, type TutorForwardTarget } from "@/packages/academic/tutor-discussion-workspace";
 import { validTutorMentionInput } from "@/packages/academic/tutor-discussion-mentions";
 import { readTutorCommandBody, type TutorSupportServices } from "./handle-tutor-support";
 
@@ -8,6 +8,10 @@ export type TutorDiscussionWorkspaceServices = Pick<TutorSupportServices, "sessi
   catalog(userId: string, courseId: string | undefined, search: string, cursor?: string): Promise<DiscussionPage<DiscussionChannelMetadata>>;
   channelMentions(userId: string, courseId: string | undefined, channelId: string, search: string): Promise<DiscussionMention[]>;
   create(userId: string, courseId: string | undefined, attempt: TutorQuestionAttempt): Promise<DiscussionSendResult>;
+  forwardChannels(userId: string, courseId: string | undefined, scope: TutorDiscussionMessageScope, search: string, cursor?: string): Promise<DiscussionPage<DiscussionChannelMetadata>>;
+  forwardTargets(userId: string, courseId: string | undefined, scope: TutorDiscussionMessageScope, channelId: string, search: string, cursor?: string): Promise<DiscussionPage<TutorForwardTarget>>;
+  message(userId: string, courseId: string | undefined, action: TutorDiscussionMessageCommand): Promise<void>;
+  forward(userId: string, courseId: string | undefined, action: TutorDiscussionForward): Promise<DiscussionSendResult>;
   mute(userId: string, courseId: string | undefined, channelId: string, muted: boolean): Promise<void>;
 };
 
@@ -39,11 +43,21 @@ export async function handleTutorDiscussionWorkspace(request: Request, parts: st
       const args = new URL(request.url).searchParams;
       const search = args.get("search")?.trim() ?? "";
       if (search.length > 160 || /[\u0000-\u001f]/.test(search)) return invalid();
-      switch (args.get("view")) {
-        case "catalog": {
-          const cursor = args.get("cursor") ?? undefined;
-          if (cursor && cursor.length > 500) return invalid();
-          return send(200, await services.catalog(actorId, courseId, search, cursor));
+      const cursor = args.get("cursor") ?? undefined;
+      if (cursor && cursor.length > 500) return invalid();
+      const view = args.get("view");
+      switch (view) {
+        case "catalog": return send(200, await services.catalog(actorId, courseId, search, cursor));
+        case "forward-channels":
+        case "forward-targets": {
+          const threadId = args.get("thread");
+          const messageId = args.get("message");
+          if (!validDiscussionId(threadId) || !validDiscussionId(messageId)) return invalid();
+          const target = { threadId, messageId };
+          if (view === "forward-channels") return send(200, await services.forwardChannels(actorId, courseId, target, search, cursor));
+          const channel = args.get("channel");
+          if (!validDiscussionId(channel)) return invalid();
+          return send(200, await services.forwardTargets(actorId, courseId, target, channel, search, cursor));
         }
         case "channel-mentions": {
           const channelId = args.get("channel");
@@ -60,6 +74,13 @@ export async function handleTutorDiscussionWorkspace(request: Request, parts: st
       await services.mute(actorId, courseId, action.channelId, action.muted);
       return send(200, { ok: true });
     }
+    if (action.action === "forward") return send(200, await services.forward(actorId, courseId, action));
+    if (action.action !== "create") {
+      if (action.action === "edit" && action.body.includes("\0")) return invalid();
+      if (action.action === "report" && !validDiscussionText(action.reason, 1_000)) return invalid();
+      await services.message(actorId, courseId, action);
+      return send(200, { ok: true });
+    }
     const { body, attachmentIds, title } = action.input;
     if ((!validDiscussionText(body, 12_000) && !(body === "" && attachmentIds?.length)) ||
       (title !== undefined && !validDiscussionText(title, 160)) || !validTutorMentionInput(body, action.input)) return invalid();
@@ -69,6 +90,8 @@ export async function handleTutorDiscussionWorkspace(request: Request, parts: st
     if (code.startsWith("TUTOR_ACCESS_DENIED") || code === "TUTOR_INACTIVE") return send(403, { error: "unavailable" });
     if (code === "DISCUSSION_UNAVAILABLE") return send(404, { error: "unavailable" });
     if (code === "DISCUSSION_INVALID") return invalid();
+    if (code === "DISCUSSION_CONFLICT" || code === "DISCUSSION_RESOLVED") return send(409, { error: "conflict" });
+    if (code === "DISCUSSION_RATE_LIMITED") return send(429, { error: "rate_limited" });
     return send(500, { error: "unknown" });
   }
 }

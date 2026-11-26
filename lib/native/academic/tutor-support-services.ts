@@ -7,6 +7,7 @@ import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { getAuthSession } from "@/lib/auth-session";
 import { ensureLegacyIdentity } from "@/lib/auth/legacy-identity";
 import { hasAnyPeran, listTutorAccessibleCourses, requireTutorCourseAccess } from "@/lib/auth/request-cache";
+import { canForwardDiscussion } from "@/lib/discussions/policy";
 import { requireDiscussionMessageAccess, requireDiscussionThreadAccess } from "@/lib/discussions/access";
 import { reply } from "@/lib/discussions/actions";
 import { getDiscussionAuthorProfile, getThread, listChannelMetadataPage, listThreadsAcrossChannels, markRead, searchMentions, setReaction, setResolved } from "@/lib/discussions/service";
@@ -32,6 +33,7 @@ async function requireCourseThread(userId: string, courseId: string, threadId: s
   const channelId = await courseChannel(userId, courseId);
   const { channel } = await requireDiscussionThreadAccess({ id: userId }, threadId);
   if (!channelId || channel.id !== channelId) throw new Error("DISCUSSION_UNAVAILABLE");
+  return channel;
 }
 
 function isTryout(rules: unknown) {
@@ -84,15 +86,18 @@ export const tutorSupportServices = {
     return { items: result.items.map(({ id, channelId, title, status, answerCount, canReply, unreadCount }) => ({ id, channelId, title, status, answerCount, canReply, unreadCount })), nextCursor: result.nextCursor };
   },
   async discussion(userId, courseId, threadId, cursor, targetMessageId) {
-    if (courseId) await requireCourseThread(userId, courseId, threadId);
+    const channel = courseId ? await requireCourseThread(userId, courseId, threadId)
+      : (await requireDiscussionThreadAccess({ id: userId }, threadId)).channel;
+    const forwardingAllowed = canForwardDiscussion(channel, channel);
     const { thread, messages, readThroughSeq, aiStatuses } = await getThread(userId, threadId, cursor, targetMessageId);
     return {
       thread: { id: thread.id, title: thread.title, status: thread.status, answerCount: thread.answerCount, canReply: thread.canReply,
         channelId: thread.channelId, canResolve: thread.canResolve, unreadCount: thread.unreadCount },
       messages: {
-        items: messages.items.map(({ id, seq, author, kind, mentionedPeople, body, attachments, messageType, replyTo, reactions, canReply, canReact }) => ({
+        items: messages.items.map(({ id, seq, author, kind, mentionedPeople, body, attachments, messageType, replyTo, reactions, canReply, canReact, revision, bodyKind, canEdit, canDelete, canReport, canForward }) => ({
           id, seq, author: author?.name ?? null, kind, mentionedPeople,
           body, attachments, attachmentCount: attachments.length, messageType, replyTo, reactions, canReply, canReact,
+          revision, bodyKind, canEdit, canDelete, canReport, canForward: canForward && forwardingAllowed,
         })),
         nextCursor: messages.nextCursor,
       },

@@ -22,6 +22,7 @@ import { DISCUSSION_REACTIONS, discussionMentionTokens } from "../../../../../li
 import type { DiscussionChannelMetadata, DiscussionMention } from "../../../../../lib/discussions/contracts";
 import { activeTutorMentions, insertTutorMention, tutorMentionSubmission } from "../../../../../packages/academic/tutor-discussion-mentions";
 import { discussionAiMessage, threadRefreshDelay } from "../../student/community/discussion-refresh";
+import { TutorDiscussionMessageActions } from "./discussion-message-actions";
 import { TutorDiscussionChannels } from "./discussion-channels";
 import { TutorDiscussionQuestion } from "./discussion-question";
 import { TutorDiscussionMentionPicker, TutorDiscussionPerson } from "./discussion-mentions";
@@ -328,8 +329,10 @@ function discussionSessionKey(service: TutorSupportClient) {
   return key;
 }
 
-export function ConnectedDiscussions({ theme, back, replace, query, courseId, service }: Navigation & {
+export function ConnectedDiscussions({ theme, back, replace, query, courseId, service, workspacePath, subtitle }: Navigation & {
   courseId?: string;
+  workspacePath?: string;
+  subtitle?: string;
   service: TutorSupportClient;
 }) {
   const [search, setSearch] = useState("");
@@ -392,7 +395,7 @@ export function ConnectedDiscussions({ theme, back, replace, query, courseId, se
   }
 
   return <>
-    <TutorPage title="Diskusi" theme={theme} onBack={back}>
+    <TutorPage title="Diskusi" subtitle={subtitle} theme={theme} onBack={back}>
       {service.discussionWorkspace ? <>
         <TutorDiscussionChannels client={service.discussionWorkspace} {...{ courseId, theme }} selected={channel}
           choose={setChannel} create={setCreating} />
@@ -423,11 +426,14 @@ export function ConnectedDiscussions({ theme, back, replace, query, courseId, se
       }} /> : null}
     {active ? <ConnectedDiscussionDetail key={JSON.stringify([active, discussionSessionKey(service)])} theme={theme} courseId={courseId} threadId={active}
       targetMessage={submittedMessage?.threadId === active ? submittedMessage.messageId : active === target?.thread ? target.message : undefined} service={service}
+      openTarget={next => {
+        setSubmittedMessage(next); setActive(next.threadId);
+      }}
       close={() => {
         setActive(null);
         setSubmittedMessage(undefined);
         if (active === target?.thread) {
-          const path = courseId ? `/tutor/${encodeURIComponent(courseId)}/discussions` : "/tutor/discussions";
+          const path = workspacePath ?? (courseId ? `/tutor/${encodeURIComponent(courseId)}/discussions` : "/tutor/discussions");
           replace(discussionWorkspaceHref(path, new URLSearchParams(query)));
         }
       }} onThread={(thread) => setPage((previous) => previous && ({
@@ -450,7 +456,7 @@ function mergeDiscussionMessages(previous: TutorDiscussionDetail | undefined, ne
   };
 }
 
-function ConnectedDiscussionDetail({ theme, courseId, threadId, targetMessage, service, close, onThread }: {
+function ConnectedDiscussionDetail({ theme, courseId, threadId, targetMessage, service, close, onThread, openTarget }: {
   theme: Navigation["theme"];
   courseId?: string;
   threadId: string;
@@ -458,6 +464,7 @@ function ConnectedDiscussionDetail({ theme, courseId, threadId, targetMessage, s
   service: TutorSupportClient;
   close: () => void;
   onThread(thread: TutorDiscussThread): void;
+  openTarget(target: { threadId: string; messageId: string }): void;
 }) {
   const { canInteract } = useProtectedInteraction();
   const imageActions = useContext(TutorDiscussionImages);
@@ -577,6 +584,7 @@ function ConnectedDiscussionDetail({ theme, courseId, threadId, targetMessage, s
       setData((previous) => mergeDiscussionMessages(previous, result, true));
       onThread(result.thread);
       setReadback(undefined);
+      return result.messages.items.find(message => message.id === messageId);
     } catch (error) {
       if (!signal.aborted) {
         if (accessEnded(error)) {
@@ -779,6 +787,8 @@ function ConnectedDiscussionDetail({ theme, courseId, threadId, targetMessage, s
       {message.id === targetMessage ? <Label theme={theme}>Pesan yang dibuka</Label> : null}
       {message.replyTo ? <Label theme={theme} tone="muted">{message.replyTo.excerpt ?? "Balasan pada pesan sebelumnya"}</Label> : null}
       {message.attachments?.map(image => <TutorDiscussionImage key={image.id} theme={theme} image={image} />)}
+      {service.discussionWorkspace ? <TutorDiscussionMessageActions
+        {...{ theme, courseId, threadId, message }} client={service.discussionWorkspace} readback={receiveMessage} open={openTarget} /> : null}
       <View style={tutorLayout.cluster}>
         {message.canReply && <Button theme={theme} variant="outline" disabled={pending || sending} onPress={() => setComposer(previous => ({ ...previous, replyTo: message.id }))}>Balas</Button>}
         {message.reactions?.map(reaction => <Button key={reaction.emoji} theme={theme} variant={reaction.selected ? "default" : "outline"}
