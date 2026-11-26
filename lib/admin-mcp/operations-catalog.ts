@@ -36,6 +36,13 @@ export const operationsCatalog = [
     "reason": "Learner assessment requires the native Student session, course eligibility and attempt ownership. It uses the existing academic services through app HTTPS and does not accept MCP credentials."
   },
   {
+    "source": "app/api/tautan/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Public clients read the same published link fields as the public directory. Existing administrative links tools retain their scopes, consent, environment and ability to manage unpublished entries."
+  },
+  {
     "source": "app/api/auth/native/expo/exchange/route.ts",
     "actions": ["POST"],
     "tools": [],

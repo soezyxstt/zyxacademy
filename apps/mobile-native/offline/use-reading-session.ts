@@ -9,7 +9,7 @@ import { deviceIsOffline, readingAccess } from "./reading-access";
 import type { NativeOfflineLocale } from "./sync-contract";
 
 export function useOfflineReadingSession(locale: NativeOfflineLocale) {
-  const { state, transport, revalidating } = useNativeSession();
+  const { state, transport, revalidating, offlineReadingDenied } = useNativeSession();
   const { context, denied } = useNativeAccountContext();
   const offline = deviceIsOffline(useNetworkState());
   const [foreground, setForeground] = useState(AppState.currentState === "active");
@@ -35,7 +35,7 @@ export function useOfflineReadingSession(locale: NativeOfflineLocale) {
   }, [clock, expiresAt]);
 
   const liveStudent = Boolean(context && context.roles.includes("murid") && transport?.isCurrent());
-  const roleDenied = denied || Boolean(context && !context.roles.includes("murid"));
+  const roleDenied = offlineReadingDenied === true || denied || Boolean(context && !context.roles.includes("murid"));
   const expired = !expiresAt || expiresAt <= Math.max(clock, Date.now());
   const access = useMemo(() => readingAccess({
     identity: accountId && sessionId && expiresAt && !expired

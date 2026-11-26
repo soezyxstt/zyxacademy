@@ -23,7 +23,8 @@ export default function OfflineRoute() {
   const router = useRouter();
   const { state, revalidating, refresh: refreshSession } = useNativeSession();
   const account = useNativeAccountContext();
-  const locale = account.context?.locale ?? authLocale(params.locale);
+  const offlineLocale = state.status === "unavailable" ? state.offlineIdentity?.locale : undefined;
+  const locale = account.context?.locale ?? offlineLocale ?? authLocale(params.locale);
   const copy = offlineLibraryCopy[locale];
   const shared = OFFLINE_LIBRARY_COPY[locale];
   const readingSession = useOfflineReadingSession(locale);

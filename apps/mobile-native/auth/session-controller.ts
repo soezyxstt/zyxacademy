@@ -1,3 +1,4 @@
+import type { NativeAccountContext } from "../../../packages/native-session/context";
 import type { NativeSessionScope, NativeSessionTransport, createNativeTransport } from "../network/transport";
 import { parseNativeLoginIntent, type NativeLoginIntent } from "./login-intent";
 import {
@@ -9,12 +10,21 @@ import {
   type createNativeSessionApi,
 } from "./session-api";
 
-type StoredSession = SessionIdentity & {
+type SessionCredential = SessionIdentity & {
   origin: string;
   cookie: string;
-  status: "active" | "revoking";
-  loginIntent?: NativeLoginIntent;
 };
+type ActiveSession = SessionCredential & {
+  status: "active";
+  loginIntent?: NativeLoginIntent;
+  locale?: NativeAccountContext["locale"];
+  readingDenied?: true;
+};
+type RevokingSession = SessionCredential & { status: "revoking" };
+type LocalClearTombstone = NativeSessionScope & { status: "clearing" };
+type ClearingSession = LocalClearTombstone & { persisted: boolean };
+type StoredSession = ActiveSession | RevokingSession | ClearingSession;
+type OfflineIdentity = SessionIdentity & Pick<ActiveSession, "locale">;
 type SessionStore = { read(): Promise<string | null>; write(value: string): Promise<void>; remove(): Promise<void> };
 type BeforeLogout = (transport: NativeSessionTransport) => void | Promise<void>;
 type BeforeLocalLogout = (scope: NativeSessionScope) => void | Promise<void>;
@@ -22,22 +32,26 @@ const PUSH_CLEANUP_PATH = "/api/notifications/register-token";
 
 export type NativeSessionState =
   | { status: "loading" | "signed-out" }
-  | { status: "unavailable"; offlineIdentity?: SessionIdentity }
+  | { status: "unavailable"; offlineIdentity?: OfflineIdentity }
   | { status: "logout-pending"; retry: boolean }
   | ({ status: "signed-in" } & SessionIdentity);
 
 function decodeStoredSession(value: string | null, origin: string): StoredSession | null {
   if (!value) return null;
   try {
-    const record = JSON.parse(value) as Partial<StoredSession> | null;
-    if (record?.origin === origin && isSignedSessionCookie(record.cookie)
-      && (record.status === "active" || record.status === "revoking")
-      && typeof record.accountId === "string" && record.accountId.trim()
-      && typeof record.sessionId === "string" && record.sessionId.trim()
-      && typeof record.expiresAt === "number" && Number.isFinite(record.expiresAt)) {
-      return { origin, cookie: record.cookie, status: record.status, accountId: record.accountId,
-        sessionId: record.sessionId, expiresAt: record.expiresAt, loginIntent: parseNativeLoginIntent(record.loginIntent) };
-    }
+    const record = JSON.parse(value) as (Partial<Omit<ActiveSession, "status">> & { status?: unknown }) | null;
+    if (record?.origin !== origin || typeof record.accountId !== "string" || !record.accountId.trim() ||
+      typeof record.sessionId !== "string" || !record.sessionId.trim()) return null;
+    const scope = { origin, accountId: record.accountId, sessionId: record.sessionId };
+    const { status } = record;
+    if (status === "clearing") return { ...scope, status, persisted: true };
+    if ((status !== "active" && status !== "revoking") || !isSignedSessionCookie(record.cookie) ||
+      typeof record.expiresAt !== "number" || !Number.isFinite(record.expiresAt)) return null;
+    const credential = { ...scope, cookie: record.cookie, expiresAt: record.expiresAt };
+    if (status === "revoking") return { ...credential, status };
+    const locale = record.locale === "id" || record.locale === "en" ? record.locale : undefined;
+    return { ...credential, status, locale, loginIntent: parseNativeLoginIntent(record.loginIntent),
+      readingDenied: record.readingDenied === true ? true : undefined };
   } catch { /* Treat an unreadable record as signed out. */ }
   return null;
 }
@@ -55,6 +69,7 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
     transport: NativeSessionTransport | null;
     revalidating: boolean;
     loginIntent?: NativeLoginIntent;
+    offlineReadingDenied?: true;
   } = {
     state: { status: "loading" }, transport: null, revalidating: false,
   };
@@ -71,7 +86,10 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
     state: NativeSessionState, transport: NativeSessionTransport | null = null,
     revalidating = false, loginIntent?: NativeLoginIntent,
   ) {
-    snapshot = { state, transport, revalidating, ...(loginIntent && { loginIntent }) };
+    const offlineReadingDenied = state.status === "signed-in" && record?.status === "active" &&
+      state.accountId === record.accountId && state.sessionId === record.sessionId && record.readingDenied;
+    snapshot = { state, transport, revalidating, ...(loginIntent && { loginIntent }),
+      ...(offlineReadingDenied && { offlineReadingDenied }) };
     for (const notify of subscriptions) notify();
   }
 
@@ -95,11 +113,35 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
     if (results.some(result => result.status === "rejected")) throw new Error("Data sesi lokal belum dapat dihapus.");
   }
 
-  async function clear(current?: StoredSession) {
+  async function clear() {
     dataTransport.clearSession();
-    if (current) await purgeLocalSession(current);
     await store.remove();
     record = null;
+  }
+
+  async function markClearing({ origin, accountId, sessionId }: NativeSessionScope) {
+    dataTransport.clearSession();
+    if (snapshot.state.status !== "logout-pending" || snapshot.state.retry) {
+      publish({ status: "logout-pending", retry: false });
+    }
+    if (record?.status === "clearing" && record.persisted) return;
+    const pending: LocalClearTombstone = { status: "clearing", origin, accountId, sessionId };
+    record = { ...pending, persisted: false };
+    try {
+      await store.write(JSON.stringify(pending));
+      record = { ...pending, persisted: true };
+    } catch (error) {
+      // If the marker cannot be written, at least retire the on-disk credential.
+      await store.remove().catch(() => {});
+      throw error;
+    }
+  }
+
+  async function clearLocalSession(current: NativeSessionScope) {
+    // Retire the credential before touching storage that can fail or be interrupted.
+    await markClearing(current);
+    await purgeLocalSession(current);
+    await clear();
   }
 
   function publishVerified(identity: SessionIdentity) {
@@ -114,12 +156,13 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
           && record.origin === scope.origin && record.sessionId === scope.sessionId && record.accountId === scope.accountId
           ? record.cookie : null,
       });
-    publish({ status: "signed-in", ...identity }, transport, false, record?.loginIntent);
+    publish({ status: "signed-in", ...identity }, transport, false, record?.status === "active" ? record.loginIntent : undefined);
   }
 
-  async function revoke(current: StoredSession, cleanPush = false) {
+  async function revoke(current: SessionCredential, cleanPush = false) {
     dataTransport.clearSession();
-    const pending = { ...current, status: "revoking", loginIntent: undefined } as const;
+    const { origin, cookie, accountId, sessionId, expiresAt } = current;
+    const pending: RevokingSession = { origin, cookie, accountId, sessionId, expiresAt, status: "revoking" };
     // Keep the credential usable only for revocation after restarting offline.
     try {
       await store.write(JSON.stringify(pending));
@@ -147,8 +190,12 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
       await Promise.allSettled([...beforeLogout].map(async handler => handler(cleanupTransport)));
       dataTransport.clearSession();
     }
-    const results = await Promise.allSettled([purgeLocalSession(current), api.revoke(pending.cookie)]);
-    if (results.some(result => result.status === "rejected")) throw new Error("Sesi belum dapat dihapus.");
+    const [local, remote] = await Promise.allSettled([
+      purgeLocalSession(current),
+      api.revoke(pending.cookie).then(() => markClearing(current)),
+    ]);
+    if (remote.status === "rejected") throw remote.reason;
+    if (local.status === "rejected") throw local.reason;
     await clear();
     publish({ status: "signed-out" });
   }
@@ -171,8 +218,8 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
           await revoke(current);
           return;
         }
-        if (current.expiresAt <= now()) {
-          await clear(current);
+        if (current.status === "clearing" || current.expiresAt <= now()) {
+          await clearLocalSession(current);
           if (revision === expectedRevision) publish({ status: "signed-out" });
           return;
         }
@@ -180,13 +227,13 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
         const controller = new AbortController();
         validation = controller;
         const identity = await api.read(current.cookie, controller.signal);
-        if (revision !== expectedRevision) return;
         if (!identity || identity.accountId !== current.accountId || identity.sessionId !== current.sessionId
           || identity.expiresAt <= now()) {
-          await clear(current);
+          await clearLocalSession(current);
           if (revision === expectedRevision) publish({ status: "signed-out" });
           return;
         }
+        if (revision !== expectedRevision) return;
         if (identity.expiresAt !== current.expiresAt) {
           const updated = { ...current, expiresAt: identity.expiresAt };
           await store.write(JSON.stringify(updated));
@@ -196,11 +243,12 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
       } catch (error) {
         if (revision === expectedRevision) {
           dataTransport.clearSession();
-          if (record?.status === "revoking") {
+          if (record?.status === "revoking" || record?.status === "clearing") {
             publish({ status: "logout-pending", retry: true });
-          } else if (error instanceof NativeSessionConnectionError && record?.status === "active" && record.expiresAt > now()) {
-            const { accountId, sessionId, expiresAt } = record;
-            publish({ status: "unavailable", offlineIdentity: { accountId, sessionId, expiresAt } });
+          } else if (error instanceof NativeSessionConnectionError && record?.status === "active" &&
+            record.expiresAt > now() && !record.readingDenied) {
+            const { accountId, sessionId, expiresAt, locale } = record;
+            publish({ status: "unavailable", offlineIdentity: { accountId, sessionId, expiresAt, ...(locale && { locale }) } });
           } else {
             publish({ status: "unavailable" });
           }
@@ -234,7 +282,7 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
         if (!identity || identity.accountId !== expectedAccount || identity.expiresAt <= now()) {
           throw new Error("Identitas sesi masuk tidak valid.");
         }
-        const current: StoredSession = { ...identity, origin, cookie, status: "active",
+        const current: ActiveSession = { ...identity, origin, cookie, status: "active",
           loginIntent: parseNativeLoginIntent(intent) };
         // A verified token remains visible to the queue for revocation if acceptance is cancelled.
         record = current;
@@ -243,7 +291,7 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
         if (!active()) throw new Error("Sesi masuk dibatalkan.");
         publishVerified(identity);
       } catch {
-        if (revision === expectedRevision && record) {
+        if (revision === expectedRevision && record?.status === "active") {
           try {
             publish({ status: "logout-pending", retry: false });
             await revoke(record);
@@ -261,13 +309,49 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
 
   function clearLoginIntent({ accountId, sessionId }: Pick<SessionIdentity, "accountId" | "sessionId">) {
     return enqueue(async () => {
-      if (!record?.loginIntent || record.status !== "active" ||
+      if (record?.status !== "active" || !record.loginIntent ||
         accountId !== record.accountId || sessionId !== record.sessionId) return;
       const current = { ...record, loginIntent: undefined };
       await store.write(JSON.stringify(current));
       record = current;
       if (snapshot.state.status === "signed-in" && snapshot.state.sessionId === sessionId) {
         publish(snapshot.state, snapshot.transport, snapshot.revalidating);
+      }
+    });
+  }
+
+  function rememberAccountAccess(
+    context: Pick<NativeAccountContext, "accountId" | "sessionId" | "locale" | "roles"> | null,
+    transport: NativeSessionTransport,
+  ) {
+    return enqueue(async () => {
+      const { accountId, sessionId } = transport.scope;
+      if (snapshot.transport !== transport || !transport.isCurrent() || record?.status !== "active" ||
+        record.accountId !== accountId || record.sessionId !== sessionId) return;
+      if (context && (context.accountId !== accountId || context.sessionId !== sessionId ||
+        (context.locale !== "id" && context.locale !== "en"))) return;
+      const locale = context?.locale ?? record.locale;
+      const readingDenied = context?.roles.includes("murid") ? undefined : true;
+      if (locale === record.locale && readingDenied === record.readingDenied) return;
+      const denialChanged = readingDenied !== record.readingDenied;
+      const updated: ActiveSession = { ...record, locale, readingDenied };
+      const publishReadingAccess = () => {
+        if (denialChanged && snapshot.transport === transport && transport.isCurrent()) {
+          publish(snapshot.state, transport, snapshot.revalidating, snapshot.loginIntent);
+        }
+      };
+      // A known denial takes effect even if the current SecureStore write fails.
+      if (readingDenied) {
+        record = updated;
+        publishReadingAccess();
+      }
+      try {
+        await store.write(JSON.stringify(updated));
+        record = updated;
+        if (!readingDenied) publishReadingAccess();
+      } catch (error) {
+        if (readingDenied) await store.remove().catch(() => {});
+        throw error;
       }
     });
   }
@@ -281,8 +365,13 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
     logoutOperation = enqueue(async () => {
       try {
         const current = await load();
-        if (current) await revoke(current, cleanPush);
-        else publish({ status: "signed-out" });
+        if (current && (current.status === "clearing" || (current.status === "active" && current.expiresAt <= now()))) {
+          await clearLocalSession(current);
+        } else if (current) {
+          await revoke(current, cleanPush);
+          return;
+        }
+        publish({ status: "signed-out" });
       } catch {
         dataTransport.clearSession();
         publish({ status: "logout-pending", retry: true });
@@ -308,6 +397,7 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
     },
     acceptLogin,
     clearLoginIntent,
+    rememberAccountAccess,
     logout,
     refresh,
   };
