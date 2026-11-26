@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View, useColorScheme } from "react-native";
+import Svg, { Circle, Path } from "react-native-svg";
 import { nativeColors, nativeRadii } from "../../../../packages/design-tokens/native-colors";
 import { formScaleValues } from "../../../../packages/forms/presentation";
 import { formFileAccept } from "../../../../packages/forms/file-types";
@@ -130,6 +131,8 @@ type FileField = {
   filename?: string;
   pending: boolean;
   error?: string;
+  capture?: () => void;
+  openSettings?: () => void;
   pick(): void;
   clear(): void;
 };
@@ -208,6 +211,14 @@ export function FormField({ index, number, question, value, detail, issue, onVal
         <SharedUiActionButton
           action={{ id: "choose", label: file.pending ? copy.uploading : file.filename ? copy.replaceFile : copy.chooseFile, pending: file.pending, disabled: disabled || file.blocked }}
           onAction={file.pick} />
+        {file.capture && policy.mimeTypes.includes("image/jpeg") && <SharedUiActionButton testID={`public-form-camera-${index}`}
+          action={{ id: "camera", label: copy.takePhoto, accessibilityLabel: `${copy.takePhoto}, ${title}`, iconOnly: true,
+            variant: "outline", disabled: disabled || file.blocked,
+            renderIcon: (color, size) => <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
+              strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" accessible={false}>
+              <Path d="M14.5 4h-5l-2 3H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3.5z" />
+              <Circle cx={12} cy={13} r={3} />
+            </Svg> }} onAction={file.capture} />}
         {file.filename && <SharedUiActionButton action={{ id: "remove", label: copy.removeFile, disabled, variant: "ghost" }} onAction={file.clear} />}
       </View>
       {file.openWeb && policy.authoredMaxMb > policy.maxMb && <>
@@ -216,6 +227,8 @@ export function FormField({ index, number, question, value, detail, issue, onVal
         <SharedUiActionButton action={{ id: "upload-web", label: copy.openWeb, variant: "ghost" }} onAction={file.openWeb} />
       </>}
       {file.error && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[formStyles.meta, { color: colors.destructive }]}>{file.error}</Text>}
+      {file.openSettings && <SharedUiActionButton action={{ id: "camera-settings", label: copy.openDeviceSettings,
+        variant: "ghost", disabled: disabled || file.blocked }} onAction={file.openSettings} />}
     </View>;
   }
 

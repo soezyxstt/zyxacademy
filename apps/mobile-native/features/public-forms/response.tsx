@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ComponentRef } from "react";
-import { Alert, ScrollView, StyleSheet, Text, View, useColorScheme } from "react-native";
+import { Alert, Linking, ScrollView, StyleSheet, Text, View, useColorScheme } from "react-native";
 import { nativeColors } from "../../../../packages/design-tokens/native-colors";
 import { buildFormSteps, formQuestionNumbers } from "../../../../packages/forms/presentation";
 import { customFormMessage } from "../../../../packages/forms/response-policy";
@@ -11,11 +11,12 @@ import { hapticError, hapticSuccess } from "../../device/haptics";
 import { NativeStatusPanel, SharedUiActionButton } from "../shared-ui/layout";
 import type { FormSubmission } from "./client";
 import { publicFormCopy } from "./copy";
-import type { PickedFormUpload } from "./expo-client";
+import type { FormUploadSource, PickedFormUpload } from "./expo-client";
 import { FormField, formStyles } from "./fields";
 import { fieldsOnStep, questionIssue, validFormEmail, type FieldIssue, type FormDraft, type FormLocale, type PublicAnswer, type PublicForm } from "./model";
 
 type ResponseAction = { status: "submit" } | { status: "upload"; index: number };
+type UploadFeedback = { message: string; settings?: boolean };
 type FormResponseProps = {
   form: PublicForm;
   locale: FormLocale;
@@ -23,11 +24,12 @@ type FormResponseProps = {
   sessionStatus?: "waiting" | "unavailable";
   onSessionRetry?: () => void;
   onUploadWeb?: () => void;
+  cameraAvailable?: boolean;
   statusCheck?: number;
   checking?: boolean;
   checkFailed?: boolean;
   onSubmit: (draft: FormDraft) => Promise<FormSubmission>;
-  onUpload: (index: number) => Promise<PickedFormUpload>;
+  onUpload: (index: number, source: FormUploadSource) => Promise<PickedFormUpload>;
   onLogin: () => void;
   onWeb: () => void;
   onCheck: () => void;
@@ -37,7 +39,7 @@ type FormResponseProps = {
 
 const emptyDraft = (): FormDraft => ({ answers: {}, other: {}, email: "" });
 
-export function PublicFormResponse({ form, locale, signedIn, sessionStatus, onSessionRetry, onUploadWeb, onSubmit, onUpload, onLogin, onWeb, onCheck, onDone, statusCheck, checking, checkFailed, onRepeat }: FormResponseProps) {
+export function PublicFormResponse({ form, locale, signedIn, sessionStatus, onSessionRetry, onUploadWeb, cameraAvailable, onSubmit, onUpload, onLogin, onWeb, onCheck, onDone, statusCheck, checking, checkFailed, onRepeat }: FormResponseProps) {
   const colors = nativeColors[useColorScheme() ?? "light"];
   const copy = publicFormCopy(locale);
   const needsEmail = form.settings.collectEmail === "input";
@@ -49,7 +51,7 @@ export function PublicFormResponse({ form, locale, signedIn, sessionStatus, onSe
   const [issues, setIssues] = useState<Record<number, FieldIssue>>({});
   const [emailIssue, setEmailIssue] = useState(false);
   const [filenames, setFilenames] = useState<Record<number, string>>({});
-  const [uploadErrors, setUploadErrors] = useState<Record<number, string>>({});
+  const [uploadErrors, setUploadErrors] = useState<Partial<Record<number, UploadFeedback>>>({});
   const [pending, setPending] = useState<ResponseAction | null>(null);
   const draftRef = useRef(draft);
   const active = useRef(true);
@@ -170,14 +172,14 @@ export function PublicFormResponse({ form, locale, signedIn, sessionStatus, onSe
     ], { cancelable: true, onDismiss: close });
   }
 
-  async function upload(index: number) {
+  async function upload(index: number, source: FormUploadSource) {
     if (occupied.current || confirming.current || locked.current || sessionStatus) return;
     occupied.current = true;
     setPending({ status: "upload", index });
-    setUploadErrors(previous => ({ ...previous, [index]: "" }));
+    setUploadErrors(previous => ({ ...previous, [index]: undefined }));
     let outcome: PickedFormUpload = { status: "retry" };
     try {
-      outcome = await onUpload(index);
+      outcome = await onUpload(index, source);
     } catch { /* Use a fixed message without the temporary provider URI. */ }
     occupied.current = false;
     if (!active.current) return;
@@ -188,11 +190,21 @@ export function PublicFormResponse({ form, locale, signedIn, sessionStatus, onSe
     } else if (outcome.status === "login" || outcome.status === "verify-email" || outcome.status === "denied" || outcome.status === "missing") {
       if (outcome.status === "missing") locked.current = true;
       setResult(outcome.status);
+    } else if (outcome.status === "camera-denied") {
+      const settings = !outcome.canAskAgain;
+      setUploadErrors(previous => ({ ...previous, [index]: { message: settings ? copy.cameraSettings : copy.cameraPermission, settings } }));
     } else if (outcome.status !== "cancelled" && outcome.status !== "session-pending") {
       const message = outcome.status === "session-retry" ? copy.uploadSessionRejected
         : outcome.status === "type" ? copy.fileWrongType : outcome.status === "size" ? copy.fileTooLarge : copy.fileFailed;
-      setUploadErrors(previous => ({ ...previous, [index]: message }));
+      setUploadErrors(previous => ({ ...previous, [index]: { message } }));
     }
+  }
+
+  function openCameraSettings(index: number) {
+    void Linking.openSettings().catch(() => {
+      if (active.current) setUploadErrors(previous => previous[index]?.settings
+        ? { ...previous, [index]: { message: copy.cameraSettingsFailed, settings: true } } : previous);
+    });
   }
 
   function again() {
@@ -279,8 +291,10 @@ export function PublicFormResponse({ form, locale, signedIn, sessionStatus, onSe
             colors={colors} locale={locale} disabled={disabled} onValue={value => updateAnswer(index, value)}
             onDetail={value => update({ ...draftRef.current, other: { ...draftRef.current.other, [index]: value } })}
             file={question.type !== "FILE_UPLOAD" ? undefined : {
-              filename: filenames[index], error: uploadErrors[index], pending: pending?.status === "upload" && pending.index === index,
-              pick: () => void upload(index), blocked: !!sessionStatus, openWeb: onUploadWeb, clear: () => {
+              filename: filenames[index], error: uploadErrors[index]?.message, pending: pending?.status === "upload" && pending.index === index,
+              pick: () => void upload(index, "document"), capture: cameraAvailable ? () => void upload(index, "camera") : undefined,
+              openSettings: uploadErrors[index]?.settings ? () => openCameraSettings(index) : undefined,
+              blocked: !!sessionStatus, openWeb: onUploadWeb, clear: () => {
                 updateAnswer(index, undefined);
                 setFilenames(previous => { const next = { ...previous }; delete next[index]; return next; });
               },

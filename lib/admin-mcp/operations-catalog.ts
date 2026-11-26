@@ -12,7 +12,7 @@ export const operationsCatalog = [
     "actions": ["POST"],
     "tools": [],
     "status": "excluded",
-    "reason": "Public file uploads attach files to a live respondent form under its current upload and authentication policy. Admin MCP preview and simulation do not upload respondent files."
+    "reason": "Public file uploads attach files to a live respondent form under its current upload and authentication policy. Native camera capture and document selection are input sources for that same interactive upload. Admin MCP preview and simulation do not upload respondent files."
   },
   {
     "source": "app/api/meet/[slug]/route.ts",

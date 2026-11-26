@@ -22,6 +22,10 @@ Simpan file klien `google-services.json` Firebase untuk `com.zyx.academy.nativep
 
 Jalankan `npx expo prebuild --platform android` lalu bangun ulang APK setelah menambah atau mengganti file. Metadata serta resource Firebase di APK menentukan ketersediaan FCM. Build tanpa file, binary lama, Expo Go, dan iOS tidak mengaktifkan registrasi push melalui jalur ini. Pengguna meminta izin melalui Pengaturan. Pengujian pengiriman tetap memerlukan APK yang dikonfigurasi dan perangkat Android dengan layanan Google Play.
 
+### Lampiran formulir
+
+Pertanyaan unggah yang menerima JPEG menampilkan aksi kamera di samping pemilih berkas. Izin diminta saat pengguna mengetuk kamera. Foto disiapkan dalam cache aplikasi mengikuti batas pertanyaan, lalu dikirim melalui unggahan formulir setelah draf dan sesi diperiksa kembali. Jika sistem menutup aplikasi saat kamera terbuka dan draf hilang, pengguna mengambil foto lagi untuk draf baru.
+
 ## Galeri dan bukti paritas
 
 Pilih komponen di atas galeri untuk membuka tiga kasusnya. Pada build internal, tautan seperti `zyx-native-parity://gallery/button` membuka komponen yang sama. Galeri memuat Inter dan Lexend dari aset lokal agar capture dapat diulang tanpa akses jaringan.
