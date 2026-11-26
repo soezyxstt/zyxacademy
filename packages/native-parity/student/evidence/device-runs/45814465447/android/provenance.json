@@ -153,6 +153,26 @@
         820
       ],
       "status": "failed"
+    },
+    {
+      "file": "captures/assessment-quiz-draft-option-failed.png",
+      "member": "results/2026-11-26_121622/Student quiz saves and restores its draft/screenshots/step-010-assertCondition-student-assessment-optio.png",
+      "sha256": "7baa2c5c3507516ec0e8f60652ddb5546946301f4a558db6eae4364803b4e723",
+      "dimensions": [
+        380,
+        820
+      ],
+      "status": "failed"
+    },
+    {
+      "file": "captures/discussion-opened-message-assertion-failed.png",
+      "member": "results/2026-11-26_121622/Student opens a discussion alias and posts a scoped answer/screenshots/step-007-assertCondition-Pesan_yang_dibuka.png",
+      "sha256": "64f86f33c65d23fcdb7ab980eb10ef719da3bf6a85ec7c62cac9cafaab1c8e13",
+      "dimensions": [
+        380,
+        820
+      ],
+      "status": "failed"
     }
   ],
   "webCaptures": [
@@ -199,5 +219,18 @@
     "different_pixels": 0,
     "before": "results/2026-11-26_121622/Student course long material list fixture/takeScreenshot/student-long-content.png",
     "after": "results/2026-11-26_121622/Student course long material list fixture/takeScreenshot/student-long-content-restored.png"
+  },
+  "longQuizGeneratedCases": [
+    "student.assessment.quizList.long.light",
+    "student.assessment.quizList.long.dark"
+  ],
+  "quizDraftFailure": {
+    "case": "Student quiz saves and restores its draft",
+    "failedAssertion": "student-assessment-option-1 was not visible",
+    "deviceLogMember": "results/2026-11-26_121622/Student quiz saves and restores its draft/logs/device-logcat.txt",
+    "deviceLogTimestamp": "2026-11-26T12:17:10.971Z",
+    "nativeCrash": "Fatal main-thread IllegalStateException in React Native Fabric removeViewAt: Unable to find parentView for tag 378",
+    "sequence": "The crash occurred before the visibility assertion. Both generated long-list launch cases passed on the same build.",
+    "laterChange": "96053de3 keeps the quiz button child wrapper mounted during loading. This run predates that change."
   }
 }
