@@ -1,8 +1,9 @@
-import type { AdminChapterEditor, AdminCourseEditor, AdminCourseEditResponse } from "../../../../packages/native-parity/academic/courses/edit-contract";
+import type { AdminChapterDraft, AdminChapterEditor, AdminCourseEditDraft, AdminCourseEditor } from "../../../../packages/native-parity/academic/courses/edit-contract";
 import type { AdminCourseSectionResult } from "../../../../packages/native-parity/academic/courses/sections";
 import type { AdminCourse, AdminCourseOverview } from "../../../../packages/native-parity/academic/courses/model";
 import { TutorDataError, type TutorDataSource } from "../../../../packages/native-parity/academic/tutor/model";
 
+import { createCourseCommandTarget } from "./courses/write-client";
 import { createTutorSupportClient } from "./tutor/support-client";
 
 export interface AcademicResponse {
@@ -49,31 +50,14 @@ function buildAcademicClient(transport: AcademicTransport) {
     participants: (id, signal) => read(`/api/native/academic/tutor/courses/${encodeURIComponent(id)}/participants`, signal),
     grading: (id, signal) => read(`/api/native/academic/tutor/courses/${encodeURIComponent(id)}/grading`, signal),
   };
-  const command = transport.command;
-  async function saveCourseResource(send: NonNullable<AcademicTransport["command"]>, path: string, input: AcademicCommand, signal: AbortSignal): Promise<AdminCourseEditResponse> {
-    const response = await send(`/api/native/academic/admin/courses/${path}`, input, signal);
-    switch (response.status) {
-      case 200: {
-        const result = await response.json();
-        if (result && typeof result === "object" && "status" in result && "requestId" in result &&
-            result.status === "saved" && result.requestId === input.requestId) return { status: "saved" };
-        return { status: "retry" };
-      }
-      case 400:
-      case 422: return { status: "invalid" };
-      case 401:
-      case 403: return { status: "denied" };
-      case 404: return { status: "missing" };
-      case 409: return { status: "conflict" };
-      default: return { status: "retry" };
-    }
-  }
-
-  const updateCourseSettings: AdminCourseEditor | undefined = command ? (slug, draft, requestId, signal) =>
-    saveCourseResource(command, `${encodeURIComponent(slug)}/settings`, { method: "PATCH", body: draft, requestId }, signal) : undefined;
-  const saveChapter: AdminChapterEditor | undefined = command ? (slug, chapterId, draft, requestId, signal) =>
-    saveCourseResource(command, `${encodeURIComponent(slug)}/chapters${chapterId ? `/${encodeURIComponent(chapterId)}` : ""}`,
-      { method: chapterId ? "PATCH" : "POST", body: draft, requestId }, signal) : undefined;
+  const command = transport.command?.bind(transport);
+  const settingsTarget = command ? createCourseCommandTarget<AdminCourseEditDraft>(command) : undefined;
+  const chapterTarget = command ? createCourseCommandTarget<AdminChapterDraft>(command) : undefined;
+  const updateCourseSettings: AdminCourseEditor | undefined = settingsTarget ? (courseId) =>
+    settingsTarget(`${encodeURIComponent(courseId)}/settings`, "PATCH") : undefined;
+  const saveChapter: AdminChapterEditor | undefined = chapterTarget ? (courseId, chapterId) =>
+    chapterTarget(`${encodeURIComponent(courseId)}/chapters${chapterId ? `/${encodeURIComponent(chapterId)}` : ""}`,
+      chapterId ? "PATCH" : "POST") : undefined;
   return {
     tutor,
     updateCourseSettings,

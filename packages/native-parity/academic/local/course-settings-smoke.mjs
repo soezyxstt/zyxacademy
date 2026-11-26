@@ -156,7 +156,13 @@ try {
   assert.equal((await courseCommand(`${standalone}/chapters`, "POST", canonicalDraft, randomUUID())).status, 422);
   assert.equal((await courseCommand(`${standalone}/chapters`, "POST", { ...canonicalDraft, description: null }, randomUUID())).status, 200);
   assert.equal((await read(standalone)).chapters[0].title, chapterDraft.title);
-  console.log("course slices, cross-course denial, settings and chapter replay and revision races passed");
+
+  await pool.query("update bab set status = 'archived' where id = $1 and mata_kuliah_id = $2", [chapterId, canonicalId]);
+  assert.equal((await append(chapterDraft, chapterKey)).status, 404);
+  await pool.query("update mata_kuliah set status = 'archived' where id = $1", [canonicalId]);
+  assert.equal((await patch(draft, requestId)).status, 404);
+  assert.equal((await append(chapterDraft, chapterKey)).status, 404);
+  console.log("course slices, cross-course denial, settings and chapter replay, active target checks and revision races passed");
 } finally {
   try {
     await pool.query(`delete from audit_mutasi where course_id = any($1) or entity_id = any($1)

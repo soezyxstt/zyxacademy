@@ -9,7 +9,15 @@ export type AdminCourseEditResponse =
   | { status: "saved" }
   | { status: "invalid" | "denied" | "missing" | "conflict" | "retry" };
 
-export type AdminCourseEditor = (slug: string, draft: AdminCourseEditDraft, requestId: string, signal: AbortSignal) => Promise<AdminCourseEditResponse>;
+export type PendingCourseWrite<Draft> = { requestId: string; draft: Draft; confirmed: boolean };
+
+export type CourseWriteTarget<Draft> = {
+  pending(): PendingCourseWrite<Draft> | null;
+  submit(draft: Draft, requestId: string, signal: AbortSignal): Promise<AdminCourseEditResponse>;
+  acknowledge(requestId: string): void;
+};
+
+export type AdminCourseEditor = (courseId: string) => CourseWriteTarget<AdminCourseEditDraft>;
 
 export type AdminChapterDraft = {
   title: string;
@@ -17,6 +25,4 @@ export type AdminChapterDraft = {
   expectedRevision: string;
 };
 
-export type AdminChapterEditor = (
-  slug: string, chapterId: string | undefined, draft: AdminChapterDraft, requestId: string, signal: AbortSignal,
-) => Promise<AdminCourseEditResponse>;
+export type AdminChapterEditor = (courseId: string, chapterId?: string) => CourseWriteTarget<AdminChapterDraft>;

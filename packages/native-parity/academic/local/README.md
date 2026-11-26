@@ -28,3 +28,11 @@ PARITY_CHROMIUM_EXECUTABLE=/usr/bin/chromium node tests/visual/native-parallel/a
 Kontainer menyimpan data dalam penyimpanan sementara. Setelah pengujian, hentikan server Next.js dan jalankan `docker stop academic-smoke`. Referensi rute bersesi disimpan di `artifacts/native-parity/academic/routes`.
 
 Capture web menyembunyikan indikator pengembangan Next.js pada elemen `nextjs-portal`. Font, isi halaman, navigasi dan ukuran viewport tetap berasal dari halaman web yang diuji.
+
+Untuk menelusuri alur lewat tautan dan kontrol web yang dirender, jalankan:
+
+```sh
+PARITY_CHROMIUM_EXECUTABLE=/usr/bin/chromium node tests/visual/native-parallel/academic/first-journeys.mjs
+```
+
+Tutor sintetis sudah menyelesaikan tur pengenalan. Entri menyimpan tanggal pendaftaran peserta secara tetap. Sesi autentikasi lokal berlaku dua hari setelah seed dijalankan. Di web Tutor, informasi peserta muncul langsung di kartu. Di web Admin, kembali dari detail mengembalikan kategori ke “Semua”. Skenario native `courses.yaml` menguji perilaku yang diminta untuk aplikasi, yaitu mempertahankan pencarian dan kategori. Hasil observasi web ada di [first-journeys](../../../../tests/visual/native-parallel/academic/web/first-journeys/manifest.json).

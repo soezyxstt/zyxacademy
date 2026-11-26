@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { View } from "react-native";
 import type { AdminChapter, AdminCourseOverview } from "../../../../../packages/native-parity/academic/courses/model";
-import type { AdminChapterDraft, AdminChapterEditor } from "../../../../../packages/native-parity/academic/courses/edit-contract";
+import type { AdminChapterDraft, CourseWriteTarget } from "../../../../../packages/native-parity/academic/courses/edit-contract";
 import { useCourseWrite } from "./live-write";
 import { Action, CourseDialog, CourseStatus, Field, layout } from "./ui";
 
@@ -13,25 +13,24 @@ const errors = {
   retry: "Status penyimpanan belum diketahui. Coba lagi untuk memeriksa hasil.",
 };
 
-export function LiveChapterEditor({ chapter, course, edit, save, close, refresh }: {
+export function LiveChapterEditor({ chapter, edit, target, close, refresh }: {
   chapter?: AdminChapter;
-  course: AdminCourseOverview["course"];
   edit: NonNullable<AdminCourseOverview["chapterEdit"]>;
-  save: AdminChapterEditor;
+  target: CourseWriteTarget<AdminChapterDraft>;
   close(): void;
   refresh(): void;
 }) {
-  const [title, setTitle] = useState(chapter?.title ?? "");
-  const [description, setDescription] = useState(chapter?.description ?? "");
-  const [revision] = useState(edit.revision);
+  const existing = target.pending();
+  const [title, setTitle] = useState(existing?.draft.title ?? chapter?.title ?? "");
+  const [description, setDescription] = useState(existing ? existing.draft.description ?? "" : chapter?.description ?? "");
+  const [revision] = useState(existing?.draft.expectedRevision ?? edit.revision);
   const [invalidTitle, setInvalidTitle] = useState(false);
   function reload() {
     close();
     refresh();
   }
 
-  const mutation = useCourseWrite((draft: AdminChapterDraft, requestId, signal) =>
-    save(course.slug, chapter?.id, draft, requestId, signal), reload);
+  const mutation = useCourseWrite(target, reload);
   const { status } = mutation;
 
   function submit() {
@@ -52,7 +51,12 @@ export function LiveChapterEditor({ chapter, course, edit, save, close, refresh 
           onChangeText={(value) => { setDescription(value); mutation.setStatus(null); }} />
       ) : null}
       {invalidTitle ? <CourseStatus label="Judul bab wajib diisi." error /> : null}
-      {status && status in errors ? <CourseStatus label={errors[status as keyof typeof errors]} error
+      {status === "retry" && mutation.confirmed ? (
+        <View style={layout.group}>
+          <CourseStatus label="Bab sudah tersimpan." />
+          <Action label="Muat rincian terbaru" onPress={mutation.retry} />
+        </View>
+      ) : status && status in errors ? <CourseStatus label={errors[status as keyof typeof errors]} error
         retry={status === "retry" ? mutation.retry : undefined} /> : null}
       {mutation.stale ? <Action label="Muat versi terbaru" onPress={reload} /> : null}
       {mutation.busy ? <CourseStatus label="Menyimpan bab…" /> : null}

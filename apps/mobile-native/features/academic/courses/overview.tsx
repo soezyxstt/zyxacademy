@@ -204,6 +204,7 @@ export function CourseOverview({ data, fixture, liveChapterEditor, actor, naviga
   const reorder = useCourseMutation(actor, () => undefined);
   const { course, chapters, chapterEdit } = data;
   const canEdit = fixture || (liveChapterEditor && chapterEdit);
+  const createPending = liveChapterEditor?.save(course.id).pending();
 
   function move(chapter: AdminChapter, offset: number) {
     if (!fixture) return;
@@ -229,7 +230,7 @@ export function CourseOverview({ data, fixture, liveChapterEditor, actor, naviga
         { label: "Dokumen", value: course.materialCount },
         { label: "Kuis", value: course.quizCount },
       ]} />
-      <Panel title="Bab" action={canEdit ? <Action label="Tambah bab" onPress={() => setEditing("new")} testID="course-chapter-create" /> : null}>
+      <Panel title="Bab" action={canEdit ? <Action label={createPending ? "Periksa bab baru" : "Tambah bab"} onPress={() => setEditing("new")} testID="course-chapter-create" /> : null}>
         <MutationStatus mutation={reorder} reload={reorder.clear} success="Urutan bab tersimpan." />
         {chapters.length === 0 ? <CourseStatus label="Belum ada bab." /> : chapters.map((chapter, index) => {
           const isExpanded = expanded === chapter.id;
@@ -247,7 +248,8 @@ export function CourseOverview({ data, fixture, liveChapterEditor, actor, naviga
                       <View style={layout.row}>
                         <Action label="Dokumen" onPress={() => navigate(`${adminCoursePath(course.slug, "documents")}?chapter=${encodeURIComponent(chapter.id)}`)} />
                         <Action label="Bank soal" onPress={() => navigate(`${adminCoursePath(course.slug, "questions")}?chapter=${encodeURIComponent(chapter.id)}`)} />
-                        <Action label="Edit bab" onPress={() => setEditing(chapter)} testID={`course-chapter-edit-${chapter.id}`} />
+                        <Action label={liveChapterEditor?.save(course.id, chapter.id).pending() ? "Periksa edit bab" : "Edit bab"}
+                          onPress={() => setEditing(chapter)} testID={`course-chapter-edit-${chapter.id}`} />
                         {fixture ? <Action label="Hapus bab" onPress={() => setDeleting(chapter)} variation="destructive" /> : null}
                       </View>
                       {fixture && chapters.length > 1 ? (
@@ -268,8 +270,9 @@ export function CourseOverview({ data, fixture, liveChapterEditor, actor, naviga
         <ChapterEditor data={fixture} chapter={editing === "new" ? undefined : editing} actor={actor} onClose={() => setEditing(null)} />
       ) : null}
       {editing && liveChapterEditor && chapterEdit ? (
-        <LiveChapterEditor course={course} edit={chapterEdit} chapter={editing === "new" ? undefined : editing}
-          save={liveChapterEditor.save} close={() => setEditing(null)} refresh={liveChapterEditor.refresh} />
+        <LiveChapterEditor edit={chapterEdit} chapter={editing === "new" ? undefined : editing}
+          target={liveChapterEditor.save(course.id, editing === "new" ? undefined : editing.id)}
+          close={() => setEditing(null)} refresh={liveChapterEditor.refresh} />
       ) : null}
       {fixture && deleting ? (
         <DeleteRecord title={deleting.title} actor={actor} data={fixture} close={() => setDeleting(null)}

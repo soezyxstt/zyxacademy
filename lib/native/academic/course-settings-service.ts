@@ -52,6 +52,10 @@ export async function updateCourseSettingsFromNative(slug: string, draft: AdminC
         description: draft.description, isNew: false, actorId: viewer.user.id,
       }, tx);
     },
+    async validateReplay(tx, saved) {
+      const current = await readSettings(slug, tx);
+      if (!current || current.primaryId !== saved.canonicalCourseId) throw new Error("COURSE_NOT_FOUND");
+    },
   });
 
   for (const id of new Set([slug, updated.id, updated.canonicalCourseId])) {

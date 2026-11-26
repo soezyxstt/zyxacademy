@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { View } from "react-native";
 import { allowedCategories } from "../../../../../packages/academic/course-categories";
-import type { AdminCourseEditDraft, AdminCourseEditor } from "../../../../../packages/native-parity/academic/courses/edit-contract";
+import type { AdminCourseEditDraft, AdminCourseEditor, CourseWriteTarget } from "../../../../../packages/native-parity/academic/courses/edit-contract";
 import type { AdminCourseSectionResult } from "../../../../../packages/native-parity/academic/courses/sections";
 import { useCourseWrite } from "./live-write";
 import { Action, CourseDialog, CourseStatus, Field, Picker, layout } from "./ui";
@@ -11,26 +11,27 @@ const categories = allowedCategories.map((id) => ({ id, label: id }));
 
 export function LiveCourseEdit({ data, save, refresh }: { data: Settings; save: AdminCourseEditor; refresh(): void }) {
   const [open, setOpen] = useState(false);
+  const target = save(data.course.id);
   return (
     <>
-      <Action label="Edit informasi" onPress={() => setOpen(true)} testID="course-settings-edit" />
-      {open ? <EditForm data={data} save={save} close={() => setOpen(false)} refresh={refresh} /> : null}
+      <Action label={target.pending() ? "Periksa penyimpanan" : "Edit informasi"} onPress={() => setOpen(true)} testID="course-settings-edit" />
+      {open ? <EditForm data={data} target={target} close={() => setOpen(false)} refresh={refresh} /> : null}
     </>
   );
 }
 
-function EditForm({ data, save, close, refresh }: { data: Settings; save: AdminCourseEditor; close(): void; refresh(): void }) {
-  const [revision] = useState(data.revision);
-  const [title, setTitle] = useState(data.course.title);
-  const [category, setCategory] = useState(data.course.category);
-  const [description, setDescription] = useState(data.description ?? "");
+function EditForm({ data, target, close, refresh }: { data: Settings; target: CourseWriteTarget<AdminCourseEditDraft>; close(): void; refresh(): void }) {
+  const existing = target.pending();
+  const [revision] = useState(existing?.draft.expectedRevision ?? data.revision);
+  const [title, setTitle] = useState(existing?.draft.title ?? data.course.title);
+  const [category, setCategory] = useState(existing?.draft.category ?? data.course.category);
+  const [description, setDescription] = useState(existing ? existing.draft.description ?? "" : data.description ?? "");
   function reload() {
     close();
     refresh();
   }
 
-  const mutation = useCourseWrite((draft: AdminCourseEditDraft, requestId, signal) =>
-    save(data.course.slug, draft, requestId, signal), reload);
+  const mutation = useCourseWrite(target, reload);
   const { status, setStatus, editable: canEdit } = mutation;
 
   function submit() {
@@ -63,7 +64,12 @@ function EditForm({ data, save, close, refresh }: { data: Settings; save: AdminC
             onChangeText={(value) => { setDescription(value); setStatus(null); }} />
         </>
       ) : null}
-      {status && status in errors ? <CourseStatus label={errors[status as keyof typeof errors]} error
+      {status === "retry" && mutation.confirmed ? (
+        <View style={layout.group}>
+          <CourseStatus label="Informasi mata kuliah sudah tersimpan." />
+          <Action label="Muat rincian terbaru" onPress={mutation.retry} />
+        </View>
+      ) : status && status in errors ? <CourseStatus label={errors[status as keyof typeof errors]} error
         retry={status === "retry" ? mutation.retry : undefined} /> : null}
       {mutation.stale ? <Action label="Muat versi terbaru" onPress={reload} /> : null}
       {status === "sending" ? <CourseStatus label="Menyimpan perubahan…" /> : null}

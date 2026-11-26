@@ -1,0 +1,45 @@
+[
+  {
+    "role": "tutor",
+    "start": "/tutor",
+    "steps": [
+      {
+        "label": "Assigned course and participant details inline",
+        "location": "/tutor/academic-course-1/participants",
+        "file": "tutor-1.png"
+      },
+      {
+        "label": "Back to assigned course",
+        "location": "/tutor/academic-course-1",
+        "file": "tutor-2.png"
+      }
+    ],
+    "outcome": "observed"
+  },
+  {
+    "role": "admin",
+    "start": "/admin/courses",
+    "steps": [
+      {
+        "label": "Category filter applied",
+        "location": "/admin/courses",
+        "file": "admin-1.png"
+      },
+      {
+        "label": "Course detail reached through filtered list",
+        "location": "/admin/courses/academic-course-1",
+        "file": "admin-2.png"
+      },
+      {
+        "label": "Web filter state after Back",
+        "location": "/admin/courses",
+        "file": "admin-3.png"
+      }
+    ],
+    "outcome": "observed",
+    "afterBack": {
+      "category": "Semua (3)",
+      "otherCourseVisible": true
+    }
+  }
+]

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createAcademicClient } from "../../../../apps/mobile-native/features/academic/client";
+import { createAcademicClient, type AcademicTransport } from "../../../../apps/mobile-native/features/academic/client";
 import { handleAdminCourseChapterCommand } from "../../../../lib/native/academic/course-chapter-command";
 import type { AdminChapterDraft } from "./edit-contract";
 
@@ -39,16 +39,16 @@ function harness(role: "admin" | "tutor" | null) {
 
 test("chapter adapter uses distinct create and edit targets with the same request identity on retry", async () => {
   const { client, seen } = harness("admin");
-  assert.deepEqual(await client.saveChapter!("biologi-dasar", undefined, draft, requestId, signal), { status: "saved" });
-  assert.deepEqual(await client.saveChapter!("biologi-dasar", undefined, draft, requestId, signal), { status: "saved" });
-  assert.deepEqual(await client.saveChapter!("biologi-dasar", "chapter+2", draft, "chapter-second-request", signal), { status: "saved" });
+  assert.deepEqual(await client.saveChapter!("biologi-dasar").submit(draft, requestId, signal), { status: "saved" });
+  assert.deepEqual(await client.saveChapter!("biologi-dasar").submit(draft, requestId, signal), { status: "saved" });
+  assert.deepEqual(await client.saveChapter!("biologi-dasar", "chapter+2").submit(draft, "chapter-second-request", signal), { status: "saved" });
   assert.deepEqual(seen.map((entry) => [entry.slug, entry.chapterId, entry.requestId, entry.body, entry.userId]), [
     ["biologi-dasar", undefined, requestId, draft, "local-admin"],
     ["biologi-dasar", undefined, requestId, draft, "local-admin"],
     ["biologi-dasar", "chapter+2", "chapter-second-request", draft, "local-admin"],
   ]);
-  assert.deepEqual(await client.saveChapter!("biologi-dasar", "foreign", draft, requestId, signal), { status: "missing" });
-  assert.deepEqual(await client.saveChapter!("biologi-dasar", "stale", draft, requestId, signal), { status: "conflict" });
+  assert.deepEqual(await client.saveChapter!("biologi-dasar", "foreign").submit(draft, requestId, signal), { status: "missing" });
+  assert.deepEqual(await client.saveChapter!("biologi-dasar", "stale").submit(draft, requestId, signal), { status: "conflict" });
 });
 
 test("chapter commands reject invalid paths and draft data before any write", async () => {
@@ -64,4 +64,66 @@ test("chapter commands reject invalid paths and draft data before any write", as
   assert.equal((await harness("tutor").send("POST", base, draft)).status, 403);
   assert.equal((await harness(null).send("POST", base, draft)).status, 401);
   assert.deepEqual(seen, []);
+});
+
+test("accepted chapter creation is recovered after the first dialog loses its response and remounts", async () => {
+  const courseId = "canonical-bio";
+  const path = `/api/native/academic/admin/courses/${courseId}/chapters`;
+  const accepted = new Set<string>();
+  const attempts: { id: string; data: unknown }[] = [];
+  const firstScreen = new AbortController();
+  let currentRevision = draft.expectedRevision;
+  let commits = 0;
+  const transport: AcademicTransport = {
+    accountId: "local-admin", origin, locale: "id",
+    async get(path) {
+      assert.equal(path, "/api/native/academic/admin/courses/biologi-dasar");
+      return Response.json({ course: { id: courseId, slug: "biologi-dasar" }, chapterEdit: { revision: currentRevision } });
+    },
+    async command(target, input, callSignal) {
+      assert.equal(target, path);
+      assert.equal(input.method, "POST");
+      attempts.push({ id: input.requestId, data: input.body });
+      if (!accepted.has(input.requestId)) {
+        assert.equal((input.body as AdminChapterDraft).expectedRevision, currentRevision);
+        commits++;
+        accepted.add(input.requestId);
+        currentRevision = "b".repeat(64);
+      }
+      if (callSignal === firstScreen.signal) {
+        firstScreen.abort();
+        callSignal.throwIfAborted();
+      }
+      return Response.json({ status: "saved", requestId: input.requestId });
+    },
+  };
+  const previous = createAcademicClient(transport).saveChapter!(courseId);
+  assert.deepEqual(await previous.submit(draft, requestId, firstScreen.signal), { status: "retry" });
+  assert.equal(firstScreen.signal.aborted, true);
+
+  const clientAfterNavigation = createAcademicClient(transport);
+  const fresh = await clientAfterNavigation.course("biologi-dasar", signal);
+  const reopened = clientAfterNavigation.saveChapter!(fresh.course.id);
+  const pending = reopened.pending();
+  assert.deepEqual(pending, { requestId, draft, confirmed: false });
+  assert.equal(fresh.chapterEdit?.revision, "b".repeat(64));
+  assert.equal(clientAfterNavigation.saveChapter!("another-course").pending(), null);
+  assert.equal(clientAfterNavigation.saveChapter!(courseId, "existing-chapter").pending(), null);
+  assert.equal(clientAfterNavigation.updateCourseSettings!(courseId).pending(), null);
+  assert.equal(createAcademicClient({ ...transport, accountId: "different-admin" }).saveChapter!(courseId).pending(), null);
+  assert.equal(createAcademicClient({ ...transport }).saveChapter!(courseId).pending(), null);
+
+  reopened.acknowledge(requestId);
+  assert.equal(reopened.pending()?.requestId, requestId);
+  assert.deepEqual(await reopened.submit({ ...draft, expectedRevision: fresh.chapterEdit!.revision }, "new-key-after-remount", signal), { status: "retry" });
+  assert.deepEqual(attempts, [{ id: requestId, data: draft }]);
+  assert.deepEqual(await reopened.submit(pending!.draft, pending!.requestId, signal), { status: "saved" });
+  assert.equal(commits, 1);
+  assert.deepEqual(attempts, [{ id: requestId, data: draft }, { id: requestId, data: draft }]);
+  const afterSecondRemount = createAcademicClient(transport).saveChapter!(courseId);
+  assert.equal(afterSecondRemount.pending()?.confirmed, true);
+  afterSecondRemount.acknowledge("unrelated-request");
+  assert.equal(afterSecondRemount.pending()?.requestId, requestId);
+  afterSecondRemount.acknowledge(requestId);
+  assert.equal(afterSecondRemount.pending(), null);
 });

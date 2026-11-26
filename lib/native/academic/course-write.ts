@@ -18,7 +18,7 @@ async function assertAuthority(tx: CourseWriteTransaction, viewer: CourseCommand
 }
 
 export async function courseWrite<T extends RevisionDraft>({
-  slug, targetId, draft, requestId, viewer, entityType, action, write,
+  slug, targetId, draft, requestId, viewer, entityType, action, write, validateReplay,
 }: {
   slug: string;
   targetId?: string;
@@ -28,6 +28,7 @@ export async function courseWrite<T extends RevisionDraft>({
   entityType: "native_course_settings" | "native_course_chapter";
   action: "create" | "update";
   write(tx: CourseWriteTransaction): Promise<Saved>;
+  validateReplay(tx: CourseWriteTransaction, result: Saved): Promise<void>;
 }) {
   const receiptId = `native_course_${revisionOf({ actorId: viewer.user.id, requestId })}`;
   const inputHash = revisionOf({ slug, targetId, draft });
@@ -37,6 +38,7 @@ export async function courseWrite<T extends RevisionDraft>({
     const result = receipt.afterSnapshot?.result;
     if (receipt.entityType !== entityType || receipt.action !== action || receipt.actorId !== viewer.user.id ||
       receipt.afterSnapshot?.inputHash !== inputHash || !isSaved(result)) throw new Error("REQUEST_CONFLICT");
+    await validateReplay(tx, result);
     return result;
   }
 

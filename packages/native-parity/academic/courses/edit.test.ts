@@ -55,9 +55,9 @@ function harness(role: "admin" | "tutor" | null) {
 
 test("course command sends exact request ID and revision through admin session", async () => {
   const { native, observed, commits, attempts } = harness("admin");
-  const update = native.updateCourseSettings!;
+  const update = native.updateCourseSettings!("biologi-dasar");
   for (let repeat = 0; repeat < 2; repeat++) {
-    assert.deepEqual(await update("biologi-dasar", form, requestId, signal), { status: "saved" });
+    assert.deepEqual(await update.submit(form, requestId, signal), { status: "saved" });
   }
   assert.deepEqual(attempts, [
     { method: "PATCH", body: form, requestId },
@@ -65,9 +65,10 @@ test("course command sends exact request ID and revision through admin session",
   ]);
   assert.equal(commits(), 1);
   assert.equal(observed[0].actor, "actor-1");
-  assert.deepEqual(await update("biologi-dasar", { ...form, title: "Biologi Seluler" }, requestId, signal), { status: "conflict" });
-  assert.deepEqual(await update("biologi-dasar", form, "second-native-course-request", signal), { status: "conflict" });
-  assert.deepEqual(await update("fisika-dasar", form, "third-native-course-request", signal), { status: "missing" });
+  update.acknowledge(requestId);
+  assert.deepEqual(await update.submit({ ...form, title: "Biologi Seluler" }, requestId, signal), { status: "conflict" });
+  assert.deepEqual(await update.submit(form, "second-native-course-request", signal), { status: "conflict" });
+  assert.deepEqual(await native.updateCourseSettings!("fisika-dasar").submit(form, "third-native-course-request", signal), { status: "missing" });
 });
 
 test("course command rejects cross-origin, unprivileged, malformed and incompatible changes", async () => {
