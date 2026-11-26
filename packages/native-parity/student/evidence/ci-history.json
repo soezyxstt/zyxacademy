@@ -1023,6 +1023,69 @@
           }
         }
       ]
+    },
+    {
+      "runId": 45867547298,
+      "sourceHead": "e855ebabd1350f24265a04752c82c6ff7c9cd3b6",
+      "url": "https://github.com/soezyxstt/zyxacademy/actions/runs/45867547298",
+      "observedAt": "2026-11-26T18:21:44Z",
+      "web": {
+        "jobId": 140074157949,
+        "status": "passed",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45867547298/artifacts/15141825676"
+      },
+      "android": {
+        "jobId": 140076387262,
+        "status": "failure"
+      },
+      "ios": {
+        "jobId": 140076388116,
+        "status": "pending_at_observation"
+      },
+      "laterObservations": [
+        {
+          "observedAt": "2026-11-26T18:21:44Z",
+          "android": {
+            "jobId": 140076387262,
+            "status": "completed",
+            "conclusion": "failure",
+            "description": "Generated smoke: {'passed': 181, 'blocked': 3, 'failed': 19}. Standalone flows: {'passed': 25, 'failed': 5}. Matched comparison: {'different': 32, 'blocked_renderer': 1, 'missing': 9}.",
+            "provenance": "packages/native-parity/student/evidence/device-runs/45867547298/android/provenance.json",
+            "summaryCounts": {
+              "passed": 181,
+              "blocked": 3,
+              "failed": 19
+            },
+            "standaloneCounts": {
+              "passed": 25,
+              "failed": 5
+            },
+            "matchedComparisonCounts": {
+              "different": 32,
+              "blocked_renderer": 1,
+              "missing": 9
+            },
+            "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45867547298/artifacts/15144078441",
+            "artifactSha256": "f39965b9aa64acc1638135393a07cd05fef43e24af74c78c2d53982b6b675452",
+            "scrollRestoration": {
+              "status": "pass",
+              "region": [
+                38,
+                205,
+                342,
+                615
+              ],
+              "dimensions": [
+                380,
+                820
+              ],
+              "different_pixels": 0,
+              "before": "standalone-retry/001/results/2026-11-26_180306/Student course long material list fixture/takeScreenshot/student-long-content.png",
+              "after": "standalone-retry/001/results/2026-11-26_180306/Student course long material list fixture/takeScreenshot/student-long-content-restored.png"
+            }
+          }
+        }
+      ]
     }
   ]
 }
