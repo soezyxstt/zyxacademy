@@ -7,6 +7,7 @@ import { projectQuestion, readQuizAnswers } from "@/lib/student/assessment-proje
 import { choice, playerDeadline, restoreAssessmentDraft, toTryoutAnswers } from "../../apps/mobile-native/features/student/assessment/client";
 import { assessmentApiPath, type AssessmentPage, type AssessmentPlayer } from "../../packages/native-parity/student/assessment/contract";
 import { assessmentFixturePaths, createAssessmentFixtureRequest } from "../../packages/native-parity/student/assessment/fixtures";
+import { solutionCollectionFixture } from "@/app/visual-fixtures/solution-collection/fixture";
 
 const learner = "assessment-learner";
 const other = "assessment-other";
@@ -33,6 +34,13 @@ mock.module("@/lib/auth", () => ({ auth: { api: { getSession: async () => userId
 mock.module("next/headers", () => ({ headers: async () => new Headers() }));
 mock.module("next/cache", () => ({ revalidatePath: () => {}, revalidateTag: () => {}, unstable_cache: (callback: Function) => callback }));
 mock.module("@/lib/inngest", () => ({ inngest: { send: async () => ({ ids: [] }) } }));
+const uploads = new Map<string, string>();
+mock.module("@/lib/storage", () => ({ STORAGE_PROVIDER_MODE: "r2", storage: {
+  async upload(file: File, _name: string, type: string, { key }: { key: string }) {
+    uploads.set(key, type);
+    return { key, size: file.size, url: `/attachment-fixture/${key}` };
+  },
+} }));
 
 import { GET, POST } from "@/app/api/native/student/assessment/[courseId]/[...segments]/route";
 import { signTryoutAttachment, verifyTryoutAttachment } from "@/lib/student/tryout-attachment-receipt";
@@ -40,7 +48,7 @@ import { signTryoutAttachment, verifyTryoutAttachment } from "@/lib/student/tryo
 beforeAll(async () => {
   database = await createPostgresTestDb();
   const db = database.testDb;
-  await db.insert(schema.peran).values(PERAN_SEEDS).onConflictDoNothing();
+  await db.insert(schema.peran).values([...PERAN_SEEDS]).onConflictDoNothing();
   await db.insert(schema.user).values([learner, other, denied].map((id) => ({ id, name: id, email: `${id}@example.invalid` })));
   await db.insert(schema.pengguna).values([learner, other, denied].map((id) => ({ id, status: "active" as const })));
   await db.insert(schema.penggunaPeran).values([learner, other, denied].map((id) => ({ id: membershipIdFor(id, "murid"), penggunaId: id,
@@ -135,6 +143,69 @@ describe("native Student assessment against PostgreSQL and legacy quiz/tryout ha
     await database.testDb.delete(schema.enrollments).where(eq(schema.enrollments.userId, learner));
     expect((await send(tryoutKey, answers)).status).toBe(403);
     expect((await call(["my-results", ids[0]])).status).toBe(404);
+  });
+
+  test("a tryout image upload and its draft-bound receipt round trip through the original attachment handler", async () => {
+    const exam = "assessment-tryout-photo";
+    const question = "tryout-photo-q";
+    await database.testDb.insert(schema.exams).values({ id: exam, courseId, title: "Tryout image", type: "tryout", status: "published", settings: { maxAttempts: 1 } });
+    await database.testDb.insert(schema.questions).values({ id: question, examId: exam, order: 1, type: "essay", content: { prompt: "Attach a diagram", acceptsImage: true } });
+    const segments = ["tryout", exam, "attachment"];
+    const upload = (name: string, type: string) => {
+      const body = new FormData();
+      body.set("file", new File(["synthetic bytes"], name, { type }));
+      return POST(new Request(`http://localhost:3000/api/native/student/assessment/${courseId}/${segments.join("/")}?questionId=${question}&requestId=${tryoutKey}`, {
+        method: "POST", headers: { "x-student-id": userId! }, body,
+      }), { params: Promise.resolve({ courseId, segments }) });
+    };
+    userId = denied;
+    expect((await upload("answer.png", "image/png")).status).toBe(403);
+    userId = other;
+    expect((await upload("answer.pdf", "application/pdf")).status).toBe(415);
+    const accepted = await upload("answer.png", "image/png");
+    expect(accepted.status).toBe(200);
+    const { key, fileName, fileSize, receipt } = await accepted.json();
+    expect(uploads.get(key)).toBe("image/png");
+    const answers = { [question]: { type: "essay", text: "Synthetic explanation", fileKey: key, fileName, fileSize, receipt } };
+    expect((await call(["tryout", exam], { method: "POST", body: { requestId: quizKey, answers } })).status).toBe(422);
+    expect((await call(["tryout", exam], { method: "POST", body: { requestId: tryoutKey, answers } })).status).toBe(201);
+    const [saved] = await database.testDb.select().from(schema.submissions).where(eq(schema.submissions.examId, exam));
+    expect(saved.status).toBe("pending_review");
+    expect(saved.answersSnapshot).toEqual({ [question]: { type: "essay", text: "Synthetic explanation", fileKey: key, fileName, fileSize } });
+    userId = learner;
+  });
+
+  test("solution collection completion binds course, enrollment, item set and published version", async () => {
+    const canonicalId = `mk-${courseId}`;
+    const chapterId = "assessment-solutions-chapter";
+    const importId = "assessment-solutions-import";
+    const id = "assessment-solution-collection";
+    const collection = { ...solutionCollectionFixture, id, course: { id: canonicalId, title: courseId }, chapter: { id: chapterId, title: "Solutions" } };
+    const db = database.testDb;
+    await db.insert(schema.bab).values({ id: chapterId, mataKuliahId: canonicalId, code: "SC", title: collection.chapter.title, orderIndex: 0 });
+    await db.insert(schema.imporBundle).values({ id: importId, bundleId: importId, checksum: "a".repeat(64), bundleType: "product", courseId,
+      sourceUriOrKey: "local-fixture.zip", status: "published", requestedBy: other });
+    await db.insert(schema.solutionCollections).values({ id, productId: id, version: 1, courseId: canonicalId, chapterId, importId, title: collection.title,
+      content: collection, trace: {}, generationHash: "b".repeat(64), status: "published", publishedAt: new Date() });
+    await db.insert(schema.gamificationChecklists).values({ id: "assessment-solutions-checklist", courseId: canonicalId, version: 1, status: "approved" });
+    const resource = ["solutions", id];
+    const complete = (version: number, itemIds: string[]) => call(resource, { method: "POST", body: { version, itemIds } });
+    userId = other;
+    const allowed = await (await call(resource)).json();
+    expect(allowed).toMatchObject({ kind: "solutions", id, version: 1, canComplete: true });
+    expect((await call(resource, { course: wrongCourse })).status).toBe(404);
+    const itemIds = collection.items.map((item) => item.id);
+    expect((await complete(2, itemIds)).status).toBe(409);
+    expect((await complete(1, itemIds.slice(0, 1))).status).toBe(400);
+    expect((await complete(1, itemIds)).status).toBe(200);
+    expect((await complete(1, itemIds)).status).toBe(200);
+    expect(await db.select().from(schema.gamificationExplanationCompletionsV2).where(eq(schema.gamificationExplanationCompletionsV2.collectionId, id))).toHaveLength(1);
+    userId = denied;
+    expect((await complete(1, itemIds)).status).toBe(403);
+    userId = other;
+    await db.update(schema.solutionCollections).set({ status: "withdrawn" }).where(eq(schema.solutionCollections.id, id));
+    expect((await call(resource)).status).toBe(404);
+    userId = learner;
   });
 });
 

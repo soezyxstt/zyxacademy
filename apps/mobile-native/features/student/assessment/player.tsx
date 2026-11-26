@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, Modal, Pressable, StyleSheet, View } from "react-native";
 import { randomUUID } from "expo-crypto";
+import { File } from "expo-file-system";
 import type { Answer, AssessmentKind, AssessmentPlayer, AssessmentQuestion, AssessmentRow } from "../../../../../packages/native-parity/student/assessment/contract";
 import { Input } from "../../../components/Input";
 import { hapticSelection } from "../../../device/haptics";
+import type { AssessmentFile } from "./device";
 import { assessmentCoursePath, assessmentRequest, AssessmentRequestError, answered, choice, draftKey, jsonBody, pkaReturnPath, playerDeadline, quizAttemptPath, remaining, restoreAssessmentDraft, toTryoutAnswers, type AssessmentDraft } from "./client";
 import { Body, Busy, Button, ButtonRow, fill, Frame, Heading, Markdown, Message, Section, styles, useAssessment, useAssessmentColors, useAssessmentCopy } from "./ui";
 
@@ -20,7 +22,7 @@ export function AssessmentPlay({ player, assessment, kind, attemptId }: {
   player: AssessmentPlayer; assessment: AssessmentRow; kind: AssessmentKind; attemptId?: string;
 }) {
   const props = useAssessment();
-  const { request, drafts, route, replace, pickAssessmentFile } = props;
+  const { request, drafts, route, replace, pickAssessmentFile, assessmentPhotos } = props;
   const { messages, tx, tryout } = useAssessmentCopy();
   const colors = useAssessmentColors();
   const course = assessmentCoursePath(route);
@@ -40,9 +42,12 @@ export function AssessmentPlay({ player, assessment, kind, attemptId }: {
   const [submitError, setSubmitError] = useState("");
   const [notice, setNotice] = useState("");
   const [now, setNow] = useState(Date.now);
+  const [recoveryRevision, setRecoveryRevision] = useState(0);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const uploadInProgress = useRef(false);
+  const uploadAbort = useRef<AbortController | null>(null);
+  const attemptedRecovery = useRef(new Set<string>());
   const [confirm, setConfirm] = useState(false);
   const [map, setMap] = useState(false);
 
@@ -68,9 +73,20 @@ export function AssessmentPlay({ player, assessment, kind, attemptId }: {
       void update(next.pending && kind === "tryout" && !next.frozenAnswers ? { ...next, frozenAnswers: toTryoutAnswers(player.questions, next.answers) } : next);
     };
     void (drafts?.get(storageKey) ?? Promise.resolve(null)).then(restore, () => { if (mounted) setReadError(true); });
-    const subscription = AppState.addEventListener("change", (visibility) => { if (visibility === "active") setNow(Date.now()); });
+    const subscription = AppState.addEventListener("change", (visibility) => {
+      if (visibility === "active") {
+        setNow(Date.now());
+        setRecoveryRevision((value) => value + 1);
+      }
+    });
     const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => { mounted = false; alive.current = false; subscription.remove(); clearInterval(timer); };
+    return () => {
+      mounted = false;
+      alive.current = false;
+      uploadAbort.current?.abort();
+      subscription.remove();
+      clearInterval(timer);
+    };
   }, [drafts, kind, player, readRevision, storageKey, update]);
 
   const submit = useCallback(async () => {
@@ -143,6 +159,77 @@ export function AssessmentPlay({ player, assessment, kind, attemptId }: {
     }
   }, [confirm, draft, messages.quiz.questionTimeEnded, messages.quiz.questionTimeEndedFinal, player.questions.length, questionLeft, totalLeft, update, uploading]);
 
+  const changeAnswer = useCallback((id: string, answer: Answer) => {
+    const current = state.current;
+    if (!current || current.pending) return;
+    void update({ ...current, answers: { ...current.answers, [id]: answer } });
+  }, [update]);
+
+  const attach = useCallback(async (currentQuestion: AssessmentQuestion, mode: "pick" | "recover" | "document" = "pick") => {
+    if (uploadInProgress.current || pendingRequest.current || accessLost) return;
+    if (mode === "recover" ? !assessmentPhotos : !pickAssessmentFile && !assessmentPhotos) return;
+    const local = state.current;
+    if (!local || local.pending) return;
+    const controller = new AbortController();
+    const target = {
+      route: attemptId ? quizAttemptPath(base, attemptId, stage) : base,
+      kind, assessmentId: assessment.id, attemptId, questionId: currentQuestion.id, requestId: local.requestId,
+      isDraftCurrent: () => alive.current && !controller.signal.aborted && state.current?.requestId === local.requestId
+        && !state.current.pending && player.questions[state.current.index]?.id === currentQuestion.id,
+    };
+    let file: AssessmentFile | null | undefined;
+    uploadInProgress.current = true;
+    uploadAbort.current = controller;
+    setUploading(true);
+    if (mode === "pick") setNotice("");
+    try {
+      if (!await writing.current || !target.isDraftCurrent()) return;
+      if (mode === "recover") file = await assessmentPhotos?.recover(target);
+      else if (mode === "document") file = await assessmentPhotos?.pickDocument?.(target);
+      else file = pickAssessmentFile ? await pickAssessmentFile() : await assessmentPhotos?.pick(target);
+      if (!file || !target.isDraftCurrent()) return;
+      const source = new File(file.uri);
+      if (!source.exists || source.size === 0) throw new Error("Unreadable assessment file");
+      const limit = (kind === "quiz" ? 4 : 10) * 1024 * 1024;
+      if (source.size > limit || (file.size !== undefined && file.size > limit)) {
+        setNotice(tx("Ukuran berkas melebihi batas.", "The file exceeds the size limit."));
+        return;
+      }
+      const image = ["image/png", "image/jpeg", "image/jpg", "image/webp"].includes(file.type.toLowerCase());
+      if (!image && !(currentQuestion.acceptsFile && file.type.toLowerCase() === "application/pdf")) {
+        setNotice(tx("Format lampiran tidak didukung.", "Unsupported attachment format."));
+        return;
+      }
+      const data = new FormData();
+      data.append("file", source);
+      const params = new URLSearchParams({ questionId: currentQuestion.id, ...(attemptId ? { attemptId } : { requestId: local.requestId }) });
+      const result = await assessmentRequest<{ key?: string; fileName?: string; fileSize?: string; receipt?: string }>(request, `${base}/attachment?${params}`, {
+        method: "POST", body: data, signal: controller.signal,
+      });
+      if (!result.key || !result.fileName || (kind === "tryout" && !result.receipt)) throw new Error("Invalid attachment receipt");
+      if (target.isDraftCurrent()) changeAnswer(currentQuestion.id, {
+        ...assessmentText(state.current?.answers[currentQuestion.id]),
+        fileName: result.fileName, fileSize: result.fileSize, fileKey: result.key, receipt: result.receipt,
+      });
+    } catch {
+      if (target.isDraftCurrent()) setNotice(kind === "quiz" ? messages.quiz.uploadFailed : tryout.uploadFailed);
+    } finally {
+      try { file?.release?.(); } catch { /* Continue clearing the upload state. */ }
+      if (uploadAbort.current === controller) uploadAbort.current = null;
+      uploadInProgress.current = false;
+      if (alive.current) setUploading(false);
+    }
+  }, [accessLost, assessment.id, assessmentPhotos, attemptId, base, changeAnswer, kind, messages.quiz.uploadFailed, pickAssessmentFile, player.questions, request, stage, tryout.uploadFailed, tx]);
+
+  useEffect(() => {
+    if (!assessmentPhotos || !draft || !question || draft.pending || accessLost || totalLeft === 0 || uploadInProgress.current
+      || !(question.acceptsFile || question.acceptsImage) || assessmentText(draft.answers[question.id]).fileKey) return;
+    const key = `${draft.requestId}:${question.id}:${recoveryRevision}`;
+    if (attemptedRecovery.current.has(key)) return;
+    attemptedRecovery.current.add(key);
+    void attach(question, "recover");
+  }, [accessLost, assessmentPhotos, attach, draft, question, recoveryRevision, totalLeft]);
+
   if (accessLost) return <Frame title={tx("Asesmen tidak tersedia", "Assessment unavailable")}>
     <Message title={tx("Akses asesmen perlu diperiksa kembali", "Assessment access needs to be checked again")}
       action={tx("Kembali ke daftar", "Back to list")} onPress={() => replace(`${course}/${kind}`)} error />
@@ -169,43 +256,6 @@ export function AssessmentPlay({ player, assessment, kind, attemptId }: {
     update({ ...current, index: next, enteredAt: Date.now() });
     setMap(false);
     setNotice("");
-  }
-
-  function changeAnswer(id: string, answer: Answer) {
-    const current = state.current;
-    if (!current || current.pending) return;
-    update({ ...current, answers: { ...current.answers, [id]: answer } });
-  }
-
-  async function attach(currentQuestion: AssessmentQuestion) {
-    if (!pickAssessmentFile || blocked || uploadInProgress.current) return;
-    const local = state.current;
-    if (!local) return;
-    uploadInProgress.current = true;
-    setUploading(true);
-    setNotice("");
-    try {
-      const file = await pickAssessmentFile();
-      if (!file || !alive.current) return;
-      if (file.size !== undefined && file.size > (kind === "quiz" ? 4 : 10) * 1024 * 1024) {
-        setNotice(tx("Ukuran berkas melebihi batas.", "The file exceeds the size limit."));
-        return;
-      }
-      const data = new FormData();
-      data.append("file", { uri: file.uri, name: file.name, type: file.type } as unknown as Blob);
-      const params = new URLSearchParams({ questionId: currentQuestion.id, ...(attemptId ? { attemptId } : { requestId: local.requestId }) });
-      const result = await assessmentRequest<{ key?: string; fileName?: string; fileSize?: string; receipt?: string }>(request, `${base}/attachment?${params}`, { method: "POST", body: data });
-      if (!result.key || !result.fileName) throw new Error("Invalid attachment receipt");
-      if (alive.current) changeAnswer(currentQuestion.id, {
-        ...assessmentText(state.current?.answers[currentQuestion.id]),
-        fileName: result.fileName, fileSize: result.fileSize, fileKey: result.key, receipt: result.receipt,
-      });
-    } catch {
-      if (alive.current) setNotice(tryout.uploadFailed);
-    } finally {
-      uploadInProgress.current = false;
-      if (alive.current) setUploading(false);
-    }
   }
 
   async function remove(currentQuestion: AssessmentQuestion) {
@@ -265,7 +315,11 @@ export function AssessmentPlay({ player, assessment, kind, attemptId }: {
         <ButtonRow>{["π", "√", "∞", "±", "≤", "≥"].map((symbol) => <Button key={symbol} size="sm" variant="outline" disabled={blocked}
           accessibilityLabel={`${tx("Sisipkan", "Insert")} ${symbol}`} onPress={() => setText(question, `${text.text}${symbol}`.slice(0, 20_000))}>{symbol}</Button>)}</ButtonRow>
         {text.fileName ? <ButtonRow><Body>{text.fileName}{text.fileSize ? ` · ${text.fileSize}` : ""}</Body><Button size="sm" variant="ghost" disabled={blocked} onPress={() => void remove(question)}>{tryout.removeAttachment}</Button></ButtonRow> : null}
-        {pickAssessmentFile && (question.acceptsFile || question.acceptsImage) && !text.fileName ? <Button variant="outline" size="sm" isLoading={uploading} disabled={blocked} onPress={() => void attach(question)}>{tx("Pilih lampiran", "Choose attachment")}</Button> : null}
+        {(pickAssessmentFile || assessmentPhotos) && (question.acceptsFile || question.acceptsImage) && !text.fileName ? <ButtonRow>
+          <Button variant="outline" size="sm" isLoading={uploading} disabled={blocked} onPress={() => void attach(question)}>{pickAssessmentFile ? tx("Pilih lampiran", "Choose attachment") : tx("Pilih foto", "Choose photo")}</Button>
+          {!pickAssessmentFile && assessmentPhotos?.pickDocument && question.acceptsFile ? <Button variant="outline" size="sm" disabled={blocked}
+            onPress={() => void attach(question, "document")}>{tx("Pilih berkas", "Choose file")}</Button> : null}
+        </ButtonRow> : null}
       </> : null}
     </Section>
     <ButtonRow>
