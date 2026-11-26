@@ -123,7 +123,7 @@ test("the normal document and PKA routes retain the protected modal gate", async
   const reader = await Bun.file("apps/mobile-native/features/student/courses/OnlineReading.tsx").text();
   for (const owner of [app, template]) {
     expect(owner).toContain('pattern === "/courses/[id]/material/[materialId]" || pattern === "/courses/tutorial-pka/material/[materialId]"');
-    expect(owner).toContain("enabled={studentAssessment || studentReading}");
+    expect(owner).toContain("enabled={studentAssessment || studentReading || personalAccount}");
   }
   expect(reader).toContain("visible={open && !suspended}");
   expect(reader).toContain("return () => ctrl.abort()");

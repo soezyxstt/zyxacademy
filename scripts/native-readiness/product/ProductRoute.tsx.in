@@ -7,6 +7,7 @@ import { ActivityIndicator, Text, View, useColorScheme } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { getSafeRedirectPath } from "../../../packages/native-session/auth-redirect";
 import type { NativeAccountContext } from "../../../packages/native-session/context";
+import { isPersonalAccountRoute } from "../../../packages/student-community/account-access";
 import { AuthSessionStatus } from "../auth/auth-continuation";
 import { authCopy, authLocale } from "../auth/auth-copy";
 import { AuthPage, AuthStatus } from "../auth/auth-page";
@@ -20,6 +21,7 @@ import { useDevicePreferences } from "../device/preferences-provider";
 import { AcademicLiveScreen, bindAcademicSession, createAcademicClient } from "../features/academic";
 import { connectTutorDiscussionImages, TutorDiscussionImages } from "../features/academic/tutor/discussion-images";
 import { AdminOperationsScreen } from "../features/operations/AdminOperationsScreen";
+import { StaffAccountScreen } from "../features/student/community/StaffAccountScreen";
 import { academicRouteCanRead, productLocation, productNavigationHref, productQueryUpdate } from "./product-location";
 import { legacyLiveHostPattern, tutorLiveDestination } from "./live-host-alias";
 import { ProtectedInteractionContext } from "./protected-interaction";
@@ -68,7 +70,9 @@ function ProductRoute({ href, pattern, owner, StudentScreen }: {
   const { state, transport, getSnapshot, getPendingRefresh } = useNativeSession();
   const [deferredNavigation] = useState(createDeferredSessionNavigation);
   const tutor = owner === "academic" && href.startsWith("/tutor");
-  const adminVideo = owner === "academic" && pattern === "/admin/courses/[slug]/videos";
+  const adminCourseFiles = owner === "academic" && (
+    pattern === "/admin/courses/[slug]/videos" || pattern === "/admin/courses/[slug]/documents" || pattern === "/admin/courses/[slug]/review"
+  );
   const studentAssessment = owner === "student" && (
     pattern === "/courses/[id]/quiz/[quizId]" || pattern === "/courses/[id]/tryout/[tryoutId]" ||
     pattern === "/courses/tutorial-pka/simulasi/[subject]/[stage]"
@@ -76,7 +80,8 @@ function ProductRoute({ href, pattern, owner, StudentScreen }: {
   const studentReading = owner === "student" && (
     pattern === "/courses/[id]/material/[materialId]" || pattern === "/courses/tutorial-pka/material/[materialId]"
   );
-  const access = useNativeRouteAccountContext(studentAssessment || studentReading || tutor || adminVideo);
+  const personalAccount = owner === "student" && isPersonalAccountRoute(pattern);
+  const access = useNativeRouteAccountContext(studentAssessment || studentReading || tutor || adminCourseFiles || personalAccount);
   const context = access.context;
   const devicePreferences = useDevicePreferences();
   const scheme = useColorScheme();
@@ -137,9 +142,13 @@ function ProductRoute({ href, pattern, owner, StudentScreen }: {
   if (state.status === "signed-out") {
     return isFocused ? <Redirect href={authEntryHref({ entry: "sign-in", locale, next: href })} /> : null;
   }
-  if (owner === "student" && StudentScreen && (state.status === "signed-in" || (state.status === "unavailable" && state.offlineIdentity))) {
-    const identity = state.status === "signed-in" ? state : state.offlineIdentity;
-    return <RecheckingRoute enabled={studentAssessment || studentReading} checking={access.retaining} canInteract={canInteract}>
+  const learnerEntry = !personalAccount
+    ? state.status === "signed-in" || (state.status === "unavailable" && state.offlineIdentity)
+    : state.status === "signed-in" && context?.dashboard === "/dashboard" && context.roles.includes("murid") &&
+      transport?.isCurrent() && context.accountId === transport.scope.accountId && context.sessionId === transport.scope.sessionId;
+  if (owner === "student" && StudentScreen && learnerEntry) {
+    const identity = state.status === "signed-in" ? state : state.status === "unavailable" ? state.offlineIdentity : null;
+    return <RecheckingRoute enabled={studentAssessment || studentReading || personalAccount} checking={access.retaining} canInteract={canInteract}>
       <StudentScreen key={JSON.stringify([identity?.accountId, identity?.sessionId])} href={href} pattern={pattern}
         locale={locale} theme={theme} showChrome={!access.retaining && context?.roles.includes("murid") === true}
         context={context} devicePreferences={devicePreferences}
@@ -153,7 +162,9 @@ function ProductRoute({ href, pattern, owner, StudentScreen }: {
   </Text><Button onPress={access.retry}>{locale === "en" ? "Try again" : "Coba lagi"}</Button>
     <Button onPress={() => back()}>{locale === "en" ? "Back" : "Kembali"}</Button></SafeAreaView>;
   if (!context || !transport?.isCurrent()) return <ActivityIndicator />;
-  const role = owner === "student" ? "murid" : tutor ? "tutor" : "admin";
+  const role = personalAccount
+    ? context.dashboard === "/admin" ? "admin" : context.dashboard === "/tutor" ? "tutor" : "murid"
+    : owner === "student" ? "murid" : tutor ? "tutor" : "admin";
   if (context.accountId !== transport.scope.accountId || context.sessionId !== transport.scope.sessionId ||
     !context.roles.includes(role)) return <SafeAreaView><Text accessibilityRole="alert">
     {locale === "en" ? "Access denied." : "Akses ditolak."}
@@ -161,10 +172,13 @@ function ProductRoute({ href, pattern, owner, StudentScreen }: {
   const accountKey = JSON.stringify([context.accountId, context.sessionId, locale]);
   if (role === "murid") return isFocused ? <StudentBrowserPage key={accountKey} locale={locale} href={href}
     canNavigate={() => navigationStatus() === "ready"} signOut={() => navigate("/sign-out")} /> : null;
-  return <RecheckingRoute enabled={tutor || adminVideo} checking={access.retaining} canInteract={canInteract}>
+  return <RecheckingRoute enabled={tutor || adminCourseFiles || personalAccount} checking={access.retaining} canInteract={canInteract}>
     <StaffChrome key={accountKey} role={role} href={href} theme={theme} focused={isFocused} context={context}
       checkingAccess={access.retaining} session={transport} visit={visit} back={back} loadTutorCourses={loadTutorCourses}>
-      {owner === "academic" ? <AcademicRoute href={href} session={transport} accountId={context.accountId}
+      {personalAccount ? <StaffAccountScreen href={href} theme={theme} role={role} session={transport} context={context}
+        canInteract={canInteract} focused={isFocused} devicePreferences={devicePreferences}
+        navigate={navigateInScreen} replace={replaceInScreen} back={back} /> :
+        owner === "academic" ? <AcademicRoute href={href} session={transport} accountId={context.accountId}
         role={role} locale={locale} navigate={navigateInScreen} replace={replaceInScreen}
         back={() => back(role === "admin" ? "/admin" : "/tutor")} theme={theme} /> :
         <AdminOperationsScreen href={href} session={transport} context={context} navigate={navigateInScreen} theme={theme} />}
