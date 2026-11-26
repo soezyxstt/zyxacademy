@@ -206,7 +206,7 @@
     "app/(student)/courses/[id]/path/page.tsx": "c17cb9ce092b6ab30c8dce1803b1cabb2253793c85710385d70c0c9e1042e723",
     "components/course/study-path-timeline.tsx": "0025718d1641b666eb3a5567abebcce4be1e5a75d2a4741ddf32b05de006cd65",
     "components/student-account-boundary.tsx": "3c2e2282b7b9e49666abf7caa3dd621cd120589d4a12e16dd2f9b2c0d094f19a",
-    "hooks/use-study-path.ts": "1a352725893b7e5b9857d2deb3c0bf1c3647094496ab1aee62a44da395048af4",
+    "hooks/use-study-path.ts": "0e4b5e8c265b4f4b6e6f584a2665bf50914f802fa677d79d769c693899886020",
     "lib/student/study-path-query.ts": "277499cb323d61c205adae78d3557797379f060bfda2027d236a853815cc87b5",
     ".maestro/native-parallel/student/study-path-parity.yaml": "344f3f487cce486d0b4072c6ce7311137a8b2a65506d55c9025ca1c067332741"
   },

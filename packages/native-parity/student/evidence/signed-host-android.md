@@ -10,3 +10,6 @@ The integrator already owns a signed mounted-app rehearsal. At parent `ecf50dd0`
 The exact device cannot run in this workspace, which has no Android emulator or KVM. The existing authenticated runbook covers the hosted fixture, and the installed APK and browser are needed for the API 35 claim.
 
 The local loopback rehearsal passed with Bun 1.3.14 and disposable PostgreSQL 17.12. The official `AUTH_STUDENT_PRODUCT=true` smoke used the mounted tree above and verified start, completion, exchange, signed session, Student context, dashboard, recipient-scoped inbox acknowledgement and logout. The fixture database and TLS material were removed at the end. This was a protocol and backend test, with no APK or browser simulator running.
+
+
+On the integration base `24a84607`, the committed router contains 103 public, Tutor and Admin entry points and a browser fallback for the Student dashboard. A disposable checkout merging that base with this Student PR mounted all 153 canonical entries. Running the mount twice and both product-mount tests passed. The generated `/dashboard` and `/courses` use the verified Student entry. Select `include_pending_student` in the integration workflow to build these entries.

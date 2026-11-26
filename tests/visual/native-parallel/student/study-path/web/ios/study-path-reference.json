@@ -184,7 +184,7 @@
   "captures": {
     "study-path-roadmap.png": "47dd44bff505e43b175c1097d2f9e450e9cb9a4fee8573bf51d8ed93fee7d89a",
     "study-path-plan.png": "010185e2f537058b6819034624257ecdc17c7fb428184750bc149979f2f7137d",
-    "study-path-empty.png": "10f660025a5c3c69e6e464639cd45023bba5e0c35368ebbb72551e123643aaa9"
+    "study-path-empty.png": "d3b2588a49a5202b53a9bb75509a9d2b9e7041d7e88062e8d950b27bacc2ae67"
   },
   "sourceDigests": {
     "tests/visual/fixtures/student-learning-reference.tsx": "7da7472fdc812a5e306dbb7b3ed2d7885ada05cbf29670efbb1fdaaac10397f7",
@@ -206,7 +206,7 @@
     "app/(student)/courses/[id]/path/page.tsx": "c17cb9ce092b6ab30c8dce1803b1cabb2253793c85710385d70c0c9e1042e723",
     "components/course/study-path-timeline.tsx": "0025718d1641b666eb3a5567abebcce4be1e5a75d2a4741ddf32b05de006cd65",
     "components/student-account-boundary.tsx": "3c2e2282b7b9e49666abf7caa3dd621cd120589d4a12e16dd2f9b2c0d094f19a",
-    "hooks/use-study-path.ts": "1a352725893b7e5b9857d2deb3c0bf1c3647094496ab1aee62a44da395048af4",
+    "hooks/use-study-path.ts": "0e4b5e8c265b4f4b6e6f584a2665bf50914f802fa677d79d769c693899886020",
     "lib/student/study-path-query.ts": "277499cb323d61c205adae78d3557797379f060bfda2027d236a853815cc87b5",
     ".maestro/native-parallel/student/study-path-parity.yaml": "344f3f487cce486d0b4072c6ce7311137a8b2a65506d55c9025ca1c067332741"
   },

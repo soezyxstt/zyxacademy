@@ -162,7 +162,7 @@
     "tests/visual/fixtures/interactive-document-build.ts": "dc51a2f41b0a567504d40004f1ec44e9469601c8e74eb6fd71b6da23ebd45053",
     "app/(student)/courses/[id]/mastery/page.tsx": "fb5846e7cd991120de601c667fbf6db9ffa04d4cfe8d27882f17e016cea76753",
     "app/globals.css": "be812b64b005159daf0c3db873b0a8571952834222d9c8906019650388becf83",
-    "components/course/concept-map.tsx": "22748b45161cec8b85723f77fa9347b13f9ade25454d8e55bdcafeee25d4ee28",
+    "components/course/concept-map.tsx": "937799f4d206098a7de5f56559047a58309862007b83646a6ccfcbe5a985a97b",
     "components/course/course-page-shell.tsx": "e4171dee451d6ca3e9049e0fafb61061392cfa23d3d2fb8c1451dd7f75f05aa6",
     "components/navigation/mobile-top-navbar.tsx": "80bc1dc3904f662bff0b39ff07f108339b69ce4b68672a836b738e8db50beda6",
     "packages/native-parity/student/fixture-request.ts": "dd4c36db26586b294cac067e5d062c8e5d7e2ac0b78fac09eafa1ee406192ae9",
