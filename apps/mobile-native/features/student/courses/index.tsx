@@ -618,10 +618,22 @@ function CourseEntry(props: StudentScreenProps & { query: LearningQuery }) {
   );
 }
 
+function CourseRoute(props: StudentScreenProps & { query: LearningQuery }) {
+  const scrollY = useRef(props.initialScrollY);
+  // Unmount the protected read while covered. Back starts a new authorization
+  // check while this stack entry keeps its last reported scroll position.
+  if (props.focused === false) return null;
+  return <CourseEntry {...props} initialScrollY={scrollY.current} onScrollY={value => {
+    scrollY.current = value;
+    props.onScrollY(value);
+  }} />;
+}
+
 export function CourseScreen(props: StudentScreenProps) {
   const query = queryForRoute(props.route);
-  const { origin, userId, locale } = props.session;
-  const key = JSON.stringify([origin, userId, locale, query]);
+  const { origin, userId, sessionId, locale } = props.session;
+  const key = JSON.stringify([origin, userId, sessionId, locale, query]);
+  if ("courseId" in query) return <CourseRoute key={key} {...props} query={query} />;
   return <CourseEntry key={key} {...props} query={query} />;
 }
 
