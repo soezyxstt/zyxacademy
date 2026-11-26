@@ -67,9 +67,28 @@ def mount():
     drafts = MOBILE / "features/student/assessment-drafts.tsx"
     rewrite_once(drafts, 'const { subscribeBeforeLogout } = useNativeSession();\n  useEffect(() => subscribeBeforeLogout(cleanup => repository.purgeSession(cleanup.scope)), [subscribeBeforeLogout]);',
                  'const { subscribeBeforeLocalLogout } = useNativeSession();\n  useEffect(() => subscribeBeforeLocalLogout(repository.purgeSession), [subscribeBeforeLocalLogout]);')
+    chrome_hooks = {
+        "assessment/player.tsx": ('const props = useAssessment();', 'useStudentChromeVisibility({ hideBottom: true });'),
+        "learning/flashcards.tsx": (
+            'const card = index < batchSize ? queue[position] : undefined;',
+            'useStudentChromeVisibility({ hideBottom: Boolean(card) });',
+        ),
+        "courses/index.tsx": (
+            'const { course, material } = data;',
+            'useStudentChromeVisibility({ hideTop: !material.locked && material.kind === "article" });',
+        ),
+    }
+    for name, (anchor, hook) in chrome_hooks.items():
+        screen = MOBILE / "features/student" / name
+        first_import = screen.read_text().splitlines()[0]
+        chrome_import = 'import { useStudentChromeVisibility } from "../../../routing/student-chrome";'
+        if first_import != chrome_import:
+            rewrite_once(screen, first_import, f"{chrome_import}\n{first_import}")
+        rewrite_once(screen, anchor, f"{anchor}\n  {hook}")
     layout = MOBILE / "app/_layout.tsx"
     rewrite_once(layout, 'import { nativeFontSources }', 'import { AssessmentDraftCleanup } from "../features/student/assessment-drafts";\nimport { nativeFontSources }')
-    rewrite_once(layout, '<NativeAccountContextProvider>', '<NativeAccountContextProvider>\n          <AssessmentDraftCleanup />')
+    if '<AssessmentDraftCleanup />' not in layout.read_text():
+        rewrite_once(layout, '<NativeAccountContextProvider>', '<NativeAccountContextProvider>\n          <AssessmentDraftCleanup />')
     print(f"Mounted {len(routes)} canonical external routes and the Murid redirect.")
 
 

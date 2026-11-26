@@ -89,3 +89,12 @@ test("native course commands reuse administrative projections with session autho
   expect(entry.reason).toContain("chapters.update");
   expect(entry.reason).toContain("materials.update_metadata");
 });
+
+test("live public form writes stay separate from MCP preview and simulation", () => {
+  for (const source of ["app/api/forms/[idOrSlug]/route.ts", "app/api/forms/upload/route.ts"]) {
+    const entry = operationsCatalog.find(item => item.source === source);
+    expect(entry?.status).toBe("excluded");
+    expect(entry?.tools).toEqual([]);
+    expect(entry?.actions).toContain("POST");
+  }
+});

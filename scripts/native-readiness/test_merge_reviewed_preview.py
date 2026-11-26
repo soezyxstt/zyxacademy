@@ -3,12 +3,28 @@ import unittest
 from merge_reviewed_preview import (
     OPERATIONS_CHECK,
     STUDENT_IMPORT,
+    combine_catalog_checks,
     combine_disclosure_checks,
     combine_tutor_actions,
 )
 
 
 class ReviewedPreviewTests(unittest.TestCase):
+    def test_combine_independent_named_catalog_checks_without_losing_assertions(self):
+        def check(name, assertion):
+            return f'test("{name}", () => {{\n  expect({assertion}).toBe(true);\n}});\n'
+        base = check("shared", "base")
+        changed = check("shared", "updated")
+        ours = changed + check("student", "learner")
+        theirs = base + check("academic", "course")
+        combined = combine_catalog_checks(base, ours, theirs)
+        for check_body in (changed, check("student", "learner"), check("academic", "course")):
+            self.assertIn(check_body, combined)
+        with self.assertRaises(ValueError):
+            combine_catalog_checks(base, ours, check("shared", "competing"))
+        with self.assertRaises(ValueError):
+            combine_catalog_checks(base, ours, check("academic", "course"))
+
     def test_keep_student_submit_and_academic_authoring_and_grading(self):
         student = STUDENT_IMPORT + """
 export async function submitTryoutAction(input) {

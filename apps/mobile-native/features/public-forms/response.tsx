@@ -17,6 +17,9 @@ type FormResponseProps = {
   form: PublicForm;
   locale: FormLocale;
   signedIn: boolean;
+  sessionStatus?: "waiting" | "unavailable";
+  onSessionRetry?: () => void;
+  onUploadWeb?: () => void;
   statusCheck?: number;
   checking?: boolean;
   checkFailed?: boolean;
@@ -31,7 +34,7 @@ type FormResponseProps = {
 
 const emptyDraft = (): FormDraft => ({ answers: {}, other: {}, email: "" });
 
-export function PublicFormResponse({ form, locale, signedIn, onSubmit, onUpload, onLogin, onWeb, onCheck, onDone, statusCheck, checking, checkFailed, onRepeat }: FormResponseProps) {
+export function PublicFormResponse({ form, locale, signedIn, sessionStatus, onSessionRetry, onUploadWeb, onSubmit, onUpload, onLogin, onWeb, onCheck, onDone, statusCheck, checking, checkFailed, onRepeat }: FormResponseProps) {
   const colors = nativeColors[useColorScheme() ?? "light"];
   const copy = publicFormCopy(locale);
   const needsEmail = form.settings.collectEmail === "input";
@@ -135,7 +138,7 @@ export function PublicFormResponse({ form, locale, signedIn, onSubmit, onUpload,
     occupied.current = false;
     if (!active.current) return;
     setPending(null);
-    setResult(outcome.status);
+    setResult(outcome.status === "session-pending" ? null : outcome.status);
     if (["sent", "uncertain", "already-sent", "missing"].includes(outcome.status)) locked.current = true;
     if (outcome.status === "sent") {
       update(emptyDraft());
@@ -144,7 +147,7 @@ export function PublicFormResponse({ form, locale, signedIn, onSubmit, onUpload,
   }
 
   function next() {
-    if (occupied.current || confirming.current || locked.current || !validate(finalStep)) return;
+    if (occupied.current || confirming.current || locked.current || (finalStep && sessionStatus) || !validate(finalStep)) return;
     if (!finalStep) {
       navigate(cursor + 1);
       return;
@@ -158,7 +161,7 @@ export function PublicFormResponse({ form, locale, signedIn, onSubmit, onUpload,
   }
 
   async function upload(index: number) {
-    if (occupied.current || confirming.current || locked.current) return;
+    if (occupied.current || confirming.current || locked.current || sessionStatus) return;
     occupied.current = true;
     setPending({ status: "upload", index });
     setUploadErrors(previous => ({ ...previous, [index]: "" }));
@@ -176,7 +179,7 @@ export function PublicFormResponse({ form, locale, signedIn, onSubmit, onUpload,
       if (outcome.status === "missing") locked.current = true;
       setResult(outcome.status);
     } else if (outcome.status !== "cancelled") {
-      const message = outcome.status === "type" ? copy.fileWrongType : copy.fileFailed;
+      const message = outcome.status === "type" ? copy.fileWrongType : outcome.status === "size" ? copy.fileTooLarge : copy.fileFailed;
       setUploadErrors(previous => ({ ...previous, [index]: message }));
     }
   }
@@ -240,7 +243,7 @@ export function PublicFormResponse({ form, locale, signedIn, onSubmit, onUpload,
             onDetail={value => update({ ...draftRef.current, other: { ...draftRef.current.other, [index]: value } })}
             file={question.type !== "FILE_UPLOAD" ? undefined : {
               filename: filenames[index], error: uploadErrors[index], pending: pending?.status === "upload" && pending.index === index,
-              pick: () => void upload(index), clear: () => {
+              pick: () => void upload(index), blocked: !!sessionStatus, openWeb: onUploadWeb, clear: () => {
                 updateAnswer(index, undefined);
                 setFilenames(previous => { const next = { ...previous }; delete next[index]; return next; });
               },
@@ -248,6 +251,10 @@ export function PublicFormResponse({ form, locale, signedIn, onSubmit, onUpload,
         </View>;
       })}
       {notice}
+      {sessionStatus === "waiting" && <Text accessibilityLiveRegion="polite"
+        style={[formStyles.meta, { color: colors.mutedForeground }]}>{copy.sessionChecking}</Text>}
+      {sessionStatus === "unavailable" && <NativeStatusPanel tone="error" title={copy.sessionUnavailable}
+        action={{ id: "session", label: copy.retry }} onAction={onSessionRetry ?? onCheck} />}
       {checkFailed && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[formStyles.meta, { color: colors.destructive }]}>{copy.loadError}</Text>}
       <View style={formStyles.row}>
         {cursor > 0 && <SharedUiActionButton action={{ id: "back", label: copy.back, disabled: !!pending, variant: "ghost" }}
@@ -255,7 +262,7 @@ export function PublicFormResponse({ form, locale, signedIn, onSubmit, onUpload,
         {!blocked && <SharedUiActionButton
           action={{ id: "next", label: pending?.status === "submit" ? copy.submitting.replace("...", "…")
             : finalStep ? copy.submit : cover && !email && !indices.length ? copy.start : copy.next,
-            disabled: disabled || needsCheck, pending: pending?.status === "submit", variant: "default" }}
+            disabled: disabled || needsCheck || (finalStep && !!sessionStatus), pending: pending?.status === "submit", variant: "default" }}
           onAction={next} testID="public-form-next" />}
       </View>
     </ScrollView>

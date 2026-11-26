@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { buildFormSteps } from "../../packages/forms/presentation";
+import { formDraftOwner, formWriteAccess } from "../../apps/mobile-native/features/public-forms/session";
+import { createNativeTransport } from "../../apps/mobile-native/network/transport";
+import { buildFormSteps, formScaleValues } from "../../packages/forms/presentation";
 import { publicFormCases, publicFormFixtureEnvelope } from "../../packages/forms/parity-cases";
 import { createFormSubmissionGate, loadPublicForm, submitPublicForm, uploadPublicForm, type FormRequest } from "../../apps/mobile-native/features/public-forms/client";
 import {
@@ -118,9 +120,72 @@ describe("Public Expo forms", () => {
     expect(dispatched).toBe(3);
   });
 
+  test("keeps the draft owner through foreground checks and transport replacement, but blocks writes until verified", () => {
+    const network = createNativeTransport({ origin, fetcher: async () => new Response() });
+    const scope = { origin, accountId: "user", sessionId: "session" };
+    const transport = network.setSession({ ...scope, readCookie: () => "session=example" });
+    const state = { status: "signed-in", expiresAt: 100_000, ...scope } as const;
+    const verified = { state, transport, revalidating: false };
+    const owner = formDraftOwner(verified, null);
+    const waiting = { ...verified, revalidating: true };
+    expect(formDraftOwner(waiting, owner)).toBe(owner);
+    expect(formWriteAccess(waiting, owner)).toBeNull();
+    expect(formWriteAccess(verified, owner)).toBe(transport);
+
+    network.clearSession();
+    const unavailable = { state: { status: "unavailable", offlineIdentity: state } as const, transport: null, revalidating: false };
+    expect(formDraftOwner(unavailable, owner)).toBe(owner);
+    expect(formWriteAccess(unavailable, owner)).toBeNull();
+    expect(formWriteAccess(verified, owner)).toBeNull();
+    const restored = { ...verified, transport: network.setSession({ ...scope, readCookie: () => "session=example" }) };
+    expect(formDraftOwner(restored, owner)).toBe(owner);
+    expect(formWriteAccess(restored, owner)).toBe(restored.transport);
+
+    const changedScope = { ...scope, sessionId: "replacement" };
+    const changed = { state: { ...state, ...changedScope }, revalidating: false,
+      transport: network.setSession({ ...changedScope, readCookie: () => "session=replacement" }) };
+    expect(formDraftOwner(changed, owner)).toEqual(changedScope);
+    expect(formWriteAccess(changed, owner)).toBeNull();
+    const signedOut = { state: { status: "signed-out" } as const, transport: null, revalidating: false };
+    expect(formDraftOwner(signedOut, owner)).toBe("anonymous");
+    expect(formWriteAccess(signedOut, owner)).toBeNull();
+    expect(formWriteAccess(signedOut, "anonymous")).toBe("anonymous");
+  });
+
+  test("preserves authored scale endpoints while retaining the five-level default", () => {
+    const parsed = parsePublicForm({ success: true, form: { ...form, questions: [
+      { type: "SCALE", title: "Scale", scaleLow: 0, scaleHigh: 10 },
+      { type: "SCALE", title: "Short scale", scaleLow: 1, scaleHigh: 2 },
+      { type: "SCALE", title: "Legacy scale" },
+    ] } }, "full");
+    expect(parsed.status === "ready" && parsed.form.questions.map(formScaleValues)).toEqual([
+      [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], [1, 2], [1, 2, 3, 4, 5],
+    ]);
+  });
+
+  test("binds both signed requests to the supplied verified scope and leaves anonymous headers absent", async () => {
+    const identity = { accountId: "account", sessionId: "session" };
+    const draft = { answers: {}, email: "", other: {} };
+    const body = new FormData();
+    const request: FormRequest = async (path, options) => {
+      expect(path).toEndWith("?target=id&respondent=session");
+      const headers = new Headers(options.headers);
+      expect(headers.get("X-Zyx-Form-Account")).toBe(identity.accountId);
+      expect(headers.get("X-Zyx-Form-Session")).toBe(identity.sessionId);
+      return reply({ success: true, url: "/api/storage/file/forms/upload.pdf" });
+    };
+    expect(await submitPublicForm(request, form, draft, signal, identity)).toEqual({ status: "sent" });
+    expect(await uploadPublicForm(request, body, signal, origin, identity)).toMatchObject({ status: "uploaded" });
+    await submitPublicForm(async (_path, options) => {
+      expect(new Headers(options.headers).has("X-Zyx-Form-Session")).toBe(false);
+      return reply({ success: true });
+    }, form, draft, signal);
+  });
+
   test("uses form MIME and size policy and accepts only same-origin form storage URLs", async () => {
     expect(formUploadPolicy({ type: "FILE_UPLOAD", title: "Evidence", allowedFileTypes: ["application/pdf"], maxFileSizeMb: 100 }))
-      .toEqual({ mimeTypes: ["application/pdf"], maxMb: 50, maxBytes: 50 * 1024 * 1024 });
+      .toEqual({ mimeTypes: ["application/pdf"], maxMb: 10, authoredMaxMb: 50, maxBytes: 10 * 1024 * 1024 });
+    expect(formUploadPolicy({ type: "FILE_UPLOAD", title: "Evidence", maxFileSizeMb: 5 })).toMatchObject({ maxMb: 5, authoredMaxMb: 5 });
     const body = new FormData();
     const validUrl = "/api/storage/file/forms/tutorial/soal-01/name.pdf";
     const request: FormRequest = async (path, options) => {

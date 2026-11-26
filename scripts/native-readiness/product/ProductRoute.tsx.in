@@ -1,6 +1,7 @@
-import { Redirect, useLocalSearchParams, useRouter, type Href } from "expo-router";
-import { useCallback, useRef } from "react";
-import { ActivityIndicator, Text, View, useColorScheme } from "react-native";
+import { Redirect, useFocusEffect, useIsFocused, useLocalSearchParams, useNavigation, useRoute, useRouter, type Href } from "expo-router";
+import { CommonActions } from "expo-router/react-navigation";
+import { useCallback, useMemo, useRef, useState, type ComponentProps } from "react";
+import { ActivityIndicator, Text, useColorScheme } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { getSafeRedirectPath } from "../../../packages/native-session/auth-redirect";
 import { AuthSessionStatus } from "../auth/auth-continuation";
@@ -13,21 +14,27 @@ import { Button } from "../components/Button";
 import { AcademicLiveScreen, bindAcademicSession } from "../features/academic";
 import { AdminOperationsScreen, PublicOperationsScreen } from "../features/operations";
 import { VerifiedStudentEntry } from "../features/student/VerifiedStudentEntry";
-import { productLocation } from "./product-location";
+import { academicRouteCanRead, productLocation, productQueryUpdate } from "./product-location";
+import { StudentChrome } from "./student-chrome";
 
 type Owner = "public" | "student" | "academic" | "operations";
 
 export function productRoute(pattern: string, owner: Owner) {
   return function InstalledProductRoute() {
     const params = useLocalSearchParams();
-    const href = productLocation(pattern, params);
+    const route = useRoute();
+    // SDK 58 decodes useLocalSearchParams values again. Student filters can
+    // contain literal percent sequences, so take the entry's decoded query as stored.
+    const local = owner === "student" ? { ...params, ...route.params, "#": params["#"] } : params;
+    const href = productLocation(pattern, local);
     if (!href) return <Redirect href="/" />;
-    return <ProductRoute href={href} owner={owner} />;
+    return <ProductRoute href={href} pattern={pattern} owner={owner} />;
   };
 }
 
-function ProductRoute({ href, owner }: { href: string; owner: Owner }) {
+function ProductRoute({ href, pattern, owner }: { href: string; pattern: string; owner: Owner }) {
   const router = useRouter();
+  const isFocused = useIsFocused();
   const { state, transport } = useNativeSession();
   const access = useNativeAccountContext();
   const theme = useColorScheme() === "dark" ? "dark" : "light";
@@ -43,11 +50,14 @@ function ProductRoute({ href, owner }: { href: string; owner: Owner }) {
   if (owner === "public") return <SafeAreaView style={{ flex: 1 }}>
     <PublicOperationsScreen href={href} origin={NATIVE_STAGING_ORIGIN} locale={locale} theme={theme} onNavigate={navigate} onBack={back} />
   </SafeAreaView>;
-  if (state.status === "signed-out") return <Redirect href={authEntryHref({ entry: "sign-in", locale, next: href })} />;
+  if (state.status === "signed-out") {
+    return isFocused ? <Redirect href={authEntryHref({ entry: "sign-in", locale, next: href })} /> : null;
+  }
   if (owner === "student" && (state.status === "signed-in" || (state.status === "unavailable" && state.offlineIdentity))) {
     const identity = state.status === "signed-in" ? state : state.offlineIdentity;
-    return <StudentRoute key={JSON.stringify([identity?.accountId, identity?.sessionId, locale])}
-      href={href} locale={locale} navigate={navigate} replace={replace} back={back} />;
+    return <StudentRoute key={JSON.stringify([identity?.accountId, identity?.sessionId])} href={href} pattern={pattern}
+      locale={locale} theme={theme} showChrome={access.context?.roles.includes("murid") === true}
+      navigate={navigate} replace={replace} back={back} />;
   }
   if (state.status !== "signed-in") return <AuthSessionStatus locale={locale} />;
   if (access.failed) return <SafeAreaView><Text accessibilityRole="alert">
@@ -64,19 +74,53 @@ function ProductRoute({ href, owner }: { href: string; owner: Owner }) {
   </Text><Button onPress={() => back()}>{locale === "en" ? "Back" : "Kembali"}</Button></SafeAreaView>;
   const accountKey = JSON.stringify([context.accountId, context.sessionId, locale]);
   return <SafeAreaView key={accountKey} style={{ flex: 1 }}>
-    {owner === "academic" ? <AcademicLiveScreen href={href} transport={bindAcademicSession(transport, locale)}
-      actor={{ id: context.accountId, role }} navigate={navigate} replace={replace} back={back} theme={theme} /> :
+    {owner === "academic" ? <AcademicRoute href={href} session={transport} accountId={context.accountId}
+      role={role} locale={locale} navigate={navigate} replace={replace} back={back} theme={theme} /> :
       <AdminOperationsScreen href={href} session={transport} context={context} navigate={navigate} theme={theme} />}
   </SafeAreaView>;
 }
 
-function StudentRoute({ href, locale, ...actions }: {
-  href: string; locale: "id" | "en"; navigate(path: string): void; replace(path: string): void; back(): void;
+function AcademicRoute({ session, locale, accountId, role, ...props }: {
+  session: Parameters<typeof bindAcademicSession>[0]; locale: "id" | "en"; accountId: string; role: "admin" | "tutor";
+} & Pick<ComponentProps<typeof AcademicLiveScreen>, "href" | "navigate" | "replace" | "back" | "theme">) {
+  const focused = useIsFocused();
+  const focusedOnce = useRef(false);
+  const [refresh, setRefresh] = useState(0);
+  const preserveList = academicRouteCanRead(props.href, false, true);
+  useFocusEffect(useCallback(() => {
+    if (preserveList && focusedOnce.current) setRefresh(value => value + 1);
+    focusedOnce.current = true;
+  }, [preserveList]));
+  const transport = useMemo(() => bindAcademicSession(session, locale), [session, locale]);
+
+  // Keep list filters on Back. Other Academic screens recheck their protected
+  // resource from a fresh mount before displaying any previous result.
+  if (!academicRouteCanRead(props.href, focused, focusedOnce.current)) return null;
+  return <AcademicLiveScreen {...props} transport={transport} actor={{ id: accountId, role }} refresh={refresh} />;
+}
+
+function StudentRoute({ href, pattern, locale, theme, showChrome, navigate, replace, back }: {
+  href: string; pattern: string; locale: "id" | "en"; theme: "light" | "dark"; showChrome: boolean;
+  navigate(path: string): void; replace(path: string): void; back(fallback?: string): void;
 }) {
+  const router = useRouter();
+  const navigation = useNavigation();
   const scroll = useRef(0);
   const entry = useRef(href.split(/[?#]/, 1)[0]);
-  return <SafeAreaView style={{ flex: 1 }}>
-    <View style={{ flex: 1 }}><VerifiedStudentEntry path={href} entryKey={entry.current} offlineLocale={locale}
-      initialScrollY={scroll.current} onScrollY={value => { scroll.current = value; }} {...actions} /></View>
-  </SafeAreaView>;
+  const pathname = href.split(/[?#]/, 1)[0];
+  const visit = (target: string) => {
+    if (target !== pathname) router.navigate(target as Href);
+  };
+  const replaceStudent = (target: string) => {
+    if (getSafeRedirectPath(target) !== target || !navigation.isFocused()) return;
+    const update = productQueryUpdate(pattern, href, target);
+    if (update === null) replace(target);
+    else if (Object.keys(update).length) navigation.dispatch(CommonActions.setParams(update));
+  };
+
+  return <StudentChrome href={href} pattern={pattern} locale={locale} theme={theme} enabled={showChrome} visit={visit} back={back}>
+    <VerifiedStudentEntry path={href} entryKey={entry.current} offlineLocale={locale}
+      initialScrollY={scroll.current} onScrollY={value => { scroll.current = value; }}
+      navigate={navigate} replace={replaceStudent} back={() => back("/dashboard")} />
+  </StudentChrome>;
 }

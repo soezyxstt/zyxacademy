@@ -43,6 +43,12 @@ export function buildFormSteps(
   return steps;
 }
 
+export function formScaleValues({ scaleLow, scaleHigh }: { scaleLow?: number; scaleHigh?: number }): number[] {
+  const start = scaleLow === 0 ? 0 : 1;
+  const end = typeof scaleHigh === "number" && Number.isInteger(scaleHigh) && scaleHigh >= 2 && scaleHigh <= 10 ? scaleHigh : 5;
+  return Array.from({ length: end - start + 1 }, (_, offset) => start + offset);
+}
+
 export const PUBLIC_FORM_MAX_FILE_SIZE_MB = 50;
 
 export function formFileSizeLimitMb(configured?: number): number {
