@@ -1,0 +1,120 @@
+{
+  "platform": "android",
+  "viewport": {
+    "width": 380,
+    "height": 820
+  },
+  "deviceScaleFactor": 1,
+  "locale": "id",
+  "theme": "light",
+  "timeZone": "Asia/Jakarta",
+  "motion": "reduced",
+  "fonts": "Inter and Lexend from native assets",
+  "states": {
+    "new": {
+      "scenario": "quiz-gateway-new",
+      "path": "/courses/native-assessment-course/quiz/native-quiz",
+      "courseId": "native-assessment-course",
+      "courseTitle": "Kalkulus dasar",
+      "assessment": {
+        "id": "native-quiz",
+        "title": "Fungsi, limit, dan turunan",
+        "availability": "open",
+        "durationSeconds": 900,
+        "questionCount": 3,
+        "openAt": null,
+        "closeAt": null,
+        "maxAttempts": 2,
+        "attempts": 0,
+        "visibility": "free",
+        "discussionAvailable": false
+      },
+      "history": [],
+      "displayedFacts": [
+        "3",
+        "15 menit",
+        "2 dari 2"
+      ]
+    },
+    "resumable": {
+      "scenario": "quiz-gateway-resumable",
+      "path": "/courses/native-assessment-course/quiz/native-quiz",
+      "courseId": "native-assessment-course",
+      "courseTitle": "Kalkulus dasar",
+      "assessment": {
+        "id": "native-quiz",
+        "title": "Fungsi, limit, dan turunan",
+        "availability": "open",
+        "durationSeconds": 900,
+        "questionCount": 3,
+        "openAt": null,
+        "closeAt": null,
+        "maxAttempts": 2,
+        "attempts": 2,
+        "bestScore": 80,
+        "visibility": "free",
+        "discussionAvailable": false,
+        "activeAttemptId": "native-active-attempt"
+      },
+      "history": [
+        {
+          "id": "native-completed-attempt",
+          "assessmentId": "native-quiz",
+          "assessmentTitle": "Fungsi, limit, dan turunan",
+          "kind": "quiz",
+          "status": "completed",
+          "score": 80,
+          "submittedAt": "2026-10-05T12:00:00.000Z",
+          "durationSeconds": 301
+        }
+      ],
+      "displayedFacts": [
+        "3",
+        "15 menit",
+        "1 dari 2"
+      ]
+    },
+    "exhausted": {
+      "scenario": "quiz-gateway-exhausted",
+      "path": "/courses/native-assessment-course/quiz/native-quiz",
+      "courseId": "native-assessment-course",
+      "courseTitle": "Kalkulus dasar",
+      "assessment": {
+        "id": "native-quiz",
+        "title": "Fungsi, limit, dan turunan",
+        "availability": "open",
+        "durationSeconds": 900,
+        "questionCount": 3,
+        "openAt": null,
+        "closeAt": null,
+        "maxAttempts": 1,
+        "attempts": 1,
+        "bestScore": 80,
+        "visibility": "free",
+        "discussionAvailable": false
+      },
+      "history": [
+        {
+          "id": "native-completed-attempt",
+          "assessmentId": "native-quiz",
+          "assessmentTitle": "Fungsi, limit, dan turunan",
+          "kind": "quiz",
+          "status": "completed",
+          "score": 80,
+          "submittedAt": "2026-10-05T12:00:00.000Z",
+          "durationSeconds": 301
+        }
+      ],
+      "displayedFacts": [
+        "3",
+        "15 menit",
+        "0 dari 1"
+      ]
+    }
+  },
+  "captures": {
+    "quiz-gateway-new.png": "4bdfa9deb965a0b5979459f942da1801d93cfe2ff367cb807f20baa6f984453d",
+    "quiz-gateway-resumable.png": "1f1af177e4d3b23081381870c18465a25f30fc5a4ed7052b0f50d72205aa9659",
+    "quiz-gateway-exhausted.png": "136b2945a14c725c3f1104ede24f9eed435a77d29dddb41285689a4bfa68acd5"
+  }
+}
