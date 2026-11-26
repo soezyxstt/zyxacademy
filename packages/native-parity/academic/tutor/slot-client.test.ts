@@ -39,7 +39,9 @@ test("slot write retries the exact create or edit command until a matching recei
 test("slot edit releases pending requests after definitive failures", async () => {
   for (const [status, error, expected] of [
     [400, "INVALID_SLOT", "invalid"],
+    [401, "UNAUTHENTICATED", "denied"],
     [403, "FORBIDDEN", "denied"],
+    [404, "NOT_FOUND", "missing"],
     [409, "CANNOT_EDIT_BOOKED_SLOT", "booked"],
     [409, "TUTOR_SLOT_OVERLAP", "overlap"],
     [409, "SLOT_CHANGED", "conflict"],

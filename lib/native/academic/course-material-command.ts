@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { AdminMaterialTitleDraft } from "../../../packages/native-parity/academic/courses/edit-contract";
+import { validAdminMaterialTitle, type AdminMaterialTitleDraft } from "../../../packages/native-parity/academic/courses/edit-contract";
 import { courseCommandReply, handleCourseCommand, validCourseCommandId, type CourseCommandAuth, type CourseCommandViewer } from "./course-command";
 
 type Services = CourseCommandAuth & {
@@ -7,7 +7,7 @@ type Services = CourseCommandAuth & {
 };
 
 const bodySchema = z.object({
-  title: z.string().trim().min(1).max(500),
+  title: z.string().trim().refine(validAdminMaterialTitle),
   expectedRevision: z.string().regex(/^[a-f0-9]{64}$/),
 }).strict();
 

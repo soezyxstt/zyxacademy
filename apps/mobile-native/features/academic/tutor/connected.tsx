@@ -44,7 +44,7 @@ export function ConnectedSchedule({ data: initial, week, theme, back, replace, q
   editor?: TutorSlotEditor;
   reload(signal: AbortSignal): Promise<TutorScheduleData>;
 }) {
-  const [data, setData] = useState(initial);
+  const [scheduleState, setScheduleState] = useState<{ data: TutorScheduleData } | { error: string }>({ data: initial });
   const [tab, setTab] = useState<ScheduleTab>(query.tab === "tickets" ? "tickets" : "calendar");
   const [search, setSearch] = useState("");
   const [selectedDate, setSelectedDate] = useState(() => query.date >= initial.from && query.date <= initial.to ? query.date : undefined);
@@ -54,31 +54,12 @@ export function ConnectedSchedule({ data: initial, week, theme, back, replace, q
   const [needsRefresh, setNeedsRefresh] = useState(false);
   const [blocked, setBlocked] = useState(false);
   const [saving, setSaving] = useState(false);
-  const pending = editor?.pending() ?? [];
+  const schedule = "data" in scheduleState ? scheduleState.data : undefined;
+  const pending = schedule ? editor?.pending() ?? [] : [];
   const awaiting = Boolean(draft && pending.some((item) => item.target?.slotId === draft.target?.slotId));
   const attempt = useRef<AbortController | null>(null);
   const addSlotRef = useRef<ComponentRef<typeof Button>>(null);
   useEffect(() => () => attempt.current?.abort(), []);
-  const matches = (values: (string | null)[]) => values.some((value) => value?.toLowerCase().includes(search.trim().toLowerCase()));
-  const slots = data.slots.filter((slot) => !search.trim() || matches([slot.date, slot.start, slot.location]));
-  const sessions = data.sessions.filter((session) => !search.trim() || matches([session.date, session.groupName, session.courseTitle, session.topic]));
-  const sessionStatus = (status: string) => status === "completed" ? "Selesai" : status === "cancelled" ? "Dibatalkan" : "Terjadwal";
-  const events = [
-    ...slots.map((slot) => ({
-      id: `slot-${slot.id}`, dateId: slot.date, title: "Slot ketersediaan",
-      caption: [times(slot.start, slot.end), slot.mode === "online" ? "Daring" : slot.location ?? "Tatap muka",
-        slot.booked ? "Terisi" : slot.hasBookingHistory ? "Ada riwayat pemesanan" : "Tersedia"].join(" · "),
-      disabled: Boolean(editor && !slot.revision),
-    })),
-    ...sessions.flatMap((session) => session.date ? [{
-      id: `session-${session.id}`, dateId: session.date, title: session.topic ?? session.courseTitle ?? "Sesi tutorial",
-      caption: [session.groupName, times(session.start, session.end), sessionStatus(session.status)].filter(Boolean).join(" · "),
-      disabled: Boolean(editor),
-    }] : []),
-  ];
-  const today = tutorJakartaToday();
-  const defaultDate = !search.trim() && today >= data.from && today <= data.to ? today : events[0]?.dateId ?? data.from;
-  const undated = sessions.filter((session) => !session.date);
 
   function openSlot(value: TutorSlotPending) {
     if (saving) return;
@@ -87,12 +68,25 @@ export function ConnectedSchedule({ data: initial, week, theme, back, replace, q
     setBlocked(false);
   }
 
+  function loseAccess(message: string) {
+    setScheduleState({ error: message });
+    setDraft(null);
+    setSearch("");
+    setSelectedDate(undefined);
+    setSlotError("");
+    setNotice("");
+    setNeedsRefresh(false);
+    setBlocked(false);
+  }
+
   async function refresh(signal: AbortSignal) {
     try {
       const current = await reload(signal);
-      if (!signal.aborted) { setData(current); setNeedsRefresh(false); }
-    } catch {
-      if (!signal.aborted) setNeedsRefresh(true);
+      if (!signal.aborted) { setScheduleState({ data: current }); setNeedsRefresh(false); }
+    } catch (error: unknown) {
+      if (signal.aborted) return;
+      if (accessEnded(error)) loseAccess("Jadwal tidak dapat diakses.");
+      else setNeedsRefresh(true);
     }
   }
 
@@ -110,7 +104,7 @@ export function ConnectedSchedule({ data: initial, week, theme, back, replace, q
   }
 
   async function save() {
-    if (!editor || !draft || attempt.current || blocked) return;
+    if (!editor || !draft || !schedule || attempt.current || blocked) return;
     const controller = new AbortController();
     const { signal } = controller;
     attempt.current = controller;
@@ -123,22 +117,23 @@ export function ConnectedSchedule({ data: initial, week, theme, back, replace, q
         const date = result.receipt.date;
         setDraft(null);
         setNotice("Slot tersimpan.");
-        const targetWeek = week + Math.floor((Date.parse(date) - Date.parse(data.from)) / (7 * 86_400_000));
+        const targetWeek = week + Math.floor((Date.parse(date) - Date.parse(schedule.from)) / (7 * 86_400_000));
         if (targetWeek !== week && targetWeek >= -520 && targetWeek <= 520) replace(`/tutor/schedule?week=${targetWeek}&date=${date}`);
         else {
           setSelectedDate(targetWeek === week ? date : undefined);
           await refresh(signal);
         }
+      } else if (result.status === "denied" || result.status === "missing") {
+        loseAccess(result.status === "missing" ? "Slot tidak tersedia. Muat jadwal terbaru." : "Akses jadwal ditolak.");
       } else {
         setSlotError({
           invalid: "Periksa tanggal, durasi dan lokasi slot.",
           conflict: "Slot telah berubah. Muat jadwal terbaru.",
           booked: "Slot dengan riwayat pemesanan tidak dapat diedit.",
           overlap: "Waktu pilihan bertumpang tindih dengan slot lain.",
-          denied: "Akses untuk menyimpan slot ditolak.",
           unknown: "Penyimpanan belum terkonfirmasi. Coba kirim lagi.",
         }[result.status]);
-        if (["booked", "conflict", "denied"].includes(result.status)) {
+        if (result.status === "booked" || result.status === "conflict") {
           setBlocked(true);
           setNeedsRefresh(true);
         }
@@ -148,6 +143,33 @@ export function ConnectedSchedule({ data: initial, week, theme, back, replace, q
       if (!signal.aborted) setSaving(false);
     }
   }
+
+  if ("error" in scheduleState) return <TutorPage title="Jadwal mengajar" theme={theme} onBack={back}>
+    <LoadFailure theme={theme} error={scheduleState.error} retry={refreshSchedule} />
+  </TutorPage>;
+
+  const data = scheduleState.data;
+  const term = search.trim().toLowerCase();
+  const matches = (values: (string | null)[]) => values.some((value) => value?.toLowerCase().includes(term));
+  const slots = data.slots.filter((slot) => !term || matches([slot.date, slot.start, slot.location]));
+  const sessions = data.sessions.filter((session) => !term || matches([session.date, session.groupName, session.courseTitle, session.topic]));
+  const sessionStatus = (status: string) => status === "completed" ? "Selesai" : status === "cancelled" ? "Dibatalkan" : "Terjadwal";
+  const events = [
+    ...slots.map((slot) => ({
+      id: `slot-${slot.id}`, dateId: slot.date, title: "Slot ketersediaan",
+      caption: [times(slot.start, slot.end), slot.mode === "online" ? "Daring" : slot.location ?? "Tatap muka",
+        slot.booked ? "Terisi" : slot.hasBookingHistory ? "Ada riwayat pemesanan" : "Tersedia"].join(" · "),
+      disabled: Boolean(editor && !slot.revision),
+    })),
+    ...sessions.flatMap((session) => session.date ? [{
+      id: `session-${session.id}`, dateId: session.date, title: session.topic ?? session.courseTitle ?? "Sesi tutorial",
+      caption: [session.groupName, times(session.start, session.end), sessionStatus(session.status)].filter(Boolean).join(" · "),
+      disabled: Boolean(editor),
+    }] : []),
+  ];
+  const today = tutorJakartaToday();
+  const defaultDate = !term && today >= data.from && today <= data.to ? today : events[0]?.dateId ?? data.from;
+  const undated = sessions.filter((session) => !session.date);
 
   return <><TutorPage title="Jadwal mengajar" theme={theme} onBack={back}>
     <Choices<ScheduleTab> theme={theme} label="Bagian jadwal" value={tab} change={setTab}

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { View } from "react-native";
-import type {
-  AdminMaterialTitleDraft, AdminMaterialTitleEdit, CourseWriteTarget,
+import {
+  validAdminMaterialTitle, type AdminMaterialTitleDraft, type AdminMaterialTitleEdit, type CourseWriteTarget,
 } from "../../../../../packages/native-parity/academic/courses/edit-contract";
 import { useCourseWrite } from "./live-write";
 import { Action, CourseDialog, CourseStatus, Field, layout } from "./ui";
@@ -23,7 +23,7 @@ export function LivePdfTitleEdit({ initial, target, refresh }: Props) {
 }
 
 const errors = {
-  invalid: "Judul dokumen wajib diisi.",
+  invalid: "Periksa judul dokumen.",
   denied: "Akses ditolak.",
   missing: "Dokumen atau mata kuliah tidak ditemukan.",
   conflict: "Judul dokumen sudah berubah. Muat versi terbaru sebelum mengedit lagi.",
@@ -43,7 +43,7 @@ function PdfTitleForm({ initial, target, close, refresh }: Props & { close(): vo
 
   function save() {
     const cleaned = title.trim();
-    if (!cleaned) {
+    if (!validAdminMaterialTitle(cleaned)) {
       mutation.setStatus("invalid");
       return;
     }

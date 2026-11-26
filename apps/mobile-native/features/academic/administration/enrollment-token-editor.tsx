@@ -6,7 +6,7 @@ import {
 } from "../../../../../packages/academic/enrollment-token-admin";
 import type { AcademicTransport } from "../client";
 import { AdministrationReadError } from "./live-client";
-import { readEnrollmentTokenEditor, saveEnrollmentToken } from "./enrollment-token-client";
+import { enrollmentTokenUnavailable, readEnrollmentTokenEditor, saveEnrollmentToken, type EnrollmentTokenUnavailable } from "./enrollment-token-client";
 import {
   Action, CourseDialog, CourseStatus, Field, Ink, MultiChoice, Picker, SaveButtons, SearchBox, dateTimeLabel,
   layout, normalSearch, numberValue,
@@ -21,8 +21,14 @@ const presets = [
   { id: "custom", label: "Kustom", quota: undefined },
 ] as const;
 
-export function LiveEnrollmentTokenEditor({ id, reference, transport, cancel, saved }: {
-  id?: string; reference?: string; transport: AcademicTransport; cancel(): void; saved(): void;
+type TokenEditorCallbacks = {
+  cancel(): void;
+  saved(): void;
+  unavailable(status: EnrollmentTokenUnavailable): void;
+};
+
+export function LiveEnrollmentTokenEditor({ id, reference, transport, cancel, saved, unavailable }: TokenEditorCallbacks & {
+  id?: string; reference?: string; transport: AcademicTransport;
 }) {
   const [state, setState] = useState<{ data?: EnrollmentTokenEditor; error?: string; retry?: boolean }>({});
   const [attempt, setAttempt] = useState(0);
@@ -32,16 +38,14 @@ export function LiveEnrollmentTokenEditor({ id, reference, transport, cancel, sa
       if (!controller.signal.aborted) setState({ data });
     }).catch((error: unknown) => {
       if (controller.signal.aborted) return;
-      if (error instanceof AdministrationReadError) {
-        if (error.status === 401 || error.status === 403) return setState({ error: "Akses admin diperlukan. Periksa sesi Anda." });
-        if (error.status === 404) return setState({ error: "Token tidak tersedia." });
-      }
+      const status = error instanceof AdministrationReadError ? enrollmentTokenUnavailable(error.status) : undefined;
+      if (status) return unavailable(status);
       setState({ error: "Data token gagal dimuat.", retry: true });
     });
     return () => controller.abort();
-  }, [id, transport, attempt]);
+  }, [id, transport, attempt, unavailable]);
 
-  if (state.data) return <TokenForm data={state.data} reference={reference} transport={transport} cancel={cancel} saved={saved} />;
+  if (state.data) return <TokenForm data={state.data} reference={reference} transport={transport} cancel={cancel} saved={saved} unavailable={unavailable} />;
   return <CourseDialog title={id ? "Cabut token" : "Buat token"} onClose={cancel}>
     {state.error ? <CourseStatus label={state.error} error retry={state.retry ? () => {
       setState({});
@@ -50,8 +54,8 @@ export function LiveEnrollmentTokenEditor({ id, reference, transport, cancel, sa
   </CourseDialog>;
 }
 
-function TokenForm({ data, reference, transport, cancel, saved }: {
-  data: EnrollmentTokenEditor; reference?: string; transport: AcademicTransport; cancel(): void; saved(): void;
+function TokenForm({ data, reference, transport, cancel, saved, unavailable }: TokenEditorCallbacks & {
+  data: EnrollmentTokenEditor; reference?: string; transport: AcademicTransport;
 }) {
   const editing = data.type === "token";
   const key = editing ? data.token.id : "issue";
@@ -94,11 +98,13 @@ function TokenForm({ data, reference, transport, cancel, saved }: {
     saveEnrollmentToken(transport, pending.command, pending.requestId, controller.signal).then((result) => {
       if (controller.signal.aborted) return;
       if (result.status === "uncertain") { setUncertain(pending); return; }
-      if (scope.get(key) === pending) scope.delete(key);
+      // A denial on retry does not settle whether the earlier request committed.
+      if ((result.status !== "denied" || !uncertain) && scope.get(key) === pending) scope.delete(key);
       setUncertain(undefined);
       if (result.status === "saved") saved();
       else if (result.status === "conflict") setConflict(result.token);
-      else setError(result.message);
+      else if (result.status === "error") setError(result.message);
+      else unavailable(result.status);
     }).catch(() => {
       if (!controller.signal.aborted) setUncertain(pending);
     }).finally(() => {

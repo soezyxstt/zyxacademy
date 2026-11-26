@@ -1,4 +1,7 @@
-import type { AdminChapterDraft, AdminChapterEditor, AdminCourseEditDraft, AdminCourseEditor, AdminMaterialEditor, AdminMaterialTitleDraft } from "../../../../packages/native-parity/academic/courses/edit-contract";
+import {
+  validAdminMaterialTitle, type AdminChapterDraft, type AdminChapterEditor, type AdminCourseEditDraft, type AdminCourseEditor,
+  type AdminMaterialEditor, type AdminMaterialTitleDraft,
+} from "../../../../packages/native-parity/academic/courses/edit-contract";
 import type { AdminCourseSectionResult } from "../../../../packages/native-parity/academic/courses/sections";
 import type { AdminCourse, AdminCourseOverview } from "../../../../packages/native-parity/academic/courses/model";
 import { TutorDataError, type TutorDataSource } from "../../../../packages/native-parity/academic/tutor/model";
@@ -53,7 +56,7 @@ function buildAcademicClient(transport: AcademicTransport) {
   const command = transport.command?.bind(transport);
   const settingsTarget = command ? createCourseCommandTarget<AdminCourseEditDraft>(command) : undefined;
   const chapterTarget = command ? createCourseCommandTarget<AdminChapterDraft>(command) : undefined;
-  const materialTarget = command ? createCourseCommandTarget<AdminMaterialTitleDraft>(command) : undefined;
+  const materialTarget = command ? createCourseCommandTarget<AdminMaterialTitleDraft>(command, ({ title }) => validAdminMaterialTitle(title)) : undefined;
   const updateCourseSettings: AdminCourseEditor | undefined = settingsTarget ? (courseId) =>
     settingsTarget(`${encodeURIComponent(courseId)}/settings`, "PATCH") : undefined;
   const saveChapter: AdminChapterEditor | undefined = chapterTarget ? (courseId, chapterId) =>

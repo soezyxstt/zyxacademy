@@ -42,8 +42,8 @@ export async function courseWrite<T extends RevisionDraft>({
     return result;
   }
 
-  try {
-    return await db.transaction(async (tx) => {
+  function writeOnce() {
+    return db.transaction(async (tx) => {
       await assertAuthority(tx, viewer);
       const previous = await findReceipt(tx);
       if (previous) return previous;
@@ -56,16 +56,28 @@ export async function courseWrite<T extends RevisionDraft>({
       });
       return result;
     }, { isolationLevel: "serializable" });
+  }
+
+  try {
+    return await writeOnce().catch((error: unknown) => {
+      if (!retryableTransactionFault(postgresCode(error))) throw error;
+      return writeOnce();
+    });
   } catch (error) {
     const fault = postgresCode(error);
-    if (fault !== "40001" && fault !== "23505" && fault !== "40P01") throw error;
+    if (fault !== "23505" && !retryableTransactionFault(fault)) throw error;
     const raced = await db.transaction(async (tx) => {
       await assertAuthority(tx, viewer);
       return findReceipt(tx);
     });
-    if (!raced) throw new Error("REVISION_CONFLICT");
-    return raced;
+    if (raced) return raced;
+    if (fault === "23505") throw new Error("REVISION_CONFLICT");
+    throw error;
   }
+}
+
+function retryableTransactionFault(code: string | undefined) {
+  return code === "40001" || code === "40P01";
 }
 
 function isSaved(value: unknown): value is Saved {

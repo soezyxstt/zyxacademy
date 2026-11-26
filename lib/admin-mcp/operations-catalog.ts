@@ -26,7 +26,7 @@ export const operationsCatalog = [
     "actions": ["GET", "POST", "PATCH"],
     "tools": [],
     "status": "excluded",
-    "reason": "The Expo adapter reads administrative data, manages study groups and enrollment tokens, and updates PKA announcement text in an active Admin session. PKA remains outside MCP scope; client consent, scopes, discovery, skills, host prompts and environment bindings are unchanged."
+    "reason": "The Expo adapter reads administrative data, manages study groups and enrollment tokens, and updates user status and PKA announcement text in an active Admin session. User status uses the web status update with an account and session-scoped receipt. MCP users.set_status has its own scope and consent. PKA is outside MCP scope."
   },
   {
     "source": "app/api/admin/bundles/product/[id]/pdf/route.ts",

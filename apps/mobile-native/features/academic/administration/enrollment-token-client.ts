@@ -16,16 +16,23 @@ export async function readEnrollmentTokenEditor(transport: AcademicTransport, id
   return data;
 }
 
+export type EnrollmentTokenUnavailable = "denied" | "missing";
+
 type Result = { status: "saved"; id: string } | { status: "conflict"; token: EnrollmentTokenDetails }
-  | { status: "error"; message: string } | { status: "uncertain" };
+  | { status: "error"; message: string } | { status: "uncertain" | EnrollmentTokenUnavailable };
+
+export function enrollmentTokenUnavailable(status: number): EnrollmentTokenUnavailable | undefined {
+  if (status === 401 || status === 403) return "denied";
+  if (status === 404) return "missing";
+}
 
 export async function saveEnrollmentToken(transport: AcademicTransport, command: EnrollmentTokenWrite, requestId: string, signal: AbortSignal): Promise<Result> {
-  if (!transport.command) return { status: "error", message: "Akses admin diperlukan." };
+  if (!transport.command) return { status: "denied" };
   const id = command.type === "revoke" ? command.id : undefined;
   const path = ADMINISTRATION_API_PREFIX + "tokens" + (id ? `/${encodeURIComponent(id)}` : "");
   const response = await transport.command(path, { method: id ? "PATCH" : "POST", body: command.fields, requestId }, signal);
-  if (response.status === 401 || response.status === 403) return { status: "error", message: "Akses admin diperlukan. Periksa sesi Anda." };
-  if (response.status === 404) return { status: "error", message: "Token tidak tersedia." };
+  const unavailable = enrollmentTokenUnavailable(response.status);
+  if (unavailable) return { status: unavailable };
   const data: unknown = await response.json().catch(() => null);
   if (data && typeof data === "object" && "status" in data) {
     if (response.ok && data.status === "saved" && "requestId" in data && data.requestId === requestId

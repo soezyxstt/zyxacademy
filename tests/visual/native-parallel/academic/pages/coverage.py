@@ -12,9 +12,29 @@ cases = json.loads(subprocess.check_output(['node','--import','tsx','-e',case_js
 assert len(cases)==162 and len({x['id'] for x in cases})==162
 case_index = {route:{v:next(x for x in cases if x['pattern']==route and x['id'].endswith('-'+v)) for v in ('populated','empty','denied')} for route in routes}
 
-def matches(pattern,path):
- rx=re.escape(pattern);rx=re.sub(r'\\\[[^]]+\\\]',r'[^/]+',rx)
- return bool(re.fullmatch(rx,path))
+def route_segments(path):
+ path = urllib.parse.urlsplit(path).path.strip('/')
+ return path.split('/') if path else []
+
+def parameter(segment):
+ return segment.startswith('[') and segment.endswith(']')
+
+# Filesystem routing gives a literal segment priority at the first difference.
+patterns = [(route, route_segments(route)) for route in routes]
+patterns.sort(key=lambda item: [not parameter(segment) for segment in item[1]], reverse=True)
+
+def resolve_route(path):
+ segments = route_segments(path)
+ for pattern, expected in patterns:
+  if len(expected) == len(segments) and all(
+   actual == target or (actual and parameter(target)) for target, actual in zip(expected, segments)
+  ):
+   return pattern
+ return None
+
+# Each registered example must resolve to exactly its registered route, including
+# static pages that could also match a neighboring dynamic segment.
+assert all(resolve_route(case['path']) == case['pattern'] for case in cases)
 
 results=json.loads((P/'results.json').read_text()) if (P/'results.json').exists() else {'entries':[]}
 original=json.loads((R/'tests/visual/native-parallel/academic/web/local-routes/manifest.json').read_text())
@@ -24,15 +44,16 @@ for f in (R/'.maestro/native-parallel/academic').glob('*.yaml'):
  paths=[]
  for link in re.findall(r'(?:openLink:|#\s*fixture:)\s*(\S+)',f.read_text()):
   params=urllib.parse.parse_qs(urllib.parse.urlsplit(link).query);paths+=params.get('path',[])
- for pattern in routes:
-  if any(matches(pattern,path) for path in paths):
+ for pattern in dict.fromkeys(resolve_route(path) for path in paths):
+  if pattern:
    description = ' (synthetic TutorSchedule editor)' if f.name == 'tutor-schedule.yaml' else ''
    flows.setdefault(pattern,[]).append(f.as_posix()+description)
 
 def native(pattern, group):
  if group=='administration':
-  end={'/admin/users':'users','/admin/groups':'groups','/admin/notifications':'notifications','/admin/schedules':'schedules','/admin/tutorial-pka/registrations':'registrations','/admin/tutorial-pka/announcements':'announcements','/admin/tutorial-pka/schedules':'sessions'}
+  end={'/admin/groups':'groups','/admin/notifications':'notifications','/admin/schedules':'schedules','/admin/tutorial-pka/registrations':'registrations','/admin/tutorial-pka/announcements':'announcements','/admin/tutorial-pka/schedules':'sessions'}
   if pattern=='/admin/groups':return ('GET /api/native/academic-administration/groups and group-editor[/id]; POST groups; PATCH groups/[id]', 'Group members and deletion require further review; group create/edit client in study-group-client.ts')
+  if pattern=='/admin/users':return ('GET /api/native/academic-administration/users; PATCH users/[id]/status', 'Active Admin can activate or suspend eligible accounts with revision and receipt; role edits remain fixture; live device interaction unverified')
   if pattern=='/admin/tokens':return ('GET /api/native/academic-administration/tokens and token-editor[/id]; POST tokens; PATCH tokens/[id] for revoke', 'Issue and revoke use scoped receipts; broader token management remains fixture')
   if pattern in end:
    add='; PATCH announcement text supported' if pattern.endswith('/announcements') else ''
@@ -66,26 +87,48 @@ def native(pattern, group):
  if pattern in ('/tutor/docs','/tutor/docs/[slug]'):return ('Shared local source packages/academic/docs/tutor','Diagram rendering integration pending')
  raise AssertionError(pattern)
 
+def recorded_route(entry, outcome):
+ return resolve_route(outcome.get('landed') or entry['path'])
+
+def page_cases(pattern):
+ for entry in results['entries']:
+  for case in entry['cases']:
+   if recorded_route(entry, case) == pattern:
+    yield entry, case
+
+def redirected_entries(pattern):
+ for entry in results['entries']:
+  if resolve_route(entry['path']) != pattern:
+   continue
+  for case in entry['cases']:
+   landed = case.get('landed')
+   if case.get('pass') and landed and recorded_route(entry, case) != pattern:
+    yield entry, case, landed
+ for entry in original:
+  landed = entry.get('landed')
+  if resolve_route(entry['path']) == pattern and landed and recorded_route(entry, entry) != pattern:
+   yield {'id': entry['key']}, {'theme': 'smoke'}, landed
+
 def references(pattern):
  out=[]
- for e in results['entries']:
-  if matches(pattern,e['path']):
-   for c in e['cases']:
-    if c.get('pass') and c.get('screenshot'):
-     p=P/c['screenshot'];assert p.is_file(),p
-     out.append(f"{e['id']}:{c['theme']} {p.as_posix()}")
-    elif c.get('classification') or c.get('error'):
-     evidence=''
-     if c.get('screenshot'):
-      candidate=P/c['screenshot'];assert candidate.is_file(),candidate;evidence=' '+candidate.as_posix()
-     out.append(f"{e['id']}:{c['theme']} {c.get('classification', 'error; see results.json')}{evidence}")
-    else:out.append(f"{e['id']}:{c['theme']} failed; see results.json")
+ for e,c in page_cases(pattern):
+  if c.get('pass') and c.get('screenshot'):
+   p=P/c['screenshot'];assert p.is_file(),p
+   out.append(f"{e['id']}:{c['theme']} {p.as_posix()}")
+  elif c.get('classification') or c.get('error'):
+   evidence=''
+   if c.get('screenshot'):
+    candidate=P/c['screenshot'];assert candidate.is_file(),candidate;evidence=' '+candidate.as_posix()
+   out.append(f"{e['id']}:{c['theme']} {c.get('classification', 'error; see results.json')}{evidence}")
+  else:out.append(f"{e['id']}:{c['theme']} failed; see results.json")
  for e in interactions['entries']:
-  if matches(pattern,e['path']) and e.get('pass'):
+  if recorded_route(e,e) == pattern and e.get('pass'):
    p=P/e['screenshot'];assert p.is_file(),p;out.append(f"{e['id']}:interaction {p.as_posix()}")
  for e in original:
-  if matches(pattern,e['path']):
+  if recorded_route(e,e) == pattern:
    p=R/'tests/visual/native-parallel/academic/web/local-routes'/f"{e['key']}.png";assert p.is_file();out.append(f"original:{e['key']} {p.as_posix()} (original protected smoke; see its manifest)")
+ for entry,case,landed in redirected_entries(pattern):
+  out.append(f"{entry['id']}:{case['theme']} redirect to {landed}")
  return '; '.join(out) or 'No protected page capture recorded'
 
 device_indexes = P.parent.glob('device/*/index.json')
@@ -138,22 +181,22 @@ lines=['# Protected web route evidence', '',
  f"Index generated {meta['generated_utc']}; HEAD then was `{meta['head']}` with local uncommitted changes. Captures span a changing worktree and are not attributable to one verified commit.",
  f"Current capture manifest records {counts['new_pass']} passing browser cases, {counts['missing_ui']} unseeded/missing cases with a rendered 404, {counts['shell_only']} shell-only or loading cases, and {counts['unpassed']} other unsuccessful or interrupted cases. Interaction manifest records {counts['interaction_pass']} passing and {counts['interaction_unpassed']} unsuccessful cases. The six earlier protected smoke records are listed separately. Counts are cases, not parity credit.",
  '', '[Route crosswalk and three registry case IDs](coverage.tsv) · [Protected page results](results.json) · [Interaction results](interactions-results.json) · [Original smoke manifest](../web/local-routes/manifest.json)', '',
- 'Web links identify passing screenshots, shell-only/loading outcomes, or rendered 404s. Initial HTTP 200 with a rendered 404 is identified explicitly. Device statuses come from stamped fixture route captures. Live device operations remain unverified.', f"[Device run index](../device/{device_path.parent.name}/index.json) · [GitHub Actions run]({device_report['runUrl']})" if device_path else 'Device evidence index unavailable.', '', '| Route | Screen family | Recorded original protected web cases | Device fixture observations |', '|---|---|---|---|']
+ 'Web links identify passing screenshots, shell-only/loading outcomes, or rendered 404s. Screenshots are listed under the route that rendered them. The requested route records the redirect destination. Initial HTTP 200 with a rendered 404 is identified explicitly. Device statuses come from stamped fixture route captures. Live device operations remain unverified.', f"[Device run index](../device/{device_path.parent.name}/index.json) · [GitHub Actions run]({device_report['runUrl']})" if device_path else 'Device evidence index unavailable.', '', '| Route | Screen family | Recorded original protected web cases | Device fixture observations |', '|---|---|---|---|']
 for route,source in routes.items():
  links=[]
- for e in results['entries']:
-  if matches(route,e['path']):
-   for c in e['cases']:
-    if c.get('screenshot') and (c.get('pass') or c.get('notFoundVisible') or c.get('classification','').startswith('shell-only')):
-     candidate=P/c['screenshot'];assert candidate.is_file()
-     tag=e['id']+' '+c['theme']+(' 404 UI, HTTP '+str(c.get('status')) if c.get('notFoundVisible') else ' shell-only or loading' if c.get('classification','').startswith('shell-only') else '')
-     links.append('['+tag+']('+c['screenshot']+')')
+ for e,c in page_cases(route):
+  if c.get('screenshot') and (c.get('pass') or c.get('notFoundVisible') or c.get('classification','').startswith('shell-only')):
+   candidate=P/c['screenshot'];assert candidate.is_file()
+   tag=e['id']+' '+c['theme']+(' 404 UI, HTTP '+str(c.get('status')) if c.get('notFoundVisible') else ' shell-only or loading' if c.get('classification','').startswith('shell-only') else '')
+   links.append('['+tag+']('+c['screenshot']+')')
  for e in interactions['entries']:
-  if matches(route,e['path']) and e.get('pass'):
+  if recorded_route(e,e) == route and e.get('pass'):
    candidate=P/e['screenshot'];assert candidate.is_file();links.append('['+e['id']+']('+e['screenshot']+')')
  for e in original:
-  if matches(route,e['path']):
+  if recorded_route(e,e) == route:
    candidate=R/'tests/visual/native-parallel/academic/web/local-routes'/f"{e['key']}.png";assert candidate.is_file()
    links.append('['+e['key']+' smoke](../web/local-routes/'+e['key']+'.png)')
+ for entry,case,landed in redirected_entries(route):
+  links.append(f"{entry['id']} {case['theme']} redirected to `{landed}`")
  lines.append('| `'+route+'` | '+family[route]+' | '+('; '.join(links) if links else 'Not captured or no passing screenshot')+' | '+device_observation(route, markdown=True)+' |')
 (P/'summary.md').write_text('\n'.join(lines)+'\n')

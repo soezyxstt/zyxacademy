@@ -36,7 +36,8 @@ export function createTutorSlotEditor(transport: AcademicTransport): TutorSlotEd
               if (code === "DUPLICATE_TUTOR_SLOT" || code === "TUTOR_SLOT_OVERLAP") return { status: "overlap" };
               return { status: "conflict" };
             }
-            return { status: [401, 403, 404].includes(response.status) ? "denied" : "invalid" };
+            if (response.status === 401 || response.status === 403) return { status: "denied" };
+            return { status: response.status === 404 ? "missing" : "invalid" };
           }
           const data = await response.json();
           if (!data || typeof data !== "object" || !("requestId" in data) || data.requestId !== attempt.requestId ||

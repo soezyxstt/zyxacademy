@@ -23,9 +23,12 @@ Penerbitan nilai memakai `POST /api/native/academic/tutor-support/courses/{cours
 
 `POST /api/native/academic/tutor-support/schedule/slots` membuat ketersediaan tutor, dan `PATCH /api/native/academic/tutor-support/schedule/slots/{slotId}` menyunting slot milik tutor yang sama. Edit mengirim revisi dari GET jadwal. Server memakai kunci jadwal serta aksi tambah/edit web, sehingga durasi, benturan waktu, tanggal, mode dan lokasi diperiksa di transaksi yang menyimpan slot, catatan, dan bukti penerimaan. Riwayat pemesanan melindungi slot dari pengeditan. Native mempertahankan isi dan ID permintaan saat hasil belum terkonfirmasi dan membaca agenda lagi setelah tersimpan.
 
+Jika API jadwal atau slot mengembalikan 401, 403, atau 404, layar menutup dialog dan mengosongkan jadwal hingga GET yang baru berhasil. Gangguan sementara saat memuat ulang mempertahankan jadwal terakhir yang sah.
+
 ## Verifikasi
 
 - `bun test packages/native-parity/academic/tutor` menguji akses, snapshot lama dan baru, status kosong, retry, serta batas kontrak API. Uji command menyimulasikan respons hilang lalu memeriksa ID yang tetap sama dan pembacaan ID pesan.
+- `node --test tests/native-parity/academic/access-recovery.behavior.cjs` menguji penghapusan agenda dan draf dari layar serta pemulihan lewat GET baru. Siapkan `ZYX_CONTROL_TEST_DEPS` sesuai [kontrak pengujian komponen](../../../../apps/mobile-native/features/shared-ui/CONTRACTS.md#uji-perilaku-kontrol).
 - `tests/contracts/tutor-grading-scope.test.ts` memakai PostgreSQL sintetis untuk membuktikan isolasi sesi, pemutaran ulang ID, penolakan lintas kelas dan tipe ujian, konflik setelah perubahan jawaban atau penilaian web, serta rollback ketika pencatatan bukti penerimaan gagal.
 - `tests/contracts/native-tutor-slot.test.ts` menguji tambah/edit, kepemilikan dan izin sesi, revisi, benturan, slot dengan riwayat pemesanan sintetis, serta rollback atomik slot dan catatan jika bukti penerimaan gagal ditulis.
 - `maestro test .maestro/native-parallel/academic/tutor-assigned.yaml` membuka dashboard, mata kuliah, peserta dan penilaian tryout, termasuk detail dan Back. Flow `tutor-empty-denied.yaml` dan `tutor-retry.yaml` mencakup penugasan yang kosong, penolakan dan pemulihan. Flow `tutor-schedule.yaml` memilih tanggal, membuat slot, membuka dialog edit, lalu kembali ke slot setelah pindah minggu. Jalankan pada build aplikasi dengan skema `zyx-native-parity`.

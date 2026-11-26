@@ -1,6 +1,6 @@
 {
-  "generated_utc": "2026-11-26T11:23:08.155976+00:00",
-  "head": "569ac81b410e6e4a647eebfe3053f2af99e4d1cd",
+  "generated_utc": "2026-11-26T11:31:21.354401+00:00",
+  "head": "9432da62db94349cb24c94afb3120686eae20cbc",
   "scope": "Web and implementation observations are from a changing local worktree. Device observations refer to the archived fixture run.",
   "route_count": 54,
   "capture_manifest": "tests/visual/native-parallel/academic/pages/results.json",

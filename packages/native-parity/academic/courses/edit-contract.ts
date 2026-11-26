@@ -30,3 +30,8 @@ export type AdminChapterEditor = (courseId: string, chapterId?: string) => Cours
 export type AdminMaterialTitleDraft = { title: string; expectedRevision: string };
 export type AdminMaterialTitleEdit = { title: string; revision: string };
 export type AdminMaterialEditor = (courseId: string, materialId: string) => CourseWriteTarget<AdminMaterialTitleDraft>;
+
+export function validAdminMaterialTitle(title: string) {
+  const trimmed = title.trim();
+  return trimmed.length > 0 && trimmed.length <= 500 && !trimmed.includes("\0");
+}

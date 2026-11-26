@@ -22,7 +22,7 @@ import {
 import { Button } from "../../../components/Button";
 import { Input } from "../../../components/Input";
 import type { AcademicScreenProps } from "../contracts";
-import { Choices, Empty, Heading, Label, Row, TutorDetail, TutorPage, tutorLayout } from "./ui";
+import { Choices, DashboardEmpty, DashboardRow, DashboardSection, Empty, Heading, Label, Row, TutorDetail, TutorPage, tutorLayout } from "./ui";
 
 type Navigation = Pick<AcademicScreenProps, "theme" | "navigate" | "back">;
 
@@ -33,44 +33,48 @@ function courseRoute(course: TutorCourse) {
 const sessionDateFormat = new Intl.DateTimeFormat("id-ID", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Jakarta" });
 
 export function TutorDashboard({ navigate, theme, data }: Navigation & { data: DashboardData }) {
-  return <TutorPage theme={theme} title="Dashboard pengajar" sectionGap={28}>
-    <View>
-      <Heading theme={theme} title="Sesi berikutnya" count={`${data.counts.sessionsThisWeek} sesi pekan ini`} inline />
-      <Button theme={theme} variant="ghost" style={tutorLayout.sectionLink} accessibilityLabel="Semua jadwal" onPress={() => navigate("/tutor/schedule")}>Semua jadwal ↗</Button>
-      {data.upcomingSessions.map((session) => {
-        const sessionDate = new Date(session.sessionDate ?? "");
-        const date = Number.isNaN(sessionDate.valueOf()) ? "Tanggal belum ditentukan" : sessionDateFormat.format(sessionDate);
-        const time = [session.startTime, session.endTime].flatMap((value) => value ? [value.slice(0, 5)] : []).join("-");
-        const mode = session.mode === "online" ? "Daring" : session.mode === "offline" ? "Tatap muka" : undefined;
-        return <Row key={session.id} theme={theme}
-          title={session.courseTitle ?? session.topic ?? "Sesi tutorial"}
-          subtitle={[session.groupName ?? "Kelompok", mode].filter(Boolean).join(" · ")}
-          meta={[date, time].filter(Boolean).join("\n")}
-          onPress={() => navigate("/tutor/schedule")}
-        />;
-      })}
-      {data.upcomingSessions.length === 0 ? <Empty theme={theme} title="Belum ada sesi mendatang" /> : null}
-    </View>
-    <View>
-      <Heading theme={theme} title="Pengajaran" count={`${data.counts.courses} mata kuliah · ${data.counts.activeGroups} kelompok aktif`} inline />
-      {data.courses.map((course) => (
-        <Row key={course.courseId} testID={`tutor-course-${course.courseId}`} theme={theme} title={course.title}
-          subtitle={`${course.groupCount} kelompok terkait`}
-          titleMeta={course.code && !course.code.toLowerCase().startsWith("legacy-") ? course.code : undefined}
-          indicator="↗"
-          onPress={() => navigate(courseRoute(course))}
-        />
-      ))}
-      {data.courses.length === 0 ? <Empty theme={theme} title="Belum ada mata kuliah" description="Penugasan mata kuliah tutor dikelola oleh admin." /> : null}
-    </View>
-    <View>
-      <Heading theme={theme} title="Perlu perhatian" count={`${data.counts.pendingTickets} tiket menunggu`} inline />
-      <Button theme={theme} variant="ghost" style={tutorLayout.sectionLink} accessibilityLabel="Semua tiket jadwal" onPress={() => navigate("/tutor/schedule?tab=tickets")}>Semua jadwal ↗</Button>
-      {data.pendingTickets.map((ticket) => <Row key={ticket.id} theme={theme}
-        title={ticket.type === "cancellation" ? "Permintaan pembatalan" : "Permintaan penjadwalan ulang"}
-        subtitle={ticket.reason} onPress={() => navigate("/tutor/schedule?tab=tickets")}
-      />)}
-      {data.pendingTickets.length === 0 ? <Empty theme={theme} title="Tidak ada tiket menunggu" /> : null}
+  const openSchedule = () => navigate("/tutor/schedule");
+  const openTickets = () => navigate("/tutor/schedule?tab=tickets");
+  const hasPendingTickets = data.counts.pendingTickets > 0;
+
+  return <TutorPage theme={theme} title="Dashboard pengajar" dashboard>
+    <View style={tutorLayout.dashboardSections}>
+      <DashboardSection theme={theme} icon="sessions" title="Sesi berikutnya"
+        count={`${data.counts.sessionsThisWeek} sesi pekan ini`}
+        scheduleLink={{ label: "Semua jadwal", onPress: openSchedule }}>
+        {data.upcomingSessions.map((session, index) => {
+          const date = displayDate(session.sessionDate, "Tanggal belum ditentukan", sessionDateFormat);
+          const time = [session.startTime, session.endTime].flatMap((value) => value ? [value.slice(0, 5)] : []).join("-");
+          const mode = session.mode === "online" ? "Daring" : session.mode === "offline" ? "Tatap muka" : undefined;
+          return <DashboardRow key={session.id} theme={theme} divider={index > 0}
+            title={session.courseTitle || session.topic || "Sesi tutorial"}
+            subtitle={[session.groupName || "Kelompok", mode].filter(Boolean).join(" · ")}
+            date={date} time={time} onPress={openSchedule}
+          />;
+        })}
+        {data.upcomingSessions.length === 0 ? <DashboardEmpty theme={theme} icon="clock" title="Belum ada sesi mendatang" onAddSlot={openSchedule} /> : null}
+      </DashboardSection>
+      <DashboardSection theme={theme} icon="teaching" title="Pengajaran"
+        count={`${data.counts.courses} mata kuliah · ${data.counts.activeGroups} kelompok aktif`}>
+        {data.courses.map((course, index) => (
+          <DashboardRow key={course.courseId} testID={`tutor-course-${course.courseId}`} theme={theme} title={course.title} divider={index > 0}
+            subtitle={`${course.groupCount} kelompok terkait`}
+            courseCode={course.code && !course.code.toLowerCase().startsWith("legacy-") ? course.code : undefined}
+            course
+            onPress={() => navigate(courseRoute(course))}
+          />
+        ))}
+        {data.courses.length === 0 ? <DashboardEmpty theme={theme} icon="teaching" title="Belum ada mata kuliah" description="Penugasan mata kuliah tutor dikelola oleh admin." /> : null}
+      </DashboardSection>
+      <DashboardSection theme={theme} icon="attention" title="Perlu perhatian"
+        count={hasPendingTickets ? `${data.counts.pendingTickets} tiket menunggu` : undefined}
+        scheduleLink={hasPendingTickets ? { label: "Semua tiket jadwal", onPress: openTickets } : undefined}>
+        {data.pendingTickets.slice(0, 5).map((ticket, index) => <DashboardRow key={ticket.id} theme={theme} divider={index > 0}
+          title={ticket.type === "cancellation" ? "Permintaan pembatalan" : "Permintaan penjadwalan ulang"}
+          subtitle={ticket.reason} onPress={openTickets}
+        />)}
+        {data.pendingTickets.length === 0 ? <DashboardEmpty theme={theme} icon="check" title="Tidak ada tiket menunggu" /> : null}
+      </DashboardSection>
     </View>
     <View style={tutorLayout.cluster}>
       <Button theme={theme} variant="ghost" style={tutorLayout.sectionLink} onPress={() => navigate("/tutor/discussions")}>Diskusi</Button>

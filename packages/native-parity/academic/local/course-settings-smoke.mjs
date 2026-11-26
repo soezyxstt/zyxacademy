@@ -116,6 +116,40 @@ try {
   assert.equal((await pool.query("select id from audit_mutasi where entity_type = 'native_course_material' and entity_id = $1", [materialId])).rowCount, 1);
   assert.equal((await pool.query("select cursor from offline_content_changes where course_id = $1 and kind = 'course' and action = 'invalidate'", [courseId])).rowCount, 1);
 
+  const faultName = `native_pdf_retry_${suffix.replaceAll("-", "")}`;
+  const faultSequence = `${faultName}_attempt`;
+  await pool.query(`create sequence ${faultSequence};
+    create function ${faultName}() returns trigger language plpgsql as $$
+    begin
+      if new.id = '${materialId}' then
+        if new.title = 'Dokumen PDF sementara' and nextval('${faultSequence}') = 1 then
+          raise serialization_failure;
+        end if;
+        if new.title = 'Dokumen PDF gagal sementara' then raise deadlock_detected; end if;
+      end if;
+      return new;
+    end $$;
+    create trigger ${faultName} before update on course_materials for each row execute function ${faultName}()`);
+  try {
+    const retryTitle = { title: "Dokumen PDF sementara", expectedRevision: afterPdf.titleEdit.revision };
+    const retryRequest = randomUUID();
+    const retried = await renamePdf(retryTitle, retryRequest);
+    assert.equal(retried.status, 200, JSON.stringify(await retried.clone().json()));
+    assert.deepEqual(await retried.json(), { status: "saved", requestId: retryRequest });
+    const afterRetry = await read(materialPath);
+    assert.equal(afterRetry.titleEdit.title, retryTitle.title);
+    assert.equal((await pool.query(`select last_value from ${faultSequence}`)).rows[0].last_value, "2");
+    assert.equal((await pool.query("select id from audit_mutasi where correlation_id = $1", [retryRequest])).rowCount, 1);
+    assert.equal((await renamePdf({ ...retryTitle, title: "Judul dari revisi lama" })).status, 409);
+    const failedRequest = randomUUID();
+    const exhausted = await renamePdf({ title: "Dokumen PDF gagal sementara", expectedRevision: afterRetry.titleEdit.revision }, failedRequest);
+    assert.equal(exhausted.status, 500);
+    assert.equal((await read(materialPath)).titleEdit.revision, afterRetry.titleEdit.revision);
+    assert.equal((await pool.query("select id from audit_mutasi where correlation_id = $1", [failedRequest])).rowCount, 0);
+  } finally {
+    await pool.query(`drop trigger ${faultName} on course_materials; drop function ${faultName}(); drop sequence ${faultSequence}`);
+  }
+
   const initial = await readSettings();
   assert.equal(initial.course.id, canonicalId);
   assert.equal(initial.course.title, "Biologi transaksi");

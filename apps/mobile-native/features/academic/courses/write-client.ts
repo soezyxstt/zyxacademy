@@ -13,7 +13,7 @@ type Method = "POST" | "PATCH";
 const retry = { status: "retry" } as const;
 const saved = { status: "saved" } as const;
 
-export function createCourseCommandTarget<Draft extends object>(send: NonNullable<AcademicTransport["command"]>) {
+export function createCourseCommandTarget<Draft extends object>(send: NonNullable<AcademicTransport["command"]>, validate?: (draft: Draft) => boolean) {
   const entries = new Map<string, Entry<Draft>>();
 
   return function target(resource: string, method: Method): CourseWriteTarget<Draft> {
@@ -25,6 +25,7 @@ export function createCourseCommandTarget<Draft extends object>(send: NonNullabl
         return entry ? { requestId: entry.requestId, confirmed: entry.confirmed, draft: { ...entry.draft } } : null;
       },
       async submit(draft, requestId, signal) {
+        if (validate && !validate(draft)) return { status: "invalid" };
         const fingerprint = JSON.stringify(draft, Object.keys(draft).sort());
         const previous = entries.get(key);
         if (previous && (previous.fingerprint !== fingerprint || previous.requestId !== requestId)) return retry;

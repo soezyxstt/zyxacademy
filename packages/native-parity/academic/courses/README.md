@@ -24,6 +24,8 @@ Simpan informasi mata kuliah melalui `PATCH /api/native/academic/admin/courses/[
 
 Edit judul PDF unggahan memakai `PATCH /api/native/academic/admin/courses/[slug]/documents/[materialId]/metadata`. Layar menerima judul dan revisi. Simpan memperbarui judul katalog dan proyeksi sumber dalam transaksi yang sama serta menandai metadata offline untuk penyegaran. Sumber berkas, kategori, tahun, bab, isi, dan status publikasi berada di luar payload penyuntingan judul.
 
+Klien dan server memvalidasi judul yang sudah dipangkas dengan panjang 1 sampai 500 karakter dan menolak karakter NUL. Jika transaksi PostgreSQL gagal karena serialisasi atau deadlock, server mengulangi transaksi sekali dengan pemeriksaan izin dan revisi. Konflik revisi tetap mendapat 409. Gangguan database yang belum pulih mendapat 500 agar klien dapat memeriksa hasil dengan ID yang sama.
+
 Perubahan ini memakai fungsi proyeksi canonical yang sama dengan `courses.update`, `chapters.create`, `chapters.update`, dan `materials.update_metadata`. Endpoint native memakai izin sesi Admin dan bukti mutasi native sendiri. Pendaftaran tool MCP, scope, discovery, persetujuan, skill dan host prompt tetap mengikuti kontrak yang diterbitkan. Uji kontrak memeriksa pemanggil web, kompatibilitas kategori dan harga, serta urutan pencatatan disclosure.
 
 ## Bukti lokal

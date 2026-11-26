@@ -63,3 +63,17 @@ test("PDF title route rejects unsupported sources and metadata, invalid origin, 
   assert.equal((await harness(null).dispatch(path, draft)).status, 401);
   assert.deepEqual(written, []);
 });
+
+test("PDF titles containing NUL are rejected before a native command or server write", async () => {
+  const { client, dispatch, sent, written } = harness("admin");
+  const target = client.updateMaterial!("biologi-dasar", "document-1");
+  const invalid = { ...draft, title: "Modul\0biologi" };
+  assert.deepEqual(await target.submit(invalid, requestId, signal), { status: "invalid" });
+  assert.equal(target.pending(), null);
+  assert.deepEqual(sent, []);
+  const response = await dispatch(path, invalid);
+  assert.equal(response.status, 422);
+  assert.deepEqual(await response.json(), { error: "INVALID_MATERIAL" });
+  assert.deepEqual(written, []);
+  assert.deepEqual(await target.submit(draft, requestId, signal), { status: "saved" });
+});
