@@ -70,8 +70,8 @@ export function CourseMarkdown({ source, services, centered, muted, paragraphSty
     };
   }, [allowLinks, color, colors, fontSize, fontFamily, fontWeight, lineHeight, textAlign]);
   const renderers = useMemo(() => ({
-    image: ({ url, altText }: { url: string; altText: string }) => renderPreviewImage?.({ url, altText }) ?? <CourseImage key={url} uri={safeInlineCourseImage(url)}
-      alt={altText} label={en ? "Image unavailable" : "Gambar belum dapat dimuat"} style={plainStyle} />,
+    image: ({ url, altText }: { url: string; altText: string }) => <>{renderPreviewImage?.({ url, altText }) ?? <CourseImage key={url} uri={safeInlineCourseImage(url)}
+      alt={altText} label={en ? "Image unavailable" : "Gambar belum dapat dimuat"} style={plainStyle} />}</>,
     video: () => <Text style={plainStyle}>{en ? "Open the lesson on the web to view this video." : "Buka materi di web untuk melihat video ini."}</Text>,
   }), [en, plainStyle, renderPreviewImage]);
 
