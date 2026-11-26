@@ -19,6 +19,8 @@ name: Student mastery review and chapter coverage
 - assertVisible: '.*1 dari 2 dinilai.*'
 - assertNotVisible: ".*Dasar yang bisa diulang: Fungsi real.*"
 - assertNotVisible: ".*Limit sepihak.*"
+- assertVisible:
+    id: student-fixture-id-light
 - takeScreenshot: student-mastery-review
 - tapOn: '(?s)^Fungsi dan limit(?:\s+1 dari 2 dinilai.*)?$'
 - assertVisible: '.*Dasar yang bisa diulang: Fungsi real.*'
@@ -27,6 +29,8 @@ name: Student mastery review and chapter coverage
 - tapOn: '.*Belum dinilai \(1\).*'
 - assertVisible: '.*Belum dinilai \(1\).*'
 - assertVisible: ".*Limit sepihak.*"
+- assertVisible:
+    id: student-fixture-id-light
 - takeScreenshot: student-mastery-expanded
 - tapOn: "Pelajari kembali topik"
 - extendedWaitUntil:
@@ -42,6 +46,8 @@ name: Student mastery review and chapter coverage
 - assertVisible: "Buka alur belajar"
 - assertNotVisible: "Topik per bab"
 - assertNotVisible: "Pelajari kembali topik"
+- assertVisible:
+    id: student-fixture-id-light
 - takeScreenshot: student-mastery-empty
 - tapOn: "Buka alur belajar"
 - extendedWaitUntil:

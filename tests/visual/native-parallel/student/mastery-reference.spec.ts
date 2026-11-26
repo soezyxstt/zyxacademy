@@ -13,10 +13,11 @@ const locale = "id";
 const theme = "light";
 const timeZone = "Asia/Jakarta";
 const fixtureEntry = "tests/visual/fixtures/student-mastery.tsx";
+const observedFixture = { id: "student-fixture-id-light" };
 const nativeMarkers = {
-  review: [{ text: "Topik untuk diulang" }, { text: ".*Skor penguasaan 56/100.*" }, { text: "Topik per bab" }],
-  expanded: [{ text: ".*Dasar yang bisa diulang: Fungsi real.*" }, { text: ".*56/100 · Meningkat.*" }, { text: ".*Limit sepihak.*" }],
-  empty: [{ text: "Belum ada hasil per topik" }, { text: "Buka alur belajar" }],
+  review: [observedFixture, { text: "Topik untuk diulang" }, { text: ".*Skor penguasaan 56/100.*" }, { text: "Topik per bab" }],
+  expanded: [observedFixture, { text: ".*Dasar yang bisa diulang: Fungsi real.*" }, { text: ".*56/100 · Meningkat.*" }, { text: ".*Limit sepihak.*" }],
+  empty: [observedFixture, { text: "Belum ada hasil per topik" }, { text: "Buka alur belajar" }],
 };
 const targets = [
   { platform: "android", viewport: { width: 380, height: 820 }, deviceScaleFactor: 1 },
@@ -47,6 +48,7 @@ test("course mastery references preserve scores, chapter disclosure and empty-st
     "components/navigation/mobile-top-navbar.tsx",
     "packages/native-parity/student/fixture-request.ts", "packages/native-parity/student/learning/contracts.ts",
     "packages/native-parity/student/learning/fixtures.ts",
+    "apps/mobile-native/features/student/StudentFixtureRoute.tsx",
     "apps/mobile-native/features/student/learning/knowledge.tsx", "apps/mobile-native/features/student/learning/index.tsx",
     "apps/mobile-native/features/student/learning/ui.tsx",
     ".maestro/native-parallel/student/mastery-parity.yaml", "messages/id/learning.json",
