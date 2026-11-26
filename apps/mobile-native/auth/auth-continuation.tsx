@@ -1,7 +1,10 @@
-import { useFocusEffect, useRouter, useSitemap, type Href } from "expo-router";
+import { randomUUID } from "expo-crypto";
+import { useFocusEffect, useNavigation, useRouter, useSitemap, type Href } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 
 import { Button } from "../components/Button";
+import { productNavigationHref } from "../routing/product-location";
+import { publicWebsiteUrl } from "../routing/public-website";
 import { resolveExpoEntryRoute } from "../routing/route-history";
 import { expoRouteHistory } from "../routing/route-history-expo";
 import { authCopy } from "./auth-copy";
@@ -38,29 +41,53 @@ export function AuthContinuation({ fallbackLocale, next }: { fallbackLocale: Nat
   const { context, failed, denied, retry } = useNativeAccountContext();
   const sitemap = useSitemap();
   const router = useRouter();
+  const screen = useNavigation();
   const navigating = useRef(false);
   const [openingDashboard, setOpeningDashboard] = useState(false);
   const [dashboardFailed, setDashboardFailed] = useState(false);
+  const [websiteFailed, setWebsiteFailed] = useState(false);
+  const [clearingWebsiteIntent, setClearingWebsiteIntent] = useState(false);
+  const [pendingWebsite, setPendingWebsite] = useState<{ href: string; transport: typeof transport } | null>(null);
   const currentAccount = state.status === "signed-in" && context?.accountId === state.accountId &&
     context.sessionId === state.sessionId ? context : null;
-  const explicit = next ?? loginIntent?.next;
+  const explicit = next ?? loginIntent?.next ?? (pendingWebsite?.transport === transport ? pendingWebsite?.href : undefined);
   const destination = currentAccount && sitemap ? resolveNativeLoginReturn(explicit, currentAccount, sitemap) : null;
 
   useFocusEffect(useCallback(() => {
-    if (state.status !== "signed-in" || !transport || !currentAccount || !sitemap || navigating.current) return;
+    if (state.status !== "signed-in" || !transport || !currentAccount || !sitemap || navigating.current ||
+      websiteFailed || clearingWebsiteIntent) return;
     const isCurrent = () => {
       const snapshot = getSnapshot();
       return snapshot.state === state && snapshot.transport === transport && !snapshot.revalidating
-        && transport.isCurrent() && state.expiresAt > Date.now();
+        && transport.isCurrent() && state.expiresAt > Date.now() && screen.isFocused();
     };
     if (!isCurrent()) return;
     const target = resolveExpoEntryRoute(explicit, currentAccount, sitemap,
       () => expoRouteHistory.restore(transport.scope, currentAccount, sitemap, isCurrent));
     if (target.status !== "ready" || !isCurrent()) return;
+    if (publicWebsiteUrl(target.href)) {
+      navigating.current = true;
+      setPendingWebsite({ href: target.href, transport });
+      setClearingWebsiteIntent(true);
+      void clearLoginIntent(state).then(() => {
+        const route = isCurrent() && productNavigationHref(target.href, randomUUID);
+        if (route) {
+          setPendingWebsite(null);
+          router.replace(route.href as Href);
+        }
+        else navigating.current = false;
+        setClearingWebsiteIntent(false);
+      }, () => {
+        navigating.current = false;
+        setClearingWebsiteIntent(false);
+        if (isCurrent()) setWebsiteFailed(true);
+      });
+      return;
+    }
     navigating.current = true;
     router.replace(target.href as Href);
     void clearLoginIntent(state).catch(() => {});
-  }, [clearLoginIntent, currentAccount, explicit, getSnapshot, router, sitemap, state, transport]));
+  }, [clearLoginIntent, clearingWebsiteIntent, currentAccount, explicit, getSnapshot, router, screen, sitemap, state, transport, websiteFailed]));
 
   if (state.status !== "signed-in") return null;
   const locale = loginIntent?.locale ?? currentAccount?.locale ?? fallbackLocale;
@@ -89,6 +116,14 @@ export function AuthContinuation({ fallbackLocale, next }: { fallbackLocale: Nat
     return <AuthPage title={copy.native.unavailable}>
       <AuthStatus error>{denied ? copy.native.accountDenied : copy.native.accountUnavailable}</AuthStatus>
       {!denied && <Button onPress={retry}>{copy.native.retry}</Button>}
+      <Button variant="outline" onPress={signOut}>{copy.signOut.title}</Button>
+    </AuthPage>;
+  }
+
+  if (websiteFailed) {
+    return <AuthPage title={copy.native.signedIn}>
+      <AuthStatus error>{locale === "en" ? "Could not open the requested page." : "Halaman yang diminta belum dapat dibuka."}</AuthStatus>
+      <Button onPress={() => setWebsiteFailed(false)}>{copy.native.retry}</Button>
       <Button variant="outline" onPress={signOut}>{copy.signOut.title}</Button>
     </AuthPage>;
   }

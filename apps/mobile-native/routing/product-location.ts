@@ -1,4 +1,13 @@
+import { getSafeRedirectPath } from "../../../packages/native-session/auth-redirect";
+import { websiteIntake } from "./public-website";
+
 type RouteParameters = Readonly<Record<string, string | readonly string[] | undefined>>;
+
+export function productNavigationHref(path: string, allocate: () => string) {
+  const website = websiteIntake.capture(path, allocate);
+  if (website) return { href: website, website: true };
+  return getSafeRedirectPath(path) === path ? { href: path, website: false } : null;
+}
 
 export function academicRouteCanRead(href: string, focused: boolean, focusedOnce: boolean) {
   return focused || (focusedOnce && href.split(/[?#]/, 1)[0] === "/admin/courses");

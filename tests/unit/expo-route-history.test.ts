@@ -14,7 +14,7 @@ const route = (href: string): NativeRouteNode => ({
 });
 const sitemap = { ...route("/"), children: [
   route("/(student)/dashboard"), route("/courses"), route("/courses/[id]/quiz/[quizId]"),
-  route("/admin"), route("/admin/ops/keys"), route("/about"),
+  route("/admin"), route("/admin/ops/keys"), route("/about"), route("/website"),
 ] };
 const current = () => true;
 

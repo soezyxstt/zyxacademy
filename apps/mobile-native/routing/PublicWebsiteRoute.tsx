@@ -1,52 +1,34 @@
 import { useFocusEffect, useLocalSearchParams, useNavigation, useRoute, useRouter } from "expo-router";
 import { openBrowserAsync } from "expo-web-browser";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { useNativeUiLocale } from "../auth/use-account-context";
 import { AuthPage, AuthStatus } from "../auth/auth-page";
 import { Button } from "../components/Button";
 import { productLocation } from "./product-location";
 import { publicWebsiteUrl, websiteIntake } from "./public-website";
+import { createWebsiteHandoff, type WebsiteHandoffStatus } from "./website-handoff";
 
 function WebsiteHandoff({ url, link }: { url: string | null; link?: string }) {
   const router = useRouter();
   const navigation = useNavigation();
   const locale = useNativeUiLocale();
-  const opening = useRef(false);
-  const attempted = useRef(false);
-  const completed = useRef(false);
-  const [failed, setFailed] = useState(false);
-  const leave = useCallback(() => {
-    websiteIntake.release(link);
-    if (router.canGoBack()) router.back();
-    else router.replace("/");
-  }, [link, router]);
-  const open = useCallback(async () => {
-    if (opening.current || !url || !navigation.isFocused()) return;
-    opening.current = true;
-    setFailed(false);
-    try {
-      await openBrowserAsync(url);
-      completed.current = true;
-      if (navigation.isFocused()) leave();
-    } catch {
-      if (navigation.isFocused()) setFailed(true);
-    } finally {
-      opening.current = false;
-    }
-  }, [leave, navigation, url]);
-  useFocusEffect(useCallback(() => {
-    if (completed.current) { leave(); return; }
-    if (attempted.current) return;
-    attempted.current = true;
-    void open();
-  }, [leave, open]));
+  const [status, setStatus] = useState<WebsiteHandoffStatus>(url ? "opening" : "expired");
+  const [handoff] = useState(() => createWebsiteHandoff({
+    resolve: () => link === undefined ? url : websiteIntake.resolve(link),
+    open: openBrowserAsync,
+    isFocused: () => navigation.isFocused(),
+    release: () => websiteIntake.release(link),
+    leave: () => { if (router.canGoBack()) router.back(); else router.replace("/"); },
+    setStatus,
+  }));
+  useFocusEffect(useCallback(() => { void handoff.focus(); }, [handoff]));
   const en = locale === "en";
   return <AuthPage title={en ? "Zyx Academy website" : "Situs Zyx Academy"}>
-    {!url ? <AuthStatus error>{en ? "Reopen the original link." : "Buka kembali tautan asal."}</AuthStatus>
-      : failed ? <AuthStatus error>{en ? "Could not open the browser." : "Browser tidak dapat dibuka."}</AuthStatus>
+    {status === "expired" ? <AuthStatus error>{en ? "Reopen the original link." : "Buka kembali tautan asal."}</AuthStatus>
+      : status === "failed" ? <AuthStatus error>{en ? "Could not open the browser." : "Browser tidak dapat dibuka."}</AuthStatus>
       : <AuthStatus busy>{en ? "Opening browser…" : "Membuka browser…"}</AuthStatus>}
-    {failed && url && <Button onPress={() => void open()}>{en ? "Try again" : "Coba lagi"}</Button>}
-    <Button variant="outline" onPress={leave}>{en ? "Back" : "Kembali"}</Button>
+    {status === "failed" && <Button testID="website-handoff-retry" onPress={() => void handoff.retry()}>{en ? "Try again" : "Coba lagi"}</Button>}
+    <Button testID="website-handoff-back" variant="outline" onPress={handoff.back}>{en ? "Back" : "Kembali"}</Button>
   </AuthPage>;
 }
 

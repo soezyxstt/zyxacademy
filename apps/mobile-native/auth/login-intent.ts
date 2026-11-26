@@ -1,5 +1,6 @@
 import { getOAuthCallbackErrorKey, getSafeRedirectPath } from "../../../packages/native-session/auth-redirect";
 import type { NativeAccountContext } from "../../../packages/native-session/context";
+import { publicWebsiteUrl } from "../routing/public-website";
 import { NATIVE_BROWSER_SCHEME } from "./browser-intent";
 import { returnRoutes } from "./return-routes";
 import { NATIVE_STAGING_ORIGIN } from "./session-api";
@@ -102,6 +103,7 @@ function resolveDestination(raw: unknown): Destination | null {
   // The next value shares the SecureStore write with the verifier and the session.
   if (typeof raw !== "string" || raw.length > maxReturnLength || !raw.startsWith("/") ||
     raw.startsWith("//") || /[\\\s\u0000-\u001f\u007f]/.test(raw)) return null;
+  if (publicWebsiteUrl(raw)) return { href: raw, pattern: "/website", area: "public" };
   const href = getSafeRedirectPath(raw);
   if (href !== raw) return null;
   const pathname = href.split(/[?#]/, 1)[0];
@@ -112,7 +114,7 @@ function resolveDestination(raw: unknown): Destination | null {
   if (canonicalPath === "/murid") return { href: `/dashboard${suffix}`, pattern: "/dashboard", area: "student" };
   const match = routePatterns.find(route => route.parts.length === parts.length &&
     route.parts.every((part, index) => part.startsWith("[") || part === parts[index]));
-  return match ? { href: `${canonicalPath}${suffix}`, pattern: match.pattern, area: match.area } : null;
+  return match && match.area !== "public" ? { href: `${canonicalPath}${suffix}`, pattern: match.pattern, area: match.area } : null;
 }
 
 export function parseNativeLoginIntent(data: unknown): NativeLoginIntent | undefined {

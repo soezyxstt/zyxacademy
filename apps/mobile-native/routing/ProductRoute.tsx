@@ -1,3 +1,4 @@
+import { randomUUID } from "expo-crypto";
 import { Redirect, useFocusEffect, useIsFocused, useLocalSearchParams, useNavigation, useRoute, useRouter, type Href } from "expo-router";
 import { CommonActions } from "expo-router/react-navigation";
 import { openBrowserAsync } from "expo-web-browser";
@@ -18,13 +19,18 @@ import { Button } from "../components/Button";
 import { useDevicePreferences } from "../device/preferences-provider";
 import { AcademicLiveScreen, bindAcademicSession, createAcademicClient } from "../features/academic";
 import { AdminOperationsScreen } from "../features/operations/AdminOperationsScreen";
-import { academicRouteCanRead, productLocation, productQueryUpdate } from "./product-location";
+import { academicRouteCanRead, productLocation, productNavigationHref, productQueryUpdate } from "./product-location";
 import { ProtectedInteractionContext } from "./protected-interaction";
+import { publicWebsiteUrl } from "./public-website";
 import { expoRouteHistory } from "./route-history-expo";
 import { createDeferredSessionNavigation, nativeSessionNavigationStatus } from "./session-stack";
 import { StaffChrome } from "./staff-chrome";
 
 type Owner = "student" | "academic" | "operations";
+
+function canOpenPath(path: string) {
+  return getSafeRedirectPath(path) === path || publicWebsiteUrl(path) !== null;
+}
 
 export type StudentRouteProps = {
   href: string; pattern: string; locale: "id" | "en"; theme: "light" | "dark"; showChrome: boolean;
@@ -72,37 +78,39 @@ function ProductRoute({ href, pattern, owner, StudentScreen }: {
   const canInteract = useCallback(() => !access.retaining && getSnapshot().state === state &&
     navigationStatus() === "ready", [access.retaining, getSnapshot, navigationStatus, state]);
   useFocusEffect(useCallback(() => deferredNavigation.cancel, [deferredNavigation]));
-  const commitPath = useCallback((path: string, replace?: boolean) => {
-    if (replace) router.replace(path as Href);
-    else router.push(path as Href);
+  const commitPath = useCallback((path: string, action: "push" | "replace" | "navigate" = "push") => {
+    const target = productNavigationHref(path, randomUUID);
+    if (!target) return;
+    // A web handoff is transient. Preserve the native screen that opened it.
+    router[target.website ? "push" : action](target.href as Href);
   }, [router]);
   const navigate = useCallback((path: string) => {
-    if (getSafeRedirectPath(path) !== path) return;
+    if (!canOpenPath(path)) return;
     deferredNavigation.run(() => commitPath(path), navigationStatus);
   }, [commitPath, deferredNavigation, navigationStatus]);
   const back = useCallback((fallback = "/") => {
     deferredNavigation.run(() => {
       if (router.canGoBack()) router.back();
-      else if (getSafeRedirectPath(fallback) === fallback) commitPath(fallback, true);
+      else commitPath(fallback, "replace");
     }, navigationStatus);
   }, [commitPath, deferredNavigation, navigationStatus, router]);
   const navigateInScreen = useCallback((path: string, options?: { replace?: boolean }) => {
-    if (getSafeRedirectPath(path) !== path) return;
-    const update = productQueryUpdate(pattern, href, path);
+    if (!canOpenPath(path)) return;
+    const update = publicWebsiteUrl(path) ? null : productQueryUpdate(pattern, href, path);
     if (update !== null && !Object.keys(update).length) return;
     // A Student submission may finish while the same session is being reverified.
     const waitForRefresh = studentAssessment && options?.replace;
     deferredNavigation.run(() => {
-      if (update === null) commitPath(path, options?.replace);
+      if (update === null) commitPath(path, options?.replace ? "replace" : "push");
       else screenNavigation.dispatch(CommonActions.setParams(update));
     }, navigationStatus, waitForRefresh ? getPendingRefresh : undefined);
   }, [commitPath, deferredNavigation, getPendingRefresh, href, navigationStatus, pattern, screenNavigation, studentAssessment]);
   const replaceInScreen = useCallback((path: string) => navigateInScreen(path, { replace: true }), [navigateInScreen]);
   const visit = useCallback((path: string) => {
-    if (getSafeRedirectPath(path) !== path || path === href.split(/[?#]/, 1)[0]) return;
+    if (!canOpenPath(path) || path === href.split(/[?#]/, 1)[0]) return;
     // The Tutor course picker can automatically open the only course after loading.
-    deferredNavigation.run(() => router.navigate(path as Href), navigationStatus, tutor ? getPendingRefresh : undefined);
-  }, [deferredNavigation, getPendingRefresh, href, navigationStatus, router, tutor]);
+    deferredNavigation.run(() => commitPath(path, "navigate"), navigationStatus, tutor ? getPendingRefresh : undefined);
+  }, [commitPath, deferredNavigation, getPendingRefresh, href, navigationStatus, tutor]);
   const loadTutorCourses = useCallback(async (signal: AbortSignal) => {
     if (!transport?.isCurrent() || !context?.roles.includes("tutor")) return [];
     const dashboard = await createAcademicClient(bindAcademicSession(transport, locale, "tutor")).tutor.dashboard(signal);

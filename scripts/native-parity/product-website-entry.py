@@ -25,6 +25,9 @@ CASES = {
     "short-link": "/f/native-smoke?ref=android",
     "unsubscribe": "/unsubscribe?token=synthetic-native-smoke",
 }
+COLD_PATH = "/about?source=cold-native-smoke&flag"
+RETRY_PATH = "/f/native-retry?slug=query&flag&tag=one&tail=%2f&tag=two#back"
+BACK_PATH = "/meet/native-smoke?source=dismiss"
 
 ACTIVITY = r"ActivityRecord\{(?P<token>\w+)\s+u\d+\s+(?P<component>[^\s}]+)"
 RESUMED = re.compile(r"^\s*Resumed:\s+" + ACTIVITY, re.MULTILINE)
@@ -68,14 +71,33 @@ def run(device, maestro, output):
         return adb("shell", shlex.join(args), **options)
 
     def open_native(path):
-        return shell("am", "start", "-W", "-a", "android.intent.action.VIEW", "-d", SCHEME + path.lstrip("/"), APP)
+        return shell("am", "start", "-W", "-a", "android.intent.action.VIEW", "-d", SCHEME + path.lstrip("/"), APP, timeout=30)
 
-    def assert_native_sign_up(case):
+    def flow(case, name):
         subprocess.run([
             maestro, "--platform", "android", "--device", device, "test", "--format", "junit",
-            "--output", str(case / "native-sign-up.xml"), "--test-output-dir", str(case / "results"),
-            "--debug-output", str(case / "logs"), str(ROOT / ".maestro/native-integration/helpers/guest-sign-up.yaml"),
+            "--output", str(case / f"{name}.xml"), "--test-output-dir", str(case / f"{name}-results"),
+            "--debug-output", str(case / f"{name}-logs"), str(ROOT / f".maestro/native-integration/helpers/{name}.yaml"),
         ], check=True, timeout=45)
+
+    def verify_browser(target, path, native_flow):
+        deadline = time.monotonic() + 20
+        expected = ORIGIN + path
+        while True:
+            dump = shell("dumpsys", "activity", "-a", "activities")
+            evidence = browser_intent(dump, expected)
+            if evidence:
+                break
+            if time.monotonic() >= deadline:
+                (target / "activities.txt").write_text(dump)
+                raise RuntimeError(f"Chrome did not open the expected public URL for {target.name}.")
+            time.sleep(0.5)
+
+        (target / "browser-intent.txt").write_text(evidence)
+        (target / "browser.png").write_bytes(adb("exec-out", "screencap", "-p", text=False))
+        shell("input", "keyevent", "KEYCODE_BACK")
+        flow(target, native_flow)
+        print(f"Verified Chrome handoff and native return for {target.name}.", flush=True)
 
     with ExitStack() as cleanup:
         if shell("id", "-u").strip() != "0":
@@ -105,29 +127,42 @@ def run(device, maestro, output):
         before = output / "before"
         before.mkdir(exist_ok=True)
         (before / "start.txt").write_text(open_native("/sign-up?locale=en"))
-        assert_native_sign_up(before)
+        flow(before, "guest-sign-up")
         for case, path in CASES.items():
             target = output / case
             target.mkdir(exist_ok=True)
             shell("am", "force-stop", CHROME)
             (target / "start.txt").write_text(open_native(path))
-            deadline = time.monotonic() + 20
-            expected = ORIGIN + path
-            while True:
-                dump = shell("dumpsys", "activity", "-a", "activities")
-                evidence = browser_intent(dump, expected)
-                if evidence:
-                    break
-                if time.monotonic() >= deadline:
-                    (target / "activities.txt").write_text(dump)
-                    raise RuntimeError(f"Chrome did not open the expected public URL for {case}.")
-                time.sleep(0.5)
+            verify_browser(target, path, "guest-sign-up")
 
-            (target / "browser-intent.txt").write_text(evidence)
-            (target / "browser.png").write_bytes(adb("exec-out", "screencap", "-p", text=False))
-            shell("input", "keyevent", "KEYCODE_BACK")
-            assert_native_sign_up(target)
-            print(f"Verified Chrome handoff and native return for {case}.", flush=True)
+        cold = output / "cold"
+        cold.mkdir(exist_ok=True)
+        shell("am", "force-stop", APP)
+        shell("am", "force-stop", CHROME)
+        (cold / "start.txt").write_text(open_native(COLD_PATH))
+        verify_browser(cold, COLD_PATH, "guest-sign-in")
+
+        before_recovery = output / "before-recovery"
+        before_recovery.mkdir(exist_ok=True)
+        (before_recovery / "start.txt").write_text(open_native("/sign-up?locale=en"))
+        flow(before_recovery, "guest-sign-up")
+
+        for name, path, retry in (("browser-retry", RETRY_PATH, True), ("browser-back", BACK_PATH, False)):
+            target = output / name
+            target.mkdir(exist_ok=True)
+            # The fixture has Chrome as its browser. Disabling the package
+            # exercises Expo's actual no-matching-activity failure.
+            shell("pm", "disable-user", "--user", "0", CHROME)
+            try:
+                (target / "start.txt").write_text(open_native(path))
+                flow(target, "website-unavailable")
+                if not retry:
+                    flow(target, "website-back")
+            finally:
+                shell("pm", "enable", "--user", "0", CHROME)
+            if retry:
+                flow(target, "website-retry")
+                verify_browser(target, path, "guest-sign-up")
 
 
 if __name__ == "__main__":

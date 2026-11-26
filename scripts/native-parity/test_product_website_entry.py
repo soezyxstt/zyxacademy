@@ -84,6 +84,56 @@ class ProductWebsiteEntryTest(unittest.TestCase):
         self.assertIn(["input", "keyevent", "KEYCODE_BACK"], commands)
         self.assertEqual([command[:2] for command in commands[-2:]], [["ip6tables", "-D"], ["iptables", "-D"]])
 
+    def test_cold_guest_and_recovery_use_real_intent_and_native_button_checks(self):
+        commands = []
+        flags = "chrome --disable-fre --disable-startup-promos-for-testing"
+        target = ""
+        browser_enabled = True
+
+        def runner(command, **options):
+            nonlocal browser_enabled, target
+            if command[0] == "maestro":
+                flow = Path(command[-1]).stem
+                commands.append(flow)
+                if flow in {"website-unavailable", "website-back"}:
+                    self.assertFalse(browser_enabled)
+                if flow == "website-retry":
+                    self.assertTrue(browser_enabled)
+                return
+            args = shlex.split(command[4]) if command[3] == "shell" else command[3:]
+            commands.append(args)
+            result = ""
+            if args[:2] == ["id", "-u"]:
+                result = "0"
+            if args[0] == "cat":
+                result = flags + "\n"
+            if args[:2] == ["am", "start"]:
+                target = MODULE["ORIGIN"] + "/" + args[args.index("-d") + 1].split("://", 1)[1]
+            if args[:2] == ["pm", "disable-user"]:
+                browser_enabled = False
+            if args[:2] == ["pm", "enable"]:
+                browser_enabled = True
+            if args[0] == "dumpsys":
+                self.assertTrue(browser_enabled)
+                result = activity_dump(target)
+            if args[0] == "exec-out":
+                result = b"png"
+            return subprocess.CompletedProcess(command, 0, stdout=result)
+
+        with TemporaryDirectory() as directory, patch.dict(os.environ, {"GITHUB_ACTIONS": "true", "RUNNER_ENVIRONMENT": "github-hosted"}), \
+                patch.dict(MODULE["run"].__globals__, CASES={}), patch.object(subprocess, "run", side_effect=runner):
+            output = Path(directory)
+            MODULE["run"]("emulator-5554", "maestro", output)
+            self.assertIn(MODULE["COLD_PATH"], (output / "cold/browser-intent.txt").read_text())
+            self.assertIn(MODULE["RETRY_PATH"], (output / "browser-retry/browser-intent.txt").read_text())
+
+        self.assertIn(["am", "force-stop", APP], commands)
+        self.assertEqual([event for event in commands if isinstance(event, str)], [
+            "guest-sign-up", "guest-sign-in", "guest-sign-up", "website-unavailable", "website-retry",
+            "guest-sign-up", "website-unavailable", "website-back",
+        ])
+        self.assertTrue(browser_enabled)
+
 
 if __name__ == "__main__":
     unittest.main()
