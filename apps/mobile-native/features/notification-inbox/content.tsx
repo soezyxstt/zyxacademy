@@ -137,7 +137,9 @@ function InboxItem({ row, locale, theme, now, divided, disabled, onSelect, testI
         <View style={styles.itemTitleRow}>
           <Text numberOfLines={2} style={[nativeTypography.bodyMedium, styles.itemTitle, styles.itemTitleText,
             { color: row.read ? colors.mutedForeground : colors.popoverForeground }]}>{row.title}</Text>
-          {time ? <Text style={[nativeTypography.bodyRegular, styles.time, { color: colors.mutedForeground }]}>{time}</Text> : null}
+          {time ? <Text numberOfLines={1} style={[nativeTypography.bodyRegular, styles.time, { color: colors.mutedForeground }]}>
+            {time.replaceAll(" ", "\u00a0")}
+          </Text> : null}
         </View>
         {row.body ? <Text numberOfLines={2} style={[nativeTypography.bodyRegular, styles.body, { color: colors.mutedForeground }]}>{row.body}</Text> : null}
       </View>
