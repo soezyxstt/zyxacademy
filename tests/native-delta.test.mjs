@@ -6,7 +6,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { gunzipSync } from "node:zlib";
-import { makeApkDelta, makeDelta, makeDesktopInstallerDelta } from "../apps/scripts/generate-nightly-deltas.mjs";
+import {
+  makeApkDelta,
+  makeDelta,
+  makeDesktopInstallerDelta,
+  resolveDeltaReleaseChannel,
+} from "../apps/scripts/generate-nightly-deltas.mjs";
 
 function sample(seed) {
   const bytes = Buffer.alloc(64 * 1024);
@@ -106,4 +111,29 @@ test("desktop installer patch uses the installed executable and beats the full d
   assert.deepEqual(payload.subarray(40, 72), createHash("sha256").update(target).digest());
   assert.equal(payload.readInt32BE(72), target.length);
   assert.equal(makeDesktopInstallerDelta(executable, target, 32), null);
+});
+
+test("resolves delta release channels for both nightly staging and stable main", () => {
+  const nightly = resolveDeltaReleaseChannel(
+    "app-v0.1.0-alpha.42-nightly.20261126.abcdef1",
+    "refs/heads/staging",
+  );
+  assert.equal(nightly.channel, "nightly");
+  assert.equal(nightly.matchesAssetPrefix("zyx-academy-nightly-0.1.0-windows-x64.exe"), true);
+  assert.equal(nightly.matchesAssetPrefix("zyx-academy-0.1.0-windows-x64.exe"), false);
+
+  const stable = resolveDeltaReleaseChannel("app-v0.2.0", "refs/heads/main");
+  assert.equal(stable.channel, "stable");
+  assert.equal(stable.matchesAssetPrefix("zyx-academy-0.2.0-windows-x64.exe"), true);
+  assert.equal(stable.matchesAssetPrefix("zyx-academy-nightly-0.2.0-windows-x64.exe"), false);
+  assert.equal(stable.matchesTag("app-v0.1.9"), true);
+  assert.equal(stable.matchesTag("app-v0.1.9-b12"), true);
+  assert.equal(stable.matchesTag("app-v0.1.9-nightly.20261126.abcdef1"), false);
+
+  assert.throws(() =>
+    resolveDeltaReleaseChannel("app-v0.2.0", "refs/heads/staging"),
+  );
+  assert.throws(() =>
+    resolveDeltaReleaseChannel("app-v0.1.0-alpha.42-nightly.20261126.abcdef1", "refs/heads/main"),
+  );
 });

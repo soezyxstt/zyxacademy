@@ -39,8 +39,8 @@ messaging.onBackgroundMessage((payload) => {
   if (!data.title) return;
   return self.registration.showNotification(data.title, {
     body: data.body || "",
-    icon: "/brand/zyx-app-192.png",
-    badge: "/brand/zyx-logo-symbol-black@2x.png",
+    icon: "/brand/zyx-notif-icon-192.png",
+    badge: "/brand/zyx-notif-badge-96.png",
     data: {
       zyx: true,
       url: data.url || "/dashboard",

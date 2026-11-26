@@ -9,40 +9,52 @@
     <style>
       :root {
         --background: #ffffff;
-        --foreground: #333333;
+        --foreground: #18181b;
         --card: #ffffff;
-        --surface: #f4f4f5;
-        --muted-foreground: #717171;
-        --border: #e6e6e6;
+        --surface: #f4f5f7;
+        --surface-hover: #eceef2;
+        --muted-foreground: #64748b;
+        --border: #e4e4e7;
+        --border-strong: #d4d4d8;
         --primary: #2a3c6a;
-        --primary-hover: #354b84;
+        --primary-hover: #213056;
         --primary-fg: #ffffff;
         --zx-z-fill: #2a3c6a;
         --zx-x-fill: #cc542b;
-        --status-warning-bg: rgba(217, 119, 6, 0.12);
+        --nav-bg: rgba(255, 255, 255, 0.88);
+        --status-warning-bg: rgba(217, 119, 6, 0.11);
+        --status-warning-border: rgba(217, 119, 6, 0.24);
         --status-warning-fg: #b45309;
-        --status-success-bg: rgba(22, 163, 74, 0.12);
+        --status-success-bg: rgba(22, 163, 74, 0.11);
+        --status-success-border: rgba(22, 163, 74, 0.24);
         --status-success-fg: #15803d;
+        --ring: rgba(42, 60, 106, 0.28);
         --radius: 10px;
       }
 
       @media (prefers-color-scheme: dark) {
         :root {
-          --background: #1d1d1d;
-          --foreground: #ffffff;
-          --card: #282828;
-          --surface: #303033;
-          --muted-foreground: #bebebe;
-          --border: #3d3d40;
-          --primary: #5e7ce2;
-          --primary-hover: #708ce8;
-          --primary-fg: #0f162a;
+          --background: #121316;
+          --foreground: #f4f4f5;
+          --card: #191b20;
+          --surface: #20232a;
+          --surface-hover: #272b34;
+          --muted-foreground: #a1a1aa;
+          --border: #2b2f38;
+          --border-strong: #3b404d;
+          --primary: #6382e8;
+          --primary-hover: #7592ee;
+          --primary-fg: #0b1120;
           --zx-z-fill: #f3f4f5;
-          --zx-x-fill: #cc542b;
-          --status-warning-bg: rgba(245, 158, 11, 0.16);
+          --zx-x-fill: #d96238;
+          --nav-bg: rgba(18, 19, 22, 0.88);
+          --status-warning-bg: rgba(245, 158, 11, 0.14);
+          --status-warning-border: rgba(245, 158, 11, 0.28);
           --status-warning-fg: #fbbf24;
-          --status-success-bg: rgba(34, 197, 94, 0.16);
+          --status-success-bg: rgba(34, 197, 94, 0.14);
+          --status-success-border: rgba(34, 197, 94, 0.28);
           --status-success-fg: #4ade80;
+          --ring: rgba(99, 130, 232, 0.36);
         }
       }
 
@@ -69,11 +81,19 @@
         min-height: 100vh;
       }
 
+      button:focus-visible,
+      input:focus-visible {
+        outline: 2px solid var(--primary);
+        outline-offset: 2px;
+      }
+
       .navbar {
         position: sticky;
         top: 0;
         z-index: 20;
-        background: var(--background);
+        background: var(--nav-bg);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
         border-bottom: 1px solid var(--border);
       }
 
@@ -83,50 +103,88 @@
         justify-content: space-between;
         gap: 12px;
         height: 52px;
-        max-width: 840px;
+        max-width: 860px;
         margin: 0 auto;
-        padding: 0 20px;
+        padding: 0 24px;
       }
 
       .brand {
         display: inline-flex;
         align-items: center;
         gap: 10px;
+        min-width: 0;
       }
 
       .brand-mark {
-        width: 28px;
-        height: 17px;
+        width: 26px;
+        height: 16px;
+        flex-shrink: 0;
       }
 
       .brand-name {
         font-size: 14px;
         font-weight: 700;
-        letter-spacing: -0.01em;
+        letter-spacing: -0.015em;
+        white-space: nowrap;
+      }
+
+      .nav-controls {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        border: 1px solid var(--status-warning-border);
+        font-size: 12px;
+        font-weight: 600;
+        background: var(--status-warning-bg);
+        color: var(--status-warning-fg);
+      }
+
+      .status-pill-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 999px;
+        background: currentColor;
+      }
+
+      .status-pill.online {
+        background: var(--status-success-bg);
+        border-color: var(--status-success-border);
+        color: var(--status-success-fg);
       }
 
       .lang-switch {
         display: inline-flex;
+        padding: 2px;
         border: 1px solid var(--border);
         border-radius: 8px;
-        overflow: hidden;
-        background: var(--card);
+        background: var(--surface);
       }
 
       .lang-btn {
         appearance: none;
         border: 0;
+        border-radius: 6px;
         background: transparent;
         color: var(--muted-foreground);
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 600;
-        padding: 5px 9px;
+        padding: 4px 8px;
         cursor: pointer;
+        transition: background-color 120ms ease, color 120ms ease;
       }
 
       .lang-btn[aria-pressed="true"] {
-        background: var(--surface);
+        background: var(--card);
         color: var(--foreground);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
       }
 
       .reconnect-banner {
@@ -134,7 +192,7 @@
         top: 52px;
         z-index: 19;
         background: var(--status-success-bg);
-        border-bottom: 1px solid var(--border);
+        border-bottom: 1px solid var(--status-success-border);
       }
 
       .reconnect-banner-inner {
@@ -142,12 +200,15 @@
         align-items: center;
         justify-content: space-between;
         gap: 12px;
-        max-width: 840px;
+        max-width: 860px;
         margin: 0 auto;
-        padding: 8px 20px;
+        padding: 8px 24px;
       }
 
       .reconnect-banner-text {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
         font-size: 13px;
         font-weight: 600;
         color: var(--status-success-fg);
@@ -162,60 +223,70 @@
       .page {
         flex: 1;
         width: 100%;
-        max-width: 840px;
+        max-width: 860px;
         margin: 0 auto;
-        padding: 28px 20px 48px;
+        padding: 28px 24px 56px;
       }
 
-      .connection-status {
-        display: inline-flex;
+      .offline-header {
+        display: flex;
         align-items: center;
-        gap: 6px;
-        padding: 4px 10px;
-        border-radius: 8px;
-        font-size: 12px;
-        font-weight: 600;
-        background: var(--surface);
-        color: var(--muted-foreground);
-        margin-bottom: 12px;
-      }
-
-      .connection-status.online {
-        background: var(--status-success-bg);
-        color: var(--status-success-fg);
-      }
-
-      .connection-status.offline,
-      .connection-status.unreachable {
-        background: var(--status-warning-bg);
-        color: var(--status-warning-fg);
-      }
-
-      .hero {
+        justify-content: space-between;
+        gap: 16px;
         padding-bottom: 20px;
         border-bottom: 1px solid var(--border);
       }
 
+      .offline-header-left {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        min-width: 0;
+      }
+
+      .offline-icon-box {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        background: var(--status-warning-bg);
+        border: 1px solid var(--status-warning-border);
+        color: var(--status-warning-fg);
+        flex-shrink: 0;
+      }
+
+      .offline-icon-box.online {
+        background: var(--status-success-bg);
+        border-color: var(--status-success-border);
+        color: var(--status-success-fg);
+      }
+
+      .offline-header-copy {
+        min-width: 0;
+      }
+
       h1 {
-        margin: 0 0 8px;
-        font-size: 22px;
+        margin: 0 0 2px;
+        font-size: 20px;
         line-height: 1.3;
         font-weight: 700;
         letter-spacing: -0.02em;
       }
 
       .lead {
-        margin: 0 0 18px;
-        font-size: 14px;
-        line-height: 1.55;
+        margin: 0;
+        font-size: 13px;
+        line-height: 1.5;
         color: var(--muted-foreground);
       }
 
       .actions {
         display: flex;
-        flex-wrap: wrap;
         align-items: center;
-        gap: 10px;
+        gap: 8px;
+        flex-shrink: 0;
       }
 
       .btn {
@@ -223,18 +294,20 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 8px;
-        min-height: 40px;
-        border-radius: var(--radius);
-        padding: 0 16px;
-        font-size: 14px;
+        gap: 7px;
+        height: 36px;
+        border-radius: 8px;
+        padding: 0 14px;
+        font-size: 13px;
         font-weight: 600;
         cursor: pointer;
+        white-space: nowrap;
+        transition: background-color 120ms ease, border-color 120ms ease, opacity 120ms ease;
       }
 
       .btn-sm {
-        min-height: 32px;
-        padding: 0 12px;
+        height: 30px;
+        padding: 0 11px;
         font-size: 12px;
       }
 
@@ -254,12 +327,22 @@
         color: var(--foreground);
       }
 
+      .btn-outline:hover:not(:disabled) {
+        background: var(--surface);
+        border-color: var(--border-strong);
+      }
+
       .btn-ghost {
-        border: 0;
+        border: 1px solid transparent;
         background: transparent;
         color: var(--muted-foreground);
-        padding: 0 8px;
-        min-height: 36px;
+        padding: 0 10px;
+        height: 32px;
+      }
+
+      .btn-ghost:hover:not(:disabled) {
+        background: var(--surface);
+        color: var(--foreground);
       }
 
       .btn:disabled {
@@ -267,34 +350,87 @@
         cursor: default;
       }
 
+      .spin {
+        animation: zyx-spin 0.8s linear infinite;
+      }
+
       .status {
-        margin: 12px 0 0;
-        min-height: 18px;
+        margin: 8px 0 0;
         font-size: 12px;
-        color: var(--muted-foreground);
+        color: var(--status-warning-fg);
+      }
+
+      .status:empty {
+        display: none;
       }
 
       .library-section {
         margin-top: 22px;
       }
 
-      .section-header {
+      .section-toolbar {
         display: flex;
-        align-items: baseline;
+        align-items: center;
         justify-content: space-between;
         gap: 12px;
-        margin-bottom: 8px;
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+      }
+
+      .section-heading-group {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        min-width: 0;
       }
 
       .section-title {
         margin: 0;
-        font-size: 16px;
+        font-size: 15px;
         font-weight: 700;
+        letter-spacing: -0.01em;
       }
 
       .section-meta {
         font-size: 12px;
         color: var(--muted-foreground);
+      }
+
+      .search-wrap {
+        position: relative;
+        width: 240px;
+        max-width: 100%;
+      }
+
+      .search-icon {
+        position: absolute;
+        left: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--muted-foreground);
+        pointer-events: none;
+      }
+
+      .search-input {
+        width: 100%;
+        height: 32px;
+        padding: 0 10px 0 32px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--surface);
+        color: var(--foreground);
+        font-size: 13px;
+        font-family: inherit;
+        transition: border-color 120ms ease, background-color 120ms ease;
+      }
+
+      .search-input::placeholder {
+        color: var(--muted-foreground);
+      }
+
+      .search-input:focus {
+        background: var(--card);
+        border-color: var(--primary);
       }
 
       .reading-list {
@@ -310,11 +446,22 @@
         justify-content: space-between;
         gap: 12px;
         border-bottom: 1px solid var(--border);
-        padding: 12px 0;
+        padding: 12px 10px;
+        margin: 0 -10px;
+        transition: background-color 120ms ease;
+      }
+
+      .reading-row:hover {
+        background: var(--surface);
+        border-radius: 8px;
       }
 
       .reading-open {
         appearance: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
         flex: 1;
         min-width: 0;
         border: 0;
@@ -325,18 +472,75 @@
         cursor: pointer;
       }
 
+      .reading-identity {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+        flex: 1;
+      }
+
+      .reading-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        color: var(--primary);
+        flex-shrink: 0;
+      }
+
+      .reading-row:hover .reading-icon {
+        background: var(--card);
+      }
+
+      .reading-text {
+        min-width: 0;
+        flex: 1;
+      }
+
       .reading-title {
         display: block;
         font-size: 14px;
         font-weight: 600;
         color: var(--foreground);
-        margin-bottom: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-bottom: 1px;
       }
 
       .reading-sub {
         display: block;
         font-size: 12px;
         color: var(--muted-foreground);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .reading-metrics {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        flex-shrink: 0;
+        font-size: 12px;
+        color: var(--muted-foreground);
+      }
+
+      .reading-chevron {
+        color: var(--muted-foreground);
+        opacity: 0.5;
+        flex-shrink: 0;
+        transition: transform 120ms ease, opacity 120ms ease;
+      }
+
+      .reading-row:hover .reading-chevron {
+        opacity: 1;
+        transform: translateX(2px);
       }
 
       .icon-btn {
@@ -344,25 +548,81 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 34px;
-        height: 34px;
-        border-radius: 8px;
+        width: 30px;
+        height: 30px;
+        border-radius: 7px;
         border: 1px solid transparent;
         background: transparent;
         color: var(--muted-foreground);
         cursor: pointer;
         flex-shrink: 0;
+        transition: background-color 120ms ease, color 120ms ease;
       }
 
       .icon-btn:hover {
-        background: var(--surface);
+        background: var(--surface-hover);
         color: var(--foreground);
       }
 
       .empty-state {
-        padding: 18px 0;
-        font-size: 14px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 44px 20px;
+        border-top: 1px solid var(--border);
+      }
+
+      .empty-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        background: var(--surface);
+        border: 1px solid var(--border);
         color: var(--muted-foreground);
+        margin-bottom: 12px;
+      }
+
+      .empty-title {
+        margin: 0 0 4px;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--foreground);
+      }
+
+      .empty-desc {
+        margin: 0;
+        max-width: 400px;
+        font-size: 13px;
+        line-height: 1.5;
+        color: var(--muted-foreground);
+      }
+
+      .reader-progress {
+        position: fixed;
+        top: 52px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        z-index: 25;
+        background: transparent;
+        pointer-events: none;
+      }
+
+      .reader-progress-bar {
+        height: 100%;
+        width: 0%;
+        background: var(--primary);
+        transition: width 80ms linear;
+      }
+
+      .reader-container {
+        max-width: 680px;
+        margin: 0 auto;
       }
 
       .reader-bar {
@@ -370,22 +630,49 @@
         align-items: center;
         justify-content: space-between;
         gap: 12px;
-        padding-bottom: 12px;
-        margin-bottom: 20px;
+        padding-bottom: 14px;
+        margin-bottom: 24px;
         border-bottom: 1px solid var(--border);
       }
 
       .reader-meta {
         font-size: 12px;
+        font-weight: 500;
         color: var(--muted-foreground);
         margin: 0 0 6px;
       }
 
       .reader-title {
-        margin: 0 0 20px;
-        font-size: 22px;
-        line-height: 1.3;
+        margin: 0 0 24px;
+        font-size: 24px;
+        line-height: 1.28;
         font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+
+      @media (max-width: 600px) {
+        .navbar-inner,
+        .reconnect-banner-inner,
+        .page {
+          padding-left: 16px;
+          padding-right: 16px;
+        }
+        .offline-header {
+          flex-direction: column;
+          align-items: stretch;
+        }
+        .actions {
+          width: 100%;
+        }
+        .actions .btn {
+          width: 100%;
+        }
+        .search-wrap {
+          width: 100%;
+        }
+        .reading-metrics {
+          display: none;
+        }
       }
 
       .reader-section {
@@ -565,9 +852,68 @@
       .hidden {
         display: none !important;
       }
+
+      .startup-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        background: var(--background);
+      }
+
+      .startup-splash-mark {
+        width: 56px;
+        height: 34px;
+      }
+
+      .startup-spinner {
+        width: 20px;
+        height: 20px;
+        border-radius: 999px;
+        border: 2px solid var(--border);
+        border-top-color: var(--primary);
+        animation: zyx-spin 0.8s linear infinite;
+      }
+
+      @keyframes zyx-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .offline-shell {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
     </style>
   </head>
   <body>
+    <div id="startup-splash" class="startup-splash" role="status" aria-label="Zyx Academy">
+      <svg
+        class="startup-splash-mark"
+        viewBox="0 0 370 216"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true"
+      >
+        <path
+          d="M262.25 66.0576L309.5 0H369.5L292.25 108L369.5 216H309.5L268.486 158.661C275.133 144.348 279 126.43 279 104C279 56 293.001 32 302.001 26C274.001 37 270.21 75.5 263.5 92.5C259.39 102.914 253.201 114.236 244.281 124.821L155 0H215L262.25 66.0576Z"
+          fill="var(--zx-x-fill)"
+        />
+        <path
+          d="M139 0L176.75 52.7764L95.0488 167H133C206.5 167 239.65 125.559 252.5 93C259.21 76 273.5 37 301.5 26C292.5 32 278.786 43 270.5 105C256.067 213 172.5 216 114.5 216H0L119.451 49H0V0H139Z"
+          fill="var(--zx-z-fill)"
+        />
+      </svg>
+      <span class="startup-spinner" aria-hidden="true"></span>
+    </div>
+
+    <div id="offline-shell" class="offline-shell hidden">
     <header class="navbar">
       <div class="navbar-inner">
         <div class="brand">
@@ -589,12 +935,22 @@
           </svg>
           <span class="brand-name">Zyx Academy</span>
         </div>
-        <div class="lang-switch" role="group" aria-label="Language">
-          <button type="button" class="lang-btn" id="lang-id" aria-pressed="true">ID</button>
-          <button type="button" class="lang-btn" id="lang-en" aria-pressed="false">EN</button>
+        <div class="nav-controls">
+          <div class="status-pill" id="conn-pill" role="status" aria-live="polite">
+            <span class="status-pill-dot" aria-hidden="true"></span>
+            <span id="conn-label">Menghubungkan</span>
+          </div>
+          <div class="lang-switch" role="group" aria-label="Language">
+            <button type="button" class="lang-btn" id="lang-id" aria-pressed="true">ID</button>
+            <button type="button" class="lang-btn" id="lang-en" aria-pressed="false">EN</button>
+          </div>
         </div>
       </div>
     </header>
+
+    <div id="reader-progress" class="reader-progress hidden" aria-hidden="true">
+      <div id="reader-progress-bar" class="reader-progress-bar"></div>
+    </div>
 
     <div id="reconnect-banner" class="reconnect-banner hidden" role="status" aria-live="polite">
       <div class="reconnect-banner-inner">
@@ -615,32 +971,72 @@
 
     <main class="page">
       <div id="home-view">
-        <section class="hero">
-          <div class="connection-status" id="conn-pill" role="status" aria-live="polite">
-            <span id="conn-label">Menghubungkan</span>
+        <section class="offline-header">
+          <div class="offline-header-left">
+            <div class="offline-icon-box" id="offline-icon-box" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 20h.01" />
+                <path d="M8.5 16.429a5 5 0 0 1 7 0" />
+                <path d="M5 12.859a10 10 0 0 1 5.17-2.69" />
+                <path d="M19 12.859a10 10 0 0 0-2.007-1.523" />
+                <path d="M2 8.82a15 15 0 0 1 4.177-2.643" />
+                <path d="M22 8.82a15 15 0 0 0-11.288-3.764" />
+                <path d="m2 2 20 20" />
+              </svg>
+            </div>
+            <div class="offline-header-copy">
+              <h1 id="title">Membuka Zyx Academy</h1>
+              <p class="lead hidden" id="message"></p>
+              <p class="status" id="status-text" role="status" aria-live="polite"></p>
+            </div>
           </div>
-          <h1 id="title">Membuka Zyx Academy</h1>
-          <p class="lead hidden" id="message"></p>
           <div class="actions">
-            <button id="retry-button" class="btn btn-primary" type="button" disabled>Coba lagi</button>
-            <button id="refresh-library-btn" class="btn btn-outline" type="button">Bacaan tersimpan</button>
+            <button id="retry-button" class="btn btn-primary" type="button" disabled>
+              <svg id="retry-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+                <path d="M21 3v5h-5" />
+              </svg>
+              <span id="retry-label">Coba lagi</span>
+            </button>
+            <button id="refresh-library-btn" class="btn btn-outline hidden" type="button">Bacaan tersimpan</button>
           </div>
-          <p class="status" id="status-text" role="status" aria-live="polite"></p>
         </section>
 
         <section class="library-section hidden" id="library-section" aria-labelledby="library-heading">
-          <div class="section-header">
-            <h2 class="section-title" id="library-heading">Bacaan tersimpan</h2>
-            <span class="section-meta" id="library-meta"></span>
+          <div class="section-toolbar">
+            <div class="section-heading-group">
+              <h2 class="section-title" id="library-heading">Bacaan tersimpan</h2>
+              <span class="section-meta" id="library-meta"></span>
+            </div>
+            <div class="search-wrap hidden" id="search-wrap">
+              <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.3-4.3" />
+              </svg>
+              <input id="library-search" class="search-input" type="search" placeholder="Cari bacaan..." aria-label="Cari bacaan" />
+            </div>
           </div>
           <ul class="reading-list" id="reading-list"></ul>
-          <p class="empty-state hidden" id="library-empty"></p>
+          <div class="empty-state hidden" id="library-empty">
+            <div class="empty-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+              </svg>
+            </div>
+            <p class="empty-title" id="library-empty-title">Belum ada bacaan tersimpan</p>
+            <p class="empty-desc" id="library-empty-desc"></p>
+          </div>
         </section>
       </div>
 
-      <article id="reader-view" class="hidden" aria-live="polite">
+      <article id="reader-view" class="reader-container hidden" aria-live="polite">
         <div class="reader-bar">
           <button type="button" class="btn btn-ghost" id="reader-back-btn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="m12 19-7-7 7-7" />
+              <path d="M19 12H5" />
+            </svg>
             <span id="reader-back-label">Kembali</span>
           </button>
           <button type="button" class="btn btn-outline btn-sm" id="reader-reconnect-btn">
@@ -652,6 +1048,7 @@
         <div id="reader-body"></div>
       </article>
     </main>
+    </div>
 
     <script>
       (function () {
@@ -669,14 +1066,20 @@
             unavailablePill: "Belum terhubung",
             connectingTitle: "Membuka Zyx Academy",
             offlineTitle: "Sedang offline",
-            offlineMsg: "Periksa koneksi internet Anda lalu coba lagi, atau buka materi yang sudah tersimpan di perangkat ini.",
+            offlineMsg: "Periksa koneksi internet Anda lalu coba lagi, atau buka materi tersimpan di bawah.",
             unavailableTitle: "Zyx belum dapat dibuka",
             unavailableMsg: "Coba lagi, atau buka bacaan yang tersimpan di perangkat ini.",
             libraryTitle: "Bacaan tersimpan",
             retry: "Coba lagi",
+            retrying: "Menghubungkan...",
+            stillOffline: "Koneksi masih belum tersedia.",
             offlineBtn: "Bacaan tersimpan",
             libraryHeading: "Bacaan tersimpan",
-            emptyLibrary: "Belum ada bacaan tersimpan di perangkat ini. Buka artikel atau materi teks saat online agar tersimpan otomatis.",
+            searchPlaceholder: "Cari bacaan...",
+            emptyTitle: "Belum ada bacaan tersimpan",
+            emptyLibrary: "Buka artikel atau materi teks saat online agar tersimpan otomatis di perangkat ini.",
+            emptySearchTitle: "Tidak ada bacaan yang cocok",
+            emptySearchDesc: "Coba kata kunci lain atau hapus pencarian.",
             back: "Kembali",
             reconnect: "Kembali online",
             bannerText: "Koneksi kembali tersedia",
@@ -695,14 +1098,20 @@
             unavailablePill: "Not connected",
             connectingTitle: "Opening Zyx Academy",
             offlineTitle: "You are offline",
-            offlineMsg: "Check your internet connection and try again, or open materials saved on this device.",
+            offlineMsg: "Check your internet connection and try again, or open saved materials below.",
             unavailableTitle: "Zyx could not be opened",
             unavailableMsg: "Try again, or open readings saved on this device.",
             libraryTitle: "Saved readings",
             retry: "Try again",
+            retrying: "Reconnecting...",
+            stillOffline: "Still offline. Check your connection.",
             offlineBtn: "Saved readings",
             libraryHeading: "Saved readings",
-            emptyLibrary: "No saved readings on this device yet. Open text materials while online to cache them automatically.",
+            searchPlaceholder: "Search readings...",
+            emptyTitle: "No saved readings yet",
+            emptyLibrary: "Open articles or text materials while online to save them automatically on this device.",
+            emptySearchTitle: "No matching readings",
+            emptySearchDesc: "Try a different keyword or clear the search.",
             back: "Back",
             reconnect: "Return online",
             bannerText: "Connection restored",
@@ -720,22 +1129,33 @@
           ? "en"
           : "id";
 
+        var startupSplash = document.getElementById("startup-splash");
+        var offlineShell = document.getElementById("offline-shell");
+        var offlineIconBox = document.getElementById("offline-icon-box");
         var connPill = document.getElementById("conn-pill");
         var connLabel = document.getElementById("conn-label");
         var titleEl = document.getElementById("title");
         var messageEl = document.getElementById("message");
         var statusEl = document.getElementById("status-text");
         var retryButton = document.getElementById("retry-button");
+        var retryLabel = document.getElementById("retry-label");
+        var retryIcon = document.getElementById("retry-icon");
         var refreshLibraryBtn = document.getElementById("refresh-library-btn");
         var langIdBtn = document.getElementById("lang-id");
         var langEnBtn = document.getElementById("lang-en");
         var librarySection = document.getElementById("library-section");
         var libraryHeading = document.getElementById("library-heading");
         var libraryMeta = document.getElementById("library-meta");
+        var searchWrap = document.getElementById("search-wrap");
+        var librarySearch = document.getElementById("library-search");
         var readingListEl = document.getElementById("reading-list");
         var libraryEmptyEl = document.getElementById("library-empty");
+        var libraryEmptyTitle = document.getElementById("library-empty-title");
+        var libraryEmptyDesc = document.getElementById("library-empty-desc");
         var homeView = document.getElementById("home-view");
         var readerView = document.getElementById("reader-view");
+        var readerProgress = document.getElementById("reader-progress");
+        var readerProgressBar = document.getElementById("reader-progress-bar");
         var readerBackBtn = document.getElementById("reader-back-btn");
         var readerBackLabel = document.getElementById("reader-back-label");
         var readerReconnectBtn = document.getElementById("reader-reconnect-btn");
@@ -749,11 +1169,12 @@
 
         var cachedItems = [];
         var cachedTotalBytes = 0;
+        var searchQuery = "";
         var activeReading = null;
         var scrollSaveTimer = null;
         var bannerDismissed = false;
         var enteredOfflineMode = false;
-        var connectionState = "connecting";
+        var connectionState = navigator.onLine === false ? "offline" : "connecting";
         var connectionGeneration = 0;
         var pendingProbe = null;
 
@@ -1139,6 +1560,18 @@
           flushList();
         }
 
+        function updateReaderProgress() {
+          if (!activeReading || readerView.classList.contains("hidden") || !readerProgressBar) return;
+          var scrollY = Math.max(0, window.scrollY || document.documentElement.scrollTop || 0);
+          var docHeight = Math.max(
+            document.documentElement.scrollHeight || 0,
+            document.body.scrollHeight || 0
+          );
+          var maxScroll = Math.max(1, docHeight - window.innerHeight);
+          var pct = Math.max(0, Math.min(100, (scrollY / maxScroll) * 100));
+          readerProgressBar.style.width = pct.toFixed(1) + "%";
+        }
+
         function openReadingView(reading) {
           enteredOfflineMode = true;
           activeReading = reading;
@@ -1149,7 +1582,7 @@
           if (reading.estimatedMinutes > 0) {
             metaParts.push(reading.estimatedMinutes + " " + t.minUnit);
           }
-          readerMetaEl.textContent = metaParts.join(", ");
+          readerMetaEl.textContent = metaParts.join(" · ");
           readerMetaEl.classList.toggle("hidden", metaParts.length === 0);
           readerTitleEl.textContent = reading.title || "";
           readerBodyEl.textContent = "";
@@ -1185,13 +1618,17 @@
 
           homeView.classList.add("hidden");
           readerView.classList.remove("hidden");
+          if (readerProgress) readerProgress.classList.remove("hidden");
           restoreReadingPosition(reading);
+          window.requestAnimationFrame(updateReaderProgress);
         }
 
         function closeReadingView() {
           persistActiveReadingPosition();
           activeReading = null;
           readerView.classList.add("hidden");
+          if (readerProgress) readerProgress.classList.add("hidden");
+          if (readerProgressBar) readerProgressBar.style.width = "0%";
           homeView.classList.remove("hidden");
         }
 
@@ -1199,9 +1636,14 @@
           var t = COPY[currentLang];
           readingListEl.textContent = "";
 
+          if (searchWrap) {
+            searchWrap.classList.toggle("hidden", cachedItems.length === 0);
+          }
+
           if (cachedItems.length === 0) {
             libraryMeta.textContent = "";
-            libraryEmptyEl.textContent = t.emptyLibrary;
+            if (libraryEmptyTitle) libraryEmptyTitle.textContent = t.emptyTitle;
+            if (libraryEmptyDesc) libraryEmptyDesc.textContent = t.emptyLibrary;
             libraryEmptyEl.classList.remove("hidden");
             readingListEl.classList.add("hidden");
             return;
@@ -1211,10 +1653,30 @@
             cachedItems.length,
             formatBytes(cachedTotalBytes)
           );
+
+          var query = searchQuery.trim().toLowerCase();
+          var visibleItems = query
+            ? cachedItems.filter(function (item) {
+                var hay = [item.title, item.courseTitle, item.chapterTitle]
+                  .filter(Boolean)
+                  .join(" ")
+                  .toLowerCase();
+                return hay.indexOf(query) !== -1;
+              })
+            : cachedItems;
+
+          if (visibleItems.length === 0) {
+            if (libraryEmptyTitle) libraryEmptyTitle.textContent = t.emptySearchTitle;
+            if (libraryEmptyDesc) libraryEmptyDesc.textContent = t.emptySearchDesc;
+            libraryEmptyEl.classList.remove("hidden");
+            readingListEl.classList.add("hidden");
+            return;
+          }
+
           libraryEmptyEl.classList.add("hidden");
           readingListEl.classList.remove("hidden");
 
-          for (var i = 0; i < cachedItems.length; i++) {
+          for (var i = 0; i < visibleItems.length; i++) {
             (function (item) {
               var li = document.createElement("li");
               li.className = "reading-row";
@@ -1223,24 +1685,57 @@
               openBtn.type = "button";
               openBtn.className = "reading-open";
 
+              var identity = document.createElement("span");
+              identity.className = "reading-identity";
+
+              var iconWrap = document.createElement("span");
+              iconWrap.className = "reading-icon";
+              iconWrap.setAttribute("aria-hidden", "true");
+              iconWrap.innerHTML =
+                '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>';
+
+              var textWrap = document.createElement("span");
+              textWrap.className = "reading-text";
+
               var titleSpan = document.createElement("span");
               titleSpan.className = "reading-title";
               titleSpan.textContent = item.title || "Materi";
 
-              var metaParts = [];
-              if (item.courseTitle) metaParts.push(item.courseTitle);
-              if (item.chapterTitle) metaParts.push(item.chapterTitle);
-              if (item.estimatedMinutes > 0) {
-                metaParts.push(item.estimatedMinutes + " " + t.minUnit);
+              var subParts = [];
+              if (item.courseTitle) subParts.push(item.courseTitle);
+              if (item.chapterTitle) subParts.push(item.chapterTitle);
+
+              textWrap.appendChild(titleSpan);
+              if (subParts.length > 0) {
+                var subSpan = document.createElement("span");
+                subSpan.className = "reading-sub";
+                subSpan.textContent = subParts.join(" · ");
+                textWrap.appendChild(subSpan);
               }
-              if (item.sizeBytes > 0) metaParts.push(formatBytes(item.sizeBytes));
 
-              var subSpan = document.createElement("span");
-              subSpan.className = "reading-sub";
-              subSpan.textContent = metaParts.join(", ");
+              identity.appendChild(iconWrap);
+              identity.appendChild(textWrap);
+              openBtn.appendChild(identity);
 
-              openBtn.appendChild(titleSpan);
-              if (metaParts.length > 0) openBtn.appendChild(subSpan);
+              var metricParts = [];
+              if (item.estimatedMinutes > 0) {
+                metricParts.push(item.estimatedMinutes + " " + t.minUnit);
+              }
+              if (item.sizeBytes > 0) metricParts.push(formatBytes(item.sizeBytes));
+              if (metricParts.length > 0) {
+                var metrics = document.createElement("span");
+                metrics.className = "reading-metrics";
+                metrics.textContent = metricParts.join(" · ");
+                openBtn.appendChild(metrics);
+              }
+
+              var chevron = document.createElement("span");
+              chevron.className = "reading-chevron";
+              chevron.setAttribute("aria-hidden", "true");
+              chevron.innerHTML =
+                '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';
+              openBtn.appendChild(chevron);
+
               openBtn.addEventListener("click", function () {
                 var invoke = getTauriInvoke();
                 if (!invoke) return;
@@ -1273,7 +1768,7 @@
               li.appendChild(openBtn);
               li.appendChild(delBtn);
               readingListEl.appendChild(li);
-            })(cachedItems[i]);
+            })(visibleItems[i]);
           }
         }
 
@@ -1304,12 +1799,15 @@
           connPill.classList.toggle("online", isOnline);
           connPill.classList.toggle("offline", isOffline);
           connPill.classList.toggle("unreachable", connectionState === "unreachable");
+          if (offlineIconBox) offlineIconBox.classList.toggle("online", isOnline);
           connLabel.textContent = isConnecting
             ? t.connectingPill
             : isOnline ? t.onlinePill : isOffline ? t.offlinePill : t.unavailablePill;
           retryButton.disabled = isConnecting;
           readerReconnectBtn.disabled = isConnecting;
           bannerOnlineBtn.disabled = isConnecting;
+          if (retryIcon) retryIcon.classList.toggle("spin", isConnecting);
+          if (retryLabel) retryLabel.textContent = isConnecting ? t.retrying : t.retry;
           statusEl.textContent = "";
           if (isOffline) {
             titleEl.textContent = t.offlineTitle;
@@ -1334,9 +1832,13 @@
           currentLang = lang;
           document.documentElement.lang = lang;
           var t = COPY[lang];
-          retryButton.textContent = t.retry;
-          refreshLibraryBtn.textContent = t.offlineBtn;
+          if (retryLabel) retryLabel.textContent = t.retry;
+          if (refreshLibraryBtn) refreshLibraryBtn.textContent = t.offlineBtn;
           libraryHeading.textContent = t.libraryHeading;
+          if (librarySearch) {
+            librarySearch.placeholder = t.searchPlaceholder;
+            librarySearch.setAttribute("aria-label", t.searchPlaceholder);
+          }
           readerBackLabel.textContent = t.back;
           readerReconnectBtn.textContent = t.reconnect;
           reconnectBannerText.textContent = t.bannerText;
@@ -1367,22 +1869,42 @@
           bannerDismissed = true;
           reconnectBanner.classList.add("hidden");
         });
-        refreshLibraryBtn.addEventListener("click", function () {
-          enteredOfflineMode = true;
-          updateConnectionUI(false);
-          void loadLibrary().then(function () {
+        if (refreshLibraryBtn) {
+          refreshLibraryBtn.addEventListener("click", function () {
+            showOfflineShell(false);
             librarySection.scrollIntoView({ behavior: "smooth", block: "start" });
           });
-        });
+        }
+        if (librarySearch) {
+          librarySearch.addEventListener("input", function () {
+            searchQuery = librarySearch.value || "";
+            renderLibrary();
+          });
+        }
         readerBackBtn.addEventListener("click", closeReadingView);
 
-        window.addEventListener("scroll", schedulePositionSave, { passive: true });
+        window.addEventListener(
+          "scroll",
+          function () {
+            schedulePositionSave();
+            updateReaderProgress();
+          },
+          { passive: true }
+        );
         document.addEventListener("visibilitychange", function () {
           if (document.visibilityState === "hidden") {
             persistActiveReadingPosition();
           }
         });
         window.addEventListener("pagehide", persistActiveReadingPosition);
+
+        function showOfflineShell(showBannerIfOnline) {
+          enteredOfflineMode = true;
+          if (startupSplash) startupSplash.classList.add("hidden");
+          if (offlineShell) offlineShell.classList.remove("hidden");
+          updateConnectionUI(Boolean(showBannerIfOnline));
+          void loadLibrary();
+        }
 
         // Never auto-redirect mid-read when connectivity returns.
         window.addEventListener("online", function () {
@@ -1398,23 +1920,21 @@
         });
         window.addEventListener("offline", function () {
           invalidateConnectionProbe();
-          enteredOfflineMode = true;
           connectionState = "offline";
           bannerDismissed = false;
-          updateConnectionUI(false);
+          showOfflineShell(false);
         });
 
         renderLang(currentLang);
-        void loadLibrary();
 
-        // Single startup reachability check on desktop launch:
-        // opens Zyx Academy automatically when online; stays in offline shell when unreachable.
+        // Fast startup reachability check on desktop launch:
+        // keep a minimal splash while probing a static edge asset, navigate immediately when online,
+        // and only reveal the offline shell if the device is actually offline or unreachable.
         void (async function initialConnect() {
           var generation = connectionGeneration;
           if (navigator.onLine === false) {
-            enteredOfflineMode = true;
             connectionState = "offline";
-            updateConnectionUI(false);
+            showOfflineShell(false);
             return;
           }
           var reachable = await probeServerReachable();
@@ -1424,8 +1944,7 @@
             updateConnectionUI(false);
             window.location.replace(targetOrigin + "/");
           } else {
-            enteredOfflineMode = true;
-            updateConnectionUI(reachable);
+            showOfflineShell(reachable);
           }
         })();
       })();

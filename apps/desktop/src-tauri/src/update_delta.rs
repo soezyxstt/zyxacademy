@@ -1,4 +1,6 @@
+use base64::Engine;
 use flate2::bufread::GzDecoder;
+use minisign_verify::{PublicKey, Signature};
 use sha2::{Digest, Sha256};
 use std::io::{Cursor, Read};
 use std::path::Path;
@@ -7,6 +9,7 @@ use tauri::Url;
 const MAX_BYTES: usize = 256 * 1024 * 1024;
 const MAX_INSTALLER_BYTES: usize = 64 * 1024 * 1024;
 const MAX_CHECKSUM_BYTES: usize = 64 * 1024;
+const MAX_SIGNATURE_BYTES: usize = 8 * 1024;
 
 pub fn read_base(path: &Path) -> Option<Vec<u8>> {
     let file = std::fs::File::open(path).ok()?;
@@ -117,19 +120,25 @@ fn sibling(url: &Url, name: &str) -> Option<Url> {
     Some(result)
 }
 
-async fn fetch(client: &reqwest::Client, url: Url, limit: usize) -> Option<Vec<u8>> {
+async fn fetch_with_progress<F>(
+    client: &reqwest::Client,
+    url: Url,
+    limit: usize,
+    mut on_progress: F,
+) -> Option<Vec<u8>>
+where
+    F: FnMut(usize, Option<u64>) + Send,
+{
     let mut response = client
         .get(url)
-        .timeout(std::time::Duration::from_secs(25))
+        .timeout(std::time::Duration::from_secs(60))
         .send()
         .await
         .ok()?
         .error_for_status()
         .ok()?;
-    if response
-        .content_length()
-        .is_some_and(|size| size > limit as u64)
-    {
+    let total = response.content_length();
+    if total.is_some_and(|size| size > limit as u64) {
         return None;
     }
     let mut bytes = Vec::new();
@@ -137,37 +146,101 @@ async fn fetch(client: &reqwest::Client, url: Url, limit: usize) -> Option<Vec<u
         if chunk.len() > limit - bytes.len() {
             return None;
         }
+        on_progress(chunk.len(), total);
         bytes.extend_from_slice(&chunk);
     }
     Some(bytes)
 }
 
-pub async fn download(
+async fn fetch(client: &reqwest::Client, url: Url, limit: usize) -> Option<Vec<u8>> {
+    fetch_with_progress(client, url, limit, |_, _| {}).await
+}
+
+fn parse_tauri_pubkey(raw_pubkey: &str) -> Option<PublicKey> {
+    let trimmed = raw_pubkey.trim();
+    if let Ok(decoded_bytes) = base64::engine::general_purpose::STANDARD.decode(trimmed) {
+        if let Ok(text) = std::str::from_utf8(&decoded_bytes) {
+            if let Some(key_line) = text
+                .lines()
+                .map(str::trim)
+                .find(|line| !line.is_empty() && !line.starts_with("untrusted comment:"))
+            {
+                if let Ok(pk) = PublicKey::from_base64(key_line) {
+                    return Some(pk);
+                }
+            }
+        }
+    }
+    PublicKey::from_base64(trimmed).ok()
+}
+
+fn parse_tauri_signature(raw_sig: &str) -> Option<Signature> {
+    let trimmed = raw_sig.trim();
+    if let Ok(decoded_bytes) = base64::engine::general_purpose::STANDARD.decode(trimmed) {
+        if let Ok(text) = std::str::from_utf8(&decoded_bytes) {
+            if let Ok(sig) = Signature::decode(text) {
+                return Some(sig);
+            }
+        }
+    }
+    Signature::decode(trimmed).ok()
+}
+
+pub fn verify_minisign(raw_pubkey: &str, raw_sig: &str, bytes: &[u8]) -> bool {
+    let Some(pubkey) = parse_tauri_pubkey(raw_pubkey) else {
+        return false;
+    };
+    let Some(sig) = parse_tauri_signature(raw_sig) else {
+        return false;
+    };
+    pubkey.verify(bytes, &sig, false).is_ok()
+}
+
+pub async fn download<F>(
     client: &reqwest::Client,
     url: &Url,
     asset: &str,
     base: &[u8],
-) -> Option<Vec<u8>> {
+    on_progress: F,
+) -> Option<Vec<u8>>
+where
+    F: FnMut(usize, Option<u64>) + Send,
+{
     let base_digest = Sha256::digest(base);
     let name = format!("{asset}.from-{base_digest:x}.zyxdelta");
-    let patch = fetch(client, sibling(url, &name)?, MAX_BYTES).await?;
+    let patch = fetch_with_progress(client, sibling(url, &name)?, MAX_BYTES, on_progress).await?;
     apply(base, &base_digest.into(), &patch)
 }
 
-pub async fn download_installer(
+pub async fn download_installer<F>(
     client: &reqwest::Client,
     url: &Url,
     asset: &str,
     executable: &Path,
-) -> Option<Vec<u8>> {
+    required_pubkey: Option<&str>,
+    on_progress: F,
+) -> Option<Vec<u8>>
+where
+    F: FnMut(usize, Option<u64>) + Send,
+{
     let base = read_base(executable)?;
     if base.len() > MAX_INSTALLER_BYTES {
         return None;
     }
     let base_digest = Sha256::digest(&base);
     let name = format!("{asset}.from-exe-{base_digest:x}.zyxdesktop.gz");
-    let patch = fetch(client, sibling(url, &name)?, MAX_INSTALLER_BYTES).await?;
-    matches_release_checksum(client, url, &name, &patch).await?;
+    let patch =
+        fetch_with_progress(client, sibling(url, &name)?, MAX_INSTALLER_BYTES, on_progress).await?;
+    if let Some(pubkey) = required_pubkey {
+        let sig_name = format!("{name}.sig");
+        let sig_raw = fetch(client, sibling(url, &sig_name)?, MAX_SIGNATURE_BYTES).await?;
+        let sig_text = std::str::from_utf8(&sig_raw).ok()?;
+        if !verify_minisign(pubkey, sig_text, &patch) {
+            return None;
+        }
+    } else {
+        matches_release_checksum(client, url, &name, &patch).await?;
+    }
     apply_installer(&base, &base_digest.into(), &patch)
 }
 
@@ -242,5 +315,17 @@ mod tests {
 
         assert_eq!(apply_installer(&base, &base_digest, &patch), Some(target));
         assert!(apply_installer(&base, &base_digest, &patch[..patch.len() - 1]).is_none());
+    }
+
+    #[test]
+    fn minisign_helper_parses_wrapped_keys_and_rejects_invalid_signatures() {
+        let raw_key = "RWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3";
+        let wrapped_key = base64::engine::general_purpose::STANDARD
+            .encode(format!("untrusted comment: minisign public key\n{raw_key}\n"));
+
+        assert!(parse_tauri_pubkey(raw_key).is_some());
+        assert!(parse_tauri_pubkey(&wrapped_key).is_some());
+        assert!(parse_tauri_pubkey("not-a-valid-key").is_none());
+        assert!(!verify_minisign(&wrapped_key, "not-a-signature", b"payload"));
     }
 }

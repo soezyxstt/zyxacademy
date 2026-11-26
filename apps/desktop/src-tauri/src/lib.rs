@@ -504,13 +504,35 @@ fn validate_update_download_url(raw_url: &str) -> Result<(Url, String), String> 
     Ok((parsed, asset))
 }
 
-fn is_staging_nightly_asset(url: &Url, asset: &str) -> bool {
-    build_channel() == "nightly"
-        && asset.starts_with("zyx-academy-nightly-")
-        && url
-            .path_segments()
-            .and_then(|mut segments| segments.nth(4))
-            .is_some_and(|tag| tag.starts_with("app-v") && tag.contains("-nightly."))
+fn is_channel_release_asset(url: &Url, asset: &str) -> bool {
+    let Some(tag) = url
+        .path_segments()
+        .and_then(|mut segments| segments.nth(4))
+    else {
+        return false;
+    };
+    if build_channel() == "nightly" {
+        asset.starts_with("zyx-academy-nightly-")
+            && tag.starts_with("app-v")
+            && tag.contains("-nightly.")
+    } else {
+        asset.starts_with("zyx-academy-")
+            && !asset.starts_with("zyx-academy-nightly-")
+            && tag.starts_with("app-v")
+            && !tag.contains("-nightly.")
+    }
+}
+
+fn updater_pubkey(app: &AppHandle) -> Option<String> {
+    app.config()
+        .plugins
+        .0
+        .get("updater")
+        .and_then(|v| v.as_object())
+        .and_then(|obj| obj.get("pubkey"))
+        .and_then(|v| v.as_str())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
 }
 
 fn is_allowed_redirect_host(host: &str) -> bool {
@@ -610,6 +632,23 @@ fn matches_installed_bundle(update: &tauri_plugin_updater::Update) -> bool {
     true
 }
 
+fn make_progress_reporter(app: &AppHandle) -> impl FnMut(usize, Option<u64>) + Send + 'static {
+    let progress_app = app.clone();
+    let mut downloaded: u64 = 0;
+    let mut last_percent: u8 = 0;
+    move |chunk_length: usize, content_length: Option<u64>| {
+        downloaded = downloaded.saturating_add(chunk_length as u64);
+        if let Some(total) = content_length.filter(|&v| v > 0) {
+            let percent = ((downloaded.saturating_mul(100)) / total).min(100) as u8;
+            if percent != last_percent {
+                last_percent = percent;
+                let _ =
+                    progress_app.emit("zyx-update-progress", UpdateProgressPayload { percent });
+            }
+        }
+    }
+}
+
 #[tauri::command]
 async fn install_native_update(app: AppHandle) -> Result<String, String> {
     if !has_updater_config(&app) {
@@ -631,38 +670,58 @@ async fn install_native_update(app: AppHandle) -> Result<String, String> {
         return Err("NO_UPDATE_AVAILABLE".to_string());
     }
     let guard = lock_update()?;
-    let progress_app = app.clone();
-    let mut downloaded: u64 = 0;
-    let mut last_percent: u8 = 0;
 
-    let report_progress = move |chunk_length: usize, content_length: Option<u64>| {
-        downloaded = downloaded.saturating_add(chunk_length as u64);
-        if let Some(total) = content_length.filter(|&v| v > 0) {
-            let percent = ((downloaded.saturating_mul(100)) / total).min(100) as u8;
-            if percent != last_percent {
-                last_percent = percent;
-                let _ = progress_app.emit("zyx-update-progress", UpdateProgressPayload { percent });
+    let release_asset = validate_release_asset(update.download_url.as_str())
+        .ok()
+        .filter(|(url, asset)| is_channel_release_asset(url, asset));
+    if let Some((url, asset)) = release_asset {
+        let mut bytes = None;
+        let mut from_installed_executable = false;
+
+        // First try installed-executable delta (e.g. Windows NSIS .exe or Linux .deb)
+        // verified with the same Minisign public key used by the native updater.
+        if supports_installed_executable_patch(&asset) {
+            if let (Ok(executable), Ok(client), Some(pubkey)) = (
+                std::env::current_exe(),
+                installer_client(),
+                updater_pubkey(&app),
+            ) {
+                if let Some(reconstructed) = update_delta::download_installer(
+                    &client,
+                    &url,
+                    &asset,
+                    &executable,
+                    Some(&pubkey),
+                    make_progress_reporter(&app),
+                )
+                .await
+                {
+                    bytes = Some(reconstructed);
+                    from_installed_executable = true;
+                }
             }
         }
-    };
 
-    let nightly_asset = validate_release_asset(update.download_url.as_str())
-        .ok()
-        .filter(|(url, asset)| is_staging_nightly_asset(url, asset));
-    if let Some((url, asset)) = nightly_asset {
         let cache = app
             .path()
             .app_cache_dir()
             .ok()
             .map(|dir| dir.join("updates").join("signed-package"));
-        let mut bytes = None;
-        if let Some(base) = cache.as_deref().and_then(update_delta::read_base) {
-            if update.verify(&base).is_ok() {
-                bytes = Some(base);
-            } else if let Ok(client) = installer_client() {
-                bytes = update_delta::download(&client, &url, &asset, &base)
+        if bytes.is_none() {
+            if let Some(base) = cache.as_deref().and_then(update_delta::read_base) {
+                if update.verify(&base).is_ok() {
+                    bytes = Some(base);
+                } else if let Ok(client) = installer_client() {
+                    bytes = update_delta::download(
+                        &client,
+                        &url,
+                        &asset,
+                        &base,
+                        make_progress_reporter(&app),
+                    )
                     .await
                     .filter(|target| update.verify(target).is_ok());
+                }
             }
         }
         #[cfg(target_os = "linux")]
@@ -673,24 +732,34 @@ async fn install_native_update(app: AppHandle) -> Result<String, String> {
                     .and_then(|path| update_delta::read_base(std::path::Path::new(path))),
                 installer_client(),
             ) {
-                bytes = update_delta::download(&client, &url, &asset, &base)
-                    .await
-                    .filter(|target| update.verify(target).is_ok());
+                bytes = update_delta::download(
+                    &client,
+                    &url,
+                    &asset,
+                    &base,
+                    make_progress_reporter(&app),
+                )
+                .await
+                .filter(|target| update.verify(target).is_ok());
             }
         }
         let bytes = match bytes {
             Some(bytes) => bytes,
             None => update
-                .download(report_progress, || {})
+                .download(make_progress_reporter(&app), || {})
                 .await
                 .map_err(|e| format!("Failed to download update: {e}"))?,
         };
-        if let Some(path) = cache.as_deref() {
-            let _ = update_delta::cache(path, &bytes);
+        if !from_installed_executable {
+            if let Some(path) = cache.as_deref() {
+                let _ = update_delta::cache(path, &bytes);
+            }
         }
         update.install(&bytes)
     } else {
-        update.download_and_install(report_progress, || {}).await
+        update
+            .download_and_install(make_progress_reporter(&app), || {})
+            .await
     }
     .map_err(|e| format!("Failed to install update: {e}"))?;
 
@@ -772,12 +841,21 @@ async fn download_and_launch_update(app: AppHandle, url: String) -> Result<Strin
     std::fs::create_dir_all(&update_dir)
         .map_err(|e| format!("Failed to create updates directory: {e}"))?;
     let target_path = update_dir.join(&file_name);
-    let nightly = is_staging_nightly_asset(&parsed, &file_name);
+    let channel_asset = is_channel_release_asset(&parsed, &file_name);
+    let nightly = build_channel() == "nightly" && channel_asset;
 
-    if nightly && !has_updater_config(&app) && supports_installed_executable_patch(&file_name) {
+    if channel_asset && supports_installed_executable_patch(&file_name) {
         if let Ok(executable) = std::env::current_exe() {
-            if let Some(bytes) =
-                update_delta::download_installer(&client, &parsed, &file_name, &executable).await
+            let required_pubkey = updater_pubkey(&app);
+            if let Some(bytes) = update_delta::download_installer(
+                &client,
+                &parsed,
+                &file_name,
+                &executable,
+                required_pubkey.as_deref(),
+                make_progress_reporter(&app),
+            )
+            .await
             {
                 // Keep the reconstructed installer out of the full installer cache.
                 let reconstructed = update_dir.join(format!("delta-{file_name}"));
@@ -823,12 +901,20 @@ async fn download_and_launch_update(app: AppHandle, url: String) -> Result<Strin
     let installed_app_image: Option<std::path::PathBuf> = None;
 
     let mut reconstructed = false;
-    if nightly {
+    if channel_asset {
         let base_path = installed_app_image
             .clone()
             .or_else(|| cached_installer(&update_dir, &file_name));
         if let Some(base) = base_path.as_deref().and_then(update_delta::read_base) {
-            if let Some(bytes) = update_delta::download(&client, &parsed, &file_name, &base).await {
+            if let Some(bytes) = update_delta::download(
+                &client,
+                &parsed,
+                &file_name,
+                &base,
+                make_progress_reporter(&app),
+            )
+            .await
+            {
                 if update_delta::matches_release_checksum(&client, &parsed, &file_name, &bytes)
                     .await
                     .is_some()
@@ -950,13 +1036,19 @@ async fn download_installer(
 
 fn cached_installer(directory: &std::path::Path, target: &str) -> Option<std::path::PathBuf> {
     let (_, extension) = target.rsplit_once('.')?;
+    let is_nightly = build_channel() == "nightly";
     std::fs::read_dir(directory)
         .ok()?
         .filter_map(Result::ok)
         .filter_map(|entry| {
             let path = entry.path();
             let name = path.file_name()?.to_str()?;
-            if !name.starts_with("zyx-academy-nightly-")
+            let matches_channel = if is_nightly {
+                name.starts_with("zyx-academy-nightly-")
+            } else {
+                name.starts_with("zyx-academy-") && !name.starts_with("zyx-academy-nightly-")
+            };
+            if !matches_channel
                 || name == target
                 || path.extension().and_then(|ext| ext.to_str()) != Some(extension)
             {
