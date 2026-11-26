@@ -52,7 +52,7 @@ test("verification recovery retains selected logic or PDF context", () => {
       expect(result.nextAction.instruction).toContain(`purpose:'${purpose}'`);
     }
   }
-  const currentVerification = { contentHash: "a".repeat(64), planHash: "b".repeat(64), purpose: "pdf" };
+  const currentVerification = { contentHash: "a".repeat(64), planHash: "b".repeat(64), purpose: "pdf" as const };
   const result = authoringFailureDiagnostics(Object.assign(new Error("PRODUCT_V4_VERIFICATION_CONFLICT"), { currentVerification }));
   expect(result.currentVerification).toEqual(currentVerification);
   expect(result.nextAction.instruction).toContain("pdf plan hashes");
