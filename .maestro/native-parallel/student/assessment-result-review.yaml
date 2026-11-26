@@ -1,0 +1,39 @@
+appId: com.zyx.academy.nativeparity
+name: Student assessment review shows owned results
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: separator
+    timeout: 30000
+- openLink: "zyx-native-parity://student-fixture?scenario=assessment-signed-results&locale=id&theme=light&path=%2Fcourses%2Fassessment-evidence-mathematics%2Fmy-results%2Fassessment-evidence-quiz-finished"
+- extendedWaitUntil:
+    visible: 'Latihan limit fungsi'
+    timeout: 30000
+- assertVisible: 'Latihan limit fungsi'
+- assertVisible: '85%'
+- assertVisible: 'Lihat diagnosis dan rencana belajar'
+- assertVisible:
+    id: student-fixture-id-light
+- takeScreenshot: student-assessment-result-review-released-quiz
+- openLink: "zyx-native-parity://student-fixture?scenario=assessment-signed-results&locale=id&theme=light&path=%2Fcourses%2Fassessment-evidence-mathematics%2Fmy-results%2Fassessment-evidence-tryout-submitted"
+- extendedWaitUntil:
+    visible: 'Tryout turunan dan penerapannya untuk sains dan rekayasa'
+    timeout: 30000
+- assertVisible: 'Tryout turunan dan penerapannya untuk sains dan rekayasa'
+- assertVisible: 'Menunggu penilaian'
+- assertNotVisible: '95%'
+- assertNotVisible: 'Uraikan alasan pilihan jawaban sebelum menulis kesimpulan\.'
+- assertVisible:
+    id: student-fixture-id-light
+- takeScreenshot: student-assessment-result-review-pending-tryout
+- openLink: "zyx-native-parity://student-fixture?scenario=assessment-signed-results&locale=id&theme=light&path=%2Fcourses%2Fassessment-evidence-mathematics%2Fmy-results%2Fassessment-evidence-tryout-graded"
+- extendedWaitUntil:
+    visible: '95%'
+    timeout: 30000
+- assertVisible: '95%'
+- assertVisible: 'Uraikan alasan pilihan jawaban sebelum menulis kesimpulan\.'
+- assertNotVisible: 'Menunggu penilaian'
+- assertVisible:
+    id: student-fixture-id-light
+- takeScreenshot: student-assessment-result-review-graded-tryout

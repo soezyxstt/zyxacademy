@@ -14,7 +14,7 @@ Referensi ini mencatat tampilan awal dan keputusan akses pada web. [Skenario Mae
 
 ```sh
 bun --env-file=.env.local tests/visual/native-parallel/student/product/seed.ts
-node node_modules/next/dist/bin/next dev --turbopack --hostname 127.0.0.1 -p 3140
+QUEUE_PROVIDER=noop node node_modules/next/dist/bin/next dev --turbopack --hostname 127.0.0.1 -p 3140
 ```
 
 ```sh
@@ -38,7 +38,7 @@ STUDENT_SERVER_SHA=$(git rev-parse HEAD) \
 bun --env-file=.env.local tests/visual/native-parallel/student/product/assessment-http.ts
 ```
 
-Smoke HTTP memakai sesi peserta sintetis yang ditandatangani dan resource sementara. Pengujian memeriksa identitas yang sama ketika permintaan mulai atau kirim diulang, jumlah rekaman tersimpan, pelepasan pembahasan, hasil dan kuota, serta penolakan ketika hasil diminta oleh peserta lain.
+Smoke HTTP memakai sesi peserta sintetis yang ditandatangani dan resource sementara. Jalankan server Next dengan `QUEUE_PROVIDER=noop` seperti pada perintah di atas. Permintaan analisis ulang mengembalikan 202 dan menyimpan status `processing` di database uji. Mode `noop` menjaga agar worker tidak menerima pekerjaan sintetis. Pengujian memeriksa identitas yang sama ketika permintaan mulai atau kirim diulang, jumlah rekaman tersimpan, pelepasan pembahasan, hasil dan kuota, serta penolakan ketika hasil diminta oleh peserta lain.
 
 ### Pengujian HTTP pada `e2b8f44a`
 
