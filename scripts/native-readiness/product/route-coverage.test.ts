@@ -11,6 +11,7 @@ test("every inventoried Next page has a verified source-level Expo disposition",
   expect(report.inventory).toBe(report.routes.length);
   expect(Object.values(report.totals).reduce((total, count) => total + count, 0)).toBe(report.inventory);
   const route = (pattern: string) => report.routes.find(item => item.pattern === pattern);
+  expect(route("/")?.kind).toBe("public-browser");
   expect(route("/admin/forms/[id]")?.kind).toBe("native-screen");
   expect(route("/admin/meet/[id]")?.kind).toBe("native-screen");
   expect(route("/forms/[id]")?.kind).toBe("public-browser");

@@ -133,11 +133,15 @@ export async function auditProductRoutes(root: string) {
     const href = sample(pattern);
     if (pattern in host) {
       requireSource(page, host[pattern as keyof typeof host].marker);
-      if (pattern === "/" && (!expo.has("/website") || publicWebsiteUrl(NATIVE_STAGING_ORIGIN + "/") === null)) {
-        issue(pattern, "the explicit HTTPS homepage has no public handoff");
+      if (pattern === "/") {
+        if (!expo.has("/website") || publicWebsiteUrl(NATIVE_STAGING_ORIGIN + "/") !== NATIVE_STAGING_ORIGIN + "/") {
+          issue(pattern, "the explicit HTTPS homepage has no public handoff");
+        }
+        add(page, "public-browser", { dispatch: "website", note: "Next serves the public homepage. The bare Expo launch starts the app independently." });
+        continue;
       }
       if (pattern === "/offline" && !current("murid", pattern)) issue(pattern, "verified Student cannot reach offline library");
-      add(page, "native-screen", { dispatch: "host", note: pattern === "/" ? "Bare Expo root is the app entry; the explicit HTTPS home opens the website." : undefined });
+      add(page, "native-screen", { dispatch: "host" });
       continue;
     }
     if (pattern === "/auth/native-start" || pattern === "/auth/native-finish") {
