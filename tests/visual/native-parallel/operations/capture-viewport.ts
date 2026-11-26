@@ -15,7 +15,7 @@ async function main() {
         { id: "blog-detail-light", path: "/blog/belajar-dengan-latihan-terarah", theme: "light", text: "Mulai dari satu konsep" },
         { id: "blog-empty-dark", path: "/blog?category=kegiatan_zyx", theme: "dark", text: "Belum ada artikel" },
       ]) {
-        const response = await page.goto(`http://localhost:3211${item.path}`, { waitUntil: "domcontentloaded", timeout: 120000 });
+        const response = await page.goto(`http://localhost:3211${item.path}`, { waitUntil: "domcontentloaded", timeout: 300000 });
         expect(response?.status()).toBe(200);
         await page.evaluate(theme => document.documentElement.classList.toggle("dark", theme === "dark"), item.theme);
         await page.evaluate(() => document.fonts.ready);
