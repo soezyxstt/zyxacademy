@@ -17,6 +17,7 @@ export function MediaLibrary({ initialSpace }: { initialSpace?: string }) {
   const [editor, setEditor] = useState<Editor>();
   const [selected, setSelected] = useState<MediaItem[] | null>(null);
   const [moving, setMoving] = useState<MediaItem[]>();
+  const [copying, setCopying] = useState<MediaItem>();
   const [destination, setDestination] = useState("");
   const [confirm, setConfirm] = useState<Confirmation | null>(null);
   const [upload, setUpload] = useState<{ file: Prepared; item?: MediaItem }>();
@@ -27,17 +28,21 @@ export function MediaLibrary({ initialSpace }: { initialSpace?: string }) {
   useEffect(() => () => operation.current?.abort(), [client]);
 
   const read = useRead("media", location);
+  const library = useRead("media", { space: "media", folder: "" }, Boolean(copying && space === "storage"));
   const action = useAction();
   const busy = working || action.busy;
   const isMedia = space === "media";
   const parent = folder.slice(0, folder.lastIndexOf("/"));
   const targets = [["", "Pustaka media"], ...(read.data?.destinations ?? read.data?.folders ?? []).map(key => [key, key.slice(6)] as const)] as const;
   const options = moving ? targets.filter(([key]) => mediaDestination(moving, key)) : [];
+  const copyOptions = copying
+    ? (isMedia ? targets.filter(([key]) => mediaDestination([copying], key))
+      : [["", "Pustaka media"], ...(library.data?.destinations ?? library.data?.folders ?? []).map(key => [key, key.slice(6)] as const)] as const) : [];
 
   function browse(next: MediaLocation) {
     if (busy) return;
     discardUpload();
-    setEditor(undefined); setSelected(null); setMoving(undefined); setError(undefined); setMessage("");
+    setEditor(undefined); setSelected(null); setMoving(undefined); setCopying(undefined); setError(undefined); setMessage("");
     setLocation(next);
   }
 
@@ -48,6 +53,7 @@ export function MediaLibrary({ initialSpace }: { initialSpace?: string }) {
 
   function move(items: MediaItem[]) {
     discardUpload();
+    setCopying(undefined);
     const effective = mediaSelection(items);
     const first = targets.find(([key]) => mediaDestination(effective, key));
     setMoving(effective);
@@ -85,8 +91,10 @@ export function MediaLibrary({ initialSpace }: { initialSpace?: string }) {
   }
 
   function copy(item: MediaItem) {
-    setConfirm({ title: "Salin ke media?", description: `${item.key} akan disalin ke pustaka media.`, label: "Salin",
-      run: () => void action.run({ type: "media.copy", ...item, destination: "" }, undefined, "Media disalin.") });
+    discardUpload();
+    setMoving(undefined);
+    setDestination(isMedia ? targets.find(([key]) => mediaDestination([item], key))?.[0] ?? "" : "");
+    setCopying(item);
   }
 
   function discardUpload() {
@@ -151,6 +159,7 @@ export function MediaLibrary({ initialSpace }: { initialSpace?: string }) {
     return <>
       <Action disabled={busy} onPress={() => { discardUpload(); setEditor({ item, name: title }); }}>Ganti nama</Action>
       <Action disabled={busy} onPress={() => move([item])}>Pindah</Action>
+      <Action disabled={busy} onPress={() => copy(item)}>Salin</Action>
       {!item.folder && pickMediaFile && <Action disabled={busy || Boolean(upload)} onPress={() => void choose(item)}>Ganti berkas</Action>}
       <Action disabled={busy} variant="destructive" onPress={() => remove([item])}>Hapus</Action>
     </>;
@@ -197,6 +206,16 @@ export function MediaLibrary({ initialSpace }: { initialSpace?: string }) {
         <Action disabled={busy} onPress={() => setMoving(undefined)}>Batal</Action>
         <Action variant="default" busy={working} disabled={!options.some(([key]) => key === destination)}
           onPress={() => void batch(moving, destination)}>Pindah</Action>
+      </View>
+    </Section>}
+    {copying && <Section title="Salin ke folder">
+      <Copy>{copying.key}</Copy>
+      {!isMedia && <LoadState {...library} retry={library.reload} />}
+      {copyOptions.length ? <Choices current={destination} values={copyOptions} onChange={setDestination} /> : <Copy>Folder tujuan belum tersedia.</Copy>}
+      <View style={styles.row}>
+        <Action disabled={busy} onPress={() => setCopying(undefined)}>Batal</Action>
+        <Action variant="default" busy={busy} disabled={!copyOptions.some(([key]) => key === destination)}
+          onPress={() => action.run({ type: "media.copy", ...copying, destination }, () => { setCopying(undefined); read.reload(); }, "Media disalin.")}>Salin</Action>
       </View>
     </Section>}
     <LoadState {...read} retry={read.reload} />

@@ -9,6 +9,8 @@ const draft = { action: "status", source: "canonical-article", expectedRevision:
 test("the text reader validates its exact course and document and keeps read-only material previewable", async () => {
   const paths: string[] = [];
   const transport: AcademicTransport = {
+    accountId: "admin",
+    origin: "https://example.test",
     locale: "id",
     async get(path) {
       paths.push(path);
@@ -31,6 +33,8 @@ test("the text reader validates its exact course and document and keeps read-onl
 test("an interrupted text document save keeps the same revision and request ID within the active transport", async () => {
   const calls: Array<{ path: string; method: string; body: unknown; requestId: string }> = [];
   const transport: AcademicTransport = {
+    accountId: "admin",
+    origin: "https://example.test",
     locale: "id",
     async get() { return new Response(null, { status: 404 }); },
     async command(path, { method, body, requestId }) {

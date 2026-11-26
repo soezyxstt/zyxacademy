@@ -235,13 +235,16 @@ export function createManagementFixture({ mode = "populated", admin = true }: Ma
         const destination = action.destination || "media";
         const name = required(action.key.split("/").at(-1));
         const key = joinPath(destination, name);
+        const inLibrary = action.key.startsWith("media/");
+        const sourceFolders = inLibrary ? folders : storageFolders;
+        const sourceFiles = inLibrary ? files : storage;
         if (action.folder) {
-          required(storageFolders.find(path => path === action.key));
-          invalid(folders.includes(key) ? "Nama folder sudah dipakai." : undefined);
-          folders.push(key, ...storageFolders.filter(path => path !== action.key && within(path, action.key)).map(path => `${key}${path.substring(action.key.length)}`));
-          files.push(...storage.filter(file => within(file.key, action.key)).map(file => ({ ...file, key: `${key}${file.key.substring(action.key.length)}` })));
+          required(sourceFolders.find(path => path === action.key));
+          invalid(within(key, action.key) || folders.includes(key) ? "Nama folder sudah dipakai." : undefined);
+          folders.push(key, ...sourceFolders.filter(path => path !== action.key && within(path, action.key)).map(path => `${key}${path.substring(action.key.length)}`));
+          files.push(...sourceFiles.filter(file => within(file.key, action.key)).map(file => ({ ...file, key: `${key}${file.key.substring(action.key.length)}` })));
         } else {
-          const file = required(storage.find(item => item.key === action.key));
+          const file = required(sourceFiles.find(item => item.key === action.key));
           invalid(files.some(item => item.key === key) ? "Nama file sudah dipakai." : undefined);
           files.push({ ...file, key });
         }

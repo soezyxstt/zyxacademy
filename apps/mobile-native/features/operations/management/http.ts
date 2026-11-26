@@ -64,7 +64,7 @@ export function createManagementHttpClient({ request, userId, sessionId, assertC
         const result = await get<{ folders: Folder[]; files: MediaFile[]; tree?: Folder[] }>(`${basePath}?folder=${encodeURIComponent(relative)}`, signal);
         const flatten = (tree: Folder[]): string[] => tree.flatMap(item => [`media/${item.path}`, ...flatten(item.children ?? [])]);
         return { folders: result.folders.map(item => space === "media" ? `media/${item.path}` : item.path),
-          files: result.files, ...(result.tree ? { destinations: flatten(result.tree) } : {}) };
+          files: result.files, ...(space === "media" && result.tree ? { destinations: flatten(result.tree) } : {}) };
       },
       meetings: cursor => nativeRead("meetings", { cursor }, signal),
       meeting: id => get(`/api/native/operations/management?view=meeting&id=${encodeURIComponent(id)}`, signal),

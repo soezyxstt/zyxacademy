@@ -11,13 +11,12 @@ const path = z.string().max(1024).refine(key => isSafeKey(key) && !/[\u0000-\u00
 const name = z.string().trim().min(1).max(240).refine(value => isSafeKey(value) && !value.includes("/"));
 const mediaKey = path.refine(value => value.startsWith("media/"));
 const mediaFolder = z.union([mediaKey, z.literal("")]);
-const mediaOnly = (key: string) => key === "media" || key.startsWith("media/");
 const providerOperations = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("media.folder"), folder: mediaFolder, name }),
   z.strictObject({ type: z.literal("media.rename"), key: mediaKey, name, folder: z.boolean().optional() }),
   z.strictObject({ type: z.literal("media.move"), key: mediaKey, destination: mediaFolder, folder: z.boolean() }),
   z.strictObject({ type: z.literal("media.delete"), key: mediaKey, folder: z.boolean() }),
-  z.strictObject({ type: z.literal("media.copy"), key: path.refine(key => !mediaOnly(key)), destination: mediaFolder, folder: z.boolean() }),
+  z.strictObject({ type: z.literal("media.copy"), key: path.refine(key => key !== "media" && key !== "media/"), destination: mediaFolder, folder: z.boolean() }),
   z.strictObject({ type: z.literal("media.upload"), destination: mediaFolder, name, fileHash: z.string().regex(/^[a-f0-9]{64}$/), mime: z.string().max(200) }),
   z.strictObject({ type: z.literal("media.replace"), key: mediaKey, fileHash: z.string().regex(/^[a-f0-9]{64}$/), mime: z.string().max(200) }),
   z.strictObject({ type: z.literal("meet.create"), title: z.string().trim().max(500), slug: z.string().trim().max(100).regex(/^[a-z0-9_-]*$/), accessType: z.enum(["OPEN", "TRUSTED", "RESTRICTED"]), invitedEmails: z.array(z.email().max(254)).max(100).transform(items => [...new Set(items.map(value => value.toLowerCase()))].sort()) }),
@@ -122,8 +121,9 @@ export function invokeOperationsProvider(origin: string, headers: Headers): Invo
       case "media.replace":
         throw new ManagementFailure("invalid");
       case "media.copy": {
-        const { POST } = await import("@/app/api/admin/media/storage/route");
-        const source = action.folder ? { folderPath: action.key, kind: "folder" } : { key: action.key, kind: "file" };
+        const inLibrary = action.key.startsWith("media/");
+        const { POST } = inLibrary ? await import("@/app/api/admin/media/ops/route") : await import("@/app/api/admin/media/storage/route");
+        const source = action.folder ? { folderPath: inLibrary ? folderOf(action.key) : action.key, kind: "folder" } : { key: action.key, kind: "file" };
         const result = await decoded(await POST(request({ action: "copy", targetFolder: folderOf(action.destination), ...source })));
         return { id: result.key ?? `media/${result.folderPath}` };
       }

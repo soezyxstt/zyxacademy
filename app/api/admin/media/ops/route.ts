@@ -85,6 +85,8 @@ async function listFolderKeys(folderPath: string): Promise<string[]> {
 async function copyPrefix(sourceFolder: string, targetFolder: string): Promise<number> {
   const sourcePrefix = `${MEDIA_DOMAIN}/${sourceFolder}/`;
   const keys = await listFolderKeys(sourceFolder);
+  if (!keys.length) throw new Error("MEDIA_FOLDER_NOT_FOUND");
+  if ((await listFolderKeys(targetFolder)).length) throw new Error("MEDIA_DESTINATION_EXISTS");
   let count = 0;
   for (const key of keys) {
     const relative = key.slice(sourcePrefix.length);

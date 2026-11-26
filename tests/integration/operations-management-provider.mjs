@@ -28,8 +28,17 @@ mock.module("@/app/api/admin/media/route", () => ({ POST: async request => {
 } }));
 mock.module("@/app/api/admin/media/ops/route", () => ({ POST: async request => {
   const value = await request.json();
+  if (value.action === "copy") {
+    assert.deepEqual(value, { action: "copy", kind: "file", key: "media/blog/test.pdf", targetFolder: "revisi" });
+    return Response.json({ success: true, key: "media/revisi/test.pdf" });
+  }
   assert.deepEqual(value, { action: "move", kind: "folder", folderPath: "blog/draf", targetFolder: "revisi" });
   return Response.json({ success: true, folderPath: "revisi/draf" });
+} }));
+mock.module("@/app/api/admin/media/storage/route", () => ({ POST: async request => {
+  const value = await request.json();
+  assert.deepEqual(value, { action: "copy", kind: "folder", folderPath: "course-assets/source", targetFolder: "revisi" });
+  return Response.json({ success: true, folderPath: "revisi/source" });
 } }));
 mock.module("@/app/api/admin/meet/create/route", () => ({ POST: async request => {
   const value = await request.json();
@@ -62,6 +71,10 @@ try {
   const move = { type: "media.move", key: "media/blog/draf", destination: "media/revisi", folder: true };
   assert.deepEqual(await apply("placeholder-media-move", move), { id: "media/revisi/draf" });
   assert.deepEqual(await apply("placeholder-media-move", move, () => assert.fail("provider replay")), { id: "media/revisi/draf" });
+  assert.deepEqual(await apply("placeholder-media-copy", { type: "media.copy", key: "media/blog/test.pdf", destination: "media/revisi", folder: false }),
+    { id: "media/revisi/test.pdf" });
+  assert.deepEqual(await apply("placeholder-storage-copy", { type: "media.copy", key: "course-assets/source", destination: "media/revisi", folder: true }),
+    { id: "media/revisi/source" });
   const { POST: filePost } = await import("../../app/api/native/operations/management/media/route");
   const { NextRequest } = await import("next/server");
   function replaceFile({ sessionId = actor.sessionId, initiator = origin, contents = "%PDF-1.7", target = "media/blog/test.pdf" } = {}) {
@@ -110,7 +123,7 @@ try {
   const record = await apply("placeholder-deleted-meet", { type: "meet.delete", id: "gone" });
   assert.deepEqual(record, { id: "gone" });
   await assert.rejects(apply("placeholder-remaining-meet", { type: "meet.delete", id: "still" }), { code: "uncertain" });
-  assert.equal((await testDb.select().from(auditMutasi)).length, 7);
+  assert.equal((await testDb.select().from(auditMutasi)).length, 9);
   await testDb.delete(session).where(eq(session.id, actor.sessionId));
   await assert.rejects(apply("placeholder-meet-create", meet, () => assert.fail("expired session")), { code: "forbidden" });
   console.log("Mocked provider dispatch, partial warning, pending, uncertain, replay and session revocation checks passed");
