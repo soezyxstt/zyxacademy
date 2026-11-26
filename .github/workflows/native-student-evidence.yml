@@ -59,6 +59,12 @@ jobs:
           --output artifacts/student-evidence/reference/flashcard
       - name: Prepare Student references at the Android and iOS device extents
         run: bun tests/visual/native-parallel/student/capture-device-references.ts
+      - name: Check access to assessment results after returning to the screen
+        env:
+          PLAYWRIGHT_BASE_URL: http://student-results-refocus.invalid
+        run: >-
+          bunx playwright test tests/visual/native-parallel/student/results-refocus.spec.ts
+          --project=mobile-380 --reporter=list --output artifacts/student-evidence/reference/results-refocus
       - name: Keep a web artifact even if capture failed
         if: always()
         run: |
