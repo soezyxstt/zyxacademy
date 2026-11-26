@@ -36,7 +36,7 @@
   },
   "sourceDigests": {
     "app/(student)/calendar/calendar-agenda-client.tsx": "018992aff022684259a065dcc62cb7eb1e1f4b3396e6377bd6b80ba0f56f424f",
-    "lib/student/agenda-presentation.ts": "138dfd99c3433cd511359f6a716dd90a962801d2007be6f85ec0486e0b5e6d21",
+    "lib/student/agenda-presentation.ts": "de475d1d1b55447126c3bc68fabf7919f96ab152e69baa195c4831aa5388fa2c",
     "packages/native-parity/student/community/calendar-fixture.ts": "d35a7cbec7b1110d4c2ef2953355c0d70d2e430256510bbc7e34ae5b3ce3dc02",
     "tests/visual/fixtures/student-calendar.tsx": "de60a657abe3e4ba9df39e2bda818478f0e62fb0b4fd51de08aa007da008795b",
     "tests/visual/native-parallel/student/calendar-reference.spec.ts": "88073e204806fb4dde8ddaf875710adb5bd8505b7a90343921e465ebca1e5295",

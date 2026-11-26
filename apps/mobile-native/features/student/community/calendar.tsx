@@ -92,8 +92,10 @@ function AgendaRow({ event, first }: { event: CalendarEventItem; first: boolean 
   const { colors, navigate, openExternal, session, theme } = useCommunity();
   const { calendar, schedule } = useCalendarMessages();
   const description = describeAgendaEvent(event, session.locale);
-  const time = calendar[description.timeLabel.key]
-    .replace("{range}", description.timeLabel.values.range ?? "").replace("{time}", description.timeLabel.values.time ?? "");
+  const { timeLabel } = description;
+  const time = timeLabel.key === "scheduledRange"
+    ? calendar.scheduledRange.replace("{range}", timeLabel.values.range)
+    : calendar[timeLabel.key].replace("{time}", timeLabel.values.time);
   const title = event.category !== "tutorial" ? event.title : event.tutorialTopic
     ? calendar.tutorialWithTopic.replace("{topic}", event.tutorialTopic)
     : calendar.tutorialWithTutor.replace("{name}", event.tutorName || schedule.tutorFallback);

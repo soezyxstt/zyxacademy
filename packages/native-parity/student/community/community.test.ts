@@ -167,7 +167,7 @@ test("calendar evidence uses Jakarta days and preserves category reset data", as
     expect(data.sync).toBeNull();
     const { active, past } = groupCalendarEvents(data.events, state.category);
     const list = [...active, ...past].flatMap(group => group.events);
-    expect(list.map(event => event.id)).toEqual(state.eventIds);
+    expect(list.map(event => event.id)).toEqual([...state.eventIds]);
     if (state.category === "all") {
       expect(active.map(group => group.day)).toEqual(["2030-01-02"]);
       expect(past.map(group => group.day)).toEqual(["2030-01-01"]);

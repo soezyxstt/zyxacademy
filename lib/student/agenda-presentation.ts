@@ -38,13 +38,17 @@ export function formatAgendaDay(value: string, locale: string) {
   }).format(new Date(value));
 }
 
+type AgendaTimeLabel =
+  | { key: "scheduledRange"; values: { range: string } }
+  | { key: "opensAt" | "deadline" | "timeWib"; values: { time: string } };
+
 export function describeAgendaEvent(event: CalendarEventItem, locale: string) {
   const time = new Intl.DateTimeFormat(locale === "en" ? "en-GB" : "id-ID", {
     hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: JAKARTA_TIME_ZONE,
   }).format(new Date(event.dateValue));
-  const timeLabel = event.timeKind === "range" && event.scheduledRange
-    ? { key: "scheduledRange" as const, values: { range: event.scheduledRange } }
-    : { key: event.timeKind === "opens" ? "opensAt" as const : event.timeKind === "deadline" ? "deadline" as const : "timeWib" as const, values: { time } };
+  const timeLabel: AgendaTimeLabel = event.timeKind === "range" && event.scheduledRange
+    ? { key: "scheduledRange", values: { range: event.scheduledRange } }
+    : { key: event.timeKind === "opens" ? "opensAt" : event.timeKind === "deadline" ? "deadline" : "timeWib", values: { time } };
   const detailsOnly = event.timeKind === "opens" || event.status === "past";
   const actionLabel: "tutorialSchedule" | "viewQuiz" | "doQuiz" | "viewTryout" | "openTryout" = event.category === "tutorial" ? "tutorialSchedule"
     : event.category === "quiz" ? (detailsOnly ? "viewQuiz" : "doQuiz") : (detailsOnly ? "viewTryout" : "openTryout");
