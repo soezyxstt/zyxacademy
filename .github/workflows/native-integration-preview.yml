@@ -55,6 +55,7 @@ on:
       - 'app/api/native/academic-administration/tutorial-operations/**'
       - 'tests/contracts/native-admin-text-document.test.ts'
       - 'tests/unit/expo-native-text-document.test.ts'
+      - 'tests/unit/expo-product-review.test.ts'
       - 'app/api/native/academic-document/**'
       - 'tests/contracts/tutor-quiz-manual-grading.test.ts'
       - 'tests/offline-shell-and-reader.test.ts'
@@ -258,7 +259,7 @@ jobs:
       - name: Admin native text document edits and publication
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: |
-          bun test tests/unit/expo-native-text-document.test.ts
+          bun test tests/unit/expo-native-text-document.test.ts tests/unit/expo-product-review.test.ts
           bun scripts/test-contracts.ts tests/contracts/native-admin-text-document.test.ts
       - name: Admin operations management access and report moderation
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}

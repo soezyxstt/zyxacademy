@@ -6,6 +6,7 @@ import type { LiveProductBundle } from "../../../../../packages/native-parity/ac
 import type { AcademicCommand, AcademicTransport } from "../client";
 import { Action, AdministrationPage, CourseDialog, Field, Ink, layout, Picker } from "./ui";
 import { canPublishProduct, productPath, ProductReviewError, readProductReview, reviewTargets, type ProductReviewData, type ReviewTarget } from "./product-review-client";
+import { ProductDraftEditor } from "./product-draft-editor";
 import { ProductReviewRubric } from "./product-review-rubric";
 
 type Confirmation = { label: string; suffix: string; method: AcademicCommand["method"]; body: object; success: "refresh" | "exit" | "list" };
@@ -27,26 +28,6 @@ function ItemReview({ data, item, busy, confirm, dirty }: { data: ProductReviewD
       onPress={() => confirm({ label: "Simpan review item", suffix: "/item-reviews", method: "PUT", success: "refresh",
         body: { expectedRevision: data.bundle.checksum, targetType: item.targetType, targetId: item.targetId, productId: item.productId,
           status: choice, notes: notes.trim() || undefined } })} />
-  </View>;
-}
-
-const productLabels: Record<string, string> = { title: "Judul", prompt: "Soal", contentMarkdown: "Isi Diktat",
-  front: "Sisi depan", back: "Sisi belakang", explanation: "Penjelasan", content: "Pembahasan", slug: "Slug" };
-function ProductEdit({ data, id, confirm, dirty, busy }: { data: ProductReviewData; id: string; busy: boolean; confirm(c: Confirmation): void; dirty(value: boolean): void }) {
-  const original = data.draft.products.find(p => p.id === id)!;
-  const [values, setValues] = useState<Record<string,string>>({});
-  const keys = (original.productType === "article" ? ["title", "slug"] : original.productType === "diktat" ? (original.units ? ["title"] : ["title", "contentMarkdown"])
-    : original.productType === "flashcard" ? ["front", "back", "explanation"] : original.productType === "question" ? ["prompt"]
-    : original.productType === "solution" ? ["content"] : original.productType === "solution_collection" ? [] : ["title"]);
-  const changed = Object.entries(values).some(([key, val]) => val !== (original[key] ?? ""));
-  useEffect(() => dirty(changed), [changed, dirty]);
-  return <View style={layout.group}>
-    {keys.map(key => <Field key={key} label={productLabels[key]} value={values[key] ?? String(original[key] ?? "")}
-      editable={!busy} multiline={key !== "title" && key !== "slug"} onChangeText={val => setValues({ ...values, [key]: val })} />)}
-    {keys.length ? <Action label="Simpan revisi" disabled={busy || !changed} onPress={() => confirm({ label: "Simpan revisi", suffix: "",
-      method: "PUT", success: "exit", body: { expectedRevision: data.bundle.checksum, draft: {
-        products: data.draft.products.map(p => p.id === original.id ? { ...p, ...values } : p),
-      } } })} /> : null}
   </View>;
 }
 
@@ -143,7 +124,8 @@ export function ProductReviewWorkspace({ scope, transport, back, exit, listing }
           {draft && !data.bundle.currentReview && !pendingPdf ? <ItemReview key={JSON.stringify([version,selected?.id,target.targetId])}
             item={target} data={data} busy={busy} dirty={setDirty} confirm={setConfirm} /> : <Ink>{target.content}</Ink>}
         </> : panel === "read" ? preview?.sections.map((s, i) => <View key={i} style={layout.compact}><Ink kind="strong">{s.label}</Ink><Ink>{s.content}</Ink></View>)
-          : selected ? <ProductEdit busy={busy} dirty={setDirty} key={selected.id} data={data} id={selected.id} confirm={setConfirm} /> : null}
+          : selected ? <ProductDraftEditor busy={busy} dirty={setDirty} key={selected.id} data={data} id={selected.id}
+            save={body => setConfirm({ label: "Simpan revisi", suffix: "", method: "PUT", success: "exit", body })} /> : null}
       </> : panel === "review" && draft && !v5 && !pendingPdf ? <ProductReviewRubric data={data} busy={busy} dirty={setDirty}
         decide={(label, body) => setConfirm({ label, body, method: "POST", suffix: "/review", success: "refresh" })} />
         : panel === "release" ? <>

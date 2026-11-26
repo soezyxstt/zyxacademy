@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { canPublishProduct, readProductReview, reviewTargets } from "../../apps/mobile-native/features/academic/administration/product-review-client";
+import { applyProductFields, productDraftFields } from "../../apps/mobile-native/features/academic/administration/product-draft-fields";
 import type { AcademicTransport } from "../../apps/mobile-native/features/academic/client";
 
 const scope = { id: "bundle-1", courseId: "course", checksum: "a".repeat(64) };
@@ -37,4 +38,21 @@ test("legacy Article review addresses immutable block IDs in reading order", () 
     { id: "second", blockType: "summary", orderIndex: 2, content: "Dua" }, { id: "first", blockType: "intro", orderIndex: 1, content: "Satu" },
   ] });
   expect(targets.map(row => [row.targetType, row.targetId, row.content])).toEqual([["article_block","first","Satu"],["article_block","second","Dua"]]);
+});
+
+test("draft editing preserves source identity, answer types and unedited nested records", () => {
+  const question = { id: "q", productType: "question", options: [{ id: "a", isCorrect: false, text: "Satu" }],
+    ideaLinks: [{ id: "idea", weight: 0.5, role: "primary" }], ideaRelations: [{ ideaId: "i", rationale: null }],
+    itbSource: { referenceId: "protected" } };
+  const update = applyProductFields(question, {
+    '["options",0,"isCorrect"]': "true", '["ideaLinks",0,"weight"]': "0.8",
+    '["ideaRelations",0,"rationale"]': "Catatan", '["itbSource","referenceId"]': "different",
+  });
+  expect(update).toEqual({ ...question, options: [{ ...question.options[0], isCorrect: true }],
+    ideaLinks: [{ ...question.ideaLinks[0], weight: 0.8 }], ideaRelations: [{ ideaId: "i", rationale: "Catatan" }] });
+  expect(question.options[0].isCorrect).toBe(false);
+  expect(applyProductFields(question, { '["ideaLinks",0,"weight"]': "0" })).toBeNull();
+  expect(applyProductFields(question, { '["ideaLinks",0,"role"]': "unknown" })).toBeNull();
+  expect(productDraftFields({ id: "d", productType: "diktat", units: [] })).toEqual([]);
+  expect(productDraftFields({ id: "a", productType: "article", schemaVersion: "article.v4" })).toEqual([]);
 });
