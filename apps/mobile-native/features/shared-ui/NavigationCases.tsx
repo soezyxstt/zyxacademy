@@ -197,7 +197,7 @@ function TabsCase({ item }: { item: TabCaseProps }) {
   );
 }
 
-function DialogCase({ item }: { item: DialogCaseProps }) {
+function DialogCase({ item, geometryMarker }: { item: DialogCaseProps; geometryMarker?: ReactNode }) {
   const [open, setOpen] = useState(item.open);
   const [reason, setReason] = useState<string>(item.theme === "dark" ? fixture.dialog.longReason : "");
   const [error, setError] = useState(item.id === "shared-dialog-validation-light");
@@ -243,6 +243,7 @@ function DialogCase({ item }: { item: DialogCaseProps }) {
           </View>
         }
       >
+        {geometryMarker}
         <Label theme={item.theme} onPress={() => reasonRef.current?.focus()}>{dialog.field}</Label>
         <Textarea
           ref={reasonRef}
@@ -304,7 +305,7 @@ function OptionRow({
   );
 }
 
-function SheetCase({ item }: { item: SheetCaseProps }) {
+function SheetCase({ item, geometryMarker }: { item: SheetCaseProps; geometryMarker?: ReactNode }) {
   const [open, setOpen] = useState(item.open);
   const [active, setActive] = useState<string>(fixture.sheet.chapters[0]);
   const triggerRef = useRef<ComponentRef<typeof Pressable>>(null);
@@ -326,6 +327,7 @@ function SheetCase({ item }: { item: SheetCaseProps }) {
         returnFocusRef={triggerRef}
         testID={`${item.id}-panel`}
       >
+        {geometryMarker}
         {chapters.map((label, index) => (
           <OptionRow
             key={label}
@@ -341,7 +343,7 @@ function SheetCase({ item }: { item: SheetCaseProps }) {
   );
 }
 
-function PopoverCase({ item }: { item: PopoverCaseProps }) {
+function PopoverCase({ item, geometryMarker }: { item: PopoverCaseProps; geometryMarker?: ReactNode }) {
   const [open, setOpen] = useState(item.open);
   const options = item.theme === "dark" ? fixture.popover.courses : fixture.popover.options;
   const [active, setActive] = useState<string>(options[0]);
@@ -366,6 +368,7 @@ function PopoverCase({ item }: { item: PopoverCaseProps }) {
         theme={item.theme}
         testID={`${item.id}-panel`}
       >
+        {geometryMarker}
         {options.map((label, index) => (
           <OptionRow key={label} label={label} selected={active === label} theme={item.theme}
             testID={`${item.id}-option-${index + 1}`} onPress={() => { setActive(label); setOpen(false); }} />
@@ -375,7 +378,7 @@ function PopoverCase({ item }: { item: PopoverCaseProps }) {
   );
 }
 
-export function NavigationCase({ id }: { id: NavigationCaseId }) {
+export function NavigationCase({ id, geometryMarker }: { id: NavigationCaseId; geometryMarker?: ReactNode }) {
   const item = navigationCases.find((entry) => entry.id === id);
   if (!item) return null;
   switch (item.component) {
@@ -386,11 +389,11 @@ export function NavigationCase({ id }: { id: NavigationCaseId }) {
     case "navigation-tabs":
       return <TabsCase key={id} item={item} />;
     case "shared-dialog":
-      return <DialogCase key={id} item={item} />;
+      return <DialogCase key={id} item={item} geometryMarker={geometryMarker} />;
     case "shared-sheet":
-      return <SheetCase key={id} item={item} />;
+      return <SheetCase key={id} item={item} geometryMarker={geometryMarker} />;
     case "shared-popover":
-      return <PopoverCase key={id} item={item} />;
+      return <PopoverCase key={id} item={item} geometryMarker={geometryMarker} />;
   }
 }
 
