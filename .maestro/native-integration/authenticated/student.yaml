@@ -5,9 +5,12 @@ name: Verified Student dashboard, inbox acknowledgement and logout
     clearState: true
 - openLink: "zyx-native-parity://sign-in?next=%2Fdashboard&locale=id"
 - extendedWaitUntil:
-    visible: "(Masuk dengan Google|Sign in with Google)"
+    visible:
+      id: native-auth-google
     timeout: 30000
-- tapOn: "(Masuk dengan Google|Sign in with Google)"
+- tapOn:
+    id: native-auth-google
+    enabled: true
 - extendedWaitUntil:
     visible: Native Preview Sign-in
     timeout: 30000

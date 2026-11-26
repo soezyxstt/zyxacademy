@@ -25,7 +25,7 @@ async function runFlow(name: string, inputs: string[] = []) {
     // Only emit fixed labels, never Maestro output or the browser form argument.
     for (const [needle, label] of [
       ["Preview HTTPS ready", "Chrome health page"],
-      ["Masuk dengan Google", "native sign-in button"],
+      ["native-auth-google", "native sign-in button"],
       ["Native Preview Sign-in", "browser sign-in form"],
       ["student-dashboard-preview", "Student dashboard"],
       ["student-inbox", "Student inbox"],
@@ -37,6 +37,25 @@ async function runFlow(name: string, inputs: string[] = []) {
   } finally {
     clearTimeout(timeout);
   }
+}
+
+async function reportDeviceState() {
+  if (!device || !/^emulator-\d+$/.test(device)) return;
+  const shellOutput = async (...args: string[]) => {
+    const child = Bun.spawn(["adb", "-s", device, ...args], { stdout: "pipe", stderr: "ignore" });
+    const timeout = setTimeout(() => child.kill(), 6_000);
+    try { return await new Response(child.stdout).text(); }
+    finally { clearTimeout(timeout); }
+  };
+  const logs = await shellOutput("logcat", "-d", "-t", "400", "ReactNativeJS:I", "ActivityTaskManager:I", "*:S");
+  const focus = await shellOutput("shell", "dumpsys", "window", "windows");
+  const focused = focus.split("\n").find(line => line.includes("mCurrentFocus"));
+  const screen = focused?.includes("com.android.chrome") ? "Chrome"
+    : focused?.includes("com.zyx.academy.nativeparity") ? "Expo" : "other";
+  const opened = logs.includes("ZYX_AUTH_PREVIEW_BROWSER_OPEN");
+  const failed = logs.includes("ZYX_AUTH_PREVIEW_BROWSER_FAILED");
+  console.error("Android diagnostic: " + screen + " foreground, native browser " +
+    (failed ? "reported failure" : opened ? "requested" : "not requested"));
 }
 
 try {
@@ -55,6 +74,7 @@ try {
   if (!await fixture.verifiedAndRevoked()) throw new Error();
   console.log("Android completed a real browser handoff, opened the Student dashboard, marked one inbox row read and revoked the native session");
 } catch {
+  await reportDeviceState().catch(() => {});
   console.error("Authenticated Android preview could not " + step +
     " (device check: " + lastDeviceCheck + ", last server stage: " + (fixture?.progress() ?? "none") + ")");
   process.exitCode = 1;

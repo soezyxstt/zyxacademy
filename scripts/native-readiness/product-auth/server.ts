@@ -98,6 +98,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, { stud
   const claim = randomBytes(32).toString("hex");
   let claimExpiresAt = 0;
   let startStatus: number | undefined;
+  let sawStartRequest = false;
   let confirmedState: string | null = null;
   let claimed = false;
   let completedHandoff = false;
@@ -135,6 +136,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, { stud
           { headers: { ...noStore, "Content-Type": "text/html; charset=utf-8", "Content-Security-Policy": "default-src 'none'" } });
       }
       if (route === "GET /api/auth/native/start") {
+        sawStartRequest = true;
         const response = await start(upstream);
         const query = handoffQuery(url);
         startStatus = response.status;
@@ -217,6 +219,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, { stud
       if (claimed) return "browser form";
       if (confirmedState) return "native start";
       if (startStatus) return "native start HTTP " + startStatus;
+      if (sawStartRequest) return "native start request without response";
       return "no auth request";
     },
     async verifiedAndRevoked() {
