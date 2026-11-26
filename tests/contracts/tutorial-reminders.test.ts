@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { getAvailabilityReminderWeek, getTutorialEmailDispatchAt, safeReminderLink } from "@/lib/notifications/tutorial-reminder-policy";
+import { getAvailabilityReminderWeek, getDeferredAvailabilityReminderWeek, getTutorialEmailDispatchAt, safeReminderLink } from "@/lib/notifications/tutorial-reminder-policy";
 import { renderTutorialSession30mEmail } from "@/lib/notifications/tutorial-reminder-emails";
 import { DEFAULT_ACTIVITY_NOTIFICATION_PREFERENCES } from "@/lib/notifications/types";
 import { cronWindow } from "@/lib/queue/cron";
@@ -18,6 +18,20 @@ test("midnight and month boundary use WIB", () => {
   expect(result.dateKey).toBe("2027-01-01");
   expect(result.start).toBe("2026-12-27");
   expect(result.end).toBe("2027-01-02");
+});
+test("deferred availability uses the original Saturday week and expires at the next WIB Sunday", () => {
+  const key = "tutor_availability:2026-11-14";
+  const original = getDeferredAvailabilityReminderWeek(key, new Date("2026-11-14T15:59:00Z"));
+  const afterMidnight = getDeferredAvailabilityReminderWeek(key, new Date("2026-11-14T17:00:00Z"));
+  expect(original?.start).toBe("2026-11-15");
+  expect(original?.end).toBe("2026-11-21");
+  expect(afterMidnight).toEqual(original);
+  expect(getDeferredAvailabilityReminderWeek(key, new Date("2026-11-21T16:59:59Z"))).toEqual(original);
+  expect(getDeferredAvailabilityReminderWeek(key, new Date("2026-11-21T17:00:00Z"))).toBeNull();
+  expect(getDeferredAvailabilityReminderWeek(key, new Date("2026-11-13T16:59:59Z"))).toBeNull();
+  expect(getDeferredAvailabilityReminderWeek("tutor_availability:2026-11-15", new Date("2026-11-15T01:00:00Z"))).toBeNull();
+  expect(getDeferredAvailabilityReminderWeek("tutor_availability:2026-02-30", new Date("2026-03-01T01:00:00Z"))).toBeNull();
+  expect(getDeferredAvailabilityReminderWeek("upcoming_session:booking", new Date("2026-11-14T01:00:00Z"))).toBeNull();
 });
 test("H-30 queues the exact minute, including non-five-minute starts, and never sends after start", () => {
   const date = "2026-11-29";
