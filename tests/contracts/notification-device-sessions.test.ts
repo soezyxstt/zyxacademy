@@ -178,7 +178,7 @@ test("Expo Android gets private inbox details only after the tap and lookup, for
       tokens: [token("expo")], data: { notificationId: notice.notificationId },
       notification: { title: "Zyx Academy" },
       android: { priority: "normal", notification: {
-        channelId: "zyx_learning", sound: "default", bodyLocKey: "zyx_inbox_new_notification",
+        channelId: "zyx_learning", sound: "default", bodyLocKey: "zyx_inbox_new_notification", tag: `zyx:${notice.notificationId}`,
       } },
     });
     const legacy = messages.find(message => message.tokens.includes(token("capacitor")));
@@ -191,6 +191,7 @@ test("Expo Android gets private inbox details only after the tap and lookup, for
     ...notice, notificationId: undefined,
     metadata: { quietDigest: "true", groupKey: "quiet-digest", count: "19" },
   });
-  expect(messages.find(message => message.tokens.includes(token("expo")))?.data)
-    .toEqual({ quietDigest: "true", groupKey: "quiet-digest" });
+  const digest = messages.find(message => message.tokens.includes(token("expo")));
+  expect(digest?.data).toEqual({ quietDigest: "true", groupKey: "quiet-digest" });
+  expect(digest?.android?.notification?.tag).toBe("zyx:quiet-digest");
 });

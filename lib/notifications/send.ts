@@ -118,7 +118,10 @@ function expoAndroidMessage(payload: NotificationPayload): Omit<MulticastMessage
   data,
   android: {
    priority: androidDeliveryPriority(payload.type),
-   notification: { channelId: androidNotificationChannel(payload.type), bodyLocKey: "zyx_inbox_new_notification", sound: "default" },
+   notification: {
+    channelId: androidNotificationChannel(payload.type), bodyLocKey: "zyx_inbox_new_notification", sound: "default",
+    tag: data.notificationId ? `zyx:${data.notificationId}` : data.quietDigest ? "zyx:quiet-digest" : undefined,
+   },
   },
  };
 }
