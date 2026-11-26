@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import {
   ManagementFailure, articleCategories, articleTitle, emptyArticle, validateArticle,
@@ -42,10 +42,12 @@ export function BlogEditorRoute({ id, tab }: { id?: string; tab?: string }) {
 }
 
 function BlogEditor({ article, initialTab }: { article?: Article; initialTab?: string }) {
-  const { client, navigate, renderMarkdown } = useManagement();
+  const { client, navigate, renderMarkdown, pickBlogThumbnail, locale } = useManagement();
   const id = article?.id;
   const draft = useDraft<ArticleFields>(`blog:${id ?? "new"}`, article ? articleFields(article) : emptyArticle, article?.revision);
   const value = draft.value;
+  const currentValue = useRef(value);
+  currentValue.current = value;
   const action = useAction();
   const [mode, setMode] = useState<"write" | "preview">(initialTab === "preview" ? "preview" : "write");
   const [tag, setTag] = useState("");
@@ -58,12 +60,16 @@ function BlogEditor({ article, initialTab }: { article?: Article; initialTab?: s
   const [needsReview, setNeedsReview] = useState(Boolean(article && article.revision !== draft.revision));
   const [latest, setLatest] = useState<Article | null>(() => needsReview ? article ?? null : null);
   const [checking, setChecking] = useState(false);
+  const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
+  const [thumbnailError, setThumbnailError] = useState<string>();
+  const thumbnailRequest = useRef<AbortController | null>(null);
+  useEffect(() => () => thumbnailRequest.current?.abort(), []);
   const mustReview = needsReview || (action.error instanceof ManagementFailure && action.error.code === "conflict");
   const edit = <K extends keyof ArticleFields>(key: K, next: ArticleFields[K]) => { if (!action.busy) draft.change({ ...value, [key]: next }); };
   const leave = () => navigate("/admin/blog");
 
   function submit() {
-    if (mustReview) return;
+    if (mustReview || thumbnailRequest.current) return;
     const error = validateArticle(value);
     if (error) return action.setError(new ManagementFailure("invalid", error));
     const save = () => action.run({ type: "article.save", id, revision: draft.revision, fields: value }, () => { draft.clear(); leave(); });
@@ -94,10 +100,42 @@ function BlogEditor({ article, initialTab }: { article?: Article; initialTab?: s
     finally { setChecking(false); }
   }
 
+  async function uploadThumbnail() {
+    if (!pickBlogThumbnail || thumbnailRequest.current || action.busy || mustReview) return;
+    const controller = new AbortController();
+    thumbnailRequest.current = controller;
+    setUploadingThumbnail(true);
+    setThumbnailError(undefined);
+    try {
+      const result = await pickBlogThumbnail({
+        route: id ? `/admin/blog/${encodeURIComponent(id)}/edit` : "/admin/blog/new",
+        draftId: `blog:${id ?? "new"}`,
+        locale,
+      }, controller.signal);
+      if (controller.signal.aborted || result.status === "cancelled") return;
+      if (result.status === "uploaded") {
+        draft.change({ ...currentValue.current, thumbnailUrl: result.url });
+      } else {
+        setThumbnailError({
+          unavailable: "Gambar belum dapat dipilih.",
+          type: "Pilih gambar JPEG, PNG, WebP, atau GIF.",
+          size: "Ukuran gambar maksimal 20 MB.",
+          forbidden: "Sesi Admin diperlukan untuk mengunggah gambar.",
+          uncertain: "Hasil unggahan belum dapat dipastikan. Periksa pustaka media.",
+        }[result.status]);
+      }
+    } catch {
+      if (!controller.signal.aborted) setThumbnailError("Gambar belum dapat dipilih.");
+    } finally {
+      thumbnailRequest.current = null;
+      if (!controller.signal.aborted) setUploadingThumbnail(false);
+    }
+  }
+
   return <Screen title={article ? "Sunting" : "Tulis artikel"} description={article?.title} back={{ label: "Blog", run: leave }}>
     <View style={styles.row}>
       <Action onPress={leave} disabled={action.busy}>Batal</Action>
-      <Action variant="default" onPress={submit} busy={action.busy} disabled={mustReview}>Simpan artikel</Action>
+      <Action variant="default" onPress={submit} busy={action.busy} disabled={mustReview || uploadingThumbnail}>Simpan artikel</Action>
     </View>
     <Feedback {...action} />
     {mustReview && !latest && <Action onPress={inspectLatest} busy={checking}>Muat revisi terbaru</Action>}
@@ -130,7 +168,9 @@ function BlogEditor({ article, initialTab }: { article?: Article; initialTab?: s
     <Section title="Pengaturan publikasi">
       <Copy strong>Status</Copy><Choices values={articleStatuses} current={value.status} onChange={next => edit("status", next)} />
       <Copy strong>Kategori</Copy><Choices values={categories} current={value.category} onChange={next => edit("category", next)} />
-      <Field label="Thumbnail utama" value={value.thumbnailUrl} autoCapitalize="none" keyboardType="url" onChangeText={next => edit("thumbnailUrl", next)} />
+      <Field label="Thumbnail utama" value={value.thumbnailUrl} autoCapitalize="none" keyboardType="url" editable={!uploadingThumbnail} onChangeText={next => { setThumbnailError(undefined); edit("thumbnailUrl", next); }} />
+      {pickBlogThumbnail && <Action onPress={uploadThumbnail} busy={uploadingThumbnail} disabled={action.busy || mustReview}>Unggah thumbnail</Action>}
+      {thumbnailError && <Copy status="error">{thumbnailError}</Copy>}
       <Field label="Tag (tekan Enter)" value={tag} onChangeText={setTag} onSubmitEditing={() => {
         const next = tag.trim();
         if (next && !value.tags.includes(next)) edit("tags", [...value.tags, next]);

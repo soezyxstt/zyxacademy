@@ -150,6 +150,22 @@ describe("Expo scoped files", () => {
     expect(truncated.files.size).toBe(0);
   });
 
+  test("accepts GIF signatures for a scoped image draft and rejects a disguised GIF", async () => {
+    const gif = new TextEncoder().encode("GIF89a");
+    const fixture = setup({
+      async pick() { return [{ ...providerAsset, name: "fixture.gif", mimeType: "image/gif", size: gif.length }]; },
+      open: () => stream(gif),
+    });
+    const request = { ...fixture.request, policy: { mimeTypes: ["image/gif"], maxBytes: 1024 } };
+    const ready = await fixture.controller.pickDocument(request);
+    expect(ready.status).toBe("ready");
+    if (ready.status === "ready") ready.document.release();
+    expect(fixture.files.size).toBe(0);
+    gif[0] = 0;
+    expect(await fixture.controller.pickDocument(request)).toEqual({ status: "error", issue: "type" });
+    expect(fixture.files.size).toBe(0);
+  });
+
   test("streams the authenticated Diktat download route into a private share file and deletes it afterward", async () => {
     const fixture = setup({}, async (url, init) => {
       expect(url).toBe(origin + "/api/courses/stats%3A1/diktats/lesson-2/pdf?download=1");

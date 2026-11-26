@@ -6,6 +6,7 @@ import { ManagementFailure, type ManagementAction, type ManagementClient, type M
 import { Button } from "../../../components/Button";
 import { Input } from "../../../components/Input";
 import { nativeTypography } from "../../../typography";
+import type { PickBlogThumbnail } from "./blog-upload";
 
 export type ManagementTheme = keyof typeof nativeColors;
 type Draft<T> = { value: T; baseline: T; revision?: string; changed: boolean };
@@ -17,6 +18,7 @@ export type ManagementRuntime = {
   navigate: (path: string) => void;
   openExternal?: (url: string) => void;
   share?: (message: string) => void;
+  pickBlogThumbnail?: PickBlogThumbnail;
   drafts: ManagementDraftStore;
   retries: Map<string, string>;
   renderMarkdown?: (markdown: string) => ReactNode;

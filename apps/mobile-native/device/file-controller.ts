@@ -98,6 +98,7 @@ const EXTENSIONS = new Map([
   ["image/png", "png"],
   ["image/jpeg", "jpg"],
   ["image/webp", "webp"],
+  ["image/gif", "gif"],
 ]);
 
 function fileName(raw: string | undefined, mimeType: string): string {
@@ -189,6 +190,7 @@ function matchesFileHeader(prefix: Uint8Array, mimeType: string): boolean {
   if (mimeType === "image/jpeg") return prefix[0] === 255 && prefix[1] === 216 && prefix[2] === 255;
   if (mimeType === "image/png") return [137, 80, 78, 71, 13, 10, 26, 10].every((byte, index) => prefix[index] === byte);
   const ascii = (start: number, end: number) => String.fromCharCode(...prefix.subarray(start, end));
+  if (mimeType === "image/gif") return ["GIF87a", "GIF89a"].includes(ascii(0, 6));
   if (mimeType === "image/webp") return ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP";
   if (mimeType === "application/pdf") return /%PDF-\d\.\d/.test(ascii(0, prefix.length));
   return true;

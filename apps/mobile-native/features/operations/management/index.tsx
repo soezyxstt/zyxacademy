@@ -3,6 +3,7 @@ import { useColorScheme, View } from "react-native";
 import { matchManagementPath, type ManagementClient } from "../../../../../packages/native-parity/operations/management-contract";
 import { createManagementFixture, type ManagementFixtureOptions } from "../../../../../packages/native-parity/operations/management-fixtures";
 import { BlogEditorRoute, BlogList } from "./blog";
+import type { PickBlogThumbnail } from "./blog-upload";
 import { Documentation } from "./docs";
 import { FormBuilderRoute, FormDetailRoute } from "./forms";
 import { Pricing } from "./pricing";
@@ -25,6 +26,7 @@ export type ManagementScreenProps = {
   locale?: "id" | "en";
   openExternal?: (url: string) => void;
   share?: (message: string) => void;
+  pickBlogThumbnail?: PickBlogThumbnail;
   renderMarkdown?: (markdown: string) => ReactNode;
 };
 
@@ -32,7 +34,7 @@ export function ManagementScreen(props: ManagementScreenProps) {
   return <AccountManagement key={`${props.accountKey}:${props.access}`} {...props} />;
 }
 
-function AccountManagement({ path, navigate, client, access, theme, locale = "id", openExternal, share, renderMarkdown }: ManagementScreenProps) {
+function AccountManagement({ path, navigate, client, access, theme, locale = "id", openExternal, share, pickBlogThumbnail, renderMarkdown }: ManagementScreenProps) {
   const systemTheme = useColorScheme();
   const [drafts] = useState<ManagementDraftStore>(() => new Map());
   const [retries] = useState(() => new Map<string, string>());
@@ -63,7 +65,7 @@ function AccountManagement({ path, navigate, client, access, theme, locale = "id
       case "/admin/tautan": screen = <ImportantLinks />; break;
     }
   }
-  return <ManagementContext.Provider value={{ client, navigate, theme: theme ?? systemTheme ?? "light", locale, drafts, retries, openExternal, share, renderMarkdown }}>
+  return <ManagementContext.Provider value={{ client, navigate, theme: theme ?? systemTheme ?? "light", locale, drafts, retries, openExternal, share, pickBlogThumbnail, renderMarkdown }}>
     <View key={path} style={{ flex: 1 }}>{screen}</View>
   </ManagementContext.Provider>;
 }

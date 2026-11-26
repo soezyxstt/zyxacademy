@@ -4,6 +4,7 @@ import type { NativeAccountContext } from "../../../../packages/native-session/c
 import type { NativeSessionTransport } from "../../network/transport";
 import { EvaluationScreen, type EvaluationScreenProps } from "./evaluation";
 import { createManagementClient, ManagementScreen, type ManagementScreenProps } from "./management";
+import { connectBlogThumbnailPicker } from "./management/expo-blog-upload";
 import { createSessionMonitoringActions, createSessionMonitoringReader, MonitoringScreen, type MonitoringScreenProps } from "./monitoring";
 import { resolveOperationsArea } from "./routes";
 import { createEvaluationRequest, operationsAccountKey } from "./session";
@@ -24,6 +25,7 @@ export function AdminOperationsScreen(props: AdminOperationsScreenProps) {
   const { context, session, href, navigate, theme } = props;
   const clients = useMemo(() => ({
     management: createManagementClient(session),
+    pickBlogThumbnail: connectBlogThumbnailPicker(session),
     evaluation: createEvaluationRequest(session),
     monitoring: createSessionMonitoringReader(session, context.locale),
     actions: createSessionMonitoringActions(session),
@@ -36,7 +38,7 @@ export function AdminOperationsScreen(props: AdminOperationsScreenProps) {
   const key = operationsAccountKey(session, context);
   switch (resolveOperationsArea(href)) {
     case "management":
-      return <ManagementScreen {...props.management} path={href} navigate={navigate} accountKey={key}
+      return <ManagementScreen {...props.management} path={href} navigate={navigate} accountKey={key} pickBlogThumbnail={clients.pickBlogThumbnail}
         access="admin" client={clients.management} locale={context.locale} theme={theme} />;
     case "evaluation":
       return <EvaluationScreen {...props.evaluation} href={href} navigate={navigate} accountKey={key}
