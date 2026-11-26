@@ -70,7 +70,7 @@ if [[ " ${roles[*]} " == *" student "* ]]; then
 fi
 status=0
 for role in "${roles[@]}"; do
-  NATIVE_PRODUCT_AUTH_ROLE="$role" bun --no-env-file "$root/scripts/native-readiness/product-auth/android-smoke.ts" \
+  NODE_EXTRA_CA_CERTS="$private/cert.pem" NATIVE_PRODUCT_AUTH_ROLE="$role" bun --no-env-file "$root/scripts/native-readiness/product-auth/android-smoke.ts" \
     "$private/cert.pem" "$private/key.pem" "$private/maestro/maestro/bin/maestro" "$device" || status=1
 done
 exit "$status"

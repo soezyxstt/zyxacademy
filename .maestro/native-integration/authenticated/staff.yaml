@@ -20,6 +20,10 @@ name: Verified staff role, protected read, wrong-role denial and logout
 - extendedWaitUntil:
     visible: ".*${PREVIEW_RECORD}.*"
     timeout: 45000
+- runFlow:
+    when:
+      true: ${PREVIEW_TUTOR_LIVE == "true"}
+    file: tutor-live.yaml
 - openLink: "${PREVIEW_WRONG_ROLE_URL}"
 - extendedWaitUntil:
     visible: "(Akses ditolak\\.|Access denied\\.)"

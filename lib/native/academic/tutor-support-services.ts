@@ -118,7 +118,7 @@ export const tutorSupportServices = {
   },
   async live(userId, courseId) {
     const access = await readCourse(userId, courseId);
-    if (env.FEATURE_LIVE !== "1" || !env.NEXT_PUBLIC_REALTIME_URL) {
+    if (env.FEATURE_LIVE !== "1" || !env.NEXT_PUBLIC_REALTIME_URL || !env.LIVE_HMAC_SECRET) {
       return { configured: false, templates: [], active: null };
     }
     const courseIds = Array.from(new Set([access.courseId, access.legacyCourseId, courseId].filter((id): id is string => Boolean(id))));
@@ -136,7 +136,7 @@ export const tutorSupportServices = {
       configured: true,
       templates: templates.filter((template) => template.category !== "simulation" && !isTryout(template.rules))
         .map(({ id, title }) => ({ id, title })),
-      active: (env.LIVE_HMAC_SECRET ? sessions.find((session) => session.state !== "ended") : undefined) ?? null,
+      active: sessions.find((session) => session.state !== "ended") ?? null,
     };
   },
 } satisfies TutorSupportServices;

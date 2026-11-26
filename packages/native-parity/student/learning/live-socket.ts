@@ -99,9 +99,11 @@ type Hooks = {
 export function createLiveQuizSocketHook({ useCallback, useEffect, useRef, useState }: Hooks) {
   return function useLiveQuizSocket<Coding = unknown>(
     wsUrl: string | null,
-    refreshUrl?: RefreshConnectionUrl
+    refreshUrl?: RefreshConnectionUrl,
+    allowExistingUrlOnRefreshFailure = true,
   ) {
     const [state, setState] = useState<LiveQuizState<Coding>>(() => ({ ...INITIAL_STATE, currentQuestion: null }));
+    const [synchronized, setSynchronized] = useState(false);
     const wsRef = useRef<WebSocket | null>(null);
     const backoffRef = useRef(1_000);
     const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -150,8 +152,10 @@ export function createLiveQuizSocketHook({ useCallback, useEffect, useRef, useSt
         switch (msg.type) {
           case "state_sync": {
             const ss = msg.sessionState as SessionState;
+            if (ss !== "lobby" && ss !== "question" && ss !== "reveal" && ss !== "ended") break;
             sessionStateRef.current = ss;
             setState((state) => applyLiveStateSync(state, msg));
+            setSynchronized(true);
             if (ss === "question" && typeof msg.deadline === "number") {
               startCountdown(msg.deadline as number);
             } else {
@@ -252,6 +256,7 @@ export function createLiveQuizSocketHook({ useCallback, useEffect, useRef, useSt
       if (!currentUrl || !mountedRef.current) return;
 
       setState((s) => ({ ...s, connectionStatus: "connecting" }));
+      setSynchronized(false);
 
       const wsEndpoint = currentUrl.replace(/^https?:\/\//, (m) =>
         m.startsWith("https") ? "wss://" : "ws://"
@@ -275,14 +280,15 @@ export function createLiveQuizSocketHook({ useCallback, useEffect, useRef, useSt
 
       ws.onclose = () => {
         if (!mountedRef.current || wsRef.current !== ws) return;
+        setSynchronized(false);
         setState((s) => ({ ...s, connectionStatus: "disconnected" }));
         if (sessionStateRef.current !== "ended") {
-          reconnectTimerRef.current = setTimeout(async () => {
+          const retry = async () => {
             backoffRef.current = Math.min(backoffRef.current * 2, MAX_BACKOFF_MS);
             try {
               if (refreshUrl) {
                 const fresh = await refreshUrl();
-                if (!mountedRef.current) return;
+                if (!mountedRef.current || wsRef.current !== ws) return;
                 // null means the session is definitively unavailable
                 if (fresh === null) {
                   sessionStateRef.current = "ended";
@@ -291,15 +297,19 @@ export function createLiveQuizSocketHook({ useCallback, useEffect, useRef, useSt
                 urlRef.current = fresh;
               }
             } catch {
-              // transient refresh failure: keep retrying with the current URL
+              if (!allowExistingUrlOnRefreshFailure) {
+                if (mountedRef.current && wsRef.current === ws) reconnectTimerRef.current = setTimeout(retry, backoffRef.current);
+                return;
+              }
             }
-            connectRef.current();
-          }, backoffRef.current);
+            if (wsRef.current === ws) connectRef.current();
+          };
+          reconnectTimerRef.current = setTimeout(retry, backoffRef.current);
         }
       };
 
       ws.onerror = () => ws.close();
-    }, [handleMessage, refreshUrl]);
+    }, [allowExistingUrlOnRefreshFailure, handleMessage, refreshUrl]);
 
     // Keep the ref current so the onclose closure always calls the latest version
     useEffect(() => {
@@ -309,6 +319,7 @@ export function createLiveQuizSocketHook({ useCallback, useEffect, useRef, useSt
     useEffect(() => {
       mountedRef.current = true;
       urlRef.current = wsUrl;
+      setSynchronized(false);
       if (wsUrl) connectRef.current();
       return () => {
         mountedRef.current = false;
@@ -328,6 +339,6 @@ export function createLiveQuizSocketHook({ useCallback, useEffect, useRef, useSt
       setState((s) => ({ ...s, myAnswer: choice }));
     }, []);
 
-    return { state, sendAnswer };
+    return { state, sendAnswer, synchronized };
   }
 }

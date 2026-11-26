@@ -67,6 +67,15 @@ export type TutorLiveData = {
   active: { id: string; code: string; state: string; participantCount: number } | null;
 };
 
+export type TutorLiveAction = "start" | "reveal" | "next" | "end";
+export type TutorLiveRoom = { id: string; code: string; questionCount: number; wsUrl: string; hostToken: string };
+
+export type TutorLiveHost = {
+  resume(courseId: string, sessionId: string | undefined, signal: AbortSignal): Promise<TutorLiveRoom | null>;
+  create(courseId: string, templateId: string, requestId: string, signal: AbortSignal): Promise<TutorLiveRoom>;
+  control(courseId: string, sessionId: string, action: TutorLiveAction, requestId: string, signal: AbortSignal): Promise<void>;
+};
+
 export type TutorDiscussionTarget = { threadId: string; messageId: string };
 export type TutorDiscussionSendResult =
   | { ok: true; value: TutorDiscussionTarget }
@@ -85,6 +94,7 @@ export type TutorSupportReads = {
 };
 
 export type TutorSupportClient = TutorSupportReads & {
+  liveHost?: TutorLiveHost;
   slotEditor?: TutorSlotEditor;
   tryoutGrade?: TryoutGradeEditor;
   playback?(videoId: string, signal: AbortSignal): Promise<string>;

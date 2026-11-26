@@ -8,6 +8,7 @@ import { EXPO_STAGING_ORIGIN, EXPO_STAGING_SCHEME } from "@/lib/native/expo-auth
 import { assertFixtureRunner, fixtureHost, fixtureOrigin, fixturePort, fixtureSessionSeconds } from "./scope";
 import { prepareFixtureDatabase, seedBrowserSession } from "./seed";
 import { notificationId, seedStudentInbox, verifiedInboxAcknowledgement } from "./inbox-fixture";
+import { createTutorLiveFixture } from "./tutor-live-fixture";
 import { containsStaffRecord, matchesStaffContext, oppositeStaffRole, staffRoles, type StaffRole } from "./staff-role";
 
 const noStore = { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" };
@@ -66,6 +67,8 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
   process.env.BETTER_AUTH_URL = EXPO_STAGING_ORIGIN;
   process.env.NEXT_PUBLIC_APP_URL = EXPO_STAGING_ORIGIN;
 
+  const tutorLive = staff === "tutor" ? createTutorLiveFixture() : null;
+
   // Route handlers still call the actual Better Auth, role and DB implementations.
   // The CI process uses a short nonrenewable session policy on the real Better Auth instance.
   const authModule = await import("better-auth");
@@ -102,15 +105,20 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
     import("@/app/api/notifications/quiet-hours/route"),
     import("@/app/api/student/upcoming-sessions/route"),
   ]) : null;
+  const previewVideo = studentProduct ? await (await import("./video-fixture")).createVideoPreview() : null;
   const staffReads = staff ? await (await import("./staff-fixture")).loadStaffReads() : null;
   const offline = offlineProduct ? await (await import("./offline-fixture")).createOfflinePreview() : null;
+  const liveRoutes = tutorLive ? await Promise.all([
+    import("@/app/api/native/academic/tutor-support/[...resource]/route"),
+    import("@/app/api/native/academic/tutor-support/courses/[courseId]/live/host/route"),
+  ]) : null;
   const opposite = staff ? oppositeStaffRole(staff) : null;
-  const previewVideo = studentProduct ? await (await import("./video-fixture")).createVideoPreview() : null;
 
   const claim = randomBytes(32).toString("hex");
   let claimExpiresAt = 0;
   let startStatus: number | undefined;
   let sawStartRequest = false;
+  let browserStep: "browser page served" | "browser page rejected" | "browser claim submitted" | undefined;
   let confirmedState: string | null = null;
   let claimed = false;
   let completedHandoff = false;
@@ -119,13 +127,13 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
   let signedOut = false;
   let loadedDashboard = false;
   let acknowledgedInbox = false;
-  let browserStep: "browser page served" | "browser page rejected" | "browser claim submitted" | undefined;
   let verifiedStaffRead = false;
   let deniedOppositeRole = false;
   let unauthorizedRead = false;
   let visitedHealth = false;
   let browserIdentity: Awaited<ReturnType<typeof seedBrowserSession>> | null = null;
-  const server = Bun.serve({
+  const server = Bun.serve<{ roomId: string }>({
+    websocket: tutorLive?.websocket ?? { message() {} },
     hostname: fixtureHost,
     port: fixturePort,
     tls: { cert: Bun.file(certPath), key: Bun.file(keyPath) },
@@ -136,6 +144,8 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
       if (listener.requestIP(request)?.address !== fixtureHost || url.origin !== fixtureOrigin ||
         request.headers.get("host") !== url.host || request.headers.has("forwarded") ||
         [...request.headers.keys()].some(name => name.startsWith("x-forwarded-"))) return result(403);
+
+      if (tutorLive && url.pathname.startsWith("/room/")) return tutorLive.worker(request, listener);
 
       const headers = new Headers(request.headers);
       headers.set("Host", new URL(EXPO_STAGING_ORIGIN).host);
@@ -172,6 +182,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
         return result(403);
       }
       if (route === "POST " + browserSubmit) {
+        browserStep = "browser claim submitted";
         const query = handoffQuery(url);
         if (!query || query.get("state") !== confirmedState || !upstream.cookies.has(NATIVE_AUTH_HANDOFF_COOKIE) ||
           browserOrigin !== fixtureOrigin || claimed || Date.now() >= claimExpiresAt) return result(403);
@@ -180,10 +191,10 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
           !timingSafeEqual(Buffer.from(claim, "hex"), Buffer.from(submitted, "hex"))) return result(403);
         claimed = true;
         browserIdentity = await seedBrowserSession(staff);
+        await tutorLive?.seed(browserIdentity.accountId);
         if (studentProduct) await seedStudentInbox(browserIdentity.accountId);
         await offline?.seed(browserIdentity.accountId);
         return new Response(null, { status: 303, headers: {
-        browserStep = "browser claim submitted";
           ...noStore, Location: fixtureOrigin + nativeComplete + "?" + query, "Set-Cookie": browserIdentity.cookie,
         } });
       }
@@ -208,6 +219,19 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
         const response = await requestContext.run(upstream, () => offline.handle(route, upstream, browserIdentity));
         if (response) return response;
       }
+      if (tutorLive && liveRoutes) {
+        const courseId = staffRoles.tutor.recordId;
+        const path = `/api/native/academic/tutor-support/courses/${courseId}/live`;
+        if (route === "GET " + path) {
+          return requestContext.run(upstream, () => liveRoutes[0].GET(upstream, { params: Promise.resolve({ resource: ["courses", courseId, "live"] }) }));
+        }
+        if ((request.method === "GET" || request.method === "POST") && url.pathname === path + "/host") {
+          const response = await requestContext.run(upstream, () =>
+            liveRoutes[1][request.method === "GET" ? "GET" : "POST"](upstream, { params: Promise.resolve({ courseId }) }));
+          if (request.method === "GET") tutorLive.recordHostRead(response, url.searchParams.has("sessionId"));
+          return response;
+        }
+      }
       if (staff && opposite && staffReads && request.method === "GET") {
         if (url.pathname === staffRoles[staff].apiPath) {
           const response = await requestContext.run(upstream, () => staffReads[staff](upstream));
@@ -224,6 +248,11 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
         const response = await requestContext.run(upstream, () => product[0].GET(upstream));
         if (response.ok) loadedDashboard = true;
         return response;
+      }
+      if (previewVideo && browserIdentity && request.method === "GET") {
+        const identity = browserIdentity;
+        const response = await requestContext.run(upstream, () => previewVideo(upstream, identity));
+        if (response) return response;
       }
       if (product && route === "GET /api/notifications/history") {
         return requestContext.run(upstream, () => product[1].GET(upstream));
@@ -249,11 +278,6 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
         if (route === "POST /api/auth/sign-out" && staffReads && opposite && browserIdentity && verifiedStaffRead) {
           const session = await auth.api.getSession({ headers: upstream.headers, query: { disableCookieCache: true, disableRefresh: true } });
           if (session?.user.id === browserIdentity.accountId && session.session.id === browserIdentity.sessionId) {
-      if (previewVideo && browserIdentity && request.method === "GET") {
-        const identity = browserIdentity;
-        const response = await requestContext.run(upstream, () => previewVideo(upstream, identity));
-        if (response) return response;
-      }
             // The UI should reject navigation without dispatching a read. Probe
             // the canonical handler separately with the same still-active cookie.
             const unauthorized = new NextRequest(EXPO_STAGING_ORIGIN + staffRoles[opposite].apiPath, { headers: upstream.headers });
@@ -277,6 +301,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
     },
     sawOfflineRevocation: () => offline?.sawRevocation() ?? false,
     browserTrustVerified: () => visitedHealth,
+    verifiedTutorLive: () => tutorLive?.verified(),
     identity: () => browserIdentity && { accountId: browserIdentity.accountId, sessionId: browserIdentity.sessionId },
     progress() {
       if (signedOut) return "sign-out";
@@ -287,6 +312,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
       if (exchangedCode) return "code exchange";
       if (completedHandoff) return "browser completion";
       if (claimed) return "browser form";
+      if (browserStep) return browserStep;
       if (confirmedState) return "native start";
       if (startStatus) return "native start HTTP " + startStatus;
       if (sawStartRequest) return "native start request without response";
@@ -307,4 +333,3 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
     },
   };
 }
-      if (browserStep) return browserStep;

@@ -8,6 +8,7 @@ import type {
   TutorDiscussThread,
   TutorDiscussionList,
   TutorLiveData,
+  TutorLiveHost,
   TutorMaterialsData,
   TutorScheduleData,
   TutorSupportClient,
@@ -21,6 +22,7 @@ import { NativeRequestNotDispatched } from "../../../network/transport";
 import { useProtectedInteraction } from "../../../routing/protected-interaction";
 import type { AcademicScreenProps } from "../contracts";
 import { SharedDialog } from "../../shared-ui";
+import { TutorLiveHostPanel } from "./live-host";
 import { TutorWeekCalendar, tutorJakartaToday } from "./schedule-calendar";
 import { Choices, Empty, Heading, Label, Row, TutorDetail, TutorPage, tutorLayout } from "./ui";
 
@@ -600,10 +602,13 @@ export function ConnectedVideos({ data, theme, back, playback }: Navigation & { 
   </TutorPage>;
 }
 
-export function ConnectedLive({ data, theme, back, courseTitle, refresh }: Navigation & { data: TutorLiveData; courseTitle?: string; refresh(): void }) {
-  useStaffChromeVisibility({ hideBottom: Boolean(data.active) });
+export function ConnectedLive({ data, theme, back, courseTitle, courseId, host, refresh }: Navigation & {
+  data: TutorLiveData; courseTitle?: string; courseId: string; host?: TutorLiveHost; refresh(): void;
+}) {
+  useStaffChromeVisibility({ hideBottom: !host && Boolean(data.active) });
   return <TutorPage title="Kuis langsung" subtitle={courseTitle} theme={theme} onBack={back}>
-    {!data.configured ? <Empty theme={theme} title="Kuis langsung belum tersedia" /> : <>
+    {!data.configured ? <Empty theme={theme} title="Kuis langsung belum tersedia" />
+      : host ? <TutorLiveHostPanel {...{ data, theme, courseId, host, refresh }} /> : <>
       {data.active ? <View>
         <Heading theme={theme} title={data.active.state === "lobby" ? "Ruang tunggu" : "Sesi berlangsung"} count={`${data.active.participantCount} peserta`} />
         <Row theme={theme} title="Kode gabung" meta={data.active.code} />

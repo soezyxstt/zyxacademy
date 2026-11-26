@@ -56,6 +56,8 @@ async function runFlow(name: string, inputs: string[] = [], label = name) {
       ["student-dashboard-preview", "Student dashboard"],
       ["student-inbox", "Student inbox"],
       ["PREVIEW_RECORD", "protected staff read"],
+      ["Kuis Live Preview", "Tutor live quiz"],
+      ["Kuis selesai", "Tutor live conclusion"],
       ["Diktat verifikasi offline", "saved reading"],
       ["offline-library-list", "offline library"],
       ["Akses ditolak", "wrong-role screen"],
@@ -134,11 +136,17 @@ try {
       PREVIEW_OTHER_RECORD: opposite.recordTitle,
       PREVIEW_WRONG_ROLE_URL: scheme + opposite.route.slice(1),
       PREVIEW_READ_URL: scheme + selected.route.slice(1),
+      PREVIEW_TUTOR_LIVE: staff === "tutor" ? "true" : "false",
     }).flatMap(([name, value]) => ["-e", `${name}=${value}`]);
     step = `complete ${selected.label} browser login, read data, reject the wrong role and sign out`;
     await runFlow("staff", inputs, staff);
     step = `verify the ${selected.label} account context, database record, opposite-role HTTP denial and revocation`;
     if (!await fixture.verifiedAndRevoked()) throw new Error();
+    if (staff === "tutor") {
+      step = "verify room ownership, one command per phase and the Tutor socket reconnect";
+      if (!await fixture.verifiedTutorLive()) throw new Error();
+      console.log("Android opened a Tutor room with the loopback Worker, recovered after reopen and socket interruption, and ended the quiz");
+    }
     console.log(`Android verified ${selected.label} login, a protected read, opposite-role denial and session revocation`);
   } else {
     step = "complete browser login, open the Student dashboard, mark a notification read and sign out";
