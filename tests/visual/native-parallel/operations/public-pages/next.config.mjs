@@ -8,6 +8,7 @@ writeFileSync(new URL("./app/fixture-globals.generated.css", import.meta.url),
 const mock = (name) => fileURLToPath(new URL(`./mocks/${name}.ts`, import.meta.url));
 const demo = (name) => fileURLToPath(new URL(`../../../demo-harness/${name}.ts`, import.meta.url));
 const replacements = {
+  "@/app/actions/tutor": fileURLToPath(new URL("../mocks/tutor.ts", import.meta.url)),
   "@/lib/i18n/server": mock("i18n"),
   "@/lib/i18n/actions": mock("locale-actions"),
   "@/lib/env": mock("env"),
