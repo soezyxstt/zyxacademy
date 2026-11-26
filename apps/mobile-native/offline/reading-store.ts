@@ -1,7 +1,9 @@
 import type { NativeSessionScope } from "../network/transport";
 import {
   offlineMetadataSchema,
+  readOfflineReadingAuthorities,
   readOfflineReadingAuthority,
+  readOfflineReadingAuthorityVersions,
   withdrawOfflineReadingCourse,
   type OfflineReadingCourseVersion,
 } from "./metadata-store";
@@ -168,7 +170,7 @@ function proof(authority: Authority, target: OfflineReadingTarget, cutoff: numbe
   const invalidation = validation.invalidations[descriptor.key];
   const cursor = invalidation && compareNativeOfflineCursors(invalidation, manifest.cursor) > 0 ? invalidation : manifest.cursor;
   return { descriptor, cursor, manifestCursor: manifest.cursor, checkedAt: manifest.checkedAt, leaseExpiresAt,
-    resetGeneration: validation.generation, grantRevision: course.grantRevision, invalidation };
+    resetGeneration: validation.generation, invalidation };
 }
 
 function verifiedEntry(authority: Authority, entry: EntryRow, access: NonNullable<ReturnType<typeof proof>>, verifiedUntil: number, now: number) {
@@ -448,7 +450,8 @@ export function createOfflineReadingStore(db: OfflineReadingDatabase, now = Date
       assertGrant(guard);
       await initialize();
       const existing = await savedVersion(db, scope, target);
-      const authority = await readOfflineReadingAuthority(db, scope);
+      const authorities = await readOfflineReadingAuthorities(db, scope);
+      const authority = authorities.find(item => item.locale === scope.locale)?.snapshot;
       assertGrant(guard);
       const access = authority?.readingPolicy && proof(authority, target, now());
       if (!access || Math.min(access.leaseExpiresAt, guard.verifiedUntil) <= now()
@@ -459,16 +462,24 @@ export function createOfflineReadingStore(db: OfflineReadingDatabase, now = Date
         checkedAt: access.checkedAt,
         generation: access.resetGeneration,
       } : null;
-      return { ...access, requestVersion };
+      return { ...access, requestVersion, courseVersions: authorities.map(({ locale, revision }) => ({ locale, revision })) };
     },
-    async withdrawCourse(scope: NativeOfflineScope, courseId: string, version: OfflineReadingCourseVersion, guard: Guard) {
-      const assertCurrent = () => assertGrant(guard);
+    async captureCourseVersions(session: NativeSessionScope) {
+      await initialize();
+      return readOfflineReadingAuthorityVersions(db, session);
+    },
+    async withdrawCourse(session: NativeSessionScope, courseId: string, versions: OfflineReadingCourseVersion[], assertCurrent: () => void) {
       const changed = await transaction(async tx => {
         assertCurrent();
-        if (!await withdrawOfflineReadingCourse(tx, scope, courseId, version, assertCurrent)) return false;
-        await tx.runAsync(`DELETE FROM expo_reading_packages_v2 WHERE ${scopeFilter} AND course_id = ?`, ...keys(scope), courseId);
+        let changed = false;
+        for (const version of versions) {
+          if (!await withdrawOfflineReadingCourse(tx, session, courseId, version, assertCurrent)) continue;
+          const scope = { ...session, locale: version.locale };
+          await tx.runAsync(`DELETE FROM expo_reading_packages_v2 WHERE ${scopeFilter} AND course_id = ?`, ...keys(scope), courseId);
+          changed = true;
+        }
         assertCurrent();
-        return true;
+        return changed;
       });
       if (changed) notifyOfflineReadingChanges();
     },

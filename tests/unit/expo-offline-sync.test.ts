@@ -3,6 +3,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { createNativeTransport } from "../../apps/mobile-native/network/transport";
 import { createOfflineMetadataLifecycle } from "../../apps/mobile-native/offline/lifecycle";
 import { createOfflineMetadataStore } from "../../apps/mobile-native/offline/metadata-store";
+import { createOfflineReadingStore, type OfflineReadingDatabase } from "../../apps/mobile-native/offline/reading-store";
 import { createNativeOfflineSyncController } from "../../apps/mobile-native/offline/sync-client";
 import type {
   NativeOfflineCourseAccess,
@@ -81,11 +82,27 @@ type Respond = (url: URL, init: RequestInit) => Response | Promise<Response>;
 function setup(...responses: Array<Response | Respond>) {
   const db = new Database(":memory:");
   databases.push(db);
-  const repository = createOfflineMetadataStore({
+  type Bind = string | number | null | Uint8Array;
+  const connection: OfflineReadingDatabase = {
     async execAsync(sql) { db.exec(sql); },
-    async getFirstAsync<T>(sql: string, ...values: Array<string | number | null>) { return db.query<T, typeof values>(sql).get(...values); },
-    async runAsync(sql, ...values) { return db.run(sql, values); },
-  });
+    async getFirstAsync<T>(sql: string, ...values: Bind[]) { return db.query<T, Bind[]>(sql).get(...values); },
+    async getAllAsync<T>(sql: string, ...values: Bind[]) { return db.query<T, Bind[]>(sql).all(...values); },
+    async runAsync(sql, ...values) {
+      const result = db.run(sql, values);
+      return { changes: result.changes, lastInsertRowId: Number(result.lastInsertRowid) };
+    },
+    async withExclusiveTransactionAsync(work) {
+      db.exec("BEGIN IMMEDIATE");
+      try {
+        await work(connection);
+        db.exec("COMMIT");
+      } catch (error) {
+        db.exec("ROLLBACK");
+        throw error;
+      }
+    },
+  };
+  const repository = createOfflineMetadataStore(connection);
   const observed: Array<{ path: string; body?: unknown }> = [];
   const transport = createNativeTransport({
     origin,
@@ -104,7 +121,10 @@ function setup(...responses: Array<Response | Respond>) {
   });
   const session = transport.setSession({ ...scope, readCookie: () => "session=verified" });
   let clock = verifiedAt;
-  const controller = createNativeOfflineSyncController({ session, locale: scope.locale, repository, now: () => clock });
+  const readingStore = createOfflineReadingStore(connection, () => clock);
+  const controller = createNativeOfflineSyncController({
+    session, locale: scope.locale, repository, readings: async () => readingStore, now: () => clock,
+  });
   return { controller, transport, observed, repository, setNow: (now: number) => { clock = now; } };
 }
 

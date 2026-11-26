@@ -31,7 +31,7 @@ function createDriver(session: NativeSessionTransport, locale: NativeOfflineLoca
       const repository = await openExpoOfflineMetadataStore();
       if (current !== generation) return;
       session.assertCurrent();
-      syncController ??= createNativeOfflineSyncController({ session, locale, repository });
+      syncController ??= createNativeOfflineSyncController({ session, locale, repository, readings: openExpoOfflineReadingStore });
       const unsubscribe = syncController.subscribeAccess(snapshot => {
         if (current !== generation || !session.isCurrent()) return;
         onAuthorized();

@@ -140,14 +140,14 @@ export function createOfflineReadingController({ scope, verifiedUntil, repositor
     const activeGuard = { verifiedUntil, assertCurrent: () => assertCurrent(operation.signal) };
     const timeout = setTimeout(() => operation.abort(), timeoutMs);
     let requestVersion: OfflineReadingRequestVersion | null = null;
-    let courseVersion: OfflineReadingCourseVersion | undefined;
+    let courseVersions: OfflineReadingCourseVersion[] = [];
     try {
       const store = await repository();
       const authority = await store.authorize(scope, target, activeGuard, requiredEntry);
       if (!authority) return { status: "unavailable" };
       const verify = { revision: authority.descriptor.revision, minCursor: authority.cursor };
       requestVersion = authority.requestVersion;
-      courseVersion = { grantRevision: authority.grantRevision, generation: authority.resetGeneration };
+      courseVersions = authority.courseVersions;
       const payload = await request(readingResourcePath(target, scope.locale), operation.signal, false, async response => {
         const metadata = readOfflineReadingHeaders(response, scope, { ...verify, now: now() });
         if (response.headers.get("etag") !== `"${metadata.revision}"`) throw new NativeOfflineProtocolError();
@@ -189,7 +189,7 @@ export function createOfflineReadingController({ scope, verifiedUntil, repositor
       }
       if (error.code === "course-denied") {
         try {
-          if (courseVersion) await (await repository()).withdrawCourse(scope, target.courseId, courseVersion, activeGuard);
+          await (await repository()).withdrawCourse(scope, target.courseId, courseVersions, activeGuard.assertCurrent);
         } catch {
           try { assertCurrent(operation.signal); } catch { return { status: "cancelled" }; }
           return { status: "retry" };

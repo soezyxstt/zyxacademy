@@ -8,11 +8,13 @@ import { createOfflineReadingController } from "../../apps/mobile-native/offline
 import { readingKey, type OfflineReadingTarget } from "../../apps/mobile-native/offline/reading-contract";
 import { subscribeOfflineReadingChanges } from "../../apps/mobile-native/offline/reading-events";
 import { createOfflineReadingStore, type OfflineReadingDatabase } from "../../apps/mobile-native/offline/reading-store";
+import { createNativeOfflineSyncController } from "../../apps/mobile-native/offline/sync-client";
 import type { NativeOfflineResourceDescriptor, NativeOfflineScope, NativeOfflineSyncResponse } from "../../apps/mobile-native/offline/sync-contract";
 
 const scope: NativeOfflineScope = {
   origin: "https://staging.zyxacademy.com", accountId: "learner-1", sessionId: "session-1", locale: "id",
 };
+const englishScope = { ...scope, locale: "en" as const };
 const now = 1_785_000_000_000;
 const lease = now + 60_000;
 const revision = "a".repeat(64);
@@ -67,7 +69,7 @@ function resource({ withImage = false, version = revision, cursor = "4", expires
   return Response.json({
     ...identity, locale, resource: descriptor(selection, version), data: withImage ? { ...reading, body: `![Sample](${url})` } : reading,
     cursor, validatedAt, leaseExpiresAt: expires, assets: withImage ? [{ url, required: true }] : [],
-  }, { headers: responseHeaders({ version, cursor, expires, validatedAt }) });
+  }, { headers: { ...responseHeaders({ version, cursor, expires, validatedAt }), "x-offline-locale": locale } });
 }
 
 function raster(extraHeaders: HeadersInit = {}) {
@@ -207,30 +209,156 @@ test("a required asset reporting the material changed invalidates the old packag
 
 const courseDenied = () => Response.json({ code: "OFFLINE_COURSE_ACCESS_DENIED" }, { status: 403 });
 
-test("a course denial withdraws its authority and all its saved readings", async () => {
-  const sibling = { ...target, id: "reading-2" };
-  const otherCourse = { ...target, courseId: "course-2" };
-  const unsaved = { ...target, id: "reading-3" };
-  const { controller, commit, metadata, db, options, revocations, transport } = await setup(
-    resource(), resource({ selection: sibling }), resource({ selection: otherCourse }), courseDenied(),
-  );
-  await commit(page("4", { access: [grant, { ...grant, courseId: otherCourse.courseId }] }),
-    [target, sibling, otherCourse, unsaved].map(selection => descriptor(selection)), "4");
-  for (const selection of [target, sibling, otherCourse]) {
-    expect(await controller.download(selection)).toEqual({ status: "saved" });
-  }
-  expect(await controller.download(unsaved)).toEqual({ status: "changed" });
-  expect(revocations()).toBe(0);
-  expect((await metadata.read(scope, now))?.knownCourseIds).toEqual([otherCourse.courseId]);
-  expect(db.query("SELECT course_id FROM expo_reading_packages_v2").all()).toEqual([{ course_id: otherCourse.courseId }]);
-  expect(db.query("SELECT COUNT(*) AS count FROM expo_reading_parts_v2").get()).toEqual({ count: 1 });
-  transport.clearSession();
-  const offline = createOfflineReadingController({ ...options, session: null });
-  expect((await offline.list()).map(item => item.courseId)).toEqual([otherCourse.courseId]);
-  expect(await offline.read(target)).toBeNull();
-  expect(await offline.read(sibling)).toBeNull();
-  expect(await offline.read(otherCourse)).not.toBeNull();
+for (const endpoint of ["resource", "asset", "manifest"] as const) {
+  test(`a course denial from ${endpoint} withdraws its authority and saved readings in both languages`, async () => {
+    const sibling = { ...target, id: "reading-2" };
+    const otherCourse = { ...target, courseId: "course-2" };
+    const unsaved = { ...target, id: "reading-3" };
+    const withImage = resource({ withImage: true, selection: unsaved,
+      url: `/api/offline/asset?${new URLSearchParams({ ...unsaved, locale: scope.locale, revision, asset: "/images/sample.png" })}` });
+    const { controller, commit, metadata, readingStore, db, options, revocations, transport } = await setup(
+      resource(), resource({ selection: sibling }), resource({ selection: otherCourse }),
+      resource({ locale: "en" }), resource({ selection: sibling, locale: "en" }), resource({ selection: otherCourse, locale: "en" }),
+      ...(endpoint === "asset" ? [withImage] : []),
+      ...(endpoint === "manifest" ? [Response.json(page("5", { reset: false, access: [grant, { ...grant, courseId: otherCourse.courseId }],
+        changes: [{ cursor: "5", kind: "course", courseId: target.courseId, resourceId: null, action: "invalidate", revision: null }],
+      }), { headers: headerIdentity })] : []),
+      courseDenied(),
+    );
+    const bothCourses = page("4", { access: [grant, { ...grant, courseId: otherCourse.courseId }] });
+    const materials = [target, sibling, otherCourse, unsaved].map(selection => descriptor(selection));
+    await commit(bothCourses, materials, "4");
+    await commit(bothCourses, materials, null, englishScope);
+    const english = createOfflineReadingController({ ...options, scope: englishScope });
+    for (const selection of [target, sibling, otherCourse]) {
+      expect(await controller.download(selection)).toEqual({ status: "saved" });
+    }
+    for (const selection of [target, sibling, otherCourse]) {
+      expect(await english.download(selection)).toEqual({ status: "saved" });
+    }
+    if (endpoint === "manifest") {
+      const sync = createNativeOfflineSyncController({
+        session: options.session, locale: "id", repository: metadata, readings: async () => readingStore, now: () => now,
+      });
+      await expect(sync.sync([target.courseId])).rejects.toMatchObject({ code: "courseChanged", status: 403 });
+    } else {
+      expect(await controller.download(unsaved)).toEqual({ status: "changed" });
+    }
+    expect(revocations()).toBe(0);
+    expect(db.query("SELECT locale, course_id FROM expo_reading_packages_v2 ORDER BY locale").all()).toEqual([
+      { locale: "en", course_id: otherCourse.courseId }, { locale: "id", course_id: otherCourse.courseId },
+    ]);
+    expect(db.query("SELECT COUNT(*) AS count FROM expo_reading_parts_v2").get()).toEqual({ count: 2 });
+    transport.clearSession();
+    for (const languageScope of [scope, englishScope]) {
+      expect((await metadata.read(languageScope, now))?.knownCourseIds).toEqual([otherCourse.courseId]);
+      const offline = createOfflineReadingController({ ...options, scope: languageScope, session: null });
+      expect((await offline.list()).map(item => item.courseId)).toEqual([otherCourse.courseId]);
+      expect(await offline.read(target)).toBeNull();
+      expect(await offline.read(sibling)).toBeNull();
+      expect(await offline.read(otherCourse)).not.toBeNull();
+    }
+  });
+}
+
+for (const renewedScope of [scope, englishScope]) {
+  test(`a delayed denial preserves the refreshed ${renewedScope.locale} grant and withdraws the older one`, async () => {
+    const requested = Promise.withResolvers<void>();
+    const delayed = Promise.withResolvers<Response>();
+    const { controller, commit, metadata, options } = await setup(resource(), resource({ locale: "en" }), () => {
+      requested.resolve();
+      return delayed.promise;
+    });
+    await commit(page(), [descriptor()], null, englishScope);
+    const english = createOfflineReadingController({ ...options, scope: englishScope });
+    expect(await controller.download(target)).toEqual({ status: "saved" });
+    expect(await english.download(target)).toEqual({ status: "saved" });
+    const pending = controller.download(target);
+    await requested.promise;
+    await commit(page("4", { reset: false }), [descriptor()], "4", renewedScope);
+    delayed.resolve(courseDenied());
+    expect(await pending).toEqual({ status: "changed" });
+    const expiredScope = renewedScope.locale === "id" ? englishScope : scope;
+    const [current, expired] = renewedScope.locale === "id" ? [controller, english] : [english, controller];
+    expect((await metadata.read(renewedScope, now))?.knownCourseIds).toEqual([target.courseId]);
+    expect((await metadata.read(expiredScope, now))?.knownCourseIds).toEqual([]);
+    expect(await current.read(target)).not.toBeNull();
+    expect(await expired.read(target)).toBeNull();
+  });
+}
+
+test("an older denial from another language cannot withdraw restored grants after a newer denial", async () => {
+  const requested = Promise.withResolvers<void>();
+  const delayed = Promise.withResolvers<Response>();
+  const { controller, commit, metadata, options } = await setup(() => {
+    requested.resolve();
+    return delayed.promise;
+  }, courseDenied(), resource({ locale: "en" }));
+  await commit(page(), [descriptor()], null, englishScope);
+  const english = createOfflineReadingController({ ...options, scope: englishScope });
+  const pending = english.download(target);
+  await requested.promise;
+  expect(await controller.download(target)).toEqual({ status: "changed" });
+  expect((await metadata.read(englishScope, now))?.knownCourseIds).toEqual([]);
+  const refreshed = createOfflineReadingController({ ...options, scope: englishScope });
+  expect(await refreshed.download(target)).toEqual({ status: "unavailable" });
+  await commit(page("4", { reset: false }), [descriptor()], "4");
+  await commit(page("4", { reset: false }), [descriptor()], "4", englishScope);
+  expect(await refreshed.download(target)).toEqual({ status: "saved" });
+  delayed.resolve(courseDenied());
+  expect(await pending).toEqual({ status: "changed" });
+  expect((await metadata.read(scope, now))?.knownCourseIds).toEqual([target.courseId]);
+  expect(await refreshed.read(target)).not.toBeNull();
 });
+
+for (const stage of ["sync response", "narrowed manifest", "denied manifest"] as const) {
+  test(`a pending ${stage} cannot restore a course withdrawn by another language`, async () => {
+    const otherCourse = { ...target, courseId: "course-2" };
+    const otherGrant = { ...grant, courseId: otherCourse.courseId };
+    const materials = [descriptor(), descriptor(otherCourse)];
+    const initial = page("4", {
+      locale: "en",
+      access: [grant, otherGrant],
+      enrollments: [...page().enrollments, { id: otherCourse.courseId, title: "Geometri", expiresAt: null }],
+    });
+    const incremental = {
+      ...initial, reset: false, cursor: "5",
+      changes: [{ cursor: "5", kind: "course", courseId: otherCourse.courseId, resourceId: null, action: "invalidate", revision: null }],
+    } satisfies NativeOfflineSyncResponse;
+    const englishHeaders = { ...headerIdentity, "x-offline-locale": "en" };
+    const syncResponse = (value: NativeOfflineSyncResponse) => Response.json(value, { headers: englishHeaders });
+    const manifestResponse = (access: typeof grant, material: NativeOfflineResourceDescriptor, cursor = "4") => Response.json({
+      ...identity, locale: "en", cursor, serverTime: now, leaseExpiresAt: lease, resource: access, resources: [material],
+    }, { headers: englishHeaders });
+    const requested = Promise.withResolvers<void>();
+    const delayed = Promise.withResolvers<Response>();
+    const { controller, commit, metadata, readingStore, options } = await setup(
+      ...(stage === "sync response" ? [] : [syncResponse(incremental)]),
+      url => {
+        expect(url.pathname).toBe(stage === "sync response" ? "/api/offline/sync" : "/api/offline/manifest");
+        if (stage !== "sync response") expect(url.searchParams.get("courseId")).toBe(otherCourse.courseId);
+        requested.resolve();
+        return delayed.promise;
+      },
+      courseDenied(), syncResponse(initial), manifestResponse(grant, materials[0]), manifestResponse(otherGrant, materials[1]),
+    );
+    await commit(initial, materials, "4");
+    await commit(initial, materials, null, englishScope);
+    const sync = createNativeOfflineSyncController({
+      session: options.session, locale: "en", repository: metadata, readings: async () => readingStore, now: () => now,
+    });
+    const pending = sync.sync([target.courseId, otherCourse.courseId]);
+    await requested.promise;
+    expect(await controller.download(target)).toEqual({ status: "changed" });
+    if (stage === "sync response") delayed.resolve(syncResponse(incremental));
+    else if (stage === "denied manifest") delayed.resolve(Response.json({ code: "OFFLINE_ACCESS_CHANGED" }, { status: 409 }));
+    else delayed.resolve(manifestResponse({ ...otherGrant, fullContent: false }, materials[1], "5"));
+    await expect(pending).rejects.toMatchObject({ code: "conflict" });
+    expect((await metadata.read(englishScope, now))?.knownCourseIds).toEqual([otherCourse.courseId]);
+    expect((await sync.retry())?.knownCourseIds).toEqual([target.courseId, otherCourse.courseId]);
+    expect((await metadata.read(scope, now))?.knownCourseIds).toEqual([otherCourse.courseId]);
+  });
+}
 
 for (const mode of ["newer grant", "cursor reset", "replacement session"] as const) {
   test(`a delayed course denial preserves authority after a ${mode}`, async () => {
