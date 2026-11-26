@@ -1,0 +1,175 @@
+{
+  "platform": "ios",
+  "viewport": {
+    "width": 402,
+    "height": 874
+  },
+  "deviceScaleFactor": 3,
+  "locale": "id",
+  "theme": "light",
+  "timeZone": "Asia/Jakarta",
+  "route": "/courses/[id]/mastery",
+  "endpoint": "/api/native/student/learning?view=mastery&courseId=matematika-1&locale=id",
+  "browser": "154.0.8037.57",
+  "states": {
+    "review": {
+      "scenario": "enrolled",
+      "path": "/courses/matematika-1/mastery",
+      "courseId": "matematika-1",
+      "data": {
+        "state": "ready",
+        "courseTitle": "Kalkulus Dasar",
+        "view": "mastery",
+        "groups": [
+          {
+            "chapter": {
+              "id": "chapter-1",
+              "title": "Fungsi dan limit",
+              "orderIndex": 1
+            },
+            "concepts": [
+              {
+                "conceptName": "Limit fungsi",
+                "conceptSlug": "limit",
+                "masteryScore": 56,
+                "confidence": 72,
+                "trend": "improving",
+                "blockedBy": [
+                  "Fungsi real"
+                ]
+              },
+              {
+                "conceptName": "Limit sepihak",
+                "conceptSlug": "sepihak",
+                "masteryScore": null,
+                "confidence": null,
+                "trend": null,
+                "blockedBy": []
+              }
+            ]
+          }
+        ]
+      },
+      "openChapters": [],
+      "openUnassessed": [],
+      "nativeMarkers": [
+        {
+          "text": "Topik untuk diulang"
+        },
+        {
+          "text": ".*Skor penguasaan 56/100.*"
+        },
+        {
+          "text": "Topik per bab"
+        }
+      ]
+    },
+    "expanded": {
+      "scenario": "enrolled",
+      "path": "/courses/matematika-1/mastery",
+      "courseId": "matematika-1",
+      "data": {
+        "state": "ready",
+        "courseTitle": "Kalkulus Dasar",
+        "view": "mastery",
+        "groups": [
+          {
+            "chapter": {
+              "id": "chapter-1",
+              "title": "Fungsi dan limit",
+              "orderIndex": 1
+            },
+            "concepts": [
+              {
+                "conceptName": "Limit fungsi",
+                "conceptSlug": "limit",
+                "masteryScore": 56,
+                "confidence": 72,
+                "trend": "improving",
+                "blockedBy": [
+                  "Fungsi real"
+                ]
+              },
+              {
+                "conceptName": "Limit sepihak",
+                "conceptSlug": "sepihak",
+                "masteryScore": null,
+                "confidence": null,
+                "trend": null,
+                "blockedBy": []
+              }
+            ]
+          }
+        ]
+      },
+      "openChapters": [
+        "chapter-1"
+      ],
+      "openUnassessed": [
+        "chapter-1"
+      ],
+      "nativeMarkers": [
+        {
+          "text": ".*Dasar yang bisa diulang: Fungsi real.*"
+        },
+        {
+          "text": ".*56/100 · Meningkat.*"
+        },
+        {
+          "text": ".*Limit sepihak.*"
+        }
+      ]
+    },
+    "empty": {
+      "scenario": "empty",
+      "path": "/courses/matematika-1/mastery",
+      "courseId": "matematika-1",
+      "data": {
+        "state": "ready",
+        "courseTitle": "Kalkulus Dasar",
+        "view": "mastery",
+        "groups": []
+      },
+      "openChapters": [],
+      "openUnassessed": [],
+      "nativeMarkers": [
+        {
+          "text": "Belum ada hasil per topik"
+        },
+        {
+          "text": "Buka alur belajar"
+        }
+      ]
+    }
+  },
+  "captures": {
+    "mastery-review.png": "7d3053a4bd570320ae4485e64bd1e46ee40cce967777ed989fe537dbd78cfd3d",
+    "mastery-expanded.png": "a3aed7c6086361c8485c0742e084cfecf8e00bada7d9d0eaad3dc4600c42a332",
+    "mastery-empty.png": "e154e32d03147127d3b0595f264b6117a785387bfa0c47978b4a7b4e8acaddd4"
+  },
+  "sourceDigests": {
+    "tests/visual/fixtures/student-mastery.tsx": "5b0f31ce301ad0caf7a6f45556d17c530421eedd6e566bfc5334455a2a119bb5",
+    "tests/visual/native-parallel/student/mastery-reference.spec.ts": "4d883a5a9fbabbe4cd0a0d8f206e290534afafde4907b98ebb7b697f2ce26666",
+    "tests/visual/fixtures/interactive-document-build.ts": "dc51a2f41b0a567504d40004f1ec44e9469601c8e74eb6fd71b6da23ebd45053",
+    "app/(student)/courses/[id]/mastery/page.tsx": "fb5846e7cd991120de601c667fbf6db9ffa04d4cfe8d27882f17e016cea76753",
+    "app/globals.css": "be812b64b005159daf0c3db873b0a8571952834222d9c8906019650388becf83",
+    "components/course/concept-map.tsx": "22748b45161cec8b85723f77fa9347b13f9ade25454d8e55bdcafeee25d4ee28",
+    "components/course/course-page-shell.tsx": "e4171dee451d6ca3e9049e0fafb61061392cfa23d3d2fb8c1451dd7f75f05aa6",
+    "components/navigation/mobile-top-navbar.tsx": "80bc1dc3904f662bff0b39ff07f108339b69ce4b68672a836b738e8db50beda6",
+    "packages/native-parity/student/fixture-request.ts": "a854f6bedaa2866884d10bcfbd25637bcd8c9b72a262c0b8a84eb2c30bc805e9",
+    "packages/native-parity/student/learning/contracts.ts": "2a1cf81df56c117429678fbb197edeb74bcef6344461757859e4674e346de3eb",
+    "packages/native-parity/student/learning/fixtures.ts": "ebadf962b505c8ff90a63ee9e0a3809c99e021b11af4760b2e877588a9483f6c",
+    "apps/mobile-native/features/student/learning/knowledge.tsx": "5e3f5f0e0f41442e8ad19a2a9c47ed82fd5912e78fcdcde54a6cc583b52e4aba",
+    "apps/mobile-native/features/student/learning/index.tsx": "49f4e3bfb143d7f7ec791b1186e7151006d47b4b0db1a8d4d2deb438916c6c75",
+    "apps/mobile-native/features/student/learning/ui.tsx": "c849d71311766b75f32720dec8d291177eecdf05dbae31d5621fb30097fddbbe",
+    ".maestro/native-parallel/student/mastery-parity.yaml": "4df0cbf5196a8abfbb40aa0d25688a4e35bddc07c2d6bde70c7febd96f0ba055",
+    "messages/id/learning.json": "e5376bea4a130042fea063ca931aca3c135994777ee3ebe4300ae107877ecc54"
+  },
+  "fontDigests": {
+    "Inter-Regular": "19b2e364a739f0a493415b5185f1323f4994fcf451d24ab314cb7ff0504ccd39",
+    "Inter-Medium": "5bd11bf34ec26309bf6fa65f8d7e23c4738356f8219e643ce9f376be6dce0295",
+    "Inter-SemiBold": "bec5d982df3acdc7edbd7d99458e397285dd2d206058a1cfcdf77f55c7ac6c44",
+    "Lexend-SemiBold": "f8afa7919bba1f2b2536477e68359857d3f10e6bf8d93f21242fcc359437323f",
+    "Lexend-Bold": "231fd4c77e990af738beb90c090e7bb92a960b24e64efebf419761aa516b0fcf"
+  }
+}
