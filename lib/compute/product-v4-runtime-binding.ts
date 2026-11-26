@@ -62,6 +62,7 @@ export const PRODUCT_V4_RUNTIME_FILES = [
   "lib/compute/runtime.ts", "lib/compute/pdf-pages.ts", "lib/compute/pdf-worker.ts",
   "lib/compute/browser-pdf.ts", "lib/compute/pdf-inspection.ts", "scripts/neon/build-worker.mjs",
   "lib/compute/product-v4-print-artifacts.ts", "lib/bundle/product-v4-verification-checkpoint.ts",
+  "lib/compute/product-v4-diagnostics.ts",
   "lib/authoring/product-draft-builder.ts",
   "app/globals.css", "app/layout.tsx", "app/authoring-verification/page.tsx",
   "components/providers/telemetry-boundary.tsx", "components/providers/posthog-provider.tsx", "lib/env.ts",

@@ -11,6 +11,7 @@ import { validateAuthoredDiktat } from "@/lib/materials/diktat-v4";
 import { compileArticleProduct } from "@/lib/materials/compiler";
 import { runVerificationBrowserOperation } from "./product-v4-browser-session";
 import { isHostedComputeRuntime } from "./runtime";
+import { logProductV4BrowserStart } from "./product-v4-diagnostics";
 
 export { buildProductV4RuntimeBinding } from "./product-v4-runtime-binding";
 
@@ -76,6 +77,7 @@ export const executeProductV4VerificationCheck = async (input: Parameters<Produc
       const staticFigureAssets = await loadProductV4StaticFigureAssets(input.bundle, figurePorts, input.requirement.layer === "print", readDocumentAsset);
       const interactiveDocumentAssets = await loadProductV4InteractiveDocumentAssets(input, readDocumentAsset);
       signal.throwIfAborted();
+      logProductV4BrowserStart(input.plan.planHash, input.requirement.id);
       return executeBrowserProductV4Check({ ...input, signal, baseUrl: process.env.NEXT_PUBLIC_APP_URL ?? "", staticFigureAssets, interactiveDocumentAssets });
     }, closeProductV4BrowserRunner);
   }

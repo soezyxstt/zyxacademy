@@ -69,7 +69,7 @@ export async function handlePdfPagesRpc(c: Context) {
         ...(textOnly ? {} : { imageBase64: Buffer.from(png).toString("base64") }) })),
     }));
   } catch (err: any) {
-    if (err instanceof RetryAfterError || (err instanceof Error && err.message === "VERIFICATION_BROWSER_RATE_LIMITED")) return c.json({ error: "SOURCE_READ_RATE_LIMITED", requestId: traceId }, 429, { "Retry-After": typeof err.retryAfter === "string" && /^\d+$/.test(err.retryAfter) ? err.retryAfter : "30" });
+    if (err instanceof RetryAfterError || (err instanceof Error && err.message === "VERIFICATION_BROWSER_RATE_LIMITED")) return c.json({ error: "SOURCE_READ_RATE_LIMITED", requestId: traceId }, 429, { "Retry-After": "retryAfter" in err && typeof err.retryAfter === "string" && /^\d+$/.test(err.retryAfter) ? err.retryAfter : "30" });
     if (isSourceReadTimeout(err)) return c.json({ error: "SOURCE_READ_TIMEOUT", requestId: traceId }, 504);
     if (err instanceof Error && (err.message === "PAGE_OUT_OF_BOUNDS" || err.message === "AUTHORING_MCP_SOURCE_PAGE_INVALID")) {
       return c.json({ error: "PAGE_OUT_OF_BOUNDS" }, 400);
