@@ -9,6 +9,7 @@ import { FormBuilderRoute, FormDetailRoute } from "./forms";
 import { Pricing } from "./pricing";
 import { Discussions, ImportantLinks, MediaLibrary, MeetDetails, MeetList } from "./tools";
 import { Action, Copy, ManagementContext, Screen, type ManagementDraftStore, type ManagementTheme } from "./ui";
+import { NativeStatusPanel } from "../../shared-ui/layout";
 
 export { createManagementClient, createManagementHttpClient } from "./http";
 export { isManagementPath, managementRoutes, matchManagementPath } from "../../../../../packages/native-parity/operations/management-contract";
@@ -24,8 +25,9 @@ export type ManagementScreenProps = {
   accountKey: string;
   theme?: ManagementTheme;
   locale?: "id" | "en";
-  openExternal?: (url: string) => void;
-  share?: (message: string) => void;
+  openExternal?: (url: string) => void | Promise<void>;
+  share?: (url: string, title?: string) => void | Promise<void>;
+  linkError?: string;
   pickBlogThumbnail?: PickBlogThumbnail;
   renderMarkdown?: (markdown: string) => ReactNode;
 };
@@ -34,7 +36,7 @@ export function ManagementScreen(props: ManagementScreenProps) {
   return <AccountManagement key={`${props.accountKey}:${props.access}`} {...props} />;
 }
 
-function AccountManagement({ path, navigate, client, access, theme, locale = "id", openExternal, share, pickBlogThumbnail, renderMarkdown }: ManagementScreenProps) {
+function AccountManagement({ path, navigate, client, access, theme, locale = "id", openExternal, share, linkError, pickBlogThumbnail, renderMarkdown }: ManagementScreenProps) {
   const systemTheme = useColorScheme();
   const [drafts] = useState<ManagementDraftStore>(() => new Map());
   const [retries] = useState(() => new Map<string, string>());
@@ -66,7 +68,10 @@ function AccountManagement({ path, navigate, client, access, theme, locale = "id
     }
   }
   return <ManagementContext.Provider value={{ client, navigate, theme: theme ?? systemTheme ?? "light", locale, drafts, retries, openExternal, share, pickBlogThumbnail, renderMarkdown }}>
-    <View key={path} style={{ flex: 1 }}>{screen}</View>
+    <View key={path} style={{ flex: 1 }}>
+      {linkError && <NativeStatusPanel title={linkError} tone="error" theme={theme} />}
+      {screen}
+    </View>
   </ManagementContext.Provider>;
 }
 

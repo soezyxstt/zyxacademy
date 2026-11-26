@@ -3,6 +3,7 @@ import { useState } from "react";
 import { View } from "react-native";
 import { DEFAULT_ICON, EMOJI_OPTIONS, LINK_COLORS, LINK_CATEGORY_SUGGESTIONS, isValidHttpUrl } from "../../../../../lib/links";
 import { ManagementFailure, managementSlug, type DiscussionThread, type LinkFields, type MediaLocation, type MeetingSpace, type PublicLink } from "../../../../../packages/native-parity/operations/management-contract";
+import { meetingLinks } from "./links";
 import { Action, Choices, Confirm, Copy, Feedback, Field, Heading, Item, LoadState, Screen, Section, Sections, formatTimestamp, styles, useAction, useDraft, useManagement, useRead, type Confirmation } from "./ui";
 
 export function MediaLibrary({ initialSpace }: { initialSpace?: string }) {
@@ -66,6 +67,7 @@ export function MeetList() {
   const [emails, setEmails] = useState<string[]>([]);
   const [active, setActive] = useState<MeetingSpace>();
   const [confirm, setConfirm] = useState<Confirmation | null>(null);
+  const links = active && meetingLinks(active);
   const people = directory.data?.users.filter(person => `${person.name} ${person.email}`.toLowerCase().includes(search.trim().toLowerCase()) && (role === "all" || person.roles.includes(role)) && (course === "all" || person.courseIds.includes(course)));
   function create() {
     setConfirm({ title: "Mulai meeting?", description: emails.length ? `${emails.length} peserta akan diundang.` : "Ruang Google Meet akan dibuat.", label: "Mulai meeting", run: () => action.run({ type: "meet.create", title, slug: slug ?? managementSlug(title), accessType, invitedEmails: emails }, result => {
@@ -92,9 +94,16 @@ export function MeetList() {
     </Section>
     <Feedback {...action} />
     <Section title="Status meeting">
-      {active ? <Item title={active.title} meta={`Aktif · ${active.meetingCode}`} actions={<>
-        {active.meetingUri && openExternal && <Action onPress={() => openExternal(active.meetingUri!)}>Buka sebagai host</Action>}
-        {active.meetingUri && share && <Action onPress={() => share(active.meetingUri!)}>Bagikan tautan Meet</Action>}
+      {active && links ? <Item title={active.title} meta={`Aktif · ${active.meetingCode}`} actions={<>
+        {links.host && openExternal && <Action onPress={() => links.host && openExternal(links.host)}>
+          {locale === "id" ? "Buka sebagai host" : "Open as host"}
+        </Action>}
+        {links.short && share && <Action onPress={() => links.short && share(links.short, active.title)}>
+          {locale === "id" ? `Bagikan ${links.short}` : `Share ${links.short}`}
+        </Action>}
+        {links.publicUrl && share && <Action onPress={() => links.publicUrl && share(links.publicUrl, active.title)}>
+          {locale === "id" ? "Bagikan tautan Meet" : "Share Meet link"}
+        </Action>}
         <Action variant="destructive" disabled={action.busy} onPress={() => setConfirm({ title: "Akhiri meeting?", description: `${active.title} akan diakhiri.`, label: "Akhiri meeting", danger: true, run: () => void action.run({ type: "meet.end", spaceName: active.name }, () => { setActive(undefined); records.reload(); }) })}>Akhiri meeting</Action>
       </>} /> : <Copy muted>Belum ada sesi meeting aktif.</Copy>}
     </Section>

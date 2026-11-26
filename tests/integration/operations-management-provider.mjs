@@ -16,7 +16,10 @@ mock.module("@/app/api/admin/media/route", () => ({ POST: async request => {
 mock.module("@/app/api/admin/meet/create/route", () => ({ POST: async request => {
   const value = await request.json();
   assert.deepEqual(value.invitedEmails, ["tutor@example.invalid"]);
-  return Response.json({ success: true, space: { name: "spaces/local", title: value.title, meetingCode: "loc-alco-dee", invitedEmails: [], slug: value.slug }, warnings: ["synthetic warning"] });
+  return Response.json({ success: true, space: {
+    name: "spaces/local", title: value.title, meetingCode: "loc-alco-dee", meetingUri: "https://meet.google.com/loc-alco-dee",
+    invitedEmails: [], slug: value.slug, hostEmail: "admin@example.invalid",
+  }, warnings: ["synthetic warning"] });
 } }));
 
 mock.module("@/app/api/admin/meet/records/[id]/delete/route", () => ({ DELETE: async () => Response.json({ success: true }) }));
@@ -43,6 +46,8 @@ try {
   const meeting = await apply("placeholder-meet-create", meet);
   assert.equal(meeting.warningCount, 1);
   assert.equal(meeting.space.name, "spaces/local");
+  assert.equal(meeting.space.hostEmail, "admin@example.invalid");
+  assert.equal(meeting.space.meetingUri, "https://meet.google.com/loc-alco-dee");
   assert.deepEqual(await apply("placeholder-meet-create", meet, () => assert.fail("provider replay")), meeting);
 
   let finish;

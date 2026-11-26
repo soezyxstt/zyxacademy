@@ -53,7 +53,11 @@ name: Operations admin authoring, recovery and confirmation
             - tapOn: "Open"
 - assertVisible: Umpan balik latihan
 - assertVisible: 2 respons
+- assertVisible: /f/umpan-balik-latihan
 - takeScreenshot: management-form-summary
+- tapOn: /f/umpan-balik-latihan
+- assertVisible: /f/umpan-balik-latihan
+- assertNotVisible: Umpan balik latihan
 - openLink: "zyx-native-parity://operations-fixture?caseId=&mode=populated&theme=light&locale=id&path=%2Fadmin%2Ftautan"
 - runFlow:
     when:

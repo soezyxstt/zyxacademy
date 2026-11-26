@@ -5,6 +5,7 @@ import type { NativeSessionTransport } from "../../network/transport";
 import { EvaluationScreen, type EvaluationScreenProps } from "./evaluation";
 import { createManagementClient, ManagementScreen, type ManagementScreenProps } from "./management";
 import { connectBlogThumbnailPicker } from "./management/expo-blog-upload";
+import { useManagementLinkActions } from "./management/link-actions";
 import { createSessionMonitoringActions, createSessionMonitoringReader, MonitoringScreen, type MonitoringScreenProps } from "./monitoring";
 import { resolveOperationsArea } from "./routes";
 import { createEvaluationRequest, operationsAccountKey } from "./session";
@@ -38,8 +39,7 @@ export function AdminOperationsScreen(props: AdminOperationsScreenProps) {
   const key = operationsAccountKey(session, context);
   switch (resolveOperationsArea(href)) {
     case "management":
-      return <ManagementScreen {...props.management} path={href} navigate={navigate} accountKey={key} pickBlogThumbnail={clients.pickBlogThumbnail}
-        access="admin" client={clients.management} locale={context.locale} theme={theme} />;
+      return <AdminManagement key={key} {...props} accountKey={key} client={clients.management} pickBlogThumbnail={clients.pickBlogThumbnail} />;
     case "evaluation":
       return <EvaluationScreen {...props.evaluation} href={href} navigate={navigate} accountKey={key}
         request={clients.evaluation} locale={context.locale} theme={theme} />;
@@ -50,4 +50,13 @@ export function AdminOperationsScreen(props: AdminOperationsScreenProps) {
     default:
       return null;
   }
+}
+
+function AdminManagement({ session, href, context, management, navigate, theme, accountKey, client, pickBlogThumbnail }: AdminOperationsScreenProps &
+  Pick<ManagementScreenProps, "accountKey" | "client" | "pickBlogThumbnail">) {
+  const links = useManagementLinkActions(session, href, context.locale, management);
+  return <ManagementScreen
+    {...management} {...links} path={href} navigate={navigate} accountKey={accountKey} client={client}
+    pickBlogThumbnail={pickBlogThumbnail} access="admin" locale={context.locale} theme={theme}
+  />;
 }

@@ -226,7 +226,10 @@ export function createManagementFixture({ mode = "populated", admin = true }: Ma
       }
       case "meet.create": {
         invalid(meetingSpace ? "Sesi aktif harus diakhiri terlebih dahulu." : undefined);
-        const space = { name: nextId("space"), title: action.title.trim() || "Sesi meeting baru", slug: action.slug, meetingCode: "lok-alco-nto", invitedEmails: [...action.invitedEmails] };
+        const space = {
+          name: nextId("space"), title: action.title.trim() || "Sesi meeting baru", slug: action.slug, meetingCode: "lok-alco-nto",
+          meetingUri: "https://meet.google.com/lok-alco-nto", hostEmail: "host@example.invalid", invitedEmails: [...action.invitedEmails],
+        };
         meetingSpace = space;
         return { id: space.name, space };
       }

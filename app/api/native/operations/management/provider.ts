@@ -125,7 +125,17 @@ export function invokeOperationsProvider(origin: string, headers: Headers): Invo
         const result = await decoded(await POST(request({ title, slug, accessType, invitedEmails })));
         const space = result.space;
         if (!space || typeof space.name !== "string") throw new ManagementFailure("uncertain");
-        return { id: space.name, space: { name: space.name, title: space.title, meetingCode: space.meetingCode, ...(typeof space.meetingUri === "string" ? { meetingUri: space.meetingUri } : {}), ...(typeof space.slug === "string" ? { slug: space.slug } : {}), invitedEmails: space.invitedEmails ?? [] }, warningCount: Array.isArray(result.warnings) ? result.warnings.length : 0 };
+        return {
+          id: space.name,
+          space: {
+            name: space.name, title: space.title, meetingCode: space.meetingCode,
+            ...(typeof space.meetingUri === "string" ? { meetingUri: space.meetingUri } : {}),
+            ...(typeof space.slug === "string" ? { slug: space.slug } : {}),
+            ...(typeof space.hostEmail === "string" ? { hostEmail: space.hostEmail } : {}),
+            invitedEmails: space.invitedEmails ?? [],
+          },
+          warningCount: Array.isArray(result.warnings) ? result.warnings.length : 0,
+        };
       }
       case "meet.end": {
         const { POST } = await import("@/app/api/admin/meet/end/route");

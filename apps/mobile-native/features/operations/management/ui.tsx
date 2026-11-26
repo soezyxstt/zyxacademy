@@ -16,8 +16,8 @@ export type ManagementRuntime = {
   theme: ManagementTheme;
   locale: "id" | "en";
   navigate: (path: string) => void;
-  openExternal?: (url: string) => void;
-  share?: (message: string) => void;
+  openExternal?: (url: string) => void | Promise<void>;
+  share?: (url: string, title?: string) => void | Promise<void>;
   pickBlogThumbnail?: PickBlogThumbnail;
   drafts: ManagementDraftStore;
   retries: Map<string, string>;

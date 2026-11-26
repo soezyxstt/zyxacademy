@@ -6,6 +6,7 @@ import { summarizeFormResponses } from "../../../../../lib/forms/validation";
 import { ManagementFailure, formCategories, newForm, newQuestion, questionTypes, validateForm, validateFormSettings, type FormDefinition, type FormDetails, type FormFields, type FormQuestion, type FormSettings } from "../../../../../packages/native-parity/operations/management-contract";
 import { formAcceptanceChanged, sameDraftValue } from "../../../../../packages/native-parity/operations/management-revisions";
 import { FormPresets } from "./form-presets";
+import { respondentLink } from "./links";
 import { RevisionReview } from "./revisions";
 import { Action, Choices, Confirm, Copy, Feedback, Field, Heading, Item, LoadState, Screen, Section, Sections, formatTimestamp, styles, useAction, useDraft, useManagement, useRead, type Confirmation } from "./ui";
 
@@ -365,6 +366,7 @@ function FormDetail({ details, initialTab }: { details: FormDetails; initialTab?
   const mustReview = needsReview || (action.error instanceof ManagementFailure && action.error.code === "conflict");
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const summary = summarizeFormResponses(form.questions, responses);
+  const publicLink = respondentLink(form.slug);
   const respondent = responses[respondentIndex];
   const question = summary.questions[questionIndex];
   async function inspectSettings() {
@@ -384,7 +386,10 @@ function FormDetail({ details, initialTab }: { details: FormDetails; initialTab?
     else void save();
   }
   return <>
-    <View style={styles.row}><Action onPress={() => navigate(`/admin/forms?edit=${encodeURIComponent(form.id)}`)}>Sunting formulir</Action></View>
+    <View style={styles.row}>
+      <Action onPress={() => navigate(`/admin/forms?edit=${encodeURIComponent(form.id)}`)}>Sunting formulir</Action>
+      {publicLink && <Action onPress={() => navigate(publicLink)}>{publicLink}</Action>}
+    </View>
     <Sections current={tab} values={detailTabs} onChange={setTab} />
     {tab === "summary" && <Section title={`${summary.totalResponses} respons`}>
       {summary.questions.map(item => <Item key={item.index} title={item.title} meta={`${item.answered} / ${item.denominator} respons`} actions={Object.keys(item.counts).length > 0 ? <View style={styles.field}>{Object.entries(item.counts).map(([label, count]) => <Copy key={label}>{`${label} · ${count} (${Math.round(100 * count / item.denominator)}%)`}</Copy>)}</View> : undefined} />)}
