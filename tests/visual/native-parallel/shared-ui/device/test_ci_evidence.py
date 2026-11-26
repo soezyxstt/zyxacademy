@@ -11,6 +11,11 @@ ci = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(ci)
 
 
+def chromium_case(case_id):
+    return {"id": case_id, "component": "example", "theme": "light",
+            "width": 380, "height": 760, "captured": True}
+
+
 class GeometryTests(unittest.TestCase):
     def test_geometry_is_measured_at_physical_density(self):
         value = ci.measure('{"id":"shared-ui-geometry-1170x2352-dpr-3-insets-0-141-0-69"}')
@@ -78,6 +83,38 @@ class ShardTests(unittest.TestCase):
 
 
 class OrchestrationTests(unittest.TestCase):
+    def test_android_collects_real_relative_cases_when_chromium_manifest_is_absent(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            fixture = {"id": "example", "component": "dialog", "theme": "light", "readyId": "example-panel"}
+            geometry = ci.measure("shared-ui-geometry-768x784-dpr-1-insets-0-24-0-32")
+            calls = []
+
+            def fake_command(name, args, output, env=None):
+                calls.append(name)
+                if name == "web-capture":
+                    return 1
+                manifest = Path(args[args.index("--manifest") + 1])
+                self.assertEqual(json.loads(manifest.read_text()), [{**fixture, "width": 768, "height": 784}])
+                return 0
+
+            environment = {
+                "SHARED_PLATFORM": "android", "SHARED_GROUP": "tablet", "SHARED_DEVICE": "emulator-5554",
+                "SHARED_BUILD": "a" * 40,
+            }
+            with (
+                patch.object(ci, "ROOT", root), patch.object(ci, "probe_geometry", return_value=geometry),
+                patch.object(ci, "command", side_effect=fake_command),
+                patch.object(ci, "expected_cases", return_value=["example"]),
+                patch.object(ci, "expected_relative_cases", return_value=[fixture]), patch.dict(os.environ, environment),
+            ):
+                self.assertEqual(ci.main(), 0)
+            self.assertEqual(calls, ["web-capture", "native-capture", "relative"])
+            (output,) = (root / "artifacts/native-parity/shared-ui/android/tablet").glob("run-*")
+            summary = json.loads((output / "ci-summary.json").read_text())
+            self.assertEqual(summary["relativeCases"], [fixture["id"]])
+            self.assertIn("chromiumDiagnosticError", summary)
+
     def test_android_geometry_retries_transient_fixture_start(self):
         with tempfile.TemporaryDirectory() as temp:
             output = Path(temp)
@@ -145,7 +182,7 @@ class OrchestrationTests(unittest.TestCase):
                 if name == "web-capture":
                     directory = Path(env["SHARED_UI_REFERENCES"]) / "dpr1"
                     directory.mkdir(parents=True)
-                    (directory / "results.json").write_text(json.dumps([{"id": "example", "captured": True}]))
+                    (directory / "results.json").write_text(json.dumps([chromium_case("example")]))
                 if name == "compare":
                     directory = Path(args[args.index("--out-dir") + 1])
                     directory.mkdir(parents=True)
@@ -176,7 +213,7 @@ class OrchestrationTests(unittest.TestCase):
                     self.assertEqual(args[2:], selected)
                     reference = Path(env["SHARED_UI_REFERENCES"]) / "dpr1"
                     reference.mkdir(parents=True)
-                    (reference / "results.json").write_text(json.dumps([{"id": item, "captured": True} for item in selected]))
+                    (reference / "results.json").write_text(json.dumps([chromium_case(item) for item in selected]))
                 if name == "native-capture":
                     reference = Path(args[args.index("--reference-dir") + 1])
                     self.assertEqual([item["id"] for item in json.loads((reference / "results.json").read_text())], selected)

@@ -72,7 +72,10 @@ jobs:
           npm ci --prefix apps/mobile-native
           python -m pip install Pillow==12.2.0 numpy==2.3.5
           python -m unittest discover -s tests/visual/native-parallel/shared-ui/device -p 'test_*.py'
-          node_modules/.bin/playwright install --with-deps chromium
+          bun test tests/unit/expo-shared-ui-reference.test.ts
+      - name: Install optional Chromium diagnostic
+        continue-on-error: true
+        run: node_modules/.bin/playwright install --with-deps chromium
       - &maestro
         name: Install verified Maestro CLI
         run: |
@@ -163,6 +166,8 @@ jobs:
                   cells.extend(counts.get(status, "") for status in statuses)
                   cells.append({0: "Passed", 1: "Failed"}.get(summary.get("exit"), "Unknown"))
                   print("| " + " | ".join(map(str, [group, *cells])) + " |")
+          if platform == "android":
+              print("\nThe Web and exact pixel results above are Chromium diagnostics.")
           PY
 
   ios-build:

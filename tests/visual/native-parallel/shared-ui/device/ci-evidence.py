@@ -9,7 +9,7 @@ import subprocess
 import sys
 import tempfile
 
-from evidence import command_text, device_screenshot, maestro_case_flow, transient_android_failure, wait_for_android_device
+from evidence import command_text, device_screenshot, maestro_case_flow, manifest_cases, transient_android_failure, wait_for_android_device, write_json
 from relative_catalog import expected_relative_cases
 
 ROOT = Path(__file__).resolve().parents[5]
@@ -69,6 +69,15 @@ def expected_cases(group):
     if len(selected) != GROUP_CASE_COUNTS[group]:
         raise ValueError(f"expected {GROUP_CASE_COUNTS[group]} cases in {group}, found {len(selected)}")
     return selected
+
+
+def diagnostic_manifest(path, expected, geometry):
+    records = manifest_cases(path, [], None)
+    if {item["id"] for item in records} != set(expected) or any(
+        (item["width"], item["height"]) != (geometry["width"], geometry["height"]) for item in records
+    ):
+        raise ValueError(f"{path} does not cover all cases at the measured viewport")
+    return records
 
 
 def read_shard(platform, group):
@@ -151,7 +160,7 @@ def main():
     status = 1
     try:
         expected = shard_cases(expected_cases(group), shard_index, shard_count)
-        primary = [item["id"] for item in expected_relative_cases() if item["id"] in expected] if platform == "android" else []
+        primary = [item for item in expected_relative_cases() if item["id"] in expected] if platform == "android" else []
         summary["expectedCases"] = len(expected)
         summary["expectedCaseIds"] = expected
         (output / "expected-cases.json").write_text(json.dumps(expected, indent=2) + "\n", encoding="utf-8")
@@ -184,45 +193,62 @@ def main():
         web_result = command("web-capture", ["bun", "tests/visual/native-parallel/shared-ui/capture.ts", *expected], output, env)
         summary["webExit"] = web_result
         manifest = reference / "results.json"
-        if not manifest.exists():
-            raise ValueError(f"missing web capture manifest: {manifest}")
-        records = json.loads(manifest.read_text(encoding="utf-8"))
-        actual_ids = [record["id"] for record in records]
+        try:
+            records = diagnostic_manifest(manifest, expected, geometry)
+        except (OSError, ValueError) as error:
+            if platform != "android":
+                raise
+            records = []
+            summary["chromiumDiagnosticError"] = str(error)
+            print(f"Chromium evidence unavailable: {error}", flush=True)
         summary["webCaptured"] = sum(record.get("captured") is True for record in records)
-        if len(actual_ids) != len(expected) or set(actual_ids) != set(expected):
-            raise ValueError(f"web manifest does not cover exactly the {len(expected)} cases in {group}")
 
         raw = output / "raw"
         report = output / "compare"
         common = ["--platform", platform, "--scale", scale, "--reference-dir", str(reference), "--raw-dir", str(raw)]
         evidence = ["python3", str(DEVICE_DIR / "evidence.py")]
-        relative_args = [value for case in primary for value in ("--relative-case", case)]
-        summary["nativeExit"] = command("native-capture", [
-            *evidence, "capture", *common, "--device", device, "--build", build, "--insets", *map(str, geometry["insets"]),
-            *relative_args,
-        ], output)
-        # Compare even after capture failure; preserve valid crops and diffs.
-        summary["compareExit"] = command("compare", [*evidence, "compare", *common, "--build", build, "--out-dir", str(report)], output)
-        results = report / "results.json"
-        if results.exists():
-            compared = json.loads(results.read_text(encoding="utf-8"))["cases"]
-            counts = {key: sum(item.get("status") == key for item in compared) for key in ("match", "different", "blank", "invalid", "unverified")}
-            summary["comparisonCounts"] = counts
-            summary["nativeCaptured"] = sum((raw / f"{case_id}.json").exists() for case_id in expected)
-            if len(compared) != len(expected) or {item["id"] for item in compared} != set(expected):
-                summary["errors"].append("comparison report is incomplete")
-        else:
-            summary["errors"].append("comparison report is missing")
+        relative_ids = [item["id"] for item in primary]
+        relative_manifest = output / "relative-manifest.json"
+        if primary:
+            write_json(relative_manifest, [
+                {**item, "width": geometry["width"], "height": geometry["height"]} for item in primary
+            ])
+        if records or primary:
+            relative_args = [value for case in relative_ids for value in ("--relative-case", case)]
+            if not records:
+                relative_args += ["--manifest", str(relative_manifest)]
+            summary["nativeExit"] = command("native-capture", [
+                *evidence, "capture", *common, "--device", device, "--build", build, "--insets", *map(str, geometry["insets"]),
+                *relative_args,
+            ], output)
+        if records:
+            # Compare even after capture failure; preserve valid crops and diffs.
+            summary["compareExit"] = command("compare", [*evidence, "compare", *common, "--build", build, "--out-dir", str(report)], output)
+        summary["nativeCaptured"] = sum((raw / f"{case_id}.json").exists() for case_id in expected)
         if primary:
             selection = output / "relative-cases.json"
-            selection.write_text(json.dumps(primary) + "\n", encoding="utf-8")
+            write_json(selection, relative_ids)
             relative = output / "relative"
             summary["relativeExit"] = command("relative", [
                 "python3", str(DEVICE_DIR / "relative-evidence.py"),
-                "--manifest", str(manifest), "--cases", str(selection), "--raw", str(raw), "--output", str(relative),
+                "--manifest", str(relative_manifest), "--cases", str(selection), "--raw", str(raw), "--output", str(relative),
                 "--device", device, "--build", build, "--insets", *map(str, geometry["insets"]),
             ], output)
-            summary["relativeCases"] = primary
+            summary["relativeCases"] = relative_ids
+        results = report / "results.json"
+        try:
+            if records:
+                compared = json.loads(results.read_text(encoding="utf-8"))["cases"]
+                summary["comparisonCounts"] = {
+                    key: sum(item.get("status") == key for item in compared)
+                    for key in ("match", "different", "blank", "invalid", "unverified")
+                }
+                if len(compared) != len(expected) or {item["id"] for item in compared} != set(expected):
+                    raise ValueError("comparison report is incomplete")
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            if platform != "android":
+                raise
+            summary["chromiumDiagnosticError"] = str(error)
         status = (int(bool(summary.get("relativeExit") or summary["errors"])) if platform == "android"
                   else int(bool(web_result or summary["nativeExit"] or summary["compareExit"] or summary["errors"])))
     except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError) as error:

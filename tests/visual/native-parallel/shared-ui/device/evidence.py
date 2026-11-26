@@ -457,6 +457,7 @@ def read_args():
     capture.add_argument("--device", required=True, help="Explicit adb serial or booted simulator UDID")
     capture.add_argument("--build", required=True, help="Commit or artifact identifier of the installed build")
     capture.add_argument("--relative-case", action="append", default=[], help="Require a stable Expo capture independent of Chromium for this case")
+    capture.add_argument("--manifest", type=Path, help="Use a case manifest when the diagnostic reference manifest is unavailable")
     capture.add_argument(
         "--ios-executable-sha256", default=os.environ.get("SHARED_IOS_EXECUTABLE_SHA256"),
         help="Expected SHA-256 of the iOS build executable (defaults to SHARED_IOS_EXECUTABLE_SHA256)",
@@ -485,7 +486,8 @@ def main():
             directories.append(args.out_dir.resolve())
         if len(set(directories)) != len(directories):
             raise ValueError("Choose separate reference, raw PNG, and report directories")
-        cases = manifest_cases(args.reference_dir / "results.json", args.case, args.viewport)
+        manifest = getattr(args, "manifest", None) or args.reference_dir / "results.json"
+        cases = manifest_cases(manifest, args.case, args.viewport)
         return (capture_cases if args.command == "capture" else compare_cases)(cases, args)
     except (OSError, ValueError, subprocess.SubprocessError) as error:
         raise SystemExit(str(error)) from error
