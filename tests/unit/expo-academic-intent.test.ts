@@ -1,19 +1,30 @@
 import { expect, test } from "bun:test";
 
-import { redirectSystemPath } from "../../apps/mobile-native/app/+native-intent";
 import { NATIVE_BROWSER_REDIRECT } from "../../apps/mobile-native/auth/browser-intent";
 import { readAuthReturnTo } from "../../apps/mobile-native/auth/login-intent";
 import { createNativeIntentRedirect } from "../../apps/mobile-native/routing/consent-intent";
 
 test("the host router preserves both exact Academic aliases and their encoded parameters", async () => {
+  const redirect = createNativeIntentRedirect(async () => {
+    throw new Error("Academic links do not request consent entropy");
+  });
   const path = "/admin/users?search=Adi%20%26%20Dewi&status=active";
   const query = new URLSearchParams({ path, role: "admin", evidence: "7", evidenceNonce: "a+&" });
   for (const name of ["academic", "internal/academic"]) {
     for (const input of [name, "/" + name, name + "/"]) {
-      const route = await redirectSystemPath({ path: `zyx-native-parity://${input}?${query}`, initial: input === name });
+      const route = await redirect({ path: `zyx-native-parity://${input}?${query}`, initial: input === name });
       expect(route).toBe(`/${name}?${query}`);
       expect(new URL(route, "https://fixture.invalid").searchParams.get("path")).toBe(path);
     }
+  }
+});
+
+test("Expo's native intent entry delegates Academic aliases to the host router", async () => {
+  const { redirectSystemPath } = await import("../../apps/mobile-native/app/+native-intent");
+  const query = new URLSearchParams({ path: "/admin/users?search=Adi%20%26%20Dewi", role: "admin" });
+  for (const alias of ["academic", "internal/academic"]) {
+    expect(await redirectSystemPath({ path: `zyx-native-parity://${alias}?${query}`, initial: true }))
+      .toBe(`/${alias}?${query}`);
   }
 });
 

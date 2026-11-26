@@ -72,6 +72,13 @@ for lane in shared-ui student academic operations; do
           git checkout --ours -- "$conflict"
           git add -- "$conflict"
           ;;
+        apps/mobile-native/routing/session-stack.ts:7f1f00ba7433da1cd26709edcc8b40345862f880|\
+        tests/unit/expo-session-stack.test.ts:39a83342c67960e32ff0916440045caebd78ae60|\
+        tests/unit/expo-academic-intent.test.ts:7ab11a7a699cb8f66374f43cc23fd1d7c3e422ee)
+          # Keep the composed router guards and the focused checks from both lanes.
+          git checkout --ours -- "$conflict"
+          git add -- "$conflict"
+          ;;
         tests/unit/expo-offline-reading-packages.test.ts:5eab0fc27151af0a5440c336858b113dad4bc9d4|\
         tests/unit/expo-offline-reading-packages.test.ts:b8c9db1601762a4cb67caeeac5cd5da3018670da)
           # Both lanes only typed the same example. The host retains the
