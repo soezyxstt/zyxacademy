@@ -1,6 +1,7 @@
 """Compare native fixture crops at device scale with the corresponding browser crops."""
 import argparse
 import io
+import os
 from pathlib import Path
 
 from PIL import Image, ImageChops, ImageCms, ImageOps
@@ -40,6 +41,7 @@ def main():
     if args.ready:
         return
     mismatches = []
+    rows = []
     for case, (x, y) in zip(CASES, positions):
         reference = Path(f"artifacts/native-parity/web/dpr{args.scale}/{case}.png")
         web = Image.open(reference).convert("RGB")
@@ -51,8 +53,20 @@ def main():
         difference = ImageChops.difference(web, native)
         ImageOps.autocontrast(difference).save(args.frame.parent / f"{case}-diff.png")
         # A missing primitive on both platforms must never give a passing blank crop.
-        if difference.getbbox() or not web.getbbox() or not any(lo < hi for lo, hi in web.getextrema()):
+        changed = sum(pixel != (0, 0, 0) for pixel in difference.get_flattened_data())
+        blank_reference = not any(lo < hi for lo, hi in web.getextrema())
+        passed = changed == 0 and not blank_reference
+        if not passed:
             mismatches.append(case)
+        rows.append(f"| {case} | {changed} | {'Pass' if passed else 'Fail'} |")
+    report = "\n".join([
+        f"### {args.frame.parent.name} at DPR {args.scale}", "",
+        "| Case | Different pixels | Result |", "| --- | ---: | --- |", *rows, "",
+    ])
+    print(report)
+    if summary := os.environ.get("GITHUB_STEP_SUMMARY"):
+        with open(summary, "a", encoding="utf-8") as stream:
+            stream.write(report + "\n")
     if mismatches:
         raise SystemExit(f"Pixel parity failed: {', '.join(mismatches)}")
     print(f"All three crops match at DPR {args.scale}")

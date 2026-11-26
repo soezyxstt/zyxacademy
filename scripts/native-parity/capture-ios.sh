@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 output=artifacts/native-parity/ios
-mkdir -p "$output"
+mkdir -p "$output" "$HOME/.expo"
 device=$(xcrun simctl list devices available -j | python -c 'import json,sys; print(next(d["udid"] for devices in reversed(list(json.load(sys.stdin)["devices"].values())) for d in devices if d["name"] == "iPhone 17 Pro"))')
 xcrun simctl boot "$device"
 xcrun simctl bootstatus "$device" -b
