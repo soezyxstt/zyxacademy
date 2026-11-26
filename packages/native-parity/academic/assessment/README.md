@@ -16,6 +16,8 @@
 | Hapus kuis | `DELETE /api/quiz/templates/{id}`. Pemeriksaan sesi, kursus, peran dan revisi di transaksi. | Memakai penghapusan proyeksi web. Receipt tetap dapat diverifikasi setelah kuis dan hasil percobaan terhapus. |
 | Mutasi bank dan pengelolaan tryout | Gateway fixture. | Alur menampilkan validasi, konflik, batal dan coba lagi dengan data lokal. Penyimpanan berakun untuk aksi ini masih perlu adapter server. |
 
+Perintah kuis native menyertakan `actingRole` dari ruang Tutor atau Admin yang sedang aktif. Server memeriksa peran kanonis serta penugasan Tutor dalam transaksi. Percobaan ulang dengan kunci yang sama menggunakan peran, kursus dan isi perintah awal.
+
 Gateway menyimpan perubahan kuis yang sedang menunggu kepastian selama sesi native yang sama. Ketika layar dibuka lagi, upaya pemulihan menggunakan isi dan identitas permintaan awal. Pesan sukses daftar dikonsumsi dari hasil yang dimiliki sesi.
 
 Perakitan kuis dan revisi bank melalui MCP tetap memakai alat, scope dan playbook authoring yang sudah ada. `quiz.create`, `quiz.update`, dan `quiz.set_questions` tetap menggunakan jalur proyeksi kanonis. Penilaian jawaban Tutor memakai alur produk. Perubahan ini menambah kompatibilitas transaksi dan transport native, tanpa perubahan skema penyimpanan, scope OAuth, aturan persetujuan MCP atau jalur antrean.

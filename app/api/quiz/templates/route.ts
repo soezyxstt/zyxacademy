@@ -32,7 +32,7 @@ import {
   recordTutorMutationAuditSafe,
 } from '@/lib/tutor/assessment-policy';
 import {
-  lockQuizCreateScope, nativeQuizAuditRequestId, nativeQuizTemplateId, nativeQuizWriteKey,
+  lockQuizCreateScope, nativeQuizActingScopeSchema, nativeQuizAuditRequestId, nativeQuizTemplateId, nativeQuizWriteKey,
   QuizTemplateWriteError, quizTemplateReceipt, requireNativeQuizWriter, validateNativeQuizSelection, validateNativeQuizValues,
 } from "@/lib/asesmen/quiz-template-write";
 import { recordTutorMutationAudit } from '@/lib/audit/mutasi';
@@ -120,6 +120,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: errorMsg }, { status: 400 });
   }
 
+  const nativeScope = nativeKey ? nativeQuizActingScopeSchema.safeParse(body) : undefined;
+  if (nativeScope && !nativeScope.success) return NextResponse.json({ error: "INVALID_QUIZ_ACTING_ROLE" }, { status: 400 });
+  const actingRole = nativeScope?.data?.actingRole;
+  if ((actingRole === "admin" && !isAdmin) || (actingRole === "tutor" && !isTutor)) {
+    return NextResponse.json({ error: "QUIZ_WRITER_FORBIDDEN" }, { status: 403 });
+  }
+  const allowsAdmin = actingRole === undefined ? isAdmin : actingRole === "admin";
+
   const parsed = CreateTemplateSchema.safeParse(body);
   if (!parsed.success) {
     const errorMsg = parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ');
@@ -159,7 +167,7 @@ export async function POST(req: NextRequest) {
   const access = await resolveTutorCourseAccess({
     penggunaId: session.user.id,
     courseId,
-    allowAdmin: isAdmin,
+    allowAdmin: allowsAdmin,
   });
 
   if (!access.hasAccess) {
@@ -184,7 +192,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!isAdmin) {
+  if (!allowsAdmin) {
     if (category === 'simulation' || selectionRules.assessmentType === 'tryout') {
       await recordTutorMutationAuditSafe({
         actorId: session.user.id,
@@ -269,15 +277,17 @@ export async function POST(req: NextRequest) {
   try {
     replayed = await db.transaction(async (tx) => {
       await lockQuizCreateScope(tx, targetCourse);
-      if (nativeKey) {
+      if (actingRole) {
         const current = await requireNativeQuizWriter(tx, {
-          actorId: session.user.id, sessionId: session.session?.id, courseId, role: isAdmin ? "admin" : "tutor",
+          actorId: session.user.id, sessionId: session.session?.id, courseId, role: actingRole,
         });
         if ((current.courseId ?? courseId) !== targetCourse || current.legacyCourseId !== access.legacyCourseId) {
           throw new QuizTemplateWriteError(409, "QUIZ_COURSE_CHANGED");
         }
       }
-      const receipt = nativeKey ? await quizTemplateReceipt(tx, audit, parsed.data) : undefined;
+      // Keep the receipt key stable when an actor switches role. A changed
+      // acting scope must conflict rather than reserve a second create.
+      const receipt = actingRole ? await quizTemplateReceipt(tx, audit, { data: parsed.data, actingRole }) : undefined;
       if (receipt?.replayed) return true;
       if (nativeKey) {
         validateNativeQuizValues(parsed.data);
@@ -312,7 +322,7 @@ export async function POST(req: NextRequest) {
 
       await recordTutorMutationAudit({
         ...audit,
-        after: { title, category, status, ...(receipt ? { requestDigest: receipt.requestDigest } : {}) },
+        after: { title, category, status, ...(receipt ? { requestDigest: receipt.requestDigest, actingRole } : {}) },
       }, tx);
       return false;
     });
@@ -348,7 +358,7 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  return NextResponse.json({ templateId: id, ...(nativeKey ? { requestId: nativeKey } : {}) }, { status: 201 });
+  return NextResponse.json({ templateId: id, ...(nativeKey ? { requestId: nativeKey, actingRole } : {}) }, { status: 201 });
 }
 
 export async function GET(req: NextRequest) {

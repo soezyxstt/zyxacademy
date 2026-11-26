@@ -29,13 +29,13 @@ import {
   recordTutorMutationAuditSafe,
 } from '@/lib/tutor/assessment-policy';
 import {
-  lockQuizDeleteScope, lockQuizTemplate, nativeQuizAuditRequestId, nativeQuizWriteKey,
+  lockQuizDeleteScope, lockQuizTemplate, nativeQuizActingScopeSchema, nativeQuizAuditRequestId, nativeQuizWriteKey,
   QuizTemplateWriteError, quizTemplateReceipt, quizTemplateRevision, requireNativeQuizWriter, validateNativeQuizSelection, validateNativeQuizValues,
 } from "@/lib/asesmen/quiz-template-write";
 import { recordTutorMutationAudit } from '@/lib/audit/mutasi';
 
 type Context = { params: Promise<{ id: string }> };
-const NativeQuizRevisionSchema = z.object({
+const NativeQuizRevisionSchema = nativeQuizActingScopeSchema.extend({
   expectedRevision: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
   expectedCourseId: z.string().trim().min(1).max(256),
 });
@@ -44,11 +44,14 @@ async function deleteNativeQuizTemplate(
   req: NextRequest,
   id: string,
   key: string,
-  viewer: { actorId: string; sessionId: string | undefined; actorRoles: string[]; role: "admin" | "tutor" },
+  viewer: { actorId: string; sessionId: string | undefined; actorRoles: string[]; isAdmin: boolean; isTutor: boolean },
 ) {
   const parsed = NativeQuizRevisionSchema.strict().safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "INVALID_QUIZ_REVISION" }, { status: 400 });
-  const { expectedCourseId, expectedRevision } = parsed.data;
+  const { expectedCourseId, expectedRevision, actingRole } = parsed.data;
+  if ((actingRole === "admin" && !viewer.isAdmin) || (actingRole === "tutor" && !viewer.isTutor)) {
+    return NextResponse.json({ error: "QUIZ_WRITER_FORBIDDEN" }, { status: 403 });
+  }
   const audit = {
     actorId: viewer.actorId, actorRoles: viewer.actorRoles, courseId: expectedCourseId,
     entityType: "quiz_template", entityId: id, entityVersion: 1,
@@ -59,7 +62,7 @@ async function deleteNativeQuizTemplate(
     await db.transaction(async (tx) => {
       // Serialize retries even after the template row has been removed.
       await lockQuizDeleteScope(tx, id);
-      const access = await requireNativeQuizWriter(tx, { ...viewer, courseId: expectedCourseId });
+      const access = await requireNativeQuizWriter(tx, { ...viewer, courseId: expectedCourseId, role: actingRole });
       const receipt = await quizTemplateReceipt(tx, audit, parsed.data);
       if (receipt.replayed) return;
 
@@ -67,7 +70,7 @@ async function deleteNativeQuizTemplate(
       if (!checkCourseMatch(locked.courseId, access.courseId ?? expectedCourseId, access.legacyCourseId)) {
         throw new QuizTemplateWriteError(404, "QUIZ_NOT_FOUND");
       }
-      if (viewer.role === "tutor" && resolveEffectiveAssessmentType(locked.category, locked.selectionRules) === "tryout") {
+      if (actingRole === "tutor" && resolveEffectiveAssessmentType(locked.category, locked.selectionRules) === "tryout") {
         throw new QuizTemplateWriteError(403, "SIMULATION_MUTATION_FORBIDDEN");
       }
       if (quizTemplateRevision(locked.updatedAt) !== expectedRevision) throw new QuizTemplateWriteError(409, "QUIZ_REVISION_CONFLICT");
@@ -75,7 +78,7 @@ async function deleteNativeQuizTemplate(
       await recordTutorMutationAudit({
         ...audit, courseId: access.courseId ?? expectedCourseId,
         before: { id, title: locked.title, category: locked.category },
-        after: { requestDigest: receipt.requestDigest },
+        after: { requestDigest: receipt.requestDigest, actingRole },
       }, tx);
     });
   } catch (error) {
@@ -86,7 +89,7 @@ async function deleteNativeQuizTemplate(
     if (error instanceof QuizTemplateWriteError) return NextResponse.json({ error: error.code }, { status: error.status });
     return NextResponse.json({ error: "Failed to delete quiz template" }, { status: 500 });
   }
-  return NextResponse.json({ success: true, requestId: key, templateId: id }, { headers: { "Cache-Control": "private, no-store" } });
+  return NextResponse.json({ success: true, requestId: key, templateId: id, actingRole }, { headers: { "Cache-Control": "private, no-store" } });
 }
 
 export async function DELETE(req: NextRequest, { params }: Context) {
@@ -115,7 +118,7 @@ export async function DELETE(req: NextRequest, { params }: Context) {
 
   const { id } = await params;
   if (nativeKey) return deleteNativeQuizTemplate(req, id, nativeKey, {
-    actorId: session.user.id, sessionId: session.session?.id, actorRoles: roles, role: isAdmin ? "admin" : "tutor",
+    actorId: session.user.id, sessionId: session.session?.id, actorRoles: roles, isAdmin, isTutor,
   });
 
   const [existingTemplate] = await db
@@ -274,6 +277,16 @@ export async function PATCH(req: NextRequest, { params }: Context) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  let body: any = nativeKey ? await req.json().catch(() => null) : undefined;
+  const nativeScope = nativeKey ? NativeQuizRevisionSchema.safeParse(body) : undefined;
+  if (nativeScope && !nativeScope.success) return NextResponse.json({ error: "INVALID_QUIZ_REVISION_OR_ROLE" }, { status: 400 });
+  const expected = nativeScope?.data;
+  const actingRole = expected?.actingRole;
+  if ((actingRole === "admin" && !isAdmin) || (actingRole === "tutor" && !isTutor)) {
+    return NextResponse.json({ error: "QUIZ_WRITER_FORBIDDEN" }, { status: 403 });
+  }
+  const allowsAdmin = actingRole === undefined ? isAdmin : actingRole === "admin";
+
   const { id } = await params;
 
   const [existingTemplate] = await db
@@ -300,7 +313,7 @@ export async function PATCH(req: NextRequest, { params }: Context) {
   const access = await resolveTutorCourseAccess({
     penggunaId: session.user.id,
     courseId: existingTemplate.courseId,
-    allowAdmin: isAdmin,
+    allowAdmin: allowsAdmin,
   });
 
   if (!access.hasAccess) {
@@ -321,7 +334,7 @@ export async function PATCH(req: NextRequest, { params }: Context) {
     );
   }
 
-  if (!isAdmin && existingTemplate.category === 'simulation') {
+  if (!allowsAdmin && existingTemplate.category === 'simulation') {
     await recordTutorMutationAuditSafe({
       actorId: session.user.id,
       actorRoles: roles,
@@ -340,7 +353,7 @@ export async function PATCH(req: NextRequest, { params }: Context) {
   }
 
   if (
-    !isAdmin &&
+    !allowsAdmin &&
     resolveEffectiveAssessmentType(existingTemplate.category, existingTemplate.selectionRules) ===
       'tryout'
   ) {
@@ -361,9 +374,8 @@ export async function PATCH(req: NextRequest, { params }: Context) {
     );
   }
 
-  let body: any;
   try {
-    body = await req.json();
+    if (!nativeKey) body = await req.json();
   } catch {
     const errorMsg = "Malformed JSON in request body.";
     await recordTutorMutationAuditSafe({
@@ -380,9 +392,6 @@ export async function PATCH(req: NextRequest, { params }: Context) {
     return NextResponse.json({ error: errorMsg }, { status: 400 });
   }
 
-  const nativeScope = nativeKey ? NativeQuizRevisionSchema.safeParse(body) : undefined;
-  if (nativeScope && !nativeScope.success) return NextResponse.json({ error: "INVALID_QUIZ_REVISION" }, { status: 400 });
-  const expected = nativeScope?.data;
   if (expected && !checkCourseMatch(expected.expectedCourseId, access.courseId ?? existingTemplate.courseId, access.legacyCourseId)) {
     return NextResponse.json({ error: "QUIZ_NOT_FOUND" }, { status: 404 });
   }
@@ -443,7 +452,7 @@ export async function PATCH(req: NextRequest, { params }: Context) {
     return NextResponse.json({ error: errorMsg }, { status: 400 });
   }
 
-  if (!isAdmin) {
+  if (!allowsAdmin) {
     if (parsed.data.category === 'simulation') {
       await recordTutorMutationAuditSafe({
         actorId: session.user.id,
@@ -570,13 +579,13 @@ export async function PATCH(req: NextRequest, { params }: Context) {
       if (expected) {
         const locked = await lockQuizTemplate(tx, id);
         const current = await requireNativeQuizWriter(tx, {
-          actorId: session.user.id, sessionId: session.session?.id, courseId: locked.courseId, role: isAdmin ? "admin" : "tutor",
+          actorId: session.user.id, sessionId: session.session?.id, courseId: expected.expectedCourseId, role: expected.actingRole,
         });
         if (!checkCourseMatch(locked.courseId, access.courseId ?? existingTemplate.courseId, access.legacyCourseId) ||
-          !checkCourseMatch(expected.expectedCourseId, current.courseId ?? locked.courseId, current.legacyCourseId)) {
+          !checkCourseMatch(locked.courseId, current.courseId ?? expected.expectedCourseId, current.legacyCourseId)) {
           throw new QuizTemplateWriteError(404, "QUIZ_NOT_FOUND");
         }
-        if (!isAdmin && resolveEffectiveAssessmentType(locked.category, locked.selectionRules) === "tryout") {
+        if (expected.actingRole === "tutor" && resolveEffectiveAssessmentType(locked.category, locked.selectionRules) === "tryout") {
           throw new QuizTemplateWriteError(403, "SIMULATION_MUTATION_FORBIDDEN");
         }
         const receipt = await quizTemplateReceipt(tx, audit, { patch: parsed.data, expected });
@@ -618,7 +627,7 @@ export async function PATCH(req: NextRequest, { params }: Context) {
           id,
           title: parsed.data.title ?? existingTemplate.title,
           status: parsed.data.status ?? existingTemplate.status,
-          ...(fingerprint ? { requestDigest: fingerprint } : {}),
+          ...(fingerprint ? { requestDigest: fingerprint, actingRole } : {}),
         },
       }, tx);
     });
@@ -658,5 +667,5 @@ export async function PATCH(req: NextRequest, { params }: Context) {
     });
   }
 
-  return NextResponse.json({ success: true, ...(nativeKey ? { requestId: nativeKey, templateId: id } : {}) });
+  return NextResponse.json({ success: true, ...(nativeKey ? { requestId: nativeKey, templateId: id, actingRole } : {}) });
 }

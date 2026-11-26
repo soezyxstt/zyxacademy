@@ -192,7 +192,7 @@ describe("Native Tutor Quiz Authoring Workflow Contracts", () => {
     const origin = "http://localhost:3000";
     function request(method: "POST" | "PATCH" | "DELETE", resource: string, requestId: string, body: unknown) {
       return new NextRequest(`${origin}/api/quiz/templates${resource}`, {
-        method, body: JSON.stringify(body), headers: {
+        method, body: JSON.stringify({ actingRole: "tutor", ...body as object }), headers: {
           "content-type": "application/json", origin, "idempotency-key": requestId,
         },
       });
@@ -212,6 +212,9 @@ describe("Native Tutor Quiz Authoring Workflow Contracts", () => {
     expect(created.status).toBe(201);
     const createdBody = await created.json();
     expect(createdBody.requestId).toBe(createKey);
+    expect(createdBody.actingRole).toBe("tutor");
+    expect((await createQuizTemplate(request("POST", "", "missing-acting-role", { ...createBody, actingRole: undefined }))).status).toBe(400);
+    expect((await createQuizTemplate(request("POST", "", "acting-admin-denied", { ...createBody, actingRole: "admin" }))).status).toBe(403);
     const { templateId } = createdBody;
     expect(await (await createQuizTemplate(request("POST", "", createKey, createBody))).json()).toEqual(createdBody);
     expect((await createQuizTemplate(request("POST", "", createKey, { ...createBody, title: "Isi berbeda" }))).status).toBe(409);
@@ -239,7 +242,7 @@ describe("Native Tutor Quiz Authoring Workflow Contracts", () => {
     expect((await patch("academic-edit-missing-revision", { title: "Lama" })).status).toBe(400);
     expect((await patch("academic-edit-outside-course", { ...patchBody, expectedCourseId: "mk-physics" })).status).toBe(404);
     expect((await patch(patchKey, patchBody)).status).toBe(200);
-    expect(await (await patch(patchKey, patchBody)).json()).toEqual({ requestId: patchKey, templateId, success: true });
+    expect(await (await patch(patchKey, patchBody)).json()).toEqual({ requestId: patchKey, templateId, success: true, actingRole: "tutor" });
     expect((await patch(patchKey, { ...patchBody, title: "Isi berbeda" })).status).toBe(409);
     expect((await patch("academic-edit-stale-revision", patchBody)).status).toBe(409);
     const [saved] = await testDb.select().from(schema.quizTemplates).where(eq(schema.quizTemplates.id, templateId));
@@ -277,7 +280,7 @@ describe("Native Tutor Quiz Authoring Workflow Contracts", () => {
     expect((await remove(deleteKey, { ...target, expectedCourseId: "mk-physics" })).status).toBe(403);
     const deleted = await remove(deleteKey, target);
     expect(deleted.status).toBe(200);
-    expect(await deleted.json()).toEqual({ success: true, requestId: deleteKey, templateId });
+    expect(await deleted.json()).toEqual({ success: true, requestId: deleteKey, templateId, actingRole: "tutor" });
     expect((await remove(deleteKey, target)).status).toBe(200);
     expect((await remove(deleteKey, { ...target, expectedRevision: target.expectedRevision + 1 })).status).toBe(409);
     expect(await testDb.select().from(schema.quizTemplates).where(eq(schema.quizTemplates.id, templateId))).toHaveLength(0);
@@ -296,7 +299,7 @@ describe("Native Tutor Quiz Authoring Workflow Contracts", () => {
     await testDb.insert(schema.session).values({ id: sessionId, userId: id, token: sessionId, expiresAt: new Date(Date.now() + 60_000) });
     mockSession = { user: { id, role: "admin" }, session: { id: sessionId } };
     const body = {
-      courseId: "mk-physics", title: "Simulasi fisika", category: "simulation",
+      actingRole: "admin", courseId: "mk-physics", title: "Simulasi fisika", category: "simulation",
       selectionRules: { count: 1, difficulty_proportions: { easy: 1, medium: 0, hard: 0 } },
     };
     const request = (origin: string) => new NextRequest("http://localhost:3000/api/quiz/templates", {
@@ -311,6 +314,66 @@ describe("Native Tutor Quiz Authoring Workflow Contracts", () => {
     const [canonical] = await testDb.select().from(schema.asesmen).where(eq(schema.asesmen.id, templateId));
     expect(canonical.assessmentType).toBe("tryout");
     expect(canonical.creatorId).toBe(id);
+  });
+
+  it("keeps the Tutor scope on a dual-role account and forbids changing scope while replaying a receipt", async () => {
+    const actorId = "usr-tutor-1";
+    const sessionId = "dual-role-quiz-session";
+    await testDb.insert(schema.penggunaPeran).values({
+      id: "pp-dual-role-admin", penggunaId: actorId, peranId: "peran-admin", source: "seed",
+    });
+    await testDb.insert(schema.session).values({ id: sessionId, token: sessionId, userId: actorId, expiresAt: new Date(Date.now() + 60_000) });
+    mockSession = { user: { id: actorId, role: "teacher" }, session: { id: sessionId } };
+    const origin = "http://localhost:3000";
+    const request = (method: "POST" | "PATCH" | "DELETE", key: string, body: unknown, id?: string) =>
+      new NextRequest(`${origin}/api/quiz/templates${id ? `/${id}` : ""}`, {
+        method, body: JSON.stringify(body), headers: {
+          "content-type": "application/json", origin, "idempotency-key": key,
+        },
+      });
+    const payload = {
+      actingRole: "tutor", courseId: "mk-calc", title: "Kuis tutor", category: "weekly",
+      selectionRules: { count: 1, difficulty_proportions: { easy: 1, medium: 0, hard: 0 } },
+    };
+    const createKey = "dual-role-create";
+    const created = await createQuizTemplate(request("POST", createKey, payload));
+    expect(created.status).toBe(201);
+    const { templateId } = await created.json();
+    expect((await createQuizTemplate(request("POST", createKey, { ...payload, actingRole: "admin" }))).status).toBe(409);
+    expect((await createQuizTemplate(request("POST", "dual-role-unassigned", { ...payload, courseId: "mk-physics" }))).status).toBe(403);
+    expect((await createQuizTemplate(request("POST", "dual-role-simulation", { ...payload, category: "simulation" }))).status).toBe(403);
+    const simulation = await createQuizTemplate(request("POST", "dual-role-admin-simulation", { ...payload, actingRole: "admin", category: "simulation" }));
+    expect(simulation.status).toBe(201);
+
+    const [original] = await testDb.select().from(schema.quizTemplates).where(eq(schema.quizTemplates.id, templateId));
+    const target = { actingRole: "tutor", expectedCourseId: "mk-calc", expectedRevision: original.updatedAt.getTime() };
+    const context = { params: Promise.resolve({ id: templateId }) };
+    const edit = (key: string, body: unknown) => updateQuizTemplate(request("PATCH", key, body, templateId), context);
+    const remove = (key: string, body: unknown) => deleteQuizTemplate(request("DELETE", key, body, templateId), context);
+
+    expect((await edit("dual-role-edit", { ...target, title: "Edit oleh Tutor" })).status).toBe(200);
+    expect((await edit("dual-role-edit", { ...target, actingRole: "admin", title: "Edit oleh Tutor" })).status).toBe(409);
+    const [edited] = await testDb.select().from(schema.quizTemplates).where(eq(schema.quizTemplates.id, templateId));
+    const freshTutor = { ...target, expectedRevision: edited.updatedAt.getTime() };
+    beforeNextWrite = async () => {
+      await testDb.update(schema.penugasanTutor).set({ status: "revoked" }).where(eq(schema.penugasanTutor.id, "pt-tutor-1"));
+    };
+    expect((await edit("dual-role-status", { ...freshTutor, status: "published" })).status).toBe(403);
+    expect((await edit("dual-role-edit", { ...target, title: "Edit oleh Tutor" })).status).toBe(403);
+    expect((await edit("dual-role-new-edit", { ...freshTutor, title: "Tidak tersimpan" })).status).toBe(403);
+    expect((await createQuizTemplate(request("POST", createKey, payload))).status).toBe(403);
+    expect((await remove("dual-role-delete-quiz", freshTutor)).status).toBe(403);
+    const [unchanged] = await testDb.select().from(schema.quizTemplates).where(eq(schema.quizTemplates.id, templateId));
+    expect(unchanged.title).toBe("Edit oleh Tutor");
+    expect(unchanged.status).toBe("draft");
+
+    const adminTarget = { ...freshTutor, actingRole: "admin" };
+    const deleteKey = "dual-role-admin-delete";
+    expect((await remove(deleteKey, adminTarget)).status).toBe(200);
+    expect((await remove(deleteKey, adminTarget)).status).toBe(200);
+    expect((await remove(deleteKey, freshTutor)).status).toBe(403);
+    await testDb.update(schema.penugasanTutor).set({ status: "active" }).where(eq(schema.penugasanTutor.id, "pt-tutor-1"));
+    expect((await remove(deleteKey, freshTutor)).status).toBe(409);
   });
 
   /* ────────────────────────────────────────────────────────────────────────

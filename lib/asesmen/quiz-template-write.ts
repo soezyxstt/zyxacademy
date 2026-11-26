@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { z } from "zod";
 import { and, eq, inArray, or, sql } from "drizzle-orm";
 import type { db } from "@/db";
 import { aiQuestionBank, auditMutasi, quizTemplates, session } from "@/db/schema";
@@ -11,6 +12,8 @@ import { dateRangeError } from "@/packages/native-parity/academic/assessment/mod
 import { stableStringify } from "@/lib/staging/migration-ledger";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+export const nativeQuizActingScopeSchema = z.object({ actingRole: z.enum(["admin", "tutor"]) });
 
 export class QuizTemplateWriteError extends Error {
   constructor(public readonly status: 400 | 401 | 403 | 404 | 409, public readonly code: string) {

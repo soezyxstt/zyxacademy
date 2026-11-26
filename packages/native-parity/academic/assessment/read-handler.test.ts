@@ -154,7 +154,7 @@ test("native quiz editor sends canonical create and edit commands and records on
     get: async () => Response.json(null, { status: 404 }),
     command: async (path, init) => {
       calls.push({ path, init });
-      return Response.json({ requestId: init.requestId, templateId: "tpl-live" });
+      return Response.json({ requestId: init.requestId, templateId: "tpl-live", actingRole: "admin" });
     },
   });
   const context = { actor: { id: "session-admin", role: "admin" }, scenario: "populated", scope: { kind: "admin", slug: "biologi" } } as const;
@@ -179,6 +179,7 @@ test("native quiz editor sends canonical create and edit commands and records on
   assert.equal((calls[1].init as { method: string }).method, "PATCH");
   assert.equal((calls[3].init as { method: string }).method, "DELETE");
   assert.equal((calls[1].init as { body: { expectedRevision: number } }).body.expectedRevision, 1891);
+  assert.deepEqual(calls.map(({ init }) => (init as { body: { actingRole: string } }).body.actingRole), Array(4).fill("admin"));
 });
 
 test("a lost create response preserves the same immutable command and key across screen remount", async () => {
@@ -190,7 +191,7 @@ test("a lost create response preserves the same immutable command and key across
     command: async (path: string, init: import("../../../../apps/mobile-native/features/academic/client").AcademicCommand) => {
       calls.push({ path, init });
       if (calls.length === 1) throw new Error("Lost response");
-      return Response.json({ requestId: init.requestId, templateId: "created" });
+      return Response.json({ requestId: init.requestId, templateId: "created", actingRole: calls.length === 2 ? "admin" : "tutor" });
     },
   };
   const gateway = createAssessmentReadGateway(transport);
@@ -212,14 +213,21 @@ test("a lost create response preserves the same immutable command and key across
   assert.equal(outstanding.requestId, key);
   assert.equal(outstanding.command.input.title, "Kuis pertama");
   assert.equal(outstanding.confirmed, false);
+  const adminContext = { ...context, actor: { id: context.actor.id, role: "admin" }, scope: { kind: "admin", slug: "course" } } as const;
+  assert.equal(remounted.pendingQuizSave?.(adminContext, null), null);
+  assert.equal((await remounted.mutate(adminContext, outstanding.requestId, outstanding.command)).ok, false);
   assert.equal((await remounted.mutate(context, "different-key", { ...draft, input: { ...draft.input, title: "Kuis berbeda" } })).ok, false);
   assert.equal(calls.length, 1);
+  const wrongScope = await remounted.mutate(context, outstanding.requestId, outstanding.command);
+  assert.equal(wrongScope.ok, false);
+  assert.equal(remounted.pendingQuizSave?.(context, null)?.confirmed, false);
   const retried = await remounted.mutate(context, outstanding.requestId, outstanding.command);
   assert.equal(retried.ok, true);
   assert.deepEqual(calls[0], calls[1]);
+  assert.deepEqual(calls[0], calls[2]);
   assert.equal(remounted.pendingQuizSave?.(context, null)?.confirmed, true);
   assert.equal((await remounted.mutate(context, outstanding.requestId, outstanding.command)).ok, true);
-  assert.equal(calls.length, 2);
+  assert.equal(calls.length, 3);
   assert.equal(remounted.takeQuizSaveNotice?.(context, key), "Kuis tersimpan.");
   assert.equal(remounted.pendingQuizSave?.(context, null), null);
 });

@@ -64,6 +64,8 @@ export function createAssessmentReadGateway(transport: AcademicTransport): Asses
     const send = transport.command?.bind(transport);
     if (!send || !courseId || (context.scope.kind === "tutor" && input.category === "simulation")) return forbidden;
     const key = quizKey(context, target?.id ?? null);
+    const anotherScope = [...outstanding.entries()].some(([savedKey, entry]) => savedKey !== key && entry.requestId === requestId);
+    if (anotherScope) return { ok: false, code: "conflict", message: "Lanjutkan dari peran dan halaman kuis semula." };
     const fingerprint = JSON.stringify(command);
     const previous = outstanding.get(key);
     if (previous && (previous.requestId !== requestId || previous.fingerprint !== fingerprint)) return uncertain;
@@ -76,9 +78,10 @@ export function createAssessmentReadGateway(transport: AcademicTransport): Asses
     };
     const fields = quizAuthoringPayload(entry.command.input);
     const path = target ? `/api/quiz/templates/${encodeURIComponent(target.id)}` : "/api/quiz/templates";
+    const scope = { actingRole: context.scope.kind };
     const body = target
-      ? { ...fields, expectedRevision: target.expectedRevision, expectedCourseId: courseId }
-      : { ...fields, courseId };
+      ? { ...fields, ...scope, expectedRevision: target.expectedRevision, expectedCourseId: courseId }
+      : { ...fields, ...scope, courseId };
     outstanding.set(key, entry);
 
     const operation: Promise<SaveResult> = (async () => {
@@ -101,7 +104,7 @@ export function createAssessmentReadGateway(transport: AcademicTransport): Asses
         const data = await response.json();
         if (!data || typeof data !== "object") return uncertain;
         const receipt = data as Record<string, unknown>;
-        if (receipt.requestId !== requestId || typeof receipt.templateId !== "string" ||
+        if (receipt.requestId !== requestId || receipt.actingRole !== context.scope.kind || typeof receipt.templateId !== "string" ||
           (target && receipt.templateId !== target.id)) return uncertain;
         const message = input.status === "published" && !target ? "Kuis diterbitkan." : "Kuis tersimpan.";
         entry.effect = { id: receipt.templateId, message };
@@ -157,7 +160,7 @@ export function createAssessmentReadGateway(transport: AcademicTransport): Asses
           const response = await transport.command(`/api/quiz/templates/${encodeURIComponent(target.id)}`, {
             method: isDelete ? "DELETE" : "PATCH", requestId,
             body: {
-              expectedRevision: target.expectedRevision, expectedCourseId: courseId,
+              actingRole: context.scope.kind, expectedRevision: target.expectedRevision, expectedCourseId: courseId,
               ...(!isDelete ? { status: command.status } : {}),
             },
           }, signal ?? new AbortController().signal);
@@ -169,7 +172,7 @@ export function createAssessmentReadGateway(transport: AcademicTransport): Asses
           const data = await response.json();
           if (!data || typeof data !== "object") return uncertain;
           const receipt = data as Record<string, unknown>;
-          if (receipt.requestId !== requestId || receipt.templateId !== target.id) return uncertain;
+          if (receipt.requestId !== requestId || receipt.actingRole !== context.scope.kind || receipt.templateId !== target.id) return uncertain;
           return { ok: true, value: { id: target.id, message: isDelete ? "Kuis dihapus." : command.status === "published" ? "Kuis diterbitkan." : "Kuis dipindahkan ke draf." } };
         } catch {
           return uncertain;
