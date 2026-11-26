@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { AccessibilityInfo } from "react-native";
 
+import { useNativeAppearance } from "./appearance";
+
 export function useReducedMotion() {
+  const { animations } = useNativeAppearance();
   const [reduceMotion, setReduceMotion] = useState(true);
 
   useEffect(() => {
@@ -20,5 +23,5 @@ export function useReducedMotion() {
     };
   }, []);
 
-  return reduceMotion;
+  return reduceMotion || !animations;
 }

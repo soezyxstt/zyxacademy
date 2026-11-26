@@ -1,3 +1,5 @@
+import { DEFAULT_APPEARANCE_PREFERENCES, type AppearancePreferences } from "../../../lib/appearance-preferences";
+import { readingDensityScales, readingFontScales } from "../device/reading-scales";
 import type { PublicArticleReadModel } from "../../../lib/articles/structured-read-model";
 import { escapeHtml } from "../../../lib/offline/offline-snapshot-renderer";
 import { buildOfflineReadingSections } from "../../../lib/offline/reading-sections";
@@ -19,14 +21,14 @@ const media = /^image\/(?:avif|gif|jpeg|png|svg\+xml|webp)$/;
 
 const styles = `
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--surface); color: var(--text); font: 16px/1.65 -apple-system, BlinkMacSystemFont, system-ui, sans-serif; overflow-wrap: break-word; }
+  body { margin: 0; background: var(--surface); color: var(--text); font: var(--reading-size)/1.65 -apple-system, BlinkMacSystemFont, system-ui, sans-serif; overflow-wrap: break-word; }
   main { width: 100%; max-width: 48rem; margin: 0 auto; padding: 12px clamp(16px, 4vw, 28px) 40px; }
-  section + section { border-top: 1px solid var(--line); margin-top: 30px; padding-top: 22px; }
+  section + section { border-top: 1px solid var(--line); margin-top: calc(30px * var(--reading-spacing)); padding-top: calc(22px * var(--reading-spacing)); }
   h2, h3, h4, h5 { line-height: 1.3; margin: 1em 0 .55em; }
   h2 { font-size: 1.35em; }
   h3 { font-size: 1.125em; }
   h4, h5 { font-size: 1em; }
-  p, ol, ul, figure, blockquote, pre { margin: 0 0 1em; }
+  p, ol, ul, figure, blockquote, pre { margin: 0 0 calc(1em * var(--reading-spacing)); }
   section > :first-child { margin-top: 0; }
   ul, ol { padding-inline-start: 1.45em; }
   li + li { margin-top: .35em; }
@@ -90,7 +92,8 @@ export function buildReadingDocumentHtml(props: ReadingDocumentProps, katexCss: 
   return buildReadingContentHtml(savedReadingContent(props), katexCss, theme);
 }
 
-export function buildReadingContentHtml({ data, kind, title, locale, resolveImage, section }: ReadingContent, katexCss: string, theme: keyof typeof nativeColors) {
+export function buildReadingContentHtml({ data, kind, title, locale, resolveImage, section }: ReadingContent, katexCss: string, theme: keyof typeof nativeColors,
+  appearance: Pick<AppearancePreferences, "fontSize" | "density"> = DEFAULT_APPEARANCE_PREFERENCES) {
   const options = { allowLinks: false, resolveImage };
   const article = kind === "article" && "sections" in data
     ? data as unknown as Pick<PublicArticleReadModel, "sections" | "visuals"> : undefined;
@@ -102,6 +105,6 @@ export function buildReadingContentHtml({ data, kind, title, locale, resolveImag
   const content = sections.map(({ headingHtml, bodyHtml }) =>
     `<section>${headingHtml ? `<h2>${headingHtml}</h2>` : ""}${bodyHtml ?? ""}</section>`).join("");
   const colors = nativeColors[theme];
-  const palette = `:root { color-scheme: ${theme}; --surface: ${colors.background}; --card: ${colors.card}; --text: ${colors.foreground}; --muted: ${colors.mutedForeground}; --line: ${colors.border}; }`;
+  const palette = `:root { color-scheme: ${theme}; --reading-size: ${16 * readingFontScales[appearance.fontSize]}px; --reading-spacing: ${readingDensityScales[appearance.density]}; --surface: ${colors.background}; --card: ${colors.card}; --text: ${colors.foreground}; --muted: ${colors.mutedForeground}; --line: ${colors.border}; }`;
   return `<!doctype html><html lang="${locale}"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${policy}"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="referrer" content="no-referrer"><title>${escapeHtml(title)}</title><style>${palette}\n${katexCss}\n${styles}</style></head><body><main>${content}</main></body></html>`;
 }

@@ -5,6 +5,10 @@ import { parseQuietHours, type QuietHours } from "../../../../../packages/studen
 import { isTutorialEmailSchedule } from "../../../../../packages/student-community/tutorial-email-schedule";
 import { activityPreferenceKeys, emailPreferenceKeys, feedbackCategories } from "../../../../../packages/native-parity/student/community/contracts";
 import type { ActivityPreferenceKey, FeedbackCategory, NotificationPreferences, TutorialEmailSchedule } from "../../../../../packages/native-parity/student/community/contracts";
+import idStudent from "../../../../../messages/id/student.json";
+import enStudent from "../../../../../messages/en/student.json";
+import { DENSITY_OPTIONS, FONT_SIZE_OPTIONS, TOAST_POSITION_OPTIONS } from "../../../../../lib/appearance-preferences";
+import { useStudentAlert } from "./alerts";
 import { studentBrowserNotificationsUrl } from "../browser-handoff";
 import { AccountSessionsPanel } from "./account-sessions";
 import { ProfileEditorPanel } from "./profile";
@@ -140,7 +144,18 @@ function NotificationsForm({ data }: { data: NotificationPreferences }) {
 
 function NotificationsPanel() {
   const state = useRemote<NotificationPreferences>(communityPath("notifications"));
-  return <Remote state={state}>{data => <NotificationsForm data={data} />}</Remote>;
+  const { session, devicePreferences } = useCommunity();
+  const copy = (session.locale === "en" ? enStudent : idStudent).preferences;
+  const announce = useStudentAlert();
+  return <>
+    {devicePreferences?.appearance && devicePreferences.setAppearance && <>
+      <Copy kind="heading">{copy.toastPosition}</Copy>
+      <Copy kind="muted">{copy.alertPositionScope}</Copy>
+      <Choices value={devicePreferences.appearance.toastPosition} options={TOAST_POSITION_OPTIONS.map(value => ({ value, label: copy.toastOptions[value] }))}
+        onSelect={value => { devicePreferences.setAppearance?.("toastPosition", value); announce?.(copy.toastPreview); }} />
+    </>}
+    <Remote state={state}>{data => <NotificationsForm data={data} />}</Remote>
+  </>;
 }
 export function NotificationsScreen() {
   const { tr } = useCommunity();
@@ -165,7 +180,7 @@ export function BrowserNotificationsScreen() {
 }
 
 function GeneralPanel() {
-  const { tr, request, session, devicePreferences, onLocaleChanged } = useCommunity();
+  const { tr, request, session, devicePreferences, onLocaleChanged, openOfflineLibrary } = useCommunity();
   const [selected, setSelected] = useState<"en" | "id">(session.locale === "en" ? "en" : "id");
   const state = useOperation();
   return <>
@@ -178,18 +193,34 @@ function GeneralPanel() {
       }, tr("Bahasa tersimpan.", "Language saved."))} />
     {devicePreferences && <Toggle label={tr("Getaran", "Haptics")} value={devicePreferences.haptics} onChange={devicePreferences.setHaptics} />}
     <Notice notice={state.notice} />
+    {openOfflineLibrary && <Actions><Action label={tr("Kelola bacaan offline", "Manage offline readings")} onPress={() => openOfflineLibrary()} /></Actions>}
     <AccountSessionsPanel />
   </>;
 }
 
 function AppearancePanel() {
-  const { tr, devicePreferences } = useCommunity();
+  const { tr, devicePreferences, session } = useCommunity();
+  const copy = (session.locale === "en" ? enStudent : idStudent).preferences;
+  const prefs = devicePreferences?.appearance;
+  const update = devicePreferences?.setAppearance;
+  const announce = useStudentAlert();
   return <>
     <Copy kind="heading">{tr("Tema", "Theme")}</Copy>
     {devicePreferences ? <Choices value={devicePreferences.theme} options={[
       { value: "system", label: tr("Sistem", "System") }, { value: "light", label: tr("Terang", "Light") }, { value: "dark", label: tr("Gelap", "Dark") },
     ]} onSelect={devicePreferences.setTheme} />
       : <Copy kind="muted">{tr("Tema mengikuti pengaturan perangkat.", "The theme follows your device settings.")}</Copy>}
+    {prefs && update && <>
+      <Toggle label={copy.backgroundOrnaments} value={prefs.background === "default"} onChange={value => update("background", value ? "default" : "solid")} />
+      <Toggle label={copy.animations} value={prefs.animations} onChange={value => update("animations", value)} />
+      <Copy kind="heading">{copy.layout}</Copy>
+      <Copy kind="strong">{copy.spacing}</Copy>
+      <Choices value={prefs.density} options={DENSITY_OPTIONS.map(value => ({ value, label: copy.spacingOptions[value] }))} onSelect={value => update("density", value)} />
+      <Copy kind="strong">{copy.fontSize}</Copy>
+      <Choices value={prefs.fontSize} options={FONT_SIZE_OPTIONS.map(value => ({ value, label: copy.fontSizeOptions[value] }))} onSelect={value => update("fontSize", value)} />
+      <Copy>{copy.previewFirst}</Copy><Copy>{copy.previewSecond}</Copy>
+      <Actions><Action label={copy.restoreDisplay} onPress={() => { devicePreferences?.restoreDisplay?.(); announce?.(copy.displayRestored); }} /></Actions>
+    </>}
   </>;
 }
 

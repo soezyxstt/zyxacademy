@@ -9,6 +9,8 @@ import {
 } from "../../../../packages/design-tokens/testimonial-ornaments";
 import { nativeTypography } from "../../typography";
 
+import { useNativeAppearance } from "../../device/appearance";
+
 const layers = {
   testimonial: {
     ...testimonialOrnaments,
@@ -29,6 +31,7 @@ export function NativePageOrnaments({ variant, theme, opacityScale = 1 }: {
   theme: keyof typeof nativeColors;
   opacityScale?: number;
 }) {
+  if (useNativeAppearance().background === "solid") return null;
   const colors = { primary: nativeColors[theme].primary, ...nativeLinkInks };
   const { glows, rings, shapes, math, opacity } = layers[variant];
   return (

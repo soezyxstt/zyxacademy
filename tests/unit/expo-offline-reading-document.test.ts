@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { createRequire } from "node:module";
 import { dirname } from "node:path";
-import { buildReadingDocumentHtml } from "../../apps/mobile-native/offline/reading-document";
+import { buildReadingContentHtml, buildReadingDocumentHtml, savedReadingContent } from "../../apps/mobile-native/offline/reading-document";
 import type { OfflineReadingArticle, OfflineReadingPackage, OfflineReadingSummary } from "../../apps/mobile-native/offline/reading-contract";
 import { buildReadingKatexCss } from "../../apps/mobile-native/offline/prepare-reading-katex.cjs";
 import type { PublicArticleReadModel } from "../../lib/articles/structured-read-model";
@@ -49,6 +49,9 @@ test("uses the same authored Article sections as the Capacitor snapshot", () => 
     summary, data, assets: [{ url: assetUrl(rawUrl), mime: "image/png", bytes: Uint8Array.of(1, 2, 3) }],
   };
   const html = buildReadingDocumentHtml({ saved, locale: "en", section: "section-one" }, katexCss)!;
+  const personalized = buildReadingContentHtml(savedReadingContent({ saved, locale: "en" }), katexCss, "light", { fontSize: "large", density: "tight" });
+  expect(personalized).toContain("--reading-size: 20px; --reading-spacing: 0.875;");
+  expect(personalized).toContain('src="data:image/png;base64,AQID"');
   const shared = buildOfflineReadingSections({ kind: "structured_article", article: { sections }, locale: "en" }, {
     allowLinks: false, resolveImage: (source) => source === assetUrl(rawUrl) ? "data:image/png;base64,AQID" : undefined,
   }, "first");

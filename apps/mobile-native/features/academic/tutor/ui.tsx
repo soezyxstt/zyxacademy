@@ -8,6 +8,8 @@ import { Button } from "../../../components/Button";
 import { nativeTypography } from "../../../typography";
 import { NativeListRow, NativeStatusPanel } from "../../shared-ui";
 
+import { useNativeAppearance, readingDensityScales, readingFontScales } from "../../../device/appearance";
+
 export type TutorTheme = keyof typeof nativeColors;
 
 export function Label({ theme, children, tone = "body", compactTitle = false }: {
@@ -17,6 +19,7 @@ export function Label({ theme, children, tone = "body", compactTitle = false }: 
   compactTitle?: boolean;
 }) {
   const colors = nativeColors[theme];
+  const scale = readingFontScales[useNativeAppearance().fontSize];
   const heading = tone === "title" || tone === "heading";
   return <Text
     accessibilityRole={heading ? "header" : undefined}
@@ -30,6 +33,8 @@ export function Label({ theme, children, tone = "body", compactTitle = false }: 
       tone === "strong" && nativeTypography.bodySemibold,
       tone === "muted" && { color: colors.mutedForeground, fontSize: 13 },
       tone === "error" && { color: colors.destructive },
+      scale !== 1 && { fontSize: scale * (compactTitle ? 14 : tone === "title" ? 16 : tone === "heading" ? 17 : tone === "muted" ? 13 : 14),
+        lineHeight: scale * (compactTitle ? 21 : tone === "heading" ? 23 : tone === "title" ? 22 : 21) },
     ]}
   >{children}</Text>;
 }
@@ -39,10 +44,11 @@ export function TutorPage({ theme, title, subtitle, onBack, children, dashboard 
   header?: ReactNode; contentStyle?: ViewProps["style"];
 }) {
   const colors = nativeColors[theme];
+  const density = readingDensityScales[useNativeAppearance().density];
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={[styles.page, dashboard && styles.dashboardPage, contentStyle]}
+      contentContainerStyle={[styles.page, dashboard && styles.dashboardPage, density !== 1 && { gap: (dashboard ? 20 : 16) * density }, contentStyle]}
       keyboardShouldPersistTaps="handled"
     >
       {header ?? <Header theme={theme} title={title} subtitle={subtitle} onBack={onBack} compact={dashboard} />}

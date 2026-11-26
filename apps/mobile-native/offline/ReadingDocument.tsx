@@ -5,6 +5,8 @@ import { nativeColors } from "../../../packages/design-tokens/native-colors";
 import { buildReadingContentHtml, savedReadingContent, type ReadingContent, type ReadingDocumentProps } from "./reading-document";
 import { readingKatexCss } from "./reading-katex.generated";
 
+import { useNativeAppearance } from "../device/appearance";
+
 const initialPage = "about:blank";
 type ReadingScrollEvent = { nativeEvent: {
   layoutMeasurement: { height: number }; contentSize: { height: number }; contentOffset: { y: number };
@@ -21,10 +23,11 @@ export function ReadingContentDocument({ content, testID = "offline-reading-docu
 }) {
   const { title, locale } = content;
   const theme = useColorScheme() === "dark" ? "dark" : "light";
+  const { fontSize, density } = useNativeAppearance();
   const html = useMemo(() => {
-    try { return buildReadingContentHtml(content, readingKatexCss, theme); }
+    try { return buildReadingContentHtml(content, readingKatexCss, theme, { fontSize, density }); }
     catch { return null; }
-  }, [content, theme]);
+  }, [content, theme, fontSize, density]);
   const source = useMemo(() => html ? { html, baseUrl: initialPage } : undefined, [html]);
   const unavailable = () => <View style={{ flex: 1, padding: 16 }}>
     <Text accessibilityRole="alert" style={{ color: nativeColors[theme].foreground }}>

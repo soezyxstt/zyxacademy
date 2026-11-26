@@ -66,6 +66,9 @@ export interface StudentServices {
   devicePreferences?: {
     theme: "light" | "dark" | "system";
     setTheme(theme: "light" | "dark" | "system"): void;
+    appearance?: import("../../../../lib/appearance-preferences").AppearancePreferences;
+    setAppearance?: ReturnType<typeof import("../../device/preferences").createDevicePreferences>["setAppearance"];
+    restoreDisplay?(): void;
     haptics: boolean;
     setHaptics(enabled: boolean): void;
   };

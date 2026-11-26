@@ -1,3 +1,4 @@
+import { DEFAULT_APPEARANCE_PREFERENCES } from "../../lib/appearance-preferences";
 import { expect, test } from "bun:test";
 
 import type { NativeAccountContext } from "../../packages/native-session/context";
@@ -23,13 +24,13 @@ test("restores a device theme and controls the same haptic preference across she
   preferences.setTheme("system");
   preferences.setHaptics(false);
   preferences.setHaptics(false);
-  expect(preferences.getSnapshot()).toEqual({ theme: "system", haptics: false });
+  expect(preferences.getSnapshot()).toEqual({ theme: "system", haptics: false, appearance: DEFAULT_APPEARANCE_PREFERENCES });
   expect(updates).toBe(2);
   expect(applied).toEqual(["dark", "auto"]);
   stop();
   preferences.setTheme("light");
   expect(updates).toBe(2);
-  expect(createDevicePreferences(adapters).getSnapshot()).toEqual({ theme: "light", haptics: false });
+  expect(createDevicePreferences(adapters).getSnapshot()).toEqual({ theme: "light", haptics: false, appearance: DEFAULT_APPEARANCE_PREFERENCES });
 });
 
 test("falls back to system appearance for unreadable or invalid storage and still honors current changes", () => {
@@ -44,7 +45,7 @@ test("falls back to system appearance for unreadable or invalid storage and stil
   const preferences = createDevicePreferences(adapters);
   preferences.applyTheme();
   preferences.setTheme("dark");
-  expect(preferences.getSnapshot()).toEqual({ theme: "dark", haptics: true });
+  expect(preferences.getSnapshot()).toEqual({ theme: "dark", haptics: true, appearance: DEFAULT_APPEARANCE_PREFERENCES });
   expect(applied).toEqual(["auto", "dark"]);
   const unreadable = createDevicePreferences({ ...adapters, readTheme: () => { throw new Error("unreadable"); } });
   expect(unreadable.getSnapshot().theme).toBe("system");
@@ -66,6 +67,21 @@ test("uses only the active account and session locale, then the offline or devic
 test("device theme and haptics are local operations", () => {
   const entry = operationsCatalog.find(item => item.source === "apps/mobile-native/device/preferences.ts");
   expect(entry?.status).toBe("excluded");
-  expect(entry?.actions).toEqual(["setTheme", "setHaptics"]);
+  expect(entry?.actions).toEqual(["setTheme", "setHaptics", "setAppearance", "restoreDisplay"]);
   expect(entry?.tools).toEqual([]);
+});
+
+test("device appearance survives a remount and display reset preserves alerts and haptics", () => {
+  let display = JSON.stringify({ fontSize: "invalid", density: "tight", background: "solid" });
+  const adapters = { readTheme: () => "system", saveTheme() {}, applyAppearance() {}, readHaptics: () => false, saveHaptics() {},
+    readDisplay: () => display, saveDisplay: (next: string) => { display = next; } };
+  const initial = createDevicePreferences(adapters);
+  expect(initial.getSnapshot().appearance).toEqual({ ...DEFAULT_APPEARANCE_PREFERENCES, density: "tight", background: "solid" });
+  initial.setAppearance("fontSize", "large");
+  initial.setAppearance("toastPosition", "bottom-left");
+  initial.setAppearance("animations", false);
+  const restored = createDevicePreferences(adapters);
+  expect(restored.getSnapshot().appearance).toEqual(initial.getSnapshot().appearance);
+  restored.restoreDisplay();
+  expect(restored.getSnapshot()).toEqual({ theme: "system", haptics: false, appearance: { ...DEFAULT_APPEARANCE_PREFERENCES, toastPosition: "bottom-left" } });
 });

@@ -7,6 +7,8 @@ import { nativeTypography } from "../../typography";
 import type { StudentServices } from "./contracts";
 import { prepareCourseMarkdown, safeCourseMarkdownLink, safeInlineCourseImage } from "./course-markdown-model";
 
+import { useNativeAppearance, readingDensityScales, readingFontScales } from "../../device/appearance";
+
 type Props = {
   source: string;
   services: Pick<StudentServices, "openExternal" | "devicePreferences"> & {
@@ -46,8 +48,11 @@ export function CourseMarkdown({ source, services, centered, muted, paragraphSty
   const { markdown, rich } = useMemo(() => prepared ? { markdown: source, rich: true } : prepareCourseMarkdown(source), [source, prepared]);
   const fontFamily = paragraphStyle?.fontFamily ?? nativeTypography.bodyRegular.fontFamily;
   const fontWeight = String(paragraphStyle?.fontWeight ?? nativeTypography.bodyRegular.fontWeight);
-  const fontSize = paragraphStyle?.fontSize ?? 16;
-  const lineHeight = paragraphStyle?.lineHeight ?? 23;
+  const appearance = useNativeAppearance();
+  const scale = readingFontScales[appearance.fontSize];
+  const gap = 8 * readingDensityScales[appearance.density];
+  const fontSize = (paragraphStyle?.fontSize ?? 16) * scale;
+  const lineHeight = (paragraphStyle?.lineHeight ?? 23) * scale;
   const color = muted ? colors.mutedForeground : colors.foreground;
   const textAlign = centered ? "center" : "left";
   const plainStyle = useMemo<TextStyle>(() => ({
@@ -57,7 +62,7 @@ export function CourseMarkdown({ source, services, centered, muted, paragraphSty
     const base = { color, fontSize, fontFamily, fontWeight, lineHeight };
     const heading = { ...base, fontFamily: nativeTypography.headingBold.fontFamily, fontWeight: "700", textAlign } satisfies NonNullable<MarkdownStyle["h1"]>;
     return {
-      paragraph: { ...base, textAlign, marginTop: 0, marginBottom: 8 },
+      paragraph: { ...base, textAlign, marginTop: 0, marginBottom: gap },
       h1: heading, h2: heading, h3: heading, h4: heading, h5: heading, h6: heading,
       math: { color, fontSize, textAlign, backgroundColor: "transparent", marginTop: 4, marginBottom: 4, padding: 0 },
       inlineMath: { color }, link: { color: allowLinks ? colors.primary : color, underline: allowLinks },
@@ -68,7 +73,7 @@ export function CourseMarkdown({ source, services, centered, muted, paragraphSty
       table: { ...base, headerBackgroundColor: colors.muted, headerTextColor: color,
         rowEvenBackgroundColor: colors.background, rowOddBackgroundColor: colors.muted, borderColor: colors.border },
     };
-  }, [allowLinks, color, colors, fontSize, fontFamily, fontWeight, lineHeight, textAlign]);
+  }, [allowLinks, color, colors, gap, fontSize, fontFamily, fontWeight, lineHeight, textAlign]);
   const renderers = useMemo(() => ({
     image: ({ url, altText }: { url: string; altText: string }) => <>{renderPreviewImage?.({ url, altText }) ?? <CourseImage key={url} uri={safeInlineCourseImage(url)}
       alt={altText} label={en ? "Image unavailable" : "Gambar belum dapat dimuat"} style={plainStyle} />}</>,

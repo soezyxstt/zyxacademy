@@ -12,6 +12,10 @@ import { Switch } from "../../../components/Switch";
 import { nativeTypography } from "../../../typography";
 import type { StudentScreenProps, StudentRequest } from "../contracts";
 
+import { useNativeAppearance, readingDensityScales, readingFontScales } from "../../../device/appearance";
+import { NativePageOrnaments } from "../../shared-ui/page-ornaments";
+import { useStudentAlert } from "./alerts";
+
 export type Translation = (id: string, en: string) => string;
 
 const Context = createContext<StudentScreenProps | null>(null);
@@ -156,15 +160,15 @@ export function useOperation() {
 }
 
 export function Page({ title, headerAction, compactTitle, children }: { title: string; headerAction?: ReactNode; compactTitle?: boolean; children: ReactNode }) {
-  const { colors, initialScrollY, onScrollY } = useCommunity();
+  const { colors, theme, initialScrollY, onScrollY } = useCommunity();
+  const { density } = useNativeAppearance();
   const pageTitle = usePageTitle(title);
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
   const start = useRef(initialScrollY);
   const restored = useRef(false);
-  return <ScrollView
-    ref={scroll}
-    style={{ flex: 1, backgroundColor: colors.background }}
-    contentContainerStyle={styles.page}
+  return <View style={{ flex: 1, backgroundColor: colors.background }}>
+    <NativePageOrnaments variant="plans" theme={theme} opacityScale={0.3} />
+    <ScrollView ref={scroll} style={{ flex: 1 }} contentContainerStyle={[styles.page, { gap: 18 * readingDensityScales[density] }]}
     keyboardShouldPersistTaps="handled"
     keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
     onContentSizeChange={(_, height) => {
@@ -181,18 +185,21 @@ export function Page({ title, headerAction, compactTitle, children }: { title: s
       {headerAction}
     </View> : pageTitle && <Text accessibilityRole="header" style={[compactTitle ? styles.compactPageTitle : styles.title, { color: colors.foreground }]}>{pageTitle}</Text>}
     {children}
-  </ScrollView>;
+  </ScrollView></View>;
 }
 
 export function Copy({ children, kind = "body" }: { children: ReactNode; kind?: "body" | "muted" | "strong" | "heading" | "error" }) {
   const { colors } = useCommunity();
+  const size = readingFontScales[useNativeAppearance().fontSize];
   return <Text accessibilityRole={kind === "heading" ? "header" : undefined}
     style={[styles.body, kind === "heading" && styles.heading, kind === "strong" && nativeTypography.bodySemibold,
-      { color: kind === "muted" ? colors.mutedForeground : kind === "error" ? colors.destructive : colors.foreground }]}>{children}</Text>;
+      { fontSize: (kind === "heading" ? 17 : 14) * size, lineHeight: (kind === "heading" ? 23 : 21) * size, color: kind === "muted" ? colors.mutedForeground : kind === "error" ? colors.destructive : colors.foreground }]}>{children}</Text>;
 }
 
 export function Notice({ notice }: { notice: { message: string; failed: boolean } | null }) {
-  if (!notice) return null;
+  const announce = useStudentAlert();
+  useEffect(() => { if (notice && !notice.failed) announce?.(notice.message); }, [announce, notice]);
+  if (!notice || (!notice.failed && announce)) return null;
   return <View accessibilityRole={notice.failed ? "alert" : undefined} accessibilityLiveRegion="polite"><Copy kind={notice.failed ? "error" : "body"}>{notice.message}</Copy></View>;
 }
 

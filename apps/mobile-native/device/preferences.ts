@@ -1,9 +1,13 @@
+import { DEFAULT_APPEARANCE_PREFERENCES, parseAppearancePreferences, type AppearancePreferences } from "../../../lib/appearance-preferences";
+
 export type NativeDeviceTheme = "light" | "dark" | "system";
 type AppearanceOverride = "light" | "dark" | "auto";
 
 export function createDevicePreferences({
-  readTheme, saveTheme, applyAppearance, readHaptics, saveHaptics,
+  readTheme, saveTheme, applyAppearance, readHaptics, saveHaptics, readDisplay, saveDisplay,
 }: {
+  readDisplay?(): string | null;
+  saveDisplay?(settings: string): void;
   readTheme(): string | null;
   saveTheme(theme: NativeDeviceTheme): void;
   applyAppearance(theme: AppearanceOverride): void;
@@ -17,7 +21,9 @@ export function createDevicePreferences({
   } catch {
     // Follow the system if the device store is unavailable.
   }
-  let snapshot = { theme, haptics: readHaptics() };
+  let appearance = DEFAULT_APPEARANCE_PREFERENCES;
+  try { appearance = parseAppearancePreferences(readDisplay?.() ?? null); } catch { /* Use device defaults. */ }
+  let snapshot = { theme, haptics: readHaptics(), appearance };
   const listeners = new Set<() => void>();
 
   function applyTheme() {
@@ -29,8 +35,22 @@ export function createDevicePreferences({
     for (const listener of listeners) listener();
   }
 
+  function saveAppearance(next: AppearancePreferences) {
+    try { saveDisplay?.(JSON.stringify(next)); } catch { /* Honor this choice in memory. */ }
+    publish({ ...snapshot, appearance: next });
+  }
   return {
     applyTheme,
+    setAppearance<K extends keyof AppearancePreferences>(key: K, value: AppearancePreferences[K]) {
+      if (snapshot.appearance[key] !== value) saveAppearance({ ...snapshot.appearance, [key]: value });
+    },
+    restoreDisplay() {
+      try { saveTheme("system"); } catch { /* Honor this choice in memory. */ }
+      const next = { ...DEFAULT_APPEARANCE_PREFERENCES, toastPosition: snapshot.appearance.toastPosition };
+      try { saveDisplay?.(JSON.stringify(next)); } catch { /* Honor this choice in memory. */ }
+      publish({ ...snapshot, theme: "system", appearance: next });
+      applyTheme();
+    },
     getSnapshot: () => snapshot,
     subscribe(listener: () => void) {
       listeners.add(listener);
