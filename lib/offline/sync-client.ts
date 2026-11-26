@@ -72,7 +72,7 @@ export function createOfflineSyncController(options: {
   let value: OfflineMetadataSnapshot | undefined;
   const resourceFlights = new Map<string, Promise<boolean>>();
   const requestedCourses = new Set<string>();
-  const courseGrants = new Map<string, OfflineCourseAccess>();
+  const courseGrants = new Map<string, { access: OfflineCourseAccess; cursor: string }>();
   const emittedChanges = new Set<string>();
   const emitChange = (change: import("./sync-contract").OfflineChange) => {
     const key = JSON.stringify(change);
@@ -108,26 +108,52 @@ export function createOfflineSyncController(options: {
     if (!response.ok && response.status !== 304) throw new ApiError(response.status, "Offline synchronization failed");
     return response;
   };
-  const applyMetadata = async (envelope: OfflineResourceEnvelope) => {
-    if (compareOfflineCursors(envelope.cursor, value!.resources[envelope.resource.key]?.cursor ?? "0") < 0) return;
-    let prepared = envelope;
-    if (envelope.assets.length && await canAutomaticallyCacheOffline(value!.policy)) {
-      const images = await downloadOfflineImages({ assets: envelope.assets, identity: envelope, resource: envelope.resource, fetcher, signal: abort.signal, maxBytes: Math.min(value!.policy.maxBytes / 4, 8 * 1024 * 1024) });
-      assertCurrent();
-      prepared = { ...envelope, leaseExpiresAt: Math.min(envelope.leaseExpiresAt, ...images.map(image => image.leaseExpiresAt ?? envelope.leaseExpiresAt)), data: replaceOfflineAssetUrls(envelope.data, images) };
+  const applyMetadata = async (envelope: OfflineResourceEnvelope, cached?: OfflineResourceEnvelope) => {
+    const { key, courseId } = envelope.resource;
+    let images: Awaited<ReturnType<typeof downloadOfflineImages>> = [];
+    if (!cached && envelope.assets.length && await canAutomaticallyCacheOffline(value!.policy)) {
+      images = await downloadOfflineImages({ assets: envelope.assets, identity: envelope, resource: envelope.resource, fetcher, signal: abort.signal, maxBytes: Math.min(value!.policy.maxBytes / 4, 8 * 1024 * 1024) });
     }
-    value!.resources[envelope.resource.key] = prepared;
-    if (prepared.resource.kind === "achievement_catalog") value!.achievements = (prepared.data as OfflineAchievementCatalog).achievements;
+    assertCurrent();
+    const currentEnvelope = value!.resources[key];
+    const grant = courseId ? courseGrants.get(courseId) : undefined;
+    if ((cached && currentEnvelope !== cached)
+      || compareOfflineCursors(envelope.cursor, currentEnvelope?.cursor ?? "0") < 0
+      || (grant && (!grant.access.allowed || compareOfflineCursors(envelope.cursor, grant.cursor) < 0))) return false;
+    const lease = Math.min(envelope.leaseExpiresAt, grant?.access.leaseExpiresAt ?? Infinity);
+    if (lease <= now()) return false;
+    const prepared = {
+      ...envelope,
+      leaseExpiresAt: Math.min(lease, ...images.map(image => image.leaseExpiresAt ?? lease)),
+      data: images.length ? replaceOfflineAssetUrls(envelope.data, images) : envelope.data,
+    };
+    if (prepared.leaseExpiresAt <= now()) return false;
+    // A resource 304 authorizes its catalog, but does not renew copied image bytes.
+    if (cached && cached.leaseExpiresAt < lease && cached.assets.length) {
+      if (prepared.resource.kind === "video_catalog") {
+        const catalog = prepared.data as OfflineVideoCatalog;
+        prepared.data = { ...catalog, videos: catalog.videos.map(video => video.thumbnailUrl?.startsWith("data:image/") ? { ...video, thumbnailUrl: null } : video) };
+      } else if (prepared.resource.kind === "achievement_catalog") {
+        const catalog = prepared.data as OfflineAchievementCatalog;
+        prepared.data = { achievements: catalog.achievements.map(item => item.icon.startsWith("data:image/") ? { ...item, icon: "" } : item) };
+      }
+    }
     if (prepared.resource.kind === "course_outline") {
       const outline = prepared.data as OfflineCourseOutline;
-      value!.courses = [...value!.courses.filter(course => course.id !== outline.id), { id: outline.id, title: outline.title, accessValidUntil: prepared.leaseExpiresAt, chapterIds: courseGrants.get(outline.id)?.chapterIds ?? value!.courses.find(course => course.id === outline.id)?.chapterIds }];
-      value!.materials = [...value!.materials.filter(item => item.courseId !== outline.id || item.kind === "video"), ...outline.materials.map(item => ({ id: item.id, courseId: outline.id, accessValidUntil: prepared.leaseExpiresAt, title: item.title, kind: item.kind, contentVersion: item.revision }))];
+      if (outline.id !== courseId) return false;
+      const chapterIds = grant?.access.chapterIds ?? value!.courses.find(course => course.id === outline.id)?.chapterIds;
+      const materials = outline.materials.filter(item => item.courseId === courseId && (!grant || offlineAccessAllowsRecord(grant.access, item)));
+      value!.courses = [...value!.courses.filter(course => course.id !== outline.id), { id: outline.id, title: outline.title, accessValidUntil: prepared.leaseExpiresAt, chapterIds }];
+      value!.materials = [...value!.materials.filter(item => item.courseId !== outline.id || item.kind === "video"), ...materials.map(item => ({ id: item.id, courseId: outline.id, accessValidUntil: prepared.leaseExpiresAt, title: item.title, kind: item.kind, contentVersion: item.revision }))];
     }
     if (prepared.resource.kind === "video_catalog" && prepared.resource.courseId) {
       const courseId = prepared.resource.courseId;
       value!.materials = [...value!.materials.filter(item => item.courseId !== courseId || item.kind !== "video"), ...(prepared.data as OfflineVideoCatalog).videos.map(item => ({ id: item.id, courseId, accessValidUntil: prepared.leaseExpiresAt, title: item.title, kind: "video", videoUrl: item.videoUrl, thumbnailUrl: item.thumbnailUrl?.startsWith("data:image/") ? item.thumbnailUrl : undefined, contentVersion: prepared.resource.revision }))];
     }
+    if (prepared.resource.kind === "achievement_catalog") value!.achievements = (prepared.data as OfflineAchievementCatalog).achievements;
+    value!.resources[key] = prepared;
     await persist();
+    return true;
   };
   const doRefreshResource = async (resource: OfflineResourceRequest, refreshOptions: { pinned?: boolean; force?: boolean } = {}): Promise<boolean> => {
     await getSnapshot(); assertCurrent();
@@ -157,9 +183,8 @@ export function createOfflineSyncController(options: {
         const revision = response.headers.get(OFFLINE_HEADERS.revision);
         if (!Number.isFinite(lease) || lease <= now() || !Number.isFinite(verified) || !/^\d+$/.test(cursor) || revision !== previousRevision || (previous?.requiredCursor && compareOfflineCursors(cursor, previous.requiredCursor) < 0)) throw new ApiResponseError("Invalid offline validation");
         if (previous) return await repository.patchReading(previous.key, { lastVerifiedAt: verified, accessValidUntil: lease, invalidated: false, ...(refreshOptions.pinned ? { pinned: true } : {}) }, { cursor, generation: readingGeneration });
-        else if (metadata) { metadata.validatedAt = verified; metadata.leaseExpiresAt = lease; metadata.cursor = cursor; await persist(); }
+        else if (metadata) return await applyMetadata({ ...metadata, validatedAt: verified, leaseExpiresAt: lease, cursor }, metadata);
         else throw new ApiResponseError("Offline validation has no stored body");
-        return true;
       }
       const envelope = offlineEnvelopeSchema.parse(await response.json());
       if (!canWrite()) return false;
@@ -168,8 +193,7 @@ export function createOfflineSyncController(options: {
       if (previous?.requiredCursor && compareOfflineCursors(envelope.cursor, previous.requiredCursor) < 0) return false;
       if (previous && previous.contentVersion !== envelope.resource.revision) emitChange({ cursor: envelope.cursor, kind: resource.kind, resourceId: resource.id, courseId: resource.courseId, action: "upsert", revision: envelope.resource.revision });
       if (resource.kind === "article" || resource.kind === "diktat") return await repository.cacheReading(envelope, token!, { fetcher, signal: abort.signal, policy: value!.policy, pinned: refreshOptions.pinned ?? previous?.pinned, canWrite });
-      await applyMetadata(envelope);
-      return true;
+      return await applyMetadata(envelope);
     } catch (error) {
       if (error instanceof ApiError && (error.status === 403 || error.status === 404)) {
         if (previous) await repository.removeReading(previous.key);
@@ -199,7 +223,11 @@ export function createOfflineSyncController(options: {
   };
   const applyAccess = async (response: OfflineSyncResponse) => {
     const grants = new Map(response.access.map(grant => [grant.courseId, grant]));
-    for (const grant of response.access) courseGrants.set(grant.courseId, grant);
+    for (const grant of response.access) {
+      const previous = courseGrants.get(grant.courseId);
+      const cursor = previous && compareOfflineCursors(previous.cursor, response.cursor) > 0 ? previous.cursor : response.cursor;
+      courseGrants.set(grant.courseId, { access: grant, cursor });
+    }
     const records = await repository.listReadings();
     for (const record of records) if ((!record.pinned && now() - record.lastAccessedAt > response.policy.retentionMs) || (grants.has(record.courseId) && !offlineAccessAllowsRecord(grants.get(record.courseId), record))) await repository.removeReading(record.key);
     const revoked = new Set(response.access.filter(grant => !grant.allowed).map(grant => grant.courseId));
@@ -219,13 +247,15 @@ export function createOfflineSyncController(options: {
       options.queryClient?.setQueryData(queryKeys.student.course(options.scope.userId, grant.courseId), grant.allowed && item ? item : null, { updatedAt: response.serverTime });
     }
   };
-  const reconcileCourse = async (courseId: string, force: boolean) => {
+  const needsReadingValidation = (record: OfflineReadingRecord) => !record.assetsComplete || record.invalidated
+    || (record.accessValidUntil ?? 0) <= now() || now() - (record.lastVerifiedAt ?? 0) >= value!.policy.contentMaxAgeMs;
+  const reconcileCourse = async (courseId: string, reset: boolean) => {
     const params = new URLSearchParams({ courseId, locale: options.scope.locale });
     const response = await request(`/api/offline/manifest?${params}`);
     const manifest: OfflineManifestResponse = offlineManifestResponseSchema.parse(await response.json());
     validateIdentity(manifest);
     if (manifest.resource.courseId !== courseId) throw new ApiResponseError("Offline course mismatch");
-    courseGrants.set(courseId, manifest.resource);
+    courseGrants.set(courseId, { access: { ...manifest.resource, leaseExpiresAt: Math.min(manifest.resource.leaseExpiresAt, manifest.leaseExpiresAt) }, cursor: manifest.cursor });
     const priorManifest = value!.manifests[courseId];
     if (priorManifest) for (const watched of watchedResources.values()) {
       if (watched.scopeKey !== options.scope.scopeKey || watched.resource.courseId !== courseId) continue;
@@ -241,7 +271,7 @@ export function createOfflineSyncController(options: {
       const kind = record.kind === "structured_article" ? "article" : "diktat";
       const descriptor = byIdentity.get(`${kind}:${record.materialId}`);
       if (!descriptor || !offlineAccessAllowsRecord(manifest.resource, record)) { emitChange({ cursor: manifest.cursor, kind, resourceId: record.materialId, courseId, action: "delete", revision: null }); await repository.removeReading(record.key); continue; }
-      if (descriptor.revision !== record.contentVersion || record.invalidated || force || (record.accessValidUntil ?? 0) <= now()) {
+      if (descriptor.revision !== record.contentVersion || reset || needsReadingValidation(record)) {
         await repository.patchReading(record.key, { invalidated: true, requiredCursor: manifest.cursor });
         if (!await refreshResource(descriptor, { pinned: record.pinned, force: true })) throw new Error("offline_package_incomplete");
       } else {
@@ -291,12 +321,16 @@ export function createOfflineSyncController(options: {
         const scheduled = isOfflineScheduledCheckDue(previousVerifiedAt, now(), result.policy.schedule);
         for (const grant of allowed) {
           const previous = value!.manifests[grant.courseId];
-          if (globalChanged || changedCourses.has(grant.courseId) || !previous || previous.resources.some(resource => !offlineAccessAllowsRecord(grant, resource)) || scheduled || now() - previous.checkedAt >= result.policy.metadataMaxAgeMs || records.some(record => record.courseId === grant.courseId && (record.invalidated || (record.accessValidUntil ?? 0) <= now()))) {
-            await reconcileCourse(grant.courseId, scheduled || result.reset);
+          const catalogExpired = (["course_outline", "video_catalog"] as const).some(kind =>
+            (value!.resources[offlineResourceKey(kind, grant.courseId, grant.courseId)]?.leaseExpiresAt ?? 0) <= now())
+            || value!.materials.some(item => item.courseId === grant.courseId && item.accessValidUntil !== undefined && item.accessValidUntil <= now());
+          if (globalChanged || changedCourses.has(grant.courseId) || !previous || catalogExpired || previous.resources.some(resource => !offlineAccessAllowsRecord(grant, resource)) || scheduled || now() - previous.checkedAt >= result.policy.metadataMaxAgeMs || records.some(record => record.courseId === grant.courseId && needsReadingValidation(record))) {
+            await reconcileCourse(grant.courseId, result.reset);
           }
         }
         const achievementKey = offlineResourceKey("achievement_catalog", "catalog");
-        if (globalChanged || !value!.resources[achievementKey] || scheduled || now() - (value!.resources[achievementKey]?.validatedAt ?? 0) >= result.policy.metadataMaxAgeMs) {
+        const achievements = value!.resources[achievementKey];
+        if (globalChanged || !achievements || achievements.leaseExpiresAt <= now() || scheduled || now() - achievements.validatedAt >= result.policy.metadataMaxAgeMs) {
           if (!await refreshResource({ kind: "achievement_catalog", id: "catalog", courseId: null }, { force: true })) throw new Error("offline_metadata_incomplete");
         }
         // Cursor advances only after invalidations and access revocations are durable.

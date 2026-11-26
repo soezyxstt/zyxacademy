@@ -32,7 +32,13 @@ The log provides durable delivery. A bounded foreground stream carries only a hi
 
 The shared controller checks on account start, app resume, reconnect, live hints and the active check interval. It deduplicates work and cancels requests for a prior account. Normal checks transfer a cursor, current access and small metadata; unchanged bodies use conditional requests.
 
+Stream reconnects do not postpone the active fallback check. An unchanged cursor skips the change-log scan. Each stream poll still checks the current session.
+
 It validates response identity, removes revoked resources, persists invalidations and reconciles affected course manifests before advancing its cursor. A missing, future or expired cursor requests a full authorized manifest. Duplicate events and late requests cannot lower a stored version. Failed downloads retain the previous complete package and leave the update pending.
+
+Routine checks use the authorized manifest to refresh verification timestamps and leases for complete, current readings with matching revisions. Per-reading requests still recover changed, incomplete, invalidated, stale or expired packages and revalidate saved readings after a cursor reset.
+
+Expired course outlines and video catalogs are checked even when the manifest is still fresh. An authenticated 304 rebuilds the library entries from the stored body under the current course lease and chapter scope. Cached images whose previous lease does not cover the renewed catalog are omitted until a body and its assets are fetched again.
 
 Article/Diktat packages include admitted images. The client downloads a candidate, checks required assets, account generation and space limits, then replaces the active package. The asset proxy admits only an exact URL belonging to the current resource and never forwards private cookies to public thumbnail hosts. Required asset failure prevents replacement.
 

@@ -35,6 +35,7 @@ export function OfflineSyncRuntime() {
     let stream: EventSource | undefined;
     let streamTimer: ReturnType<typeof setTimeout> | undefined;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let checkInterval: number | undefined;
     let debounce: ReturnType<typeof setTimeout> | undefined;
     let streamFailures = 0;
     let streamScope = "";
@@ -42,30 +43,44 @@ export function OfflineSyncRuntime() {
     const sync = () => {
       if (!active()) return;
       clearTimeout(debounce);
-      debounce = setTimeout(() => { void controller.sync().catch(() => {}).then(schedule); }, 300);
+      debounce = setTimeout(() => {
+        void controller.sync().catch(() => {}).then(refreshSchedules).catch(() => {});
+      }, 300);
     };
-    const schedule = async () => {
+    const refreshSchedules = async () => {
       if (disposed) return;
       const snapshot = await controller.snapshot();
-      clearTimeout(timer);
-      // Lightweight cursor checks remain the recovery path when SSE is blocked.
-      timer = setTimeout(sync, snapshot.policy.activeCheckIntervalMs + Math.floor(Math.random() * 3000));
+      if (disposed) return;
+      const interval = snapshot.policy.activeCheckIntervalMs;
+      if (timer === undefined || checkInterval !== interval) {
+        clearTimeout(timer);
+        checkInterval = interval;
+        // Hints and reconnects do not postpone the next fallback check.
+        timer = setTimeout(() => { timer = undefined; sync(); }, interval + Math.floor(Math.random() * 3000));
+      }
+      refreshStream(snapshot);
+    };
+    const refreshStream = (snapshot: Awaited<ReturnType<typeof controller.snapshot>>) => {
+      if (!active() || typeof EventSource === "undefined") return;
       const courseIds = [...new Set([...snapshot.courses.map(course => course.id), ...Object.keys(snapshot.manifests)])].sort();
       const nextScope = JSON.stringify(courseIds);
       if (stream && nextScope !== streamScope) { stream.close(); stream = undefined; }
-      if (active() && !stream && !streamTimer && streamFailures < 3) { streamScope = nextScope; connectStream(snapshot.syncCursor, courseIds); }
-    };
-    const connectStream = (cursor: string, courseIds: string[]) => {
-      if (!active() || typeof EventSource === "undefined") return;
-      const params = new URLSearchParams({ cursor, locale });
+      if (stream || streamTimer !== undefined || streamFailures >= 3) return;
+      const params = new URLSearchParams({ cursor: snapshot.syncCursor, locale });
       for (const id of courseIds.slice(0, 100)) params.append("courseId", id);
-      stream = new EventSource(`/api/offline/stream?${params}`, { withCredentials: true });
-      stream.addEventListener("hint", sync);
-      stream.onopen = () => { streamFailures = 0; };
-      stream.onerror = () => {
-        stream?.close(); stream = undefined; streamFailures += 1;
-        clearTimeout(streamTimer);
-        streamTimer = setTimeout(() => { streamTimer = undefined; void schedule(); }, Math.min(60_000, 2000 * 2 ** streamFailures));
+      const connection = new EventSource(`/api/offline/stream?${params}`, { withCredentials: true });
+      stream = connection;
+      streamScope = nextScope;
+      connection.addEventListener("hint", sync);
+      connection.onopen = () => { if (stream === connection) streamFailures = 0; };
+      connection.onerror = () => {
+        if (stream !== connection) return;
+        connection.close(); stream = undefined; streamFailures += 1;
+        if (streamFailures >= 3) return;
+        streamTimer = setTimeout(() => {
+          streamTimer = undefined;
+          void controller.snapshot().then(refreshStream).catch(() => {});
+        }, Math.min(60_000, 2000 * 2 ** streamFailures));
       };
     };
     const visibility = () => {

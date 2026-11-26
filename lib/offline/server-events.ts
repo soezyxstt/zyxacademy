@@ -54,11 +54,14 @@ export async function writeOfflinePolicy(actorId: string, expectedRevision: numb
 export async function readOfflineChanges(accountId: string, courseIds: string[], cursor: string | null, limit = 200): Promise<{ cursor: string; reset: boolean; hasMore: boolean; changes: OfflineChange[] }> {
   return db.transaction(async tx => {
     const head = await currentOfflineCursor(tx);
+    if (cursor === head) return { cursor: head, reset: false, hasMore: false, changes: [] };
+    const after = cursor === null ? null : BigInt(cursor);
+    const through = BigInt(head);
+    if (after === null || after > through) return { cursor: head, reset: true, hasMore: false, changes: [] };
     const [first] = await tx.select({ cursor: offlineContentChanges.cursor }).from(offlineContentChanges).orderBy(asc(offlineContentChanges.cursor)).limit(1);
-    const after = cursor === null ? 0n : BigInt(cursor);
-    const reset = cursor === null || after > BigInt(head) || (first ? after < first.cursor - 1n : after < BigInt(head));
+    const reset = first ? after < first.cursor - 1n : after < through;
     if (reset) return { cursor: head, reset: true, hasMore: false, changes: [] };
-    const rows = await tx.select().from(offlineContentChanges).where(and(gt(offlineContentChanges.cursor, after), lte(offlineContentChanges.cursor, BigInt(head)))).orderBy(asc(offlineContentChanges.cursor)).limit(limit + 1);
+    const rows = await tx.select().from(offlineContentChanges).where(and(gt(offlineContentChanges.cursor, after), lte(offlineContentChanges.cursor, through))).orderBy(asc(offlineContentChanges.cursor)).limit(limit + 1);
     const page = rows.slice(0, limit);
     const scopes = new Set(courseIds);
     const visible = page.filter(row => row.userId === accountId || (row.userId === null && (row.courseId === null || scopes.has(row.courseId))));

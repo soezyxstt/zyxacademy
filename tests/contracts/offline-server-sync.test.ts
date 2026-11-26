@@ -1,5 +1,6 @@
-import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterAll, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 import { eq, sql } from "drizzle-orm";
+import { PgDatabase } from "drizzle-orm/pg-core";
 import { createPostgresTestDb } from "../helpers/postgres";
 import * as schema from "@/db/schema";
 import { DEFAULT_OFFLINE_POLICY, OFFLINE_HEADERS, offlinePolicySettingsSchema } from "@/lib/offline/sync-contract";
@@ -78,6 +79,19 @@ async function actor() { return requireOfflineActor(request(), "id"); }
 const asEventTx = (tx: Parameters<Parameters<typeof db.transaction>[0]>[0]) => tx as unknown as OfflineTransaction;
 
 describe("offline committed change log", () => {
+  it("reads only the head for a matching cursor, including an empty log", async () => {
+    for (const cursor of ["0", "1"]) {
+      if (cursor === "1") await db.transaction(tx => events.recordOfflineChange(asEventTx(tx), { kind: "course", action: "invalidate" }));
+      const select = spyOn(PgDatabase.prototype, "select");
+      try {
+        expect(await events.readOfflineChanges("offline-user", [], cursor)).toEqual({ cursor, reset: false, hasMore: false, changes: [] });
+        expect(select).toHaveBeenCalledTimes(1);
+      } finally {
+        select.mockRestore();
+      }
+    }
+  });
+
   it("rolls back mutation, cursor and invalidation together, then allocates monotonic committed cursors", async () => {
     await expect(db.transaction(async tx => {
       await tx.update(schema.artikel).set({ title: "Rollback" }).where(eq(schema.artikel.id, "offline-article"));
