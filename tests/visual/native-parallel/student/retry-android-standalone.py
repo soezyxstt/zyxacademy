@@ -77,7 +77,9 @@ def retry(maestro, device, directory, flow_paths, initial_status=1):
             expected_files = {name: files[name] for name in observed}
             if validate_flows(observed, flows) != expected_files:
                 observed = {}
-            batch_ok = observed.keys() == set(names) and (code == 0 or credible_failure(observed))
+            consistent = (all(test.get('status') == 'SUCCESS' and failure_message(test) is None for test in observed.values())
+                          if code == 0 else credible_failure(observed))
+            batch_ok = observed.keys() == set(names) and consistent
             batch.update(status='complete' if batch_ok else 'incomplete', exitCode=code)
         else:
             observed = {}
@@ -101,8 +103,17 @@ def retry(maestro, device, directory, flow_paths, initial_status=1):
 
 
 def run_initial(maestro, device, directory, paths):
+    reserved = ('report.xml', 'results', 'logs', 'standalone-retry', ATTEMPTS_FILE, f'{ATTEMPTS_FILE}.tmp')
+    if any((directory / name).exists() or (directory / name).is_symlink() for name in reserved):
+        print(f'Android standalone evidence already exists in {directory}. Use a fresh output directory.', file=sys.stderr)
+        return 1
     # Fail closed if the reporter exits or is interrupted before validation.
-    write_index(directory, {'version': 1, 'initialReport': 'report.xml', 'initialComplete': False, 'cases': {}, 'batches': []})
+    try:
+        with (directory / ATTEMPTS_FILE).open('x') as index:
+            json.dump({'version': 1, 'initialReport': 'report.xml', 'initialComplete': False, 'cases': {}, 'batches': []}, index)
+    except FileExistsError:
+        print(f'Android standalone evidence already exists in {directory}. Use a fresh output directory.', file=sys.stderr)
+        return 1
     code = run_maestro(maestro, device, paths, directory)
     return retry(maestro, device, directory, paths, code)
 

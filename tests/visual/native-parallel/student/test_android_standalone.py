@@ -93,7 +93,8 @@ class AndroidStandaloneTest(unittest.TestCase):
 
     def test_incomplete_retry_never_promotes_an_observed_success(self):
         tests = [('retryable', self.flows[0].name, None), ('assertion', self.flows[1].name, None)]
-        for returned, code in ((tests[:1], 0), (tests, 1)):
+        contradictory = [tests[0], ('assertion', self.flows[1].name, 'Assertion is false: Mulai kuis')]
+        for returned, code in ((tests[:1], 0), (tests, 1), (contradictory, 0)):
             with self.subTest(reported=len(returned), code=code):
                 write_report(self.root, [(name, file, self.transport) for name, file, _ in tests])
                 status, run, provenance = self.run_retry(returned, exit_code=code)
@@ -107,10 +108,12 @@ class AndroidStandaloneTest(unittest.TestCase):
 
     def test_zero_exit_always_writes_or_invalidates_initial_attempt_index(self):
         tests = [('retryable', self.flows[0].name, None), ('assertion', self.flows[1].name, None)]
-        for reported, expected in ((tests, 0), (tests[:1], 1), (tests + tests[:1], 1), (None, 1)):
+        for number, (reported, expected) in enumerate(((tests, 0), (tests[:1], 1), (tests + tests[:1], 1), (None, 1))):
             with self.subTest(reported=reported):
-                report = self.root / 'report.xml'
-                report.unlink(missing_ok=True)
+                output = self.root / str(number)
+                output.mkdir()
+                (output / 'smoke').mkdir()
+                (output / 'smoke/generated-manifest.json').write_text('{}')
 
                 def initial(maestro, device, paths, directory):
                     self.assertIsNone(StandaloneEvidence(directory).folder('retryable'))
@@ -120,15 +123,29 @@ class AndroidStandaloneTest(unittest.TestCase):
 
                 run = Mock(side_effect=initial)
                 with patch.dict(self.run_initial.__globals__, {'run_maestro': run}):
-                    code = self.run_initial('maestro', 'device', self.root, self.flows)
+                    code = self.run_initial('maestro', 'device', output, self.flows)
                 self.assertEqual(code, expected)
                 run.assert_called_once()
-                evidence = StandaloneEvidence(self.root)
+                evidence = StandaloneEvidence(output)
                 if expected:
                     self.assertIsNone(evidence.folder('retryable'))
                     self.assertNotEqual(evidence.status('retryable'), 'SUCCESS')
                 else:
                     self.assertEqual(evidence.status('retryable'), 'SUCCESS')
+
+    def test_existing_initial_evidence_is_preserved_and_cannot_be_reused(self):
+        for number, name in enumerate(('report.xml', 'results/run/old.png', 'logs/old.txt', 'standalone-retry/001/report.xml', ATTEMPTS_FILE)):
+            with self.subTest(name=name):
+                output = self.root / str(number)
+                artifact = output / name
+                artifact.parent.mkdir(parents=True)
+                artifact.write_bytes(b'previous evidence')
+                run = Mock(return_value=0)
+                with patch.dict(self.run_initial.__globals__, {'run_maestro': run}):
+                    self.assertEqual(self.run_initial('maestro', 'device', output, self.flows), 1)
+                run.assert_not_called()
+                self.assertEqual(artifact.read_bytes(), b'previous evidence')
+                self.assertEqual([file for file in output.rglob('*') if file.is_file()], [artifact])
 
     def test_duplicate_initial_cannot_trigger_retry(self):
         write_report(self.root, [('retryable', self.flows[0].name, self.transport)] * 2)
