@@ -6,3 +6,8 @@ name: Academic navigation, permissions and recovery
 - runFlow: ../native-parallel/academic/tutor-retry.yaml
 - runFlow: ../native-parallel/academic/courses.yaml
 - runFlow: ../native-parallel/academic/courses-states.yaml
+- runFlow: ../native-parallel/academic/assessment-quiz.yaml
+- runFlow: ../native-parallel/academic/assessment-grading-retry.yaml
+- runFlow: ../native-parallel/academic/assessment-tryout.yaml
+- runFlow: ../native-parallel/academic/administration-bundle.yaml
+- runFlow: ../native-parallel/academic/administration-conflict.yaml

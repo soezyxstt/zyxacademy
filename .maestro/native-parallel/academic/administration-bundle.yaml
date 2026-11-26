@@ -1,0 +1,29 @@
+appId: com.zyx.academy.nativeparity
+name: Admin Product Bundle alias and section review
+---
+- launchApp
+- openLink: zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fmaterials%2Freview%2Fproduct%2Facademic-product-1&theme=light
+- extendedWaitUntil:
+    visible: Sel dan organel
+    timeout: 20000
+- takeScreenshot: academic-administration-materials-product-populated-light
+- tapOn:
+    id: academic-product-filter-article
+- tapOn:
+    id: academic-review-item-academic-product-1-1
+- scrollUntilVisible:
+    element:
+      id: academic-review-item-approve
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: academic-review-item-approve
+- scrollUntilVisible:
+    element:
+      id: academic-admin-saved
+    direction: UP
+    timeout: 10000
+- assertVisible: Review bagian disimpan.
+- openLink: zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fcourses%2Fbiologi-dasar%2Freview%2Fproduct%2Facademic-product-1&scenario=empty&theme=light
+- assertVisible: Belum ada bundle yang ditinjau.
+- takeScreenshot: academic-administration-materials-product-empty-light

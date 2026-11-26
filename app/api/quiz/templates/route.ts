@@ -14,6 +14,7 @@ import {
   quizTemplates,
   user,
 } from '@/db/schema';
+import { ensureLegacyIdentity } from "@/lib/auth/legacy-identity";
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { and, eq, desc, inArray, or } from 'drizzle-orm';
@@ -26,9 +27,14 @@ import { createAssessmentWithLegacyProjection } from '@/lib/asesmen/quiz-canonic
 import { listTutorAccessibleCourses, resolveTutorCourseAccess } from '@/lib/auth/tutor-access';
 import {
   TUTOR_CAPABILITY_ERRORS,
+  parseSelectionRulesInput,
   resolveActorRoles,
   recordTutorMutationAuditSafe,
 } from '@/lib/tutor/assessment-policy';
+import {
+  lockQuizCreateScope, nativeQuizAuditRequestId, nativeQuizTemplateId, nativeQuizWriteKey,
+  QuizTemplateWriteError, quizTemplateReceipt, validateNativeQuizSelection,
+} from "@/lib/asesmen/quiz-template-write";
 import { recordTutorMutationAudit } from '@/lib/audit/mutasi';
 
 const CreateTemplateSchema = z.object({
@@ -76,6 +82,15 @@ export async function POST(req: NextRequest) {
   if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  let nativeKey: string | null;
+  try {
+    nativeKey = nativeQuizWriteKey(req);
+  } catch (error) {
+    if (error instanceof QuizTemplateWriteError) return NextResponse.json({ error: error.code }, { status: error.status });
+    throw error;
+  }
+  if (nativeKey) await ensureLegacyIdentity(session.user.id);
 
   const { roles, isTutor, isAdmin } = await resolveActorRoles(
     session.user.id,
@@ -237,71 +252,36 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: timingMismatch }, { status: 400 });
   }
 
-  // Uniqueness check for tags per course
-  const tags = (selectionRules.tags as string[] | undefined) || [];
-  if (tags.length > 0) {
-    const [canonicalCourse] = await db
-      .select({ id: mataKuliah.id, legacyCourseId: mataKuliah.legacyCourseId })
-      .from(mataKuliah)
-      .where(or(eq(mataKuliah.id, courseId), eq(mataKuliah.legacyCourseId, courseId)))
-      .limit(1);
-
-    const candidateCourseIds = [courseId];
-    if (canonicalCourse?.id && !candidateCourseIds.includes(canonicalCourse.id)) {
-      candidateCourseIds.push(canonicalCourse.id);
-    }
-    if (canonicalCourse?.legacyCourseId && !candidateCourseIds.includes(canonicalCourse.legacyCourseId)) {
-      candidateCourseIds.push(canonicalCourse.legacyCourseId);
-    }
-    if (access.courseId && !candidateCourseIds.includes(access.courseId)) {
-      candidateCourseIds.push(access.courseId);
-    }
-    if (access.legacyCourseId && !candidateCourseIds.includes(access.legacyCourseId)) {
-      candidateCourseIds.push(access.legacyCourseId);
-    }
-
-    const existingTemplates = await db
-      .select()
-      .from(quizTemplates)
-      .where(inArray(quizTemplates.courseId, candidateCourseIds));
-
-    const hasDuplicateTags = existingTemplates.some((t) => {
-      const tRules = (typeof t.selectionRules === "string"
-        ? JSON.parse(t.selectionRules)
-        : t.selectionRules) as Record<string, any>;
-      const tTags = tRules?.tags as string[] | undefined;
-      if (!tTags) return false;
-      return tags.some((tag) => tTags.includes(tag));
-    });
-
-    if (hasDuplicateTags) {
-      const reason = 'Kuis dengan tag bab ini sudah ada di kelas ini.';
-      await recordTutorMutationAuditSafe({
-        actorId: session.user.id,
-        actorRoles: roles,
-        courseId: access.courseId ?? courseId,
-        entityType: "quiz_template",
-        entityId: "new",
-        entityVersion: 1,
-        action: "quiz:create",
-        outcome: "rejected",
-        reason,
-      });
-      return NextResponse.json(
-        { error: reason },
-        { status: 409 },
-      );
-    }
-  }
-
-  const id = randomUUID();
+  const targetCourse = access.courseId ?? courseId;
+  const candidateCourseIds = [...new Set([courseId, targetCourse, access.legacyCourseId].filter((id): id is string => Boolean(id)))];
+  const tags = selectionRules.tags ?? [];
+  const id = nativeKey ? nativeQuizTemplateId(session.user.id, targetCourse, nativeKey) : randomUUID();
   const derivedShowDiscussion = showDiscussion !== undefined
     ? showDiscussion
     : selectionRules.explanationRelease !== 'never';
 
-  const requestId = `req-${randomUUID()}`;
+  const requestId = nativeKey ? nativeQuizAuditRequestId(session.user.id, `POST:/quiz/templates:${targetCourse}`, nativeKey) : `req-${randomUUID()}`;
+  const audit = {
+    actorId: session.user.id, actorRoles: roles, courseId: targetCourse, entityType: "quiz_template", entityId: id,
+    entityVersion: 1, requestId, action: "quiz:create", outcome: "success", reason: "Quiz template created via API",
+  } as const;
+  let replayed = false;
   try {
-    await db.transaction(async (tx) => {
+    replayed = await db.transaction(async (tx) => {
+      await lockQuizCreateScope(tx, targetCourse);
+      const receipt = nativeKey ? await quizTemplateReceipt(tx, audit, parsed.data) : undefined;
+      if (receipt?.replayed) return true;
+      if (nativeKey) await validateNativeQuizSelection(tx, candidateCourseIds, selectionRules);
+
+      if (tags.length) {
+        const existing = await tx.select({ rules: quizTemplates.selectionRules })
+          .from(quizTemplates).where(inArray(quizTemplates.courseId, candidateCourseIds));
+        const duplicate = existing.some(({ rules }) => {
+          const existingTags = parseSelectionRulesInput(rules).tags;
+          return Array.isArray(existingTags) && tags.some((tag) => existingTags.includes(tag));
+        });
+        if (duplicate) throw new QuizTemplateWriteError(409, "QUIZ_TAG_CONFLICT");
+      }
       await createAssessmentWithLegacyProjection({
         id,
         courseId,
@@ -320,24 +300,19 @@ export async function POST(req: NextRequest) {
       }, tx);
 
       await recordTutorMutationAudit({
-        actorId: session.user.id,
-        actorRoles: roles,
-        courseId: access.courseId ?? courseId,
-        entityType: "quiz_template",
-        entityId: id,
-        entityVersion: 1,
-        requestId,
-        action: "quiz:create",
-        outcome: "success",
-        reason: "Quiz template created via API",
-        after: {
-          title,
-          category,
-          status,
-        },
+        ...audit,
+        after: { title, category, status, ...(receipt ? { requestDigest: receipt.requestDigest } : {}) },
       }, tx);
+      return false;
     });
   } catch (err: any) {
+    if (err instanceof QuizTemplateWriteError) {
+      await recordTutorMutationAuditSafe({
+        ...audit, outcome: "rejected", reason: err.code,
+      });
+      const message = err.code === "QUIZ_TAG_CONFLICT" && !nativeKey ? "Kuis dengan tag bab ini sudah ada di kelas ini." : err.code;
+      return NextResponse.json({ error: message }, { status: err.status });
+    }
     await recordTutorMutationAuditSafe({
       actorId: session.user.id,
       actorRoles: roles,
@@ -353,7 +328,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to create quiz template' }, { status: 500 });
   }
 
-  if (status === 'published') {
+  if (status === 'published' && !replayed) {
     await notifyQuizPublishedBestEffort({
       templateId: id,
       quizTitle: title,
@@ -362,7 +337,7 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  return NextResponse.json({ templateId: id }, { status: 201 });
+  return NextResponse.json({ templateId: id, ...(nativeKey ? { requestId: nativeKey } : {}) }, { status: 201 });
 }
 
 export async function GET(req: NextRequest) {

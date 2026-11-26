@@ -57,3 +57,15 @@ test("native academic reads and legacy Diktat PDF keep signed-in UI authorizatio
   expect(pdf.actions).toEqual(["GET", "POST"]);
   expect(pdf.tools).toEqual([]);
 });
+
+test("native academic transports use interactive sessions", () => {
+  for (const source of [
+    "app/api/native/academic/[...resource]/route.ts",
+    "app/api/native/academic/tutor-support/[...resource]/route.ts",
+    "app/api/native/academic-assessment/[...resource]/route.ts",
+  ]) {
+    const entry = operationsCatalog.find(item => item.source === source);
+    expect(entry?.status).toBe("excluded");
+    expect(entry?.tools).toEqual([]);
+  }
+});

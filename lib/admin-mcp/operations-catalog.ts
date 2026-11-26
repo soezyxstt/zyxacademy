@@ -1,6 +1,27 @@
 /** Source-level coverage index. Tool registration is authoritative; partial does not imply every action is exposed. */
 export const operationsCatalog = [
   {
+    "source": "app/api/native/academic/[...resource]/route.ts",
+    "actions": ["GET", "PATCH"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Mobile course and roster reads use the signed-in role and assigned course. The course settings edit delegates to the canonical admin projection with a session-scoped retry receipt. MCP course tools keep their existing authorization and input schema."
+  },
+  {
+    "source": "app/api/native/academic/tutor-support/[...resource]/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Schedule, live class, materials and discussions use the current Tutor assignment. Replies reuse the signed-in discussion service and its scoped replay identity. MCP tokens cannot substitute for the learner-platform session."
+  },
+  {
+    "source": "app/api/native/academic-assessment/[...resource]/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Interactive assessment reads and manual grading require the signed-in academic role, disclosure checks and course scope. Admin authoring tools continue to use their registered scopes, consent and service contracts."
+  },
+  {
     "source": "app/api/native/academic-administration/[...resource]/route.ts",
     "actions": ["GET", "PATCH"],
     "tools": [],

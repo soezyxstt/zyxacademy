@@ -84,3 +84,64 @@ test("legacy single-choice tryout snapshots retain correctIndex when the array i
   assert.deepEqual(tryoutCorrectIndices("multiple_choices", { correctIndex: 0, correctIndices: [1, 2, "3"] }), [1, 2]);
   assert.deepEqual(tryoutCorrectIndices("short_answer", { correctIndex: 0, correctIndices: [1] }), []);
 });
+
+test("native grading command validates origin, session, Tutor role and path-scoped input", async () => {
+  const { handleGradeCommand } = await import("../../../../lib/native/academic/assessment/handle-grade-command");
+  const origin = "https://example.test";
+  const requestId = "grade-retry-12345678";
+  const path = ["tutor", "course-id", "grading", "attempt-id"];
+  const items = [{ questionId: "essay", score: 80, expectedRevision: 2, reviewNotes: "Catatan" }];
+  const valid = () => ({ items, finalize: true });
+  const request = (body: unknown = valid(), requestOrigin = origin) =>
+    new Request(`${origin}/api/native/academic-assessment/${path.join("/")}`, {
+      method: "POST", headers: {
+        "Content-Type": "application/json", Origin: requestOrigin, "Idempotency-Key": requestId,
+      },
+      body: JSON.stringify(body),
+    });
+  let called = 0;
+  const allowed = {
+    session: async () => ({ user: { id: "session-user" } }),
+    isTutor: async (id: string) => id === "session-user",
+    grade: async (input: unknown, options: unknown) => {
+      called += 1;
+      assert.deepEqual(input, { courseId: "course-id", attemptId: "attempt-id", items });
+      assert.deepEqual(options, { requestId, requireAllEssays: true });
+      return { gradingStatus: "graded" as const };
+    },
+  };
+
+  assert.equal((await handleGradeCommand(request(valid(), "https://other.test"), path, origin, allowed)).status, 403);
+  assert.equal((await handleGradeCommand(request(), path, origin, { ...allowed, isTutor: async () => false })).status, 403);
+  assert.equal((await handleGradeCommand(request(), path, origin, { ...allowed, session: async () => null })).status, 401);
+  assert.equal((await handleGradeCommand(request({ ...valid(), actorId: "spoofed" }), path, origin, allowed)).status, 400);
+  assert.equal(called, 0);
+  const result = await handleGradeCommand(request(), path, origin, allowed);
+  assert.equal(result.status, 200);
+  assert.equal(result.headers.get("cache-control"), "private, no-store");
+  assert.deepEqual(await result.json(), { requestId, attemptId: "attempt-id", gradingStatus: "graded" });
+  assert.equal(called, 1);
+});
+
+test("native grading client preserves request id and does not accept an unrelated receipt", async () => {
+  const calls: unknown[] = [];
+  const requestId = "grade-retry-12345678";
+  const gateway = createAssessmentReadGateway({
+    accountId: "session-user", origin: "https://example.test", locale: "id",
+    get: async () => Response.json(null, { status: 404 }),
+    command: async (path, init) => {
+      calls.push({ path, init });
+      const id = calls.length === 1 ? "different-request" : requestId;
+      return Response.json({ requestId: id, attemptId: "attempt", gradingStatus: "graded" });
+    },
+  });
+  const context = { actor: { id: "session-user", role: "tutor" }, scenario: "populated", scope: { kind: "tutor", courseId: "course" } } as const;
+  const command = { kind: "grading.save", attemptId: "attempt", items: [{ questionId: "essay", expectedRevision: 1, score: 70, reviewNotes: null }], finalize: true } as const;
+  const data = { ...command, items: [...command.items] };
+  assert.equal(gateway.canGrade, true);
+  assert.equal(gateway.canMutate, false);
+  assert.equal((await gateway.mutate(context, requestId, data)).ok, false);
+  assert.equal((await gateway.mutate(context, requestId, data)).ok, true);
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls[0], calls[1]);
+});

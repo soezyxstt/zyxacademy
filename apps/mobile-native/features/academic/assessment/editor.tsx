@@ -77,6 +77,9 @@ export function QuizEditor({ initialValue, role, bank, courseControl, isSaving, 
     else onCancel();
   }
 
+  const existingIds = initialValue.selection.mode === "specific" ? initialValue.selection.questionIds : [];
+  const disabledIds = bank.flatMap((question) => question.quizSelectable === false && !existingIds.includes(question.id) ? [question.id] : []);
+
   return (
     <View style={layout.group}>
       <Tabs<(typeof tabs)[number]["id"]> options={tabs} selected={activeTab} onSelect={setTab} testID="academic-quiz-editor-tab" />
@@ -121,7 +124,7 @@ export function QuizEditor({ initialValue, role, bank, courseControl, isSaving, 
           ) : null}
           {input.selection.mode === "specific" ? (
             <QuestionPicker
-              bank={bank} ids={input.selection.questionIds}
+              bank={bank} ids={input.selection.questionIds} disabledIds={disabledIds}
               change={(questionIds) => update("selection", { mode: "specific", questionIds })}
               timers={role === "admin" && input.settings.perQuestionTimerEnabled ? input.settings.perQuestionTimers : undefined}
               setTimer={(id, seconds) => {

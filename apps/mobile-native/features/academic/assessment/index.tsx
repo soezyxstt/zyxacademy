@@ -40,7 +40,7 @@ export function AssessmentScreen(props: AssessmentScreenProps) {
     else if (leaf === "grading" && !admin) screen = <QuizGrading {...shared} />;
     else if (leaf === "quizzes" || leaf === "new" || leaf === "edit") {
       const mode = leaf === "quizzes" ? "list" : leaf;
-      screen = gateway.canMutate || mode === "list" ? <Quizzes {...shared} mode={mode} />
+      screen = gateway.canSaveQuiz || mode === "list" ? <Quizzes {...shared} mode={mode} />
         : <AssessmentPage title="Penyuntingan kuis" back={() => props.replace(`${base}/quizzes`)} backLabel="Kembali ke kuis">
           <AssessmentNotice message="Penyuntingan kuis tersedia di web." />
         </AssessmentPage>;

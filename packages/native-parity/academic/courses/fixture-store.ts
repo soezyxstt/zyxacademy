@@ -29,7 +29,7 @@ export function createAdminCourseFixtureStore(scenario: CourseFixtureScenario) {
   let serial = 0;
   let interrupted = scenario === "error";
   const listeners = new Set<() => void>();
-  const receipts = new Map<string, Pick<CourseMutation, "operation" | "slug" | "revision">>();
+  const receipts = new Map<string, Pick<CourseMutation, "operation" | "slug" | "revision" | "apply">>();
 
   return {
     nextId: () => `local-course-${++serial}`,
@@ -42,7 +42,7 @@ export function createAdminCourseFixtureStore(scenario: CourseFixtureScenario) {
       if (command.role !== "admin") return { status: "denied" };
       const receipt = receipts.get(command.requestId);
       if (receipt) {
-        const sameRequest = receipt.slug === command.slug && receipt.operation === command.operation && receipt.revision === command.revision;
+        const sameRequest = receipt.slug === command.slug && receipt.operation === command.operation && receipt.revision === command.revision && receipt.apply === command.apply;
         return sameRequest ? { status: "saved" } : { status: "validation", message: "Identitas penyimpanan sudah digunakan." };
       }
 
@@ -78,7 +78,7 @@ export function createAdminCourseFixtureStore(scenario: CourseFixtureScenario) {
         courses = courses.filter((entry) => entry !== current);
       }
       const result = { status: "saved" } as const;
-      receipts.set(command.requestId, { operation: command.operation, slug: command.slug, revision: command.revision });
+      receipts.set(command.requestId, { operation: command.operation, slug: command.slug, revision: command.revision, apply: command.apply });
       listeners.forEach((listener) => listener());
       return result;
     },

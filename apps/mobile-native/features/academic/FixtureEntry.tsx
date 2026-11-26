@@ -32,7 +32,12 @@ function FixtureSession({ initialPath, actor, scenario, theme, onExit }: Fixture
   const navigate = useCallback((href: string) => setStack(current =>
     current[current.length - 1] === href ? current : [...current, href]), []);
   const replace = useCallback((href: string) => setStack(current =>
-    current[current.length - 1] === href ? current : [...current.slice(0, -1), href]), []);
+    {
+      if (current[current.length - 1] === href) return current;
+      const previous = current.at(-2);
+      if (previous && previous.split("?")[0] === href.split("?")[0]) return [...current.slice(0, -2), href];
+      return [...current.slice(0, -1), href];
+    }), []);
   const back = useCallback(() => {
     if (stack.length > 1) setStack(current => current.slice(0, -1));
     else onExit();

@@ -258,7 +258,7 @@ export type NativeListRowProps<Id extends string = string> = SharedUiActionGroup
   subtitle?: string;
   leading?: ReactNode;
   metadata?: readonly { id: string; label: string; value: string }[];
-  primary?: { onPress: () => void; label?: string; role?: "button" | "link"; disabled?: boolean };
+  primary?: { onPress: () => void; label?: string; role?: "button" | "link"; disabled?: boolean; testID?: string };
   theme?: SharedUiTheme;
 };
 
@@ -298,6 +298,7 @@ export function NativeListRow<Id extends string>({
           onBlur={() => setFocused(false)}
           onFocus={() => setFocused(true)}
           onPress={primary.onPress}
+          testID={primary.testID}
           style={({ pressed }) => [
             styles.identity,
             styles.rowPress,

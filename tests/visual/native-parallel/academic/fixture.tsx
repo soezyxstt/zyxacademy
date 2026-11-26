@@ -189,10 +189,10 @@ function tryouts() {
     initialQuestions={tryouts.flatMap((exam) => exam.questions.map((question) => ({
       ...question, examId: exam.id, content: { ...question, correctIndex: question.correctIndices[0] },
     })))}
-    questionBank={empty ? [] : assessment.bank.map((question) => ({
+    questionBank={empty ? [] : assessment.bank.flatMap((question) => question.origin === "historical_reference" ? [] : [{
       id: question.id, prompt: question.prompt, questionType: question.type,
       difficulty: question.difficulty, origin: question.origin, sourceEventName: question.sourceEventName ?? null,
-    }))}
+    }])}
   />;
 }
 

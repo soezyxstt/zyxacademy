@@ -544,6 +544,68 @@ describe("Tutor Quiz Manual Grading Contracts", () => {
    * 4. CAS Concurrency Guard
    * ──────────────────────────────────────────────────────────────────────── */
   describe("Optimistic Concurrency Protection (CAS)", () => {
+    it("replays a native grading receipt and rejects another payload or stale revision", async () => {
+      const now = new Date();
+      const attemptId = "att-native-grade-replay";
+      await testDb.insert(schema.studentQuizAttempts).values({
+        id: attemptId, studentId: "usr-student", templateId: "tpl-calc-free-response",
+        status: "completed", gradingStatus: "pending", score: null,
+        questionsSnapshot: [
+          { id: "q-es-1", question_type: "essay", prompt: "Esai pertama" },
+          { id: "q-es-2", question_type: "essay", prompt: "Esai kedua" },
+        ],
+        answersSnapshot: { "q-es-1": "Jawaban pertama", "q-es-2": "Jawaban kedua" },
+        startedAt: now, submittedAt: now,
+      });
+      mockSession = { user: { id: "usr-tutor-assigned", role: "teacher" } };
+      const input = {
+        courseId: "mk-calc", attemptId,
+        items: [{ questionId: "q-es-1", score: 85, reviewNotes: "Tepat", expectedRevision: 0 }],
+      };
+      const request = { requestId: "native-assessment-test-retry", requireAllEssays: false };
+      await expect(gradeQuizAttemptAction(input, { ...request, requireAllEssays: true }))
+        .rejects.toThrow(TUTOR_QUIZ_GRADING_ERRORS.ESSAY_REVIEW_REQUIRED);
+
+      const first = await gradeQuizAttemptAction(input, request);
+      expect(first.gradingStatus).toBe("pending");
+      const replay = await gradeQuizAttemptAction(input, request);
+      expect(replay).toEqual({ ...first, replayed: true });
+
+      await expect(gradeQuizAttemptAction({
+        ...input, items: [{ ...input.items[0], score: 60 }],
+      }, request)).rejects.toThrow(TUTOR_QUIZ_GRADING_ERRORS.REQUEST_CONFLICT);
+      await expect(gradeQuizAttemptAction(input, { ...request, requestId: "native-assessment-stale" }))
+        .rejects.toThrow(TUTOR_QUIZ_GRADING_ERRORS.CAS_CONFLICT);
+
+      const final = await gradeQuizAttemptAction({
+        ...input, items: [{ questionId: "q-es-2", score: 95, expectedRevision: 0 }],
+      }, { requestId: "native-assessment-final", requireAllEssays: true });
+      expect(final.gradingStatus).toBe("graded");
+      expect(final.score).toBe(90);
+      expect(await gradeQuizAttemptAction(input, request)).toEqual({ ...first, replayed: true });
+
+      const detail = await getQuizAttemptDetailsForGrading("mk-calc", attemptId, "usr-tutor-assigned");
+      expect(detail?.questions.map((row) => row.reviewRevision)).toEqual([1, 1]);
+      const receipts = await testDb.select().from(schema.auditMutasi).where(eq(schema.auditMutasi.entityId, attemptId));
+      expect(receipts).toHaveLength(2);
+
+      const otherAttempt = "att-native-different-resource";
+      await testDb.insert(schema.studentQuizAttempts).values({
+        id: otherAttempt, studentId: "usr-student", templateId: "tpl-calc-free-response",
+        status: "completed", gradingStatus: "pending", score: null,
+        questionsSnapshot: [{ id: "q-es-1", question_type: "essay", prompt: "Esai" }],
+        answersSnapshot: { "q-es-1": "Jawaban" }, startedAt: now, submittedAt: now,
+      });
+      const other = await gradeQuizAttemptAction({ ...input, attemptId: otherAttempt }, request);
+      expect(other.attemptId).toBe(otherAttempt);
+      expect(other.replayed).toBeUndefined();
+      expect(await gradeQuizAttemptAction(input, request)).toEqual({ ...first, replayed: true });
+
+      await testDb.update(schema.penugasanTutor).set({ status: "revoked" }).where(eq(schema.penugasanTutor.id, "pt-calc"));
+      await expect(gradeQuizAttemptAction(input, request)).rejects.toThrow("TUTOR_ACCESS_DENIED");
+      expect(await testDb.select().from(schema.auditMutasi).where(eq(schema.auditMutasi.entityId, attemptId))).toHaveLength(2);
+    });
+
     it("rejects grading when expected revision mismatches current review revision", async () => {
       const now = new Date();
       await testDb.insert(schema.studentQuizAttempts).values({

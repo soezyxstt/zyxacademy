@@ -22,6 +22,8 @@ name: Tutor assigned course, participant and tryout review
 - takeScreenshot: academic-tutor-participants-populated-light
 - tapOn:
     id: tutor-participant-academic-student-1
+- assertVisible:
+    id: tutor-detail
 - assertVisible: Terdaftar sejak
 - takeScreenshot: academic-tutor-participant-detail-light
 - tapOn:

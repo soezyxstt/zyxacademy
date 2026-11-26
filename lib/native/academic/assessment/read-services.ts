@@ -2,7 +2,7 @@ import "server-only";
 
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { exams, questions, studentQuizAttempts, user } from "@/db/schema";
+import { aiQuestionBank, courses, exams, mataKuliah, questions, quizTemplates, studentQuizAttempts, user } from "@/db/schema";
 import { getQuizTemplatePreviewAction } from "@/app/actions/tutor-management";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { ensureLegacyIdentity } from "@/lib/auth/legacy-identity";
@@ -13,7 +13,8 @@ import { authorizedSnapshotDisclosures, recordAuthorizedGlobalDisclosures, recor
 import { getCoursePendingQuizAttempts, getQuizAttemptDetailsForGrading } from "@/lib/tutor/quiz-grading";
 import { getTutorQuestionBank, getTutorQuizzesWithAttribution, getTutorQuizWithAttribution, type TutorQuizWithAttribution } from "@/lib/tutor/quiz-read-model";
 import { parseSelectionRulesInput, resolveEffectiveAssessmentType } from "@/lib/tutor/assessment-policy";
-import { defaultQuiz, questionTypes, type AssessmentQuiz, type AssessmentTryout, type BankQuestion, type QuestionType } from "@/packages/native-parity/academic/assessment/model";
+import { quizTemplateRevision } from "@/lib/asesmen/quiz-template-write";
+import { defaultQuiz, questionTypes, type AssessmentCourse, type AssessmentQuiz, type AssessmentTryout, type BankQuestion, type QuestionType } from "@/packages/native-parity/academic/assessment/model";
 import { tryoutCorrectIndices } from "./tryout-answer";
 import type { AssessmentReadScope, AssessmentReadServices } from "./handle-read";
 
@@ -58,12 +59,13 @@ function iso(value: Date | string | null | undefined): string | null {
   return Number.isFinite(date.getTime()) ? date.toISOString() : null;
 }
 
-function bankQuestion(row: typeof import("@/db/schema").aiQuestionBank.$inferSelect): BankQuestion {
-  const { id, prompt, questionType, difficulty, options, correctIndices, acceptableAnswers, tags, explanation, origin, sourceEventName } = row;
+function bankQuestion(row: typeof aiQuestionBank.$inferSelect): BankQuestion {
+  const { id, prompt, questionType, difficulty, options, correctIndices, acceptableAnswers, tags, explanation, origin, sourceEventName, reviewStatus, quizEligible } = row;
   return {
     id, revision: 0, prompt, type: type(questionType), difficulty, origin,
     options: strings(options), correctIndices: integers(correctIndices), acceptableAnswers: strings(acceptableAnswers),
     tags: strings(tags), explanation, sourceEventName: sourceEventName ?? undefined,
+    quizSelectable: reviewStatus === "published" && (origin !== "historical_reference" || quizEligible),
   };
 }
 
@@ -80,7 +82,7 @@ function quizRow(row: TutorQuizWithAttribution, role: AssessmentReadScope["role"
     .filter((entry): entry is [string, number] => typeof entry[1] === "number" && entry[1] > 0));
   return {
     id: row.id, courseId: row.courseId, title: row.title, category: row.category,
-    creatorName: row.creatorName ?? "Sistem", revision: row.assessmentVersion ?? 0,
+    creatorName: row.creatorName ?? "Sistem", revision: quizTemplateRevision(row.updatedAt),
     effectiveType: resolveEffectiveAssessmentType(row.category, row.selectionRules),
     visibility: row.visibility, status: row.status, manualStatus: row.manualStatus,
     timeLimitSeconds: row.timeLimitSeconds, maxAttempts: row.maxAttempts,
@@ -105,13 +107,20 @@ function quizRow(row: TutorQuizWithAttribution, role: AssessmentReadScope["role"
   };
 }
 
-async function authorizedCourse(scope: AssessmentReadScope) {
+async function authorizedCourse(scope: AssessmentReadScope): Promise<{ course: AssessmentCourse; legacyId: string | null } | null> {
   if (scope.role === "tutor") {
-    await requireTutorCourseAccess(scope.actorId, scope.courseKey, { allowAdmin: false });
+    const access = await requireTutorCourseAccess(scope.actorId, scope.courseKey, { allowAdmin: false });
+    const { courseId, legacyCourseId } = access;
+    if (!courseId) return null;
+    const [canonical] = await db.select({ title: mataKuliah.title }).from(mataKuliah).where(eq(mataKuliah.id, courseId)).limit(1);
+    const [legacy] = canonical || !legacyCourseId ? [] : await db.select({ title: courses.title }).from(courses)
+      .where(eq(courses.id, legacyCourseId)).limit(1);
+    const title = canonical?.title ?? legacy?.title;
+    return title ? { course: { id: courseId, slug: legacyCourseId ?? courseId, title }, legacyId: legacyCourseId } : null;
   }
   const identity = await resolveCourseIdentity(scope.courseKey);
   if (!identity || (identity.status !== "active" && !identity.legacyId)) return null;
-  return { identity, course: { id: identity.primaryId, slug: identity.slug, title: identity.title } };
+  return { course: { id: identity.primaryId, slug: identity.slug, title: identity.title }, legacyId: identity.legacyId };
 }
 
 function snapshotAnswer(value: unknown, options: string[]): string {
@@ -139,12 +148,17 @@ export const assessmentReadServices: AssessmentReadServices = {
     const { course } = resolved;
     const [rows, bankRows] = await Promise.all([
       getTutorQuizzesWithAttribution(course.id),
-      scope.role === "tutor" ? getTutorQuestionBank(course.id) as Promise<Array<typeof import("@/db/schema").aiQuestionBank.$inferSelect>> : Promise.resolve([]),
+      getTutorQuestionBank(course.id) as Promise<Array<typeof aiQuestionBank.$inferSelect>>,
     ]);
-    if (bankRows.length) await db.transaction((tx) => recordStaffCourseDisclosures(tx, {
-      userId: scope.actorId, courseId: course.id, questionIds: bankRows.map((row) => row.id),
-      contextId: "question-bank", requestId: crypto.randomUUID(),
-    }));
+    if (bankRows.length) {
+      const requestId = crypto.randomUUID();
+      await db.transaction((tx) => scope.role === "tutor" ? recordStaffCourseDisclosures(tx, {
+        userId: scope.actorId, courseId: course.id, questionIds: bankRows.map((row) => row.id),
+        contextId: "question-bank", requestId,
+      }) : recordAuthorizedGlobalDisclosures(tx, {
+        userId: scope.actorId, questions: bankRows.map((row) => ({ questionId: row.id, courseId: row.courseId })), requestId,
+      }));
+    }
     return { course, quizzes: rows.map((row) => quizRow(row, scope.role)), bank: bankRows.map(bankQuestion) };
   },
 
@@ -171,6 +185,7 @@ export const assessmentReadServices: AssessmentReadServices = {
       submittedAt: studentQuizAttempts.submittedAt, questionsSnapshot: studentQuizAttempts.questionsSnapshot,
       answersSnapshot: studentQuizAttempts.answersSnapshot,
     }).from(studentQuizAttempts)
+      .innerJoin(quizTemplates, and(eq(quizTemplates.id, studentQuizAttempts.templateId), eq(quizTemplates.courseId, quiz.courseId)))
       .leftJoin(user, eq(user.id, studentQuizAttempts.studentId))
       .where(eq(studentQuizAttempts.templateId, quizId))
       .orderBy(desc(studentQuizAttempts.startedAt));
@@ -237,8 +252,8 @@ export const assessmentReadServices: AssessmentReadServices = {
   async tryouts(scope) {
     const resolved = await authorizedCourse(scope);
     if (!resolved) return null;
-    const { course, identity } = resolved;
-    const courseId = identity.legacyId ?? course.id;
+    const { course, legacyId } = resolved;
+    const courseId = legacyId ?? course.id;
     const rows = await db.select().from(exams)
       .where(and(eq(exams.courseId, courseId), eq(exams.type, "tryout"))).orderBy(desc(exams.createdAt));
     const contents = rows.length ? await db.select().from(questions)

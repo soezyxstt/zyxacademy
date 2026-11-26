@@ -1,3 +1,4 @@
+import { randomUUID } from "expo-crypto";
 import { useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { Checkbox } from "../../../components/Checkbox";
@@ -135,10 +136,8 @@ export function useRead<T>(load: (signal: AbortSignal) => Promise<AssessmentResu
   return { result, retry: () => { setResult(null); setVersion((value) => value + 1); } };
 }
 
-let requestSequence = 0;
-
 export function useMutation(gateway: AssessmentGateway, context: AssessmentContext) {
-  const next = useRef<{ id: string; command: AssessmentCommand; finish(effect: MutationEffect): void } | null>(null);
+  const next = useRef<{ id: string; command: AssessmentCommand; finish(effect: MutationEffect, requestId: string): void } | null>(null);
   const busy = useRef(false);
   const live = useRef(true);
   const [pending, setPending] = useState(false);
@@ -167,7 +166,7 @@ export function useMutation(gateway: AssessmentGateway, context: AssessmentConte
     setPending(false);
     if (outcome.ok) {
       next.current = null;
-      request.finish(outcome.value);
+      request.finish(outcome.value, request.id);
     } else {
       setProblem(outcome);
     }
@@ -181,14 +180,14 @@ export function useMutation(gateway: AssessmentGateway, context: AssessmentConte
       next.current = null;
       setProblem(null);
     },
-    send(command: AssessmentCommand, finish: (effect: MutationEffect) => void) {
+    send(command: AssessmentCommand, finish: (effect: MutationEffect, requestId: string) => void) {
       if (busy.current) return;
       // A repeated press after a transport failure must reuse the same request.
       if (problem?.code === "unavailable" && next.current && JSON.stringify(next.current.command) === JSON.stringify(command)) {
         void run();
         return;
       }
-      next.current = { id: `academic-assessment-${Date.now()}-${++requestSequence}`, command, finish };
+      next.current = { id: randomUUID(), command, finish };
       void run();
     },
     retry: run,

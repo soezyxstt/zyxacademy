@@ -68,3 +68,5 @@ export function AdministrationScreen(props: AcademicScreenProps) {
     <ProtectedAdministrationScreen {...props} />
   </CourseTheme.Provider>;
 }
+
+export { AdministrationLiveScreen } from "./live-screen";

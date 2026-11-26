@@ -18,6 +18,8 @@ const type = StyleSheet.create({
 
 export const layout = StyleSheet.create({
   page: { gap: 16, padding: 16, paddingBottom: 40, alignSelf: "center", width: "100%", maxWidth: 840 },
+  scrollBody: { gap: 16, paddingBottom: 40 },
+  listBody: { flex: 1, gap: 12, paddingBottom: 12 },
   group: { gap: 10 },
   compact: { gap: 4 },
   row: { flexDirection: "row", flexWrap: "wrap", gap: 8, alignItems: "center" },

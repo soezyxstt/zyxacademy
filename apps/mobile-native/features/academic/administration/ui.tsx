@@ -1,7 +1,8 @@
 import { useContext, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
+import { NativeCompactShell, NativeStatusPanel } from "../../shared-ui";
 import { Checkbox } from "../../../components/Checkbox";
-import { CourseTheme, Action, CourseDialog, CourseStatus, DataRow, Field, Ink, layout, useCourseColors } from "../courses/ui";
+import { CourseTheme, Action, CourseDialog, Field, Ink, layout } from "../courses/ui";
 import { administrationCourses, type RecordIdentity } from "../../../../../packages/native-parity/academic/administration/fixtures";
 import { type AdministrationCommand, type AdministrationStore } from "../../../../../packages/native-parity/academic/administration/store";
 import type { ReactNode } from "react";
@@ -15,7 +16,7 @@ export const numberValue = (value: string) => value.trim() ? Number(value) : NaN
 export const normalSearch = (value: string) => value.toLocaleLowerCase("id-ID").trim();
 export const matchWords = (query: string, words: (string | undefined)[]) => !query || words.some((word) => word && normalSearch(word).includes(query));
 export const idAndRevision = (record?: RecordIdentity) => record ? { id: record.id, revision: record.revision } : {};
-export const changeSelection = <T extends string>(options: readonly T[], value: T) => options.includes(value) ? options.filter((entry) => entry !== value) : [...options, value];
+const changeSelection = <T extends string>(options: readonly T[], value: T) => options.includes(value) ? options.filter((entry) => entry !== value) : [...options, value];
 const jakartaDate = new Intl.DateTimeFormat("id-ID", { timeZone: "Asia/Jakarta", day: "numeric", month: "short", year: "numeric" });
 const jakartaDateTime = new Intl.DateTimeFormat("id-ID", { timeZone: "Asia/Jakarta", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 export const dateLabel = (value: string) => value ? jakartaDate.format(new Date(value)) : "Tanggal belum tersedia";
@@ -46,14 +47,12 @@ export function TimeFields({ label, date, time, setDate, setTime }: {
 export function AdministrationPage({ title, back, backLabel = "Kembali", children }: {
   title: string; back(): void; backLabel?: string; children: ReactNode;
 }) {
-  const palette = useCourseColors();
-  return <ScrollView style={{ flex: 1, backgroundColor: palette.background }} contentContainerStyle={layout.page} keyboardShouldPersistTaps="handled">
-    <View style={layout.group}>
-      <View style={{ alignSelf: "flex-start" }}><Action label={backLabel} onPress={back} variation="ghost" testID="academic-administration-back" /></View>
-      <Ink kind="title">{title}</Ink>
-    </View>
-    {children}
-  </ScrollView>;
+  const theme = useContext(CourseTheme);
+  return <NativeCompactShell navigationTitle={title} back={{ label: backLabel, onPress: back }} theme={theme} edges={[]}>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap: 16, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+      {children}
+    </ScrollView>
+  </NativeCompactShell>;
 }
 
 export function MultiChoice<T extends string>({ label, options, chosen, change, disabled }: {
@@ -62,7 +61,7 @@ export function MultiChoice<T extends string>({ label, options, chosen, change, 
   const theme = useContext(CourseTheme);
   return <View style={layout.compact}>
     <Ink kind="strong">{label}</Ink>
-    {options.map((option) => <Pressable key={option.id} style={[layout.row, { minHeight: 44 }]} aria-label={option.label}
+    {options.map((option) => <Pressable key={option.id} style={[layout.row, { minHeight: 44 }]} accessibilityLabel={option.label} testID={`academic-admin-choice-${option.id}`}
       accessibilityRole="checkbox" accessibilityState={{ checked: chosen.includes(option.id), disabled }}
       disabled={disabled} onPress={() => change(changeSelection(chosen, option.id))}>
       <View pointerEvents="none" importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
@@ -74,7 +73,8 @@ export function MultiChoice<T extends string>({ label, options, chosen, change, 
 }
 
 export function RecordsEmpty({ filtered = false, label }: { filtered?: boolean; label: string }) {
-  return <CourseStatus label={filtered ? "Tidak ada hasil yang cocok." : label} />;
+  const theme = useContext(CourseTheme);
+  return <NativeStatusPanel title={filtered ? "Tidak ada hasil yang cocok." : label} theme={theme} />;
 }
 
 export function PagedRows<T extends { id: string }>({ rows, empty, filtered, render }: {
@@ -186,14 +186,4 @@ export function useAdministrationMutation(store: AdministrationStore) {
       </View> : null}
     </>,
   };
-}
-
-export function RecordChoices({ rows, selected, onSelect, empty }: {
-  rows: readonly { id: string; title: string; description?: string }[];
-  selected: string; onSelect(id: string): void; empty: string;
-}) {
-  return <PagedRows rows={rows} empty={empty} render={(row) =>
-    <DataRow key={row.id} title={row.title} description={row.description} detail={selected === row.id ? "Dipilih" : undefined}
-      onPress={() => onSelect(row.id)} />
-  } />;
 }

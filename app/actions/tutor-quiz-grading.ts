@@ -8,6 +8,7 @@ import {
   gradeQuizAttempt,
   gradeQuizAttemptSchema,
   type GradeQuizAttemptInput,
+  type GradeQuizRequest,
 } from "@/lib/tutor/quiz-grading";
 import { db } from "@/db";
 import { courses, quizTemplates, studentQuizAttempts } from "@/db/schema";
@@ -15,7 +16,7 @@ import { eq } from "drizzle-orm";
 import { sendToUser } from "@/lib/notifications/send";
 import { quizGradedPayload } from "@/lib/notifications/templates";
 
-export async function gradeQuizAttemptAction(input: GradeQuizAttemptInput) {
+export async function gradeQuizAttemptAction(input: GradeQuizAttemptInput, request?: GradeQuizRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) {
     throw new Error("Unauthorized: Silakan masuk terlebih dahulu.");
@@ -31,9 +32,9 @@ export async function gradeQuizAttemptAction(input: GradeQuizAttemptInput) {
     throw new Error(`Validasi gagal: ${parsed.error.issues.map((i) => i.message).join(", ")}`);
   }
 
-  const result = await gradeQuizAttempt(session.user.id, roles, parsed.data);
+  const result = await gradeQuizAttempt(session.user.id, roles, parsed.data, request);
 
-  if (result.gradingStatus === "graded") {
+  if (result.gradingStatus === "graded" && !result.replayed) {
     try {
       const [row] = await db
         .select({

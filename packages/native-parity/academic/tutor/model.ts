@@ -1,3 +1,6 @@
+import type { TutorSupportClient } from "../../../academic/tutor-support";
+import type { TutorFixtureRepository } from "./fixture-interactions";
+
 export type TutorCourse = {
   courseId: string;
   legacyCourseId: string | null;
@@ -85,6 +88,7 @@ export type TutorAnalytics = {
 };
 
 export type TutorDataSource = {
+  support?: TutorSupportClient;
   dashboard(signal: AbortSignal): Promise<TutorDashboard>;
   participants(courseId: string, signal: AbortSignal): Promise<TutorParticipants>;
   grading(courseId: string, signal: AbortSignal): Promise<TutorGrading>;
@@ -188,4 +192,3 @@ export function readAnswers(submission: TutorSubmission) {
     };
   });
 }
-import type { TutorFixtureRepository } from "./fixture-interactions";

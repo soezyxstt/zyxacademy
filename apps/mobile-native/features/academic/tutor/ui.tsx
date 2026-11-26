@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { nativeColors, nativeRadii } from "../../../../../packages/design-tokens/native-colors";
 import { Button } from "../../../components/Button";
 import { nativeTypography } from "../../../typography";
+import { NativeListRow, NativeStatusPanel } from "../../shared-ui";
 
 export type TutorTheme = keyof typeof nativeColors;
 
@@ -77,10 +78,12 @@ export function TutorDetail({ theme, title, subtitle, onBack, children, footer }
       <View style={[styles.detailHeader, { borderColor: colors.border }]}>
         <Header theme={theme} title={title} subtitle={subtitle} onBack={onBack} />
       </View>
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.page} style={{ flex: 1 }}>
-        {children}
-      </ScrollView>
-      {footer ? <View style={[styles.footer, { borderColor: colors.border }]}>{footer}</View> : null}
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.page} style={{ flex: 1 }}>
+          {children}
+        </ScrollView>
+        {footer ? <View style={[styles.footer, { borderColor: colors.border }]}>{footer}</View> : null}
+      </KeyboardAvoidingView>
     </SafeAreaView>
   </Modal>;
 }
@@ -96,6 +99,10 @@ export function Row({ theme, title, subtitle, meta, onPress, children, testID }:
   theme: TutorTheme; title: string; subtitle?: string; meta?: string; onPress?: () => void; children?: ReactNode; testID?: string;
 }) {
   const colors = nativeColors[theme];
+  if (onPress && !children && !meta) {
+    return <NativeListRow layout="compact" theme={theme} title={title} subtitle={subtitle}
+      primary={{ onPress, testID }} />;
+  }
   const content = <>
     <View style={styles.rowText}>
       <Label theme={theme} tone="strong">{title}</Label>
@@ -144,8 +151,7 @@ export function Choices<T extends string>({ theme, options, value, change, label
 
 export function Empty({ theme, title, description }: { theme: TutorTheme; title: string; description?: string }) {
   return <View style={[styles.empty, { borderTopColor: nativeColors[theme].border }]}>
-    <Label theme={theme} tone="strong">{title}</Label>
-    {description ? <Label theme={theme} tone="muted">{description}</Label> : null}
+    <NativeStatusPanel theme={theme} title={title} message={description} />
   </View>;
 }
 
@@ -171,5 +177,5 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "flex-start", minHeight: 48, paddingVertical: 12, gap: 10, borderBottomWidth: StyleSheet.hairlineWidth },
   rowText: { flex: 1, gap: 4, minWidth: 0 },
   chevron: { fontSize: 19, lineHeight: 21 },
-  empty: { paddingTop: 20, paddingBottom: 14, gap: 4, borderTopWidth: StyleSheet.hairlineWidth },
+  empty: { borderTopWidth: StyleSheet.hairlineWidth },
 });

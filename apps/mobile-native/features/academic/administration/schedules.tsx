@@ -127,7 +127,10 @@ function TutorForm({ draft, save, cancel }: {
   </Subheading>;
 }
 
-const parseWeek = (raw: string) => Math.max(-520, Math.min(520, Math.trunc(Number(raw) || 0)));
+const parseWeek = (raw: string) => {
+  const value = Number(raw);
+  return Number.isFinite(value) ? Math.max(-520, Math.min(520, Math.trunc(value))) : 0;
+};
 
 export function AdministrationSchedules({ query, replace }: Pick<AcademicScreenProps, "query" | "replace">) {
   const { records } = useAdministrationSnapshot();

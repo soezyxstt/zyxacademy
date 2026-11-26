@@ -39,6 +39,9 @@ test("course fixture preserves a failed command across retry and commits it once
   assert.deepEqual(changes, []);
   assert.deepEqual(store.mutate(command), { status: "saved" });
   assert.deepEqual(store.mutate(command), { status: "saved" });
+  assert.deepEqual(store.mutate({ ...command, apply: (current) => current ? {
+    ...current, course: { ...current.course, title: "Biologi Seluler" },
+  } : undefined }), { status: "validation", message: "Identitas penyimpanan sudah digunakan." });
   assert.deepEqual(changes, ["Biologi Molekuler"]);
   assert.equal(store.getSnapshot()[0].revision, source.revision + 1);
   assert.deepEqual(store.mutate({ ...command, requestId: store.nextId() }), { status: "conflict", revision: source.revision + 1 });

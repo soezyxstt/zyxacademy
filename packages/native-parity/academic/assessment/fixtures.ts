@@ -146,7 +146,7 @@ function clone<T>(value: T): T {
 export function createAssessmentFixtureGateway(): AssessmentGateway {
   const records = new Map<string, FixtureCourse>();
   const failed = new Set<string>();
-  const completed = new Map<string, { fingerprint: string; result: MutationResult }>();
+  const completed = new Map<string, { fingerprint: string; result: MutationResult; quizSaveNotice?: string }>();
   let sequence = 0;
 
   function accessibleCourse({ actor, scope }: AssessmentContext): AssessmentCourse {
@@ -200,6 +200,10 @@ export function createAssessmentFixtureGateway(): AssessmentGateway {
     });
   }
 
+  function mutationKey(context: AssessmentContext, courseId: string, requestId: string) {
+    return `${context.scenario}:${context.actor.id}:${courseId}:write:${requestId}`;
+  }
+
   function newId(kind: string) {
     return `academic-${kind}-new-${++sequence}`;
   }
@@ -222,7 +226,7 @@ export function createAssessmentFixtureGateway(): AssessmentGateway {
           courseId: data.course.id, creatorName: existing?.creatorName ?? (role === "tutor" ? "Tutor Biologi" : "Admin Akademik"),
           effectiveType,
         });
-        return success(id, input.status === "published" ? "Kuis diterbitkan." : "Kuis tersimpan.");
+        return success(id, input.status === "published" && existing?.status !== "published" ? "Kuis diterbitkan." : "Kuis tersimpan.");
       }
       case "quiz.status":
       case "quiz.delete": {
@@ -333,6 +337,20 @@ export function createAssessmentFixtureGateway(): AssessmentGateway {
 
   return {
     canMutate: true,
+    canGrade: true,
+    canSaveQuiz: true,
+    takeQuizSaveNotice(context, requestId) {
+      try {
+        const course = authorize(context);
+        const entry = completed.get(mutationKey(context, course.id, requestId));
+        const notice = entry?.quizSaveNotice ?? null;
+        if (entry) delete entry.quizSaveNotice;
+        return notice;
+      } catch (error) {
+        if (error instanceof FixtureError) return null;
+        throw error;
+      }
+    },
     listQuizzes: (context) => read(context, "quizzes", ({ course, quizzes, bank }) => ({ course, quizzes, bank })),
     previewQuiz: (context, id) => read(context, `preview:${id}`, ({ quizzes, bank }) => {
       const { selection } = record(quizzes, id, "Kuis");
@@ -368,7 +386,7 @@ export function createAssessmentFixtureGateway(): AssessmentGateway {
       const role = command.kind.startsWith("tryout.") ? "admin" : command.kind === "grading.save" || command.kind.startsWith("bank.") ? "tutor" : undefined;
       const course = authorize(context, role);
       if (!requestId.trim()) deny("invalid", "Identitas penyimpanan wajib diisi.");
-      const key = `${context.scenario}:${context.actor.id}:${course.id}:write:${requestId}`;
+      const key = mutationKey(context, course.id, requestId);
       const fingerprint = JSON.stringify(command);
       const prior = completed.get(key);
       if (prior) {
@@ -377,7 +395,10 @@ export function createAssessmentFixtureGateway(): AssessmentGateway {
       }
       failOnce(context.scenario, key);
       const outcome = mutateRecords(resolveCourse(course, context.scenario), context.scope.kind, clone(command));
-      completed.set(key, { fingerprint, result: { ok: true, value: clone(outcome) } });
+      completed.set(key, {
+        fingerprint, result: { ok: true, value: clone(outcome) },
+        ...(command.kind === "quiz.save" ? { quizSaveNotice: outcome.message } : {}),
+      });
       return outcome;
     }),
   };

@@ -1,11 +1,11 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import { and, eq, inArray } from "drizzle-orm";
-import { z } from "zod";
 import { db } from "@/db";
 import {
   studentQuizAttempts,
   quizTemplates,
+  auditMutasi,
   jawabanMurid,
   itemAsesmen,
   percobaanAsesmen,
@@ -14,7 +14,7 @@ import {
 } from "@/db/schema";
 import { requireTutorCourseAccess } from "@/lib/auth/tutor-access";
 import { checkCourseMatch } from "@/lib/tutor/assessment-policy";
-import { recordTutorMutationAudit } from "@/lib/audit/mutasi";
+import { buildTutorMutationAuditRow, recordTutorMutationAudit } from "@/lib/audit/mutasi";
 import {
   legacyAnswerId,
   type LegacyQuizQuestionSnapshot,
@@ -24,35 +24,32 @@ import { normalizeDate } from "@/lib/date-utils";
 import { recordAuthorizedStaffAttemptDisclosures } from "@/lib/gamification/question-exposure";
 import { checkAnswerCorrectness } from "@/lib/gamification/question-grading";
 
-export const TUTOR_QUIZ_GRADING_ERRORS = {
-  UNAUTHORIZED: "Unauthorized: Silakan masuk terlebih dahulu.",
-  ACCESS_DENIED: "TUTOR_ACCESS_DENIED",
-  ATTEMPT_NOT_FOUND: "TUTOR_QUIZ_GRADING_ERROR: ATTEMPT_NOT_FOUND",
-  TEMPLATE_NOT_FOUND: "TUTOR_QUIZ_GRADING_ERROR: TEMPLATE_NOT_FOUND",
-  COURSE_MISMATCH: "TUTOR_QUIZ_GRADING_ERROR: COURSE_MISMATCH",
-  OBJECTIVE_OVERRIDE_FORBIDDEN: "TUTOR_QUIZ_GRADING_ERROR: OBJECTIVE_OVERRIDE_FORBIDDEN",
-  QUESTION_NOT_IN_ATTEMPT: "TUTOR_QUIZ_GRADING_ERROR: QUESTION_NOT_IN_ATTEMPT",
-  INVALID_SCORE: "TUTOR_QUIZ_GRADING_ERROR: INVALID_SCORE",
-  CAS_CONFLICT: "TUTOR_QUIZ_GRADING_ERROR: CAS_CONFLICT",
-  ESSAY_REVIEW_REQUIRED: "TUTOR_QUIZ_GRADING_ERROR: ESSAY_REVIEW_REQUIRED",
-} as const;
+import {
+  TUTOR_QUIZ_GRADING_ERRORS, gradeQuizAttemptSchema, quizGradingRequestIdSchema,
+  type GradeAnswerItem, type GradeQuizAttemptInput, type GradeQuizRequest,
+} from "./quiz-grading-contract";
+export {
+  TUTOR_QUIZ_GRADING_ERRORS, gradeAnswerItemSchema, gradeQuizAttemptSchema, quizGradingRequestIdSchema,
+  type GradeAnswerItem, type GradeQuizAttemptInput, type GradeQuizRequest,
+} from "./quiz-grading-contract";
 
-export const gradeAnswerItemSchema = z.object({
-  questionId: z.string().min(1),
-  score: z.number().min(0).max(100),
-  reviewNotes: z.string().max(2000).optional().nullable(),
-  expectedRevision: z.number().int().min(0),
-});
+type GradeResult = {
+  success: true;
+  attemptId: string;
+  gradingStatus: "pending" | "graded";
+  score: number | null;
+  reviewedItemsCount: number;
+  replayed?: true;
+};
 
-export type GradeAnswerItem = z.infer<typeof gradeAnswerItemSchema>;
+function gradingRequestHash(input: GradeQuizAttemptInput, courseId: string, requireAllEssays: boolean) {
+  return createHash("sha256").update(JSON.stringify([
+    courseId, input.attemptId, requireAllEssays, input.items.map((item) => [
+      item.questionId, item.score, item.reviewNotes?.trim() || null, item.expectedRevision,
+    ]),
+  ])).digest("hex");
+}
 
-export const gradeQuizAttemptSchema = z.object({
-  courseId: z.string().min(1),
-  attemptId: z.string().min(1),
-  items: z.array(gradeAnswerItemSchema).min(1),
-});
-
-export type GradeQuizAttemptInput = z.infer<typeof gradeQuizAttemptSchema>;
 
 function parseJsonSafe<T>(val: unknown, fallback: T): T {
   if (val === null || val === undefined) return fallback;
@@ -94,13 +91,17 @@ export async function gradeQuizAttempt(
   tutorPenggunaId: string,
   tutorRoles: string[],
   input: GradeQuizAttemptInput,
-) {
+  request?: GradeQuizRequest,
+): Promise<GradeResult> {
   const parsed = gradeQuizAttemptSchema.safeParse(input);
   if (!parsed.success) {
     throw new Error(`Validasi gagal: ${parsed.error.issues.map((i) => i.message).join(", ")}`);
   }
 
   const { courseId, attemptId, items } = parsed.data;
+  if (request && (!quizGradingRequestIdSchema.safeParse(request.requestId).success || typeof request.requireAllEssays !== "boolean")) {
+    throw new Error("Validasi gagal: Identitas penyimpanan penilaian tidak valid.");
+  }
 
   // 1. Authorize tutor course access strictly with allowAdmin: false
   const access = await requireTutorCourseAccess(tutorPenggunaId, courseId, { allowAdmin: false });
@@ -166,6 +167,7 @@ export async function gradeQuizAttempt(
     if (qType !== "essay" && qType !== "short_answer") {
       throw new Error(TUTOR_QUIZ_GRADING_ERRORS.OBJECTIVE_OVERRIDE_FORBIDDEN);
     }
+    if (request && itemsMap.has(item.questionId)) throw new Error("Validasi gagal: Nilai setiap jawaban satu kali.");
     itemsMap.set(item.questionId, item);
   }
 
@@ -186,15 +188,25 @@ export async function gradeQuizAttempt(
   }
 
   const now = new Date();
-  let finalCalculatedScore: number | null = null;
-  let nextGradingStatus: "pending" | "graded" = "pending";
+  const auditCourseId = access.courseId ?? courseId;
+  const requestDigest = request && gradingRequestHash(parsed.data, auditCourseId, request.requireAllEssays);
+  // A caller key identifies one authenticated write to the exact grading resource.
+  const requestId = request
+    ? `req-native-grade-${createHash("sha256").update(JSON.stringify([tutorPenggunaId, "POST", courseId, attemptId, request.requestId])).digest("hex")}`
+    : `req-grade-${attemptId}-${randomUUID()}`;
+  const audit = {
+    actorId: tutorPenggunaId, actorRoles: tutorRoles, courseId: auditCourseId,
+    entityType: "quiz_attempt", entityId: attemptId, entityVersion: 1,
+    requestId, action: "quiz_attempt:grade", outcome: "success",
+  } as const;
+  const auditId = request ? buildTutorMutationAuditRow({ ...audit, reason: "Quiz attempt graded" }).id : undefined;
 
-  await db.transaction(async (tx) => {
+  return db.transaction(async (tx): Promise<GradeResult> => {
     // Acquire the viewer lock and question locks before any grading row locks.
     // Disclosure failure therefore rolls back the review and its revision.
     await recordAuthorizedStaffAttemptDisclosures(tx, {
       userId: tutorPenggunaId, attemptOwnerId: attempt.studentId, courseId: template.courseId,
-      attemptId, questionIds: questions.map(q => q.id), occurredAt: now, requestId: randomUUID(),
+      attemptId, questionIds: questions.map(q => q.id), occurredAt: now, requestId: request ? `${requestId}:${attemptId}` : randomUUID(),
     });
     const [lockedAttempt] = await tx.select().from(studentQuizAttempts)
       .where(eq(studentQuizAttempts.id, attemptId)).for("update");
@@ -202,6 +214,26 @@ export async function gradeQuizAttempt(
       || lockedAttempt.status !== "completed" || !isDeepStrictEqual(lockedAttempt.questionsSnapshot, attempt.questionsSnapshot)
       || !isDeepStrictEqual(lockedAttempt.answersSnapshot, attempt.answersSnapshot)) {
       throw new Error(TUTOR_QUIZ_GRADING_ERRORS.CAS_CONFLICT);
+    }
+
+    // The locked attempt serializes retries and holds the audit receipt and
+    // the updated grades in one transaction.
+    if (auditId) {
+      const [receipt] = await tx.select({ actorId: auditMutasi.actorId, after: auditMutasi.afterSnapshot })
+        .from(auditMutasi).where(eq(auditMutasi.id, auditId)).limit(1);
+      if (receipt) {
+        const snapshot = receipt.after?.snapshot;
+        if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) {
+          throw new Error(TUTOR_QUIZ_GRADING_ERRORS.REQUEST_CONFLICT);
+        }
+        const { requestDigest: savedDigest, gradingStatus, score, reviewedCount } = snapshot as Record<string, unknown>;
+        if (receipt.actorId !== tutorPenggunaId || savedDigest !== requestDigest ||
+          (gradingStatus !== "pending" && gradingStatus !== "graded") ||
+          (score !== null && typeof score !== "number") || typeof reviewedCount !== "number") {
+          throw new Error(TUTOR_QUIZ_GRADING_ERRORS.REQUEST_CONFLICT);
+        }
+        return { success: true, attemptId, gradingStatus, score, reviewedItemsCount: reviewedCount, replayed: true };
+      }
     }
 
     await tx.insert(pengguna).values({ id: attempt.studentId, status: "active", createdAt: now, updatedAt: now }).onConflictDoNothing();
@@ -251,8 +283,10 @@ export async function gradeQuizAttempt(
     const policy = { ...mirror.gradingPolicySnapshot, tutorReviews: reviews };
     const allEssaysReviewed = questions.filter(q => (q.question_type || q.questionType) === "essay")
       .every(q => reviews[q.id]?.score != null || (answerByQuestion.get(q.id)?.score != null && answerByQuestion.get(q.id)?.status !== "needs_review"));
+    if (request?.requireAllEssays && !allEssaysReviewed) throw new Error(TUTOR_QUIZ_GRADING_ERRORS.ESSAY_REVIEW_REQUIRED);
+    const nextGradingStatus = allEssaysReviewed ? "graded" : "pending";
+    let finalCalculatedScore: number | null = null;
     if (allEssaysReviewed) {
-      nextGradingStatus = "graded";
       const total = questions.reduce((sum, q) => {
         const type = q.question_type || q.questionType;
         const reviewed = reviews[q.id] ?? answerByQuestion.get(q.id);
@@ -267,22 +301,22 @@ export async function gradeQuizAttempt(
     await tx.update(percobaanAsesmen).set({ gradingPolicySnapshot: policy, ...(allEssaysReviewed ? { status: "graded" as const } : {}) })
       .where(eq(percobaanAsesmen.id, attemptId));
     await recordTutorMutationAudit({
-      actorId: tutorPenggunaId, actorRoles: tutorRoles, courseId: access.courseId ?? courseId,
-      entityType: "quiz_attempt", entityId: attemptId, entityVersion: 1,
-      requestId: `req-grade-${attemptId}-${randomUUID()}`, action: "quiz_attempt:grade", outcome: "success",
+      ...audit,
       reason: allEssaysReviewed ? "Quiz attempt graded and finalized" : "Quiz attempt partially graded",
       before: { attemptId, gradingStatus: lockedAttempt.gradingStatus, score: lockedAttempt.score },
-      after: { attemptId, gradingStatus: nextGradingStatus, score: finalCalculatedScore, reviewedCount: items.length },
+      after: {
+        attemptId, gradingStatus: nextGradingStatus, score: finalCalculatedScore, reviewedCount: items.length,
+        ...(requestDigest ? { requestDigest } : {}),
+      },
     }, tx);
+    return {
+      success: true,
+      attemptId,
+      gradingStatus: nextGradingStatus,
+      score: finalCalculatedScore,
+      reviewedItemsCount: items.length,
+    };
   });
-
-  return {
-    success: true,
-    attemptId,
-    gradingStatus: nextGradingStatus as "pending" | "graded",
-    score: finalCalculatedScore as number | null,
-    reviewedItemsCount: items.length,
-  };
 }
 
 export async function getCoursePendingQuizAttempts(

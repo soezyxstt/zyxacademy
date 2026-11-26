@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { View } from "react-native";
 import { allowedCategories } from "../../../../../packages/academic/course-categories";
 import { parseCoursePricingInput, type CoursePricing } from "../../../../../packages/academic/course-pricing";
 import { emptyCourseFixture, type CourseFixture } from "../../../../../packages/native-parity/academic/courses/fixtures";
 import { adminCoursePath, filterAdminCourses, type AdminChapter, type AdminCourse, type AdminCourseOverview } from "../../../../../packages/native-parity/academic/courses/model";
+import { NativeListRow, NativeResponsiveList } from "../../shared-ui";
 import type { AcademicActor } from "../contracts";
 import { MutationStatus, useCourseMutation } from "./scope";
-import { Action, CourseDialog, CourseStatus, DataRow, Field, Ink, Metrics, Panel, Picker, SearchBox, layout } from "./ui";
+import { Action, CourseDialog, CourseStatus, CourseTheme, DataRow, Field, Ink, Metrics, Panel, Picker, SearchBox, layout } from "./ui";
 
 type Navigate = (path: string) => void;
 const pricingChoices = [
@@ -25,6 +26,7 @@ export function CourseList({ courses, actor, navigate, allowCreate, initialSearc
   initialSearch: string;
   initialCategory: string;
 }) {
+  const theme = useContext(CourseTheme);
   const [search, setSearch] = useState(initialSearch);
   const [category, setCategory] = useState(initialCategory);
   const [page, setPage] = useState(0);
@@ -45,16 +47,27 @@ export function CourseList({ courses, actor, navigate, allowCreate, initialSearc
         {allowCreate ? <Action label="Tambah mata kuliah" onPress={() => { setCreated(false); setCreating(true); }} testID="course-create" variation="default" /> : null}
       </View>
       {created ? <CourseStatus label="Mata kuliah dibuat." /> : null}
-      {visible.length === 0 ? (
-        <CourseStatus label={search || category ? "Tidak ada mata kuliah yang sesuai." : "Belum ada mata kuliah."} />
-      ) : (
-        <View accessibilityLabel="Daftar mata kuliah">
-          {visible.map((course) => (
-            <DataRow key={course.id} title={course.title} description={`${course.category} · ${course.chapterCount} bab · ${course.materialCount} materi · ${course.quizCount} kuis`}
-              testID={`course-row-${course.slug}`} onPress={() => navigate(adminCoursePath(course.slug))} />
-          ))}
-        </View>
-      )}
+      <NativeResponsiveList
+        label="Daftar mata kuliah"
+        theme={theme}
+        state={{ status: "ready", rows: visible }}
+        empty={{ title: search || category ? "Tidak ada mata kuliah yang sesuai." : "Belum ada mata kuliah." }}
+        getRowKey={(row) => row.id}
+        renderRow={(course, listLayout) => (
+          <NativeListRow
+            layout={listLayout}
+            theme={theme}
+            title={course.title}
+            subtitle={listLayout === "compact" ? `${course.category} · ${course.chapterCount} bab · ${course.materialCount} materi · ${course.quizCount} kuis` : course.category}
+            metadata={listLayout === "wide" ? [
+              { id: "chapters", label: "Bab", value: String(course.chapterCount) },
+              { id: "materials", label: "Materi", value: String(course.materialCount) },
+              { id: "quizzes", label: "Kuis", value: String(course.quizCount) },
+            ] : undefined}
+            primary={{ testID: `course-row-${course.slug}`, role: "link", onPress: () => navigate(adminCoursePath(course.slug)) }}
+          />
+        )}
+      />
       {filtered.length > pageSize ? (
         <View style={layout.row}>
           <Action label="Sebelumnya" onPress={() => setPage(visiblePage - 1)} disabled={visiblePage === 0} />

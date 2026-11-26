@@ -4,7 +4,7 @@ import type { CourseAttempt, CourseFixture, CourseQuiz } from "../../../../../pa
 import { adminCoursePath, completedCourseAttempts, summarizeCourseAttempts } from "../../../../../packages/native-parity/academic/courses/model";
 import type { AcademicActor } from "../contracts";
 import { MutationStatus, useCourseMutation } from "./scope";
-import { Action, CourseDialog, CourseStatus, DataRow, Ink, Metrics, Panel, Picker, SearchBox, Tabs, layout, useCourseColors } from "./ui";
+import { Action, CourseStatus, DataRow, Ink, Metrics, Panel, Picker, SearchBox, Tabs, layout, useCourseColors } from "./ui";
 
 const quizCategories = ["Harian", "Mingguan", "Bab", "Premium", "Simulasi"] as const;
 const analyticsTabs = [
@@ -179,47 +179,4 @@ function CourseAttempts({ attempts }: { attempts: readonly CourseAttempt[] }) {
 
 function formatDate(date: string) {
   return new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Jakarta" }).format(new Date(date));
-}
-
-export function CourseLeaderboard({ data }: { data: CourseFixture }) {
-  const [category, setCategory] = useState("");
-  const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState<string | null>(null);
-  const allowed = new Set(data.quizzes.filter((item) => !category || item.category === category).map((item) => item.id));
-  const groups = new Map<string, CourseAttempt[]>();
-  for (const attempt of completedCourseAttempts(data.attempts)) {
-    if (!allowed.has(attempt.quizId)) continue;
-    const group = groups.get(attempt.name);
-    if (group) group.push(attempt); else groups.set(attempt.name, [attempt]);
-  }
-  const ranked = Array.from(groups, ([name, attempts]) => ({ name, attempts, latest: attempts.at(-1)?.date ?? "", ...summarizeCourseAttempts(attempts) }))
-    .sort((left, right) => right.average - left.average || left.duration - right.duration || left.name.localeCompare(right.name, "id"));
-  const filtered = ranked
-    .map((participant, index) => ({ ...participant, rank: index + 1 }))
-    .filter((participant) => participant.name.toLocaleLowerCase("id").includes(search.trim().toLocaleLowerCase("id")));
-  const participant = filtered.find((item) => item.name === selected);
-  return (
-    <>
-      <SearchBox label="Cari peserta" value={search} onChange={setSearch} />
-      <Picker label="Kategori kuis" selected={category} onSelect={setCategory}
-        options={[{ id: "", label: "Semua kategori" }, ...quizCategories.map((id) => ({ id, label: id }))]} />
-      <Metrics values={[{ label: "Peserta berperingkat", value: ranked.length }, { label: "Pengerjaan selesai", value: ranked.reduce((total, item) => total + item.completed, 0) }]} />
-      <Panel title="Peringkat peserta">
-        {filtered.length ? filtered.map((item) => (
-          <DataRow key={item.name} title={`${item.rank}. ${item.name}`} detail={`Skor ${item.average}`}
-            description={`${item.completed} pengerjaan · ${formatDuration(item.duration)}`}
-            onPress={() => setSelected(item.name)} />
-        )) : <CourseStatus label="Belum ada peserta pada pilihan ini." />}
-      </Panel>
-      {participant ? (
-        <CourseDialog title={participant.name} onClose={() => setSelected(null)}>
-          <Metrics values={[{ label: "Peringkat", value: participant.rank }, { label: "Rata-rata skor", value: participant.average }]} />
-          <Ink>Pengerjaan terakhir {formatDate(participant.latest)}</Ink>
-          {participant.attempts.map((item) => (
-            <DataRow key={item.id} title={data.quizzes.find((quiz) => quiz.id === item.quizId)?.title ?? "Kuis"} detail={`Skor ${item.score}`} description={formatDate(item.date)} />
-          ))}
-        </CourseDialog>
-      ) : null}
-    </>
-  );
 }

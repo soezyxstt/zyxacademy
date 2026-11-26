@@ -1,0 +1,454 @@
+import { useEffect, useRef, useState, type ComponentRef } from "react";
+import { randomUUID } from "expo-crypto";
+import { openBrowserAsync } from "expo-web-browser";
+import { AccessibilityInfo, ActivityIndicator, AppState, findNodeHandle, View } from "react-native";
+import type {
+  TutorDiscussionDetail,
+  TutorDiscussThread,
+  TutorDiscussionList,
+  TutorLiveData,
+  TutorMaterialsData,
+  TutorScheduleData,
+  TutorSupportClient,
+  TutorVideosData,
+} from "../../../../../packages/academic/tutor-support";
+import { TutorDataError } from "../../../../../packages/native-parity/academic/tutor/model";
+import { Button } from "../../../components/Button";
+import { Input } from "../../../components/Input";
+import type { AcademicScreenProps } from "../contracts";
+import { Choices, Empty, Heading, Label, Row, TutorDetail, TutorPage, tutorLayout } from "./ui";
+
+type Navigation = Pick<AcademicScreenProps, "theme" | "back" | "navigate" | "replace" | "query">;
+
+const dateFormat = new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeZone: "Asia/Jakarta" });
+
+function dated(date: string | null, fallback = "") {
+  if (!date) return fallback;
+  const parsed = new Date(date);
+  return Number.isNaN(parsed.valueOf()) ? fallback : dateFormat.format(parsed);
+}
+
+function times(start: string | null, end: string | null) {
+  return [start, end].flatMap((part) => part ? [part.slice(0, 5)] : []).join(" sampai ");
+}
+
+type ScheduleTab = "calendar" | "tickets" | "groups";
+const ticketStatuses = { pending: "Menunggu keputusan", approved: "Disetujui", rejected: "Ditolak" };
+
+export function ConnectedSchedule({ data, week, theme, back, replace, query }: Navigation & { week: number; data: TutorScheduleData }) {
+  const [tab, setTab] = useState<ScheduleTab>(query.tab === "tickets" ? "tickets" : "calendar");
+  const [search, setSearch] = useState("");
+  const matches = (values: (string | null)[]) => values.some((value) => value?.toLowerCase().includes(search.trim().toLowerCase()));
+  const slots = data.slots.filter((slot) => !search.trim() || matches([slot.date, slot.start, slot.location]));
+  const sessions = data.sessions.filter((session) => !search.trim() || matches([session.date, session.groupName, session.courseTitle, session.topic]));
+  return <TutorPage title="Jadwal mengajar" theme={theme} onBack={back}>
+    <Choices<ScheduleTab> theme={theme} label="Bagian jadwal" value={tab} change={setTab}
+      options={[["calendar", "Kalender"], ["tickets", "Tiket"], ["groups", "Kelas dan kelompok"]]} />
+    {tab === "calendar" ? <>
+      <Heading theme={theme} title={`${dated(data.from)} sampai ${dated(data.to)}`} />
+      <View style={tutorLayout.cluster}>
+        <Button theme={theme} variant="outline" style={tutorLayout.action} disabled={week === -520}
+          onPress={() => replace(`/tutor/schedule?week=${week - 1}`)}>Pekan lalu</Button>
+        <Button theme={theme} variant="outline" style={tutorLayout.action} disabled={week === 520}
+          onPress={() => replace(`/tutor/schedule?week=${week + 1}`)}>Pekan depan</Button>
+      </View>
+      <Input theme={theme} accessibilityLabel="Cari slot dan sesi" placeholder="Cari slot, topik, kelompok" value={search} onChangeText={setSearch} style={tutorLayout.input} />
+      <View>
+        <Heading theme={theme} title="Slot" count={String(slots.length)} />
+        {slots.map((slot) => <Row key={slot.id} theme={theme}
+          title={`${dated(slot.date)} · ${times(slot.start, slot.end)}`}
+          subtitle={slot.mode === "online" ? "Daring" : slot.location ?? "Tatap muka"}
+          meta={slot.booked ? "Terisi" : "Tersedia"} />)}
+        {slots.length === 0 ? <Empty theme={theme} title={search.trim() ? "Slot tidak ditemukan" : "Belum ada slot ketersediaan"} /> : null}
+      </View>
+      <View>
+        <Heading theme={theme} title="Sesi tutorial" count={String(sessions.length)} />
+        {sessions.map((session) => <Row key={session.id} theme={theme}
+          title={session.topic ?? session.courseTitle ?? "Sesi tutorial"}
+          subtitle={[session.groupName, dated(session.date), times(session.start, session.end)].filter(Boolean).join(" · ")}
+          meta={session.status === "completed" ? "Selesai" : session.status === "cancelled" ? "Dibatalkan" : "Terjadwal"} />)}
+        {sessions.length === 0 ? <Empty theme={theme} title={search.trim() ? "Sesi tidak ditemukan" : "Belum ada sesi tutorial yang dijadwalkan"} /> : null}
+      </View>
+    </> : null}
+    {tab === "tickets" ? <View>
+      {data.tickets.map((ticket) => <Row key={ticket.id} theme={theme}
+        title={ticket.type === "reschedule" ? "Penjadwalan ulang" : "Pembatalan"}
+        subtitle={ticket.reason} meta={ticketStatuses[ticket.status]}>
+        {ticket.proposedDate ? <Label theme={theme} tone="muted">Usulan {dated(ticket.proposedDate)}</Label> : null}
+      </Row>)}
+      {data.tickets.length === 0 ? <Empty theme={theme} title="Tidak ada tiket penjadwalan ulang atau pembatalan" /> : null}
+    </View> : null}
+    {tab === "groups" ? <View>
+      {data.groups.map((group) => <Row key={group.id} theme={theme} title={group.name}
+        subtitle={group.packageName} meta={`${group.members} anggota`}>
+        <Label theme={theme} tone="muted">{group.used}/{group.total} sesi digunakan</Label>
+      </Row>)}
+      {data.groups.length === 0 ? <Empty theme={theme} title="Belum ada kelompok aktif" /> : null}
+    </View> : null}
+  </TutorPage>;
+}
+
+function LoadFailure({ theme, error, retry }: { theme: Navigation["theme"]; error: string; retry: () => void }) {
+  return <View style={tutorLayout.group}>
+    <Label theme={theme} tone="error">{error}</Label>
+    <Button theme={theme} variant="outline" style={tutorLayout.action} onPress={retry}>Coba lagi</Button>
+  </View>;
+}
+
+function accessEnded(error: unknown) {
+  return error instanceof TutorDataError && [401, 403, 404].includes(error.status);
+}
+
+export function ConnectedDiscussions({ theme, back, query, courseId, service }: Navigation & {
+  courseId?: string;
+  service: TutorSupportClient;
+}) {
+  const [search, setSearch] = useState("");
+  const [term, setTerm] = useState("");
+  const [attempt, setAttempt] = useState(0);
+  const [page, setPage] = useState<TutorDiscussionList>();
+  const [listError, setListError] = useState("");
+  const [listUnavailable, setListUnavailable] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const pageRequest = useRef<AbortController | null>(null);
+  const [active, setActive] = useState<string | null>(query.thread ?? null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const { signal } = controller;
+    setPage(undefined);
+    setListError("");
+    setListUnavailable(false);
+    setLoadingMore(false);
+    service.discussions(courseId, term, undefined, signal)
+      .then((data) => { if (!signal.aborted) setPage(data); })
+      .catch((error: unknown) => {
+        if (signal.aborted) return;
+        if (accessEnded(error)) setListUnavailable(true);
+        else setListError("Diskusi gagal dimuat.");
+      });
+    return () => {
+      controller.abort();
+      pageRequest.current?.abort();
+    };
+  }, [service, courseId, term, attempt]);
+
+  async function more() {
+    if (!page?.nextCursor || loadingMore) return;
+    const controller = new AbortController();
+    pageRequest.current = controller;
+    setLoadingMore(true);
+    setListError("");
+    try {
+      const next = await service.discussions(courseId, term, page.nextCursor, controller.signal);
+      if (!controller.signal.aborted) setPage({ items: [...page.items, ...next.items], nextCursor: next.nextCursor });
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        if (accessEnded(error)) {
+          setPage(undefined);
+          setListUnavailable(true);
+        } else {
+          setListError("Diskusi berikutnya gagal dimuat.");
+        }
+      }
+    } finally {
+      if (!controller.signal.aborted) setLoadingMore(false);
+    }
+  }
+
+  return <>
+    <TutorPage title="Diskusi" theme={theme} onBack={back}>
+      <Input theme={theme} accessibilityLabel="Cari diskusi" placeholder="Cari diskusi"
+        maxLength={160} returnKeyType="search" value={search}
+        onChangeText={setSearch} onSubmitEditing={() => setTerm(search.trim())} style={tutorLayout.input} />
+      {search.trim() !== term ? <Button theme={theme} variant="outline" style={tutorLayout.action} onPress={() => setTerm(search.trim())}>Cari</Button> : null}
+      {listError ? <LoadFailure theme={theme} error={listError} retry={page ? more : () => setAttempt((value) => value + 1)} /> : null}
+      {listUnavailable ? <Empty theme={theme} title="Diskusi tidak tersedia" /> : null}
+      {!page && !listError && !listUnavailable ? <ActivityIndicator accessibilityLabel="Memuat diskusi" /> : null}
+      {page ? <View>
+        {page.items.map((thread) => <Row key={thread.id} theme={theme} title={thread.title}
+          subtitle={thread.status === "resolved" ? "Terselesaikan" : undefined} meta={`${thread.answerCount} jawaban`}
+          onPress={() => setActive(thread.id)} />)}
+        {page.items.length === 0 ? <Empty theme={theme} title={term ? "Diskusi tidak ditemukan" : "Belum ada diskusi"} /> : null}
+        {page.nextCursor && !listError ? <Button theme={theme} variant="outline" style={tutorLayout.action}
+          isLoading={loadingMore} onPress={more}>Tampilkan lebih banyak</Button> : null}
+      </View> : null}
+    </TutorPage>
+    {active ? <ConnectedDiscussionDetail key={active} theme={theme} courseId={courseId} threadId={active} service={service}
+      close={() => setActive(null)} onThread={(thread) => setPage((previous) => previous && ({
+        ...previous, items: previous.items.map((item) => item.id === thread.id ? thread : item),
+      }))} /> : null}
+  </>;
+}
+
+function mergeDiscussionMessages(previous: TutorDiscussionDetail | undefined, next: TutorDiscussionDetail, keepCursor = false) {
+  const unique = new Map([...previous?.messages.items ?? [], ...next.messages.items].map((message) => [message.id, message]));
+  return {
+    thread: next.thread,
+    messages: {
+      items: [...unique.values()].sort((left, right) => left.seq - right.seq),
+      nextCursor: keepCursor && previous ? previous.messages.nextCursor : next.messages.nextCursor,
+    },
+  };
+}
+
+function ConnectedDiscussionDetail({ theme, courseId, threadId, service, close, onThread }: {
+  theme: Navigation["theme"];
+  courseId?: string;
+  threadId: string;
+  service: TutorSupportClient;
+  close: () => void;
+  onThread(thread: TutorDiscussThread): void;
+}) {
+  const [data, setData] = useState<TutorDiscussionDetail>();
+  const [attempt, setAttempt] = useState(0);
+  const [error, setError] = useState("");
+  const [unavailable, setUnavailable] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const pageRequest = useRef<AbortController | null>(null);
+  const sendRequest = useRef<AbortController | null>(null);
+  const [draft, setDraft] = useState(() => service.pendingAnswer?.(threadId)?.body ?? "");
+  const [pending, setPending] = useState(() => Boolean(service.pendingAnswer?.(threadId)));
+  const [sending, setSending] = useState(false);
+  const [sendMessage, setSendMessage] = useState("");
+  const [readback, setReadback] = useState<string>();
+
+  useEffect(() => () => sendRequest.current?.abort(), []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const { signal } = controller;
+    setError("");
+    setUnavailable(false);
+    service.discussion(courseId, threadId, undefined, signal)
+      .then((result) => { if (!signal.aborted) setData(result); })
+      .catch((failure: unknown) => {
+        if (signal.aborted) return;
+        if (accessEnded(failure)) setUnavailable(true);
+        else setError("Pesan gagal dimuat.");
+      });
+    return () => {
+      controller.abort();
+      pageRequest.current?.abort();
+    };
+  }, [service, courseId, threadId, attempt]);
+
+  async function more() {
+    if (!data?.messages.nextCursor || loadingMore) return;
+    const controller = new AbortController();
+    pageRequest.current = controller;
+    setLoadingMore(true);
+    setError("");
+    try {
+      const next = await service.discussion(courseId, threadId, data.messages.nextCursor, controller.signal);
+      if (!controller.signal.aborted) setData((previous) => mergeDiscussionMessages(previous, next));
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        if (accessEnded(error)) setUnavailable(true);
+        else setError("Pesan berikutnya gagal dimuat.");
+      }
+    } finally {
+      if (!controller.signal.aborted) setLoadingMore(false);
+    }
+  }
+
+  async function receiveMessage(messageId: string, signal: AbortSignal) {
+    try {
+      const result = await service.discussion(courseId, threadId, undefined, signal, messageId);
+      if (signal.aborted) return;
+      setData((previous) => mergeDiscussionMessages(previous, result, true));
+      onThread(result.thread);
+      setReadback(undefined);
+    } catch (error) {
+      if (!signal.aborted) {
+        if (accessEnded(error)) {
+          setReadback(undefined);
+          setUnavailable(true);
+        } else {
+          setReadback(messageId);
+        }
+      }
+    }
+  }
+
+  async function sendAnswer() {
+    if (!service.answer || !draft.trim() || sendRequest.current) return;
+    const controller = new AbortController();
+    const { signal } = controller;
+    sendRequest.current = controller;
+    setSending(true);
+    setSendMessage("");
+    try {
+      const attempt = service.pendingAnswer?.(threadId) ?? { body: draft.trim(), requestId: randomUUID() };
+      const result = await service.answer(courseId, threadId, attempt, signal);
+      if (signal.aborted) return;
+      setPending(Boolean(service.pendingAnswer?.(threadId)));
+      if (result.ok) {
+        setDraft("");
+        setSendMessage("Jawaban terkirim.");
+        await receiveMessage(result.value.messageId, signal);
+      } else if (result.error === "replay_unverified") {
+        setSendMessage("Pengiriman belum terkonfirmasi. Periksa jawaban yang ditemukan.");
+        await receiveMessage(result.value.messageId, signal);
+      } else {
+        setSendMessage({
+          invalid: "Periksa kembali isi jawaban.",
+          unavailable: "Diskusi tidak tersedia atau akses Anda telah berubah.",
+          rate_limited: "Terlalu banyak permintaan. Coba lagi nanti.",
+          conflict: "Data telah berubah. Muat ulang diskusi.",
+          resolved: "Diskusi sudah selesai.",
+          attachment_expired: "Lampiran sudah kedaluwarsa.",
+          unknown: "Pengiriman belum terkonfirmasi. Coba lagi.",
+        }[result.error]);
+      }
+    } catch (error) {
+      if (!signal.aborted) {
+        setPending(Boolean(service.pendingAnswer?.(threadId)));
+        if (accessEnded(error)) setUnavailable(true);
+        else if (error instanceof TutorDataError && error.status === 409) setSendMessage("Data telah berubah. Muat ulang diskusi.");
+        else setSendMessage("Pengiriman belum terkonfirmasi. Coba lagi.");
+      }
+    } finally {
+      sendRequest.current = null;
+      if (!signal.aborted) setSending(false);
+    }
+  }
+
+  async function retryReadback() {
+    if (!readback || sendRequest.current) return;
+    const controller = new AbortController();
+    sendRequest.current = controller;
+    try {
+      await receiveMessage(readback, controller.signal);
+    } finally {
+      sendRequest.current = null;
+    }
+  }
+
+  return <TutorDetail title={data?.thread.title ?? "Diskusi"} theme={theme} onBack={() => { if (!sending) close(); }}
+    subtitle={data?.thread.status === "resolved" ? "Terselesaikan" : undefined}
+    footer={service.answer && (data?.thread.canReply || pending) && !unavailable ? <View style={tutorLayout.group}>
+      {sendMessage ? <Label theme={theme}>{sendMessage}</Label> : null}
+      <Input theme={theme} multiline maxLength={12000} accessibilityLabel="Jawaban" placeholder="Tulis jawaban"
+        value={draft} onChangeText={setDraft} editable={!sending && !pending} />
+      <Button theme={theme} style={tutorLayout.action} disabled={!draft.trim()} isLoading={sending} onPress={sendAnswer}>
+        {pending ? "Coba kirim lagi" : "Kirim jawaban"}
+      </Button>
+    </View> : undefined}>
+    {unavailable ? <Empty theme={theme} title="Diskusi tidak tersedia" /> : null}
+    {!data && !error && !unavailable ? <ActivityIndicator accessibilityLabel="Memuat pesan" /> : null}
+    {!unavailable && data?.messages.items.map((message) => <Row key={message.id} theme={theme} title={message.author ?? "Pengguna"}
+      subtitle={message.body} meta={message.attachmentCount ? `${message.attachmentCount} lampiran` : undefined} />)}
+    {error ? <LoadFailure theme={theme} error={error} retry={data ? more : () => setAttempt((value) => value + 1)} /> : null}
+    {data?.messages.nextCursor && !error && !unavailable ? <Button theme={theme} variant="outline" style={tutorLayout.action}
+      isLoading={loadingMore} onPress={more}>Tampilkan lebih banyak</Button> : null}
+    {readback ? <LoadFailure theme={theme} error="Jawaban belum dapat ditampilkan." retry={retryReadback} /> : null}
+  </TutorDetail>;
+}
+
+export function ConnectedMaterials({ data, theme, back }: Navigation & { data: TutorMaterialsData }) {
+  return <TutorPage title="Dokumen" subtitle={data.title} theme={theme} onBack={back}>
+    <Heading theme={theme} title="Materi pengajaran" count={`${data.items.length} dokumen`} />
+    {data.items.map((item) => <Row key={item.id} theme={theme} title={item.title} subtitle={item.summary} />)}
+    {data.items.length === 0 ? <Empty theme={theme} title="Belum ada materi" /> : null}
+  </TutorPage>;
+}
+
+function formatDuration(duration: number | null) {
+  if (duration == null) return;
+  const minutes = Math.floor(duration / 60);
+  const seconds = Math.floor(duration % 60);
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+export function ConnectedVideos({ data, theme, back, playback }: Navigation & { data: TutorVideosData; playback?: TutorSupportClient["playback"] }) {
+  const [expanded, setExpanded] = useState<string>();
+  const [loadingVideo, setLoadingVideo] = useState<string>();
+  const [error, setError] = useState("");
+  const buttons = useRef(new Map<string, ComponentRef<typeof Button>>());
+  const browserFocus = useRef<string | null>(null);
+  const pendingPlayback = useRef<AbortController | null>(null);
+
+  function restoreFocus() {
+    const id = browserFocus.current;
+    if (!id) return;
+    browserFocus.current = null;
+    requestAnimationFrame(() => {
+      const node = buttons.current.get(id);
+      const handle = node ? findNodeHandle(node) : null;
+      if (handle !== null) AccessibilityInfo.setAccessibilityFocus(handle);
+      node?.focus();
+    });
+  }
+
+  useEffect(() => {
+    const onActive = AppState.addEventListener("change", (state) => { if (state === "active") restoreFocus(); });
+    const onFocus = AppState.addEventListener("focus", restoreFocus);
+    return () => {
+      pendingPlayback.current?.abort();
+      onActive.remove();
+      onFocus.remove();
+    };
+  }, []);
+
+  async function play(videoId: string) {
+    if (!playback || pendingPlayback.current) return;
+    const controller = new AbortController();
+    const { signal } = controller;
+    pendingPlayback.current = controller;
+    setError("");
+    setLoadingVideo(videoId);
+    try {
+      const url = await playback(videoId, signal);
+      if (signal.aborted) return;
+      browserFocus.current = videoId;
+      const result = await openBrowserAsync(url);
+      if (result.type !== "opened") restoreFocus();
+    } catch (error) {
+      if (!signal.aborted) {
+        setError(accessEnded(error) ? "Akses video tidak tersedia." : "Video gagal dibuka. Coba lagi.");
+        restoreFocus();
+      }
+    } finally {
+      if (!signal.aborted) setLoadingVideo(undefined);
+      pendingPlayback.current = null;
+    }
+  }
+
+  return <TutorPage title="Video" subtitle={data.title} theme={theme} onBack={back}>
+    <Heading theme={theme} title="Playlist" count={`${data.playlists.length} playlist`} />
+    {error ? <Label theme={theme} tone="error">{error}</Label> : null}
+    {data.playlists.map((playlist) => <View key={playlist.id}>
+      <Row theme={theme} title={playlist.title} subtitle={playlist.description ?? undefined} meta={`${playlist.videos.length} video`}
+        onPress={() => setExpanded((previous) => previous === playlist.id ? undefined : playlist.id)} />
+      {expanded === playlist.id ? playlist.videos.map((video) => <Row key={video.id} theme={theme}
+        title={video.title} meta={video.locked ? "Terkunci" : formatDuration(video.duration)}>
+        {!video.locked && playback ? <Button theme={theme} variant="outline" style={tutorLayout.action}
+          accessibilityLabel={`Putar ${video.title}`}
+          ref={(node) => {
+            if (node) buttons.current.set(video.id, node);
+            else buttons.current.delete(video.id);
+          }}
+          isLoading={loadingVideo === video.id} disabled={Boolean(loadingVideo && loadingVideo !== video.id)}
+          onPress={() => play(video.id)}>Putar</Button> : null}
+      </Row>) : null}
+    </View>)}
+    {data.playlists.length === 0 ? <Empty theme={theme} title="Belum ada playlist" /> : null}
+  </TutorPage>;
+}
+
+export function ConnectedLive({ data, theme, back, courseTitle, refresh }: Navigation & { data: TutorLiveData; courseTitle?: string; refresh(): void }) {
+  return <TutorPage title="Kuis langsung" subtitle={courseTitle} theme={theme} onBack={back}>
+    {!data.configured ? <Empty theme={theme} title="Kuis langsung belum tersedia" /> : <>
+      {data.active ? <View>
+        <Heading theme={theme} title={data.active.state === "lobby" ? "Ruang tunggu" : "Sesi berlangsung"} count={`${data.active.participantCount} peserta`} />
+        <Row theme={theme} title="Kode gabung" meta={data.active.code} />
+      </View> : <View>
+        <Heading theme={theme} title="Kuis terbit" count={String(data.templates.length)} />
+        {data.templates.map((template) => <Row key={template.id} theme={theme} title={template.title} />)}
+        {data.templates.length === 0 ? <Empty theme={theme} title="Belum ada kuis terbit" /> : null}
+      </View>}
+      <Button theme={theme} variant="outline" style={tutorLayout.action} onPress={refresh}>Muat ulang</Button>
+    </>}
+  </TutorPage>;
+}

@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ActivityIndicator, View } from "react-native";
+import { parseTutorWeek } from "../../../../../packages/academic/tutor-support";
 import { createTutorFixtureData, tutorFixtureCourses } from "../../../../../packages/native-parity/academic/tutor/fixtures";
 import { matchesCourse, TutorDataError, type TutorDataSource } from "../../../../../packages/native-parity/academic/tutor/model";
 import { Button } from "../../../components/Button";
 import type { AcademicScreenProps } from "../contracts";
+import { ConnectedDiscussions, ConnectedLive, ConnectedMaterials, ConnectedSchedule, ConnectedVideos } from "./connected";
 import { TutorLive, TutorMaterials, TutorVideos } from "./content";
 import { TutorCourseOverview, TutorDashboard, TutorGrading, TutorParticipants } from "./core";
 import { TutorDiscussions, TutorDocs, TutorSchedule } from "./support";
@@ -25,7 +27,7 @@ export function TutorScreen({ dataSource, ...props }: TutorScreenProps) {
   const source = dataSource ?? fixture;
   const fixturesEnabled = source.fixture === true;
   const fixtureIdentity = actor.id === "academic-tutor";
-  const key = `${actor.id}:${actor.role}:${scenario}:${path}`;
+  const key = JSON.stringify([actor.id, actor.role, scenario, path, props.query]);
 
   if (actor.role !== "tutor" || (fixturesEnabled && !fixtureIdentity)) {
     return <Denied theme={theme} back={back} title="Pengajaran" />;
@@ -36,6 +38,17 @@ export function TutorScreen({ dataSource, ...props }: TutorScreenProps) {
   </DataView>;
 
   if (route === "docs") return <TutorDocs key={key} {...props} slug={nested ? params.slug ?? nested : undefined} />;
+
+  if (source.support && route === "schedule") {
+    const service = source.support;
+    const week = parseTutorWeek(props.query.week);
+    return <DataView key={key} theme={theme} back={back} title="Jadwal mengajar" load={(signal) => service.schedule(week, signal)}>
+      {(data) => <ConnectedSchedule {...props} week={week} data={data} />}
+    </DataView>;
+  }
+  if (source.support && route === "discussions") {
+    return <ConnectedDiscussions key={key} {...props} service={source.support} />;
+  }
 
   if (!courseId) return <DataView key={key} theme={theme} back={back} title={route === "schedule" ? "Jadwal mengajar" : "Diskusi"} load={source.dashboard}>
     {(data) => fixturesEnabled ? route === "schedule"
@@ -51,6 +64,20 @@ export function TutorScreen({ dataSource, ...props }: TutorScreenProps) {
   if (nested === "grading") return <DataView key={key} theme={theme} back={back} title="Penilaian tryout" load={(signal) => source.grading(courseId, signal)}>
     {(data) => <TutorGrading {...props} data={data} onSave={source.saveGrade ? (id, grade) => source.saveGrade!(courseId, id, grade) : undefined} />}
   </DataView>;
+
+  if (source.support) {
+    const service = source.support;
+    if (nested === "discussions") return <ConnectedDiscussions key={key} {...props} courseId={courseId} service={service} />;
+    if (nested === "materials") return <DataView key={key} theme={theme} back={back} title="Dokumen" load={(signal) => service.materials(courseId, signal)}>
+      {(data) => <ConnectedMaterials {...props} data={data} />}
+    </DataView>;
+    if (nested === "videos") return <DataView key={key} theme={theme} back={back} title="Video" load={(signal) => service.videos(courseId, signal)}>
+      {(data) => <ConnectedVideos {...props} data={data} playback={service.playback} />}
+    </DataView>;
+    if (nested === "live") return <DataView key={key} theme={theme} back={back} title="Kuis langsung" load={(signal) => service.live(courseId, signal)}>
+      {(data, refresh) => <ConnectedLive {...props} data={data} refresh={refresh} />}
+    </DataView>;
+  }
 
   const titles: Record<string, string> = { discussions: "Diskusi", materials: "Dokumen", videos: "Video", live: "Kuis langsung" };
   const title = titles[nested] ?? "Ringkasan";
@@ -82,7 +109,7 @@ type LoadState<T> = { state: "loading" } | { state: "error"; denied: boolean } |
 function DataView<T>({ theme, back, title, load, children }: Pick<AcademicScreenProps, "theme" | "back"> & {
   title: string;
   load(signal: AbortSignal): Promise<T>;
-  children(data: T): ReactNode;
+  children(data: T, refresh: () => void): ReactNode;
 }) {
   const [result, setResult] = useState<LoadState<T>>({ state: "loading" });
   const [attempt, setAttempt] = useState(0);
@@ -101,17 +128,19 @@ function DataView<T>({ theme, back, title, load, children }: Pick<AcademicScreen
     return () => controller.abort();
   }, [attempt, load]);
 
-  if (result.state === "ready") return children(result.data);
+  function retry() {
+    setResult({ state: "loading" });
+    setAttempt((previous) => previous + 1);
+  }
+
+  if (result.state === "ready") return children(result.data, retry);
   if (result.state === "error" && result.denied) return <Denied theme={theme} back={back} title={title} />;
 
   return <TutorPage theme={theme} title={title} onBack={back}>
     {result.state === "loading" ? <ActivityIndicator accessibilityLabel="Memuat data" /> : (
       <View style={tutorLayout.group}>
         <Empty theme={theme} title="Data gagal dimuat" />
-        <Button theme={theme} variant="outline" style={tutorLayout.action} onPress={() => {
-          setResult({ state: "loading" });
-          setAttempt((previous) => previous + 1);
-        }}>Coba lagi</Button>
+        <Button theme={theme} variant="outline" style={tutorLayout.action} onPress={retry}>Coba lagi</Button>
       </View>
     )}
   </TutorPage>;

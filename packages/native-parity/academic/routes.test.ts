@@ -24,3 +24,14 @@ test("static paths win, IDs and slugs stay distinct, malformed or foreign paths 
     assert.equal(matchAcademicRoute(href), null);
   }
 });
+
+test("every scenario has a stable unique ID, local link and concrete parameters", async () => {
+  const { academicCases } = await import("./cases");
+  assert.equal(academicCases.length, 162);
+  assert.equal(new Set(academicCases.map(row => row.id)).size, academicCases.length);
+  for (const row of academicCases) {
+    assert.equal(row.path.includes("["), false);
+    const href = new URL(row.href);
+    assert.equal(matchAcademicRoute(href.searchParams.get("path")!)?.pattern, row.pattern);
+  }
+});

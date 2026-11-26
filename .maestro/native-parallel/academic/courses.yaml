@@ -24,7 +24,7 @@ name: Admin course filter, overview and analytics
     id: course-chapter-academic-chapter-1
 - takeScreenshot: academic-admin-courses-overview-populated-light
 - tapOn:
-    id: course-back
+    id: shared-ui-back
 - assertVisible: biologi
 - assertVisible: Biologi
 - assertVisible:

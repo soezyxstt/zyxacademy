@@ -1,3 +1,4 @@
+import type { AdminCourseEditor } from "./edit-contract";
 import type { AdminCourseSectionResult } from "./sections";
 
 export type AdminCourse = {
@@ -34,6 +35,7 @@ export type AdminCourseLiveRead = {
   list?: LiveCourseRead<readonly AdminCourse[]>;
   detail?: LiveCourseRead<AdminCourseOverview>;
   section?: LiveCourseRead<AdminCourseSectionResult>;
+  updateSettings?: AdminCourseEditor;
   retry(): void;
 };
 

@@ -1,0 +1,41 @@
+appId: com.zyx.academy.nativeparity
+name: Academic quiz grading queue and recovery
+---
+- launchApp
+- openLink: zyx-native-parity://academic?role=tutor&path=%2Ftutor%2Facademic-course-1%2Fquizzes%2Fgrading&scenario=error&theme=dark
+- extendedWaitUntil:
+    visible:
+      id: academic-assessment-retry
+    timeout: 20000
+- takeScreenshot: academic-tutor-quiz-grading-read-error-dark
+- tapOn:
+    id: academic-assessment-retry
+- tapOn:
+    id: academic-grade-attempt-academic-quiz-attempt-1
+- tapOn:
+    id: academic-assessment-retry
+- scrollUntilVisible:
+    element:
+      id: academic-grade-score-academic-question-2
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: academic-grade-score-academic-question-2
+- inputText: 85
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: academic-grade-finalize
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: academic-grade-finalize
+- assertVisible:
+    id: academic-mutation-retry
+- takeScreenshot: academic-tutor-quiz-grading-save-error-dark
+- tapOn:
+    id: academic-mutation-retry
+- assertVisible: Penilaian selesai.
+- assertNotVisible:
+    id: academic-grade-attempt-academic-quiz-attempt-1
+- takeScreenshot: academic-tutor-quiz-grading-complete-dark

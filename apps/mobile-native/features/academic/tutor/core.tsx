@@ -32,43 +32,46 @@ const sessionDateFormat = new Intl.DateTimeFormat("id-ID", { weekday: "short", d
 
 export function TutorDashboard({ navigate, theme, data }: Navigation & { data: DashboardData }) {
   return <TutorPage theme={theme} title="Dashboard pengajar">
-    <View style={tutorLayout.cluster}>
-      <Button theme={theme} variant="outline" style={tutorLayout.action} onPress={() => navigate("/tutor/schedule")}>Jadwal</Button>
-      <Button theme={theme} variant="outline" style={tutorLayout.action} onPress={() => navigate("/tutor/discussions")}>Diskusi</Button>
-      <Button theme={theme} variant="outline" style={tutorLayout.action} onPress={() => navigate("/tutor/docs")}>Dokumentasi</Button>
-    </View>
     <View>
-      <Heading theme={theme} title="Pengajaran" count={`${data.counts.courses} mata kuliah`} />
-      {data.courses.map((course) => (
-        <Row key={course.courseId} testID={`tutor-course-${course.courseId}`} theme={theme} title={course.title}
-          subtitle={course.code && !course.code.toLowerCase().startsWith("legacy-") ? course.code : undefined}
-          meta={`${course.groupCount} kelompok`} onPress={() => navigate(courseRoute(course))}
-        />
-      ))}
-      {data.courses.length === 0 ? <Empty theme={theme} title="Belum ada mata kuliah" description="Penugasan mata kuliah tutor dikelola oleh admin." /> : null}
-    </View>
-    <View>
-      <Heading theme={theme} title="Sesi berikutnya" count={`${data.counts.sessionsThisWeek} sesi pekan ini`} />
+      <Heading theme={theme} title="Sesi berikutnya" count={`${data.counts.sessionsThisWeek} sesi pekan ini`} inline />
+      <Button theme={theme} variant="ghost" style={tutorLayout.sectionLink} onPress={() => navigate("/tutor/schedule")}>Semua jadwal ↗</Button>
       {data.upcomingSessions.map((session) => {
         const sessionDate = new Date(session.sessionDate ?? "");
         const date = Number.isNaN(sessionDate.valueOf()) ? "Tanggal belum ditentukan" : sessionDateFormat.format(sessionDate);
-        const time = [session.startTime, session.endTime].flatMap((value) => value ? [value.slice(0, 5)] : []).join(" sampai ");
+        const time = [session.startTime, session.endTime].flatMap((value) => value ? [value.slice(0, 5)] : []).join("-");
+        const mode = session.mode === "online" ? "Daring" : session.mode === "offline" ? "Tatap muka" : undefined;
         return <Row key={session.id} theme={theme}
-          title={session.topic ?? session.courseTitle ?? "Sesi tutorial"}
-          subtitle={[session.groupName, date, time].filter(Boolean).join(" · ")}
-          meta={session.mode === "online" ? "Daring" : session.mode === "offline" ? "Tatap muka" : undefined}
+          title={session.courseTitle ?? session.topic ?? "Sesi tutorial"}
+          subtitle={[session.groupName ?? "Kelompok", mode].filter(Boolean).join(" · ")}
+          meta={[date, time].filter(Boolean).join("\n")}
           onPress={() => navigate("/tutor/schedule")}
         />;
       })}
       {data.upcomingSessions.length === 0 ? <Empty theme={theme} title="Belum ada sesi mendatang" /> : null}
     </View>
     <View>
-      <Heading theme={theme} title="Perlu perhatian" count={`${data.counts.pendingTickets} tiket menunggu`} />
+      <Heading theme={theme} title="Pengajaran" count={`${data.counts.courses} mata kuliah · ${data.counts.activeGroups} kelompok aktif`} inline />
+      {data.courses.map((course) => (
+        <Row key={course.courseId} testID={`tutor-course-${course.courseId}`} theme={theme} title={course.title}
+          subtitle={`${course.groupCount} kelompok terkait`}
+          meta={course.code && !course.code.toLowerCase().startsWith("legacy-") ? course.code : undefined}
+          onPress={() => navigate(courseRoute(course))}
+        />
+      ))}
+      {data.courses.length === 0 ? <Empty theme={theme} title="Belum ada mata kuliah" description="Penugasan mata kuliah tutor dikelola oleh admin." /> : null}
+    </View>
+    <View>
+      <Heading theme={theme} title="Perlu perhatian" count={`${data.counts.pendingTickets} tiket menunggu`} inline />
+      <Button theme={theme} variant="ghost" style={tutorLayout.sectionLink} onPress={() => navigate("/tutor/schedule?tab=tickets")}>Semua jadwal ↗</Button>
       {data.pendingTickets.map((ticket) => <Row key={ticket.id} theme={theme}
         title={ticket.type === "cancellation" ? "Permintaan pembatalan" : "Permintaan penjadwalan ulang"}
         subtitle={ticket.reason} onPress={() => navigate("/tutor/schedule?tab=tickets")}
       />)}
       {data.pendingTickets.length === 0 ? <Empty theme={theme} title="Tidak ada tiket menunggu" /> : null}
+    </View>
+    <View style={tutorLayout.cluster}>
+      <Button theme={theme} variant="ghost" style={tutorLayout.sectionLink} onPress={() => navigate("/tutor/discussions")}>Diskusi</Button>
+      <Button theme={theme} variant="ghost" style={tutorLayout.sectionLink} onPress={() => navigate("/tutor/docs")}>Dokumentasi</Button>
     </View>
   </TutorPage>;
 }
@@ -182,11 +185,12 @@ const enrollmentFilters = [
 
 const accessNames = { direct: "Langsung", group: "Kelompok", both: "Langsung dan kelompok" };
 const dateFormat = new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Jakarta" });
+const submissionDateFormat = new Intl.DateTimeFormat("id-ID", { dateStyle: "short", timeStyle: "short", timeZone: "Asia/Jakarta" });
 
-function displayDate(value: string | null, fallback: string) {
+function displayDate(value: string | null, fallback: string, format = dateFormat) {
   if (!value) return fallback;
   const date = new Date(value);
-  return Number.isNaN(date.valueOf()) ? fallback : dateFormat.format(date);
+  return Number.isNaN(date.valueOf()) ? fallback : format.format(date);
 }
 
 export function TutorParticipants({ theme, back, data, query }: Navigation & { data: ParticipantsData; query: AcademicScreenProps["query"] }) {
@@ -197,8 +201,8 @@ export function TutorParticipants({ theme, back, data, query }: Navigation & { d
   const participants = filterParticipants(data.participants, search, access);
   const groups = filterGroups(data.groups, search);
   return <><TutorPage theme={theme} title="Peserta dan kelompok" subtitle={data.course.title} onBack={back}>
-    <Choices theme={theme} label="Peserta dan kelompok" value={tab} change={setTab}
-      options={[["people", `Peserta (${data.participants.length})`], ["groups", `Kelompok (${data.groups.length})`]]}
+    <Choices theme={theme} label="Peserta dan kelompok" value={tab} change={setTab} tabBar
+      options={[["people", `Peserta (${data.participants.length})`], ["groups", `Kelompok belajar (${data.groups.length})`]]}
     />
     <Input theme={theme} accessibilityLabel="Cari peserta atau kelompok" placeholder="Cari peserta atau kelompok"
       value={search} onChangeText={setSearch} style={tutorLayout.input} />
@@ -214,6 +218,16 @@ export function TutorParticipants({ theme, back, data, query }: Navigation & { d
             {participant.groups.map((group) =>
               <Label key={group.id} theme={theme} tone="muted">{group.name}{group.role === "leader" ? " (Ketua)" : ""}</Label>,
             )}
+            <View style={[tutorLayout.cluster, { alignItems: "flex-start" }]}>
+              <View style={tutorLayout.participantMeta}>
+                <Label theme={theme} tone="muted">Terdaftar sejak</Label>
+                <Label theme={theme} tone="muted">{displayDate(participant.enrolledAt, "Belum tercatat")}</Label>
+              </View>
+              <View style={tutorLayout.participantMeta}>
+                <Label theme={theme} tone="muted">Masa berlaku</Label>
+                <Label theme={theme} tone="muted">{displayDate(participant.expiresAt, "Aktif semester ini")}</Label>
+              </View>
+            </View>
           </Row>
         ))}</View>}
     </> : (
@@ -243,7 +257,7 @@ export function TutorParticipants({ theme, back, data, query }: Navigation & { d
 type GradeTab = "pending" | "graded" | "all";
 type GradeDraft = { score: string; notes: string };
 const gradingTypes: Record<string, string> = { multiple_choice: "Pilihan ganda", multiple_choices: "Pilihan ganda kompleks", short_answer: "Jawaban singkat", essay: "Esai" };
-const gradingStatus = { completed: "Selesai", pending_review: "Menunggu peninjauan", graded: "Sudah dinilai", late: "Terlambat" };
+const gradingStatus = { completed: "Selesai", pending_review: "Menunggu penilaian", graded: "Sudah dinilai", late: "Terlambat" };
 
 export function TutorGrading({ theme, back, data, onSave }: Navigation & {
   data: GradingData;
@@ -307,13 +321,13 @@ export function TutorGrading({ theme, back, data, onSave }: Navigation & {
   return <>
     <TutorPage theme={theme} title="Penilaian tryout" subtitle={data.course.title} onBack={back}>
       {notice ? <Label theme={theme} tone="strong">{notice}</Label> : null}
-      <Choices theme={theme} label="Filter penilaian tryout" value={tab} change={setTab}
+      <Choices theme={theme} label="Filter penilaian tryout" value={tab} change={setTab} tabBar
         options={[["pending", `Perlu dinilai (${pending.length})`], ["graded", `Sudah dinilai (${graded.length})`], ["all", "Semua"]]} />
       {items.length === 0
         ? <Empty theme={theme} title={tab === "pending" && submissions.length ? "Semua pengumpulan sudah dinilai" : tab === "graded" ? "Belum ada nilai" : "Belum ada pengumpulan"} />
         : <View>{items.map((submission) => (
           <Row key={submission.id} testID={`tutor-submission-${submission.id}`} theme={theme} title={submission.examTitle}
-            subtitle={`${submission.studentName ?? "Siswa"} · ${displayDate(submission.submittedAt, "Tanggal belum tercatat")}`}
+            subtitle={`${submission.studentName ?? "Siswa"} · ${displayDate(submission.submittedAt, "Tanggal belum tercatat", submissionDateFormat)}`}
             meta={submission.score == null ? undefined : `${submission.score}%`}
             onPress={() => {
               setFeedbackExpanded(false);

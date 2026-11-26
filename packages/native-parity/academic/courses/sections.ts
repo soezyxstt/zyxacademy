@@ -37,6 +37,11 @@ export type QuizInsightItem = {
   optionCounts: Record<number, number>;
 };
 
+export type CourseLeaderboardAttempt = {
+  id: string; participantId: string; name: string; title: string; category: string;
+  score: number; duration: number; submittedAt: string | null;
+};
+
 export type CourseSectionPayload =
   | { type: "analytics" | "results"; quizzes: CourseQuizRow[];
       stats: { totalAttempts: number; avgScore: number; passRate: number } }
@@ -47,11 +52,12 @@ export type CourseSectionPayload =
   | { type: "documents"; chapters: CourseChapterLabel[]; documents: CourseDocumentRow[] }
   | { type: "document"; document: CourseDocumentRow; chapters: CourseChapterLabel[] }
   | { type: "review"; bundles: CourseReviewRow[] }
+  | { type: "leaderboard"; attempts: CourseLeaderboardAttempt[] }
   | { type: "videos"; playlists: { id: string; title: string; description: string | null; videos:
       { id: string; title: string; description: string | null; playable: boolean }[] }[] }
   | { type: "flashcards"; chapters: CourseChapterLabel[]; sets: { id: string; title: string; status: string; chapterId: string | null;
       cards: { id: string; front: string; back: string; explanation: string | null }[] }[] }
-  | { type: "settings"; description: string | null; isDemo: boolean;
+  | { type: "settings"; description: string | null; isDemo: boolean; revision: string; canonicalOnly: boolean;
       pricing: { category: string; startsAt: string | null; endsAt: string | null };
       demoChecks: { label: string; ready: boolean; count: number }[] }
   | { type: "questions"; chapters: CourseChapterLabel[]; questions: {
@@ -64,5 +70,27 @@ export type AdminCourseSectionResult = CourseSectionPayload & { course: CourseSe
 export function isAdminCourseLiveSection(section: string | undefined, itemId?: string): section is string {
   if (section === "documents" || section === "analytics") return true;
   return !itemId && (section === "results" || section === "review" ||
-    section === "videos" || section === "flashcards" || section === "settings" || section === "questions");
+    section === "videos" || section === "flashcards" || section === "settings" || section === "questions" || section === "leaderboard");
+}
+
+export function rankCourseLeaderboard(attempts: readonly CourseLeaderboardAttempt[], type: string, search: string) {
+  const applicable = attempts.filter((attempt) =>
+    (type !== "quiz" || attempt.category !== "simulation") && (type !== "simulation" || attempt.category === "simulation"));
+  const byParticipant = new Map<string, CourseLeaderboardAttempt[]>();
+  for (const attempt of applicable) {
+    const group = byParticipant.get(attempt.participantId);
+    if (group) group.push(attempt);
+    else byParticipant.set(attempt.participantId, [attempt]);
+  }
+  const query = search.trim().toLocaleLowerCase("id");
+  const standings = Array.from(byParticipant, ([id, records]) => {
+    const name = records[0].name;
+    const score = records.reduce((total, attempt) => total + attempt.score, 0);
+    const time = records.reduce((total, attempt) => total + attempt.duration, 0);
+    return { id, name, records, score, average: Number((score / records.length).toFixed(1)), duration: Math.round(time / records.length) };
+  }).filter(({ name }) => name.toLocaleLowerCase("id").includes(query))
+    .sort((left, right) => right.average - left.average || right.score - left.score ||
+      right.records.length - left.records.length || left.duration - right.duration || left.id.localeCompare(right.id))
+    .map((entry, index) => ({ ...entry, rank: index + 1 }));
+  return { standings, totalAttempts: applicable.length };
 }

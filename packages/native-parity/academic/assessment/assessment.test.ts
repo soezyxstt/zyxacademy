@@ -65,6 +65,10 @@ test("validates edit, preserves untouched draft, detects stale revision and save
   const last = { ...original, title: "Kuis struktur sel revisi" };
   const saved = await gateway.mutate(admin, "save-title", { kind: "quiz.save", target: targetVersion(original), input: last });
   assert.equal(value(saved).id, original.id);
+  assert.equal(gateway.takeQuizSaveNotice?.(admin, "1"), null);
+  assert.equal(gateway.takeQuizSaveNotice?.(tutor, "save-title"), null);
+  assert.equal(gateway.takeQuizSaveNotice?.(admin, "save-title"), "Kuis tersimpan.");
+  assert.equal(gateway.takeQuizSaveNotice?.(admin, "save-title"), null);
   assert.equal(code(await gateway.mutate(tutor, "stale-title", {
     kind: "quiz.save", target: targetVersion(original), input: { ...original, title: "Judul lama" },
   })), "conflict");

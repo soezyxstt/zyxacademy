@@ -54,8 +54,8 @@ def measure_pair(capture, reference, device, device_capture, output):
     result = {
         "id": case,
         "passed": False,
-        "reference": {**web_geometry, "viewport": reference_viewport, "deviceScaleFactor": reference_dpr},
-        "device": {**native_geometry, "viewport": device_viewport, "deviceScaleFactor": device_dpr},
+        "reference": {**web_geometry, "viewport": reference_viewport, "deviceScaleFactor": reference_dpr, "theme": capture["theme"]},
+        "device": {**native_geometry, "viewport": device_viewport, "deviceScaleFactor": device_dpr, "theme": device_capture.get("theme")},
     }
     mismatches = []
     if web.size != (capture["width"], capture["height"]):
@@ -120,10 +120,13 @@ def main():
         parser.error("Device manifest platform must be android or ios")
     captures = {capture["id"]: capture for capture in reference["captures"]}
     devices = {capture["id"]: capture for capture in device["captures"]}
-    cases = args.case or list(captures)
+    mapped = set(devices) | set(device.get("missingDeviceCases", []))
+    cases = args.case or [case for case in captures if case in mapped]
     unknown = sorted(set(cases) - captures.keys())
     if unknown:
         parser.error(f"Unknown case IDs: {', '.join(unknown)}")
+    if not cases:
+        parser.error("No selected reference case has a semantic device mapping")
 
     args.output.mkdir(parents=True, exist_ok=True)
     results = []
@@ -136,7 +139,9 @@ def main():
             except (OSError, ValueError, KeyError) as error:
                 result = {"id": case, "passed": False, "error": str(error)}
         results.append(result)
-        diagnostic = result.get("error") or result.get("mismatches") or result.get("differentOverlapPixels")
+        diagnostic = result.get("error") or result.get("mismatches")
+        if not diagnostic:
+            diagnostic = "blank reference" if result.get("blankReference") else result.get("differentOverlapPixels")
         print(f"{'PASS' if result['passed'] else 'FAIL'} {case}: {diagnostic}")
 
     evidence = {
@@ -148,6 +153,7 @@ def main():
         "referenceDeviceScaleFactor": reference["deviceScaleFactor"],
         "deviceViewport": device.get("viewport"),
         "deviceScaleFactor": device.get("deviceScaleFactor"),
+        "unpairedReferenceCases": [case for case in captures if case not in mapped],
         "cases": results,
     }
     (args.output / "results.json").write_text(json.dumps(evidence, indent=2) + "\n")

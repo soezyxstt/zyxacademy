@@ -1,5 +1,5 @@
 import {
-  isLiveAdministrationRead, type LiveAdministrationRead, type LiveListSection, type LivePage,
+  isLiveAdministrationRead, type DiktatEvidenceStatus, type DiktatPdfTarget, type LiveAdministrationRead, type LiveListSection, type LivePage,
 } from "../../../../packages/native-parity/academic/administration/live";
 import type { ReviewKind } from "../../../../packages/native-parity/academic/administration/fixtures";
 
@@ -22,7 +22,8 @@ export type AdministrationReadServices = {
   session(): Promise<{ user: { id: string } } | null>;
   hasAdmin(id: string): Promise<boolean>;
   list(section: LiveListSection, query: AdministrationQuery): Promise<LivePage>;
-  bundle(kind: ReviewKind, slug: string, bundleId: string): Promise<LivePage | null>;
+  bundle(kind: ReviewKind, slug: string, bundleId: string, page: number): Promise<LivePage | null>;
+  pdfStatus(slug: string, target: DiktatPdfTarget, attemptId: string): Promise<DiktatEvidenceStatus | null>;
   courseSlug(id: string): Promise<string | null>;
   bundleCourseSlug(kind: ReviewKind, id: string): Promise<string | null>;
 };
@@ -61,8 +62,16 @@ export async function handleAdministrationRead(parts: string[], search: URLSearc
     if (parts.length === 1 && sections.includes(section as LiveListSection)) {
       return output(await services.list(section as LiveListSection, query));
     }
+    if (section === "pdf-status" && parts.length === 3) {
+      const productId = search.get("productId") ?? "";
+      const expectedRevision = search.get("expectedRevision") ?? "";
+      const attemptId = search.get("attemptId") ?? "";
+      if (!validPart(productId) || !validPart(attemptId) || !/^[a-f0-9]{64}$/.test(expectedRevision)) return problem(400, "INVALID_PDF_SCOPE");
+      const result = await services.pdfStatus(kind, { importId: id, productId, expectedRevision }, attemptId);
+      return result ? Response.json({ status: result }, { headers }) : notFound();
+    }
     if (section === "bundle" && parts.length === 4 && isReviewKind(kind)) {
-      const result = await services.bundle(kind, id, bundleId);
+      const result = await services.bundle(kind, id, bundleId, query.page);
       return result ? output(result) : notFound();
     }
     if (section === "alias" && parts.length >= 2) {

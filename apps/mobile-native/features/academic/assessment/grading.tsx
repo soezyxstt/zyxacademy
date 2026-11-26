@@ -108,7 +108,7 @@ function GradingDetails({ gateway, context, attemptId, back, onSaved }: {
     subtitle={result?.ok ? result.value.quizTitle : undefined}
     back={() => { if (!mutation.pending) back(); }} backLabel="Kembali ke antrean">
     <ReadState result={result} retry={retry}>{(attempt) => (
-      <GradeForm attempt={attempt} readOnly={!gateway.canMutate} busy={mutation.pending} feedback={<MutationProblem mutation={mutation} reload={reload} />}
+      <GradeForm attempt={attempt} readOnly={!gateway.canGrade} busy={mutation.pending || mutation.problem?.code === "unavailable"} feedback={<MutationProblem mutation={mutation} reload={reload} />}
         save={(items, finalize) => mutation.send({ kind: "grading.save", attemptId, items, finalize }, (effect) => onSaved(effect.message))} />
     )}</ReadState>
   </AssessmentPage>;
@@ -171,9 +171,9 @@ function GradeForm({ attempt, busy, save, feedback, readOnly }: {
           {answer.reviewScore !== null ? <Ink>Nilai penilaian {answer.reviewScore}/100</Ink> : null}
           {answer.reviewNotes ? <Ink>{answer.reviewNotes}</Ink> : null}
         </> : draft[answer.questionId] ? <>
-          <Field label={`Nilai soal ${index + 1}, 0 sampai 100`} keyboardType="decimal-pad" value={draft[answer.questionId].score}
+          <Field label={`Nilai soal ${index + 1}, 0 sampai 100`} keyboardType="decimal-pad" editable={!busy} value={draft[answer.questionId].score}
             onChangeText={(score) => update(answer.questionId, { score })} testID={`academic-grade-score-${answer.questionId}`} />
-          <Field label={`Catatan soal ${index + 1}`} multiline maxLength={2000} value={draft[answer.questionId].notes}
+          <Field label={`Catatan soal ${index + 1}`} multiline editable={!busy} maxLength={2000} value={draft[answer.questionId].notes}
             onChangeText={(notes) => update(answer.questionId, { notes })} />
         </> : null}
       </SectionRow>

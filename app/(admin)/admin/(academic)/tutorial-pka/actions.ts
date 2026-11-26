@@ -12,6 +12,7 @@ import { sendToMany } from "@/lib/notifications/send";
 import { pkaAnnouncementPayload, pkaSchedulePayload, pkaScheduleUpdatePayload } from "@/lib/notifications/templates";
 import { pkaAnnouncementEmailHtml, pkaAnnouncementEmailSubject, pkaScheduleEmailSubject, pkaScheduleUpdateEmailSubject, scheduleEmailHtml } from "@/lib/pka-email-template";
 import { sendOptionalEmail } from "@/lib/email-preferences/send";
+import { updatePkaAnnouncementText } from "@/lib/pka/announcement-text";
 
 export interface PkaActionState {
   success?: boolean;
@@ -199,10 +200,7 @@ export async function editPkaAnnouncementAction(
   try {
     await requireAdmin();
 
-    await db
-      .update(pkaAnnouncements)
-      .set({ title, body })
-      .where(eq(pkaAnnouncements.id, announcementId));
+    await updatePkaAnnouncementText(announcementId, { title, body });
 
     return { success: true };
   } catch (err) {

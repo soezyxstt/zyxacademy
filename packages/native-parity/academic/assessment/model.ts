@@ -70,6 +70,7 @@ export type BankQuestionInput = QuestionInput & {
 export type BankQuestion = BankQuestionInput & Versioned & {
   origin: "zyx_original" | "itb_example" | "historical_reference";
   sourceEventName?: string;
+  quizSelectable?: boolean;
 };
 
 export interface TryoutInput {
@@ -128,7 +129,7 @@ export type AssessmentResult<T> =
   | { ok: false; code: AssessmentErrorCode; message: string };
 
 export type AssessmentCommand =
-  | { kind: "quiz.save"; target: VersionRef | null; input: QuizInput }
+  | { kind: "quiz.save"; target: VersionRef | null; input: QuizInput; courseId?: string }
   | { kind: "quiz.status"; target: VersionRef; status: QuizStatus }
   | { kind: "quiz.delete"; target: VersionRef }
   | { kind: "bank.save"; target: VersionRef | null; input: BankQuestionInput }
@@ -150,13 +151,16 @@ export type MutationEffect = {
 
 export interface AssessmentGateway {
   readonly canMutate: boolean;
+  readonly canGrade: boolean;
+  readonly canSaveQuiz: boolean;
+  takeQuizSaveNotice?(context: AssessmentContext, requestId: string): string | null;
   listQuizzes(context: AssessmentContext, signal?: AbortSignal): Promise<AssessmentResult<QuizCollection>>;
   previewQuiz(context: AssessmentContext, id: string, signal?: AbortSignal): Promise<AssessmentResult<QuizPreviewQuestion[]>>;
   listQuizAttempts(context: AssessmentContext, quizId: string, signal?: AbortSignal): Promise<AssessmentResult<QuizAttemptsSheet>>;
   pendingGrading(context: AssessmentContext, signal?: AbortSignal): Promise<AssessmentResult<QuizAttemptSummary[]>>;
   loadGradingAttempt(context: AssessmentContext, id: string, signal?: AbortSignal): Promise<AssessmentResult<QuizAttempt>>;
   listTryouts(context: AssessmentContext, signal?: AbortSignal): Promise<AssessmentResult<TryoutCollection>>;
-  mutate(context: AssessmentContext, requestId: string, command: AssessmentCommand): Promise<AssessmentResult<MutationEffect>>;
+  mutate(context: AssessmentContext, requestId: string, command: AssessmentCommand, signal?: AbortSignal): Promise<AssessmentResult<MutationEffect>>;
 }
 
 export const targetVersion = ({ id, revision }: Versioned): VersionRef => ({ id, expectedRevision: revision });

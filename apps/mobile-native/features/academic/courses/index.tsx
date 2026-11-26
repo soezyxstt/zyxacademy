@@ -2,16 +2,20 @@ import { useContext, useEffect, useState, useSyncExternalStore, type ReactNode }
 import { ScrollView, View } from "react-native";
 import { type CourseFixture, courseFixtures } from "../../../../../packages/native-parity/academic/courses/fixtures";
 import {
-  adminCoursePath, resolveAdminCourseAlias, type AdminCourseLiveRead, type LiveCourseRead,
+  adminCoursePath, completedCourseAttempts, resolveAdminCourseAlias, type AdminCourseLiveRead, type LiveCourseRead,
 } from "../../../../../packages/native-parity/academic/courses/model";
 import { useAdministrationSnapshot } from "../administration/provider";
 import type { AcademicScreenProps } from "../contracts";
-import { CourseAnalytics, CourseLeaderboard, QuizAnalyticsDetail } from "./analytics";
+import { NativeCompactShell } from "../../shared-ui";
+import { CourseAnalytics, QuizAnalyticsDetail } from "./analytics";
+import { CourseLeaderboard } from "./leaderboard";
 import { CourseDocumentDetail, CourseDocuments, CourseQuestions } from "./content";
 import { CourseFlashcards, CourseVideos } from "./media";
+import { LiveCourseSection } from "./live-sections";
+import { isAdminCourseLiveSection } from "../../../../../packages/native-parity/academic/courses/sections";
 import { CourseList, CourseOverview, CourseSettings } from "./overview";
 import { AdminCourseFixtureContext } from "./scope";
-import { Action, CourseStatus, DataRow, Ink, Panel, PendingCourses, Tabs, CourseTheme, layout, useCourseColors } from "./ui";
+import { Action, CourseStatus, DataRow, Ink, Panel, PendingCourses, Tabs, CourseTheme, layout } from "./ui";
 
 export { AdminCourseFixtureProvider } from "./scope";
 export type { AdminCourse, AdminChapter, AdminCourseOverview, AdminCourseLiveRead, LiveCourseRead } from "../../../../../packages/native-parity/academic/courses/model";
@@ -57,22 +61,29 @@ function CourseRoute(props: CourseScreenProps) {
   return <FixtureCourseRoute {...props} isList={isList} section={section} />;
 }
 
-function CoursePage({ title, subtitle, back, children }: {
-  title: string; subtitle?: string; back(): void; children: ReactNode;
+function CoursePage({ title, subtitle, back, children, scroll = true }: {
+  title: string; subtitle?: string; back(): void; children: ReactNode; scroll?: boolean;
 }) {
-  const palette = useCourseColors();
-  return (
-    <ScrollView keyboardShouldPersistTaps="handled" style={{ flex: 1, backgroundColor: palette.background }}
-      contentContainerStyle={layout.page}>
-      <View style={{ alignSelf: "flex-start" }}>
-        <Action label="Kembali" onPress={back} variation="ghost" testID="course-back" />
-      </View>
-      <View style={layout.compact}>
-        <Ink kind="title">{title}</Ink>
-        {subtitle ? <Ink kind="meta" tone="muted">{subtitle}</Ink> : null}
-      </View>
+  const theme = useContext(CourseTheme);
+  const content = (
+    <>
+      {subtitle ? <Ink kind="meta" tone="muted">{subtitle}</Ink> : null}
       {children}
-    </ScrollView>
+    </>
+  );
+  return (
+    <NativeCompactShell
+      theme={theme}
+      edges={[]}
+      navigationTitle={title}
+      back={{ label: "Kembali", onPress: back }}
+    >
+      {scroll ? (
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={layout.scrollBody}>
+          {content}
+        </ScrollView>
+      ) : <View style={layout.listBody}>{content}</View>}
+    </NativeCompactShell>
   );
 }
 
@@ -90,11 +101,24 @@ function LiveCourseRoute({ live, isList, section, actor, navigate, query, back }
   live: AdminCourseLiveRead; isList: boolean; section?: string;
 }) {
   if (section) {
-    return <CoursePage title="Mata kuliah" back={back}><CourseStatus label="Bagian ini tersedia di Zyx web." /></CoursePage>;
+    const data = live.section?.status === "ready" ? live.section.data : null;
+    return (
+      <CoursePage title={data?.course.title ?? "Mata kuliah"} back={back}
+        subtitle={data ? `${data.course.category} · ${data.course.id}` : undefined}>
+        <LiveStatus read={live.section} retry={live.retry}>
+          {(payload) => (
+            <>
+              <Ink kind="heading">{sections.find((item) => item.id === section)?.label}</Ink>
+              <LiveCourseSection data={payload} query={query} navigate={navigate} updateSettings={live.updateSettings} refresh={live.retry} />
+            </>
+          )}
+        </LiveStatus>
+      </CoursePage>
+    );
   }
   if (isList) {
     return (
-      <CoursePage title="Mata kuliah" back={back}>
+      <CoursePage title="Mata kuliah" back={back} scroll={false}>
         <LiveStatus read={live.list} retry={live.retry}>
           {(data) => <CourseList courses={data} actor={actor} navigate={navigate} allowCreate={false}
             initialSearch={query.search ?? ""} initialCategory={query.category ?? ""} />}
@@ -109,6 +133,7 @@ function LiveCourseRoute({ live, isList, section, actor, navigate, query, back }
       <LiveStatus read={live.detail} retry={live.retry}>
         {(data) => <CourseOverview data={data} actor={actor} navigate={navigate} />}
       </LiveStatus>
+      {detail ? <CourseMenu slug={detail.course.slug} navigate={navigate} live /> : null}
     </CoursePage>
   );
 }
@@ -131,7 +156,7 @@ function FixtureCourseRoute({ isList, section, ...props }: AcademicScreenProps &
   if (isList) {
     const courses = snapshot.filter(({ course }) => scenario !== "empty" || !fixtureCourseIds.has(course.id)).map(({ course }) => course);
     return (
-      <CoursePage title="Mata kuliah" back={back}>
+      <CoursePage title="Mata kuliah" back={back} scroll={false}>
         <CourseList courses={courses} actor={actor} navigate={navigate} allowCreate
           initialSearch={query.search ?? ""} initialCategory={query.category ?? ""} />
       </CoursePage>
@@ -160,7 +185,10 @@ function FixtureCourseRoute({ isList, section, ...props }: AcademicScreenProps &
         return quiz ? <QuizAnalyticsDetail data={data} actor={actor} quiz={quiz} initialTab={query.tab} />
           : <CourseStatus label="Kuis tidak ditemukan pada mata kuliah ini." error />;
       }
-      case "leaderboard": return <CourseLeaderboard data={data} />;
+      case "leaderboard": return <CourseLeaderboard attempts={completedCourseAttempts(data.attempts).map((item) => {
+        const quiz = data.quizzes.find((entry) => entry.id === item.quizId);
+        return { ...item, title: quiz?.title ?? "Kuis", category: quiz?.category === "Simulasi" ? "simulation" : "quiz", submittedAt: item.date };
+      })} />;
       case "review": return <CourseReview data={data} initialTab={query.tab ?? query.section} navigate={navigate} />;
       case "settings": return <CourseSettings data={data} actor={actor} back={back} navigate={navigate} />;
       default: return <CourseStatus label="Bagian mata kuliah tidak ditemukan." error />;
@@ -176,10 +204,10 @@ function FixtureCourseRoute({ isList, section, ...props }: AcademicScreenProps &
   );
 }
 
-function CourseMenu({ slug, navigate }: { slug: string; navigate(path: string): void }) {
+function CourseMenu({ slug, navigate, live }: { slug: string; navigate(path: string): void; live?: boolean }) {
   return (
     <Panel title="Kelola mata kuliah">
-      {sections.map((section) => (
+      {sections.filter((section) => !live || isAdminCourseLiveSection(section.id)).map((section) => (
         <DataRow key={section.id} title={section.label} testID={`course-link-${section.id}`}
           onPress={() => navigate(adminCoursePath(slug, section.id))} />
       ))}

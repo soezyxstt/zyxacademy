@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { View } from "react-native";
 import {
   canEditQuiz, commaList, defaultQuiz, difficulties, questionTypes, quizCategories, targetVersion,
@@ -21,6 +21,12 @@ export function Quizzes({ mode, gateway, context, base, params, query, navigate,
   const { result, retry } = useRead(useCallback((signal: AbortSignal) => gateway.listQuizzes(context, signal), [gateway, context]));
   const mutation = useMutation(gateway, context);
   const [message, setMessage] = useState("");
+  const savedId = query.saved;
+  useEffect(() => {
+    if (mode !== "list" || !savedId) return;
+    const notice = gateway.takeQuizSaveNotice?.(context, savedId);
+    if (notice) setMessage(notice);
+  }, [context, gateway, mode, savedId]);
   const isTutor = context.scope.kind === "tutor";
   const quizPath = `${base}/quizzes`;
   const quizId = isTutor ? params.templateId : params.id;
@@ -59,7 +65,7 @@ export function Quizzes({ mode, gateway, context, base, params, query, navigate,
       {isTutor ? <Tabs<(typeof tabs)[number]["id"]> options={tabs} selected={tab} onSelect={setTab} testID="academic-quizzes-tab" /> : null}
       {tab === "quizzes" || !isTutor ? <>
         <View style={layout.row}>
-          {gateway.canMutate ? <Action label="Buat kuis" variation="default" testID="academic-quiz-new" onPress={() => navigate(`${quizPath}/new`)} /> : null}
+          {gateway.canSaveQuiz ? <Action label="Buat kuis" variation="default" testID="academic-quiz-new" onPress={() => navigate(`${quizPath}/new`)} /> : null}
           {isTutor ? <Action label="Penilaian kuis" testID="academic-quiz-grading" onPress={() => navigate(`${quizPath}/grading`)} /> : null}
         </View>
         <SearchBox label="Cari kuis" value={search} onChange={(value) => { setSearch(value); setPage(0); }} testID="academic-quiz-search" />
@@ -76,8 +82,8 @@ export function Quizzes({ mode, gateway, context, base, params, query, navigate,
               {isTutor ? <Action label="Hasil" onPress={() => navigate(`${quizPath}/${entry.id}/attempts`)} testID={`academic-quiz-attempts-${entry.id}`} /> : (
                 <Action label="Analitik" onPress={() => navigate(`${base}/analytics/${entry.id}`)} />
               )}
+              {gateway.canSaveQuiz && editable ? <Action label="Edit" onPress={() => navigate(`${quizPath}/${entry.id}/edit`)} testID={`academic-quiz-edit-${entry.id}`} /> : null}
               {gateway.canMutate && editable ? <>
-                <Action label="Edit" onPress={() => navigate(`${quizPath}/${entry.id}/edit`)} testID={`academic-quiz-edit-${entry.id}`} />
                 {isTutor ? <Action label={entry.status === "published" ? "Jadikan draf" : "Terbitkan"}
                   disabled={mutation.pending} onPress={() => mutation.send({
                     kind: "quiz.status", target: targetVersion(entry), status: entry.status === "published" ? "draft" : "published",
@@ -139,18 +145,17 @@ export function Quizzes({ mode, gateway, context, base, params, query, navigate,
 
   return <AssessmentPage title={title} subtitle={subtitle} back={mode === "list" ? back : () => replace(quizPath)} backLabel={mode === "list" ? "Kembali" : "Kembali ke kuis"}>
     {message ? <AssessmentNotice message={message} /> : null}
-    {query.saved === "1" ? <AssessmentNotice message="Kuis tersimpan." /> : null}
     <ReadState result={result} retry={retry}>{(data) => {
       if (mode === "list") return list(data);
       if (mode === "edit" && !quiz) return <AssessmentNotice error message="Kuis tidak ditemukan di kursus ini." />;
       const role = context.scope.kind;
       if (quiz && !canEditQuiz(role, quiz)) return <AssessmentNotice error message="Kuis simulasi hanya dapat diubah oleh admin." />;
       const initialValue = quiz ?? defaultQuiz(role, commaList(query.tags ?? ""));
-      return <QuizEditor initialValue={initialValue} role={role} bank={data.bank} isSaving={mutation.pending}
+      return <QuizEditor initialValue={initialValue} role={role} bank={data.bank} isSaving={mutation.pending || mutation.problem?.code === "unavailable"}
         feedback={<MutationProblem mutation={mutation} reload={reload} />}
         onCancel={() => replace(quizPath)} onSave={(input) => mutation.send({
-          kind: "quiz.save", target: quiz ? targetVersion(quiz) : null, input,
-        }, () => replace(`${quizPath}?saved=1`))} />;
+          kind: "quiz.save", target: quiz ? targetVersion(quiz) : null, input, courseId: data.course.id,
+        }, (_effect, requestId) => replace(`${quizPath}?saved=${encodeURIComponent(requestId)}`))} />;
     }}</ReadState>
   </AssessmentPage>;
 }

@@ -9,11 +9,13 @@ import { getCanonicalCourseSlug, matchesCourseIdentity, resolveBundleCourseIdent
 import { getAuthSession } from "@/lib/auth-session";
 import { ensureLegacyIdentity } from "@/lib/auth/legacy-identity";
 import { hasPeran } from "@/lib/auth/request-cache";
+import { getDiktatPdfContext } from "@/lib/bundle/product-diktat-evidence";
 import { getProductBundleImport } from "@/lib/bundle/product-staging";
 import { getIdeaBundleImport } from "@/lib/bundle/staging";
 import { formatJakartaDatetimeLocal, toIsoTimestamp } from "@/lib/date-utils";
 import type { ReviewKind } from "@/packages/native-parity/academic/administration/fixtures";
 import type { LiveField, LivePage, LiveRow } from "@/packages/native-parity/academic/administration/live";
+import { announcementRevision } from "./announcement-edit-transaction";
 import type { AdministrationQuery, AdministrationReadServices } from "./handle-read";
 
 const listPageSize = 20;
@@ -86,21 +88,24 @@ async function schedules(query: AdministrationQuery) {
   return paginate(rows.sort((left, right) => left.sort.localeCompare(right.sort)).map(({ sort: _sort, ...row }) => row), query.page, span);
 }
 
-async function readBundle(kind: ReviewKind, slug: string, bundleId: string) {
+async function readBundle(kind: ReviewKind, slug: string, bundleId: string, page: number) {
   const [identity, bundle] = await Promise.all([
     resolveCourseIdentity(slug), kind === "idea" ? getIdeaBundleImport(bundleId) : getProductBundleImport(bundleId),
   ]);
   if (!identity || !bundle || !matchesCourseIdentity(bundle.courseId, identity)) return null;
-  return rowsPage([
+  return paginate([
     {
       id: bundle.id, title: bundle.bundleId, subtitle: identity.title, detail: bundleStatus[bundle.status],
       fields: [field("Versi", bundle.version), field("Diperbarui", jakDateTime(bundle.updatedAt)), field("Jumlah item", bundle.items.length)],
     },
-    ...bundle.items.slice(0, 50).map((entry) => ({
+    ...bundle.items.map((entry) => ({
       id: entry.id, title: entry.entityId, subtitle: itemType[entry.entityType] ?? "Item bundle",
       detail: bundleStatus[entry.status] ?? "Menunggu review", fields: [field("Versi item", entry.entityVersion)],
+      ...(kind === "product" && bundle.status === "draft" && (bundle.version === 2 || bundle.version === 3) && entry.entityType === "diktat" ? {
+        pdf: { importId: bundle.id, productId: entry.entityId, expectedRevision: bundle.checksum },
+      } : {}),
     })),
-  ]);
+  ], page);
 }
 
 export const administrationReadServices: AdministrationReadServices = {
@@ -110,6 +115,24 @@ export const administrationReadServices: AdministrationReadServices = {
     return hasPeran(id, "admin");
   },
   bundle: readBundle,
+  async pdfStatus(slug, { importId, productId, expectedRevision }, attemptId) {
+    const [identity, bundle] = await Promise.all([resolveCourseIdentity(slug), getProductBundleImport(importId)]);
+    if (!identity || !bundle || !matchesCourseIdentity(bundle.courseId, identity)) return null;
+    if (bundle.checksum !== expectedRevision) return "stale";
+    if (bundle.version !== 2 && bundle.version !== 3) return null;
+    try {
+      const status = await getDiktatPdfContext(importId, productId, expectedRevision);
+      if (!matchesCourseIdentity(status.row.courseId, identity)) return null;
+      if (!status.evidence?.id) return status.status === "stale" ? "stale" : "unavailable";
+      if (status.evidence.id !== attemptId) return "stale";
+      return status.status === "missing" ? "unavailable" : status.status;
+    } catch (error) {
+      const code = error instanceof Error ? error.message : "";
+      if (/STALE|CONFLICT|CHECKSUM_MISMATCH/.test(code)) return "stale";
+      if (code === "PRODUCT_BUNDLE_NOT_FOUND" || code === "PRODUCT_DIKTAT_NOT_FOUND") return null;
+      throw error;
+    }
+  },
   async courseSlug(id) {
     const identity = await resolveCourseIdentity(id);
     return identity ? getCanonicalCourseSlug(identity) : null;
@@ -172,6 +195,7 @@ export const administrationReadServices: AdministrationReadServices = {
           .map((entry) => ({
             id: entry.id, title: entry.title, subtitle: jakDateTime(entry.sentAt),
             detail: entry.isPinned ? "Disematkan" : undefined,
+            announcementEdit: announcementRevision(entry.id, entry),
             fields: [field("Isi", entry.body), field("Penerima", entry.recipientCount)],
           })), query.page);
       }
