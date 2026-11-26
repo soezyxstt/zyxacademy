@@ -389,6 +389,85 @@
       "coursePickerLoading": false,
       "consoleErrors": [],
       "screenshot": "mobile-380-reflections.png"
+    },
+    {
+      "id": "settings",
+      "scenario": "community-enrolled",
+      "path": "/settings",
+      "expected": [
+        "Bahasa Indonesia",
+        "English"
+      ],
+      "status": "failed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "terminal": "/settings",
+      "error": "Error: expect(locator).toBeVisible() failed\n\nLocator: getByText('English', { exact: true }).filter({ visible: true }).first()\nExpected: visible\nTimeout: 25000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"toBeVisible\" with timeout 25000ms\n  - waiting for getByText('English', { exact: true }).filter({ visible: true }).first()\n"
+    },
+    {
+      "id": "notification-preferences",
+      "scenario": "community-enrolled",
+      "path": "/settings/notifications",
+      "expected": [
+        "Aktivitas belajar",
+        "Jam tenang"
+      ],
+      "status": "failed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "terminal": "/settings/notifications",
+      "error": "Error: expect(received).toEqual(expected) // deep equality\n\n- Expected  -  1\n+ Received  + 77\n\n- Array []\n+ Array [\n+   \"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n+\n+ - A server/client branch `if (typeof window !== 'undefined')`.\n+ - Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n+ - Date formatting in a user's locale which doesn't match the server.\n+ - External changing data without sending a snapshot of it al"
+    },
+    {
+      "id": "notification-browser",
+      "scenario": "community-enrolled",
+      "path": "/settings/notifications/browser",
+      "expected": [
+        "Hentikan notifikasi browser",
+        "Hentikan notifikasi browser"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "terminal": "/settings/notifications/browser",
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": false,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-notification-browser.png"
+    },
+    {
+      "id": "public-student-profile",
+      "scenario": "community-enrolled",
+      "path": "/students/bima-komunitas-fixture",
+      "expected": [
+        "Bima Komunitas",
+        "FMIPA",
+        "Follow"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "terminal": "/students/bima-komunitas-fixture",
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": false,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-public-student-profile.png"
     }
   ]
 }

@@ -13,7 +13,7 @@ test.skip(!base, "Opt-in synthetic Student product server");
 test.setTimeout(240_000);
 test.use({ locale: "id-ID", contextOptions: { reducedMotion: "reduce" } });
 
-type TextExpectation = { kind: "text" | "heading" | "button" | "tab" | "label"; value: string; exact?: boolean };
+type TextExpectation = { kind: "text" | "heading" | "button" | "tab" | "label" | "combobox" | "menuitemradio"; value: string; exact?: boolean };
 type Case = {
   id: string;
   path: string;
@@ -22,6 +22,7 @@ type Case = {
   expectedQuery?: Record<string, string[]>;
   checks: TextExpectation[];
   selectedTab?: string;
+  openMenu?: string;
 };
 const text = (value: string, exact = true): TextExpectation => ({ kind: "text", value, exact });
 const heading = (value: string): TextExpectation => ({ kind: "heading", value });
@@ -48,13 +49,15 @@ const cases: Case[] = [
   { id: "calendar", path: "/calendar", checks: [heading(data.quiz), heading(`Tutorial: ${data.sessionTopic}`)] },
   { id: "calendar-empty", path: "/calendar", scenario: data.peerSession, checks: [heading("Belum ada agenda terjadwal")] },
   { id: "groups", path: "/dashboard/groups", checks: [text(data.group), text(data.courseTitle)] },
-  { id: "schedule", path: "/dashboard/schedule", checks: [text("Kalender dan jadwal tutorial"), text(data.tutor)] },
+  { id: "schedule", path: "/dashboard/schedule", checks: [heading("Kalender dan jadwal tutorial"), button(data.tutor, false), text(data.sessionTopic)] },
   { id: "feedback", path: "/feedback", checks: [label("Pesan dan saran"), button("Kirim masukan")] },
   { id: "pet", path: "/pet", checks: [heading("Koleksi pet"), text("Zyra")] },
   { id: "profile", path: "/profile", checks: [text(data.learner)] },
-  { id: "profile-edit", path: "/profile/edit", checks: [label("Tahun masuk ITB (angkatan)")] },
+  { id: "profile-edit", path: "/profile/edit", checks: [heading("Edit profil"), { kind: "combobox", value: "Tahun masuk ITB (angkatan)" }] },
   { id: "reflections", path: "/profile/reflections", checks: [text("2 kuis"), text("21 flashcard")] },
-  { id: "settings", path: "/settings", checks: [text("Bahasa Indonesia"), text("English")] },
+  { id: "settings", path: "/settings", openMenu: "Bahasa", checks: [
+    heading("Preferensi"), { kind: "menuitemradio", value: "Bahasa Indonesia" }, { kind: "menuitemradio", value: "English" },
+  ] },
   { id: "notification-preferences", path: "/settings/notifications", checks: [heading("Aktivitas belajar"), heading("Jam tenang")] },
   { id: "notification-browser", path: "/settings/notifications/browser", checks: [heading("Hentikan notifikasi browser"), button("Hentikan notifikasi browser")] },
   { id: "public-student-profile", path: "/students/" + data.publicId, checks: [text(data.peer), text("FMIPA"), button("Follow")] },
@@ -148,6 +151,7 @@ for (const item of cases) {
       expect(actual.pathname).toBe(item.expectedPath ?? item.path.split("?")[0]);
       for (const [name, values] of Object.entries(item.expectedQuery ?? {})) expect(actual.searchParams.getAll(name)).toEqual(values);
       await expect(page.getByRole("main").last()).toBeVisible();
+      if (item.openMenu) await page.getByRole("button", { name: item.openMenu, exact: true }).click();
       for (const check of item.checks) await expect(locate(page, check).filter({ visible: true }).first()).toBeVisible({ timeout: 25_000 });
       if (item.selectedTab) await expect(page.getByRole("tab", { name: item.selectedTab, exact: true })).toHaveAttribute("aria-selected", "true");
       const display = await page.evaluate(() => ({
