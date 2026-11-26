@@ -27,6 +27,7 @@ const browserLogin = createNativeBrowserLogin({
     if (Platform.OS !== "ios") return;
     try { WebBrowser.dismissAuthSession(); } catch { /* The browser may already be closing. */ }
   },
+  preserveAttemptOnDismiss: Platform.OS === "android",
   takeCallback: takeNativeBrowserCallback,
   fetcher: fetch,
 });

@@ -40,3 +40,16 @@ test("Student assessment operations are limited to learner app sessions", () => 
   expect(entry.tools).toEqual([]);
   expect(entry.actions).toContain("submitTryout");
 });
+
+test("device sign-in, role context, photo recovery and OS permissions stay user-scoped", () => {
+  for (const source of [
+    "app/api/auth/native/expo/exchange/route.ts",
+    "app/api/native/context/route.ts",
+    "apps/mobile-native/device/photo-controller.ts",
+    "apps/mobile-native/device/notifications-controller.ts",
+  ]) {
+    const entry = operationsCatalog.find(item => item.source === source);
+    expect(entry?.status).toBe("excluded");
+    expect(entry?.tools).toEqual([]);
+  }
+});

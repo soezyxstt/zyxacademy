@@ -22,11 +22,18 @@ export const operationsCatalog = [
     "reason": "Joining a live room requires an interactive Student session, an active course enrollment and a valid room code. The short-lived token is specific to the learner and room. Tutor hosting remains independently authorized."
   },
   {
-    "source": "app/api/native/context/route.ts",
-    "actions": ["GET"],
+    "source": "app/api/native/student/community/[operation]/route.ts",
+    "actions": ["GET", "POST"],
     "tools": [],
     "status": "excluded",
-    "reason": "The Expo client reads the active account's own role memberships and locale for routing. Each product API still enforces object permissions. MCP client identity, consent, scopes, discovery, playbooks, packaged skills and environment bindings are independent."
+    "reason": "Native Student community requests bind the verified learner session to existing ranking, profile, privacy, schedule, discussion, group, rewards, feedback and personal notification operations. These participant and device choices retain existing authorization and OAuth consent. Administrative MCP scopes, discovery, tools, playbooks, packaged skills, host prompts and environment bindings stay as registered."
+  },
+  {
+    "source": "app/api/native/student/assessment/[courseId]/[...segments]/route.ts",
+    "actions": ["readStudentAssessment", "startQuizAttempt", "submitQuizAttempt", "submitTryout", "manageAssessmentAttachment", "regenerateQuizAnalytics", "completeSolutionCollection"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Learner assessment requires the native Student session, course eligibility and attempt ownership. It uses the existing academic services through app HTTPS and does not accept MCP credentials."
   },
   {
     "source": "app/api/auth/native/expo/exchange/route.ts",
@@ -41,13 +48,6 @@ export const operationsCatalog = [
     "tools": [],
     "status": "excluded",
     "reason": "Offline cache policy and manual invalidation currently use the authenticated admin UI with origin checks and revision conflicts. Existing publication, revision, withdrawal, enrollment, course and video services record durable offline changes for their existing Admin and MCP callers. This adds no MCP tools or changes to scopes, consent, discovery, skills, host prompts or staging/production bindings. Device download and storage choices remain local to the signed-in user."
-  },
-  {
-    "source": "app/api/native/student/community/[operation]/route.ts",
-    "actions": ["GET", "POST"],
-    "tools": [],
-    "status": "excluded",
-    "reason": "Native Student community requests bind the verified learner session to existing ranking, profile, privacy, schedule, discussion, group, rewards, feedback and personal notification operations. These participant and device choices retain existing authorization and OAuth consent. Administrative MCP scopes, discovery, tools, playbooks, packaged skills, host prompts and environment bindings stay as registered."
   },
   {
     "source": "app/(student)/feedback/feedback-form.tsx",
@@ -90,6 +90,20 @@ export const operationsCatalog = [
     "tools": [],
     "status": "excluded",
     "reason": "Installed-device version checks and installer launch require the native app. MCP tokens, scopes, consent, discovery, playbooks, packaged skills and host prompts cannot install or update a user's device."
+  },
+  {
+    "source": "app/api/native/context/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The Expo client reads the active account's own role memberships and locale for routing. Each product API still enforces object permissions. MCP client identity, consent, scopes, discovery, playbooks, packaged skills and environment bindings are independent."
+  },
+  {
+    "source": "apps/mobile-native/device/photo-controller.ts",
+    "actions": ["pick", "recover"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "A signed-in user chooses a photo for one local device draft. Camera consent and Android picker recovery are device actions. Upload authorization stays with the consuming domain. This adds no MCP operation, scope or environment binding."
   },
   {
     "source": "apps/mobile-native/device/notifications-controller.ts",
@@ -1580,12 +1594,5 @@ export const operationsCatalog = [
     "tools": [],
     "status": "excluded",
     "reason": "Saved-account selection, Google sign-in and device session removal require the user's browser or native app. MCP bearer tokens retain their authorized user, session, scopes and environment; account switching cannot retarget them."
-  },
-  {
-    "source": "app/api/native/student/assessment/[courseId]/[...segments]/route.ts",
-    "actions": ["readStudentAssessment", "startQuizAttempt", "submitQuizAttempt", "submitTryout", "manageAssessmentAttachment", "regenerateQuizAnalytics", "completeSolutionCollection"],
-    "tools": [],
-    "status": "excluded",
-    "reason": "Learner assessment requires the native Student session, course eligibility and attempt ownership. It uses the existing academic services through app HTTPS and does not accept MCP credentials."
   }
 ] as const;

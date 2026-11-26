@@ -14,4 +14,7 @@ adb shell am start -W -n com.zyx.academy.nativeparity/.MainActivity
 status=0
 python scripts/native-parity/capture-gallery.py android || status=1
 bash scripts/native-parity/check-interactions.sh android "$(adb get-serialno)" || status=1
+if [[ ${EXPO_PUBLIC_PARITY_WEBVIEW:-} == 1 ]]; then
+  python scripts/native-parity/capture-webview.py android || status=1
+fi
 exit "$status"

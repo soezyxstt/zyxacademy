@@ -12,6 +12,15 @@ from case_manifest import load_case_groups
 MARKER = (224, 0, 239)
 
 
+def load_frame(path):
+    with Image.open(path) as image:
+        profile = image.info.get("icc_profile")
+        frame = image.convert("RGB")
+    if profile:
+        frame = ImageCms.profileToProfile(frame, io.BytesIO(profile), ImageCms.createProfile("sRGB"))
+    return frame
+
+
 def crop_positions(frame, scale, identity_width):
     width = 320 * scale
     # Only the first row of each full-width marker starts a case.
@@ -35,13 +44,16 @@ def main():
     parser.add_argument("scale", type=int, choices=(1, 3))
     parser.add_argument("component")
     parser.add_argument("--ready", action="store_true")
+    parser.add_argument("--mobile-webview-reference", type=Path)
     args = parser.parse_args()
-    frame = Image.open(args.frame)
-    profile = frame.info.get("icc_profile")
-    frame = frame.convert("RGB")
-    if profile:
-        frame = ImageCms.profileToProfile(frame, io.BytesIO(profile), ImageCms.createProfile("sRGB"))
-    reference_dir = Path(f"artifacts/native-parity/web/dpr{args.scale}")
+    frame = load_frame(args.frame)
+    reference_dir = args.mobile_webview_reference or Path(f"artifacts/native-parity/web/dpr{args.scale}")
+    output_dir = args.frame.parent
+    if args.mobile_webview_reference:
+        if output_dir.name not in {"android", "ios"}:
+            parser.error("Mobile WebView comparisons require an Android or iOS native frame")
+        output_dir = output_dir / "native-vs-webview"
+        output_dir.mkdir(exist_ok=True)
     groups = load_case_groups(reference_dir / "cases.json")
     if args.component not in groups:
         parser.error(f"Unknown component {args.component}")
@@ -62,9 +74,9 @@ def main():
         if web.size != expected or y + expected[1] > frame.height:
             raise ValueError(f"{case}: invalid capture dimensions")
         native = frame.crop((x, y, x + expected[0], y + expected[1]))
-        native.save(args.frame.parent / f"{case}.png")
+        native.save(output_dir / f"{case}.png")
         difference = ImageChops.difference(web, native)
-        ImageOps.autocontrast(difference).save(args.frame.parent / f"{case}-diff.png")
+        ImageOps.autocontrast(difference).save(output_dir / f"{case}-diff.png")
         # A missing primitive on both platforms must never give a passing blank crop.
         changed = sum(pixel != (0, 0, 0) for pixel in difference.get_flattened_data())
         blank_reference = not any(lo < hi for lo, hi in web.getextrema())
@@ -78,21 +90,27 @@ def main():
                              "bounds": bounds, "blankReference": blank_reference})
         rows.append(f"| {case} | {changed} | {max_delta} | {extent} | {'Pass' if passed else 'Fail'} |")
     report = "\n".join([
-        f"### {args.frame.parent.name}: {args.component} at DPR {args.scale}", "",
+        f"### {args.frame.parent.name}: {args.component} at DPR {args.scale}"
+        + (" vs mobile WebView" if args.mobile_webview_reference else ""), "",
         "| Case | Different pixels | Maximum RGB delta | Difference bounds (px) | Result |",
         "| --- | ---: | ---: | --- | --- |", *rows, "",
     ])
     evidence = {"component": args.component, "platform": args.frame.parent.name, "scale": args.scale,
                 "commit": os.environ.get("PARITY_HEAD_SHA"), "buildCommit": os.environ.get("GITHUB_SHA"),
                 "cases": measurements}
-    (args.frame.parent / f"result-{args.component}.json").write_text(json.dumps(evidence, indent=2) + "\n")
+    if args.mobile_webview_reference:
+        evidence["referenceEngine"] = "android-webview" if args.frame.parent.name == "android" else "ios-wkwebview"
+    (output_dir / f"result-{args.component}.json").write_text(json.dumps(evidence, indent=2) + "\n")
     print(report)
     if summary := os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(summary, "a", encoding="utf-8") as stream:
             stream.write(report + "\n")
+    if args.mobile_webview_reference and any(case["blankReference"] for case in measurements):
+        raise SystemExit("Mobile WebView reference contains a blank crop")
     if mismatches:
         raise SystemExit(f"Pixel parity failed: {', '.join(mismatches)}")
-    print(f"All {len(cases)} crops match at DPR {args.scale}")
+    if not mismatches:
+        print(f"All {len(cases)} crops match at DPR {args.scale}")
 
 
 if __name__ == "__main__":

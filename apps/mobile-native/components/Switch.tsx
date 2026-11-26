@@ -100,8 +100,7 @@ const styles = StyleSheet.create({
     height: 24,
     flexShrink: 0,
     borderRadius: 12,
-    borderWidth: 2,
-    borderColor: "transparent",
+    paddingLeft: 2,
     justifyContent: "center",
   },
   thumb: {

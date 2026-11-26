@@ -10,7 +10,7 @@ import {
 } from "react-native";
 
 import { nativeColors, nativeRadii } from "../../../packages/design-tokens/native-colors";
-import { nativeTypography } from "../typography";
+import { nativeControlLabelPosition, nativeTypography } from "../typography";
 
 type ButtonVariant = "default" | "outline" | "secondary" | "ghost" | "destructive" | "link" | "marketingPrimary" | "marketingSecondary";
 type ButtonSize = "default" | "xs" | "sm" | "lg" | "icon" | "icon-xs" | "icon-sm" | "icon-lg" | "marketing";
@@ -65,6 +65,9 @@ export const Button = forwardRef<ComponentRef<typeof Pressable>, ButtonProps>(fu
   const blocked = Boolean(disabled || isLoading);
   const dimensions = buttonSizes[size];
   const iconOnly = "width" in dimensions;
+  const borderRadius = size === "marketing" || variant.startsWith("marketing") || compactSizes.has(size)
+    ? nativeRadii.md : nativeRadii.lg;
+  const borderWidth = variant === "marketingSecondary" ? 2 : 1;
 
   const palette = {
     marketingPrimary: { fill: colors.marketingNavy, pressedFill: colors.marketingNavy, ink: "#ffffff" },
@@ -106,10 +109,9 @@ export const Button = forwardRef<ComponentRef<typeof Pressable>, ButtonProps>(fu
               paddingEnd: renderIcon && iconPosition === "end" ? dimensions.iconPadding : dimensions.padding,
             },
         {
-          borderRadius: size === "marketing" || variant.startsWith("marketing") || compactSizes.has(size) ? nativeRadii.md : nativeRadii.lg,
-          borderWidth: variant === "marketingSecondary" ? 2 : 1,
+          borderRadius,
+          borderWidth,
           borderColor: variant === "marketingSecondary" ? colors.marketingNavy : variant === "outline" ? (dark ? colors.input : colors.border) : "transparent",
-          backgroundColor: state.pressed ? palette.pressedFill : palette.fill,
         },
         state.pressed && styles.pressed,
         focused && !blocked && [styles.focused, { outlineColor: colors.accent }],
@@ -117,22 +119,44 @@ export const Button = forwardRef<ComponentRef<typeof Pressable>, ButtonProps>(fu
         typeof style === "function" ? style(state) : style,
       ]}
     >
-      {isLoading && (
-        <ActivityIndicator accessible={false} color={palette.ink} size="small" style={styles.loading} />
-      )}
-      <View style={[
-        styles.content,
-        !iconOnly && { gap: dimensions.gap },
-        iconPosition === "end" && styles.contentReversed,
-        isLoading && styles.hidden,
-      ]}>
-        {icon}
-        {children != null && (
-          <Text numberOfLines={1} style={[styles.label, nativeTypography.bodyMedium, { color: palette.ink }]}>
-            {children}
-          </Text>
-        )}
-      </View>
+      {(state) => {
+        const customStyle = StyleSheet.flatten(typeof style === "function" ? style(state) : style);
+        const radius = typeof customStyle?.borderRadius === "number" ? customStyle.borderRadius : borderRadius;
+        const stroke = customStyle?.borderWidth ?? borderWidth;
+        const fill = state.pressed ? palette.pressedFill : palette.fill;
+        return (
+          <>
+            {customStyle?.backgroundColor == null && fill !== "transparent" && (
+              // Yoga anchors absolute insets at the padding box, inside the border.
+              <View pointerEvents="none" style={[
+                StyleSheet.absoluteFill,
+                { borderRadius: Math.max(0, radius - stroke), backgroundColor: fill },
+              ]} />
+            )}
+            {isLoading && (
+              <ActivityIndicator accessible={false} color={palette.ink} size="small" style={styles.loading} />
+            )}
+            <View style={[
+              styles.content,
+              !iconOnly && { gap: dimensions.gap },
+              iconPosition === "end" && styles.contentReversed,
+              isLoading && styles.hidden,
+            ]}>
+              {icon}
+              {children != null && (
+                <Text numberOfLines={1} style={[
+                  styles.label,
+                  nativeTypography.bodyMedium,
+                  nativeControlLabelPosition,
+                  { color: palette.ink },
+                ]}>
+                  {children}
+                </Text>
+              )}
+            </View>
+          </>
+        );
+      }}
     </Pressable>
   );
 });
