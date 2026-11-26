@@ -34,3 +34,14 @@ SKIP_ENV_VALIDATION=1 bun tests/integration/operations-management-provider.mjs
 ```
 
 Tes pertama mencakup inventaris 13 pola, isolasi fixture, penolakan akses, pemulihan baca, revisi draf, konsistensi respons, dan binding transport. Kedua skrip integrasi memakai PGlite dengan migrasi PostgreSQL repo. Cakupannya termasuk sesi dan peran yang dicabut, pengulangan permintaan, benturan payload dan revisi, hak peserta yang gagal sebagian, pending dan hasil provider tak pasti. Maestro `management.yaml` menjalankan pratinjau draf, validasi editor, detail formulir, pembatalan penghapusan, pemulihan, dan penolakan akses. Bukti perangkat dan diff mengikuti workflow operasi. Paritas piksel belum dinyatakan.
+
+## Referensi web
+
+Fixture `/management` merender halaman Formulir Admin, detail respons, dan komponen Dokumentasi Next.js asli tanpa shell Admin. Playwright memakai data sintetis yang sama dengan Expo, font fixture Zyx, zona UTC, locale `id-ID`, dan sRGB. Server berjalan di port 3211. Capture browser tidak menentukan hasil perangkat.
+
+```sh
+NEXT_TELEMETRY_DISABLED=1 node node_modules/next/dist/bin/next dev tests/visual/native-parallel/operations --webpack -p 3211
+PARITY_CHROMIUM_EXECUTABLE=/usr/bin/chromium node --import tsx tests/visual/native-parallel/operations/capture-management.ts
+```
+
+Enam PNG tersimpan. Lima dibuat pada viewport 380 × 844 DPR 1, termasuk editor formulir, daftar kosong, ringkasan respons, daftar dokumentasi, dan artikel dokumentasi gelap. Capture editor tambahan memakai viewport 402 × 874 DPR 3. Fixture editor mengukur lebar scroll 521 px pada kedua viewport. Daftar berisi belum mencapai data fixture saat batas tunggu. Percobaan berikutnya juga melewati batas tunggu hidrasi dan dihentikan agar capture lain dapat berjalan. [Manifest capture](../../../tests/visual/native-parallel/operations/references/management-reference-results.json)
