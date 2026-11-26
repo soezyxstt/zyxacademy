@@ -15,6 +15,7 @@ import { useNativeAppearance } from "../device/appearance";
 const initialPage = "about:blank";
 const visualActionRoot = "https://reading-visual.invalid/";
 type VisualAction = { spec: InteractiveDocumentSpec; location: ReadingVisualLocation; kind: InteractiveDocumentAssetKind };
+type NativeMenuEvent = { nativeEvent: { key: string; selectedText: string } };
 type ReadingScrollEvent = { nativeEvent: {
   layoutMeasurement: { height: number }; contentSize: { height: number }; contentOffset: { y: number };
 } };
@@ -83,10 +84,10 @@ export function ReadingContentDocument({ content, testID = "offline-reading-docu
     }}
     onScroll={scroll}
     menuItems={menuItems}
-    onCustomMenuSelection={nativeSelection ? ({ nativeEvent }) => {
+    nativeConfig={nativeSelection ? { props: { onCustomMenuSelection: ({ nativeEvent }: NativeMenuEvent) => {
       const { key, selectedText } = nativeEvent;
       if (key === readingSelectionKeys.ask || key === readingSelectionKeys.copy) onSelectedText?.(key, selectedText);
-    } : undefined}
+    } } } : undefined}
     javaScriptEnabled={readerSelectionUsesContentEngine(Platform.OS, nativeSelection)}
     domStorageEnabled={false}
     incognito
