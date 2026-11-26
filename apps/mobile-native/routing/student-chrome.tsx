@@ -3,7 +3,7 @@ import { View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { nativeColors } from "../../../packages/design-tokens/native-colors";
 import { MobileNavbar, RoleBottomNavigation } from "../features/shared-ui/navigation";
-import { StudentInboxBell } from "../features/notification-inbox/bell";
+import { NativeInboxBell } from "../features/notification-inbox/bell";
 import { studentNavigation } from "./student-navigation";
 
 type Visibility = { hideTop?: boolean; hideBottom?: boolean };
@@ -35,7 +35,7 @@ export function StudentChrome({ href, pattern, locale, theme, enabled, visit, ba
     <SafeAreaView style={{ flex: 1, backgroundColor: nativeColors[theme].background }}>
       <MobileNavbar role="student" theme={theme} title={title} includeSafeArea={false} testID="student-navbar"
         hidden={!enabled || visibility.hideTop}
-        pageActions={enabled && !visibility.hideTop ? <StudentInboxBell locale={locale} theme={theme} visit={visit} /> : null}
+        pageActions={enabled && !visibility.hideTop ? <NativeInboxBell role="student" locale={locale} theme={theme} visit={visit} /> : null}
         home={backTo === null ? { label: homeLabel } : undefined}
         back={backTo ? { label: labels.back } : undefined}
         onAction={action => {

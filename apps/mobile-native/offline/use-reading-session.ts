@@ -1,27 +1,18 @@
-import { useNetworkState } from "expo-network";
 import { useEffect, useMemo, useState } from "react";
-import { AppState } from "react-native";
 
 import { NATIVE_STAGING_ORIGIN } from "../auth/session-api";
-import { useNativeSession } from "../auth/session-provider";
+import { useNativeConnectivity, useNativeSession } from "../auth/session-provider";
 import { useNativeAccountContext } from "../auth/use-account-context";
-import { deviceIsOffline, readingAccess } from "./reading-access";
+import { readingAccess } from "./reading-access";
 import type { NativeOfflineLocale } from "./sync-contract";
 
 export function useOfflineReadingSession(locale: NativeOfflineLocale) {
   const { state, transport, revalidating, offlineReadingDenied } = useNativeSession();
   const { context, denied } = useNativeAccountContext();
-  const offline = deviceIsOffline(useNetworkState());
-  const [foreground, setForeground] = useState(AppState.currentState === "active");
+  const connectivity = useNativeConnectivity();
+  const offline = connectivity.online === false;
+  const { foreground } = connectivity;
   const [clock, setClock] = useState(Date.now);
-  useEffect(() => {
-    const subscription = AppState.addEventListener("change", next => {
-      setForeground(next === "active");
-      setClock(Date.now());
-    });
-    setForeground(AppState.currentState === "active");
-    return () => subscription.remove();
-  }, []);
 
   const identity = state.status === "signed-in" ? state
     : state.status === "unavailable" && offline ? state.offlineIdentity : null;

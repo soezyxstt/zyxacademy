@@ -71,6 +71,13 @@ export const operationsCatalog = [
     "reason": "Offline cache policy and manual invalidation currently use the authenticated admin UI with origin checks and revision conflicts. Existing publication, revision, withdrawal, enrollment, course and video services record durable offline changes for their existing Admin and MCP callers. This adds no MCP tools or changes to scopes, consent, discovery, skills, host prompts or staging/production bindings. Device download and storage choices remain local to the signed-in user."
   },
   {
+    "source": "apps/mobile-native/offline/lifecycle-provider.tsx",
+    "actions": ["foregroundSync"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Foreground recovery rechecks the current Expo session and Student role before fetching its offline metadata on the configured origin. The native lifecycle and connectivity state are device-local. Existing MCP authorization and environment bindings still apply to the server operations that change offline content."
+  },
+  {
     "source": "apps/mobile-native/app/offline.tsx",
     "actions": ["download", "forget", "revalidateSaved", "purgeUnavailable"],
     "tools": [],

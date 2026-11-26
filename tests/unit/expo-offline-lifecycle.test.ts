@@ -132,6 +132,47 @@ describe("Expo offline metadata lifecycle", () => {
     lifecycle.dispose();
   });
 
+  test("foreground, connection and verification loss cancel in-flight metadata and fence late results", async () => {
+    for (const interrupted of [{ foreground: false }, { online: false }, { verified: false }]) {
+      const { lifecycle, commands, setSync, getCancellations } = harness();
+      const pending = Promise.withResolvers<void>();
+      let publishAccess: ((stored: NativeOfflineMetadataSnapshot | null) => void) | undefined;
+      setSync(publish => { publishAccess = publish; return pending.promise; });
+      lifecycle.setEnvironment(active);
+      lifecycle.register(["course-1"]);
+      await flush();
+      lifecycle.setEnvironment({ ...active, ...interrupted });
+      expect(getCancellations()).toBe(1);
+      const before = lifecycle.getSnapshot();
+      publishAccess?.({ ...snapshot(), cursor: "stale" });
+      pending.resolve();
+      await flush();
+      expect(lifecycle.getSnapshot()).toEqual(before);
+      expect(commands).toHaveLength(1);
+      setSync(async publish => { publish({ ...snapshot(), cursor: "fresh" }); });
+      lifecycle.setEnvironment(active);
+      await flush();
+      expect(commands).toHaveLength(2);
+      expect(lifecycle.getSnapshot().status).toBe("ready");
+      lifecycle.dispose();
+    }
+  });
+
+  test("session expiry cancels a pending check before it can publish metadata", async () => {
+    const { lifecycle, setSync, getCancellations, until } = harness();
+    const pending = Promise.withResolvers<void>();
+    setSync(() => pending.promise);
+    lifecycle.setEnvironment({ ...active, expiresAt: current + 10_000 });
+    lifecycle.register(["course-1"]);
+    await flush();
+    await until(10_000);
+    expect(getCancellations()).toBe(1);
+    expect(lifecycle.getSnapshot()).toEqual({ status: "inactive", snapshot: null });
+    pending.resolve();
+    await flush();
+    lifecycle.dispose();
+  });
+
   test("keeps course titles hidden while revalidating and clamps poll intervals", async () => {
     const { lifecycle, commands, setCached, until } = harness();
     setCached({ ...snapshot(), activeCheckIntervalMs: 1 });

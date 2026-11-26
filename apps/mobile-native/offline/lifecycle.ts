@@ -64,6 +64,14 @@ export function createOfflineMetadataLifecycle({ read, sync, cancelSync, onRevok
     for (const listener of listeners) listener();
   }
 
+  function pause() {
+    queued = false;
+    stopPoll?.();
+    if (!flight) return;
+    generation++;
+    cancelSync();
+  }
+
   function scheduleExpiry() {
     stopExpiry?.();
     if (!canRead()) return;
@@ -71,6 +79,7 @@ export function createOfflineMetadataLifecycle({ read, sync, cancelSync, onRevok
     const leases = (state.snapshot?.courses ?? []).flatMap(course => [course.leaseExpiresAt, course.manifestLeaseExpiresAt ?? 0]);
     const next = Math.min(environment.expiresAt, ...leases.filter(lease => lease > current));
     stopExpiry = schedule(() => {
+      if (environment.expiresAt <= now()) pause();
       publish(state.status);
       scheduleExpiry();
     }, Math.min(MAX_TIMEOUT_MS, Math.max(1, next - current)));
@@ -173,7 +182,7 @@ export function createOfflineMetadataLifecycle({ read, sync, cancelSync, onRevok
       scheduleExpiry();
       if (!canRead()) publish("inactive", null);
       if (canRead() && !next.online) publish(revoked ? "revoked" : "offline");
-      if (!canSync()) stopPoll?.();
+      if (previous.foreground && previous.online && previous.verified && !canSync()) pause();
       if (canRead() && next.foreground && (!previous.verified || !previous.foreground || previous.online !== next.online)) void trigger();
     },
     retry: trigger,

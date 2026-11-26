@@ -9,8 +9,8 @@ export const parityFrame = {
 export function getParityFrameHeight(caseId: string) {
   switch (caseId) {
     case "notification-inbox-empty-light": return 216;
-    case "notification-inbox-unread-light": return 168;
-    case "notification-inbox-mixed-dark": return 264;
+    case "notification-inbox-unread-light": return 184;
+    case "notification-inbox-mixed-dark": return 268;
     default: return parityFrame.height;
   }
 }
