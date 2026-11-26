@@ -4,7 +4,10 @@ import { handleAssessmentRead, type AssessmentReadServices } from "../../../../l
 import { tryoutCorrectIndices } from "../../../../lib/native/academic/assessment/tryout-answer";
 import { createAssessmentReadGateway } from "../../../../apps/mobile-native/features/academic/assessment/client";
 import type { AcademicCommand, AcademicTransport } from "../../../../apps/mobile-native/features/academic/client";
-import { handleGradeAttachment } from "../../../../lib/native/academic/assessment/grade-attachment";
+import { handleGradeAttachment, handleTryoutGradeAttachment } from "../../../../lib/native/academic/assessment/grade-attachment";
+
+import { TRYOUT_GRADE_ATTACHMENT_ACCOUNT, TRYOUT_GRADE_ATTACHMENT_SESSION, tryoutGradeAttachmentPath, tryoutGradeAttachmentPolicy } from "../../../academic/tryout-grade-attachment";
+import { readStoredTryoutGradeAttachment } from "../../../../lib/native/academic/grading-snapshot";
 
 function services(override: Partial<AssessmentReadServices> = {}): AssessmentReadServices {
   return {
@@ -483,4 +486,53 @@ test("Admin direct tryout writes and deletion preserve the revision and exact re
     path: "/api/native/academic-assessment/admin/biologi/tryouts/tryout",
     init: { method: "DELETE", requestId: "tryout-certified-deletion", body: { courseId: fields.courseId, expectedRevision: fields.authoringRevision } },
   });
+});
+
+test("Tutor tryout files bind the current session, course, submission and stored essay answer", async () => {
+  const viewer = { user: { id: "tutor" }, session: { id: "live-session" } };
+  const target = { courseId: "chemistry", submissionId: "sub-1", questionId: "essay" };
+  const examId = "Tryout TM-1";
+  const key = "exams/tryout-tm-1/attachments/result.pdf";
+  const questions = [{ id: "essay", type: "essay" }, { id: "other", type: "multiple_choice" }];
+  const answers = { essay: { type: "essay", fileKey: key }, other: { type: "essay", fileKey: key } };
+  let storageStatus = 200;
+  let size = 7;
+  let stored = answers;
+  let reads = 0;
+  const service = {
+    session: async () => viewer,
+    async find(scope: typeof target, identity: typeof viewer) {
+      assert.deepEqual(identity, viewer);
+      if (scope.courseId !== target.courseId || scope.submissionId !== target.submissionId) return null;
+      return readStoredTryoutGradeAttachment(JSON.stringify(questions), JSON.stringify(stored), scope.questionId, examId);
+    },
+    async download(request: Request, segments: string[]) {
+      reads++;
+      assert.deepEqual(segments, key.split("/"));
+      assert.deepEqual([...new URL(request.url).searchParams], [["download", "1"], ["submissionId", "sub-1"]]);
+      assert.equal(request.headers.get("Range"), null);
+      return new Response("%PDF-1.7", { status: storageStatus, headers: { "Content-Type": "application/pdf", "Content-Length": String(size) } });
+    },
+  };
+  const url = "https://example.test" + tryoutGradeAttachmentPath(target) + "?submissionId=forged&key=spoof";
+  const headers = { [TRYOUT_GRADE_ATTACHMENT_ACCOUNT]: viewer.user.id, [TRYOUT_GRADE_ATTACHMENT_SESSION]: viewer.session.id, Range: "bytes=0-1" };
+  const request = new Request(url, { headers });
+  assert.equal((await handleTryoutGradeAttachment(new Request(url), target, service)).status, 404);
+  assert.equal((await handleTryoutGradeAttachment(new Request(url, { headers: { ...headers, [TRYOUT_GRADE_ATTACHMENT_SESSION]: "prior" } }), target, service)).status, 404);
+  for (const scope of [{ ...target, courseId: "physics" }, { ...target, submissionId: "sub-2" }, { ...target, questionId: "other" }, { ...target, questionId: "../essay" }]) {
+    assert.equal((await handleTryoutGradeAttachment(request, scope, service)).status, 404);
+  }
+  stored = { ...answers, essay: { type: "essay", fileKey: "exams/other/attachments/result.pdf" } };
+  assert.equal((await handleTryoutGradeAttachment(request, target, service)).status, 404);
+  assert.equal(reads, 0);
+  stored = answers;
+  const result = await handleTryoutGradeAttachment(request, target, service);
+  assert.equal(result.status, 200);
+  assert.equal(result.headers.get("Cache-Control"), "private, no-store");
+  assert.equal(await result.text(), "%PDF-1.7");
+  size = tryoutGradeAttachmentPolicy.maxBytes + 1;
+  assert.equal((await handleTryoutGradeAttachment(request, target, service)).status, 404);
+  size = 7;
+  storageStatus = 404;
+  assert.equal((await handleTryoutGradeAttachment(request, target, service)).status, 404);
 });

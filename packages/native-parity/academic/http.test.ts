@@ -76,3 +76,17 @@ test("grading releases only rendered fields for questions in this submission", a
     answersSnapshot: { q1: { fileName: "jawaban.pdf" } },
   });
 });
+
+test("the grading queue advertises a stored tryout essay attachment without revealing its object key", async () => {
+  const { projectTryoutSnapshots } = await import("../../../lib/native/academic/grading-snapshot");
+  const { readAnswers } = await import("./tutor/model");
+  const questions = [{ id: "essay", type: "essay", prompt: "Explain" }, { id: "choice", type: "multiple_choice", prompt: "Choose" },
+    { id: "foreign", type: "essay", prompt: "Explain more" }];
+  const stored = { type: "essay", fileName: "work.pdf", fileSize: "1 MB", fileKey: "exams/tryout/attachments/work.pdf" };
+  const projection = projectTryoutSnapshots(questions, { essay: stored, choice: stored, foreign: { ...stored, fileKey: "exams/another/attachments/work.pdf" } }, "Tryout");
+  assert.deepEqual(projection.answersSnapshot.essay, { fileName: "work.pdf", fileSize: "1 MB", attachmentAvailable: true });
+  const answers = readAnswers({ id: "submission", examTitle: "Tryout", studentName: "Student", studentEmail: null,
+    status: "pending_review", score: null, teacherNotes: null, submittedAt: null, ...projection });
+  assert.deepEqual(answers.map(answer => answer.attachmentAvailable), [true, false, false]);
+  assert.equal(JSON.stringify(projection).includes(stored.fileKey), false);
+});

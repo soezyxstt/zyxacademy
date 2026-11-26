@@ -215,3 +215,10 @@ test("confirmed native group deletion is independent of MCP token expiry", () =>
   expect(entry.reason).toContain("confirmed impact");
   expect(entry.reason).toContain("MCP tokens.revoke retains expiry");
 });
+
+test("tryout essay files require the interactive Tutor session and stay outside MCP", () => {
+  const entry = operationsCatalog.find(row => row.source.endsWith("/grading/[submissionId]/attachment/[questionId]/route.ts"));
+  expect(entry).toMatchObject({ actions: ["GET"], tools: [], status: "excluded" });
+  expect(entry?.reason).toContain("exact stored answer");
+  expect(entry?.reason).toContain("upload ownership");
+});

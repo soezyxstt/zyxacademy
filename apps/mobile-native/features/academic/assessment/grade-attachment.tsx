@@ -1,28 +1,35 @@
 import { useIsFocused } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { useContext, useLayoutEffect, useRef, useState } from "react";
 import { useNativeSession } from "../../../auth/session-provider";
 import { scopedFiles, type NativeDownloadTarget } from "../../../device/files";
 import { useProtectedInteraction } from "../../../routing/protected-interaction";
-import { Action } from "../courses/ui";
+import { Button } from "../../../components/Button";
+import { CourseTheme } from "../courses/ui";
+import { tryoutGradeAttachmentPolicy } from "../../../../../packages/academic/tryout-grade-attachment";
 import { AssessmentNotice } from "./ui";
 
-const policy = { mimeTypes: ["application/pdf", "image/jpeg", "image/png", "image/webp"], maxBytes: 4 * 1024 * 1024 };
+const quizPolicy = { mimeTypes: tryoutGradeAttachmentPolicy.mimeTypes, maxBytes: 4 * 1024 * 1024 };
+type Target = Extract<NativeDownloadTarget, { kind: "quiz-grade-attachment" | "tryout-grade-attachment" }>;
 
-export function GradeAttachment({ target, fileName }: { target: Extract<NativeDownloadTarget, { kind: "quiz-grade-attachment" }>; fileName?: string }) {
+export function GradeAttachment({ target, fileName, theme }: { target: Target; fileName?: string; theme?: "light" | "dark" }) {
+  const courseTheme = useContext(CourseTheme);
+  const targetId = target.kind === "tryout-grade-attachment" ? target.submissionId : target.attemptId;
+  const targetKey = JSON.stringify([target.kind, target.courseId, targetId, target.questionId]);
+  const policy = target.kind === "tryout-grade-attachment" ? tryoutGradeAttachmentPolicy : quizPolicy;
   const { transport, getSnapshot } = useNativeSession();
   const { canInteract } = useProtectedInteraction();
   const focused = useIsFocused();
   const operation = useRef<AbortController | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
-  useEffect(() => {
+  useLayoutEffect(() => {
     setBusy(false);
     setError(false);
     return () => {
       operation.current?.abort();
       operation.current = null;
     };
-  }, [focused, transport]);
+  }, [focused, transport, targetKey]);
 
   async function open() {
     if (!focused || !transport?.isCurrent() || !canInteract() || operation.current) return;
@@ -50,8 +57,10 @@ export function GradeAttachment({ target, fileName }: { target: Extract<NativeDo
   }
 
   return <>
-    <Action label={busy ? "Membuka lampiran…" : "Buka lampiran"} onPress={() => void open()}
-      disabled={busy || !transport || !focused} testID={`academic-grade-attachment-${target.questionId}`} />
+    <Button theme={theme ?? courseTheme} variant="outline" onPress={() => void open()}
+      disabled={busy || !transport || !focused} testID={`academic-grade-attachment-${target.questionId}`}>
+      {busy ? "Membuka lampiran…" : "Buka lampiran"}
+    </Button>
     {error ? <AssessmentNotice message="Lampiran belum bisa dibuka. Periksa akses lalu coba lagi." error /> : null}
   </>;
 }

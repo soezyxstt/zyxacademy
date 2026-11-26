@@ -6,6 +6,8 @@ import { SCHEDULE_ACCOUNT, SCHEDULE_SESSION, scheduleFilePolicy, scheduleResourc
 import { formQuestionImageProxyPath } from "../../../lib/forms/attachment";
 import { FORM_FILE_MIMES, FORM_IMAGE_MIMES } from "../../../packages/forms/file-types";
 import { PUBLIC_FORM_MAX_FILE_SIZE_MB } from "../../../packages/forms/presentation";
+import { TRYOUT_GRADE_ATTACHMENT_ACCOUNT, TRYOUT_GRADE_ATTACHMENT_SESSION, tryoutGradeAttachmentPath, tryoutGradeAttachmentPolicy,
+  type TryoutGradeAttachment } from "../../../packages/academic/tryout-grade-attachment";
 import type { PhotoDraftTarget } from "./photo-controller";
 
 export type NativeFilePolicy = Readonly<{ mimeTypes: readonly string[]; maxBytes: number }>;
@@ -30,6 +32,7 @@ export type DraftDocument = Readonly<{
 export type NativeDownloadTarget =
   | { kind: "diktat-pdf"; courseId: string; diktatId: string }
   | { kind: "quiz-grade-attachment"; courseId: string; attemptId: string; questionId: string }
+  | ({ kind: "tryout-grade-attachment" } & TryoutGradeAttachment)
   | { kind: "discussion-image"; attachmentId: string }
   | { kind: "schedule-resource"; role: ScheduleRole; bookingId: string; attachmentId: string }
   | { kind: "form-response-attachment"; formId: string; responseId: string; index: number };
@@ -144,6 +147,7 @@ function dispositionName(disposition: string | null): string | undefined {
 function downloadPath(target: NativeDownloadTarget): string | null {
   const id = (value: string) => /^[A-Za-z0-9:_-][A-Za-z0-9._:-]{0,255}$/.test(value);
   if (target.kind === "schedule-resource") return scheduleResourcePath(target.role, target.bookingId, target.attachmentId);
+  if (target.kind === "tryout-grade-attachment") return tryoutGradeAttachmentPath(target);
   if (target.kind === "diktat-pdf" && id(target.courseId) && id(target.diktatId)) {
     return `/api/courses/${encodeURIComponent(target.courseId)}/diktats/${encodeURIComponent(target.diktatId)}/pdf?download=1`;
   }
@@ -418,15 +422,18 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
     if (before) return before;
     const diskImages = request.target.kind === "discussion-image";
     const quiz = request.target.kind === "quiz-grade-attachment";
+    const tryout = request.target.kind === "tryout-grade-attachment";
     const form = request.target.kind === "form-response-attachment";
     const schedule = request.target.kind === "schedule-resource" ? request.target : null;
     // The existing discussion API authorizes only these three image types and caps each at 8 MiB.
     const imageTypes = ["image/jpeg", "image/png", "image/webp"];
     const domainTypes: readonly string[] = schedule ? scheduleFilePolicy.mimeTypes : form ? FORM_FILE_MIMES :
+      tryout ? tryoutGradeAttachmentPolicy.mimeTypes :
       quiz ? [...imageTypes, "application/pdf"] : diskImages ? imageTypes : ["application/pdf"];
     const permitted = request.policy.mimeTypes.filter(mimeType => domainTypes.includes(mimeType));
     if (!permitted.length) return { status: "error", issue: "policy" };
     const maxBytes = quiz ? Math.min(request.policy.maxBytes, 4 * 1024 * 1024)
+      : tryout ? Math.min(request.policy.maxBytes, tryoutGradeAttachmentPolicy.maxBytes)
       : diskImages ? Math.min(request.policy.maxBytes, 8 * 1024 * 1024)
       : form ? Math.min(request.policy.maxBytes, PUBLIC_FORM_MAX_FILE_SIZE_MB * 1024 * 1024)
       : schedule ? Math.min(request.policy.maxBytes, scheduleFilePolicy.maxBytes) : request.policy.maxBytes;
@@ -441,9 +448,10 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
       if (!await device.canShare()) return { status: "unavailable" };
       assertCurrent();
       errorStage = "fetch";
-      response = await request.session.request(path, { signal: request.signal, requiredRole: schedule?.role ?? (form ? "admin" : quiz ? "tutor" : undefined),
+      response = await request.session.request(path, { signal: request.signal, requiredRole: schedule?.role ?? (form ? "admin" : (quiz || tryout) ? "tutor" : undefined),
         headers: {
           Accept: permitted.join(", "),
+          ...(tryout ? { [TRYOUT_GRADE_ATTACHMENT_ACCOUNT]: request.session.scope.accountId, [TRYOUT_GRADE_ATTACHMENT_SESSION]: request.session.scope.sessionId } : {}),
           ...(form ? { "x-native-operations-user-id": request.session.scope.accountId, "x-native-operations-session-id": request.session.scope.sessionId } : {}),
           ...(schedule ? { [SCHEDULE_ACCOUNT]: request.session.scope.accountId, [SCHEDULE_SESSION]: request.session.scope.sessionId } : {}),
         } });

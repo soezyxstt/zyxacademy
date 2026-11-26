@@ -70,7 +70,7 @@ export const academicReadServices = {
       title: courseTitle, code: null, groupCount: 0 },
       submissions: submissionsList.map(row => ({ id: row.id, examTitle: row.examTitle, studentName: row.studentName,
         studentEmail: row.studentEmail, status: row.status, score: row.score, teacherNotes: row.teacherNotes, reviewRevision: row.reviewRevision,
-        ...projectTryoutSnapshots(row.questionsSnapshot, row.answersSnapshot), submittedAt: row.submittedAt?.toISOString() ?? null })) };
+        ...projectTryoutSnapshots(row.questionsSnapshot, row.answersSnapshot, row.examId), submittedAt: row.submittedAt?.toISOString() ?? null })) };
   },
   async courses(): Promise<AdminCourse[]> {
     return (await getCoursesWithStats()).map(({ id, title, category, description, chapterCount, materialCount, quizCount }) => ({

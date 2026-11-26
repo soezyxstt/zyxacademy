@@ -169,11 +169,25 @@ export const operationsCatalog = [
     "reason": "Schedule, live class, materials and discussions use the current Tutor session. Assigned Tutors have read-only materials, matching the web capability. Availability edits check ownership and revision, and weekly series apply the assigned course restrictions to each slot. Calendar commands reuse slot deletion, week copy and direct or ticketed moves with booking and target-slot ownership checks. Ticket decisions and replies use the booking Tutor, session-bound receipts and the existing schedule notifications. Contextual replies, attachments, reactions, observed reads and resolution reuse the signed-in discussion services. Tryout grades use the web grading operation and the stored answer revision."
   },
   {
+    "source": "app/api/native/academic/tutor-support/courses/[courseId]/grading/[submissionId]/attachment/[questionId]/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Private tryout essay files require the verified Tutor session, active course assignment and exact stored answer in a reviewable submission. The web storage proxy verifies upload ownership and immutable delivery. MCP credentials grant no access to these learner files."
+  },
+  {
     "source": "app/api/native/academic/tutor-support/courses/[courseId]/live/host/route.ts",
     "actions": ["GET", "POST"],
     "tools": [],
     "status": "excluded",
     "reason": "Live quiz hosting requires a verified Tutor session, active course assignment and current room ownership. HTTPS commands use the web live room service and host state uses its signed realtime socket. Ad hoc Python sessions use a published course problem version and the same web timing, hints and scoring. These are interactive Tutor operations outside MCP."
+  },
+  {
+    "source": "app/api/native/course-videos/[role]/[courseId]/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Interactive Admin and assigned Tutor video management verifies the exact course, session and revision, then applies shared web catalog operations. MCP videos.* retains its existing scopes, discovery, confirmation and environment bindings."
   },
   {
     "source": "app/api/native/schedule/[role]/[bookingId]/route.ts",

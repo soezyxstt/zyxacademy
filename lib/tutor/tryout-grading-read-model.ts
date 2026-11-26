@@ -65,7 +65,7 @@ export async function readAuthorizedTryoutGrading(userId: string, courseId: stri
     .orderBy(desc(submissions.submittedAt));
   const submissionsList = rows.map((row) => {
     const { studentId, examId, examCourseId, reviewSequence, ...submission } = row;
-    return { ...submission, reviewRevision: tryoutReviewRevision({ ...submission, studentId, examId, examCourseId, reviewSequence }) };
+    return { ...submission, examId, reviewRevision: tryoutReviewRevision({ ...submission, studentId, examId, examCourseId, reviewSequence }) };
   });
 
   // Older tryout snapshots retain the tryout question ID, not its bank ID.

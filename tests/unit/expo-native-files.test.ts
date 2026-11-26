@@ -9,6 +9,8 @@ import { createPublicLinkSharer } from "../../apps/mobile-native/device/share-li
 import { createNativeTransport } from "../../apps/mobile-native/network/transport";
 import { SCHEDULE_ACCOUNT, SCHEDULE_SESSION, scheduleFilePolicy } from "../../packages/native-parity/schedule/resources";
 
+import { TRYOUT_GRADE_ATTACHMENT_ACCOUNT, TRYOUT_GRADE_ATTACHMENT_SESSION, tryoutGradeAttachmentPolicy } from "../../packages/academic/tryout-grade-attachment";
+
 const origin = "https://staging.example.test";
 const fixturePdf = new TextEncoder().encode("%PDF-1.7\nPDF fixture");
 const fixtureImage = Uint8Array.of(137, 80, 78, 71, 13, 10, 26, 10, 2);
@@ -528,4 +530,27 @@ test("Admin form drafts preview only authorized image bytes and release them whe
   bytes = fixturePdf;
   await expect(controller.prepareFormQuestionImage(session, pattern, new AbortController().signal)).rejects.toThrow("type");
   expect(files.size).toBe(0);
+});
+
+test("Tutor can open an exact tryout answer PDF with native session binding and the tryout limit", async () => {
+  let hits = 0;
+  let length: number = fixturePdf.length;
+  const fixture = setup({}, async (url, init) => {
+    hits++;
+    const headers = new Headers(init.headers);
+    expect(url).toBe(origin + "/api/native/academic/tutor-support/courses/course/grading/sub-1/attachment/q-1");
+    expect(headers.get(TRYOUT_GRADE_ATTACHMENT_ACCOUNT)).toBe("account");
+    expect(headers.get(TRYOUT_GRADE_ATTACHMENT_SESSION)).toBe("session");
+    return new Response(stream(fixturePdf), { headers: { "Content-Type": "application/pdf", "Content-Length": String(length) } });
+  });
+  const target = { kind: "tryout-grade-attachment", courseId: "course", submissionId: "sub-1", questionId: "q-1" } as const;
+  const request = { session: fixture.session, policy: tryoutGradeAttachmentPolicy, target };
+  expect(await fixture.controller.shareAuthorizedDownload(request)).toEqual({ status: "finished" });
+  expect(fixture.shares.map(item => item.mimeType)).toEqual(["application/pdf"]);
+  expect(await fixture.controller.shareAuthorizedDownload({ ...request, target: { ...target, submissionId: "../other" } }))
+    .toEqual({ status: "error", issue: "invalid-target" });
+  expect(hits).toBe(1);
+  length = tryoutGradeAttachmentPolicy.maxBytes + 1;
+  expect(await fixture.controller.shareAuthorizedDownload(request)).toEqual({ status: "error", issue: "size" });
+  expect(fixture.shares).toHaveLength(1);
 });

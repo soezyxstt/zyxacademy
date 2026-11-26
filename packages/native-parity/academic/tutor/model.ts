@@ -147,6 +147,8 @@ type TryoutAnswer = {
   indices?: number[];
   text?: string;
   fileName?: string;
+  fileSize?: string;
+  attachmentAvailable?: boolean;
 };
 
 function decodeSnapshot(snapshot: unknown): unknown {
@@ -184,6 +186,8 @@ export function readAnswers(submission: TutorSubmission) {
       prompt: question.prompt,
       text: typeof answer.text === "string" ? answer.text : "",
       fileName: typeof answer.fileName === "string" ? answer.fileName : "",
+      fileSize: typeof answer.fileSize === "string" ? answer.fileSize : "",
+      attachmentAvailable: question.type === "essay" && answer.attachmentAvailable === true,
       accepted: Array.isArray(question.acceptableAnswers)
         ? question.acceptableAnswers.filter((entry) => typeof entry === "string")
         : [],

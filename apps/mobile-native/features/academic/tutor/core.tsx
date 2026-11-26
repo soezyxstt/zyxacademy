@@ -17,6 +17,7 @@ import {
   type TutorSubmission,
 } from "../../../../../packages/native-parity/academic/tutor/model";
 import { Button } from "../../../components/Button";
+import { GradeAttachment } from "../assessment/grade-attachment";
 import { Input } from "../../../components/Input";
 import type { AcademicScreenProps } from "../contracts";
 import { Choices, DashboardEmpty, DashboardRow, DashboardSection, Empty, Heading, Label, Row, TutorDetail, TutorPage, tutorLayout } from "./ui";
@@ -406,7 +407,11 @@ export function TutorGrading({ theme, back, data, onSave, editor, reload }: Navi
             {`${String.fromCharCode(65 + optionIndex)}. ${option.label}${option.chosen ? " · Dipilih" : ""}${option.correct ? " · Kunci" : ""}`}
           </Label>
         ))}
-        {answer.options.length === 0 ? <Label theme={theme} tone="muted">{answer.text || answer.fileName || "Tidak dijawab"}</Label> : null}
+        {answer.options.length === 0 && (answer.text || !(answer.fileName || answer.attachmentAvailable))
+          ? <Label theme={theme} tone="muted">{answer.text || "Tidak dijawab"}</Label> : null}
+        {answer.fileName ? <Label theme={theme} tone="muted">{[answer.fileName, answer.fileSize].filter(Boolean).join(" · ")}</Label> : null}
+        {answer.attachmentAvailable ? <GradeAttachment key={active.id + ":" + answer.id} theme={theme} fileName={answer.fileName || undefined}
+          target={{ kind: "tryout-grade-attachment", courseId, submissionId: active.id, questionId: answer.id }} /> : null}
         {answer.accepted.length ? <Label theme={theme} tone="muted">Kunci {answer.accepted.join(", ")}</Label> : null}
       </Row>)}
       {answers.length === 0 ? <Empty theme={theme} title="Jawaban tidak tersedia" /> : null}

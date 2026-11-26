@@ -64,7 +64,7 @@ export default async function TutorGradingPage({ params }: Props) {
         <GradingClient
           courseId={courseId}
           tutorId={session.user.id}
-          initialSubmissions={submissionsList}
+          initialSubmissions={submissionsList.map(({ examId: _examId, ...submission }) => submission)}
           queueHeader={
             <PageHeader title={<><TranslatedText namespace="tutor" messageKey="routeTitles.tryoutGrading" />: {courseTitle}</>} backHref={`/tutor/${courseId}`} backLabel={<TranslatedText namespace="tutor" messageKey="routeTitles.overview" />} />
           }
