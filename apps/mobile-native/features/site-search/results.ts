@@ -1,6 +1,7 @@
 import type { SearchCategory } from "../../../../lib/search/contracts";
 import { parseSearchQueryString } from "../../../../lib/search/parser";
-import { rankSearchDocuments } from "../../../../lib/search/ranking";
+import { STATIC_PAGES, LANDING_SUBJECTS, getSiteSearchShortcutIds } from "../../../../lib/site-search-index";
+import { getSearchRelevanceScore, rankSearchDocuments } from "../../../../lib/search/ranking";
 import type { NativeAccountContext } from "../../../../packages/native-session/context";
 import { resolveNativeProtectedDestination, type NativeRouteNode } from "../../auth/login-intent";
 import type { NativeSessionTransport } from "../../network/transport";
@@ -48,6 +49,70 @@ export async function readSearchHits(transport: NativeSessionTransport, query: s
       }
     }
     return rankSearchDocuments(parseSearchQueryString(query).cleanQuery || query, hits);
+  } finally {
+    response.dispose();
+  }
+}
+
+export type SearchPerson = { href: string; title: string };
+
+export function canSearchStudents(account: SearchAccount) {
+  return account.roles.includes("murid") && !account.roles.includes("admin") && !account.roles.includes("tutor");
+}
+
+export function searchShortcuts(account: SearchAccount, sitemap: NativeRouteNode | null) {
+  const ids = getSiteSearchShortcutIds();
+  return STATIC_PAGES.flatMap((item, index) => {
+    if (!ids.includes(`page:${index}:${item.href}`)) return [];
+    const href = searchDestination(item.href, account, sitemap);
+    return href ? [{ href, title: item.title, subtitle: item.subtitle }] : [];
+  });
+}
+
+export function localSearchHits(raw: string, account: SearchAccount, sitemap: NativeRouteNode | null): SearchHit[] {
+  const { cleanQuery, isScoped, entityType } = parseSearchQueryString(raw);
+  if (!cleanQuery || raw === "?") return [];
+  const matches = [...STATIC_PAGES, ...LANDING_SUBJECTS].flatMap(doc => {
+    if (isScoped && (!entityType || !doc.href.includes(entityType))) return [];
+    const score = getSearchRelevanceScore(cleanQuery, doc);
+    if (score <= 0) return [];
+    const href = searchDestination(doc.href, account, sitemap);
+    if (!href) return [];
+    const category: SearchCategory = doc.group.includes("Topik") ? "Course & Modul" : "Navigasi";
+    return [{ href, category, title: doc.title, subtitle: doc.subtitle, score }];
+  });
+  const seen = new Set<string>();
+  return matches.sort((left, right) => right.score - left.score).filter(item => {
+    if (seen.has(item.href)) return false;
+    seen.add(item.href);
+    return true;
+  });
+}
+
+export function studentPeopleQuery(raw: string, account: SearchAccount) {
+  if (!canSearchStudents(account)) return null;
+  const query = parseSearchQueryString(raw);
+  if (query.isScoped && query.prefixType !== "user") return null;
+  const term = query.cleanQuery;
+  return term.length >= 2 && term.length <= 80 ? term : null;
+}
+
+export async function readSearchPeople(transport: NativeSessionTransport, term: string, account: SearchAccount,
+  sitemap: NativeRouteNode | null, signal: AbortSignal): Promise<SearchPerson[]> {
+  const query = studentPeopleQuery(term, account);
+  if (!query) return [];
+  const response = await transport.request("/api/native/student/community/people?" + new URLSearchParams({ search: query }), { signal });
+  try {
+    if (!response.ok) return [];
+    const data = await response.json();
+    transport.assertCurrent();
+    if (!Array.isArray(data)) return [];
+    return data.flatMap(person => {
+      if (!record(person) || typeof person.publicId !== "string" || !/^[A-Za-z0-9_-]+$/.test(person.publicId)
+        || typeof person.displayName !== "string" || !person.displayName.trim()) return [];
+      const href = searchDestination("/students/" + person.publicId, account, sitemap);
+      return href ? [{ href, title: person.displayName }] : [];
+    });
   } finally {
     response.dispose();
   }

@@ -1,11 +1,13 @@
 import { expect, test } from "bun:test";
 import type { NativeRouteNode } from "../../apps/mobile-native/auth/login-intent";
-import { readSearchHits, searchDestination, searchCategories } from "../../apps/mobile-native/features/site-search/results";
+import { localSearchHits, readSearchHits, readSearchPeople, searchDestination, searchCategories, searchShortcuts, studentPeopleQuery } from "../../apps/mobile-native/features/site-search/results";
 import type { NativeSessionTransport } from "../../apps/mobile-native/network/transport";
+
+import { allowSavedLink, readSavedLinks, searchStorageKey, updateSavedLinks, type SavedLinks } from "../../apps/mobile-native/features/site-search/saved-links";
 
 const account = { roles: ["murid"], locale: "id" } as const;
 const sitemap: NativeRouteNode = { href: "/", contextKey: "", isInternal: false, isGenerated: false,
-  children: ["/dashboard", "/courses/[id]", "/admin"].map(href => ({
+  children: ["/dashboard", "/courses/[id]", "/students/[publicId]", "/admin"].map(href => ({
     href, contextKey: href + ".tsx", isInternal: false, isGenerated: false, children: [],
   })) };
 
@@ -59,4 +61,53 @@ test("discard account changes, malformed groups, stale query responses and unsuc
     await expect(source.read()).rejects.toThrow();
     expect(source.disposed).toBe(true);
   }
+});
+
+test("person search binds visible profiles to a signed Student and honors scoped prefixes", async () => {
+  const staff = { ...account, roles: ["murid", "tutor"] as const };
+  expect(studentPeopleQuery("student: Ardi", account)).toBe("Ardi");
+  expect(studentPeopleQuery("group: Ardi", account)).toBeNull();
+  expect(studentPeopleQuery("Ardi", staff)).toBeNull();
+  expect(studentPeopleQuery("x".repeat(81), account)).toBeNull();
+  let released = false;
+  const transport = {
+    async request(path: string) {
+      expect(path).toBe("/api/native/student/community/people?search=Ardi");
+      return { ok: true, json: async () => [{ publicId: "allowed-id", displayName: "Ardi" },
+        { publicId: "../admin", displayName: "Invalid" }], dispose: () => { released = true; } };
+    }, assertCurrent() {},
+  } as unknown as NativeSessionTransport;
+  expect(await readSearchPeople(transport, "student: Ardi", account, sitemap, new AbortController().signal))
+    .toEqual([{ title: "Ardi", href: "/students/allowed-id" }]);
+  expect(released).toBe(true);
+});
+
+test("local search works before remote results and filters shortcuts by the installed destination", () => {
+  const matches = localSearchHits("profil", account, sitemap);
+  expect(matches.map(item => item.href)).toContain("/about");
+  expect(matches.some(item => item.href.startsWith("/admin"))).toBe(false);
+  const shortcuts = searchShortcuts(account, sitemap).map(item => item.href);
+  expect(shortcuts).toContain("/id");
+  expect(shortcuts).toContain("/plans");
+  expect(shortcuts).not.toContain("/sign-in");
+});
+
+test("recent and favorite search links isolate accounts and omit sensitive handoffs", () => {
+  const owner = { ...account, accountId: "a", sessionId: "s", dashboard: "/dashboard" } as const;
+  const allowed = (href: string) => allowSavedLink(href, owner, sitemap);
+  expect(allowed("/dashboard")).toBe(true);
+  expect(allowed("/en/blog/news")).toBe(true);
+  for (const path of ["/admin", "/forms/secret", "/meet/invite", "/unsubscribe?k=private", "/api/auth/session"]) expect(allowed(path)).toBe(false);
+  expect(searchStorageKey("https://zyx.invalid", owner)).not.toBe(searchStorageKey("https://zyx.invalid", { ...owner, accountId: "b" }));
+  let state: SavedLinks = { recent: [], favorites: [] };
+  for (let i = 0; i < 10; i++) state = updateSavedLinks(state, "visit", { href: "/courses/" + i, title: String(i) });
+  expect(state.recent).toHaveLength(8);
+  const item = state.recent[1];
+  state = updateSavedLinks(updateSavedLinks(state, "favorite", item), "visit", item);
+  expect(state.recent[0]).toEqual(item);
+  state = updateSavedLinks(state, "forget", item);
+  expect(state.favorites).toEqual([item]);
+  expect(updateSavedLinks(state, "favorite", item).favorites).toEqual([]);
+  const raw = JSON.stringify({ ...state, recent: [{ title: "invalid", href: "/forms/private" }] });
+  expect(readSavedLinks(raw, allowed)).toEqual({ recent: [], favorites: [item] });
 });

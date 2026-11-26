@@ -211,7 +211,7 @@ shared	/murid	murid	host.student-alias	Redirects compatibility entry to Student 
 shared	/dashboard	murid	host.account-switch	Switches verified saved account from shell and invalidates previous transport and scoped memory.	connected	contract
 shared	/dashboard	murid	host.account-add	Starts native Google account selection when supported and uses existing browser system fallback.	connected	contract
 shared	/dashboard	murid	host.account-remove	Removes local saved/native account binding with explicitly authorized session cleanup.	connected	contract
-shared	/dashboard	murid	host.site-search	Runs permission-filtered search from the shell and opens supported destination for active account.	connected	contract
+shared	/dashboard	murid	host.site-search	Runs permission-filtered search and local navigation matching from the shell. Visible Student profiles use the existing social search. Recent links and favorites are scoped to the signed account and role.	connected	contract
 shared	/mcp/connections	murid	host.mcp-connections	Displays and revokes own existing MCP client grants with current verified interactive account.	connected	ci-contract
 shared	/mcp/authorize	murid	host.mcp-consent	Routes browser-started consent through browser account session and existing client-scoped permissions.	browser	contract
 shared	/offline	murid	offline.sync	Reconciles metadata and cursor after bounded manifests for exact session and course entitlement.	connected	ci-contract
