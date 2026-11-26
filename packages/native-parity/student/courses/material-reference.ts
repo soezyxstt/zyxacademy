@@ -1,4 +1,5 @@
 import { learningEndpoint } from "./contract";
+import { studentNavigationEndpoint } from "../../../../components/navigation/student/student-nav-model";
 import fixture from "./material-reference.json";
 
 const states = ["enrolled", "unenrolled", "revoked"] as const;
@@ -10,11 +11,14 @@ export function courseMaterialReferenceRequest(scenario: MaterialReferenceScenar
   const state = states[materialReferenceScenarios.indexOf(scenario)];
   const { courseId, materialId, previewId } = fixture;
   const data = fixture.responses[state];
+  const course = { id: courseId, title: data.course.course.title };
   const recorded = new Map<string, object>([
     [learningEndpoint({ view: "course", courseId }), data.course],
     [learningEndpoint({ view: "material-list", courseId }), data["material-list"]],
     [learningEndpoint({ view: "material-detail", courseId, materialId }), data["material-detail"]],
     [learningEndpoint({ view: "material-detail", courseId, materialId: previewId }), data.preview],
+    [`${studentNavigationEndpoint}?${new URLSearchParams({ courseId })}`, course],
+    [studentNavigationEndpoint, state === "enrolled" ? [course] : []],
   ]);
 
   return async (path: string, init?: RequestInit) => {

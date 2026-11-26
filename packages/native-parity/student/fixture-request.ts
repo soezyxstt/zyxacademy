@@ -1,5 +1,5 @@
 import { calendarFixtureForScenario } from "./community/calendar-fixture";
-import { createAssessmentFixtureRequest, assessmentFixtureScenarios } from "./assessment/fixtures";
+import { createAssessmentFixtureRequest, assessmentFixtureCourse, assessmentFixtureScenarios } from "./assessment/fixtures";
 import { signedResultsFixtureRequest, signedResultsFixtureScenario } from "./assessment/signed-results-fixture";
 import { quizPlayerEvidence, quizPlayerFixtureRequest } from "./assessment/quiz-player-fixture";
 import { isCommunityFixturePath, createCommunityFixtureRequest } from "./community/fixtures";
@@ -8,6 +8,7 @@ import { createLearningFixtureRequest, isPkaLearningFixturePath, type LearningFi
 import { createPkaReferenceRequest } from "./learning/pka-reference";
 import { flashcardEvidence } from "./learning/flashcard-fixture";
 import { dashboardFixtureState, readDashboardFixture } from "./dashboard/fixtures";
+import { studentNavigationEndpoint } from "../../../components/navigation/student/student-nav-model";
 
 export function createStudentFixtureRequest(scenario: string) {
   if (scenario === signedResultsFixtureScenario) return signedResultsFixtureRequest;
@@ -30,6 +31,13 @@ export function createStudentFixtureRequest(scenario: string) {
     if (dashboardState) {
       const response = readDashboardFixture(dashboardState, path, init);
       if (response) return Promise.resolve(response);
+    }
+    if (path === studentNavigationEndpoint || path.startsWith(`${studentNavigationEndpoint}?`)) {
+      const courseId = new URL(path, "https://student.fixture.invalid").searchParams.get("courseId");
+      if (courseId === assessmentFixtureCourse.id && (!init?.method || init.method === "GET")) {
+        return Promise.resolve(Response.json(assessmentFixtureCourse));
+      }
+      return courses(path, init);
     }
     if (path.startsWith("/api/native/student/courses?") || path === "/api/native/student/courses") return courses(path, init);
     if (isPkaLearningFixturePath(path)) return learning(path, init);

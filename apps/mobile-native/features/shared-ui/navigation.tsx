@@ -292,6 +292,7 @@ export type NavigationTabsProps<Id extends string> = {
   moreLabel: string;
   closeLabel: string;
   activeIndicatorColor?: string;
+  activateCurrent?: boolean;
   trailing?: ReactNode;
   variant?: "page" | "inline";
   theme?: NavigationTheme;
@@ -306,6 +307,7 @@ export function NavigationTabs<Id extends string>({
   moreLabel,
   closeLabel,
   activeIndicatorColor,
+  activateCurrent = false,
   trailing,
   variant = "page",
   theme,
@@ -344,7 +346,7 @@ export function NavigationTabs<Id extends string>({
   }
 
   function select(id: Id) {
-    if (id !== activeId) {
+    if (id !== activeId || activateCurrent) {
       void hapticSelection();
       onTabPress(id);
     }

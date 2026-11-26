@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { studentNavigationEndpoint } from "@/components/navigation/student/student-nav-model";
 import { assertFixtureRunner } from "./scope";
 
 export const course = "native-preview-video-course";
@@ -9,9 +10,9 @@ const playlist = "native-preview-video-playlist";
 
 export async function createVideoPreview() {
   assertFixtureRunner();
-  const [{ db }, schema, learning, playback, { auth }] = await Promise.all([
+  const [{ db }, schema, learning, playback, { auth }, navigation] = await Promise.all([
     import("@/db"), import("@/db/schema"), import("@/app/api/native/student/learning/route"),
-    import("@/app/api/videos/[videoId]/playback-url/route"), import("@/lib/auth"),
+    import("@/app/api/videos/[videoId]/playback-url/route"), import("@/lib/auth"), import("@/app/api/student/navigation/route"),
   ]);
   let seeded: Promise<void> | undefined;
 
@@ -29,13 +30,15 @@ export async function createVideoPreview() {
 
   return async (request: Request, identity: { accountId: string; sessionId: string }) => {
     const url = new URL(request.url);
-    if (url.pathname === "/api/native/student/learning" && url.searchParams.get("view") === "video" && url.searchParams.get("courseId") === course) {
+    const courseNavigation = url.pathname === studentNavigationEndpoint;
+    const videoList = url.pathname === "/api/native/student/learning" && url.searchParams.get("view") === "video";
+    if ((courseNavigation || videoList) && url.searchParams.get("courseId") === course) {
       const active = await auth.api.getSession({ headers: request.headers, query: { disableCookieCache: true, disableRefresh: true } });
       if (active?.user.id !== identity.accountId || active.session.id !== identity.sessionId) return new Response(null, { status: 401 });
       // The same session starts with an unenrolled dashboard, then receives a course to exercise playback.
       seeded ??= seed(identity.accountId);
       await seeded;
-      return learning.GET(request);
+      return courseNavigation ? navigation.GET(request) : learning.GET(request);
     }
     const authorize = () => playback.GET(request, { params: Promise.resolve({ videoId: video }) });
     if (url.pathname === `/api/videos/${video}/playback-url`) return authorize();

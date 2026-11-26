@@ -1,6 +1,13 @@
 /** Source-level coverage index. Tool registration is authoritative; partial does not imply every action is exposed. */
 export const operationsCatalog = [
   {
+    "source": "app/api/student/navigation/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The interactive Student course switcher uses authenticated enrollment and course title metadata. Navigation does not grant access or bypass course and material authorization."
+  },
+  {
     "source": "app/api/native/student/courses/route.ts",
     "actions": ["GET", "POST"],
     "tools": [],

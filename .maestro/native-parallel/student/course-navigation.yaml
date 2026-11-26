@@ -1,0 +1,56 @@
+appId: com.zyx.academy.nativeparity
+name: Student course switcher keeps the section and overview Back destination
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: separator
+    timeout: 30000
+- openLink: "zyx-native-parity://student-fixture?scenario=course-navigation&theme=dark&locale=en&path=%2Fcourses%2Fmatematika-1%2Fmaterial"
+- extendedWaitUntil:
+    visible:
+      id: student-material-pengantar
+    timeout: 30000
+- assertVisible:
+    id: student-course-tabs-documents
+- tapOn:
+    id: student-course-tabs-more
+- extendedWaitUntil:
+    visible:
+      id: student-course-tabs-overflow
+    timeout: 30000
+- takeScreenshot: student-course-tabs-more-en-dark
+- tapOn:
+    id: student-course-tabs-overflow-close
+- tapOn:
+    id: student-navbar-switch-course
+- extendedWaitUntil:
+    visible:
+      id: student-course-picker-fisika-1
+    timeout: 30000
+- takeScreenshot: student-course-switcher-en-dark
+- tapOn:
+    id: student-course-picker-fisika-1
+- extendedWaitUntil:
+    visible:
+      id: student-material-pengantar-fisika
+    timeout: 30000
+- assertVisible:
+    id: student-course-tabs-documents
+- tapOn:
+    id: student-navbar-back
+- extendedWaitUntil:
+    visible: "Course syllabus"
+    timeout: 30000
+- tapOn:
+    id: student-navbar-switch-course
+- extendedWaitUntil:
+    visible:
+      id: student-course-picker-catalog
+    timeout: 30000
+- tapOn:
+    id: student-course-picker-catalog
+- extendedWaitUntil:
+    visible:
+      id: student-course-fisika-1
+    timeout: 30000

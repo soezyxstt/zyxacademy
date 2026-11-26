@@ -32,6 +32,7 @@ const activeAttemptId = "native-active-attempt";
 const tryoutSubmissionId = "native-tryout-submission";
 const solutionId = "native-solutions";
 const courseTitle = "Kalkulus dasar";
+export const assessmentFixtureCourse = { id: courseId, title: courseTitle };
 const submittedAt = "2026-10-05T03:20:00.000Z";
 const quizPath = `${course}/quiz/${quizId}`;
 export const assessmentFixturePaths = {

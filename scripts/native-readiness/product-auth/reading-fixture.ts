@@ -1,4 +1,5 @@
 import { and, eq } from "drizzle-orm";
+import { studentNavigationEndpoint } from "@/components/navigation/student/student-nav-model";
 import { EXPO_STAGING_ORIGIN } from "@/lib/native/expo-auth-config";
 import { assertFixtureRunner } from "./scope";
 
@@ -44,10 +45,10 @@ type Identity = { accountId: string; sessionId: string; cookie: string };
 
 export async function createReadingPreview() {
   assertFixtureRunner();
-  const [{ db }, schema, courses, learning, reading, pdf, { auth }] = await Promise.all([
+  const [{ db }, schema, courses, learning, reading, pdf, { auth }, navigation] = await Promise.all([
     import("@/db"), import("@/db/schema"), import("@/app/api/native/student/courses/route"),
     import("@/app/api/native/student/learning/route"), import("@/app/api/native/student/reading/route"),
-    import("@/app/api/native/student/material-pdf/route"), import("@/lib/auth"),
+    import("@/app/api/native/student/material-pdf/route"), import("@/lib/auth"), import("@/app/api/student/navigation/route"),
   ]);
   let seeded: Promise<void> | undefined;
   let articleRevision: string | undefined;
@@ -143,10 +144,12 @@ export async function createReadingPreview() {
     const pkaGate = url.pathname === "/api/native/student/learning" && view === "pka-material";
     const detail = url.pathname === "/api/native/student/courses" && view === "material-detail" && (ordinary || pka || manualPdf);
     const read = url.pathname === "/api/native/student/reading" && (ordinary || pka);
-    if (!read && !detail && !pkaGate && !pdfRead) return null;
+    const courseNavigation = request.method === "GET" && url.pathname === studentNavigationEndpoint && course === courseId;
+    if (!read && !detail && !pkaGate && !pdfRead && !courseNavigation) return null;
     owner = identity;
     seeded ??= seed(identity.accountId);
     await seeded;
+    if (courseNavigation) return navigation.GET(request);
     if (pkaGate) return learning.GET(request);
     if (pdfRead) {
       const response = await (request.method === "HEAD" ? pdf.HEAD(request) : pdf.GET(request));

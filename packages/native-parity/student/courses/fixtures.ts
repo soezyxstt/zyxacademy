@@ -2,9 +2,10 @@ import {
   coursesEndpoint,
   type CourseCard, type CourseData, type MaterialListData, type MaterialRow,
 } from "./contract";
+import { studentNavigationEndpoint } from "../../../../components/navigation/student/student-nav-model";
 import { courseMaterialReferenceRequest, materialReferenceScenarios } from "./material-reference";
 
-export const courseFixtureScenarios = ["enrolled", "unenrolled", "revoked", "offline", "long-content", "catalog-parity", ...materialReferenceScenarios] as const;
+export const courseFixtureScenarios = ["enrolled", "unenrolled", "revoked", "offline", "long-content", "catalog-parity", "course-navigation", ...materialReferenceScenarios] as const;
 export type CourseFixtureScenario = (typeof courseFixtureScenarios)[number];
 
 export const studentCourseCases = [
@@ -88,8 +89,18 @@ export function createCourseFixtureRequest(scenario: CourseFixtureScenario): (pa
   let accessRevoked = false;
   return async (path, init) => {
     const url = new URL(path, "https://student.fixture.invalid");
-    if (url.origin !== "https://student.fixture.invalid" || url.pathname !== coursesEndpoint) return json({ error: "FIXTURE_NOT_FOUND" }, 404);
+    if (url.origin !== "https://student.fixture.invalid") return json({ error: "FIXTURE_NOT_FOUND" }, 404);
     if (init?.signal?.aborted) throw new Error("ABORTED");
+    const physicsAccess = scenario === "course-navigation" ? { ...physics, hasFullContentAccess: true } : physics;
+    if (url.pathname === studentNavigationEndpoint && (!init?.method || init.method === "GET")) {
+      const courseId = url.searchParams.get("courseId");
+      const course = (scenario === "catalog-parity" ? catalogParityCourses : [math, physicsAccess]).find(item => item.id === courseId);
+      const summary = (item: CourseCard) => ({ id: item.id, title: item.title });
+      if (courseId) return json(course ? summary(course) : null);
+      if (!activated && (scenario === "unenrolled" || accessRevoked)) return json([]);
+      return json((physicsAccess.hasFullContentAccess ? [physicsAccess, math] : [math]).map(summary));
+    }
+    if (url.pathname !== coursesEndpoint) return json({ error: "FIXTURE_NOT_FOUND" }, 404);
     if (init?.method === "POST") {
       let token: unknown;
       try {
@@ -116,18 +127,18 @@ export function createCourseFixtureRequest(scenario: CourseFixtureScenario): (pa
     if (scenario === "revoked" && view === "material-detail" && url.searchParams.get("materialId") === "catatan-fungsi") {
       accessRevoked = true;
     }
-    const enrolled = activated || (scenario !== "unenrolled" && !accessRevoked);
+    const hasAccess = activated || (scenario !== "unenrolled" && !accessRevoked);
     const requestedCourseId = url.searchParams.get("courseId");
     const parityCourse = scenario === "catalog-parity" ? catalogParityCourses.find(item => item.id === requestedCourseId) : undefined;
     const isPka = requestedCourseId === "tutorial-pka";
     const isPhysics = requestedCourseId === physics.id;
-    const catalogClass = { ...math, hasFullContentAccess: enrolled, materialsCount: documents.length + (scenario === "long-content" ? longRows.length : 0) };
+    const catalogClass = { ...math, hasFullContentAccess: hasAccess, materialsCount: documents.length + (scenario === "long-content" ? longRows.length : 0) };
     const allDocuments = isPhysics
       ? [{ ...documents[0], id: "pengantar-fisika", title: "Satuan dan pengukuran" }]
       : scenario === "long-content" && !isPka ? [...documents, ...longRows] : [...documents];
     const course = parityCourse ?? (isPka
       ? { ...catalogClass, id: "tutorial-pka", title: "Tutorial PKA", category: "PKA", description: "Materi persiapan PKA.", hasFullContentAccess: true }
-      : isPhysics ? physics : catalogClass);
+      : isPhysics ? physicsAccess : catalogClass);
     const rows = allDocuments.map((item) => ({ ...item, locked: !course.hasFullContentAccess && !item.chapterIds.includes("bab-1") }));
     const chapters = [...new Set(rows.flatMap((row) => row.chapterIds))].map((id, index) => ({
       id,
@@ -136,10 +147,11 @@ export function createCourseFixtureRequest(scenario: CourseFixtureScenario): (pa
     }));
 
     if (view === "dashboard") return json({
-      view, firstName: "Nara", enrolled: enrolled ? [catalogClass] : [], recommended: enrolled ? [physics] : [catalogClass, physics],
-      continueReading: enrolled ? [{ courseId: math.id, courseTitle: math.title, materialId: "pengantar", title: "Sistem bilangan real", completionPercent: 36 }] : [],
+      view, firstName: "Nara", enrolled: hasAccess ? [catalogClass, ...(physicsAccess.hasFullContentAccess ? [physicsAccess] : [])] : [],
+      recommended: physicsAccess.hasFullContentAccess ? [] : hasAccess ? [physics] : [catalogClass, physics],
+      continueReading: hasAccess ? [{ courseId: math.id, courseTitle: math.title, materialId: "pengantar", title: "Sistem bilangan real", completionPercent: 36 }] : [],
     });
-    if (view === "catalog") return json({ view, targetCategory: "TPB", courses: [catalogClass, physics] });
+    if (view === "catalog") return json({ view, targetCategory: "TPB", courses: [catalogClass, physicsAccess] });
     if (requestedCourseId !== course.id) return json({ error: "COURSE_RESOURCE_NOT_FOUND" }, 404);
     if (view === "course") return json({
       view, course, actions: [],

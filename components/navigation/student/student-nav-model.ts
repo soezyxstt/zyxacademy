@@ -3,6 +3,7 @@ import { studentMobileHrefs } from "./student-mobile-hrefs.mjs";
 
 export { studentMobileHrefs };
 export type StudentBottomNavTabId = keyof typeof studentMobileHrefs;
+export const studentNavigationEndpoint = "/api/student/navigation";
 
 export interface StudentCourseSummary {
   id: string;

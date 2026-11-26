@@ -2,6 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { mock } from "bun:test";
 import { NextRequest } from "next/server";
+import { studentNavigationEndpoint } from "@/components/navigation/student/student-nav-model";
 import { getSafeRedirectPath } from "@/lib/auth-redirect";
 import { NATIVE_AUTH_HANDOFF_COOKIE, normalizeNativeAuthState } from "@/lib/native/auth-handoff";
 import { EXPO_STAGING_ORIGIN, EXPO_STAGING_SCHEME } from "@/lib/native/expo-auth-config";
@@ -110,6 +111,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
   ]) : null;
   const previewReading = studentProduct ? await (await import("./reading-fixture")).createReadingPreview() : null;
   const previewVideo = studentProduct ? await (await import("./video-fixture")).createVideoPreview() : null;
+  const studentNavigation = studentProduct || offlineProduct ? await import("@/app/api/student/navigation/route") : null;
   const staffReads = staff ? await (await import("./staff-fixture")).loadStaffReads() : null;
   const offline = offlineProduct ? await (await import("./offline-fixture")).createOfflinePreview() : null;
   const liveRoutes = tutorLive ? await Promise.all([
@@ -272,6 +274,9 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
         const identity = browserIdentity;
         const response = await requestContext.run(upstream, () => previewVideo(upstream, identity));
         if (response) return response;
+      }
+      if (studentNavigation && route === `GET ${studentNavigationEndpoint}`) {
+        return requestContext.run(upstream, () => studentNavigation.GET(upstream));
       }
       if (product && route === "GET /api/notifications/history") {
         return requestContext.run(upstream, () => product[1].GET(upstream));

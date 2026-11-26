@@ -14,3 +14,15 @@ name: Play an enrolled student's private course video
     id: course-video-player-close
 - assertNotVisible:
     id: course-video-frame
+- tapOn:
+    id: student-navbar-switch-course
+- extendedWaitUntil:
+    visible:
+      id: student-course-picker-options
+    timeout: 30000
+- assertVisible:
+    id: student-course-picker-native-preview-video-course
+- assertVisible:
+    id: student-course-picker-catalog
+- tapOn:
+    id: student-course-picker-close
