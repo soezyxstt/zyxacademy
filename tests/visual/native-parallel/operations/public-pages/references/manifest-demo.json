@@ -1,0 +1,123 @@
+{
+  "fixedTime": "2026-09-20T05:00:00.000Z",
+  "cases": [
+    {
+      "file": "demo-course-article-1536-dpr1.png",
+      "path": "/demo",
+      "locale": "id",
+      "theme": "light",
+      "width": 1536,
+      "height": 864,
+      "dpr": 1,
+      "status": 200,
+      "scrollWidth": 1536,
+      "layout": "fits",
+      "runtimeIssues": [],
+      "observation": "Populated dashboard with the first article link visible."
+    },
+    {
+      "file": "demo-course-article-380-dpr1.png",
+      "path": "/demo",
+      "locale": "id",
+      "theme": "light",
+      "width": 380,
+      "height": 844,
+      "dpr": 1,
+      "status": 200,
+      "scrollWidth": 380,
+      "layout": "fits",
+      "runtimeIssues": [],
+      "observation": "Populated dashboard with the first article link visible."
+    },
+    {
+      "file": "demo-empty-1536-dpr1.png",
+      "path": "/demo",
+      "locale": "en",
+      "theme": "dark",
+      "width": 1536,
+      "height": 864,
+      "dpr": 1,
+      "status": 200,
+      "scrollWidth": 1536,
+      "layout": "fits",
+      "runtimeIssues": [],
+      "observation": "Dashboard empty state visible with zero fixture course summaries."
+    },
+    {
+      "file": "demo-empty-380-dpr1.png",
+      "path": "/demo",
+      "locale": "en",
+      "theme": "dark",
+      "width": 380,
+      "height": 844,
+      "dpr": 1,
+      "status": 200,
+      "scrollWidth": 380,
+      "layout": "fits",
+      "runtimeIssues": [],
+      "observation": "Dashboard empty state visible with zero fixture course summaries."
+    },
+    {
+      "file": "demo-retry-1536-dpr1.png",
+      "path": "/demo?course=fictional-kimia",
+      "locale": "id",
+      "theme": "dark",
+      "width": 1536,
+      "height": 864,
+      "dpr": 1,
+      "status": 200,
+      "scrollWidth": 1536,
+      "layout": "fits",
+      "runtimeIssues": [],
+      "observation": "Alternate course preselected and retained in the visible article link. No retry interaction."
+    },
+    {
+      "file": "demo-retry-380-dpr1.png",
+      "path": "/demo?course=fictional-kimia",
+      "locale": "id",
+      "theme": "dark",
+      "width": 380,
+      "height": 844,
+      "dpr": 1,
+      "status": 200,
+      "scrollWidth": 380,
+      "layout": "fits",
+      "runtimeIssues": [],
+      "observation": "Alternate course preselected and retained in the visible article link. No retry interaction."
+    },
+    {
+      "file": "demo-view-article-1536-dpr1.png",
+      "path": "/demo/article?course=fictional-berpikir&articleId=fictional-berpikir-article-1",
+      "locale": "id",
+      "theme": "light",
+      "width": 1536,
+      "height": 864,
+      "dpr": 1,
+      "status": 200,
+      "scrollWidth": 1536,
+      "layout": "fits",
+      "runtimeIssues": [],
+      "observation": "Article reader heading visible after direct navigation."
+    },
+    {
+      "file": "demo-view-article-380-dpr1.png",
+      "path": "/demo/article?course=fictional-berpikir&articleId=fictional-berpikir-article-1",
+      "locale": "id",
+      "theme": "light",
+      "width": 380,
+      "height": 844,
+      "dpr": 1,
+      "status": 200,
+      "scrollWidth": 380,
+      "layout": "fits",
+      "runtimeIssues": [],
+      "observation": "Article reader heading visible after direct navigation."
+    }
+  ],
+  "failures": [
+    "FAIL 1536 demo-view-missing: expect(locator).toBeVisible() failed\n\nLocator: getByRole('heading', { name: '404' }).first()\nExpected: visible\nTimeout: 20000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"to.be.visible\" with timeout 20000ms\n  - waiting for getByRole('heading', { name: '404' }).first()\n",
+    "FAIL 1536 demo-view-quiz: expect(locator).toHaveAttribute(expected) failed\n\nLocator:  locator('html')\nExpected: \"true\"\nReceived: \"\"\nTimeout:  75000ms\n\nCall log:\n  - Expect \"to.have.attribute.value\" with timeout 75000ms\n  - waiting for locator('html')\n    95 \u00d7 locator resolved to <html lang=\"en\" class=\"dark\">\u2026</html>\n       - unexpected value \"null\"\n    4 \u00d7 locator resolved to <html id=\"__next_error__\">\u2026</html>\n      - unexpected value \"null\"\n",
+    "FAIL 380 demo-view-missing: expect(locator).toBeVisible() failed\n\nLocator: getByRole('heading', { name: '404' }).first()\nExpected: visible\nTimeout: 20000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"to.be.visible\" with timeout 20000ms\n  - waiting for getByRole('heading', { name: '404' }).first()\n",
+    "FAIL 380 demo-view-quiz: HTTP 404 http://localhost:3212/gamification/mascots/v10.1/posters/cat-head.webp\nFailed to load resource: the server responded with a status of 404 (Not Found)"
+  ]
+}

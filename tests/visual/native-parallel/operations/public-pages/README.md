@@ -25,7 +25,7 @@ The course data in the existing web demo fixture differ from the Expo demo fixtu
 
 The [live manifest](references/manifest-live.json) indexes verified browser interactions and source layouts. The [SSR manifest](references/manifest-ssr.json) indexes initial states rendered from actual Next route HTML and local application assets with application JavaScript disabled. To repeat the SSR checkpoint, keep the fixture server running and run `PARITY_CHROMIUM_EXECUTABLE=/usr/bin/chromium node --import tsx tests/visual/native-parallel/operations/public-pages/capture-ssr.ts`.
 
-The initial 18 checkpoint PNGs use the 380 × 844 viewport at DPR 1. Chromium measured 388 px for the landing document. The quiz section's decorative dots extend 8 px past the viewport, and the images preserve the declared crop. The browser form captured the initial fields, required-field validation, and successful local submission. The success toast appeared and the full-name field reset. The attachment row stayed visible after submission, and React reported that FileUploadField updates FormsPlaygroundPage during render. The submission image includes the local Next dev issue badge. The SSR plans image shows the initial loading state. Complete demo routes and desktop captures for the other public pages remain outside this checkpoint.
+The initial 18 checkpoint PNGs use the 380 × 844 viewport at DPR 1. Chromium measured 388 px for the landing document. The quiz section's decorative dots extend 8 px past the viewport, and the images preserve the declared crop. The browser form captured the initial fields, required-field validation, and successful local submission. The success toast appeared and the full-name field reset. The attachment row stayed visible after submission, and React reported that FileUploadField updates FormsPlaygroundPage during render. The submission image includes the local Next dev issue badge. The SSR plans image shows the initial loading state.
 
 
 ## Loaded Plans prices
@@ -37,4 +37,10 @@ PARITY_CHROMIUM_EXECUTABLE=/usr/bin/chromium \
   node --import tsx tests/visual/native-parallel/operations/public-pages/capture-plans.ts
 ```
 
-The direct Next.js mobile run reached the page before the cold pricing endpoint completed. The warmed retry lost its local server before navigation. The 380 px price-loaded image comes from the browser-only fixture. The original demo routes and isolated empty component yielded no accepted browser image in this run.
+The direct Next.js mobile run reached the page before the cold pricing endpoint completed. The warmed retry lost its local server before navigation. The 380 px price-loaded image comes from the browser-only fixture.
+
+## Demo route references
+
+The [demo manifest](references/manifest-demo.json) records isolated Chromium captures of the real `/demo` and `/demo/[view]` pages. The empty dashboard runs the route with zero course summaries. The populated dashboard verifies the first article link, and the alternate-course dashboard verifies that the article link retains `course=fictional-kimia`. The article view verifies the article title. The quiz verifies selection of the first answer. The missing-course check requires the 404 heading and records the actual HTTP status because Next.js streaming can send the shell first.
+
+The dashboard images show the visible link and initial plan. Course retry, article completion and quiz submission were outside this capture. The web and native demo fixtures use different course IDs and article content, so there is no paired pixel comparison. [Operations route evidence](../route-evidence.md)

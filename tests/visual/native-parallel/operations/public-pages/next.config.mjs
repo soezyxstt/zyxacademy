@@ -24,6 +24,7 @@ export default {
   onDemandEntries: { maxInactiveAge: 120_000, pagesBufferLength: 30 },
   agentRules: false,
   images: { unoptimized: true },
+  serverExternalPackages: ["@napi-rs/canvas"],
   turbopack: { root: fileURLToPath(new URL("../../../../..", import.meta.url)) },
   async rewrites() {
     return [
