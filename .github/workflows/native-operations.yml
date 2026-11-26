@@ -1,0 +1,73 @@
+name: Operations device fixtures
+on:
+  pull_request:
+    branches: [soezyxst/react-native-monorepo]
+    paths:
+      - 'apps/mobile-native/features/operations/**'
+      - 'packages/native-parity/operations/**'
+      - '.maestro/native-parallel/operations/**'
+      - 'scripts/native-parity/operations/**'
+      - '.github/workflows/native-operations.yml'
+permissions:
+  contents: read
+concurrency:
+  group: operations-device-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  capture:
+    if: github.head_ref == 'native-migration/operations'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: android
+            runner: ubuntu-latest
+          - platform: ios
+            runner: macos-26
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.14'
+      - run: bun install --frozen-lockfile
+      - run: npm ci
+        working-directory: apps/mobile-native
+      - run: node scripts/native-parity/operations/mount.mjs
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - if: matrix.platform == 'ios'
+        run: bash scripts/native-parity/operations/capture.sh ios
+      - if: matrix.platform == 'android'
+        working-directory: apps/mobile-native
+        run: |
+          npx --no-install expo prebuild --platform android --no-install
+          cd android
+          ./gradlew :app:assembleRelease -PreactNativeArchitectures=x86_64 --max-workers=2
+      - if: matrix.platform == 'android'
+        run: sudo chmod a+rw /dev/kvm
+      - if: matrix.platform == 'android'
+        uses: reactivecircus/android-emulator-runner@v2.38.0
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          script: bash scripts/native-parity/operations/capture.sh android
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: operations-${{ matrix.platform }}
+          path: artifacts/native-parity/operations/${{ matrix.platform }}
+          retention-days: 7
