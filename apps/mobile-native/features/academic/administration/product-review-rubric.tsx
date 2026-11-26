@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { View } from "react-native";
 import { PEDAGOGIC_CRITERION_IDS } from "../../../../../lib/materials/quality-policy-constants";
 import { Action, Field, Ink, layout, Picker } from "./ui";
@@ -14,12 +14,21 @@ type Criterion = typeof PEDAGOGIC_CRITERION_IDS[number];
 type Draft = Partial<Omit<RubricItem, "criterionId">>;
 const decisions = [{ id: "met", label: "Terpenuhi" }, { id: "needs_revision", label: "Perlu revisi" }, { id: "not_met", label: "Belum terpenuhi" }] as const;
 
-export function ProductReviewRubric({ data, busy, decide }: { data: ProductReviewData; busy: boolean;
-  decide(label: string, body: Record<string, unknown>): void }) {
+export function ProductReviewRubric({ data, busy, decide, dirty }: { data: ProductReviewData; busy: boolean;
+  dirty(value: boolean): void; decide(label: string, body: Record<string, unknown>): void }) {
   const [selected, setSelected] = useState<Criterion>(PEDAGOGIC_CRITERION_IDS[0]);
   const [note, setNote] = useState(data.bundle.currentReview?.notes ?? data.pedagogicReview?.notes ?? "");
   const [drafts, setDrafts] = useState<Partial<Record<Criterion, Draft>>>({});
   const draftFor = (id: Criterion): Draft => drafts[id] ?? data.pedagogicReview?.criteria.find(row => row.criterionId === id) ?? {};
+  const changed = note !== (data.bundle.currentReview?.notes ?? data.pedagogicReview?.notes ?? "")
+    || PEDAGOGIC_CRITERION_IDS.some(id => {
+      if (!drafts[id]) return false;
+      const saved = data.pedagogicReview?.criteria.find(row => row.criterionId === id);
+      const next = draftFor(id);
+      return saved?.status !== next.status || (saved?.reason ?? "") !== (next.reason ?? "")
+        || JSON.stringify(saved?.contentAnchors ?? []) !== JSON.stringify(next.contentAnchors ?? []);
+    });
+  useEffect(() => dirty(changed), [dirty, changed]);
   const current = draftFor(selected);
   const change = (patch: Draft) => setDrafts({ ...drafts, [selected]: { ...current, ...patch } });
   const criteria = PEDAGOGIC_CRITERION_IDS.flatMap(criterionId => {
