@@ -8,13 +8,14 @@ CAPTURE_FLOW = Path(__file__).resolve().parents[2] / ".maestro/native-parity/hel
 CAPTURE_GROUPS = {
     "gallery": "gallery",
     "internal/public-links": "directory",
+    "internal/public-forms": "public-forms",
     "internal/webview-reference": "webview",
 }
 
 
 def open_route(platform, device, path):
+    prefix, _, name = path.rpartition("/")
     if platform == "ios":
-        prefix, _, name = path.rpartition("/")
         if prefix not in CAPTURE_GROUPS or not re.fullmatch(r"[a-z0-9-]+", name):
             raise ValueError(f"Unknown parity fixture path: {path}")
         target = f"parity-capture-{CAPTURE_GROUPS[prefix]}-{name}"
@@ -25,8 +26,9 @@ def open_route(platform, device, path):
                        check=True, timeout=120)
         return
 
+    suffix = "?frame=1" if prefix == "internal/public-forms" else ""
     subprocess.run(["adb", "shell", "am", "start", "-W", "-a", "android.intent.action.VIEW",
-                    "-d", f"zyx-native-parity://{path}", "com.zyx.academy.nativeparity"], check=True)
+                    "-d", f"zyx-native-parity://{path}{suffix}", "com.zyx.academy.nativeparity"], check=True)
 
 
 def screenshot(platform, device, destination):

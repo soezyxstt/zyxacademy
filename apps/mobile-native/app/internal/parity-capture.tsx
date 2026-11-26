@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { nativeColors } from "../../../../packages/design-tokens/native-colors";
+import { publicFormCases } from "../../../../packages/forms/parity-cases";
 import { directoryCases } from "../../../../packages/public-links/fixtures";
 import { componentNames } from "../../../../packages/ui-parity/gallery";
 
@@ -27,6 +28,10 @@ export default function ParityCaptureMenu() {
         {componentNames.map(component => option("gallery", component, { pathname: "/gallery/[component]", params: { component } }))}
         <Text accessibilityRole="header" style={styles.heading}>Daftar tautan</Text>
         {Object.keys(directoryCases).map(caseId => option("directory", caseId, { pathname: "/internal/public-links/[caseId]", params: { caseId } }))}
+        <Text accessibilityRole="header" style={styles.heading}>Formulir publik</Text>
+        {Object.keys(publicFormCases).map(caseId => option("public-forms", caseId, {
+          pathname: "/internal/public-forms/[caseId]", params: { caseId, frame: "1" },
+        }))}
         {process.env.EXPO_PUBLIC_PARITY_WEBVIEW === "1" && (
           <>
             <Text accessibilityRole="header" style={styles.heading}>WebView</Text>

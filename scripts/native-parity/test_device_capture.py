@@ -12,6 +12,7 @@ class CaptureNavigationTests(unittest.TestCase):
         targets = {
             "gallery/separator": "parity-capture-gallery-separator",
             "internal/public-links/grouped": "parity-capture-directory-grouped",
+            "internal/public-forms/short-meeting": "parity-capture-public-forms-short-meeting",
             "internal/webview-reference/formatted-date": "parity-capture-webview-formatted-date",
         }
         for path, target in targets.items():
@@ -41,4 +42,12 @@ class CaptureNavigationTests(unittest.TestCase):
         run.assert_called_once_with([
             "adb", "shell", "am", "start", "-W", "-a", "android.intent.action.VIEW",
             "-d", "zyx-native-parity://gallery/separator", "com.zyx.academy.nativeparity",
+        ], check=True)
+
+    @patch("device_capture.subprocess.run")
+    def test_android_requests_the_form_frame_without_changing_the_normal_fixture(self, run):
+        open_route("android", None, "internal/public-forms/forms-ready")
+        run.assert_called_once_with([
+            "adb", "shell", "am", "start", "-W", "-a", "android.intent.action.VIEW",
+            "-d", "zyx-native-parity://internal/public-forms/forms-ready?frame=1", "com.zyx.academy.nativeparity",
         ], check=True)

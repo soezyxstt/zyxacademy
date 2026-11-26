@@ -3,7 +3,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from summarize import check_device, check_directory, directory_summary
+from summarize import check_device, check_page, page_summary
 
 
 class DeviceSummaryTest(unittest.TestCase):
@@ -36,7 +36,7 @@ class DeviceSummaryTest(unittest.TestCase):
         self.assertEqual("Invalid reference", self.result())
 
 
-class DirectorySummaryTest(unittest.TestCase):
+class PageSummaryTest(unittest.TestCase):
     def setUp(self):
         self.manifest = {"route": "/tautan", "width": 380, "height": 640, "cases": ["empty", "single", "grouped"],
                          "commit": "fixture", "buildCommit": "merge"}
@@ -55,12 +55,12 @@ class DirectorySummaryTest(unittest.TestCase):
             with self.subTest(key=key):
                 report = self.report("ios")
                 report[key] = wrong
-                self.assertEqual(["Missing"] * 3, check_directory(report, self.manifest, "ios"))
+                self.assertEqual(["Missing"] * 3, check_page(report, self.manifest, "ios"))
         report = self.report("ios")
         report["cases"][1:] = reversed(report["cases"][1:])
-        self.assertEqual(["Missing"] * 3, check_directory(report, self.manifest, "ios"))
+        self.assertEqual(["Missing"] * 3, check_page(report, self.manifest, "ios"))
         report["cases"].pop()
-        self.assertEqual(["Missing"] * 3, check_directory(report, self.manifest, "ios"))
+        self.assertEqual(["Missing"] * 3, check_page(report, self.manifest, "ios"))
 
     def test_rejects_missing_blank_and_nonmatching_frames(self):
         report = self.report("android")
@@ -68,11 +68,11 @@ class DirectorySummaryTest(unittest.TestCase):
         report["cases"][1].update(status="fail", differentPixels=1)
         report["cases"][2]["blankReference"] = True
         self.assertEqual(["Missing stable frame", "1 differing pixels", "Invalid reference"],
-                         check_directory(report, self.manifest, "android"))
+                         check_page(report, self.manifest, "android"))
         report["cases"][2].update(blankReference=False, framePixels=[380, 639])
-        self.assertEqual("Missing", check_directory(report, self.manifest, "android")[2])
+        self.assertEqual("Missing", check_page(report, self.manifest, "android")[2])
         report["cases"][2].update(framePixels=[380, 640], differentPixels=1)
-        self.assertEqual("Missing", check_directory(report, self.manifest, "android")[2])
+        self.assertEqual("Missing", check_page(report, self.manifest, "android")[2])
 
     def test_rollup_requires_both_same_revision_manifests_and_both_devices(self):
         with TemporaryDirectory() as directory:
@@ -86,12 +86,47 @@ class DirectorySummaryTest(unittest.TestCase):
             write("reference-manifests/dpr1/directory.json", self.manifest)
             write("reference-manifests/dpr3/directory.json", self.manifest)
             write("android-measurements/directory/result.json", self.report("android"))
-            rows, passed = directory_summary(root, "fixture", "merge")
+            rows, passed = page_summary(root, "fixture", "merge", "directory")
             self.assertFalse(passed)
             self.assertIn("| empty | Pass | Missing |", rows)
             write("ios-measurements/directory/result.json", self.report("ios"))
-            rows, passed = directory_summary(root, "fixture", "merge")
+            rows, passed = page_summary(root, "fixture", "merge", "directory")
             self.assertTrue(passed)
             self.assertIn("| grouped | Pass | Pass |", rows)
             write("reference-manifests/dpr3/directory.json", {**self.manifest, "buildCommit": "other"})
-            self.assertFalse(directory_summary(root, "fixture", "merge")[1])
+            self.assertFalse(page_summary(root, "fixture", "merge", "directory")[1])
+
+    def test_external_redirect_needs_two_handoff_frames_and_never_counts_as_a_pixel_match(self):
+        redirect = {"case": "short-meeting", "status": 307, "location": "https://meet.google.com/abc-defg-hij"}
+        manifest = {**self.manifest, "route": "/f/[slug]", "cases": ["short-collision", "short-meeting", "short-missing"],
+                    "externalRedirect": redirect}
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+
+            def write(path, data):
+                file = root / path
+                file.parent.mkdir(parents=True, exist_ok=True)
+                file.write_text(json.dumps(data))
+
+            for scale in (1, 3):
+                write(f"reference-manifests/dpr{scale}/short-forms.json", manifest)
+            for platform in ("android", "ios"):
+                report = self.report(platform)
+                report["route"] = manifest["route"]
+                for case, row in zip(manifest["cases"], report["cases"]):
+                    row["case"] = case
+                frame = report["cases"][1]["framePixels"]
+                report["cases"][1] = {"case": redirect["case"], "status": "external-redirect", "framePixels": frame,
+                                      "externalRedirect": redirect}
+                write(f"{platform}-measurements/short-forms/result.json", report)
+
+            rows, passed = page_summary(root, "fixture", "merge", "short-forms")
+            self.assertTrue(passed)
+            self.assertTrue(any("2/2 comparable route cases" in row for row in rows))
+            self.assertIn("| short-meeting | Web redirects, native handoff captured | Web redirects, native handoff captured |", rows)
+            report["cases"][1]["differentPixels"] = 0
+            write("ios-measurements/short-forms/result.json", report)
+            self.assertFalse(page_summary(root, "fixture", "merge", "short-forms")[1])
+            redirect["location"] = "https://example.com/abc-defg-hij"
+            write("reference-manifests/dpr3/short-forms.json", manifest)
+            self.assertFalse(page_summary(root, "fixture", "merge", "short-forms")[1])

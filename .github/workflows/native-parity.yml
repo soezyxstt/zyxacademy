@@ -9,6 +9,11 @@ on:
       - 'app/globals.css'
       - 'app/tautan/**'
       - 'app/api/tautan/**'
+      - 'app/forms/**'
+      - 'app/f/**'
+      - 'app/api/forms/**'
+      - 'components/forms/public-form-viewer.tsx'
+      - 'messages/*/publicForms.json'
       - 'components/logo.tsx'
       - 'lib/links.ts'
       - 'lib/public-links.ts'
@@ -25,6 +30,7 @@ on:
       - 'components/ui/**'
       - 'tests/visual/ui-parity-web/**'
       - 'tests/unit/expo-*.test.ts'
+      - 'tests/unit/form-native-entry-routes.test.ts'
       - 'tests/unit/native-*.test.ts'
       - 'tests/unit/progress-parity.test.ts'
       - 'tests/unit/avatar-parity.test.ts'
@@ -125,7 +131,7 @@ jobs:
           path: ${{ runner.temp }}/component-symbols.json
           if-no-files-found: error
           retention-days: 7
-      - run: bun test tests/unit/progress-parity.test.ts tests/unit/avatar-parity.test.ts
+      - run: bun test tests/unit/progress-parity.test.ts tests/unit/avatar-parity.test.ts tests/unit/form-native-entry-routes.test.ts
       - run: bun scripts/native-parity/generate-tokens.ts --check
       - run: bunx playwright install --with-deps chromium
       - name: Capture the Next.js component
@@ -147,6 +153,8 @@ jobs:
           path: |
             artifacts/native-parity/web/dpr*/cases.json
             artifacts/native-parity/web/dpr*/directory.json
+            artifacts/native-parity/web/dpr*/forms.json
+            artifacts/native-parity/web/dpr*/short-forms.json
           if-no-files-found: error
 
       - name: Export the mobile WebView reference
@@ -239,6 +247,8 @@ jobs:
             artifacts/native-parity/${{ matrix.platform }}/result-*.json
             artifacts/native-parity/${{ matrix.platform }}/native-vs-webview/result-*.json
             artifacts/native-parity/${{ matrix.platform }}/directory/result.json
+            artifacts/native-parity/${{ matrix.platform }}/forms/result.json
+            artifacts/native-parity/${{ matrix.platform }}/short-forms/result.json
           retention-days: 7
 
   visual-summary:

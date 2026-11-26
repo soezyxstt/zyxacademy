@@ -71,6 +71,7 @@ function fixture() {
     const target = { exports: {} as {
       GET: Handler; POST: Handler;
       generateMetadata(ctx: { params: Promise<{ slug: string }> }): Promise<{ title: string }>;
+      default(ctx: { params: Promise<{ slug: string }> }): Promise<unknown>;
     } };
     runInNewContext(transformSync(readFileSync(path, "utf8"), { loader: path.endsWith(".tsx") ? "tsx" : "ts", jsx: "automatic", format: "cjs" }).code, {
       module: target, exports: target.exports, require: (name: string) => modules[name] ?? require(name), File, crypto, console, URL,
@@ -78,8 +79,9 @@ function fixture() {
     return target.exports;
   }
   modules["@/lib/forms/short-entry"] = run("lib/forms/short-entry.ts");
+  const shortPage = run("app/f/[slug]/page.tsx");
   return { form, alias, meeting, verified, sessionQueries, submissions, uploadKeys,
-    shortMetadata: run("app/f/[slug]/page.tsx").generateMetadata, route: run("app/api/forms/[idOrSlug]/route.ts"),
+    shortMetadata: shortPage.generateMetadata, shortPage: shortPage.default, route: run("app/api/forms/[idOrSlug]/route.ts"),
     upload: run("app/api/forms/upload/route.ts").POST };
 }
 
@@ -110,6 +112,14 @@ test("native short GET uses exact form slug before meeting and then the original
   meeting.deletedAt = new Date();
   expect(await (await load(form.id, true)).json()).toMatchObject({ form: { id: form.id } });
   expect(await shortMetadata({ params: Promise.resolve({ slug: form.id }) })).toMatchObject({ title: form.title });
+});
+
+test("the web short entry renders the colliding form and redirects a meeting-only slug", async () => {
+  const { form, meeting, shortPage } = fixture();
+  const entry = { params: Promise.resolve({ slug: meeting.slug }) };
+  expect(await shortPage(entry)).toEqual({ idOrSlug: form.slug, shortEntry: true });
+  form.deletedAt = new Date();
+  await expect(shortPage(entry)).rejects.toThrow(meeting.meetingUri);
 });
 
 test("native POST and upload bind to the canonical form ID even when another form has that slug", async () => {

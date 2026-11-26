@@ -4,7 +4,7 @@ import { createNativeSessionController } from "../../apps/mobile-native/auth/ses
 import { formDraftOwner, formWriteAccess, recoverFormWriteSession } from "../../apps/mobile-native/features/public-forms/session";
 import { createNativeTransport } from "../../apps/mobile-native/network/transport";
 import { buildFormSteps, formScaleValues } from "../../packages/forms/presentation";
-import { publicFormCases, publicFormFixtureEnvelope } from "../../packages/forms/parity-cases";
+import { publicFormCases, publicFormFixtureEnvelope, publicFormPageCases } from "../../packages/forms/parity-cases";
 import { createFormSubmissionGate, loadPublicForm, submitPublicForm, uploadPublicForm, type FormRequest } from "../../apps/mobile-native/features/public-forms/client";
 import {
   fieldsOnStep, formIdentifier, formUploadPolicy, otherOption, parsePublicForm, publicFormPath,
@@ -17,6 +17,13 @@ const origin = "https://staging.zyxacademy.com";
 const formResult = parsePublicForm(publicFormFixtureEnvelope("forms-ready"), "full");
 if (formResult.status !== "ready") throw new Error("Invalid ready form fixture.");
 const form = formResult.form;
+
+test("public page visual references cover every full and short entry fixture in order", () => {
+  const { forms, "short-forms": short } = publicFormPageCases;
+  expect(forms.cases.map(id => publicFormCases[id].status)).toEqual(["ready", "closed", "missing"]);
+  expect(short.cases.map(id => publicFormCases[id].status)).toEqual(["ready", "meeting", "missing"]);
+  expect([...forms.cases, ...short.cases]).toEqual(Object.keys(publicFormCases));
+});
 
 function reply(value: unknown, status = 200) {
   const response = Response.json(value, { status });

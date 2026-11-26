@@ -4,7 +4,7 @@ import json
 import os
 from pathlib import Path
 
-from case_manifest import load_case_groups, load_directory_manifest
+from case_manifest import PAGE_CAPTURES, load_case_groups, load_page_manifest
 
 SCALES = {"android": 1, "ios": 3}
 
@@ -31,7 +31,7 @@ def check_device(report, component, case_ids, platform, commit, build_commit, re
     return "Pass"
 
 
-def check_directory(report, manifest, platform):
+def check_page(report, manifest, platform):
     scale = SCALES[platform]
     viewport = [manifest["width"], manifest["height"]]
     case_ids = manifest["cases"]
@@ -47,6 +47,7 @@ def check_directory(report, manifest, platform):
     if [item.get("case") for item in results] != case_ids:
         return missing
     expected_size = [value * scale for value in viewport]
+    redirect = manifest.get("externalRedirect")
     states = []
     for item in results:
         status, changed = item.get("status"), item.get("differentPixels")
@@ -54,6 +55,14 @@ def check_directory(report, manifest, platform):
             states.append("Invalid reference")
         elif status == "missing-stable-frame":
             states.append("Missing stable frame")
+        elif status == "navigation-failed":
+            states.append("Fixture navigation failed")
+        elif redirect and item["case"] == redirect["case"]:
+            if (status == "external-redirect" and item.get("externalRedirect") == redirect
+                    and item.get("framePixels") == expected_size and "differentPixels" not in item):
+                states.append("Web redirects, native handoff captured")
+            else:
+                states.append("Missing native handoff evidence")
         elif (item.get("framePixels") != expected_size or item.get("blankReference") is not False
               or type(changed) is not int or changed < 0 or status != ("fail" if changed else "pass")):
             states.append("Missing")
@@ -62,31 +71,38 @@ def check_directory(report, manifest, platform):
     return states
 
 
-def directory_summary(artifacts, commit, build_commit):
-    title = "#### /tautan route vs Chromium"
+def page_summary(artifacts, commit, build_commit, group):
+    route, _ = PAGE_CAPTURES[group]
+    title = f"#### `{route}` route vs Chromium"
     try:
-        manifest = load_directory_manifest(artifacts / "reference-manifests/dpr1/directory.json")
-        ios_manifest = load_directory_manifest(artifacts / "reference-manifests/dpr3/directory.json")
+        manifest = load_page_manifest(artifacts / f"reference-manifests/dpr1/{group}.json", group)
+        ios_manifest = load_page_manifest(artifacts / f"reference-manifests/dpr3/{group}.json", group)
     except (OSError, ValueError):
-        return [title, "", "Missing or invalid directory case manifest.", ""], False
+        return [title, "", "Missing or invalid page case manifest.", ""], False
     if manifest != ios_manifest or (manifest["commit"], manifest["buildCommit"]) != (commit, build_commit):
-        return [title, "", "Directory case manifests do not match the two reference scales and tested revision.", ""], False
+        return [title, "", "Page case manifests do not match the two reference scales and tested revision.", ""], False
 
     platforms = []
     for platform in SCALES:
         try:
-            path = artifacts / f"{platform}-measurements/directory/result.json"
+            path = artifacts / f"{platform}-measurements/{group}/result.json"
             report = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             report = None
-        platforms.append(check_directory(report, manifest, platform))
+        platforms.append(check_page(report, manifest, platform))
     rows = [f"| {case} | {android} | {ios} |" for case, android, ios in zip(manifest["cases"], *platforms)]
+    redirect = manifest.get("externalRedirect")
+    comparable = len(rows) - bool(redirect)
     passed = sum(android == ios == "Pass" for android, ios in zip(*platforms))
+    redirect_ok = not redirect or all(
+        states[manifest["cases"].index(redirect["case"])] == "Web redirects, native handoff captured" for states in platforms
+    )
+    explanation = ["The Google Meet case has a web redirect and a native handoff screen. It is excluded from the pixel comparison.", ""] if redirect else []
     return [
         title, "", f"Viewport {manifest['width']} × {manifest['height']}. "
-        f"{passed}/{len(manifest['cases'])} route cases matched exactly on both platforms.", "",
+        f"{passed}/{comparable} comparable route cases matched exactly on both platforms.", "", *explanation,
         "| Case | Android DPR 1 | iOS DPR 3 |", "| --- | --- | --- |", *rows, "",
-    ], passed == len(manifest["cases"])
+    ], passed == comparable and redirect_ok
 
 
 def main():
@@ -112,19 +128,19 @@ def main():
                 states.append(check_device(result, component, case_ids, platform, args.commit, args.build_commit, reference))
         passed += all(state == "Pass" for state in states)
         rows.append(f"| {component} | {' | '.join(states)} |")
-    directory, directory_passed = directory_summary(args.artifacts, args.commit, args.build_commit)
+    pages = [page_summary(args.artifacts, args.commit, args.build_commit, group) for group in PAGE_CAPTURES]
     output = "\n".join([
         f"### Native pixel parity for `{args.commit}`", "", f"Tested checkout: `{args.build_commit}`.", "",
         f"{passed}/{len(groups)} components matched all three cases against Chromium and the same-device WebView on both platforms.", "",
         "| Component | Android vs Chromium | Android vs WebView | iOS vs Chromium | iOS vs WKWebView |", "| --- | --- | --- | --- | --- |", *rows, "",
-        *directory,
+        *(line for section, _ in pages for line in section),
         "Interaction and accessibility checks are reported by each device job.", "",
     ])
     print(output)
     if summary := os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(summary, "a", encoding="utf-8") as stream:
             stream.write(output)
-    if passed != len(groups) or not directory_passed:
+    if passed != len(groups) or not all(page_passed for _, page_passed in pages):
         raise SystemExit(1)
 
 
