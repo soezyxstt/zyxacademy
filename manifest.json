@@ -1,0 +1,1088 @@
+{
+  "pr": 506,
+  "uiCommit": "b4e5450fc2b45ab1bda97cd7e25e5b5ed8dfe7d8",
+  "review": "All 108 final screenshots inspected by primary agent. Full suite: 46 passed; targeted recapture checks: 8 passed. Images for unchanged screens were retained, changed screens were recaptured.",
+  "scope": "Production native HTML/bundles and web/admin components with controlled test data, network and native bridges. This is not installed-device testing.",
+  "images": [
+    {
+      "index": 0,
+      "path": "screens/offline-admin-English-poli-a798c-n-loads-the-latest-revision-laptop-fhd-125/offline-admin-conflict-en.png",
+      "bytes": 99236,
+      "sha256": "7c5f1eca484cdf76c07656b964520283e048145b4137584d1b4ebadf04886927",
+      "size": [
+        1536,
+        922
+      ]
+    },
+    {
+      "index": 1,
+      "path": "screens/offline-admin-English-poli-a798c-n-loads-the-latest-revision-mobile-380/offline-admin-conflict-en.png",
+      "bytes": 41301,
+      "sha256": "dc50be8be8cbd667b41001c676dba2354947cb2e3ae14fa195451bb8ce04af24",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 2,
+      "path": "screens/offline-admin-admin-offlin-15b12-nd-targeted-update-in-light-laptop-fhd-125/offline-admin-light.png",
+      "bytes": 90556,
+      "sha256": "2e3489d48df65d1a1ca466e6c0ee8aee051633f566b9015a480208d70500da55",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 3,
+      "path": "screens/offline-admin-admin-offlin-15b12-nd-targeted-update-in-light-laptop-fhd-125/offline-admin-targeted-light.png",
+      "bytes": 95796,
+      "sha256": "dad40e02e4d0b768315bb90b442a02b984d5c376573a6007228218971101e796",
+      "size": [
+        1536,
+        884
+      ]
+    },
+    {
+      "index": 4,
+      "path": "screens/offline-admin-admin-offlin-15b12-nd-targeted-update-in-light-mobile-380/offline-admin-light.png",
+      "bytes": 38942,
+      "sha256": "372d56cb202bb97e0fbc34a35ff3b4d6bd3cf8b81f038730038149f26264cfee",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 5,
+      "path": "screens/offline-admin-admin-offlin-15b12-nd-targeted-update-in-light-mobile-380/offline-admin-targeted-light.png",
+      "bytes": 43176,
+      "sha256": "92487af367572cbda2729540ce225e490ae629b3b6561a891c4d6d9527910e57",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 6,
+      "path": "screens/offline-admin-admin-offlin-36332-and-targeted-update-in-dark-laptop-fhd-125/offline-admin-dark.png",
+      "bytes": 91128,
+      "sha256": "04f43215263dafcd9cbc4ced3255ce7eaeaf372dec99db427cbd0acabddeb325",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 7,
+      "path": "screens/offline-admin-admin-offlin-36332-and-targeted-update-in-dark-laptop-fhd-125/offline-admin-targeted-dark.png",
+      "bytes": 96004,
+      "sha256": "a1f13a15fdc8e9b97271e4bf5fdf6998debd814aa8810bdfd5478019ed8ea120",
+      "size": [
+        1536,
+        884
+      ]
+    },
+    {
+      "index": 8,
+      "path": "screens/offline-admin-admin-offlin-36332-and-targeted-update-in-dark-mobile-380/offline-admin-dark.png",
+      "bytes": 40000,
+      "sha256": "4f6fb1882064a040666194c3e87e34ba88c60e608f24af69b0a53f292186be59",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 9,
+      "path": "screens/offline-admin-admin-offlin-36332-and-targeted-update-in-dark-mobile-380/offline-admin-targeted-dark.png",
+      "bytes": 44002,
+      "sha256": "af6ac9148bca13c00c4a1662d28a2b07e4588753ae599c8a4f446467c58d3760",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 10,
+      "path": "screens/offline-native-a-native-pl-31dff-s-the-bundled-recovery-view-laptop-fhd-125/offline-native-unsupported-recovery.png",
+      "bytes": 33086,
+      "sha256": "7c2203004e8f7acf552f8fb96e25e22cc4fac74343b210317fe8374a50b7e35c",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 11,
+      "path": "screens/offline-native-a-native-pl-31dff-s-the-bundled-recovery-view-mobile-380/offline-native-unsupported-recovery.png",
+      "bytes": 26493,
+      "sha256": "51bdcc69a5c1929093ed82f3b1463a757e08d3ba28c96271d96f692d0c94080d",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 12,
+      "path": "screens/offline-native-android-Eng-a5386-efresh-retain-saved-content-laptop-fhd-125/offline-native-achievements-en.png",
+      "bytes": 42283,
+      "sha256": "abf25fdb686276e92f40f3a0a6b6767bbf2f3081b9f68fcdefd4d4a4a4106339",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 13,
+      "path": "screens/offline-native-android-Eng-a5386-efresh-retain-saved-content-laptop-fhd-125/offline-native-sync-error-en.png",
+      "bytes": 59492,
+      "sha256": "ddb9475aa03b873a22fc1d5e8b1e92017a621aa4eb56aeed8deda903d31a4f1f",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 14,
+      "path": "screens/offline-native-android-Eng-a5386-efresh-retain-saved-content-laptop-fhd-125/offline-native-videos-en.png",
+      "bytes": 46513,
+      "sha256": "6f15ceaaf8d8253320a911a1020937cc3ff94bf6eacf4bffb5f749cfaf5b7ad0",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 15,
+      "path": "screens/offline-native-android-Eng-a5386-efresh-retain-saved-content-mobile-380/offline-native-achievements-en.png",
+      "bytes": 32695,
+      "sha256": "81ab563a3953e4d8c03a6f2509f55e9d4badb4a0080996407b3bb0a13c15eeac",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 16,
+      "path": "screens/offline-native-android-Eng-a5386-efresh-retain-saved-content-mobile-380/offline-native-sync-error-en.png",
+      "bytes": 46569,
+      "sha256": "8d27a99dbb83a5655d517337b769209e525698c178160350bf5c92f9ae008444",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 17,
+      "path": "screens/offline-native-android-Eng-a5386-efresh-retain-saved-content-mobile-380/offline-native-videos-en.png",
+      "bytes": 36957,
+      "sha256": "4320f919fa862c19a2e7a565529586bc10a7bf0041c6e64bb191945bb9ed3c2a",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 18,
+      "path": "screens/offline-native-android-bun-e963d-reader-and-storage-in-light-laptop-fhd-125/offline-android-course-light.png",
+      "bytes": 40049,
+      "sha256": "f43d1ae4f03eaf8b45d6e8439ea8fb4787746804d6bed5ca2ee6a8aa34d9f7fc",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 19,
+      "path": "screens/offline-native-android-bun-e963d-reader-and-storage-in-light-laptop-fhd-125/offline-android-courses-light.png",
+      "bytes": 41459,
+      "sha256": "8644e6e6cecec96e9d9e538d12d7218a7163d80151a0024d468c051441230ebf",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 20,
+      "path": "screens/offline-native-android-bun-e963d-reader-and-storage-in-light-laptop-fhd-125/offline-android-reader-light.png",
+      "bytes": 37093,
+      "sha256": "2788634ebac3f0ff4f8ae9fcb01494355be5b5e4a9cd936f1285c5e6e40c4550",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 21,
+      "path": "screens/offline-native-android-bun-e963d-reader-and-storage-in-light-laptop-fhd-125/offline-android-storage-light.png",
+      "bytes": 60351,
+      "sha256": "b81b221c77abb08f5d3d403e55e45305993b169c00b9fb45b6f63e6c9dab09bf",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 22,
+      "path": "screens/offline-native-android-bun-e963d-reader-and-storage-in-light-mobile-380/offline-android-course-light.png",
+      "bytes": 31508,
+      "sha256": "abb72c1bcfa804a3024bcaa1b64d91553a8d522dc6cea23c4090d461fddd0d89",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 23,
+      "path": "screens/offline-native-android-bun-e963d-reader-and-storage-in-light-mobile-380/offline-android-courses-light.png",
+      "bytes": 32767,
+      "sha256": "20a22edc00441bca855d73d16071c40a7bc30738792f9b5ea51f0ad20c05260f",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 24,
+      "path": "screens/offline-native-android-bun-e963d-reader-and-storage-in-light-mobile-380/offline-android-reader-light.png",
+      "bytes": 32345,
+      "sha256": "58a85584f0bc8f88d6225995b88e065adbc0d417dc2185f83ca3ae22c284a179",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 25,
+      "path": "screens/offline-native-android-bun-e963d-reader-and-storage-in-light-mobile-380/offline-android-storage-light.png",
+      "bytes": 50556,
+      "sha256": "46f24db7343241a96a2812205e8d15659902c38904615dc853afcd78de1907c8",
+      "size": [
+        380,
+        886
+      ]
+    },
+    {
+      "index": 26,
+      "path": "screens/offline-native-android-bun-eddf2--reader-and-storage-in-dark-laptop-fhd-125/offline-android-course-dark.png",
+      "bytes": 40419,
+      "sha256": "550cf1068f2039d101782e931be126c4196e71f5a38849c41a6037389d1582ea",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 27,
+      "path": "screens/offline-native-android-bun-eddf2--reader-and-storage-in-dark-laptop-fhd-125/offline-android-courses-dark.png",
+      "bytes": 41846,
+      "sha256": "5c2ce6d8c4815262be65c18d69839d086fec10d3329203dce771908b75a7fb70",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 28,
+      "path": "screens/offline-native-android-bun-eddf2--reader-and-storage-in-dark-laptop-fhd-125/offline-android-reader-dark.png",
+      "bytes": 37675,
+      "sha256": "2da7258ac5568e7833d413b4876baf24fa934684775c4b0236c4be8d000a563b",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 29,
+      "path": "screens/offline-native-android-bun-eddf2--reader-and-storage-in-dark-laptop-fhd-125/offline-android-storage-dark.png",
+      "bytes": 60843,
+      "sha256": "fb31407118cd07e6738aff9077dd7147cdc1d8cd50db6697327208d73591de41",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 30,
+      "path": "screens/offline-native-android-bun-eddf2--reader-and-storage-in-dark-mobile-380/offline-android-course-dark.png",
+      "bytes": 32105,
+      "sha256": "97625e628a7241dc52e187a19d5f7f3473ea12eb751ffaf5436cc86d32f45bc3",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 31,
+      "path": "screens/offline-native-android-bun-eddf2--reader-and-storage-in-dark-mobile-380/offline-android-courses-dark.png",
+      "bytes": 33574,
+      "sha256": "3bc8c91da029fe676d686c92a924c32905552992e1043d1558e14b946918e4ae",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 32,
+      "path": "screens/offline-native-android-bun-eddf2--reader-and-storage-in-dark-mobile-380/offline-android-reader-dark.png",
+      "bytes": 33189,
+      "sha256": "bb316a54f0a87d5e9c1563be8644a7c6aa2245fb29591cdc7222338c6e1182b8",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 33,
+      "path": "screens/offline-native-android-bun-eddf2--reader-and-storage-in-dark-mobile-380/offline-android-storage-dark.png",
+      "bytes": 51686,
+      "sha256": "597f801f2457ee92b243b6aed4b33b0eff25e4563ca8cf5d224c0a7850806760",
+      "size": [
+        380,
+        886
+      ]
+    },
+    {
+      "index": 34,
+      "path": "screens/offline-native-android-cac-537e0-server-requests-are-stalled-laptop-fhd-125/offline-android-cold-online-stalled.png",
+      "bytes": 37019,
+      "sha256": "37220a3719309746ff81d506a5fa12cdea1b65e329ae42349e15859885cc2b0e",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 35,
+      "path": "screens/offline-native-android-cac-537e0-server-requests-are-stalled-mobile-380/offline-android-cold-online-stalled.png",
+      "bytes": 32271,
+      "sha256": "549803438adeebe2ac28850b452bb81b25aa2cb8b9dc9eb88ecfb35fb4466d6e",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 36,
+      "path": "screens/offline-native-desktop-Eng-2edf2-efresh-retain-saved-content-laptop-fhd-125/offline-native-achievements-en.png",
+      "bytes": 41283,
+      "sha256": "75057e2f4aa2b3c5507c6bb2a54064afea0750efdccaa945bde45c8a1366015f",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 37,
+      "path": "screens/offline-native-desktop-Eng-2edf2-efresh-retain-saved-content-laptop-fhd-125/offline-native-sync-error-en.png",
+      "bytes": 58490,
+      "sha256": "5143dbe0a5f63a245bd4f9716da613323ef99f018422ababa9bdcd5417d9291d",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 38,
+      "path": "screens/offline-native-desktop-Eng-2edf2-efresh-retain-saved-content-laptop-fhd-125/offline-native-videos-en.png",
+      "bytes": 45520,
+      "sha256": "fa034eaad10b4a1ec654a4efeaeffa6f7fcff68979a937851b3ff21adb4d4dd4",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 39,
+      "path": "screens/offline-native-desktop-Eng-2edf2-efresh-retain-saved-content-mobile-380/offline-native-achievements-en.png",
+      "bytes": 31729,
+      "sha256": "b223b490fc0e4a2ca190fc8799ec7fe1ce2e5dca7fcd516bd666926ddcfa49f8",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 40,
+      "path": "screens/offline-native-desktop-Eng-2edf2-efresh-retain-saved-content-mobile-380/offline-native-sync-error-en.png",
+      "bytes": 45766,
+      "sha256": "d5f81df3d2b32769977f389eb86406b1e8e85d45e067a08a1c9b7c7818945b6c",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 41,
+      "path": "screens/offline-native-desktop-Eng-2edf2-efresh-retain-saved-content-mobile-380/offline-native-videos-en.png",
+      "bytes": 36000,
+      "sha256": "32e7be3d0a32b7d4506b4e074ab69b001a3503d05a3321c680f3d4ea9fb23b9b",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 42,
+      "path": "screens/offline-native-desktop-bun-8f35d-reader-and-storage-in-light-laptop-fhd-125/offline-desktop-course-light.png",
+      "bytes": 39065,
+      "sha256": "0bf86659e8410cc28f627427842fecb6350ea3162b6528e390e1857d3e8979e4",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 43,
+      "path": "screens/offline-native-desktop-bun-8f35d-reader-and-storage-in-light-laptop-fhd-125/offline-desktop-courses-light.png",
+      "bytes": 40471,
+      "sha256": "132d29faa9648f03319dc9c971dcf292f97c556ae10c7c3e4d00a969683de767",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 44,
+      "path": "screens/offline-native-desktop-bun-8f35d-reader-and-storage-in-light-laptop-fhd-125/offline-desktop-reader-light.png",
+      "bytes": 37181,
+      "sha256": "7ec440185ee1fb315f77e669ea6dfaf39fc84cc2819ad75444452c20a3fa775e",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 45,
+      "path": "screens/offline-native-desktop-bun-8f35d-reader-and-storage-in-light-laptop-fhd-125/offline-desktop-storage-light.png",
+      "bytes": 59312,
+      "sha256": "6c3309f8024ed4d7d07f394f5d70e81ed40171394f05529be901d8e258bc1b6d",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 46,
+      "path": "screens/offline-native-desktop-bun-8f35d-reader-and-storage-in-light-mobile-380/offline-desktop-course-light.png",
+      "bytes": 30559,
+      "sha256": "1e7d2019af072be4203af6180f60372797f7b2a0cd548313636c087c13944fc2",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 47,
+      "path": "screens/offline-native-desktop-bun-8f35d-reader-and-storage-in-light-mobile-380/offline-desktop-courses-light.png",
+      "bytes": 31813,
+      "sha256": "5cae8c8fd6a391b6b0d65f767d4d1cf73df92528395133c6acb698bede690612",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 48,
+      "path": "screens/offline-native-desktop-bun-8f35d-reader-and-storage-in-light-mobile-380/offline-desktop-reader-light.png",
+      "bytes": 32111,
+      "sha256": "75579b9f31537293b86431cd24ab7d40e75905d0993dbe4afbf2f1d627ef5339",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 49,
+      "path": "screens/offline-native-desktop-bun-8f35d-reader-and-storage-in-light-mobile-380/offline-desktop-storage-light.png",
+      "bytes": 49699,
+      "sha256": "9ec04fb4eb8538c579d98290f0e8488b0dbe337f11c2376fea8ea56d4a7ce506",
+      "size": [
+        380,
+        886
+      ]
+    },
+    {
+      "index": 50,
+      "path": "screens/offline-native-desktop-bun-a5f52--reader-and-storage-in-dark-laptop-fhd-125/offline-desktop-course-dark.png",
+      "bytes": 39424,
+      "sha256": "bf3e5ab28f3fc303e723fbbe4b3c91167771a649285e505aa7e58e503551d64e",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 51,
+      "path": "screens/offline-native-desktop-bun-a5f52--reader-and-storage-in-dark-laptop-fhd-125/offline-desktop-courses-dark.png",
+      "bytes": 40845,
+      "sha256": "eda65b965632c85628e84282c0c754bea2f68e3137b6d76b09450545bb160f82",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 52,
+      "path": "screens/offline-native-desktop-bun-a5f52--reader-and-storage-in-dark-laptop-fhd-125/offline-desktop-reader-dark.png",
+      "bytes": 37663,
+      "sha256": "ed63a5a92d76302a860c743b21691ff25c6a310f66d617c12c5442cbecfc0ced",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 53,
+      "path": "screens/offline-native-desktop-bun-a5f52--reader-and-storage-in-dark-laptop-fhd-125/offline-desktop-storage-dark.png",
+      "bytes": 59776,
+      "sha256": "1b121774f54bb560e936cf583c66270b35629febf7fd491e9ac5f6d2f48ae1bb",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 54,
+      "path": "screens/offline-native-desktop-bun-a5f52--reader-and-storage-in-dark-mobile-380/offline-desktop-course-dark.png",
+      "bytes": 31129,
+      "sha256": "bffb8af3a5bcb14624f2e117b720f9d3289c39cd9ca5618064743090047feb6f",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 55,
+      "path": "screens/offline-native-desktop-bun-a5f52--reader-and-storage-in-dark-mobile-380/offline-desktop-courses-dark.png",
+      "bytes": 32581,
+      "sha256": "bb169fc278a318baba6e62d23ea3cd004c05677adf13b6954cb0784121a32e35",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 56,
+      "path": "screens/offline-native-desktop-bun-a5f52--reader-and-storage-in-dark-mobile-380/offline-desktop-reader-dark.png",
+      "bytes": 32742,
+      "sha256": "bcde72ac17fa76e50c779f0648049f030e681fb88c768c9b8dd30860f04d969e",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 57,
+      "path": "screens/offline-native-desktop-bun-a5f52--reader-and-storage-in-dark-mobile-380/offline-desktop-storage-dark.png",
+      "bytes": 50776,
+      "sha256": "879622d4a9e8905cdd6b47edba93e120a902409bc264fe08db5ed7474c6eaaa3",
+      "size": [
+        380,
+        886
+      ]
+    },
+    {
+      "index": 58,
+      "path": "screens/offline-native-desktop-cac-36f50-server-requests-are-stalled-laptop-fhd-125/offline-desktop-cold-online-stalled.png",
+      "bytes": 37856,
+      "sha256": "62a50631e4fa7a4573b5b96662bba36c04b8194eb4283553ace768ca3ab1ee3c",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 59,
+      "path": "screens/offline-native-desktop-cac-36f50-server-requests-are-stalled-mobile-380/offline-desktop-cold-online-stalled.png",
+      "bytes": 32730,
+      "sha256": "2fe0ad3e78d4dc7f9a647702edc944ef7c06d65a2d8a51445432e69e4bb0450b",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 60,
+      "path": "screens/offline-native-native-empty-state-is-scoped-and-readable-laptop-fhd-125/offline-native-empty.png",
+      "bytes": 34566,
+      "sha256": "74c2e5f468d719d9854df2ebc1fa5e340218c33aa0f8a7f2f8c40ddeec9d794d",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 61,
+      "path": "screens/offline-native-native-empty-state-is-scoped-and-readable-mobile-380/offline-native-empty.png",
+      "bytes": 26329,
+      "sha256": "e1f6fc4c8459c8da758086030e356de205cd71f4b068a2aaecc2d2de1c906cf1",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 62,
+      "path": "screens/offline-native-native-expired-state-is-scoped-and-readable-laptop-fhd-125/offline-native-expired.png",
+      "bytes": 35508,
+      "sha256": "31da2ae621d5d38525169caad476fcb97910226df63f9af911d66da01a7dfb15",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 63,
+      "path": "screens/offline-native-native-expired-state-is-scoped-and-readable-mobile-380/offline-native-expired.png",
+      "bytes": 28179,
+      "sha256": "2322e019952df53883ee471a24949009e0db09fb23d604a37421628147893469",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 64,
+      "path": "screens/offline-native-native-read-1c274-eplacing-an-updated-version-laptop-fhd-125/offline-native-reader-update.png",
+      "bytes": 39954,
+      "sha256": "78e485812281b0c4b0ef4a29c7b6461a6a1ec7821095f92af516b8dd82fbe0a4",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 65,
+      "path": "screens/offline-native-native-read-1c274-eplacing-an-updated-version-mobile-380/offline-native-reader-update.png",
+      "bytes": 34701,
+      "sha256": "dfc16bba38afa4dce547a0d5384b8a5529c51d523319614b7edd8b196394d1ee",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 66,
+      "path": "screens/offline-web-English-diktat-55578-r-a-failed-offline-download-laptop-fhd-125/offline-diktat-download-error-en.png",
+      "bytes": 44937,
+      "sha256": "472bff7f779c8630516d200f8f3066b6e259130ff482941c6419535fdddf7ee8",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 67,
+      "path": "screens/offline-web-English-diktat-55578-r-a-failed-offline-download-laptop-fhd-125/offline-diktat-downloaded-en.png",
+      "bytes": 44661,
+      "sha256": "6937f74a73aa20e12d9aaa9aebda0721ce194d608b31bf9f24a2b9380b83b8c5",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 68,
+      "path": "screens/offline-web-English-diktat-55578-r-a-failed-offline-download-mobile-380/offline-diktat-download-error-en.png",
+      "bytes": 32186,
+      "sha256": "3268d0056b32012ad40fe7e35a6ae10b9c4b338190c56ac0cc2f71153391f12b",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 69,
+      "path": "screens/offline-web-English-diktat-55578-r-a-failed-offline-download-mobile-380/offline-diktat-downloaded-en.png",
+      "bytes": 31822,
+      "sha256": "80c1e05cd39c113ce1881a74eb5b76f3dd6206235735600c9d25314c40d6840a",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 70,
+      "path": "screens/offline-web-English-web-me-8d976-failure-keep-saved-readings-laptop-fhd-125/offline-web-achievements-en.png",
+      "bytes": 32709,
+      "sha256": "d99c1a8570cdf920b02254be835bd3a0dfe3d96ec35844ca42567b2333186fac",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 71,
+      "path": "screens/offline-web-English-web-me-8d976-failure-keep-saved-readings-laptop-fhd-125/offline-web-sync-error-en.png",
+      "bytes": 39448,
+      "sha256": "af777130acef276e99f43848e9db9bf10da736edd4938d8426ccea697ccbc9d2",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 72,
+      "path": "screens/offline-web-English-web-me-8d976-failure-keep-saved-readings-laptop-fhd-125/offline-web-videos-en.png",
+      "bytes": 36606,
+      "sha256": "da9f35b4cdab755c407c171e89e571dd42f4f2dc2d83ea9199292874179124ef",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 73,
+      "path": "screens/offline-web-English-web-me-8d976-failure-keep-saved-readings-mobile-380/offline-web-achievements-en.png",
+      "bytes": 22610,
+      "sha256": "586fa710242af01895b7a0c9fd1a982411a5cd63e5e44c903f5d274d2fae63c9",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 74,
+      "path": "screens/offline-web-English-web-me-8d976-failure-keep-saved-readings-mobile-380/offline-web-sync-error-en.png",
+      "bytes": 29411,
+      "sha256": "4297f45e725d4fda92f25745160cdaf829e8a17352574fbfb33be8131a13fc0d",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 75,
+      "path": "screens/offline-web-English-web-me-8d976-failure-keep-saved-readings-mobile-380/offline-web-videos-en.png",
+      "bytes": 26335,
+      "sha256": "0aea72ea7dbadbee9f6bd1c1e12d8df9e368224607ed9205950f27d65824b518",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 76,
+      "path": "screens/offline-web-article-reader-9f570-d-an-explicit-update-action-laptop-fhd-125/offline-article-saving.png",
+      "bytes": 44541,
+      "sha256": "703b18d652911fd256c53373af91f582cd68cd0a87bd2dc4e613b0a68bc3b4b2",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 77,
+      "path": "screens/offline-web-article-reader-9f570-d-an-explicit-update-action-laptop-fhd-125/offline-article-update.png",
+      "bytes": 46441,
+      "sha256": "19587b5f0d756e6e5e7a84053b6518d77a7b6ca68a7589a8bd873b94472d6c6e",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 78,
+      "path": "screens/offline-web-article-reader-9f570-d-an-explicit-update-action-mobile-380/offline-article-saving.png",
+      "bytes": 33196,
+      "sha256": "53c921b02cab7d2e22d5bc7b8fec738b16196be9a387a31899dd338e53b9efad",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 79,
+      "path": "screens/offline-web-article-reader-9f570-d-an-explicit-update-action-mobile-380/offline-article-update.png",
+      "bytes": 33512,
+      "sha256": "6d8ff75aa215422494791dd56b3322a9033e634d2c8d2cdba6379cf960c97e3e",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 80,
+      "path": "screens/offline-web-web-empty-library-hides-unavailable-metadata-laptop-fhd-125/offline-web-empty.png",
+      "bytes": 26457,
+      "sha256": "5ef977c23f2a27dcd09b2615a47eebe37abee6f7d28faef2424dda3424a34762",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 81,
+      "path": "screens/offline-web-web-empty-library-hides-unavailable-metadata-mobile-380/offline-web-empty.png",
+      "bytes": 18032,
+      "sha256": "f2c7a7f35f482aa3ca92d1ce28534034b6466438e834d10c7e6c9c249b7d5c77",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 82,
+      "path": "screens/offline-web-web-expired-library-hides-unavailable-metadata-laptop-fhd-125/offline-web-expired.png",
+      "bytes": 27837,
+      "sha256": "d0a5a4fc9661c29485f9180f745bd58591471c76ae222fb63a23c0894b46f3b8",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 83,
+      "path": "screens/offline-web-web-expired-library-hides-unavailable-metadata-mobile-380/offline-web-expired.png",
+      "bytes": 19836,
+      "sha256": "5337e97efc103477ebd08f94a176a51134616ed27e12a22188d6a9c7284d7e0d",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 84,
+      "path": "screens/offline-web-web-offline-library-reader-and-storage-in-dark-laptop-fhd-125/offline-web-clear-dark.png",
+      "bytes": 56557,
+      "sha256": "4c58254f3719e754ba7d260efe57b96e9a03bf89caec468a8d60a53a9573e9f7",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 85,
+      "path": "screens/offline-web-web-offline-library-reader-and-storage-in-dark-laptop-fhd-125/offline-web-course-dark.png",
+      "bytes": 34764,
+      "sha256": "d096c8b6336dee7bb4f79d03312834919d6e8ecddffecb3b51dfece0c3a8a51c",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 86,
+      "path": "screens/offline-web-web-offline-library-reader-and-storage-in-dark-laptop-fhd-125/offline-web-courses-dark.png",
+      "bytes": 33036,
+      "sha256": "184a93172204a09a47e44b48c49731edfeef3cc8fb5f2303f85e7903b0401a15",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 87,
+      "path": "screens/offline-web-web-offline-library-reader-and-storage-in-dark-laptop-fhd-125/offline-web-reader-dark.png",
+      "bytes": 33176,
+      "sha256": "1905d3ee251ad95012a18cf45da19305666a82242a7db314fa3023d9cdefea6c",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 88,
+      "path": "screens/offline-web-web-offline-library-reader-and-storage-in-dark-laptop-fhd-125/offline-web-reader-update-dark.png",
+      "bytes": 35800,
+      "sha256": "95eb679d08b120723516747b26b2a7d2af26dbbacdaf4b9fd91fa265bddeb60b",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 89,
+      "path": "screens/offline-web-web-offline-library-reader-and-storage-in-dark-laptop-fhd-125/offline-web-storage-dark.png",
+      "bytes": 44330,
+      "sha256": "80ae87b7aa73e697bbb0b9af6fee88ab5ad0299a310f2e0b4f098de9e4a9938a",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 90,
+      "path": "screens/offline-web-web-offline-library-reader-and-storage-in-dark-mobile-380/offline-web-clear-dark.png",
+      "bytes": 33150,
+      "sha256": "a2e23769c18f13f7556c06c6f4c5f97b13d31f39b7a39a36ee213d525bbde010",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 91,
+      "path": "screens/offline-web-web-offline-library-reader-and-storage-in-dark-mobile-380/offline-web-course-dark.png",
+      "bytes": 25179,
+      "sha256": "b0f14c4f85a09503676a28263239e91a7543387af79a9a8da789584c994cb0e3",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 92,
+      "path": "screens/offline-web-web-offline-library-reader-and-storage-in-dark-mobile-380/offline-web-courses-dark.png",
+      "bytes": 23551,
+      "sha256": "1927638d7802eeddab437decc1f9172ef5a320b6d0af1a4cb94d9c88790da198",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 93,
+      "path": "screens/offline-web-web-offline-library-reader-and-storage-in-dark-mobile-380/offline-web-reader-dark.png",
+      "bytes": 29046,
+      "sha256": "b381d37f8f7cc85c5fe4d93af1864b0aba96e2919a6ba10427d5f89c5c7a3f6f",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 94,
+      "path": "screens/offline-web-web-offline-library-reader-and-storage-in-dark-mobile-380/offline-web-reader-update-dark.png",
+      "bytes": 31329,
+      "sha256": "2509bc47637fc9ee4cc30a83281e43598703a7f58fc170d4ad8287120ed27d44",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 95,
+      "path": "screens/offline-web-web-offline-library-reader-and-storage-in-dark-mobile-380/offline-web-storage-dark.png",
+      "bytes": 33702,
+      "sha256": "0323236ac5453c18af980abb3803a9e8959e9b3e9c26df928798b6589c0e2a1d",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 96,
+      "path": "screens/offline-web-web-offline-library-reader-and-storage-in-light-laptop-fhd-125/offline-web-clear-light.png",
+      "bytes": 55921,
+      "sha256": "09b71c1add77dcde6ef4ec54c12ea2f1608f6a68460ffe114fa1917631c50bc9",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 97,
+      "path": "screens/offline-web-web-offline-library-reader-and-storage-in-light-laptop-fhd-125/offline-web-course-light.png",
+      "bytes": 34539,
+      "sha256": "7f58c68615f51e65a1bdb9801014a3e8115790e7d90943b0abaea65326ab4f48",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 98,
+      "path": "screens/offline-web-web-offline-library-reader-and-storage-in-light-laptop-fhd-125/offline-web-courses-light.png",
+      "bytes": 32663,
+      "sha256": "e845bcc20ec8b198616ce490df44573bf49961ee6c4bc950c75496bf9890fd70",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 99,
+      "path": "screens/offline-web-web-offline-library-reader-and-storage-in-light-laptop-fhd-125/offline-web-reader-light.png",
+      "bytes": 32759,
+      "sha256": "f3beda3577ff3cbfd4cf5f18842335749ee077950cfec22e07534a0bfd394de7",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 100,
+      "path": "screens/offline-web-web-offline-library-reader-and-storage-in-light-laptop-fhd-125/offline-web-reader-update-light.png",
+      "bytes": 35354,
+      "sha256": "71c3b589ee29be37d795e08a48091772dad3b7ab55a4ca1f57b6cfe0e105a304",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 101,
+      "path": "screens/offline-web-web-offline-library-reader-and-storage-in-light-laptop-fhd-125/offline-web-storage-light.png",
+      "bytes": 43996,
+      "sha256": "0f6255b87331a450a3171e9b51e58bafff32874ee31e637b620ab923188cd1be",
+      "size": [
+        1536,
+        864
+      ]
+    },
+    {
+      "index": 102,
+      "path": "screens/offline-web-web-offline-library-reader-and-storage-in-light-mobile-380/offline-web-clear-light.png",
+      "bytes": 32715,
+      "sha256": "5f2960770d1c0d11766bc21e6ea302f9efcded442b98746b8da24983dc22ac6c",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 103,
+      "path": "screens/offline-web-web-offline-library-reader-and-storage-in-light-mobile-380/offline-web-course-light.png",
+      "bytes": 24916,
+      "sha256": "fe88b5bfdf1c323355807d781657b787978ec562fda37758aff051b0244adafb",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 104,
+      "path": "screens/offline-web-web-offline-library-reader-and-storage-in-light-mobile-380/offline-web-courses-light.png",
+      "bytes": 23176,
+      "sha256": "45a87a51326ff8a1600825070b3806e73797a559c1c3e6b11ed03954b5c502f8",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 105,
+      "path": "screens/offline-web-web-offline-library-reader-and-storage-in-light-mobile-380/offline-web-reader-light.png",
+      "bytes": 28547,
+      "sha256": "140290a797146b54e570659aa36b994aee47a8b7bf359735a2770a56e7e48fc2",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 106,
+      "path": "screens/offline-web-web-offline-library-reader-and-storage-in-light-mobile-380/offline-web-reader-update-light.png",
+      "bytes": 30831,
+      "sha256": "c7ced0dfeac05ef19b3e5b8eeda35d92abd378e5fd3294a3d8568d4a4eb8ba94",
+      "size": [
+        380,
+        844
+      ]
+    },
+    {
+      "index": 107,
+      "path": "screens/offline-web-web-offline-library-reader-and-storage-in-light-mobile-380/offline-web-storage-light.png",
+      "bytes": 33540,
+      "sha256": "481b3657dbb4786393e2b6f38c787e8c89ce34cf4c1aee983ad837740330aa24",
+      "size": [
+        380,
+        844
+      ]
+    }
+  ]
+}

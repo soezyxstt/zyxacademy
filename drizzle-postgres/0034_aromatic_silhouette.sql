@@ -1,5 +1,0 @@
-ALTER TABLE "discussion_attachments" DROP CONSTRAINT "discussion_attachments_status_check";--> statement-breakpoint
-CREATE INDEX "user_name_bigrams_idx" ON "user" USING gin ((string_to_array(regexp_replace(lower("name"), '(..)', '\1' || chr(31), 'g'), chr(31))
-  || string_to_array(regexp_replace(substr(lower("name"), 2), '(..)', '\1' || chr(31), 'g'), chr(31))));--> statement-breakpoint
-CREATE INDEX "idx_push_tokens_user_id" ON "user_push_tokens" USING btree ("user_id","id");--> statement-breakpoint
-ALTER TABLE "discussion_attachments" ADD CONSTRAINT "discussion_attachments_status_check" CHECK ("discussion_attachments"."status" in ('pending', 'ready', 'attached', 'deleting', 'failed', 'expired') and ("discussion_attachments"."status" <> 'attached' or "discussion_attachments"."message_id" is not null) and ("discussion_attachments"."status" <> 'expired' or "discussion_attachments"."message_id" is null));

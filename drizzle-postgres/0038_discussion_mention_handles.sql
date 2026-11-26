@@ -1,1 +1,0 @@
-ALTER TABLE "discussion_messages" ADD COLUMN "mention_handles" jsonb;

@@ -1,6 +1,0 @@
-# Visual fixture fonts
-
-Unmodified Latin files from Google Fonts, used only by browser test fixtures to match the app typography without live requests. The matching SIL licenses are included.
-
-- Inter: https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2
-- Lexend: https://fonts.gstatic.com/s/lexend/v26/wlptgwvFAVdoq2_F94zlCfv0bz1WC9wRzLdneg.woff2

@@ -1,1 +1,0 @@
-ALTER TABLE `quiz_templates` ADD `show_discussion` integer DEFAULT false NOT NULL;

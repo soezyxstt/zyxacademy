@@ -1,1 +1,0 @@
-ALTER TABLE `groups` ADD `weekly_quota_sessions` integer DEFAULT 2 NOT NULL;

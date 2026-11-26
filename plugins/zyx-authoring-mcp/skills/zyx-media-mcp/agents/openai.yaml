@@ -1,4 +1,0 @@
-interface:
-  display_name: "Zyx Media MCP"
-  short_description: "Reuse media or upload once and verify the job outcome"
-  default_prompt: "Use $zyx-media-mcp to find or upload authorized public media on the verified target, preserve the request identity, poll the application job returned by the server, verify the actual asset and use its served URL. Let the host refresh OAuth and the server dispatch Cloud Tasks. Use only the zyx-stg MCP connection; use advertised tool names and keep dotted operation arguments unchanged."

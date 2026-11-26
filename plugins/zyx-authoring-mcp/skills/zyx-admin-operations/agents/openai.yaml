@@ -1,4 +1,0 @@
-interface:
-  display_name: "Zyx Admin Operations"
-  short_description: "Run scoped admin tasks with clear results and recovery"
-  default_prompt: "Use $zyx-admin-operations to confirm the target environment, discover the needed scopes and mutation protocol, preserve the request identity, and inspect application job results through the matching status tools. Use host OAuth refresh and server-managed Cloud Tasks; send notifications only with explicit authorization. Use only the zyx-stg MCP connection; use advertised tool names and keep dotted operation arguments unchanged."

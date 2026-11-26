@@ -1,1 +1,0 @@
-ALTER TABLE `short_link` ADD `title` text;

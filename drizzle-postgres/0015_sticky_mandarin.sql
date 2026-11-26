@@ -1,2 +1,0 @@
-CREATE INDEX "gamification_event_pending_order_idx" ON "gamification_event_outbox" USING btree ("status","created_at","id");--> statement-breakpoint
-CREATE INDEX "gamification_event_user_pending_order_idx" ON "gamification_event_outbox" USING btree ("user_id","status","occurred_at","created_at","id");

@@ -1,1 +1,0 @@
-ALTER TABLE `quiz_templates` ADD `manual_status` text DEFAULT 'scheduled' NOT NULL;

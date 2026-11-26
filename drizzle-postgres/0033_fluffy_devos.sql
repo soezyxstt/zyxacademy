@@ -1,2 +1,0 @@
-CREATE INDEX "discussion_channels_active_kind_idx" ON "discussion_channels" USING btree ("kind","id") WHERE "discussion_channels"."count_revision" > 0;--> statement-breakpoint
-CREATE INDEX "discussion_channels_active_requester_idx" ON "discussion_channels" USING btree ("requester_id","id") WHERE "discussion_channels"."count_revision" > 0;

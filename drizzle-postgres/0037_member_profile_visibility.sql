@@ -1,1 +1,0 @@
-ALTER TABLE "gamification_profiles" ALTER COLUMN "visibility" SET DEFAULT 'members';

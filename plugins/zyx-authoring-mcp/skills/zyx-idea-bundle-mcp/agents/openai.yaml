@@ -1,4 +1,0 @@
-interface:
-  display_name: "Zyx Idea Bundle MCP"
-  short_description: "Susun Idea dengan bukti sumber dan revisi yang tepat"
-  default_prompt: "Use $zyx-idea-bundle-mcp with the live contract and truthful host capabilities. Prefer the supported direct draft input with stable keys and exact source quotes, retain the returned import and checksum, then read full context to review atomicity, coverage and provenance before authorized publication. Use host OAuth recovery without duplicate writes. Use only the zyx-stg MCP connection; use advertised tool names and keep dotted operation arguments unchanged."

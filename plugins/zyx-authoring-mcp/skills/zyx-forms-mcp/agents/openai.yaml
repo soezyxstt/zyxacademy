@@ -1,4 +1,0 @@
-interface:
-  display_name: "Zyx Forms MCP"
-  short_description: "Edit forms, test answers and export authorized responses"
-  default_prompt: "Use $zyx-forms-mcp to update the requested form, test it without real submissions, and export only authorized responses with the current spreadsheet snapshot. Poll the returned admin job through its domain tool and check spreadsheet conflicts; server-managed Cloud Tasks does not attest successful export. Use only the zyx-stg MCP connection; use advertised tool names and keep dotted operation arguments unchanged."

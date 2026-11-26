@@ -1,1 +1,0 @@
-ALTER TABLE `live_quiz_sessions` ADD `delivery_claim_token` text;
