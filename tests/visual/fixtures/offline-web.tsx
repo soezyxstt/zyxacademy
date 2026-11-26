@@ -1,3 +1,4 @@
+import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
@@ -10,7 +11,7 @@ import { MaterialViewer } from "@/components/course/material-viewer";
 
 import { loadMessages } from "@/lib/i18n/catalogs";
 import { createOfflineScope, scopedReadingKey, setOfflineScope } from "@/lib/offline/cache-scope";
-import { openOfflineDb, READING_STORE, writeOfflineState } from "@/lib/offline/cache-db";
+import { openOfflineDb, readOfflineState, READING_STORE, writeOfflineState } from "@/lib/offline/cache-db";
 import { DEFAULT_OFFLINE_POLICY } from "@/lib/offline/sync-contract";
 import { notifyOfflineCacheChanged, OFFLINE_RESOURCE_CHANGED_EVENT, type OfflineMetadataSnapshot } from "@/lib/offline/library-contract";
 import { registerOfflineSyncController } from "@/lib/offline/sync-client";
@@ -25,9 +26,10 @@ declare global {
     __offlineWebConfig: { locale: "id" | "en"; scenario: OfflineWebScenario; mode: OfflineWebMode; thumbnail: string; online: boolean };
     __offlineWebControls: {
       refreshes: number;
-      downloadMode: "success" | "pending" | "error";
-      downloadPending: boolean;
-      releaseDownload: () => void;
+      packageRequests: number;
+      readVisits: () => Promise<number>;
+      reviseReading: () => void;
+      signalRevocation: () => void;
       updateReading: () => Promise<void>;
       signalUpdate: () => void;
       setSyncError: () => Promise<void>;
@@ -61,7 +63,7 @@ async function mount() {
   };
   let snapshot: OfflineMetadataSnapshot = {
     ...scope, schemaVersion: 2, sessionId: "fixture-session", lastVerifiedAt: now - 60_000, accessValidUntil: lease, syncCursor: "42",
-    policy: { ...DEFAULT_OFFLINE_POLICY, autoCache: false }, syncState: "ready", resources: {}, manifests: {},
+    policy: { ...DEFAULT_OFFLINE_POLICY, autoCache: config.mode !== "library" }, syncState: "ready", resources: {}, manifests: {},
     courses: [{ id: "math", title: article.courseTitle!, chapterIds: ["chapter"], accessValidUntil: lease }, { id: "computing", title: en ? "Computational Thinking and Programming" : "Berpikir Komputasional dan Pemrograman", chapterIds: ["chapter"], accessValidUntil: lease }],
     materials: [
       { id: article.id, courseId: "math", title: article.title, kind: "article", contentVersion: "v2", accessValidUntil: lease },
@@ -83,17 +85,22 @@ async function mount() {
   const saveSnapshot = () => writeOfflineState(`library:${scope.scopeKey}`, snapshot).then(() => { notifyOfflineCacheChanged(); });
   if (config.scenario !== "empty") {
     await saveSnapshot();
-    for (const record of records) await put(record);
+    if (config.mode === "library") for (const record of records) await put(record);
   }
-  let releaseDownload = () => {};
+  const openReading = config.mode === "diktat" ? material : article;
+  const resourceChange = (action: "upsert" | "delete") => window.dispatchEvent(new CustomEvent(OFFLINE_RESOURCE_CHANGED_EVENT, { detail: { scopeKey: scope.scopeKey, change: { cursor: "43", kind: config.mode === "diktat" ? "diktat" : "article", resourceId: openReading.id, courseId: "math", action, revision: action === "upsert" ? "v9" : null } } }));
   window.__offlineWebControls = {
-    refreshes: 0, downloadMode: "success", downloadPending: false, releaseDownload: () => releaseDownload(),
+    refreshes: 0,
+    packageRequests: 0,
+    readVisits: async () => (await readOfflineState<Array<[string, string[]]>>(`reading-visits:${scope.scopeKey}`))?.[0]?.[1].length ?? 0,
+    signalRevocation: () => resourceChange("delete"),
+    reviseReading: () => renderReading(1),
     updateReading: async () => {
       const record = structuredClone(records[0]); record.contentVersion = "v9";
       record.article!.sections[0].blocks[0].content = en ? "The newest explanation is now available." : "Penjelasan versi terbaru sudah tersedia.";
       await put(record); notifyOfflineCacheChanged();
     },
-    signalUpdate: () => window.dispatchEvent(new CustomEvent(OFFLINE_RESOURCE_CHANGED_EVENT, { detail: { scopeKey: scope.scopeKey, change: { cursor: "43", kind: config.mode === "diktat" ? "diktat" : "article", resourceId: config.mode === "diktat" ? material.id : article.id, courseId: "math", action: "upsert", revision: "v9" } } })),
+    signalUpdate: () => resourceChange("upsert"),
     setSyncError: async () => { snapshot = { ...snapshot, syncState: "error", syncError: "network" }; await saveSnapshot(); },
   };
   registerOfflineSyncController(scope, {
@@ -101,12 +108,7 @@ async function mount() {
     snapshot: async () => snapshot,
     dispose() {},
     refreshResource: async (resource, options) => {
-      if (window.__offlineWebControls.downloadMode === "pending") {
-        window.__offlineWebControls.downloadPending = true;
-        await new Promise<void>(resolve => { releaseDownload = resolve; });
-        window.__offlineWebControls.downloadPending = false;
-      }
-      if (window.__offlineWebControls.downloadMode === "error") throw new Error("Fixture download unavailable");
+      window.__offlineWebControls.packageRequests++;
       const record = records.find(record => record.materialId === resource.id);
       if (!record) return false;
       await put({ ...record, pinned: options?.pinned ?? record.pinned }); notifyOfflineCacheChanged(); return true;
@@ -114,17 +116,19 @@ async function mount() {
   });
   const messages = await loadMessages(config.locale);
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  createRoot(document.getElementById("root")!).render(
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+  const root = createRoot(document.getElementById("root")!);
+  const renderReading = (revision = 0) => root.render(
+    <StrictMode><ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <LocaleProvider initialLocale={config.locale} initialMessages={messages}>
         <QueryClientProvider client={queryClient}><TooltipProvider>
           {config.mode === "library" ? <OfflineStudentShell showLive={false} /> : <StudentApplicationShell showLive={false}>
-            {config.mode === "article" ? <StructuredArticleReader article={article} studentId={scope.userId} course={{ id: "math", title: article.courseTitle! }} />
-              : <MaterialViewer material={material} studentId={scope.userId} course={{ title: article.courseTitle! }} chapterId="chapter" canDownload={false} backHref="/courses/math/material" />}
+            {config.mode === "article" ? <StructuredArticleReader article={{ ...article, version: article.version + revision, title: revision ? `${article.title} (v3)` : article.title }} studentId={scope.userId} course={{ id: "math", title: article.courseTitle! }} />
+              : <MaterialViewer material={{ ...material, title: revision ? `${material.title} (v3)` : material.title }} studentId={scope.userId} course={{ title: article.courseTitle! }} chapterId="chapter" canDownload={false} backHref="/courses/math/material" />}
           </StudentApplicationShell>}
         </TooltipProvider></QueryClientProvider>
       </LocaleProvider>
-    </ThemeProvider>,
+    </ThemeProvider></StrictMode>,
   );
+  renderReading();
 }
 void mount();

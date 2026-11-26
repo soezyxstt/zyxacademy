@@ -1603,7 +1603,7 @@
     "retentionMs": "Keep cache for (days)",
     "accessLeaseMs": "Access without a new check (hours)",
     "accessHelp": "After this limit, users need a connection to check access again. Offline devices cannot yet receive access changes from the server.",
-    "autoCache": "Save opened materials automatically",
+    "autoCache": "Save readings automatically from the second visit",
     "wifiOnly": "Download automatically on Wi-Fi only",
     "refreshTitle": "Update outside the schedule",
     "refreshHelp": "Ask devices to check for the latest version before the next routine check. Disconnected devices will check when active again.",

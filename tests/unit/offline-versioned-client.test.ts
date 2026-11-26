@@ -3,7 +3,7 @@ import { isOfflineScheduledCheckDue } from "@/lib/date-utils";
 import { createOfflineScope, setOfflineScope, getOfflineScope, captureOfflineScope, isOfflineScopeCurrent, scopedReadingKey } from "@/lib/offline/cache-scope";
 import { canApplyOfflineValidation, canReplaceOfflineRecord, clearAllOfflineReadings, clearOfflineReadingsForOtherUsers, isOfflineRecordReadable, offlineReadingGeneration, selectEvictionKeys, type OfflineReadingRecord } from "@/lib/offline/reading-cache";
 import { emptyOfflineSnapshot, parsePersistableQuery } from "@/lib/offline/metadata-cache";
-import { createOfflineSyncController, offlineAccessAllowsRecord, type OfflineSyncRepository } from "@/lib/offline/sync-client";
+import { createOfflineSyncController, offlineAccessAllowsRecord, watchOfflineReading, type OfflineSyncRepository } from "@/lib/offline/sync-client";
 import { DEFAULT_OFFLINE_POLICY, OFFLINE_HEADERS, offlineResourceKey, type OfflineResourceDescriptor, type OfflineResourceKind, type OfflineSyncResponse } from "@/lib/offline/sync-contract";
 import { downloadOfflineImages } from "@/lib/offline/asset-cache";
 import { offlineEnvelopeSchema } from "@/lib/offline/client-validation";
@@ -117,6 +117,53 @@ function fixture() {
   });
   return { repository, fetcher, records, delta, data, identity, descriptor, get stored() { return stored; }, get writes() { return writes; }, rejectPackages(value: boolean) { rejectPackage = value; } };
 }
+
+test("watching an uncached reading synchronizes metadata without fetching the package", async () => {
+  const f = fixture();
+  f.records.clear();
+  const resource = f.descriptor("article", "article", "course");
+  const unwatch = watchOfflineReading(scope.userId, resource);
+  let requests = 0;
+  const fetcher = mockFetch(async (input, init) => {
+    if (String(input).includes("kind=article")) requests++;
+    return f.fetcher(input, init);
+  });
+  const controller = createOfflineSyncController({ scope, repository: f.repository, fetcher, now: () => now });
+  try {
+    await controller.sync();
+    expect(f.stored.syncState).toBe("ready");
+    expect(f.stored.manifests.course?.resources).toEqual([resource]);
+    expect(requests).toBe(0);
+    expect(f.records.size).toBe(0);
+
+    expect(await controller.refreshResource(resource, { automatic: true })).toBe(true);
+    expect(requests).toBe(1);
+    expect(Boolean(f.records.get(key)?.pinned)).toBe(false);
+  } finally {
+    unwatch();
+    controller.dispose();
+  }
+});
+
+test.each(["policy disabled", "access denied"] as const)("automatic admission skips the package when %s", async restriction => {
+  const f = fixture();
+  f.records.clear();
+  if (restriction === "policy disabled") f.delta.policy = { ...DEFAULT_OFFLINE_POLICY, autoCache: false };
+  else f.delta.access[0]!.allowed = false;
+  let requests = 0;
+  const fetcher = mockFetch(async (input, init) => {
+    if (String(input).includes("kind=article")) requests++;
+    return f.fetcher(input, init);
+  });
+  const controller = createOfflineSyncController({ scope, repository: f.repository, fetcher, now: () => now });
+  const resource = f.descriptor("article", "article", "course");
+  try {
+    await controller.sync();
+    expect(await controller.refreshResource(resource, { automatic: true })).toBe(false);
+    expect(requests).toBe(0);
+    expect(f.records.size).toBe(0);
+  } finally { controller.dispose(); }
+});
 
 describe("durable sync recovery", () => {
   test.each(["course_outline", "video_catalog"] as const)("%s renews expired library entries on a 304", async kind => {

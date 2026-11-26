@@ -78,8 +78,7 @@ import { ChapterSummarySheet } from "@/components/course/chapter-summary-sheet";
 import { useMaterialReadingProgress } from "@/hooks/use-material-reading-progress";
 import { useQueryAccountCurrent } from "@/hooks/use-query-account";
 import { OfflineReadingActions } from "@/components/offline/offline-reading-actions";
-import { watchOfflineReading } from "@/lib/offline/sync-client";
-import { saveTextMaterialOffline } from "@/lib/offline/reading-cache";
+import { useOfflineReadingVisit } from "@/components/offline/use-offline-reading-visit";
 import { ShareLinkButton } from "@/components/share-link-button";
 import { hapticSelection } from "@/lib/native/haptics";
 import { openAuthorizedFile, saveAuthorizedFile } from "@/lib/native/files";
@@ -526,13 +525,10 @@ function MaterialViewerContent({
     activeSectionIdxRef.current = activeSectionIdx;
   }, [activeSectionIdx]);
 
-  useEffect(() => {
-    if (demo || !studentId || !learnerMode) return;
-    if (material.kind !== "article" || !material.body?.trim()) return;
-    const unwatch = watchOfflineReading(studentId, { kind: material.docCategory === "diktat" ? "diktat" : "article", id: material.id, courseId: material.courseId });
-    void saveTextMaterialOffline(studentId, material, course?.title);
-    return unwatch;
-  }, [demo, studentId, learnerMode, material, course?.title]);
+  const textReading = material.kind === "article" && Boolean(material.body?.trim());
+  const offlineUserId = !demo && learnerMode && textReading ? studentId : undefined;
+  const readingKind = material.docCategory === "diktat" ? "diktat" : "article";
+  useOfflineReadingVisit(offlineUserId, material.courseId, material.id, readingKind);
 
   useEffect(() => {
     if (demo || !studentId || !learnerMode || material.kind !== "article") return;
@@ -1452,7 +1448,7 @@ function MaterialViewerContent({
                           <TooltipContent side="bottom">{t("reader.downloadPdf")}</TooltipContent>
                         </Tooltip>
                       )}
-                      {learnerMode && !demo && <OfflineReadingActions userId={studentId} courseId={material.courseId} materialId={material.id} kind={material.docCategory === "diktat" ? "diktat" : "article"} />}
+                      {learnerMode && !demo && <OfflineReadingActions userId={studentId} courseId={material.courseId} materialId={material.id} kind={readingKind} />}
                       <ShareLinkButton
                         title={articleDisplayTitle}
                         variant="ghost"

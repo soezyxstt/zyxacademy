@@ -31,7 +31,7 @@ async function openFixture(page: Page, theme: "light" | "dark", locale: "id" | "
   });
   await page.goto(`${origin}${path}?locale=${locale}&mode=${mode}`);
   if (mode === "library") await expect(page.getByRole("heading", { name: locale === "id" ? "Bacaan offline" : "Offline readings", exact: true })).toBeVisible();
-  else await expect(page.getByRole("button", { name: locale === "id" ? "Simpan offline" : "Save offline", exact: true })).toBeVisible();
+  else await expect(page.locator("h1").filter({ hasText: /Limit fungsi|Study guide/ }).first()).toBeVisible();
   return failures;
 }
 
@@ -130,35 +130,40 @@ for (const scenario of ["empty", "expired"] as const) test(`web ${scenario} libr
   await capture(page, info, `offline-web-${scenario}`, failures);
 });
 
-test("article reader shows pending save, saved state and an explicit update action", async ({ page }, info) => {
-  const failures = await openFixture(page, "dark", "id", "populated", "article");
-  await page.evaluate(() => { window.__offlineWebControls.downloadMode = "pending"; });
-  const save = page.getByRole("button", { name: "Simpan offline", exact: true });
-  await save.click(); await expect(save).toBeDisabled();
-  await expect.poll(() => page.evaluate(() => window.__offlineWebControls.downloadPending)).toBe(true);
-  await capture(page, info, "offline-article-saving", failures);
-  await page.evaluate(() => { window.__offlineWebControls.downloadMode = "success"; window.__offlineWebControls.releaseDownload(); });
-  await expect(page.getByRole("button", { name: "Tersimpan offline", exact: true })).toBeEnabled();
-  await page.evaluate(() => window.__offlineWebControls.signalUpdate());
-  await expect(page.getByRole("button", { name: "Materi diperbarui. Muat versi terbaru", exact: true })).toBeVisible();
-  await capture(page, info, "offline-article-update", failures);
-  expect(await page.evaluate(() => window.__offlineWebControls.refreshes)).toBe(0);
-  await page.getByRole("button", { name: "Materi diperbarui. Muat versi terbaru", exact: true }).click();
-  await expect.poll(() => page.evaluate(() => window.__offlineWebControls.refreshes)).toBe(1);
-  expect(failures).toEqual([]);
-});
+for (const mode of ["article", "diktat"] as const) test(`online ${mode} toolbar and automatic admission on a second visit`, async ({ page }, info) => {
+  const locale = mode === "article" ? "id" : "en";
+  const theme = mode === "article" ? "dark" : "light";
+  const resourceId = mode === "article" ? "limits" : "derivatives";
+  const failures = await openFixture(page, theme, locale, "populated", mode, `/courses/math/material/${resourceId}`);
+  const save = page.getByRole("button", { name: /^(Simpan offline|Save offline|Tersimpan offline|Saved offline)$/ });
+  const update = page.getByRole("button", { name: /^(Materi diperbarui. Muat versi terbaru|Material updated. Load the latest version)$/ });
+  const visits = () => page.evaluate(() => window.__offlineWebControls?.readVisits());
+  const packages = () => page.evaluate(() => window.__offlineWebControls?.packageRequests);
+  await expect.poll(visits).toBe(1);
+  await expect(save).toHaveCount(0);
+  await expect(update).toHaveCount(0);
+  await expect(page.getByRole("button", { name: locale === "id" ? "Bagikan" : "Share", exact: true })).toBeVisible();
+  await capture(page, info, `online-${mode}-first-visit`, failures);
+  await page.evaluate(() => window.__offlineWebControls.reviseReading());
+  await expect(page.locator("h1").filter({ hasText: /\(v3\)$/ }).first()).toBeVisible();
+  await expect.poll(visits).toBe(1);
+  expect(await packages()).toBe(0);
 
-test("English diktat reader keeps the document available after a failed offline download", async ({ page }, info) => {
-  const failures = await openFixture(page, "light", "en", "populated", "diktat");
-  await page.evaluate(() => { window.__offlineWebControls.downloadMode = "error"; });
-  await page.getByRole("button", { name: "Save offline", exact: true }).click();
-  const retry = page.getByRole("button", { name: "Not saved. Check your connection and storage, then try again.", exact: true });
-  await expect(retry).toBeVisible();
-  await capture(page, info, "offline-diktat-download-error-en", failures);
-  await page.evaluate(() => { window.__offlineWebControls.downloadMode = "success"; });
-  await retry.click();
-  await expect(page.getByRole("button", { name: "Saved offline", exact: true })).toBeEnabled();
-  await capture(page, info, "offline-diktat-downloaded-en", failures);
+  await page.reload();
+  await expect.poll(visits).toBe(2);
+  await expect.poll(packages).toBe(1);
+  await expect(save).toHaveCount(0);
+  await capture(page, info, `online-${mode}-second-visit`, failures);
+
+  await page.evaluate(() => window.__offlineWebControls.signalUpdate());
+  await expect(update).toBeVisible();
+  expect(await page.evaluate(() => window.__offlineWebControls.refreshes)).toBe(0);
+  await capture(page, info, `online-${mode}-update`, failures);
+  await update.click();
+  await expect.poll(() => page.evaluate(() => window.__offlineWebControls.refreshes)).toBe(1);
+  await page.evaluate(() => window.__offlineWebControls.signalRevocation());
+  await expect.poll(() => page.evaluate(() => window.__offlineWebControls.refreshes)).toBe(2);
+  expect(await packages()).toBe(1);
   expect(failures).toEqual([]);
 });
 

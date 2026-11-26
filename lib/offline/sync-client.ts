@@ -4,6 +4,7 @@ import { queryKeys } from "@/lib/query/keys";
 import { getCapacitor } from "@/lib/native/runtime";
 import { isOfflineScheduledCheckDue } from "@/lib/date-utils";
 import { captureOfflineScope, isOfflineScopeCurrent, scopedReadingKey, subscribeOfflineScope, type OfflineCacheScope, type OfflineScopeToken } from "./cache-scope";
+import { recordOfflineReadingVisit } from "./cache-db";
 import { offlineEnvelopeSchema, offlineManifestResponseSchema, offlineSyncResponseSchema } from "./client-validation";
 import { OFFLINE_HEADERS, offlineResourceKey, offlineResourceUrl, type OfflineCourseAccess, type OfflineManifestResponse, type OfflinePolicy, type OfflineResourceDescriptor, type OfflineResourceEnvelope,  type OfflineSyncResponse, type OfflineVideoCatalog, type OfflineAchievementCatalog, type OfflineCourseOutline } from "./sync-contract";
 import { boundOfflineMetadata, emptyOfflineSnapshot, readOfflineLibrarySnapshot, writeOfflineLibrarySnapshot } from "./metadata-cache";
@@ -22,9 +23,10 @@ export interface OfflineSyncRepository {
   patchReading: (key: string, patch: Pick<Partial<OfflineReadingRecord>, "pinned" | "invalidated" | "requiredCursor" | "lastVerifiedAt" | "accessValidUntil">, validation?: { cursor: string; generation: number }) => Promise<boolean>;
   cacheReading: (envelope: OfflineResourceEnvelope, token: OfflineScopeToken, options: { fetcher: typeof fetch; signal: AbortSignal; policy: OfflinePolicy; pinned?: boolean; canWrite?: () => boolean }) => Promise<boolean>;
 }
+type OfflineRefreshOptions = { pinned?: boolean; force?: boolean; automatic?: boolean };
 export interface OfflineSyncController {
   sync: () => Promise<void>;
-  refreshResource: (resource: OfflineResourceRequest, options?: { pinned?: boolean; force?: boolean }) => Promise<boolean>;
+  refreshResource: (resource: OfflineResourceRequest, options?: OfflineRefreshOptions) => Promise<boolean>;
   snapshot: () => Promise<OfflineMetadataSnapshot>;
   dispose: () => void;
 }
@@ -70,7 +72,7 @@ export function createOfflineSyncController(options: {
   let verifiedSession: string | undefined;
   let syncFlight: Promise<void> | undefined;
   let value: OfflineMetadataSnapshot | undefined;
-  const resourceFlights = new Map<string, Promise<boolean>>();
+  const resourceFlights = new Map<string, { promise: Promise<boolean>; automatic?: boolean }>();
   const requestedCourses = new Set<string>();
   const courseGrants = new Map<string, { access: OfflineCourseAccess; cursor: string }>();
   const emittedChanges = new Set<string>();
@@ -155,15 +157,28 @@ export function createOfflineSyncController(options: {
     await persist();
     return true;
   };
-  const doRefreshResource = async (resource: OfflineResourceRequest, refreshOptions: { pinned?: boolean; force?: boolean } = {}): Promise<boolean> => {
+  const doRefreshResource = async (resource: OfflineResourceRequest, refreshOptions: OfflineRefreshOptions = {}): Promise<boolean> => {
     await getSnapshot(); assertCurrent();
     if (resource.courseId) requestedCourses.add(resource.courseId);
     const key = offlineResourceKey(resource.kind, resource.id, resource.courseId);
     const readingKey = resource.courseId ? scopedReadingKey(options.scope, resource.courseId, resource.id) : key;
     const readingGeneration = offlineReadingGeneration(readingKey);
-    const canWrite = () => current() && offlineReadingGeneration(readingKey) === readingGeneration;
+    const policy = value!.policy;
+    const automatic = refreshOptions.automatic;
+    if (automatic && !await canAutomaticallyCacheOffline(policy)) return false;
+    let authorized: OfflineResourceEnvelope | undefined;
+    const canWrite = () => {
+      if (!current() || offlineReadingGeneration(readingKey) !== readingGeneration) return false;
+      if (!automatic) return true;
+      if (value!.policy.revision !== policy.revision || !value!.policy.autoCache || (typeof navigator !== "undefined" && navigator.onLine === false)) return false;
+      const grant = resource.courseId ? courseGrants.get(resource.courseId) : undefined;
+      return Boolean(grant?.access.allowed && grant.access.leaseExpiresAt > now()
+        && (!authorized || (compareOfflineCursors(authorized.cursor, grant.cursor) >= 0
+          && offlineAccessAllowsRecord(grant.access, authorized.resource))));
+    };
     const readings = resource.kind === "article" || resource.kind === "diktat" ? await repository.listReadings() : [];
     const previous = readings.find(item => item.materialId === resource.id && item.courseId === resource.courseId);
+    if (automatic && !canWrite()) return false;
     const metadata = value!.resources[key];
     if (!refreshOptions.force && !previous?.invalidated && previous?.assetsComplete && (previous.accessValidUntil ?? 0) > now() && now() - (previous.lastVerifiedAt ?? 0) < value!.policy.contentMaxAgeMs) {
       if (refreshOptions.pinned) await repository.patchReading(previous.key, { pinned: true });
@@ -174,6 +189,7 @@ export function createOfflineSyncController(options: {
     if (previousRevision) headers.set("If-None-Match", `"${previousRevision}"`);
     try {
       const response = await request(offlineResourceUrl(resource, options.scope.locale), { headers });
+      if (!canWrite()) return false;
       if (response.status === 304) {
         const identity = { accountId: response.headers.get(OFFLINE_HEADERS.accountId) ?? "", sessionId: response.headers.get(OFFLINE_HEADERS.sessionId) ?? "", environment: response.headers.get(OFFLINE_HEADERS.environment) ?? "", locale: response.headers.get(OFFLINE_HEADERS.locale) ?? "" };
         validateIdentity(identity);
@@ -191,26 +207,34 @@ export function createOfflineSyncController(options: {
       validateIdentity(envelope);
       if (envelope.resource.kind !== resource.kind || envelope.resource.id !== resource.id || envelope.resource.courseId !== resource.courseId || envelope.leaseExpiresAt <= now()) throw new ApiResponseError("Offline resource identity mismatch");
       if (previous?.requiredCursor && compareOfflineCursors(envelope.cursor, previous.requiredCursor) < 0) return false;
+      authorized = envelope;
+      if ((automatic && !await canAutomaticallyCacheOffline(policy)) || !canWrite()) return false;
       if (previous && previous.contentVersion !== envelope.resource.revision) emitChange({ cursor: envelope.cursor, kind: resource.kind, resourceId: resource.id, courseId: resource.courseId, action: "upsert", revision: envelope.resource.revision });
       if (resource.kind === "article" || resource.kind === "diktat") return await repository.cacheReading(envelope, token!, { fetcher, signal: abort.signal, policy: value!.policy, pinned: refreshOptions.pinned ?? previous?.pinned, canWrite });
       return await applyMetadata(envelope);
     } catch (error) {
+      if (!current()) return false;
       if (error instanceof ApiError && (error.status === 403 || error.status === 404)) {
         if (previous) await repository.removeReading(previous.key);
         emitChange({ cursor: value!.syncCursor, kind: resource.kind, resourceId: resource.id, courseId: resource.courseId, action: "delete", revision: null });
         delete value!.resources[key];
       }
       if (error instanceof ApiError && error.status === 401) await revoke();
-      if (!current() || abort.signal.aborted) return false;
       return false;
     }
   };
   const refreshResource: OfflineSyncController["refreshResource"] = (resource, refreshOptions) => {
     const key = offlineResourceKey(resource.kind, resource.id, resource.courseId);
     const existing = resourceFlights.get(key);
-    if (existing) return existing.then(async result => { if (result && refreshOptions?.pinned && resource.courseId) await repository.patchReading(scopedReadingKey(options.scope, resource.courseId, resource.id), { pinned: true }); return result; });
+    if (existing) return existing.promise.then(async result => {
+      if (!refreshOptions?.pinned || !resource.courseId) return result;
+      if (!current()) return false;
+      if (!result) return existing.automatic ? refreshResource(resource, refreshOptions) : false;
+      return repository.patchReading(scopedReadingKey(options.scope, resource.courseId, resource.id), { pinned: true });
+    });
     const promise = doRefreshResource(resource, refreshOptions).finally(() => resourceFlights.delete(key));
-    resourceFlights.set(key, promise); return promise;
+    resourceFlights.set(key, { promise, automatic: refreshOptions?.automatic });
+    return promise;
   };
   const revoke = async () => {
     const records = await repository.listReadings();
@@ -276,13 +300,6 @@ export function createOfflineSyncController(options: {
         if (!await refreshResource(descriptor, { pinned: record.pinned, force: true })) throw new Error("offline_package_incomplete");
       } else {
         await repository.patchReading(record.key, { lastVerifiedAt: manifest.serverTime, accessValidUntil: manifest.leaseExpiresAt });
-      }
-    }
-    if (await canAutomaticallyCacheOffline(value!.policy)) {
-      for (const watched of watchedResources.values()) {
-        if (watched.scopeKey !== options.scope.scopeKey || watched.resource.courseId !== courseId || saved.some(record => record.materialId === watched.resource.id)) continue;
-        const descriptor = byIdentity.get(`${watched.resource.kind}:${watched.resource.id}`);
-        if (descriptor && !await refreshResource(descriptor)) throw new Error("offline_package_incomplete");
       }
     }
     value!.manifests[courseId] = { cursor: manifest.cursor, checkedAt: manifest.serverTime, resources: manifest.resources };
@@ -359,20 +376,36 @@ export function registerOfflineSyncController(scope: OfflineCacheScope, controll
   activeController = { scopeKey: scope.scopeKey, controller };
   return () => { if (activeController?.controller === controller) activeController = undefined; };
 }
-export async function cacheReadingOnOpen(userId: string, resource: OfflineResourceRequest): Promise<boolean> {
-  const token = captureOfflineScope(userId);
-  if (!token) return false;
-  const controller = activeController?.scopeKey === token.scope.scopeKey ? activeController.controller : createOfflineSyncController({ scope: token.scope });
+const automaticReadingFlights = new Set<string>();
+
+export async function cacheReadingOnOpen(token: OfflineScopeToken, resource: OfflineResourceRequest, visitId: string): Promise<boolean> {
+  if (!resource.courseId || (resource.kind !== "article" && resource.kind !== "diktat") || !isOfflineScopeCurrent(token)) return false;
+  const resourceKey = offlineResourceKey(resource.kind, resource.id, resource.courseId);
+  const key = JSON.stringify([token.scope.scopeKey, resourceKey]);
   try {
-    let snapshot = await controller.snapshot();
-    if (!snapshot.lastVerifiedAt || snapshot.accessValidUntil <= Date.now()) { await controller.sync(); snapshot = await controller.snapshot(); }
-    if (!snapshot.policy.autoCache) return false;
-    // Opening an already-fetched text document may save its small JSON. Image
-    // downloads respect the same network policy as background prefetch.
-    if (!await canAutomaticallyCacheOffline(snapshot.policy)) return false;
-    return await controller.refreshResource(resource);
+    if (!await recordOfflineReadingVisit(token.scope.scopeKey, resourceKey, visitId, () => isOfflineScopeCurrent(token))) return false;
+    if (navigator.onLine === false || automaticReadingFlights.has(key)) return false;
+    const admit = async () => {
+      if (!isOfflineScopeCurrent(token)) return false;
+      const shared = activeController?.scopeKey === token.scope.scopeKey ? activeController.controller : undefined;
+      const controller = shared ?? createOfflineSyncController({ scope: token.scope });
+      const unwatch = watchOfflineReading(token.scope.userId, resource);
+      try {
+        await controller.sync();
+        const snapshot = await controller.snapshot();
+        if (!isOfflineScopeCurrent(token) || snapshot.syncState !== "ready" || snapshot.accessValidUntil <= Date.now()) return false;
+        if (!await canAutomaticallyCacheOffline(snapshot.policy)) return false;
+        return await controller.refreshResource(resource, { automatic: true });
+      } finally { unwatch(); if (!shared) controller.dispose(); }
+    };
+    automaticReadingFlights.add(key);
+    try {
+      // A second tab can record a visit while an admission is already in progress.
+      return navigator.locks
+        ? await navigator.locks.request(`zyx:offline-reading:${key}`, { ifAvailable: true }, lock => lock ? admit() : false)
+        : await admit();
+    } finally { automaticReadingFlights.delete(key); }
   } catch { return false; }
-  finally { if (controller !== activeController?.controller) controller.dispose(); }
 }
 export async function downloadOfflineReading(userId: string, resource: OfflineResourceRequest): Promise<boolean> {
   const unwatch = watchOfflineReading(userId, resource);

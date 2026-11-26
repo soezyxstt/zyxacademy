@@ -60,8 +60,7 @@ import { useTranslations } from "@/lib/i18n/client";
 import { useArticleReadingProgress } from "@/hooks/use-article-reading-progress";
 import { useQueryAccountCurrent } from "@/hooks/use-query-account";
 import { OfflineReadingActions } from "@/components/offline/offline-reading-actions";
-import { watchOfflineReading } from "@/lib/offline/sync-client";
-import { saveStructuredArticleOffline } from "@/lib/offline/reading-cache";
+import { useOfflineReadingVisit } from "@/components/offline/use-offline-reading-visit";
 import { ShareLinkButton } from "@/components/share-link-button";
 import {
   buildOfflineReadingKey,
@@ -100,6 +99,8 @@ export { StructuredArticleSectionContent } from "./structured-article-section-co
 
 export function StructuredArticleReader(props: StructuredArticleReaderProps) {
   const currentAccount = useQueryAccountCurrent(props.studentId ?? "");
+  const offlineUserId = currentAccount && !props.adapter && isLearnerReaderMode(props.mode ?? "learner") ? props.studentId : undefined;
+  useOfflineReadingVisit(offlineUserId, props.article.courseId, props.article.id, "article");
   if (props.studentId && !props.adapter && !currentAccount) return null;
   return <StructuredArticleReaderContent key={JSON.stringify([props.studentId ?? "preview", props.article.id, props.article.version])} {...props} />;
 }
@@ -129,14 +130,6 @@ function StructuredArticleReaderContent({
   const [checkpointResults, setCheckpointResults] = useState<Record<string, boolean>>({});
   const searchParams = useSearchParams();
   const router = useRouter();
-
-  // Save lightweight text reading payload for offline reuse (bounded LRU cache).
-  useEffect(() => {
-    if (!studentId || !learnerMode) return;
-    const unwatch = watchOfflineReading(studentId, { kind: "article", id: article.id, courseId: article.courseId });
-    void saveStructuredArticleOffline(studentId, article);
-    return unwatch;
-  }, [studentId, learnerMode, article]);
 
   // Active section resolution
   const requestedSlug = searchParams.get("section");

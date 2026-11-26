@@ -479,19 +479,6 @@ export async function cacheOfflineResource(envelope: OfflineResourceEnvelope, to
   } catch (error) { if (error instanceof ApiError) throw error; return false; }
 }
 
-// Existing reader entry points now obtain version and access lease from the
-// authenticated endpoint. RSC data alone never manufactures an offline grant.
-export async function saveStructuredArticleOffline(userId: string, article: PublicArticleReadModel): Promise<boolean> {
-  if (!userId || !article?.id || !article.courseId) return false;
-  const { cacheReadingOnOpen } = await import("./sync-client");
-  return cacheReadingOnOpen(userId, { kind: "article", id: article.id, courseId: article.courseId });
-}
-export async function saveTextMaterialOffline(userId: string, material: CourseMaterial, _courseTitle?: string): Promise<boolean> {
-  if (!userId || material.kind !== "article" || !material.body?.trim()) return false;
-  const { cacheReadingOnOpen } = await import("./sync-client");
-  return cacheReadingOnOpen(userId, { kind: material.docCategory === "diktat" ? "diktat" : "article", id: material.id, courseId: material.courseId });
-}
-
 export async function listOfflineReadingRecords(userId?: string, includeExpired = false): Promise<OfflineReadingRecord[]> {
   const scope = getOfflineScope(userId);
   if (!isOfflineReadingCacheSupported() || !scope) return [];

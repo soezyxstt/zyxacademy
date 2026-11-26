@@ -1603,7 +1603,7 @@
     "retentionMs": "Simpan cache selama (hari)",
     "accessLeaseMs": "Akses tanpa cek ulang (jam)",
     "accessHelp": "Setelah batas akses habis, pengguna perlu tersambung untuk memeriksa izin lagi. Perangkat offline belum dapat menerima pencabutan akses dari server.",
-    "autoCache": "Simpan materi yang dibuka secara otomatis",
+    "autoCache": "Simpan bacaan otomatis mulai kunjungan kedua",
     "wifiOnly": "Unduh otomatis hanya melalui Wi-Fi",
     "refreshTitle": "Pembaruan di luar jadwal",
     "refreshHelp": "Minta perangkat memeriksa versi terbaru tanpa menunggu jadwal rutin. Perangkat yang belum tersambung akan memeriksa saat kembali aktif.",

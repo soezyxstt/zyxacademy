@@ -69,6 +69,8 @@ Admins can request checks for all data, one course or one material, using title 
 
 ## Storage and offline access
 
+The first online Article or Diktat visit records only a bounded visit marker for the account, origin, language and resource. The local ledger retains up to two visit IDs per resource and the 1,000 most recently visited resources per scope. Watching an open reader for changes does not admit a reading package. Starting with the second distinct visit, the client can fetch the package and required images when current access, policy, network and storage permit. Reloading the page starts a new visit. Rendering the same reading again or refreshing its content props within the mounted reader keeps the same visit. Existing saved packages continue to synchronize. Use the offline library to manage explicit downloads and pins.
+
 Automatic cache entries can be removed to make room. Explicit downloads stay pinned until removed or access ends. Pinning preserves the user's download choice, not permanent authorization. If pinned data fills the limit, a new download reports a storage problem instead of silently removing a saved download.
 
 Native and web libraries and saved readers show Offline once as muted text when the device is disconnected. The indicator takes up no space while connected. Reconnection leaves the current reading open. Learners can choose Buka aplikasi to return to the web app. Sync progress, failed requests, expired access and empty storage retain their own messages. Release channel selection still uses the configured environment. Reading position belongs to its account and material. A content update must not mix private state into another account.
@@ -94,7 +96,7 @@ Resource headers include `x-offline-*` identity, cursor, revision and validation
 
 Existing publication and academic tools receive invalidation through the same services. This change adds no MCP tools and does not change OAuth scopes, consent, discovery, packaged skills, playbooks, host prompts or environment bindings. Policy editing and manual revalidation are intentionally admin-UI-only, as recorded in `lib/admin-mcp/operations-catalog.ts`.
 
-The library, reader and native shell connectivity presentation is device-local. The existing desktop recovery and admin policy entries in the operations catalog still cover the affected workflows. Native origin lookup and web API calls use the existing clients and environment bindings.
+The reader admission threshold and the library, reader and native shell connectivity presentation are device-local. The existing desktop recovery and admin policy entries in the operations catalog still cover the affected workflows. Native origin lookup and web API calls use the existing clients and environment bindings.
 
 ## Rollout and evidence
 

@@ -3,6 +3,7 @@ export const OFFLINE_DB_NAME = "zyx-offline-readings-v1";
 export const OFFLINE_DB_VERSION = 2;
 export const READING_STORE = "readings";
 const STATE_STORE = "state";
+const MAX_TRACKED_READING_RESOURCES = 1000;
 export function isOfflineStorageSupported(): boolean { return typeof window !== "undefined" && typeof indexedDB !== "undefined"; }
 export function openOfflineDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -43,6 +44,31 @@ export async function writeOfflineState(key: string, value: unknown, isCurrent: 
       tx.onerror = () => reject(tx.error);
     });
     return true;
+  } finally { db.close(); }
+}
+/** Serialize visit admission across tabs using the same scoped state store. */
+export async function recordOfflineReadingVisit(scopeKey: string, resourceKey: string, visitId: string, isCurrent: () => boolean): Promise<boolean> {
+  const db = await openOfflineDb();
+  try {
+    return await new Promise<boolean>((resolve, reject) => {
+      const tx = db.transaction(STATE_STORE, "readwrite");
+      const store = tx.objectStore(STATE_STORE);
+      const key = `reading-visits:${scopeKey}`;
+      const request = store.get(key);
+      let eligible = false;
+      request.onsuccess = () => {
+        if (!isCurrent()) return;
+        const visits = new Map<string, string[]>(request.result ?? []);
+        const recent = visits.get(resourceKey) ?? [];
+        if (recent.includes(visitId)) return;
+        eligible = recent.length > 0;
+        visits.delete(resourceKey);
+        visits.set(resourceKey, [...recent.slice(-1), visitId]);
+        store.put([...visits].slice(-MAX_TRACKED_READING_RESOURCES), key);
+      };
+      tx.oncomplete = () => resolve(eligible && isCurrent());
+      tx.onabort = () => reject(tx.error);
+    });
   } finally { db.close(); }
 }
 export async function clearOfflineStateExcept(scopeKey: string | null): Promise<void> {
