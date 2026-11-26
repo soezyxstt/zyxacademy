@@ -587,3 +587,42 @@ test("native ZIP intake accepts a platform ZIP alias but checks actual file byte
   expect(await invalid.controller.pickDocument({ ...draft, session: invalid.session })).toEqual({ status: "error", issue: "type" });
   expect(invalid.files.size).toBe(0);
 });
+
+test("admits JSON selected from a generic Files provider and releases its scoped copy", async () => {
+  const bytes = new TextEncoder().encode('{"markdown":"# Materi"}');
+  const fixture = setup({
+    pick: async () => [{ uri: "content://documents/12", name: "Material.json", mimeType: "application/octet-stream", size: bytes.length }],
+    open: () => stream(bytes),
+  });
+  const request: DocumentDraftRequest = {
+    ...fixture.request, target: { ...target, route: "/admin/ast-inspector" },
+    policy: { mimeTypes: ["application/json"], maxBytes: 64 },
+  };
+  const result = await fixture.controller.pickDocument(request);
+  expect(result.status).toBe("ready");
+  if (result.status !== "ready") throw new Error("Expected a JSON document");
+  expect(result.document.mimeType).toBe("application/json");
+  expect(fixture.controller.belongsToDocumentDraft(result.document, request)).toBe(true);
+  result.document.release();
+  expect(fixture.files.size).toBe(0);
+});
+
+test("shares generated JSON only while authorized and measures the limit in UTF-8 bytes", async () => {
+  const clock = fileClock();
+  const fixture = setup({ androidExports: true }, undefined, clock);
+  const request = {
+    session: fixture.session, isDraftCurrent: () => true,
+    name: "compiled-material-ujian.txt", title: "Ekspor JSON", text: '{"value":"é"}',
+  };
+  await expect(fixture.controller.shareGeneratedJson({ ...request, maxBytes: request.text.length }))
+    .resolves.toEqual({ status: "error", issue: "size" });
+  await expect(fixture.controller.shareGeneratedJson({ ...request, maxBytes: 64 })).resolves.toEqual({ status: "finished" });
+  expect(fixture.names).toEqual(["compiled-material-ujian.json"]);
+  expect(fixture.shares.map(({ mimeType }) => mimeType)).toEqual(["application/json"]);
+  expect(fixture.files.size).toBe(1);
+  clock.advance(ANDROID_FILE_EXPORT_LEASE_MS);
+  expect(fixture.files.size).toBe(0);
+  await expect(fixture.controller.shareGeneratedJson({ ...request, isDraftCurrent: () => false, maxBytes: 64 }))
+    .resolves.toEqual({ status: "stale" });
+  expect(fixture.shares.length).toBe(1);
+});

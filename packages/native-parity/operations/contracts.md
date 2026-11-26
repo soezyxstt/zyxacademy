@@ -75,7 +75,7 @@ For each page verify populated, empty/loading and error/recovery as applicable, 
 
 ## Functional crosswalk for signed Admin surfaces
 
-Initial source audit at `1e8bd2c07` on the integration branch. The counts below include the Forms and Storage follow-ups. This crosswalk counts **semantic action groups reachable from an Admin page**. An action group is complete when the regular Expo product entry reaches the equivalent operation or local effect. Partial means part of the group has a live native path. Absent means a reachable web effect has no regular Expo product control or binding. The counts describe repository coverage and leave execution evidence separate.
+Initial source audit at `1e8bd2c07` on the integration branch. The counts below include the Forms, Storage and AST Inspector follow-ups. This crosswalk counts **semantic action groups reachable from an Admin page**. An action group is complete when the regular Expo product entry reaches the equivalent operation or local effect. Partial means part of the group has a live native path. Absent means a reachable web effect has no regular Expo product control or binding. The counts describe repository coverage and leave execution evidence separate.
 
 The crosswalk covers 25 page patterns grouped into 21 families. It includes communications and AST inspection even though their files sit under grouped academic or content folders. Course management, assessment authoring/evaluation, groups, tokens, users, schedules and PKA are part of the academic audit. Student and Tutor workspaces, shared account management, and public website flows are out of scope. A public link from a protected Admin surface may hand off to the website.
 
@@ -93,7 +93,7 @@ The crosswalk covers 25 page patterns grouped into 21 families. It includes comm
 | `/admin/pricing` | Student calculator; Tutor fee calculator; create/toggle/delete vouchers; edit pricing discounts. Expo uses the shared formulas and protected pricing adapter. | | | 4 / 0 / 0 |
 | `/admin/tautan` | Category/list and open links; create/update/activate/reorder/delete. Normal native management connects the same operations and confirmation. | | | 2 / 0 / 0 |
 | `/admin/notifications` | Recipient/channel selection and confirmed dispatch with stable identity; paginated delivery history and detail. Expo uses `BroadcastComposer` and the shared Admin history query. | Web `NotificationHistoryTable` adds notification type and read state. Native history projects message, recipient, time and counts. | | 2 / 1 / 0 |
-| `/admin/ast-inspector` | Compile/demo; inspect blocks, diagnostics, JSON, pipeline and stats. Expo mounts the shared compiler on the protected evaluation route. | The live product fallback preview prints known block text or type; the web renders the compiled AST with rich visuals. | Web imports and exports JSON and copies AST JSON. The normal product omits `EvaluationScreen.files`, so the supported controls never mount. | 2 / 1 / 1 |
+| `/admin/ast-inspector` | Compile/demo; inspect blocks, diagnostics, JSON, pipeline and stats; import, export and copy JSON. The regular Admin entry binds the shared compiler and scoped native Files, sharing and clipboard on the protected evaluation route. | The live product fallback preview prints known block text or type; the web renders the compiled AST with rich visuals. | | 3 / 1 / 0 |
 | `/admin/ops/web-analytics` | GA4 totals/top pages; refresh and open offline configuration. Native `WebAnalyticsScreen` reads the canonical model and production actions wire sync. | | | 2 / 0 / 0 |
 | `/admin/ops` | Ops diagnostics and polling; Zyra operational metrics; list/create/review/confirm report proposals. Native mirrors the `ZyraProposalPanel` actions. Application of proposals is unavailable from this web panel too. | | | 3 / 0 / 0 |
 | `/admin/ops/analytics` | AI date-bounded usage/per-user aggregates; request log filters/paging and refresh. | | | 2 / 0 / 0 |
@@ -102,7 +102,7 @@ The crosswalk covers 25 page patterns grouped into 21 families. It includes comm
 | `/admin/ops/keys`, `/models` | Read masked key diagnostics; inspect configured models and filters; save/reset revision; billed latency refresh with cooldown. | | | 4 / 0 / 0 |
 | `/admin/ops/offline` | Read policy/catalog; save policy with revision; revalidate authorized scope. | | | 3 / 0 / 0 |
 | `/admin/ops/short-links` | List/copy; create with duplicate slug handling; view and share QR PNG. | | | 3 / 0 / 0 |
-| **Total** | | | | **61 / 8 / 2** |
+| **Total** | | | | **62 / 8 / 1** |
 
 Verification provenance for this baseline:
 
@@ -114,3 +114,5 @@ Verification provenance for this baseline:
 The Forms follow-up uses the existing signed form read, the bound public origin and the device clipboard. The MCP aggregate remains unchanged and keeps its own bucketing rules. `form-distribution.test.ts` verifies the displayed denominators, grid counts, clipboard formatting and canonical link construction. Android clipboard interaction still needs signed device evidence.
 
 The Storage follow-up mounts selection and destination controls in `MediaLibrary` and uses existing Admin provider receipts for every copy. MCP continues to expose the established individual copy operation. `expo-native-media-library.test.ts` covers nested selection, uncertain retry with the original receipt key, and stopping after denied access. Signed Android storage interaction remains to be verified.
+
+AST Inspector resolves its existing signed route grant before mounting JSON actions. The device picker, private temporary files and clipboard enforce a 2 MiB limit and use the current Admin session. These local actions leave MCP, scopes and deployment contracts unchanged. `expo-native-files.test.ts` verifies file type handling, byte bounds, stale-scope rejection and Android lease cleanup. The OS picker, clipboard and chooser still need a signed device run.

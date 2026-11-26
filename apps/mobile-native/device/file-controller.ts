@@ -129,6 +129,7 @@ export function sanitizeNativeFileName(raw: string | undefined, fallback: string
 
 const EXTENSIONS = new Map([
   ["application/pdf", "pdf"],
+  ["application/json", "json"],
   ["application/zip", "zip"],
   ["image/png", "png"],
   ["image/jpeg", "jpg"],
@@ -367,7 +368,10 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
         if ((!mimeType || mimeType === "application/octet-stream") && permitted.includes("application/zip") && /\.zip$/i.test(asset.name)) {
           mimeType = "application/zip";
         }
-        if (!permitted.includes(mimeType) || (observedMime && observedMime !== "application/octet-stream" && observedMime !== mimeType)) {
+        const jsonFromFiles = permitted.includes("application/json") && /\.json$/i.test(asset.name) &&
+          [reported, observedMime].every(type => !type || ["application/json", "application/octet-stream", "text/plain"].includes(type));
+        if (jsonFromFiles) mimeType = "application/json";
+        if (!permitted.includes(mimeType) || (!jsonFromFiles && observedMime && observedMime !== "application/octet-stream" && observedMime !== mimeType)) {
           return { status: "error", issue: "type" };
         }
         const limit = Math.min(maxBytes, remaining);
@@ -437,6 +441,47 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
         uri = file.uri;
       }
       await device.share(uri, document.mimeType, title?.trim() || document.name);
+      const afterShare = current();
+      if (afterShare) return afterShare;
+      staged.retain();
+      return { status: "finished" };
+    } catch (error) {
+      return current() ?? resultFrom(error, "share");
+    } finally {
+      staged.finish();
+      sharing = false;
+    }
+  }
+
+  async function shareGeneratedJson(request: Pick<DocumentDraftRequest, "session" | "signal" | "isDraftCurrent"> & {
+    name: string; title: string; text: string; maxBytes: number;
+  }): Promise<ShareFileResult> {
+    if (!device.available) return { status: "unavailable" };
+    if (sharing) return { status: "busy" };
+    if (!Number.isSafeInteger(request.maxBytes) || request.maxBytes <= 0) return { status: "error", issue: "policy" };
+    const current = () => rejectCurrent(request, request.isDraftCurrent);
+    const before = current();
+    if (before) return before;
+    if (sizeIssue(request.text.length, request.maxBytes)) return { status: "error", issue: "size" };
+    const bytes = new TextEncoder().encode(request.text);
+    const limitIssue = sizeIssue(bytes.byteLength, request.maxBytes);
+    if (limitIssue) return { status: "error", issue: limitIssue };
+
+    const mimeType = "application/json";
+    const staged = stageExport(request);
+    sharing = true;
+    try {
+      initialize();
+      expireExports();
+      if (!await device.canShare()) return { status: "unavailable" };
+      const beforeWrite = current();
+      if (beforeWrite) return beforeWrite;
+      const file = staged.hold(fileName(request.name, mimeType));
+      await file.write(bytes);
+      file.close();
+      const afterWrite = current();
+      if (afterWrite) return afterWrite;
+      await device.share(file.uri, mimeType, request.title);
       const afterShare = current();
       if (afterShare) return afterShare;
       staged.retain();
@@ -689,6 +734,6 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
     }
   }
 
-  return { initialize, expireExports, pickDocument, pickDocuments, belongsToDocumentDraft, shareDocument, shareAuthorizedDownload,
+  return { initialize, expireExports, pickDocument, pickDocuments, belongsToDocumentDraft, shareDocument, shareGeneratedJson, shareAuthorizedDownload,
     prepareFormQuestionImage, prepareAdminMarkdownImage, prepareCourseVideo, prepareMaterialPdf, renewMaterialPdf };
 }

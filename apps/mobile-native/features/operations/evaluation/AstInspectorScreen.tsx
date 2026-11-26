@@ -1,4 +1,6 @@
-import { useState, type ReactNode } from "react";
+import { useCallback, useRef, useState, type ReactNode } from "react";
+import { useFocusEffect } from "expo-router";
+import { useProtectedInteraction } from "../../../routing/protected-interaction";
 import { Text, View } from "react-native";
 import { Button } from "../../../components/Button";
 import { compileMarkdown } from "../../../../../lib/markdown-compiler";
@@ -7,9 +9,9 @@ import { DEMO_TEMPLATES } from "../../../../../packages/native-parity/operations
 import { Copy, Field, Heading, inspectorStrings, interpolate, language, Row, Section, type Presentation } from "./ui";
 
 export type EvaluationFiles = {
-  importJson: () => Promise<string | null>;
-  exportJson: (name: string, text: string) => Promise<void>;
-  copyText?: (text: string) => Promise<void>;
+  importJson: (signal: AbortSignal) => Promise<string | null>;
+  exportJson: (name: string, text: string, signal: AbortSignal) => Promise<void>;
+  copyText?: (text: string, signal: AbortSignal) => Promise<void>;
 };
 
 const tabs = {
@@ -36,11 +38,23 @@ export function AstInspectorScreen({ presentation, renderAst, files, initialTab 
   const [expanded, setExpanded] = useState(new Set<string>());
   const [error, setError] = useState<string>();
   const [copied, setCopied] = useState(false);
+  const { canInteract } = useProtectedInteraction();
+  const active = useRef<AbortController | null>(null);
+  const pending = useRef<AbortSignal | null>(null);
+  const [busy, setBusy] = useState<"import" | "export" | "copy" | null>(null);
+  useFocusEffect(useCallback(() => {
+    const scope = new AbortController();
+    active.current = scope;
+    setBusy(null);
+    setCopied(false);
+    return () => { active.current = null; scope.abort(); };
+  }, []));
   const json = JSON.stringify(result.ast, null, 2);
   const valid = validateAST(result.ast).success;
 
   function compileInput(input: string) {
     setError(undefined);
+    setCopied(false);
     try {
       setResult(compile(input));
       setExpanded(new Set());
@@ -49,12 +63,28 @@ export function AstInspectorScreen({ presentation, renderAst, files, initialTab 
     }
   }
 
-  async function importFile() {
-    if (!files) return;
+  async function fileAction(kind: NonNullable<typeof busy>, failure: string, action: (signal: AbortSignal) => Promise<void>) {
+    const signal = active.current?.signal;
+    if (!signal || pending.current === signal || !canInteract()) return;
+    pending.current = signal;
+    setBusy(kind);
     setError(undefined);
     try {
-      const text = await files.importJson();
-      if (text === null) return;
+      await action(signal);
+    } catch {
+      if (!signal.aborted && canInteract()) setError(failure);
+    } finally {
+      if (pending.current === signal) pending.current = null;
+      if (!signal.aborted) setBusy(null);
+    }
+  }
+
+  function importFile() {
+    if (!files) return;
+    void fileAction("import", t.importError, async signal => {
+      const text = await files.importJson(signal);
+      if (text === null || signal.aborted || !canInteract()) return;
+      setCopied(false);
       const parsed: unknown = JSON.parse(text);
       if (parsed && typeof parsed === "object" && "markdown" in parsed && typeof parsed.markdown === "string") {
         setMarkdown(parsed.markdown);
@@ -66,15 +96,12 @@ export function AstInspectorScreen({ presentation, renderAst, files, initialTab 
       setMarkdown("");
       setResult({ ast, diagnostics: validation.errors.map(({ path, message }) => ({ severity: "error", code: path, message })) });
       setExpanded(new Set());
-    } catch {
-      setError(t.importError);
-    }
+    });
   }
 
-  async function exportFile() {
+  function exportFile() {
     if (!files) return;
-    setError(undefined);
-    try {
+    void fileAction("export", language(locale, "Gagal mengekspor JSON.", "JSON export failed."), async signal => {
       const name = result.ast.documentMetadata.title.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "") || "material";
       const payload = result.stats ? {
         markdown,
@@ -83,23 +110,30 @@ export function AstInspectorScreen({ presentation, renderAst, files, initialTab 
         compilerVersion: result.ast.compilerVersion,
         schemaVersion: result.ast.schemaVersion,
       } : result.ast;
-      await files.exportJson(`compiled-material-${name}.json`, JSON.stringify(payload, null, 2));
-    } catch {
-      setError(language(locale, "Gagal mengekspor JSON.", "JSON export failed."));
-    }
+      await files.exportJson(`compiled-material-${name}.json`, JSON.stringify(payload, null, 2), signal);
+    });
+  }
+
+  function copyJson() {
+    const copyText = files?.copyText;
+    if (!copyText) return;
+    void fileAction("copy", language(locale, "Gagal menyalin JSON.", "JSON could not be copied."), async signal => {
+      await copyText(json, signal);
+      if (!signal.aborted && canInteract()) setCopied(true);
+    });
   }
 
   return <>
     <Heading theme={theme}>{copy.astInspector.title}</Heading>
     <Row>
-      {(Object.keys(DEMO_TEMPLATES) as (keyof typeof DEMO_TEMPLATES)[]).map((name) => <Button key={name} theme={theme} variant="ghost" onPress={() => { const next = DEMO_TEMPLATES[name]; setMarkdown(next); compileInput(next); }}>{t[name]}</Button>)}
+      {(Object.keys(DEMO_TEMPLATES) as (keyof typeof DEMO_TEMPLATES)[]).map((name) => <Button key={name} theme={theme} variant="ghost" disabled={busy !== null} onPress={() => { const next = DEMO_TEMPLATES[name]; setMarkdown(next); compileInput(next); }}>{t[name]}</Button>)}
       {files && <>
-        <Button theme={theme} variant="outline" onPress={() => void importFile()}>{t.import}</Button>
-        <Button theme={theme} variant="outline" onPress={() => void exportFile()}>{t.export}</Button>
+        <Button theme={theme} variant="outline" testID="admin-ast-import" disabled={busy !== null} isLoading={busy === "import"} onPress={importFile}>{t.import}</Button>
+        <Button theme={theme} variant="outline" testID="admin-ast-export" disabled={busy !== null} isLoading={busy === "export"} onPress={exportFile}>{t.export}</Button>
       </>}
-      <Button theme={theme} onPress={() => compileInput(markdown)}>{t.compile}</Button>
+      <Button theme={theme} disabled={busy !== null} onPress={() => compileInput(markdown)}>{t.compile}</Button>
     </Row>
-    <Field theme={theme} label="Markdown" value={markdown} onChangeText={setMarkdown} placeholder={t.markdownPlaceholder} multiline autoCapitalize="none" />
+    <Field theme={theme} label="Markdown" value={markdown} onChangeText={setMarkdown} editable={busy === null} placeholder={t.markdownPlaceholder} multiline autoCapitalize="none" />
     {error && <View accessibilityLiveRegion="polite"><Copy theme={theme} tone="error">{error}</Copy></View>}
     <Row>{tabIds.map((item) => <Button key={item} theme={theme} variant={tab === item ? "default" : "ghost"} accessibilityRole="tab" accessibilityState={{ selected: item === tab }} onPress={() => setTab(item)}>{t[tabs[item]]}</Button>)}</Row>
     {tab === "preview" && (renderAst ? renderAst(result.ast) : <Section theme={theme}>
@@ -126,9 +160,8 @@ export function AstInspectorScreen({ presentation, renderAst, files, initialTab 
       {item.recommendation && <Copy theme={theme}>{item.recommendation}</Copy>}
     </Section>) : <Copy theme={theme}>{t.noDiagnostics}</Copy>)}
     {tab === "json" && <Section theme={theme}>
-      {files?.copyText && <Row><Button theme={theme} variant="outline" onPress={() => {
-        void files.copyText?.(json).then(() => setCopied(true), () => setError(language(locale, "Gagal menyalin JSON.", "JSON could not be copied.")));
-      }}>{copied ? t.jsonCopied : t.copyJson}</Button></Row>}
+      {files?.copyText && <Row><Button theme={theme} variant="outline" testID="admin-ast-copy" disabled={busy !== null} isLoading={busy === "copy"}
+        onPress={copyJson}>{copied ? t.jsonCopied : t.copyJson}</Button></Row>}
       <Text selectable><Copy theme={theme}>{json}</Copy></Text>
     </Section>}
     {tab === "pipeline" && (["parse", "normalize", "validate", "diagnostics", "stats"] as const).map((step, index) => {

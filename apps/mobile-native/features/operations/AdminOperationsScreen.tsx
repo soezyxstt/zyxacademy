@@ -5,6 +5,7 @@ import { connectTutorDiscussionImages, TutorDiscussionImages } from "../academic
 import type { NativeAccountContext } from "../../../../packages/native-session/context";
 import type { NativeSessionTransport } from "../../network/transport";
 import { EvaluationScreen, type EvaluationScreenProps } from "./evaluation";
+import { connectAstFiles } from "./evaluation/expo-ast-files";
 import { createManagementClient, ManagementScreen, type ManagementScreenProps } from "./management";
 import { connectFormAttachment, connectFormImagePicker } from "./management/form-media";
 import { connectBlogMediaPicker } from "./management/expo-blog-upload";
@@ -37,6 +38,7 @@ export function AdminOperationsScreen(props: AdminOperationsScreenProps) {
     pickFormImage: connectFormImagePicker(session),
     pickMediaFile: connectMediaFilePicker(session),
     evaluation: createEvaluationRequest(session),
+    astFiles: connectAstFiles(session, context.locale),
     monitoring: createSessionMonitoringReader(session, context.locale),
     actions: createSessionMonitoringActions(session),
   }), [session, context.locale]);
@@ -51,7 +53,7 @@ export function AdminOperationsScreen(props: AdminOperationsScreenProps) {
       return <AdminManagement key={key} {...props} accountKey={key} client={clients.management} pickBlogMedia={clients.pickBlogMedia} pickMediaFile={clients.pickMediaFile} openFormAttachment={clients.openFormAttachment} pickFormImage={clients.pickFormImage} />;
     case "evaluation":
       return <EvaluationScreen {...props.evaluation} href={href} navigate={navigate} accountKey={key}
-        request={clients.evaluation} locale={context.locale} theme={theme} />;
+        request={clients.evaluation} files={props.evaluation?.files ?? clients.astFiles} locale={context.locale} theme={theme} />;
     case "monitoring":
       return <MonitoringScreen links={{ origin: session.scope.origin, ...props.monitoring?.links }} href={href} onNavigate={navigate} sessionKey={key}
         access="allowed" reader={clients.monitoring} actions={{ ...clients.actions, ...props.monitoring?.actions }}
