@@ -1,5 +1,8 @@
 import { parseCanonicalMarkdown } from "../../../lib/markdown-compiler";
 import { FlowchartNodeKindSchema, type FlowchartNodeKind } from "../../../lib/flowchart";
+import type { ASTBlock } from "../../../lib/ast-validator";
+import { EMBEDDED_VISUAL_LANGUAGE } from "../../../lib/materials/embedded-visuals";
+import { parseMermaidToDiagramData } from "../../../lib/materials/markdown-mermaid";
 
 type DiagramNode = { id: string; label: string; kind?: FlowchartNodeKind };
 type DiagramEdge = { source: string; target: string; label?: string };
@@ -9,7 +12,10 @@ type MarkdownMedia = { src: string; caption?: string; sourceLabel?: string; sour
 export type MarkdownPreviewBlock =
   | { type: "markdown"; source: string }
   | { type: "media"; media: MarkdownMedia }
-  | { type: "diagram"; diagram: MarkdownDiagram | null; source: string; title?: string; caption?: string };
+  | { type: "diagram"; diagram: MarkdownDiagram | null; source: string; title?: string; caption?: string }
+  | { type: "visual"; visual: Extract<ASTBlock, { type: "visual" }>; source: string }
+  | { type: "code"; content: string; source: string }
+  | { type: "function-widget" | "embedded-visual"; content: string; source: string };
 
 const nodeLimit = 80;
 const edgeLimit = 160;
@@ -59,9 +65,27 @@ function parseMermaidFlowchart(markdown: string): MarkdownDiagram | null {
   return createPreviewDiagram([...nodes.values()], edges, ["LR", "RL"].includes(orientation) ? "right" : "down", ["RL", "BT"].includes(orientation));
 }
 
+function previewMermaid(markdown: string) {
+  const flowchart = parseMermaidFlowchart(markdown);
+  if (flowchart) return flowchart;
+  // The web projection also accepts headerless arrows. Check that every line is an
+  // arrow before using it so other Mermaid grammars or styling stay authored code.
+  const lines = markdown.split("\n").map(line => line.trim()).filter(line => line && !line.startsWith("%%"));
+  if (!lines.length || !lines.every(line => line.includes("-->"))) return null;
+  const validated = parseMermaidFlowchart("graph LR\n" + markdown);
+  if (!validated) return null;
+  const { nodes, edges } = parseMermaidToDiagramData(markdown);
+  return nodes.length === validated.nodes.length && edges.length === validated.edges.length
+    ? createPreviewDiagram(nodes, edges, "right")
+    : validated;
+}
+
 function readDirective(source: string): MarkdownPreviewBlock {
   const [block] = parseCanonicalMarkdown(source);
   if (block?.type === "media" && block.metadata) return { type: "media", media: block.metadata };
+  if (block?.type === "visual" && (block.visualType === "chart" || block.visualType === "graph")) {
+    return { type: "visual", visual: block, source };
+  }
   if (block?.type !== "visual" || (block.visualType !== "flowchart" && block.visualType !== "diagram")) return { type: "markdown", source };
   const data = block.data as { nodes: DiagramNode[]; edges: DiagramEdge[]; diagramType?: string };
   const nodes = data.nodes.map(node => ({
@@ -87,15 +111,22 @@ export function splitMarkdownPreview(markdown: string): MarkdownPreviewBlock[] {
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index];
     const fence = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
-    const directive = /^ {0,3}:::(?:media|flowchart|diagram)\b/.test(line);
+    const directive = /^ {0,3}:::(?:media|chart|graph|flowchart|diagram)\b/.test(line);
     if (fence) {
       const endFence = new RegExp(`^ {0,3}${fence[1][0]}{${fence[1].length},}\\s*$`);
       let end = index + 1;
       while (end < lines.length && !endFence.test(lines[end])) end++;
       const source = lines.slice(index, end + 1).join("\n");
-      if (end < lines.length && /^\s*mermaid\s*$/i.test(fence[2])) {
+      const language = fence[2].trim().toLowerCase();
+      if (end < lines.length && language === "mermaid") {
         flush();
-        blocks.push({ type: "diagram", source, diagram: source.length <= 12_000 ? parseMermaidFlowchart(lines.slice(index + 1, end).join("\n")) : null });
+        blocks.push({ type: "diagram", source, diagram: source.length <= 12_000 ? previewMermaid(lines.slice(index + 1, end).join("\n")) : null });
+      } else if (end < lines.length && [EMBEDDED_VISUAL_LANGUAGE, "desmos", "desmos-graph"].includes(language)) {
+        flush();
+        blocks.push({ type: language === EMBEDDED_VISUAL_LANGUAGE ? "embedded-visual" : "function-widget", content: lines.slice(index + 1, end).join("\n"), source });
+      } else if (end < lines.length) {
+        flush();
+        blocks.push({ type: "code", content: lines.slice(index + 1, end).join("\n"), source });
       } else {
         text.push(source);
         size += source.length;

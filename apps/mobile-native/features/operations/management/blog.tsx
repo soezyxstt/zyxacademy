@@ -48,6 +48,7 @@ function BlogEditor({ article, initialTab }: { article?: Article; initialTab?: s
   const id = article?.id;
   const draft = useDraft<ArticleFields>(`blog:${id ?? "new"}`, article ? articleFields(article) : emptyArticle, article?.revision);
   const value = draft.value;
+  const thumbnail = value.thumbnailUrl ? { url: value.thumbnailUrl, alt: articleTitle(value) || "Thumbnail artikel" } : undefined;
   const action = useAction();
   const [mode, setMode] = useState<"write" | "preview">(initialTab === "preview" ? "preview" : "write");
   const [tag, setTag] = useState("");
@@ -197,14 +198,20 @@ function BlogEditor({ article, initialTab }: { article?: Article; initialTab?: s
       </Section>}
     </> : <Section>
       <Heading>{articleTitle(value) || "Judul artikel"}</Heading>
+      <Copy muted>{articleCategories[value.category]} · {articleStatuses.find(([status]) => status === value.status)?.[1]}</Copy>
       {value.summary && <Copy muted>{value.summary}</Copy>}
-      {value.content ? renderMarkdown?.(value.content) ?? <Copy>{value.content}</Copy> : <Copy muted>Konten masih kosong.</Copy>}
+      {renderMarkdown?.(value.content, thumbnail) ?? (value.content ? <Copy>{value.content}</Copy> : null)}
+      {!value.content ? <Copy muted>Konten masih kosong.</Copy> : null}
     </Section>}
     <Section title="Pengaturan publikasi">
       <Copy strong>Status</Copy><Choices values={articleStatuses} current={value.status} onChange={next => edit("status", next)} />
       <Copy strong>Kategori</Copy><Choices values={categories} current={value.category} onChange={next => edit("category", next)} />
       <Field label="Thumbnail utama" value={value.thumbnailUrl} autoCapitalize="none" keyboardType="url" editable={uploading !== "thumbnail"} onChangeText={next => { setUploadError(undefined); edit("thumbnailUrl", next); }} />
+      {mode === "write" && thumbnail ? renderMarkdown?.("", thumbnail) : null}
       {pickBlogMedia && <Action onPress={() => void uploadMedia("thumbnail")} busy={uploading === "thumbnail"} disabled={Boolean(uploading) || action.busy || mustReview}>Unggah thumbnail</Action>}
+      {thumbnail ? <Action onPress={() => { setUploadError(undefined); edit("thumbnailUrl", ""); }} disabled={Boolean(uploading) || action.busy}>
+        Hapus thumbnail
+      </Action> : null}
       {uploadError?.purpose === "thumbnail" && <Copy status="error">{uploadError.message}</Copy>}
       <Field label="Tag (tekan Enter)" value={tag} onChangeText={setTag} onSubmitEditing={() => {
         const next = tag.trim();

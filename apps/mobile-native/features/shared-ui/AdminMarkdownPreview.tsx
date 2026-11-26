@@ -1,17 +1,23 @@
 import { useIsFocused } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { setStringAsync } from "expo-clipboard";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ActivityIndicator, Image, Linking, StyleSheet, Text, View } from "react-native";
+import { parseEmbeddedVisual } from "../../../../lib/materials/embedded-visuals";
 import { nativeColors } from "../../../../packages/design-tokens/native-colors";
 import { previewExternalHref, previewMedia, type MarkdownPreviewAudience, type MarkdownPreviewMedia } from "../../../../packages/native-parity/operations/admin-markdown-media";
 import { splitMarkdownPreview, type MarkdownPreviewBlock } from "../../../../packages/native-parity/operations/admin-markdown-preview";
+import { evaluationPreviewTable, evaluationPreviewVisual, previewFunctionPlot } from "../../../../packages/native-parity/operations/evaluation-ast-preview";
 import { Button } from "../../components/Button";
 import { scopedFiles } from "../../device/files";
 import type { NativeSessionTransport } from "../../network/transport";
 import { useProtectedInteraction } from "../../routing/protected-interaction";
 import { nativeTypography } from "../../typography";
 import { CourseVideoDialog } from "../course-video/CourseVideoDialog";
+import { SolutionVisualPreview } from "../solutions/SolutionVisualPreview";
 import { CourseMarkdown } from "../student/CourseMarkdown";
+import { CanvasPlot } from "../student/zyra/CanvasPlot";
 import { AdminMarkdownDiagram } from "./AdminMarkdownDiagram";
+import { AdminPreviewChart } from "./AdminPreviewChart";
 import { SharedDialog } from "./overlays";
 
 const labels = {
@@ -19,12 +25,14 @@ const labels = {
     image: "View image", video: "Play video", youtube: "Play YouTube video", source: "Source",
     missing: "This media cannot be opened.", failed: "The image could not be loaded.", retry: "Try again",
     close: "Close", loading: "Loading image", diagram: "Diagram", unsupported: "This diagram cannot be drawn in the app.",
+    visualUnavailable: "This visual cannot be drawn in the app.",
     more: "Show more of the document",
   },
   id: {
     image: "Lihat gambar", video: "Putar video", youtube: "Putar video YouTube", source: "Sumber",
     missing: "Media ini tidak dapat dibuka.", failed: "Gambar belum dapat dimuat.", retry: "Coba lagi",
     close: "Tutup", loading: "Memuat gambar", diagram: "Diagram", unsupported: "Diagram ini belum dapat digambar di aplikasi.",
+    visualUnavailable: "Visual ini belum dapat digambar di aplikasi.",
     more: "Tampilkan bagian berikutnya",
   },
 } as const;
@@ -33,6 +41,7 @@ const pageSize = 12;
 type PreviewProps = {
   source: string;
   previewBlocks?: readonly MarkdownPreviewBlock[];
+  thumbnail?: { url: string; alt: string };
   audience: MarkdownPreviewAudience;
   origin: string;
   theme: keyof typeof nativeColors;
@@ -41,9 +50,9 @@ type PreviewProps = {
   openExternal?: (url: string) => void | Promise<void>;
 };
 
-type Selection = { source: string; media: MarkdownPreviewMedia; title: string };
+type Selection = { source: string; thumbnailUrl?: string; media: MarkdownPreviewMedia; title: string };
 
-export function AdminMarkdownPreview({ source, previewBlocks, audience, origin, locale, theme, session, openExternal }: PreviewProps) {
+export function AdminMarkdownPreview({ source, previewBlocks, thumbnail, audience, origin, locale, theme, session, openExternal }: PreviewProps) {
   const { canInteract, suspended } = useProtectedInteraction();
   const focused = useIsFocused();
   const [visible, setVisible] = useState(pageSize);
@@ -70,8 +79,8 @@ export function AdminMarkdownPreview({ source, previewBlocks, audience, origin, 
     if (!media || !session) return <Text style={tone}>{t.missing}</Text>;
     const label = media.kind === "youtube" ? t.youtube : media.kind === "video" ? t.video : t.image;
     return <Button theme={theme} variant="outline" testID={`admin-markdown-${media.kind}`} accessibilityLabel={caption ? `${label}, ${caption}` : label}
-      onPress={() => { if (current()) setSelected({ source, media, title: caption || label }); }}>{label}</Button>;
-  }, [audience, colors.mutedForeground, current, origin, session, source, t, theme]);
+      onPress={() => { if (current()) setSelected({ source, thumbnailUrl: thumbnail?.url, media, title: caption || label }); }}>{label}</Button>;
+  }, [audience, colors.mutedForeground, current, origin, session, source, t, theme, thumbnail?.url]);
 
   const renderImage = useCallback(({ url, altText }: { url: string; altText: string }) => <View style={styles.media}>
     {renderMedia(url, altText, true)}
@@ -83,27 +92,106 @@ export function AdminMarkdownPreview({ source, previewBlocks, audience, origin, 
       renderPreviewImage={renderImage} />;
   }
 
-  return <View style={styles.stack} testID="admin-markdown-preview">
-    {blocks.slice(0, visible).map((block, index) => <View key={index} style={styles.stack}>
-      {block.type === "markdown" ? markdown(block.source) : block.type === "media" ? <View style={styles.media}>
+  function renderBlock(block: MarkdownPreviewBlock) {
+    switch (block.type) {
+      case "markdown": return markdown(block.source);
+      case "code": return <CodePreview key={block.source} content={block.content} theme={theme} locale={locale} current={current}>
+        {markdown(block.source)}
+      </CodePreview>;
+      case "media": return <View style={styles.media}>
         {renderMedia(block.media.src, block.media.caption)}
-        {block.media.caption ? <Text style={tone}>{block.media.caption}</Text> : null}
+        {block.media.caption ? markdown(block.media.caption) : null}
         {block.media.sourceLabel ? (
           block.media.sourceUrl && previewExternalHref(block.media.sourceUrl, origin)
             ? <Button variant="link" theme={theme} wrapLabel style={styles.sourceButton}
               onPress={() => open(block.media.sourceUrl ?? "")}>{`${t.source} · ${block.media.sourceLabel}`}</Button>
             : <Text style={tone}>{t.source} · {block.media.sourceLabel}</Text>
         ) : null}
-      </View> : <>
-        {block.title ? <Text accessibilityRole="header" style={[styles.title, { color: colors.foreground }]}>{block.title}</Text> : null}
+      </View>;
+      case "diagram": return <>
+        {block.title ? markdown(`### ${block.title}`) : null}
         {block.diagram ? <AdminMarkdownDiagram diagram={block.diagram} title={block.title || t.diagram} theme={theme} locale={locale} />
-          : <><Text accessibilityRole="alert" style={tone}>{t.unsupported}</Text>{markdown(block.source)}</>}
-        {block.caption ? <Text style={tone}>{block.caption}</Text> : null}
-      </>}
-    </View>)}
+          : unavailable(block.source, t.unsupported)}
+        {block.caption ? markdown(block.caption) : null}
+      </>;
+      case "visual": {
+        const { title, caption } = block.visual;
+        const visual = evaluationPreviewVisual(block.visual, locale);
+        return <>
+          {title ? markdown(`### ${title}`) : null}
+          {visual?.kind === "chart" ? <AdminPreviewChart chart={visual.chart} title={title} theme={theme} locale={locale} renderText={markdown} /> :
+            visual?.kind === "graph" ? plot(visual.spec) : unavailable(block.source)}
+          {caption ? markdown(caption) : null}
+        </>;
+      }
+      case "function-widget": {
+        if (block.content.length > 12_000) return unavailable(block.source);
+        const functions = block.content.split("\n").map(line => line.trim()).filter(Boolean);
+        const spec = previewFunctionPlot({
+          functions, domain: { min: -10, max: 10 }, samples: 200,
+        }, locale);
+        return spec ? plot(spec) : unavailable(block.source);
+      }
+      case "embedded-visual": {
+        const visual = parseEmbeddedVisual(block.content);
+        if (!visual) return unavailable(block.source);
+        if (visual.kind === "source_figure") return <>
+          {markdown(`### ${visual.label}`)}
+          {markdown(visual.description)}
+          <Text style={tone}>{t.missing}</Text>
+          {visual.captionMarkdown ? markdown(visual.captionMarkdown) : null}
+          {markdown(visual.staticFallback.summary)}
+          {markdown(visual.staticFallback.type === "table"
+            ? evaluationPreviewTable(visual.staticFallback.headers, visual.staticFallback.rows)
+            : visual.staticFallback.content)}
+        </>;
+        return <SolutionVisualPreview value={visual} origin={origin} locale={locale} theme={theme} />;
+      }
+    }
+  }
+
+  function unavailable(raw: string, message: string = t.visualUnavailable) {
+    return <>
+      <Text accessibilityRole="alert" style={tone}>{message}</Text>
+      <Text selectable style={[styles.source, { color: colors.foreground, backgroundColor: colors.muted }]}>{raw}</Text>
+    </>;
+  }
+
+  function plot(spec: Parameters<typeof CanvasPlot>[0]["spec"]) {
+    return <CanvasPlot spec={spec} locale={locale} theme={theme}
+      renderValues={table => markdown(evaluationPreviewTable(table.columns.map(column => column.label), table.rows))} />;
+  }
+
+  return <View style={styles.stack} testID="admin-markdown-preview">
+    {thumbnail ? renderMedia(thumbnail.url, thumbnail.alt, true) : null}
+    {blocks.slice(0, visible).map((block, index) => <View key={index} style={styles.stack}>{renderBlock(block)}</View>)}
     {blocks.length > visible ? <Button theme={theme} variant="outline" onPress={() => setVisible(count => count + pageSize)}>{t.more}</Button> : null}
-    {active && selected?.source === source ? <MediaPreview selection={selected} {...{ audience, origin, theme, locale, session, current }}
+    {active && selected?.source === source && selected.thumbnailUrl === thumbnail?.url ? <MediaPreview selection={selected} {...{ audience, origin, theme, locale, session, current }}
       close={() => setSelected(null)} /> : null}
+  </View>;
+}
+
+function CodePreview({ content, children, theme, locale, current }: {
+  content: string; children: ReactNode; theme: PreviewProps["theme"]; locale: PreviewProps["locale"]; current(): boolean;
+}) {
+  const [status, setStatus] = useState<"idle" | "copying" | "copied" | "failed">("idle");
+  const en = locale === "en";
+  const label = en ? "Copy code" : "Salin kode";
+  const message = status === "copied" ? (en ? "Code copied." : "Kode tersalin.")
+    : status === "failed" ? (en ? "Code could not be copied. Try again." : "Kode belum dapat disalin. Coba lagi.") : null;
+
+  async function copy() {
+    if (!current() || status === "copying") return;
+    setStatus("copying");
+    const copied = await setStringAsync(content).catch(() => false);
+    setStatus(current() && copied ? "copied" : "failed");
+  }
+
+  return <View style={styles.stack}>
+    {children}
+    {content ? <Button theme={theme} variant="outline" isLoading={status === "copying"}
+      onPress={() => void copy()}>{label}</Button> : null}
+    {message ? <Text accessibilityLiveRegion="polite" style={[styles.caption, { color: nativeColors[theme].mutedForeground }]}>{message}</Text> : null}
   </View>;
 }
 
@@ -163,8 +251,8 @@ function ImagePreview({ media, audience, theme, locale, title, session, current,
 const styles = StyleSheet.create({
   stack: { gap: 12, minWidth: 0 },
   media: { gap: 8, alignItems: "flex-start" },
-  title: { ...nativeTypography.headingBold, fontSize: 16, lineHeight: 22 },
   caption: { ...nativeTypography.bodyRegular, fontSize: 14, lineHeight: 20 },
+  source: { ...nativeTypography.mono, fontSize: 14, lineHeight: 20, padding: 8 },
   sourceButton: { height: "auto", minHeight: 36, maxWidth: "100%" },
   image: { width: "100%", aspectRatio: 1 },
 });

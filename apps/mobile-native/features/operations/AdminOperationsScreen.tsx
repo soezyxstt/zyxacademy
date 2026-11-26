@@ -75,7 +75,7 @@ function AdminManagement({ session, href, context, management, navigate, theme, 
   const discussionImages = useMemo(() => connectTutorDiscussionImages(session, context.locale, "admin"), [session, context.locale]);
   return <AdminDiscussionContext.Provider value={discussion}><TutorDiscussionImages.Provider value={discussionImages}><ManagementScreen
     {...management} {...links} path={href} origin={session.scope.origin} navigate={navigate} accountKey={accountKey} client={client}
-    renderMarkdown={management?.renderMarkdown ?? (source => <AdminMarkdownPreview source={source} audience="blog"
+    renderMarkdown={management?.renderMarkdown ?? ((source, thumbnail) => <AdminMarkdownPreview source={source} thumbnail={thumbnail} audience="blog"
       session={session} locale={context.locale} theme={theme ?? "light"} origin={session.scope.origin} openExternal={links.openExternal} />)}
     pickBlogMedia={pickBlogMedia} pickMediaFile={pickMediaFile} openFormAttachment={openFormAttachment} pickFormImage={pickFormImage} access="admin" locale={context.locale} theme={theme}
   /></TutorDiscussionImages.Provider></AdminDiscussionContext.Provider>;

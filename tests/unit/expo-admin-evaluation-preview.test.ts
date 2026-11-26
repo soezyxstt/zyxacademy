@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { compileMarkdown } from "../../lib/markdown-compiler";
-import { evaluationBlockMarkdown, evaluationPreviewTable, evaluationPreviewVisual } from "../../packages/native-parity/operations/evaluation-ast-preview";
+import { chartPreviewRows, evaluationBlockMarkdown, evaluationPreviewTable, evaluationPreviewVisual } from "../../packages/native-parity/operations/evaluation-ast-preview";
 import { DEMO_TEMPLATES } from "../../packages/native-parity/operations/evaluation-ast-templates";
 
 test("signed AST Inspector can display compiled pedagogy, formulas and tables", () => {
@@ -34,4 +34,13 @@ test("graph preview preserves authored domain and uses the bounded safe-expressi
     kind: "graph",
     spec: { domain: { min: -5, max: 5, sampleCount: 400 }, series: [{ expression: "x^2" }] },
   });
+});
+
+test("native charts plot zero, leave gaps for absent readings and require actual box statistics", () => {
+  expect(chartPreviewRows({ chartType: "line", data: [["A", 0], ["B", ""], ["C"], ["D", "invalid"], ["E", "2.5"]] }, 20))
+    .toEqual([{ x: "A", y: 0, box: [] }, null, null, null, { x: "E", y: 2.5, box: [] }]);
+  expect(chartPreviewRows({ chartType: "box", data: [["A", 4], ["B", 1, 2, 3, 4, 5], ["C", 1, 2, 4, 3, 5]] }, 20))
+    .toEqual([null, { x: "B", y: 1, box: [1, 2, 3, 4, 5] }, null]);
+  expect(chartPreviewRows({ chartType: "scatter", data: [["", 4], ["0", 0]] }, 20))
+    .toEqual([null, { x: 0, y: 0, box: [] }]);
 });

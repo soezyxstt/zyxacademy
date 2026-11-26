@@ -12,7 +12,7 @@ import { FormBuilderRoute, FormDetailRoute } from "./forms";
 import { Pricing } from "./pricing";
 import { Discussions, ImportantLinks, MeetDetails, MeetList } from "./tools";
 import { MediaLibrary } from "./media";
-import { Action, Copy, ManagementContext, Screen, type ManagementDraftStore, type ManagementTheme } from "./ui";
+import { Action, Copy, ManagementContext, Screen, type ManagementDraftStore, type ManagementRuntime, type ManagementTheme } from "./ui";
 import { NativeStatusPanel } from "../../shared-ui/layout";
 
 export { createManagementClient, createManagementHttpClient } from "./http";
@@ -37,7 +37,7 @@ export type ManagementScreenProps = {
   openFormAttachment?: OpenFormAttachment;
   pickFormImage?: PickFormImage;
   pickMediaFile?: PickMediaFile;
-  renderMarkdown?: (markdown: string) => ReactNode;
+  renderMarkdown?: ManagementRuntime["renderMarkdown"];
 };
 
 export function ManagementScreen(props: ManagementScreenProps) {

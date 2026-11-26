@@ -4,9 +4,10 @@ import {
   GraphVisualDataSchema,
   type ASTBlock,
 } from "../../../lib/ast-validator";
+import type { z } from "zod";
 import { FlowchartNodeKindSchema } from "../../../lib/flowchart";
 import { FunctionPlotCanvasSchema, LEARNING_CANVAS_VERSION } from "../../../lib/zyra/canvas/contracts";
-import { normalizeLegacyGraphExpression } from "../../../lib/zyra/canvas/expression";
+import { compileSafeExpression, normalizeLegacyGraphExpression } from "../../../lib/zyra/canvas/expression";
 import { createPreviewDiagram } from "./admin-markdown-preview";
 
 const bullets = (items: string[]) => items.map(item => `- ${item}`).join("\n");
@@ -25,6 +26,53 @@ export function evaluationPreviewTable(headers: string[], rows: Array<Array<stri
     line(headers.map((_, index) => ({ left: ":---", right: "---:", center: ":---:" }[align?.[index] ?? "left"]))),
     ...rows.map(row => line(headers.map((_, index) => row[index] ?? ""))),
   ].join("\n");
+}
+
+function chartNumber(value: string | number | undefined) {
+  if (value === undefined || (typeof value === "string" && !value.trim())) return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+export function chartPreviewRows(chart: z.infer<typeof ChartVisualDataSchema>, limit: number) {
+  const { chartType, data } = chart;
+  return data.slice(0, limit).map(row => {
+    const x = chartType === "scatter" ? chartNumber(row[0]) : row[0];
+    const y = chartNumber(row[1]);
+    if (x === undefined || x === null || (typeof x === "string" && !x.trim()) || y === null || (chartType === "pie" && y < 0)) return null;
+    if (chartType !== "box") return { x, y, box: [] };
+    const values = [1, 2, 3, 4, 5].map(index => chartNumber(row[index]));
+    if (!values.every(value => value !== null)) return null;
+    if (values.some((value, index) => index > 0 && value < values[index - 1])) return null;
+    return { x, y, box: values };
+  });
+}
+
+export function previewFunctionPlot(
+  { functions, domain, samples }: z.infer<typeof GraphVisualDataSchema>,
+  locale: "en" | "id",
+  authoredTitle?: string,
+) {
+  if (functions.length < 1 || functions.length > 6) return;
+  const label = locale === "en" ? "Function graph" : "Grafik fungsi";
+  const title = authoredTitle?.trim().slice(0, 160);
+  const series = functions.map((formula, index) => ({
+    id: `series${index + 1}`, label: formula.trim().slice(0, 120), expression: normalizeLegacyGraphExpression(formula),
+  }));
+  try {
+    for (const item of series) compileSafeExpression(item.expression, { variables: ["x"] });
+  } catch {
+    return;
+  }
+  const spec = FunctionPlotCanvasSchema.safeParse({
+    type: "function_plot", version: LEARNING_CANVAS_VERSION,
+    title: title && title.length >= 3 ? title : label,
+    domain: { ...domain, sampleCount: Math.min(400, Math.max(2, samples)) },
+    series,
+    purpose: label, altText: `${label}. ${functions.join(", ")}`.slice(0, 500),
+    fallback: { summary: label, columns: [{ id: "formula", label: locale === "en" ? "Formula" : "Rumus" }], rows: functions.map(formula => [formula]) },
+  });
+  if (spec.success) return spec.data;
 }
 
 export function evaluationBlockMarkdown(block: ASTBlock, locale: "en" | "id"): string | undefined {
@@ -72,7 +120,6 @@ export function evaluationBlockMarkdown(block: ASTBlock, locale: "en" | "id"): s
 }
 
 export function evaluationPreviewVisual(block: Extract<ASTBlock, { type: "visual" }>, locale: "en" | "id") {
-  const en = locale === "en";
   switch (block.visualType) {
     case "flowchart":
     case "diagram": {
@@ -88,20 +135,8 @@ export function evaluationPreviewVisual(block: Extract<ASTBlock, { type: "visual
     case "graph": {
       const parsed = GraphVisualDataSchema.safeParse(block.data);
       if (!parsed.success) return;
-      const { functions, domain, samples } = parsed.data;
-      const label = en ? "Function graph" : "Grafik fungsi";
-      const authoredTitle = block.title?.trim().slice(0, 160);
-      const title = authoredTitle && authoredTitle.length >= 3 ? authoredTitle : label;
-      const spec = FunctionPlotCanvasSchema.safeParse({
-        type: "function_plot", version: LEARNING_CANVAS_VERSION, title,
-        domain: { ...domain, sampleCount: Math.min(400, Math.max(2, samples)) },
-        series: functions.slice(0, 6).map((expression, index) => ({
-          id: `series${index + 1}`, label: expression.slice(0, 120), expression: normalizeLegacyGraphExpression(expression),
-        })),
-        purpose: label, altText: `${label}. ${functions.join(", ")}`.slice(0, 500),
-        fallback: { summary: label, columns: [{ id: "formula", label: en ? "Formula" : "Rumus" }], rows: functions.slice(0, 6).map(formula => [formula]) },
-      });
-      if (spec.success) return { kind: "graph" as const, spec: spec.data };
+      const spec = previewFunctionPlot(parsed.data, locale, block.title);
+      if (spec) return { kind: "graph" as const, spec };
       return;
     }
     case "chart": {

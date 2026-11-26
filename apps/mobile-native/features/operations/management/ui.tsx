@@ -31,7 +31,7 @@ export type ManagementRuntime = {
   pickMediaFile?: PickMediaFile;
   drafts: ManagementDraftStore;
   retries: Map<string, string>;
-  renderMarkdown?: (markdown: string) => ReactNode;
+  renderMarkdown?: (markdown: string, thumbnail?: { url: string; alt: string }) => ReactNode;
 };
 
 export const ManagementContext = createContext<ManagementRuntime | null>(null);
