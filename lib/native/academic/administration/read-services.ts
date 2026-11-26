@@ -25,6 +25,7 @@ import { readNativeEnrollmentToken } from "./enrollment-token-service";
 import { tutorialOperationsView } from "./tutorial-operations-view";
 import { readNativeStudyGroupEditor } from "./study-group-service";
 import { readNativeStudyGroupMembers } from "./study-group-members-service";
+import { readNativeStudyGroupTokens } from "./study-group-tokens-service";
 import { announcementRevision } from "./announcement-edit-transaction";
 import type { AdministrationQuery, AdministrationReadServices } from "./handle-read";
 
@@ -146,6 +147,7 @@ export const administrationReadServices: AdministrationReadServices = {
   },
   groupEditor: readNativeStudyGroupEditor,
   groupMembers: readNativeStudyGroupMembers,
+  groupTokens: readNativeStudyGroupTokens,
   tokenEditor: readNativeEnrollmentToken,
   async pdfStatus(slug, { importId, productId, expectedRevision }, attemptId): Promise<DiktatEvidenceStatus | null> {
     const [identity, bundle] = await Promise.all([resolveCourseIdentity(slug), getProductBundleImport(importId)]);

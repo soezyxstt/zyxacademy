@@ -86,6 +86,7 @@ route	action_family	source_status	web_entry	native_entry
 /admin/forms/[id]	Export the confirmed response snapshot to Sheets and handle overwrite	connected	app/(admin)/admin/forms/[id]/page.tsx	apps/mobile-native/features/operations/management/forms.tsx
 /admin/forms/[id]	Inspect choice and grid results and copy the chart data	connected	app/(admin)/admin/forms/[id]/page.tsx	apps/mobile-native/features/operations/management/forms.tsx
 /admin/forms/[id]	Set the form attachment storage limit and save the authorized form revision	connected	components/forms/admin-forms-builder.tsx	apps/mobile-native/features/operations/management/forms.tsx
+/admin/groups	Inspect related activation tokens and copy the selected token	connected	components/admin/groups-dashboard.tsx	apps/mobile-native/features/academic/administration/study-group-tokens.tsx
 /admin/groups	Inspect affected members and confirm group deletion	connected	components/admin/groups-dashboard.tsx	apps/mobile-native/features/academic/administration/group-deletion.tsx
 /admin/groups	Inspect memberships, search eligible students and add or remove members	connected	components/admin/groups-dashboard.tsx	apps/mobile-native/features/academic/administration/study-group-members-editor.tsx
 /admin/groups	Search groups and edit or create a group and its quotas	connected	components/admin/groups-dashboard.tsx	apps/mobile-native/features/academic/administration/study-group-editor.tsx

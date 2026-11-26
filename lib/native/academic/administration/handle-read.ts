@@ -1,6 +1,7 @@
 import { isEnrollmentTokenEditor, type EnrollmentTokenEditor } from "../../../../packages/academic/enrollment-token-admin";
 import { isStudyGroupEditorRead, type StudyGroupEditorRead } from "../../../../packages/academic/study-group-edit";
 import { isStudyGroupMembersRead, type StudyGroupMemberRecovery, type StudyGroupMembersRead } from "../../../../packages/academic/study-group-members";
+import { studyGroupTokensRead, type StudyGroupTokensRead } from "../../../../packages/academic/study-group-tokens";
 import type { NativeAdminViewer } from "./admin-transaction";
 import {
   isLiveAdministrationRead, type DiktatEvidenceStatus, type DiktatPdfTarget, type LiveAdministrationRead, type LiveListSection, type LivePage,
@@ -29,6 +30,7 @@ export type AdministrationReadServices = {
   registrationsForExport?(search: string): Promise<unknown>;
   groupEditor?(id?: string): Promise<StudyGroupEditorRead | null>;
   groupMembers?(id: string, page: number, search: string, recovery?: { request: StudyGroupMemberRecovery; viewer: NativeAdminViewer }): Promise<StudyGroupMembersRead | null>;
+  groupTokens?(groupId: string): Promise<StudyGroupTokensRead | null>;
   tokenEditor?(id?: string): Promise<EnrollmentTokenEditor | null>;
   bundle(kind: ReviewKind, slug: string, bundleId: string, page: number): Promise<LivePage | null>;
   pdfStatus(slug: string, target: DiktatPdfTarget, attemptId: string): Promise<DiktatEvidenceStatus | null>;
@@ -79,6 +81,13 @@ export async function handleAdministrationRead(parts: string[], search: URLSearc
       const result = await services.groupEditor(kind);
       if (!result) return notFound();
       return isStudyGroupEditorRead(result) ? Response.json(result, { headers }) : problem(500, "READ_FAILED");
+    }
+    if (section === "groups" && id === "tokens" && parts.length === 3 && services.groupTokens) {
+      if (!session.session?.id) return problem(401, "UNAUTHENTICATED");
+      const result = await services.groupTokens(kind);
+      if (!result) return notFound();
+      const parsed = studyGroupTokensRead.safeParse(result);
+      return parsed.success && parsed.data.groupId === kind ? Response.json(parsed.data, { headers }) : problem(500, "READ_FAILED");
     }
     if (section === "groups" && id === "members" && parts.length === 3 && services.groupMembers) {
       const [userId, action, expectedRevision, requestId] = ["retryUserId", "retryAction", "retryRevision", "retryRequestId"].map((field) => search.get(field));

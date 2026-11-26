@@ -3,6 +3,7 @@ import { randomUUID } from "expo-crypto";
 import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import { isGroupDeletionView, type GroupDeletion, type GroupDeletionTarget, type GroupDeletionView } from "../../../../../packages/academic/group-deletion";
+import { useProtectedInteraction } from "../../../routing/protected-interaction";
 import type { AcademicTransport } from "../client";
 import { Action, CourseStatus, Ink, layout } from "./ui";
 
@@ -99,12 +100,22 @@ export function GroupDeletionControl({ transport, target, deleted }: {
   </View>;
 }
 
-export function CopyActivationToken({ value }: { value: string }) {
-  const [message, setMessage] = useState("");
+export function CopyActivationToken({ value, locale, label, canCopy }: {
+  value: string; locale?: string; label?: string; canCopy?(): boolean;
+}) {
+  const { canInteract, suspended } = useProtectedInteraction();
+  const en = locale === "en";
+  const [message, setMessage] = useState<"copied" | "failed">();
+  const current = () => !suspended && canInteract() && (canCopy?.() ?? true);
+  async function copy() {
+    if (!current()) return;
+    const copied = await setStringAsync(value).catch(() => false);
+    if (current()) setMessage(copied ? "copied" : "failed");
+  }
+
   return <>
-    <Action label="Salin token" onPress={() => {
-      void setStringAsync(value).then(ok => setMessage(ok ? "Token disalin." : "Token tidak dapat disalin."), () => setMessage("Token tidak dapat disalin."));
-    }} />
-    {message ? <CourseStatus label={message} /> : null}
+    <Action label={label ?? (en ? "Copy token" : "Salin token")} onPress={() => void copy()} />
+    {message ? <CourseStatus label={message === "copied" ? (en ? "Token copied." : "Token disalin.")
+      : (en ? "Could not copy the token." : "Token tidak dapat disalin.")} /> : null}
   </>;
 }

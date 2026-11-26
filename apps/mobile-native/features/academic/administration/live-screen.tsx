@@ -18,6 +18,7 @@ import { LiveEnrollmentTokenEditor } from "./enrollment-token-editor";
 import type { EnrollmentTokenUnavailable } from "./enrollment-token-client";
 import { LiveStudyGroupEditor } from "./study-group-editor";
 import { StudyGroupMembersEditor } from "./study-group-members-editor";
+import { StudyGroupTokens } from "./study-group-tokens";
 import { CopyActivationToken, GroupDeletionControl } from "./group-deletion";
 import { PkaBrowserLink, PkaRegistrationExport, RegistrationProof } from "./pka-registrations";
 import { PkaAnnouncementEditor } from "./pka-edit";
@@ -113,7 +114,11 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
     || pattern === "/admin/tutorial-pka/registrations";
   const [search, setSearch] = useState(query.search ?? "");
   const [filters, setFilters] = useState({ ...query });
-  const [selected, setSelected] = useState<LiveRow>();
+  const [selection, setSelection] = useState<{ transport: AcademicTransport; pattern: AdministrationPattern; row: LiveRow }>();
+  const selected = selection?.transport === transport && selection.pattern === pattern ? selection.row : undefined;
+  const setSelected = useCallback((row?: LiveRow) => {
+    setSelection(row ? { transport, pattern, row } : undefined);
+  }, [transport, pattern]);
   const [pdfRow, setPdfRow] = useState<LiveRow>();
   const [ideaDraft, setIdeaDraft] = useState<{ actorTransport: AcademicTransport; slug: string; importId: string; id: string }>();
   const [pkaDraft, setPkaDraft] = useState<{ actorTransport: AcademicTransport; row: LiveRow }>();
@@ -169,14 +174,15 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
   const tokenRow = tokenEditor?.id ? data?.rows.find((row) => row.id === tokenEditor.id) : undefined;
   const pkaSchedule = pkaSchedulePage && pkaScheduleDraft?.actorTransport === transport
     ? data?.rows.find((row) => row.id === pkaScheduleDraft.id) : undefined;
-  const visibleSelection = (tokenPage || pkaSchedulePage || ideaReviewPage || pattern === "/admin/tutorial-pka/registrations") && selected ? data?.rows.find((row) => row.id === selected.id) : selected;
+  const visibleSelection = (tokenPage || pkaSchedulePage || ideaReviewPage || pattern === "/admin/tutorial-pka/registrations" || pattern === "/admin/groups") && selected
+    ? data?.rows.find((row) => row.id === selected.id) : selected;
   const tokenAccessEnded = tokenPage && (state.status === "denied" || state.status === "missing");
   const clearTokenContext = useCallback(() => {
     setSelected(undefined);
     setTokenDraft(undefined);
     setSuccess("");
     setSearch("");
-  }, []);
+  }, [setSelected]);
   useEffect(() => {
     if (tokenAccessEnded) clearTokenContext();
   }, [tokenAccessEnded, clearTokenContext]);
@@ -188,7 +194,7 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
     setPkaScheduleDraft(undefined);
     setSelected(undefined);
     setSuccess("");
-  }, []);
+  }, [setSelected]);
   const pkaScheduleAccessEnded = pkaSchedulePage && (state.status === "denied" || state.status === "missing");
   useEffect(() => {
     if (pkaScheduleAccessEnded) {
@@ -203,7 +209,7 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
     setPkaLifecycle(undefined);
     setPkaDraft(undefined);
     setSelected(undefined);
-  }, [pkaRoleEnded, transport]);
+  }, [pkaRoleEnded, setSelected, transport]);
   function reloadTokens() {
     setFilters((previous) => ({ ...previous, search: "", page: "1" }));
     retry();
@@ -474,10 +480,12 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
       {selectedTutorialSlot && transport.command && !tutorialPending
         ? <TutorialSlotActions slot={selectedTutorialSlot} activate={showTutorial} /> : null}
       {tokenPage ? <Text selectable style={{ ...nativeTypography.bodyRegular, color: palette.foreground, fontSize: 16, lineHeight: 24 }}>{visibleSelection.title}</Text> : null}
-      {tokenPage ? <CopyActivationToken key={visibleSelection.id} value={visibleSelection.title} /> : null}
+      {tokenPage ? <CopyActivationToken key={visibleSelection.id} value={visibleSelection.title} locale={transport.locale} /> : null}
       {visibleSelection.fields?.map((item) => <View key={item.label} style={layout.compact}>
         <Ink kind="strong">{item.label}</Ink><Ink>{item.value}</Ink>
       </View>)}
+      {pattern === "/admin/groups" ? <StudyGroupTokens key={visibleSelection.id} id={visibleSelection.id} transport={transport}
+        denied={() => { setSelected(undefined); invalidate("denied"); }} /> : null}
       {data && (tokenPage || pattern === "/admin/groups") ? <GroupDeletionControl
         key={JSON.stringify([tokenPage, visibleSelection.id])} transport={transport}
         target={{ kind: tokenPage ? "token" : "group", id: visibleSelection.id }} deleted={() => {
