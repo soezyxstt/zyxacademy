@@ -1,0 +1,26 @@
+{
+  "platform": "android",
+  "viewport": {
+    "width": 380,
+    "height": 820
+  },
+  "deviceScaleFactor": 1,
+  "scenario": "flashcard-parity",
+  "courseId": "matematika-1",
+  "courseTitle": "Kalkulus Dasar",
+  "rejectionStatus": 422,
+  "rejection": {
+    "error": "Review rejected"
+  },
+  "grade": 3,
+  "locale": "id",
+  "theme": "light",
+  "font": "Inter from native assets",
+  "motion": "reduced",
+  "webComposition": "Student application and course navigation with fixture transport",
+  "captures": {
+    "flashcard-question.png": "419f9d904399cf4ae87eb9c809e603534f3ba655a4d7b5cdca6af9597fe1ecad",
+    "flashcard-review-pending.png": "dec28226e60410fd777d43314ed6e589861162812de5a235d65a9a569c6abb3c",
+    "flashcard-review-failed.png": "e1dd56401a8a7f402e0605f64740a4bd2cea10526224c0c7f29a8c50b61647de"
+  }
+}
