@@ -9,6 +9,8 @@ import id from "../../../../../messages/id/student.json";
 import type { AchievementData, AchievementTab, Badge, CosmeticSlot, GamificationReward, GamificationSummary, PetData } from "../../../../../packages/native-parity/student/community/contracts";
 import { Action, Actions, Choices, Copy, Notice, Page, Remote, Row, Rows, communityPath, dateLabel, operationResult, post, styles, useCommunity, useOperation, useRemote } from "./ui";
 
+import { PetPractice } from "./pet-practice";
+
 const tabs = ["overview", "badges", "missions", "rewards"] as const;
 const petSlots = ["zyra_avatar", "pet_suit", "pet_action"] as const;
 const freePet: GamificationReward = { id: DEFAULT_PET_ID, name: "Zyra", slot: "zyra_avatar", priceLp: 0, owned: true, equipped: true };
@@ -125,7 +127,7 @@ export function PetScreen() {
       const collection = data.items.some(item => item.id === DEFAULT_PET_ID) ? data.items : [freePet, ...data.items];
       const labels = { zyra_avatar: tr("Peliharaan", "Pets"), pet_suit: tr("Pakaian", "Outfits"), pet_action: tr("Aksi", "Actions") };
       return <>
-        <View style={styles.block}><Mascot id={active} /></View>
+        <View style={styles.block}><Mascot id={active} /><PetPractice /></View>
         <Copy kind="heading">{tr("Koleksi", "Collection")}</Copy>
         <Copy>{tr("Saldo", "Balance")} {data.summary.lpBalance} LP</Copy>
         <Choices value={slot as typeof petSlots[number]} options={petSlots.map(value => ({ value, label: labels[value] }))} onSelect={setSlot} />

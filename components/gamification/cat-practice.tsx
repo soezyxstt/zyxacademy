@@ -10,13 +10,7 @@ import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ZyraMascot3D } from "./zyra-mascot-3d";
 
-function question() {
-  const left = 2 + Math.floor(Math.random() * 8);
-  const right = 2 + Math.floor(Math.random() * 8);
-  const answer = left * right;
-  const start = answer - Math.floor(Math.random() * 3);
-  return { left, right, answer, choices: [start, start + 1, start + 2] };
-}
+import { petPracticeRound as question } from "../../packages/student-community/pet-practice";
 
 function Practice({rewards}: {rewards: GamificationReward[]}) {
   const t = useTranslations("student");
