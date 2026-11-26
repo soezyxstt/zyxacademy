@@ -117,6 +117,10 @@ function PdfPage({ courseId, materialId, reader, title, page, locale, theme, ope
       {position ? annotationIdentity && state?.status === "ready" ?
         <PdfReaderControls testID={`${testIDPrefix}-material-pdf-page`} position={position} scale={scale} outline={outline} locale={locale} theme={theme}
           go={target => pdf.current?.setPage(target)} zoom={setScale}
+          search={reader.search ? { revision: state.document.revision, run: (input, signal) => {
+            if (Date.now() >= lease || !canInteract()) throw new Error("PDF search unavailable.");
+            return reader.search!({ courseId, materialId }, input, signal);
+          } } : undefined}
           annotationScope={{ ...annotationIdentity, courseId, materialId, revision: state.document.revision, active: () => Date.now() < lease }}
           /> : <Text style={{ color: colors.mutedForeground, fontVariant: ["tabular-nums"] }} testID={`${testIDPrefix}-material-pdf-page`}>
             {position.page} / {position.total}

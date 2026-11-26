@@ -21,7 +21,7 @@ import { bindCalendarLink } from "./community/calendar-link";
 import { StudentCelebrations } from "./community/celebrations";
 import { ScheduleResources } from "../schedule/resources";
 import { studentBrowserNotificationsAction } from "./browser-handoff";
-import { materialSharePath } from "./courses/pdf-reading";
+import { bindPdfSearch, materialSharePath } from "./courses/pdf-reading";
 import { matchStudentRoute } from "./routes";
 import { useAssessmentPhotos } from "./assessment/device";
 import { useAssessmentDrafts } from "./assessment-drafts";
@@ -145,6 +145,7 @@ export function VerifiedStudentEntry({ offlineLocale, openOfflineMaterial, ...pr
   });
   const pdfReader: StudentEntryProps["pdfReader"] = (Platform.OS === "android" || Platform.OS === "ios") ? {
     open: (target, signal) => scopedFiles.prepareMaterialPdf({ session: transport, target, signal, sessionExpiresAt: state.expiresAt, isTargetCurrent }),
+    search: bindPdfSearch(transport, isTargetCurrent),
     renew: (target, revision, signal) => scopedFiles.renewMaterialPdf({ session: transport, target, signal, sessionExpiresAt: state.expiresAt, isTargetCurrent }, revision),
   } : undefined;
   function openExternal(path: string) {

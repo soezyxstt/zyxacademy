@@ -44,7 +44,11 @@ mock.module("@/lib/student/canonical-material-detail", () => ({
 mock.module("@/app/api/native/student/_session", () => ({
   requireNativeStudent: async () => enabled ? { userId: "student" } : new Response(null, { status: 401 }),
 }));
-const { GET, HEAD } = await import("@/app/api/native/student/material-pdf/route");
+const parse = mock(async (_bytes: Uint8Array, pages: number[]) => ({
+  totalPages: 3, pages: pages.map(pageNumber => ({ pageNumber, text: pageNumber === 2 ? "A long text before the example." : "No match" })),
+}));
+mock.module("@/lib/compute/pdf-pages", () => ({ parseStoredPdfPages: parse }));
+const { GET, HEAD, POST } = await import("@/app/api/native/student/material-pdf/route");
 
 beforeEach(() => {
   record = manual;
@@ -59,6 +63,7 @@ beforeEach(() => {
   downloaded = [];
   fetcher.mockClear();
   delegated.mockClear();
+  parse.mockClear();
   globalThis.fetch = Object.assign(fetcher, { preconnect: () => {} }) as typeof fetch;
 });
 afterAll(() => { globalThis.fetch = previousFetch; });
@@ -152,4 +157,25 @@ test("manual PDF export requires the web download entitlement and rechecks it af
   record = { ...manual, source: "legacy-diktat" };
   hasDiktat = true;
   expect((await GET(request("GET", undefined, true))).status).toBe(403);
+});
+
+test("PDF text search scans a bounded window and checks the live revision before and after reading", async () => {
+  const revision = (await HEAD(request("HEAD"))).headers.get("x-zyx-pdf-revision")!;
+  const search = (overrides = {}) => new Request(request("HEAD").url, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ revision, query: "long text", from: 1, to: 3, ...overrides }),
+  });
+  expect((await POST(search({ to: 30 }))).status).toBe(400);
+  expect((await POST(search({ revision: "f".repeat(64) }))).status).toBe(409);
+  expect(delegated).not.toHaveBeenCalled();
+  expect(parse).not.toHaveBeenCalled();
+
+  const response = await POST(search());
+  expect(response.status).toBe(200);
+  expect(response.headers.get("cache-control")).toBe("private, no-store");
+  expect(await response.json()).toEqual({ total: 3, matches: [{ page: 2, excerpt: "A long text before the example." }] });
+  expect(parse).toHaveBeenCalledWith(preview, [1, 2, 3], { representation: "text" });
+
+  parse.mockImplementationOnce(async () => { enabled = false; return { totalPages: 3, pages: [] }; });
+  expect((await POST(search())).status).toBe(401);
 });

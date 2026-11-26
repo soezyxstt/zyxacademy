@@ -135,10 +135,10 @@ export const operationsCatalog = [
   },
   {
     "source": "app/api/native/student/material-pdf/route.ts",
-    "actions": ["GET", "HEAD"],
+    "actions": ["GET", "HEAD", "POST"],
     "tools": [],
     "status": "excluded",
-    "reason": "The authenticated Student PDF reader checks chapter, file revision and PKA registration before viewing. Manual PDF export additionally checks the web download capability. Both use app-private files. Link sharing sends the learner page URL and grants no storage link or MCP authority."
+    "reason": "The authenticated Student PDF reader checks chapter, file revision and PKA registration before viewing. Manual PDF export additionally checks the web download capability. Export and viewing use app-private files. Text search reuses the same live chapter and revision authority with a bounded page window. Link sharing sends the learner page URL and grants no storage link or MCP authority."
   },
   {
     "source": "app/api/native/student/reading/route.ts",
