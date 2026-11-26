@@ -215,7 +215,7 @@ export function ReadingStudy({ content, courseId, request, session, theme, draft
             <Button theme={theme} variant="outline" onPress={() => setShowCoding(false)}>{id ? "Kembali ke bacaan" : "Back to reading"}</Button>
             {codingParts.map((item, index) => <Button key={item.part.id} theme={theme} variant="outline"
               onPress={() => { if (canInteract()) setCoding(item); }}>
-              {item.title ? item.title + " · " : ""}{item.part.kind === "code_example" ? id ? "Contoh" : "Example" : id ? "Latihan" : "Exercise"} {index + 1}
+              {`${item.title ? item.title + " · " : ""}${item.part.kind === "code_example" ? id ? "Contoh" : "Example" : id ? "Latihan" : "Exercise"} ${index + 1}`}
             </Button>)}
           </ScrollView>}
       </SafeAreaView>}

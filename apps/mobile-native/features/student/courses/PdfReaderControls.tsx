@@ -73,7 +73,7 @@ export function PdfReaderControls({ position, scale, outline, go, zoom, theme, l
 
   return <>
     <Button theme={theme} variant="ghost" size="sm" testID={testID} onPress={show}
-      accessibilityLabel={t("Halaman dan pengaturan PDF", "Pages and PDF controls")}>{page} / {total}</Button>
+      accessibilityLabel={t("Halaman dan pengaturan PDF", "Pages and PDF controls")}>{`${page} / ${total}`}</Button>
     {open && <SharedDialog open title={t("Navigasi PDF", "PDF navigation")} closeLabel={t("Tutup", "Close")}
       theme={theme} onDismiss={() => setOpen(false)}>
       {(annotations || search) && <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
@@ -96,7 +96,7 @@ export function PdfReaderControls({ position, scale, outline, go, zoom, theme, l
         </View>
         {outline.length > 0 && <Text accessibilityRole="header" style={text}>{t("Daftar isi", "Outline")}</Text>}
         {outline.map((entry, index) => <View key={index} style={{ marginStart: entry.depth * 10 }}>
-          <NativeListRow theme={theme} title={entry.title} subtitle={t("Halaman", "Page") + " " + entry.page}
+          <NativeListRow layout="compact" theme={theme} title={entry.title} subtitle={t("Halaman", "Page") + " " + entry.page}
             primary={{ label: entry.title, role: "button", onPress: () => jump(entry.page) }} />
         </View>)}
       </> : tab === "search" && search ? <PdfTextSearch search={search} total={total} onOpen={jump} theme={theme} en={en} /> : annotations && <>
@@ -114,7 +114,7 @@ export function PdfReaderControls({ position, scale, outline, go, zoom, theme, l
           }}>{t("Hapus catatan", "Delete note")}</Button>}
         </View>
         {notes && [...new Set([...notes.bookmarks, ...Object.keys(notes.notes).map(Number)])].sort((a, b) => a - b).map(item =>
-          <NativeListRow key={item} theme={theme} title={t("Halaman", "Page") + " " + item}
+          <NativeListRow layout="compact" key={item} theme={theme} title={t("Halaman", "Page") + " " + item}
             subtitle={notes.notes[item] || t("Penanda", "Bookmark")}
             primary={{ label: t("Buka halaman", "Go to page") + " " + item, role: "button", onPress: () => jump(item) }} />)}
       </>}

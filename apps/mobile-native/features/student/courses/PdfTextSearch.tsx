@@ -49,7 +49,7 @@ export function PdfTextSearch({ search, total, onOpen, theme, en }: {
       <Text accessibilityLiveRegion="polite" style={{ color: color.mutedForeground }}>
         {t("Halaman", "Pages")} {found.from} sampai {found.until} · {found.result.matches.length} {t("hasil", "matches")}
       </Text>
-      {found.result.matches.map(hit => <NativeListRow key={hit.page} theme={theme} title={t("Halaman", "Page") + " " + hit.page}
+      {found.result.matches.map(hit => <NativeListRow layout="compact" key={hit.page} theme={theme} title={t("Halaman", "Page") + " " + hit.page}
         subtitle={hit.excerpt} primary={{ role: "button", label: t("Buka halaman", "Go to page") + " " + hit.page, onPress: () => onOpen(hit.page) }} />)}
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
         {found.from > 1 && <Button theme={theme} variant="outline" disabled={pending}
