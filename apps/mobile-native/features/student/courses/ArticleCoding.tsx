@@ -2,7 +2,8 @@ import { randomUUID } from "expo-crypto";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 import type { CodingProblemPublic, CodingSubmissionRequest } from "../../../../../lib/coding/contracts";
-import { articleCodingDraftKey, type NativeArticleCodingScope, type sectionCodingParts } from "../../../../../lib/coding/native-article-contract";
+import type { NativeArticleCodingScope } from "../../../../../lib/coding/native-article-contract";
+import { articleCodingDraftKey, type sectionCodingParts } from "../../../../../lib/coding/native-article-parts";
 import { createRemotePythonRuntime } from "../../../../../lib/coding/remote-runtime";
 import { executePython } from "../../../../../lib/coding/runtime";
 import { nativeColors } from "../../../../../packages/design-tokens/native-colors";
@@ -33,8 +34,8 @@ export function ArticleCoding({ item, courseId, articleId, version, scope, reque
   const { part } = item;
   const scoped = useMemo(() => articleCodingRequest(request, session, scope),
     [request, session.sessionId, session.role, session.userId, scope.materialId, scope.revision, scope.sectionId, scope.partId]);
-  const owner = useMemo(() => ({ courseId, userId: session.userId, draftKey: articleCodingDraftKey(articleId, version, part) }),
-    [courseId, session.userId, articleId, version, part]);
+  const owner = useMemo(() => ({ courseId, userId: session.userId, draftKey: articleCodingDraftKey(articleId, version, part, item.namespace) }),
+    [courseId, session.userId, articleId, version, part, item.namespace]);
   const api = useMemo(() => articleCodingApi(scoped, courseId, articleId, version, part.id), [scoped, courseId, articleId, version, part.id]);
   const pendingKey = "coding:article:pending:" + JSON.stringify([courseId, articleId, version, part.id, scope.revision]);
   const [draft, setDraft] = useState<PlaygroundDraft>();

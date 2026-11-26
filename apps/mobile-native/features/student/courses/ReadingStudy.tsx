@@ -10,7 +10,7 @@ import { ReadingContentDocument } from "../../../offline/ReadingDocument";
 import { useProtectedInteraction } from "../../../routing/protected-interaction";
 import { CourseMarkdown } from "../CourseMarkdown";
 import type { StudentRequest, StudentServices, StudentSession } from "../contracts";
-import { sectionCodingParts } from "../../../../../lib/coding/native-article-contract";
+import { sectionCodingParts } from "../../../../../lib/coding/native-article-parts";
 import { ArticleCoding, type CodingItem } from "./ArticleCoding";
 import { ReadingNavigation } from "./ReadingNavigation";
 import { diktatReadingSections, readingNavigationItems } from "./reading-search";
@@ -56,7 +56,7 @@ export function ReadingStudy({ content, courseId, request, session, theme, draft
   const active = sections.find(section => section.id === selected) ?? sections.find(section => section.slug === content.section) ?? sections[0];
   const codingSection = content.structured && active && "sections" in content.data
     ? content.data.sections.find(section => section.id === active.id) : undefined;
-  const codingParts = useMemo(() => sectionCodingParts(codingSection?.blocks ?? []), [codingSection]);
+  const codingParts = useMemo(() => sectionCodingParts(codingSection?.blocks ?? [], codingSection?.id), [codingSection]);
   const canUseNativeCoding = content.codingMode === "native" && Boolean(session.sessionId);
   const sectionProgress = progress && "sectionProgress" in progress ? progress.sectionProgress : {};
   const completed = progress && ("status" in progress ? progress.status === "completed"

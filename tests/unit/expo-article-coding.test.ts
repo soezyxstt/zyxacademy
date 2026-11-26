@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
-import { articleCodingDraftKey, nativeArticleCodingHeader, sectionCodingParts } from "@/lib/coding/native-article-contract";
+import { nativeArticleCodingHeader } from "@/lib/coding/native-article-contract";
+import { articleCodingDraftKey, sectionCodingParts } from "@/lib/coding/native-article-parts";
 import { articleCodingApi, articleCodingRequest, releaseArticleSubmission, reserveArticleSubmission } from "@/apps/mobile-native/features/student/courses/article-coding";
 import type { StudentRequest } from "@/apps/mobile-native/features/student/contracts";
 import { personalAccountSessionHeader } from "@/packages/student-community/account-access";
@@ -76,4 +77,17 @@ test("attempt history is scoped to the exercise signature and projects only publ
     authority: "trusted_server", verdict: "incorrect", passed: 0, total: 1, publicCases: [{ testId: "hidden", passed: false,
       execution: { status: "completed", stdout: "private", stderr: "", truncated: false } }] } }] };
   await expect(api.history(problem, signal)).rejects.toThrow("Coding feedback identity mismatch.");
+});
+
+test("Python fences use the web examples' namespace and AST location without revealing commented source", async () => {
+  const { appendArticleMarkdownScope, markdownPythonId } = await import("@/lib/coding/article-markdown-scope");
+  const content = "A worked example.\n\n```py\nprint(2)\n```";
+  const first = appendArticleMarkdownScope(null, JSON.stringify(["section", "body"]));
+  const expected = markdownPythonId(appendArticleMarkdownScope(first, "md-1-code"), "md-1-code");
+  const entries = sectionCodingParts([{ id: "body", content }, { id: "private", content: "<!--\n```python\nsecret()\n```\n-->" }], "section");
+  expect(entries.map(entry => entry.part)).toEqual([
+    { id: expected, kind: "code_example", language: "python", code: "print(2)", runnable: true },
+  ]);
+  expect(articleCodingDraftKey("article", 3, entries[0].part, entries[0].namespace)).toBe("markdown-example:article:3:" + expected);
+  expect(sectionCodingParts([{ id: "body", parts: [{ kind: "markdown", id: "p", markdown: content }] }], "section")[0].part.id).not.toBe(expected);
 });
