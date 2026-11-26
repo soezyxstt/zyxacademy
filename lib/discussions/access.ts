@@ -1,6 +1,7 @@
+import { createHash } from "node:crypto";
 import { and, eq, gt, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
-import { courses, enrollments, discussionChannels, discussionMessages, discussionReports, discussionThreads, mataKuliah, penugasanTutor, pengguna, penggunaPeran, peran, tutorCourses, user } from "@/db/schema";
+import { courses, enrollments, discussionChannels, discussionChannelPreferences, discussionMessages, discussionReports, discussionThreads, mataKuliah, penugasanTutor, pengguna, penggunaPeran, peran, tutorCourses, user } from "@/db/schema";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { resolveCourseEntitlementsBatch } from "@/lib/student/course-access";
 import type { DiscussionActor } from "./contracts";
@@ -115,9 +116,14 @@ export function discussionChannelsWithPendingReports() {
   .where(eq(discussionReports.status, "pending")));
 }
 
+type ChannelVisibilityOptions = { scope?: SQL; discoveryScope?: SQL; includeRepairable?: boolean };
+
 /** discoveryScope limits entitlement lookup only; the caller must enforce that context in its query. */
-export async function getDiscussionChannelVisibility(actorId: string, options: { scope?: SQL; discoveryScope?: SQL; includeRepairable?: boolean } = {}) {
- const actor = await getDiscussionActor(actorId);
+export async function getDiscussionChannelVisibility(actorId: string, options: ChannelVisibilityOptions = {}) {
+ return getDiscussionChannelVisibilityForActor(await getDiscussionActor(actorId), options);
+}
+
+async function getDiscussionChannelVisibilityForActor(actor: DiscussionActor, options: ChannelVisibilityOptions) {
  const scopes = await db.selectDistinct({ courseId: sql<string | null>`${discussionChannels.courseId}`, legacyCourseId: sql<string | null>`${discussionChannels.legacyCourseId}` })
   .from(discussionChannels).where(and(discussionChannelCandidateScope(actor), options.scope, options.discoveryScope));
  const ids = [...new Set(scopes.flatMap(scope => [scope.courseId, scope.legacyCourseId].filter((id): id is string => !!id)))];
@@ -151,6 +157,25 @@ export async function getDiscussionChannelVisibility(actorId: string, options: {
     and (conflict.course_id = permitted.canonical or conflict.legacy_course_id = permitted.legacy)))` : sql`false`;
  return { actor, predicate: and(discussionChannelCandidateScope(actor), options.scope,
   or(and(isNull(discussionChannels.courseId), isNull(discussionChannels.legacyCourseId)), scoped, canRepair))! };
+}
+
+/** Current permissions and count revisions for reusing a student list on page revisit. */
+export async function getStudentDiscussionListScope(actor: DiscussionActor) {
+ if (actor.role !== "student") return null;
+ const withThreads = discussionChannelsWithThreads();
+ const visibility = await getDiscussionChannelVisibilityForActor(actor, { discoveryScope: withThreads });
+ const rows = await db.select({
+  id: discussionChannels.id,
+  countRevision: discussionChannels.countRevision,
+  readRevision: discussionChannelPreferences.readRevision,
+ }).from(discussionChannels)
+  .leftJoin(discussionChannelPreferences, and(eq(discussionChannelPreferences.channelId, discussionChannels.id), eq(discussionChannelPreferences.userId, actor.id)))
+  .where(and(visibility.predicate, withThreads)).orderBy(discussionChannels.id);
+ const revisions = rows.map(({ id, countRevision, readRevision }) => [id, String(countRevision), String(readRevision ?? 0)]);
+ return {
+  channelIds: rows.map(row => row.id),
+  revision: createHash("sha256").update(JSON.stringify(revisions)).digest("hex"),
+ };
 }
 
 /** Revalidates the current actor and returns only current authorized channels. */

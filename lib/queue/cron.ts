@@ -12,6 +12,7 @@ const recoveryJobs = [
 ];
 
 const scheduledJobs = [
+  { job: "offline-change-retention", hour: 18, minute: 30 },
   { job: "ai-model-catalog-cron", hour: 0, minute: 0 },
   { job: "ai-model-catalog-cron", hour: 12, minute: 0 },
   { job: "tutor-daily-digest-cron", hour: 0, minute: 30 },

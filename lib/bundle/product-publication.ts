@@ -1,4 +1,5 @@
 import { revisionPublicationConnection, revisionPublicationTransaction, dispatchRevisionPublication, revisionPublicationVerification, inRevisionPublication, reusesRevisionProduct } from "@/lib/authoring/revision-publication-context";
+import { recordOfflineChange } from "@/lib/offline/server-events";
 import { assertAuthoringActor } from "@/lib/auth/authoring-actor";
 import { assertSolutionImportScope, lockSolutionImportScope, type SolutionImportScope } from "@/lib/solutions/import-scope";
 import { productVersionId, STANDALONE_FLASHCARD_SET_PREFIX } from "./product-identity";
@@ -970,6 +971,11 @@ export async function publishProductBundle(input: { importId: string; publishedB
     const itbSources = bundle.products.flatMap((product) => product.productType === "question" ? [{ questionId: product.id, referenceId: product.itbSource.referenceId, eventName: product.itbSource.eventName }] : []);
     const itbCuration = bundle.products.flatMap((product) => product.productType === "question" ? product.itbCuration.map((curation) => ({ questionId: product.id, referenceId: curation.referenceId, dimensions: curation.dimensions })) : []);
     await tx.insert(auditMutasi).values({ id: id("audit-product", `${input.importId}:published`), actorId: input.publishedBy, entityType: "product_bundle", entityId: input.importId, action: "published", beforeSnapshot: { status: "draft" }, afterSnapshot: { status: "published", productCount: bundle.products.length, vectorJobCount: insertedVectorJobCount, publicationHash, itbSources, itbCuration }, correlationId: input.importId });
+    for (const product of products) {
+      if (product.productType === "article" || product.productType === "diktat") {
+        await recordOfflineChange(tx, { kind: product.productType, courseId: course.targetId, resourceId: targetId(product), action: "upsert" });
+      }
+    }
     return { publicationId, importId: input.importId, published: true, productCount: bundle.products.length, vectorJobCount: insertedVectorJobCount };
   });
   if (courseLegacyId && !isV5) {
@@ -1068,6 +1074,9 @@ export async function withdrawProductBundle(input: { importId: string; withdrawn
     const withdrawnRows = await tx.update(imporBundle).set({ status: "withdrawn", updatedAt: now }).where(and(eq(imporBundle.id, input.importId), eq(imporBundle.status, "published"), eq(imporBundle.checksum, snapshot.checksum))).returning({ id: imporBundle.id });
     if (withdrawnRows.length !== 1) throw new Error("PRODUCT_BUNDLE_PUBLICATION_CONFLICT");
     await tx.insert(auditMutasi).values({ id: id("audit-product", `${input.importId}:withdrawn`), actorId: input.withdrawnBy, entityType: "product_bundle", entityId: input.importId, action: "withdrawn", beforeSnapshot: { status: "published" }, afterSnapshot: { status: "withdrawn", productCount: productIds.length, vectorJobCount: vectorJobs.length }, correlationId: input.importId });
+    for (const product of retiringProducts) {
+      if (product.productType === "article" || product.productType === "diktat") await recordOfflineChange(tx, { kind: product.productType, courseId: course.targetId, resourceId: targetId(product), action: "delete" });
+    }
     return { importId: input.importId, withdrawn: true, productCount: productIds.length, vectorJobCount: vectorJobs.length };
   });
   if (courseLegacyId && bundle.manifest.schemaVersion !== "product-bundle.v5") {

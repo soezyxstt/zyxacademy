@@ -159,9 +159,20 @@ export interface CapacitorUpdaterPlugin {
 }
 
 export interface CapacitorOfflineStorePlugin {
+  saveLibrarySnapshot?: (options: { payloadJson: string }) => Promise<{ saved?: boolean }>;
+  getLibrarySnapshot?: () => Promise<{ snapshot?: Record<string, unknown> | null; expired?: boolean; identity?: Record<string, unknown> }>;
+  clearLibrarySnapshot?: () => Promise<void>;
+  offlineRequest?: (options: {
+    path: string;
+    method?: "GET" | "POST";
+    body?: string;
+    etag?: string;
+    expectedAccountId: string;
+    expectedScopeKey: string;
+  }) => Promise<{ status: number; headers: Record<string, string>; bodyBase64: string }>;
   saveReading: (options: { key: string; payloadJson: string }) => Promise<{ saved?: boolean }>;
   saveReadingPosition?: (options: { key: string; positionJson: string }) => Promise<{ saved?: boolean }>;
-  listReadings: () => Promise<{
+  listReadings: (options?: { includeExpired?: boolean }) => Promise<{
     items?: Array<Record<string, unknown>>;
     count?: number;
     totalBytes?: number;

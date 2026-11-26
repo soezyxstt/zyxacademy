@@ -521,3 +521,22 @@ export function gamificationMissionWindows(date: Date) {
 export function minutesFrom(minutes: number, date = new Date()): Date {
   return addMinutes(date, minutes);
 }
+
+/** Scheduled cache checks run at the next active opportunity after Jakarta's boundary. */
+export function isOfflineScheduledCheckDue(
+  lastCheckedAt: number,
+  now: number,
+  schedule: { frequency: "daily" | "weekly"; weekday: number; hour: number; timeZone: "Asia/Jakarta" },
+): boolean {
+  if (!Number.isFinite(now) || now <= 0) return true;
+  if (!Number.isFinite(lastCheckedAt) || lastCheckedAt <= 0 || lastCheckedAt > now) return true;
+  const today = getJakartaCalendarDate(new Date(now));
+  const daysSinceScheduled = schedule.frequency === "weekly" ? (getCalendarDayIndex(today) - schedule.weekday + 7) % 7 : 0;
+  let scheduledDay = addCalendarDays(today, -daysSinceScheduled);
+  let boundary = addMinutes(calendarDateToJakartaInstant(scheduledDay), schedule.hour * 60).getTime();
+  if (boundary > now) {
+    scheduledDay = addCalendarDays(scheduledDay, schedule.frequency === "weekly" ? -7 : -1);
+    boundary = addMinutes(calendarDateToJakartaInstant(scheduledDay), schedule.hour * 60).getTime();
+  }
+  return lastCheckedAt < boundary;
+}

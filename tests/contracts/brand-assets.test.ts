@@ -38,9 +38,31 @@ describe("Figma brand asset exports", () => {
       expect(readDimensions(filePath, item.format)).toEqual({ width: item.widthPx, height: item.heightPx });
     }
 
-    const exportedNames = new Set(exports.map((item: { path: string }) => path.basename(item.path)));
+    const derivedImages: BrandExport[] = manifest.derivedAssets.filter((item: BrandExport) => /\.(png|svg)$/i.test(item.path));
+    for (const item of derivedImages) {
+      const filePath = path.resolve(process.cwd(), "public", item.path.slice(1));
+      expect(path.dirname(filePath)).toBe(brandDir);
+      expect(readDimensions(filePath, item.format)).toEqual({ width: item.widthPx, height: item.heightPx });
+    }
+    const exportedNames = new Set([...exports, ...derivedImages].map((item: { path: string }) => path.basename(item.path)));
     const packagedNames = readdirSync(brandDir).filter((name) => /\.(png|svg)$/i.test(name));
     expect(new Set(packagedNames)).toEqual(exportedNames);
+  });
+
+  it("records notification derivatives and their local brand sources", () => {
+    const notifications = manifest.derivedAssets.filter((item: { path: string }) => item.path.startsWith("/brand/zyx-notif-"));
+    expect(notifications.map((item: { path: string }) => item.path).sort()).toEqual([
+      "/brand/zyx-notif-badge-96.png", "/brand/zyx-notif-badge.svg",
+      "/brand/zyx-notif-icon-192.png", "/brand/zyx-notif-icon.svg",
+    ]);
+    for (const item of notifications) {
+      expect(item.sourcePaths.length).toBeGreaterThan(0);
+      for (const sourcePath of item.sourcePaths as string[]) {
+        const source = path.resolve(process.cwd(), "public", sourcePath.slice(1));
+        expect(path.dirname(source)).toBe(brandDir);
+        expect(existsSync(source)).toBe(true);
+      }
+    }
   });
 
   it("records the favicon ICO and all source PNG frames", () => {

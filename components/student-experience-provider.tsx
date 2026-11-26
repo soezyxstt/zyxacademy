@@ -8,6 +8,7 @@ export type StudentExperienceAdapter = {
   mode: "student" | "demo";
   href?: (studentPath: string) => string;
   pathname?: string;
+  offlineCourses?: { id: string; title: string }[];
   courses?: { id: string; title: string; category?: string | null }[];
   account?: { name: string; email: string };
   streak?: { current: number; weeklyActivity: boolean[] };

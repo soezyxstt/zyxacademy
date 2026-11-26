@@ -17,6 +17,7 @@ export interface MobileBottomNavItem {
   badgeDot?: boolean;
   badgeLabel?: string;
   prefetch?: boolean;
+  onNavigate?: (event: { preventDefault(): void }) => void;
 }
 
 export interface MobileBottomNavProps {
@@ -112,6 +113,7 @@ export function MobileBottomNav({
                 key={item.id}
                 href={item.href}
                 prefetch={item.prefetch}
+                onNavigate={item.onNavigate}
                 onClick={() => {
                   void hapticSelection();
                   item.onClick?.();

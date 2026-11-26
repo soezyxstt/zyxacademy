@@ -37,6 +37,7 @@ docs/
     ├── production-readiness-checklist.md     # Pre-Deployment Validation Gates and Invariants
     ├── cloud-run-staging.md                  # Cloud Run Bangkok Staging & Edge Worker Runbook
     ├── vercel-staging.md                     # Manual Vercel Staging Release & Recovery Runbook
+    ├── offline-data-sync.md                  # Offline cache and native recovery
     ├── admin-mcp.md                          # Admin MCP Operations, Scopes, and Tool Catalog
     ├── agent-first-content.md                # Agent-First Content Operations (Blog, Forms, Media, Recovery)
     ├── authoring-mcp-skills.md               # Authoring MCP Skills Build, Pinning, and Distribution
@@ -73,7 +74,7 @@ docs/
 
 | Document | Category | Status | Purpose and Scope |
 | --- | --- | --- | --- |
-| [data-fetching.md](data-fetching.md) | Architecture | `ACTIVE` | TanStack Query 5 standard: account-scoped keys, validated API functions, freshness/retry/invalidation policies, and RSC boundaries. |
+| [data-fetching.md](data-fetching.md) | Architecture | `ACTIVE` | TanStack Query 5 standard: account-scoped keys, validated API functions, freshness/retry/invalidation policies, student return navigation, and RSC boundaries. |
 | [coding-foundation.md](coding-foundation.md) | Feature Contract | `ACTIVE` | Editable Python Markdown in Articles, viewport-aware Playground, Pyodide/WASI execution, Submit grading, Live Quiz, and Zyra Python coaching. |
 | [discussions.md](discussions.md) | Feature Contract | `ACTIVE` | Bilingual scoped Q&A discussions, compact composer, immutable retries, mention handles, full-text search, and single-dispatch `@Zyra` AI cooldowns. |
 | [gamification.md](gamification.md) | Feature Contract | `ACTIVE` | Student-only ranks, XP/LP ledgers, achievements, animated frames, 6 Zyra chat skins, Pet Studio (4 GLB pets + 15 fitted suits), leaderboards, and public profile privacy boundaries. |
@@ -101,6 +102,7 @@ docs/
 | [operations/production-readiness-checklist.md](operations/production-readiness-checklist.md) | Operations | `ACTIVE` | Pre-deployment quality, contract, database, worker, AI Gateway, MCP, and native app release gates. |
 | [operations/cloud-run-staging.md](operations/cloud-run-staging.md) | Operations | `ACTIVE` | Cloud Run Bangkok staging container build, Secret Manager import, Cloudflare Edge Worker routing, and rollback. |
 | [operations/vercel-staging.md](operations/vercel-staging.md) | Operations | `ACTIVE` | Manual Vercel custom `staging` deployment, target guards, and recovery procedure. |
+| [operations/offline-data-sync.md](operations/offline-data-sync.md) | Operations | `ACTIVE` | Admin mutation coverage, account-scoped caches, reconnect and revocation checks, and native recovery. |
 | [operations/admin-mcp.md](operations/admin-mcp.md) | Operations | `ACTIVE` | Admin MCP endpoint (`/api/mcp/authoring`), OAuth scopes, mutation boundaries, and supported tool catalog. |
 | [operations/agent-first-content.md](operations/agent-first-content.md) | Operations | `ACTIVE` | Agent-first MCP workflows for blog, forms, media, and committed-mutation receipt recovery. |
 | [operations/authoring-mcp-skills.md](operations/authoring-mcp-skills.md) | Operations | `ACTIVE` | Build-time pinned skills catalog (`authoring-skills.lock.json`), distribution, and host verification. |

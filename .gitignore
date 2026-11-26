@@ -84,3 +84,13 @@ __pycache__/
 # Operator-local staging Worker routing overrides
 /workers/staging-web-edge/wrangler.candidate.jsonc
 /workers/staging-web-edge/wrangler.domain.jsonc
+
+# Native offline shell output. Build from the shared source before packaging.
+/apps/mobile/www/offline-shell.js
+/apps/mobile/www/offline-shell.css
+/apps/mobile/www/offline-origin.js
+/apps/mobile/www/vendor/fonts/
+/apps/desktop/dist/offline-shell.js
+/apps/desktop/dist/offline-shell.css
+/apps/desktop/dist/offline-origin.js
+/apps/desktop/dist/vendor/fonts/

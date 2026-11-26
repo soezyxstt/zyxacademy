@@ -75,6 +75,7 @@ export function NavItem({
   collapsed,
   isChild,
   prefetch,
+  onNavigate,
   trailing,
   badge,
   onPin,
@@ -90,6 +91,7 @@ export function NavItem({
   collapsed: boolean;
   isChild?: boolean;
   prefetch?: boolean;
+  onNavigate?: (event: { preventDefault(): void }) => false | void;
   trailing?: ReactNode;
   badge?: ReactNode;
   onPin?: (e: React.MouseEvent) => void;
@@ -176,7 +178,7 @@ export function NavItem({
     collapsed && badge && typeof badge === "string" ? `${label} (${badge})` : label;
 
   const inner = href ? (
-    <Link href={href} prefetch={prefetch} onClick={onClick as undefined} onNavigate={event => navigate?.(event, href)} className={baseClass} aria-label={collapsed ? tooltipLabel : undefined} aria-current={active ? "page" : undefined}>
+    <Link href={href} prefetch={prefetch} onClick={onClick as undefined} onNavigate={event => { if (onNavigate?.(event) !== false) navigate?.(event, href); }} className={baseClass} aria-label={collapsed ? tooltipLabel : undefined} aria-current={active ? "page" : undefined}>
       {content}
     </Link>
   ) : (

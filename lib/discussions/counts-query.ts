@@ -13,7 +13,7 @@ export function discussionCountsQuery(userId: string, courseId?: string) {
       signal, headers: { "x-student-id": userId },
     }),
     enabled: !!userId,
-    staleTime: 60_000,
+    staleTime: 15_000,
     refetchInterval: 120_000,
     refetchIntervalInBackground: false,
   });

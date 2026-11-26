@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTranslations } from "@/lib/i18n/client";
+import { useAppLocale, useTranslations } from "@/lib/i18n/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { invalidateDiscussionThreadLists, type DiscussionListScope } from "@/lib/discussions/workspace-query";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { hapticLight, hapticSelection, hapticSuccess } from "@/lib/native/haptics";
@@ -22,6 +24,7 @@ import type { DiscussionChannel as UiChannel, DiscussionPerson, DiscussionWorksp
 type ThreadPage = { items: Thread[]; nextCursor: string | null };
 type MessagePage = { cursor?: string; items: Message[]; observationReceipt: string };
 type ReadObservation = { id: string; seq: number; revision: number; receipt: string };
+type DiscussionClientProps = { viewer: DiscussionPerson; courseId?: string; listScope?: DiscussionListScope };
 const signalCounts = () => window.dispatchEvent(new Event(DISCUSSION_COUNTS_CHANGED));
 
 export function nextDiscussionReadBatch(observed: Map<number, ReadObservation>, acknowledgedThrough: number, snapshotThrough: number, visibleIds?: Set<string>) {
@@ -37,18 +40,21 @@ export function nextDiscussionReadBatch(observed: Map<number, ReadObservation>, 
   return { throughSeq, receipt: next.receipt, items: entries.filter(item => item.receipt === next.receipt) };
 }
 
-export function DiscussionClient(props: { viewer: DiscussionPerson; courseId?: string }) {
+export function DiscussionClient(props: DiscussionClientProps) {
   const t = useTranslations("discussions");
   const { data: session, isPending } = useSession();
   return <DiscussionSessionGuard viewerId={props.viewer.id} sessionId={session?.user?.id} pending={isPending} loadingFallback={<DiscussionWorkspaceSkeleton label={t("viewerLoading")} />}>
-    {draftState => <DiscussionClientReady {...props} draftState={draftState} />}
+    {draftState => <DiscussionClientReady {...props} listScope={session?.session?.id === props.listScope?.sessionId ? props.listScope : undefined} draftState={draftState} />}
   </DiscussionSessionGuard>;
 }
 
-function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: DiscussionPerson; courseId?: string; draftState: DiscussionDraftState }) {
+function DiscussionClientReady({ viewer, courseId, listScope, draftState }: DiscussionClientProps & { draftState: DiscussionDraftState }) {
   const t = useTranslations("discussions");
   const router = useRouter();
-  const reads = useMemo(() => discussionWorkspaceReads(viewer.id), [viewer.id]);
+  const client = useQueryClient();
+  const { locale } = useAppLocale();
+  const reads = useMemo(() => discussionWorkspaceReads(viewer.id, listScope && { client, scope: listScope, locale }), [client, listScope, locale, viewer.id]);
+  const invalidateLists = useCallback(() => invalidateDiscussionThreadLists(client, viewer.id), [client, viewer.id]);
   const pathname = usePathname();
   const params = useSearchParams();
   const requestedChannel = params.get("channel");
@@ -296,9 +302,10 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
   }, [selectedChannel, debouncedSearch, reads]);
 
   const refreshQuestionList = useCallback(async () => {
+    invalidateLists();
     try { return await fetchThreadPage(threadPageCursors.current[threadPageIndexRef.current]); }
     catch { setListRefreshError(true); return false; }
-  }, [fetchThreadPage]);
+  }, [fetchThreadPage, invalidateLists]);
   const latestQuestionListRefresh = useRef(refreshQuestionList);
   latestQuestionListRefresh.current = refreshQuestionList;
 
@@ -424,6 +431,7 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
       if (listState === "error") await loadCatalog();
       return;
     }
+    invalidateLists();
     const jobs: Promise<unknown>[] = [];
     if (catalogError) jobs.push(loadCatalog());
     const id = currentThread.current;
@@ -530,7 +538,8 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
             readInFlight.current = request;
             try {
               const result = await request;
-              if (!current()) return;
+              invalidateLists();
+              if (!current()) { signalCounts(); return; }
               if (batch.receipt === messagePages[0].observationReceipt) statusAcknowledged = true;
               acknowledgedThrough.current = result.throughSeq;
               batch.items.forEach(item => { if (observedMessages.current.get(item.seq) === item) observedMessages.current.delete(item.seq); });
@@ -540,7 +549,11 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
             const request = retryDiscussionRead(() => actions.markRead(selectedThread, acknowledgedThrough.current, messagePages[0].observationReceipt, []),
               () => current() && visibleIds.size > 0);
             readInFlight.current = request;
-            try { await request; } finally { if (readInFlight.current === request) readInFlight.current = null; }
+            try {
+              await request;
+              invalidateLists();
+              if (!current()) { signalCounts(); return; }
+            } finally { if (readInFlight.current === request) readInFlight.current = null; }
           }
           if (current()) {
             acknowledgedSnapshot.current = snapshot.key;
@@ -571,7 +584,7 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
       scheduleRead();
     });
     return () => { cancelled = true; stopObserving(); if (timer) clearTimeout(timer); };
-  }, [selectedThread, thread?.id, thread?.status, activeTab, renderedThreadState, messages, messagePages, refreshThreadPage, retryRead, viewer.id]);
+  }, [selectedThread, thread?.id, thread?.status, activeTab, renderedThreadState, messages, messagePages, refreshThreadPage, retryRead, invalidateLists, viewer.id]);
 
   useEffect(() => {
     if (viewer.role !== "admin" || activeTab !== "reports") return;
@@ -664,6 +677,7 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
   }
 
   async function refreshMessage(id: string, messageId?: string, retainViewOnError = false) {
+    invalidateLists();
     if (currentThread.current !== id) return;
     const page = messageId ? messagePagesRef.current.find((item) => item.items.some((message) => message.id === messageId)) : messagePagesRef.current.at(-1);
     try { return await refreshThreadPage(id, page?.cursor, { refreshMetadata: false }); }
@@ -715,7 +729,7 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
       hasMoreQuestions={hasMoreQuestions}
       onSelectChannel={(channel) => { void hapticSelection(); setPinnedChannel(channel); navigate({ channel: channel?.id ?? null, thread: null }); }} onSelectQuestion={(id, messageId) => { void hapticLight(); navigate({ thread: id, message: messageId ?? null, discussionTab: null, ...(activeTab === "reports" ? { channel: null } : {}) }); }}
       onSearchChange={(value) => setSearch(value.slice(0, 160))} onTabChange={(tab) => { void hapticSelection(); navigate({ discussionTab: tab === "reports" ? tab : null }); }}
-      onRetryQuestions={() => { setRetryLists((value) => value + 1); refreshChannelMetadata(); }} onRetryMessages={() => { setRetryThread((value) => value + 1); refreshChannelMetadata(); }}
+      onRetryQuestions={() => { invalidateLists(); setRetryLists((value) => value + 1); refreshChannelMetadata(); }} onRetryMessages={() => { setRetryThread((value) => value + 1); refreshChannelMetadata(); }}
       onLoadMoreQuestions={() => moreQuestions()}
       onSearchChannels={(input) => searchDiscussionChannels(reads, input, courseId)}
       onSearchMentions={(input) => searchDiscussionMentions(actions, input)}
@@ -747,6 +761,7 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
       onCreateQuestion={async (input) => {
         const version = selectionVersion.current;
         const result = await actions.createThread({ ...toSubmit(input), channelId: input.channelId, ...(input.title ? { title: input.title } : {}) });
+        invalidateLists();
         if (!result.ok) return result.error === "replay_unverified" ? { error: result.error, target: result.value } : result.error;
         signalCounts();
         if (version === selectionVersion.current) {
@@ -764,7 +779,7 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
       onSendReply={async (input) => { const submit = { ...toSubmit({ ...input, channelId: thread?.channelId ?? "" }), threadId: input.questionId };
         if (input.messageType === "reply" && !input.replyToMessageId) return "invalid";
         const result = await actions.reply(input.messageType === "reply" ? { ...submit, messageType: "reply", replyTo: input.replyToMessageId! } : { ...submit, messageType: "answer" });
-        if (!result.ok) { if (result.error === "resolved") { if (currentThread.current === input.questionId) { setThread(old => old?.id === input.questionId ? { ...old, status: "resolved", canReply: false } : old); setThreadPage(old => ({ ...old, items: old.items.filter(item => item.id !== input.questionId) })); setResolvedRevision(value => value + 1); } await refreshMessage(input.questionId, undefined, true); } return result.error === "replay_unverified" ? { error: result.error, target: result.value } : result.error; }
+        if (!result.ok) { invalidateLists(); if (result.error === "resolved") { if (currentThread.current === input.questionId) { setThread(old => old?.id === input.questionId ? { ...old, status: "resolved", canReply: false } : old); setThreadPage(old => ({ ...old, items: old.items.filter(item => item.id !== input.questionId) })); setResolvedRevision(value => value + 1); } await refreshMessage(input.questionId, undefined, true); } return result.error === "replay_unverified" ? { error: result.error, target: result.value } : result.error; }
         const page = await refreshMessage(input.questionId); if (page && currentThread.current === input.questionId) setSentMessage({ threadId: input.questionId, id: result.value.messageId }); }}
       onUploadImage={async ({ channelId, file }) => { const form = new FormData(); form.set("channelId", channelId); form.set("file", file);
         const response = await fetch("/api/discussions/attachments", { method: "POST", body: form });
@@ -773,11 +788,12 @@ function DiscussionClientReady({ viewer, courseId, draftState }: { viewer: Discu
       onEditMessage={async ({ questionId, messageId, body, revision }) => { try { await actions.edit(messageId, body, revision); } catch (error) { await refreshMessage(questionId, messageId, true); throw error; } await refreshMessage(questionId, messageId); }}
       onDeleteMessage={async ({ questionId, messageId }) => { await actions.deleteMessage(messageId); await refreshMessage(questionId, messageId); }}
       onToggleReaction={async ({ questionId, messageId, emoji, selected }) => { void hapticSelection(); await actions.setReaction(messageId, emoji, selected); await refreshMessage(questionId, messageId); }}
-      onForwardMessage={async ({ questionId, messageId, targetQuestionId, requestId }) => { try { const result = await actions.forward(messageId, targetQuestionId, requestId); if (!result.ok) return result.error === "replay_unverified" ? { error: result.error, target: result.value } : result.error; await refreshMessage(questionId, messageId); } catch { return "unknown"; } }}
+      onForwardMessage={async ({ questionId, messageId, targetQuestionId, requestId }) => { try { const result = await actions.forward(messageId, targetQuestionId, requestId); if (!result.ok) return result.error === "replay_unverified" ? { error: result.error, target: result.value } : result.error; await refreshMessage(questionId, messageId); } catch { invalidateLists(); return "unknown"; } }}
       onReportMessage={async ({ messageId, reason }) => { await actions.report(messageId, reason); }}
       onSetChannelMuted={async ({ channelId, muted }) => { void hapticSelection(); await actions.setMute(channelId, muted); setChannels((old) => old.map((item) => item.id === channelId ? { ...item, muted } : item)); setChannelMetadata((old) => ({ ...old, items: old.items.map((item) => item.id === channelId ? { ...item, muted } : item) })); setPinnedChannel((old) => old?.id === channelId ? { ...old, muted } : old); refreshChannelMetadata(); }}
       onSetQuestionStatus={async ({ questionId, status }) => {
         const result = await actions.setResolved(questionId, status === "resolved");
+        invalidateLists();
         if (!mounted.current) return;
         if (result.status === "resolved") void hapticSuccess();
         else void hapticLight();

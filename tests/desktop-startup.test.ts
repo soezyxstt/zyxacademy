@@ -44,6 +44,7 @@ function deferred<T>() {
 
 function startShell(options: {
   online?: boolean;
+  resolveOrigin?: () => Promise<string>;
   fetch?: (url: string, init: RequestInit) => Promise<ProbeResponse>;
 } = {}) {
   const elements = new Map<string, ElementStub>();
@@ -61,7 +62,7 @@ function startShell(options: {
   let nextTimer = 0;
   const window = {
     __TAURI__: { core: { invoke: async (command: string) => {
-      if (command === "get_desktop_server_origin") return "https://staging.zyxacademy.com";
+      if (command === "get_desktop_server_origin") return options.resolveOrigin?.() ?? "https://staging.zyxacademy.com";
       return { items: [], totalBytes: 0 };
     } } },
     addEventListener: (name: string, callback: () => unknown) => listeners.set(name, callback),
@@ -107,7 +108,7 @@ describe("desktop launch connection state", () => {
     const probe = deferred<ProbeResponse>();
     const app = startShell({ fetch: () => probe.promise });
     await settle();
-    expect(app.element("conn-label").textContent).toBe("Connecting");
+    expect(app.element("offline-indicator").textContent).toBe("");
     expect(app.element("title").textContent).toBe("Opening Zyx Academy");
     expect(app.element("library-section").classList.contains("hidden")).toBe(true);
     expect(app.element("retry-button").disabled).toBe(true);
@@ -117,7 +118,7 @@ describe("desktop launch connection state", () => {
     expect(app.requests[0].init).toMatchObject({ method: "HEAD", mode: "no-cors", cache: "no-store", credentials: "omit" });
     probe.resolve({ type: "opaque", ok: false });
     await settle();
-    expect(app.navigations).toEqual(["https://staging.zyxacademy.com/"]);
+    expect(app.navigations).toEqual(["https://staging.zyxacademy.com/api/entry-redirect?native=1"]);
     expect(app.timers.size).toBe(0);
   });
 
@@ -126,7 +127,7 @@ describe("desktop launch connection state", () => {
     await settle();
     expect(app.requests).toEqual([]);
     expect(app.navigations).toEqual([]);
-    expect(app.element("conn-label").textContent).toBe("Offline");
+    expect(app.element("offline-indicator").textContent).toBe("Offline");
     expect(app.element("library-section").classList.contains("hidden")).toBe(false);
     expect(app.element("retry-button").disabled).toBe(false);
   });
@@ -139,14 +140,13 @@ describe("desktop launch connection state", () => {
       return { type: "opaque", ok: false };
     } });
     await settle();
-    expect(app.element("conn-label").textContent).toBe("Not connected");
+    expect(app.element("offline-indicator").textContent).toBe("");
     expect(app.element("title").textContent).toBe("Zyx could not be opened");
-    expect(app.element("reconnect-banner").classList.contains("hidden")).toBe(true);
     expect(app.navigations).toEqual([]);
     app.click("retry-button");
     await settle();
     expect(attempts).toBe(2);
-    expect(app.navigations).toEqual(["https://staging.zyxacademy.com/"]);
+    expect(app.navigations).toEqual(["https://staging.zyxacademy.com/api/entry-redirect?native=1"]);
   });
 
   test("an expired probe aborts, reveals saved readings, and re-enables retry", async () => {
@@ -159,10 +159,26 @@ describe("desktop launch connection state", () => {
     timeout!.callback();
     await settle();
     expect(app.navigations).toEqual([]);
-    expect(app.element("conn-label").textContent).toBe("Not connected");
+    expect(app.element("offline-indicator").textContent).toBe("");
     expect(app.element("library-section").classList.contains("hidden")).toBe(false);
     expect(app.element("retry-button").disabled).toBe(false);
     expect(app.timers.size).toBe(0);
+  });
+
+  test("startup falls back within the deadline when native origin lookup stalls", async () => {
+    const origin = deferred<string>();
+    const app = startShell({ resolveOrigin: () => origin.promise });
+    await settle();
+    expect(app.requests).toHaveLength(0);
+    const deadline = [...app.timers.values()].find(timer => timer.delay === 3500);
+    expect(deadline).toBeDefined();
+    deadline!.callback();
+    await settle();
+    expect(app.element("library-section").classList.contains("hidden")).toBe(false);
+    origin.resolve("https://staging.zyxacademy.com");
+    await settle();
+    expect(app.requests).toHaveLength(0);
+    expect(app.navigations).toEqual([]);
   });
 
   test("choosing saved readings during launch prevents automatic navigation", async () => {
@@ -174,27 +190,23 @@ describe("desktop launch connection state", () => {
     probe.resolve({ type: "opaque", ok: false });
     await settle();
     expect(app.navigations).toEqual([]);
-    expect(app.element("conn-label").textContent).toBe("Connected");
+    expect(app.element("offline-indicator").textContent).toBe("");
     expect(app.element("title").textContent).toBe("Saved readings");
-    expect(app.element("reconnect-banner").classList.contains("hidden")).toBe(false);
   });
 
-  test("reconnect checks the server before showing a banner and does not leave saved readings", async () => {
+  test("reconnect checks the server and keeps saved readings open", async () => {
     const probe = deferred<ProbeResponse>();
     const app = startShell({ online: false, fetch: () => probe.promise });
     app.navigator.onLine = true;
     app.event("online");
     await settle();
-    expect(app.element("conn-label").textContent).toBe("Connecting");
-    expect(app.element("reconnect-banner").classList.contains("hidden")).toBe(true);
+    expect(app.element("offline-indicator").textContent).toBe("");
     probe.resolve({ type: "opaque", ok: false });
     await settle();
     expect(app.navigations).toEqual([]);
-    expect(app.element("reconnect-banner").classList.contains("hidden")).toBe(false);
-    app.click("banner-dismiss-btn");
+    expect(app.element("retry-button").disabled).toBe(false);
     app.click("lang-id");
-    expect(app.element("reconnect-banner").classList.contains("hidden")).toBe(true);
-    expect(app.element("conn-label").textContent).toBe("Terhubung");
+    expect(app.element("offline-indicator").textContent).toBe("");
   });
 
   test("a link loss during the pending probe cannot trigger a late navigation", async () => {
@@ -206,7 +218,7 @@ describe("desktop launch connection state", () => {
     probe.resolve({ type: "opaque", ok: false });
     await settle();
     expect(app.navigations).toEqual([]);
-    expect(app.element("conn-label").textContent).toBe("Offline");
+    expect(app.element("offline-indicator").textContent).toBe("Offline");
   });
 
   test("reconnect aborts the old probe and ignores its late failure after the new probe succeeds", async () => {
@@ -226,12 +238,10 @@ describe("desktop launch connection state", () => {
     app.event("online");
     await settle();
     expect(attempts).toBe(2);
-    expect(app.element("conn-label").textContent).toBe("Connected");
-    expect(app.element("reconnect-banner").classList.contains("hidden")).toBe(false);
+    expect(app.element("offline-indicator").textContent).toBe("");
     staleProbe.reject(new Error("Old connection closed"));
     await settle();
-    expect(app.element("conn-label").textContent).toBe("Connected");
-    expect(app.element("reconnect-banner").classList.contains("hidden")).toBe(false);
+    expect(app.element("offline-indicator").textContent).toBe("");
     expect(app.navigations).toEqual([]);
   });
 
@@ -249,14 +259,14 @@ describe("desktop launch connection state", () => {
     expect(attempts).toBe(2);
     staleProbe.resolve({ type: "opaque", ok: false });
     await settle();
-    expect(app.element("conn-label").textContent).toBe("Connecting");
+    expect(app.element("offline-indicator").textContent).toBe("");
     expect(app.element("retry-button").disabled).toBe(true);
     app.event("online");
     await settle();
     expect(attempts).toBe(2);
     freshProbe.reject(new Error("New connection unavailable"));
     await settle();
-    expect(app.element("conn-label").textContent).toBe("Not connected");
+    expect(app.element("offline-indicator").textContent).toBe("");
     expect(app.element("retry-button").disabled).toBe(false);
     expect(app.navigations).toEqual([]);
   });

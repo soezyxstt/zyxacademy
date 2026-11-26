@@ -31,6 +31,7 @@ import { stableStringify } from "@/lib/staging/migration-ledger";
 import { PEMAHAMAN_RUBRIC_VERSION } from "@/lib/pemahaman/engine";
 import { createAssessmentWithLegacyProjection } from "@/lib/asesmen/quiz-canonical-sync";
 import { lockTutorAssignmentChanges } from "@/lib/auth/authoring-actor";
+import { recordOfflineChange } from "@/lib/offline/server-events";
 
 type CompatibilityTx = {
   insert: (...args: any[]) => any;
@@ -166,7 +167,10 @@ export async function dualWriteEnrollment(
   actorId?: string | null,
   { renewedAt }: { renewedAt?: Date } = {},
 ): Promise<void> {
-  if (!isEnabled()) return;
+  if (!isEnabled()) {
+    await recordOfflineChange(tx, { kind: "access", userId: enrollment.userId, courseId: enrollment.courseId, action: "invalidate" });
+    return;
+  }
   await requirePengguna(tx, enrollment.userId);
   const mataKuliahId = await findCourseTarget(tx, enrollment.courseId);
   const status = enrollment.expiresAt.getTime() < (renewedAt?.getTime() ?? Date.now()) ? "expired" : "active";
@@ -196,6 +200,7 @@ export async function dualWriteEnrollment(
     },
   });
   await audit(tx, "enrollment", enrollment.id, "dual_write", { legacyId: enrollment.id, mataKuliahId }, actorId, enrollment.id);
+  await recordOfflineChange(tx, { kind: "access", userId: enrollment.userId, courseId: enrollment.courseId, action: "invalidate" });
 }
 
 /** Mirror a legacy tutor-course assignment inside the caller's transaction. */
@@ -205,7 +210,10 @@ export async function dualWriteTutorAssignment(
   actorId?: string | null,
 ): Promise<void> {
   await lockTutorAssignmentChanges(tx, assignment.tutorId);
-  if (!isEnabled()) return;
+  if (!isEnabled()) {
+    await recordOfflineChange(tx, { kind: "access", userId: assignment.tutorId, courseId: assignment.courseId, action: "invalidate" });
+    return;
+  }
   await requirePengguna(tx, assignment.tutorId);
   const mataKuliahId = await findCourseTarget(tx, assignment.courseId);
   await tx.insert(penugasanTutor).values({
@@ -224,6 +232,7 @@ export async function dualWriteTutorAssignment(
     },
   });
   await audit(tx, "tutor_assignment", assignment.id, "dual_write", { legacyId: assignment.id, mataKuliahId, status: assignment.status ?? "active" }, actorId, `${assignment.id}:${assignment.status ?? "active"}`);
+  await recordOfflineChange(tx, { kind: "access", userId: assignment.tutorId, courseId: assignment.courseId, action: "invalidate" });
 }
 
 /** Revoke current course assignments before replacing the legacy projection. */
@@ -233,7 +242,10 @@ export async function revokeCanonicalTutorCourseAssignments(
   actorId?: string | null,
 ): Promise<void> {
   await lockTutorAssignmentChanges(tx, tutorId);
-  if (!isEnabled()) return;
+  if (!isEnabled()) {
+    await recordOfflineChange(tx, { kind: "access", userId: tutorId, action: "invalidate" });
+    return;
+  }
   await requirePengguna(tx, tutorId);
   await tx
     .update(penugasanTutor)
@@ -248,6 +260,7 @@ export async function revokeCanonicalTutorCourseAssignments(
     actorId,
     `${tutorId}:revoke_all`,
   );
+  await recordOfflineChange(tx, { kind: "access", userId: tutorId, action: "invalidate" });
 }
 
 /** Mirror the legacy SM-2 state and immutable review event. */
@@ -465,6 +478,7 @@ export async function dualWriteMaterialPublication(
     },
   });
   await audit(tx, "material_publication", material.id, "dual_write", { targetArticleId: articleId, targetBlockId: blockId }, actorId, material.id);
+  await recordOfflineChange(tx, { kind: "article", courseId: material.courseId, resourceId: articleId, action: status === "published" ? "upsert" : "delete" });
 }
 
 /** Keep the legacy concept baseline available without fan-out to every Idea. */

@@ -1,5 +1,6 @@
 mod update_delta;
 mod window_state;
+mod offline_v2;
 
 use futures_util::StreamExt;
 use serde::Serialize;
@@ -10,9 +11,9 @@ use tauri_plugin_opener::OpenerExt;
 use tauri_plugin_updater::UpdaterExt;
 
 const SERVER_URL_ENV: &str = "ZYX_DESKTOP_SERVER_URL";
-const OFFLINE_MAX_ENTRIES: usize = 25;
-const OFFLINE_MAX_TOTAL_BYTES: u64 = 8 * 1024 * 1024;
-const OFFLINE_MAX_SINGLE_BYTES: usize = 2 * 1024 * 1024;
+const OFFLINE_MAX_ENTRIES: usize = 250;
+const OFFLINE_MAX_TOTAL_BYTES: u64 = 100 * 1024 * 1024;
+const OFFLINE_MAX_SINGLE_BYTES: usize = 25 * 1024 * 1024;
 const OFFLINE_MAX_POSITION_BYTES: usize = 8192;
 
 fn offline_key_to_filename(key: &str) -> Option<String> {
@@ -43,19 +44,12 @@ fn offline_store_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
 }
 
 fn write_file_atomic(path: &std::path::Path, content: &str) -> Result<(), String> {
-    let tmp = path.with_extension("json.tmp");
-    {
-        let mut file = std::fs::File::create(&tmp)
-            .map_err(|e| format!("Failed to create temp offline file: {e}"))?;
-        file.write_all(content.as_bytes())
-            .map_err(|e| format!("Failed to write offline file: {e}"))?;
-        file.flush()
-            .map_err(|e| format!("Failed to flush offline file: {e}"))?;
-    }
-    std::fs::rename(&tmp, path).map_err(|e| {
-        let _ = std::fs::remove_file(&tmp);
-        format!("Failed to finalize offline file: {e}")
-    })
+    let parent = path.parent().ok_or("Invalid offline directory")?;
+    let mut file = tempfile::NamedTempFile::new_in(parent)
+        .map_err(|e| format!("Failed to create temp offline file: {e}"))?;
+    file.write_all(content.as_bytes()).map_err(|e| format!("Failed to write offline file: {e}"))?;
+    file.as_file().sync_all().map_err(|e| format!("Failed to flush offline file: {e}"))?;
+    file.persist(path).map(|_| ()).map_err(|e| format!("Failed to finalize offline file: {e}"))
 }
 
 fn merge_newer_reading_position(
@@ -95,6 +89,7 @@ fn load_all_offline_entries(dir: &std::path::Path) -> Vec<OfflineEntryMeta> {
     };
     for item in read_dir.flatten() {
         let path = item.path();
+        if path.file_name().and_then(|s| s.to_str()) == Some(offline_v2::LIBRARY_FILE) { continue; }
         if path.extension().and_then(|s| s.to_str()) != Some("json") {
             continue;
         }
@@ -114,11 +109,10 @@ fn load_all_offline_entries(dir: &std::path::Path) -> Vec<OfflineEntryMeta> {
             .get("lastAccessedAt")
             .and_then(|v| v.as_i64())
             .unwrap_or(0);
-        let declared_size = json.get("sizeBytes").and_then(|v| v.as_u64()).unwrap_or(0);
         entries.push(OfflineEntryMeta {
             path,
             last_accessed_at,
-            size_bytes: declared_size.max(meta.len()),
+            size_bytes: meta.len(),
             json,
         });
     }
@@ -127,13 +121,17 @@ fn load_all_offline_entries(dir: &std::path::Path) -> Vec<OfflineEntryMeta> {
 
 fn enforce_offline_quota(dir: &std::path::Path) {
     let mut entries = load_all_offline_entries(dir);
+    let library = offline_v2::read_library(dir);
+    let (max_entries, max_bytes) = offline_v2::quotas(library.as_ref());
+    let max_bytes = offline_v2::reading_budget(max_bytes);
     entries.sort_by_key(|e| e.last_accessed_at);
     let mut total_bytes: u64 = entries.iter().map(|e| e.size_bytes).sum();
     let mut remaining = entries.len();
     for entry in entries {
-        if remaining <= OFFLINE_MAX_ENTRIES && total_bytes <= OFFLINE_MAX_TOTAL_BYTES {
+        if remaining <= max_entries && total_bytes <= max_bytes {
             break;
         }
+        if entry.json["pinned"] == true { continue; }
         if std::fs::remove_file(&entry.path).is_ok() {
             remaining = remaining.saturating_sub(1);
             total_bytes = total_bytes.saturating_sub(entry.size_bytes);
@@ -199,6 +197,7 @@ async fn save_offline_reading(
     payload_json: String,
 ) -> Result<bool, String> {
     tauri::async_runtime::spawn_blocking(move || {
+        let _guard = offline_v2::STORE_LOCK.lock().map_err(|_| "Offline storage unavailable")?;
         let file_name =
             offline_key_to_filename(&key).ok_or_else(|| "Invalid offline key".to_string())?;
         if payload_json.is_empty() || payload_json.len() > OFFLINE_MAX_SINGLE_BYTES {
@@ -209,7 +208,16 @@ async fn save_offline_reading(
         if !incoming.is_object() {
             return Err("Offline reading payload must be a JSON object".to_string());
         }
+        if incoming["key"].as_str() != Some(key.as_str()) { return Err("Offline key mismatch".to_string()); }
         let dir = offline_store_dir(&app)?;
+        let library = offline_v2::read_library(&dir);
+        if !offline_v2::readable(&incoming, library.as_ref(), &get_desktop_server_origin(), offline_v2::now_ms()) {
+            return Err("Offline reading scope or access is invalid".to_string());
+        }
+        let (max_entries, max_bytes) = offline_v2::quotas(library.as_ref());
+        let pinned: Vec<_> = load_all_offline_entries(&dir).into_iter()
+            .filter(|entry| entry.json["pinned"] == true && entry.json["key"].as_str() != Some(key.as_str())).collect();
+        let pinned_bytes: u64 = pinned.iter().map(|entry| entry.size_bytes).sum();
         let target = dir.join(file_name);
         if target.is_file() {
             if let Ok(raw) = std::fs::read_to_string(&target) {
@@ -220,6 +228,10 @@ async fn save_offline_reading(
         }
         let serialized = serde_json::to_string(&incoming)
             .map_err(|e| format!("Failed to serialize offline reading: {e}"))?;
+        if serialized.len() > OFFLINE_MAX_SINGLE_BYTES || pinned.len() + 1 > max_entries
+            || pinned_bytes + serialized.len() as u64 > offline_v2::reading_budget(max_bytes) {
+            return Err("Offline storage is full".to_string());
+        }
         write_file_atomic(&target, &serialized)?;
         enforce_offline_quota(&dir);
         Ok(true)
@@ -235,6 +247,7 @@ async fn save_offline_reading_position(
     position_json: String,
 ) -> Result<bool, String> {
     tauri::async_runtime::spawn_blocking(move || {
+        let _guard = offline_v2::STORE_LOCK.lock().map_err(|_| "Offline storage unavailable")?;
         let Some(file_name) = offline_key_to_filename(&key) else {
             return Ok(false);
         };
@@ -279,25 +292,44 @@ async fn save_offline_reading_position(
 }
 
 #[tauri::command]
-async fn list_offline_readings(app: AppHandle) -> Result<serde_json::Value, String> {
+async fn list_offline_readings(app: AppHandle, include_expired: Option<bool>) -> Result<serde_json::Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
+        let _guard = offline_v2::STORE_LOCK.lock().map_err(|_| "Offline storage unavailable")?;
         let dir = offline_store_dir(&app)?;
         let mut entries = load_all_offline_entries(&dir);
+        let total_bytes: u64 = entries.iter().map(|entry| entry.size_bytes).sum::<u64>()
+            + std::fs::metadata(dir.join(offline_v2::LIBRARY_FILE)).map(|file| file.len()).unwrap_or(0);
+        let library = offline_v2::read_library(&dir);
+        let (max_entries, max_bytes) = offline_v2::quotas(library.as_ref());
+        entries.retain(|entry| offline_v2::readable(&entry.json, library.as_ref(), &get_desktop_server_origin(), offline_v2::now_ms())
+            || (include_expired == Some(true) && library.as_ref().map(|v| v["scopeKey"] == entry.json["scopeKey"] && v["userId"] == entry.json["userId"]).unwrap_or(false)));
         entries.sort_by(|a, b| b.last_accessed_at.cmp(&a.last_accessed_at));
 
-        let mut total_bytes: u64 = 0;
         let mut items = Vec::with_capacity(entries.len());
         for entry in &entries {
-            total_bytes += entry.size_bytes;
+            let readable = offline_v2::readable(&entry.json, library.as_ref(), &get_desktop_server_origin(), offline_v2::now_ms());
             items.push(serde_json::json!({
                 "key": entry.json.get("key").and_then(|v| v.as_str()).unwrap_or(""),
-                "title": entry.json.get("title").and_then(|v| v.as_str()).unwrap_or(""),
-                "courseTitle": entry.json.get("courseTitle").and_then(|v| v.as_str()).unwrap_or(""),
-                "chapterTitle": entry.json.get("chapterTitle").and_then(|v| v.as_str()).unwrap_or(""),
+                "title": if readable { entry.json["title"].as_str().unwrap_or("") } else { "" },
+                "courseTitle": if readable { entry.json["courseTitle"].as_str().unwrap_or("") } else { "" },
+                "chapterTitle": if readable { entry.json["chapterTitle"].as_str().unwrap_or("") } else { "" },
+                "expired": !readable,
                 "estimatedMinutes": entry.json.get("estimatedMinutes").and_then(|v| v.as_i64()).unwrap_or(0),
                 "sizeBytes": entry.size_bytes,
                 "savedAt": entry.json.get("savedAt").and_then(|v| v.as_i64()).unwrap_or(0),
                 "lastAccessedAt": entry.last_accessed_at,
+                "courseId": entry.json["courseId"],
+                "materialId": entry.json["materialId"],
+                "kind": entry.json["kind"],
+                "resourceKind": entry.json["resourceKind"],
+                "chapterIds": entry.json["chapterIds"],
+                "contentCursor": entry.json["contentCursor"],
+                "scopeKey": entry.json["scopeKey"],
+                "userId": entry.json["userId"],
+                "contentVersion": entry.json["contentVersion"],
+                "lastVerifiedAt": entry.json["lastVerifiedAt"],
+                "accessValidUntil": entry.json["accessValidUntil"],
+                "pinned": entry.json["pinned"],
             }));
         }
 
@@ -305,8 +337,8 @@ async fn list_offline_readings(app: AppHandle) -> Result<serde_json::Value, Stri
             "items": items,
             "count": entries.len(),
             "totalBytes": total_bytes,
-            "maxEntries": OFFLINE_MAX_ENTRIES,
-            "maxBytes": OFFLINE_MAX_TOTAL_BYTES,
+            "maxEntries": max_entries,
+            "maxBytes": max_bytes,
         }))
     })
     .await
@@ -316,6 +348,7 @@ async fn list_offline_readings(app: AppHandle) -> Result<serde_json::Value, Stri
 #[tauri::command]
 async fn get_offline_reading(app: AppHandle, key: String) -> Result<serde_json::Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
+        let _guard = offline_v2::STORE_LOCK.lock().map_err(|_| "Offline storage unavailable")?;
         let file_name = offline_key_to_filename(&key).ok_or_else(|| "Invalid key".to_string())?;
         let dir = offline_store_dir(&app)?;
         let target = dir.join(file_name);
@@ -326,6 +359,9 @@ async fn get_offline_reading(app: AppHandle, key: String) -> Result<serde_json::
             .map_err(|e| format!("Failed to read offline item: {e}"))?;
         let mut parsed: serde_json::Value =
             serde_json::from_str(&raw).map_err(|_| "Corrupt offline reading".to_string())?;
+        if !offline_v2::readable(&parsed, offline_v2::read_library(&dir).as_ref(), &get_desktop_server_origin(), offline_v2::now_ms()) {
+            return Ok(serde_json::json!({"reading":serde_json::Value::Null}));
+        }
         let now_ms = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_millis() as i64)
@@ -345,6 +381,7 @@ async fn get_offline_reading(app: AppHandle, key: String) -> Result<serde_json::
 #[tauri::command]
 async fn remove_offline_reading(app: AppHandle, key: String) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
+        let _guard = offline_v2::STORE_LOCK.lock().map_err(|_| "Offline storage unavailable")?;
         let Some(file_name) = offline_key_to_filename(&key) else {
             return Ok(());
         };
@@ -362,6 +399,7 @@ async fn remove_offline_reading(app: AppHandle, key: String) -> Result<(), Strin
 #[tauri::command]
 async fn clear_other_offline_users(app: AppHandle, user_id: String) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
+        let _guard = offline_v2::STORE_LOCK.lock().map_err(|_| "Offline storage unavailable")?;
         let dir = offline_store_dir(&app)?;
         let entries = load_all_offline_entries(&dir);
         for entry in entries {
@@ -372,6 +410,12 @@ async fn clear_other_offline_users(app: AppHandle, user_id: String) -> Result<()
                 .unwrap_or("");
             if user_id.is_empty() || owner != user_id {
                 let _ = std::fs::remove_file(entry.path);
+            }
+        }
+        if let Some(library) = offline_v2::read_library(&dir) {
+            if user_id.is_empty() || library["userId"].as_str() != Some(user_id.as_str()) {
+                offline_v2::STORE_GENERATION.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                let _ = std::fs::remove_file(dir.join(offline_v2::LIBRARY_FILE));
             }
         }
         Ok(())
@@ -1227,7 +1271,11 @@ pub fn run() {
             list_offline_readings,
             get_offline_reading,
             remove_offline_reading,
-            clear_other_offline_users
+            clear_other_offline_users,
+            offline_v2::save_offline_library_snapshot,
+            offline_v2::get_offline_library_snapshot,
+            offline_v2::clear_offline_library_snapshot,
+            offline_v2::offline_request
         ])
         .setup(move |app| {
             if has_updater_config(app.handle()) {
