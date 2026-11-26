@@ -25,6 +25,7 @@ export async function POST(req: Request) {
     }
 
     const formIdOrSlug = formIdentifier.trim();
+    const exactId = new URL(req.url).searchParams.get("target") === "id";
     const [form] = await db
       .select({
         slug: customForms.slug,
@@ -35,7 +36,7 @@ export async function POST(req: Request) {
       .from(customForms)
       .where(and(
         isNull(customForms.deletedAt),
-        or(eq(customForms.id, formIdOrSlug), eq(customForms.slug, formIdOrSlug.toLowerCase())),
+        exactId ? eq(customForms.id, formIdOrSlug) : or(eq(customForms.id, formIdOrSlug), eq(customForms.slug, formIdOrSlug.toLowerCase())),
       ))
       .limit(1);
     if (!form) {

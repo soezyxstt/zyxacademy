@@ -56,6 +56,7 @@ function fixture() {
     "@/db/schema": { customForms, customFormResponses: {} },
     "@/lib/auth": { auth: { api: { getSession: async () => current.user ? { user: current.user } : null } } },
     "@/lib/auth/authorization": { hasPeran: async (_id: string, role: string) => role === "admin" && current.isAdmin },
+    "@/lib/forms/short-entry": { findShortFormMeeting: async () => null },
     "@/lib/forms/file-types": fileTypes,
     "@/lib/forms/presentation": presentation,
     "@/lib/forms/response-policy": responsePolicy,
@@ -74,7 +75,7 @@ function fixture() {
     } };
     const source = readFileSync(path, "utf8");
     runInNewContext(transformSync(source, { loader: "ts", format: "cjs" }).code, {
-      module, exports: module.exports, require: (name: string) => modules[name] ?? require(name), File, crypto, console,
+      module, exports: module.exports, require: (name: string) => modules[name] ?? require(name), File, crypto, console, URL,
     });
     return module.exports.POST;
   }

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { customForms, googleMeetSessions } from "@/db/schema";
+import { findShortFormMeeting } from "@/lib/forms/short-entry";
 import { createMetadata } from "@/lib/site";
 import { getAppLocale, getTranslations } from "@/lib/i18n/server";
 
@@ -70,28 +71,8 @@ export default async function ShortFormPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const normalizedSlug = slug.toLowerCase();
-  const [formRows, meetRows] = await Promise.all([
-    db
-      .select({ id: customForms.id })
-      .from(customForms)
-      .where(and(eq(customForms.slug, normalizedSlug), isNull(customForms.deletedAt)))
-      .limit(1),
-    db
-      .select({ meetingUri: googleMeetSessions.meetingUri })
-      .from(googleMeetSessions)
-      .where(
-        and(
-          eq(googleMeetSessions.slug, normalizedSlug),
-          isNull(googleMeetSessions.deletedAt)
-        )
-      )
-      .limit(1),
-  ]);
-
-  if (formRows.length === 0 && meetRows[0]?.meetingUri) {
-    redirect(meetRows[0].meetingUri);
-  }
+  const meetingUri = await findShortFormMeeting(slug);
+  if (meetingUri) redirect(meetingUri);
 
   return <PublicFormViewer idOrSlug={slug} />;
 }

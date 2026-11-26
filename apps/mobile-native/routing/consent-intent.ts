@@ -1,3 +1,4 @@
+import { academicIntentPath } from "./academic-intent";
 import { NATIVE_BROWSER_SCHEME, rewriteNativeBrowserIntent } from "../auth/browser-intent";
 import { rewriteNativeAuthEntry } from "../auth/login-intent";
 import { NATIVE_STAGING_ORIGIN } from "../auth/session-api";
@@ -59,5 +60,5 @@ export const consentIntake = createConsentIntake();
 
 export function createNativeIntentRedirect(allocateConsentId: () => Promise<string>) {
   return ({ path }: { path: string; initial: boolean }) =>
-    consentIntake.capture(path, allocateConsentId) ?? rewriteNativeAuthEntry(path) ?? rewriteNativeBrowserIntent(path);
+    consentIntake.capture(path, allocateConsentId) ?? rewriteNativeAuthEntry(path) ?? academicIntentPath(path) ?? rewriteNativeBrowserIntent(path);
 }

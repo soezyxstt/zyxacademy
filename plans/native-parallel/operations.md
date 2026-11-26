@@ -12,7 +12,7 @@ git fetch origin
 git status --short --branch
 ```
 
-Baca **[aturan integrasi dan bukti](README.md)** dan **[daftar rute dengan pemilik](routes.tsv)** di `plans/native-parallel/`, lalu AGENTS.md, docs/mobile-native.md dan docs/native-readiness.md. Gunakan model Sol 6.2 high sebagai eksekutor, Terra 6.1 xhigh untuk inventaris bila tersedia, dan Astra 6.2 high untuk review. Penilaian akhir lintas jalur milik integrator.
+Baca **[aturan integrasi dan bukti](README.md)** dan **[daftar rute dengan pemilik](routes.tsv)** di `plans/native-parallel/`, lalu AGENTS.md, docs/mobile-native.md dan docs/native-readiness.md. Gunakan GPT-6.2 Sol Medium untuk eksekusi dan GPT-6.2 Sol High untuk review independen. Penilaian akhir lintas jalur milik integrator.
 
 Kamu memiliki **36 halaman Admin di luar grup academic** dan **13 halaman marketing selain sign-in, sign-up, sign-out**, total 49 halaman. Semua path ditandai operations di routes.tsv. Implementasi ada di `apps/mobile-native/features/operations/`. Cakupan mencakup Admin home, eval, content, blog, formulir, media, dokumentasi, meet, diskusi, harga, tautan, Ops/analitik serta halaman publik landing, blog, plans, download, demo, formulir, kebijakan, testimonial dan unsubscribe.
 

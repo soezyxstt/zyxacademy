@@ -41,6 +41,13 @@ test("Student assessment operations are limited to learner app sessions", () => 
   expect(entry.actions).toContain("submitTryout");
 });
 
+test("Expo download and storage recovery stay device-local", () => {
+  const entry = operationsCatalog.find(item => item.source === "apps/mobile-native/app/offline.tsx");
+  expect(entry?.status).toBe("excluded");
+  expect(entry?.tools).toEqual([]);
+  expect(entry?.actions).toEqual(["download", "forget", "revalidateSaved", "purgeUnavailable"]);
+});
+
 test("device sign-in, role context, photo recovery and OS permissions stay user-scoped", () => {
   for (const source of [
     "app/api/auth/native/expo/exchange/route.ts",
