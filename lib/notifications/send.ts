@@ -127,8 +127,8 @@ async function sendMulticast(
  webpush: {
  fcmOptions: { link: payload.link ?? "/dashboard" },
  notification: {
-          icon: "/brand/zyx-app-192.png",
-          badge: "/brand/zyx-logo-symbol-black@2x.png",
+          icon: "/brand/zyx-notif-icon-192.png",
+          badge: "/brand/zyx-notif-badge-96.png",
  },
  },
  android: {

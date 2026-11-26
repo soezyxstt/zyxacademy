@@ -10,6 +10,8 @@ const maxExpandedApkBytes = 64 * 1024 * 1024;
 const maxDexBytes = 32 * 1024 * 1024;
 const maxPackageBytes = 256 * 1024 * 1024;
 const nightlyTag = /^app-v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?-nightly\.\d{8}\.[a-f0-9]{7}$/;
+const stableTag = /^app-v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
+const maxBaseReleases = 5;
 const artifactSuffixes = [
   "-android.apk",
   "-windows-x64.exe",
@@ -20,6 +22,33 @@ const artifactSuffixes = [
   "-linux-x64.AppImage.tar.gz",
   "-linux-x64.deb",
 ];
+
+export function resolveDeltaReleaseChannel(tag, gitRef) {
+  if (nightlyTag.test(tag)) {
+    if (gitRef !== "refs/heads/staging") {
+      throw new Error("Nightly delta generation requires refs/heads/staging");
+    }
+    return {
+      channel: "nightly",
+      matchesTag: (candidate) => nightlyTag.test(candidate),
+      matchesAssetPrefix: (name) => name.startsWith("zyx-academy-nightly-"),
+      matchesReleaseKind: (release) => Boolean(release.isPrerelease),
+    };
+  }
+  if (stableTag.test(tag) && !tag.includes("-nightly")) {
+    if (gitRef !== "refs/heads/main") {
+      throw new Error("Stable delta generation requires refs/heads/main");
+    }
+    return {
+      channel: "stable",
+      matchesTag: (candidate) => stableTag.test(candidate) && !candidate.includes("-nightly"),
+      matchesAssetPrefix: (name) =>
+        name.startsWith("zyx-academy-") && !name.startsWith("zyx-academy-nightly-"),
+      matchesReleaseKind: () => true,
+    };
+  }
+  throw new Error(`Unsupported release tag for delta generation: ${tag}`);
+}
 
 function digest(bytes) {
   return createHash("sha256").update(bytes).digest();
@@ -281,9 +310,7 @@ function gh(args) {
 }
 
 function generate(directory, tag) {
-  if (!nightlyTag.test(tag) || process.env.GITHUB_REF !== "refs/heads/staging") {
-    throw new Error("Delta generation requires a staging Nightly release");
-  }
+  const channelConfig = resolveDeltaReleaseChannel(tag, process.env.GITHUB_REF);
   const files = readdirSync(directory);
   const installerTargets = new Map();
   for (const file of files) {
@@ -305,14 +332,14 @@ function generate(directory, tag) {
   ]));
   const bases = releases
     .filter((release) =>
-      !release.isDraft && release.isPrerelease && release.publishedAt &&
-      release.tagName !== tag && nightlyTag.test(release.tagName),
+      !release.isDraft && channelConfig.matchesReleaseKind(release) && release.publishedAt &&
+      release.tagName !== tag && channelConfig.matchesTag(release.tagName),
     )
     .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
-    .slice(0, 2);
+    .slice(0, maxBaseReleases);
 
   for (const release of bases) {
-    const directoryForBase = mkdtempSync(join(tmpdir(), "zyx-nightly-base-"));
+    const directoryForBase = mkdtempSync(join(tmpdir(), "zyx-delta-base-"));
     try {
       let assets;
       try {
@@ -322,9 +349,9 @@ function generate(directory, tag) {
         continue;
       }
       const pairs = artifactSuffixes.flatMap((suffix) => {
-        const target = files.find((file) => file.startsWith("zyx-academy-nightly-") && file.endsWith(suffix));
+        const target = files.find((file) => channelConfig.matchesAssetPrefix(file) && file.endsWith(suffix));
         const base = assets.find((asset) =>
-          asset.name.startsWith("zyx-academy-nightly-") &&
+          channelConfig.matchesAssetPrefix(asset.name) &&
           asset.name.endsWith(suffix) &&
           /^[a-zA-Z0-9.-]+$/.test(asset.name) &&
           asset.size <= maxPackageBytes,
