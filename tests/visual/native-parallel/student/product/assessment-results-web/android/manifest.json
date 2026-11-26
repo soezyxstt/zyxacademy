@@ -46,6 +46,13 @@
       "status": 200,
       "nativeResponse": "/api/native/student/assessment/assessment-evidence-mathematics/my-results/assessment-evidence-quiz-diagnosis-unavailable/summary",
       "sha256": "f7e770fdacfc6b1ac56f3102df9585e1d62ebc04e29d05824b84789fd70fbcba"
+    },
+    "quiz-summary-analytics-unavailable.png": {
+      "serverSha": "7bb492a8123a4fb27ebb832dd6994a94b865df09",
+      "path": "/courses/assessment-evidence-mathematics/quiz/assessment-evidence-limit-quiz/summary/assessment-evidence-quiz-diagnosis-unavailable",
+      "status": 200,
+      "nativeResponse": "/api/native/student/assessment/assessment-evidence-mathematics/quiz/assessment-evidence-limit-quiz/summary/assessment-evidence-quiz-diagnosis-unavailable",
+      "sha256": "a27e1dc5cccb92ac08c15d84d058627394124f7870a1496c73af12adfe745ae5"
     }
   }
 }
