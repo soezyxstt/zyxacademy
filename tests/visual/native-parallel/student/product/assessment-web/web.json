@@ -1,0 +1,24 @@
+{
+  "serverSha": "7d93b3a5984814ee382ccd36d9ceff8cb34abbcd",
+  "browser": "154.0.8037.57",
+  "theme": "light",
+  "locale": "id-ID",
+  "timeZone": "Asia/Jakarta",
+  "results": [
+    {
+      "id": "quiz-gateway",
+      "path": "/courses/assessment-evidence-mathematics/quiz/assessment-evidence-limit-quiz",
+      "status": 200,
+      "elapsedMs": 13970
+    },
+    {
+      "id": "quiz-draft-restored",
+      "path": "/courses/assessment-evidence-mathematics/quiz/assessment-evidence-limit-quiz?attemptId=assessment-evidence-quiz-active",
+      "status": 200,
+      "elapsedMs": 56272
+    }
+  ],
+  "width": 380,
+  "height": 820,
+  "dpr": 1
+}

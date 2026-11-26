@@ -28,6 +28,7 @@ Seluruh operasi di tabel dimiliki jalur Student. Operasi penulisan, moderasi, da
 - `tests/contracts/native-student-assessment.test.ts` menguji route handler di atas PGlite dengan autentikasi sintetis, tabel dan constraint PostgreSQL terpakai, tanpa database eksternal. Tes mencakup akun salah, sesi kedaluwarsa, kursus silang, pencabutan akses, pengulangan quiz dan tryout, kuota, proyeksi jawaban aktif, release, dan pemulihan draf.
 - `tests/visual/student-assessment-layout.spec.ts` dan `tests/visual/tryout-submission.spec.ts` memakai komponen web produksi dengan fixture sintetis. Chromium lokal lulus 5 skenario pada 380 × 844, DPR 1, bahasa Indonesia dan tema terang. Capture gateway kuis, hasil, dialog, dan pemulihan tryout disimpan di `artifacts/student-evidence/assessment-web/`. Harness fixture memakai font fallback saat memuat komponen ini.
 - `tests/visual/native-parallel/student/assessment-reference.spec.ts` memuat gateway kuis dan hasil web menggunakan aset Inter dan Lexend dari Expo. Dua pengujian lulus dan menghasilkan delapan tangkapan layar pada 380 × 844, DPR 1, bahasa Indonesia, zona Asia/Jakarta dan tema terang serta gelap. Hasil lokal berada di `artifacts/student-evidence/assessment-themed-web/`.
+- Capture web produk memakai halaman Next.js untuk peserta sintetis di PostgreSQL loopback. Metadata mencantumkan SHA server, Chromium, viewport 380 × 820, DPR 1, tema terang, locale id-ID dan zona Asia/Jakarta. Capture gateway kuis memeriksa petunjuk. Capture draf kuis memilih jawaban, memeriksa penyimpanan browser, memuat ulang halaman, lalu memeriksa bahwa jawaban masih terpilih. [Manifest web produk](../../../../tests/visual/native-parallel/student/product/assessment-web/web.json)
 - Run kontrak lokal meluluskan 34 tes dari empat suite termasuk regresi kuis dan Tutor yang sudah ada. Pengujian ulang meluluskan 17 tes asesmen, akses kuis bebas dan katalog MCP, termasuk proyeksi soal historis, unggah multipart tryout, penyelesaian koleksi dengan bab kanonik, serta template tahap PKA lama berjenis `chapter`. Sepuluh tes pengendali foto Expo dan delapan tes file Expo lulus, termasuk pemulihan Android yang terikat draf, pembuangan hasil lama, tipe file, dan batas byte.
 
 ```sh
@@ -35,6 +36,16 @@ bun scripts/test-contracts.ts tests/contracts/native-student-assessment.test.ts 
 npm run typecheck --prefix apps/mobile-native
 PLAYWRIGHT_BASE_URL=http://127.0.0.1:9 PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium bunx playwright test tests/visual/student-assessment-layout.spec.ts tests/visual/tryout-submission.spec.ts --project=mobile-380 --output=artifacts/student-evidence/assessment-web
 ```
+
+Untuk mengulang capture produk, siapkan Next.js dan PostgreSQL di loopback. Seed mengatur akun khusus asesmen, memperbarui awal percobaan kuis, dan membuat data hasil sintetis. Capture menjalankan satu browser secara berurutan, memeriksa kesalahan hidrasi dan lebar halaman, serta memakai status pengingat yang sebelumnya ditunda oleh akun sintetis. [Setup server dan database](../../../../tests/visual/native-parallel/student/product/README.md)
+
+```sh
+bun --env-file=.env.local tests/visual/native-parallel/student/product/assessment-seed.ts
+STUDENT_SERVER_SHA=$(git rev-parse HEAD) \
+  bun --env-file=.env.local tests/visual/native-parallel/student/product/assessment-capture.ts
+```
+
+`STUDENT_ASSESSMENT_CAPTURE_CASES` menerima daftar ID skenario yang dipisahkan koma untuk menjalankan sebagian kasus. `STUDENT_CAPTURE_DIR` dapat mengarahkan PNG dan manifest ke direktori lain. Manifest memuat kesalahan assertion, hidrasi, atau runtime untuk tiap kasus yang gagal.
 
 Draf memakai store terikat akun dan origin. Bila store yang dikonfigurasi melaporkan gagal membaca atau menyimpan identitas pengiriman, UI memberi tindakan ulang sebelum mutasi berjalan. `VerifiedStudentEntry` menyediakan pilihan foto dan dokumen pada soal yang mengizinkannya. Foto galeri dipulihkan pada Android jika sesi, origin, locale, rute, percobaan, draf dan soal masih cocok. `scopedFiles` menyalin dokumen pilihan ke cache privat, memverifikasi header file dan ukuran, dan mengikat hasil ke target draf yang sama. File sementara dilepas saat unggah selesai, gagal, atau target tidak aktif lagi. Pemulihan dokumen setelah proses mati memerlukan pemilihan ulang.
 
