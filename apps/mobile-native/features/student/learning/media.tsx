@@ -14,19 +14,6 @@ const useLiveQuizSocket = createLiveQuizSocketHook({ useCallback, useEffect, use
 
 type Ready<View extends LearningData["view"]> = Extract<LearningData, { state: "ready"; view: View }>;
 
-export function PlaygroundContent({ props }: { props: StudentScreenProps }) {
-  const [failed, setFailed] = useState(false);
-  const isEnglish = english(props.session.locale);
-  const path = courseHref(props.route.params.id, "/playground");
-  const handoff = props.route.query.handoff;
-  return <Section>
-    <Button style={styles.action} onPress={() => setFailed(!launchWeb(props, handoff ? `${path}?handoff=${encodeURIComponent(handoff)}` : path))}>
-      {isEnglish ? "Open Python playground" : "Buka Playground Python"}
-    </Button>
-    {failed ? <Message>{isEnglish ? "The Python editor is unavailable in this app." : "Editor Python tidak tersedia di aplikasi ini."}</Message> : null}
-  </Section>;
-}
-
 export function VideoContent({ data, props, t }: { data: Ready<"video">; props: StudentScreenProps; t: Translate }) {
   const [search, setSearch] = useState("");
   const [chapterId, setChapterId] = useState<string | null>(null);

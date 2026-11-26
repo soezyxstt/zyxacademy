@@ -1,3 +1,4 @@
+import { PlaygroundContent } from "./playground";
 import { useEffect, useState } from "react";
 import { ActivityIndicator } from "react-native";
 import { courseHref, learningRequestPath, learningRouteViews, liveHostPattern, type LearningData, type LearningView } from "../../../../../packages/native-parity/student/learning/contracts";
@@ -6,7 +7,7 @@ import { tutorLiveDestination } from "../../../routing/live-host-alias";
 import { CourseScreen } from "../courses";
 import { FlashcardsPage } from "./flashcards";
 import { ConceptContent, MasteryContent, ProgressContent, StudyPathContent } from "./knowledge";
-import { LiveContent, PlaygroundContent, VideoContent } from "./media";
+import { LiveContent, VideoContent } from "./media";
 import { PkaHomeContent, PkaReportContent, PkaScheduleContent, PkaSimulationContent, PkaStageContent, pkaStageTitle } from "./pka";
 import { Copy, LearningPage, Message, Section, english, readJson, RequestError, translator, type Translate } from "./ui";
 

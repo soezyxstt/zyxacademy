@@ -130,6 +130,7 @@ function scenarioPath(courseId: string): StudyPathData {
 export function createLearningFixtureRequest(scenario: LearningFixtureScenario = "enrolled"): FixtureRequest {
   const removedAnnouncements = new Set<string>();
   const reviewedCards = new Set<string>();
+  const codingDrafts = new Map<string, { code: string; stdin: string; revision: number }>();
   let flashcardRejectionPending = scenario === flashcardEvidence.scenario;
   const failedReads = new Set<string>();
   const stageResults = new Set([stageComplete]);
@@ -142,6 +143,21 @@ export function createLearningFixtureRequest(scenario: LearningFixtureScenario =
     }
     const url = new URL(path, "https://student.fixture.invalid");
     const fail = (status = 404) => json({ error: "Unavailable" }, status);
+    if (url.pathname === "/api/coding/drafts") {
+      const learner = new Headers(init?.headers).get("x-student-id");
+      if (!learner || scenario === "revoked" || scenario === "no-enrollment") return fail(403);
+      if (init?.method === "PUT") {
+        const body = JSON.parse(String(init.body));
+        const key = JSON.stringify([learner, body.courseId, body.draftKey]);
+        const previous = codingDrafts.get(key);
+        if ((previous?.revision ?? 0) !== body.revision) return fail(409);
+        const revision = body.revision + 1;
+        codingDrafts.set(key, { code: body.code, stdin: body.stdin, revision });
+        return json({ revision });
+      }
+      const key = JSON.stringify([learner, url.searchParams.get("courseId"), url.searchParams.get("draftKey")]);
+      return json({ draft: codingDrafts.get(key) ?? null });
+    }
     if (isPkaLearningFixturePath(path)) return pkaAssessmentFixture(url, init, stageResults, stageStarted, scenario);
     if (url.pathname === learningApi) {
       if (init?.method === "POST") {
