@@ -1,13 +1,17 @@
 import { calendarFixtureForScenario } from "./community/calendar-fixture";
 import { createAssessmentFixtureRequest, assessmentFixtureScenarios } from "./assessment/fixtures";
+import { signedResultsFixtureRequest, signedResultsFixtureScenario } from "./assessment/signed-results-fixture";
 import { quizPlayerEvidence, quizPlayerFixtureRequest } from "./assessment/quiz-player-fixture";
 import { isCommunityFixturePath, createCommunityFixtureRequest } from "./community/fixtures";
 import { createCourseFixtureRequest, courseFixtureScenarios } from "./courses/fixtures";
 import { createLearningFixtureRequest, isPkaLearningFixturePath, type LearningFixtureScenario } from "./learning/fixtures";
+import { createPkaReferenceRequest } from "./learning/pka-reference";
 import { flashcardEvidence } from "./learning/flashcard-fixture";
 import { dashboardFixtureState, readDashboardFixture } from "./dashboard/fixtures";
 
 export function createStudentFixtureRequest(scenario: string) {
+  if (scenario === signedResultsFixtureScenario) return signedResultsFixtureRequest;
+  if (scenario === "pka-signed-member" || scenario === "pka-signed-visitor") return createPkaReferenceRequest(scenario);
   if (scenario === quizPlayerEvidence.scenario) return quizPlayerFixtureRequest;
   const dashboardState = dashboardFixtureState(scenario);
   const courses = createCourseFixtureRequest(dashboardState ? `course-material-${dashboardState}`

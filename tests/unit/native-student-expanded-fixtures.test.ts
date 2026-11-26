@@ -7,9 +7,41 @@ import { createCommunityFixtureRequest } from "../../packages/native-parity/stud
 import { createCourseFixtureRequest } from "../../packages/native-parity/student/courses/fixtures";
 import { createLearningFixtureRequest } from "../../packages/native-parity/student/learning/fixtures";
 
+import { createStudentFixtureRequest } from "../../packages/native-parity/student/fixture-request";
+import signedResults from "../../packages/native-parity/student/assessment/signed-results-responses.json";
+import signedPka from "../../packages/native-parity/student/learning/pka-reference.json";
+import { learningApi } from "../../packages/native-parity/student/learning/contracts";
+
 const longText = "Jelaskan hubungan koefisien dengan perubahan gradien";
 
 describe("Student smoke fixture behavior", () => {
+  test("signed result fixtures replay only the recorded owner reads", async () => {
+    const read = createStudentFixtureRequest("assessment-signed-results");
+    for (const [path, expected] of Object.entries(signedResults)) {
+      const result = await read(path);
+      expect(result.status).toBe(200);
+      expect(await result.json()).toEqual(expected);
+      expect((await read(path, { method: "POST" })).status).toBe(404);
+    }
+    expect((await read("/api/native/student/courses?view=dashboard")).status).toBe(404);
+  });
+
+  test("signed PKA fixtures retain each account's own receipts and reject unsupported requests", async () => {
+    for (const actor of ["member", "visitor"] as const) {
+      const read = createStudentFixtureRequest(`pka-signed-${actor}`);
+      for (const [view, expected] of Object.entries(signedPka[actor])) {
+        const result = await read(`${learningApi}?view=${view}&locale=id`);
+        expect(result.status).toBe(200);
+        expect(await result.json()).toEqual(expected);
+      }
+      const home = `${learningApi}?view=pka-home`;
+      expect((await read(home + "&view=pka-report")).status).toBe(400);
+      expect((await read(home, { method: "POST" })).status).toBe(405);
+      expect((await read(`${learningApi}?view=mastery`)).status).toBe(404);
+      expect((await read("/api/native/student/courses?view=dashboard")).status).toBe(404);
+    }
+  });
+
   test("fixture links preserve flat discussion and catalog selectors after reading the outer URI", () => {
     const discussion = new URL("zyx-native-parity://student-fixture?scenario=loaded&path=/discussions&query_channel=channel-math&query_thread=thread-limit&query_message=message-limit");
     const catalog = new URL("zyx-native-parity://student-fixture?scenario=catalog-parity&path=/courses&query_jurusan=tpb&query_q=no-match");
