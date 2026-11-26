@@ -39,3 +39,9 @@ bun --env-file=.env.local tests/visual/native-parallel/student/product/assessmen
 ```
 
 Smoke HTTP memakai sesi peserta sintetis yang ditandatangani dan resource sementara. Pengujian memeriksa identitas yang sama ketika permintaan mulai atau kirim diulang, jumlah rekaman tersimpan, pelepasan pembahasan, hasil dan kuota, serta penolakan ketika hasil diminta oleh peserta lain.
+
+### Pengujian HTTP pada `e2b8f44a`
+
+Kedua skrip lulus pada checkout bersih `e2b8f44a7885a87e20eb2ff71f937ed66aae7218`, dengan Next.js 16.3.0 Turbopack dan PostgreSQL 16.13 di loopback. Database uji `student_evidence` memakai 49 migrasi dari jurnal Drizzle, seed kursus untuk tiga akun sintetis, dan seed asesmen untuk dua sesi tambahan. Skrip kursus menerima 18 respons 200 untuk enam proyeksi pada tiga akun, tiga 409 saat identitas akun tidak cocok, serta tiga 404 untuk dokumen yang tidak dikenal. Status enrollment dan penguncian dokumen sesuai dengan seed.
+
+Skrip asesmen menerima sembilan respons 200, tiga 201, dua 404, dan satu 409. Seluruh respons asesmen memakai `private, no-store`. Pengulangan mulai dan pengumpulan kuis serta pengulangan pengumpulan tryout mempertahankan identitas hasil dan menyimpan satu percobaan serta satu pengumpulan. Kedua skor bernilai 100. Pembahasan kuis baru terbuka setelah kuis ditutup. Permintaan tryout baru setelah kuota habis mendapat 409. Peserta kedua yang terdaftar memperoleh daftar hasil pribadi kosong dan 404 saat membuka kedua hasil milik peserta pertama. Setelah skrip selesai, pemeriksaan database menemukan nol rekaman asesmen sementara pada tabel kursus, enrollment, kuis, tryout, soal, percobaan, dan pengumpulan yang diperiksa. Kedua layanan uji dihentikan.
