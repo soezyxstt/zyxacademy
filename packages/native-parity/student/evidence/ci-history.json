@@ -205,6 +205,87 @@
       "ios": {
         "jobId": 139891825357,
         "status": "pending_at_observation"
+      },
+      "laterObservations": [
+        {
+          "observedAt": "2026-11-26T12:36:38Z",
+          "android": {
+            "jobId": 139891824953,
+            "status": "device_flows_completed_with_failures",
+            "reason": "Maestro reported 199 captured smoke passes, one preference confirmation assertion failure and three blocked cases. Fifteen of 18 standalone scenarios passed. Restoring the long material list passed the bounded pixel check, and all three matched catalog images differed from web.",
+            "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45814465447/artifacts/15117816864",
+            "summaryCounts": {
+              "passed": 199,
+              "blocked": 3,
+              "failed": 1
+            },
+            "standaloneCounts": {
+              "passed": 15,
+              "failed": 3
+            },
+            "comparison": [
+              {
+                "id": "catalog-all",
+                "status": "different",
+                "differing_pixels": 53263,
+                "max_channel_difference": 227
+              },
+              {
+                "id": "catalog-tpb",
+                "status": "different",
+                "differing_pixels": 45212,
+                "max_channel_difference": 227
+              },
+              {
+                "id": "catalog-pka",
+                "status": "different",
+                "differing_pixels": 28345,
+                "max_channel_difference": 227
+              }
+            ],
+            "scrollRestoration": {
+              "status": "pass",
+              "region": [
+                38,
+                205,
+                342,
+                615
+              ],
+              "dimensions": [
+                380,
+                820
+              ],
+              "different_pixels": 0,
+              "before": "results/2026-11-26_121622/Student course long material list fixture/takeScreenshot/student-long-content.png",
+              "after": "results/2026-11-26_121622/Student course long material list fixture/takeScreenshot/student-long-content-restored.png"
+            }
+          },
+          "ios": {
+            "jobId": 139891825357,
+            "status": "cancelled_before_device_flows"
+          }
+        }
+      ]
+    },
+    {
+      "runId": 45818468369,
+      "sourceHead": "379dbde47ad55e7689b5bf6e65f4812e5549063d",
+      "url": "https://github.com/soezyxstt/zyxacademy/actions/runs/45818468369",
+      "observedAt": "2026-11-26T12:36:38Z",
+      "web": {
+        "jobId": 139904215092,
+        "status": "passed",
+        "details": "The workflow captured synthetic catalog, flashcard, calendar and assessment web references.",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45818468369/artifacts/15116826047"
+      },
+      "android": {
+        "jobId": 139905770183,
+        "status": "in_progress_at_observation",
+        "details": "Android release build in progress."
+      },
+      "ios": {
+        "jobId": 139905770793,
+        "status": "pending_at_observation"
       }
     }
   ]
