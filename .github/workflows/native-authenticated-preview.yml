@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: native-authenticated-preview-${{ github.event.pull_request.number || github.ref }}
+  group: native-authenticated-preview-${{ github.event.pull_request.number || github.ref }}${{ inputs.staff && '-staff' || '' }}
   cancel-in-progress: true
 
 jobs:
