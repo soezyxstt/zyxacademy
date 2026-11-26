@@ -65,7 +65,9 @@ describe("Course Catalog Stats Batch Projection", () => {
     expect(afterDashboard).toBeGreaterThan(0);
     const catalog = await attachCourseCatalogStats([second, first]);
     expect(queryCounter).toBe(afterDashboard);
-    expect(catalog[0]?.materialsCount).toBe(dashboard.get(second.id)?.materialsCount);
+    const expected = dashboard.get(second.id);
+    if (!expected) throw new Error("Missing catalog stats for the second course");
+    expect(catalog[0]?.materialsCount).toBe(expected.materialsCount);
     await attachCourseCatalogStats([{ ...first, canonicalId: "different-canonical" }, second]);
     expect(queryCounter).toBeGreaterThan(afterDashboard);
   });

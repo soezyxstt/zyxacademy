@@ -103,7 +103,7 @@ test("the schedule action scopes queries to the resolved course and the current 
     getJakartaNow: () => new Date("2026-11-14T00:00:00Z"), daysFrom: (_offset: number, date: Date) => date,
     getWeekScheduleDays: () => ({ days: [{ dateIso: "2026-11-09" }] }), getIsoWeekRange: () => ({ startIso: "2026-11-09", endIso: "2026-11-15" }),
     getStudentAcademicCalendar: async (_start: string, _end: string, courseIds?: string[]) =>
-      schedules.filter(row => row.status === "published" && (!courseIds || courseIds.includes(row.courseId))),
+      schedules.filter(row => row.status === "published" && (!courseIds || (row.courseId !== null && courseIds.includes(row.courseId)))),
     getGroupWeeklyUsage: async () => new Map(), listStudentEnrollments: async () => [{ id: "legacy-a" }, { id: "b" }], occupiesTutorSlot: () => ({}),
   });
   for (const alias of ["canonical-a", "legacy-a"]) {

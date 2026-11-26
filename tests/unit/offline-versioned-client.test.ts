@@ -85,7 +85,7 @@ test("required image failures reject the new package instead of declaring it off
 
 function fixture() {
   setOfflineScope(scope);
-  let stored = { ...emptyOfflineSnapshot(scope), syncCursor: "1", lastVerifiedAt: now - 1000, accessValidUntil: now + 3600_000, courses: [{ id: "course", title: "Fisika" }] };
+  let stored: ReturnType<typeof emptyOfflineSnapshot> = { ...emptyOfflineSnapshot(scope), syncCursor: "1", lastVerifiedAt: now - 1000, accessValidUntil: now + 3600_000, courses: [{ id: "course", title: "Fisika" }] };
   const records = new Map([[key, reading({ pinned: true })]]);
   let rejectPackage = false;
   let writes = 0;

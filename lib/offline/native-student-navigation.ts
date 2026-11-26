@@ -5,7 +5,7 @@ import id from "@/messages/id/student.json";
 import commonEn from "@/messages/en/common.json";
 import commonId from "@/messages/id/common.json";
 import { OFFLINE_LIBRARY_COPY } from "./library-copy";
-import type { OfflineMetadataSnapshot } from "./library-contract";
+import type { NativeOfflineLibrarySnapshot } from "./library-contract";
 
 type Locale = "id" | "en";
 type Icon = keyof typeof NATIVE_NAV_ICONS;
@@ -41,7 +41,7 @@ function label(element: HTMLElement, text: string) {
 export function mountNativeStudentNavigation(
   locale: Locale,
   wide: boolean,
-  snapshot: OfflineMetadataSnapshot | null,
+  snapshot: NativeOfflineLibrarySnapshot | null,
   searchReadings: (query: string) => { title: string; open: () => void }[],
 ) {
   const chrome = document.getElementById("student-navigation");
