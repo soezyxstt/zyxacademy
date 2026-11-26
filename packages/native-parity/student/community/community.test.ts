@@ -71,6 +71,31 @@ test("community fixture recovery is scoped to its own transport and retry keeps 
   expect(isolated.items).toHaveLength(0);
 });
 
+test("a selected discussion alias can post and reopen one scoped answer", async () => {
+  const pathname = studentCommunityAlias("/discussions", "/discussions?channel=channel-math&thread=thread-limit&message=message-limit")!;
+  const route = new URL(pathname, "https://student.fixture.invalid");
+  const workspace = `/api/discussions/workspace?view=thread&threadId=${route.searchParams.get("thread")}`;
+  const request = createCommunityFixtureRequest();
+  const selected = await (await request(`${workspace}&messageId=${route.searchParams.get("message")}`, { method: "POST" })).json();
+  expect(selected.thread).toMatchObject({ channelId: route.searchParams.get("channel"), answerCount: 0 });
+  expect(selected.messages.items).toMatchObject([{ id: "message-limit", messageType: "question" }]);
+
+  const body = "Periksa nilai dari kedua sisi titik sambung.";
+  const init = { method: "POST", body: JSON.stringify({ action: "answer", input: {
+    threadId: selected.thread.id, requestId: "scope-answer", body, askZyra: false, attachmentIds: [], mentionIds: [],
+  } }) };
+  const sent = await (await request(base + "discussion", init)).json();
+  expect(sent).toMatchObject({ ok: true, value: { threadId: selected.thread.id } });
+  expect(await (await request(base + "discussion", init)).json()).toEqual(sent);
+
+  const reopened = await (await request(`${workspace}&messageId=${sent.value.messageId}`, { method: "POST" })).json();
+  expect(reopened.thread).toMatchObject({ answerCount: 1 });
+  expect(reopened.messages.items).toMatchObject([
+    { id: "message-limit", messageType: "question" },
+    { id: sent.value.messageId, threadId: selected.thread.id, messageType: "answer", body },
+  ]);
+});
+
 test("schedule recovery fails the primary read even when sync status starts first", async () => {
   const request = createCommunityFixtureRequest("unavailable");
   const [sync, schedule] = await Promise.allSettled([

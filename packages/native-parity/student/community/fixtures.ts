@@ -202,7 +202,12 @@ export function createCommunityFixtureRequest(scenario: CommunityFixtureScenario
               ...sampleThread, id: target.threadId, channelId: draft.channelId,
               title: draft.title || draft.body.split("\n")[0].slice(0, 160), unreadCount: 0,
             });
+            const messageType: DiscussionMessage["messageType"] = input.action === "answer" || input.action === "reply" || input.action === "forward"
+              ? input.action : "question";
+            const thread = threads.find(item => item.id === target.threadId);
+            if (thread && messageType === "answer") thread.answerCount += 1;
             messages.push({ ...sampleMessage, id: target.messageId, threadId: target.threadId, body: draft?.body ?? sampleMessage.body,
+              messageType,
               seq: messages.filter(item => item.threadId === target.threadId).length + 1,
               author: { id: "aruni", name: profile.account.name, role: "student" }, canEdit: true, canDelete: true, canReport: false });
             sendReplays.set(id, target);
