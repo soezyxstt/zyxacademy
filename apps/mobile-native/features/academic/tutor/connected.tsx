@@ -1,3 +1,4 @@
+import { useStaffChromeVisibility } from "../../../routing/staff-chrome-visibility";
 import { useEffect, useRef, useState, type ComponentRef } from "react";
 import { randomUUID } from "expo-crypto";
 import { openBrowserAsync } from "expo-web-browser";
@@ -593,6 +594,7 @@ export function ConnectedVideos({ data, theme, back, playback }: Navigation & { 
 }
 
 export function ConnectedLive({ data, theme, back, courseTitle, refresh }: Navigation & { data: TutorLiveData; courseTitle?: string; refresh(): void }) {
+  useStaffChromeVisibility({ hideBottom: Boolean(data.active) });
   return <TutorPage title="Kuis langsung" subtitle={courseTitle} theme={theme} onBack={back}>
     {!data.configured ? <Empty theme={theme} title="Kuis langsung belum tersedia" /> : <>
       {data.active ? <View>

@@ -1,3 +1,4 @@
+import { useStaffChromeVisibility } from "../../../routing/staff-chrome-visibility";
 import { useState } from "react";
 import { View } from "react-native";
 import { DEFAULT_ICON, EMOJI_OPTIONS, LINK_COLORS, LINK_CATEGORY_SUGGESTIONS, isValidHttpUrl } from "../../../../../lib/links";
@@ -145,6 +146,7 @@ export function Discussions() {
   const threads = useRead("discussions", { cursor: pages.cursor, search: search.trim(), status: filter === "all" ? undefined : filter });
   const matching = threads.data?.items;
   const thread = matching?.find(item => item.id === active);
+  useStaffChromeVisibility({ hideTop: Boolean(thread), hideBottom: Boolean(thread) });
   if (thread) return <DiscussionDetail key={thread.id} thread={thread} onBack={() => setActive(undefined)} reload={threads.reload} />;
   return <Screen title="Diskusi">
     <Field label="Cari diskusi" value={search} onChangeText={next => { setSearch(next); pages.reset(); }} />

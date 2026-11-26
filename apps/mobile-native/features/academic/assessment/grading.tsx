@@ -1,3 +1,4 @@
+import { useStaffChromeVisibility } from "../../../routing/staff-chrome-visibility";
 import { useCallback, useState } from "react";
 import { View } from "react-native";
 import {
@@ -59,6 +60,7 @@ function matchesSearch(attempt: QuizAttemptSummary, search: string) {
 
 export function QuizGrading({ gateway, context, base, replace, query }: Props) {
   const [attemptId, setAttemptId] = useState(query.attemptId || "");
+  useStaffChromeVisibility({ hideTop: Boolean(attemptId), hideBottom: Boolean(attemptId) });
   const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
