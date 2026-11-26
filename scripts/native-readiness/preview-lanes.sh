@@ -72,6 +72,13 @@ for lane in shared-ui student academic operations; do
           git checkout --ours -- "$conflict"
           git add -- "$conflict"
           ;;
+        apps/mobile-native/routing/session-stack.ts:7f1f00ba7433da1cd26709edcc8b40345862f880|\
+        tests/unit/expo-session-stack.test.ts:39a83342c67960e32ff0916440045caebd78ae60|\
+        tests/unit/expo-academic-intent.test.ts:7ab11a7a699cb8f66374f43cc23fd1d7c3e422ee)
+          # Keep the composed router guards and the focused checks from both lanes.
+          git checkout --ours -- "$conflict"
+          git add -- "$conflict"
+          ;;
         tests/unit/expo-offline-reading-packages.test.ts:5eab0fc27151af0a5440c336858b113dad4bc9d4|\
         tests/unit/expo-offline-reading-packages.test.ts:b8c9db1601762a4cb67caeeac5cd5da3018670da)
           # Both lanes only typed the same example. The host retains the
@@ -85,7 +92,7 @@ for lane in shared-ui student academic operations; do
           python3 scripts/native-readiness/merge-catalog-preview.py
           git add -- "$conflict"
           ;;
-        app/actions/tutor-management.ts:12f2cf10a8aa9689c4b1cecd00ee789905bb4430|\
+        app/actions/tutor-management.ts:cc4f3739af8158d6348c1dc3f91404c1d4d8cad3|\
         tests/gamification/question-disclosure-calls.test.ts:4885627aaf0124bedf92991befcc551bf05fbb58|\
         apps/mobile-native/offline/library-view.tsx:e5effb595b5d85823a8ac9973d6c1549b9a64b35|\
         tests/contracts/admin-mcp-catalog.test.ts:*)

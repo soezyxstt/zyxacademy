@@ -10,7 +10,7 @@ name: Formatted date content and invalid date omission
     text: 12 Jan 2025
 - assertVisible:
     id: formatted-date-cache-en-dark-value
-    text: Jan 12, 2025(?:,| at)\s+12:05\s+AM
+    text: Jan 12, 2025(?:,| at)\s+12:05[\s\u00A0\u202F]+AM
 - assertVisible: Minggu 2025-unknown
 - assertNotVisible:
     id: formatted-date-reflection-invalid-light-value

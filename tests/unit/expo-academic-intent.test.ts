@@ -19,6 +19,15 @@ test("the host router preserves both exact Academic aliases and their encoded pa
   }
 });
 
+test("Expo's native intent entry delegates Academic aliases to the host router", async () => {
+  const { redirectSystemPath } = await import("../../apps/mobile-native/app/+native-intent");
+  const query = new URLSearchParams({ path: "/admin/users?search=Adi%20%26%20Dewi", role: "admin" });
+  for (const alias of ["academic", "internal/academic"]) {
+    expect(await redirectSystemPath({ path: `zyx-native-parity://${alias}?${query}`, initial: true }))
+      .toBe(`/${alias}?${query}`);
+  }
+});
+
 test("Academic aliases share dispatch with existing consent and auth across unrecognized paths", async () => {
   let allocated = 0;
   const redirect = createNativeIntentRedirect(async () => `academic-intent-test-${++allocated}`);
