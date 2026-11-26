@@ -1,4 +1,5 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 import { studentPatterns, matchStudentRoute, type StudentArea } from "../../../../apps/mobile-native/features/student/routes";
 import { studentCourseCases, courseFixtureScenarios } from "../../../../packages/native-parity/student/courses/fixtures";
@@ -235,7 +236,10 @@ for (const [index, entry] of cases.entries()) {
 }
 const routes = webRoutes.map(source => ({ source, cases: cases.filter(item => item.source === source) }));
 if (routes.some(route => !route.cases.length)) throw new Error("A Student route has no declared fixture scenario");
-await writeFile(join(out, "manifest.json"), JSON.stringify({ status: "generated_not_executed",
+const sourceHead = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+const workflowRun = process.env.GITHUB_SERVER_URL && process.env.GITHUB_REPOSITORY && process.env.GITHUB_RUN_ID
+  ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}` : null;
+await writeFile(join(out, "manifest.json"), JSON.stringify({ status: "generated_not_executed", sourceHead, workflowRun,
   limitations: ["A requested theme is not independently verified by a screenshot assertion.",
     "Smoke checks do not establish permission behavior, parity, or backend integration."], routes }, null, 2) + "\n");
 console.log(JSON.stringify({ routes: routes.length, cases: cases.length, ready: cases.filter(item => item.marker).length, blocked: cases.filter(item => !item.marker).length }));

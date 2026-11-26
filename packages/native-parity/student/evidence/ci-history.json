@@ -1,0 +1,47 @@
+{
+  "runs": [
+    {
+      "runId": 45801396810,
+      "sourceHead": "e6c4cf311f8bf5a7833605bc09345fc5c5bf5e75",
+      "url": "https://github.com/soezyxstt/zyxacademy/actions/runs/45801396810",
+      "observedAt": "2026-11-26T11:01:00Z",
+      "web": {
+        "jobId": 139845230163,
+        "status": "failed",
+        "reason": "Catalog TPB filter assertion failed before all requested web captures. Later local fixture captures have separate provenance."
+      },
+      "android": {
+        "jobId": 139845961701,
+        "status": "build_failed_before_device_flows",
+        "reason": "Metro could not resolve react-native/asset-registry for public/founders/adi.jpeg.",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45801396810/artifacts/15107438037"
+      },
+      "ios": {
+        "jobId": 139845961719,
+        "status": "build_failed_before_device_flows",
+        "reason": "Expo could not open the missing ~/.expo/devicectl-exists path.",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45801396810/artifacts/15108093130"
+      }
+    },
+    {
+      "runId": 45803927675,
+      "sourceHead": "81bb06096f64e858cfc17241661397536c591490",
+      "url": "https://github.com/soezyxstt/zyxacademy/actions/runs/45803927675",
+      "observedAt": "2026-11-26T11:01:00Z",
+      "web": {
+        "jobId": 139854635103,
+        "status": "passed",
+        "details": "Six Playwright tests passed: catalog, calendar, quiz player, and light/dark assessment references. Catalog captures were also generated.",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45803927675/artifacts/15108313389"
+      },
+      "android": {
+        "jobId": 139855852676,
+        "status": "in_progress_at_observation"
+      },
+      "ios": {
+        "jobId": 139855852683,
+        "status": "queued_at_observation"
+      }
+    }
+  ]
+}
