@@ -40,6 +40,10 @@ Tutor Expo dapat membuka lampiran PDF atau gambar pada jawaban kuis yang telah d
 
 Build produk Expo mengutamakan tujuan dari tautan langsung atau login. Jika tujuan tidak diberikan, aplikasi mencoba membuka rute produk terakhir yang difokuskan dalam 24 jam untuk origin, akun, dan sesi yang sama. Rute harus terpasang dan sesuai peran saat ini. Pemeriksaan akses data tetap dilakukan oleh layar dan API masing-masing. Rute publik, auth, MCP, API, pengelolaan kredensial, fragmen, dan parameter di luar daftar yang didukung tidak disimpan. Keluar atau pencabutan akses akun membersihkan riwayat sesi. Dashboard peran dipakai ketika riwayat tidak bisa dibuka. [Riwayat rute Expo](../apps/mobile-native/routing/route-history.ts).
 
+## Admin Ops AI
+
+Zyx Ops AI di Expo menyimpan chat dan pilihan chat aktif di perangkat, terpisah menurut akun Admin dan origin API. Admin dapat melanjutkan, memilih, membersihkan, atau menghapus chat. Isi token aktivasi disamarkan di riwayat. Setelah koneksi aksi terputus, **Periksa hasil** memakai proposal dan pilihan persetujuan yang sama dalam sesi yang mengirimkannya. Tautan sitasi navigasi hanya muncul untuk halaman Admin native yang tersedia. Riwayat, navigasi, dan pemulihan ini memakai transport Admin dan kontrak persetujuan yang sudah ada. Tool, scope, consent, discovery, playbook, skill, prompt host dan binding MCP mengikuti kontrak yang terdaftar. [Ruang Ops AI](../apps/mobile-native/features/operations/ops-ai/OpsAiWorkspace.tsx), [katalog operasi](../lib/admin-mcp/operations-catalog.ts).
+
 ## Halaman publik di browser
 
 Halaman marketing, blog, demo, direktori `/tautan`, formulir `/forms/[id]`, tautan singkat `/f/[slug]`, dan `/meet/[slug]` tetap memakai Next.js. Expo meneruskan tautan yang masuk ke halaman tersebut melalui browser sistem. Pintasan aplikasi membuka entry Expo, sedangkan beranda marketing tetap berada di situs. Login, daftar, keluar, callback akun serta halaman Admin yang mengelola formulir, tautan, dan Meet tetap berada dalam cakupan native.

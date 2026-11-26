@@ -2149,6 +2149,13 @@ export const operationsCatalog = [
     "reason": "Signed native Evaluation uses existing interactive Admin services for question authoring, review and queued generation. Picking a local Markdown file only fills the question import draft, which still requires explicit submission. MCP authoring and jobs operations keep their registered scopes, consent and environment bindings."
   },
   {
+    "source": "apps/mobile-native/features/operations/ops-ai/OpsAiWorkspace.tsx",
+    "actions": ["selectChat", "startChat", "confirmRemoval", "visitCitation"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Ops AI local history and citation navigation stay in the interactive Admin app. Approval recovery uses the active Admin session and the existing proposal identity and signed receipt."
+  },
+  {
     "source": "app/api/admin/ops-ai/execute/route.ts",
     "actions": ["confirmAdminOperation", "revokeChatOperationGrants"],
     "tools": [],

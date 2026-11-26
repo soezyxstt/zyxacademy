@@ -229,3 +229,12 @@ test("tryout essay files require the interactive Tutor session and stay outside 
   expect(entry?.reason).toContain("exact stored answer");
   expect(entry?.reason).toContain("upload ownership");
 });
+
+test("native Ops AI chat history and citations are interactive Admin affordances", () => {
+  const entry = operationsCatalog.find(item => item.source === "apps/mobile-native/features/operations/ops-ai/OpsAiWorkspace.tsx");
+  expect(entry).toMatchObject({
+    actions: ["selectChat", "startChat", "confirmRemoval", "visitCitation"],
+    tools: [],
+    status: "excluded",
+  });
+});

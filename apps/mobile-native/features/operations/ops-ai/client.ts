@@ -1,5 +1,6 @@
 import type { NativeSessionTransport } from "../../../network/transport";
-import type { OpsAiActionProposalV2 } from "../../../../../lib/admin-ops-ai/chat-contract";
+import { resolveNativeProtectedDestination, type NativeRouteNode } from "../../../auth/login-intent";
+import { OpsAiCitationSchema, type OpsAiCitation, type OpsAiActionProposalV2 } from "../../../../../lib/admin-ops-ai/chat-contract";
 
 export type ApprovalChoice = "once" | "chat";
 export type ApprovalReply = {
@@ -19,6 +20,19 @@ export function opsChatContext(href: string, mode: "ask" | "edit") {
     mode,
     ...(tab && /^[\w-]{1,80}$/.test(tab) ? { queryParams: { tab } } : {}),
   };
+}
+
+export function opsCitationDestination(
+  citation: OpsAiCitation,
+  account: Parameters<typeof resolveNativeProtectedDestination>[1],
+  sitemap: NativeRouteNode | null,
+) {
+  const parsed = OpsAiCitationSchema.safeParse(citation);
+  if (!parsed.success || parsed.data.source !== "live-tool" || parsed.data.availability !== "available") return null;
+  const url = parsed.data.url;
+  if (!url?.startsWith("/admin/")) return null;
+  const target = resolveNativeProtectedDestination(url, account, sitemap);
+  return target?.area === "admin" ? target.href : null;
 }
 
 export function approvalPayload(proposal: OpsAiActionProposalV2, chatId: string, choice: ApprovalChoice) {

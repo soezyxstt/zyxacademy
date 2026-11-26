@@ -7,6 +7,7 @@ import { nativeColors } from "../../../packages/design-tokens/native-colors";
 import type { NativeAccountContext } from "../../../packages/native-session/context";
 import { resolveNativeProtectedDestination } from "../auth/login-intent";
 import { NativeInboxBell } from "../features/notification-inbox/bell";
+import { opsCitationDestination } from "../features/operations/ops-ai/client";
 import { OpsAiWorkspace } from "../features/operations/ops-ai/OpsAiWorkspace";
 import { NativeListRow, NativeStatusPanel } from "../features/shared-ui/layout";
 import { VisibleNavbarTitle } from "./visible-navbar-title";
@@ -154,9 +155,13 @@ export function StaffChrome({ role, href, theme, focused, context, checkingAcces
             <NativeStatusPanel theme={theme} tone="error" title={classes.failed} action={{ id: "retry", label: classes.retry }} onAction={openClasses} /> :
             (coursePicker.entries.length ? coursePicker.entries.map(renderLink) : <NativeStatusPanel theme={theme} title={classes.empty} />))}
       </SharedSheet>
-      {role === "admin" && context.roles.includes("admin") ? <OpsAiWorkspace key={session.scope.origin}
+      {role === "admin" && context.roles.includes("admin") ? <OpsAiWorkspace key={JSON.stringify(session.scope)}
         open={opsAvailable && sheet === "ops-ai"} uri={href} locale={locale} theme={theme} session={session}
-        close={closeSheet} returnFocusRef={opsTrigger} /> : null}
+        close={closeSheet} returnFocusRef={opsTrigger}
+        citationDestination={citation => opsAvailable ? opsCitationDestination(citation, context, sitemap) : null}
+        visitCitation={target => {
+          if (opsAvailable && sheet === "ops-ai" && screenNavigation.isFocused() && session.isCurrent()) chooseFromSheet(target);
+        }} /> : null}
       {siteSearch.dialog}
       {accountMenu.sheet}
     </SafeAreaView>
