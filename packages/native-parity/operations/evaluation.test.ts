@@ -3,7 +3,7 @@ import { compileMarkdown } from "../../../lib/markdown-compiler";
 import { createEvaluationFixtureRequest, evaluationCases } from "./evaluation-fixtures";
 import { evaluationAction, evaluationRead, type GenerationJob, type QuestionBank } from "./evaluation-contract";
 import { DEMO_TEMPLATES } from "./evaluation-ast-templates";
-import { evaluationRoutes, matchEvaluationRoute } from "./evaluation-routes";
+import { evaluationRoutes, matchEvaluationRoute, type EvaluationRedirect } from "./evaluation-routes";
 
 test("all 13 operations evaluation routes have three unique deterministic cases", () => {
   expect(evaluationRoutes).toHaveLength(13);
@@ -16,7 +16,7 @@ test("all 13 operations evaluation routes have three unique deterministic cases"
 
 test("quiz aliases use server identity, preserve new-quiz tags and retain not found", async () => {
   const request = createEvaluationFixtureRequest();
-  const alias = (path: string) => request(evaluationRead(path));
+  const alias = (path: string) => request<EvaluationRedirect>(evaluationRead(path));
   expect(await alias("/admin/quiz-insights/kuis-energi")).toEqual({ kind: "redirect", href: "/admin/courses/mekanika-dasar/analytics/kuis-energi" });
   expect(await alias("/admin/quizzes/kuis-energi/edit?courseId=other&returnUrl=%2Felsewhere")).toEqual({ kind: "redirect", href: "/admin/courses/mekanika-dasar/quizzes/kuis-energi/edit" });
   expect(await alias("/admin/quizzes/new?courseSlug=mekanika-legacy&tags=a%2Fb%2Cenergi")).toEqual({ kind: "redirect", href: "/admin/courses/mekanika-dasar/quizzes/new?tags=a%2Fb%2Cenergi" });
@@ -30,9 +30,9 @@ test("quiz aliases use server identity, preserve new-quiz tags and retain not fo
 
 test("retired assessments and diktat entry points redirect to their current workflows", async () => {
   const request = createEvaluationFixtureRequest();
-  expect(await request(evaluationRead("/admin/assessments/legacy-id"))).toEqual({ kind: "redirect", href: "/admin/questions" });
-  expect(await request(evaluationRead("/admin/assessments"))).toEqual({ kind: "redirect", href: "/admin/questions" });
-  expect(await request(evaluationRead("/admin/diktats"))).toEqual({ kind: "redirect", href: "/admin/materials/review?section=product" });
+  expect(await request<EvaluationRedirect>(evaluationRead("/admin/assessments/legacy-id"))).toEqual({ kind: "redirect", href: "/admin/questions" });
+  expect(await request<EvaluationRedirect>(evaluationRead("/admin/assessments"))).toEqual({ kind: "redirect", href: "/admin/questions" });
+  expect(await request<EvaluationRedirect>(evaluationRead("/admin/diktats"))).toEqual({ kind: "redirect", href: "/admin/materials/review?section=product" });
 });
 
 test("fixture exercises job validation, pending, processing, completion and logs", async () => {

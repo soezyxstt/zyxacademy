@@ -1,0 +1,43 @@
+# Native Admin evaluation handoff
+
+The native entry is `EvaluationScreen` in `apps/mobile-native/features/operations/evaluation/index.tsx`. `evaluationRoutes` covers the 13 files under the operations content and evaluation route groups. The host passes a session-bound `request`, an `accountKey` incorporating account and origin, and `navigate(href, { replace })`. The host owns protected entry, the shared rich text and AST renderers, native file access, and the canonical academic destinations.
+
+| Route | Implementation |
+| --- | --- |
+| `/admin/assessments`, `/admin/assessments/[id]` | Retired assessment aliases replace the current entry with `/admin/questions` |
+| `/admin/diktats` | Opens academic product review with `section=product` |
+| `/admin/leaderboard`, `/admin/quiz-insights`, `/admin/quizzes` | Resolves the course identity on the server and opens its academic view or the course catalog |
+| `/admin/quiz-insights/[id]`, `/admin/quizzes/[id]/edit` | Resolves ownership using the stored quiz identity. Missing quiz returns 404 |
+| `/admin/quizzes/new` | Prefers `courseId` over `courseSlug` and carries encoded `tags` to the academic editor |
+| `/admin/questions` | Active and historical bank, server filters and pages, selection, review, question create/edit/delete and Markdown import |
+| `/admin/jobs` | Course, chapter and active knowledge-object selection, queued generation, running and terminal statuses, progress logs and status recovery |
+| `/admin/distractors` | Question option ratios, correct option, misconception and question totals |
+| `/admin/ast-inspector` | Local shared compiler and demos, source entry, block explorer, diagnostics, JSON, pipeline and metrics. Rich preview and import/export use renderer and file props |
+
+## HTTPS and local operations
+
+Both `/api/native/operations/evaluation` and its `/actions` route require the same session, first-use identity provisioning and canonical Admin membership as the web Admin shell. Responses are private and uncached. Inactive membership on a legacy Admin session produces 403 and missing authentication produces 401. The actions endpoint rejects a foreign browser origin and requires JSON for POST and PUT. Existing web and Tutor endpoints retain their authorization and processing.
+
+| Operation ID | Caller and handler | Input and recovery |
+| --- | --- | --- |
+| `evaluation.alias.resolve` | Evaluation route boundary → GET evaluation → existing course identity resolvers | Local route and query. Unknown quiz gives 404. Known path returns a replace target. GET can be retried |
+| `evaluation.questions.read` | Questions screen → GET evaluation → shared `readQuestionBank` | Original tab, filters and pagination. Records authorized global disclosures before returning protected question data. Retries reload the requested page |
+| `evaluation.questions.selection` | Questions screen → GET evaluation with `view=selection` → existing server actions | Same filters. Returns active IDs or reviewable historical ID, status and eligibility pairs. Bulk writes recheck targets |
+| `evaluation.questions.chapters`, `evaluation.questions.ideas` | Question editor → GET evaluation with `view=chapters` or `view=ideas` → existing server actions | Selected course, with optional chapter for published Ideas. Superseded reads are aborted |
+| `evaluation.questions.create`, `evaluation.questions.edit` | Question editor → POST or PUT evaluation actions → existing Admin question handlers | Canonical authoring payload, update ID, validation, answer key and Idea weights. Retains draft on rejection and asks the user to check the bank after uncertain delivery |
+| `evaluation.questions.import` | Question editor → POST evaluation actions → original bulk Markdown handler | Original Markdown, course, chapter, Ideas and review status. Same validation and uncertain-delivery handling |
+| `evaluation.questions.review`, `evaluation.questions.delete` | Questions screen → PUT or DELETE evaluation actions → original handlers | Selected question IDs and target review status, or confirmed delete ID. Historical transition and quiz eligibility are checked on the server. Re-read bank after success |
+| `evaluation.jobs.load` | Jobs screen → GET evaluation → shared `readGenerationJobs` | Latest 50 jobs, course and chapter choices, active knowledge objects |
+| `evaluation.jobs.create` | Jobs screen → POST evaluation actions → existing generation job handler | Course, chapter and optional KO. Returns job ID and target count. Guarded against concurrent submissions. Unknown delivery calls for queue refresh before operator starts another job |
+| `evaluation.jobs.status` | Jobs screen → GET evaluation actions → existing generation job detail | Job ID. Polls pending or processing every three seconds. Same server timeout transition and worker details. Stops polling at terminal status |
+| `evaluation.distractors.read` | Distractors screen → GET evaluation → shared `readDistractors` | Returns attempted questions sorted by attempts. Records authorized disclosures before response. GET can be retried |
+| `evaluation.ast.access`, `evaluation.ast.compile` | AST Inspector → GET evaluation to check access, then local shared compiler | Markdown stays on device. JSON file pick, share and copy are supplied by the host. AST draft is scoped to the mounted account and route |
+
+MCP review confirmed that the native adapter uses existing domain services and authoring actions. It adds no MCP tool registration, discovery, scope, consent, packaged skill, host prompt, or environment binding. Generation remains on the existing job queue. The web source remains the operations coverage catalog reference.
+
+## Fixture and evidence
+
+- `evaluation-fixtures.ts` exports 39 case descriptors and a stateful authenticated or denied fixture request. `evaluation.test.ts` exercises redirects, ownership, tags, missing quizzes, query/filter, historical review, generation progress and compiler behavior. `tests/gamification/question-disclosure-calls.test.ts` checks the shared authorization and question disclosure sequence.
+- `tests/visual/native-parallel/operations/capture-evaluation.ts` exercises the actual web AST Inspector and generation client under the local fixture harness. Run it from the repository root against the operations harness on port 3211. It saves six states in both themes at 380 and 1536 px, DPR 1, under `artifacts/native-parity/operations-web/evaluation/`.
+- Mount the repository operations fixture route using `node scripts/native-parity/operations/mount.mjs` in an isolated checkout. Open `zyx-native-parity://operations-fixture?path=%2Fadmin%2Fquestions` for the populated Bank Soal. The evaluation Maestro flow under `.maestro/native-parallel/operations/` covers an assessment alias, active and historical data, jobs recovery, distractors empty state and denied AST access.
+- Visual differences awaiting Android and iOS review include the inline native form and selector presentation, rich AST/Markdown rendering, and narrow vs. wide web placement. Device screenshots, pixel diffs and authorized deployment verification are pending. The device flow exercises synthetic records and sends no job to a remote queue.

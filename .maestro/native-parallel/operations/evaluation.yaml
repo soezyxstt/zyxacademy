@@ -1,0 +1,23 @@
+appId: com.zyx.academy.nativeparity
+name: Operations evaluation question and generation recovery
+---
+- launchApp
+- openLink: "zyx-native-parity://operations-fixture?path=%2Fadmin%2Fassessments%2Fasesmen-lama"
+- assertVisible: Bank Soal
+- assertVisible: '.*Gaya tetap 10 N.*'
+- takeScreenshot: ${SCREENSHOT_DIR}/evaluation-active
+- tapOn: Referensi historis
+- assertVisible: '.*Latihan mekanika 2024.*'
+- takeScreenshot: ${SCREENSHOT_DIR}/evaluation-historical
+- openLink: "zyx-native-parity://operations-fixture?path=%2Fadmin%2Fjobs&mode=recoverable"
+- assertVisible: Permintaan gagal.
+- tapOn: Coba lagi
+- assertVisible: '.*Selesai.*'
+- takeScreenshot: ${SCREENSHOT_DIR}/evaluation-jobs
+- openLink: "zyx-native-parity://operations-fixture?path=%2Fadmin%2Fdistractors&mode=empty&theme=dark"
+- assertVisible: Belum ada analitik distraktor
+- takeScreenshot: ${SCREENSHOT_DIR}/evaluation-distractors-empty
+- openLink: "zyx-native-parity://operations-fixture?path=%2Fadmin%2Fast-inspector&mode=denied"
+- assertVisible: Akses ditolak.
+- assertNotVisible: AST Inspector
+- takeScreenshot: ${SCREENSHOT_DIR}/evaluation-ast-denied
