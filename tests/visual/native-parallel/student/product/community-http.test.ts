@@ -62,7 +62,7 @@ describe.skipIf(!http)("Next native community against disposable local PostgreSQ
       }
       for (const id of [ids.active, ids.archived]) {
         const title = id === ids.active ? "Native community math" : "Archived math";
-        await tx.insert(courses).values({ id, title, category: "Mathematics" });
+        await tx.insert(courses).values({ id, title, category: "Matematika" });
         await tx.insert(mataKuliah).values({ id: id + "-canonical", code: id, legacyCourseId: id, title, status: id === ids.active ? "active" : "archived" });
         await tx.insert(enrollments).values({ id, userId: ids.enrolled, courseId: id, expiresAt });
         await tx.insert(quizTemplates).values({ id, title, courseId: id, category: "chapter", status: "published", selectionRules: {}, closeAt: new Date(Date.now() + 86_400_000) });
