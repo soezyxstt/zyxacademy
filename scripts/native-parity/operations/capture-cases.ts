@@ -1,0 +1,28 @@
+// Generate the Maestro commands from the same case objects used by the mounted app.
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { operationsCases } from "../../../packages/native-parity/operations/cases";
+
+const [flowDirectory, screenshotDirectory] = process.argv.slice(2);
+if (!flowDirectory || !screenshotDirectory) throw new Error("Expected flow directory and screenshot directory");
+mkdirSync(flowDirectory, { recursive: true });
+mkdirSync(screenshotDirectory, { recursive: true });
+const manifest = [];
+for (const item of operationsCases) {
+  const filename = item.id + ".png";
+  const url = "zyx-native-parity://operations-fixture?caseId=" + encodeURIComponent(item.id);
+  // Each case has its own flow, so a failed mount does not hide subsequent cases.
+  writeFileSync(join(flowDirectory, item.id + ".yaml"), [
+    "appId: com.zyx.academy.nativeparity",
+    "name: " + item.id,
+    "---",
+    "- openLink: " + JSON.stringify(url),
+    "- assertVisible:",
+    "    id: " + item.id,
+    "- waitForAnimationToEnd",
+    "- takeScreenshot: " + JSON.stringify(join(screenshotDirectory, item.id)),
+    "",
+  ].join("\n"));
+  manifest.push({ ...item, filename });
+}
+writeFileSync(join(screenshotDirectory, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");

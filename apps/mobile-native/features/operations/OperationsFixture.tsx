@@ -6,6 +6,7 @@ import { Button } from "../../components/Button";
 import { nativeColors } from "../../../../packages/design-tokens/native-colors";
 import { createFixturePublicClient } from "../../../../packages/native-parity/operations/public-fixtures";
 import { PublicScreen } from "./public";
+import { operationsCases } from "../../../../packages/native-parity/operations/cases";
 import { createEvaluationFixtureRequest } from "../../../../packages/native-parity/operations/evaluation-fixtures";
 import { createMonitoringFixture } from "../../../../packages/native-parity/operations/monitoring-fixtures";
 import { createManagementFixture, ManagementScreen } from "./management";
@@ -14,9 +15,9 @@ import { isMonitoringPath, MonitoringScreen } from "./monitoring";
 import { resolveOperationsArea } from "./routes";
 
 type Mode = "populated" | "empty" | "recoverable" | "denied";
-type Session = { path: string; mode: Mode; locale: "id" | "en"; theme: "light" | "dark" };
+type Session = { id?: string; path: string; mode: Mode; locale: "id" | "en"; theme: "light" | "dark" };
 
-function FixtureSession({ path, mode, locale, theme }: Session) {
+function FixtureSession({ id, path, mode, locale, theme }: Session) {
   const [stack, setStack] = useState([path]);
   const [external, setExternal] = useState<string | null>(null);
   const href = stack[stack.length - 1];
@@ -73,12 +74,13 @@ function FixtureSession({ path, mode, locale, theme }: Session) {
       </Button>
     </View>;
   }
-  return <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>{screen}</SafeAreaView>;
+  return <SafeAreaView testID={id} collapsable={false} style={{ flex: 1, backgroundColor: colors.background }}>{screen}</SafeAreaView>;
 }
 
 export default function OperationsFixture() {
-  const params = useLocalSearchParams<{ path?: string; mode?: string; theme?: string; locale?: string }>();
-  const session: Session = {
+  const params = useLocalSearchParams<{ caseId?: string; path?: string; mode?: string; theme?: string; locale?: string }>();
+  const fixture = operationsCases.find(item => item.id === params.caseId);
+  const session: Session = fixture ?? {
     path: typeof params.path === "string" ? params.path : "/admin",
     mode: params.mode === "empty" || params.mode === "recoverable" || params.mode === "denied" ? params.mode : "populated",
     locale: params.locale === "en" ? "en" : "id",

@@ -7,7 +7,8 @@ import { PERAN_SEEDS } from "../../lib/auth/peran";
 import { pengguna, penggunaPeran, peran, user } from "../../db/schema";
 
 const { client, testDb } = await createPostgresTestDb();
-let current: { id: string; role: string } | null = null;
+type Role = "student" | "teacher" | "admin";
+let current: { id: string; role: Role } | null = null;
 mock.module("server-only", () => ({}));
 mock.module("@/db", () => ({ db: testDb }));
 mock.module("@/lib/auth-session", () => ({ getAuthSession: async () => current && ({ user: current }) }));
@@ -16,7 +17,7 @@ try {
   const { getNativeOperationsAdmin } = await import("../../lib/auth/native-operations-admin");
   assert.deepEqual(await getNativeOperationsAdmin(), { ok: false, status: 401 });
   await testDb.insert(peran).values([...PERAN_SEEDS]).onConflictDoNothing();
-  for (const role of ["student", "teacher", "admin"]) {
+  for (const role of ["student", "teacher", "admin"] as const) {
     current = { id: `operations-${role}`, role };
     await testDb.insert(user).values({ ...current, name: role, email: role + "@example.invalid" });
     const result = await getNativeOperationsAdmin();

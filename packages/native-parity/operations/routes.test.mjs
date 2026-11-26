@@ -30,3 +30,11 @@ test("reject malformed, traversal and encoded separator path segments", () => {
   }
   assert.equal(resolveOperationsArea("/blog/cerita%20siswa"), "public");
 });
+
+test("route localized public links using the canonical public path service", () => {
+  for (const path of ["/en", "/id/blog", "/en/blog/cerita", "/id/demo/quiz?course=a"]) {
+    assert.equal(resolveOperationsArea(path), "public");
+  }
+  assert.equal(resolveOperationsArea("/en/admin"), null);
+  assert.equal(resolveOperationsArea("/en/forms-playground"), null);
+});

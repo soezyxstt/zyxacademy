@@ -1,0 +1,53 @@
+"""Compare whole, unscaled device viewports. Retain chrome, offsets and all differences."""
+import argparse
+import json
+from pathlib import Path
+
+from PIL import Image, ImageChops, ImageOps
+
+PAIRS = {
+    "blog-list": "blog-list-light",
+    "blog-detail": "blog-detail-light",
+    "blog-empty-dark": "blog-empty-dark",
+}
+
+
+def compare(device_dir, reference_dir, width_dp, density):
+    rows = []
+    for capture, reference in PAIRS.items():
+        device_path = device_dir / f"{capture}.png"
+        reference_path = reference_dir / f"{reference}-{width_dp}-dpr{density}.png"
+        row = {"device": device_path.name, "reference": reference_path.name}
+        rows.append(row)
+        if not device_path.is_file() or not reference_path.is_file():
+            row["status"] = "awaiting capture"
+            continue
+        with Image.open(device_path) as native, Image.open(reference_path) as web:
+            row["devicePixels"] = native.size
+            row["referencePixels"] = web.size
+            if native.size != web.size or native.width != width_dp * density:
+                row["status"] = "viewport mismatch"
+                continue
+            difference = ImageChops.difference(native.convert("RGB"), web.convert("RGB"))
+            # Count pixels with any nonzero channel, including a single intensity step.
+            red, green, blue = difference.split()
+            maximum = ImageChops.lighter(red, ImageChops.lighter(green, blue))
+            different = native.width * native.height - maximum.histogram()[0]
+            row.update(differentPixels=different, maxChannelDelta=maximum.getextrema()[1])
+            row["status"] = "different" if different else "identical"
+            ImageOps.autocontrast(difference).save(device_dir / f"{capture}-diff.png")
+    return rows
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("device_dir", type=Path)
+    parser.add_argument("reference_dir", type=Path)
+    parser.add_argument("--width", type=int, required=True)
+    parser.add_argument("--density", type=int, required=True)
+    args = parser.parse_args()
+    args.device_dir.mkdir(parents=True, exist_ok=True)
+    rows = compare(args.device_dir, args.reference_dir, args.width, args.density)
+    report = json.dumps(rows, indent=2) + "\n"
+    (args.device_dir / "comparison.json").write_text(report)
+    print(report)

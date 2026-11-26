@@ -9,3 +9,7 @@ export type { ManagementScreenProps } from "./management";
 export { MonitoringScreen, createMonitoringReader } from "./monitoring";
 export type { MonitoringScreenProps } from "./monitoring";
 export { createEvaluationRequest, operationsAccountKey } from "./session";
+export { createManagementClient } from "./management";
+export { createSessionMonitoringReader } from "./monitoring";
+export { AdminOperationsScreen, type AdminOperationsScreenProps } from "./AdminOperationsScreen";
+export { createSessionMonitoringActions } from "./monitoring";

@@ -1,62 +1,14 @@
-/** Canonical web route patterns owned by operations, grouped by native entry. */
+import { stripPublicLocalePrefix } from "../../../../lib/public-locale-routes";
+import { evaluationRoutes } from "../../../../packages/native-parity/operations/evaluation-routes";
+import { managementRoutes } from "../../../../packages/native-parity/operations/management-contract";
+import { monitoringPaths } from "../../../../packages/native-parity/operations/monitoring-contract";
+import { publicStaticRoutes } from "../../../../packages/native-parity/operations/public-contract";
+
 export const operationsPatterns = {
-  evaluation: [
-    "/admin/assessments",
-    "/admin/assessments/[id]",
-    "/admin/ast-inspector",
-    "/admin/diktats",
-    "/admin/distractors",
-    "/admin/jobs",
-    "/admin/leaderboard",
-    "/admin/questions",
-    "/admin/quiz-insights",
-    "/admin/quiz-insights/[id]",
-    "/admin/quizzes",
-    "/admin/quizzes/[id]/edit",
-    "/admin/quizzes/new",
-  ],
-  management: [
-    "/admin/blog",
-    "/admin/blog/[id]/edit",
-    "/admin/blog/new",
-    "/admin/discussions",
-    "/admin/docs",
-    "/admin/docs/[slug]",
-    "/admin/forms",
-    "/admin/forms/[id]",
-    "/admin/media",
-    "/admin/meet",
-    "/admin/meet/[id]",
-    "/admin/pricing",
-    "/admin/tautan",
-  ],
-  monitoring: [
-    "/admin",
-    "/admin/ops",
-    "/admin/ops/analytics",
-    "/admin/ops/feature-usage",
-    "/admin/ops/keys",
-    "/admin/ops/models",
-    "/admin/ops/offline",
-    "/admin/ops/short-links",
-    "/admin/ops/tutor-activity",
-    "/admin/ops/web-analytics",
-  ],
-  public: [
-    "/",
-    "/about",
-    "/blog",
-    "/blog/[slug]",
-    "/demo",
-    "/demo/[view]",
-    "/download",
-    "/forms-playground",
-    "/plans",
-    "/privacy",
-    "/terms",
-    "/testimonial",
-    "/unsubscribe",
-  ],
+  evaluation: evaluationRoutes.map(route => route.path),
+  management: managementRoutes,
+  monitoring: monitoringPaths,
+  public: [...publicStaticRoutes, "/blog", "/blog/[slug]", "/demo", "/demo/[view]", "/unsubscribe"],
 } as const;
 
 export type OperationsArea = keyof typeof operationsPatterns;
@@ -75,6 +27,8 @@ function hasValidSegments(path: string): boolean {
 export function resolveOperationsArea(href: string): OperationsArea | null {
   const path = href.split(/[?#]/, 1)[0].replace(/\/$/, "");
   if (!href.startsWith("/") || href.startsWith("//") || !hasValidSegments(path)) return null;
+  const localized = stripPublicLocalePrefix(path);
+  if (localized) return "public";
   const segments = path.split("/");
   for (const [area, patterns] of Object.entries(operationsPatterns)) {
     for (const pattern of patterns) {
