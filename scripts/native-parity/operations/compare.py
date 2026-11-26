@@ -14,10 +14,19 @@ PAIRS = {
 
 def compare(device_dir, reference_dir, width_dp, density):
     rows = []
-    for capture, reference in PAIRS.items():
+    pairs = {capture: f"{reference}-{width_dp}-dpr{density}.png" for capture, reference in PAIRS.items()}
+    if width_dp == 380 and density == 1:
+        pairs.update({
+            "cases/operations-evaluation-jobs-populated": "evaluation/jobs-completed-light-380.png",
+            "cases/operations-evaluation-jobs-alternate": "evaluation/jobs-empty-dark-380.png",
+            "cases/operations-evaluation-ast-inspector-populated": "evaluation/ast-preview-light-380.png",
+            "web-analytics": "analytics-data-light.png",
+            "web-analytics-empty-dark": "analytics-empty-dark.png",
+        })
+    for capture, reference in pairs.items():
         device_path = device_dir / f"{capture}.png"
-        reference_path = reference_dir / f"{reference}-{width_dp}-dpr{density}.png"
-        row = {"device": device_path.name, "reference": reference_path.name}
+        reference_path = reference_dir / reference
+        row = {"device": str(device_path.relative_to(device_dir)), "reference": reference}
         rows.append(row)
         if not device_path.is_file() or not reference_path.is_file():
             row["status"] = "awaiting capture"
@@ -27,6 +36,9 @@ def compare(device_dir, reference_dir, width_dp, density):
             row["referencePixels"] = web.size
             if native.size != web.size or native.width != width_dp * density:
                 row["status"] = "viewport mismatch"
+                continue
+            if not any(low < high for low, high in web.convert("RGB").getextrema()):
+                row["status"] = "blank reference"
                 continue
             difference = ImageChops.difference(native.convert("RGB"), web.convert("RGB"))
             # Count pixels with any nonzero channel, including a single intensity step.
