@@ -96,7 +96,9 @@ def mount(*, with_student=True):
     account_entry = "routing/personal-account-entry.ts"
     pending_account = ("export const isPersonalAccountRoute = (_pattern: string): boolean => false;\n"
                        "export const StaffAccountScreen = (_props: Record<string, unknown>) => null;\n")
-    account_source = (ROOT / "apps/mobile-native" / account_entry).read_text() if with_student else pending_account
+    account_source = ('export { isPersonalAccountRoute } from "../../../packages/student-community/account-access";\n'
+                      'export { StaffAccountScreen } from "../features/student/community/StaffAccountScreen";\n'
+                      if with_student else pending_account)
     put(MOBILE / account_entry, account_source, replace=pending_account)
     put(MOBILE / "routing/ProductRoute.tsx", (HERE / "ProductRoute.tsx.in").read_text())
     if with_student:
