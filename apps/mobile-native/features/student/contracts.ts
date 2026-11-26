@@ -50,6 +50,7 @@ export interface StudentServices {
   pdfReader?: import("./courses/pdf-reading").StudentPdfReader;
   renderMaterial?: (target: StudentMaterialReaderTarget) => ReactNode;
   saveDiktatPdf?: (courseId: string, diktatId: string, signal: AbortSignal) => Promise<ShareFileResult>;
+  shareDiscussionImage?: (attachmentId: string, signal: AbortSignal) => Promise<ShareFileResult>;
   openExternal?: (path: string) => void;
   /** Opens the browser notification settings in an existing browser profile. */
   openBrowserNotifications?: () => void;

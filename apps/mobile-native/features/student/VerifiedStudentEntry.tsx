@@ -26,8 +26,9 @@ import { useOpenAuthorizedOfflineMaterial, useStudentOfflineCourses } from "./us
 
 const notBlocked = () => false;
 const diktatPdfPolicy = { mimeTypes: ["application/pdf"], maxBytes: 50 * 1024 * 1024 } as const;
+const discussionImagePolicy = { mimeTypes: ["image/jpeg", "image/png", "image/webp"], maxBytes: 8 * 1024 * 1024 } as const;
 
-export type VerifiedEntryProps = Omit<StudentEntryProps, "session" | "request" | "devicePush" | "openOfflineMaterial" | "saveDiktatPdf" | "pdfReader" | "focused" | "resultsTimeZone"> & {
+export type VerifiedEntryProps = Omit<StudentEntryProps, "session" | "request" | "devicePush" | "openOfflineMaterial" | "saveDiktatPdf" | "shareDiscussionImage" | "pdfReader" | "focused" | "resultsTimeZone"> & {
   offlineLocale?: NativeOfflineLocale;
   openOfflineMaterial?: (material: VerifiedOfflineMaterial) => void | Promise<void>;
 };
@@ -124,6 +125,9 @@ export function VerifiedStudentEntry({ offlineLocale, openOfflineMaterial, ...pr
   const saveDiktatPdf: StudentEntryProps["saveDiktatPdf"] = (courseId, diktatId, signal) => scopedFiles.shareAuthorizedDownload({
     session: transport, target: { kind: "diktat-pdf", courseId, diktatId }, policy: diktatPdfPolicy, signal, isTargetCurrent,
   });
+  const shareDiscussionImage: StudentEntryProps["shareDiscussionImage"] = (attachmentId, signal) => scopedFiles.shareAuthorizedDownload({
+    session: transport, target: { kind: "discussion-image", attachmentId }, policy: discussionImagePolicy, signal, isTargetCurrent,
+  });
   const pdfReader: StudentEntryProps["pdfReader"] = (Platform.OS === "android" || Platform.OS === "ios") ? {
     open: (target, signal) => scopedFiles.prepareMaterialPdf({ session: transport, target, signal, sessionExpiresAt: state.expiresAt, isTargetCurrent }),
     renew: (target, revision, signal) => scopedFiles.renewMaterialPdf({ session: transport, target, signal, sessionExpiresAt: state.expiresAt, isTargetCurrent }, revision),
@@ -147,6 +151,7 @@ export function VerifiedStudentEntry({ offlineLocale, openOfflineMaterial, ...pr
   return <StudentEntry {...props} focused={focused} openExternal={props.openExternal ?? openExternal} openBrowserNotifications={openBrowserNotifications} openOfflineMaterial={openSaved} openOfflineLibrary={target.kind === "course" || target.kind === "material" ? openLibrary : undefined} request={transport.request} devicePush={push} assessmentPhotos={props.assessmentPhotos ?? assessmentPhotos} drafts={props.drafts ?? drafts}
     pdfReader={pdfReader}
     saveDiktatPdf={Platform.OS === "android" || Platform.OS === "ios" ? saveDiktatPdf : undefined}
+    shareDiscussionImage={Platform.OS === "android" || Platform.OS === "ios" ? shareDiscussionImage : undefined}
     offlineCourse={{ status: revoked ? "revoked" : metadata.status, course: revoked ? null : metadata.snapshot?.courses.find(course => course.id === courseIds[0]) ?? null, retry: metadata.retry }}
     session={{ role: "student", userId: accountId, origin, sessionId, locale: context.locale }}
     onLocaleChanged={locale => { props.onLocaleChanged?.(locale); retry(); }} />;

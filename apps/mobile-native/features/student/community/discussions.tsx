@@ -300,9 +300,46 @@ function Composer({ context, channelId, skinId, onSent }: {
 }
 
 function ProtectedImage({ image }: { image: DiscussionAttachment }) {
-  const { request, tr } = useCommunity();
+  const { request, tr, focused = true, shareDiscussionImage } = useCommunity();
   const [preview, setPreview] = useState<string>();
   const [failed, setFailed] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [shareError, setShareError] = useState<string>();
+  const shareRequest = useRef<AbortController | null>(null);
+  useEffect(() => {
+    if (!focused) setSharing(false);
+    return () => {
+      shareRequest.current?.abort();
+      shareRequest.current = null;
+    };
+  }, [focused, image.id]);
+  async function shareOriginal() {
+    if (!shareDiscussionImage || !focused || shareRequest.current) return;
+    const controller = new AbortController();
+    shareRequest.current = controller;
+    setShareError(undefined);
+    setSharing(true);
+    try {
+      const result = await shareDiscussionImage(image.id, controller.signal);
+      if (controller.signal.aborted) return;
+      if (result.status === "error") {
+        setShareError(result.issue === "unauthorized" || result.issue === "not-found"
+          ? tr("Gambar asli tidak tersedia.", "The original image is unavailable.")
+          : tr("Gambar asli gagal dibuka. Coba lagi.", "Could not open the original image. Try again."));
+      } else if (result.status === "unavailable") {
+        setShareError(tr("Perangkat ini tidak dapat membagikan gambar.", "This device cannot share images."));
+      } else if (result.status === "busy") {
+        setShareError(tr("Tutup panel berbagi lain dan coba lagi.", "Close the other share sheet and try again."));
+      }
+    } catch {
+      if (!controller.signal.aborted) setShareError(tr("Gambar asli gagal dibuka. Coba lagi.", "Could not open the original image. Try again."));
+    } finally {
+      if (shareRequest.current === controller) {
+        shareRequest.current = null;
+        setSharing(false);
+      }
+    }
+  }
   const action = useOperation();
   const load = () => void action.run(async () => {
     if (!image.url.startsWith("/api/discussions/attachments/")) throw new Error("Unavailable image");
@@ -327,6 +364,9 @@ function ProtectedImage({ image }: { image: DiscussionAttachment }) {
           onError={() => setFailed(true)} style={{ width: "100%", aspectRatio: Math.max(0.5, Math.min(2, image.width / image.height)) }} />
       : <Actions><Action label={failed ? tr("Muat ulang gambar", "Reload image") : image.name} busy={action.pending} onPress={load} /></Actions>}
     <Notice notice={action.notice} />
+    {shareDiscussionImage && <Actions><Action label={tr("Simpan atau bagikan gambar asli", "Save or share original image")}
+      busy={sharing} disabled={!focused} onPress={() => void shareOriginal()} /></Actions>}
+    <Notice notice={shareError ? { message: shareError, failed: true } : null} />
   </View>;
 }
 
