@@ -1,4 +1,5 @@
 import type { NativeSessionScope, NativeSessionTransport } from "../network/transport";
+import { LOCAL_REMINDER_PREFIX, localReminderSessionPrefix } from "./notification-response-identity";
 import {
   normalizeStudyReminderConfig,
   parseQuietHours,
@@ -35,7 +36,6 @@ type ReminderStorage = {
   write(key: string, value: string): Promise<void>;
 };
 
-const reminderPrefix = "zyx-reminder-v1.";
 const requestTimeoutMs = 4_000;
 const unsupported: ReminderPermission = { status: "unsupported", canAskAgain: false };
 const revoked = Symbol("reminder-session-revoked");
@@ -80,8 +80,7 @@ export function createDeviceReminderController({ device, storage, digest, now = 
 }) {
   let queue = Promise.resolve<unknown>(undefined);
   const accountKey = (scope: NativeSessionScope) => digest(JSON.stringify([scope.origin, scope.accountId]));
-  const sessionPrefix = async (scope: NativeSessionScope) => reminderPrefix
-    + await digest(JSON.stringify([scope.origin, scope.accountId, scope.sessionId])) + ".";
+  const sessionPrefix = (scope: NativeSessionScope) => localReminderSessionPrefix(scope, digest);
 
   function serialize<T>(operation: () => Promise<T>): Promise<T> {
     const next = queue.then(operation);
@@ -270,7 +269,7 @@ export function createDeviceReminderController({ device, storage, digest, now = 
       return serialize(async () => {
         if (!device.supported || (session && !session.isCurrent())) return;
         const prefix = session ? await sessionPrefix(session.scope) : null;
-        await removeMatching(id => id.startsWith(reminderPrefix) && (!prefix || !id.startsWith(prefix)),
+        await removeMatching(id => id.startsWith(LOCAL_REMINDER_PREFIX) && (!prefix || !id.startsWith(prefix)),
           () => session === null || session.isCurrent());
       });
     },

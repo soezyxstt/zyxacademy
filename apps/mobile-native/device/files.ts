@@ -2,7 +2,7 @@ import { randomUUID } from "expo-crypto";
 import { getDocumentAsync } from "expo-document-picker";
 import { Directory, File, FileMode, Paths } from "expo-file-system";
 import { isAvailableAsync, shareAsync } from "expo-sharing";
-import { Platform } from "react-native";
+import { AppState, Platform } from "react-native";
 
 import { createNativeFileController, type PickerDocument } from "./file-controller";
 
@@ -14,14 +14,11 @@ export type {
 const native = Platform.OS === "android" || Platform.OS === "ios";
 let cache: Directory | undefined;
 
-function ownedCache(): Directory {
-  if (cache) return cache;
+function resetOwnedCache(): void {
   const directory = new Directory(Paths.cache, "zyx-native-file-actions");
-  // No draft file or private download from a previous process can be resumed.
   if (directory.exists) directory.delete();
   directory.create({ intermediates: true });
   cache = directory;
-  return directory;
 }
 
 function localPath(uri: string): string | null {
@@ -35,17 +32,29 @@ function localPath(uri: string): string | null {
   }
 }
 
-function pickerFile(asset: PickerDocument): File {
-  const folder = localPath(new Directory(Paths.cache, "DocumentPicker").uri)?.replace(/\/$/, "");
-  const path = localPath(asset.uri);
-  if (!folder || !path?.startsWith(`${folder}/`) || path.slice(folder.length + 1).includes("/")) {
-    throw new Error("Invalid document picker cache URI.");
+function sourceFile(asset: PickerDocument): File {
+  if (!localPath(asset.uri) && !(Platform.OS === "android" && /^content:\/\/[^/\\\s]+\//.test(asset.uri))) {
+    throw new Error("Invalid document picker URI.");
   }
   return new File(asset.uri);
 }
 
-function openPickerFile(asset: PickerDocument): ReadableStream<Uint8Array> {
-  const handle = pickerFile(asset).open(FileMode.ReadOnly);
+function discardPickerImport(asset: PickerDocument): void {
+  if (Platform.OS !== "ios") return;
+  // Both SDK file pickers import an OS-managed temporary copy on iOS. Only
+  // unlink returned files inside this app's tmp folder, never the provider URI.
+  const root = Paths.cache.parentDirectory.parentDirectory;
+  const temporary = localPath(new Directory(root, "tmp").uri)?.replace(/\/$/, "");
+  const path = localPath(asset.uri);
+  if (!temporary || !path?.startsWith(`${temporary}/`)) return;
+  try {
+    const file = new File(asset.uri);
+    if (file.exists) file.delete();
+  } catch { /* UIKit owns the temporary import lifetime. */ }
+}
+
+function openSourceFile(asset: PickerDocument): ReadableStream<Uint8Array> {
+  const handle = sourceFile(asset).open(FileMode.ReadOnly);
   let open = true;
   const close = () => {
     if (!open) return;
@@ -74,25 +83,22 @@ function openPickerFile(asset: PickerDocument): ReadableStream<Uint8Array> {
 
 export const scopedFiles = createNativeFileController({
   available: native,
+  resetOwnedCache,
+  androidExports: Platform.OS === "android",
   async pick(mimeTypes) {
-    ownedCache();
-    const result = await getDocumentAsync({ type: [...mimeTypes], multiple: false, copyToCacheDirectory: true });
+    const result = await getDocumentAsync({ type: [...mimeTypes], multiple: false, copyToCacheDirectory: false });
     return result.canceled ? null : result.assets;
   },
   inspect(asset) {
-    const file = pickerFile(asset);
+    const file = sourceFile(asset);
     return { mimeType: file.type, size: file.size };
   },
-  open: openPickerFile,
-  discard(asset) {
-    try {
-      const file = pickerFile(asset);
-      if (file.exists) file.delete();
-    } catch { /* Never delete a provider-owned URI. */ }
-  },
+  open: openSourceFile,
+  discard: discardPickerImport,
   createTemporary(name) {
-    const directory = new Directory(ownedCache(), randomUUID());
-    directory.create();
+    if (!cache) throw new Error("Temporary file storage is not available.");
+    const directory = new Directory(cache, randomUUID());
+    directory.create({ intermediates: true });
     const file = new File(directory, name);
     try {
       file.create();
@@ -119,3 +125,12 @@ export const scopedFiles = createNativeFileController({
   // Let iOS infer the UTI from the filename so the sharing plugin cannot create a second cache copy.
   share: (uri, mimeType, title) => shareAsync(uri, { dialogTitle: title, mimeType: Platform.OS === "android" ? mimeType : undefined }),
 });
+
+export function startNativeFileCacheLifecycle(): () => void {
+  if (!native) return () => {};
+  try { scopedFiles.initialize(); } catch { /* The next file action retries initialization. */ }
+  const subscription = AppState.addEventListener("change", state => {
+    if (state === "active") scopedFiles.expireExports();
+  });
+  return () => subscription.remove();
+}

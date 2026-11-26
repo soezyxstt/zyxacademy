@@ -5,12 +5,15 @@ import {
   type NativeBrowserCallback,
 } from "./browser-intent";
 import { NATIVE_STAGING_ORIGIN, type SessionHeaders } from "./session-api";
+import { parseNativeLoginIntent, type NativeLoginIntent } from "./login-intent";
 
 const ATTEMPT_TTL_MS = 5 * 60_000;
 const EXCHANGE_URL = `${NATIVE_STAGING_ORIGIN}/api/auth/native/expo/exchange`;
 
 export type NativeBrowserLoginStatus = "idle" | "opening" | "exchanging" | "error";
-export type AcceptNativeBrowserLogin = (headers: SessionHeaders, userId: string, signal: AbortSignal) => Promise<void>;
+export type AcceptNativeBrowserLogin = (
+  headers: SessionHeaders, userId: string, signal: AbortSignal, intent?: NativeLoginIntent,
+) => Promise<void>;
 
 type BrowserLoginDeps = {
   randomBytes(count: number): Promise<Uint8Array>;
@@ -26,7 +29,7 @@ type BrowserLoginDeps = {
   now?: () => number;
 };
 
-type StoredAttempt = { origin: string; state: string; verifier: string; expiresAt: number };
+type StoredAttempt = { origin: string; state: string; verifier: string; expiresAt: number; intent?: NativeLoginIntent };
 type LoginRun = {
   controller: AbortController;
   state?: string;
@@ -42,14 +45,15 @@ function randomHex(bytes: Uint8Array): string {
 }
 
 function parseStoredAttempt(raw: string | null): StoredAttempt | null {
-  if (!raw || raw.length > 512) return null;
+  if (!raw || raw.length > 2048) return null;
   try {
     const value = JSON.parse(raw) as Partial<StoredAttempt> | null;
     if (!value || value.origin !== NATIVE_STAGING_ORIGIN
       || typeof value.state !== "string" || !/^[a-f0-9]{48}$/.test(value.state)
       || typeof value.verifier !== "string" || !/^[a-f0-9]{64}$/.test(value.verifier)
       || typeof value.expiresAt !== "number" || !Number.isSafeInteger(value.expiresAt)) return null;
-    return { origin: value.origin, state: value.state, verifier: value.verifier, expiresAt: value.expiresAt };
+    return { origin: value.origin, state: value.state, verifier: value.verifier, expiresAt: value.expiresAt,
+      intent: parseNativeLoginIntent(value.intent) };
   } catch {
     return null;
   }
@@ -70,6 +74,7 @@ export function createNativeBrowserLogin(deps: BrowserLoginDeps) {
   let active: LoginRun | null = null;
   let retiredState: string | undefined;
   let dismissedState: string | undefined;
+  let recoveryIntent: NativeLoginIntent | undefined;
 
   function setStatus(next: NativeBrowserLoginStatus): void {
     if (status === next) return;
@@ -110,6 +115,7 @@ export function createNativeBrowserLogin(deps: BrowserLoginDeps) {
       if (dismissedState === run.state) dismissedState = undefined;
       retiredState = run.state;
     }
+    if (!failed && !run.expired) recoveryIntent = undefined;
     active = null;
     setStatus(run.expired || failed ? "error" : "idle");
   }
@@ -122,7 +128,9 @@ export function createNativeBrowserLogin(deps: BrowserLoginDeps) {
       run.state = attempt.state;
       run.ownsAttempt = true;
       const { signal } = run.controller;
-      if (signal.aborted || attempt.expiresAt <= now() || attempt.expiresAt > now() + ATTEMPT_TTL_MS) return false;
+      if (signal.aborted) return false;
+      recoveryIntent = attempt.intent;
+      if (attempt.expiresAt <= now() || attempt.expiresAt > now() + ATTEMPT_TTL_MS) return false;
       armExpiry(run, attempt.expiresAt);
       setStatus("exchanging");
       // Consume the local verifier before contacting the single-use exchange.
@@ -145,21 +153,24 @@ export function createNativeBrowserLogin(deps: BrowserLoginDeps) {
       }
       const accountId = acceptAccountId(await response.json());
       if (!accountId || signal.aborted || attempt.expiresAt <= now()) return false;
-      await acceptLogin(response.headers, accountId, signal);
+      await acceptLogin(response.headers, accountId, signal, attempt.intent);
       return !signal.aborted;
     })().catch(() => false);
   }
 
   return {
     getStatus: () => status,
+    getRecoveryIntent: () => recoveryIntent,
     subscribe(listener: () => void): () => void {
       listeners.add(listener);
       return () => { listeners.delete(listener); };
     },
     cancel() {
+      recoveryIntent = undefined;
       if (active) {
         cancelRun(active);
-      } else if (dismissedState) {
+      } else {
+        // Sign-out can occur after a restart while a browser holds the old callback.
         const run = begin();
         run.state = dismissedState;
         run.ownsAttempt = true;
@@ -167,7 +178,7 @@ export function createNativeBrowserLogin(deps: BrowserLoginDeps) {
         void finish(run, false);
       }
     },
-    async signIn(acceptLogin: AcceptNativeBrowserLogin): Promise<void> {
+    async signIn(acceptLogin: AcceptNativeBrowserLogin, intent?: NativeLoginIntent): Promise<"cancelled" | undefined> {
       if (active) return;
       const run = begin();
       const { signal } = run.controller;
@@ -175,6 +186,7 @@ export function createNativeBrowserLogin(deps: BrowserLoginDeps) {
       let failed = false;
       let preserveUntil = 0;
       try {
+        recoveryIntent = undefined;
         // Starting another login retires a verifier left by an earlier browser.
         retiredState = dismissedState ?? retiredState;
         dismissedState = undefined;
@@ -192,7 +204,8 @@ export function createNativeBrowserLogin(deps: BrowserLoginDeps) {
         const expiresAt = now() + ATTEMPT_TTL_MS;
         run.state = state;
         run.ownsAttempt = true;
-        await deps.saveAttempt(JSON.stringify({ origin: NATIVE_STAGING_ORIGIN, state, verifier, expiresAt }));
+        await deps.saveAttempt(JSON.stringify({ origin: NATIVE_STAGING_ORIGIN, state, verifier, expiresAt,
+          intent: parseNativeLoginIntent(intent) }));
         if (signal.aborted) return;
         armExpiry(run, expiresAt);
         const url = new URL("/api/auth/native/start", NATIVE_STAGING_ORIGIN);
@@ -210,6 +223,7 @@ export function createNativeBrowserLogin(deps: BrowserLoginDeps) {
         // Android can report the app's foreground return before Linking has
         // delivered the callback. The matching verifier is still single-use.
         if (!result && browser.type === "dismiss" && deps.preserveAttemptOnDismiss) preserveUntil = expiresAt;
+        if (!result && !preserveUntil && (browser.type === "dismiss" || browser.type === "cancel")) return "cancelled";
       } catch {
         failed = !signal.aborted;
       } finally {
@@ -219,6 +233,7 @@ export function createNativeBrowserLogin(deps: BrowserLoginDeps) {
     },
     async completePending(acceptLogin: AcceptNativeBrowserLogin): Promise<boolean> {
       const callback = deps.takeCallback();
+      if (!active) recoveryIntent = undefined;
       if (!callback) return active?.completion ?? false;
       if (callback.state === retiredState) return false;
       if (active) {
