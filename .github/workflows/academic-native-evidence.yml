@@ -16,8 +16,39 @@ env:
   ACADEMIC_REVISION: ${{ github.event.pull_request.head.sha }}
 
 jobs:
-  device:
+  classify-change:
     if: github.head_ref == 'native-migration/academic' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      reports-only: ${{ steps.changed.outputs.reports-only }}
+    steps:
+      - name: Classify this push
+        id: changed
+        shell: bash
+        env:
+          EVENT_ACTION: ${{ github.event.action }}
+          PREVIOUS_HEAD: ${{ github.event.before }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          reports_only=false
+          if [[ "$EVENT_ACTION" == synchronize && "$PREVIOUS_HEAD" =~ ^[0-9a-f]{40}$ && "$ACADEMIC_REVISION" =~ ^[0-9a-f]{40}$ ]] &&
+             changes="$(gh api "repos/$GITHUB_REPOSITORY/compare/$PREVIOUS_HEAD...${ACADEMIC_REVISION}")" &&
+             jq -e '
+               def report:
+                 test("^tests/visual/native-parallel/academic/(device/[0-9a-f]{40}/.+|pages/(captures/.+\\.png|coverage\\.tsv|coverage-meta\\.json|results\\.json|interactions-results\\.json|first-run-results\\.json|first-interactions-results\\.json|summary\\.md|README\\.md))$");
+               .status == "ahead" and
+               (.files | type == "array" and length > 0 and length < 300) and
+               all(.files[]; (.filename | report) and ((.previous_filename // .filename) | report))
+             ' <<< "$changes" > /dev/null; then
+            reports_only=true
+            echo "Only academic evidence reports changed in this push."
+          fi
+          printf 'reports-only=%s\n' "$reports_only" >> "$GITHUB_OUTPUT"
+
+  device:
+    needs: classify-change
+    if: ${{ !cancelled() && github.head_ref == 'native-migration/academic' && github.event.pull_request.head.repo.full_name == github.repository && needs.classify-change.outputs.reports-only != 'true' }}
     concurrency:
       group: academic-native-evidence-${{ github.event.pull_request.number }}-${{ matrix.platform }}
       cancel-in-progress: false
@@ -124,8 +155,8 @@ jobs:
           if-no-files-found: warn
 
   compare-matched-viewport:
-    needs: device
-    if: ${{ always() && !cancelled() && github.head_ref == 'native-migration/academic' && github.event.pull_request.head.repo.full_name == github.repository }}
+    needs: [classify-change, device]
+    if: ${{ !cancelled() && github.head_ref == 'native-migration/academic' && github.event.pull_request.head.repo.full_name == github.repository && needs.classify-change.outputs.reports-only != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
