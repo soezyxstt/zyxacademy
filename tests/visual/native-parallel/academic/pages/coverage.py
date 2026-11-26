@@ -51,10 +51,11 @@ for f in (R/'.maestro/native-parallel/academic').glob('*.yaml'):
 
 def native(pattern, group):
  if group=='administration':
-  end={'/admin/groups':'groups','/admin/notifications':'notifications','/admin/schedules':'schedules','/admin/tutorial-pka/registrations':'registrations','/admin/tutorial-pka/announcements':'announcements','/admin/tutorial-pka/schedules':'sessions'}
-  if pattern=='/admin/groups':return ('GET /api/native/academic-administration/groups and group-editor[/id]; POST groups; PATCH groups/[id]', 'Group members and deletion require further review; group create/edit client in study-group-client.ts')
+  end={'/admin/groups':'groups','/admin/notifications':'notifications','/admin/schedules':'schedules','/admin/tutorial-pka/registrations':'registrations','/admin/tutorial-pka/announcements':'announcements'}
+  if pattern=='/admin/groups':return ('GET /api/native/academic-administration/groups, group-editor[/id] and groups/[id]/members; POST groups; PATCH groups/[id] and groups/[id]/members', 'Create and edit groups and add or remove regular members; leader changes, token-group membership and deleting an entire group remain web/fixture')
   if pattern=='/admin/users':return ('GET /api/native/academic-administration/users; PATCH users/[id]/status', 'Active Admin can activate or suspend eligible accounts with revision and receipt; role edits remain fixture; live device interaction unverified')
   if pattern=='/admin/tokens':return ('GET /api/native/academic-administration/tokens and token-editor[/id]; POST tokens; PATCH tokens/[id] for revoke', 'Issue and revoke use scoped receipts; broader token management remains fixture')
+  if pattern=='/admin/tutorial-pka/schedules':return ('GET /api/native/academic-administration/sessions; PATCH sessions/[id]', 'Edits the title, scheduled time and meeting link with revision and receipt; creating schedules and other operations remain web/fixture')
   if pattern in end:
    add='; PATCH announcement text supported' if pattern.endswith('/announcements') else ''
    return ('GET /api/native/academic-administration/'+end[pattern]+add,'Other edits/broadcasts are fixture; review domain README for partial support')
@@ -70,7 +71,7 @@ def native(pattern, group):
   return ('GET /api/native/academic/admin/courses/[slug]/'+suffix,'Subsection changes use fixture; content renderer and AI may require web')
  if group=='assessment':
   if pattern=='/tutor/[courseId]/tryouts':return ('Alias to /tutor/[courseId]','No independent tryout route')
-  if pattern=='/admin/courses/[slug]/tryouts':return ('GET and POST /api/native/academic-assessment/admin/[slug]/tryouts; PATCH tryouts/[examId]','Create and edit draft metadata; publication, deletion and question mutations use fixture')
+  if pattern=='/admin/courses/[slug]/tryouts':return ('GET and POST /api/native/academic-assessment/admin/[slug]/tryouts; PATCH tryouts/[examId]; POST tryouts/[examId]/questions','Draft metadata and bank snapshot import or removal work before submissions; publishing, deleting and direct question edits remain fixture')
   if '/attempts' in pattern:return ('GET /api/native/academic-assessment/tutor/[courseId]/attempts/[quizId]','Attachment/complex renderer dependencies')
   if '/grading' in pattern:return ('GET /api/native/academic-assessment/tutor/[courseId]/grading[/attemptId]; POST grading/[attemptId]','Quiz essay and fill-in grading uses answer revisions; attachment and complex formula renderer dependencies')
   role='tutor' if pattern.startswith('/tutor') else 'admin'; key='[courseId]' if role=='tutor' else '[slug]'
@@ -102,8 +103,8 @@ def redirected_entries(pattern):
    continue
   for case in entry['cases']:
    landed = case.get('landed')
-   if case.get('pass') and landed and recorded_route(entry, case) != pattern:
-    yield entry, case, landed
+   if (case.get('pass') or case.get('redirectObserved')) and landed and recorded_route(entry, case) != pattern:
+    yield entry, case, landed + case.get('landedQuery', '')
  for entry in original:
   landed = entry.get('landed')
   if resolve_route(entry['path']) == pattern and landed and recorded_route(entry, entry) != pattern:
@@ -134,12 +135,16 @@ def references(pattern):
 device_indexes = P.parent.glob('device/*/index.json')
 device_reports = [(path, json.loads(path.read_text())) for path in device_indexes]
 latest_device_reports = {}
+latest_rendered_reports = {}
 for device_path, device_report in sorted(device_reports, key=lambda item: int(item[1]['runId'])):
  for platform, report in device_report.get('platforms', {}).items():
-  latest_device_reports[platform] = (device_path, device_report['revision'], report)
+  observation = (device_path, device_report['revision'], report)
+  latest_device_reports[platform] = observation
+  if report.get('routeEvidence') and report.get('routeCaptureCounts', {}).get('captured'):
+   latest_rendered_reports[platform] = observation
 device_platforms = {}
 device_interactions = {}
-for platform, (device_path, _, report) in latest_device_reports.items():
+for platform, (device_path, _, report) in latest_rendered_reports.items():
  route_evidence = report.get('routeEvidence')
  if route_evidence:
   evidence_path = device_path.parent/route_evidence
@@ -153,7 +158,8 @@ for platform, (device_path, _, report) in latest_device_reports.items():
     query = urllib.parse.parse_qs(urllib.parse.urlsplit(segment['fixture']).query)
     pattern = resolve_route(query['path'][0])
     if pattern:
-     entry = f"{flow['flow']} segment {segment['segment']} {segment['outcome']}"
+     outcome = segment.get('outcome') or segment['status']
+     entry = f"{flow['flow']} segment {segment['segment']} {outcome}"
      device_interactions.setdefault(pattern, []).append((platform, entry, outcome_path))
 
 
@@ -175,6 +181,11 @@ def device_observation(pattern, markdown=False):
   states = ', '.join(f'{scenario} {status}' for scenario, status in outcomes.items())
   link = f'../device/{evidence_path.parent.parent.name}/{platform}/{evidence_path.name}'
   parts.append(f'[{name}]({link}): {states}' if markdown else f'{name}: {states} ({evidence_path.as_posix()})')
+  latest_path, _, latest_report = latest_device_reports[platform]
+  if latest_path != latest_rendered_reports[platform][0]:
+   status = latest_report.get('observation', 'latest archived attempt has no stamped route captures')
+   parts.append(f'{name}: {status} ({latest_path.as_posix()})' if not markdown else
+                f'[{name} latest run](../device/{latest_path.parent.name}/index.json): {status}')
   for source_platform, entry, outcome_path in device_interactions.get(pattern, []):
    if source_platform == platform:
     relative = f'../device/{outcome_path.parent.parent.name}/{platform}/{outcome_path.name}'
@@ -188,7 +199,9 @@ with (P/'coverage.tsv').open('w',newline='') as f:
   fam=family[route];live,fixture=native(route,fam); readme=f'packages/native-parity/academic/{fam}/README.md';implementation=f'apps/mobile-native/features/academic/{fam}/index.tsx'
   assert (R/source).is_file() and (R/readme).is_file() and (R/implementation).is_file()
   w.writerow(dict(route=route,family=fam,case_populated_id=case_index[route]['populated']['id'],case_empty_id=case_index[route]['empty']['id'],case_denied_id=case_index[route]['denied']['id'],web_source=source,verified_protected_web_cases=references(route),native_live_code_paths=live,native_fixture_or_dependency=fixture,native_implementation_source=implementation,native_device_scenarios_planned='; '.join(flows.get(route,[])) or 'No direct fixture entry matched; indirect navigation unassessed',native_device_executed_evidence=device_observation(route),domain_readme=readme))
-meta={'generated_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'head':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'scope':'Web and implementation observations are from a changing local worktree. Device observations refer to the latest archived run for each platform.','route_count':len(routes),'capture_manifest':'tests/visual/native-parallel/academic/pages/results.json','device_evidence_by_platform':{platform: {'index': path.as_posix(), 'revision': revision} for platform, (path, revision, _) in latest_device_reports.items()}}
+meta={'generated_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'head':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'scope':'Web and implementation observations are from a changing local worktree. Device observations refer to the latest archived run for each platform.','route_count':len(routes),'capture_manifest':'tests/visual/native-parallel/academic/pages/results.json','device_evidence_by_platform':{platform: {'index': path.as_posix(), 'revision': revision,
+    **({'capture_index': latest_rendered_reports[platform][0].as_posix()} if platform in latest_rendered_reports else {})}
+    for platform, (path, revision, _) in latest_device_reports.items()}}
 (P/'coverage-meta.json').write_text(json.dumps(meta,indent=2)+'\n')
 print('wrote',len(routes),'route rows; sources and referenced screenshots verified')
 
@@ -208,21 +221,39 @@ lines=['# Protected web route evidence', '',
  f"Current capture manifest records {counts['new_pass']} passing browser cases, {counts['missing_ui']} unseeded/missing cases with a rendered 404, {counts['shell_only']} shell-only or loading cases, and {counts['unpassed']} other unsuccessful or interrupted cases. Interaction manifest records {counts['interaction_pass']} passing and {counts['interaction_unpassed']} unsuccessful cases. The six earlier protected smoke records are listed separately. Counts are cases, not parity credit.",
  '', '[Route crosswalk and three registry case IDs](coverage.tsv) · [Protected page results](results.json) · [Interaction results](interactions-results.json) · [Original smoke manifest](../web/local-routes/manifest.json)', '',
  'Web links identify passing screenshots, shell-only/loading outcomes, or rendered 404s. Screenshots are listed under the route that rendered them. The requested route records the redirect destination. Initial HTTP 200 with a rendered 404 is identified explicitly. Device route statuses come from stamped captures. Interaction statuses are assigned to direct fixture entries. Live device operations remain unverified.', ' · '.join(f'[{platform} evidence index](../device/{path.parent.name}/index.json)' for platform, (path, _, _) in latest_device_reports.items()) or 'Device evidence index unavailable.' , '', '| Route | Screen family | Recorded original protected web cases | Device fixture observations |', '|---|---|---|---|']
+rendered_routes=[]
+redirect_only=[]
 for route,source in routes.items():
  links=[]
+ rendered=False
  for e,c in page_cases(route):
   if c.get('screenshot') and (c.get('pass') or c.get('notFoundVisible') or c.get('classification','').startswith('shell-only')):
    candidate=P/c['screenshot'];assert candidate.is_file()
    tag=e['id']+' '+c['theme']+(' 404 UI, HTTP '+str(c.get('status')) if c.get('notFoundVisible') else ' shell-only or loading' if c.get('classification','').startswith('shell-only') else '')
    links.append('['+tag+']('+c['screenshot']+')')
+   rendered=rendered or bool(c.get('pass'))
  for e in interactions['entries']:
   if recorded_route(e,e) == route and e.get('pass'):
    candidate=P/e['screenshot'];assert candidate.is_file();links.append('['+e['id']+']('+e['screenshot']+')')
+   rendered=True
  for e in original:
   if recorded_route(e,e) == route:
    candidate=R/'tests/visual/native-parallel/academic/web/local-routes'/f"{e['key']}.png";assert candidate.is_file()
    links.append('['+e['key']+' smoke](../web/local-routes/'+e['key']+'.png)')
- for entry,case,landed in redirected_entries(route):
+   rendered=True
+ redirects=list(redirected_entries(route))
+ if rendered:rendered_routes.append(route)
+ elif redirects:redirect_only.append(route)
+ for entry,case,landed in redirects:
   links.append(f"{entry['id']} {case['theme']} redirected to `{landed}`")
  lines.append('| `'+route+'` | '+family[route]+' | '+('; '.join(links) if links else 'Not captured or no passing screenshot')+' | '+device_observation(route, markdown=True)+' |')
+unmatched=[route for route in routes if route not in rendered_routes and route not in redirect_only]
+lines.extend(['', '## Protected route coverage', '',
+ f'Protected screenshots show route content for {len(rendered_routes)} of {len(routes)} routes. '
+ f'The report records redirect destinations for {len(redirect_only)} additional routes.',
+ '',
+ ('Routes with redirect evidence only are ' + ', '.join(f'`{route}`' for route in redirect_only) + '.') if redirect_only else 'All verified redirects also have rendered content.',
+ '',
+ ('No passing content or redirect evidence was recorded for ' + ', '.join(f'`{route}`' for route in unmatched) + '.') if unmatched else 'Every route has passing content or a verified redirect.',
+])
 (P/'summary.md').write_text('\n'.join(lines)+'\n')

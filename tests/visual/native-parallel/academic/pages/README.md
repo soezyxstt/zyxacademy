@@ -1,6 +1,6 @@
 # Protected academic web pages
 
-`capture.mjs` connects to the already-running Next.js server on `http://127.0.0.1:3314` and uses the synthetic cookie in `packages/native-parity/academic/local/cookie.mjs`. It does not start a server, create data, or submit forms. Browser requests to other origins are aborted; service workers are blocked. Screenshot styles hide only the Next.js development-only `nextjs-portal` overlay; all product UI remains visible. `first-run-results.json` preserves the earlier run made before this overlay exclusion. Pages themselves can have server-side effects such as question-disclosure records. The screenshot viewport is 380 by 844 at DPR 1, with Indonesian locale, Jakarta timezone, reduced motion, locally supplied app fonts, and a separate browser context for each role and theme.
+`capture.mjs` connects to the already-running Next.js server on `http://127.0.0.1:3314` by default and uses the synthetic cookie in `packages/native-parity/academic/local/cookie.mjs`. It does not start a server, create data, or submit forms. Browser requests to other origins are aborted; service workers are blocked. Screenshot styles hide only the Next.js development-only `nextjs-portal` overlay; all product UI remains visible. `first-run-results.json` preserves the earlier run made before this overlay exclusion. Pages themselves can have server-side effects such as question-disclosure records. The screenshot viewport is 380 by 844 at DPR 1, with Indonesian locale, Jakarta timezone, reduced motion, locally supplied app fonts, and a separate browser context for each role and theme.
 
 Run from the repository root only after verifying the local disposable seed and the exact origin:
 
@@ -10,11 +10,51 @@ PARITY_CHROMIUM_EXECUTABLE=/usr/bin/chromium node tests/visual/native-parallel/a
 
 Pass case IDs as command arguments to rerun only those cases and retain other results. `results.json` is written after every case. The record includes the exact requested and landed paths, expected task label, HTTP status of the initial navigation response, blocked origins, screenshot path on pass, and observed text excerpt. A streamed redirect can initially return 200; the final URL and rendered label are checked separately. Missing fixture IDs are recorded separately and do not receive a pass. A route with a failed label, unexpected status, or unexpected destination is not visual evidence even if the request returned 200. The screenshot references are actual Next.js mobile web captures against the seeded PostgreSQL fixture. They do not establish interaction completeness, Expo behavior, Android/iOS parity, release readiness, or deployment status. The fixture is shared and may be changed by other local tests; inspect its seed before interpreting empty or populated state.
 
+## Detail fixtures
+
+After loading the base fixture from the [local academic setup](../../../../../packages/native-parity/academic/local/README.md), add the synthetic quiz, article draft and bundle import rows. The seed only inserts dedicated `academic-web-*` fixture IDs.
+
+```sh
+docker exec -i academic-smoke psql -v ON_ERROR_STOP=1 -U postgres -d academic \
+  < packages/native-parity/academic/local/protected-web-seed.sql
+```
+
+Bundle detail captures use a separate Next.js process on port 3315. It downloads two validated synthetic ZIPs from a read-only loopback fixture on port 3316. Run the bundle generator from the repository root and keep it running while taking screenshots. It writes SQL that attaches the matching ZIP checksums to the dedicated import rows.
+
+```sh
+bun packages/native-parity/academic/local/protected-web-bundles.ts /tmp/academic-protected-web-bundles.sql
+```
+
+In a second terminal, load the generated SQL into the same disposable database. Start the separate Next.js process in another checkout with the local base setup's credentials, port 3315 for both app URLs, and the loopback storage variables shown below. Install dependencies in that checkout or use Webpack when sharing a symlinked dependency tree.
+
+```sh
+docker exec -i academic-smoke psql -v ON_ERROR_STOP=1 -U postgres -d academic \
+  < /tmp/academic-protected-web-bundles.sql
+
+DATABASE_URL=postgres://postgres:academic-local-only@127.0.0.1:55434/academic \
+BETTER_AUTH_SECRET=academic-local-fixture-secret-for-smoke-only \
+BETTER_AUTH_URL=http://localhost:3315 NEXT_PUBLIC_APP_URL=http://localhost:3315 \
+R2_ENDPOINT=http://127.0.0.1:3316 R2_BUCKET=academic-fixture \
+R2_ACCESS_KEY_ID=academic-fixture R2_SECRET_ACCESS_KEY=academic-fixture \
+SKIP_ENV_VALIDATION=1 NEXT_TELEMETRY_DISABLED=1 \
+node node_modules/next/dist/bin/next dev --webpack --hostname 127.0.0.1 --port 3315
+```
+
+With both services ready, run the capture from the repository with the current capture script.
+
+```sh
+PARITY_PROTECTED_ORIGIN=http://127.0.0.1:3315 \
+node tests/visual/native-parallel/academic/pages/capture.mjs \
+  admin-idea-bundle admin-product-bundle admin-idea-bundle-alias admin-product-bundle-alias
+```
+
+The quiz analytics detail must render the synthetic quiz title after a successful detail API response. Bundle detail captures require successful protected API reads and visible fixture content. The Product case also waits for the article review context. Redirects to the course list or course review workspace are recorded for the requested alias and linked under the route that rendered the destination.
+
 ## Route coverage crosswalk
 
 `coverage.tsv` maps 54 route patterns from `plans/native-parallel/routes.tsv` to source pages, protected web cases, live transport, fixture boundaries, planned Maestro fixture entries, and recorded device route outcomes. Regenerate it with `python3 tests/visual/native-parallel/academic/pages/coverage.py`. The generator verifies referenced source and screenshot paths and matches each route to three case IDs from `academicCases`. Each protected screenshot is attributed to the route that rendered it. The requested route records the redirect destination when navigation lands elsewhere. Planned Maestro flows use the most specific registered route for each direct fixture entry. The stamped route column records archive outcomes separately. The Tutor schedule flow uses the synthetic `TutorSchedule` editor, while the live `ConnectedSchedule` device interaction remains unverified. Web captures span a changing local worktree.
 
-GitHub Actions run 45816738991 verified all 162 stamped Android cases across 54 routes at revision `f75e0496914edd53c4bc24487ca58f6ac47a3769`. All 11 fixture flows and all four accessibility checks passed, and 32 named Maestro screenshots were recorded. The same-run comparison found nonzero differences in all eight Android pairs at 380 × 852 and DPR 1. The iOS simulator booted, but an ExpoModulesJSI Swift compilation error stopped the app build before any screenshots. [Current Android and iOS archive](../device/f75e0496914edd53c4bc24487ca58f6ac47a3769/README.md) · [Prior Android archive](../device/3866ea158c427b73696b8c467dd1e90815122e5b/README.md) · [Earlier seven-case diagnostic](../device/06ac6f8f84b740a5fae96f2cfaf2b272f9982659/README.md)
+GitHub Actions run 45819670493 verified all 162 stamped Android cases across 54 routes at revision `11ff56c8d841d9f2129aa8a14993bfefbeb5dde3`. All 11 fixture flows and all four accessibility checks passed, and 32 named Maestro screenshots were recorded. Local Playwright comparisons at the exact device revision and 380 × 852 DPR 1 found nonzero differences in all eight Android pairs. The latest archived iOS build at `f75e0496` booted its simulator before an ExpoModulesJSI Swift compilation error stopped the app build before any screenshots. [Latest Android archive](../device/11ff56c8d841d9f2129aa8a14993bfefbeb5dde3/README.md) · [Android CI comparison and iOS build blocker from the earlier run](../device/f75e0496914edd53c4bc24487ca58f6ac47a3769/README.md)
 
 The code-level descriptions are intentionally abbreviated; see the detailed contracts and limits in the [Admin course](../../../../../packages/native-parity/academic/courses/README.md), [administration](../../../../../packages/native-parity/academic/administration/README.md), [assessment](../../../../../packages/native-parity/academic/assessment/README.md), and [Tutor](../../../../../packages/native-parity/academic/tutor/README.md) domain reports. `interactions.mjs` opens forms, selects a tab or fills a local draft without submitting; its results are recorded separately. Interaction checks wait for hydration and preserve earlier failed attempts. The crosswalk marks entries with no matching direct Maestro fixture entry as unassessed.
 

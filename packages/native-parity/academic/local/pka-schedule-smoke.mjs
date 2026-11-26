@@ -50,9 +50,15 @@ async function deleteWithWebEditor(title) {
     const row = page.getByRole("listitem").filter({ hasText: title }).filter({ visible: true });
     await row.getByRole("button", { name: /^(Aksi|Actions)$/ }).click();
     await page.getByRole("menuitem", { name: /^(Hapus jadwal|Delete schedule)$/ }).click();
-    await page.getByRole("dialog", { name: /^(Hapus jadwal|Delete schedule)$/ })
-      .getByRole("button", { name: /^(Hapus|Delete)( jadwal| schedule)?$/ }).click();
-    await row.waitFor({ state: "hidden", timeout: 30_000 });
+    const dialog = page.getByRole("dialog", { name: /^(Hapus jadwal|Delete schedule)$/ });
+    const [deletion] = await Promise.all([
+      page.waitForResponse((result) => result.request().method() === "POST"
+        && new URL(result.url()).pathname === "/admin/tutorial-pka/schedules", { timeout: 60_000 }),
+      dialog.getByRole("button", { name: /^(Hapus|Delete)( jadwal| schedule)?$/ }).click(),
+    ]);
+    assert.ok(deletion.ok());
+    await dialog.waitFor({ state: "hidden", timeout: 60_000 });
+    await row.waitFor({ state: "hidden", timeout: 60_000 });
   } finally {
     await browser.close();
   }
