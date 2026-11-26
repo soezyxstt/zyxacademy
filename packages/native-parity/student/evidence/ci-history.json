@@ -26,6 +26,7 @@
     {
       "runId": 45803927675,
       "sourceHead": "81bb06096f64e858cfc17241661397536c591490",
+      "checkoutSha": "a861cea39330e6cd47fce7197fc758171094aea7",
       "url": "https://github.com/soezyxstt/zyxacademy/actions/runs/45803927675",
       "observedAt": "2026-11-26T11:01:00Z",
       "web": {
@@ -99,6 +100,7 @@
     {
       "runId": 45806783256,
       "sourceHead": "68d7ab400177773341ee46e4d425c4383ccc6261",
+      "checkoutSha": "32d3f391b2db18563ddb64e1b6c04b21ccfcdf4e",
       "url": "https://github.com/soezyxstt/zyxacademy/actions/runs/45806783256",
       "observedAt": "2026-11-26T11:18:00Z",
       "web": {
@@ -120,6 +122,89 @@
       "ios": {
         "jobId": 139865143324,
         "status": "in_progress_at_observation"
+      }
+    },
+    {
+      "runId": 45808632131,
+      "sourceHead": "544c89bec726ad57dad40fa7c3eebe0345572f84",
+      "checkoutSha": "aa22667ee62edf84c1aa815da4990362c9390ea7",
+      "url": "https://github.com/soezyxstt/zyxacademy/actions/runs/45808632131",
+      "observedAt": "2026-11-26T11:55:39Z",
+      "web": {
+        "jobId": 139870362645,
+        "status": "passed",
+        "details": "Web workflow captured synthetic Student references.",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45808632131/artifacts/15110617721"
+      },
+      "android": {
+        "jobId": 139871605261,
+        "status": "in_progress_at_observation",
+        "details": "The Android release built and the emulator step was still running."
+      },
+      "ios": {
+        "jobId": 139871605360,
+        "status": "cancelled_before_device_flows"
+      },
+      "laterObservations": [
+        {
+          "observedAt": "2026-11-26T12:04:00Z",
+          "android": {
+            "jobId": 139871605261,
+            "status": "device_flows_completed_with_failures",
+            "reason": "Maestro recorded six smoke assertion failures and 21 failures caused by an ADB transport interruption. The three catalog pairs had pixel differences, and the material scroll-restoration capture was missing.",
+            "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45808632131/artifacts/15115222022",
+            "summaryCounts": {
+              "passed": 173,
+              "blocked": 3,
+              "failed": 27
+            },
+            "standaloneCounts": {
+              "passed": 9,
+              "failed": 9
+            },
+            "comparison": [
+              {
+                "id": "catalog-all",
+                "status": "different",
+                "differing_pixels": 49115,
+                "max_channel_difference": 236
+              },
+              {
+                "id": "catalog-tpb",
+                "status": "different",
+                "differing_pixels": 41892,
+                "max_channel_difference": 236
+              },
+              {
+                "id": "catalog-pka",
+                "status": "different",
+                "differing_pixels": 25560,
+                "max_channel_difference": 226
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "runId": 45814465447,
+      "sourceHead": "17c0b80ae892779e72e37701d89629255aec4cfe",
+      "checkoutSha": "15ba8024dbc25385fc54050e439187e1e3f1963b",
+      "url": "https://github.com/soezyxstt/zyxacademy/actions/runs/45814465447",
+      "observedAt": "2026-11-26T11:55:39Z",
+      "web": {
+        "jobId": 139890472684,
+        "status": "passed",
+        "details": "Web workflow captured synthetic Student references.",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45814465447/artifacts/15114936296"
+      },
+      "android": {
+        "jobId": 139891824953,
+        "status": "pending_at_observation"
+      },
+      "ios": {
+        "jobId": 139891825357,
+        "status": "pending_at_observation"
       }
     }
   ]

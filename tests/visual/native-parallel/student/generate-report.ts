@@ -12,9 +12,19 @@ const deviceIndex = existsSync(deviceIndexPath) ? JSON.parse(readFileSync(device
 const summaries = Object.fromEntries((["android", "ios"] as const).map(platform => {
   const path = process.argv.find(arg => arg.startsWith(`--${platform}=`))?.slice(platform.length + 3)
     ?? deviceIndex[platform] ?? `artifacts/student-evidence/${platform}/smoke/smoke-summary.json`;
+  if (!existsSync(path)) return [platform, null];
   const provenancePath = join(dirname(path), "provenance.json");
-  return [platform, existsSync(path) ? { path, data: JSON.parse(readFileSync(path, "utf8")),
-    provenance: existsSync(provenancePath) ? JSON.parse(readFileSync(provenancePath, "utf8")) : {} } : null];
+  const provenance = existsSync(provenancePath) ? JSON.parse(readFileSync(provenancePath, "utf8")) : {};
+  const captureIndexPath = join(dirname(path), "smoke-captures.json");
+  const captureIndex = existsSync(captureIndexPath) ? JSON.parse(readFileSync(captureIndexPath, "utf8")) : null;
+  const archivePath = captureIndex ? join(dirname(path), "smoke-captures.zip") : null;
+  if (archivePath && (captureIndex.archive !== basename(archivePath) ||
+    captureIndex.sourceHead !== provenance.sourceHead || captureIndex.workflowRun !== provenance.workflowRun ||
+    captureIndex.sourceArtifact !== provenance.artifact ||
+    createHash("sha256").update(readFileSync(archivePath)).digest("hex") !== captureIndex.archiveSha256)) {
+    throw new Error(`Device capture archive failed provenance or checksum validation: ${archivePath}`);
+  }
+  return [platform, { path, data: JSON.parse(readFileSync(path, "utf8")), provenance, captureIndexPath, captureIndex, archivePath }];
 }));
 const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
 const web = JSON.parse(readFileSync("tests/visual/native-parallel/student/product/web/web.json", "utf8"));
@@ -124,10 +134,18 @@ const resultFor = (platform: "android" | "ios", source: string, caseId: string) 
   const summary = summaries[platform];
   if (!summary) return { status: "not_recorded" };
   const item = summary.data.routes?.find((row: any) => row.source === source)?.cases?.find((row: any) => row.id === caseId);
-  const provenance = { summary: summary.path, sourceHead: summary.data.sourceHead ?? summary.provenance.sourceHead ?? null,
+  const provenance = { summary: summary.path, sourceHead: summary.provenance.sourceHead ?? summary.data.sourceHead ?? null,
+    checkoutSha: summary.provenance.checkoutSha ?? null,
     workflowRun: summary.data.workflowRun ?? summary.provenance.workflowRun ?? null, artifact: summary.provenance.artifact ?? null,
     job_status: summary.provenance.status ?? summary.data.status ?? null };
-  return item ? { status: item.result ?? "not_run", artifacts: item.artifacts ?? [], ...provenance } : { status: "not_in_summary", ...provenance };
+  if (!item) return { status: "not_in_summary", ...provenance };
+  const capture = summary.captureIndex?.captures.find((entry: any) =>
+    entry.route === source && entry.caseId === caseId && entry.theme === item.theme &&
+    entry.fixturePath === item.path && entry.status === "passed" && item.result === "passed" &&
+    item.artifacts?.some((member: string) => `smoke/${member}` === entry.artifactMember));
+  return { status: item.result ?? "not_run", artifacts: item.artifacts ?? [],
+    ...(capture ? { retained_capture: { archive: summary.archivePath, file: capture.file, sha256: capture.sha256, index: summary.captureIndexPath } } : {}),
+    ...provenance };
 };
 const docs = "docs/native-readiness.md";
 const rows = manifest.routes.map((route: any) => {
@@ -140,7 +158,8 @@ const rows = manifest.routes.map((route: any) => {
     const file = `${webRoot}/${entry.id}.png`;
     if (!existsSync(file)) throw new Error(`Missing product capture: ${file}`);
     return { id: entry.id, file, path: entry.path, status: entry.status, evidence: "authenticated product web", serverSha: web.serverSha,
-      viewport: `${web.width}x${web.height}`, dpr: web.dpr, theme: web.theme, locale: web.locale };
+      viewport: `${web.width}x${web.height}`, dpr: web.dpr, theme: web.theme, locale: web.locale,
+      visibleContent: entry.visibleContent ?? [], hydrationWarnings: entry.hydrationWarnings ?? [] };
   });
   const componentCaptures = pattern === "/courses" ? ["android", "ios"].flatMap(target => ["all", "tpb", "pka"].map(state => ({
     id: `catalog-${target}-${state}`, file: `${base}/web-reference/${target}/catalog-${state}.png`, evidence: "web fixture; target label is viewport only",
@@ -193,6 +212,9 @@ writeFileSync(`${base}/routes.json`, JSON.stringify(report, null, 2) + "\n");
 const link = (path: string, title: string) => `[${title.replaceAll("[", "\\[").replaceAll("]", "\\]")}](../../../../${path.replaceAll(" ", "%20").replaceAll("(", "%28").replaceAll(")", "%29").replaceAll("[", "%5B").replaceAll("]", "%5D")})`;
 const lines = ["# Laporan rute Student", "", `Dihasilkan dari HEAD \`${sha}\`; working tree dapat memiliki perubahan. Detail setiap fixture, jumlah assertion, status run dan blocker tersedia di [routes.json](routes.json). Hasil fixture bukan bukti perangkat atau kelulusan paritas.`, "",
   `Referensi web produk dan SHA server tersedia di ${link(`${webRoot}/web.json`, "web.json")}. Cakupan HTTP lokal tercatat di ${link("tests/visual/native-parallel/student/product/README.md", "laporan kursus")} dan ${link("packages/native-parity/student/community/README.md", "laporan komunitas")}. [Riwayat CI](ci-history.json) mencatat SHA dan waktu pengamatan.`, ""];
+const webCoverage = rows.filter(row => row.web_evidence.some(item => item.evidence === "authenticated product web")).length;
+const hydrationWarnings = web.results.filter((entry: any) => entry.hydrationWarnings?.length).length;
+lines.push(`Referensi web produk tersedia untuk ${webCoverage} dari ${rows.length} pola rute. ${hydrationWarnings} capture kursus mencatat peringatan hidrasi. Tujuan redirect dan detail peringatan tersimpan di [routes.json](routes.json).`, "");
 for (const [platform, label] of [["android", "Android"], ["ios", "iOS"]] as const) {
   const summary = summaries[platform];
   if (!summary) {
@@ -201,7 +223,10 @@ for (const [platform, label] of [["android", "Android"], ["ios", "iOS"]] as cons
   }
   const counts = Object.entries(summary.data.counts ?? {}).map(([status, count]) => `${count} \`${status}\``).join(", ");
   const run = summary.data.workflowRun ?? summary.provenance.workflowRun;
-  const detail = [counts, summary.provenance.reason, link(summary.path, "Ringkasan kasus"), run ? `[Run GitHub](${run})` : null].filter(Boolean);
+  const detail = [counts, summary.provenance.reason, link(summary.path, "Ringkasan kasus"),
+    summary.archivePath ? link(summary.archivePath, "ZIP PNG smoke") : null,
+    summary.captureIndex ? link(summary.captureIndexPath, "Indeks PNG dan SHA-256") : null,
+    run ? `[Run GitHub](${run})` : null].filter(Boolean);
   lines.push(`- **${label}** ${detail.join(" · ")}`);
 }
 lines.push("", "| Rute dan sumber web | Implementasi dan operasi | Fixture runnable / blocked; assertion | Bukti web | Android / iOS |", "|---|---|---|---|---|");
