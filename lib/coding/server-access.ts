@@ -6,9 +6,11 @@ import { codingProblems } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { codingProblemPrivateSchema } from "./contracts";
 
-export async function requireCodingAccess(request: Request, courseId: string) {
+export async function requireCodingAccess(request: Request, courseId: string, checkNativeViewer = false) {
   const session = await auth.api.getSession({ headers: request.headers });
   if (!session?.user?.id) throw new Error("CODING_UNAUTHORIZED");
+  const expectedUser = request.headers.get("x-student-id");
+  if (checkNativeViewer && expectedUser !== null && expectedUser !== session.user.id) throw new Error("CODING_FORBIDDEN");
   const access = await resolveCourseAccess({ courseId, userId: session.user.id });
   if (!access.hasCourseAccess || !access.canonicalCourseId || !access.hasFullContentAccess) throw new Error("CODING_FORBIDDEN");
   return { userId: session.user.id, courseId: access.canonicalCourseId };
@@ -36,7 +38,7 @@ export function codingErrorResponse(error: unknown) {
     CODING_ASSISTANCE_DISABLED: [403, "Bantuan Zyra tidak tersedia untuk soal ini."],
   };
   const [status, message] = messages[code] ?? [503, "Permintaan belum dapat diproses. Coba lagi."];
-  return Response.json({ error: message }, { status });
+  return Response.json({ error: message, ...(messages[code] ? { code } : {}) }, { status, headers: { "Cache-Control": "private, no-store" } });
 }
 export function assertCodingSameOrigin(request: Request) {
   const origin = request.headers.get("origin");

@@ -227,7 +227,9 @@ jobs:
           bun test tests/contracts/native-student-material-pdf.test.ts
       - name: Student learning and live-session operations
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
-        run: bun scripts/test-contracts.ts tests/contracts/native-student-learning-postgres.test.ts
+        run: |
+          bun scripts/test-contracts.ts tests/contracts/native-student-learning-postgres.test.ts tests/contracts/coding-http.test.ts
+          bun test tests/unit/expo-live-coding.test.ts tests/unit/expo-student-playground.test.ts
       - name: Academic courses, scheduling and tryout operations
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: |

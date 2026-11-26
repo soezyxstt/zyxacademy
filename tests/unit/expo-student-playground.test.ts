@@ -73,6 +73,11 @@ test("native terminal starts once, forwards input and bounded output, and closes
     expect(output).toEqual(["hell"]);
     expect(result).toEqual({ status: "completed", stdout: "hell", stderr: "", truncated: true });
     expect(closed).toBe(true);
+    sent.length = 0;
+    const practice = createRemotePythonRuntime(owner.courseId, () => {}, { prefillInput: true, input() {}, output() {} },
+      async () => Response.json({ url: "wss://zyx-py-runtime.onrender.com/v1/terminal", ticket: "fixture.ticket" }));
+    await practice.execute({ code: "print(input())", stdin: "sample", signal, limits: { timeoutMs: 5000, maxOutputChars: 100 } });
+    expect(sent).toEqual([{ type: "start", code: "print(input())" }, { type: "input", data: "sample\n" }]);
   } finally {
     globalThis.WebSocket = original;
   }

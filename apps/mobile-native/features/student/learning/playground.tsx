@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 import type { ExecutionResult } from "../../../../../lib/coding/contracts";
 import { useOpenCourseZyra } from "../zyra/context";
 import { executePython } from "../../../../../lib/coding/runtime";
@@ -11,7 +11,8 @@ import { useProtectedInteraction } from "../../../routing/protected-interaction"
 import { useStudentChromeVisibility } from "../../../routing/student-course-chrome-context";
 import type { StudentScreenProps } from "../contracts";
 import { PlaygroundAccessError, emptyPlayground, loadPlaygroundDraft, playgroundStorageKey, restoreLocalPlayground, savePlaygroundDraft, type PlaygroundDraft } from "./playground-draft";
-import { Copy, Message, Section, english, styles, useLearningColors } from "./ui";
+import { Copy, Message, Section, english, styles } from "./ui";
+import { PythonCodeField, PythonOutput } from "./python-editor";
 
 export function PlaygroundContent({ props }: { props: StudentScreenProps }) {
   const { session, route } = props;
@@ -26,7 +27,6 @@ function Playground({ props, draftKey }: { props: StudentScreenProps; draftKey: 
   const owner = useMemo(() => ({ courseId: route.params.id, userId: session.userId, draftKey }), [route.params.id, session.userId, draftKey]);
   const localKey = playgroundStorageKey(owner.courseId, draftKey);
   const en = english(session.locale);
-  const colors = useLearningColors();
   const openZyra = useOpenCourseZyra();
   const [lastResult, setLastResult] = useState<ExecutionResult | null>(null);
   const { suspended, canInteract } = useProtectedInteraction();
@@ -141,8 +141,8 @@ function Playground({ props, draftKey }: { props: StudentScreenProps; draftKey: 
   const running = phase !== "idle";
   return <Section>
     <Copy>{en ? "Python code" : "Kode Python"}</Copy>
-    <Input accessibilityLabel={en ? "Python code" : "Kode Python"} multiline autoCapitalize="none" autoCorrect={false} spellCheck={false}
-      style={local.editor} textAlignVertical="top" value={draft.code} maxLength={64000} editable={!saving && !running} onChangeText={code => edit({ code })} />
+    <PythonCodeField label={en ? "Python code" : "Kode Python"} code={draft.code}
+      editable={!saving && !running} onChange={code => edit({ code })} />
     {conflictRevision !== null && <Copy>{en ? "Another device saved a different draft. Saving your copy will replace it." : "Perangkat lain menyimpan draf berbeda. Menyimpan salinan ini akan menggantikannya."}</Copy>}
     <View style={styles.wrap}>
       <Button disabled={!running && !draft.code.trim()} onPress={running ? () => execution.current?.abort() : run}>
@@ -157,13 +157,11 @@ function Playground({ props, draftKey }: { props: StudentScreenProps; draftKey: 
       <Input accessibilityLabel="stdin" autoCapitalize="none" value={line} maxLength={8000} onChangeText={setLine} style={local.stdin} />
       <Button variant="outline" onPress={() => { if (execution.current && canInteract() && input.current) { input.current(line); setLine(""); } }}>{en ? "Send input" : "Kirim masukan"}</Button>
     </View>}
-    {output ? <Text selectable style={[local.output, { color: colors.foreground }]}>{output}</Text> : null}
+    {output ? <PythonOutput content={output} /> : null}
     {notice ? <Copy>{notice}</Copy> : null}
   </Section>;
 }
 
 const local = StyleSheet.create({
-  editor: { minHeight: 176, fontFamily: "monospace" },
   stdin: { flex: 1, minWidth: 100 },
-  output: { fontFamily: "monospace", fontSize: 14 },
 });

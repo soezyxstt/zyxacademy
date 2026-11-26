@@ -64,6 +64,20 @@ export const operationsCatalog = [
     "reason": "Interactive playback mints a temporary source after the existing course and chapter access checks. Expo plays the source within the signed-in session. Administrative video tools continue to manage course content under their own scopes and consent."
   },
   {
+    "source": "app/api/coding/problems/[problemId]/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Student Python exercise reads provide the published public problem snapshot. Live reads also require current participant membership, room and question. No private tests or reference solution are exposed."
+  },
+  {
+    "source": "app/api/coding/submissions/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Student coding history and graded attempts use the learner's verified account, existing course access and the authorized article or live room. Live grading uses the existing attempt reservation and score delivery. Interactive practice and exercise help provide no MCP capability or scope."
+  },
+  {
     "source": "app/api/native/student/learning/live/route.ts",
     "actions": ["POST"],
     "tools": [],

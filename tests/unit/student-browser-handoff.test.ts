@@ -1,14 +1,5 @@
 import { expect, test } from "bun:test";
-import { studentBrowserNotificationsAction, studentBrowserNotificationsUrl, studentLiveBrowserPath } from "../../apps/mobile-native/features/student/browser-handoff";
-
-test("live coding browser handoff starts from the course room join page", () => {
-  const path = studentLiveBrowserPath("matematika-1");
-  expect(path).toBe("/courses/matematika-1/live");
-  const link = new URL(studentLiveBrowserPath("course?room=secret#token"), "https://example.test");
-  expect(link.pathname).toBe("/courses/course%3Froom%3Dsecret%23token/live");
-  expect(link.search).toBe("");
-  expect(link.hash).toBe("");
-});
+import { studentBrowserNotificationsAction, studentBrowserNotificationsUrl } from "../../apps/mobile-native/features/student/browser-handoff";
 
 test("notification handoff uses the session HTTPS origin and respects the browser host and current session", async () => {
   const origin = "https://app.example.test";

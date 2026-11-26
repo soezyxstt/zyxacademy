@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { codingSubmitHttpSchema, codingSurfaceSchema, codingSurfaceIdentity } from "@/lib/coding/http-contracts";
+import { codingSubmitHttpSchema, readCodingSurface, codingSurfaceIdentity } from "@/lib/coding/http-contracts";
 import { requireCodingAccess, assertCodingSameOrigin, loadPublishedCodingProblem, codingErrorResponse } from "@/lib/coding/server-access";
 import { resolveCodingSurface } from "@/lib/coding/surface-access";
 import { createCodingAttemptRepository, loadCodingHistory } from "@/lib/coding/repository";
@@ -13,12 +13,15 @@ export const maxDuration = 60;
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
-    const actor = await requireCodingAccess(request, url.searchParams.get("courseId") ?? "");
+    const actor = await requireCodingAccess(request, url.searchParams.get("courseId") ?? "", true);
     const problem = await loadPublishedCodingProblem(actor.courseId, url.searchParams.get("problemId") ?? "", Number(url.searchParams.get("version")));
-    const rows = await loadCodingHistory(db, actor.userId, problem.problemId, problem.version);
-    const surfaceValue = url.searchParams.get("surface");
-    const surfaceId = surfaceValue ? codingSurfaceIdentity(codingSurfaceSchema.parse(JSON.parse(surfaceValue))) : null;
-    return Response.json({ attempts: rows.filter((row) => !surfaceId || row.surfaceId === surfaceId).map((row) => ({ id: row.id, ordinal: row.ordinal, status: row.status, code: row.request.code, feedback: row.evaluation ? publicCodingFeedback(toPublicCodingProblem(problem), row.evaluation) : null })) });
+    const surface = readCodingSurface(url.searchParams.get("surface"));
+    if (surface?.kind === "live_quiz") await resolveCodingSurface(surface, problem, actor.userId);
+    const surfaceId = surface ? codingSurfaceIdentity(surface) : undefined;
+    const rows = await loadCodingHistory(db, actor.userId, problem.problemId, problem.version, { courseId: actor.courseId, surfaceId });
+    return Response.json({ attempts: rows.map((row) => ({ id: row.id, ordinal: row.ordinal, status: row.status, code: row.request.code,
+      feedback: row.evaluation ? publicCodingFeedback(toPublicCodingProblem(problem), row.evaluation) : null })) },
+    { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) { return codingErrorResponse(error); }
 }
 export async function POST(request: Request) {
@@ -27,7 +30,7 @@ export async function POST(request: Request) {
     const parsed = codingSubmitHttpSchema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) return Response.json({ error: "Format percobaan tidak valid." }, { status: 400 });
     const { surface, submission } = parsed.data;
-    const actor = await requireCodingAccess(request, parsed.data.courseId);
+    const actor = await requireCodingAccess(request, parsed.data.courseId, true);
     const problem = await loadPublishedCodingProblem(actor.courseId, submission.problem.problemId, submission.problem.version);
     const policy = await resolveCodingSurface(surface, problem, actor.userId);
     const attempt = await submitCodingAttempt(createCodingAttemptRepository(db), {
@@ -48,6 +51,6 @@ export async function POST(request: Request) {
       } finally { await runtime?.close().catch(() => {}); }
     });
     if (surface.kind === "live_quiz" && attempt.evaluation) await deliverLiveCodingResult(surface, problem, actor.userId, submission.requestId);
-    return Response.json({ attemptId: attempt.id, ordinal: attempt.ordinal, feedback: attempt.evaluation ? publicCodingFeedback(toPublicCodingProblem(problem), attempt.evaluation) : null }, { status: attempt.evaluation ? 200 : 202 });
+    return Response.json({ attemptId: attempt.id, ordinal: attempt.ordinal, feedback: attempt.evaluation ? publicCodingFeedback(toPublicCodingProblem(problem), attempt.evaluation) : null }, { status: attempt.evaluation ? 200 : 202, headers: { "Cache-Control": "private, no-store" } });
   } catch (error) { return codingErrorResponse(error); }
 }

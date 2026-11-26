@@ -5,10 +5,12 @@ import { createLiveQuizSocketHook, type LeaderboardEntry } from "../../../../../
 import { CourseVideoDialog } from "../../course-video/CourseVideoDialog";
 import { Button } from "../../../components/Button";
 import { Input } from "../../../components/Input";
-import { studentLiveBrowserPath } from "../browser-handoff";
+import { liveCodingConfigSchema } from "../../../../../lib/coding/live-config";
+import { NativeLiveCoding } from "./live-coding";
+import { canStartLiveCoding, liveCodingKey, signedLiveEndpoint, type LiveJoin } from "./live-coding-contract";
 import type { StudentScreenProps } from "../contracts";
 import { CourseMarkdown } from "../CourseMarkdown";
-import { Copy, Message, Row, Section, english, launchWeb, postJson, readJson, RequestError, styles, useLearningColors, type Translate } from "./ui";
+import { Copy, Message, Row, Section, english, postJson, readJson, RequestError, styles, useLearningColors, type Translate } from "./ui";
 
 const useLiveQuizSocket = createLiveQuizSocketHook({ useCallback, useEffect, useRef, useState });
 
@@ -78,20 +80,6 @@ export function VideoContent({ data, props, t }: { data: Ready<"video">; props: 
   </>;
 }
 
-type LiveJoin = { sessionId: string; token: string; wsUrl: string | null };
-
-function signedEndpoint(join: LiveJoin) {
-  if (!join.wsUrl || !join.token) return null;
-  try {
-    const endpoint = new URL(join.wsUrl);
-    if (!["https:", "wss:"].includes(endpoint.protocol) || endpoint.username || endpoint.password) return null;
-    endpoint.searchParams.set("token", join.token);
-    return endpoint.href;
-  } catch {
-    return null;
-  }
-}
-
 function LiveBoard({ title, rows, rank, score, t }: { title: string; rows: LeaderboardEntry[]; rank: number | null; score: number; t: Translate }) {
   return <Section title={title}>
     {rank && !rows.some((item) => item.rank === rank) ? <Row title={`${rank}. ${t("live.you")}`} value={String(score)} /> : null}
@@ -99,38 +87,28 @@ function LiveBoard({ title, rows, rank, score, t }: { title: string; rows: Leade
   </Section>;
 }
 
-function LiveCodingHandoff({ props }: { props: StudentScreenProps }) {
-  const [failed, setFailed] = useState(false);
-  const en = english(props.session.locale);
-  return <View style={styles.section}>
-    <Copy>{en
-      ? "Sign in with the same account in your browser, then rejoin the live quiz with the room code to open the coding exercise."
-      : "Masuk dengan akun yang sama di browser, lalu gabung kembali ke kuis langsung dengan kode ruang untuk membuka latihan kode."}</Copy>
-    {props.openExternal ? <Button variant="outline" style={styles.action}
-      onPress={() => setFailed(!launchWeb(props, studentLiveBrowserPath(props.route.params.id)))}>
-      {en ? "Open live quiz in browser" : "Buka kuis langsung di browser"}
-    </Button> : null}
-    {failed || !props.openExternal ? <Message>{en
-      ? "Open the live quiz from the course page in your browser."
-      : "Buka kuis langsung dari halaman kelas di browser."}</Message> : null}
-  </View>;
-}
-
-function ConnectedLive({ data, props, t, code, initialEndpoint, leave }: {
-  data: Ready<"live">; props: StudentScreenProps; t: Translate; code: string; initialEndpoint: string; leave: () => void;
+function ConnectedLive({ data, props, t, code, initialEndpoint, sessionId, leave }: {
+  data: Ready<"live">; props: StudentScreenProps; t: Translate; code: string; initialEndpoint: string; sessionId: string; leave: () => void;
 }) {
   const refresh = useCallback(async () => {
     try {
-      return signedEndpoint(await readJson<LiveJoin>(props.request, learningLiveJoinApi, postJson({ code, courseId: data.joinCourseId })));
+      const joined = await readJson<LiveJoin>(props.request, learningLiveJoinApi, postJson({ code, courseId: data.joinCourseId }));
+      return signedLiveEndpoint(joined, sessionId);
     } catch (error) {
       if (error instanceof RequestError && [401, 403, 404, 410].includes(error.status)) return null;
       throw error;
     }
-  }, [code, data.joinCourseId, props.request]);
-  const { state, sendAnswer } = useLiveQuizSocket(initialEndpoint, refresh);
+  }, [code, data.joinCourseId, props.request, sessionId]);
+  const { state, sendAnswer, synchronized } = useLiveQuizSocket(initialEndpoint, refresh, false);
   const colors = useLearningColors();
   const question = state.currentQuestion;
   const phase = state.sessionState;
+  const codingQuestion = question?.coding != null;
+  const coding = question && codingQuestion ? liveCodingConfigSchema.safeParse(question.coding) : null;
+  const scope = question && coding && coding.success && Number.isSafeInteger(question.questionIndex) && question.questionIndex >= 0
+    ? { courseId: data.joinCourseId, roomId: sessionId, index: question.questionIndex, config: coding.data } : null;
+  const ready = synchronized && state.connectionStatus === "connected" && props.focused !== false;
+  const codingOpen = canStartLiveCoding({ synchronized, connected: ready, phase, deadline: question?.deadline ?? 0 });
   const render = (source: string, allowLinks = true) => props.renderAssessmentMarkdown?.(source, props.route.params.id) ??
     <CourseMarkdown source={source} services={props} allowLinks={allowLinks} />;
   return <>
@@ -141,9 +119,11 @@ function ConnectedLive({ data, props, t, code, initialEndpoint, leave }: {
       ? t("live.questionPosition", { current: question.questionIndex + 1, total: question.total })
       : t("live.question", { number: question.questionIndex + 1 })}>
       {phase === "question" ? <Copy>{t("live.timeRemaining", { seconds: state.countdown })}</Copy> : null}
-      {render(question.prompt)}
-      {question.coding ? <LiveCodingHandoff props={props} /> : null}
-      <View accessibilityRole="radiogroup" style={{ gap: 8 }}>
+      {codingQuestion && ready && scope
+        ? <NativeLiveCoding key={liveCodingKey(scope)} props={props} scope={scope} deadline={question.deadline} open={codingOpen} />
+        : codingQuestion && ready ? <Message>{english(props.session.locale) ? "The Python exercise is unavailable." : "Latihan Python tidak tersedia."}</Message>
+          : !codingQuestion ? render(question.prompt) : null}
+      {!codingQuestion && <View accessibilityRole="radiogroup" style={{ gap: 8 }}>
         {question.options.map((option, index) => {
           const correct = phase === "reveal" && index === state.revealCorrectIndex;
           const selected = state.myAnswer === index;
@@ -155,7 +135,7 @@ function ConnectedLive({ data, props, t, code, initialEndpoint, leave }: {
             {render(option, false)}
           </Pressable>;
         })}
-      </View>
+      </View>}
       {question.sourceEventName ? <Copy muted>{question.sourceEventName}</Copy> : null}
       {state.myAnswer !== null && phase === "question" ? <Copy muted>{t("live.answerLocked")}</Copy> : null}
     </Section> : null}
@@ -182,7 +162,7 @@ export function LiveContent({ data, props, t }: { data: Ready<"live">; props: St
     setError(undefined);
     try {
       const result = await readJson<LiveJoin>(props.request, learningLiveJoinApi, postJson({ code: input, courseId: data.joinCourseId }));
-      const endpoint = signedEndpoint(result);
+      const endpoint = signedLiveEndpoint(result);
       if (!endpoint) throw new Error("Invalid socket endpoint");
       setJoined({ endpoint, code: input, sessionId: result.sessionId });
     } catch {
@@ -193,7 +173,7 @@ export function LiveContent({ data, props, t }: { data: Ready<"live">; props: St
     }
   }
   if (!data.enabled) return <Section title={t("live.noSessionTitle")}><Copy muted>{t("live.noSessionDescription")}</Copy></Section>;
-  if (joined) return <ConnectedLive key={joined.sessionId} data={data} props={props} t={t} code={joined.code} initialEndpoint={joined.endpoint} leave={() => setJoined(undefined)} />;
+  if (joined) return <ConnectedLive key={joined.sessionId} data={data} props={props} t={t} code={joined.code} initialEndpoint={joined.endpoint} sessionId={joined.sessionId} leave={() => setJoined(undefined)} />;
   return <Section title={t("live.joinTitle")}>
     <View style={styles.wrap}>
       <Input value={code} accessibilityLabel={t("live.sessionCode")} placeholder={t("live.sessionCodePlaceholder")} autoCapitalize="characters"

@@ -2,13 +2,13 @@ import type { ExecutionResult } from "./contracts";
 import type { PythonRuntime } from "./runtime";
 import { takeWarmRemotePython } from "./remote-warm";
 
-type Terminal = { output(text: string): void; input(send: (value: string) => void): void };
+type Terminal = { output(text: string): void; input(send: (value: string) => void): void; prefillInput?: boolean };
 
 type TerminalRequest = (path: string, init: RequestInit) => Promise<{ ok: boolean; json(): Promise<unknown>; dispose?(): void }>;
 
 export function createRemotePythonRuntime(courseId: string, onPhase: (phase: "loading" | "running") => void, terminal: Terminal, sessionRequest?: TerminalRequest): PythonRuntime {
   return {
-    async execute({ code, limits, signal }) {
+    async execute({ code, stdin, limits, signal }) {
       const unavailable = (): ExecutionResult => ({ status: "unavailable", stdout: "", stderr: "Python belum tersedia. Coba lagi.", truncated: false });
       onPhase("loading");
       const attempt = async (allowWarm: boolean, retry: boolean): Promise<ExecutionResult> => {
@@ -48,6 +48,10 @@ export function createRemotePythonRuntime(courseId: string, onPhase: (phase: "lo
           if (message.type === "ready") { try { socket.send(JSON.stringify({ type: "start", code })); sent = true; } catch { retryBeforeSend(); } }
           if (message.type === "running") {
             clearTimeout(timer); onPhase("running");
+            if (terminal.prefillInput && stdin && socket.readyState === WebSocket.OPEN) {
+              try { socket.send(JSON.stringify({ type: "input", data: stdin.endsWith("\n") ? stdin : stdin + "\n" })); }
+              catch { finish(unavailable()); return; }
+            }
             terminal.input((value) => { if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: "input", data: value + "\n" })); });
           }
           if (message.type === "output" && typeof message.data === "string") {

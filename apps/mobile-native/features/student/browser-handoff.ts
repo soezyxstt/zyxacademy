@@ -1,5 +1,3 @@
-import { courseHref } from "../../../../packages/native-parity/student/learning/contracts";
-
 export const studentBrowserNotificationsPath = "/settings/notifications/browser";
 
 export function studentBrowserNotificationsUrl(origin: string): string | null {
@@ -36,8 +34,4 @@ export function studentBrowserNotificationsAction({
       if (isCurrent()) onError();
     }
   };
-}
-
-export function studentLiveBrowserPath(courseId: string): string {
-  return courseHref(courseId, "/live");
 }
