@@ -1,3 +1,4 @@
+import "katex/dist/katex.min.css";
 import { Suspense } from "react";
 import { Activity, Zap } from "lucide-react";
 import { AdminPageHeader } from "@/components/admin/page-header";

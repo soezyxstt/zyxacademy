@@ -8,6 +8,7 @@ async function main() {
   const jobs = evalMessages.jobs;
   const destination = "artifacts/native-parity/operations-web/evaluation";
   const root = process.env.PARITY_OPERATIONS_WEB_URL ?? "http://localhost:3211";
+  const timeZone = process.env.PARITY_OPERATIONS_TIME_ZONE ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
   const browser = await chromium.launch({ executablePath: process.env.PARITY_CHROMIUM_EXECUTABLE, args: ["--force-color-profile=srgb"] });
   const captures: Record<string, unknown>[] = [];
   const errors: string[] = [];
@@ -37,7 +38,7 @@ async function main() {
   await mkdir(destination, { recursive: true });
   try {
     const viewports = [{ width: 380, height: 844 }, { width: 1536, height: 864 }];
-    const page = await browser.newPage({ viewport: viewports[0], deviceScaleFactor: 1, locale: "id-ID", timezoneId: "UTC", reducedMotion: "reduce" });
+    const page = await browser.newPage({ viewport: viewports[0], deviceScaleFactor: 1, locale: "id-ID", timezoneId: timeZone, reducedMotion: "reduce" });
     page.on("pageerror", (error) => errors.push(error.message));
     page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
     page.on("response", (response) => { if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`); });
@@ -49,6 +50,8 @@ async function main() {
       expect(page.url()).toBe(root + path);
       if (scenario.id.startsWith("ast-")) {
         await expect(page.getByRole("button", { name: t.export })).toBeEnabled({ timeout: 90000 });
+      } else {
+        await expect(page.locator('[data-fixture-ready="true"]')).toBeVisible({ timeout: 90000 });
       }
       await scenario.check(page);
       await page.evaluate(() => document.fonts.ready);
@@ -64,7 +67,7 @@ async function main() {
   } finally {
     await browser.close();
   }
-  await writeFile(`${destination}/cases.json`, JSON.stringify({ locale: "id-ID", timeZone: "UTC", dpr: 1, captures, errors }, null, 2));
+  await writeFile(`${destination}/cases.json`, JSON.stringify({ locale: "id-ID", timeZone, dpr: 1, captures, errors }, null, 2));
   if (errors.length) throw new Error(errors.join("\n"));
 }
 
