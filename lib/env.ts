@@ -160,6 +160,12 @@ export const env = createEnv({
   APNS_BUNDLE_ID: z.string().optional(),
   /** Set to "1" to send APNs requests to api.sandbox.push.apple.com. */
   APNS_USE_SANDBOX: z.enum(["0", "1"]).optional(),
+  APNS_EXPO_IOS_DEVELOPMENT_KEY_ID: z.string().optional(),
+  APNS_EXPO_IOS_DEVELOPMENT_TEAM_ID: z.string().optional(),
+  APNS_EXPO_IOS_DEVELOPMENT_PRIVATE_KEY: z.string().optional(),
+  APNS_EXPO_IOS_PRODUCTION_KEY_ID: z.string().optional(),
+  APNS_EXPO_IOS_PRODUCTION_TEAM_ID: z.string().optional(),
+  APNS_EXPO_IOS_PRODUCTION_PRIVATE_KEY: z.string().optional(),
   },
  client: {
  /** Absolute origin for better-auth client (e.g. https://app.example.com). Falls back for local dev. */
@@ -280,5 +286,11 @@ export const env = createEnv({
   APNS_PRIVATE_KEY: process.env.APNS_PRIVATE_KEY,
   APNS_BUNDLE_ID: process.env.APNS_BUNDLE_ID,
   APNS_USE_SANDBOX: process.env.APNS_USE_SANDBOX,
+  APNS_EXPO_IOS_DEVELOPMENT_KEY_ID: process.env.APNS_EXPO_IOS_DEVELOPMENT_KEY_ID,
+  APNS_EXPO_IOS_DEVELOPMENT_TEAM_ID: process.env.APNS_EXPO_IOS_DEVELOPMENT_TEAM_ID,
+  APNS_EXPO_IOS_DEVELOPMENT_PRIVATE_KEY: process.env.APNS_EXPO_IOS_DEVELOPMENT_PRIVATE_KEY,
+  APNS_EXPO_IOS_PRODUCTION_KEY_ID: process.env.APNS_EXPO_IOS_PRODUCTION_KEY_ID,
+  APNS_EXPO_IOS_PRODUCTION_TEAM_ID: process.env.APNS_EXPO_IOS_PRODUCTION_TEAM_ID,
+  APNS_EXPO_IOS_PRODUCTION_PRIVATE_KEY: process.env.APNS_EXPO_IOS_PRODUCTION_PRIVATE_KEY,
   },
 });

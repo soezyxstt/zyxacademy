@@ -4,6 +4,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { runInNewContext } from "node:vm";
+import { expoIosPushRegistration } from "../../packages/notifications/expo-ios-push";
 import type { NativePushDevice } from "../../apps/mobile-native/device/notifications-controller";
 
 const require = createRequire(import.meta.url);
@@ -204,6 +205,8 @@ test("registration uses the capability of the installed Android binary", async (
         expect(name).toBe("ZyxAndroidPushConfiguration");
         return native === null ? null : { isConfigured: () => native };
       } },
+      "expo-constants": { default: { expoConfig: {} } },
+      "../../../packages/notifications/expo-ios-push": { expoIosPushRegistration },
       "react-native": { Platform: { OS: platform }, AppState: { addEventListener: () => ({ remove() {} }) } },
       "./notifications-controller": { createNativePushController: (device: NativePushDevice) => {
         observed = device.registration;

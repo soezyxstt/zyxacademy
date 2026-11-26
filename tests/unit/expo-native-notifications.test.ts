@@ -29,7 +29,7 @@ function createFixture(platform: "ios" | "android" = "android") {
   let responsesDisposed = 0;
   const device: NativePushDevice = {
     registration: platform === "ios"
-      ? { platform, transport: "apns", device: "expo-ios" }
+      ? { platform, transport: "apns", device: "expo-ios-development" }
       : { platform, transport: "fcm", device: "expo-android" },
     async getPermission() {
       activity.push("check");
@@ -59,7 +59,7 @@ function createFixture(platform: "ios" | "android" = "android") {
     sessionId = accountId,
     respond = async (method: string) => method === "DELETE"
       ? { success: true }
-      : { success: true, registered: true, platform, transport, transportActive: true },
+      : { success: true, registered: true, platform, transport, transportActive: true, ...(platform === "ios" ? { device: "expo-ios-development" } : {}) },
   ) {
     let active = true;
     const client: NativePushSession = {
@@ -108,7 +108,7 @@ test("checks permission during account setup and only prompts on an explicit req
     accountId: "student-a",
     method: "POST",
     path: "/api/notifications/register-token",
-    payload: { token: apnsToken, platform: "ios", transport: "apns", device: "expo-ios" },
+    payload: { token: apnsToken, platform: "ios", transport: "apns", device: "expo-ios-development" },
   }]);
 });
 

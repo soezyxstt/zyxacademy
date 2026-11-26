@@ -1,4 +1,6 @@
 import { isRunningInExpoGo, requireOptionalNativeModule } from "expo";
+import Constants from "expo-constants";
+import { expoIosPushRegistration } from "../../../packages/notifications/expo-ios-push";
 import { AppState, Platform } from "react-native";
 
 import {
@@ -42,9 +44,12 @@ export function createExpoNotificationController({
   const platform = Platform.OS;
   const installed = platform === "android" && !isRunningInExpoGo()
     && requireOptionalNativeModule<{ isConfigured(): boolean }>("ZyxAndroidPushConfiguration")?.isConfigured() === true;
-  const registration: NativePushDevice["registration"] = installed
+  let registration: NativePushDevice["registration"] = installed
     ? { platform: "android", transport: "fcm", device: "expo-android" }
     : null;
+  const iosEnvironment: unknown = platform === "ios" && !isRunningInExpoGo()
+    ? Constants.expoConfig?.extra?.zyxExpoIosApnsEnvironment : null;
+  const probeIos = iosEnvironment === "development" || iosEnvironment === "production";
   const load = () => import("expo-notifications");
   let preparedLocale: "id" | "en" | undefined;
 
@@ -64,7 +69,7 @@ export function createExpoNotificationController({
   }
 
   const controller = createNativePushController({
-    registration,
+    get registration() { return registration; },
     async getPermission() {
       const notifications = await load();
       return mapPermission(notifications, await notifications.getPermissionsAsync());
@@ -80,8 +85,19 @@ export function createExpoNotificationController({
     async getToken() {
       const notifications = await load();
       await prepareChannels(notifications);
-      const token = await notifications.getDevicePushTokenAsync();
-      return token.type === platform && typeof token.data === "string" ? token.data : null;
+      const pending = notifications.getDevicePushTokenAsync();
+      if (platform !== "ios") {
+        const token = await pending;
+        return token.type === platform && typeof token.data === "string" ? token.data : null;
+      }
+      // iOS may defer device token issuance while APNs is unreachable.
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const token = await Promise.race([pending, new Promise<null>(resolve => { timer = setTimeout(() => resolve(null), 10_000); })]);
+        return token?.type === "ios" && typeof token.data === "string" ? token.data : null;
+      } finally {
+        clearTimeout(timer);
+      }
     },
     onToken(listener) {
       let stopped = false;
@@ -104,13 +120,32 @@ export function createExpoNotificationController({
       await notifications.dismissAllNotificationsAsync();
     },
   }, onStatusChange);
-  const subscription = registration && AppState.addEventListener("change", state => {
+  let disposed = false;
+  const ready = probeIos ? (async () => {
+    try {
+      const application = await import("expo-application");
+      const environment = await application.getIosPushNotificationServiceEnvironmentAsync();
+      const storeDistribution = environment === null && iosEnvironment === "production"
+        && await application.getIosApplicationReleaseTypeAsync() === application.ApplicationReleaseType.APP_STORE;
+      if (!disposed) registration = expoIosPushRegistration({
+        applicationId: application.applicationId, configuredEnvironment: iosEnvironment,
+        provisioningEnvironment: environment, storeDistribution,
+      });
+    } catch { /* Leave push unsupported without native build evidence. */ }
+    if (!disposed && registration) void controller.sync();
+  })() : null;
+  const subscription = registration || probeIos ? AppState.addEventListener("change", state => {
     if (state === "active") void controller.sync();
-  });
+  }) : undefined;
 
   return {
     ...controller,
+    async requestPermission(canPrompt?: () => boolean) {
+      await ready;
+      return disposed ? null : controller.requestPermission(canPrompt);
+    },
     dispose() {
+      disposed = true;
       subscription?.remove();
       controller.dispose();
     },

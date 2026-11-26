@@ -1,3 +1,4 @@
+import { expoIosApnsEnvironment } from "../../../packages/notifications/expo-ios-push";
 import type { NativeRequestInit, NativeSessionTransport } from "../network/transport";
 
 const registrationPath = "/api/notifications/register-token";
@@ -68,7 +69,7 @@ function canRegister(
   token: string | null,
 ): token is string {
   if (!registration || !token) return false;
-  if (registration.transport === "apns") return /^[a-f0-9]{64,512}$/i.test(token);
+  if (registration.transport === "apns") return token.length % 2 === 0 && /^[a-f0-9]{64,512}$/i.test(token);
   return token.length >= 64 && token.length <= 4096 && !/\s/.test(token)
     && !/^(ExponentPushToken|ExpoPushToken)\[/.test(token);
 }
@@ -139,7 +140,8 @@ export function createNativePushController(
       candidate.attemptedTokens.add(token);
       const result = await writeRegistration(candidate.session, "POST", { ...registration, token });
       if (result?.registered !== true || result.transport !== registration.transport
-        || result.platform !== registration.platform || typeof result.transportActive !== "boolean") return;
+        || result.platform !== registration.platform || typeof result.transportActive !== "boolean"
+        || (expoIosApnsEnvironment(registration.device) && result.device !== registration.device)) return;
 
       // The server removes older tokens for this same session and transport.
       candidate.attemptedTokens.clear();

@@ -436,7 +436,7 @@ export async function getUnifiedNotificationDeliveryStatus(): Promise<UnifiedNot
     });
     if (res.ok) {
       const summary = (await res.json()) as PushStatusSummary;
-      const transportState = summary.transports?.[transport];
+      const transportState = (transport === "apns" ? summary.apnsProfiles?.capacitor : undefined) ?? summary.transports?.[transport];
       if (transportState) {
         registered = transportState.registeredCount > 0;
         transportActive = transportState.configured;

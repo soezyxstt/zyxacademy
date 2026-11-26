@@ -204,6 +204,20 @@ export const operationsCatalog = [
     "reason": "Web and Expo show personal achievement notifications for the active learner and acknowledge only that account's displayed events. These participant actions use the existing learner session."
   },
   {
+    "source": "app/api/notifications/register-token/route.ts",
+    "actions": ["POST", "DELETE"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Device push registration and retirement require the current authenticated user's session and operating-system permission. Expo iOS development and production registrations are separate staging profiles for their own APNs topic and credentials. MCP cannot register or retire device push tokens."
+  },
+  {
+    "source": "app/api/notifications/status/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Signed-in users check their own registrations and provider profile readiness. The response contains no device tokens or credentials and has no MCP tool or authority."
+  },
+  {
     "source": "app/.well-known/assetlinks.json/route.ts",
     "actions": ["GET"],
     "tools": [],

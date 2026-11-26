@@ -71,6 +71,9 @@ on:
       - 'db/schema.ts'
       - 'drizzle-postgres/**'
       - 'tests/contracts/notifications-history.test.ts'
+      - 'tests/unit/expo-ios-apns.test.ts'
+      - 'lib/notifications/apns.ts'
+      - 'lib/notifications/dispatch.ts'
       - 'tests/contracts/offline-server-sync.test.ts'
       - 'tests/contracts/native-admin-user-roles.test.ts'
       - 'lib/admin/user-roles.ts'
@@ -274,7 +277,9 @@ jobs:
         id: install
         run: bun install --frozen-lockfile
       - name: Host inbox and device push recipient isolation
-        run: bun scripts/test-contracts.ts tests/contracts/notifications-history.test.ts tests/contracts/notification-device-sessions.test.ts
+        run: |
+          bun test tests/unit/expo-ios-apns.test.ts tests/unit/expo-native-notifications.test.ts tests/unit/push-delivery-and-apns.test.ts
+          bun scripts/test-contracts.ts tests/contracts/notifications-history.test.ts tests/contracts/notification-device-sessions.test.ts
       - name: Admin broadcast confirmation and MCP outbox isolation
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: |

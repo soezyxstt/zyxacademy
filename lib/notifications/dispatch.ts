@@ -8,6 +8,7 @@
  * - "desktop" relies on the authenticated inbox delivery bridge (no FCM/APNs attempt)
  */
 
+import { expoIosApnsEnvironment, isExpoIosPushLabel, type ExpoIosApnsEnvironment } from "../../packages/notifications/expo-ios-push";
 import type { NotificationPayload, PushTransport, SendResult } from "./types";
 
 export interface PushTokenTarget {
@@ -24,7 +25,7 @@ export interface TransportBatchResult {
 
 export interface DispatchAdapters {
   sendFcm: (tokens: string[], payload: NotificationPayload, display?: "expo-android") => Promise<TransportBatchResult>;
-  sendApns: (tokens: string[], payload: NotificationPayload) => Promise<TransportBatchResult>;
+  sendApns: (tokens: string[], payload: NotificationPayload, expoEnvironment?: ExpoIosApnsEnvironment) => Promise<TransportBatchResult>;
 }
 
 export function normalizeStoredTransport(raw: PushTransport | string | null | undefined): PushTransport {
@@ -41,12 +42,18 @@ export async function dispatchTokensByTransport(
 ): Promise<SendResult> {
   const fcmTokens: string[] = [];
   const apnsTokens: string[] = [];
+  const expoIos: Record<ExpoIosApnsEnvironment, string[]> = { development: [], production: [] };
+  let unknownExpoIosCount = 0;
   const expoAndroidTokens: string[] = [];
   let desktopCount = 0;
 
   for (const target of targets) {
     const transport = normalizeStoredTransport(target.transport);
-    if (transport === "apns") {
+    const environment = expoIosApnsEnvironment(target.device);
+    if (isExpoIosPushLabel(target.device)) {
+      if (transport !== "apns" || !environment) unknownExpoIosCount += 1;
+      else expoIos[environment].push(target.token);
+    } else if (transport === "apns") {
       apnsTokens.push(target.token);
     } else if (transport === "fcm" && target.device === "expo-android") {
       expoAndroidTokens.push(target.token);
@@ -69,11 +76,13 @@ export async function dispatchTokensByTransport(
     remoteTasks.push(adapters.sendApns(apnsTokens, payload));
   }
 
+  if (expoIos.development.length > 0) remoteTasks.push(adapters.sendApns(expoIos.development, payload, "development"));
+  if (expoIos.production.length > 0) remoteTasks.push(adapters.sendApns(expoIos.production, payload, "production"));
   const results = await Promise.all(remoteTasks);
 
   let succeeded = 0;
   const failedTokens: string[] = [];
-  const errors: string[] = [];
+  const errors: string[] = unknownExpoIosCount ? ["Unknown Expo iOS push profile."] : [];
 
   for (const res of results) {
     succeeded += res.succeeded;
@@ -83,7 +92,7 @@ export async function dispatchTokensByTransport(
 
   // Desktop devices receive notifications through the persisted inbox + authenticated
   // desktop notification bridge; do not attempt FCM/APNs or mark them as failed.
-  const attempted = fcmTokens.length + expoAndroidTokens.length + apnsTokens.length + desktopCount;
+  const attempted = fcmTokens.length + expoAndroidTokens.length + apnsTokens.length + expoIos.development.length + expoIos.production.length + unknownExpoIosCount + desktopCount;
   succeeded += desktopCount;
 
   return {

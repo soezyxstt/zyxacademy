@@ -29,6 +29,7 @@ import { randomUUID } from "crypto";
 import { getUserLocalePreference } from "@/lib/i18n/preferences";
 import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locale";
 import type { NotificationPayload, NotificationType, SendResult } from "./types";
+import { expoPushTarget } from "./expo-payload";
 import { sendApnsNotifications } from "./apns";
 import { dispatchTokensByTransport, type PushTokenTarget } from "./dispatch";
 import { deferQuietPushes, deferredSendResult } from "./quiet-delivery";
@@ -106,13 +107,7 @@ function androidNotificationChannel(type: NotificationType): string {
 // The OS may display an already queued push after logout. Only a verified
 // inbox lookup may disclose its content on an Expo Android installation.
 function expoAndroidMessage(payload: NotificationPayload): Omit<MulticastMessage, "tokens"> {
- const data: Record<string, string> = {};
- if (payload.notificationId && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(payload.notificationId)) {
-  data.notificationId = payload.notificationId;
- } else if (payload.metadata?.quietDigest === "true" && payload.metadata.groupKey === "quiet-digest") {
-  data.quietDigest = "true";
-  data.groupKey = "quiet-digest";
- }
+ const data = expoPushTarget(payload);
  return {
   notification: { title: "Zyx Academy" },
   data,
@@ -257,7 +252,7 @@ async function sendToTargets(
 ): Promise<SendResult> {
  const result = await dispatchTokensByTransport(targets, payload, {
   sendFcm: (tokens, p, display) => sendMulticast(tokens, p, display),
-  sendApns: (tokens, p) => sendApnsNotifications(tokens, p),
+  sendApns: (tokens, p, expoEnvironment) => sendApnsNotifications(tokens, p, { expoEnvironment }),
  });
  if (prune && result.failedTokens.length > 0) {
   await pruneInvalidTokens(result.failedTokens);

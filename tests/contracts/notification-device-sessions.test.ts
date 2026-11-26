@@ -12,6 +12,7 @@ const payload = { title: "Notice", body: "Update", type: "announcement" as const
 let client: PGlite;
 let testDb: ReturnType<typeof drizzle>;
 let registration: typeof import("@/app/api/notifications/register-token/route");
+let status: typeof import("@/app/api/notifications/status/route");
 let sessions: typeof import("@/app/api/account/sessions/route");
 let sender: typeof import("@/lib/notifications/send");
 let active = { user: { id: "owner" }, session: { id: "phone" } };
@@ -69,6 +70,7 @@ beforeAll(async () => {
   }));
   mock.module("@/lib/notifications/apns", () => ({
     isApnsConfigured: () => true,
+    getExpoIosApnsConfig: (environment: string) => environment === "development" ? {} : null,
     sendApnsNotifications: async () => ({ succeeded: 0, failedTokens: [], errors: [] }),
   }));
   mock.module("@/lib/i18n/preferences", () => ({ getUserLocalePreference: async () => "en" }));
@@ -77,6 +79,7 @@ beforeAll(async () => {
     deferredSendResult: () => ({ attempted: 0, succeeded: 0, failedTokens: [], errors: [] }),
   }));
   registration = await import("@/app/api/notifications/register-token/route");
+  status = await import("@/app/api/notifications/status/route");
   sessions = await import("@/app/api/account/sessions/route");
   sender = await import("@/lib/notifications/send");
 });
@@ -194,4 +197,42 @@ test("Expo Android gets private inbox details only after the tap and lookup, for
   const digest = messages.find(message => message.tokens.includes(token("expo")));
   expect(digest?.data).toEqual({ quietDigest: "true", groupKey: "quiet-digest" });
   expect(digest?.android?.notification?.tag).toBe("zyx:quiet-digest");
+});
+
+
+test("Expo iOS registration and rotation keep legacy and other APNs environments isolated", async () => {
+  const original = process.env.BETTER_AUTH_URL;
+  const environment = process.env.ZYX_ENVIRONMENT;
+  process.env.BETTER_AUTH_URL = "https://staging.zyxacademy.com";
+  process.env.ZYX_ENVIRONMENT = "staging";
+  const path = "/api/notifications/register-token";
+  const label = (device: string, token: string) => ({ platform: "ios", transport: "apns", device, token });
+  const cap = "a1".repeat(32), dev = "b2".repeat(32), prod = "c3".repeat(32), rotation = "d4".repeat(32);
+  try {
+    expect((await registration.POST(req(path, "POST", label("capacitor-ios", cap)))).status).toBe(200);
+    expect(await (await registration.POST(req(path, "POST", label("expo-ios-development", dev)))).json())
+      .toMatchObject({ transport: "apns", device: "expo-ios-development", transportActive: true });
+    expect(await (await registration.POST(req(path, "POST", label("expo-ios-production", prod)))).json())
+      .toMatchObject({ transport: "apns", device: "expo-ios-production", transportActive: false });
+    expect((await registration.POST(req(path, "POST", label("expo-ios-development", rotation)))).status).toBe(200);
+    expect((await registration.POST(req(path, "POST", label("capacitor-ios", prod)))).status).toBe(409);
+    expect((await registration.POST(req(path, "POST", label("expo-ios-unknown", dev)))).status).toBe(422);
+    const wrong = new NextRequest("https://www.zyxacademy.com" + path, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(label("expo-ios-development", dev)),
+    });
+    expect((await registration.POST(wrong)).status).toBe(422);
+    expect((await testDb.select().from(userPushTokens)).map(row => row.token).sort()).toEqual([cap, prod, rotation].sort());
+    const summary = await (await status.GET()).json();
+    expect(summary.apnsProfiles).toEqual({
+      capacitor: { configured: true, registeredCount: 1, active: true },
+      expoDevelopment: { configured: true, registeredCount: 1, active: true },
+      expoProduction: { configured: false, registeredCount: 1, active: false },
+    });
+    expect(summary.devices.find(({ device }: { device: string }) => device === "expo-ios-production").transportActive).toBe(false);
+    expect(JSON.stringify(summary)).not.toContain(prod);
+  } finally {
+    if (original === undefined) delete process.env.BETTER_AUTH_URL; else process.env.BETTER_AUTH_URL = original;
+    if (environment === undefined) delete process.env.ZYX_ENVIRONMENT; else process.env.ZYX_ENVIRONMENT = environment;
+  }
 });

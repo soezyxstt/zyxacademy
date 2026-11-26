@@ -113,9 +113,11 @@ export interface PushStatusSummary {
     device: string;
     platform: PushPlatform;
     transport: PushTransport;
+    transportActive?: boolean;
     updatedAt: string;
   }>;
   transports: Record<PushTransport, PushTransportReadiness>;
+  apnsProfiles?: Record<"capacitor" | "expoDevelopment" | "expoProduction", PushTransportReadiness>;
 }
 
 export interface SendResult {
