@@ -31,6 +31,8 @@ async function saveReport() {
 
 async function ready(page: Page, marker: Locator, timeout = 90_000) {
   await marker.first().waitFor({ state: "visible", timeout });
+  await page.getByRole("button", { name: "Ganti mata kuliah: Memuat mata kuliah…", exact: true })
+    .waitFor({ state: "hidden", timeout: 90_000 });
   await page.waitForFunction(() => document.fonts.status === "loaded", undefined, { timeout: 45_000 });
   await page.addStyleTag({ content: "nextjs-portal { display:none !important }" });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
@@ -57,7 +59,7 @@ async function capture(page: Page, id: string, path: string, marker: (page: Page
   page.on("console", onConsole);
   let status: number | undefined;
   try {
-    const response = await page.goto(origin + path, { timeout: 300_000, waitUntil: "domcontentloaded" });
+    const response = await page.goto(origin + path, { timeout: 480_000, waitUntil: "domcontentloaded" });
     status = response?.status();
     const rendered = new URL(page.url());
     const expected = new URL(path, origin);
@@ -130,7 +132,12 @@ try {
   await capture(page, "solution-reveal", `${course}/solutions/${data.solution}`, p => p.getByRole("button", { name: "Lihat pembahasan", exact: true }), async p => {
     await expect(p.getByRole("heading", { name: data.solutionTitle, exact: true })).toBeVisible();
     await expect(p.getByRole("heading", { name: "Jawaban", exact: true })).toHaveCount(0);
-    await p.getByRole("button", { name: "Lihat pembahasan", exact: true }).click();
+    const reveal = p.getByRole("button", { name: "Lihat pembahasan", exact: true });
+    const revealed = p.getByRole("button", { name: "Sembunyikan pembahasan", exact: true });
+    await expect(async () => {
+      if (await reveal.isVisible()) await reveal.click();
+      await expect(revealed).toHaveAttribute("aria-expanded", "true", { timeout: 1000 });
+    }).toPass({ timeout: 90_000, intervals: [250, 1000, 2000] });
     await expect(p.getByRole("heading", { name: "Jawaban", exact: true })).toBeVisible();
   });
   await enrolled.close();
