@@ -5,6 +5,7 @@ import type { AdminCourseArchiver, AdminCourseEditor, AdminMaterialEditor } from
 import type { AdminCourseLiveRead } from "../../../../../packages/native-parity/academic/courses/model";
 import type { AdminCourseSectionResult } from "../../../../../packages/native-parity/academic/courses/sections";
 import { CourseLeaderboard } from "./leaderboard";
+import { CourseDeleteDialog } from "./live-delete";
 import { LiveFlashcards } from "./live-flashcards";
 import { LiveVideos } from "./live-videos";
 import { LivePdfTitleEdit } from "./live-material";
@@ -35,7 +36,7 @@ function match(text: string, query: string) {
   return text.toLocaleLowerCase("id").includes(query.trim().toLocaleLowerCase("id"));
 }
 
-export function LiveCourseSection({ data, query, navigate, updateSettings, updateMaterial, removeVideo, flashcardEditor, videoPlayer, archiveCourse, onArchived, refresh }: Pick<AdminCourseLiveRead, "removeVideo" | "videoPlayer" | "flashcardEditor"> & {
+export function LiveCourseSection({ data, query, navigate, updateSettings, updateMaterial, removeVideo, removeQuestion, flashcardEditor, videoPlayer, archiveCourse, onArchived, refresh }: Pick<AdminCourseLiveRead, "removeVideo" | "removeQuestion" | "videoPlayer" | "flashcardEditor"> & {
   data: AdminCourseSectionResult; query: Query; navigate: Navigate; updateSettings?: AdminCourseEditor; updateMaterial?: AdminMaterialEditor; refresh(): void;
   archiveCourse?: AdminCourseArchiver; onArchived(): void;
 }) {
@@ -91,7 +92,7 @@ export function LiveCourseSection({ data, query, navigate, updateSettings, updat
         </>
       );
     case "questions":
-      return <LiveQuestions data={data} query={query} />;
+      return <LiveQuestions data={data} query={query} remove={removeQuestion} refresh={refresh} />;
   }
 }
 
@@ -262,17 +263,21 @@ function ChapterPicker({ chapters, chapter, onSelect }: ChapterFilterProps) {
     selected={chapter} onSelect={onSelect} />;
 }
 
-function LiveQuestions({ data, query }: { data: SectionOf<"questions">; query: Query }) {
+function LiveQuestions({ data, query, remove, refresh }: { data: SectionOf<"questions">; query: Query;
+  remove?: AdminCourseLiveRead["removeQuestion"]; refresh(): void;
+}) {
   const [search, setSearch] = useState("");
   const [chapter, setChapter] = useState(query.chapter ?? "");
   const [difficulty, setDifficulty] = useState("");
   const [origin, setOrigin] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [answers, setAnswers] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const questions = data.questions.filter((question) => (!chapter || question.chapterId === chapter) &&
     (!difficulty || question.difficulty === difficulty) && (!origin || (origin === "zyx_original" ? question.origin === origin : question.origin !== "zyx_original")) &&
     match(`${question.prompt} ${question.explanation ?? ""}`, search));
   const question = questions.find(({ id }) => id === selected);
+  const target = question?.origin === "zyx_original" && question.deleteRevision ? remove?.(data.course.id, question.id) : undefined;
   return (
     <>
       <SearchBox label="Cari soal" value={search} onChange={setSearch} />
@@ -284,14 +289,23 @@ function LiveQuestions({ data, query }: { data: SectionOf<"questions">; query: Q
           ...["easy", "medium", "hard"].map((id) => ({ id, label: labels[id] }))]} />
       </View>
       {questions.length ? questions.map((row) => <DataRow key={row.id} title={row.prompt} description={[localLabel(row.origin), localLabel(row.difficulty)].filter(Boolean).join(" · ")}
-        onPress={() => { setAnswers(false); setSelected(row.id); }} />) : <CourseStatus label="Tidak ada soal pada pilihan ini." />}
-      {question ? (
+        onPress={() => { setAnswers(false); setDeleting(false); setSelected(row.id); }} />) : <CourseStatus label="Tidak ada soal pada pilihan ini." />}
+      {question && deleting && target && question.deleteRevision ? (
+        <CourseDeleteDialog label="Hapus soal" name={question.prompt} detail="Soal ini akan dihapus permanen."
+          dependencyError="Soal masih digunakan pada kuis, materi, atau referensi terkait."
+          revision={question.deleteRevision} target={target} close={() => setDeleting(false)} refresh={() => {
+            setSelected(null);
+            refresh();
+          }} />
+      ) : question ? (
         <CourseDialog title="Detail soal" onClose={() => setSelected(null)}>
           <Ink kind="strong">{question.prompt}</Ink>
           {question.options.map((option, index) => <DataRow key={index} title={option}
             detail={answers && question.correctIndices.includes(index) ? "Jawaban benar" : undefined} />)}
           <Action label={answers ? "Sembunyikan pembahasan" : "Lihat pembahasan"} onPress={() => setAnswers(!answers)} />
           {answers && question.explanation ? <Ink>{question.explanation}</Ink> : null}
+          {target ? <Action label={target.pending() ? "Periksa penghapusan" : "Hapus soal"} variation="ghost"
+            onPress={() => setDeleting(true)} testID="admin-course-question-delete" /> : null}
         </CourseDialog>
       ) : null}
     </>

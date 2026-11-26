@@ -4,6 +4,7 @@ import * as tables from "@/db/schema";
 import { createPostgresTestDb } from "../helpers/postgres";
 import { handleAdminCourseManagementCommand } from "@/lib/native/academic/course-management-command";
 import { handleAdminCourseChapterCommand } from "@/lib/native/academic/course-chapter-command";
+import { handleAdminCourseQuestionCommand } from "@/lib/native/academic/course-question-command";
 import { handleAdminCourseVideoCommand } from "@/lib/native/academic/course-video-command";
 import { handleAdminCourseFlashcardCommand } from "@/lib/native/academic/course-flashcard-command";
 import { flashcardRevision, flashcardSetRevision, legacyFlashcardStatus } from "@/lib/academic/flashcard-admin-revisions";
@@ -23,6 +24,8 @@ mock.module("server-only", () => ({}));
 mock.module("next/cache", () => ({ revalidatePath() {} }));
 mock.module("@/lib/vector-sync-dispatch", () => ({ dispatchVectorSync: async () => undefined }));
 
+const { readQuestionDeleteRevisions } = await import("@/lib/academic/admin-question-delete");
+const { deleteAdminCourseQuestion } = await import("@/lib/native/academic/course-question-service");
 const { saveAdminCourseFlashcard } = await import("@/lib/native/academic/course-flashcard-service");
 const { deleteAdminCourseVideoEntry } = await import("@/lib/native/academic/course-video-service");
 const { createCourseFromNative, archiveCourseFromNative } = await import("@/lib/native/academic/course-management-service");
@@ -299,4 +302,56 @@ test("PDF metadata and deletion bind the document, chapters, revision and actor 
   await deleteCoursePdfFromNative(id, document.id, consent, "native-pdf-confirm-delete", viewer);
   await expect(deleteCoursePdfFromNative(id, document.id, consent, "native-pdf-confirm-delete", { ...viewer, session: { id: "admin-second" } })).rejects.toThrow("REQUEST_CONFLICT");
   expect(await db.select().from(tables.courseMaterials).where(eq(tables.courseMaterials.id, document.id))).toHaveLength(0);
+});
+
+test("Admin course questions preserve fixed quiz links, historical references and safe delete receipts", async () => {
+  const { testDb: db } = database;
+  const course = "native-admin-question-course";
+  const other = "native-admin-question-other";
+  expect((await command("native-question-create-course", create(course))).status).toBe(200);
+  expect((await command("native-question-create-other", create(other))).status).toBe(200);
+  const id = "native-removable-course-question";
+  const historical = "native-protected-course-question";
+  const bankRow = { courseId: course, prompt: "Berapa nilai x?", options: ["3", "5"], correctIndices: [0], reviewStatus: "published" as const };
+  await db.insert(tables.aiQuestionBank).values([
+    { ...bankRow, id },
+    { ...bankRow, id: historical, origin: "historical_reference" },
+  ]);
+  await db.insert(tables.soal).values({
+    id, mataKuliahId: course, questionType: "multiple_choice", prompt: bankRow.prompt, version: 2, status: "published",
+    difficulty: "easy", cognitiveLevel: "remember", generationHash: "manual", creatorId: admin, reasoningPattern: "recall",
+  });
+  await db.insert(tables.pembahasanSoal).values({
+    id: "native-question-course-solution", soalId: id, content: "Substitusi", generationHash: "manual", creatorId: admin, status: "published",
+  });
+  await db.insert(tables.quizTemplates).values({
+    id: "native-question-course-quiz", courseId: course, title: "Kuis terkait", category: "chapter",
+    selectionRules: { fixed_question_ids: [id], count: 1 },
+  });
+  const key = "native-question-course-delete";
+  const revisions = () => readQuestionDeleteRevisions(db, [course]);
+  const original = await revisions();
+  expect(original.has(historical)).toBe(false);
+  const send = (courseId: string, questionId: string, expectedRevision: string, sessionId = "admin-first") =>
+    handleAdminCourseQuestionCommand(new Request(origin, {
+      method: "DELETE", headers: { Origin: origin, "Content-Type": "application/json", "Idempotency-Key": key },
+      body: JSON.stringify({ expectedRevision, confirmed: true }),
+    }), ["admin", "courses", courseId, "questions", questionId], origin, {
+      session: async () => ({ user: { id: admin }, session: { id: sessionId } }), hasAdmin: async () => true, remove: deleteAdminCourseQuestion,
+    });
+  expect((await send(other, id, original.get(id)!)).status).toBe(404);
+  expect((await send(course, historical, "a".repeat(64))).status).toBe(403);
+  expect(await (await send(course, id, original.get(id)!)).json()).toEqual({ error: "DEPENDENCIES_EXIST" });
+  await db.delete(tables.quizTemplates).where(eq(tables.quizTemplates.id, "native-question-course-quiz"));
+  await db.update(tables.soal).set({ version: 3 }).where(eq(tables.soal.id, id));
+  expect(await (await send(course, id, original.get(id)!)).json()).toEqual({ error: "REVISION_CONFLICT" });
+  const revision = (await revisions()).get(id)!;
+  expect((await send(course, id, revision)).status).toBe(200);
+  expect((await send(course, id, revision)).status).toBe(200);
+  expect((await send(course, id, revision, "admin-second")).status).toBe(409);
+  expect(await db.select().from(tables.soal).where(eq(tables.soal.id, id))).toHaveLength(0);
+  expect(await db.select().from(tables.aiQuestionBank).where(eq(tables.aiQuestionBank.courseId, course))).toHaveLength(1);
+  const jobs = await db.select().from(tables.vectorSyncQueue).where(eq(tables.vectorSyncQueue.courseId, course));
+  expect(jobs).toHaveLength(3);
+  expect(jobs.every(row => row.action === "delete")).toBe(true);
 });

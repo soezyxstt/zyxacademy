@@ -1,5 +1,5 @@
 import {
-  type AdminFlashcardDraft, type AdminFlashcardEditor, type AdminFlashcardSetDraft, type AdminEntityDeleteDraft, type AdminVideoRemover, validAdminMaterialTitle, type AdminChapterDraft, type AdminChapterEditor, type AdminCourseEditDraft, type AdminCourseEditor,
+  type AdminFlashcardDraft, type AdminFlashcardEditor, type AdminFlashcardSetDraft, type AdminEntityDeleteDraft, type AdminCourseQuestionRemover, type AdminVideoRemover, validAdminMaterialTitle, type AdminChapterDraft, type AdminChapterEditor, type AdminCourseEditDraft, type AdminCourseEditor,
   type AdminMaterialEditor, type AdminMaterialTitleDraft, type AdminCourseCreateDraft, type AdminCourseArchiver, type AdminCourseArchiveDraft,
   type AdminChapterArchiveDraft, type AdminChapterArchiver, type AdminChapterOrderDraft, type AdminChapterReorder,
 } from "../../../../packages/native-parity/academic/courses/edit-contract";
@@ -66,6 +66,8 @@ function buildAcademicClient(transport: AcademicTransport) {
     remove: (courseId, setId, cardId) => flashcardDeleteTarget(flashcardPath(courseId, setId, Boolean(cardId), cardId), "DELETE"),
   } : undefined;
   const deleteTarget = command ? createCourseCommandTarget<AdminEntityDeleteDraft>(command) : undefined;
+  const removeQuestion: AdminCourseQuestionRemover | undefined = deleteTarget ? (courseId, questionId) =>
+    deleteTarget(`${encodeURIComponent(courseId)}/questions/${encodeURIComponent(questionId)}`, "DELETE") : undefined;
   const removeVideo: AdminVideoRemover | undefined = deleteTarget ? (courseId, playlistId, videoId) =>
     deleteTarget(`${encodeURIComponent(courseId)}/videos/playlists/${encodeURIComponent(playlistId)}${videoId ? `/videos/${encodeURIComponent(videoId)}` : ""}`, "DELETE") : undefined;
   const materialTarget = command ? createCourseCommandTarget<AdminMaterialTitleDraft>(command, ({ title }) => validAdminMaterialTitle(title)) : undefined;
@@ -98,6 +100,7 @@ function buildAcademicClient(transport: AcademicTransport) {
     reorderChapters,
     updateMaterial,
     removeVideo,
+    removeQuestion,
     flashcardEditor,
     courses: (signal: AbortSignal) => read<AdminCourse[]>("/api/native/academic/admin/courses", signal),
     course: (slug: string, signal: AbortSignal) => read<AdminCourseOverview>(`/api/native/academic/admin/courses/${encodeURIComponent(slug)}`, signal),

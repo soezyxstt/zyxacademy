@@ -5,6 +5,7 @@ import { aiQuestionBank, knowledgeObjects, quizTemplates, soal, studentQuizAttem
 import { getCourseDetailData, getCourseSettingsData } from "@/app/(admin)/admin/(academic)/courses/actions";
 import { getCourseFlashcardsData } from "@/app/(admin)/admin/(academic)/courses/flashcard-actions";
 import { loadMaterialWorkspaceData } from "@/app/(admin)/admin/(academic)/materials/data";
+import { readQuestionDeleteRevisions } from "@/lib/academic/admin-question-delete";
 import { getCourseVideosData } from "@/app/actions/video-actions";
 import { matchesCourseIdentity, resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { readAdminCourseLeaderboard } from "@/lib/admin/leaderboard-course-read-model";
@@ -187,12 +188,14 @@ export async function readAdminCourseSection(slug: string, section: string, item
     const id = canonicalChapterId ?? (legacyChapterId ? aliases.get(legacyChapterId) ?? legacyChapterId : null);
     return id && chapterIds.has(id) ? [[questionId, id]] : [];
   }));
+  const deleteRevisions = identity.status === "active" ? await readQuestionDeleteRevisions(db, identity.allIds) : new Map<string, string>();
   return {
     type: "questions", course, chapters,
     questions: data.questions.map((question) => ({
       id: question.id, prompt: question.prompt, explanation: question.explanation,
       options: strings(question.options), correctIndices: indices(question.correctIndices),
       chapterId: chapterByQuestion.get(question.id) ?? null, difficulty: question.difficulty, origin: question.origin,
+      deleteRevision: deleteRevisions.get(question.id),
     })),
   };
 }

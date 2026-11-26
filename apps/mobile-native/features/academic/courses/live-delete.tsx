@@ -18,7 +18,7 @@ export function LiveCourseDelete(props: Props) {
   const [open, setOpen] = useState(false);
   return <>
     <Action label={props.target.pending() ? "Periksa penghapusan" : props.label} onPress={() => setOpen(true)} />
-    {open ? <DeleteDialog {...props} close={() => setOpen(false)} /> : null}
+    {open ? <CourseDeleteDialog {...props} close={() => setOpen(false)} /> : null}
   </>;
 }
 
@@ -31,7 +31,7 @@ const errors = {
   retry: "Status penghapusan belum diketahui. Periksa hasil sebelum melanjutkan.",
 };
 
-function DeleteDialog({ label, name, detail, dependencyError, revision, refresh, target, close }: Props & { close(): void }) {
+export function CourseDeleteDialog({ label, name, detail, dependencyError, revision, refresh, target, close }: Props & { close(): void }) {
   const reload = () => { close(); refresh(); };
   const mutation = useCourseWrite(target, reload);
   const { status } = mutation;

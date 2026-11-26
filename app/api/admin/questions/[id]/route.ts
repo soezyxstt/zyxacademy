@@ -4,16 +4,13 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { randomUUID } from "node:crypto";
 import { db } from "@/db";
-import { aiQuestionBank, auditMutasi, mataKuliah, soal } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { hasAnyPeran } from "@/lib/auth/authorization";
 import { headers } from "next/headers";
-import { eq } from "drizzle-orm";
 import { questionAuthoringInputSchema } from "@/lib/question-authoring-contract";
 import { QuestionAuthoringError, updateCanonicalQuestion } from "@/lib/question-authoring";
-import { enqueueQuestionReviewVectorTx } from "@/lib/question-review-lifecycle";
+import { deleteAdminQuestionTx } from "@/lib/academic/admin-question-delete";
 import { dispatchVectorSync } from "@/lib/vector-sync-dispatch";
 
 type Context = { params: Promise<{ id: string }> };
@@ -70,38 +67,18 @@ export async function DELETE(_req: NextRequest, { params }: Context) {
   }
 
   const { id } = await params;
-  const result = await db.transaction(async (tx) => {
-    const [canonical] = await tx.select({ id: soal.id, origin: soal.origin, version: soal.version, status: soal.status, courseId: soal.mataKuliahId }).from(soal).where(eq(soal.id, id)).limit(1).for("update");
-    const [compatibility] = await tx.select({ id: aiQuestionBank.id, origin: aiQuestionBank.origin, reviewStatus: aiQuestionBank.reviewStatus, courseId: aiQuestionBank.courseId }).from(aiQuestionBank).where(eq(aiQuestionBank.id, id)).limit(1).for("update");
-    if ((canonical && canonical.origin !== "zyx_original") || (compatibility && compatibility.origin !== "zyx_original")) {
-      return { forbidden: true };
+  try {
+    const result = await db.transaction(tx => deleteAdminQuestionTx(tx, { id, actorId: session.user.id }));
+    if (result?.legacyId) await dispatchVectorSync(result.legacyId);
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "";
+    if (code === "HISTORICAL_QUESTION_IMMUTABLE") {
+      return NextResponse.json({ error: "Soal referensi tidak dapat dihapus dari authoring manual." }, { status: 400 });
     }
-    if (canonical || compatibility) {
-      await tx.insert(auditMutasi).values({
-        id: `audit-question-delete-${id}-${randomUUID()}`,
-        actorId: session.user.id,
-        entityType: "question",
-        entityId: id,
-        action: "deleted",
-        beforeSnapshot: canonical
-          ? { version: canonical.version, status: canonical.status, courseId: canonical.courseId }
-          : { reviewStatus: compatibility?.reviewStatus, courseId: compatibility?.courseId },
-        afterSnapshot: null,
-        correlationId: id,
-        createdAt: new Date(),
-      });
+    if (code === "DEPENDENCIES_EXIST") {
+      return NextResponse.json({ error: "Soal masih digunakan pada kuis, materi, atau referensi terkait." }, { status: 409 });
     }
-    const [course] = !compatibility && canonical ? await tx.select({ legacyId: mataKuliah.legacyCourseId }).from(mataKuliah).where(eq(mataKuliah.id, canonical.courseId)).limit(1) : [];
-    const courseId = compatibility?.courseId ?? course?.legacyId ?? canonical?.courseId;
-    if (courseId) await enqueueQuestionReviewVectorTx(tx, { id, courseId, version: canonical?.version ?? 1, reviewStatus: "retired", prompt: "" });
-    await tx.delete(aiQuestionBank).where(eq(aiQuestionBank.id, id));
-    await tx.delete(soal).where(eq(soal.id, id));
-    return { forbidden: false, courseId };
-  });
-
-  if (result.forbidden) {
-    return NextResponse.json({ error: "Soal referensi tidak dapat dihapus dari authoring manual." }, { status: 400 });
+    return NextResponse.json({ error: "Gagal menghapus soal." }, { status: 500 });
   }
-  if ("courseId" in result && result.courseId) await dispatchVectorSync(result.courseId);
-  return NextResponse.json({ success: true });
 }

@@ -66,7 +66,7 @@ export type CourseSectionPayload =
       demoChecks: { label: string; ready: boolean; count: number }[] }
   | { type: "questions"; chapters: CourseChapterLabel[]; questions: {
       id: string; prompt: string; explanation: string | null; options: string[]; correctIndices: number[];
-      chapterId: string | null; difficulty: string; origin: string | null;
+      chapterId: string | null; difficulty: string; origin: string | null; deleteRevision?: string;
     }[] };
 
 export type AdminCourseSectionResult = CourseSectionPayload & { course: CourseSectionHeader };

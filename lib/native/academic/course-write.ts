@@ -24,12 +24,12 @@ export async function courseWrite<T extends object>({
   draft: T;
   requestId: string;
   viewer: CourseCommandViewer;
-  entityType: "native_course_settings" | "native_course_chapter" | "native_course_material" | "native_course_management" | "native_chapter_management" | "native_course_video" | "native_course_flashcard";
+  entityType: "native_course_settings" | "native_course_chapter" | "native_course_material" | "native_course_management" | "native_chapter_management" | "native_course_video" | "native_course_flashcard" | "native_course_question";
   action: "create" | "update" | "archive" | "reorder" | "delete";
   write(tx: CourseWriteTransaction): Promise<Saved>;
   validateReplay(tx: CourseWriteTransaction, result: Saved): Promise<void>;
 }) {
-  const receiptScope = (entityType === "native_course_material" && action === "delete") || entityType === "native_course_management" || entityType === "native_chapter_management" || entityType === "native_course_video" || entityType === "native_course_flashcard"
+  const receiptScope = (entityType === "native_course_material" && action === "delete") || entityType === "native_course_management" || entityType === "native_chapter_management" || entityType === "native_course_video" || entityType === "native_course_flashcard" || entityType === "native_course_question"
     ? { sessionHash: revisionOf(viewer.session.id) } : {};
   const receiptId = `native_course_${revisionOf({ actorId: viewer.user.id, requestId })}`;
   const inputHash = revisionOf({ slug, targetId, draft });

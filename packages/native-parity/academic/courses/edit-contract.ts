@@ -57,6 +57,7 @@ export function validAdminMaterialTitle(title: string) {
 }
 
 export type AdminEntityDeleteDraft = { expectedRevision: string; confirmed: true };
+export type AdminCourseQuestionRemover = (courseId: string, questionId: string) => CourseWriteTarget<AdminEntityDeleteDraft>;
 export type AdminVideoRemover = (courseId: string, playlistId: string, videoId?: string) => CourseWriteTarget<AdminEntityDeleteDraft>;
 
 export type AdminFlashcardStatus = "draft" | "published" | "retired";

@@ -1,3 +1,5 @@
+import { handleAdminCourseQuestionCommand } from "@/lib/native/academic/course-question-command";
+import { deleteAdminCourseQuestion } from "@/lib/native/academic/course-question-service";
 import { handleAdminCourseFlashcardCommand } from "@/lib/native/academic/course-flashcard-command";
 import { saveAdminCourseFlashcard } from "@/lib/native/academic/course-flashcard-service";
 import { handleAdminCourseVideoCommand } from "@/lib/native/academic/course-video-command";
@@ -38,6 +40,9 @@ export async function POST(request: Request, { params }: Context) {
 export async function DELETE(request: Request, { params }: Context) {
   const { resource } = await params;
   const origin = new URL(resolveAuthBaseUrl()).origin;
+  if (resource[3] === "questions") {
+    return handleAdminCourseQuestionCommand(request, resource, origin, { ...auth, remove: deleteAdminCourseQuestion });
+  }
   if (resource[3] === "documents") {
     return handleAdminCoursePdfDelete(request, resource, origin, { ...auth, remove: deleteCoursePdfFromNative });
   }
