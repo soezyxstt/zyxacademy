@@ -7,16 +7,14 @@ import { useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { signIn } from "@/lib/auth-client";
+import { normalizeBrowserHandoffScheme } from "@/lib/native/expo-auth-config";
 import { getSafeRedirectPath } from "@/lib/auth-redirect";
-import {
-  normalizeNativeAuthScheme,
-  normalizeNativeAuthState,
-} from "@/lib/native/auth-handoff";
+import { normalizeNativeAuthState } from "@/lib/native/auth-handoff";
 
 function NativeAuthStartContent() {
   const tr = useTranslations("auth.native");
   const searchParams = useSearchParams();
-  const scheme = normalizeNativeAuthScheme(searchParams.get("scheme"));
+  const scheme = normalizeBrowserHandoffScheme(searchParams.get("scheme"));
   const state = normalizeNativeAuthState(searchParams.get("state"));
   const safeNext = getSafeRedirectPath(searchParams.get("next") ?? undefined);
   const startedRef = useRef(false);

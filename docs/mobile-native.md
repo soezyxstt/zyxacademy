@@ -2,6 +2,12 @@
 
 Status: **prototipe lokal dan rencana, belum menjadi kontrak runtime atau rilis**. Next.js tetap melayani web dan backend; aplikasi Expo React Native yang diusulkan adalah klien tambahan dalam repositori yang sama. Migrasi dilakukan bertahap dan Capacitor tetap menjadi jalur mobile sampai setiap alur penggantinya lolos verifikasi dan keputusan rilis dibuat. Status deployment dan perilaku aktif tetap mengikuti [arsitektur](ARCHITECTURE.md), [fitur](features.md), dan [prosedur rilis](DEPLOYMENT.md).
 
+## Sesi build internal
+
+Pada branch integrasi, `zyx-native-parity://internal/session` membuka pemeriksaan akun untuk build native. Sesi memakai login Google di browser sistem pada origin staging. Aplikasi menyimpan verifier acak di SecureStore sebelum membuka browser. Server mengikat kode pada tantangan S256 dan mengirimkannya di fragmen callback. Endpoint `POST /api/auth/native/expo/exchange` memerlukan verifier untuk menukar kode sekali dengan cookie sesi Better Auth. Server memeriksa ketersediaan akun saat pertukaran. Login ini berbagi sesi database dengan login browser yang memulainya.
+
+Produk native dapat menggunakan `useNativeSession()` dari `apps/mobile-native/auth/session-provider.tsx` untuk memperoleh transport yang telah memeriksa identitas pengguna. Pengujian runtime membutuhkan server dengan perubahan yang sama, build Android/iOS yang mengenali skema internal, serta Google OAuth untuk origin staging. Halaman pemeriksaan akun adalah alat integrasi. Bukti paritas visual untuk halaman login produk dilacak terpisah.
+
 ## Kondisi yang ada
 
 - `apps/mobile` adalah Capacitor 7 alpha yang memuat origin Next.js jarak jauh dalam WebView. Konfigurasi memisahkan aplikasi dan origin nightly/staging dan stable/production. `www/index.html` menguji koneksi lalu membuka aplikasi online. Saat offline, Android menampilkan pustaka dan reader lokal. iOS menyediakan tampilan coba lagi. Paket bacaan mengikat akun, origin, bahasa, masa akses, dan hak bab. Klien Expo perlu menggunakan [kontrak sinkronisasi yang sudah ada](operations/offline-data-sync.md).
@@ -36,8 +42,9 @@ Urutan ini adalah backlog, bukan bukti implementasi atau paritas. Setiap kotak m
 | P0 | [ ] `radio-group`, `app/(student)/courses/[id]/flashcard/flashcard-client.tsx` | Belum dipilih; satu opsi dipilih; disabled. |
 | P0 | [ ] `select`, `components/student-leaderboard-controls.tsx` | Tertutup tanpa pilihan; terbuka; pilihan panjang terpilih. |
 | P0 | [ ] `badge`, `components/course/dashboard-weak-concepts.tsx` | Default; sekunder; teks panjang. |
-| P0 | [ ] `avatar`, `components/auth/sidebar-account-menu.tsx` | Gambar tersedia; gambar gagal dengan fallback; inisial panjang. |
+| P0 | [ ] `avatar`, `components/ui/avatar.tsx` dan `components/auth/sidebar-account-menu.tsx` | Potret lokal dengan fallback saat memuat; gambar gagal dengan fallback; tiga inisial pada tema gelap. |
 | P0 | [ ] `skeleton`, `components/course/quiz-player.tsx` | Baris pendek; blok multiline; dark dengan reduced motion. |
+| P0 | [ ] `progress`, diadaptasi dari jalur indikator `components/gamification/mission-list.tsx` dan `badge-list.tsx` | Kosong tema terang; 3 dari 8 tema gelap; penuh tema terang. |
 | P0 | [ ] `card`, `components/admin/bundle-importer-tab.tsx` | Default; varian alternatif; konten panjang. |
 | P0 | [ ] `alert`, `features/admin-home/ui/mobile/admin-home-mobile.tsx` | Default; destructive; deskripsi panjang. |
 | P0 | [ ] `formatted-date`, `components/student-reflections-view.tsx` | Tanggal valid Indonesia; tanggal valid Inggris; tanggal tidak valid. |

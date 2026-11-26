@@ -1,6 +1,20 @@
 /** Source-level coverage index. Tool registration is authoritative; partial does not imply every action is exposed. */
 export const operationsCatalog = [
   {
+    "source": "app/api/native/context/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The Expo client reads the active account's own role memberships and locale for routing. Each product API still enforces object permissions. MCP client identity, consent, scopes, discovery, playbooks, packaged skills and environment bindings are independent."
+  },
+  {
+    "source": "app/api/auth/native/expo/exchange/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The internal staging Expo app exchanges a browser login code bound to its own verifier. This is an interactive end-user session. MCP clients keep their separate OAuth registration, consent, scopes, discovery, playbooks, packaged skills and environment bindings."
+  },
+  {
     "source": "components/admin/offline-cache-settings.tsx",
     "actions": ["save", "refresh"],
     "tools": [],
@@ -48,6 +62,13 @@ export const operationsCatalog = [
     "tools": [],
     "status": "excluded",
     "reason": "Installed-device version checks and installer launch require the native app. MCP tokens, scopes, consent, discovery, playbooks, packaged skills and host prompts cannot install or update a user's device."
+  },
+  {
+    "source": "apps/mobile-native/device/notifications-controller.ts",
+    "actions": ["requestPermission", "sync", "setAccount"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Push permission requires direct device consent. Registration, rotation and removal use the authenticated app session on its own origin and do not change admin notification operations or MCP bindings."
   },
   {
     "source": "components/course/material-viewer.tsx",
