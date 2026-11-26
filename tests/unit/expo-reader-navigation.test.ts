@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { bindPdfAnnotations, pdfOutline } from "@/apps/mobile-native/features/student/courses/pdf-reader-model";
+import { bindPdfAnnotations, pdfOutline, pdfThumbnailPages } from "@/apps/mobile-native/features/student/courses/pdf-reader-model";
 import { findReadingSections, readingNavigationItems } from "@/apps/mobile-native/features/student/courses/reading-search";
 import type { OnlineReadingContent } from "@/apps/mobile-native/features/student/courses/online-reading";
 
@@ -64,4 +64,13 @@ test("Diktat outline and search resolve the same section indices as the web read
   expect(items.map(({ slug, title }) => [slug, title])).toEqual([["0", "Dasar"], ["1", "Contoh"], ["2", "Daftar Rumus"]]);
   expect(findReadingSections(items, "Electric example")).toMatchObject([{ slug: "1" }]);
   expect(findReadingSections(items, "Second formula")).toMatchObject([{ slug: "2" }]);
+});
+
+test("PDF page previews render at most one aligned, bounded group of four pages", () => {
+  expect(pdfThumbnailPages(1, 1)).toEqual([1]);
+  expect(pdfThumbnailPages(6, 9)).toEqual([5, 6, 7, 8]);
+  expect(pdfThumbnailPages(9, 9)).toEqual([9]);
+  expect(pdfThumbnailPages(499, 501)).toEqual([497, 498, 499, 500]);
+  expect(pdfThumbnailPages(1.5, 7)).toEqual([]);
+  expect(pdfThumbnailPages(8, 7)).toEqual([]);
 });

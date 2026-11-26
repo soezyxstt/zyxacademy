@@ -7,6 +7,7 @@ import { Input } from "../../../components/Input";
 import { useProtectedInteraction } from "../../../routing/protected-interaction";
 import { SharedDialog } from "../../shared-ui/overlays";
 import { NativeListRow } from "../../shared-ui/layout";
+import { PdfThumbnailGrid } from "./PdfThumbnailGrid";
 import { PdfTextSearch, type ReaderPdfSearch } from "./PdfTextSearch";
 import { bindPdfAnnotations, maxPdfNoteLength, type PdfAnnotations, type PdfOutlineRow } from "./pdf-reader-model";
 
@@ -21,12 +22,13 @@ type Props = {
   locale: string;
   testID: string;
   search?: ReaderPdfSearch;
+  thumbnailSource?: string;
   annotationScope?: PdfAnnotationIdentity & { courseId: string; materialId: string; revision: string; active(): boolean };
 };
 
-export function PdfReaderControls({ position, scale, outline, go, zoom, theme, locale, testID, search, annotationScope }: Props) {
+export function PdfReaderControls({ position, scale, outline, go, zoom, theme, locale, testID, search, annotationScope, thumbnailSource }: Props) {
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<"pages" | "personal" | "search">("pages");
+  const [tab, setTab] = useState<"pages" | "personal" | "search" | "thumbnails">("pages");
   const [draftPage, setDraftPage] = useState("");
   const [editPage, setEditPage] = useState(1);
   const [draftNote, setDraftNote] = useState("");
@@ -76,8 +78,10 @@ export function PdfReaderControls({ position, scale, outline, go, zoom, theme, l
       accessibilityLabel={t("Halaman dan pengaturan PDF", "Pages and PDF controls")}>{`${page} / ${total}`}</Button>
     {open && <SharedDialog open title={t("Navigasi PDF", "PDF navigation")} closeLabel={t("Tutup", "Close")}
       theme={theme} onDismiss={() => setOpen(false)}>
-      {(annotations || search) && <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+      {(annotations || search || thumbnailSource) && <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
         <Button theme={theme} variant={tab === "pages" ? "secondary" : "ghost"} onPress={() => setTab("pages")}>{t("Halaman", "Pages")}</Button>
+        {thumbnailSource && <Button theme={theme} variant={tab === "thumbnails" ? "secondary" : "ghost"}
+          onPress={() => setTab("thumbnails")}>{t("Pratinjau", "Previews")}</Button>}
         {search && <Button theme={theme} variant={tab === "search" ? "secondary" : "ghost"} onPress={() => setTab("search")}>{t("Cari", "Search")}</Button>}
         {annotations && <Button theme={theme} variant={tab === "personal" ? "secondary" : "ghost"} onPress={() => setTab("personal")}>{t("Catatan dan penanda", "Notes and bookmarks")}</Button>}
       </View>}
@@ -99,7 +103,8 @@ export function PdfReaderControls({ position, scale, outline, go, zoom, theme, l
           <NativeListRow layout="compact" theme={theme} title={entry.title} subtitle={t("Halaman", "Page") + " " + entry.page}
             primary={{ label: entry.title, role: "button", onPress: () => jump(entry.page) }} />
         </View>)}
-      </> : tab === "search" && search ? <PdfTextSearch search={search} total={total} onOpen={jump} theme={theme} en={en} /> : annotations && <>
+      </> : tab === "thumbnails" && thumbnailSource ? <PdfThumbnailGrid uri={thumbnailSource} page={page} total={total} en={en} theme={theme} onOpen={jump} />
+        : tab === "search" && search ? <PdfTextSearch search={search} total={total} onOpen={jump} theme={theme} en={en} /> : annotations && <>
         <Text accessibilityRole="header" style={text}>{t("Halaman", "Page")} {editPage}</Text>
         <Button theme={theme} variant="outline" onPress={() => write(() => annotations.toggle(editPage))} testID="student-pdf-bookmark">
           {notes?.bookmarks.includes(editPage) ? t("Hapus penanda", "Remove bookmark") : t("Tandai halaman", "Bookmark page")}

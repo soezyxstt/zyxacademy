@@ -116,7 +116,7 @@ function PdfPage({ courseId, materialId, reader, title, page, locale, theme, ope
       <Text accessibilityRole="header" numberOfLines={2} style={{ flex: 1, color: colors.foreground, fontWeight: "600", fontSize: 16 }}>{title}</Text>
       {position ? annotationIdentity && state?.status === "ready" ?
         <PdfReaderControls testID={`${testIDPrefix}-material-pdf-page`} position={position} scale={scale} outline={outline} locale={locale} theme={theme}
-          go={target => pdf.current?.setPage(target)} zoom={setScale}
+          go={target => pdf.current?.setPage(target)} zoom={setScale} thumbnailSource={state.document.uri}
           search={reader.search ? { revision: state.document.revision, run: (input, signal) => {
             if (Date.now() >= lease || !canInteract()) throw new Error("PDF search unavailable.");
             return reader.search!({ courseId, materialId }, input, signal);

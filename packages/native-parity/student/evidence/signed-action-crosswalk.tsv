@@ -32,7 +32,7 @@ courses	/courses/[id]/material/[materialId]	murid	diktat.open	OnlineReading open
 courses	/courses/[id]/material/[materialId]	murid	diktat.complete	Writes completion for canonical Diktat with course rights and exact revision.	connected	signed-http
 courses	/courses/[id]/material/[materialId]	murid	diktat.download	VerifiedStudentEntry exposes a scoped PDF file action when Diktat full download is allowed.	connected	contract
 courses	/courses/[id]/material/[materialId]	murid	pdf.open	Protected material-pdf issues bytes and a renewable viewing lease. Native renderer supports page deep link.	connected	signed-http
-courses	/courses/[id]/material/[materialId]	murid	pdf.navigate	Native viewer supports page jumps, zoom, embedded outline and revision-bound PDF text search with page matches. Thumbnail grid and in-page highlight remain open.	partial	contract
+courses	/courses/[id]/material/[materialId]	murid	pdf.navigate	Native viewer supports page jumps, zoom, embedded outline and revision-bound PDF text search with page matches. A bounded thumbnail grid renders under the current private lease. In-page highlighting remains open.	partial	contract
 courses	/courses/[id]/material/[materialId]	murid	pdf.bookmarks	Native reader saves, opens and deletes notes and bookmarks within the account, document and revision.	connected	contract
 courses	/courses/[id]/material/[materialId]	murid	pdf.non-diktat-download	Native manual PDF export rechecks the exact document, chapter, source, revision and web download entitlement before sharing delivered bytes.	connected	contract
 courses	/courses/[id]/material/[materialId]	murid	materials.saved-access	Offers access to relevant authorized saved reading and library.	connected	ci-contract

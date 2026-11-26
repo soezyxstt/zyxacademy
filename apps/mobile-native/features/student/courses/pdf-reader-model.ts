@@ -69,3 +69,11 @@ export function bindPdfAnnotations(store: AnnotationStore, scope: { origin: stri
     },
   };
 }
+
+export const pdfThumbnailPageCount = 4;
+
+export function pdfThumbnailPages(page: number, total: number) {
+  if (!Number.isSafeInteger(page) || !Number.isSafeInteger(total) || page < 1 || page > total) return [];
+  const first = Math.floor((page - 1) / pdfThumbnailPageCount) * pdfThumbnailPageCount + 1;
+  return Array.from({ length: Math.min(pdfThumbnailPageCount, total - first + 1) }, (_, index) => first + index);
+}
