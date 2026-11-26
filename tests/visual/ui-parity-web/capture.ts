@@ -45,7 +45,7 @@ function specimenCapture(item: GalleryCase): { selector: string; size: { width: 
     case "slider":
       return { selector: "[data-parity-slider]", size: sliderPosition };
     case "toggle-group":
-      return { selector: '[role="group"]', size: null };
+      return { selector: item.type === "single" ? '[role="radiogroup"]' : '[role="toolbar"]', size: null };
     case "control":
     case "radio":
     case "choice":
