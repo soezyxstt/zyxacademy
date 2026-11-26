@@ -1,10 +1,12 @@
 import { expect, test } from "bun:test";
-import { functionValues, plotBounds, plotPath, samplePlot, stepParameter } from "../../apps/mobile-native/features/student/zyra/canvas-plot-model";
+import { functionValues, inspectPlotPoint, plotFrame, projectPlotPoint, plotBounds, plotPath, samplePlot, stepParameter } from "../../apps/mobile-native/features/student/zyra/canvas-plot-model";
 import { applyZyraEvent, courseZyraAvailable, courseZyraContextForPath, newTurn, readZyraHistory, readZyraReceipt, turnCompletion } from "../../apps/mobile-native/features/student/zyra/conversation";
 import { courseZyraPlotFixture } from "../../apps/mobile-native/features/student/zyra/fixture";
 import { deleteZyraImage, readZyraImage, uploadZyraImage } from "../../apps/mobile-native/features/student/zyra/images";
 import { createNativeTransport, NativeRequestNotDispatched } from "../../apps/mobile-native/network/transport";
 import { NativeZyraStreamError, streamNativeZyra } from "../../apps/mobile-native/network/zyra";
+
+import { movePlot, plotContact, toPlotCoordinates } from "../../apps/mobile-native/features/student/zyra/plot-gesture";
 
 const origin = "https://staging.zyxacademy.com";
 const request = { courseId: "calculus", requestId: "receipt-1", question: "What is the limit?", persistHistory: true } as const;
@@ -156,4 +158,37 @@ test("Article exercise help binds the verified session and exact revision withou
   expect((await streamNativeZyra(session, exercise, undefined, scope).next()).value).toEqual({ type: "done" });
   await expect(streamNativeZyra(session, { ...exercise, persistHistory: undefined }, undefined, scope).next()).rejects.toBeInstanceOf(TypeError);
   expect(writes).toBe(1);
+});
+
+test("drag and pinch keep the same world point under the fingers in letterboxed plots", () => {
+  const bounds = { x: { min: 0, max: 10 }, y: { min: 0, max: 10 } };
+  const size = { width: 420, height: 205 };
+  const locationX = 50 + plotFrame.left + plotFrame.width / 4;
+  const locationY = plotFrame.top + plotFrame.height / 4;
+  const one = plotContact([{ locationX, locationY }])!;
+  const moved = plotContact([{ locationX: locationX + plotFrame.width * 0.1, locationY: locationY + plotFrame.height * 0.1 }])!;
+  const pan = movePlot(bounds, one, moved, size);
+  expect(pan.x.min).toBeCloseTo(-1);
+  expect(pan.y.min).toBeCloseTo(1);
+  const pair = (offset: number) => plotContact([{ locationX: locationX - offset, locationY }, { locationX: locationX + offset, locationY }])!;
+  const zoomed = movePlot(bounds, pair(10), pair(20), size);
+  expect(zoomed.x).toEqual({ min: 1.25, max: 6.25 });
+  expect(zoomed.y).toEqual({ min: 3.75, max: 8.75 });
+  expect(toPlotCoordinates(one.center, size)).toEqual(projectPlotPoint(2.5, 7.5, zoomed));
+  expect(movePlot(bounds, pair(1), one, size)).toBe(bounds);
+  expect(plotContact([])).toBeNull();
+});
+
+test("value inspection respects visible series, gaps and the current plot window", () => {
+  const spec = courseZyraPlotFixture;
+  const two = { ...spec, series: [{ ...spec.series[0], excludedX: [0.25] }, { ...spec.series[0], id: "linear", expression: "x" }] };
+  const bounds = { x: { min: 0, max: 2 }, y: { min: 0, max: 2 } };
+  const samples = samplePlot(two, {}, {}, bounds.x);
+  const tap = projectPlotPoint(1, 1, bounds);
+  expect(inspectPlotPoint(samples, new Set(["parabola"]), bounds, tap)).toEqual({ id: "linear", x: 1, y: 1 });
+  expect(inspectPlotPoint(samples, new Set(["parabola", "linear"]), bounds, tap)).toBeNull();
+  const table = functionValues(two, {}, {}, "", bounds.x);
+  expect(table.rows.find(row => row[0] === "1")).toEqual(["1", "1", "1"]);
+  expect(table.rows.every(row => Number(row[0]) >= 0 && Number(row[0]) <= 2)).toBe(true);
+  expect(functionValues(spec, {}, {}, "", { min: 3, max: 4 }).rows).toEqual([]);
 });

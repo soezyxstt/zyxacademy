@@ -9,7 +9,9 @@ import { compileSafeExpression } from "../../../../../lib/zyra/canvas/expression
 import { Button } from "../../../components/Button";
 import { Input } from "../../../components/Input";
 import { nativeTypography } from "../../../typography";
-import { functionValues, inPlotBounds, plotBounds, plotFrame, plotHeight, plotPath, plotWidth, projectPlotPoint, samplePlot, stepParameter } from "./canvas-plot-model";
+import { zoomNumericRange } from "../../../../../lib/zyra/canvas/viewport";
+import { PlotGestureSurface } from "./PlotGestureSurface";
+import { type PlotBounds, functionValues, inspectPlotPoint, inPlotBounds, plotBounds, plotFrame, plotHeight, plotPath, plotWidth, projectPlotPoint, samplePlot, stepParameter } from "./canvas-plot-model";
 
 const labels = {
   en: { zoomIn: "Zoom in", zoomOut: "Zoom out", resetView: "Reset view", controls: "Parameters", formulas: "Formulas",
@@ -33,15 +35,28 @@ export function CanvasPlot({ spec, locale, theme, renderValues, interactive = tr
   const colors = nativeColors[theme];
   const palette = [colors.primary, colors.secondary, colors.foreground];
   const seriesColor = (index: number) => palette[index % palette.length];
-  const [zoom, setZoom] = useState(1);
+  const [view, setView] = useState<{ fitted: PlotBounds; current: PlotBounds }>();
   const [values, setValues] = useState(() => resetCanvasValues(spec.variables));
   const [formulas, setFormulas] = useState<Record<string, string>>({});
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [errors, setErrors] = useState<Record<string, boolean>>({});
   const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
   const [pane, setPane] = useState<"parameters" | "formulas" | "values" | null>(null);
-  const series = useMemo(() => samplePlot(spec, values, formulas), [spec, values, formulas]);
-  const bounds = useMemo(() => plotBounds(spec, series, zoom), [spec, series, zoom]);
+  const initialSeries = useMemo(() => samplePlot(spec, values, formulas), [spec, values, formulas]);
+  const fitted = useMemo(() => plotBounds(spec, initialSeries, 1), [spec, initialSeries]);
+  const bounds = view && view.fitted === fitted ? view.current : fitted;
+  const series = useMemo(() => bounds && bounds !== fitted && spec.type === "function_plot"
+    ? samplePlot(spec, values, formulas, bounds.x) : initialSeries, [bounds, fitted, spec, values, formulas, initialSeries]);
+  const zoom = bounds && fitted ? (bounds.x.max - bounds.x.min) / (fitted.x.max - fitted.x.min) : 1;
+  const [tapped, setTapped] = useState<{ point: { x: number; y: number }; bounds: PlotBounds }>();
+  const inspected = bounds && tapped?.bounds === bounds ? inspectPlotPoint(series, hidden, bounds, tapped.point) : null;
+  function resetView() { setTapped(undefined); setView(undefined); }
+  function updateView(current: PlotBounds) { if (fitted) setView({ fitted, current }); }
+  function zoomView(factor: number) {
+    if (!bounds) return;
+    const x = zoomNumericRange(bounds.x, factor, 0.5), y = zoomNumericRange(bounds.y, factor, 0.5);
+    if (x && y) updateView({ x, y });
+  }
   const paths = useMemo(() => spec.type === "function_plot" && bounds ? series.map(item => plotPath(item.points, bounds)) : [], [spec.type, series, bounds]);
   const text = [styles.text, { color: colors.foreground }];
   const muted = [styles.text, { color: colors.mutedForeground }];
@@ -52,7 +67,7 @@ export function CanvasPlot({ spec, locale, theme, renderValues, interactive = tr
     setDrafts({});
     setErrors({});
     setHidden(new Set());
-    setZoom(1);
+    resetView();
   }
 
   function applyFormula(id: string, draft: string) {
@@ -66,7 +81,7 @@ export function CanvasPlot({ spec, locale, theme, renderValues, interactive = tr
   }
 
   return <View style={styles.stack}>
-    {bounds ? <Svg width="100%" height={200} viewBox={`0 0 ${plotWidth} ${plotHeight}`} accessible accessibilityRole="image" accessibilityLabel={spec.altText}>
+    {bounds ? <PlotGestureSurface bounds={bounds} interactive={interactive} change={updateView} reset={resetView} inspect={point => setTapped({ point, bounds })}><Svg width="100%" height={200} viewBox={`0 0 ${plotWidth} ${plotHeight}`} accessible accessibilityRole="image" accessibilityLabel={spec.altText}>
       <Defs><ClipPath id={uid}><Rect x={plotFrame.left} y={plotFrame.top} width={plotFrame.width} height={plotFrame.height} /></ClipPath></Defs>
       <Rect x={plotFrame.left} y={plotFrame.top} width={plotFrame.width} height={plotFrame.height} fill={colors.background} stroke={colors.border} />
       {[0, 0.25, 0.5, 0.75, 1].map((fraction, index) => {
@@ -98,13 +113,20 @@ export function CanvasPlot({ spec, locale, theme, renderValues, interactive = tr
               const color = seriesColor(spec.series.findIndex(item => item.id === marker.seriesId));
               return <Circle key={index} cx={x} cy={y} r={4} fill={marker.kind === "open" ? colors.background : color} stroke={color} strokeWidth={2} />;
             }) : null}
-        </> : spec.points.map((point, index) => {
+        </> : <>
+          <Path d={plotPath(spec.points, bounds)} fill="none" stroke={colors.primary} strokeWidth={2} strokeDasharray="4 4" />
+          {spec.points.map((point, index) => {
           if (!inPlotBounds(point.x, point.y, bounds)) return null;
           const { x, y } = projectPlotPoint(point.x, point.y, bounds);
           return <Circle key={index} cx={x} cy={y} r={3.5} fill={colors.primary} />;
-        })}
+        })}</>}
+        {inspected ? <Circle cx={projectPlotPoint(inspected.x, inspected.y, bounds).x} cy={projectPlotPoint(inspected.x, inspected.y, bounds).y}
+          r={5} fill={colors.primary} stroke={colors.background} strokeWidth={2} /> : null}
       </G>
-    </Svg> : <Text accessibilityLiveRegion="polite" style={muted}>{copy.unavailable}</Text>}
+    </Svg></PlotGestureSurface> : <Text accessibilityLiveRegion="polite" style={muted}>{copy.unavailable}</Text>}
+    {inspected ? <Text accessibilityLiveRegion="polite" style={text}>{spec.type === "function_plot"
+      ? spec.series.find(item => item.id === inspected.id)?.label : quantityLabel(spec.yLabel, spec.yUnit)}{" · "}
+      {scientificNumberToText(inspected.x)}{", "}{scientificNumberToText(inspected.y)}</Text> : null}
     {bounds ? <Text style={muted}>{spec.type === "function_plot" ? quantityLabel("x", spec.domain.unit) + " / y"
       : quantityLabel(spec.xLabel, spec.xUnit) + " / " + quantityLabel(spec.yLabel, spec.yUnit)}</Text> : null}
     {spec.type === "function_plot" ? <View style={styles.row}>
@@ -119,9 +141,9 @@ export function CanvasPlot({ spec, locale, theme, renderValues, interactive = tr
     </View> : null}
     {interactive ? <View style={styles.row}>
       {bounds ? <>
-        <Button theme={theme} variant="outline" accessibilityLabel={copy.zoomIn} disabled={zoom <= 0.125} onPress={() => setZoom(value => value / 2)}>+</Button>
-        <Button theme={theme} variant="outline" accessibilityLabel={copy.zoomOut} disabled={zoom >= 8} onPress={() => setZoom(value => value * 2)}>-</Button>
-        {zoom !== 1 ? <Button theme={theme} variant="ghost" onPress={() => setZoom(1)}>{copy.resetView}</Button> : null}
+        <Button theme={theme} variant="outline" accessibilityLabel={copy.zoomIn} disabled={zoom <= 0.125} onPress={() => zoomView(0.5)}>+</Button>
+        <Button theme={theme} variant="outline" accessibilityLabel={copy.zoomOut} disabled={zoom >= 8} onPress={() => zoomView(2)}>-</Button>
+        {bounds !== fitted ? <Button theme={theme} variant="ghost" onPress={resetView}>{copy.resetView}</Button> : null}
       </> : null}
       {spec.type === "function_plot" ? <>
         {spec.controls.length ? <Button theme={theme} variant="ghost" accessibilityState={{ expanded: pane === "parameters" }}
@@ -170,7 +192,7 @@ export function CanvasPlot({ spec, locale, theme, renderValues, interactive = tr
         {invalid ? <Text accessibilityRole="alert" style={[styles.text, { color: colors.destructive }]}>{copy.invalid}</Text> : null}
       </View>;
     }) : null}
-    {pane === "values" && spec.type === "function_plot" && bounds ? renderValues(functionValues(spec, values, formulas, copy.sampled)) : null}
+    {pane === "values" && spec.type === "function_plot" && bounds ? renderValues(functionValues(spec, values, formulas, copy.sampled, bounds.x)) : null}
     {pane === "parameters" || pane === "formulas" ? <Button theme={theme} variant="ghost" onPress={resetPlot}>{copy.reset}</Button> : null}
   </View>;
 }

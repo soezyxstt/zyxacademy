@@ -34,7 +34,8 @@ function CanvasText({ text, locale, theme, origin, muted }: CanvasDisplay & { te
 export function CanvasTable({ table, locale, theme, origin }: CanvasDisplay & { table: CanvasFallback; origin: string }) {
   const [page, setPage] = useState(0);
   const size = 8;
-  const offset = page * size;
+  const visiblePage = Math.min(page, Math.max(0, Math.ceil(table.rows.length / size) - 1));
+  const offset = visiblePage * size;
   const colors = nativeColors[theme];
   const copy = labels[locale];
   const rows = table.rows.slice(offset, offset + size);
@@ -55,11 +56,11 @@ export function CanvasTable({ table, locale, theme, origin }: CanvasDisplay & { 
       </View>)}
     </View>)}
     {table.rows.length > size ? <View style={styles.row}>
-      <Button theme={theme} variant="ghost" disabled={page === 0} onPress={() => setPage(page - 1)}>{copy.previous}</Button>
+      <Button theme={theme} variant="ghost" disabled={visiblePage === 0} onPress={() => setPage(visiblePage - 1)}>{copy.previous}</Button>
       <Text accessibilityLiveRegion="polite" style={[styles.text, { color: colors.foreground }]}>
         {offset + 1}{"-"}{offset + rows.length}{" / "}{table.rows.length}
       </Text>
-      <Button theme={theme} variant="ghost" disabled={offset + size >= table.rows.length} onPress={() => setPage(page + 1)}>{copy.next}</Button>
+      <Button theme={theme} variant="ghost" disabled={offset + size >= table.rows.length} onPress={() => setPage(visiblePage + 1)}>{copy.next}</Button>
     </View> : null}
   </View>;
 }
@@ -132,7 +133,11 @@ export function LearningCanvas({ initialExpanded, interactive = true, ...props }
   const copy = labels[locale];
   const [showTable, setShowTable] = useState(false);
   const [expanded, setExpanded] = useState(initialExpanded);
-  const table = spec.type === "table" ? { ...spec.fallback, rows: spec.rows } : spec.fallback;
+  const table = spec.type === "table" ? { ...spec.fallback, rows: spec.rows } : spec.type === "data_plot" ? {
+    ...spec.fallback,
+    columns: [{ id: "x", label: spec.xLabel, unit: spec.xUnit }, { id: "y", label: spec.yLabel, unit: spec.yUnit }],
+    rows: spec.points.map(point => [String(point.x), String(point.y)]),
+  } : spec.fallback;
   return <View testID={`student-zyra-canvas-${spec.type}`} style={[styles.canvas, { borderColor: colors.border, backgroundColor: colors.card }]}>
     <Button theme={theme} variant="ghost" style={styles.titleButton} labelStyle={styles.title} wrapLabel accessibilityState={{ expanded }}
       renderIcon={(color, size) => <NavigationIcon name={expanded ? "chevron" : "chevron-right"} color={color} size={size} />}
