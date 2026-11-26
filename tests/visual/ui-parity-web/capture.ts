@@ -2,6 +2,7 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { chromium, expect } from "@playwright/test";
 import { parityFrame } from "../../../packages/ui-parity/frame";
+import { getProgressPosition } from "../../../packages/ui-parity/progress-cases";
 import { getSeparatorPosition } from "../../../packages/ui-parity/separator-cases";
 import { galleryCases, type GalleryCase } from "../../../packages/ui-parity/gallery";
 
@@ -16,6 +17,8 @@ function specimenCapture(item: GalleryCase) {
       };
     case "skeleton":
       return { selector: skeletonSelector, size: { width: item.width, height: item.height } };
+    case "progress":
+      return { selector: '[data-slot="progress"]', size: getProgressPosition() };
     case "control":
     case "radio":
     case "choice":
@@ -68,6 +71,16 @@ try {
     if (size) {
       await expect(specimen).toHaveCSS("width", `${size.width}px`);
       await expect(specimen).toHaveCSS("height", `${size.height}px`);
+    }
+    if (item.family === "progress") {
+      const bar = frame.getByRole("progressbar", { name: item.label });
+      await expect(bar).toHaveAttribute("aria-valuemin", "0");
+      await expect(bar).toHaveAttribute("aria-valuemax", String(item.max));
+      await expect(bar).toHaveAttribute("aria-valuenow", String(item.value));
+      await expect(bar.locator('[data-slot="progress-indicator"]')).toHaveCSS(
+        "width",
+        `${getProgressPosition().width * item.value / item.max}px`,
+      );
     }
     await frame.screenshot({
       path: fileURLToPath(new URL(`${item.id}.png`, outputDirectory)),
