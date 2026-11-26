@@ -402,3 +402,55 @@ describe("private course video playback", () => {
     }
   });
 });
+
+test("PDF views stage one protected local file, renew only metadata, and release the temporary file with the viewing scope", async () => {
+  const clock = fileClock();
+  const revision = "2".repeat(64);
+  const observed: Array<[string | undefined, string | null, string | null]> = [];
+  const fixture = setup({}, async (url, init) => {
+    expect(url).toBe(origin + "/api/native/student/material-pdf?courseId=course&materialId=manual");
+    const headers = new Headers(init.headers);
+    observed.push([init.method, headers.get("if-match"), headers.get("x-student-id")]);
+    expect(headers.get("cookie")).toBe("session=fixture");
+    return new Response(init.method === "HEAD" ? null : stream(fixturePdf), { headers: {
+      "Content-Type": "application/pdf", "x-zyx-pdf-revision": revision,
+      "x-zyx-pdf-view-until": String(clock.now() + 100_000),
+    } });
+  }, clock);
+  const screen = new AbortController();
+  const input = { session: fixture.session, target: { courseId: "course", materialId: "manual" },
+    signal: screen.signal, sessionExpiresAt: clock.now() + 50_000, isTargetCurrent: () => true };
+  const ready = await fixture.controller.prepareMaterialPdf(input);
+  expect(ready.status).toBe("ready");
+  if (ready.status !== "ready") throw new Error("Expected staged file");
+  expect(ready.document.uri).toMatch(/^file:/);
+  expect(ready.document.expiresAt).toBe(input.sessionExpiresAt);
+  expect(fixture.files.size).toBe(1);
+  expect(await fixture.controller.renewMaterialPdf(input, ready.document.revision)).toMatchObject({ status: "ready", grant: { revision } });
+  expect(observed).toEqual([["GET", null, "account"], ["HEAD", '"' + revision + '"', "account"]]);
+  expect(fixture.shares).toEqual([]);
+  screen.abort();
+  expect(fixture.files.size).toBe(0);
+});
+
+test("PDF views reject stale sessions, expired grants and unexpected file parts", async () => {
+  const clock = fileClock();
+  let expired = true;
+  let invalid = false;
+  const fixture = setup({}, async () => new Response(stream(invalid ? fixtureImage : fixturePdf), { headers: {
+    "Content-Type": "application/pdf", "x-zyx-pdf-revision": "a".repeat(64),
+    "x-zyx-pdf-view-until": String(clock.now() + (expired ? 0 : 5000)),
+  } }), clock);
+  const input = { session: fixture.session, target: { courseId: "course", materialId: "manual" },
+    signal: new AbortController().signal, sessionExpiresAt: clock.now() + 20_000, isTargetCurrent: () => true };
+  expect(await fixture.controller.prepareMaterialPdf(input)).toEqual({ status: "error", issue: "unauthorized" });
+  expired = false;
+  invalid = true;
+  expect(await fixture.controller.prepareMaterialPdf(input)).toEqual({ status: "error", issue: "type" });
+  expect(fixture.files.size).toBe(0);
+  invalid = false;
+  expect((await fixture.controller.prepareMaterialPdf(input)).status).toBe("ready");
+  fixture.transport.setSession({ ...fixture.identity, accountId: "other" });
+  expect(fixture.files.size).toBe(0);
+  expect(await fixture.controller.prepareMaterialPdf(input)).toEqual({ status: "stale" });
+});

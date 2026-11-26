@@ -18,6 +18,8 @@
     },
     "plugins": [
       "expo-router",
+      ["react-native-blob-util", { "iosBackgroundSessions": false }],
+      "@config-plugins/react-native-pdf",
       "expo-secure-store",
       [
         "expo-audio",

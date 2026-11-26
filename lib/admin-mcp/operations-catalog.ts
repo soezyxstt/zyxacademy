@@ -29,6 +29,13 @@ export const operationsCatalog = [
     "reason": "Joining a live room requires an interactive Student session, an active course enrollment and a valid room code. The short-lived token is specific to the learner and room. Tutor hosting remains independently authorized."
   },
   {
+    "source": "app/api/native/student/material-pdf/route.ts",
+    "actions": ["GET", "HEAD"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The authenticated Student PDF reader checks assigned chapter scope, current file revision and PKA registration before serving inline bytes or renewing access. It uses app-private temporary files and never exposes storage links or an MCP reader credential."
+  },
+  {
     "source": "app/api/native/student/reading/route.ts",
     "actions": ["GET"],
     "tools": [],

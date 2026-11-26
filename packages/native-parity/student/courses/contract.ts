@@ -144,6 +144,7 @@ export type MaterialDetailData = {
     completed: boolean;
     locked: boolean;
     nativeReading?: "article" | "diktat";
+    nativePdf?: true;
     /** Present only when a Diktat PDF is available under the current download policy. */
     canDownloadPdf?: true;
   };

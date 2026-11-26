@@ -3,10 +3,9 @@ import type { PublicArticleReadModel } from "@/lib/articles/structured-read-mode
 import { getCanonicalPublishedArticle, getCanonicalPublishedTextProduct } from "@/lib/articles/structured-repository";
 import { OfflineHttpError } from "@/lib/offline/server-auth";
 import { offlineAssetFetchTarget, offlineAssetSources } from "@/lib/offline/server-assets";
-import { PKA_COURSE_ID } from "@/lib/pka-config";
-import { isPkaEnrolled } from "@/lib/pka-enrollment";
 import { findCanonicalDetail } from "./canonical-material-detail";
-import { canAccessCourseContent, resolveCourseAccess } from "./course-access";
+import { resolveNativeStudentReadingAccess } from "./native-reading-access";
+import { canAccessCourseContent } from "./course-access";
 
 type Target = { courseId: string; materialId: string };
 
@@ -15,10 +14,7 @@ function publicContent({ progress: _progress, ...content }: PublicArticleReadMod
 }
 
 async function authorizedReading(studentId: string, { courseId, materialId }: Target) {
-  const access = await resolveCourseAccess({ courseId, userId: studentId, roleHint: "murid" });
-  if (!access.isAuthenticated || !access.hasCourseAccess) throw new OfflineHttpError(403, "READING_ACCESS_DENIED");
-  if ([courseId, access.courseId, access.canonicalCourseId, access.legacyCourseId].includes(PKA_COURSE_ID) &&
-    !(await isPkaEnrolled(studentId))) throw new OfflineHttpError(403, "READING_ACCESS_DENIED");
+  const access = await resolveNativeStudentReadingAccess(studentId, courseId);
   const record = access.canonicalCourseId && await findCanonicalDetail(access.canonicalCourseId, materialId);
   if (!record || "ambiguous" in record) throw new OfflineHttpError(404, "READING_UNAVAILABLE");
   if (!canAccessCourseContent(access, record.policyKind, [record.chapterId])) throw new OfflineHttpError(403, "READING_ACCESS_DENIED");

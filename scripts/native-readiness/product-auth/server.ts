@@ -251,7 +251,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
         if (response.ok) loadedDashboard = true;
         return response;
       }
-      if (previewReading && browserIdentity && request.method === "GET") {
+      if (previewReading && browserIdentity && (request.method === "GET" || request.method === "HEAD")) {
         const identity = browserIdentity;
         const response = await requestContext.run(upstream, () => previewReading.handle(upstream, identity));
         if (response) return response;

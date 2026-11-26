@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@config-plugins/react-native-pdf": "14.0.2",
     "@expo/log-box": "58.0.15",
     "@expo/metro-runtime": "58.0.17",
     "date-fns": "4.4.0",
@@ -43,6 +44,8 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-native": "0.88.1",
+    "react-native-blob-util": "1.2.0",
+    "react-native-pdf": "7.0.5",
     "react-native-safe-area-context": "5.11.1",
     "react-native-screens": "4.30.1",
     "react-native-svg": "15.16.0",

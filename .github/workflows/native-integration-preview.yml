@@ -14,6 +14,10 @@ on:
       - 'jobs/admin-operations.ts'
       - 'tests/contracts/native-admin-broadcast-*.test.ts'
       - 'app/api/native/student/reading/**'
+      - 'app/api/native/student/material-pdf/**'
+      - 'lib/student/native-material-pdf*.ts'
+      - 'tests/contracts/native-student-material-pdf.test.ts'
+      - 'tests/unit/expo-material-pdf.test.ts'
       - 'lib/student/native-published-reading.ts'
       - 'lib/student/canonical-material-detail.ts'
       - 'tests/contracts/native-student-reading.test.ts'
@@ -200,6 +204,11 @@ jobs:
         run: |
           bun test tests/unit/expo-online-reading.test.ts
           bun test tests/contracts/native-student-reading.test.ts
+      - name: Native Student PDF authorization and private file lifecycle
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          bun test tests/unit/expo-native-files.test.ts tests/unit/expo-material-pdf.test.ts
+          bun test tests/contracts/native-student-material-pdf.test.ts
       - name: Student learning and live-session operations
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: bun scripts/test-contracts.ts tests/contracts/native-student-learning-postgres.test.ts

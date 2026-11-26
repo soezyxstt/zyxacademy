@@ -46,6 +46,7 @@ export interface StudentServices {
   };
   openOfflineLibrary?: (target?: OfflineLibraryTarget) => void;
   openOfflineMaterial?: (courseId: string, materialId: string) => void;
+  pdfReader?: import("./courses/pdf-reading").StudentPdfReader;
   renderMaterial?: (target: StudentMaterialReaderTarget) => ReactNode;
   saveDiktatPdf?: (courseId: string, diktatId: string, signal: AbortSignal) => Promise<ShareFileResult>;
   openExternal?: (path: string) => void;

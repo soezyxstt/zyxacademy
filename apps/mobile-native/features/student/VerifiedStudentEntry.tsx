@@ -27,7 +27,7 @@ import { useOpenAuthorizedOfflineMaterial, useStudentOfflineCourses } from "./us
 const notBlocked = () => false;
 const diktatPdfPolicy = { mimeTypes: ["application/pdf"], maxBytes: 50 * 1024 * 1024 } as const;
 
-export type VerifiedEntryProps = Omit<StudentEntryProps, "session" | "request" | "devicePush" | "openOfflineMaterial" | "saveDiktatPdf" | "focused" | "resultsTimeZone"> & {
+export type VerifiedEntryProps = Omit<StudentEntryProps, "session" | "request" | "devicePush" | "openOfflineMaterial" | "saveDiktatPdf" | "pdfReader" | "focused" | "resultsTimeZone"> & {
   offlineLocale?: NativeOfflineLocale;
   openOfflineMaterial?: (material: VerifiedOfflineMaterial) => void | Promise<void>;
 };
@@ -116,14 +116,18 @@ export function VerifiedStudentEntry({ offlineLocale, openOfflineMaterial, ...pr
   const showExternalError = () => {
     if (transport?.isCurrent()) Alert.alert(context.locale === "en" ? "Unable to open this link." : "Tautan belum dapat dibuka.");
   };
+  const isTargetCurrent = () => {
+    const current = getSnapshot();
+    return navigation.isFocused() && current.state === state && current.transport === transport && !current.revalidating &&
+      state.expiresAt > Date.now() && context.accountId === accountId && context.sessionId === sessionId;
+  };
   const saveDiktatPdf: StudentEntryProps["saveDiktatPdf"] = (courseId, diktatId, signal) => scopedFiles.shareAuthorizedDownload({
-    session: transport, target: { kind: "diktat-pdf", courseId, diktatId }, policy: diktatPdfPolicy, signal,
-    isTargetCurrent() {
-      const current = getSnapshot();
-      return navigation.isFocused() && current.state === state && current.transport === transport && !current.revalidating &&
-        state.expiresAt > Date.now() && context.accountId === accountId && context.sessionId === sessionId;
-    },
+    session: transport, target: { kind: "diktat-pdf", courseId, diktatId }, policy: diktatPdfPolicy, signal, isTargetCurrent,
   });
+  const pdfReader: StudentEntryProps["pdfReader"] = (Platform.OS === "android" || Platform.OS === "ios") ? {
+    open: (target, signal) => scopedFiles.prepareMaterialPdf({ session: transport, target, signal, sessionExpiresAt: state.expiresAt, isTargetCurrent }),
+    renew: (target, revision, signal) => scopedFiles.renewMaterialPdf({ session: transport, target, signal, sessionExpiresAt: state.expiresAt, isTargetCurrent }, revision),
+  } : undefined;
   function openExternal(path: string) {
     try {
       const url = new URL(path, origin);
@@ -141,6 +145,7 @@ export function VerifiedStudentEntry({ offlineLocale, openOfflineMaterial, ...pr
     onError: showExternalError,
   });
   return <StudentEntry {...props} focused={focused} openExternal={props.openExternal ?? openExternal} openBrowserNotifications={openBrowserNotifications} openOfflineMaterial={openSaved} openOfflineLibrary={target.kind === "course" || target.kind === "material" ? openLibrary : undefined} request={transport.request} devicePush={push} assessmentPhotos={props.assessmentPhotos ?? assessmentPhotos} drafts={props.drafts ?? drafts}
+    pdfReader={pdfReader}
     saveDiktatPdf={Platform.OS === "android" || Platform.OS === "ios" ? saveDiktatPdf : undefined}
     offlineCourse={{ status: revoked ? "revoked" : metadata.status, course: revoked ? null : metadata.snapshot?.courses.find(course => course.id === courseIds[0]) ?? null, retry: metadata.retry }}
     session={{ role: "student", userId: accountId, origin, sessionId, locale: context.locale }}

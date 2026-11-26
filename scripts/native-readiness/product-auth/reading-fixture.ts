@@ -6,24 +6,55 @@ const courseId = "native-preview-reading-course";
 const canonicalCourse = "native-preview-reading-canonical";
 const enrollmentId = "native-preview-reading-enrollment";
 const articleId = "native-preview-reading-article";
+const pdfId = "native-preview-reading-pdf";
+const pdfUrl = "https://native-reading-fixture.ufs.sh/lesson.pdf";
 const pkaCourseId = "tutorial-pka";
 const pkaDiktatId = "native-preview-reading-pka-diktat";
 const registrationId = "native-preview-reading-pka-registration";
 const imagePath = "/images/native-reading-preview.png";
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAEAAAAAgCAIAAAAt/+nTAAAAjUlEQVR4nO3SsQ2AMAxE0czDDEzE9BSUFCClSUFEHMf2WTrpuqT4T3I5r/tz2368673irBBAAAEEuK+21aUBtNFpAL1oaMBIdPsfAiCNhgBoosMAq6JdARbR5gDraBOAZ/QyQFS0CoAQLQagRQsAmNEqQHjxDCC8ch4Q3vcPGLl15OUHpD8hAggggIDQPZYaL03x06UcAAAAAElFTkSuQmCC", "base64");
 
+function previewPdf() {
+  const pageText = (page: number) => `BT /F1 24 Tf 40 150 Td (Zyx private preview, page ${page}) Tj ET`;
+  const content = (page: number) => {
+    const text = pageText(page);
+    return `<< /Length ${text.length} >>\nstream\n${text}\nendstream`;
+  };
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R 4 0 R] /Count 2 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 400 200] /Resources << /Font << /F1 7 0 R >> >> /Contents 5 0 R >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 400 200] /Resources << /Font << /F1 7 0 R >> >> /Contents 6 0 R /Annots [8 0 R] >>",
+    content(1), content(2),
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    "<< /Type /Annot /Subtype /Link /Rect [40 145 350 180] /A << /S /URI /URI (https://example.invalid/lesson) >> >>",
+  ];
+  let text = "%PDF-1.4\n";
+  const offsets = objects.map((object, index) => {
+    const offset = text.length;
+    text += `${index + 1} 0 obj\n${object}\nendobj\n`;
+    return String(offset).padStart(10, "0") + " 00000 n \n";
+  });
+  const xref = text.length;
+  return Buffer.from(text + `xref\n0 ${offsets.length + 1}\n0000000000 65535 f \n` + offsets.join("") +
+    `trailer\n<< /Size ${offsets.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
+}
+
 type Identity = { accountId: string; sessionId: string; cookie: string };
 
 export async function createReadingPreview() {
   assertFixtureRunner();
-  const [{ db }, schema, courses, learning, reading, { auth }] = await Promise.all([
+  const [{ db }, schema, courses, learning, reading, pdf, { auth }] = await Promise.all([
     import("@/db"), import("@/db/schema"), import("@/app/api/native/student/courses/route"),
-    import("@/app/api/native/student/learning/route"), import("@/app/api/native/student/reading/route"), import("@/lib/auth"),
+    import("@/app/api/native/student/learning/route"), import("@/app/api/native/student/reading/route"),
+    import("@/app/api/native/student/material-pdf/route"), import("@/lib/auth"),
   ]);
   let seeded: Promise<void> | undefined;
   let articleRevision: string | undefined;
   let pkaReading = false;
   let privateImage = false;
+  let privatePdf = false;
+  const expectedPdf = previewPdf();
   let deniedNormal = false;
   let deniedPka = false;
   let revoked = false;
@@ -31,6 +62,10 @@ export async function createReadingPreview() {
   const previousFetch = globalThis.fetch;
   const privatePreviewUrl = EXPO_STAGING_ORIGIN + imagePath;
   const fixtureFetch: typeof fetch = Object.assign(async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+    if (String(input) === pdfUrl) {
+      if (new Headers(init?.headers).has("cookie") || init?.redirect !== "error") return new Response(null, { status: 403 });
+      return new Response(expectedPdf, { headers: { "Content-Type": "application/pdf" } });
+    }
     if (String(input) !== privatePreviewUrl) return previousFetch(input, init);
     const browserSession = await auth.api.getSession({
       headers: new Headers(init?.headers), query: { disableCookieCache: true, disableRefresh: true },
@@ -61,7 +96,8 @@ export async function createReadingPreview() {
       const chapter = "native-preview-reading-chapter";
       const pkaChapter = "native-preview-reading-pka-chapter";
       await tx.insert(schema.bab).values([
-        { id: chapter, mataKuliahId: canonicalCourse, code: "INTRO", title: "Pembahasan", orderIndex: 1 },
+        { id: chapter + "-free", mataKuliahId: canonicalCourse, code: "PREVIEW", title: "Pengantar gratis", orderIndex: 1 },
+        { id: chapter, mataKuliahId: canonicalCourse, code: "INTRO", title: "Pembahasan", orderIndex: 2 },
         { id: pkaChapter, mataKuliahId: pkaCanonical, code: "READER-PKA", title: "Pembahasan PKA", orderIndex: 20 },
       ]);
       await tx.insert(schema.pendaftaranMurid).values([
@@ -85,6 +121,9 @@ export async function createReadingPreview() {
         id: articleId + "-body", artikelId: articleId, bagianArtikelId: id, blockKey: "body", blockType: "explanation", orderIndex: 1,
         content: `${markdown}\n<!--__ZYX_V4_BLOCK_PAYLOAD__:${authored}-->`, version: 3, generationHash: details.generationHash, status: "published",
       });
+      await tx.insert(schema.courseMaterials).values({
+        id: pdfId, courseId, title: "PDF verifikasi kelas", type: "materi", fileUrl: pdfUrl, chapterIds: [chapter],
+      });
       await tx.insert(schema.diktatMateri).values({
         ...details, id: pkaDiktatId, mataKuliahId: pkaCanonical, babId: pkaChapter, title: "Diktat verifikasi PKA",
         contentMarkdown: "Isi diktat PKA versi tiga.\n\n$$x^2+2x+1$$",
@@ -98,15 +137,22 @@ export async function createReadingPreview() {
     const material = url.searchParams.get("materialId");
     const view = url.searchParams.get("view");
     const ordinary = course === courseId && material === articleId;
+    const manualPdf = course === courseId && material === pdfId;
+    const pdfRead = url.pathname === "/api/native/student/material-pdf" && manualPdf;
     const pka = course === pkaCourseId && material === pkaDiktatId;
     const pkaGate = url.pathname === "/api/native/student/learning" && view === "pka-material";
-    const detail = url.pathname === "/api/native/student/courses" && view === "material-detail" && (ordinary || pka);
+    const detail = url.pathname === "/api/native/student/courses" && view === "material-detail" && (ordinary || pka || manualPdf);
     const read = url.pathname === "/api/native/student/reading" && (ordinary || pka);
-    if (!read && !detail && !pkaGate) return null;
+    if (!read && !detail && !pkaGate && !pdfRead) return null;
     owner = identity;
     seeded ??= seed(identity.accountId);
     await seeded;
     if (pkaGate) return learning.GET(request);
+    if (pdfRead) {
+      const response = await (request.method === "HEAD" ? pdf.HEAD(request) : pdf.GET(request));
+      if (response.ok && request.method === "GET") privatePdf = Buffer.from(await response.clone().arrayBuffer()).equals(expectedPdf);
+      return response;
+    }
     if (detail) {
       const response = await courses.GET(request);
       if (revoked && ordinary && (response.status === 403 ||
@@ -130,7 +176,7 @@ export async function createReadingPreview() {
   return {
     handle,
     async revoke() {
-      if (!owner || !articleRevision || !pkaReading || !privateImage) throw new Error("The Student device did not receive both published readings and the image");
+      if (!owner || !articleRevision || !pkaReading || !privateImage || !privatePdf) throw new Error("The Student device did not receive each authorized reading");
       const accountId = owner.accountId;
       await db.transaction(async tx => {
         const [withdrawn] = await tx.update(schema.pendaftaranMurid).set({ status: "cancelled" }).where(and(
@@ -150,9 +196,11 @@ export async function createReadingPreview() {
         reading.GET(request(courseId, articleId, { asset: imagePath, revision: articleRevision })),
       ]);
       if (body.status !== 403 || image.status !== 403) throw new Error("Reading authorization survived withdrawal");
+      const manual = new Request(EXPO_STAGING_ORIGIN + "/api/native/student/material-pdf?" + new URLSearchParams({ courseId, materialId: pdfId }), { headers });
+      if ((await pdf.GET(manual)).status !== 403) throw new Error("Manual PDF authorization survived withdrawal");
       deniedPka = (await reading.GET(request(pkaCourseId, pkaDiktatId))).status === 403;
     },
-    verified: () => Boolean(articleRevision) && pkaReading && privateImage && deniedNormal && deniedPka,
+    verified: () => Boolean(articleRevision) && pkaReading && privateImage && privatePdf && deniedNormal && deniedPka,
     stop() { if (globalThis.fetch === fixtureFetch) globalThis.fetch = previousFetch; },
   };
 }

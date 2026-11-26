@@ -1,6 +1,6 @@
 import { db } from "@/db";
-import { aiMaterialInstances, courseMaterials, diktats, progress, studentMaterialProgress, user, websiteMaterials } from "@/db/schema";
-import { and, eq, notLike } from "drizzle-orm";
+import { progress, studentMaterialProgress, user } from "@/db/schema";
+import { and, eq } from "drizzle-orm";
 import { getCourse, getCourseChapterOutline, getStudentCourseAccess, normalizeChapterIds } from "@/lib/course-utils";
 import { getMaterialArticleSummaries } from "@/app/(student)/courses/[id]/material/canonical-summaries";
 import { env } from "@/lib/env";
@@ -12,7 +12,9 @@ import { listStudentEnrollments, type StudentEnrollmentRecord } from "@/lib/stud
 import { loadStudentCourseCatalog } from "@/lib/student/course-catalog-view-data";
 import { getDashboardCourseMaterialsBatch } from "@/lib/student/dashboard-materials";
 import { loadCourseMaterialData } from "@/lib/student/course-material-list";
-import { findCanonicalDetail } from "@/lib/student/canonical-material-detail";
+import { findCanonicalDetail, findLegacyMaterialDetail } from "@/lib/student/canonical-material-detail";
+import { resolveAuthBaseUrl } from "@/lib/auth-site-url";
+import { nativeMaterialPdfSource } from "@/lib/student/native-material-pdf-source";
 import { resolveDiktatPdfSource } from "@/lib/student/diktat-pdf";
 import {
   loadOnboardingData,
@@ -165,32 +167,21 @@ async function findLegacyDetail(
   access: Access,
 ): Promise<MaterialDetailData["material"] | null> {
   const id = course.legacyId ?? course.id;
-  const [[diktat], [webArticle], [manual], [generatedArticle]] = await Promise.all([
-    db.select({ title: diktats.title, chapterIds: diktats.chapterIds, fileUrl: diktats.fileUrl }).from(diktats)
-      .where(and(eq(diktats.id, materialId), eq(diktats.courseId, id), eq(diktats.status, "ready"))).limit(1),
-    db.select({ title: websiteMaterials.title, chapterId: websiteMaterials.chapterId }).from(websiteMaterials)
-      .where(and(eq(websiteMaterials.id, materialId), eq(websiteMaterials.courseId, id), eq(websiteMaterials.status, "published"))).limit(1),
-    db.select({ title: courseMaterials.title, chapterIds: courseMaterials.chapterIds }).from(courseMaterials)
-      .where(and(eq(courseMaterials.id, materialId), eq(courseMaterials.courseId, id))).limit(1),
-    db.select({ title: aiMaterialInstances.title, chapterIds: aiMaterialInstances.chapterIds }).from(aiMaterialInstances)
-      .where(and(eq(aiMaterialInstances.id, materialId), eq(aiMaterialInstances.courseId, id), notLike(aiMaterialInstances.title, "[DRAF]%"))).limit(1),
-  ]);
-  // Use the same source priority as the web reader. Each lookup is
-  // course-bound, even when an identifier also exists in another course.
-  const reference = diktat ?? webArticle ?? manual ?? generatedArticle;
+  const reference = await findLegacyMaterialDetail(id, materialId);
   if (!reference) return null;
-  const isManual = reference === manual;
-  const isDiktat = reference === diktat;
-  const title = reference === generatedArticle ? reference.title.replace(/^\[DRAF\]\s*/u, "") : reference.title;
-  const chapterIds = "chapterId" in reference ? [reference.chapterId]
-    : Array.isArray(reference.chapterIds) ? reference.chapterIds : [];
+  const { title, chapterIds } = reference;
+  const isManual = reference.source === "manual-pdf";
+  const isDiktat = reference.source === "legacy-diktat";
   const isFreePdf = isManual && hasChapterScopeWithin(chapterIds, access.policy.scopedChapterIds);
   const locked = !isFreePdf && !canAccessCourseContent(access.policy, isDiktat ? "diktat" : "article", chapterIds);
   const kind = isDiktat || isManual ? "pdf" : "article";
   const group = isDiktat ? "diktat" : isManual ? "pdf" : "materi";
   const completed = !locked && await hasCompletedMaterial(studentId, materialId);
-  return { id: materialId, title, kind, group, completed, locked,
-    ...downloadPdfCapability(access, locked, isDiktat ? diktat?.fileUrl : undefined) };
+  const aliases = [course.id, course.legacyId, access.canonicalCourseId].filter((value): value is string => Boolean(value));
+  const nativePdf = !locked && reference.source !== "legacy-article" &&
+    nativeMaterialPdfSource(reference.fileUrl, aliases, reference.source, new URL(resolveAuthBaseUrl()).origin);
+  return { id: materialId, title, kind, group, completed, locked, ...(nativePdf && { nativePdf: true as const }),
+    ...downloadPdfCapability(access, locked, isDiktat ? reference.fileUrl : undefined) };
 }
 
 export async function loadNativeCourseData(studentId: string, query: LearningQuery): Promise<NativeLearningResult> {

@@ -1,4 +1,5 @@
 import type { NativeSessionScope, NativeSessionTransport } from "../network/transport";
+import { MATERIAL_PDF_HEADERS, MATERIAL_PDF_MAX_BYTES, materialPdfPath, type MaterialPdfTarget } from "../../../packages/native-parity/student/courses/pdf";
 import { courseVideoSource } from "../../../packages/course-video/source";
 import type { PhotoDraftTarget } from "./photo-controller";
 
@@ -35,10 +36,21 @@ export type NativeDownloadRequest = {
   isTargetCurrent?(): boolean;
 };
 
-type Issue = "policy" | "invalid-target" | "type" | "size" | "incomplete" | "picker" | "read" | "fetch" | "share" | "unauthorized" | "not-found";
+type Issue = "policy" | "invalid-target" | "type" | "size" | "incomplete" | "picker" | "read" | "fetch" | "share" | "unauthorized" | "not-found" | "changed";
 type FileRejection = { status: "error"; issue: Issue } | { status: "cancelled" | "stale" | "busy" | "unavailable" };
 export type DocumentResult = { status: "ready"; document: DraftDocument } | FileRejection;
 export type ShareFileResult = { status: "finished" } | FileRejection;
+export type PdfGrant = { revision: string; expiresAt: number };
+export type PreparedMaterialPdf = PdfGrant & { uri: string; release(): void };
+export type MaterialPdfRequest = {
+  session: NativeSessionTransport;
+  target: MaterialPdfTarget;
+  signal: AbortSignal;
+  sessionExpiresAt: number;
+  isTargetCurrent(): boolean;
+};
+export type MaterialPdfRenewal = { status: "ready"; grant: PdfGrant } | FileRejection;
+export type MaterialPdfResult = { status: "ready"; document: PreparedMaterialPdf } | FileRejection;
 
 export type PickerDocument = { uri: string; name: string; mimeType?: string; size?: number };
 const videoExtensions = new Map([["video/mp4", "mp4"], ["video/webm", "webm"], ["video/quicktime", "mov"]]);
@@ -470,5 +482,83 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
     }
   }
 
-  return { initialize, expireExports, pickDocument, belongsToDocumentDraft, shareDocument, shareAuthorizedDownload, prepareCourseVideo };
+  function pdfResponseIssue(response: Awaited<ReturnType<NativeSessionTransport["request"]>>): FileRejection | null {
+    if (response.status === 401 || response.status === 403) return { status: "error", issue: "unauthorized" };
+    if (response.status === 404) return { status: "error", issue: "not-found" };
+    if (response.status === 409) return { status: "error", issue: "changed" };
+    if (response.status === 413) return { status: "error", issue: "size" };
+    if (response.status === 422) return { status: "error", issue: "type" };
+    return response.status === 200 ? null : { status: "error", issue: "fetch" };
+  }
+
+  function pdfGrant(response: Awaited<ReturnType<NativeSessionTransport["request"]>>, sessionExpiresAt: number): PdfGrant | null {
+    const revision = response.headers.get(MATERIAL_PDF_HEADERS.revision);
+    const expiresAt = Math.min(Number(response.headers.get(MATERIAL_PDF_HEADERS.expiresAt)), sessionExpiresAt);
+    return revision && /^[a-f0-9]{64}$/.test(revision) && Number.isSafeInteger(expiresAt) && expiresAt > clock.now()
+      ? { revision, expiresAt } : null;
+  }
+
+  async function prepareMaterialPdf(request: MaterialPdfRequest): Promise<MaterialPdfResult> {
+    if (!device.available) return { status: "unavailable" };
+    const path = materialPdfPath(request.target);
+    if (!path) return { status: "error", issue: "invalid-target" };
+    const current = () => rejectCurrent(request, request.isTargetCurrent);
+    const before = current();
+    if (before) return before;
+    const staged = stageExport(request);
+    let response: Awaited<ReturnType<NativeSessionTransport["request"]>> | undefined;
+    let ready = false;
+    try {
+      initialize();
+      response = await request.session.request(path, { signal: request.signal, requiredRole: "murid",
+        headers: { Accept: "application/pdf", "x-student-id": request.session.scope.accountId } });
+      const issue = pdfResponseIssue(response);
+      if (issue) return issue;
+      if (!response.body || normalizeMimeType(response.headers.get("Content-Type")) !== "application/pdf") return { status: "error", issue: "type" };
+      const grant = pdfGrant(response, request.sessionExpiresAt);
+      if (!grant) return { status: "error", issue: "unauthorized" };
+      const rawSize = response.headers.get("Content-Length");
+      if (rawSize !== null && !/^\d+$/.test(rawSize)) return { status: "error", issue: "incomplete" };
+      const encoding = response.headers.get("Content-Encoding");
+      const declared = rawSize !== null && (!encoding || encoding === "identity") ? Number(rawSize) : undefined;
+      const invalidSize = sizeIssue(declared, MATERIAL_PDF_MAX_BYTES);
+      if (invalidSize) return { status: "error", issue: invalidSize };
+      const assertCurrent = () => { if (current() || clock.now() >= grant.expiresAt) throw new FileIssue("unauthorized"); };
+      assertCurrent();
+      const file = staged.hold("course-reading.pdf");
+      await copyBytes(response.body, file, "application/pdf", MATERIAL_PDF_MAX_BYTES, declared, assertCurrent, [request.session.signal, request.signal]);
+      assertCurrent();
+      ready = true;
+      return { status: "ready", document: { ...grant, uri: file.uri, release: staged.finish } };
+    } catch (error) {
+      return current() ?? resultFrom(error, "fetch");
+    } finally {
+      response?.dispose();
+      if (!ready) staged.finish();
+    }
+  }
+
+  async function renewMaterialPdf(request: MaterialPdfRequest, revision: string): Promise<MaterialPdfRenewal> {
+    const path = materialPdfPath(request.target);
+    if (!path || !/^[a-f0-9]{64}$/.test(revision)) return { status: "error", issue: "invalid-target" };
+    const current = () => rejectCurrent(request, request.isTargetCurrent);
+    const before = current();
+    if (before) return before;
+    let response: Awaited<ReturnType<NativeSessionTransport["request"]>> | undefined;
+    try {
+      response = await request.session.request(path, { method: "HEAD", signal: request.signal, requiredRole: "murid",
+        headers: { "If-Match": `"${revision}"`, "x-student-id": request.session.scope.accountId } });
+      const issue = current() ?? pdfResponseIssue(response);
+      if (issue) return issue;
+      const grant = pdfGrant(response, request.sessionExpiresAt);
+      return grant?.revision === revision ? { status: "ready", grant } : { status: "error", issue: "changed" };
+    } catch (error) {
+      return current() ?? resultFrom(error, "fetch");
+    } finally {
+      response?.dispose();
+    }
+  }
+
+  return { initialize, expireExports, pickDocument, belongsToDocumentDraft, shareDocument, shareAuthorizedDownload,
+    prepareCourseVideo, prepareMaterialPdf, renewMaterialPdf };
 }
