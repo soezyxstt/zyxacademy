@@ -1,0 +1,378 @@
+{
+  "schemaVersion": 1,
+  "runId": 45885365744,
+  "sourceCommit": "83a0d6585712df5e1c6cf220dddda209a4034c90",
+  "buildCommit": "83a0d6585712df5e1c6cf220dddda209a4034c90",
+  "platform": "android",
+  "dpr": 1,
+  "referenceEngine": "android-webview",
+  "reviewer": "Independent repository review",
+  "captureArtifactId": 15150377131,
+  "measurementArtifactId": 15150611770,
+  "caseManifestSha256": "9c794dd279efa555aa25bd3d64e3ec711c5b227845ac0b925299ef24eafe27e8",
+  "components": {
+    "separator": {
+      "measurementSha256": "ed86e80e486e841f4296759d9a923a2c0495ee23435f0e7964250410b9d189e1",
+      "cases": {
+        "separator-horizontal-light": {
+          "review": "pass",
+          "nativeSha256": "9b479fff4e45a9128290316a81b2208817e819278f57a560abade478b5049110",
+          "webviewSha256": "9b479fff4e45a9128290316a81b2208817e819278f57a560abade478b5049110"
+        },
+        "separator-vertical-light": {
+          "review": "pass",
+          "nativeSha256": "73bbdc7577ff6c3b6bedd102d446e974ecb83d454476739979d6fe9a1ecae383",
+          "webviewSha256": "73bbdc7577ff6c3b6bedd102d446e974ecb83d454476739979d6fe9a1ecae383"
+        },
+        "separator-horizontal-dark": {
+          "review": "pass",
+          "nativeSha256": "03168a96e4123400582e94a0df015c9a1ffbab791df6789a34f6f41f0d2f78c0",
+          "webviewSha256": "03168a96e4123400582e94a0df015c9a1ffbab791df6789a34f6f41f0d2f78c0"
+        }
+      }
+    },
+    "skeleton": {
+      "measurementSha256": "be09f13d260c7ceef98d5ce46848a7a74966a384e8657ef4a8166690840eac92",
+      "cases": {
+        "skeleton-line-light": {
+          "review": "pass",
+          "nativeSha256": "3b7b2c250afa7e3b66601316a9c9a632c05ee0fb2bff683f44b638af15696216",
+          "webviewSha256": "3b7b2c250afa7e3b66601316a9c9a632c05ee0fb2bff683f44b638af15696216"
+        },
+        "skeleton-block-light": {
+          "review": "pass",
+          "nativeSha256": "2aed850f02cf64bfb1e5bd37fbd502a2b42ba4fba56c6d2af12cb938c343547e",
+          "webviewSha256": "2aed850f02cf64bfb1e5bd37fbd502a2b42ba4fba56c6d2af12cb938c343547e"
+        },
+        "skeleton-line-dark": {
+          "review": "pass",
+          "nativeSha256": "26874999785c261f8265d0f219ea53323af044a3634659c1db48b1f16db1afad",
+          "webviewSha256": "26874999785c261f8265d0f219ea53323af044a3634659c1db48b1f16db1afad"
+        }
+      }
+    },
+    "button": {
+      "measurementSha256": "009e0cd26fb653e441329d8a5e7af7551b6ae732ea9ea025b55a0c79304306ce",
+      "cases": {
+        "button-default-light": {
+          "review": "pass",
+          "nativeSha256": "2db91c4d9f01fe70755b003550176f4e93fb18a31733f9e7cbf32ced47a936fe",
+          "webviewSha256": "bf22806df3eed4e5d7cdc0b93be7fd8f123b8597b6a79802a70f68c835a8960f"
+        },
+        "button-disabled-dark": {
+          "review": "pass",
+          "nativeSha256": "63d352b0904777330b598c5c96e0b7f5cc339045f4adf44b62e12dabb9912927",
+          "webviewSha256": "336103bd169f5de173b75f26fcdb3e75f0d06b2b840597806c45ca125ca9f02c"
+        },
+        "button-icon-light": {
+          "review": "pass",
+          "nativeSha256": "49c224105b93b25997f8d783083bb5b59342828a82dbef3071d6a99a3ee6678b",
+          "webviewSha256": "7cee238c142f6989443ad4d9840309b4ccfb087ba65a9ba0b98bfa2b8e4d6f05"
+        }
+      }
+    },
+    "label": {
+      "measurementSha256": "8fb9b6e49b4815d8d92c5c912dfeafe2a6a24677d3d19b3009e48f45af8e1d03",
+      "cases": {
+        "label-empty-light": {
+          "review": "pass",
+          "nativeSha256": "ec1933b01cc4f372ab9129008ee62a3fb3d7b29698e30cc360addf9ae8f4a357",
+          "webviewSha256": "a74be516e78d3683b91ac9ecb2f233d3b01f34b1532ad4f7e5de921e19b1f2e2"
+        },
+        "label-long-dark": {
+          "review": "pass",
+          "nativeSha256": "3c853bc49100b7a1624fba7b94fcc3f157c0a6c54a0b4a1f446b625bb1a16fd5",
+          "webviewSha256": "a632bb04cd4e3a4883ba4092518816e4e434486c370b354f6f3de6eba3451c96"
+        },
+        "label-disabled-light": {
+          "review": "pass",
+          "nativeSha256": "d5435abd98579f2234267d8f6dcbeba24136d9b4a6a098f7acba6e13ce9b23f4",
+          "webviewSha256": "cb8fa4bc2f715cd13311a30bd3724dd1a23d0c8c1138931d755a997cbf7a6143"
+        }
+      }
+    },
+    "input": {
+      "measurementSha256": "ecc5283b10f2a663ff86de8ab8cdb0ff4e3d586fc91cc56cfb0cd7a375dbf98c",
+      "cases": {
+        "input-empty-light": {
+          "review": "pass",
+          "nativeSha256": "edf5e781e6b26ce5d07649570aaab622235c56853e9ad866124ef8427e6a93ab",
+          "webviewSha256": "268003b301326ca8a3122e9ec6a4adc8f0aa67c95cb4266998b2bed22169fc03"
+        },
+        "input-long-dark": {
+          "review": "pass",
+          "nativeSha256": "33c0e20fb39eea412baa5eb5082c018afedb0bc6fb61cd1860f7285f51751d02",
+          "webviewSha256": "645e0e97a9fcc486d353112368d5f55830ad76a4223101f0095a14cdcba1adc5"
+        },
+        "input-disabled-light": {
+          "review": "pass",
+          "nativeSha256": "c297fd75db5d2d4af7daef05ce683f4eff58f89926113ae17fd533e3b3754a8d",
+          "webviewSha256": "daa5db2f27b792e49bd3560e3bc23d491bdb38ee372cb3f866eeb5321dd4c904"
+        }
+      }
+    },
+    "textarea": {
+      "measurementSha256": "3e79be6f8a01b14a4604702585f778b30e8e8ec923b0b278a87ca0a4dc7ec024",
+      "cases": {
+        "textarea-empty-light": {
+          "review": "pass",
+          "nativeSha256": "215b9ee035c082f82e4607a1c4fa875af8f7c3738a58aeae121e51db371b8d27",
+          "webviewSha256": "be9f9fbed7d4b774aaeab0cbde98d5750c2429f67ba5805f5e77bf1237098ce9",
+          "note": "Placeholder and border remain clear. The Expo text sits one pixel lower and WebView has a small resize mark."
+        },
+        "textarea-multiline-dark": {
+          "review": "pass",
+          "nativeSha256": "be0724b9bf54fe15c90da3a7cfeb160b75b358ed930cceec155005912867bb2c",
+          "webviewSha256": "54fd14ec471335dab859c081b1e00902c0dd7408c93fc3b797e0d6d635e4f29e",
+          "note": "Both lines, their line spacing, and the control bounds agree. The Expo text sits one pixel lower and WebView has a small resize mark."
+        },
+        "textarea-disabled-light": {
+          "review": "pass",
+          "nativeSha256": "528711e46e38719d95274e74fbcb4517ea09e07cebfd096e731ecb29654164ed",
+          "webviewSha256": "f9de758302559c970499b51e864c5230570b8d6c8fd88ff29c6053656192b2f2",
+          "note": "Both text crops contain RGB 153, 153, 153. The Expo text sits one to two pixels lower and a small WebView resize mark is visible."
+        }
+      }
+    },
+    "checkbox": {
+      "measurementSha256": "5ba7434af12de93e3246774ba0132d5bde473b6ef7c1bc937a6e5ff1fbc09728",
+      "cases": {
+        "checkbox-unchecked-light": {
+          "review": "pass",
+          "nativeSha256": "83ce39f7660668032d762a810e91e4fcb5efa0a4439463914f0b1170bcfb5c60",
+          "webviewSha256": "e8f54374b6607c415ded935a4d92a9aff839f96645cf33198afcb52f5c840a33"
+        },
+        "checkbox-checked-light": {
+          "review": "pass",
+          "nativeSha256": "ea279bc987e1e5a38fb3892c69e43fc547b2b080385f0329ac91325d4b4b9d65",
+          "webviewSha256": "e8329049b8713a229a1213b6cbabdee7c867df8ff75c0fd98a03bd89bd50af8c"
+        },
+        "checkbox-disabled-dark": {
+          "review": "pass",
+          "nativeSha256": "5b9600b5c2647649516fb8eedb7d32ad76d7bae6d8c947e18296a8b9398dd914",
+          "webviewSha256": "e8235b669ba3ad3f83b5bb3239190403c2bb613bbb89bf19deb010fb67b90eac"
+        }
+      }
+    },
+    "switch": {
+      "measurementSha256": "ebfbfe95bc6155644cdd7423a9cac5037e61ee7e459850df83b9188c6c409e9b",
+      "cases": {
+        "switch-unchecked-light": {
+          "review": "pass",
+          "nativeSha256": "b4c20914baf42d11e06ed2039f903c4a8caae3b61acea1ccd3d7523496172186",
+          "webviewSha256": "5ec8b7bd150e52ed2e2c7aacae3becb71eb93280f56a7bf84716e8b441392d26"
+        },
+        "switch-checked-light": {
+          "review": "pass",
+          "nativeSha256": "c05c65dd64f5593e7e487699f1074d98cae14a7fb6b21a6b9f6dc80c641e4b86",
+          "webviewSha256": "ebf01e5eee8e5246ce33f2dfb410f50d934d208d06d482ab2395f62dfbf21f86"
+        },
+        "switch-disabled-dark": {
+          "review": "pass",
+          "nativeSha256": "2c15decb4609653990bc15396f9dc3183b9817c6eaa662e01f933f6174eff6f1",
+          "webviewSha256": "c01106e815973eb6ae854eadc575ec4c28f149e155adfc8264f05ecfe4f39236"
+        }
+      }
+    },
+    "radio-group": {
+      "measurementSha256": "dbde7768205d4521ff2e706fb90d628cbf2ccf74c82e3ab79abd4dcf93d99da7",
+      "cases": {
+        "radio-group-unchecked-light": {
+          "review": "pass",
+          "nativeSha256": "b6e66d38ceec409be1621caed7065e2d536ab29d45dd4c6ef3968e7e7b779613",
+          "webviewSha256": "cf6edac703c4e18857946d8fc629e926602685d648d3b23c98ecdc7b6ee9fd39"
+        },
+        "radio-group-checked-light": {
+          "review": "pass",
+          "nativeSha256": "9752e9c27ba4a40c0bc5d1bb90c8fa61411870db34cc70502b69f32b23426413",
+          "webviewSha256": "739084e73099d72605a99a5f406f0bdc355102c1d413240c4d531e63ed93c231"
+        },
+        "radio-group-disabled-dark": {
+          "review": "pass",
+          "nativeSha256": "747f94f08b1cc6be2f3476567c9be08ccabfbac628ab4982ca7035e65a2f792e",
+          "webviewSha256": "9e3bdb0ac2e73006910e2c318593e8abfd3237d25adb00cf51468aabd8980b41"
+        }
+      }
+    },
+    "progress": {
+      "measurementSha256": "264dcea8521042677eb934879da737c8c4c126bcebd99d77d428211e71c83dd0",
+      "cases": {
+        "progress-empty-light": {
+          "review": "pass",
+          "nativeSha256": "7e46cd8abe406bc6cbb41cadb32a6c2132ea839a25449e52bf0882a7348a5751",
+          "webviewSha256": "7e46cd8abe406bc6cbb41cadb32a6c2132ea839a25449e52bf0882a7348a5751"
+        },
+        "progress-partial-dark": {
+          "review": "pass",
+          "nativeSha256": "517838c0319e6734c03a0089f0e69df67ebc41b4727a32e9ddec1085e62fe5a0",
+          "webviewSha256": "517838c0319e6734c03a0089f0e69df67ebc41b4727a32e9ddec1085e62fe5a0"
+        },
+        "progress-full-light": {
+          "review": "pass",
+          "nativeSha256": "930c69dff6f974498e974d12c8adfcc4fb4334d24368e57ddfdafb5e2c93acd2",
+          "webviewSha256": "0f650c492239ae34775667766e9a0b734f1d184b415a3afc452f826b95a69749"
+        }
+      }
+    },
+    "avatar": {
+      "measurementSha256": "485199dcf5d350272f171a10452a840b5e65f77c64072f6f9696931ed30adfc8",
+      "cases": {
+        "avatar-image-light": {
+          "review": "pass",
+          "nativeSha256": "32f076fcdfcdd0fa848401d189139b729aeb820a659ef11d15afe3b0acc3bb04",
+          "webviewSha256": "d5f0be05e7235cb46d4f93013be5e5976d16de0a4b9e57efa952b3f21b8fe07f"
+        },
+        "avatar-error-light": {
+          "review": "pass",
+          "nativeSha256": "7789ecaf7519254ad6633bca3555a7cc65fbffe40b7f768f8b2ba6f0af354924",
+          "webviewSha256": "4d3f681bda037c93d0e0c2b1237b7b099e25cbeed143495491b27e3f1fd22d41"
+        },
+        "avatar-initials-dark": {
+          "review": "pass",
+          "nativeSha256": "06411172db3aae8de34fdda1e3a69d0c37fcf5315fc9174510043bd14edc700a",
+          "webviewSha256": "442bc9cac5b10ddb92314fd1eae049a7d22c80848dcf0669e2a61fce1994371d"
+        }
+      }
+    },
+    "badge": {
+      "measurementSha256": "c7b2218b51e0ad3c1e37446fd57c932b4917fb1409af7433f236d55f25c614c9",
+      "cases": {
+        "badge-default-light": {
+          "review": "pass",
+          "nativeSha256": "f2aca291988f2908e03fcd617132deec38cf49130dc4d72978d9300246be5e1b",
+          "webviewSha256": "1d7727fcdb56608d517e9fa023c43a833d5c17397084259bd0d0ef8806fa5a8e"
+        },
+        "badge-secondary-dark": {
+          "review": "pass",
+          "nativeSha256": "cd5b897b4ad635bab2b4bbebd7ee077f8550d172c62e22b08eb9d20ede09f3ff",
+          "webviewSha256": "6999d76ca0fa44cce8b53b7df0211c36ec7d065a6510ef48a56286bba4524a5b"
+        },
+        "badge-outline-light": {
+          "review": "pass",
+          "nativeSha256": "4aaa8a516dbd67dcd2eb2e24e5ce691e61fb3fe7a701790cf3aea20e74eda54d",
+          "webviewSha256": "6ac65fb5c236ea9f6c7c887019836dde0be236ca28d7155622678f24bab63c38"
+        }
+      }
+    },
+    "beta-badge": {
+      "measurementSha256": "c0f01345abf16ae2faddff4638d63c12cd41db9678d5de2e587e7e1420417c46",
+      "cases": {
+        "beta-badge-active-light": {
+          "review": "pass",
+          "nativeSha256": "4cb95dfa02bb440709722029957a859e84e20ca9593c3e173cd6a7a4e9d31002",
+          "webviewSha256": "e50c4431915d6f1dd678f5733e3e6a8b733769f5a7f9edbebcbca3f371979fd7"
+        },
+        "beta-badge-inactive-light": {
+          "review": "pass",
+          "nativeSha256": "013df6830b6322b504f16a55e03ef9615d8e27f51e45ddce62d1305a7f1b34ac",
+          "webviewSha256": "5c09849c3210e6eab42d8137f4a232320cb0087acbbd070f8d6c4393ef4e9a80"
+        },
+        "beta-badge-active-dark": {
+          "review": "pass",
+          "nativeSha256": "ce5b7d2eba338231ed595308098567c2f184511f113827d7b7518d8ae1db3cd3",
+          "webviewSha256": "bc9d6caf6d32ce2e9b25e8392d4f953e57f9605a5ba41a08211e94d12ff7a23b"
+        }
+      }
+    },
+    "formatted-date": {
+      "measurementSha256": "d4e320850143bf2539f92f1885132f096e3d69826fb39a318a932ddcdab014c7",
+      "cases": {
+        "formatted-date-reflection-id-light": {
+          "review": "pass",
+          "nativeSha256": "31ce880c591b0667998e1fa247adab685ecf0791475089f60e44bc3cbd499602",
+          "webviewSha256": "53a7d13efa9bf932177f23a4005ce3c86ecf8a6c54e7c16542b79faa18676ce7"
+        },
+        "formatted-date-cache-en-dark": {
+          "review": "pass",
+          "nativeSha256": "aba050a560510e1119c138eec3603e6dee681bc99927f586d52d44635bd5781f",
+          "webviewSha256": "53ddc4ce605c11f3f00c7e9669a72515eacd76724a0a01072c789819ddf1c57b"
+        },
+        "formatted-date-reflection-invalid-light": {
+          "review": "pass",
+          "nativeSha256": "50f97c4e2e29af5e3335725f546ff1412220bfc39e2a3791b2b173da854727f4",
+          "webviewSha256": "1a3f1e5203f81bfbcc975c66b365b349044bbcaa53e67fc77477088e2559ddf7"
+        }
+      }
+    },
+    "notification-inbox": {
+      "measurementSha256": "0d37a6742e7842b39ffa0741689a0366fab906bfbe1a5e88c8a817372b4c712a",
+      "cases": {
+        "notification-inbox-empty-light": {
+          "review": "pass",
+          "nativeSha256": "b0a4307d19cc9ef98e446f54787760f20e300b737ff670c7d217a9b4dc5e17e0",
+          "webviewSha256": "252899331a03870b23c3af1ae9b81055b20424f9659be40337e1b6f29a028e3c"
+        },
+        "notification-inbox-unread-light": {
+          "review": "pass",
+          "nativeSha256": "f53f482c4a69c4d662286de1b96e75dd8d5ad0d2cf167a972e72b9dfd3850961",
+          "webviewSha256": "4116b8334b1ea22592d26ddfc09e3dcc300e148370b32e37c2e27a580ff10832"
+        },
+        "notification-inbox-mixed-dark": {
+          "review": "pass",
+          "nativeSha256": "e757b02b6b0f5b3b8720ed8196a8267484ae38f2ac10bd2c30dd24430661a7f9",
+          "webviewSha256": "fd797b4bece68f93f598f080e57d39a53caa0ce44554e3f8fe8ea6ef2e23a47d"
+        }
+      }
+    },
+    "slider": {
+      "measurementSha256": "632bf0105ab3af79279d5fdfc6e0d9f2457e9e52954f30eab3461eb6771144c4",
+      "cases": {
+        "slider-midpoint-light": {
+          "review": "pass",
+          "nativeSha256": "c1014114b76f468c6de835138447ffe138cba1af994e6ddb512a5ba15ed440df",
+          "webviewSha256": "aa40df5fc95a301db5f5eb53f4149fad35f87c5c047542d69a4d65a244c7b4c9"
+        },
+        "slider-disabled-end-dark": {
+          "review": "pass",
+          "nativeSha256": "b7e1160b6df85315ae1b0898da3f9f49b5e60b4bb31196267d0c3c6428fe048c",
+          "webviewSha256": "ab5c24e8e0dc523764ccac61391c8372f4e3b7a7676401283dabbba646dbf4c0"
+        },
+        "slider-start-rtl-light": {
+          "review": "pass",
+          "nativeSha256": "11c69facb2163352e54d8913add7c54b1c2c6e6f42255baf9e502bb2cd413dbc",
+          "webviewSha256": "1bc95949bcd4699f72c8da48ca2bfc946236c703194506099d64449374a3d847"
+        }
+      }
+    },
+    "alert": {
+      "measurementSha256": "3d0705821bf64a8f606cf3bb878100acf08dc071716f80de7914b5dda95572a4",
+      "cases": {
+        "alert-title-light": {
+          "review": "pass",
+          "nativeSha256": "90e7314104f57c8d696147135b53cfcdabb38b7951054bf9cf6c9c9ab6f423f1",
+          "webviewSha256": "30a8e48bc60f912563335c22ab3283ddff890c1595fb6fbb5b25f3750d458eba"
+        },
+        "alert-with-description-dark": {
+          "review": "pass",
+          "nativeSha256": "3edb50203cabf49b2e4788b5e3334ec077cd2b5c1b937e933d169832e603ea7e",
+          "webviewSha256": "811d5a0faa6a4e501cf84ed17249288ad5b239e511f9d2eabd74a55add1677df"
+        },
+        "alert-destructive-action-light": {
+          "review": "pass",
+          "nativeSha256": "d3ae83f4ee039c3a41304e2c4be99d7b6c67dee1f95722ce737ebe53ee78255b",
+          "webviewSha256": "b085200ae61fd742b4d767b2468a8c9dde1d6713c9730f044d7773c3d5258483"
+        }
+      }
+    },
+    "toggle-group": {
+      "measurementSha256": "be3cf4a9cde3d4ecfd5eed15e947f193a2adca9e05d610b8e3c286dadf6f8e45",
+      "cases": {
+        "toggle-group-single-light": {
+          "review": "pass",
+          "nativeSha256": "15516de879ba2d7ed8a9179b54bfcff24e229c425238fa83d2f252c3ff02977b",
+          "webviewSha256": "1976062c9a9fadc190d261061cd92936d7813ec70f21ec47945982e170eaa715"
+        },
+        "toggle-group-multiple-dark": {
+          "review": "pass",
+          "nativeSha256": "96289ab80d2c5421a3386f0f2ab4c85dcdf5f673f0abcee25ddff0770648fcc6",
+          "webviewSha256": "81fa5b72fd649c7e9544404414fb032922dccbc0cbfcaac09dd1b0e1a3ab0d89"
+        },
+        "toggle-group-disabled-light": {
+          "review": "pass",
+          "nativeSha256": "797fe01efb6c35d4c0dd8035ecab3cfa640da6ca591c26b23c44b9e9b266ff58",
+          "webviewSha256": "ce6e7020ca60ec36393c32fa0e26f2503712be9ea32fe9447e32d1a7012a6928"
+        }
+      }
+    }
+  }
+}
