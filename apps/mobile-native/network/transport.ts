@@ -128,10 +128,14 @@ async function untilAborted<T>(
   }
 }
 
-function requestLifetime(session: AbortSignal, caller?: AbortSignal | null) {
+function requestLifetime(session: AbortSignal, caller: AbortSignal | null | undefined, onFinish: () => void) {
   assertActive(session, caller);
   const controller = new AbortController();
+  let finished = false;
   const finish = () => {
+    if (finished) return;
+    finished = true;
+    onFinish();
     session.removeEventListener("abort", cancel);
     caller?.removeEventListener("abort", cancel);
   };
@@ -253,6 +257,7 @@ function scopedResponse(
 
 export function createNativeTransport({ origin: configuredOrigin, fetcher }: { origin: string; fetcher: NativeFetcher }) {
   const origin = normalizeOrigin(configuredOrigin);
+  let pendingWrites = 0;
   let active: { controller: AbortController; transport: NativeSessionTransport; readCookie: NativeSessionCredentials["readCookie"] } | null = null;
 
   return {
@@ -279,7 +284,8 @@ export function createNativeTransport({ origin: configuredOrigin, fetcher }: { o
           if (retry && ((requestMethod !== "GET" && requestMethod !== "HEAD") || body != null)) {
             throw new TypeError("Native request replay requires a bodyless GET or HEAD.");
           }
-          const lifetime = requestLifetime(signal, caller);
+          let dispatchedWrite = false;
+          const lifetime = requestLifetime(signal, caller, () => { if (dispatchedWrite) pendingWrites--; });
           try {
             let cookie: string | null | undefined;
             try {
@@ -302,6 +308,10 @@ export function createNativeTransport({ origin: configuredOrigin, fetcher }: { o
                   if (credentials.canStartRequest?.(requestMethod, requiredRole) === false) {
                     if (requiredRole) throw new NativeRequestNotDispatched();
                     throw new NativeTransportError("credentials");
+                  }
+                  if (requestMethod !== "GET" && requestMethod !== "HEAD") {
+                    pendingWrites++;
+                    dispatchedWrite = true;
                   }
                   return fetcher(url, {
                     method: requestMethod,
@@ -349,6 +359,7 @@ export function createNativeTransport({ origin: configuredOrigin, fetcher }: { o
       active = null;
       previous?.controller.abort();
     },
+    hasPendingWrites: () => pendingWrites > 0,
     captureSession(): NativeSessionTransport | null {
       return active?.transport ?? null;
     },

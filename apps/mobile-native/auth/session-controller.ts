@@ -1,5 +1,7 @@
+import { AccountSwitchError, MAX_SAVED_ACCOUNTS } from "../../../lib/auth/account-switch-contract";
 import type { NativeAccountContext } from "../../../packages/native-session/context";
 import type { NativeSessionScope, NativeSessionTransport, createNativeTransport } from "../network/transport";
+import { NativeAdditionalLoginError } from "./additional-login-error";
 import { parseNativeLoginIntent, type NativeLoginIntent } from "./login-intent";
 import {
   NativeSessionConnectionError,
@@ -19,6 +21,7 @@ type ActiveSession = SessionCredential & {
   loginIntent?: NativeLoginIntent;
   locale?: NativeAccountContext["locale"];
   readingDenied?: true;
+  display?: NativeAccountContext["display"];
 };
 type RevokingSession = SessionCredential & { status: "revoking" };
 type LocalClearTombstone = NativeSessionScope & { status: "clearing" };
@@ -50,13 +53,15 @@ function decodeStoredSession(value: string | null, origin: string): StoredSessio
     const credential = { ...scope, cookie: record.cookie, expiresAt: record.expiresAt };
     if (status === "revoking") return { ...credential, status };
     const locale = record.locale === "id" || record.locale === "en" ? record.locale : undefined;
-    return { ...credential, status, locale, loginIntent: parseNativeLoginIntent(record.loginIntent),
+    const display = record.display && typeof record.display.name === "string" && typeof record.display.email === "string"
+      ? { name: record.display.name.slice(0, 256), email: record.display.email.slice(0, 320) } : undefined;
+    return { ...credential, status, locale, display, loginIntent: parseNativeLoginIntent(record.loginIntent),
       readingDenied: record.readingDenied === true ? true : undefined };
   } catch { /* Treat an unreadable record as signed out. */ }
   return null;
 }
 
-export function createNativeSessionController({ origin, store, api, dataTransport, now = Date.now }: {
+export function createNativeSessionController({ origin, store: secureStore, api, dataTransport, now = Date.now }: {
   origin: string;
   store: SessionStore;
   api: ReturnType<typeof createNativeSessionApi>;
@@ -64,6 +69,44 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
   now?: () => number;
 }) {
   let record: StoredSession | null | undefined;
+  let saved: ActiveSession[] = [];
+  let changing: Promise<void> | null = null;
+
+  // Commit both sides of a switch in the same device-only SecureStore record.
+  // With no saved accounts, keep the existing single-session representation.
+  async function persist(active: object | null, nextSaved: ActiveSession[]) {
+    const items = nextSaved.filter(item => item.expiresAt > now()).slice(0, MAX_SAVED_ACCOUNTS - (active ? 1 : 0));
+    const bundle = items.length ? { ...active, origin, savedSessions: items } : active;
+    if (bundle) await secureStore.write(JSON.stringify(bundle));
+    else await secureStore.remove();
+    saved = items;
+  }
+  const store = {
+    async read() {
+      const raw = await secureStore.read();
+      if (!raw) return null;
+      let bundle: { origin?: unknown; status?: unknown; accountId?: unknown; savedSessions?: unknown } | null;
+      try { bundle = JSON.parse(raw); } catch { return raw; }
+      if (bundle?.origin === origin && Array.isArray(bundle.savedSessions)) {
+        const seen = new Set<unknown>([bundle.accountId]);
+        saved = [];
+        for (const item of bundle.savedSessions.slice(0, MAX_SAVED_ACCOUNTS)) {
+          if (!item || typeof item !== "object") continue;
+          const entry = decodeStoredSession(JSON.stringify(item), origin);
+          if (entry?.status !== "active" || entry.expiresAt <= now() || seen.has(entry.accountId)) continue;
+          seen.add(entry.accountId);
+          saved.push(entry);
+        }
+        if (!bundle.status) return null;
+      }
+      return raw;
+    },
+    async write(value: string) {
+      const active = JSON.parse(value);
+      await persist(active, saved.filter(other => other.accountId !== active.accountId));
+    },
+    remove: () => persist(null, saved),
+  };
   let snapshot: {
     state: NativeSessionState;
     transport: NativeSessionTransport | null;
@@ -115,6 +158,13 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
     if (results.some(result => result.status === "rejected")) throw new Error("Data sesi lokal belum dapat dihapus.");
   }
 
+  async function discardUnreadableVault() {
+    try {
+      await secureStore.remove();
+      saved = [];
+    } catch { /* Keep the cleanup marker in memory for retry. */ }
+  }
+
   async function clear() {
     dataTransport.clearSession();
     await store.remove();
@@ -134,7 +184,7 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
       record = { ...pending, persisted: true };
     } catch (error) {
       // If the marker cannot be written, at least retire the on-disk credential.
-      await store.remove().catch(() => {});
+      await discardUnreadableVault();
       throw error;
     }
   }
@@ -161,22 +211,12 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
           && record.origin === scope.origin && record.sessionId === scope.sessionId && record.accountId === scope.accountId
           ? record.cookie : null,
       });
-    publish({ status: "signed-in", ...identity }, transport, false, record?.status === "active" ? record.loginIntent : undefined);
+    const { accountId, sessionId, expiresAt } = identity;
+    publish({ status: "signed-in", accountId, sessionId, expiresAt }, transport, false, record?.status === "active" ? record.loginIntent : undefined);
   }
 
-  async function revoke(current: SessionCredential, cleanPush = false) {
-    dataTransport.clearSession();
-    const { origin, cookie, accountId, sessionId, expiresAt } = current;
-    const pending: RevokingSession = { origin, cookie, accountId, sessionId, expiresAt, status: "revoking" };
-    // Keep the credential usable only for revocation after restarting offline.
-    try {
-      await store.write(JSON.stringify(pending));
-    } catch {
-      // If the record cannot be updated, try removing it before contacting the server.
-      await store.remove().catch(() => {});
-    }
-    record = pending;
-    if (cleanPush && beforeLogout.size) {
+  async function detachDevice(current: SessionCredential, requireSuccess: boolean) {
+    if (beforeLogout.size) {
       const cleanup = dataTransport.setSession({
         origin,
         accountId: current.accountId,
@@ -192,9 +232,25 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
           return cleanup.request(path, init);
         },
       };
-      await Promise.allSettled([...beforeLogout].map(async handler => handler(cleanupTransport)));
+      const results = await Promise.allSettled([...beforeLogout].map(async handler => handler(cleanupTransport)));
       dataTransport.clearSession();
+      if (requireSuccess && results.some(result => result.status === "rejected")) throw new AccountSwitchError("SWITCH_FAILED");
     }
+  }
+
+  async function revoke(current: SessionCredential, cleanPush = false) {
+    dataTransport.clearSession();
+    const { origin, cookie, accountId, sessionId, expiresAt } = current;
+    const pending: RevokingSession = { origin, cookie, accountId, sessionId, expiresAt, status: "revoking" };
+    // Keep the credential usable only for revocation after restarting offline.
+    try {
+      await store.write(JSON.stringify(pending));
+    } catch {
+      // If the record cannot be updated, try removing it before contacting the server.
+      await discardUnreadableVault();
+    }
+    record = pending;
+    if (cleanPush) await detachDevice(current, false);
     const [local, remote] = await Promise.allSettled([
       purgeLocalSession(current),
       api.revoke(pending.cookie).then(() => markClearing(current)),
@@ -205,9 +261,10 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
     publish({ status: "signed-out" });
   }
 
-  function refresh() {
+  function refresh(): Promise<void> {
     if (logoutOperation) return logoutOperation;
     if (refreshOperation) return refreshOperation;
+    if (changing) return changing.catch(() => {});
     const expectedRevision = revision;
     refreshOperation = enqueue(async () => {
       if (revision !== expectedRevision) return;
@@ -338,7 +395,7 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
   }
 
   function rememberAccountAccess(
-    context: Pick<NativeAccountContext, "accountId" | "sessionId" | "locale" | "roles"> | null,
+    context: Pick<NativeAccountContext, "accountId" | "sessionId" | "locale" | "roles" | "display"> | null,
     transport: NativeSessionTransport,
     checkedState = snapshot.state,
   ) {
@@ -355,9 +412,11 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
         (context.locale !== "id" && context.locale !== "en"))) return;
       const locale = context?.locale ?? record.locale;
       const readingDenied = context?.roles.includes("murid") ? undefined : true;
-      if (locale === record.locale && readingDenied === record.readingDenied) return;
+      const display = context?.display ?? record.display;
+      if (locale === record.locale && readingDenied === record.readingDenied &&
+        display?.name === record.display?.name && display?.email === record.display?.email) return;
       const denialChanged = readingDenied !== record.readingDenied;
-      const updated: ActiveSession = { ...record, locale, readingDenied };
+      const updated: ActiveSession = { ...record, locale, readingDenied, display };
       const publishReadingAccess = () => {
         if (denialChanged && snapshot.transport === transport && transport.isCurrent()) {
           publish(snapshot.state, transport, snapshot.revalidating, snapshot.loginIntent);
@@ -373,14 +432,123 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
         record = updated;
         if (!readingDenied) publishReadingAccess();
       } catch (error) {
-        if (readingDenied) await store.remove().catch(() => {});
+        if (readingDenied) await discardUnreadableVault();
         throw error;
       }
     });
   }
 
-  function logout() {
+  function checkSwitchSource(fromSessionId: string | null) {
+    const state = snapshot.state;
+    if (logoutOperation || snapshot.revalidating || (fromSessionId === null ? state.status !== "signed-out"
+      : state.status !== "signed-in" || state.sessionId !== fromSessionId)) throw new AccountSwitchError("BUSY");
+    if (dataTransport.hasPendingWrites()) throw new AccountSwitchError("PENDING_CHANGES");
+  }
+
+  function runChange(from: string | null, change: () => Promise<void>) {
+    if (changing) return Promise.reject(new AccountSwitchError("BUSY"));
+    changing = enqueue(async () => { await load(); checkSwitchSource(from); await change(); })
+      .finally(() => { changing = null; });
+    return changing;
+  }
+
+  async function listSavedAccounts() {
+    return enqueue(async () => {
+      await load();
+      return saved.filter(item => item.expiresAt > now()).map(({ accountId, display }) => ({
+        accountId, name: display?.name, email: display?.email,
+      }));
+    });
+  }
+
+  async function activate(candidate: ActiveSession, identity: SessionIdentity | null, from: string | null, signal?: AbortSignal) {
+    const previous = record?.status === "active" ? record : null;
+    checkSwitchSource(from);
+    if (signal?.aborted) throw new AccountSwitchError("CANCELLED");
+    if (!identity || identity.accountId !== candidate.accountId || identity.sessionId !== candidate.sessionId || identity.expiresAt <= now()) {
+      await persist(previous, saved.filter(item => item.sessionId !== candidate.sessionId));
+      throw new AccountSwitchError("SESSION_EXPIRED");
+    }
+    const next: ActiveSession = { ...candidate, ...identity, loginIntent: undefined };
+    const previousSaved = saved;
+    const others = saved.filter(item => item.expiresAt > now() && item.accountId !== next.accountId);
+    if (previous) others.push({ ...previous, loginIntent: undefined });
+    if (others.length >= MAX_SAVED_ACCOUNTS) throw new AccountSwitchError("SESSION_LIMIT");
+    // Block the old UI and cancel its outstanding reads before relinquishing its device bindings.
+    dataTransport.clearSession();
+    const detached = previous && detachDevice(previous, true);
+    publish({ status: "loading" });
+    try {
+      if (previous) {
+        await detached;
+        await purgeLocalSession(previous);
+      }
+      if (signal?.aborted) throw new AccountSwitchError("CANCELLED");
+      await persist(next, others);
+      if (signal?.aborted) {
+        // A cancellation during the SecureStore write can still restore the old vault.
+        let reverted = false;
+        try { await persist(previous, previousSaved); reverted = true; } catch { /* The new vault is already durable. */ }
+        if (reverted) throw new AccountSwitchError("CANCELLED");
+      }
+      record = next;
+      publishVerified(identity);
+    } catch (error) {
+      if (previous) publishVerified(previous);
+      else publish({ status: "signed-out" });
+      throw error;
+    }
+  }
+
+  function switchSavedAccount(accountId: string, from: string | null) {
+    return runChange(from, async () => {
+      const candidate = saved.find(item => item.accountId === accountId);
+      if (!candidate) throw new AccountSwitchError("ACCOUNT_UNAVAILABLE");
+      await activate(candidate, await api.read(candidate.cookie), from);
+    });
+  }
+
+  function removeSavedAccount(accountId: string, from: string | null) {
+    return runChange(from, async () => {
+      if (record && record.accountId === accountId) throw new AccountSwitchError("ACTIVE_ACCOUNT");
+      const candidate = saved.find(item => item.accountId === accountId);
+      if (!candidate) return;
+      await api.revoke(candidate.cookie);
+      await purgeLocalSession(candidate);
+      await persist(record ?? null, saved.filter(item => item !== candidate));
+    });
+  }
+
+  async function acceptAdditionalLogin(headers: SessionHeaders, accountId: string, from: string, signal?: AbortSignal) {
+    const cookie = readSignedSessionCookie(headers);
+    try {
+      await runChange(from, async () => {
+        if (!cookie || signal?.aborted) throw new AccountSwitchError("CANCELLED");
+        const identity = await api.read(cookie, signal);
+        if (!identity || identity.accountId !== accountId || identity.expiresAt <= now()) throw new AccountSwitchError("ACCOUNT_UNAVAILABLE");
+        if (record?.accountId === accountId || saved.some(item => item.accountId === accountId && item.expiresAt > now())) {
+          throw new AccountSwitchError("ACTIVE_ACCOUNT");
+        }
+        await activate({ status: "active", origin, cookie, ...identity }, identity, from, signal);
+      });
+    } catch (error) {
+      // A provider may return an existing credential. Only retire a newly minted session.
+      if (cookie) await enqueue(async () => {
+        const current = await load();
+        if ((current && "cookie" in current && current.cookie === cookie) || saved.some(item => item.cookie === cookie)) return;
+        await api.revoke(cookie);
+      }).catch(() => {});
+      throw new NativeAdditionalLoginError(signal?.aborted ? "CANCELLED" : error instanceof AccountSwitchError ? error.code :
+        error instanceof NativeSessionConnectionError ? "OFFLINE" : "SWITCH_FAILED");
+    }
+  }
+
+  function logout(): Promise<void> {
     if (logoutOperation) return logoutOperation;
+    if (changing) {
+      const expected = record?.sessionId;
+      return changing.catch(() => {}).then(() => expected && expected === record?.sessionId ? logout() : undefined);
+    }
     revision++;
     validation?.abort();
     const cleanPush = !!dataTransport.captureSession();
@@ -419,7 +587,7 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
       beforeLocalLogout.add(handler);
       return () => { beforeLocalLogout.delete(handler); };
     },
-    acceptLogin,
+    acceptLogin, listSavedAccounts, switchSavedAccount, removeSavedAccount, acceptAdditionalLogin,
     clearLoginIntent,
     rememberAccountAccess,
     logout,

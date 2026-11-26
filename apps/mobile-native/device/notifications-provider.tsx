@@ -56,7 +56,9 @@ export function NotificationsProvider({
 
   useEffect(() => subscribeBeforeLogout(async cleanupTransport => {
     attached.current = null;
-    await controller.current?.setAccount(null, cleanupTransport);
+    if (await controller.current?.setAccount(null, cleanupTransport) === false) {
+      throw new Error("Pendaftaran notifikasi akun sebelumnya belum dapat dilepas.");
+    }
   }), [subscribeBeforeLogout]);
 
   const currentController = () => activeTransport?.isCurrent() && attached.current === activeTransport
