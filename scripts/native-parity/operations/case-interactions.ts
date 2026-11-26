@@ -64,8 +64,14 @@ export function caseInteractions(caseId: string): unknown[] {
     case "operations-public-blog-list-retry":
     case "operations-public-demo-retry":
     case "operations-public-download-retry":
-    case "operations-public-plans-retry":
       return [...tap(retry), { assertNotVisible: retry }];
+    case "operations-public-plans-retry":
+      return [
+        ...tap(retry),
+        { extendedWaitUntil: { visible: "Rp 390\\.000 / orang", timeout: 10000 } },
+        { assertVisible: "Diskon 40%" },
+        { assertNotVisible: retry },
+      ];
     default:
       return [];
   }

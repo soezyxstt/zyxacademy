@@ -22,8 +22,9 @@ function Stepper({ label, value, decrease, increase }: {
 }
 
 export function Plans() {
-  const { client, copy, colors } = usePublic();
+  const { client, copy, colors, locale } = usePublic();
   const { plans, pricing } = copy;
+  const discountNumber = new Intl.NumberFormat(locale);
   const [people, setPeople] = useState(DEFAULT_PERSONS);
   const [subjects, setSubjects] = useState(standardSubjects.slice(0, DEFAULT_COURSES));
   const [otherSubjects, setOtherSubjects] = useState(0);
@@ -102,7 +103,7 @@ export function Plans() {
         {free ? <Label tone="subheading">{plans.free}</Label> : custom ? <Label tone="subheading">{plans.contactAdmin}</Label> : quote ? <View style={layout.item}>
           {quote.isIntroductory && <View style={layout.between}>
             <Label tone="muted" style={{ textDecorationLine: "line-through" }}>{currency(Math.round(quote.regularPrice / people))}</Label>
-            <Label tone="link">{textWith(pricing.discount, { percent: quote.discountPercent })}</Label>
+            <Label tone="link">{pricing.discount.replace("{percent, number}", discountNumber.format(quote.discountPercent))}</Label>
           </View>}
           <Label tone="subheading">{currency(Math.round(quote.price / people))} / {pricing.person}</Label>
           <Label tone="meta">{textWith(pricing.totalPerSemester, { price: currency(quote.price) })}</Label>
