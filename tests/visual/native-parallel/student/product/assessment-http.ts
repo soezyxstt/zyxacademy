@@ -82,9 +82,44 @@ try {
   assert.equal(held.review.result.score, 100);
   assert.equal(held.review.discussionAvailable, false);
   assert.deepEqual(held.review.items, []);
+  const summaryPaths = [`${quizReview}/summary`, `${quiz}/summary/${attemptId}`];
+  for (const path of summaryPaths) {
+    const redacted = await request(path, 200);
+    assert.equal(redacted.discussionAvailable, false);
+    assert.deepEqual(redacted.analytics, { status: "not_available", aiDiagnosis: null, computedMetrics: null });
+    await request(path, 403, {});
+    await request(path, 404, undefined, peer);
+    await request(path, 404, {}, peer);
+  }
   await db.update(schema.quizTemplates).set({ manualStatus: "closed" }).where(eq(schema.quizTemplates.id, quizId));
   const released = await request(quizReview, 200);
   assert.equal(released.review.items[0].expected, "A. 5");
+  const computedMetrics = {
+    quizTitle: "Kuis penjumlahan", courseId, templateId: quizId, attemptId, score: 100,
+    correctCount: 1, incorrectCount: 0, unansweredCount: 0, totalQuestions: 1, durationSeconds: 42,
+    conceptMastery: [], cognitiveSkills: [], difficultyBreakdown: [],
+    timeAnalysis: { totalDurationSeconds: 42, avgTimePerQuestionSeconds: 42, fastAnswerCount: 0, fastIncorrectCount: 0, slowAnswerCount: 0 },
+    historicalComparison: { totalAttemptsAnalyzed: 1, scoreTrend: [100], overallImprovementDelta: 0, consistentlyWeakConcepts: [], improvedConcepts: [] },
+  };
+  await db.insert(schema.studentQuizAnalytics).values({ id: `${attemptId}-analytics`, attemptId, studentId: owner["x-student-id"],
+    courseId, templateId: quizId, status: "completed", computedMetrics }).onConflictDoUpdate({
+    target: schema.studentQuizAnalytics.attemptId, set: { status: "completed", computedMetrics },
+  });
+  for (const path of summaryPaths) {
+    const summary = await request(path, 200);
+    assert.equal(summary.discussionAvailable, true);
+    assert.equal(summary.analytics.status, "completed");
+    assert.deepEqual(summary.analytics.computedMetrics, computedMetrics);
+    await request(path, 404, undefined, peer);
+  }
+  for (const path of summaryPaths) {
+    const regenerated = await request(path, 202, {});
+    assert.equal(regenerated.attemptId, attemptId);
+    assert.equal(regenerated.status, "processing");
+  }
+  assert.equal((await request(summaryPaths[0], 200)).analytics.status, "processing");
+  console.log("Both summary routes redact before release, reject the enrolled peer, show released metrics and accept owner regeneration");
+
   const peerResults = await request("my-results", 200, undefined, peer);
   assert.equal(peerResults.fullAccess, true);
   assert.deepEqual(peerResults.results, []);
@@ -113,6 +148,7 @@ try {
       await tx.delete(schema.submissions).where(eq(schema.submissions.examId, tryoutId));
       await tx.delete(schema.questions).where(eq(schema.questions.examId, tryoutId));
       await tx.delete(schema.exams).where(eq(schema.exams.id, tryoutId));
+      await tx.delete(schema.studentQuizAnalytics).where(eq(schema.studentQuizAnalytics.courseId, courseId));
       await tx.delete(schema.enrollments).where(eq(schema.enrollments.courseId, courseId));
       await tx.delete(schema.percobaanAsesmen).where(eq(schema.percobaanAsesmen.asesmenId, quizId));
       await tx.delete(schema.asesmen).where(eq(schema.asesmen.id, quizId));

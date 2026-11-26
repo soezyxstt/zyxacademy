@@ -96,7 +96,7 @@ async function read(request: Request, route: Route) {
     const summary = await readSummary(context, selectedId, quizSummary ? id : undefined);
     if (!summary) return missing();
     if (!summary.discussionAvailable || summary.result.status === "pending_review") return page({ kind: "summary", courseTitle: context.courseTitle, ...summary, analytics: { status: "not_available", aiDiagnosis: null, computedMetrics: null } });
-    const response = await getAnalytics(new NextRequest(request), legacyParams(selectedId));
+    const response = await getAnalytics(new NextRequest(request.url, { headers: request.headers }), legacyParams(selectedId));
     if (!response.ok) return withoutCache(response);
     const analytics = quizAnalyticsSchema.safeParse(await response.json());
     if (!analytics.success || (analytics.data.attemptId && analytics.data.attemptId !== selectedId) ||
@@ -193,7 +193,7 @@ async function write(request: Request, route: Route) {
     if (!summary) return missing();
     if (!summary.discussionAvailable) return forbidden();
     if (summary.result.status === "pending_review") return json({ error: "Jawaban esai belum dinilai." }, 409);
-    return withoutCache(await regenerateAnalytics(new NextRequest(request), legacyParams(selectedId)));
+    return withoutCache(await regenerateAnalytics(new NextRequest(request.url, { method: "POST", headers: request.headers }), legacyParams(selectedId)));
   }
   const body = await boundedJson(request);
   if (section === "quiz" && segments.length === 2) {
