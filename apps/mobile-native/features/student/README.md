@@ -24,6 +24,21 @@ Untuk simulator macOS, gunakan `npm run ios`. Buka `zyx-native-parity://student-
 
 `student-fixture` adalah rute diagnostik yang dipasang di checkout uji dan CI. Fixture katalog dan dashboard menampilkan dialog berisi tujuan tautan eksternal. Pada entry Student terverifikasi, tujuan HTTPS yang lolos validasi dibuka melalui browser sistem.
 
+Workflow bukti iOS memasang pemilih fixture sebagai halaman awal pada build uji. Pemilih meneruskan parameter skenario awal ke rute fixture, lalu keluar dari layar sebelum asersi dan pengambilan gambar. Probe wajib membuka katalog dan memeriksa baris kursus. Peralihan fixture di tengah flow membuka ulang proses aplikasi tanpa menghapus data, termasuk draf SQLite. Flow ini mengukur layar Student dan pemulihan draf setelah proses dibuka ulang. Izin SpringBoard dan penerimaan URL ketika aplikasi sudah terbuka memerlukan pemeriksaan perangkat terpisah. [Kompilasi flow iOS](../../../../tests/visual/native-parallel/student/compile-ios-fixtures.py)
+
+Untuk mereproduksi build bukti iOS, gunakan checkout uji dengan `student-fixture.tsx` terpasang. Pasang PyYAML 6.0.3, lalu jalankan dari root repo.
+
+```sh
+bun tests/visual/native-parallel/student/generate-smoke.ts
+launcher=artifacts/student-evidence/ios/launcher
+python tests/visual/native-parallel/student/compile-ios-fixtures.py \
+  .maestro/native-parallel/student artifacts/student-evidence/generated "$launcher"
+cp "$launcher/cases.json" apps/mobile-native/features/student/ios-evidence-cases.json
+cp tests/visual/native-parallel/student/ios-evidence-menu.tsx.in apps/mobile-native/app/index.tsx
+```
+
+Bangun aplikasi Expo iOS konfigurasi Release pada simulator yang sudah menyala. Jalankan `bash tests/visual/native-parallel/student/run-maestro.sh ios "$STUDENT_SIMULATOR_UDID"`, lalu `bash tests/visual/native-parallel/student/run-generated-smoke.sh ios "$STUDENT_SIMULATOR_UDID"`.
+
 Fixture memakai data sintetis lokal. Entry fixture menggunakan Map untuk jawaban selama skenario. Parameter `store=disk` menggunakan repository jawaban produksi pada database SQLite fixture tersendiri untuk menguji pemulihan setelah proses aplikasi ditutup. Entry terverifikasi menggunakan penyimpanan SQLite terikat sesi pada perangkat.
 
 ## Verifikasi

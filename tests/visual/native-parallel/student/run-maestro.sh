@@ -17,21 +17,28 @@ export MAESTRO_CLI_NO_ANALYTICS=true MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED=
 cd "$output"
 maestro="$install_dir/maestro/bin/maestro"
 if [[ $platform == ios ]]; then
-  # A fresh simulator can require consent before the app opens its own fixture URLs.
+  # Check the isolated launcher reaches a real Student fixture before running the suites.
   bootstrap="$output/ios-bootstrap"
   mkdir -p "$bootstrap"
-  xcrun simctl openurl "$device" zyx-native-parity://gallery/separator
   "$maestro" --platform ios --device "$device" test \
     --format junit --output "$bootstrap/report.xml" --test-output-dir "$bootstrap/results" \
-    --debug-output "$bootstrap/logs" "$root/.maestro/native-parity/helpers/confirm-ios-gallery.yaml"
+    --debug-output "$bootstrap/logs" "$output/launcher/verify-menu.yaml"
   if [[ -n ${GITHUB_OUTPUT:-} ]]; then
     printf '%s\n' 'bootstrap=success' >> "$GITHUB_OUTPUT"
   fi
 fi
-flows=("$root"/.maestro/native-parallel/student/*.yaml)
 if [[ $platform == android ]]; then
+  flows=("$root"/.maestro/native-parallel/student/*.yaml)
   python "$root/tests/visual/native-parallel/student/retry-android-standalone.py" "$maestro" "$device" "$output" "${flows[@]}"
 else
+  suite="$output/launcher/standalone"
+  flows=("$suite"/catalog-parity.yaml "$suite"/course-material-{enrolled,unenrolled,revoked}.yaml "$suite"/long-content.yaml)
+  for flow in "$suite"/*.yaml; do
+    case ${flow##*/} in
+      catalog-parity.yaml|course-material-enrolled.yaml|course-material-unenrolled.yaml|course-material-revoked.yaml|long-content.yaml) ;;
+      *) flows+=("$flow") ;;
+    esac
+  done
   "$maestro" --platform "$platform" --device "$device" test \
     --format junit --output "$output/report.xml" --test-output-dir "$output/results" \
     --debug-output "$output/logs" "${flows[@]}"

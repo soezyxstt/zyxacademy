@@ -5,6 +5,10 @@ device=$2
 root=$(git rev-parse --show-toplevel)
 generated="$root/artifacts/student-evidence/generated"
 output="$root/artifacts/student-evidence/$platform/smoke"
+flows="$generated"
+if [[ $platform == ios ]]; then
+  flows="$root/artifacts/student-evidence/ios/launcher/generated"
+fi
 mkdir -p "$output"
 install_dir=$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/zyx-student-smoke.XXXXXX")
 trap 'rm -rf "$install_dir"' EXIT
@@ -19,7 +23,7 @@ export MAESTRO_CLI_NO_ANALYTICS=true MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED=
 scripts=$(dirname "${BASH_SOURCE[0]}")
 for area in courses assessment learning community; do
   mkdir -p "$output/$area"
-  files=("$generated/$area"/*.yaml)
+  files=("$flows/$area"/*.yaml)
   if [[ ! -e "${files[0]}" ]]; then
     printf 'No runnable cases for %s\n' "$area" > "$output/$area/missing.txt"
     continue
