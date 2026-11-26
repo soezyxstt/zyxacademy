@@ -13,7 +13,7 @@ Pada layar sempit, daftar menampilkan ID, kategori, dan jumlah konten per mata k
 | `/[slug]/results` | Ringkasan kelas dan hasil per kuis | `getCourseDetailData`, baca jumlah pengerjaan selesai, skor dan tingkat kelulusan |
 | `/[slug]/leaderboard` | Filter jenis, cari peserta, lihat pengerjaan | `readAdminCourseLeaderboard`, baca pengerjaan selesai untuk pemeringkatan mata kuliah |
 | `/[slug]/documents` | Filter jenis dan bab, cari, buka dokumen, edit dan konfirmasi hapus | `listAdminCourseMaterials`, baca katalog |
-| `/[slug]/documents/[materialId]` | Pratinjau PDF dan teks, edit, simpan, terbitkan atau tarik publikasi | `listAdminCourseMaterials`, `getAdminCourseMaterialPreview`, `writeCourseTextDocument` dan `writeCourseMaterialMetadata` |
+| `/[slug]/documents/[materialId]` | Pratinjau PDF dan teks, edit, pratinjau draf Markdown, simpan, terbitkan atau tarik publikasi | `listAdminCourseMaterials`, `getAdminCourseMaterialPreview`, `writeCourseTextDocument` dan `writeCourseMaterialMetadata` |
 | `/[slug]/questions` | Filter asal, bab, kesulitan, lihat pembahasan dan konfirmasi hapus | `getCourseDetailData(slug, true)`, baca soal setelah pencatatan disclosure |
 | `/[slug]/flashcards` | Filter bab, buka set, balik kartu, edit dan hapus set atau kartu | `getCourseFlashcardsData`, baca set serta sisi kartu |
 | `/[slug]/videos` | Cari dan buka daftar putar, buat, edit dan hapus daftar putar atau video, tautkan YouTube, unggah video hingga 100 MiB atau sampul hingga 5 MiB | `getCourseVideosData`, katalog pengelola Admin atau Tutor pengampu, dan pemutaran terotorisasi |

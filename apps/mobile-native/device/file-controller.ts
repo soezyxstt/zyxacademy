@@ -7,6 +7,8 @@ import { SCHEDULE_ACCOUNT, SCHEDULE_SESSION, scheduleFilePolicy, scheduleResourc
 import { formQuestionImageProxyPath } from "../../../lib/forms/attachment";
 import { FORM_FILE_MIMES, FORM_IMAGE_MIMES } from "../../../packages/forms/file-types";
 import { PUBLIC_FORM_MAX_FILE_SIZE_MB } from "../../../packages/forms/presentation";
+import { blogUploadMaxBytes } from "../../../lib/blog/upload-policy";
+import { previewStoragePath, type MarkdownPreviewAudience } from "../../../packages/native-parity/operations/admin-markdown-media";
 import { TRYOUT_GRADE_ATTACHMENT_ACCOUNT, TRYOUT_GRADE_ATTACHMENT_SESSION, tryoutGradeAttachmentPath, tryoutGradeAttachmentPolicy,
   type TryoutGradeAttachment } from "../../../packages/academic/tryout-grade-attachment";
 import type { PhotoDraftTarget } from "./photo-controller";
@@ -495,6 +497,15 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
 
   async function prepareFormQuestionImage(session: NativeSessionTransport, url: string, signal: AbortSignal, isCurrent?: () => boolean) {
     const path = formQuestionImageProxyPath(url, session.scope.origin);
+    return prepareAdminImage(session, path, "form-question-image", PUBLIC_FORM_MAX_FILE_SIZE_MB * 1024 * 1024, signal, isCurrent);
+  }
+
+  async function prepareAdminMarkdownImage(session: NativeSessionTransport, url: string, audience: MarkdownPreviewAudience, signal: AbortSignal, isCurrent: () => boolean) {
+    const path = previewStoragePath(url, session.scope.origin, audience);
+    return prepareAdminImage(session, path, "document-image", blogUploadMaxBytes, signal, isCurrent);
+  }
+
+  async function prepareAdminImage(session: NativeSessionTransport, path: string | null, name: string, limit: number, signal: AbortSignal, isCurrent?: () => boolean) {
     if (!device.available || !path) throw new FileIssue("invalid-target");
     const current = () => {
       session.assertCurrent();
@@ -512,10 +523,9 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
       const encoding = response.headers.get("Content-Encoding");
       if (length !== null && !/^\d+$/.test(length)) throw new FileIssue("incomplete");
       const size = length !== null && (!encoding || encoding === "identity") ? Number(length) : undefined;
-      const limit = PUBLIC_FORM_MAX_FILE_SIZE_MB * 1024 * 1024;
       const issue = sizeIssue(size, limit);
       if (issue) throw new FileIssue(issue);
-      const file = staged.hold(fileName("form-question-image", mime));
+      const file = staged.hold(fileName(name, mime));
       await copyBytes(response.body, file, mime, limit, size, current, [session.signal, signal]);
       current();
       return { uri: file.uri, release: staged.finish };
@@ -651,5 +661,5 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
   }
 
   return { initialize, expireExports, pickDocument, belongsToDocumentDraft, shareDocument, shareAuthorizedDownload,
-    prepareFormQuestionImage, prepareCourseVideo, prepareMaterialPdf, renewMaterialPdf };
+    prepareFormQuestionImage, prepareAdminMarkdownImage, prepareCourseVideo, prepareMaterialPdf, renewMaterialPdf };
 }

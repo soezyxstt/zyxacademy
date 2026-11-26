@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Image, Platform, StyleSheet, Text, View, useColorScheme, type TextStyle } from "react-native";
 import { EnrichedMarkdownText, type MarkdownImageOccurrence, type MarkdownStyle } from "react-native-enriched-markdown";
 import { nativeColors, nativeRadii } from "../../../../packages/design-tokens/native-colors";
@@ -19,6 +19,7 @@ type Props = {
   theme?: keyof typeof nativeColors;
   /** Markdown prepared by the discussion grammar has its own link targets and math budget. */
   onPreparedLinkPress?: (url: string) => void;
+  renderPreviewImage?: (image: { url: string; altText: string }) => ReactNode;
 };
 
 const flags = { latexMath: true, hardSoftBreaks: true };
@@ -35,7 +36,7 @@ function CourseImage({ uri, alt, label, style }: { uri?: string; alt: string; la
 }
 
 /** Learner prose, formulas and code share a renderer. Raw authored input stays in the model. */
-export function CourseMarkdown({ source, services, centered, muted, paragraphStyle, allowLinks = true, theme, onPreparedLinkPress }: Props) {
+export function CourseMarkdown({ source, services, centered, muted, paragraphStyle, allowLinks = true, theme, onPreparedLinkPress, renderPreviewImage }: Props) {
   const { canInteract } = useProtectedInteraction();
   const system = useColorScheme() ?? "light";
   const preferred = services.devicePreferences?.theme;
@@ -69,10 +70,10 @@ export function CourseMarkdown({ source, services, centered, muted, paragraphSty
     };
   }, [allowLinks, color, colors, fontSize, fontFamily, fontWeight, lineHeight, textAlign]);
   const renderers = useMemo(() => ({
-    image: ({ url, altText }: { url: string; altText: string }) => <CourseImage key={url} uri={safeInlineCourseImage(url)}
+    image: ({ url, altText }: { url: string; altText: string }) => renderPreviewImage?.({ url, altText }) ?? <CourseImage key={url} uri={safeInlineCourseImage(url)}
       alt={altText} label={en ? "Image unavailable" : "Gambar belum dapat dimuat"} style={plainStyle} />,
     video: () => <Text style={plainStyle}>{en ? "Open the lesson on the web to view this video." : "Buka materi di web untuk melihat video ini."}</Text>,
-  }), [en, plainStyle]);
+  }), [en, plainStyle, renderPreviewImage]);
 
   if (!rich || (Platform.OS !== "ios" && Platform.OS !== "android")) return <Text style={plainStyle}>{source}</Text>;
   return <View style={styles.body}>

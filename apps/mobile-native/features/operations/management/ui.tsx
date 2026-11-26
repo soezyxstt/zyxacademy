@@ -20,6 +20,7 @@ export type ManagementDraftStore = Map<string, Draft<unknown>>;
 export type ManagementRuntime = {
   client: ManagementClient;
   theme: ManagementTheme;
+  origin: string;
   locale: "id" | "en";
   navigate: (path: string) => void;
   openExternal?: (url: string) => void | Promise<void>;

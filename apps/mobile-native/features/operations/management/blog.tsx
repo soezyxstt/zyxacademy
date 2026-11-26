@@ -5,7 +5,7 @@ import {
   type Article, type ArticleFields,
 } from "../../../../../packages/native-parity/operations/management-contract";
 import { articlePublicationIntent } from "../../../../../packages/native-parity/operations/management-revisions";
-import { isBlogUploadPath } from "../../../../../lib/blog/upload-policy";
+import { previewExternalHref, previewMedia } from "../../../../../packages/native-parity/operations/admin-markdown-media";
 import type { BlogUploadPurpose } from "./blog-upload";
 import { RevisionReview } from "./revisions";
 import { Action, Choices, Confirm, Copy, Feedback, Field, Heading, Item, LoadState, Screen, Section, Sections, styles, useAction, useDraft, useManagement, useRead, type Confirmation } from "./ui";
@@ -44,7 +44,7 @@ export function BlogEditorRoute({ id, tab }: { id?: string; tab?: string }) {
 }
 
 function BlogEditor({ article, initialTab }: { article?: Article; initialTab?: string }) {
-  const { client, navigate, renderMarkdown, pickBlogMedia, locale } = useManagement();
+  const { client, navigate, renderMarkdown, pickBlogMedia, locale, origin } = useManagement();
   const id = article?.id;
   const draft = useDraft<ArticleFields>(`blog:${id ?? "new"}`, article ? articleFields(article) : emptyArticle, article?.revision);
   const value = draft.value;
@@ -52,7 +52,9 @@ function BlogEditor({ article, initialTab }: { article?: Article; initialTab?: s
   const [mode, setMode] = useState<"write" | "preview">(initialTab === "preview" ? "preview" : "write");
   const [tag, setTag] = useState("");
   const [media, setMedia] = useState(false);
-  const [mediaUrl, setMediaUrl] = useState("");
+  const [mediaMode, setMediaMode] = useState<"file" | "youtube" | "link">("file");
+  const [mediaUrls, setMediaUrls] = useState({ file: "", youtube: "", link: "" });
+  const mediaUrl = mediaUrls[mediaMode];
   const [mediaCaption, setMediaCaption] = useState("");
   const [mediaSource, setMediaSource] = useState("");
   const [mediaSourceUrl, setMediaSourceUrl] = useState("");
@@ -87,20 +89,22 @@ function BlogEditor({ article, initialTab }: { article?: Article; initialTab?: s
 
   function insertMedia() {
     if (action.busy || uploadRequest.current) return;
-    const url = mediaUrl.trim();
+    const target = previewMedia(mediaUrl, origin, "blog");
     const source = mediaSourceUrl.trim();
-    if ((!isBlogUploadPath(url, true) && !/^https:\/\/[^\s"<>]+$/.test(url)) || (source && !/^https:\/\/[^\s"<>]+$/.test(source))) {
-      setUploadError({ purpose: "body", message: "Gunakan tautan media HTTPS yang valid atau unggah berkas." });
+    const safeSource = source ? previewExternalHref(source, origin) : "";
+    if (!target || (mediaMode === "youtube" && target.kind !== "youtube") || (source && !safeSource)) {
+      setUploadError({ purpose: "body", message: mediaMode === "youtube" ? "Periksa tautan YouTube dan tautan sumber." : "Periksa tautan media dan sumber, atau unggah berkas." });
       return;
     }
+    const url = target.kind === "storage-image" ? target.path : target.kind === "image" ? target.uri : target.url;
     const attribute = (name: string, data: string) => data ? ` ${name}="${data.replace(/["\n\r]/g, "")}"` : "";
-    const block = `\n\n:::media {src="${url}"${attribute("caption", mediaCaption)}${attribute("sourceLabel", mediaSource)}${attribute("sourceUrl", source)}}\n:::\n`;
+    const block = `\n\n:::media {${attribute("src", url).trim()}${attribute("caption", mediaCaption)}${attribute("sourceLabel", mediaSource)}${attribute("sourceUrl", safeSource ?? "")}}\n:::\n`;
     const { start, end } = selection.current ?? { start: value.content.length, end: value.content.length };
     edit("content", value.content.slice(0, start) + block + value.content.slice(end));
     const next = start + block.length;
     selection.current = { start: next, end: next };
     setMedia(false);
-    setMediaUrl("");
+    setMediaUrls({ file: "", youtube: "", link: "" });
     setMediaCaption("");
     setMediaSource("");
     setMediaSourceUrl("");
@@ -131,7 +135,7 @@ function BlogEditor({ article, initialTab }: { article?: Article; initialTab?: s
       if (uploadRequest.current !== controller || controller.signal.aborted || result.status === "cancelled") return;
       if (result.status === "uploaded") {
         if (purpose === "thumbnail") draft.update(fields => ({ ...fields, thumbnailUrl: result.url }));
-        else setMediaUrl(result.url);
+        else setMediaUrls(previous => ({ ...previous, file: result.url }));
       } else {
         setUploadError({ purpose, message: {
           unavailable: "Berkas belum dapat dipilih.",
@@ -176,14 +180,20 @@ function BlogEditor({ article, initialTab }: { article?: Article; initialTab?: s
         onSelectionChange={event => { selection.current = event.nativeEvent.selection; }} onChangeText={next => edit("content", next)} />
       <View style={styles.row}><Action disabled={uploading === "body"} onPress={() => setMedia(!media)}>{media ? "Tutup media" : "Sisipkan media"}</Action></View>
       {media && <Section title="Sisipkan media">
-        <Field label="URL media" value={mediaUrl} editable={uploading !== "body"} onChangeText={next => { setUploadError(undefined); setMediaUrl(next); }} autoCapitalize="none" keyboardType="url" />
-        {pickBlogMedia && <Action testID="native-blog-body-upload" onPress={() => void uploadMedia("body")} busy={uploading === "body"}
-          disabled={Boolean(uploading) || action.busy || mustReview}>Unggah gambar atau video</Action>}
+        {uploading !== "body" ? <Choices current={mediaMode} values={[["file", "Berkas"], ["youtube", "YouTube"], ["link", "Tautan"]]}
+          onChange={next => { setMediaMode(next); setUploadError(undefined); }} /> : null}
+        {mediaMode === "file" ? <>
+          {pickBlogMedia && <Action testID="native-blog-body-upload" onPress={() => void uploadMedia("body")} busy={uploading === "body"}
+            disabled={Boolean(uploading) || action.busy || mustReview}>Unggah gambar atau video</Action>}
+          {mediaUrl ? <Field label="URL berkas" value={mediaUrl} editable={false} /> : null}
+        </> : <Field label={mediaMode === "youtube" ? "Tautan YouTube" : "URL media"} value={mediaUrl}
+          onChangeText={next => { setUploadError(undefined); setMediaUrls(previous => ({ ...previous, [mediaMode]: next })); }}
+          autoCapitalize="none" keyboardType="url" />}
         {uploadError?.purpose === "body" && <Copy status="error">{uploadError.message}</Copy>}
         <Field label="Keterangan media" value={mediaCaption} onChangeText={setMediaCaption} />
         <Field label="Nama sumber" value={mediaSource} onChangeText={setMediaSource} />
         <Field label="URL sumber" value={mediaSourceUrl} onChangeText={setMediaSourceUrl} autoCapitalize="none" keyboardType="url" />
-        <Action disabled={Boolean(uploading) || action.busy} onPress={insertMedia}>Sisipkan media</Action>
+        <Action disabled={Boolean(uploading) || action.busy || !mediaUrl.trim()} onPress={insertMedia}>Sisipkan media</Action>
       </Section>}
     </> : <Section>
       <Heading>{articleTitle(value) || "Judul artikel"}</Heading>

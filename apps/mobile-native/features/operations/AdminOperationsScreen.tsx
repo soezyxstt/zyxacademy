@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { NativeStatusPanel } from "../shared-ui/layout";
+import { AdminMarkdownPreview } from "../shared-ui/AdminMarkdownPreview";
 import type { NativeAccountContext } from "../../../../packages/native-session/context";
 import type { NativeSessionTransport } from "../../network/transport";
 import { EvaluationScreen, type EvaluationScreenProps } from "./evaluation";
@@ -61,7 +62,9 @@ function AdminManagement({ session, href, context, management, navigate, theme, 
   Pick<ManagementScreenProps, "accountKey" | "client" | "pickBlogMedia" | "pickMediaFile" | "openFormAttachment" | "pickFormImage">) {
   const links = useManagementLinkActions(session, href, context.locale, management);
   return <ManagementScreen
-    {...management} {...links} path={href} navigate={navigate} accountKey={accountKey} client={client}
+    {...management} {...links} path={href} origin={session.scope.origin} navigate={navigate} accountKey={accountKey} client={client}
+    renderMarkdown={management?.renderMarkdown ?? (source => <AdminMarkdownPreview source={source} audience="blog"
+      session={session} locale={context.locale} theme={theme ?? "light"} origin={session.scope.origin} openExternal={links.openExternal} />)}
     pickBlogMedia={pickBlogMedia} pickMediaFile={pickMediaFile} openFormAttachment={openFormAttachment} pickFormImage={pickFormImage} access="admin" locale={context.locale} theme={theme}
   />;
 }

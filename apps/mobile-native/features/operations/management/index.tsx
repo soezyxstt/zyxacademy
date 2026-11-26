@@ -23,6 +23,7 @@ export type { ManagementDraftStore } from "./ui";
 
 export type ManagementScreenProps = {
   path: string;
+  origin?: string;
   navigate: (path: string) => void;
   client: ManagementClient;
   access: "admin" | "denied" | "signed-out";
@@ -43,7 +44,7 @@ export function ManagementScreen(props: ManagementScreenProps) {
   return <AccountManagement key={`${props.accountKey}:${props.access}`} {...props} />;
 }
 
-function AccountManagement({ path, navigate, client, access, theme, locale = "id", openExternal, share, linkError, pickBlogMedia, pickMediaFile, openFormAttachment, pickFormImage, renderMarkdown }: ManagementScreenProps) {
+function AccountManagement({ path, origin = "https://example.invalid", navigate, client, access, theme, locale = "id", openExternal, share, linkError, pickBlogMedia, pickMediaFile, openFormAttachment, pickFormImage, renderMarkdown }: ManagementScreenProps) {
   const systemTheme = useColorScheme();
   const [drafts] = useState<ManagementDraftStore>(() => new Map());
   const [retries] = useState(() => new Map<string, string>());
@@ -74,7 +75,7 @@ function AccountManagement({ path, navigate, client, access, theme, locale = "id
       case "/admin/tautan": screen = <ImportantLinks />; break;
     }
   }
-  return <ManagementContext.Provider value={{ client, navigate, theme: theme ?? systemTheme ?? "light", locale, drafts, retries, openExternal, share, pickBlogMedia, pickMediaFile, openFormAttachment, pickFormImage, renderMarkdown }}>
+  return <ManagementContext.Provider value={{ client, navigate, theme: theme ?? systemTheme ?? "light", origin, locale, drafts, retries, openExternal, share, pickBlogMedia, pickMediaFile, openFormAttachment, pickFormImage, renderMarkdown }}>
     <View key={path} style={{ flex: 1 }}>
       {linkError && <NativeStatusPanel title={linkError} tone="error" theme={theme} />}
       {screen}

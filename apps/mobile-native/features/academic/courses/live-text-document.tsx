@@ -5,14 +5,17 @@ import {
 } from "../../../../../packages/native-parity/academic/courses/text-document";
 import type { CourseWriteTarget } from "../../../../../packages/native-parity/academic/courses/edit-contract";
 import { standardizeDocumentTitle } from "../../../../../lib/course-batch-upload";
+import { useNativeSession } from "../../../auth/session-provider";
 import { ReadingContentDocument } from "../../../offline/ReadingDocument";
+import { AdminMarkdownPreview } from "../../shared-ui/AdminMarkdownPreview";
+import { NavigationTabs } from "../../shared-ui/navigation";
 import { safeInlineCourseImage } from "../../student/course-markdown-model";
 import type { AcademicTransport } from "../client";
 import { DocumentSuggestion } from "./document-suggestion";
 import { TextDocumentTransport } from "./document-transport";
 import { useCourseWrite } from "./live-write";
 import { createTextDocumentClient } from "./text-document-client";
-import { Action, CourseDialog, CourseStatus, Field, Ink, Picker, layout } from "./ui";
+import { Action, CourseDialog, CourseStatus, CourseTheme, Field, Ink, Picker, layout } from "./ui";
 
 export { TextDocumentTransport } from "./document-transport";
 
@@ -67,15 +70,21 @@ function TextPreviewRoute({ transport, slug, courseId, id, initialEdit, refreshH
     <View style={{ height: Math.max(340, height - 240) }}>
       <ReadingContentDocument testID="admin-text-document-preview" content={{ kind, data, locale, title: data.title, resolveImage: safeInlineCourseImage }} />
     </View>
-    {edit && target && dialog && activeDialog ? <TextDocumentForm key={activeDialog} slug={slug} documentId={id} initial={edit} operation={activeDialog} target={target}
+    {edit && target && dialog && activeDialog ? <TextDocumentForm key={activeDialog} slug={slug} documentId={id} initial={edit} operation={activeDialog} target={target} locale={locale}
+      origin={transport.origin} accountId={transport.accountId}
       close={() => setDialog(null)} refresh={() => { setDialog(null); refreshHost(); }} /> : null}
   </>;
 }
 
-function TextDocumentForm({ slug, documentId, initial, operation, target, close, refresh }: {
+function TextDocumentForm({ slug, documentId, initial, operation, target, locale, origin, accountId, close, refresh }: {
   slug: string; documentId: string; initial: TextDocumentEdit; operation: "content" | "status"; target: CourseWriteTarget<TextDocumentDraft>;
-  close(): void; refresh(): void;
+  locale: "id" | "en"; origin: string; accountId: string; close(): void; refresh(): void;
 }) {
+  const theme = useContext(CourseTheme);
+  const { transport } = useNativeSession();
+  const session = transport?.scope.accountId === accountId && transport.scope.origin === origin ? transport : null;
+  const [preview, setPreview] = useState(false);
+  const en = locale === "en";
   const prior = target.pending()?.draft;
   const content = prior?.action === "content" ? prior : initial;
   const [title, setTitle] = useState(content.title);
@@ -113,8 +122,15 @@ function TextDocumentForm({ slug, documentId, initial, operation, target, close,
           if (chapter && initial.chapters.some(option => option.id === chapter)) setChapter(chapter);
         }} />
       <Picker label="Bab" options={options} selected={chapterId ?? ""} onSelect={id => setChapter(id || null)} disabled={!command.editable} />
-      <Field label="Konten Markdown" multiline value={markdown} onChangeText={setMarkdown}
-        maxLength={textDocumentMarkdownLimit} disabled={!command.editable} testID="admin-text-document-markdown" />
+      <NavigationTabs tabs={[{ id: "write", label: en ? "Write" : "Tulis" }, { id: "preview", label: en ? "Preview" : "Pratinjau" }]}
+        activeId={preview ? "preview" : "write"} onTabPress={tab => setPreview(tab === "preview")}
+        accessibilityLabel={en ? "Document content" : "Konten dokumen"} moreLabel={en ? "More" : "Lebih"}
+        closeLabel={en ? "Close" : "Tutup"} variant="inline" theme={theme} />
+      {preview ? (markdown.trim() ? <AdminMarkdownPreview key={documentId} source={markdown} audience="course"
+        session={session} origin={origin} theme={theme} locale={locale} />
+        : <Ink>{en ? "The document is empty." : "Konten masih kosong."}</Ink>) :
+        <Field label="Konten Markdown" multiline value={markdown} onChangeText={setMarkdown}
+          maxLength={textDocumentMarkdownLimit} disabled={!command.editable} testID="admin-text-document-markdown" />}
     </> : <Ink>{status === "published" ? `Terbitkan “${initial.title}” untuk peserta?`
       : `Jadikan “${initial.title}” draf agar tidak lagi tampil untuk peserta?`}</Ink>}
     {command.status === "invalid" ? <CourseStatus label="Periksa judul, bab, dan konten dokumen." error /> : null}
