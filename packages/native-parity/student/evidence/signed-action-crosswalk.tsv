@@ -20,7 +20,7 @@ courses	/courses/[id]/material	murid	materials.scroll-restore	Stores scoped list
 courses	/courses/[id]/material/[materialId]	murid	materials.detail	Material detail read and locked activation. Canonical article aliases resolve before reader open.	connected	local-http
 courses	/courses/[id]/material/[materialId]	murid	article.open	OnlineReading loads canonical structured and compatible published legacy or generated Articles under current material access.	connected	signed-http
 courses	/courses/[id]/material/[materialId]	murid	article.assets	Fetches admitted assets using account, revision and same-origin policy.	connected	signed-http
-courses	/courses/[id]/material/[materialId]	murid	article.section-navigation	Online reading lists the outline, searches admitted sections and opens the matched section. Exact in-text highlighting remains a separate interaction.	partial	contract
+courses	/courses/[id]/material/[materialId]	murid	article.section-navigation	Article and Diktat readers list the outline, search admitted sections and open the matched section. Diktat uses the web heading, formula grouping and section index. Exact in-text highlighting remains a separate interaction.	partial	contract
 courses	/courses/[id]/material/[materialId]	murid	article.mark-complete	Writes section progress and completion against exact revision.	connected	signed-http
 courses	/courses/[id]/material/[materialId]	murid	article.formative-evaluate	Evaluates an authorized revision, section and block via reading/learning.	connected	signed-http
 courses	/courses/[id]/material/[materialId]	murid	article.formative-reveal	Requests explicit answer reveal under same content scope.	connected	signed-http

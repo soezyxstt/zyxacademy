@@ -13,7 +13,7 @@ import type { StudentRequest, StudentServices, StudentSession } from "../contrac
 import { sectionCodingParts } from "../../../../../lib/coding/native-article-contract";
 import { ArticleCoding, type CodingItem } from "./ArticleCoding";
 import { ReadingNavigation } from "./ReadingNavigation";
-import { readingNavigationItems } from "./reading-search";
+import { diktatReadingSections, readingNavigationItems } from "./reading-search";
 import { OnlineReadingError, type OnlineReadingContent } from "./online-reading";
 import { readingLearning, readingStudySections, resumeReadingSection, type CheckResult, type ReadProgress, type StudyBlock, type StudySection } from "./reading-learning";
 
@@ -37,6 +37,7 @@ export function ReadingStudy({ content, courseId, request, session, theme, draft
   const { canInteract } = useProtectedInteraction();
   const study = useMemo(() => readingLearning(request, courseId, content), [request, courseId, content]);
   const sections = useMemo(() => readingStudySections(content), [content]);
+  const diktatSections = useMemo(() => diktatReadingSections(content), [content]);
   const navigation = useMemo(() => readingNavigationItems(content), [content]);
   const [selected, setSelected] = useState<string>();
   const [unstructuredSection, setUnstructuredSection] = useState<string>();
@@ -62,8 +63,15 @@ export function ReadingStudy({ content, courseId, request, session, theme, draft
     : sections.length > 0 && sections.every(section => sectionProgress[section.id]?.completed));
   const completionReported = useRef(false);
   const checks = active?.checks ?? [];
-  const selectedContent = useMemo(() => active || unstructuredSection
-    ? { ...content, section: active?.slug ?? unstructuredSection } : content, [active, content, unstructuredSection]);
+  const requestedDiktatSection = Number(unstructuredSection ?? content.section ?? "0");
+  const diktatIndex = Number.isSafeInteger(requestedDiktatSection) && diktatSections[requestedDiktatSection] ? requestedDiktatSection : 0;
+  const diktatSection = diktatSections[diktatIndex];
+  const selectedContent = useMemo(() => {
+    if (diktatSection && !("sections" in content.data)) {
+      return { ...content, data: { ...content.data, body: "# " + diktatSection.title + "\n\n" + diktatSection.content } };
+    }
+    return active || unstructuredSection ? { ...content, section: active?.slug ?? unstructuredSection } : content;
+  }, [active, content, diktatSection, unstructuredSection]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -151,16 +159,22 @@ export function ReadingStudy({ content, courseId, request, session, theme, draft
     }
   }
 
-  const page = active ? sections.indexOf(active) : -1;
+  const page = active ? sections.indexOf(active) : diktatSection ? diktatIndex : -1;
+  const pageCount = sections.length || diktatSections.length;
+  function move(to: number) {
+    if (to < 0 || to >= pageCount || busy || !canInteract()) return;
+    if (active) select(sections[to]);
+    else setUnstructuredSection(String(to));
+  }
   function select(section: StudySection | undefined) {
     if (section && !busy && canInteract()) setSelected(section.id);
   }
   return <>
-    {sections.length > 1 && <View style={{ ...toolbar, justifyContent: "space-between", alignItems: "center", padding: 8 }}>
-      <Button theme={theme} variant="outline" disabled={busy || page <= 0} onPress={() => select(sections[page - 1])}>{id ? "Bagian sebelumnya" : "Previous section"}</Button>
-      <Text style={{ color: colors.mutedForeground }}>{page + 1} / {sections.length}</Text>
-      <Button theme={theme} variant="outline" disabled={busy || page >= sections.length - 1}
-        onPress={() => select(sections[page + 1])}>{id ? "Bagian berikutnya" : "Next section"}</Button>
+    {pageCount > 1 && <View style={{ ...toolbar, justifyContent: "space-between", alignItems: "center", padding: 8 }}>
+      <Button theme={theme} variant="outline" disabled={busy || page <= 0} onPress={() => move(page - 1)}>{id ? "Bagian sebelumnya" : "Previous section"}</Button>
+      <Text style={{ color: colors.mutedForeground }}>{page + 1} / {pageCount}</Text>
+      <Button theme={theme} variant="outline" disabled={busy || page >= pageCount - 1}
+        onPress={() => move(page + 1)}>{id ? "Bagian berikutnya" : "Next section"}</Button>
     </View>}
     {error !== "stale" ? <ReadingContentDocument key={active?.id ?? unstructuredSection ?? content.data.id} content={selectedContent}
       testID="student-online-reading-document" onProgress={active ? scroll : undefined} /> : <View style={{ flex: 1 }} />}

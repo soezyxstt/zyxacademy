@@ -1,4 +1,5 @@
 import { articlePartSearchEntries, articlePartSchema } from "../../../../../lib/materials/article-parts";
+import { parseArticleSections } from "../../../../../lib/materials/reader-markdown-sections";
 import type { OnlineReadingContent } from "./online-reading";
 
 export type ReadingNavigationItem = { id: string; slug: string; title: string; text: string };
@@ -6,8 +7,13 @@ const clean = (value: string) => value.replace(/<!--[\s\S]*?-->/g, "").replace(/
 
 export function readingNavigationItems(content: OnlineReadingContent): ReadingNavigationItem[] {
   const data = content.data;
-  if (!("sections" in data)) return typeof data.body === "string"
-    ? [{ id: data.id, slug: "", title: data.title, text: clean(data.body) }] : [];
+  if (!("sections" in data)) {
+    if (typeof data.body !== "string") return [];
+    const sections = diktatReadingSections(content);
+    return sections.length ? sections.map((section, index) => ({
+      id: data.id + ":" + index, slug: String(index), title: section.title, text: clean(section.title + " " + section.content),
+    })) : [{ id: data.id, slug: "", title: data.title, text: clean(data.body) }];
+  }
   return data.sections.map(section => {
     const title = typeof section.title === "string" && section.title.trim() ? section.title : data.title;
     return {
@@ -33,4 +39,10 @@ export function findReadingSections(items: readonly ReadingNavigationItem[], que
     const end = Math.min(item.text.length, offset + target.length + 65);
     return [{ ...item, snippet: (start ? "…" : "") + item.text.slice(start, end) + (end < item.text.length ? "…" : "") }];
   });
+}
+
+export function diktatReadingSections({ kind, data, title }: OnlineReadingContent) {
+  if (kind !== "diktat" || typeof data.body !== "string") return [];
+  const sections = parseArticleSections(data.body, title).sections;
+  return sections.length > 1 ? sections : [];
 }

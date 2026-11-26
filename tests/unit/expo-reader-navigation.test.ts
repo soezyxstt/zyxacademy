@@ -50,3 +50,18 @@ test("native reader search only uses authored title, body and public parts", () 
   expect(findReadingSections(entries, "hidden reference")).toEqual([]);
   expect(findReadingSections(entries, "")).toHaveLength(2);
 });
+
+test("Diktat outline and search resolve the same section indices as the web reader", () => {
+  const body = [
+    "# Bab 1", "Introduction", "## Dasar", "Definition of flux", "## Contoh", "Electric example",
+    "## F-1 Gauss", "First formula", "## F-2 Flux", "Second formula",
+  ].join("\n\n");
+  const content: OnlineReadingContent = {
+    kind: "diktat", title: "Diktat", structured: false, locale: "id", revision: "fixture", resolveImage: () => undefined,
+    data: { id: "id", courseId: "course", title: "Diktat", kind: "article", docCategory: "diktat", contentVersion: 1, body },
+  };
+  const items = readingNavigationItems(content);
+  expect(items.map(({ slug, title }) => [slug, title])).toEqual([["0", "Dasar"], ["1", "Contoh"], ["2", "Daftar Rumus"]]);
+  expect(findReadingSections(items, "Electric example")).toMatchObject([{ slug: "1" }]);
+  expect(findReadingSections(items, "Second formula")).toMatchObject([{ slug: "2" }]);
+});

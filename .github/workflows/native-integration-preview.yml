@@ -266,7 +266,7 @@ jobs:
       - name: Online Student Article and Diktat authorization
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: |
-          bun test tests/unit/expo-online-reading.test.ts tests/unit/expo-article-coding.test.ts
+          bun test tests/unit/expo-online-reading.test.ts tests/unit/expo-article-coding.test.ts tests/unit/expo-reader-navigation.test.ts
           bun test tests/contracts/native-student-reading.test.ts
           bun test tests/contracts/native-article-coding-access.test.ts
       - name: Native Student PDF authorization and private file lifecycle
