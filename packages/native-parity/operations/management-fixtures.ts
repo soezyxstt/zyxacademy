@@ -23,7 +23,7 @@ const initialMeetings: MeetingDetails[] = [
     participants: [{ id: "attendee-one", name: "Tutor Contoh", userType: "signedin", totalDurationSeconds: 3600, sessions: [{ startTime: "2026-11-25T08:00:00Z", endTime: "2026-11-25T09:00:00Z" }] }, { id: "attendee-two", name: "Murid Contoh", userType: "anonymous", totalDurationSeconds: 1800, sessions: [{ startTime: "2026-11-25T08:10:00Z", endTime: "2026-11-25T08:40:00Z" }] }], recordings: [], transcripts: [] },
 ];
 const initialDirectory: MeetingDirectory = {
-  users: [{ id: "tutor-local", name: "Tutor Contoh", email: "tutor@example.invalid", roles: ["tutor"], courseIds: ["physics"] }, { id: "student-local", name: "Murid Contoh", email: "murid@example.invalid", roles: ["student"], courseIds: ["physics"] }],
+  users: [{ id: "tutor-local", name: "Tutor Contoh", email: "tutor@example.invalid", roles: ["tutor"], courseIds: ["physics"] }, { id: "student-local", name: "Murid Contoh", email: "murid@example.invalid", roles: ["murid"], courseIds: ["physics"] }],
   courses: [{ id: "physics", title: "Fisika I" }],
 };
 const initialThreads: DiscussionThread[] = [

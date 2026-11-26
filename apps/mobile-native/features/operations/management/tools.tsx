@@ -2,6 +2,7 @@ import { useStaffChromeVisibility } from "../../../routing/staff-chrome-visibili
 import { useProtectedInteraction } from "../../../routing/protected-interaction";
 import { useContext, useState } from "react";
 import { View } from "react-native";
+import { filterMeetParticipants, toggleMeetParticipants } from "../../../../../lib/meet/participant-selection";
 import { DEFAULT_ICON, EMOJI_OPTIONS, LINK_COLORS, LINK_CATEGORY_SUGGESTIONS, isValidHttpUrl } from "../../../../../lib/links";
 import type { TutorSupportClient } from "../../../../../packages/academic/tutor-support";
 import { ManagementFailure, managementSlug, type DiscussionThread, type LinkFields, type MeetingSpace, type MeetingTranscript, type PublicLink } from "../../../../../packages/native-parity/operations/management-contract";
@@ -30,7 +31,13 @@ export function MeetList() {
   const [active, setActive] = useState<MeetingSpace>();
   const [confirm, setConfirm] = useState<Confirmation | null>(null);
   const links = active && meetingLinks(active);
-  const people = directory.data?.users.filter(person => `${person.name} ${person.email}`.toLowerCase().includes(search.trim().toLowerCase()) && (role === "all" || person.roles.includes(role)) && (course === "all" || person.courseIds.includes(course)));
+  const people = filterMeetParticipants(directory.data?.users ?? [], search, role, course);
+  const selectedCourse = directory.data?.courses.find(item => item.id === course);
+  const bulkGroups = [
+    { label: "Admin", people: people.filter(person => person.roles.includes("admin")) },
+    { label: "Tutor", people: people.filter(person => person.roles.includes("tutor")) },
+    ...(selectedCourse ? [{ label: selectedCourse.title, people: people.filter(person => person.courseIds.includes(course)) }] : []),
+  ];
   function create() {
     setConfirm({ title: "Mulai meeting?", description: emails.length ? `${emails.length} peserta akan diundang.` : "Ruang Google Meet akan dibuat.", label: "Mulai meeting", run: () => action.run({ type: "meet.create", title, slug: slug ?? managementSlug(title), accessType, invitedEmails: emails }, result => {
       setActive(result.space); setTitle(""); setSlug(undefined); setEmails([]); setPicker(false);
@@ -47,9 +54,17 @@ export function MeetList() {
       </View>
       {picker && <Section title="Pilih peserta">
         <Field label="Cari nama atau email" value={search} onChangeText={setSearch} />
-        <Choices values={[["all", "Semua peran"], ["admin", "Admin"], ["tutor", "Tutor"], ["student", "Murid"]]} current={role} onChange={setRole} />
+        <Choices values={[["all", "Semua peran"], ["admin", "Admin"], ["tutor", "Tutor"], ["murid", "Murid"]]} current={role} onChange={setRole} />
         <Choices values={[["all", "Semua mata kuliah"], ...(directory.data?.courses ?? []).map(item => [item.id, item.title] as const)]} current={course} onChange={setCourse} />
         <LoadState {...directory} retry={directory.reload} />
+        <View style={styles.row}>{bulkGroups.map((group, index) => {
+          const matched = group.people.map(person => person.email);
+          const all = matched.length > 0 && matched.every(email => emails.includes(email));
+          return <Action key={index} disabled={!matched.length} selected={all}
+            onPress={() => setEmails(previous => toggleMeetParticipants(previous, matched))}>
+            {`${all ? "Batalkan pilihan" : "Pilih semua"} ${group.label}`}
+          </Action>;
+        })}</View>
         {people?.length === 0 && <Copy muted>Tidak ada peserta yang cocok.</Copy>}
         {people?.map(person => <Item key={person.id} title={person.name} meta={person.email} actions={<Action selected={emails.includes(person.email)} onPress={() => setEmails(emails.includes(person.email) ? emails.filter(email => email !== person.email) : [...emails, person.email])}>{emails.includes(person.email) ? "Hapus dari undangan" : "Pilih peserta"}</Action>} />)}
         <Action onPress={() => setPicker(false)}>Selesai</Action>

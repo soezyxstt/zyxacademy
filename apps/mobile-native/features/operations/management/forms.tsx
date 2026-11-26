@@ -303,6 +303,11 @@ function Settings({ settings, update }: { settings: FormSettings; update: (setti
       <Toggle label="Batasi ke satu respons" value={settings.limitToOneResponse ?? false} onChange={next => edit("limitToOneResponse", next)} />
       <Copy strong>Kirim salinan respons</Copy><Choices values={[["off", "Tidak"], ["requested", "Jika diminta"], ["always", "Selalu"]]} current={settings.sendResponseCopy ?? "off"} onChange={next => edit("sendResponseCopy", next)} />
     </Section>
+    <Section title="Lampiran">
+      <Copy strong>Batas total ukuran berkas</Copy>
+      <Choices values={[["1GB", "1 GB"], ["10GB", "10 GB"], ["100GB", "100 GB"]]}
+        current={settings.maxFileSizeLimit ?? "1GB"} onChange={value => edit("maxFileSizeLimit", value)} />
+    </Section>
     <Section title="Tampilan formulir">
       <Choices values={[["question", "Per pertanyaan"], ["section", "Per bagian"]]} current={settings.displayMode ?? "question"} onChange={next => edit("displayMode", next)} />
       <Field label="Pesan konfirmasi" value={settings.customSuccessMessage ?? ""} onChangeText={next => edit("customSuccessMessage", next)} />

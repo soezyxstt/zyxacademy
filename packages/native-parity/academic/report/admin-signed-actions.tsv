@@ -101,3 +101,5 @@ route	action_family	source_status	web_entry	native_entry
 /admin/users	Activate or deactivate an account	connected	components/admin/users-dashboard.tsx	apps/mobile-native/features/academic/administration/user-status-editor.tsx
 /admin/users	Change validated role memberships	connected	components/admin/users-dashboard.tsx	apps/mobile-native/features/academic/administration/user-roles-editor.tsx
 /admin/users	Filter and paginate users and inspect their account details	connected	components/admin/users-dashboard.tsx	apps/mobile-native/features/academic/administration/live-screen.tsx
+/admin/meet	Invite the filtered Admin or Tutor group, or all matching members of the selected course	connected	app/(admin)/admin/meet/page.tsx	apps/mobile-native/features/operations/management/tools.tsx
+/admin/forms/[id]	Set the form attachment storage limit and save the authorized form revision	connected	components/forms/admin-forms-builder.tsx	apps/mobile-native/features/operations/management/forms.tsx
