@@ -52,3 +52,12 @@ bun tests/integration/operations-evaluation-aliases.mjs tests/visual/native-para
 ```
 
 The verifier invokes the nine original Next.js page functions with synthetic Admin authorization and course identities. Its manifest records 17 redirect, missing or unknown identity cases paired with the native fixture result, and nine simulated rejections at the page guard. The direct checks use the Next.js redirect and not-found signals. Authentication and database behavior are covered separately by the protected handler tests.
+
+The standalone alias harness can verify one path per route in Chromium, including the unknown-quiz 404 and browser Back from each case. Start it after other operations reference captures finish:
+
+```sh
+NEXT_TELEMETRY_DISABLED=1 node node_modules/next/dist/bin/next dev tests/visual/native-parallel/operations/evaluation-aliases-web --webpack -p 3211
+PARITY_CHROMIUM_EXECUTABLE=/usr/bin/chromium bun tests/visual/native-parallel/operations/capture-evaluation-aliases.ts
+```
+
+The browser command writes `artifacts/native-parity/operations-web/evaluation-aliases/cases.json` with the observed HTTP status, destination, reached URL, browser Back result and native fixture response.
