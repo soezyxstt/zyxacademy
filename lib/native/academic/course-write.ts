@@ -7,7 +7,7 @@ import { assertAuthoringActor } from "@/lib/auth/authoring-actor";
 import type { CourseCommandViewer } from "./course-command";
 
 export type CourseWriteTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
-type Saved = { id: string; canonicalCourseId: string; legacyCourseId?: string };
+type Saved = { id: string; canonicalCourseId: string; legacyCourseId?: string; legacyChapterId?: string };
 
 async function assertAuthority(tx: CourseWriteTransaction, viewer: CourseCommandViewer) {
   await assertAuthoringActor(tx, viewer.user.id, { roles: ["admin"], error: "FORBIDDEN", lock: true });
@@ -24,12 +24,13 @@ export async function courseWrite<T extends object>({
   draft: T;
   requestId: string;
   viewer: CourseCommandViewer;
-  entityType: "native_course_settings" | "native_course_chapter" | "native_course_material" | "native_course_management";
-  action: "create" | "update" | "archive";
+  entityType: "native_course_settings" | "native_course_chapter" | "native_course_material" | "native_course_management" | "native_chapter_management";
+  action: "create" | "update" | "archive" | "reorder";
   write(tx: CourseWriteTransaction): Promise<Saved>;
   validateReplay(tx: CourseWriteTransaction, result: Saved): Promise<void>;
 }) {
-  const receiptScope = entityType === "native_course_management" ? { sessionHash: revisionOf(viewer.session.id) } : {};
+  const receiptScope = entityType === "native_course_management" || entityType === "native_chapter_management"
+    ? { sessionHash: revisionOf(viewer.session.id) } : {};
   const receiptId = `native_course_${revisionOf({ actorId: viewer.user.id, requestId })}`;
   const inputHash = revisionOf({ slug, targetId, draft });
   async function findReceipt(tx: CourseWriteTransaction) {
@@ -85,7 +86,8 @@ function retryableTransactionFault(code: string | undefined) {
 function isSaved(value: unknown): value is Saved {
   return Boolean(value && typeof value === "object" && "id" in value && typeof value.id === "string" &&
     "canonicalCourseId" in value && typeof value.canonicalCourseId === "string" &&
-    (!("legacyCourseId" in value) || typeof value.legacyCourseId === "string"));
+    (!("legacyCourseId" in value) || typeof value.legacyCourseId === "string") &&
+    (!("legacyChapterId" in value) || typeof value.legacyChapterId === "string"));
 }
 
 function postgresCode(error: unknown): string | undefined {

@@ -20,6 +20,8 @@ Menu akun Expo memakai konteks sesi aktif untuk menampilkan profil Murid, prefer
 
 Admin Expo dapat membuat mata kuliah dari daftar dan mengarsipkannya dari Pengaturan setelah konfirmasi. Pengarsipan memeriksa revisi dan referensi materi atau aktivitas, lalu mencabut akses offline melalui alur server yang sama. Coba lagi memeriksa hasil operasi yang sama dalam sesi aktif. Operasi `courses.create` dan `courses.archive` di MCP tetap memakai scope, persetujuan, discovery, dan binding yang terdaftar. [Kontrak kursus Admin](../tests/contracts/native-admin-course-management.test.ts), [katalog operasi MCP](../lib/admin-mcp/operations-catalog.ts).
 
+Admin Expo juga dapat mengatur urutan seluruh bab atau menghapus bab kosong dari rincian mata kuliah. Perubahan mempertahankan proyeksi canonical dan legacy, memeriksa revisi koleksi, dan menolak penghapusan ketika materi atau aktivitas masih merujuk ke bab. Operasi `chapters.order`, `chapters.reorder`, dan `chapters.archive` di MCP memakai kontrak yang terdaftar. [Kontrak bab Admin](../tests/contracts/native-admin-course-management.test.ts).
+
 Build produk Expo mengutamakan tujuan dari tautan langsung atau login. Jika tujuan tidak diberikan, aplikasi mencoba membuka rute produk terakhir yang difokuskan dalam 24 jam untuk origin, akun, dan sesi yang sama. Rute harus terpasang dan sesuai peran saat ini. Pemeriksaan akses data tetap dilakukan oleh layar dan API masing-masing. Rute publik, auth, MCP, API, pengelolaan kredensial, fragmen, dan parameter di luar daftar yang didukung tidak disimpan. Keluar atau pencabutan akses akun membersihkan riwayat sesi. Dashboard peran dipakai ketika riwayat tidak bisa dibuka. [Riwayat rute Expo](../apps/mobile-native/routing/route-history.ts).
 
 ## Halaman publik di browser

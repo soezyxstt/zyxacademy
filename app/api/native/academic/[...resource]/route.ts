@@ -3,7 +3,7 @@ import { getAuthSession } from "@/lib/auth-session";
 import { handleAdminCourseChapterCommand } from "@/lib/native/academic/course-chapter-command";
 import { handleAdminCourseManagementCommand } from "@/lib/native/academic/course-management-command";
 import { archiveCourseFromNative, createCourseFromNative } from "@/lib/native/academic/course-management-service";
-import { saveCourseChapterFromNative } from "@/lib/native/academic/course-chapter-service";
+import { archiveCourseChapterFromNative, reorderCourseChaptersFromNative, saveCourseChapterFromNative } from "@/lib/native/academic/course-chapter-service";
 import { handleAdminCourseSettingsCommand } from "@/lib/native/academic/course-settings-command";
 import { handleAdminCourseMaterialCommand } from "@/lib/native/academic/course-material-command";
 import { updateCoursePdfTitleFromNative } from "@/lib/native/academic/course-material-service";
@@ -17,6 +17,7 @@ export async function GET(_request: Request, { params }: Context) {
 }
 
 const auth = { session: getAuthSession, hasAdmin: academicReadServices.hasAdmin };
+const chapter = { ...auth, save: saveCourseChapterFromNative, archive: archiveCourseChapterFromNative, reorder: reorderCourseChaptersFromNative };
 
 export async function POST(request: Request, { params }: Context) {
   const { resource } = await params;
@@ -24,14 +25,18 @@ export async function POST(request: Request, { params }: Context) {
   if (resource.length === 2 || resource[3] === "archive") {
     return handleAdminCourseManagementCommand(request, resource, origin, { ...auth, create: createCourseFromNative, archive: archiveCourseFromNative });
   }
-  return handleAdminCourseChapterCommand(request, resource, origin, { ...auth, save: saveCourseChapterFromNative });
+  return handleAdminCourseChapterCommand(request, resource, origin, chapter);
+}
+
+export async function DELETE(request: Request, { params }: Context) {
+  return handleAdminCourseChapterCommand(request, (await params).resource, new URL(resolveAuthBaseUrl()).origin, chapter);
 }
 
 export async function PATCH(request: Request, { params }: Context) {
   const { resource } = await params;
   const origin = new URL(resolveAuthBaseUrl()).origin;
   if (resource[3] === "chapters") {
-    return handleAdminCourseChapterCommand(request, resource, origin, { ...auth, save: saveCourseChapterFromNative });
+    return handleAdminCourseChapterCommand(request, resource, origin, chapter);
   }
   if (resource[3] === "documents") {
     return handleAdminCourseMaterialCommand(request, resource, origin, { ...auth, update: updateCoursePdfTitleFromNative });

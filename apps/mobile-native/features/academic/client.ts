@@ -1,6 +1,7 @@
 import {
   validAdminMaterialTitle, type AdminChapterDraft, type AdminChapterEditor, type AdminCourseEditDraft, type AdminCourseEditor,
   type AdminMaterialEditor, type AdminMaterialTitleDraft, type AdminCourseCreateDraft, type AdminCourseArchiver, type AdminCourseArchiveDraft,
+  type AdminChapterArchiveDraft, type AdminChapterArchiver, type AdminChapterOrderDraft, type AdminChapterReorder,
 } from "../../../../packages/native-parity/academic/courses/edit-contract";
 import type { AdminCourseSectionResult } from "../../../../packages/native-parity/academic/courses/sections";
 import type { AdminCourse, AdminCourseOverview } from "../../../../packages/native-parity/academic/courses/model";
@@ -59,8 +60,14 @@ function buildAcademicClient(transport: AcademicTransport) {
   const materialTarget = command ? createCourseCommandTarget<AdminMaterialTitleDraft>(command, ({ title }) => validAdminMaterialTitle(title)) : undefined;
   const createCourse = command ? createCourseCommandTarget<AdminCourseCreateDraft>(command)("", "POST") : undefined;
   const archiveTarget = command ? createCourseCommandTarget<AdminCourseArchiveDraft>(command) : undefined;
+  const archiveChapterTarget = command ? createCourseCommandTarget<AdminChapterArchiveDraft>(command) : undefined;
+  const chapterOrderTarget = command ? createCourseCommandTarget<AdminChapterOrderDraft>(command) : undefined;
   const archiveCourse: AdminCourseArchiver | undefined = archiveTarget ? (courseId) =>
     archiveTarget(`${encodeURIComponent(courseId)}/archive`, "POST") : undefined;
+  const archiveChapter: AdminChapterArchiver | undefined = archiveChapterTarget ? (courseId, chapterId) =>
+    archiveChapterTarget(`${encodeURIComponent(courseId)}/chapters/${encodeURIComponent(chapterId)}`, "DELETE") : undefined;
+  const reorderChapters: AdminChapterReorder | undefined = chapterOrderTarget ? (courseId) =>
+    chapterOrderTarget(`${encodeURIComponent(courseId)}/chapters/order`, "POST") : undefined;
   const updateCourseSettings: AdminCourseEditor | undefined = settingsTarget ? (courseId) =>
     settingsTarget(`${encodeURIComponent(courseId)}/settings`, "PATCH") : undefined;
   const saveChapter: AdminChapterEditor | undefined = chapterTarget ? (courseId, chapterId) =>
@@ -74,6 +81,8 @@ function buildAcademicClient(transport: AcademicTransport) {
     createCourse,
     archiveCourse,
     saveChapter,
+    archiveChapter,
+    reorderChapters,
     updateMaterial,
     courses: (signal: AbortSignal) => read<AdminCourse[]>("/api/native/academic/admin/courses", signal),
     course: (slug: string, signal: AbortSignal) => read<AdminCourseOverview>(`/api/native/academic/admin/courses/${encodeURIComponent(slug)}`, signal),

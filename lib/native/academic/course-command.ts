@@ -14,7 +14,7 @@ export function validCourseCommandId(id: string) {
   return Boolean(id.trim() && id.length <= 256 && id !== "." && id !== ".." && !/[/\\\u0000-\u001f]/u.test(id));
 }
 
-export async function readCourseCommandBody<T>(request: Request, schema: ZodType<T>) {
+export async function readCourseCommandBody<T>(request: Request, schema: ZodType<T>, maxBytes = 128 * 1024) {
   const reader = request.body?.getReader();
   if (!reader) return null;
   try {
@@ -25,7 +25,7 @@ export async function readCourseCommandBody<T>(request: Request, schema: ZodType
       const chunk = await reader.read();
       if (chunk.done) return schema.safeParse(JSON.parse(text + decoder.decode()));
       count += chunk.value.byteLength;
-      if (count > 128 * 1024) {
+      if (count > maxBytes) {
         await reader.cancel();
         return null;
       }
@@ -41,6 +41,7 @@ export async function readCourseCommandBody<T>(request: Request, schema: ZodType
 export async function handleCourseCommand<T>(request: Request, origin: string, auth: CourseCommandAuth, options: {
   schema: ZodType<T>;
   invalidError: "INVALID_COURSE" | "INVALID_CHAPTER" | "INVALID_MATERIAL";
+  maxBodyBytes?: number;
   write(draft: T, requestId: string, viewer: CourseCommandViewer): Promise<void>;
 }) {
   const reply = courseCommandReply;
@@ -53,7 +54,7 @@ export async function handleCourseCommand<T>(request: Request, origin: string, a
     if (!(await auth.hasAdmin(viewer.user.id))) return reply(403, { error: "FORBIDDEN" });
     const requestId = request.headers.get("idempotency-key");
     if (!requestId || !/^[\w-]{16,100}$/.test(requestId)) return reply(400, { error: "INVALID_REQUEST_ID" });
-    const body = await readCourseCommandBody(request, options.schema);
+    const body = await readCourseCommandBody(request, options.schema, options.maxBodyBytes);
     if (!body?.success) return reply(422, { error: options.invalidError });
     await options.write(body.data, requestId, viewer);
     return reply(200, { status: "saved", requestId });
@@ -64,7 +65,8 @@ export async function handleCourseCommand<T>(request: Request, origin: string, a
     if (code === "COURSE_NOT_FOUND" || code === "CHAPTER_NOT_FOUND" || code === "MATERIAL_NOT_FOUND") return reply(404, { error: "NOT_FOUND" });
     if (code === "COURSE_ALREADY_EXISTS" || code === "DEPENDENCIES_EXIST" || code === "REVISION_CONFLICT" || code === "REQUEST_CONFLICT" ||
       code === "COURSE_IDENTITY_AMBIGUOUS" || code === "CHAPTER_IDENTITY_AMBIGUOUS") return reply(409, { error: code });
-    if (code === "COURSE_PROJECTION_UNAVAILABLE" || code === "CHAPTER_PROJECTION_UNAVAILABLE" || code === "CHAPTER_ORDER_INVALID" || code.startsWith("INVALID_COURSE_PRICING")) {
+    if (code === "COURSE_PROJECTION_UNAVAILABLE" || code === "CHAPTER_PROJECTION_UNAVAILABLE" ||
+      code.startsWith("CHAPTER_ORDER_") || code.startsWith("INVALID_COURSE_PRICING")) {
       return reply(422, { error: options.invalidError });
     }
     return reply(500, { error: "SAVE_FAILED" });

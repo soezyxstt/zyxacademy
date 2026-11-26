@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { View } from "react-native";
 import type { AdminChapter, AdminCourseOverview } from "../../../../../packages/native-parity/academic/courses/model";
-import type { AdminChapterDraft, CourseWriteTarget } from "../../../../../packages/native-parity/academic/courses/edit-contract";
+import type { AdminChapterArchiveDraft, AdminChapterDraft, AdminChapterOrderDraft, CourseWriteTarget } from "../../../../../packages/native-parity/academic/courses/edit-contract";
 import { useCourseWrite } from "./live-write";
-import { Action, CourseDialog, CourseStatus, Field, layout } from "./ui";
+import { Action, CourseDialog, CourseStatus, Field, Ink, layout } from "./ui";
 
 const errors = {
   invalid: "Periksa judul dan deskripsi bab.",
@@ -66,4 +66,84 @@ export function LiveChapterEditor({ chapter, edit, target, close, refresh }: {
       </View>
     </CourseDialog>
   );
+}
+
+const structureErrors = {
+  invalid: "Periksa data bab.", denied: "Akses ditolak.", missing: "Bab atau mata kuliah tidak ditemukan.",
+  conflict: "Daftar bab sudah berubah. Muat versi terbaru.",
+  dependencies: "Bab masih digunakan oleh materi atau aktivitas. Selesaikan referensinya sebelum menghapus.",
+  retry: "Status perubahan belum diketahui. Coba lagi untuk memeriksa hasil.",
+};
+
+function ChapterMutationFeedback({ mutation, reload }: {
+  mutation: Pick<ReturnType<typeof useCourseWrite>, "status" | "busy" | "stale" | "retry">; reload(): void;
+}) {
+  const { status } = mutation;
+  return <>
+    {mutation.busy ? <CourseStatus label="Menyimpan perubahan…" /> : null}
+    {status && status in structureErrors ? <CourseStatus label={structureErrors[status as keyof typeof structureErrors]}
+      error retry={status === "retry" ? mutation.retry : undefined} /> : null}
+    {mutation.stale || status === "dependencies" ? <Action label="Muat versi terbaru" onPress={reload} /> : null}
+  </>;
+}
+
+export function LiveChapterArchive({ chapter, revision, target, close, refresh }: {
+  chapter: AdminChapter; revision: string; target: CourseWriteTarget<AdminChapterArchiveDraft>; close(): void; refresh(): void;
+}) {
+  const reload = () => { close(); refresh(); };
+  const mutation = useCourseWrite(target, reload);
+  return <CourseDialog title="Hapus bab?" onClose={close} dismissDisabled={mutation.busy} testID="course-chapter-archive-dialog">
+    <Ink>{chapter.title}</Ink>
+    <Ink kind="meta" tone="muted">Bab akan hilang dari mata kuliah.</Ink>
+    <ChapterMutationFeedback mutation={mutation} reload={reload} />
+    <View style={layout.row}>
+      <Action label="Hapus bab" variation="destructive" disabled={!mutation.editable || mutation.status === "dependencies"}
+        onPress={() => mutation.submit({ expectedRevision: revision, confirmed: true })} testID="course-chapter-archive-confirm" />
+      <Action label="Batal" variation="ghost" onPress={close} disabled={mutation.busy} />
+    </View>
+  </CourseDialog>;
+}
+
+export function LiveChapterOrder({ chapters, revision, target, close, refresh }: {
+  chapters: readonly AdminChapter[]; revision: string; target: CourseWriteTarget<AdminChapterOrderDraft>; close(): void; refresh(): void;
+}) {
+  const existing = target.pending()?.draft.chapterIds;
+  const byId = new Map(chapters.map(chapter => [chapter.id, chapter]));
+  const initial = chapters.map(chapter => chapter.id);
+  const [order, setOrder] = useState(existing ?? initial);
+  const pageSize = 12;
+  const [page, setPage] = useState(0);
+  const reload = () => { close(); refresh(); };
+  const mutation = useCourseWrite(target, reload);
+  function move(index: number, offset: number) {
+    if (!mutation.editable || index + offset < 0 || index + offset >= order.length) return;
+    const next = [...order];
+    [next[index], next[index + offset]] = [next[index + offset], next[index]];
+    setOrder(next);
+    setPage(Math.floor((index + offset) / pageSize));
+  }
+  const changed = order.some((id, index) => id !== initial[index]);
+  return <CourseDialog title="Susun bab" onClose={close} dismissDisabled={mutation.busy} testID="course-chapter-order-dialog">
+    {order.slice(page * pageSize, (page + 1) * pageSize).map((id, offset) => {
+      const index = page * pageSize + offset;
+      return <View key={id} style={layout.group}>
+        <Ink kind="strong">{`${index + 1}. ${byId.get(id)?.title ?? id}`}</Ink>
+        <View style={layout.row}>
+          <Action label="Naikkan" testID={`course-chapter-up-${id}`} onPress={() => move(index, -1)} disabled={!mutation.editable || index === 0} />
+          <Action label="Turunkan" testID={`course-chapter-down-${id}`} onPress={() => move(index, 1)} disabled={!mutation.editable || index === order.length - 1} />
+        </View>
+      </View>;
+    })}
+    {order.length > pageSize ? <View style={layout.row}>
+      <Action label="Sebelumnya" onPress={() => setPage(page - 1)} disabled={page === 0} />
+      <Ink kind="meta">{`${page + 1} / ${Math.ceil(order.length / pageSize)}`}</Ink>
+      <Action label="Berikutnya" onPress={() => setPage(page + 1)} disabled={(page + 1) * pageSize >= order.length} />
+    </View> : null}
+    <ChapterMutationFeedback mutation={mutation} reload={reload} />
+    <View style={layout.row}>
+      <Action label="Simpan urutan" variation="default" disabled={!mutation.editable || !changed}
+        onPress={() => mutation.submit({ expectedRevision: revision, chapterIds: order })} testID="course-chapter-order-save" />
+      <Action label="Batal" variation="ghost" onPress={close} disabled={mutation.busy} />
+    </View>
+  </CourseDialog>;
 }

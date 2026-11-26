@@ -136,7 +136,8 @@ function LiveCourseRoute({ live, isList, section, actor, navigate, replace, quer
     <CoursePage title={detail?.course.title ?? "Mata kuliah"} back={back}>
       <LiveStatus read={live.detail} retry={live.retry}>
         {(data) => <CourseOverview data={data} actor={actor} navigate={navigate}
-          liveChapterEditor={live.saveChapter ? { save: live.saveChapter, refresh: live.retry } : undefined} />}
+          liveChapterEditor={live.saveChapter ? { save: live.saveChapter, archive: live.archiveChapter,
+            reorder: live.reorderChapters, refresh: live.retry } : undefined} />}
       </LiveStatus>
       {detail ? <CourseMenu course={detail.course} navigate={navigate} live /> : null}
     </CoursePage>

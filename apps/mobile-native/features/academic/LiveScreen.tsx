@@ -4,7 +4,7 @@ import { Button } from "../../components/Button";
 import { nativeTypography } from "../../typography";
 import { nativeColors } from "../../../../packages/design-tokens/native-colors";
 import { matchAcademicRoute } from "../../../../packages/native-parity/academic/match";
-import type { AdminChapterEditor, AdminMaterialEditor } from "../../../../packages/native-parity/academic/courses/edit-contract";
+import type { AdminMaterialEditor } from "../../../../packages/native-parity/academic/courses/edit-contract";
 import type { AdminCourse, AdminCourseOverview, AdminCourseLiveRead, LiveCourseRead } from "../../../../packages/native-parity/academic/courses/model";
 import { isAdminCourseLiveSection, type AdminCourseSectionResult } from "../../../../packages/native-parity/academic/courses/sections";
 import { TutorDataError } from "../../../../packages/native-parity/academic/tutor/model";
@@ -56,11 +56,14 @@ function LiveCourseList(props: AcademicScreenProps & Pick<AdminCourseLiveRead, "
   return <CourseScreen {...props} live={{ list, retry, createCourse: props.createCourse }} />;
 }
 
-function LiveCourseDetail(props: AcademicScreenProps & { refresh?: number; saveChapter?: AdminChapterEditor; read: (slug: string, signal: AbortSignal) => Promise<AdminCourseOverview> }) {
+function LiveCourseDetail(props: AcademicScreenProps & Pick<AdminCourseLiveRead, "saveChapter" | "archiveChapter" | "reorderChapters"> & {
+  refresh?: number; read: (slug: string, signal: AbortSignal) => Promise<AdminCourseOverview>;
+}) {
   const { read, params: { slug } } = props;
   const load = useCallback((signal: AbortSignal) => read(slug, signal), [read, slug]);
   const [detail, retry] = useCourseRead(load, props.refresh);
-  return <CourseScreen {...props} live={{ detail, retry, saveChapter: props.saveChapter }} />;
+  return <CourseScreen {...props} live={{ detail, retry, saveChapter: props.saveChapter, archiveChapter: props.archiveChapter,
+    reorderChapters: props.reorderChapters }} />;
 }
 
 function LiveCourseSectionScreen(props: AcademicScreenProps & Pick<AdminCourseLiveRead, "archiveCourse" | "updateSettings"> & {
@@ -92,7 +95,8 @@ export function AcademicLiveScreen({ href, transport, refresh, ...host }: LivePr
   if (match.feature === "administration") return <AdministrationLiveScreen key={key} {...props} transport={transport} />;
   if (match.feature === "tutor") return <TutorScreen key={key} {...props} dataSource={client.tutor} />;
   if (match.pattern === "/admin/courses") return <LiveCourseList key={key} {...props} read={client.courses} refresh={refresh} createCourse={client.createCourse} />;
-  if (match.pattern === "/admin/courses/[slug]") return <LiveCourseDetail key={key} {...props} read={client.course} refresh={refresh} saveChapter={client.saveChapter} />;
+  if (match.pattern === "/admin/courses/[slug]") return <LiveCourseDetail key={key} {...props} read={client.course} refresh={refresh}
+    saveChapter={client.saveChapter} archiveChapter={client.archiveChapter} reorderChapters={client.reorderChapters} />;
   if (match.feature === "courses") {
     const section = match.pattern.split("/")[4];
     const itemId = match.params.quizId ?? match.params.materialId;

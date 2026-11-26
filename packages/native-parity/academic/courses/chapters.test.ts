@@ -12,6 +12,7 @@ const signal = new AbortController().signal;
 
 function harness(role: "admin" | "tutor" | null) {
   const seen: { slug: string; chapterId: string | undefined; requestId: string; body: AdminChapterDraft; userId: string }[] = [];
+  const structure: unknown[] = [];
   function send(method: string, path: string, body: unknown, key = requestId, requestOrigin = origin) {
     return handleAdminCourseChapterCommand(
       new Request(origin + path, { method, headers: { Origin: requestOrigin, "Content-Type": "application/json", "Idempotency-Key": key }, body: JSON.stringify(body) }),
@@ -23,6 +24,8 @@ function harness(role: "admin" | "tutor" | null) {
           if (chapterId === "foreign") throw new Error("CHAPTER_NOT_FOUND");
           if (chapterId === "stale") throw new Error("REVISION_CONFLICT");
         },
+        archive: async (slug, id, body, key) => { structure.push(["archive", slug, id, body, key]); },
+        reorder: async (slug, body, key) => { structure.push(["reorder", slug, body, key]); },
       },
     );
   }
@@ -34,7 +37,7 @@ function harness(role: "admin" | "tutor" | null) {
       return send(command.method, path, command.body, command.requestId);
     },
   });
-  return { send, client, seen };
+  return { send, client, seen, structure };
 }
 
 test("chapter adapter uses distinct create and edit targets with the same request identity on retry", async () => {
@@ -64,6 +67,30 @@ test("chapter commands reject invalid paths and draft data before any write", as
   assert.equal((await harness("tutor").send("POST", base, draft)).status, 403);
   assert.equal((await harness(null).send("POST", base, draft)).status, 401);
   assert.deepEqual(seen, []);
+});
+
+test("archive requires confirmation and reorder submits exact ordered chapter ids", async () => {
+  const { send, client, structure } = harness("admin");
+  const { expectedRevision } = draft;
+  const chapterId = "chapter+2";
+  assert.equal((await send("DELETE", base + "/chapter%2B2", { expectedRevision, confirmed: false })).status, 422);
+  assert.equal((await send("POST", base + "/order", { expectedRevision, chapterIds: [chapterId, chapterId] })).status, 422);
+  assert.equal((await harness("tutor").send("DELETE", base + "/chapter%2B2", { expectedRevision, confirmed: true })).status, 403);
+  assert.deepEqual(structure, []);
+  const approval = { expectedRevision, confirmed: true as const };
+  const order = { expectedRevision, chapterIds: [chapterId, "chapter-1"] };
+  const target = client.reorderChapters!("biologi-dasar");
+  assert.deepEqual(await client.archiveChapter!("biologi-dasar", chapterId).submit(approval, requestId, signal), { status: "saved" });
+  assert.deepEqual(await target.submit(order, requestId, signal), { status: "saved" });
+  const recovered = target.pending()!;
+  recovered.draft.chapterIds.reverse();
+  assert.deepEqual(await target.submit(recovered.draft, requestId, signal), { status: "retry" });
+  assert.deepEqual(await target.submit(target.pending()!.draft, requestId, signal), { status: "saved" });
+  assert.deepEqual(structure, [
+    ["archive", "biologi-dasar", chapterId, approval, requestId],
+    ["reorder", "biologi-dasar", order, requestId],
+    ["reorder", "biologi-dasar", order, requestId],
+  ]);
 });
 
 test("accepted chapter creation is recovered after the first dialog loses its response and remounts", async () => {

@@ -51,10 +51,10 @@ export const operationsCatalog = [
   },
   {
     "source": "app/api/native/academic/[...resource]/route.ts",
-    "actions": ["GET", "POST", "PATCH"],
+    "actions": ["GET", "POST", "PATCH", "DELETE"],
     "tools": [],
     "status": "excluded",
-    "reason": "Course and roster reads use the signed-in role and course assignment. Course creation and confirmed archive, settings, chapters and uploaded PDF titles use shared projections and session-authorized retry receipts. Course archive checks the current revision and connected records before withdrawing access. MCP courses.create, courses.archive, courses.update, chapters.create, chapters.update and materials.update_metadata retain their registered authorization and input contracts."
+    "reason": "Course and roster reads use the signed-in role and course assignment. Course and chapter management, settings and PDF titles use shared projections and authorized retry receipts. Confirmed course and chapter archives check revisions and connected records. Chapter reorder checks the whole course chapter set and revision. MCP courses.*, chapters.* and materials.update_metadata retain their registered authorization and input contracts."
   },
   {
     "source": "app/api/native/academic/tutor-support/[...resource]/route.ts",

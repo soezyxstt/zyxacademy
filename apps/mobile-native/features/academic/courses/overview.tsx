@@ -6,11 +6,11 @@ import { parseCoursePricingInput, type CoursePricing } from "../../../../../pack
 import { emptyCourseFixture, type CourseFixture } from "../../../../../packages/native-parity/academic/courses/fixtures";
 import { adminCoursePath, filterAdminCourses, type AdminChapter, type AdminCourse, type AdminCourseOverview } from "../../../../../packages/native-parity/academic/courses/model";
 import { NativeListRow, NativeResponsiveList, SharedUiSearch } from "../../shared-ui";
-import type { AdminChapterEditor, AdminCourseCreateDraft, CourseWriteTarget } from "../../../../../packages/native-parity/academic/courses/edit-contract";
+import type { AdminChapterArchiver, AdminChapterEditor, AdminChapterReorder, AdminCourseCreateDraft, CourseWriteTarget } from "../../../../../packages/native-parity/academic/courses/edit-contract";
 import { Button } from "../../../components/Button";
 import { nativeTypography } from "../../../typography";
 import { NavigationIcon } from "../../shared-ui/navigation-icons";
-import { LiveChapterEditor } from "./live-chapters";
+import { LiveChapterArchive, LiveChapterEditor, LiveChapterOrder } from "./live-chapters";
 import { LiveCourseCreateForm } from "./live-management";
 import { displayWib, formatWib } from "./course-pricing-fields";
 import type { AcademicActor } from "../contracts";
@@ -248,7 +248,7 @@ function CourseFields({ actor, data, onSaved, onCancel, onReload }: {
 export function CourseOverview({ data, fixture, liveChapterEditor, actor, navigate }: {
   data: AdminCourseOverview;
   fixture?: CourseFixture;
-  liveChapterEditor?: { save: AdminChapterEditor; refresh(): void };
+  liveChapterEditor?: { save: AdminChapterEditor; archive?: AdminChapterArchiver; reorder?: AdminChapterReorder; refresh(): void };
   actor: AcademicActor;
   navigate: Navigate;
 }) {
@@ -256,10 +256,14 @@ export function CourseOverview({ data, fixture, liveChapterEditor, actor, naviga
   const [expanded, setExpanded] = useState<string | null>(null);
   const [editing, setEditing] = useState<AdminChapter | "new" | null>(null);
   const [deleting, setDeleting] = useState<AdminChapter | null>(null);
+  const [ordering, setOrdering] = useState(false);
   const reorder = useCourseMutation(actor, () => undefined);
   const { course, chapters, chapterEdit } = data;
   const canEdit = fixture || (liveChapterEditor && chapterEdit);
   const createPending = liveChapterEditor?.save(course.id).pending();
+  const orderTarget = chapterEdit ? liveChapterEditor?.reorder?.(course.id) : undefined;
+  const pendingOrder = orderTarget?.pending();
+  const canReorder = !!orderTarget && (pendingOrder || (chapters.length > 1 && chapters.length <= 1000));
 
   function move(chapter: AdminChapter, offset: number) {
     if (!fixture) return;
@@ -288,9 +292,13 @@ export function CourseOverview({ data, fixture, liveChapterEditor, actor, naviga
           <NavigationIcon name="classes" color={palette.mutedForeground} size={18} />
           <Ink kind="heading">{`${chapters.length} bab`}</Ink>
         </View>
-        {canEdit ? createPending
-          ? <Action label="Periksa bab baru" onPress={() => setEditing("new")} testID="course-chapter-create" />
-          : <CourseIconAction label="Tambah bab" onPress={() => setEditing("new")} testID="course-chapter-create" primary /> : null}
+        {(canReorder || canEdit) ? <View style={layout.row}>
+          {canReorder ? <Action label={pendingOrder ? "Periksa urutan" : "Susun bab"}
+            onPress={() => setOrdering(true)} testID="course-chapter-order" /> : null}
+          {canEdit ? createPending
+            ? <Action label="Periksa bab baru" onPress={() => setEditing("new")} testID="course-chapter-create" />
+            : <CourseIconAction label="Tambah bab" onPress={() => setEditing("new")} testID="course-chapter-create" primary /> : null}
+        </View> : null}
       </View>
       <View>
         <MutationStatus mutation={reorder} reload={reorder.clear} success="Urutan bab tersimpan." />
@@ -298,6 +306,7 @@ export function CourseOverview({ data, fixture, liveChapterEditor, actor, naviga
           const chapterNumber = index + 1;
           const isExpanded = expanded === chapter.id;
           const editPending = liveChapterEditor?.save(course.id, chapter.id).pending();
+          const archiveTarget = chapterEdit ? liveChapterEditor?.archive?.(course.id, chapter.id) : undefined;
           const editTestId = `course-chapter-edit-${chapter.id}`;
           const summary = <>
             <View style={courseStyles.metadata}>
@@ -328,7 +337,8 @@ export function CourseOverview({ data, fixture, liveChapterEditor, actor, naviga
                   <View style={layout.row}>
                     <Action label="Dokumen" onPress={() => navigate(`${adminCoursePath(course.slug, "documents")}?chapter=${encodeURIComponent(chapter.id)}`)} />
                     <Action label="Bank soal" onPress={() => navigate(`${adminCoursePath(course.slug, "questions")}?chapter=${encodeURIComponent(chapter.id)}`)} />
-                    {fixture ? <Action label="Hapus bab" onPress={() => setDeleting(chapter)} variation="destructive" /> : null}
+                    {fixture || archiveTarget ? <Action label={archiveTarget?.pending() ? "Periksa penghapusan" : "Hapus bab"}
+                      testID={`course-chapter-archive-${chapter.id}`} onPress={() => setDeleting(chapter)} variation="destructive" /> : null}
                   </View>
                   {fixture && chapters.length > 1 ? (
                     <View style={layout.row}>
@@ -350,6 +360,10 @@ export function CourseOverview({ data, fixture, liveChapterEditor, actor, naviga
           target={liveChapterEditor.save(course.id, editing === "new" ? undefined : editing.id)}
           close={() => setEditing(null)} refresh={liveChapterEditor.refresh} />
       ) : null}
+      {ordering && orderTarget && liveChapterEditor && chapterEdit ? <LiveChapterOrder chapters={chapters}
+        revision={chapterEdit.revision} target={orderTarget} close={() => setOrdering(false)} refresh={liveChapterEditor.refresh} /> : null}
+      {deleting && liveChapterEditor?.archive && chapterEdit ? <LiveChapterArchive chapter={deleting} revision={chapterEdit.revision}
+        target={liveChapterEditor.archive(course.id, deleting.id)} close={() => setDeleting(null)} refresh={liveChapterEditor.refresh} /> : null}
       {fixture && deleting ? (
         <DeleteRecord title={deleting.title} actor={actor} data={fixture} close={() => setDeleting(null)}
           impact="Bab akan dihapus. Periksa dokumen, soal, dan kartu yang menggunakan bab ini."

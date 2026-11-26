@@ -8,7 +8,7 @@ type Entry<Draft> = PendingCourseWrite<Draft> & {
   operation?: Promise<AdminCourseEditResponse>;
 };
 
-type Method = "POST" | "PATCH";
+type Method = "POST" | "PATCH" | "DELETE";
 
 const retry = { status: "retry" } as const;
 const saved = { status: "saved" } as const;
@@ -22,7 +22,7 @@ export function createCourseCommandTarget<Draft extends object>(send: NonNullabl
     return {
       pending() {
         const entry = entries.get(key);
-        return entry ? { requestId: entry.requestId, confirmed: entry.confirmed, draft: { ...entry.draft } } : null;
+        return entry ? { requestId: entry.requestId, confirmed: entry.confirmed, draft: JSON.parse(entry.fingerprint) as Draft } : null;
       },
       async submit(draft, requestId, signal) {
         if (validate && !validate(draft)) return { status: "invalid" };
@@ -32,7 +32,7 @@ export function createCourseCommandTarget<Draft extends object>(send: NonNullabl
         if (previous && (previous.fingerprint !== fingerprint || previous.requestId !== requestId)) return retry;
         if (previous?.operation) return previous.operation;
 
-        const entry = previous ?? { requestId, fingerprint, draft: { ...draft }, confirmed: false };
+        const entry = previous ?? { requestId, fingerprint, draft: JSON.parse(fingerprint) as Draft, confirmed: false };
         entries.set(key, entry);
         const clear = () => {
           if (entries.get(key) === entry) entries.delete(key);
