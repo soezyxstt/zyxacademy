@@ -312,7 +312,7 @@ test("Admin course questions preserve fixed quiz links, historical references an
   expect((await command("native-question-create-other", create(other))).status).toBe(200);
   const id = "native-removable-course-question";
   const historical = "native-protected-course-question";
-  const bankRow = { courseId: course, prompt: "Berapa nilai x?", options: ["3", "5"], correctIndices: [0], reviewStatus: "published" as const };
+  const bankRow = { courseId: course, prompt: "Jika x + 2 = 5, berapa nilai x?", explanation: "Kurangi kedua sisi dengan dua.", options: ["3", "5"], correctIndices: [0], reviewStatus: "published" as const };
   await db.insert(tables.aiQuestionBank).values([
     { ...bankRow, id },
     { ...bankRow, id: historical, origin: "historical_reference" },

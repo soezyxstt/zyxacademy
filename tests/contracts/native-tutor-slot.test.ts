@@ -217,6 +217,7 @@ test("calendar deletion and week copy preserve ownership, slot revision and retr
 
 test("weekly slots retain selected courses, skip occupied weeks and replay the series", async () => {
   const { testDb } = database;
+  await testDb.insert(schema.mataKuliah).values({ id: "canonical-slot-course", code: "BIO-SLOT", title: "Biologi", legacyCourseId: "slot-course" });
   await testDb.insert(schema.tutorCourses).values({ id: "native-availability-assignment", tutorId: tutor, courseId: "slot-course" });
   const future = addCalendarDays(date, 35);
   await write({ ...fields, date: addCalendarDays(future, 7) }, { requestId: "existing-slot-second-week" });
