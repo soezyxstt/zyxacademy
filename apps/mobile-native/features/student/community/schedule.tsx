@@ -1,71 +1,9 @@
 import { useState } from "react";
 import { View, Share } from "react-native";
+import { CalendarSync } from "./calendar";
 import { Calendar, type CalendarDay, type CalendarEvent } from "../../shared-ui";
 import type { AgendaData, Booking, Group, NativeOperationResult, Schedule, Slot } from "../../../../../packages/native-parity/student/community/contracts";
-import { Action, Actions, Choices, Copy, Field, Notice, Page, Remote, Row, Rows, communityPath, dateLabel, operationResult, post, readJson, styles, useCommunity, useOperation, useRemote } from "./ui";
-
-function CalendarSync({ status, path, reload }: { status: AgendaData["sync"]; path: string; reload(): void }) {
-  const { request, nativeAuthScheme, openExternal, tr, session } = useCommunity();
-  const action = useOperation();
-  if (!status) return null;
-  const connect = () => void action.run(async () => {
-    const result = await post<{ url: string | null; nativeBrowser: boolean }>(request, "calendar-connect", { path, scheme: nativeAuthScheme });
-    if (!result.nativeBrowser || !result.url?.startsWith("/api/auth/native/google-link/start?")) throw new Error("Calendar connection unavailable");
-    openExternal?.(result.url);
-  });
-  return <>
-    <Actions>
-      {!status.connected || status.error === "reconnect" ?
-        nativeAuthScheme && openExternal && <Action label={tr("Hubungkan Google Calendar", "Connect Google Calendar")} busy={action.pending} onPress={connect} />
-        : <Action label={status.pending ? tr("Sinkronisasi berjalan", "Sync pending") : tr("Sinkronkan Google Calendar", "Sync Google Calendar")}
-          busy={action.pending} disabled={status.pending} onPress={() => void action.run(async () => {
-            operationResult(await post(request, "calendar-sync", {}));
-            reload();
-          })} />}
-      <Action label={tr("Perbarui status sinkronisasi", "Refresh sync status")} onPress={reload} disabled={action.pending} />
-    </Actions>
-    {status.lastSyncedAt && <Copy kind="muted">{tr("Terakhir disinkronkan", "Last synced")} {dateLabel(status.lastSyncedAt, session.locale, true)}</Copy>}
-    {status.error === "failed" && <Copy kind="error">{tr("Sinkronisasi belum berhasil.", "Sync failed.")}</Copy>}
-    <Notice notice={action.notice} />
-  </>;
-}
-
-export function CalendarScreen() {
-  const { navigate, openExternal, tr, session } = useCommunity();
-  const state = useRemote<AgendaData>(communityPath("calendar"));
-  const [filter, setFilter] = useState<"all" | "assessment" | "tutorial">("all");
-  const [showPast, setShowPast] = useState(false);
-  const categories = { quiz: tr("Kuis", "Quiz"), quizSimulation: tr("Kuis simulasi", "Simulation quiz"),
-    tryout: "Tryout", exam: tr("Ujian", "Exam"), tutorialGroup: tr("Tutorial kelompok", "Group tutorial") };
-  return <Page title={tr("Kalender", "Calendar")}>
-    <Actions><Action label={tr("Kelola jadwal tutorial", "Manage tutorial schedule")} onPress={() => navigate("/dashboard/schedule")} /></Actions>
-    <Choices value={filter} options={[{ value: "all", label: tr("Semua", "All") },
-      { value: "assessment", label: tr("Kuis dan tryout", "Quizzes and tryouts") }, { value: "tutorial", label: "Tutorial" }]}
-      onSelect={setFilter} />
-    <Remote state={state}>{data => {
-      const items = data.events.filter(event => filter === "all" || (filter === "tutorial" ? event.category === "tutorial" : event.category !== "tutorial"));
-      const past = items.filter(event => event.status === "past");
-      const active = items.filter(event => event.status !== "past");
-      const list = (events: typeof items) => <Rows>{events.map(event => <Row key={event.id}
-        title={event.title || event.tutorialTopic || categories[event.categoryLabel]}
-        meta={[event.courseTitle, event.tutorName, dateLabel(event.dateValue, session.locale, event.timeKind !== "range"), event.scheduledRange,
-          event.cancelled ? tr("Dibatalkan", "Cancelled") : null].filter(Boolean).join(" · ")}
-        aside={event.status === "today" ? tr("Hari ini", "Today") : undefined} onPress={() => navigate(event.actionUrl)}>
-        {event.meetUrl && openExternal && isHttps(event.meetUrl) && <Actions>
-          <Action label={tr("Buka Google Meet", "Open Google Meet")} onPress={() => openExternal(event.meetUrl!)} />
-        </Actions>}
-      </Row>)}</Rows>;
-      return <>
-        <CalendarSync status={data.sync} path="/calendar" reload={state.reload} />
-        {!items.length && <Copy kind="muted">{tr("Belum ada agenda.", "No events yet.")}</Copy>}
-        {list(active)}
-        {past.length > 0 && <Actions><Action label={showPast ? tr("Sembunyikan riwayat", "Hide past events") : tr("Agenda sebelumnya", "Past events")}
-          onPress={() => setShowPast(value => !value)} /></Actions>}
-        {showPast && list(past)}
-      </>;
-    }}</Remote>
-  </Page>;
-}
+import { Action, Actions, Choices, Copy, Field, Notice, Page, Remote, Row, Rows, communityPath, dateLabel, isHttps, operationResult, post, readJson, styles, useCommunity, useOperation, useRemote } from "./ui";
 
 function GroupDetails({ group, reload }: { group: Group; reload(): void }) {
   const { request, tr, navigate, session } = useCommunity();
@@ -145,10 +83,6 @@ export function GroupsScreen() {
   </Page>;
 }
 
-function isHttps(url: string) {
-  try { return /^https?:$/.test(new URL(url).protocol); }
-  catch { return false; }
-}
 type ScheduleAction = (body: object, success?: string, after?: () => void) => void;
 
 function SlotBooking({ slot, schedule, apply, pending }: { slot: Slot; schedule: Schedule; apply: ScheduleAction; pending: boolean }) {

@@ -8,7 +8,8 @@ import { AchievementsScreen, PetScreen } from "./achievements";
 import { DiscussionsScreen } from "./discussions";
 import { ProfileEditorScreen, ProfileScreen, PublicProfileScreen, ReflectionsScreen } from "./profile";
 import { CourseLeaderboardScreen, LeaderboardScreen } from "./ranking";
-import { CalendarScreen, GroupsScreen, ScheduleScreen } from "./schedule";
+import { CalendarScreen } from "./calendar";
+import { GroupsScreen, ScheduleScreen } from "./schedule";
 import { BrowserNotificationsScreen, FeedbackScreen, NotificationsScreen, SettingsScreen } from "./settings";
 import { CommunityProvider, Copy, Page, useCommunity } from "./ui";
 

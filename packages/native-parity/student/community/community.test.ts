@@ -1,7 +1,10 @@
 import { expect, test } from "bun:test";
 import { operationsCatalog } from "../../../../lib/admin-mcp/operations-catalog";
+import { describeAgendaEvent, groupCalendarEvents } from "../../../../lib/student/agenda-presentation";
+import { createStudentFixtureRequest } from "../fixture-request";
+import { calendarEvidence } from "./calendar-fixture";
 import { summarizeCourseLeaderboard } from "../../../../lib/student/course-leaderboard";
-import { communityRoutes, type CourseRanking } from "./contracts";
+import { communityRoutes, type AgendaData, type CourseRanking } from "./contracts";
 import { createCommunityFixtureRequest, isCommunityFixturePath } from "./fixtures";
 import { communityCases, studentCommunityAlias } from "./routes";
 
@@ -153,4 +156,27 @@ test("schedule recovery fails the primary read even when sync status starts firs
 test("learner community operations have an explicit MCP catalog exclusion", () => {
   const entry = operationsCatalog.find(item => item.source === "app/api/native/student/community/[operation]/route.ts");
   expect(entry).toMatchObject({ actions: ["GET", "POST"], tools: [], status: "excluded" });
+});
+
+test("calendar evidence uses Jakarta days and preserves category reset data", async () => {
+  for (const state of Object.values(calendarEvidence.states)) {
+    const request = createStudentFixtureRequest(state.scenario);
+    const response = await request(base + "calendar");
+    const data: AgendaData = await response.json();
+    expect(response.status).toBe(200);
+    expect(data.sync).toBeNull();
+    const { active, past } = groupCalendarEvents(data.events, state.category);
+    const list = [...active, ...past].flatMap(group => group.events);
+    expect(list.map(event => event.id)).toEqual(state.eventIds);
+    if (state.category === "all") {
+      expect(active.map(group => group.day)).toEqual(["2030-01-02"]);
+      expect(past.map(group => group.day)).toEqual(["2030-01-01"]);
+      expect(describeAgendaEvent(active[0].events[0], "id")).toEqual({
+        actionLabel: "doQuiz", quietAction: false, timeLabel: { key: "deadline", values: { time: "00.30" } },
+      });
+    }
+    if (state.eventIds.length === 0) {
+      expect(groupCalendarEvents(data.events, "all").active[0].events).toHaveLength(2);
+    }
+  }
 });

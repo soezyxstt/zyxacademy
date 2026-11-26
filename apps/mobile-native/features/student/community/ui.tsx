@@ -124,7 +124,7 @@ export function useOperation() {
   return { pending, notice, run };
 }
 
-export function Page({ title, children }: { title: string; children: ReactNode }) {
+export function Page({ title, headerAction, children }: { title: string; headerAction?: ReactNode; children: ReactNode }) {
   const { colors, initialScrollY, onScrollY } = useCommunity();
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
   const start = useRef(initialScrollY);
@@ -144,7 +144,10 @@ export function Page({ title, children }: { title: string; children: ReactNode }
     onScroll={event => onScrollY(event.nativeEvent.contentOffset.y)}
     scrollEventThrottle={16}
   >
-    <Text accessibilityRole="header" style={[styles.title, { color: colors.foreground }]}>{title}</Text>
+    {headerAction ? <View style={styles.compactHeader}>
+      <Text accessibilityRole="header" style={[styles.compactTitle, { color: colors.foreground }]}>{title}</Text>
+      {headerAction}
+    </View> : <Text accessibilityRole="header" style={[styles.title, { color: colors.foreground }]}>{title}</Text>}
     {children}
   </ScrollView>;
 }
@@ -231,6 +234,11 @@ export function Remote<T>({ state, children }: { state: ReturnType<typeof useRem
   return <ActivityIndicator color={colors.primary} accessibilityLabel={tr("Memuat", "Loading")} style={styles.loading} />;
 }
 
+export function isHttps(url: string) {
+  try { return /^https?:$/.test(new URL(url).protocol); }
+  catch { return false; }
+}
+
 export function dateLabel(value: string, locale: string, includeTime = false) {
   const date = new Date(value.length === 10 ? `${value}T00:00:00+07:00` : value);
   if (Number.isNaN(date.getTime())) return value;
@@ -242,6 +250,8 @@ export function dateLabel(value: string, locale: string, includeTime = false) {
 export const styles = StyleSheet.create({
   page: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 24, gap: 18, flexGrow: 1 },
   title: { ...nativeTypography.headingBold, fontSize: 24, lineHeight: 31 },
+  compactHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
+  compactTitle: { ...nativeTypography.headingSemibold, flex: 1, fontSize: 14, lineHeight: 20 },
   body: { ...nativeTypography.bodyRegular, fontSize: 14, lineHeight: 21 },
   heading: { ...nativeTypography.headingBold, fontSize: 17, lineHeight: 23 },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: 8, alignItems: "center" },

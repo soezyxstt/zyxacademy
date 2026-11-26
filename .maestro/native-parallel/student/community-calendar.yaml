@@ -11,13 +11,16 @@ name: Student calendar filters assessments and opens tutorial history
     visible: "Kuis limit"
     timeout: 30000
 - takeScreenshot: student-community-calendar-all
-- tapOn: "Tutorial"
+- tapOn:
+    id: student.calendar.filter
+- tapOn:
+    id: student.calendar.filter.tutorial
 - assertNotVisible: "Kuis limit"
-- tapOn: "Agenda sebelumnya"
-- assertVisible: "Fungsi komposisi"
+- assertVisible: "Riwayat"
+- assertVisible: "Tutorial: Fungsi komposisi"
 - takeScreenshot: student-community-calendar-history
 - openLink: "zyx-native-parity://student-fixture?scenario=empty&path=%2Fcalendar"
 - extendedWaitUntil:
-    visible: "Belum ada agenda."
+    visible: "Belum ada agenda terjadwal"
     timeout: 30000
 - takeScreenshot: student-community-calendar-empty

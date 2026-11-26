@@ -76,7 +76,7 @@ const events: AgendaData["events"] = [
   { id: "quiz-limit", title: "Kuis limit", category: "quiz", categoryLabel: "quiz", timeKind: "deadline", dateValue: "2026-11-27T05:00:00.000Z",
     courseTitle: subject.title, status: "upcoming", actionUrl: "/courses/matematika-1/quiz/latihan-fungsi" },
   { id: "tutorial-limit", title: "", category: "tutorial", categoryLabel: "tutorialGroup", timeKind: "range", dateValue: "2026-11-25T03:00:00.000Z",
-    scheduledRange: "10:00–11:00 WIB", tutorName: "Raisa Dewi", tutorialTopic: "Fungsi komposisi", courseTitle: subject.title, status: "past",
+    scheduledRange: "10:00 - 11:00", tutorName: "Raisa Dewi", tutorialTopic: "Fungsi komposisi", courseTitle: subject.title, status: "past",
     actionUrl: "/dashboard/schedule" },
 ];
 const reflections: Reflection[] = [{
@@ -132,7 +132,7 @@ function response(data: unknown, status = 200) {
 }
 
 /** State is private to each fixture transport. No operation falls through to a live origin. */
-export function createCommunityFixtureRequest(scenario: CommunityFixtureScenario = "loaded") {
+export function createCommunityFixtureRequest(scenario: CommunityFixtureScenario = "loaded", calendar?: AgendaData["events"]) {
   const populated = scenario !== "empty";
   let firstFailure = scenario === "unavailable";
   let member = populated;
@@ -310,6 +310,7 @@ export function createCommunityFixtureRequest(scenario: CommunityFixtureScenario
       case "group-rename": return response({ success: member, canRename: member, nextRenameAt: null });
       case "calendar-status":
       case "calendar": {
+        if (calendar && operation === "calendar") return response({ events: calendar, sync: null });
         const sync = { connected: true, pending: synced, lastSyncedAt: null, error: null };
         return response(operation === "calendar" ? { events: populated ? events : [], sync } : sync);
       }

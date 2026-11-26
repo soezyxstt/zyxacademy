@@ -10,8 +10,11 @@ name: Community calendar category and history
 - extendedWaitUntil:
     visible: "Kuis limit"
     timeout: 30000
-- tapOn: "Tutorial"
+- tapOn:
+    id: student.calendar.filter
+- tapOn:
+    id: student.calendar.filter.tutorial
 - assertNotVisible: "Kuis limit"
-- tapOn: "Agenda sebelumnya"
-- assertVisible: "Fungsi komposisi"
+- assertVisible: "Riwayat"
+- assertVisible: "Tutorial: Fungsi komposisi"
 - takeScreenshot: student-calendar-tutorial-history
