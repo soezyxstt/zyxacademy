@@ -3,7 +3,7 @@ import { View } from "react-native";
 import { cosmeticNameKeys } from "../../../../../packages/student-community/labels";
 import { DEFAULT_PET_ID, petForAction, petSupportsAction } from "../../../../../packages/student-community/pet-studio";
 import { getZyraAvatar } from "../../../../../packages/student-community/zyra-cosmetics";
-import { getZyraGlbMascot } from "../../../../../packages/student-community/zyra-glb-mascots";
+import { getZyraGlbMascot, type MascotPreviewAnimation } from "../../../../../packages/student-community/zyra-glb-mascots";
 import en from "../../../../../messages/en/student.json";
 import id from "../../../../../messages/id/student.json";
 import type { AchievementData, AchievementTab, Badge, CosmeticSlot, GamificationReward, GamificationSummary, PetData } from "../../../../../packages/native-parity/student/community/contracts";
@@ -48,7 +48,7 @@ function PetItemPreview({ item, pet, suit, close }: {
   item: GamificationReward; pet: string; suit?: string; close(): void;
 }) {
   const { session, tr } = useCommunity();
-  const [pose, setPose] = useState("idle");
+  const [pose, setPose] = useState<MascotPreviewAnimation>("idle");
   const previewPet = item.slot === "zyra_avatar" ? item.id : item.slot === "pet_action" ? petForAction(item.id) ?? pet : pet;
   const animations = item.slot === "zyra_avatar" ? getZyraGlbMascot(getZyraAvatar(previewPet)?.glbCharacter)?.previewAnimations : undefined;
   const copy = (session.locale === "en" ? en : id).cosmeticsStudio.actions;
