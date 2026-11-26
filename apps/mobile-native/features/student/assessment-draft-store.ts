@@ -82,7 +82,7 @@ export function createAssessmentDraftRepository(open: () => Promise<AssessmentDr
     }
 
     function checkKey(key: string): void {
-      if (key !== DISCUSSION_DRAFT_KEY && !(/^coding:(?:playground|live):/.test(key) && key.length <= 3000) && !validDraftKey.test(key)) throw new Error("Invalid assessment draft key");
+      if (key !== DISCUSSION_DRAFT_KEY && !(/^coding:(?:playground|live|article:pending):/.test(key) && key.length <= 3000) && !validDraftKey.test(key)) throw new Error("Invalid assessment draft key");
     }
 
     async function read(db: AssessmentDraftDatabase, key: string) {

@@ -181,3 +181,15 @@ test("discussion drafts share the scoped database, serialize changes and purge o
   expect(await exact.get(DISCUSSION_DRAFT_KEY)).toBeNull();
   expect(await english.get(DISCUSSION_DRAFT_KEY)).toBeNull();
 });
+
+test("an Article grading retry survives native draft database reopen and clears on logout", async () => {
+  const disk = sqlite();
+  const pending = "coding:article:pending:" + JSON.stringify(["course", "article", 3, "exercise", "a".repeat(64)]);
+  await disk.create().bind(primary, valid).drafts.update!(pending, () => JSON.stringify({ requestId: "article-attempt" }));
+  const reopened = disk.create();
+  const exact = reopened.bind(primary, valid).drafts;
+  expect(await exact.get(pending)).toBe(JSON.stringify({ requestId: "article-attempt" }));
+  expect(await exact.get(pending.replace("exercise", "next-exercise"))).toBeNull();
+  await reopened.purgeSession(primary);
+  expect(await exact.get(pending)).toBeNull();
+});

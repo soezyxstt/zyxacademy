@@ -62,3 +62,18 @@ test("an uncertain submission retains its original payload and cannot clear anot
   await releaseArticleSubmission(store, "key", submission);
   expect(await store.get()).toBeNull();
 });
+
+test("attempt history is scoped to the exercise signature and projects only public feedback", async () => {
+  let path = "";
+  let contents: unknown = { attempts: [{ id: "attempt", ordinal: 1, status: "pending", code: "print(1)", feedback: null }] };
+  const request: StudentRequest = async requested => { path = requested; return Response.json(contents); };
+  const api = articleCodingApi(request, "course", "article", 2, "exercise");
+  expect(await api.history(problem, signal)).toMatchObject([{ id: "attempt", ordinal: 1 }]);
+  const query = new URL(path, "https://app.example").searchParams;
+  expect(query.get("problemId")).toBe("problem");
+  expect(JSON.parse(query.get("surface")!)).toEqual({ kind: "article", articleId: "article", articleVersion: 2, partId: "exercise" });
+  contents = { attempts: [{ id: "private", status: "failed", ordinal: 1, code: "", feedback: { problem: locator,
+    authority: "trusted_server", verdict: "incorrect", passed: 0, total: 1, publicCases: [{ testId: "hidden", passed: false,
+      execution: { status: "completed", stdout: "private", stderr: "", truncated: false } }] } }] };
+  await expect(api.history(problem, signal)).rejects.toThrow("Coding feedback identity mismatch.");
+});

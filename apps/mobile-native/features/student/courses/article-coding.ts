@@ -4,15 +4,26 @@ import { nativeArticleCodingHeader, type NativeArticleCodingScope } from "../../
 import { personalAccountSessionHeader } from "../../../../../packages/student-community/account-access";
 import type { StudentRequest, StudentServices, StudentSession } from "../contracts";
 
+const feedbackSchema = z.object({
+  problem: codingLocatorSchema, authority: z.literal("trusted_server"),
+  verdict: z.enum(["correct", "partial", "incorrect", "ungradable"]),
+  passed: z.number().int().nonnegative(), total: z.number().int().nonnegative(),
+  publicCases: z.array(z.object({ testId: z.string(), passed: z.boolean(), execution: executionResultSchema }).strict()).max(20),
+}).strict().nullable();
 const receipt = z.object({
-  attemptId: z.string().min(1), ordinal: z.number().int().positive(),
-  feedback: z.object({
-    problem: codingLocatorSchema, authority: z.literal("trusted_server"),
-    verdict: z.enum(["correct", "partial", "incorrect", "ungradable"]),
-    passed: z.number().int().nonnegative(), total: z.number().int().nonnegative(),
-    publicCases: z.array(z.object({ testId: z.string(), passed: z.boolean(), execution: executionResultSchema }).strict()).max(20),
-  }).strict().nullable(),
+  attemptId: z.string().min(1), ordinal: z.number().int().positive(), feedback: feedbackSchema,
 }).strict();
+const history = z.object({ attempts: z.array(z.object({
+  id: z.string().min(1), ordinal: z.number().int().positive(), status: z.enum(["pending", "failed", "completed"]),
+  code: z.string().max(64_000), feedback: feedbackSchema,
+}).strict()).max(20) }).strict();
+type Problem = z.infer<typeof codingProblemPublicSchema>;
+
+function checkFeedback(problem: Problem, feedback: z.infer<typeof feedbackSchema>) {
+  if (feedback && (feedback.problem.problemId !== problem.problemId || feedback.problem.version !== problem.version ||
+    feedback.passed > feedback.total || feedback.total > 20 ||
+    feedback.publicCases.some(row => !problem.publicTests.some(test => test.id === row.testId)))) throw new Error("Coding feedback identity mismatch.");
+}
 
 export function articleCodingRequest(request: StudentRequest, session: StudentSession, scope: NativeArticleCodingScope): StudentRequest {
   return (path, init) => {
@@ -47,13 +58,16 @@ export function articleCodingApi(request: StudentRequest, courseId: string, arti
       if (problem.problemId !== locator.problemId || problem.version !== locator.version) throw new Error("Problem identity mismatch.");
       return problem;
     },
-    async submit(problem: z.infer<typeof codingProblemPublicSchema>, input: z.infer<typeof codingSubmissionRequestSchema>, signal: AbortSignal) {
+    async history(problem: Problem, signal: AbortSignal) {
+      const query = new URLSearchParams({ courseId, problemId: problem.problemId, version: String(problem.version), surface: JSON.stringify(surface) });
+      const { attempts } = history.parse(await read(`/api/coding/submissions?${query}`, signal));
+      for (const row of attempts) checkFeedback(problem, row.feedback);
+      return attempts;
+    },
+    async submit(problem: Problem, input: z.infer<typeof codingSubmissionRequestSchema>, signal: AbortSignal) {
       if (problem.problemId !== input.problem.problemId || problem.version !== input.problem.version) throw new Error("Submission identity mismatch.");
       const result = receipt.parse(await read("/api/coding/submissions", signal, { courseId, surface, submission: codingSubmissionRequestSchema.parse(input) }));
-      const feedback = result.feedback;
-      if (feedback && (feedback.problem.problemId !== problem.problemId || feedback.problem.version !== problem.version ||
-        feedback.passed > feedback.total || feedback.total > 20 ||
-        feedback.publicCases.some(row => !problem.publicTests.some(test => test.id === row.testId)))) throw new Error("Coding feedback identity mismatch.");
+      checkFeedback(problem, result.feedback);
       return result;
     },
   };

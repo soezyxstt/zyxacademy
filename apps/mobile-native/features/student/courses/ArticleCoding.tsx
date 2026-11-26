@@ -17,7 +17,9 @@ import { articleCodingApi, ArticleCodingError, articleCodingRequest, releaseArti
 
 export type CodingItem = ReturnType<typeof sectionCodingParts>[number];
 const row = { flexDirection: "row" as const, flexWrap: "wrap" as const, gap: 8 };
-type Result = Awaited<ReturnType<ReturnType<typeof articleCodingApi>["submit"]>>;
+type Api = ReturnType<typeof articleCodingApi>;
+type Result = Awaited<ReturnType<Api["submit"]>>;
+type History = Awaited<ReturnType<Api["history"]>>;
 
 export function ArticleCoding({ item, courseId, articleId, version, scope, request, session, drafts, theme, close }: {
   item: CodingItem; courseId: string; articleId: string; version: number; scope: NativeArticleCodingScope;
@@ -34,7 +36,8 @@ export function ArticleCoding({ item, courseId, articleId, version, scope, reque
   const [draft, setDraft] = useState<PlaygroundDraft>();
   const [problem, setProblem] = useState<CodingProblemPublic>();
   const [conflict, setConflict] = useState(false);
-  const [operation, setOperation] = useState<"run" | "save" | "submit">();
+  const [operation, setOperation] = useState<"run" | "save" | "submit" | "history">();
+  const [history, setHistory] = useState<History>();
   const [output, setOutput] = useState("");
   const [line, setLine] = useState("");
   const [running, setRunning] = useState(false);
@@ -63,7 +66,7 @@ export function ArticleCoding({ item, courseId, articleId, version, scope, reque
     return () => { load.abort(); active.current?.abort(); active.current = null; sendInput.current = null; };
   }, [api, attempt, canInteract, drafts, id, owner, part, pendingKey, scoped]);
 
-  async function act(action: "run" | "save" | "submit") {
+  async function act(action: NonNullable<typeof operation>) {
     if (!draft || active.current || !canInteract()) return;
     const controller = new AbortController();
     active.current = controller;
@@ -82,7 +85,8 @@ export function ArticleCoding({ item, courseId, articleId, version, scope, reque
           limits: problem?.limits ?? { timeoutMs: 5000, maxOutputChars: 8000 }, signal: controller.signal });
         if (current()) {
           setOutput([executed.stdout, executed.stderr].filter(Boolean).join("\n"));
-          if (executed.status === "completed" && !executed.stdout && !executed.stderr) setNotice(id ? "Selesai tanpa keluaran." : "Finished without output.");
+          if (executed.status === "unavailable") setNotice(id ? "Python belum tersedia." : "Python is unavailable.");
+          else if (executed.status === "completed" && !executed.stdout && !executed.stderr) setNotice(id ? "Selesai tanpa keluaran." : "Finished without output.");
         }
       } else if (action === "save") {
         const saved = await savePlaygroundDraft(scoped, owner, draft, controller.signal);
@@ -92,7 +96,10 @@ export function ArticleCoding({ item, courseId, articleId, version, scope, reque
           setDraft({ ...draft, revision: saved.revision });
           setNotice(id ? "Draf tersimpan." : "Draft saved.");
         }
-      } else if (problem && drafts) {
+      } else if (action === "history" && problem) {
+        const attempts = await api.history(problem, controller.signal);
+        if (current()) setHistory(attempts);
+      } else if (action === "submit" && problem && drafts) {
         const proposed = pending ?? { problem: { problemId: problem.problemId, version: problem.version }, code: draft.code, stdin: draft.stdin, requestId: randomUUID() };
         const submission = await reserveArticleSubmission(drafts, pendingKey, proposed);
         if (!current()) return;
@@ -102,7 +109,7 @@ export function ArticleCoding({ item, courseId, articleId, version, scope, reque
         const response = await api.submit(problem, submission, controller.signal);
         if (!current()) return;
         if (!response.feedback) setNotice(id ? "Hasil belum tersedia. Periksa lagi." : "The result is pending. Check again.");
-        else { await releaseArticleSubmission(drafts, pendingKey, submission); if (current()) { setPending(undefined); setResult(response); } }
+        else { await releaseArticleSubmission(drafts, pendingKey, submission); if (current()) { setPending(undefined); setResult(response); setHistory(undefined); } }
       }
     } catch (error) {
       if (current()) {
@@ -144,6 +151,9 @@ export function ArticleCoding({ item, courseId, articleId, version, scope, reque
           {id ? "Simpan draf" : "Save draft"}</Button>
         {problem && drafts?.update && <Button theme={theme} variant="outline" disabled={Boolean(operation) || !draft.code.trim()} onPress={() => void act("submit")}>
           {pending ? id ? "Periksa hasil" : "Check result" : id ? "Kirim jawaban" : "Submit answer"}</Button>}
+        {problem && <Button theme={theme} variant="outline" disabled={Boolean(operation)}
+          onPress={() => history ? setHistory(undefined) : void act("history")}>
+          {history ? id ? "Sembunyikan riwayat" : "Hide history" : id ? "Riwayat percobaan" : "Attempt history"}</Button>}
       </View>
       {running && <View style={row}>
         <Input accessibilityLabel={id ? "Masukan terminal" : "Terminal input"} value={line} onChangeText={setLine}
@@ -152,6 +162,19 @@ export function ArticleCoding({ item, courseId, articleId, version, scope, reque
           {id ? "Kirim masukan" : "Send input"}</Button>
       </View>}
       {output ? <PythonOutput content={output} /> : null}
+      {history && <View style={{ gap: 6 }}>
+        {history.length === 0 && <Text style={{ color: colors.foreground }}>{id ? "Belum ada percobaan." : "No attempts yet."}</Text>}
+        {history.map(attempt => <View key={attempt.id} style={{ gap: 4, borderTopWidth: 1, borderColor: colors.border, paddingVertical: 6 }}>
+          <Text style={{ color: colors.foreground }}>
+            {id ? "Percobaan" : "Attempt"} {attempt.ordinal} · {attempt.feedback && attempt.feedback.verdict !== "ungradable"
+              ? `${attempt.feedback.passed}/${attempt.feedback.total}`
+              : attempt.status === "pending" ? id ? "Sedang diperiksa" : "Pending" : id ? "Belum dinilai" : "Ungraded"}
+          </Text>
+          <Button theme={theme} variant="ghost" disabled={Boolean(operation) || Boolean(pending)} onPress={() => {
+            if (canInteract()) { setDraft({ ...draft, code: attempt.code }); setOutput(""); }
+          }}>{id ? "Buka kode" : "Load code"}</Button>
+        </View>)}
+      </View>}
       {result?.feedback && <View style={{ gap: 6 }}>
         <Text accessibilityLiveRegion="polite" style={{ color: colors.foreground }}>
           {result.feedback.verdict === "ungradable" ? id ? "Kode belum dapat dinilai." : "The code could not be graded."
