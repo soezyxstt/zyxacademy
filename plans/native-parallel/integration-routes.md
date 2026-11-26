@@ -46,3 +46,9 @@ The stack uses Expo's staging session identity and leaves MCP tools, authorizati
 The mounted Student routes use the shared mobile navbar and five Student destinations with the same Indonesian and English labels as the web. The bar follows the current URL and stays out of active assessment and flashcard sessions, reader and playground routes, live sessions, and individual discussion threads. Course and document filters update the existing entry so typing and scroll position can continue across query changes. The Student bell reads the verified account’s unread count and latest 20 visible notifications. The popover supports acknowledging one or all visible notifications. Navigation checks the active role and installed route. Search, the account menu, and course switching still need wiring.
 
 This navigation only connects existing UI routes. It introduces no new HTTP operation or MCP capability. Focused checks cover route targets, selection, visibility, and query patches. Device and visual verification remain pending.
+
+### Tutor and Admin navigation
+
+The integrated Academic and Operations routes mount the shared navbar and role destinations after checking the current account. Admin More uses the web's module categories and shows only installed routes available to the verified roles. Tutor Classes reads the current tutor's assigned courses through the existing Academic dashboard adapter. A single course opens directly. Multiple courses can be selected in a sheet. Editors and active inline grading, discussion, and live views retain the applicable mobile visibility rules.
+
+Search, staff notifications, account menus, Admin pins, and course sub-tabs remain outside this mount. The shell uses the existing session, API, and MCP contracts. Focused checks cover navigation and scope. Authenticated Android and iOS interaction and visual verification remain pending.

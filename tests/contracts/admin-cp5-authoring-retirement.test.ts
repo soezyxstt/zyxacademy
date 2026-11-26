@@ -86,7 +86,7 @@ describe("CP5: Retirement of browser manual authoring and clean global navigatio
       expect(sidebar).not.toContain("/admin/materials/manual");
       expect(sidebar).not.toContain("/admin/authoring-context");
 
-      const mobileNavbar = source("components/mobile-navbar.tsx");
+      const mobileNavbar = source("components/mobile-navbar.tsx") + source("components/navigation/route-title-model.ts");
       expect(mobileNavbar).not.toContain('"Upload Manual"');
       expect(mobileNavbar).not.toContain('"Authoring Context"');
 

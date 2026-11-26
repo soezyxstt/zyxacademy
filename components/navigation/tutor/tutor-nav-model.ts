@@ -1,5 +1,11 @@
 export type TutorBottomNavTabId = "home" | "schedule" | "discuss" | "classes";
 
+export const tutorMobileHrefs = {
+  home: "/tutor",
+  schedule: "/tutor/schedule",
+  discuss: "/tutor/discussions",
+} as const satisfies Record<Exclude<TutorBottomNavTabId, "classes">, string>;
+
 export interface TutorCourseSummary {
   courseId: string;
   title: string;
