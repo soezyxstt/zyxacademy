@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
         const { items, nextCursor } = await listReports(admin.user.id, cursor);
         return reply({
           items: items.map(report => ({ id: report.id, threadId: report.threadId, messageId: report.messageId,
-            title: report.threadTitle, reason: report.reason, status: report.status })),
+            title: report.threadTitle, reason: report.reason, reporterName: report.reporter.name, createdAt: report.createdAt, status: report.status })),
           nextCursor: nextCursor ?? undefined,
         });
       }

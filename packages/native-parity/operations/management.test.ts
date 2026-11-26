@@ -99,3 +99,14 @@ test("Admin discussion deep links bind the exact thread and message to the exist
   ]);
   expect(calls.map(({ method, account }) => [method, account])).toEqual([["GET", "ops-account"], ["GET", "ops-account"]]);
 });
+
+test("moderators may repeat a report decision and cannot overwrite a different final decision", async () => {
+  const client = createManagementFixture();
+  const report = (await client.read("discussionReports", {})).items[0];
+  const approve = { type: "discussion.moderate-report", status: "resolved", id: report.id } as const;
+  expect(await client.mutate(approve, "report-action")).toEqual({ id: report.id });
+  expect(await client.mutate(approve, "repeat-report")).toEqual({ id: report.id });
+  expect((await client.read("discussionReports", {})).items[0].status).toBe("resolved");
+  await expect(client.mutate({ ...approve, status: "dismissed" }, "other")).rejects.toMatchObject({ code: "conflict" });
+  await expect(createManagementFixture({ admin: false }).mutate(approve, "denied")).rejects.toMatchObject({ code: "forbidden" });
+});

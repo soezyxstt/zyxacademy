@@ -94,7 +94,7 @@ export type DiscussionPage = ManagementPage<DiscussionMessage> & {
   thread?: DiscussionThread; observationReceipt?: string; throughSeq?: number; previousCursor?: string;
 };
 export type DiscussionReportSummary = {
-  id: string; threadId: string; messageId: string; title: string; reason: string; status: "pending" | "resolved" | "dismissed";
+  id: string; threadId: string; messageId: string; title: string; reason: string; reporterName?: string; createdAt?: string; status: "pending" | "resolved" | "dismissed";
 };
 export type LinkFields = { title: string; url: string; description: string; category: string; icon: string; color: string; isActive: boolean };
 export type PublicLink = LinkFields & { id: string; sortOrder: number };
@@ -125,6 +125,7 @@ export type ManagementAction =
   | { type: "meet.create"; title: string; slug: string; accessType: "OPEN" | "TRUSTED" | "RESTRICTED"; invitedEmails: string[] }
   | { type: "meet.end"; spaceName: string }
   | { type: "meet.delete"; id: string }
+  | { type: "discussion.moderate-report"; id: string; status: "resolved" | "dismissed" }
   | { type: "discussion.resolve"; id: string; resolved: boolean }
   | { type: "discussion.reply"; id: string; body: string }
   | { type: "discussion.read"; id: string; throughSeq: number; observationReceipt: string; messageIds: string[] }

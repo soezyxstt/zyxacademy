@@ -49,3 +49,5 @@ PARITY_CHROMIUM_EXECUTABLE=/usr/bin/chromium node --import tsx tests/visual/nati
 ```
 
 Enam PNG tersimpan. Lima dibuat pada viewport 380 × 844 DPR 1, termasuk editor formulir, daftar kosong, ringkasan respons, daftar dokumentasi, dan artikel dokumentasi gelap. Capture editor tambahan memakai viewport 402 × 874 DPR 3. Fixture editor mengukur lebar scroll 521 px pada kedua viewport. Daftar berisi belum mencapai data fixture saat batas tunggu. Percobaan berikutnya juga melewati batas tunggu hidrasi dan dihentikan agar capture lain dapat berjalan. [Manifest capture](../../../tests/visual/native-parallel/operations/references/management-reference-results.json)
+
+Admin dapat menyelesaikan atau menolak laporan diskusi yang masih menunggu. Operasi memakai layanan moderasi web yang memeriksa izin pesan di dalam transaksi. Keputusan yang sama dapat diulang. Jika moderator lain sudah mengambil keputusan berbeda, muat ulang antrean untuk melihat hasilnya.

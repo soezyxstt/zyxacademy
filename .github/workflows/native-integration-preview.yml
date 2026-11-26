@@ -233,6 +233,9 @@ jobs:
         run: |
           bun scripts/test-contracts.ts tests/contracts/native-admin-course-management.test.ts tests/contracts/native-tutor-slot.test.ts tests/contracts/native-tryout-draft.test.ts
           bun test packages/native-parity/academic/assessment/read-handler.test.ts
+      - name: Admin operations management access and report moderation
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: bun tests/integration/operations-management-reads.mjs
       - name: Account connection management and OAuth consent
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: bun tests/integration/authoring-oauth-consent.ts

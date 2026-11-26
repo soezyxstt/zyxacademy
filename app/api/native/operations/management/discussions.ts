@@ -1,10 +1,11 @@
 import { z } from "zod";
-import { markRead, reply, setResolved } from "@/lib/discussions/service";
+import { markRead, reply, resolveReport, setResolved } from "@/lib/discussions/service";
 import { ManagementFailure } from "@/packages/native-parity/operations/management-contract";
 
 const id = z.string().min(1).max(160);
 const operations = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("discussion.reply"), id, body: z.string().trim().min(1).max(12_000) }),
+  z.strictObject({ type: z.literal("discussion.moderate-report"), id, status: z.enum(["resolved", "dismissed"]) }),
   z.strictObject({ type: z.literal("discussion.resolve"), id, resolved: z.boolean() }),
   z.strictObject({ type: z.literal("discussion.read"), id, throughSeq: z.number().int().nonnegative(), observationReceipt: z.string().min(1).max(50_000), messageIds: z.array(id).max(100) }),
 ]);
@@ -22,6 +23,9 @@ export async function nativeDiscussionMutation(actorId: string, requestKey: stri
         const result = await reply(actorId, { threadId: action.id, messageType: "answer", body: action.body, attachmentIds: [], mentionIds: [], askZyra: false, requestId });
         return { id: result.messageId };
       }
+      case "discussion.moderate-report":
+        await resolveReport(actorId, action.id, action.status);
+        return { id: action.id };
       case "discussion.resolve":
         await setResolved(actorId, action.id, action.resolved);
         return { id: action.id };

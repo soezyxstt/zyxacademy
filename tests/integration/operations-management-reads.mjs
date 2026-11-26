@@ -4,7 +4,7 @@ import { NextRequest } from "next/server";
 import { eq } from "drizzle-orm";
 import { createPostgresTestDb } from "../helpers/postgres";
 import { PERAN_SEEDS } from "../../lib/auth/peran";
-import { blogArticles, customFormPresets, discussionChannels, discussionMessages, discussionReports, discussionThreads, penggunaPeran, peran, user } from "../../db/schema";
+import { blogArticles, customFormPresets, discussionChannels, discussionMessages, discussionReports, discussionThreads, penggunaPeran, peran, session, user } from "../../db/schema";
 const { client, testDb } = await createPostgresTestDb();
 let current = null,
   googleCalls = 0;
@@ -12,7 +12,7 @@ mock.module("server-only", () => ({}));
 mock.module("@/db", () => ({ db: testDb }));
 mock.module("@/lib/db", () => ({ db: testDb }));
 mock.module("@/lib/auth-session", () => ({
-  getAuthSession: async () => current && { user: current },
+  getAuthSession: async () => current && { user: current, session: { id: current.id + "-session" } },
 }));
 mock.module("@/lib/google-meet", () => ({
   listConferenceRecords: async () => {
@@ -26,7 +26,7 @@ mock.module("@/lib/google-meet", () => ({
 }));
 let count = 0;
 try {
-  const { GET } = await import(
+  const { GET, POST } = await import(
     "../../app/api/native/operations/management/route"
   );
   const check = async (view, expected, id, account = current?.id, details = {}) => {
@@ -128,14 +128,31 @@ try {
     { id: "older/reply", threadId: thread.id, authorId: current.id, kind: "human", messageType: "answer", body: "The linked answer", seq: 2, requestId: "second-request" },
   ];
   await testDb.insert(discussionMessages).values(messages);
-  await testDb.insert(discussionReports).values({ id: "ops-link-report", messageId: messages[1].id, reporterId: "manage-student", reason: "Review this" });
+  const createdAt = new Date("2026-01-02T13:00:00Z");
+  await testDb.insert(discussionReports).values({ createdAt, id: "ops-link-report", messageId: messages[1].id, reporterId: "manage-student", reason: "Review this" });
   const page = await check("discussion", 200, thread.id, current.id, { message: messages[1].id });
   assert.equal(page.thread.title, thread.title);
   assert.deepEqual(page.items.map(item => item.id), [messages[1].id]);
   assert.ok(page.observationReceipt);
   assert.deepEqual((await check("discussion-reports", 200)).items, [
-    { id: "ops-link-report", messageId: messages[1].id, threadId: thread.id, title: thread.title, reason: "Review this", status: "pending" },
+    { id: "ops-link-report", messageId: messages[1].id, threadId: thread.id, title: thread.title, reason: "Review this", reporterName: "student", createdAt: createdAt.toISOString(), status: "pending" },
   ]);
+  await testDb.insert(session).values({ id: current.id + "-session", userId: current.id, token: "moderator-local", expiresAt: new Date(Date.now() + 3600_000) });
+  const moderate = async (id, status, expected, sessionId = current.id + "-session") => {
+    const response = await POST(new NextRequest("http://example.invalid/api/native/operations/management", {
+      method: "POST", headers: { "content-type": "application/json", "x-native-operations-user-id": current.id,
+        "x-native-operations-session-id": sessionId }, body: JSON.stringify({ type: "discussion.moderate-report", id, status }),
+    }));
+    assert.equal(response.status, expected);
+  };
+  await moderate("ops-link-report", "resolved", 403, "retired-session");
+  await moderate("missing-report", "resolved", 404);
+  await moderate("ops-link-report", "dismissed", 200);
+  await moderate("ops-link-report", "dismissed", 200);
+  await moderate("ops-link-report", "resolved", 409);
+  const [decision] = await testDb.select().from(discussionReports).where(eq(discussionReports.id, "ops-link-report"));
+  assert.equal(decision.status, "dismissed");
+  assert.equal(decision.resolvedById, current.id);
   await check("discussion", 404, thread.id, current.id, { message: "other-thread-message" });
 
   await check("meetings", 200);

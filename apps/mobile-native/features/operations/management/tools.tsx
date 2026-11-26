@@ -195,14 +195,24 @@ function DiscussionReports({ open, pages }: {
 }) {
   const { locale } = useManagement();
   const en = locale === "en";
+  const action = useAction();
   const reports = useRead("discussionReports", { cursor: pages.cursor });
   const status = { pending: en ? "Pending" : "Menunggu", resolved: en ? "Resolved" : "Selesai", dismissed: en ? "Dismissed" : "Ditolak" };
   return <>
     <LoadState {...reports} retry={reports.reload} />
+    <Feedback {...action} />
+    {action.error ? <Action onPress={reports.reload}>{en ? "Reload reports" : "Muat ulang laporan"}</Action> : null}
     {reports.data && <Section>
       {!reports.data.items.length && <Copy muted>{en ? "No reports yet." : "Belum ada laporan."}</Copy>}
       {reports.data.items.map(report => <Item key={report.id} title={report.title}
-        meta={`${status[report.status]} · ${report.reason}`} onPress={() => open({ thread: report.threadId, message: report.messageId })} />)}
+        meta={[status[report.status], report.reporterName, report.reason, report.createdAt && formatTimestamp(report.createdAt, locale)].filter(Boolean).join(" · ")}
+        onPress={() => open({ thread: report.threadId, message: report.messageId })}
+        actions={report.status === "pending" ? <View style={styles.row}>
+          <Action busy={action.busy} onPress={() => action.run({ type: "discussion.moderate-report", id: report.id, status: "resolved" },
+            reports.reload, en ? "Report resolved." : "Laporan diselesaikan.")}>{en ? "Resolve" : "Selesaikan"}</Action>
+          <Action busy={action.busy} onPress={() => action.run({ type: "discussion.moderate-report", id: report.id, status: "dismissed" },
+            reports.reload, en ? "Report dismissed." : "Laporan ditolak.")}>{en ? "Dismiss" : "Tolak"}</Action>
+        </View> : undefined} />)}
       <Pagination {...pages} next={reports.data.nextCursor} />
     </Section>}
   </>;

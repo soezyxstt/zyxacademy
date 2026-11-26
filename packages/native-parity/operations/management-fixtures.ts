@@ -1,6 +1,6 @@
 import {
   ManagementFailure, articleTitle, formPresetPageSize, managementRoutes, managementSlug, validateArticle, validateForm, validateFormSettings,
-  type Article, type FormPreset, type DiscussionMessage, type DiscussionThread, type FormDetails, type ManagementAction, type ManagementClient,
+  type Article, type FormPreset, type DiscussionReportSummary, type DiscussionMessage, type DiscussionThread, type FormDetails, type ManagementAction, type ManagementClient,
   type ManagementMode, type ManagementReads, type ManagementReceipt, type MediaFile, type MeetingDetails,
   type MeetingDirectory, type MeetingSpace, type PricingData, type PublicLink, type Voucher,
 } from "./management-contract";
@@ -83,6 +83,8 @@ export function createManagementFixture({ mode = "populated", admin = true }: Ma
   const meetings = data ? clone(initialMeetings) : [];
   const threads = data ? clone(initialThreads) : [];
   const messages = data ? clone(initialMessages) : {};
+  const reports: DiscussionReportSummary[] = data ? [{ id: "report-local", threadId: threads[0].id, messageId: messages[threads[0].id][0].id,
+    title: threads[0].title, reason: "Periksa isi pesan", status: "pending", reporterName: "Murid", createdAt: now }] : [];
   const discussionsReadThrough = new Map<string, number>();
   const links = data ? clone(initialLinks) : [];
   const pricing = clone(initialPricing);
@@ -125,7 +127,7 @@ export function createManagementFixture({ mode = "populated", admin = true }: Ma
       if (start < 0) throw new ManagementFailure("not-found");
       return { items: items.slice(start), thread, observationReceipt: `discussion-fixture-${id}`, throughSeq: discussionsReadThrough.get(id) ?? 0 };
     },
-    discussionReports: () => ({ items: [] }),
+    discussionReports: () => ({ items: reports }),
     pricing: () => pricing,
     links: () => links.slice().sort((a, b) => a.sortOrder - b.sortOrder),
   };
@@ -250,6 +252,12 @@ export function createManagementFixture({ mode = "populated", admin = true }: Ma
       case "meet.delete": {
         meetings.splice(meetings.indexOf(reads.meeting(action.id)), 1);
         return { id: action.id };
+      }
+      case "discussion.moderate-report": {
+        const report = required(reports.find(item => item.id === action.id));
+        if (report.status !== "pending" && report.status !== action.status) throw new ManagementFailure("conflict");
+        report.status = action.status;
+        return { id: report.id };
       }
       case "discussion.resolve": {
         const thread = required(threads.find(item => item.id === action.id));
