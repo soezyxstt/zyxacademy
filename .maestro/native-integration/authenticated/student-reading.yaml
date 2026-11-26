@@ -29,4 +29,3 @@ name: Student reads a published Article and registered PKA Diktat
     visible: ".*Isi diktat PKA versi tiga.*"
     timeout: 30000
 - tapOn: "(Kembali|Back)"
-- runFlow: student-pdf-controls.yaml

@@ -324,7 +324,8 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
         return response;
       }
       if (previewReading && browserIdentity && (request.method === "GET" || request.method === "HEAD" ||
-        route === "POST /api/native/student/reading/learning")) {
+        route === "POST /api/native/student/reading/learning" || route === "POST /api/native/student/reading" ||
+        route === "POST /api/native/student/material-pdf")) {
         const identity = browserIdentity;
         const response = await requestContext.run(upstream, () => previewReading.handle(upstream, identity));
         if (response) return response;

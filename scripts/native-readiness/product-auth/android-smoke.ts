@@ -244,8 +244,10 @@ try {
   } else {
     step = "complete browser login, open the Student dashboard and mark a notification read";
     await runFlow("student", ["-e", `PREVIEW_CLAIM=${fixture.claim}`, "-e", `PREVIEW_INBOX_ROW=student-inbox-row-${notificationId}`]);
-    step = "read the admitted Article and registered PKA Diktat, then use private PDF previews, notes and search";
+    step = "read the admitted Article and registered PKA Diktat";
     await runFlow("student-reading");
+    step = "open the private PDF and use previews, notes and search";
+    await runFlow("student-pdf-controls");
     if (!fixture.verifiedOnlinePdfSearch()) throw new Error("The signed PDF search did not return its page-scoped match");
     console.log("Android previewed a private PDF page, reopened its note and bookmark, and jumped to its authorized text match");
     step = "withdraw the runner-only enrollment and PKA registration";

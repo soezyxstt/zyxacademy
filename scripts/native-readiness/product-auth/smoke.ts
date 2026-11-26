@@ -8,7 +8,7 @@ import { NATIVE_AUTH_HANDOFF_COOKIE } from "@/lib/native/auth-handoff";
 import { EXPO_ANDROID_BROWSER_RETURN, EXPO_ANDROID_BROWSER_RETURN_HEADER, EXPO_STAGING_ORIGIN, EXPO_STAGING_SCHEME } from "@/lib/native/expo-auth-config";
 import { course, video, privateVideoPath } from "./video-fixture";
 import { notificationId } from "./inbox-fixture";
-import { articleId, articleSectionId, formativeBlockId, generatedArticleId, imagePath, legacyArticleId, pdfId, pkaCourseId, pkaDiktatId, readingCourseId } from "./reading-fixture";
+import { articleId, articleSectionId, formativeBlockId, generatedArticleId, imagePath, legacyArticleId, pdfId, pkaCourseId, pkaDiktatId, pkaReadingConcept, readingCourseId } from "./reading-fixture";
 import { fixtureOrigin, fixtureSessionSeconds } from "./scope";
 import { startAuthFixture } from "./server";
 
@@ -183,9 +183,11 @@ try {
     const diktat = await reading(pkaCourseId, pkaDiktatId);
     const pka = await diktat.json() as { kind?: string; revision?: string };
     check(diktat.ok && pka.kind === "diktat" && typeof pka.revision === "string", "Registered PKA Diktat absent");
-    const pdf = await binding.request("/api/native/student/material-pdf?" + new URLSearchParams({ courseId: readingCourseId, materialId: pdfId }),
-      { headers: readingHeaders });
-    check(pdf.ok && pdf.headers.get("Content-Type") === "application/pdf" && (await pdf.arrayBuffer()).byteLength > 0, "Authorized PDF bytes absent");
+    const pdfPath = "/api/native/student/material-pdf?" + new URLSearchParams({ courseId: readingCourseId, materialId: pdfId });
+    const pdf = await binding.request(pdfPath, { headers: readingHeaders });
+    const pdfRevision = pdf.headers.get("x-zyx-pdf-revision");
+    check(pdf.ok && pdfRevision && pdf.headers.get("Content-Type") === "application/pdf" &&
+      (await pdf.arrayBuffer()).byteLength > 0, "Authorized PDF bytes absent");
     stage = "read previously published website and generated course articles";
     for (const [materialId, content] of [[legacyArticleId, "Isi bacaan lama."], [generatedArticleId, "## Luas\n\nIsi artikel terangkai."]]) {
       const read = await binding.request("/api/native/student/reading?" + new URLSearchParams({ courseId: readingCourseId, materialId }), { headers: readingHeaders });
@@ -196,9 +198,29 @@ try {
     const studyPath = "/api/native/student/reading/learning";
     const art = { courseId: readingCourseId, materialId: articleId, revision: document.revision };
     const pkaScope = { courseId: pkaCourseId, materialId: pkaDiktatId, revision: pka.revision };
-    const learn = (body: object) => binding.request(studyPath, {
+    const postReading = (path: string, body: object) => binding.request(path, {
       method: "POST", headers: { ...readingHeaders, "Content-Type": "application/json", Origin: EXPO_STAGING_ORIGIN }, body: JSON.stringify(body),
     });
+    const learn = (body: object) => postReading(studyPath, body);
+    const pdfSearch = () => postReading(pdfPath, { revision: pdfRevision, query: "page 2", from: 1, to: 2 });
+    const match = await pdfSearch();
+    try {
+      const result = await match.json() as { total?: number; matches?: Array<{ page: number; excerpt: string }> };
+      check(match.ok && result.total === 2 && result.matches?.length === 1 &&
+        result.matches[0].page === 2 && /private preview, page 2/i.test(result.matches[0].excerpt), "PDF text search did not return page 2");
+    } finally { match.dispose(); }
+    const resolveTerm = (scope = pkaScope, selection = pkaReadingConcept) => postReading("/api/native/student/reading", { ...scope, selection });
+    const term = await resolveTerm();
+    try {
+      const { concept } = await term.json() as { concept?: {
+        conceptName: string; quickExplain?: { content: string }; analogy: string; mastery: { score: number };
+      } };
+      check(term.ok && concept?.conceptName === pkaReadingConcept && concept.quickExplain?.content === "Bentuk aljabar berhingga." &&
+        concept.analogy === "Jumlah suku seperti deret kotak." && concept.mastery.score === 42, "Diktat lookup did not return its authorized concept details");
+    } finally { term.dispose(); }
+    const missingTerm = await resolveTerm({ ...pkaScope, revision: "f".repeat(64) });
+    check(missingTerm.status === 409, "A stale Diktat revision still returned a term result");
+    missingTerm.dispose();
     const articleWrite = await learn({ ...art, action: "article-progress",
       progress: { sectionId: articleSectionId, percent: 100, completed: true, timeSpentSeconds: 0 } });
     check(articleWrite.ok && (await articleWrite.json() as { completed?: boolean }).completed, "Article completion was not recorded");
@@ -224,6 +246,12 @@ try {
     const deniedStudy = await learn({ ...pkaScope, action: "status", status: "completed" });
     check(deniedStudy.status === 403, "Withdrawn PKA registration could still mutate Diktat progress");
     deniedStudy.dispose();
+    const deniedTerm = await resolveTerm();
+    check(deniedTerm.status === 403, "Withdrawn PKA registration could still read a Diktat term");
+    deniedTerm.dispose();
+    const deniedSearch = await pdfSearch();
+    check(deniedSearch.status === 403, "Withdrawn enrollment could still search the private PDF");
+    deniedSearch.dispose();
   }
 
   if (offlineProduct) {

@@ -16,6 +16,7 @@ export const pdfId = "native-preview-reading-pdf";
 const pdfUrl = "https://native-reading-fixture.ufs.sh/lesson.pdf";
 export const pkaCourseId = "tutorial-pka";
 export const pkaDiktatId = "native-preview-reading-pka-diktat";
+export const pkaReadingConcept = "Polinomial verifikasi";
 const registrationId = "native-preview-reading-pka-registration";
 export const imagePath = "/images/native-reading-preview.png";
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAEAAAAAgCAIAAAAt/+nTAAAAjUlEQVR4nO3SsQ2AMAxE0czDDEzE9BSUFCClSUFEHMf2WTrpuqT4T3I5r/tz2368673irBBAAAEEuK+21aUBtNFpAL1oaMBIdPsfAiCNhgBoosMAq6JdARbR5gDraBOAZ/QyQFS0CoAQLQagRQsAmNEqQHjxDCC8ch4Q3vcPGLl15OUHpD8hAggggIDQPZYaL03x06UcAAAAAElFTkSuQmCC", "base64");
@@ -104,7 +105,10 @@ export async function createReadingPreview(runHandler: (request: Request, handle
       }
       const chapter = "native-preview-reading-chapter";
       const pkaChapter = "native-preview-reading-pka-chapter";
-      await tx.insert(schema.chapters).values({ id: chapter, courseId, title: "Pembahasan", orderIndex: 2, status: "published" });
+      await tx.insert(schema.chapters).values([
+        { id: chapter, courseId, title: "Pembahasan", orderIndex: 2, status: "published" },
+        { id: pkaChapter, courseId: pkaCourseId, title: "Pembahasan PKA", orderIndex: 20, status: "published" },
+      ]);
       await tx.insert(schema.bab).values([
         { id: chapter + "-free", mataKuliahId: canonicalCourse, code: "PREVIEW", title: "Pengantar gratis", orderIndex: 1 },
         { id: chapter, mataKuliahId: canonicalCourse, code: "INTRO", title: "Pembahasan", orderIndex: 2, legacyChapterId: chapter },
@@ -165,7 +169,22 @@ export async function createReadingPreview(runHandler: (request: Request, handle
       });
       await tx.insert(schema.diktatMateri).values({
         ...details, id: pkaDiktatId, mataKuliahId: pkaCanonical, babId: pkaChapter, title: "Diktat verifikasi PKA",
-        contentMarkdown: "Isi diktat PKA versi tiga.\n\n$$x^2+2x+1$$",
+        contentMarkdown: "Isi diktat PKA versi tiga.\n\n" + pkaReadingConcept + ".\n\n$$x^2+2x+1$$",
+      });
+      const termId = "native-preview-reading-pka-concept";
+      const termSource = "native-preview-reading-pka-term-source";
+      await tx.insert(schema.masterTeachingDocuments).values({
+        id: termSource, courseId: pkaCourseId, title: pkaReadingConcept, markdownContent: "Bentuk aljabar berhingga.", createdById: accountId,
+      });
+      await tx.insert(schema.concepts).values({ id: termId, canonicalSlug: termId });
+      await tx.insert(schema.knowledgeObjects).values({
+        id: termId + "-definition", courseId: pkaCourseId, chapterId: pkaChapter, mtdId: termSource, conceptId: termId,
+        learningOrder: 1, title: pkaReadingConcept, conceptName: pkaReadingConcept, type: "definition", bloomLevel: "understand",
+        content: "Bentuk aljabar berhingga.", metadata: { analogy: "Jumlah suku seperti deret kotak." }, status: "active",
+      });
+      await tx.insert(schema.studentConceptMastery).values({
+        id: termId + "-mastery", studentId: accountId, courseId: pkaCourseId, conceptName: pkaReadingConcept,
+        masteryScore: 42, confidence: 20, evidenceCount: 1, trend: "improving", lastEvidenceAt: new Date(),
       });
     });
   }
@@ -183,12 +202,14 @@ export async function createReadingPreview(runHandler: (request: Request, handle
     const pkaGate = url.pathname === "/api/native/student/learning" && view === "pka-material";
     const detail = url.pathname === "/api/native/student/courses" && view === "material-detail" && (ordinary || pka || manualPdf);
     const compatible = course === courseId && (material === legacyArticleId || material === generatedArticleId);
+    const term = request.method === "POST" && url.pathname === "/api/native/student/reading";
     const read = url.pathname === "/api/native/student/reading" && (ordinary || pka || compatible);
     const courseNavigation = request.method === "GET" && url.pathname === studentNavigationEndpoint && course === courseId;
-    if (!read && !detail && !pkaGate && !pdfRead && !courseNavigation && !studyPath) return null;
+    if (!read && !detail && !pkaGate && !pdfRead && !courseNavigation && !studyPath && !term) return null;
     owner = identity;
     seeded ??= seed(identity.accountId);
     await seeded;
+    if (term) return reading.POST(request);
     if (studyPath) return request.method === "POST" ? study.POST(request) : study.GET(request);
     if (courseNavigation) return navigation.GET(request);
     if (pkaGate) return learning.GET(request);
