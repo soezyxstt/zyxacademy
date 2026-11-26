@@ -39,6 +39,10 @@ on:
       - 'lib/student/canonical-material-detail.ts'
       - 'tests/contracts/native-student-reading.test.ts'
       - 'tests/unit/expo-online-reading.test.ts'
+      - 'tests/unit/expo-interactive-document.test.ts'
+      - 'tests/contracts/interactive-document-foundation.test.tsx'
+      - 'lib/materials/interactive-document-*.ts'
+      - 'components/course/interactive-document-*.tsx'
       - 'app/api/live/**'
       - 'lib/native/academic/handle-tutor-live.ts'
       - 'lib/live-host-token.ts'
@@ -270,7 +274,8 @@ jobs:
       - name: Online Student Article and Diktat authorization
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: |
-          bun test tests/unit/expo-online-reading.test.ts tests/unit/expo-article-coding.test.ts tests/unit/expo-reader-navigation.test.ts
+          bun test tests/unit/expo-online-reading.test.ts tests/unit/expo-article-coding.test.ts tests/unit/expo-reader-navigation.test.ts tests/unit/expo-interactive-document.test.ts
+          bun test tests/contracts/interactive-document-foundation.test.tsx tests/contracts/interactive-document-grant.test.ts
           bun test tests/contracts/native-student-reading.test.ts
           bun test tests/contracts/native-article-coding-access.test.ts
       - name: Native Student PDF authorization and private file lifecycle

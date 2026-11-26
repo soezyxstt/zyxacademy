@@ -19,6 +19,7 @@ courses	/courses/[id]/material	murid	materials.chapters	Expands grouped chapters
 courses	/courses/[id]/material	murid	materials.scroll-restore	Stores scoped list offset when opening detail and restores it on Back.	connected	fixture
 courses	/courses/[id]/material/[materialId]	murid	materials.detail	Material detail read and locked activation. Canonical article aliases resolve before reader open.	connected	local-http
 courses	/courses/[id]/material/[materialId]	murid	article.open	OnlineReading loads canonical structured and compatible published legacy or generated Articles under current material access.	connected	signed-http
+courses	/courses/[id]/material/[materialId]	murid	article.interactive-document	Shows admitted V4 Article HTML and reviewed PNG from the exact signed section, part, option or released reveal grant. Offline uses fallback. Signed device coverage is pending.	connected	contract
 courses	/courses/[id]/material/[materialId]	murid	article.assets	Fetches admitted assets using account, revision and same-origin policy.	connected	signed-http
 courses	/courses/[id]/material/[materialId]	murid	article.section-navigation	Article and Diktat readers list the outline, search admitted sections and open the matched section. Diktat uses the web heading, formula grouping and section index. Exact in-text highlighting remains a separate interaction.	partial	contract
 courses	/courses/[id]/material/[materialId]	murid	article.mark-complete	Writes section progress and completion against exact revision.	connected	signed-http
@@ -53,6 +54,7 @@ assessment	/courses/[id]/quiz/[quizId]	murid	quiz.resume	Opens stored active att
 assessment	/courses/[id]/quiz/[quizId]	murid	quiz.answer	Native player supports selection, essay response, question navigation and flags.	connected	fixture
 assessment	/courses/[id]/quiz/[quizId]	murid	quiz.local-draft	Restores scoped local answers and marks after leaving the player.	connected	fixture
 assessment	/courses/[id]/quiz/[quizId]	murid	quiz.question-image	Native renderer admits supported images and on-device question content. Interactive typed visuals need per-type proof.	partial	source
+assessment	/courses/[id]/quiz/[quizId]	murid	quiz.interactive-document	Owned attempt snapshot opens admitted V4 prompts and options. Explanations use the same review release as web. Signed device coverage is pending.	connected	contract
 assessment	/courses/[id]/quiz/[quizId]	murid	quiz.attachment-pick-upload	Android/iOS host injects scoped photo/file bridges. Server checks current attempt, question and bytes.	connected	contract
 assessment	/courses/[id]/quiz/[quizId]	murid	quiz.attachment-delete	Authorized attachment delete checks exact active attempt and linked key.	connected	contract
 assessment	/courses/[id]/quiz/[quizId]	murid	quiz.timer-submit	Uses active deadline and explicit confirmation. Shared grading and stable submission retry apply.	connected	local-http
@@ -62,6 +64,7 @@ assessment	/courses/[id]/quiz/[quizId]/summary/[attemptId]	murid	quiz.diagnosis-
 assessment	/courses/[id]/quiz/[quizId]/summary/[attemptId]	murid	quiz.diagnosis-open-resource	Opens native course resource links returned for admitted diagnosis.	connected	fixture
 assessment	/courses/[id]/tryout	murid	tryout.catalog	Lists only released tryouts with schedule and access state.	connected	contract
 assessment	/courses/[id]/tryout/[tryoutId]	murid	tryout.read	Reads active full-access tryout with grading policy and remaining submission quota.	connected	local-http
+assessment	/courses/[id]/tryout/[tryoutId]	murid	tryout.interactive-document	Authorized open Tryout prompts and options can display admitted HTML or reviewed PNG. Signed device coverage is pending.	connected	contract
 assessment	/courses/[id]/tryout/[tryoutId]	murid	tryout.answer-draft	Restores selected responses and scoped attempt draft. Size and answer validation remain server owned.	connected	fixture
 assessment	/courses/[id]/tryout/[tryoutId]	murid	tryout.attachment-upload	Uploads authorized attachment and retains evidence bound to learner, question, draft and bytes.	connected	contract
 assessment	/courses/[id]/tryout/[tryoutId]	murid	tryout.attachment-remove	Detaches file from draft using web answer semantics.	connected	fixture
