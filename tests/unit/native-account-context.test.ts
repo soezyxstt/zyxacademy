@@ -46,5 +46,6 @@ test("account menus expose only mounted destinations authorized for the current 
     { id: "adminPanel", href: "/admin", label: "Admin panel" },
   ]);
   expect(accountMenuEntries(context, { ...sitemap, children: [node("/profile")] }).map(item => item.href)).toEqual(["/profile"]);
+  expect(accountMenuEntries(context, { ...sitemap, children: [node("/mcp/connections")] }).map(item => item.href)).toEqual(["/mcp/connections"]);
   expect(accountMenuEntries(context, null)).toEqual([]);
 });

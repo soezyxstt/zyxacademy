@@ -9,19 +9,19 @@ import { Button } from "../components/Button";
 import { NativeCompactShell } from "../features/shared-ui/layout";
 import { nativeTypography } from "../typography";
 import { consentIntake } from "./consent-intent";
-import { browserDestination, type BrowserDestination } from "./browser-destination";
+import type { BrowserDestination } from "./browser-destination";
 
 type AccountDestination = Exclude<BrowserDestination, "meet">;
 
 const copy = {
   id: {
-    authorize: "Izin aplikasi", connections: "Kelola koneksi MCP",
+    authorize: "Izin aplikasi",
     open: "Buka di browser", back: "Kembali", invalid: "Tautan tidak valid.",
     failed: "Browser gagal dibuka. Coba lagi.", browserAccount: "Periksa akun yang aktif di browser sebelum melanjutkan.",
     expired: "Buka kembali tautan izin dari aplikasi yang meminta akses.",
   },
   en: {
-    authorize: "App permissions", connections: "Manage MCP connections",
+    authorize: "App permissions",
     open: "Open in browser", back: "Back", invalid: "Invalid link.",
     failed: "Could not open the browser. Try again.", browserAccount: "Check the account signed in to your browser before continuing.",
     expired: "Reopen the permission link from the app requesting access.",
@@ -71,6 +71,6 @@ function OpenDestination({ kind, url, handoff }: { kind: AccountDestination; url
 export function BrowserHandoff({ kind }: { kind: AccountDestination }) {
   const params = useLocalSearchParams();
   const handoff = typeof params.handoff === "string" ? params.handoff : undefined;
-  const url = kind === "authorize" ? consentIntake.resolve(handoff) : browserDestination(kind, params);
+  const url = consentIntake.resolve(handoff);
   return <OpenDestination key={handoff ?? url} url={url} kind={kind} handoff={handoff} />;
 }

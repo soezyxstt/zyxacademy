@@ -156,10 +156,15 @@ export async function auditProductRoutes(root: string) {
       add(page, "web-tool", { note: "The verification driver supplies the document through same-origin window messages." });
       continue;
     }
-    if (pattern === "/mcp/authorize" || pattern === "/mcp/connections") {
-      const kind = pattern.endsWith("/authorize") ? "authorize" : "connections";
-      requireSource(page, `<BrowserHandoff kind="${kind}"`);
-      add(page, "private-browser", { note: "Browser owns the MCP OAuth consent and connection account." });
+    if (pattern === "/mcp/connections") {
+      requireSource(page, "<AccountConnections");
+      if (roles.some(role => current(role, href)?.pattern !== pattern)) issue(pattern, "signed-in role cannot open its own MCP connections");
+      add(page, "native-screen", { dispatch: "account" });
+      continue;
+    }
+    if (pattern === "/mcp/authorize") {
+      requireSource(page, '<BrowserHandoff kind="authorize"');
+      add(page, "private-browser", { note: "The registered OAuth client starts consent in the browser." });
       continue;
     }
     if (webSource.includes("/(marketing)/") || pattern in browserNotes || pattern === "/tautan") {

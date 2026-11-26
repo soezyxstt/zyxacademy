@@ -71,7 +71,7 @@ const sharedRouteRoots = new Set([
 ]);
 const sharedRoutes = new Set([
   "index", "sign-in", "sign-up", "sign-out", "auth/native-finish",
-  "mcp/authorize", "mcp/connections", "tautan", "website",
+  "mcp/authorize", "tautan", "website",
 ]);
 
 export function isSessionRoute(name: string) {

@@ -113,6 +113,7 @@ function resolveDestination(raw: unknown): Destination | null {
   if (parts.some(part => !part)) return null;
   const canonicalPath = "/" + parts.map(part => encodeURIComponent(part)).join("/");
   const suffix = href.slice(pathname.length);
+  if (canonicalPath === "/mcp/connections" && suffix) return null;
   if (canonicalPath === "/murid") return { href: `/dashboard${suffix}`, pattern: "/dashboard", area: "student" };
   const match = routePatterns.find(route => route.parts.length === parts.length &&
     route.parts.every((part, index) => part.startsWith("[") || part === parts[index]));
@@ -141,6 +142,7 @@ function destinationForAccount(destination: Destination | null, account: Pick<Na
 
 function canOpen(area: Area, roles: NativeAccountContext["roles"]): boolean {
   switch (area) {
+    case "account": return roles.length > 0;
     case "public": return true;
     case "admin": return roles.includes("admin");
     case "tutor": return roles.includes("tutor");

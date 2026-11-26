@@ -1,6 +1,7 @@
 // Canonical product routes from plans/native-parallel/routes.tsv.
 // Auth, consent, internal tooling and action-only redirects are excluded.
 export const returnRoutes = {
+  account: ["/mcp/connections"],
   student: [
     "/achievements",
     "/calendar",

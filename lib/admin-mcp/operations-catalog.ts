@@ -1,6 +1,13 @@
 /** Source-level coverage index. Tool registration is authoritative; partial does not imply every action is exposed. */
 export const operationsCatalog = [
   {
+    "source": "app/api/native/mcp/connections/route.ts",
+    "actions": ["GET", "DELETE"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The signed-in user views and revokes their own OAuth connections. The native session and server resource identify the account. Consent and revocation remain user controlled."
+  },
+  {
     "source": "app/api/native/student/zyra/route.ts",
     "actions": ["GET"],
     "tools": [],

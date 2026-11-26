@@ -4,7 +4,7 @@ import { resolveNativeLoginReturn, resolveNativeProtectedDestination, type Nativ
 import type { NativeSessionScope } from "../network/transport";
 
 const maxRecordLength = 4096;
-const sensitiveRoutes = new Set(["/admin/ops/keys", "/admin/tokens"]);
+const sensitiveRoutes = new Set(["/admin/ops/keys", "/admin/tokens", "/mcp/connections"]);
 const safeQueryKeys = new Set([
   "q", "search", "tab", "view", "sort", "page", "pageSize", "category", "jurusan", "chapter", "course", "courseId",
   "section", "status", "scope", "period", "week", "date", "mode", "locale", "access", "pkaStage", "item",

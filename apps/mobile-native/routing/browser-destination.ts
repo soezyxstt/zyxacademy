@@ -1,7 +1,7 @@
 import { publicMeetingPath } from "../../../packages/meet/public-destination";
 import { NATIVE_STAGING_ORIGIN } from "../auth/session-api";
 
-export type BrowserDestination = "authorize" | "connections" | "meet";
+export type BrowserDestination = "authorize" | "meet";
 type Params = Readonly<Record<string, string | readonly string[] | undefined>>;
 
 // Query keys consumed by the Next MCP consent page. Browser cookies and the
@@ -10,7 +10,6 @@ const authorizeKeys = ["prompt", "client_id", "redirect_uri", "state", "response
   "code_challenge", "code_challenge_method", "scope", "resource"] as const;
 
 export function browserDestination(kind: BrowserDestination, params: Params): string | null {
-  if (kind === "connections") return NATIVE_STAGING_ORIGIN + "/mcp/connections";
   if (kind === "meet") {
     const path = publicMeetingPath(params.slug);
     return path ? NATIVE_STAGING_ORIGIN + path : null;

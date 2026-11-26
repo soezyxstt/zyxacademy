@@ -16,6 +16,7 @@ test("every inventoried Next page has a verified source-level Expo disposition",
   expect(route("/admin/meet/[id]")?.kind).toBe("native-screen");
   expect(route("/forms/[id]")?.kind).toBe("public-browser");
   expect(route("/meet/[slug]")?.kind).toBe("public-browser");
+  expect(route("/mcp/connections")?.kind).toBe("native-screen");
   expect(route("/mcp/authorize")?.kind).toBe("private-browser");
   expect(route("/settings/notifications/browser")?.kind).toBe("private-browser");
   expect(route("/authoring-verification")?.kind).toBe("web-tool");
