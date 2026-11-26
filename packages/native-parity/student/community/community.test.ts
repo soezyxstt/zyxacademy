@@ -87,12 +87,56 @@ test("a selected discussion alias can post and reopen one scoped answer", async 
   const sent = await (await request(base + "discussion", init)).json();
   expect(sent).toMatchObject({ ok: true, value: { threadId: selected.thread.id } });
   expect(await (await request(base + "discussion", init)).json()).toEqual(sent);
+  const send = JSON.parse(init.body);
+  for (const conflict of [{ ...send, input: { ...send.input, body: "Jawaban berbeda." } },
+    { action: "reply", input: { ...send.input, replyTo: "message-limit" } }]) {
+    const result = await request(base + "discussion", { method: "POST", body: JSON.stringify(conflict) });
+    expect(await result.json()).toEqual({ ok: false, error: "conflict" });
+  }
 
   const reopened = await (await request(`${workspace}&messageId=${sent.value.messageId}`, { method: "POST" })).json();
   expect(reopened.thread).toMatchObject({ answerCount: 1 });
   expect(reopened.messages.items).toMatchObject([
     { id: "message-limit", messageType: "question" },
     { id: sent.value.messageId, threadId: selected.thread.id, messageType: "answer", body },
+  ]);
+});
+
+test("discussion replies and forwards retain scoped references after the original answer is deleted", async () => {
+  const request = createCommunityFixtureRequest();
+  const post = async (body: object) => request(base + "discussion", { method: "POST", body: JSON.stringify(body) });
+  const view = async (threadId: string) => (await request(`/api/discussions/workspace?view=thread&threadId=${threadId}`)).json();
+  const draft = { threadId: "thread-limit", attachmentIds: [], mentionIds: [], askZyra: false };
+  const answer = await (await post({ action: "answer", input: { ...draft, body: "Jawaban awal.", requestId: "answer-1" } })).json();
+  const reply = await (await post({ action: "reply", input: { ...draft, body: "Balasan.", requestId: "reply-1", replyTo: answer.value.messageId } })).json();
+  const input = { action: "forward", threadId: draft.threadId, messageId: answer.value.messageId, requestId: "forward-1" };
+  const forward = await (await post(input)).json();
+  expect(reply.ok).toBe(true);
+  expect(forward.ok).toBe(true);
+  expect(await (await post(input)).json()).toEqual(forward);
+  expect(await (await post({ ...input, messageId: "message-limit" })).json()).toEqual({ ok: false, error: "conflict" });
+  const publicThread = await (await post({ action: "create", input: {
+    channelId: "channel-general", requestId: "create-global", body: "Pertanyaan umum.",
+  } })).json();
+  expect(await (await post({ ...input, threadId: publicThread.value.threadId, requestId: "forward-global" })).json()).toEqual({ ok: false, error: "unavailable" });
+  const store = await view(draft.threadId);
+  expect(store.thread.answerCount).toBe(1);
+  expect(store.messages.items).toMatchObject([
+    { id: "message-limit" },
+    { id: answer.value.messageId, messageType: "answer" },
+    { id: reply.value.messageId, messageType: "reply", replyTo: { id: answer.value.messageId, seq: 2, authorName: "Aruni Rasyid", excerpt: "Jawaban awal." } },
+    { id: forward.value.messageId, messageType: "forward", body: "Jawaban awal.", forwardedFrom: { id: answer.value.messageId, threadId: draft.threadId } },
+  ]);
+  const deleteInput = { action: "delete", messageId: answer.value.messageId };
+  expect((await post(deleteInput)).ok).toBe(true);
+  expect((await post(deleteInput)).ok).toBe(false);
+  const reopened = await view(draft.threadId);
+  expect(reopened.thread.answerCount).toBe(0);
+  expect(reopened.messages.items).toMatchObject([
+    { id: "message-limit" },
+    { id: answer.value.messageId, bodyKind: "deleted", canDelete: false, revision: 1 },
+    { id: reply.value.messageId, replyTo: { id: answer.value.messageId, excerptKind: "deleted", excerpt: "Pesan dihapus." } },
+    { id: forward.value.messageId, bodyKind: "source_unavailable", forwardedFrom: null, canReply: false },
   ]);
 });
 

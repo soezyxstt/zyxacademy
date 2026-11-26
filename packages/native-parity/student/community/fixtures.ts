@@ -1,4 +1,5 @@
 import type { DiscussionChannelMetadata, DiscussionMessage, DiscussionThread } from "../../../../lib/discussions/contracts";
+import { canForwardDiscussion, deriveInitialDiscussionTitle, validDiscussionReplyType } from "../../../../lib/discussions/policy";
 import type {
   AchievementData, AgendaData, CourseRanking, Group, LeaderboardPage, NotificationPreferences, Profile,
   PublicStudentProfile, Reflection, Schedule, StudentIdentity,
@@ -101,6 +102,31 @@ const sampleMessage: DiscussionMessage = {
 };
 function clone<T>(value: T): T { return JSON.parse(JSON.stringify(value)) as T; }
 
+function presentDiscussionMessage(message: DiscussionMessage, messages: readonly DiscussionMessage[]): DiscussionMessage {
+  const forwardedSource = (id: string | undefined) => messages.find(item => item.id === id && item.bodyKind !== "deleted");
+  const original = forwardedSource(message.forwardedFrom?.id);
+  const parent = messages.find(item => item.id === message.replyTo?.id);
+  let replyTo: DiscussionMessage["replyTo"] = null;
+  if (parent) {
+    const deleted = parent.bodyKind === "deleted";
+    const source = forwardedSource(parent.forwardedFrom?.id);
+    const sourceMissing = Boolean(parent.forwardedFrom && !source);
+    const excerpt = (source?.body ?? parent.body).trim().slice(0, 180);
+    replyTo = {
+      id: parent.id, seq: parent.seq,
+      authorName: deleted ? "Pesan dihapus" : parent.author?.name ?? "Pengguna tidak tersedia",
+      authorKind: deleted ? "deleted" : parent.author ? "name" : "unavailable",
+      excerpt: deleted ? "Pesan dihapus." : sourceMissing ? "Pesan asal tidak tersedia." : excerpt || "Gambar",
+      excerptKind: deleted ? "deleted" : sourceMissing ? "source_unavailable" : excerpt ? "body" : "image",
+    };
+  }
+  if (message.bodyKind === "deleted") return { ...message, body: "Pesan dihapus.", replyTo, forwardedFrom: null };
+  if (original) return { ...message, body: original.body, bodyKind: "body", attachments: original.attachments, replyTo };
+  if (message.forwardedFrom) return { ...message, body: "Pesan asal tidak tersedia.", bodyKind: "source_unavailable",
+    forwardedFrom: null, canReply: false, canReact: false, replyTo };
+  return { ...message, replyTo };
+}
+
 function response(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json", "Cache-Control": "private, no-store" } });
 }
@@ -122,7 +148,7 @@ export function createCommunityFixtureRequest(scenario: CommunityFixtureScenario
   let booked = false;
   const threads = populated ? [clone(sampleThread)] : [];
   const messages = populated ? [clone(sampleMessage)] : [];
-  const sendReplays = new Map<string, { threadId: string; messageId: string }>();
+  const sendReplays = new Map<string, { fingerprint: string; target: { threadId: string; messageId: string } }>();
   let readThroughSeq = 0;
   return async function request(path: string, init?: RequestInit): Promise<Response> {
     const url = new URL(path, origin);
@@ -149,7 +175,8 @@ export function createCommunityFixtureRequest(scenario: CommunityFixtureScenario
       });
       const thread = threads.find(item => item.id === query.get("threadId"));
       return thread ? response({ thread, readThroughSeq, aiStatuses: [],
-        messages: { items: messages.filter(item => item.threadId === thread.id), nextCursor: null, observationReceipt: "fixture-observation" } }) : response({ code: "unavailable" }, 404);
+        messages: { items: messages.filter(item => item.threadId === thread.id).map(item => presentDiscussionMessage(item, messages)),
+          nextCursor: null, observationReceipt: "fixture-observation" } }) : response({ code: "unavailable" }, 404);
     }
     const operation = url.pathname.slice(endpoint.length);
     if (init?.method === "POST") {
@@ -193,24 +220,49 @@ export function createCommunityFixtureRequest(scenario: CommunityFixtureScenario
         case "notification-timing": preferences = { ...preferences, activity: { ...preferences.activity, tutorialEmailSchedule: input } }; break;
         case "discussion": {
           const draft = input.input;
-          if (draft?.requestId || input.action === "forward") {
-            const id = draft?.requestId ?? input.requestId;
+          const action = input.action;
+          if (action === "create" || action === "answer" || action === "reply" || action === "forward") {
+            const id = action === "forward" ? input.requestId : draft?.requestId;
+            if (!id) return response({ ok: false, error: "invalid" });
+            if ((action === "reply" || action === "answer") && !validDiscussionReplyType(action, draft.replyTo)) {
+              return response({ ok: false, error: "invalid" });
+            }
+            const thread = threads.find(item => item.id === (action === "forward" ? input.threadId : draft?.threadId));
+            const channel = channels.find(item => item.id === (action === "create" ? draft.channelId : thread?.channelId));
+            if (!channel) return response({ ok: false, error: "unavailable" });
+            const messageType: DiscussionMessage["messageType"] = action === "create" ? "question" : action;
+            const body = draft?.body?.trim() ?? "";
+            const attachments = draft?.attachmentIds ?? [];
+            const mentions: string[] = draft?.mentionIds ?? [];
+            const handles: string[] = draft?.mentionHandles ?? [];
+            const title = action === "create" ? draft.title?.trim() || deriveInitialDiscussionTitle(body, attachments.length > 0) : null;
+            const source = action === "forward" ? messages.find(item => item.id === input.messageId && item.canForward) : undefined;
+            if (action === "forward") {
+              const sourceThread = threads.find(item => item.id === source?.threadId);
+              const sourceChannel = channels.find(item => item.id === sourceThread?.channelId);
+              if (!sourceChannel || !canForwardDiscussion({ ...sourceChannel, legacyCourseId: null }, { ...channel, legacyCourseId: null })) {
+                return response({ ok: false, error: "unavailable" });
+              }
+            }
+            const fingerprint = JSON.stringify([messageType, thread?.id ?? channel.id, title, source?.id ?? draft?.replyTo ?? null,
+              body, [...attachments].sort(), [...mentions].sort(), Boolean(draft?.askZyra), draft?.skinId ?? null,
+              handles.length ? mentions.map((mention, index) => [mention, handles[index]]) : []]);
             const replay = sendReplays.get(id);
-            if (replay) return response({ ok: true, value: replay });
-            const target = { threadId: draft?.threadId ?? input.threadId ?? `discussion-${threads.length + 1}`, messageId: `message-${messages.length + 1}` };
-            if (input.action === "create") threads.unshift({
-              ...sampleThread, id: target.threadId, channelId: draft.channelId,
-              title: draft.title || draft.body.split("\n")[0].slice(0, 160), unreadCount: 0,
-            });
-            const messageType: DiscussionMessage["messageType"] = input.action === "answer" || input.action === "reply" || input.action === "forward"
-              ? input.action : "question";
-            const thread = threads.find(item => item.id === target.threadId);
+            if (replay) return replay.fingerprint === fingerprint ? response({ ok: true, value: replay.target }) : response({ ok: false, error: "conflict" });
+            if (thread?.status === "resolved") return response({ ok: false, error: "resolved" });
+            const parent = action === "reply" ? messages.find(item => item.id === draft.replyTo && item.threadId === thread?.id
+              && presentDiscussionMessage(item, messages).canReply) : undefined;
+            if (action === "reply" && !parent) return response({ ok: false, error: "unavailable" });
+            const target = { threadId: thread?.id ?? `discussion-${threads.length + 1}`, messageId: `message-${messages.length + 1}` };
+            if (title !== null) threads.unshift({ ...sampleThread, id: target.threadId, channelId: channel.id, title, unreadCount: 0 });
             if (thread && messageType === "answer") thread.answerCount += 1;
-            messages.push({ ...sampleMessage, id: target.messageId, threadId: target.threadId, body: draft?.body ?? sampleMessage.body,
-              messageType,
+            messages.push({ ...sampleMessage, id: target.messageId, threadId: target.threadId, body, messageType,
+              replyTo: parent ? { id: parent.id, seq: parent.seq } : null,
+              forwardedFrom: source ? { id: source.id, threadId: source.threadId } : null,
               seq: messages.filter(item => item.threadId === target.threadId).length + 1,
-              author: { id: "aruni", name: profile.account.name, role: "student" }, canEdit: true, canDelete: true, canReport: false });
-            sendReplays.set(id, target);
+              author: { id: "aruni", name: profile.account.name, role: "student" }, canEdit: action !== "forward", canForward: action !== "forward",
+              canDelete: true, canReport: false });
+            sendReplays.set(id, { fingerprint, target });
             return response({ ok: true, value: target });
           }
           const thread = threads.find(item => item.id === input.threadId);
@@ -221,7 +273,13 @@ export function createCommunityFixtureRequest(scenario: CommunityFixtureScenario
           }
           if (thread && input.action === "read") { readThroughSeq = input.throughSeq; thread.unreadCount = 0; }
           if (message && input.action === "edit") { message.body = input.body; message.revision += 1; }
-          if (message && input.action === "delete") { message.body = ""; message.bodyKind = "deleted"; }
+          if (input.action === "delete") {
+            if (!message?.canDelete) return response({ code: "unavailable" }, 404);
+            const owner = threads.find(item => item.id === message.threadId);
+            if (owner && message.messageType === "answer") owner.answerCount -= 1;
+            Object.assign(message, { body: "", bodyKind: "deleted", revision: message.revision + 1, reactions: [], attachments: [],
+              canDelete: false, canEdit: false, canForward: false, canReact: false, canReply: false, canReport: false });
+          }
           if (message && input.action === "reaction") message.reactions = input.selected ? [{ emoji: input.emoji, selected: true, count: 1 }] : [];
           if (input.action === "mentions" || input.action === "channel-mentions") return response([{ id: "peer", name: identity.displayName, role: "student" }]);
           if (input.action === "author") return response({ kind: "student", name: identity.displayName, role: "student", profile: publicProfile });
