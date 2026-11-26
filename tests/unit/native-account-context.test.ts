@@ -3,7 +3,7 @@ import { createNativeTransport } from "../../apps/mobile-native/network/transpor
 import { loadNativeAccountContext } from "../../apps/mobile-native/network/account-context";
 
 const origin = "https://staging.zyxacademy.com";
-const context = { accountId: "student", sessionId: "one", roles: ["tutor", "murid"], dashboard: "/tutor", locale: "id" };
+const context = { accountId: "student", sessionId: "one", roles: ["tutor", "murid"], dashboard: "/tutor", locale: "id" } as const;
 function run(payload: unknown, status = 200) {
   const transport = createNativeTransport({ origin, fetcher: async url => {
     expect(url).toBe(origin + "/api/native/context");
