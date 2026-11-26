@@ -51,7 +51,11 @@ try {
     values ($1,$2,$3,'materi','fixture/private/test.pdf','[]')`, [materialId, courseId, "Dokumen transaksi"]);
   const reads = [
     ["analytics", "analytics", (result) => assert.equal(result.quizzes[0].id, quizId)],
-    [`analytics/${quizId}`, "quiz-insight", (result) => assert.equal(result.summary.totalCompleted, 1)],
+    [`analytics/${quizId}`, "quiz-insight", (result) => {
+      assert.equal(result.summary.totalCompleted, 1);
+      assert.equal(result.attempts[0].score, 80);
+      assert.equal(result.attempts[0].name, "Nadia Lestari");
+    }],
     ["results", "results", (result) => assert.equal(result.stats.avgScore, 80)],
     ["leaderboard", "leaderboard", (result) => assert.equal(result.attempts[0].score, 80)],
     ["documents", "documents", (result) => assert.equal(result.documents[0].id, materialId)],

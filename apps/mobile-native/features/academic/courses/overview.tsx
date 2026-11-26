@@ -297,7 +297,7 @@ function ChapterEditor({ data, chapter, actor, onClose }: {
     });
   }
   return (
-    <CourseDialog title={chapter ? "Edit bab" : "Tambah bab"} onClose={onClose}>
+    <CourseDialog title={chapter ? "Edit bab" : "Tambah bab"} onClose={onClose} testID="course-chapter-dialog">
       <Field label="Judul bab" value={title} onChangeText={(value) => { setTitle(value); mutation.clear(); }} testID="course-chapter-title" />
       {!data.canonicalOnly ? <Field label="Deskripsi bab" value={description} multiline onChangeText={(value) => { setDescription(value); mutation.clear(); }} /> : null}
       <MutationStatus mutation={mutation} reload={onClose} />

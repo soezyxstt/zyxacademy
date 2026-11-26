@@ -79,7 +79,7 @@ function EditForm({ data, save, close, refresh }: { data: Settings; save: AdminC
   }
 
   return (
-    <CourseDialog title="Edit informasi mata kuliah" onClose={status === "sending" ? () => undefined : close}>
+    <CourseDialog title="Edit informasi mata kuliah" onClose={close} dismissDisabled={status === "sending"}>
       <Field label="Nama mata kuliah" value={title} maxLength={500} disabled={!canEdit}
         onChangeText={(value) => { setTitle(value); setStatus(null); }} testID="course-settings-title" />
       {!data.canonicalOnly ? (

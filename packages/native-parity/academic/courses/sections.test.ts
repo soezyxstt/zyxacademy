@@ -12,7 +12,7 @@ function harness(role: "admin" | "tutor" | "student" | null) {
     session: async () => role ? { user: { id: "account-1" } } : null,
     hasAdmin: async (actorId) => actorId === "account-1" && role === "admin",
     hasTutor: async () => role === "tutor",
-    dashboard: unexpected, participants: unexpected, grading: unexpected, courses: unexpected, course: unexpected,
+    dashboard: unexpected, analytics: unexpected, participants: unexpected, grading: unexpected, courses: unexpected, course: unexpected,
     courseSection: async (slug, section, item) => {
       seen.push([slug, section, item]);
       if (slug !== "biologi-dasar" || (item && !["document-1", "quiz-1"].includes(item))) return null;

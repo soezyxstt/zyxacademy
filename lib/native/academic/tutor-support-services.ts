@@ -107,7 +107,7 @@ export const tutorSupportServices = {
     return {
       title: data.course.title,
       playlists: data.playlists.map(({ id, title, description, videos }) => ({
-        id, title, description, videos: videos.map(({ id, title, duration, locked }) => ({ id, title, duration, locked })),
+        id, title, description, videos: videos.map(({ id, title, duration, locked }) => ({ id, title, duration, locked: locked !== false })),
       })),
     };
   },

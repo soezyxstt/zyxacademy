@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/db";
-import { quizTemplates, studentQuizAttempts, courses, mataKuliah, quizAiInsights } from "@/db/schema";
+import { quizTemplates, studentQuizAttempts, courses, mataKuliah, quizAiInsights, user } from "@/db/schema";
 import { authorizedSnapshotDisclosures, recordAuthorizedGlobalDisclosures } from "@/lib/gamification/question-exposure";
 import { and, eq, desc, inArray } from "drizzle-orm";
 
@@ -38,14 +38,17 @@ export async function readAdminQuizInsight(templateId: string, viewerId: string,
     .select({
       id: studentQuizAttempts.id,
       studentId: studentQuizAttempts.studentId,
+      studentName: user.name,
       score: studentQuizAttempts.score,
       durationSeconds: studentQuizAttempts.durationSeconds,
       status: studentQuizAttempts.status,
       questionsSnapshot: studentQuizAttempts.questionsSnapshot,
       answersSnapshot: studentQuizAttempts.answersSnapshot,
+      startedAt: studentQuizAttempts.startedAt,
       submittedAt: studentQuizAttempts.submittedAt,
     })
     .from(studentQuizAttempts)
+    .leftJoin(user, eq(studentQuizAttempts.studentId, user.id))
     .where(eq(studentQuizAttempts.templateId, templateId));
 
   const completedAttempts = attempts.filter((a) => a.status === "completed" && a.score !== null);
@@ -217,5 +220,8 @@ export async function readAdminQuizInsight(templateId: string, viewerId: string,
     questionAnalysis: questionItems,
     conceptAnalysis: conceptItems,
     latestAiInsight: latestAiInsight || null,
+    ...(courseIds ? { attemptHeaders: attempts.map(({ id, studentName, status, score, durationSeconds, startedAt, submittedAt }) => ({
+      id, name: studentName, status, score, durationSeconds, startedAt: startedAt.toISOString(), submittedAt: submittedAt?.toISOString() ?? null,
+    })) } : {}),
   };
 }

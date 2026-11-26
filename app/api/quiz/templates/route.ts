@@ -33,7 +33,7 @@ import {
 } from '@/lib/tutor/assessment-policy';
 import {
   lockQuizCreateScope, nativeQuizAuditRequestId, nativeQuizTemplateId, nativeQuizWriteKey,
-  QuizTemplateWriteError, quizTemplateReceipt, validateNativeQuizSelection,
+  QuizTemplateWriteError, quizTemplateReceipt, requireNativeQuizWriter, validateNativeQuizSelection, validateNativeQuizValues,
 } from "@/lib/asesmen/quiz-template-write";
 import { recordTutorMutationAudit } from '@/lib/audit/mutasi';
 
@@ -269,9 +269,20 @@ export async function POST(req: NextRequest) {
   try {
     replayed = await db.transaction(async (tx) => {
       await lockQuizCreateScope(tx, targetCourse);
+      if (nativeKey) {
+        const current = await requireNativeQuizWriter(tx, {
+          actorId: session.user.id, sessionId: session.session?.id, courseId, role: isAdmin ? "admin" : "tutor",
+        });
+        if ((current.courseId ?? courseId) !== targetCourse || current.legacyCourseId !== access.legacyCourseId) {
+          throw new QuizTemplateWriteError(409, "QUIZ_COURSE_CHANGED");
+        }
+      }
       const receipt = nativeKey ? await quizTemplateReceipt(tx, audit, parsed.data) : undefined;
       if (receipt?.replayed) return true;
-      if (nativeKey) await validateNativeQuizSelection(tx, candidateCourseIds, selectionRules);
+      if (nativeKey) {
+        validateNativeQuizValues(parsed.data);
+        await validateNativeQuizSelection(tx, candidateCourseIds, selectionRules);
+      }
 
       if (tags.length) {
         const existing = await tx.select({ rules: quizTemplates.selectionRules })
@@ -307,10 +318,10 @@ export async function POST(req: NextRequest) {
     });
   } catch (err: any) {
     if (err instanceof QuizTemplateWriteError) {
-      await recordTutorMutationAuditSafe({
-        ...audit, outcome: "rejected", reason: err.code,
-      });
       const message = err.code === "QUIZ_TAG_CONFLICT" && !nativeKey ? "Kuis dengan tag bab ini sudah ada di kelas ini." : err.code;
+      await recordTutorMutationAuditSafe({
+        ...audit, requestId: nativeKey ? `req-${randomUUID()}` : requestId, outcome: "rejected", reason: message,
+      });
       return NextResponse.json({ error: message }, { status: err.status });
     }
     await recordTutorMutationAuditSafe({
@@ -320,7 +331,7 @@ export async function POST(req: NextRequest) {
       entityType: "quiz_template",
       entityId: id,
       entityVersion: 1,
-      requestId,
+      requestId: nativeKey ? `req-${randomUUID()}` : requestId,
       action: "quiz:create",
       outcome: "failed",
       reason: err?.message || "Failed to create quiz template via API",

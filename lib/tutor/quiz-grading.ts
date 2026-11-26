@@ -14,6 +14,7 @@ import {
 } from "@/db/schema";
 import { requireTutorCourseAccess } from "@/lib/auth/tutor-access";
 import { checkCourseMatch } from "@/lib/tutor/assessment-policy";
+import { QuizTemplateWriteError, requireNativeQuizWriter } from "@/lib/asesmen/quiz-template-write";
 import { buildTutorMutationAuditRow, recordTutorMutationAudit } from "@/lib/audit/mutasi";
 import {
   legacyAnswerId,
@@ -91,7 +92,7 @@ export async function gradeQuizAttempt(
   tutorPenggunaId: string,
   tutorRoles: string[],
   input: GradeQuizAttemptInput,
-  request?: GradeQuizRequest,
+  request?: GradeQuizRequest & { sessionId: string | undefined },
 ): Promise<GradeResult> {
   const parsed = gradeQuizAttemptSchema.safeParse(input);
   if (!parsed.success) {
@@ -214,6 +215,21 @@ export async function gradeQuizAttempt(
       || lockedAttempt.status !== "completed" || !isDeepStrictEqual(lockedAttempt.questionsSnapshot, attempt.questionsSnapshot)
       || !isDeepStrictEqual(lockedAttempt.answersSnapshot, attempt.answersSnapshot)) {
       throw new Error(TUTOR_QUIZ_GRADING_ERRORS.CAS_CONFLICT);
+    }
+
+    if (request) {
+      try {
+        const current = await requireNativeQuizWriter(tx, {
+          actorId: tutorPenggunaId, sessionId: request.sessionId, courseId, role: "tutor",
+        });
+        if (!checkCourseMatch(template.courseId, current.courseId!, current.legacyCourseId)) {
+          throw new Error(TUTOR_QUIZ_GRADING_ERRORS.COURSE_MISMATCH);
+        }
+      } catch (error) {
+        if (error instanceof QuizTemplateWriteError && error.status === 401) throw new Error(TUTOR_QUIZ_GRADING_ERRORS.UNAUTHORIZED);
+        if (error instanceof QuizTemplateWriteError && error.status === 403) throw new Error(TUTOR_QUIZ_GRADING_ERRORS.ACCESS_DENIED);
+        throw error;
+      }
     }
 
     // The locked attempt serializes retries and holds the audit receipt and

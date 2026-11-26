@@ -130,8 +130,8 @@ export type AssessmentResult<T> =
 
 export type AssessmentCommand =
   | { kind: "quiz.save"; target: VersionRef | null; input: QuizInput; courseId?: string }
-  | { kind: "quiz.status"; target: VersionRef; status: QuizStatus }
-  | { kind: "quiz.delete"; target: VersionRef }
+  | { kind: "quiz.status"; target: VersionRef; status: QuizStatus; courseId?: string }
+  | { kind: "quiz.delete"; target: VersionRef; courseId?: string }
   | { kind: "bank.save"; target: VersionRef | null; input: BankQuestionInput }
   | { kind: "bank.delete"; target: VersionRef }
   | { kind: "tryout.save"; target: VersionRef | null; input: TryoutInput }
@@ -140,6 +140,12 @@ export type AssessmentCommand =
   | { kind: "tryout.question.delete"; examId: string; target: VersionRef }
   | { kind: "tryout.question.import"; exam: VersionRef; bankIds: string[] }
   | { kind: "grading.save"; attemptId: string; items: GradeItem[]; finalize: boolean };
+
+export type OutstandingQuizSave = {
+  requestId: string;
+  command: Extract<AssessmentCommand, { kind: "quiz.save" }>;
+  confirmed: boolean;
+};
 
 export type MutationEffect = {
   id: string;
@@ -154,6 +160,7 @@ export interface AssessmentGateway {
   readonly canGrade: boolean;
   readonly canSaveQuiz: boolean;
   takeQuizSaveNotice?(context: AssessmentContext, requestId: string): string | null;
+  pendingQuizSave?(context: AssessmentContext, quizId: string | null): OutstandingQuizSave | null;
   listQuizzes(context: AssessmentContext, signal?: AbortSignal): Promise<AssessmentResult<QuizCollection>>;
   previewQuiz(context: AssessmentContext, id: string, signal?: AbortSignal): Promise<AssessmentResult<QuizPreviewQuestion[]>>;
   listQuizAttempts(context: AssessmentContext, quizId: string, signal?: AbortSignal): Promise<AssessmentResult<QuizAttemptsSheet>>;

@@ -5,6 +5,7 @@ import type { AdminCourseEditor } from "../../../../../packages/native-parity/ac
 import type { AdminCourseSectionResult } from "../../../../../packages/native-parity/academic/courses/sections";
 import { CourseLeaderboard } from "./leaderboard";
 import { LiveCourseEdit } from "./live-settings";
+import { QuizAttemptsTable, QuizResultsTable } from "./tables";
 import { Action, CourseDialog, CourseStatus, DataRow, Ink, Metrics, Panel, Picker, SearchBox, Tabs, layout } from "./ui";
 
 type SectionOf<T extends AdminCourseSectionResult["type"]> = AdminCourseSectionResult & { type: T };
@@ -18,6 +19,7 @@ const labels: Record<string, string> = {
   failed: "Gagal", free: "Gratis", premium: "Premium", limited_time_free: "Gratis sementara",
   zyx_original: "Zyx asli", historical_reference: "Referensi historis", itb_example: "Contoh ITB",
   easy: "Mudah", medium: "Sedang", hard: "Sulit",
+  in_progress: "Berlangsung", completed: "Selesai", abandoned: "Ditinggalkan",
 };
 
 function localLabel(value: string | null) {
@@ -106,12 +108,7 @@ function LiveAnalytics({ data, navigate }: { data: SectionOf<"analytics" | "resu
         </>
       ) : null}
       <Panel title="Hasil per kuis">
-        {filtered.length ? filtered.map((quiz) => (
-          <DataRow key={quiz.id} testID={`course-analytics-quiz-${quiz.id}`} title={quiz.title}
-            description={`${quiz.category} · ${localLabel(quiz.status)}${quiz.hasInsight ? " · Analisis tersedia" : ""}`}
-            detail={quiz.totalAttempts ? `${quiz.totalAttempts} selesai · Skor ${quiz.avgScore}` : "0 selesai"}
-            onPress={() => navigate(adminCoursePath(data.course.slug, "analytics", quiz.id))} />
-        )) : <CourseStatus label="Tidak ada kuis pada pilihan ini." />}
+        <QuizResultsTable rows={filtered} slug={data.course.slug} navigate={navigate} />
       </Panel>
     </>
   );
@@ -119,6 +116,7 @@ function LiveAnalytics({ data, navigate }: { data: SectionOf<"analytics" | "resu
 
 const insightTabs = [
   { id: "ai-insights", label: "Analisis" }, { id: "questions", label: "Butir soal" }, { id: "score-dist", label: "Distribusi skor" },
+  { id: "attempts-sheet", label: "Pengerjaan" },
 ] as const;
 
 function LiveQuizInsight({ data, initialTab }: { data: SectionOf<"quiz-insight">; initialTab?: string }) {
@@ -141,7 +139,7 @@ function LiveQuizInsight({ data, initialTab }: { data: SectionOf<"quiz-insight">
         <Panel title="Analisis performa">
           {data.latestInsight ? (
             <>
-              <Ink>{data.latestInsight.summary}</Ink>
+              {data.latestInsight.summary ? <Ink>{data.latestInsight.summary}</Ink> : null}
               <Ink kind="meta" tone="muted">{data.latestInsight.sampleSize} pengerjaan dianalisis</Ink>
             </>
           ) : <CourseStatus label="Belum ada analisis tersimpan." />}
@@ -153,6 +151,7 @@ function LiveQuizInsight({ data, initialTab }: { data: SectionOf<"quiz-insight">
             : <CourseStatus label="Belum ada skor." />}
         </Panel>
       ) : null}
+      {tab === "attempts-sheet" ? <QuizAttemptRows attempts={data.attempts} /> : null}
       {tab === "questions" ? (
         <Panel title="Akurasi per soal">
           {data.questions.length ? data.questions.map((row) => (
@@ -171,6 +170,36 @@ function LiveQuizInsight({ data, initialTab }: { data: SectionOf<"quiz-insight">
         </Panel>
       ) : null}
     </>
+  );
+}
+
+function QuizAttemptRows({ attempts }: { attempts: SectionOf<"quiz-insight">["attempts"] }) {
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("");
+  const [page, setPage] = useState(0);
+  const visible = attempts.filter((item) => (!status || item.status === status) && match(item.name ?? "", search));
+  const size = 20;
+  const pages = Math.ceil(visible.length / size);
+  const current = Math.min(page, Math.max(0, pages - 1));
+  return (
+    <Panel title="Pengerjaan peserta">
+      <SearchBox label="Cari peserta" value={search} onChange={(value) => { setSearch(value); setPage(0); }} />
+      <Picker label="Status pengerjaan" selected={status}
+        onSelect={(value) => { setStatus(value); setPage(0); }}
+        options={[{ id: "", label: "Semua status" }, ...["completed", "in_progress", "abandoned"].map((id) => ({ id, label: labels[id] }))]} />
+      <QuizAttemptsTable rows={visible.slice(current * size, (current + 1) * size).map((item) => ({
+        id: item.id, name: item.name ?? "Peserta", status: localLabel(item.status) || item.status,
+        dateLabel: displayWib(item.submittedAt ?? item.startedAt),
+        score: item.status === "completed" ? item.score : null, duration: item.durationSeconds,
+      }))} />
+      {pages > 1 ? (
+        <View style={layout.row}>
+          <Action label="Sebelumnya" onPress={() => setPage(current - 1)} disabled={current === 0} />
+          <Ink kind="meta" tone="muted">{current + 1} / {pages}</Ink>
+          <Action label="Berikutnya" onPress={() => setPage(current + 1)} disabled={current + 1 === pages} />
+        </View>
+      ) : null}
+    </Panel>
   );
 }
 

@@ -162,7 +162,8 @@ test("definitive request validation lets the tutor correct an answer", async () 
 });
 
 test("video playback opens only validated HTTPS targets and supported YouTube references", async () => {
-  let target: unknown = "https://assets.example.test/biology.mp4?token=encoded%2Fsignature";
+  const signedUrl = "https://assets.example.test/biology.mp4?token=encoded%2Fsignature";
+  let target: unknown = signedUrl;
   const client = createTutorSupportClient({
     accountId: "tutor-1", origin, locale: "id",
     async get(path) {
@@ -170,7 +171,7 @@ test("video playback opens only validated HTTPS targets and supported YouTube re
       return Response.json({ url: target });
     },
   });
-  expect(await client.playback!("video-1", signal)).toBe(target);
+  expect(await client.playback!("video-1", signal)).toBe(signedUrl);
   target = "youtube/dQw4w9WgXcQ";
   expect(await client.playback!("video-1", signal)).toBe("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
   for (const invalid of ["/api/storage/private.mp4", "javascript:alert(1)", "https://user:pass@example.test", "https://example.test\\wrong", "youtube/short", "http://example.test", null]) {

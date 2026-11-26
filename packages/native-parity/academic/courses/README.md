@@ -1,13 +1,13 @@
 # Mata kuliah Admin di Expo
 
-`CourseScreen` melayani 13 pola rute berikut melalui `AcademicFixtureEntry` dan `AcademicLiveScreen`. Sesi fixture diikat ke akun, peran, dan skenario. Sesi autentik mengambil proyeksi dari Next.js melalui transport yang diikat ke akun dan origin. Seluruh pembacaan autentik memerlukan sesi dan peran Admin canonical, serta menggunakan respons `private, no-store`. Ganti akun atau peran menutup sesi layar. Fokus ulang setelah kembali menyegarkan daftar dan detail sambil mempertahankan filter.
+`CourseScreen` melayani 13 pola rute berikut melalui `AcademicFixtureEntry` dan `AcademicLiveScreen`. Dialog menggunakan `SharedDialog`. Hasil kuis, pengerjaan, dan peringkat memakai `ResponsiveTable`. Sesi fixture diikat ke akun, peran, dan skenario. Sesi autentik mengambil proyeksi dari Next.js melalui transport yang diikat ke akun dan origin. Seluruh pembacaan autentik memerlukan sesi dan peran Admin canonical, serta menggunakan respons `private, no-store`. Ganti akun atau peran menutup sesi layar. Fokus ulang setelah kembali menyegarkan daftar dan detail sambil mempertahankan filter.
 
 | Rute web, relatif ke `/admin/courses` | Layar dan interaksi fixture | Operasi autentik |
 | --- | --- | --- |
 | `/` | Pencarian, kategori, pagination, buka detail, kembali dengan filter tetap aktif, tambah | `getCoursesWithStats`, baca daftar |
 | `/[slug]` | Buka bab, tambah, edit, batal, hapus, urutkan, tautan ke bagian mata kuliah | `getCourseDetailData`, baca rincian dan bab |
 | `/[slug]/analytics` | Filter kuis dan buka hasil per kuis | `getCourseDetailData`, baca ringkasan kuis |
-| `/[slug]/analytics/[quizId]` | Distribusi skor, soal, pengerjaan, analisis berbasis data sintetis | `readAdminQuizInsight`, baca ringkasan, distribusi, soal, dan analisis tersimpan |
+| `/[slug]/analytics/[quizId]` | Distribusi skor, soal, pengerjaan, analisis berbasis data sintetis | `readAdminQuizInsight`, baca ringkasan, distribusi, soal, pengerjaan dan analisis tersimpan |
 | `/[slug]/results` | Ringkasan kelas dan hasil per kuis | `getCourseDetailData`, baca jumlah pengerjaan selesai, skor dan tingkat kelulusan |
 | `/[slug]/leaderboard` | Filter jenis, cari peserta, lihat pengerjaan | `readAdminCourseLeaderboard`, baca pengerjaan selesai untuk pemeringkatan mata kuliah |
 | `/[slug]/documents` | Filter jenis dan bab, cari, buka dokumen, edit dan konfirmasi hapus | `listAdminCourseMaterials`, baca katalog |

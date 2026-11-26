@@ -30,14 +30,14 @@ export function Label({ theme, children, tone = "body" }: {
   >{children}</Text>;
 }
 
-export function TutorPage({ theme, title, subtitle, onBack, children }: {
-  theme: TutorTheme; title: string; subtitle?: string; onBack?: () => void; children: ReactNode;
+export function TutorPage({ theme, title, subtitle, onBack, children, sectionGap }: {
+  theme: TutorTheme; title: string; subtitle?: string; onBack?: () => void; children: ReactNode; sectionGap?: number;
 }) {
   const colors = nativeColors[theme];
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={styles.page}
+      contentContainerStyle={[styles.page, sectionGap === undefined ? undefined : { gap: sectionGap }]}
       keyboardShouldPersistTaps="handled"
     >
       <Header theme={theme} title={title} subtitle={subtitle} onBack={onBack} />
@@ -53,13 +53,13 @@ function Header({ theme, title, subtitle, onBack }: {
     {onBack ? (
       <Button
         theme={theme}
-        variant="ghost"
+        variant="outline"
         size="icon-lg"
         accessibilityLabel="Kembali"
         testID="tutor-back"
         style={styles.back}
         onPress={onBack}
-        renderIcon={(color) => <Text accessible={false} style={{ color, fontSize: 25 }}>‹</Text>}
+        renderIcon={(color) => <Text accessible={false} style={{ color, fontSize: 19 }}>←</Text>}
       />
     ) : null}
     <View style={{ flex: 1, gap: 2 }}>
@@ -74,7 +74,7 @@ export function TutorDetail({ theme, title, subtitle, onBack, children, footer }
 }) {
   const colors = nativeColors[theme];
   return <Modal animationType="none" presentationStyle="fullScreen" onRequestClose={onBack}>
-    <SafeAreaView accessibilityViewIsModal style={{ flex: 1, backgroundColor: colors.background }}>
+    <SafeAreaView accessibilityViewIsModal testID="tutor-detail" style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={[styles.detailHeader, { borderColor: colors.border }]}>
         <Header theme={theme} title={title} subtitle={subtitle} onBack={onBack} />
       </View>
@@ -88,29 +88,33 @@ export function TutorDetail({ theme, title, subtitle, onBack, children, footer }
   </Modal>;
 }
 
-export function Heading({ theme, title, count }: { theme: TutorTheme; title: string; count?: string }) {
-  return <View style={styles.headingRow}>
+export function Heading({ theme, title, count, inline = false }: { theme: TutorTheme; title: string; count?: string; inline?: boolean }) {
+  return <View style={[styles.headingRow, inline && styles.inlineHeading]}>
     <Label theme={theme} tone="heading">{title}</Label>
     {count ? <Label theme={theme} tone="muted">{count}</Label> : null}
   </View>;
 }
 
-export function Row({ theme, title, subtitle, meta, onPress, children, testID }: {
-  theme: TutorTheme; title: string; subtitle?: string; meta?: string; onPress?: () => void; children?: ReactNode; testID?: string;
+export function Row({ theme, title, subtitle, meta, titleMeta, indicator = "›", onPress, children, testID }: {
+  theme: TutorTheme; title: string; subtitle?: string; meta?: string; titleMeta?: string; indicator?: "›" | "↗";
+  onPress?: () => void; children?: ReactNode; testID?: string;
 }) {
   const colors = nativeColors[theme];
-  if (onPress && !children && !meta) {
+  if (onPress && !children && !meta && !titleMeta) {
     return <NativeListRow layout="compact" theme={theme} title={title} subtitle={subtitle}
       primary={{ onPress, testID }} />;
   }
   const content = <>
     <View style={styles.rowText}>
-      <Label theme={theme} tone="strong">{title}</Label>
+      {titleMeta ? <View style={tutorLayout.cluster}>
+        <Label theme={theme} tone="strong">{title}</Label>
+        <Label theme={theme} tone="muted">{titleMeta}</Label>
+      </View> : <Label theme={theme} tone="strong">{title}</Label>}
       {subtitle ? <Label theme={theme} tone="muted">{subtitle}</Label> : null}
       {children}
     </View>
     {meta ? <Label theme={theme} tone="muted">{meta}</Label> : null}
-    {onPress ? <Text accessible={false} style={[styles.chevron, { color: colors.mutedForeground }]}>›</Text> : null}
+    {onPress ? <Text accessible={false} style={[styles.chevron, { color: colors.mutedForeground }]}>{indicator}</Text> : null}
   </>;
   const style = [styles.row, { borderBottomColor: colors.border }];
   return onPress ? (
@@ -121,8 +125,8 @@ export function Row({ theme, title, subtitle, meta, onPress, children, testID }:
   ) : <View testID={testID} style={style}>{content}</View>;
 }
 
-export function Choices<T extends string>({ theme, options, value, change, label }: {
-  theme: TutorTheme; options: readonly (readonly [T, string])[]; value: T; change: (value: T) => void; label: string;
+export function Choices<T extends string>({ theme, options, value, change, label, tabBar = false }: {
+  theme: TutorTheme; options: readonly (readonly [T, string])[]; value: T; change: (value: T) => void; label: string; tabBar?: boolean;
 }) {
   const colors = nativeColors[theme];
   return <ScrollView
@@ -130,6 +134,7 @@ export function Choices<T extends string>({ theme, options, value, change, label
     accessibilityLabel={label}
     showsHorizontalScrollIndicator={false}
     keyboardShouldPersistTaps="handled"
+    style={tabBar ? { borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth } : undefined}
     contentContainerStyle={{ gap: 4 }}
   >
     {options.map(([id, title]) => (
@@ -137,11 +142,12 @@ export function Choices<T extends string>({ theme, options, value, change, label
         key={id}
         accessibilityRole="tab"
         accessibilityState={{ selected: id === value }}
-        variant={id === value ? "outline" : "ghost"}
+        variant={!tabBar && id === value ? "outline" : "ghost"}
         theme={theme}
         style={[
           styles.action,
-          id === value && { borderColor: colors.primary, backgroundColor: colors.primary + "15" },
+          tabBar && styles.tab,
+          id === value && (tabBar ? { borderBottomColor: colors.primary } : { borderColor: colors.primary, backgroundColor: colors.primary + "15" }),
         ]}
         onPress={() => change(id)}
       >{title}</Button>
@@ -159,6 +165,8 @@ export const tutorLayout = StyleSheet.create({
   group: { gap: 8 },
   cluster: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 },
   action: { height: "auto", minHeight: 44, paddingVertical: 8 },
+  sectionLink: { height: "auto", minHeight: 44, alignSelf: "flex-start", paddingHorizontal: 0 },
+  participantMeta: { flexGrow: 1, minWidth: 114 },
   tag: { borderRadius: nativeRadii.sm, paddingHorizontal: 8, paddingVertical: 4 },
   input: { minHeight: 44 },
 });
@@ -171,11 +179,13 @@ const styles = StyleSheet.create({
   detailHeader: { paddingHorizontal: 16, minHeight: 56, justifyContent: "center", borderBottomWidth: StyleSheet.hairlineWidth },
   footer: { paddingHorizontal: 16, paddingVertical: 12, gap: 8, borderTopWidth: StyleSheet.hairlineWidth },
   text: { ...nativeTypography.bodyRegular, fontSize: 14, lineHeight: 21, includeFontPadding: false },
-  title: { ...nativeTypography.headingBold, fontSize: 23, lineHeight: 29 },
+  title: { ...nativeTypography.headingBold, fontSize: 16, lineHeight: 22 },
   heading: { ...nativeTypography.headingBold, fontSize: 17, lineHeight: 23, flexShrink: 1 },
   headingRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, minHeight: 28 },
+  inlineHeading: { justifyContent: "flex-start", flexWrap: "wrap", columnGap: 8, rowGap: 2 },
   row: { flexDirection: "row", alignItems: "flex-start", minHeight: 48, paddingVertical: 12, gap: 10, borderBottomWidth: StyleSheet.hairlineWidth },
   rowText: { flex: 1, gap: 4, minWidth: 0 },
   chevron: { fontSize: 19, lineHeight: 21 },
+  tab: { borderRadius: 0, borderWidth: 0, borderBottomWidth: 2 },
   empty: { borderTopWidth: StyleSheet.hairlineWidth },
 });

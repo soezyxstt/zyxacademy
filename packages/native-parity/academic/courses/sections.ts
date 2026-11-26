@@ -48,7 +48,8 @@ export type CourseSectionPayload =
   | { type: "quiz-insight"; quiz: { id: string; title: string; category: string; status: string };
       summary: { totalStarted: number; totalCompleted: number; completionRate: number; avgScore: number;
         minScore: number; maxScore: number; medianScore: number; avgDurationSeconds: number; scoreRanges: number[] };
-      questions: QuizInsightItem[]; latestInsight: { summary: string; sampleSize: number } | null }
+      questions: QuizInsightItem[]; attempts: { id: string; name: string | null; status: string; score: number | null;
+        durationSeconds: number | null; startedAt: string; submittedAt: string | null }[]; latestInsight: { summary: string | null; sampleSize: number } | null }
   | { type: "documents"; chapters: CourseChapterLabel[]; documents: CourseDocumentRow[] }
   | { type: "document"; document: CourseDocumentRow; chapters: CourseChapterLabel[] }
   | { type: "review"; bundles: CourseReviewRow[] }

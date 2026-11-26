@@ -18,9 +18,19 @@ const deviceScaleFactor = Number(process.env.PARITY_DPR ?? "1");
 if (![1, 3].includes(deviceScaleFactor)) throw new Error("PARITY_DPR must be 1 or 3");
 
 const desktop = process.env.PARITY_VIEWPORT === "desktop";
-const viewport = desktop ? { width: 1536, height: 864 } : { width: 380, height: 844 };
+const customViewport = process.env.PARITY_WIDTH !== undefined || process.env.PARITY_HEIGHT !== undefined;
+const viewport = {
+  width: Number(process.env.PARITY_WIDTH ?? (desktop ? "1536" : "380")),
+  height: Number(process.env.PARITY_HEIGHT ?? (desktop ? "864" : "844")),
+};
+if (Object.values(viewport).some((value) => !Number.isInteger(value) || value <= 0)) {
+  throw new Error("PARITY_WIDTH and PARITY_HEIGHT must be positive CSS-pixel integers");
+}
+const mobile = !desktop && viewport.width < 768;
 const subset = process.env.PARITY_CASES?.split(",").filter(Boolean);
-const snapshotDir = process.env.PARITY_OUTPUT_DIR ?? (desktop
+const snapshotDir = process.env.PARITY_OUTPUT_DIR ?? (customViewport
+  ? `artifacts/native-parity/academic/web/${viewport.width}x${viewport.height}/dpr${deviceScaleFactor}`
+  : desktop
   ? "artifacts/native-parity/academic/web/desktop"
   : subset
     ? "artifacts/native-parity/academic/web/subset"
@@ -124,7 +134,7 @@ try {
       const path = scenario.path ?? item.route;
       const context = await browser.newContext({
         viewport, deviceScaleFactor, locale, timezoneId,
-        isMobile: !desktop, hasTouch: !desktop, colorScheme: scenario.theme, reducedMotion: "reduce",
+        isMobile: mobile, hasTouch: mobile, colorScheme: scenario.theme, reducedMotion: "reduce",
       });
       const page = await context.newPage();
       page.setDefaultTimeout(10_000);

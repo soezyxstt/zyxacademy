@@ -32,7 +32,7 @@ export async function gradeQuizAttemptAction(input: GradeQuizAttemptInput, reque
     throw new Error(`Validasi gagal: ${parsed.error.issues.map((i) => i.message).join(", ")}`);
   }
 
-  const result = await gradeQuizAttempt(session.user.id, roles, parsed.data, request);
+  const result = await gradeQuizAttempt(session.user.id, roles, parsed.data, request && { ...request, sessionId: session.session?.id });
 
   if (result.gradingStatus === "graded" && !result.replayed) {
     try {

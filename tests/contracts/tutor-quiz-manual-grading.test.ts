@@ -557,7 +557,11 @@ describe("Tutor Quiz Manual Grading Contracts", () => {
         answersSnapshot: { "q-es-1": "Jawaban pertama", "q-es-2": "Jawaban kedua" },
         startedAt: now, submittedAt: now,
       });
-      mockSession = { user: { id: "usr-tutor-assigned", role: "teacher" } };
+      const liveSession = "session-native-quiz-grading";
+      await testDb.insert(schema.session).values({
+        id: liveSession, token: liveSession, userId: "usr-tutor-assigned", expiresAt: new Date(Date.now() + 60_000),
+      });
+      mockSession = { user: { id: "usr-tutor-assigned", role: "teacher" }, session: { id: liveSession } };
       const input = {
         courseId: "mk-calc", attemptId,
         items: [{ questionId: "q-es-1", score: 85, reviewNotes: "Tepat", expectedRevision: 0 }],
@@ -601,6 +605,9 @@ describe("Tutor Quiz Manual Grading Contracts", () => {
       expect(other.replayed).toBeUndefined();
       expect(await gradeQuizAttemptAction(input, request)).toEqual({ ...first, replayed: true });
 
+      await testDb.update(schema.session).set({ expiresAt: new Date(0) }).where(eq(schema.session.id, liveSession));
+      await expect(gradeQuizAttemptAction(input, request)).rejects.toThrow(TUTOR_QUIZ_GRADING_ERRORS.UNAUTHORIZED);
+      await testDb.update(schema.session).set({ expiresAt: new Date(Date.now() + 60_000) }).where(eq(schema.session.id, liveSession));
       await testDb.update(schema.penugasanTutor).set({ status: "revoked" }).where(eq(schema.penugasanTutor.id, "pt-calc"));
       await expect(gradeQuizAttemptAction(input, request)).rejects.toThrow("TUTOR_ACCESS_DENIED");
       expect(await testDb.select().from(schema.auditMutasi).where(eq(schema.auditMutasi.entityId, attemptId))).toHaveLength(2);

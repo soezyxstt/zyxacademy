@@ -83,13 +83,14 @@ export function Quizzes({ mode, gateway, context, base, params, query, navigate,
                 <Action label="Analitik" onPress={() => navigate(`${base}/analytics/${entry.id}`)} />
               )}
               {gateway.canSaveQuiz && editable ? <Action label="Edit" onPress={() => navigate(`${quizPath}/${entry.id}/edit`)} testID={`academic-quiz-edit-${entry.id}`} /> : null}
-              {gateway.canMutate && editable ? <>
-                {isTutor ? <Action label={entry.status === "published" ? "Jadikan draf" : "Terbitkan"}
-                  disabled={mutation.pending} onPress={() => mutation.send({
-                    kind: "quiz.status", target: targetVersion(entry), status: entry.status === "published" ? "draft" : "published",
-                  }, refreshed)} /> : null}
-                <Action label="Hapus" variation="ghost" onPress={() => { mutation.reset(); setSelected({ kind: "delete", quiz: entry }); }} />
-              </> : !editable ? <Ink kind="meta" tone="muted">Dikelola admin</Ink> : null}
+              {gateway.canSaveQuiz && editable && isTutor ? <Action label={entry.status === "published" ? "Jadikan draf" : "Terbitkan"}
+                disabled={mutation.pending} onPress={() => mutation.send({
+                  kind: "quiz.status", target: targetVersion(entry), status: entry.status === "published" ? "draft" : "published",
+                  courseId: data.course.id,
+                }, refreshed)} /> : null}
+              {gateway.canSaveQuiz && editable ? <Action label="Hapus" variation="ghost"
+                onPress={() => { mutation.reset(); setSelected({ kind: "delete", quiz: entry }); }} /> : null}
+              {!editable ? <Ink kind="meta" tone="muted">Dikelola admin</Ink> : null}
             </View>
           </SectionRow>;
         })}
@@ -115,9 +116,9 @@ export function Quizzes({ mode, gateway, context, base, params, query, navigate,
         <Pagination page={displayedBankPage} count={bank.length} size={pageSize} change={setBankPage} />
       </>}
       {selected?.kind === "preview" ? <QuizPreview gateway={gateway} context={context} quiz={selected.quiz} close={() => setSelected(null)} /> : null}
-      {selected?.kind === "delete" ? <ConfirmAction title="Hapus kuis" message={`Hapus “${selected.quiz.title}”?`} confirmLabel="Hapus kuis"
+      {selected?.kind === "delete" ? <ConfirmAction title="Hapus kuis" message={`Kuis “${selected.quiz.title}” beserta hasil percobaannya akan dihapus.`} confirmLabel="Hapus kuis"
         destructive busy={mutation.pending} cancel={() => { mutation.reset(); setSelected(null); }}
-        confirm={() => mutation.send({ kind: "quiz.delete", target: targetVersion(selected.quiz) }, (effect) => { setSelected(null); refreshed(effect); })}>
+        confirm={() => mutation.send({ kind: "quiz.delete", target: targetVersion(selected.quiz), courseId: data.course.id }, (effect) => { setSelected(null); refreshed(effect); })}>
         <MutationProblem mutation={mutation} reload={reload} />
       </ConfirmAction> : null}
       {bankAction ? <CourseDialog title={bankAction.kind === "view" ? "Detail soal" : bankAction.kind === "delete" ? "Hapus soal" : bankAction.question ? "Edit soal" : "Tambah soal"}
@@ -150,12 +151,19 @@ export function Quizzes({ mode, gateway, context, base, params, query, navigate,
       if (mode === "edit" && !quiz) return <AssessmentNotice error message="Kuis tidak ditemukan di kursus ini." />;
       const role = context.scope.kind;
       if (quiz && !canEditQuiz(role, quiz)) return <AssessmentNotice error message="Kuis simulasi hanya dapat diubah oleh admin." />;
-      const initialValue = quiz ?? defaultQuiz(role, commaList(query.tags ?? ""));
-      return <QuizEditor initialValue={initialValue} role={role} bank={data.bank} isSaving={mutation.pending || mutation.problem?.code === "unavailable"}
-        feedback={<MutationProblem mutation={mutation} reload={reload} />}
+      const outstanding = gateway.pendingQuizSave?.(context, quiz?.id ?? null);
+      const initialValue = outstanding?.command.input ?? quiz ?? defaultQuiz(role, commaList(query.tags ?? ""));
+      const finish = (_effect: MutationEffect, requestId: string) => replace(`${quizPath}?saved=${encodeURIComponent(requestId)}`);
+      const recovery = outstanding && !mutation.problem && !mutation.pending ? <AssessmentNotice
+        error={!outstanding.confirmed}
+        message={outstanding.confirmed ? "Kuis sudah tersimpan." : "Hasil penyimpanan belum diketahui."}
+        action={<Action label={outstanding.confirmed ? "Kembali ke kuis" : "Coba lagi"} testID="academic-quiz-restore"
+          onPress={() => mutation.resume(outstanding.requestId, outstanding.command, finish)} />} /> : null;
+      return <QuizEditor initialValue={initialValue} role={role} bank={data.bank} isSaving={mutation.pending || !!outstanding || mutation.problem?.code === "unavailable"}
+        feedback={<>{recovery}<MutationProblem mutation={mutation} reload={reload} /></>}
         onCancel={() => replace(quizPath)} onSave={(input) => mutation.send({
           kind: "quiz.save", target: quiz ? targetVersion(quiz) : null, input, courseId: data.course.id,
-        }, (_effect, requestId) => replace(`${quizPath}?saved=${encodeURIComponent(requestId)}`))} />;
+        }, finish)} />;
     }}</ReadState>
   </AssessmentPage>;
 }

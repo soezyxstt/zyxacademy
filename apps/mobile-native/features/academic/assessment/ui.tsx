@@ -190,6 +190,11 @@ export function useMutation(gateway: AssessmentGateway, context: AssessmentConte
       next.current = { id: randomUUID(), command, finish };
       void run();
     },
+    resume(requestId: string, command: AssessmentCommand, finish: (effect: MutationEffect, requestId: string) => void) {
+      if (busy.current) return;
+      next.current = { id: requestId, command, finish };
+      void run();
+    },
     retry: run,
   };
 }

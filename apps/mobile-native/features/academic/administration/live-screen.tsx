@@ -4,7 +4,8 @@ import {
   administrationReadPath, type LiveAdministrationRead, type LiveRow,
 } from "../../../../../packages/native-parity/academic/administration/live";
 import { matchAdministrationRoute, type AdministrationPattern } from "../../../../../packages/native-parity/academic/administration/routes";
-import { NativeListRow, NativeStatusPanel } from "../../shared-ui";
+import { NativeListRow, NativeStatusPanel, ResponsiveTable, type SharedUiAction, type SharedUiActionHandler } from "../../shared-ui";
+import { AdministrationCalendar } from "./calendar";
 import { PkaAnnouncementEditor } from "./pka-edit";
 import { DiktatPdfControls, readDiktatScope } from "./diktat-controls";
 import type { AcademicTransport } from "../client";
@@ -119,14 +120,19 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
       <Picker label="Periode" options={[{ id: "", label: "Semua sesi" }, { id: "upcoming", label: "Akan datang" }, { id: "past", label: "Riwayat" }]}
         selected={filters.status ?? ""} onSelect={(value) => filter("status", value)} />
     </View> : null}
-    {pattern === "/admin/schedules" ? <>
-      <Tabs options={scheduleTabs} selected={scheduleTab} onSelect={(id) => filter("tab", id)} />
-      <View style={layout.row}>
-        <Action label="Minggu sebelumnya" onPress={() => filter("week", String(week - 1))} disabled={week <= -520} />
-        <Action label="Hari ini" onPress={() => filter("week", "0")} />
-        <Action label="Minggu berikutnya" onPress={() => filter("week", String(week + 1))} disabled={week >= 520} />
-      </View>
-    </> : null}
+    {pattern === "/admin/schedules" ? <Tabs options={scheduleTabs} selected={scheduleTab} onSelect={(id) => filter("tab", id)} /> : null}
+    {data?.week ? <>
+      <View style={layout.row}><Action label="Hari ini" onPress={() => filter("week", "0")} /></View>
+      <AdministrationCalendar start={data.week.start} today={data.week.today} dayOffset={week}
+        onPeriodChange={(direction) => filter("week", String(week + direction))}
+        events={data.rows.flatMap((row) => row.dateId ? [{
+          dateId: row.dateId, title: row.title, id: row.id, caption: [row.subtitle, row.detail].filter(Boolean).join(" · "),
+        }] : [])} onEventPress={(id) => setSelected(data.rows.find((row) => row.id === id))} />
+    </> : pattern === "/admin/schedules" ? <View style={layout.row}>
+      <Action label="Minggu sebelumnya" onPress={() => filter("week", String(week - 1))} disabled={week <= -520} />
+      <Action label="Hari ini" onPress={() => filter("week", "0")} />
+      <Action label="Minggu berikutnya" onPress={() => filter("week", String(week + 1))} disabled={week >= 520} />
+    </View> : null}
     {state.status === "loading" ? <PendingCourses /> : null}
     {state.status === "denied" ? <NativeStatusPanel title="Akses admin diperlukan." message="Masuk kembali jika sesi berakhir." tone="error" theme={theme} /> : null}
     {state.status === "missing" ? <CourseStatus label="Halaman atau data tidak ditemukan." error /> : null}
@@ -134,21 +140,34 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
     {target ? <CourseStatus label="Membuka halaman tujuan…" /> : null}
     {success ? <View accessibilityLiveRegion="polite"><Ink>Pengumuman diperbarui.</Ink></View> : null}
     {data?.summary?.length ? <Metrics values={data.summary} /> : null}
-    {data?.rows.length === 0 ? <RecordsEmpty label={emptyMessages[pattern] ?? "Belum ada item."} filtered={filtered} /> : null}
+    {data?.rows.length === 0 && !data.week && pattern !== "/admin/notifications" ? <RecordsEmpty label={emptyMessages[pattern] ?? "Belum ada item."} filtered={filtered} /> : null}
     {article && (data || pdfPending) ? <DiktatPdfControls {...props} authorized={data?.rows.flatMap((row) => row.pdf ? [row.pdf] : []) ?? []}
       target={pdfRow?.pdf} title={pdfRow?.title}
       closeConfirmation={() => setPdfRow(undefined)} refresh={retry} /> : null}
-    {data?.rows.map((row) => <View key={row.id} style={{ borderBottomWidth: StyleSheet.hairlineWidth, borderColor: palette.border }}>
-      <NativeListRow theme={theme} layout={width >= 768 * fontScale ? "wide" : "compact"} title={row.title}
-        subtitle={[row.subtitle, row.detail].filter(Boolean).join(" · ")}
-        primary={row.fields?.length ? { onPress: () => setSelected(row) } : undefined}
-        actions={row.pdf && transport.command && !pdfPending ? [{ id: "pdf", label: "Minta PDF" }] :
-          row.announcementEdit && transport.command ? [{ id: "edit", label: "Edit pengumuman" }] : undefined}
-        onAction={(id) => {
-          if (id === "pdf") setPdfRow(row);
-          else { setSuccess(false); setPkaDraft({ actorTransport: transport, row }); }
-        }} />
-    </View>)}
+    {data && pattern === "/admin/notifications" ? <ResponsiveTable rows={data.rows} theme={theme}
+      getRowKey={(row) => row.id} empty={<RecordsEmpty label="Belum ada riwayat notifikasi." />}
+      columns={[
+        { id: "title", label: "Notifikasi", weight: 3, renderCell: (row) => <NativeListRow title={row.title} subtitle={row.detail}
+          theme={theme} layout="compact" primary={{ onPress: () => setSelected(row) }} /> },
+        { id: "recipient", label: "Penerima", weight: 2, renderCell: (row) => row.subtitle ?? "Belum tersedia" },
+        { id: "success", label: "Berhasil", renderCell: (row) => row.fields?.find((field) => field.label === "Berhasil")?.value ?? "0" },
+        { id: "failure", label: "Gagal", renderCell: (row) => row.fields?.find((field) => field.label === "Gagal")?.value ?? "0" },
+      ]} /> : !data?.week ? data?.rows.map((row) => {
+      type ActionId = "pdf" | "edit";
+      const actions: SharedUiAction<ActionId>[] = [];
+      if (row.pdf && transport.command && !pdfPending) actions.push({ id: "pdf", label: "Minta PDF" });
+      if (row.announcementEdit && transport.command) actions.push({ id: "edit", label: "Edit pengumuman" });
+      const onAction: SharedUiActionHandler<ActionId> = (id) => {
+        if (id === "pdf") setPdfRow(row);
+        else { setSuccess(false); setPkaDraft({ actorTransport: transport, row }); }
+      };
+      return <View key={row.id} style={{ borderBottomWidth: StyleSheet.hairlineWidth, borderColor: palette.border }}>
+        <NativeListRow theme={theme} layout={width >= 768 * fontScale ? "wide" : "compact"} title={row.title}
+          subtitle={[row.subtitle, row.detail].filter(Boolean).join(" · ")}
+          primary={row.fields?.length ? { onPress: () => setSelected(row) } : undefined}
+          actions={actions} onAction={onAction} />
+      </View>;
+    }) : null}
     {data && (page > 1 || data.nextPage) ? <View style={layout.row}>
       <Action label="Sebelumnya" onPress={() => filter("page", String(page - 1))} disabled={page <= 1} />
       <Ink kind="meta">{`Halaman ${page}`}</Ink>

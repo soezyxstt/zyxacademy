@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ComponentRef } from "react";
 import { randomUUID } from "expo-crypto";
 import { openBrowserAsync } from "expo-web-browser";
-import { AccessibilityInfo, ActivityIndicator, AppState, findNodeHandle, View } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, AppState, View } from "react-native";
 import type {
   TutorDiscussionDetail,
   TutorDiscussThread,
@@ -16,6 +16,7 @@ import { TutorDataError } from "../../../../../packages/native-parity/academic/t
 import { Button } from "../../../components/Button";
 import { Input } from "../../../components/Input";
 import type { AcademicScreenProps } from "../contracts";
+import { TutorWeekCalendar, tutorJakartaToday } from "./schedule-calendar";
 import { Choices, Empty, Heading, Label, Row, TutorDetail, TutorPage, tutorLayout } from "./ui";
 
 type Navigation = Pick<AcademicScreenProps, "theme" | "back" | "navigate" | "replace" | "query">;
@@ -38,37 +39,40 @@ const ticketStatuses = { pending: "Menunggu keputusan", approved: "Disetujui", r
 export function ConnectedSchedule({ data, week, theme, back, replace, query }: Navigation & { week: number; data: TutorScheduleData }) {
   const [tab, setTab] = useState<ScheduleTab>(query.tab === "tickets" ? "tickets" : "calendar");
   const [search, setSearch] = useState("");
+  const [selectedDate, setSelectedDate] = useState<string>();
   const matches = (values: (string | null)[]) => values.some((value) => value?.toLowerCase().includes(search.trim().toLowerCase()));
   const slots = data.slots.filter((slot) => !search.trim() || matches([slot.date, slot.start, slot.location]));
   const sessions = data.sessions.filter((session) => !search.trim() || matches([session.date, session.groupName, session.courseTitle, session.topic]));
+  const sessionStatus = (status: string) => status === "completed" ? "Selesai" : status === "cancelled" ? "Dibatalkan" : "Terjadwal";
+  const events = [
+    ...slots.map((slot) => ({
+      id: `slot-${slot.id}`, dateId: slot.date, title: "Slot ketersediaan",
+      caption: [times(slot.start, slot.end), slot.mode === "online" ? "Daring" : slot.location ?? "Tatap muka", slot.booked ? "Terisi" : "Tersedia"].join(" · "),
+    })),
+    ...sessions.flatMap((session) => session.date ? [{
+      id: `session-${session.id}`, dateId: session.date, title: session.topic ?? session.courseTitle ?? "Sesi tutorial",
+      caption: [session.groupName, times(session.start, session.end), sessionStatus(session.status)].filter(Boolean).join(" · "),
+    }] : []),
+  ];
+  const today = tutorJakartaToday();
+  const defaultDate = !search.trim() && today >= data.from && today <= data.to ? today : events[0]?.dateId ?? data.from;
+  const undated = sessions.filter((session) => !session.date);
   return <TutorPage title="Jadwal mengajar" theme={theme} onBack={back}>
     <Choices<ScheduleTab> theme={theme} label="Bagian jadwal" value={tab} change={setTab}
       options={[["calendar", "Kalender"], ["tickets", "Tiket"], ["groups", "Kelas dan kelompok"]]} />
     {tab === "calendar" ? <>
-      <Heading theme={theme} title={`${dated(data.from)} sampai ${dated(data.to)}`} />
-      <View style={tutorLayout.cluster}>
-        <Button theme={theme} variant="outline" style={tutorLayout.action} disabled={week === -520}
-          onPress={() => replace(`/tutor/schedule?week=${week - 1}`)}>Pekan lalu</Button>
-        <Button theme={theme} variant="outline" style={tutorLayout.action} disabled={week === 520}
-          onPress={() => replace(`/tutor/schedule?week=${week + 1}`)}>Pekan depan</Button>
-      </View>
-      <Input theme={theme} accessibilityLabel="Cari slot dan sesi" placeholder="Cari slot, topik, kelompok" value={search} onChangeText={setSearch} style={tutorLayout.input} />
-      <View>
-        <Heading theme={theme} title="Slot" count={String(slots.length)} />
-        {slots.map((slot) => <Row key={slot.id} theme={theme}
-          title={`${dated(slot.date)} · ${times(slot.start, slot.end)}`}
-          subtitle={slot.mode === "online" ? "Daring" : slot.location ?? "Tatap muka"}
-          meta={slot.booked ? "Terisi" : "Tersedia"} />)}
-        {slots.length === 0 ? <Empty theme={theme} title={search.trim() ? "Slot tidak ditemukan" : "Belum ada slot ketersediaan"} /> : null}
-      </View>
-      <View>
-        <Heading theme={theme} title="Sesi tutorial" count={String(sessions.length)} />
-        {sessions.map((session) => <Row key={session.id} theme={theme}
+      <Input theme={theme} accessibilityLabel="Cari slot dan sesi" placeholder="Cari slot, topik, kelompok" value={search}
+        onChangeText={(value) => { setSearch(value); setSelectedDate(undefined); }} style={tutorLayout.input} />
+      <TutorWeekCalendar theme={theme} start={data.from} week={week} today={today} selectedDate={selectedDate ?? defaultDate}
+        events={events} onDateChange={setSelectedDate}
+        onWeekChange={(direction) => replace(`/tutor/schedule?week=${week + direction}`)} />
+      {undated.length ? <View>
+        <Heading theme={theme} title="Sesi tanpa tanggal" count={String(undated.length)} />
+        {undated.map((session) => <Row key={session.id} theme={theme}
           title={session.topic ?? session.courseTitle ?? "Sesi tutorial"}
-          subtitle={[session.groupName, dated(session.date), times(session.start, session.end)].filter(Boolean).join(" · ")}
-          meta={session.status === "completed" ? "Selesai" : session.status === "cancelled" ? "Dibatalkan" : "Terjadwal"} />)}
-        {sessions.length === 0 ? <Empty theme={theme} title={search.trim() ? "Sesi tidak ditemukan" : "Belum ada sesi tutorial yang dijadwalkan"} /> : null}
-      </View>
+          subtitle={[session.groupName, times(session.start, session.end)].filter(Boolean).join(" · ")}
+          meta={sessionStatus(session.status)} />)}
+      </View> : null}
     </> : null}
     {tab === "tickets" ? <View>
       {data.tickets.map((ticket) => <Row key={ticket.id} theme={theme}
@@ -375,9 +379,9 @@ export function ConnectedVideos({ data, theme, back, playback }: Navigation & { 
     browserFocus.current = null;
     requestAnimationFrame(() => {
       const node = buttons.current.get(id);
-      const handle = node ? findNodeHandle(node) : null;
-      if (handle !== null) AccessibilityInfo.setAccessibilityFocus(handle);
-      node?.focus();
+      if (!node) return;
+      node.focus();
+      AccessibilityInfo.sendAccessibilityEvent(node, "focus");
     });
   }
 

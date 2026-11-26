@@ -1,10 +1,11 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View, type TextInputProps } from "react-native";
-import { nativeColors, nativeRadii } from "../../../../../packages/design-tokens/native-colors";
+import { createContext, useContext, useState, type ComponentProps, type ReactNode } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { nativeColors } from "../../../../../packages/design-tokens/native-colors";
 import { Button } from "../../../components/Button";
 import { Input } from "../../../components/Input";
 import { Skeleton } from "../../../components/Skeleton";
 import { nativeTypography } from "../../../typography";
+import { SharedDialog, type SharedDialogProps } from "../../shared-ui/overlays";
 
 type Theme = keyof typeof nativeColors;
 export const CourseTheme = createContext<Theme>("light");
@@ -30,9 +31,6 @@ export const layout = StyleSheet.create({
   item: { paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, minHeight: 44, justifyContent: "center" },
   tabs: { flexDirection: "row", flexWrap: "wrap", gap: 4 },
   metric: { flexGrow: 1, flexBasis: 90, paddingVertical: 6, gap: 2 },
-  overlay: { flex: 1, backgroundColor: "#00000066", justifyContent: "center", padding: 16 },
-  dialog: { borderRadius: nativeRadii.lg, padding: 16, gap: 12, maxHeight: "88%", width: "100%", maxWidth: 540, alignSelf: "center" },
-  dialogBody: { gap: 12, paddingBottom: 2 },
 });
 
 export function Ink({ children, kind = "body", tone = "default" }: {
@@ -81,7 +79,7 @@ export function SearchBox({ label, value, onChange, testID }: {
   return <Input theme={theme} accessibilityLabel={label} placeholder={label} value={value} onChangeText={onChange} autoCorrect={false} testID={testID} style={{ minHeight: 44 }} />;
 }
 
-export function Field({ label, ...props }: TextInputProps & { label: string }) {
+export function Field({ label, ...props }: ComponentProps<typeof Input> & { label: string }) {
   const theme = useContext(CourseTheme);
   return (
     <View style={layout.compact}>
@@ -129,24 +127,18 @@ export function Picker({ label, options, selected, onSelect, testID }: {
   );
 }
 
-export function CourseDialog({ title, open = true, onClose, children }: {
-  title: string; open?: boolean; onClose(): void; children: ReactNode;
-}) {
-  const palette = useCourseColors();
+type CourseDialogProps = Pick<SharedDialogProps, "title" | "children" | "dismissDisabled" | "testID"> & {
+  open?: boolean;
+  onClose(): void;
+};
+
+export function CourseDialog({ title, open = true, onClose, children, dismissDisabled, testID }: CourseDialogProps) {
+  const theme = useContext(CourseTheme);
   return (
-    <Modal visible={open} transparent onRequestClose={onClose} animationType="none" statusBarTranslucent>
-      <View style={layout.overlay}>
-        <View style={[layout.dialog, { backgroundColor: palette.background }]} accessibilityViewIsModal>
-          <View style={layout.split}>
-            <Ink kind="heading">{title}</Ink>
-            <Action label="Tutup" onPress={onClose} variation="ghost" />
-          </View>
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={layout.dialogBody} bounces={false}>
-            {children}
-          </ScrollView>
-        </View>
-      </View>
-    </Modal>
+    <SharedDialog open={open} onDismiss={onClose} title={title} closeLabel="Tutup" theme={theme}
+      dismissOnBackdrop={false} dismissDisabled={dismissDisabled} testID={testID}>
+      {children}
+    </SharedDialog>
   );
 }
 

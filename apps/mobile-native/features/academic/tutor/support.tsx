@@ -1,10 +1,13 @@
-import { useState, useSyncExternalStore } from "react";
+import { useRef, useState, useSyncExternalStore, type ComponentRef } from "react";
 import { View } from "react-native";
 import { getTutorDocBySlug, getTutorDocs, searchTutorDocs } from "../../../../../packages/academic/docs/tutor";
+import { parseTutorWeek } from "../../../../../packages/academic/tutor-support";
 import { addTutorDays, slotEndTime, tutorFixtureWeek, type TutorFixtureRepository, type TutorSlotDraft } from "../../../../../packages/native-parity/academic/tutor/fixture-interactions";
 import { Button } from "../../../components/Button";
 import { Input } from "../../../components/Input";
 import type { AcademicScreenProps } from "../contracts";
+import { SharedDialog } from "../../shared-ui";
+import { TutorWeekCalendar } from "./schedule-calendar";
 import { Choices, Empty, Heading, Label, Row, TutorDetail, TutorPage, tutorLayout } from "./ui";
 
 type Props = Pick<AcademicScreenProps, "theme" | "navigate" | "back" | "query">;
@@ -71,22 +74,23 @@ export function TutorDocs({ slug, theme, navigate, back }: Props & { slug?: stri
   </TutorPage>;
 }
 
-const sessionDate = new Intl.DateTimeFormat("id-ID", { dateStyle: "full", timeZone: "UTC" });
-
 type ScheduleTab = "calendar" | "tickets" | "groups";
 
 export function TutorSchedule({ theme, back, query, populated, repository }: Props & { populated: boolean; repository: TutorFixtureRepository }) {
-  const offset = Number(query.week ?? 0);
-  const [week, setWeek] = useState(Number.isFinite(offset) ? Math.max(-520, Math.min(520, Math.trunc(offset))) : 0);
+  const [week, setWeek] = useState(() => parseTutorWeek(query.week));
   const [tab, setTab] = useState<ScheduleTab>(query.tab === "tickets" ? "tickets" : "calendar");
   const [search, setSearch] = useState("");
+  const [selectedDate, setSelectedDate] = useState<string>();
   const { slots } = useSyncExternalStore(repository.subscribe, repository.getSnapshot, repository.getSnapshot);
   const [draft, setDraft] = useState<TutorSlotDraft | null>(null);
   const [error, setError] = useState("");
+  const addSlotRef = useRef<ComponentRef<typeof Button>>(null);
+  const dateInputRef = useRef<ComponentRef<typeof Input>>(null);
   const monday = addTutorDays(tutorFixtureWeek, week * 7);
   const sunday = addTutorDays(monday, 6);
   const visible = slots.filter((slot) => slot.date >= monday && slot.date <= sunday &&
     `${slot.topic} ${slot.date} ${slot.time} ${slot.location}`.toLowerCase().includes(search.trim().toLowerCase()));
+  const activeDate = selectedDate ?? visible[0]?.date ?? monday;
 
   function saveSlot() {
     if (!draft) return;
@@ -100,6 +104,7 @@ export function TutorSchedule({ theme, back, query, populated, repository }: Pro
       return;
     }
     setWeek(Math.floor((Date.parse(draft.date) - Date.parse(tutorFixtureWeek)) / (7 * 86_400_000)));
+    setSelectedDate(draft.date);
     setDraft(null);
   }
 
@@ -108,25 +113,30 @@ export function TutorSchedule({ theme, back, query, populated, repository }: Pro
       <Choices<ScheduleTab> theme={theme} label="Bagian jadwal" value={tab} change={setTab}
         options={[["calendar", "Kalender"], ["tickets", "Tiket"], ["groups", "Kelas dan kelompok"]]} />
       {tab === "calendar" ? <>
-        <Label theme={theme} tone="heading">{sessionDate.format(new Date(monday))} sampai {sessionDate.format(new Date(sunday))}</Label>
-        <View style={tutorLayout.cluster}>
-          <Button theme={theme} variant="outline" style={tutorLayout.action} disabled={week === -520} onPress={() => setWeek(week - 1)}>Pekan lalu</Button>
-          <Button theme={theme} variant="outline" style={tutorLayout.action} disabled={week === 520} onPress={() => setWeek(week + 1)}>Pekan depan</Button>
-          <Button theme={theme} style={tutorLayout.action} onPress={() => {
-            setError("");
-            setDraft({ date: monday, time: "09:00", mode: "online", topic: "", location: "" });
-          }}>Tambah slot</Button>
-        </View>
-        <Input theme={theme} accessibilityLabel="Cari slot" placeholder="Cari slot, topik, kelompok" value={search} onChangeText={setSearch} style={tutorLayout.input} />
-        <View>
-          <Heading theme={theme} title="Slot" count={`${visible.length} slot`} />
-          {visible.length ? visible.map((slot) => <Row key={slot.id} theme={theme} title={slot.topic || "Slot ketersediaan"}
-            subtitle={`${sessionDate.format(new Date(slot.date))} · ${slot.time} sampai ${slotEndTime(slot.time)}`}
-            meta={slot.booked ? "Terisi" : "Tersedia"} onPress={slot.booked ? undefined : () => { setError(""); setDraft(slot); }}
-          ><Label theme={theme} tone="muted">{slot.mode === "online" ? "Daring" : slot.location}</Label></Row>) : (
-            <Empty theme={theme} title="Belum ada slot ketersediaan" description="Tambahkan slot 90 menit agar sesi tutorial kelompok dapat dijadwalkan." />
-          )}
-        </View>
+        <Button ref={addSlotRef} theme={theme} style={tutorLayout.action} onPress={() => {
+          setError("");
+          setDraft({ date: selectedDate ?? monday, time: "09:00", mode: "online", topic: "", location: "" });
+        }}>Tambah slot</Button>
+        <Input theme={theme} accessibilityLabel="Cari slot" placeholder="Cari slot, topik, kelompok" value={search}
+          onChangeText={(value) => { setSearch(value); setSelectedDate(undefined); }} style={tutorLayout.input} />
+        <TutorWeekCalendar theme={theme} start={monday} week={week} today="2026-11-26" selectedDate={activeDate}
+          events={visible.map((slot) => ({
+            id: slot.id,
+            dateId: slot.date,
+            title: slot.topic || "Slot ketersediaan",
+            caption: [`${slot.time} sampai ${slotEndTime(slot.time)}`, slot.mode === "online" ? "Daring" : slot.location, slot.booked ? "Terisi" : "Tersedia"].join(" · "),
+            disabled: slot.booked,
+          }))}
+          onDateChange={setSelectedDate}
+          onWeekChange={(direction) => { setSelectedDate(undefined); setWeek((current) => current + direction); }}
+          onEventPress={(id) => {
+            const slot = visible.find((item) => item.id === id);
+            if (slot && !slot.booked) {
+              setError("");
+              setDraft(slot);
+            }
+          }}
+        />
       </> : null}
       {tab === "tickets" ? (populated ? <Row theme={theme} title="Penjadwalan ulang" subtitle="Kelompok Sel · Biologi Dasar" meta="Menunggu keputusan">
         <Label theme={theme}>Kelompok meminta waktu pengganti.</Label>
@@ -134,19 +144,23 @@ export function TutorSchedule({ theme, back, query, populated, repository }: Pro
       {tab === "groups" ? (populated ? <Row theme={theme} title="Kelompok Sel" subtitle="Biologi Dasar · Tutorial reguler" meta="2/8 sesi" />
         : <Empty theme={theme} title="Belum ada kelompok aktif" />) : null}
     </TutorPage>
-    {draft ? <TutorDetail theme={theme} title={draft.id ? "Edit slot ketersediaan" : "Tambah slot ketersediaan"} subtitle="90 menit" onBack={() => setDraft(null)}
+    <SharedDialog open={Boolean(draft)} theme={theme} title={draft?.id ? "Edit slot ketersediaan" : "Tambah slot ketersediaan"}
+      description="90 menit" closeLabel="Kembali" onDismiss={() => setDraft(null)} dismissOnBackdrop={false}
+      initialFocusRef={dateInputRef} returnFocusRef={addSlotRef} testID="tutor-schedule-slot-dialog"
       footer={<Button theme={theme} style={tutorLayout.action} onPress={saveSlot}>Simpan slot</Button>}>
-      <Label theme={theme} tone="strong">Tanggal (YYYY-MM-DD)</Label>
-      <Input theme={theme} accessibilityLabel="Tanggal" value={draft.date} onChangeText={(date) => setDraft({ ...draft, date })} />
-      <Label theme={theme} tone="strong">Mulai (HH:MM)</Label>
-      <Input theme={theme} accessibilityLabel="Waktu mulai" value={draft.time} onChangeText={(time) => setDraft({ ...draft, time })} />
-      <Choices<TutorSlotDraft["mode"]> theme={theme} label="Mode sesi" value={draft.mode} change={(mode) => setDraft({ ...draft, mode })}
-        options={[["online", "Daring"], ["offline", "Tatap muka"]]} />
-      {draft.mode === "offline" ? <Input theme={theme} accessibilityLabel="Lokasi" placeholder="Lokasi atau ruangan" value={draft.location}
-        onChangeText={(location) => setDraft({ ...draft, location })} /> : null}
-      <Input theme={theme} accessibilityLabel="Topik sesi" placeholder="Topik sesi (opsional)" value={draft.topic} onChangeText={(topic) => setDraft({ ...draft, topic })} />
-      {error ? <Label theme={theme} tone="error">{error}</Label> : null}
-    </TutorDetail> : null}
+      {draft ? <>
+        <Label theme={theme} tone="strong">Tanggal (YYYY-MM-DD)</Label>
+        <Input ref={dateInputRef} theme={theme} accessibilityLabel="Tanggal" value={draft.date} onChangeText={(date) => setDraft({ ...draft, date })} />
+        <Label theme={theme} tone="strong">Mulai (HH:MM)</Label>
+        <Input theme={theme} accessibilityLabel="Waktu mulai" value={draft.time} onChangeText={(time) => setDraft({ ...draft, time })} />
+        <Choices<TutorSlotDraft["mode"]> theme={theme} label="Mode sesi" value={draft.mode} change={(mode) => setDraft({ ...draft, mode })}
+          options={[["online", "Daring"], ["offline", "Tatap muka"]]} />
+        {draft.mode === "offline" ? <Input theme={theme} accessibilityLabel="Lokasi" placeholder="Lokasi atau ruangan" value={draft.location}
+          onChangeText={(location) => setDraft({ ...draft, location })} /> : null}
+        <Input theme={theme} accessibilityLabel="Topik sesi" placeholder="Topik sesi (opsional)" value={draft.topic} onChangeText={(topic) => setDraft({ ...draft, topic })} />
+        {error ? <Label theme={theme} tone="error">{error}</Label> : null}
+      </> : null}
+    </SharedDialog>
   </>;
 }
 

@@ -1,3 +1,4 @@
+import { validatePkaAnnouncementText } from "../../../academic/pka-announcement-edit";
 import {
   administrationCourses, fixtureClock, packagePresets, productCriteria, seedAdministration,
   type AcademicEventFields, type AdministrationActor, type AdministrationRecords, type AdministrationScenario,
@@ -240,7 +241,8 @@ function updateRecords(records: AdministrationRecords, command: AdministrationCo
     }
     case "pka.announcement.save": {
       const { title, body } = command.fields;
-      if (!hasText(title) || !hasText(body)) return invalid("Isi judul dan isi pengumuman.");
+      const error = validatePkaAnnouncementText({ title, body });
+      if (error) return invalid(error);
       const announcement = records.announcements.find((entry) => entry.id === id);
       const fields = { title: title.trim(), body: body.trim() };
       if (announcement) Object.assign(announcement, fields, { revision: announcement.revision + 1 });

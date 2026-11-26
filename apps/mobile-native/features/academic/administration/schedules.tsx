@@ -4,11 +4,12 @@ import {
   fixtureClock, type AcademicEvent, type AcademicEventFields, type Booking, type BookingFields,
   type EventStatus, type EventType, type TutorSlot, type TutorSlotFields,
 } from "../../../../../packages/native-parity/academic/administration/fixtures";
+import { AdministrationCalendar } from "./calendar";
 import type { AcademicScreenProps } from "../contracts";
 import { useAdministrationSnapshot, useAdministrationStore } from "./provider";
 import {
   Action, CourseDialog, DataRow, Field, Ink, MultiChoice, PagedRows, Picker, SaveButtons, Subheading, Tabs, TimeFields,
-  combineDateTime, courseName, courseNames, courseOptions, dateLabel, dateTimeLabel, idAndRevision, layout, splitDateTime,
+  combineDateTime, courseName, courseNames, courseOptions, dateTimeLabel, idAndRevision, layout, splitDateTime,
   useAdministrationMutation,
 } from "./ui";
 
@@ -149,7 +150,7 @@ export function AdministrationSchedules({ query, replace }: Pick<AcademicScreenP
   const tutorChoices = records.users.filter((user) => user.roles.includes("tutor") && user.status === "active").map((user) => ({ id: user.id, label: user.name }));
   const start = fixtureMonday + week * daysPerWeek * dayMillis;
   const end = start + daysPerWeek * dayMillis;
-  const weekLabel = `${dateLabel(new Date(start).toISOString())} sampai ${dateLabel(new Date(end - dayMillis).toISOString())}`;
+
   function updateUrl(next: ScheduleView, offset: number) {
     replace(`/admin/schedules?tab=${next}&week=${parseWeek(String(offset))}`);
   }
@@ -209,19 +210,23 @@ export function AdministrationSchedules({ query, replace }: Pick<AcademicScreenP
     <Tabs options={views} selected={view} onSelect={(next) => updateUrl(next, week)} testID="academic-schedules-tab" />
     {view === "calendar" ? <>
       <View style={layout.row}>
-        <Action label="Minggu sebelumnya" onPress={() => updateUrl(view, week - 1)} disabled={week <= -520} />
         <Action label="Hari ini" onPress={() => updateUrl(view, 0)} />
-        <Action label="Minggu berikutnya" onPress={() => updateUrl(view, week + 1)} disabled={week >= 520} />
-      </View>
-      <Ink kind="strong">{weekLabel}</Ink>
-      <View style={layout.row}>
         <Picker label="Cakupan jadwal" options={scopes} selected={scope} onSelect={(id) => setScope(id as typeof scope)} />
         <Picker label="Mata kuliah" options={allCourses} selected={course} onSelect={setCourse} />
       </View>
-      <PagedRows key={`${week}-${scope}-${course}`} rows={calendarRows.map((item) => ({ id: item.row.id, ...item }))} empty="Tidak ada jadwal pada minggu ini."
-        render={(item) => item.kind === "event" ? eventRow(item.row) : <DataRow key={item.id} title={tutorName(item.row.tutorId)}
-          description={dateTimeLabel(item.row.startsAt)} detail={records.bookings.some((booking) => booking.slotId === item.id && booking.status === "scheduled") ? "Dipesan" : "Tersedia"}
-          onPress={() => setSelection({ kind: "slot", id: item.id })} />} />
+      <AdministrationCalendar start={splitDateTime(new Date(start).toISOString()).date}
+        today={splitDateTime(fixtureClock).date} dayOffset={week} onPeriodChange={(direction) => updateUrl(view, week + direction)}
+        events={calendarRows.map((item) => ({
+          id: item.row.id,
+          dateId: splitDateTime(item.row.startsAt).date,
+          title: item.kind === "event" ? item.row.title : tutorName(item.row.tutorId),
+          caption: item.kind === "event" ? `${dateTimeLabel(item.row.startsAt)} · ${courseName(item.row.courseId)}` :
+            `${dateTimeLabel(item.row.startsAt)} · ${records.bookings.some((booking) => booking.slotId === item.row.id && booking.status === "scheduled") ? "Dipesan" : "Tersedia"}`,
+        }))}
+        onEventPress={(id) => {
+          const match = calendarRows.find((entry) => entry.row.id === id);
+          if (match) setSelection({ kind: match.kind, id });
+        }} />
     </> : null}
     {view === "academic" ? <>
       <Picker label="Mata kuliah" options={allCourses} selected={course} onSelect={setCourse} />

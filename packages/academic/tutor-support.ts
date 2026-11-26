@@ -80,7 +80,7 @@ export function tutorPlaybackUrl(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const youtube = /^youtube\/([A-Za-z0-9_-]{11})$/.exec(value);
   if (youtube) return `https://www.youtube.com/watch?v=${youtube[1]}`;
-  if (!value.startsWith("https://") || /[\u0000-\u0020\\]/.test(value)) return null;
+  if (!/^https:\/\/[^/]/.test(value) || /[\u0000-\u0020\\]/.test(value)) return null;
   try {
     const url = new URL(value);
     return url.protocol === "https:" && !url.username && !url.password ? value : null;

@@ -19,6 +19,25 @@ name: Admin course empty, recovery and access denial
     id: course-chapter-academic-chapter-1
 - tapOn:
     id: course-chapter-create
+- assertVisible:
+    id: course-chapter-dialog
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - pressKey: BACK
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          id: course-chapter-dialog-close
+- assertNotVisible:
+    id: course-chapter-dialog
+- assertVisible:
+    id: course-chapter-academic-chapter-1
+- tapOn:
+    id: course-chapter-create
 - tapOn:
     id: course-chapter-save
 - assertVisible: Judul bab wajib diisi.

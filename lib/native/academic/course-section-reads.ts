@@ -51,7 +51,7 @@ export async function readAdminCourseSection(slug: string, section: string, item
   if (section === "analytics" && itemId) {
     const result = await readAdminQuizInsight(itemId, user.id, identity.allIds);
     if (!result) return null;
-    const { template, summary, questionAnalysis, latestAiInsight } = result;
+    const { template, summary, questionAnalysis, latestAiInsight, attemptHeaders } = result;
     const { scoreRanges, ...metrics } = summary;
     return {
       type: "quiz-insight",
@@ -62,6 +62,7 @@ export async function readAdminCourseSection(slug: string, section: string, item
         questionId: row.questionId, prompt: row.prompt, options: strings(row.options), correctIndices: indices(row.correctIndices),
         totalAnswers: row.totalAnswers, accuracyRate: row.accuracyRate, optionCounts: row.optionCounts,
       })),
+      attempts: attemptHeaders ?? [],
       latestInsight: latestAiInsight ? { summary: latestAiInsight.summary, sampleSize: latestAiInsight.sampleSize } : null,
     };
   }

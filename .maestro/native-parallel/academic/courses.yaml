@@ -41,9 +41,15 @@ name: Admin course filter, overview and analytics
     timeout: 10000
 - tapOn:
     id: course-link-analytics
+- assertVisible:
+    id: course-analytics-results
 - tapOn:
     id: course-analytics-quiz-academic-quiz-1
 - tapOn:
     id: course-analytics-tab-score-dist
 - assertVisible: 0 sampai 20
 - takeScreenshot: academic-admin-courses-analytics-distribution-light
+- tapOn:
+    id: course-analytics-tab-attempts-sheet
+- assertVisible:
+    id: course-analytics-attempts

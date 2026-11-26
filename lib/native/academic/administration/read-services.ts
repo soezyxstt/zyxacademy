@@ -12,9 +12,9 @@ import { hasPeran } from "@/lib/auth/request-cache";
 import { getDiktatPdfContext } from "@/lib/bundle/product-diktat-evidence";
 import { getProductBundleImport } from "@/lib/bundle/product-staging";
 import { getIdeaBundleImport } from "@/lib/bundle/staging";
-import { formatJakartaDatetimeLocal, toIsoTimestamp } from "@/lib/date-utils";
+import { formatJakartaDatetimeLocal, getJakartaCalendarDate, toIsoTimestamp } from "@/lib/date-utils";
 import type { ReviewKind } from "@/packages/native-parity/academic/administration/fixtures";
-import type { LiveField, LivePage, LiveRow } from "@/packages/native-parity/academic/administration/live";
+import type { DiktatEvidenceStatus, LiveField, LivePage, LiveRow } from "@/packages/native-parity/academic/administration/live";
 import { announcementRevision } from "./announcement-edit-transaction";
 import type { AdministrationQuery, AdministrationReadServices } from "./handle-read";
 
@@ -74,18 +74,22 @@ async function schedules(query: AdministrationQuery) {
   }
   const events = schedule.academicSchedules.map((entry) => ({
     id: entry.id, title: entry.title, subtitle: entry.course?.title ?? "Semua mata kuliah",
-    detail: jakDateTime(entry.startDate), sort: formatJakartaDatetimeLocal(entry.startDate),
+    detail: jakDateTime(entry.startDate), dateId: getJakartaCalendarDate(entry.startDate), sort: formatJakartaDatetimeLocal(entry.startDate),
     fields: [field("Jenis", eventType[entry.type]), field("Lokasi", entry.location), field("Keterangan", entry.description)],
   }));
   const slots = schedule.slots.map((entry) => ({
     id: entry.id, title: entry.booking?.group?.name ?? entry.tutor.name,
     subtitle: entry.booking?.course?.title ?? (entry.mode === "offline" ? "Tatap muka" : "Daring"),
-    detail: `${entry.sessionDate} ${entry.startTime} WIB`, sort: `${entry.sessionDate}T${entry.startTime}`,
+    detail: `${entry.sessionDate} ${entry.startTime} WIB`, dateId: entry.sessionDate ?? undefined, sort: `${entry.sessionDate}T${entry.startTime}`,
     fields: [field("Tutor", entry.tutor.name), field("Lokasi", entry.location), field("Jam selesai", entry.endTime),
       field("Status", entry.booking ? "Dipesan" : "Tersedia")],
   }));
   const rows = query.tab === "academic" ? events : [...events, ...slots];
-  return paginate(rows.sort((left, right) => left.sort.localeCompare(right.sort)).map(({ sort: _sort, ...row }) => row), query.page, span);
+  const chronological = rows.sort((left, right) => left.sort.localeCompare(right.sort)).map(({ sort: _sort, ...row }) => row);
+  if (query.tab === "academic") return paginate(chronological, query.page, span);
+  const size = 100;
+  return { ...rowsPage(chronological.slice((query.page - 1) * size, query.page * size), chronological.length > query.page * size),
+    week: { start: schedule.weekRange.startIso, today: getJakartaCalendarDate() } };
 }
 
 async function readBundle(kind: ReviewKind, slug: string, bundleId: string, page: number) {
@@ -115,7 +119,7 @@ export const administrationReadServices: AdministrationReadServices = {
     return hasPeran(id, "admin");
   },
   bundle: readBundle,
-  async pdfStatus(slug, { importId, productId, expectedRevision }, attemptId) {
+  async pdfStatus(slug, { importId, productId, expectedRevision }, attemptId): Promise<DiktatEvidenceStatus | null> {
     const [identity, bundle] = await Promise.all([resolveCourseIdentity(slug), getProductBundleImport(importId)]);
     if (!identity || !bundle || !matchesCourseIdentity(bundle.courseId, identity)) return null;
     if (bundle.checksum !== expectedRevision) return "stale";
@@ -125,7 +129,13 @@ export const administrationReadServices: AdministrationReadServices = {
       if (!matchesCourseIdentity(status.row.courseId, identity)) return null;
       if (!status.evidence?.id) return status.status === "stale" ? "stale" : "unavailable";
       if (status.evidence.id !== attemptId) return "stale";
-      return status.status === "missing" ? "unavailable" : status.status;
+      switch (status.status) {
+        case "ready": return "ready";
+        case "pending": return "pending";
+        case "failed": return "failed";
+        case "stale": return "stale";
+        default: return "unavailable";
+      }
     } catch (error) {
       const code = error instanceof Error ? error.message : "";
       if (/STALE|CONFLICT|CHECKSUM_MISMATCH/.test(code)) return "stale";

@@ -145,3 +145,81 @@ test("native grading client preserves request id and does not accept an unrelate
   assert.equal(calls.length, 2);
   assert.deepEqual(calls[0], calls[1]);
 });
+
+test("native quiz editor sends canonical create and edit commands and records only verified notices", async () => {
+  const { defaultQuiz } = await import("./model");
+  const calls: Array<{ path: string; init: unknown }> = [];
+  const gateway = createAssessmentReadGateway({
+    accountId: "session-admin", origin: "https://example.test", locale: "id",
+    get: async () => Response.json(null, { status: 404 }),
+    command: async (path, init) => {
+      calls.push({ path, init });
+      return Response.json({ requestId: init.requestId, templateId: "tpl-live" });
+    },
+  });
+  const context = { actor: { id: "session-admin", role: "admin" }, scenario: "populated", scope: { kind: "admin", slug: "biologi" } } as const;
+  const input = { ...defaultQuiz("admin"), title: "Kuis biologi" };
+  assert.equal(gateway.canSaveQuiz, true);
+  assert.equal(gateway.canMutate, false);
+  assert.equal(gateway.takeQuizSaveNotice?.(context, "spoof"), null);
+  assert.equal((await gateway.mutate(context, "create", { kind: "quiz.save", target: null, courseId: "mk-bio", input })).ok, true);
+  assert.equal(gateway.takeQuizSaveNotice?.(context, "create"), "Kuis tersimpan.");
+  assert.equal(gateway.takeQuizSaveNotice?.(context, "create"), null);
+  assert.equal((await gateway.mutate(context, "edit", {
+    kind: "quiz.save", target: { id: "tpl-live", expectedRevision: 1891 }, courseId: "mk-bio", input,
+  })).ok, true);
+  assert.equal((await gateway.mutate(context, "publish", {
+    kind: "quiz.status", target: { id: "tpl-live", expectedRevision: 1892 }, courseId: "mk-bio", status: "published",
+  })).ok, true);
+  assert.equal((await gateway.mutate(context, "delete", {
+    kind: "quiz.delete", target: { id: "tpl-live", expectedRevision: 1893 }, courseId: "mk-bio",
+  })).ok, true);
+  assert.deepEqual(calls.map(({ path }) => path), ["/api/quiz/templates", "/api/quiz/templates/tpl-live", "/api/quiz/templates/tpl-live", "/api/quiz/templates/tpl-live"]);
+  assert.equal((calls[0].init as { method: string }).method, "POST");
+  assert.equal((calls[1].init as { method: string }).method, "PATCH");
+  assert.equal((calls[3].init as { method: string }).method, "DELETE");
+  assert.equal((calls[1].init as { body: { expectedRevision: number } }).body.expectedRevision, 1891);
+});
+
+test("a lost create response preserves the same immutable command and key across screen remount", async () => {
+  const { defaultQuiz } = await import("./model");
+  const calls: unknown[] = [];
+  const transport = {
+    accountId: "session-tutor", origin: "https://example.test", locale: "id",
+    get: async () => Response.json([], { status: 200 }),
+    command: async (path: string, init: import("../../../../apps/mobile-native/features/academic/client").AcademicCommand) => {
+      calls.push({ path, init });
+      if (calls.length === 1) throw new Error("Lost response");
+      return Response.json({ requestId: init.requestId, templateId: "created" });
+    },
+  };
+  const gateway = createAssessmentReadGateway(transport);
+  const context = { actor: { id: "session-tutor", role: "tutor" }, scenario: "populated", scope: { kind: "tutor", courseId: "course" } } as const;
+  const command = {
+    kind: "quiz.save", target: null, courseId: "course",
+    input: { ...defaultQuiz("tutor"), title: "Kuis pertama", selection: { mode: "specific", questionIds: ["question"] } },
+  } as const;
+  const draft = { ...command, input: { ...command.input, selection: { ...command.input.selection, questionIds: [...command.input.selection.questionIds] } } };
+  const key = "first-save-key";
+  const saved = await gateway.mutate(context, key, draft);
+  assert.equal(saved.ok, false);
+
+  const remounted = createAssessmentReadGateway(transport);
+  assert.equal(remounted, gateway);
+  assert.equal(createAssessmentReadGateway({ ...transport }).pendingQuizSave?.(context, null), null);
+  const outstanding = remounted.pendingQuizSave?.(context, null);
+  assert.ok(outstanding);
+  assert.equal(outstanding.requestId, key);
+  assert.equal(outstanding.command.input.title, "Kuis pertama");
+  assert.equal(outstanding.confirmed, false);
+  assert.equal((await remounted.mutate(context, "different-key", { ...draft, input: { ...draft.input, title: "Kuis berbeda" } })).ok, false);
+  assert.equal(calls.length, 1);
+  const retried = await remounted.mutate(context, outstanding.requestId, outstanding.command);
+  assert.equal(retried.ok, true);
+  assert.deepEqual(calls[0], calls[1]);
+  assert.equal(remounted.pendingQuizSave?.(context, null)?.confirmed, true);
+  assert.equal((await remounted.mutate(context, outstanding.requestId, outstanding.command)).ok, true);
+  assert.equal(calls.length, 2);
+  assert.equal(remounted.takeQuizSaveNotice?.(context, key), "Kuis tersimpan.");
+  assert.equal(remounted.pendingQuizSave?.(context, null), null);
+});

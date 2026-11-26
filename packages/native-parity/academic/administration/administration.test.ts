@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import type { AcademicCommand } from "../../../../apps/mobile-native/features/academic/client";
+import { savePkaAnnouncement } from "../../../../apps/mobile-native/features/academic/administration/pka-edit-client";
 import { readAdministration } from "../../../../apps/mobile-native/features/academic/administration/live-client";
 import { checkDiktatPdfEvidence, checkDiktatPdfRequest, requestDiktatPdf } from "../../../../apps/mobile-native/features/academic/administration/diktat-client";
+import { handlePkaAnnouncementEdit } from "../../../../lib/native/academic/administration/announcement-edit-handler";
+import { announcementRevision, editAnnouncementInTransaction, type AnnouncementEditStore } from "../../../../lib/native/academic/administration/announcement-edit-transaction";
 import { handleAdministrationRead, type AdministrationReadServices } from "../../../../lib/native/academic/administration/handle-read";
 import { administrationBundleFixtures, productCriteria, type AcademicEventFields } from "./fixtures";
 import { administrationReadPath, canReplayDiktatPdfRequest, isLiveAdministrationRead } from "./live";
@@ -206,4 +210,54 @@ test("URL-only PDF recovery cannot post and fresh server authorization must matc
   assert.equal(canReplayDiktatPdfRequest(request, [{ ...request, expectedRevision: "b".repeat(64) }]), false);
   assert.equal(canReplayDiktatPdfRequest(request, [{ ...request, importId: "bundle-b" }]), false);
   assert.equal(canReplayDiktatPdfRequest(request, [request]), true);
+});
+
+
+test("the native PKA editor replays lost saves and exposes current text after a revision conflict", async () => {
+  const id = "test-pka";
+  const requestId = "00000000-0000-4000-8000-000000000001";
+  const origin = "https://academic.invalid";
+  let stored = { title: "Judul awal", body: "Isi awal" };
+  let writes = 0;
+  let lost = false;
+  const receipt = new Map<string, Parameters<AnnouncementEditStore["writeReceipt"]>[0]>();
+  const transport = {
+    origin, accountId: "signed-admin", locale: "id",
+    get: async () => Response.json({}),
+    command: async (path: string, { method, requestId: key, body }: AcademicCommand) => {
+      assert.equal(method, "PATCH");
+      assert.equal(path, "/api/native/academic-administration/announcements/test-pka");
+      const result = await handlePkaAnnouncementEdit(new Request(origin + path, { method, body: JSON.stringify(body),
+        headers: { Origin: origin, "Content-Type": "application/json", "Idempotency-Key": key } }),
+      ["announcements", id], origin, {
+        session: async () => ({ user: { id: "signed-admin" }, session: { id: "signed-session" } }),
+        hasAdmin: async (actor) => actor === "signed-admin",
+        update: async (target, draft, actorKey, viewer) => {
+          assert.equal(viewer.session.id, "signed-session");
+          return editAnnouncementInTransaction(target, draft, {
+            lockCurrent: async () => stored,
+            receipt: async () => receipt.get(actorKey) ?? null,
+            update: async (next) => { writes++; stored = next; },
+            writeReceipt: async (value) => { receipt.set(actorKey, value); },
+          });
+        },
+      });
+      if (key === requestId && receipt.size === 1 && !lost) {
+        lost = true;
+        return Response.json({}, { status: 503 });
+      }
+      return result;
+    },
+  };
+  const original = announcementRevision(id, stored);
+  const signal = new AbortController().signal;
+  const draft = { title: "Judul terbaru", body: "Isi terbaru", expectedRevision: original.revision };
+  assert.equal((await savePkaAnnouncement(transport, id, { ...draft, title: "" }, "invalid-request-key", signal)).status, "invalid");
+  assert.equal((await savePkaAnnouncement(transport, id, draft, requestId, signal)).status, "uncertain");
+  assert.equal((await savePkaAnnouncement(transport, id, draft, requestId, signal)).status, "saved");
+  assert.equal(writes, 1);
+  const conflict = await savePkaAnnouncement(transport, id, { ...draft, title: "Judul lain" }, "record-new-request-key", signal);
+  assert.deepEqual(conflict, { status: "conflict", announcement: announcementRevision(id, stored) });
+  assert.equal((await savePkaAnnouncement(transport, id, { ...draft, title: "Judul lain" }, requestId, signal)).status, "request_conflict");
+  assert.equal(writes, 1);
 });

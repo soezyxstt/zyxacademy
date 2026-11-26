@@ -4,6 +4,7 @@ import {
   fixtureClock, type Announcement, type Broadcast, type BroadcastFields, type PkaSession, type PkaSessionFields,
 } from "../../../../../packages/native-parity/academic/administration/fixtures";
 import { getBroadcastAudience, validateBroadcast } from "../../../../../packages/native-parity/academic/administration/store";
+import { pkaAnnouncementBodyLimit, pkaAnnouncementTitleLimit } from "../../../../../packages/academic/pka-announcement-edit";
 import type { AcademicScreenProps } from "../contracts";
 import { useAdministrationSnapshot, useAdministrationStore } from "./provider";
 import {
@@ -132,8 +133,8 @@ function Announcements() {
     <View style={layout.row}><Action label="Buat pengumuman" variation="default" onPress={() => edit("new")} testID="academic-pka-announcement-create" /></View>
     {mutation.feedback}
     {editing ? <Subheading title={editing === "new" ? "Pengumuman baru" : "Edit pengumuman"}>
-      <Field label="Judul pengumuman" value={title} onChangeText={setTitle} />
-      <Field label="Isi pengumuman" value={body} onChangeText={setBody} multiline />
+      <Field label="Judul pengumuman" value={title} onChangeText={setTitle} maxLength={pkaAnnouncementTitleLimit} />
+      <Field label="Isi pengumuman" value={body} onChangeText={setBody} maxLength={pkaAnnouncementBodyLimit} multiline />
       <SaveButtons saveLabel={editing === "new" ? "Kirim pengumuman" : "Simpan"} busy={mutation.blocked}
         onCancel={() => setEditing(undefined)} onSave={() => {
           const initial = editing === "new" ? undefined : editing;

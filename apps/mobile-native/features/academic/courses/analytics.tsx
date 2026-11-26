@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { View } from "react-native";
 import type { CourseAttempt, CourseFixture, CourseQuiz } from "../../../../../packages/native-parity/academic/courses/fixtures";
-import { adminCoursePath, completedCourseAttempts, summarizeCourseAttempts } from "../../../../../packages/native-parity/academic/courses/model";
+import { completedCourseAttempts, summarizeCourseAttempts } from "../../../../../packages/native-parity/academic/courses/model";
 import type { AcademicActor } from "../contracts";
+import { formatDuration, QuizAttemptsTable, QuizResultsTable } from "./tables";
 import { MutationStatus, useCourseMutation } from "./scope";
 import { Action, CourseStatus, DataRow, Ink, Metrics, Panel, Picker, SearchBox, Tabs, layout, useCourseColors } from "./ui";
 
@@ -40,14 +41,13 @@ export function CourseAnalytics({ data, navigate, results = false }: {
         { label: "Kelulusan", value: summary.completed ? `${summary.passRate}%` : "-" },
       ]} />
       <Panel title={results ? "Hasil per kuis" : "Kuis"}>
-        {!quizzes.length ? <CourseStatus label="Tidak ada kuis pada pilihan ini." /> : quizzes.map((quiz) => {
-          const result = summarizeCourseAttempts(data.attempts.filter((attempt) => attempt.quizId === quiz.id));
-          return <DataRow key={quiz.id} title={quiz.title}
-            description={`${quiz.category} · ${quiz.status === "published" ? "Terbit" : "Draf"}`}
-            detail={result.completed ? `${result.completed} selesai · Skor ${result.average}` : "0 selesai"}
-            onPress={() => navigate(adminCoursePath(data.course.slug, "analytics", quiz.id))}
-            testID={`course-analytics-quiz-${quiz.id}`} />;
-        })}
+        <QuizResultsTable slug={data.course.slug} navigate={navigate} rows={quizzes.map((quiz) => {
+          const result = summarizeCourseAttempts(filteredAttempts.filter((attempt) => attempt.quizId === quiz.id));
+          return {
+            id: quiz.id, title: quiz.title, category: quiz.category, status: quiz.status, hasInsight: Boolean(quiz.insights),
+            totalAttempts: result.completed, avgScore: result.average, passRate: result.passRate,
+          };
+        })} />
       </Panel>
     </>
   );
@@ -128,11 +128,6 @@ export function QuizAnalyticsDetail({ data, quiz, actor, initialTab }: {
   );
 }
 
-function formatDuration(seconds: number) {
-  const minutes = Math.floor(seconds / 60);
-  return minutes ? `${minutes} mnt ${seconds % 60} dtk` : `${seconds} dtk`;
-}
-
 function ScoreDistribution({ attempts }: { attempts: readonly CourseAttempt[] }) {
   const completed = completedCourseAttempts(attempts);
   const palette = useCourseColors();
@@ -168,11 +163,11 @@ function CourseAttempts({ attempts }: { attempts: readonly CourseAttempt[] }) {
       <SearchBox label="Cari peserta" value={search} onChange={setSearch} />
       <Picker label="Status pengerjaan" selected={filter} onSelect={setFilter}
         options={[{ id: "all", label: "Semua status" }, { id: "completed", label: "Selesai" }, { id: "active", label: "Berlangsung" }]} />
-      {filtered.length ? filtered.map((item) => (
-        <DataRow key={item.id} title={item.name}
-          description={`${formatDate(item.date)} · ${item.score === null ? "Berlangsung" : formatDuration(item.duration)}`}
-          detail={item.score === null ? undefined : `Skor ${item.score}`} />
-      )) : <CourseStatus label="Tidak ada pengerjaan pada pilihan ini." />}
+      <QuizAttemptsTable rows={filtered.map((item) => ({
+        id: item.id, name: item.name, dateLabel: formatDate(item.date),
+        status: item.score === null ? "Berlangsung" : "Selesai",
+        duration: item.score === null ? null : item.duration, score: item.score,
+      }))} />
     </Panel>
   );
 }

@@ -5,6 +5,8 @@ import { nativeColors } from "../../../../packages/design-tokens/native-colors";
 import { createTutorFixtureData } from "../../../../packages/native-parity/academic/tutor/fixtures";
 import { createAssessmentFixtureGateway } from "../../../../packages/native-parity/academic/assessment";
 import { matchAcademicRoute } from "../../../../packages/native-parity/academic/match";
+import { academicCases } from "../../../../packages/native-parity/academic/cases";
+import { EvidenceFrame } from "./EvidenceFrame";
 import { AcademicMessage } from "./LiveScreen";
 import { AdministrationProvider, AdministrationScreen } from "./administration";
 import { AssessmentScreen } from "./assessment";
@@ -17,15 +19,17 @@ type FixtureProps = {
   actor: AcademicActor;
   scenario: AcademicScenario;
   theme: AcademicScreenProps["theme"];
+  evidence?: number;
+  evidenceNonce?: string;
   onExit(): void;
 };
 
 /** Synthetic session. No network or host credentials are accepted by this entry. */
 export function AcademicFixtureEntry(props: FixtureProps) {
-  return <FixtureSession key={JSON.stringify([props.actor.id, props.actor.role, props.scenario, props.initialPath])} {...props} />;
+  return <FixtureSession key={JSON.stringify([props.actor.id, props.actor.role, props.scenario, props.initialPath, props.evidence, props.evidenceNonce])} {...props} />;
 }
 
-function FixtureSession({ initialPath, actor, scenario, theme, onExit }: FixtureProps) {
+function FixtureSession({ initialPath, actor, scenario, theme, onExit, evidence }: FixtureProps) {
   const [stack, setStack] = useState([initialPath]);
   const [assessment] = useState(createAssessmentFixtureGateway);
   const [tutor] = useState(() => createTutorFixtureData(actor, scenario));
@@ -51,7 +55,7 @@ function FixtureSession({ initialPath, actor, scenario, theme, onExit }: Fixture
     return () => sub.remove();
   }, [back, stack.length]);
 
-  return <SafeAreaView style={{ flex: 1, backgroundColor: nativeColors[theme].background }}>
+  const content = (
     <AdministrationProvider actor={actor} scenario={scenario}>
       <AdminCourseFixtureProvider scenario={scenario}>
         {stack.map((href, index) => {
@@ -77,5 +81,10 @@ function FixtureSession({ initialPath, actor, scenario, theme, onExit }: Fixture
         })}
       </AdminCourseFixtureProvider>
     </AdministrationProvider>
+  );
+  const item = evidence && Number.isInteger(evidence) ? academicCases[evidence - 1] : undefined;
+  const capture = item && item.path === initialPath && item.role === actor.role && item.scenario === scenario && item.theme === theme;
+  return <SafeAreaView style={{ flex: 1, backgroundColor: nativeColors[theme].background }}>
+    {capture && evidence ? <EvidenceFrame ordinal={evidence}>{content}</EvidenceFrame> : content}
   </SafeAreaView>;
 }

@@ -31,10 +31,10 @@ function courseRoute(course: TutorCourse) {
 const sessionDateFormat = new Intl.DateTimeFormat("id-ID", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Jakarta" });
 
 export function TutorDashboard({ navigate, theme, data }: Navigation & { data: DashboardData }) {
-  return <TutorPage theme={theme} title="Dashboard pengajar">
+  return <TutorPage theme={theme} title="Dashboard pengajar" sectionGap={28}>
     <View>
       <Heading theme={theme} title="Sesi berikutnya" count={`${data.counts.sessionsThisWeek} sesi pekan ini`} inline />
-      <Button theme={theme} variant="ghost" style={tutorLayout.sectionLink} onPress={() => navigate("/tutor/schedule")}>Semua jadwal ↗</Button>
+      <Button theme={theme} variant="ghost" style={tutorLayout.sectionLink} accessibilityLabel="Semua jadwal" onPress={() => navigate("/tutor/schedule")}>Semua jadwal ↗</Button>
       {data.upcomingSessions.map((session) => {
         const sessionDate = new Date(session.sessionDate ?? "");
         const date = Number.isNaN(sessionDate.valueOf()) ? "Tanggal belum ditentukan" : sessionDateFormat.format(sessionDate);
@@ -54,7 +54,8 @@ export function TutorDashboard({ navigate, theme, data }: Navigation & { data: D
       {data.courses.map((course) => (
         <Row key={course.courseId} testID={`tutor-course-${course.courseId}`} theme={theme} title={course.title}
           subtitle={`${course.groupCount} kelompok terkait`}
-          meta={course.code && !course.code.toLowerCase().startsWith("legacy-") ? course.code : undefined}
+          titleMeta={course.code && !course.code.toLowerCase().startsWith("legacy-") ? course.code : undefined}
+          indicator="↗"
           onPress={() => navigate(courseRoute(course))}
         />
       ))}
@@ -62,7 +63,7 @@ export function TutorDashboard({ navigate, theme, data }: Navigation & { data: D
     </View>
     <View>
       <Heading theme={theme} title="Perlu perhatian" count={`${data.counts.pendingTickets} tiket menunggu`} inline />
-      <Button theme={theme} variant="ghost" style={tutorLayout.sectionLink} onPress={() => navigate("/tutor/schedule?tab=tickets")}>Semua jadwal ↗</Button>
+      <Button theme={theme} variant="ghost" style={tutorLayout.sectionLink} accessibilityLabel="Semua tiket jadwal" onPress={() => navigate("/tutor/schedule?tab=tickets")}>Semua jadwal ↗</Button>
       {data.pendingTickets.map((ticket) => <Row key={ticket.id} theme={theme}
         title={ticket.type === "cancellation" ? "Permintaan pembatalan" : "Permintaan penjadwalan ulang"}
         subtitle={ticket.reason} onPress={() => navigate("/tutor/schedule?tab=tickets")}

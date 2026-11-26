@@ -5,8 +5,8 @@ export type LiveField = { label: string; value: string };
 export type DiktatPdfTarget = { importId: string; productId: string; expectedRevision: string };
 export type DiktatEvidenceStatus = "ready" | "pending" | "failed" | "stale" | "unavailable";
 export type DiktatPdfRequest = DiktatPdfTarget & { requestId: string };
-export type LiveRow = { id: string; title: string; subtitle?: string; detail?: string; fields?: LiveField[]; pdf?: DiktatPdfTarget; announcementEdit?: PkaAnnouncementRevision };
-export type LivePage = { type: "page"; rows: LiveRow[]; nextPage: boolean; summary?: LiveField[] };
+export type LiveRow = { id: string; title: string; subtitle?: string; detail?: string; fields?: LiveField[]; pdf?: DiktatPdfTarget; announcementEdit?: PkaAnnouncementRevision; dateId?: string };
+export type LivePage = { type: "page"; rows: LiveRow[]; nextPage: boolean; summary?: LiveField[]; week?: { start: string; today: string } };
 export type LiveRedirect = { type: "redirect"; target: string };
 export type LiveAdministrationRead = LivePage | LiveRedirect;
 export type LiveListSection = "users" | "groups" | "tokens" | "notifications" | "schedules" | "registrations" | "announcements" | "sessions";
@@ -60,15 +60,23 @@ function row(value: unknown): value is LiveRow {
     && (value.subtitle === undefined || typeof value.subtitle === "string")
     && (value.detail === undefined || typeof value.detail === "string")
     && (value.fields === undefined || fields(value.fields))
+    && (value.dateId === undefined || isDateId(value.dateId))
     && (value.pdf === undefined || isDiktatPdfTarget(value.pdf))
     && (value.announcementEdit === undefined || isPkaAnnouncementRevision(value.announcementEdit));
+}
+
+function isDateId(value: unknown): value is string {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().startsWith(`${value}T`);
 }
 
 export function isLiveAdministrationRead(value: unknown): value is LiveAdministrationRead {
   if (!object(value)) return false;
   if (value.type === "redirect") return typeof value.target === "string" && /^\/admin\/[^\\\s]*$/.test(value.target);
   return value.type === "page" && Array.isArray(value.rows) && value.rows.every(row) && typeof value.nextPage === "boolean"
-    && (value.summary === undefined || fields(value.summary));
+    && (value.summary === undefined || fields(value.summary))
+    && (value.week === undefined || (object(value.week) && isDateId(value.week.start) && isDateId(value.week.today)));
 }
 
 export function isDiktatPdfTarget(value: unknown): value is DiktatPdfTarget {

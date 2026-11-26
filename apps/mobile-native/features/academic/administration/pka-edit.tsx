@@ -66,7 +66,7 @@ export function PkaAnnouncementEditor({ id, initial, transport, cancel, saved }:
     submit({ draft, requestId: randomUUID() });
   }
 
-  return <CourseDialog title="Edit pengumuman PKA" onClose={() => { if (!busy) cancel(); }}>
+  return <CourseDialog title="Edit pengumuman PKA" onClose={cancel} dismissDisabled={busy}>
     <Field label="Judul pengumuman" value={title} maxLength={pkaAnnouncementTitleLimit} editable={!busy && !uncertain}
       onChangeText={(value) => { setTitle(value); setError(""); }} testID="academic-live-pka-edit-title" />
     <Field label="Isi pengumuman" value={body} maxLength={pkaAnnouncementBodyLimit} multiline editable={!busy && !uncertain}
