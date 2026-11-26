@@ -1,0 +1,43 @@
+appId: com.zyx.academy.nativeparity
+name: Student tryout list publication and access states
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: separator
+    timeout: 30000
+- openLink: "zyx-native-parity://student-fixture?scenario=populated&theme=light&locale=id&path=%2Fcourses%2Fnative-assessment-course%2Ftryout"
+- extendedWaitUntil:
+    visible: 'Tryout ujian: Kalkulus dasar'
+    timeout: 30000
+- assertVisible:
+    id: student-assessment-native-tryout
+    text: 'Simulasi Ujian Tengah Semester, 3 soal · 60 menit, Mulai'
+- assertNotVisible: Aktivasi token kelas
+- assertVisible:
+    id: student-fixture-id-light
+- takeScreenshot: student-tryout-list-published
+- openLink: "zyx-native-parity://student-fixture?scenario=locked&theme=light&locale=id&path=%2Fcourses%2Fnative-assessment-course%2Ftryout"
+- extendedWaitUntil:
+    visible: 'Tryout ujian: Kalkulus dasar'
+    timeout: 30000
+- assertVisible:
+    id: student-assessment-native-tryout
+    text: 'Simulasi Ujian Tengah Semester, 3 soal · 60 menit, Terkunci'
+- assertVisible: Aktivasi token kelas
+- assertVisible: Aktifkan akses
+- assertVisible:
+    id: student-fixture-id-light
+- takeScreenshot: student-tryout-list-locked
+- openLink: "zyx-native-parity://student-fixture?scenario=empty&theme=light&locale=id&path=%2Fcourses%2Fnative-assessment-course%2Ftryout"
+- extendedWaitUntil:
+    visible: 'Tryout ujian: Kalkulus dasar'
+    timeout: 30000
+- assertVisible: 'Belum ada tryout terjadwal'
+- assertVisible: 'Simulasi ujian resmi UTS dan UAS akan dibuka menjelang pekan ujian semester\.'
+- assertNotVisible:
+    id: student-assessment-native-tryout
+- assertVisible: Latihan dengan Kuis
+- assertVisible:
+    id: student-fixture-id-light
+- takeScreenshot: student-tryout-list-empty
