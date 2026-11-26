@@ -5,10 +5,10 @@ Pemeriksaan sumber memakai branch integrasi pada `29dd624ce`. Tabel tindakan dip
 | Area | Tujuan Student | Tersambung | Sebagian | Belum tersedia | Alias | Browser |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | Dasbor, kursus, pembaca dan Zyra | 5 | 42 | 4 | 0 | 0 | 2 |
-| Kuis, tryout, hasil dan pembahasan | 9 | 31 | 2 | 0 | 0 | 0 |
+| Kuis, tryout, hasil dan pembahasan | 9 | 34 | 1 | 0 | 0 | 0 |
 | Pembelajaran, video, live dan PKA | 17 | 36 | 0 | 0 | 3 | 1 |
 | Komunitas, jadwal, profil dan pengaturan | 19 | 77 | 1 | 0 | 4 | 2 |
-| Shell masuk, akun, onboarding, MCP dan offline | Bersama | 23 | 0 | 0 | 1 | 1 |
+| Shell masuk, akun, onboarding, MCP dan offline | Bersama | 24 | 0 | 0 | 1 | 1 |
 
 Pemasangan layar ditelusuri dari file Expo yang merujuk ke `StudentProductRoute`, lalu ke `VerifiedStudentEntry`, `StudentEntry`, dan pemilik layar. Entry memeriksa peran dan konteks akun. Adapter Student memeriksa sesi, origin, identitas lewat `x-student-id`, serta izin domain sebelum membaca atau menulis. Jalur yang memakai endpoint asli, seperti inbox, video, coding, Zyra, offline dan lampiran privat, memakai otorisasi milik layanan tujuan. Tabel menginventarisasi tindakan yang ditemukan dalam source review. Penghitungan simbol, interaksi platform, dan hasil QA per tindakan tetap diperlukan untuk keputusan kesiapan. [Dispatch dan cakupan rute](../../../../scripts/native-readiness/product/route-coverage.ts), [entry bersesi](../../../../apps/mobile-native/features/student/VerifiedStudentEntry.tsx), [router fitur](../../../../apps/mobile-native/features/student/StudentEntry.tsx), [guard Student](../../../../app/api/native/student/_session.ts).
 
