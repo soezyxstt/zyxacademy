@@ -1,6 +1,6 @@
 import { usePageTitle } from "../../../routing/visible-navbar-title";
 import { StudentListRow } from "../ListRow";
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ComponentRef, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   ActivityIndicator, AppState, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View, useColorScheme,
   type TextInputProps,
@@ -14,6 +14,7 @@ import type { StudentScreenProps, StudentRequest } from "../contracts";
 
 import { useNativeAppearance, readingDensityScales, readingFontScales } from "../../../device/appearance";
 import { NativePageOrnaments } from "../../shared-ui/page-ornaments";
+import { DiscussionViewportContext, useDiscussionViewport } from "../../discussions/read-viewport";
 import { useStudentAlert } from "./alerts";
 
 export type Translation = (id: string, en: string) => string;
@@ -51,8 +52,8 @@ export function communityPath(operation: string, query: Record<string, string | 
   const search = params.toString();
   return `/api/native/student/community/${operation}${search ? `?${search}` : ""}`;
 }
-export function post<T>(request: StudentRequest, operation: string, body: unknown): Promise<T> {
-  return readJson<T>(request, communityPath(operation), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+export function post<T>(request: StudentRequest, operation: string, body: unknown, signal?: AbortSignal): Promise<T> {
+  return readJson<T>(request, communityPath(operation), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal });
 }
 export function operationResult(result: { success?: boolean; ok?: boolean; message?: string; error?: string; errorCode?: string }) {
   if (!(result.success ?? result.ok)) throw new OperationError(result.errorCode ?? result.error ?? result.message);
@@ -159,25 +160,32 @@ export function useOperation() {
   return { pending, notice, run };
 }
 
-export function Page({ title, headerAction, compactTitle, children }: { title: string; headerAction?: ReactNode; compactTitle?: boolean; children: ReactNode }) {
+export function Page({ title, headerAction, compactTitle, children, observeDiscussion = false }: {
+  title: string; headerAction?: ReactNode; compactTitle?: boolean; children: ReactNode; observeDiscussion?: boolean;
+}) {
   const { colors, theme, initialScrollY, onScrollY } = useCommunity();
   const { density } = useNativeAppearance();
   const pageTitle = usePageTitle(title);
-  const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
+  const { scroller, scrollProps } = useDiscussionViewport();
   const start = useRef(initialScrollY);
   const restored = useRef(false);
   return <View style={{ flex: 1, backgroundColor: colors.background }}>
     <NativePageOrnaments variant="plans" theme={theme} opacityScale={0.3} />
-    <ScrollView ref={scroll} style={{ flex: 1 }} contentContainerStyle={[styles.page, { gap: 18 * readingDensityScales[density] }]}
+    <DiscussionViewportContext.Provider value={scroller}><ScrollView ref={scroller.ref} style={{ flex: 1 }} contentContainerStyle={[styles.page, { gap: 18 * readingDensityScales[density] }]}
     keyboardShouldPersistTaps="handled"
     keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
     onContentSizeChange={(_, height) => {
       if (!restored.current && start.current > 0 && height > start.current) {
-        scroll.current?.scrollTo({ y: start.current, animated: false });
+        scroller.ref.current?.scrollTo({ y: start.current, animated: false });
         restored.current = true;
       }
+      if (observeDiscussion) scrollProps.onContentSizeChange();
     }}
-    onScroll={event => onScrollY(event.nativeEvent.contentOffset.y)}
+    onLayout={observeDiscussion ? scrollProps.onLayout : undefined}
+    onScroll={event => {
+      onScrollY(event.nativeEvent.contentOffset.y);
+      if (observeDiscussion) scrollProps.onScroll();
+    }}
     scrollEventThrottle={16}
   >
     {headerAction ? <View style={styles.compactHeader}>
@@ -185,7 +193,7 @@ export function Page({ title, headerAction, compactTitle, children }: { title: s
       {headerAction}
     </View> : pageTitle && <Text accessibilityRole="header" style={[compactTitle ? styles.compactPageTitle : styles.title, { color: colors.foreground }]}>{pageTitle}</Text>}
     {children}
-  </ScrollView></View>;
+  </ScrollView></DiscussionViewportContext.Provider></View>;
 }
 
 export function Copy({ children, kind = "body" }: { children: ReactNode; kind?: "body" | "muted" | "strong" | "heading" | "error" }) {

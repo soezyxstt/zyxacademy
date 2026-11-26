@@ -1,7 +1,9 @@
 import { DISCUSSION_REACTIONS } from "../../../../../lib/discussions/policy";
 import { randomUUID } from "expo-crypto";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Image, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
+import { AppState, Image, View } from "react-native";
+import { useProtectedInteraction } from "../../../routing/protected-interaction";
+import { useVisibleDiscussionRead } from "../../discussions/read-viewport";
 import { SharedUiComposer, type SharedUiAction } from "../../shared-ui";
 import { discussionAiMessage, listRefreshDelay, threadRefreshDelay } from "./discussion-refresh";
 import { DiscussionMessageBody } from "./discussion-markdown";
@@ -374,9 +376,9 @@ function ProtectedImage({ image }: { image: DiscussionAttachment }) {
 
 type Apply = (input: object, after?: () => void) => void;
 
-function MessageItem({ message, thread, apply, pending, onReply, channels }: {
+function MessageItem({ message, thread, apply, pending, onReply, channels, visibleRef }: {
   message: DiscussionMessage; thread: DiscussionThread; apply: Apply; pending: boolean;
-  onReply(id: string): void; channels: DiscussionChannelMetadata[];
+  onReply(id: string): void; channels: DiscussionChannelMetadata[]; visibleRef: ComponentProps<typeof View>["ref"];
 }) {
   const { request, tr, session, navigate } = useCommunity();
   const op = useOperation();
@@ -421,11 +423,13 @@ function MessageItem({ message, thread, apply, pending, onReply, channels }: {
   }, undefined, tr("Pengiriman belum terkonfirmasi. Coba lagi.", "Delivery is unconfirmed. Retry this forward."));
   return <Row title={name} meta={dateLabel(message.createdAt, session.locale, true)} onPress={message.author ? () => profile(message.author!.id) : undefined}>
     {author && <Copy kind="muted">{author.name} · {author.role}</Copy>}
-    {message.replyTo?.excerpt && <Copy kind="muted">{message.replyTo.authorName} · {message.replyTo.excerpt}</Copy>}
-    {message.bodyKind === "deleted" || message.bodyKind === "source_unavailable"
-      ? <Copy>{message.bodyKind === "deleted" ? tr("Pesan dihapus.", "Message deleted.") : tr("Sumber pesan tidak tersedia.", "Message source unavailable.")}</Copy>
-      : <DiscussionMessageBody content={message.body} people={message.mentionedPeople} onPerson={profile} />}
-    {message.attachments.map(image => <ProtectedImage key={image.id} image={image} />)}
+    <View ref={visibleRef} collapsable={false} style={styles.field}>
+      {message.replyTo?.excerpt && <Copy kind="muted">{message.replyTo.authorName} · {message.replyTo.excerpt}</Copy>}
+      {message.bodyKind === "deleted" || message.bodyKind === "source_unavailable"
+        ? <Copy>{message.bodyKind === "deleted" ? tr("Pesan dihapus.", "Message deleted.") : tr("Sumber pesan tidak tersedia.", "Message source unavailable.")}</Copy>
+        : <DiscussionMessageBody content={message.body} people={message.mentionedPeople} onPerson={profile} />}
+      {message.attachments.map(image => <ProtectedImage key={image.id} image={image} />)}
+    </View>
     {message.reactions.length > 0 && <Actions>{message.reactions.map(reaction => <Action key={reaction.emoji}
       label={`${reaction.emoji} ${reaction.count}`} disabled={pending || !message.canReact}
       mode={reaction.selected ? "default" : "outline"}
@@ -476,7 +480,8 @@ function MessageItem({ message, thread, apply, pending, onReply, channels }: {
 }
 
 function ThreadView({ scope, channels }: { scope: Scope; channels: DiscussionChannelMetadata[] }) {
-  const { route, request, tr, session } = useCommunity();
+  const { route, request, tr, session, focused = true } = useCommunity();
+  const { canInteract, suspended } = useProtectedInteraction();
   const navigate = useDiscussionNavigation();
   const threadId = route.query.thread;
   const [cursor, setCursor] = useState<string>();
@@ -489,17 +494,25 @@ function ThreadView({ scope, channels }: { scope: Scope; channels: DiscussionCha
     after?.();
     state.reload();
   });
-  const read = (data: ThreadDetail) => {
-    const items = [...data.messages.items].sort((a, b) => a.seq - b.seq);
-    let throughSeq = data.readThroughSeq;
-    for (const item of items) if (item.seq === throughSeq + 1) throughSeq = item.seq;
-    apply({ action: "read", threadId, throughSeq, receipt: data.messages.observationReceipt, messageIds: items.map(item => item.id) });
-  };
+  const allowed = state.data?.thread.id === threadId &&
+    (!scope.courseId || channels.some(channel => channel.id === state.data?.thread.channelId));
+  const pages = useMemo(() => state.data && allowed ? [{
+    receipt: state.data.messages.observationReceipt, throughSeq: state.data.readThroughSeq,
+    items: state.data.messages.items,
+    status: state.data.thread.status,
+  }] : [], [allowed, state.data]);
+  const canAcknowledge = focused && !suspended && allowed && !state.error && canInteract() && session.role === "student";
+  const submitRead = useCallback(async (receipt: { receipt: string; throughSeq: number; messageIds: string[] }, signal: AbortSignal) => {
+    if (!canAcknowledge || signal.aborted || !canInteract() || (AppState.currentState && AppState.currentState !== "active")) {
+      throw new Error("Discussion viewport is no longer active.");
+    }
+    operationResult(await post(request, "discussion", { action: "read", threadId, ...receipt }, signal));
+  }, [canAcknowledge, canInteract, request, threadId]);
+  const { bindRow, retry, failed } = useVisibleDiscussionRead({ pages, enabled: canAcknowledge, submit: submitRead });
   return <>
     <Actions><Action label={tr("Kembali ke diskusi", "Back to discussions")} onPress={() => navigate({ channel: route.query.channel }, true)} /></Actions>
     <Notice notice={action.notice} />
     <Remote state={state}>{data => {
-      const allowed = !scope.courseId || channels.some(channel => channel.id === data.thread.channelId);
       if (!allowed) return <Copy kind="error">{tr("Diskusi tidak tersedia untuk kursus ini.", "This discussion is unavailable in this course.")}</Copy>;
       const focused = route.query.message;
       const reply = data.messages.items.find(item => item.id === replyTo);
@@ -507,14 +520,16 @@ function ThreadView({ scope, channels }: { scope: Scope; channels: DiscussionCha
         <Copy kind="heading">{data.thread.title}</Copy>
         <Actions>
           <Action label={tr("Perbarui diskusi", "Refresh discussion")} onPress={state.reload} disabled={action.pending} />
-          {data.thread.unreadCount > 0 && data.messages.items.length > 0 && <Action label={tr("Tandai halaman telah dibaca", "Mark page as read")}
-            disabled={action.pending} onPress={() => read(data)} />}
           {data.thread.canResolve && <Action label={data.thread.status === "resolved" ? tr("Buka kembali", "Reopen") : tr("Tandai selesai", "Mark resolved")}
             disabled={action.pending} onPress={() => apply({ action: "resolve", threadId, resolved: data.thread.status !== "resolved" })} />}
         </Actions>
+        {failed && <View style={styles.field}>
+          <Notice notice={{ message: tr("Status baca belum tersimpan.", "Read status could not be saved."), failed: true }} />
+          <Actions><Action label={tr("Coba simpan status baca", "Retry read status")} disabled={!canAcknowledge} onPress={retry} /></Actions>
+        </View>}
         <Rows>{data.messages.items.map(message => <View key={message.id}>
           {focused === message.id && <Copy kind="muted">{tr("Pesan yang dibuka", "Selected message")}</Copy>}
-          <MessageItem key={message.id} message={message} thread={data.thread} apply={apply} pending={action.pending} onReply={id => { setAnswerOpen(false); setReplyTo(id); }} channels={channels} />
+          <MessageItem visibleRef={bindRow(message.id)} message={message} thread={data.thread} apply={apply} pending={action.pending} onReply={id => { setAnswerOpen(false); setReplyTo(id); }} channels={channels} />
         </View>)}</Rows>
         {data.aiStatuses.map(item => <Copy kind="muted" key={item.messageId}>{discussionAiMessage(item, session.locale)}</Copy>)}
         <Actions>
@@ -606,5 +621,5 @@ function Workspace({ scope }: { scope: Scope }) {
 export function DiscussionsScreen() {
   const { route, tr } = useCommunity();
   const state = useRemote<Scope>(communityPath("discussion-scope", { course: route.params.id }));
-  return <Page title={tr("Diskusi", "Discussions")}><Remote state={state}>{scope => <Workspace scope={scope} />}</Remote></Page>;
+  return <Page title={tr("Diskusi", "Discussions")} observeDiscussion><Remote state={state}>{scope => <Workspace scope={scope} />}</Remote></Page>;
 }

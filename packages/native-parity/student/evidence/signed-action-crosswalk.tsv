@@ -135,7 +135,7 @@ community	/dashboard/discussions	murid	discussion.forward	Forwards an eligible m
 community	/dashboard/discussions	murid	discussion.edit	Edits own message with source revision check.	connected	fixture
 community	/dashboard/discussions	murid	discussion.delete	Deletes eligible message through shared ownership and policy.	connected	fixture
 community	/dashboard/discussions	murid	discussion.reaction	Adds or removes reaction under current viewer thread access.	connected	fixture
-community	/dashboard/discussions	murid	discussion.mark-read	Uses server observation receipt and observed messages to acknowledge.	connected	contract
+community	/dashboard/discussions	murid	discussion.mark-read	Automatically acknowledges signed rows after dwell in the focused thread viewport. Offscreen or invisible rows are excluded, gaps cannot advance the watermark, and failed observations can retry.	connected	contract
 community	/dashboard/discussions	murid	discussion.mute	Changes mute flag for a permitted channel.	connected	fixture
 community	/dashboard/discussions	murid	discussion.resolve	Resolves or reopens via the same thread authority as web.	connected	fixture
 community	/dashboard/discussions	murid	discussion.mention	Searches permitted channel or thread actors; selecting uses source-backed composer.	connected	fixture
