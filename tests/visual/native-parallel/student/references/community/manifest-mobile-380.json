@@ -46,26 +46,6 @@
       "screenshot": "mobile-380-leaderboard-academic-alias.png"
     },
     {
-      "id": "course-leaderboard",
-      "scenario": "community-enrolled",
-      "path": "/courses/community-reference-matematika/leaderboard",
-      "expected": [
-        "Alya Komunitas",
-        "93%"
-      ],
-      "status": "passed",
-      "browser": "154.0.8037.57",
-      "viewport": {
-        "width": 380,
-        "height": 844
-      },
-      "theme": "light",
-      "deviceScale": 1,
-      "signedInScope": true,
-      "consoleErrors": [],
-      "screenshot": "mobile-380-course-leaderboard.png"
-    },
-    {
       "id": "course-leaderboard-revoked",
       "scenario": "revoked",
       "path": "/courses/matematika-1/leaderboard",
@@ -85,6 +65,28 @@
       "screenshot": "mobile-380-course-leaderboard-revoked.png"
     },
     {
+      "id": "course-leaderboard",
+      "scenario": "community-enrolled",
+      "path": "/courses/community-reference-matematika/leaderboard",
+      "expected": [
+        "Peringkat Anda",
+        "Alya Komunitas",
+        "93%"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": true,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-course-leaderboard.png"
+    },
+    {
       "id": "course-discussions",
       "scenario": "community-enrolled",
       "path": "/courses/community-reference-matematika/discussions?thread=community-reference-thread",
@@ -98,7 +100,120 @@
         "width": 380,
         "height": 844
       },
-      "error": "Error: page.addStyleTag: Test ended."
+      "error": "Error: expect(locator).toBeVisible() failed\n\nLocator: getByText('Strategi menentukan limit kiri dan kanan', { exact: true }).filter({ visible: true }).first()\nExpected: visible\nTimeout: 25000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"toBeVisible\" with timeout 25000ms\n  - waiting for getByText('Strategi menentukan limit kiri dan kanan', { exact: true }).filter({ visible: true }).first()\n"
+    },
+    {
+      "id": "dashboard-discussions",
+      "scenario": "community-enrolled",
+      "path": "/dashboard/discussions",
+      "expected": [
+        "Strategi menentukan limit kiri dan kanan"
+      ],
+      "status": "failed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "error": "Error: expect(locator).toBeVisible() failed\n\nLocator: getByText('Strategi menentukan limit kiri dan kanan', { exact: true }).filter({ visible: true }).first()\nExpected: visible\nTimeout: 25000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"toBeVisible\" with timeout 25000ms\n  - waiting for getByText('Strategi menentukan limit kiri dan kanan', { exact: true }).filter({ visible: true }).first()\n"
+    },
+    {
+      "id": "discussions-alias",
+      "scenario": "community-enrolled",
+      "path": "/discussions?thread=community-reference-thread",
+      "expected": [
+        "Strategi menentukan limit kiri dan kanan",
+        "Bagaimana membandingkan limit kiri dan kanan pada fungsi potongan?"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": false,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-discussions-alias.png"
+    },
+    {
+      "id": "achievements",
+      "scenario": "community-enrolled",
+      "path": "/achievements",
+      "expected": [
+        "Ringkasan",
+        "Kades"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": false,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-achievements.png"
+    },
+    {
+      "id": "achievement-badges",
+      "scenario": "community-enrolled",
+      "path": "/achievements?tab=badges",
+      "expected": [
+        "Lencana"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": false,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-achievement-badges.png"
+    },
+    {
+      "id": "achievement-missions-empty",
+      "scenario": "community-enrolled",
+      "path": "/achievements?tab=missions",
+      "expected": [
+        "Misi"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": false,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-achievement-missions-empty.png"
+    },
+    {
+      "id": "calendar",
+      "scenario": "community-enrolled",
+      "path": "/calendar",
+      "expected": [
+        "Latihan limit komunitas",
+        "Klinik integral"
+      ],
+      "status": "failed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "error": "Error: expect(locator).toBeVisible() failed\n\nLocator: getByText('Klinik integral', { exact: true }).filter({ visible: true }).first()\nExpected: visible\nTimeout: 25000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"toBeVisible\" with timeout 25000ms\n  - waiting for getByText('Klinik integral', { exact: true }).filter({ visible: true }).first()\n"
     }
   ]
 }
