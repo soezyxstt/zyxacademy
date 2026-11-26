@@ -23,7 +23,16 @@ restore_sources() {
 trap restore_sources EXIT
 (cd "$app" && npx --no-install expo prebuild --platform android --no-install)
 python3 "$root/scripts/native-readiness/product-auth/android-overlay.py" "$private/cert.pem"
-(cd "$app/android" && ./gradlew :app:assembleRelease -PreactNativeArchitectures=x86_64 --max-workers=2)
+assemble() {
+  (cd "$app/android" && ./gradlew :app:assembleRelease -PreactNativeArchitectures=x86_64 --max-workers=2)
+}
+if ! assemble 2>&1 | tee "$private/gradle.log"; then
+  if ! grep -Fq "could not resolve plugin artifact" "$private/gradle.log"; then exit 1; fi
+  echo "Retrying one Gradle plugin resolution failure."
+  sleep 5
+  assemble
+fi
+rm -f "$private/gradle.log"
 mv "$app/android/app/build/outputs/apk/release/app-release.apk" "$private/preview.apk"
 python3 - "$private/preview.apk" <<'PYTHON'
 from sys import argv
