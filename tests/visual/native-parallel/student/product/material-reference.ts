@@ -80,6 +80,7 @@ const captureScript = "tests/visual/native-parallel/student/product/capture.ts";
 const caseIds = states.flatMap(state => groups.map(({ view }) => `student-${state}-${view}`));
 type ProductCapture = { id: string; path: string; status: number; visibleContent: string[]; reducedMotion: string; hydrationWarnings?: string[] };
 const tmp = await mkdtemp(join(tmpdir(), "student-material-reference-"));
+let complete = false;
 
 try {
   for (const platform of ["android", "ios"] as const) {
@@ -121,6 +122,8 @@ try {
       }, null, 2) + "\n");
     }
   }
+  complete = true;
 } finally {
-  await rm(tmp, { recursive: true, force: true });
+  if (complete) await rm(tmp, { recursive: true, force: true });
+  else console.error("Raw browser results retained at " + tmp);
 }

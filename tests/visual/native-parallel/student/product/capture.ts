@@ -78,8 +78,8 @@ function expectedContent(page: Page, view: View, scenario: Scenario): Record<str
   }
 }
 
-async function isPaintedInViewport(locator: Locator): Promise<boolean> {
-  return locator.evaluateAll(async elements => {
+async function isPaintedInViewport(locator: Locator, horizontalSamples = [0.5]): Promise<boolean> {
+  return locator.evaluateAll(async (elements, samples) => {
     // Playwright considers opacity: 0 visible. Wait for the app's reveal
     // animation and require the actual content to fit in the initial viewport.
     const painted = elements.filter(element => {
@@ -88,8 +88,10 @@ async function isPaintedInViewport(locator: Locator): Promise<boolean> {
         if (Number(getComputedStyle(ancestor).opacity) < 0.99) return false;
       }
       const rect = element.getBoundingClientRect();
-      const front = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
-      return Boolean(front && (element.contains(front) || front.contains(element)));
+      return samples.every(sample => {
+        const front = document.elementFromPoint(rect.x + rect.width * sample, rect.y + rect.height / 2);
+        return Boolean(front && (element.contains(front) || front.contains(element)));
+      });
     });
     if (!painted.length) return false;
 
@@ -100,12 +102,12 @@ async function isPaintedInViewport(locator: Locator): Promise<boolean> {
       }, { threshold: 0.9 });
       for (const element of painted) observer.observe(element);
     });
-  });
+  }, horizontalSamples);
 }
 
 async function missingContent(expected: Record<string, Locator>): Promise<string[]> {
   const checks = await Promise.all(Object.entries(expected).map(async ([label, locator]) =>
-    await isPaintedInViewport(locator) ? null : label
+    await isPaintedInViewport(locator, label === "Tandai selesai" ? [0.2, 0.5, 0.8] : undefined) ? null : label
   ));
   return checks.filter(label => label !== null);
 }
@@ -127,8 +129,17 @@ try {
       colorScheme: "light",
       serviceWorkers: "block",
     });
-    // Capture the course flows after the student has dismissed the profile prompt.
-    await context.addInitScript(() => sessionStorage.setItem("zyx_dismiss_profile_prompt", "1"));
+    // Use the returning learner's reminder choices so the course state remains visible.
+    await context.addInitScript(({ accountId, enrolled, readerPath }) => {
+      sessionStorage.setItem("zyx_dismiss_profile_prompt", "1");
+      const now = Date.now();
+      localStorage.setItem(`zyx:notification-permission:${accountId}`, `later:${now}`);
+      localStorage.setItem(`zyx:download-reminder:${accountId}`, String(now));
+      // The collapsed icon is fixed at the right edge of the reader. Dock the expanded pet on the left.
+      const reader = enrolled && location.pathname === readerPath;
+      localStorage.setItem("zyx-zyra-pet-visible-v1", reader ? "1" : "0");
+      if (reader) localStorage.setItem("zyx-zyra-pet-anchor-v2", "bottom-left");
+    }, { accountId: "student-evidence-" + scenario, enrolled: scenario === "enrolled", readerPath: routes["material-detail"] });
     await context.addCookies([{ ...await localStudentCookie(scenario), url: origin, httpOnly: true, sameSite: "Lax" }]);
     await context.route("**/*", route => {
       const url = new URL(route.request().url());
@@ -167,7 +178,8 @@ try {
         await page.evaluate(() => document.fonts.ready);
         let screenshot: Buffer | undefined;
         await expect.poll(async () => {
-          if (await page.getByRole("dialog").count()) return ["An open dialog covers the course content"];
+          const dialog = page.getByRole("dialog").first();
+          if (await dialog.count()) return ["Open dialog: " + (await dialog.textContent())?.trim().slice(0, 120)];
           const pending = await missingContent(expected);
           if (pending.length) return pending;
 

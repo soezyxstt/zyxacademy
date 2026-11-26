@@ -1,0 +1,71 @@
+{
+  "platform": "ios",
+  "viewport": {
+    "width": 402,
+    "height": 874
+  },
+  "deviceScaleFactor": 3,
+  "locale": "id",
+  "theme": "light",
+  "states": {
+    "enrolled": {
+      "path": "/courses/matematika-1/material",
+      "reducedMotion": "reduce",
+      "status": 200,
+      "visibleContent": [
+        "Ganti mata kuliah: Matematika I",
+        "Semua",
+        "Sistem bilangan real"
+      ],
+      "hydrationWarnings": [
+        "React regenerated part of the server-rendered tree after a hydration mismatch."
+      ],
+      "scenario": "course-material-enrolled",
+      "courseAccess": "full"
+    },
+    "unenrolled": {
+      "path": "/courses/matematika-1/material",
+      "reducedMotion": "reduce",
+      "status": 200,
+      "visibleContent": [
+        "Ganti mata kuliah: Matematika I",
+        "Semua",
+        "Sistem bilangan real",
+        "Aktivasi kelas"
+      ],
+      "hydrationWarnings": [
+        "React regenerated part of the server-rendered tree after a hydration mismatch."
+      ],
+      "scenario": "course-material-unenrolled",
+      "courseAccess": "preview"
+    },
+    "revoked": {
+      "path": "/courses/matematika-1/material",
+      "reducedMotion": "reduce",
+      "status": 200,
+      "visibleContent": [
+        "Ganti mata kuliah: Matematika I",
+        "Semua",
+        "Sistem bilangan real",
+        "Aktivasi kelas"
+      ],
+      "hydrationWarnings": [
+        "React regenerated part of the server-rendered tree after a hydration mismatch."
+      ],
+      "scenario": "course-material-revoked",
+      "courseAccess": "preview"
+    }
+  },
+  "captures": {
+    "material-list-enrolled.png": "1efd9dc4e5cfc567c5c0a85a8bbb7bef8d30fc008e34fc540d4d5ec39f8f753d",
+    "material-list-revoked.png": "5675ce076a19593d43e741630611463f1d8c0f7aef1bc75ff445daf8c8f03b71",
+    "material-list-unenrolled.png": "92cf6bcaad8f21629dbcb28d85973dbb088b1ebfcfa89ce51f70b1704f3dca25"
+  },
+  "fixtureSha256": "6e6d778272a246d1bcbb14d2eacea72be77cfd76d41d3266034ecd9e18636113",
+  "seedSha256": "ade70ea8501b2521fc5d2c93fe14ce87551bf4d04b38df45a2193f7e57538520",
+  "courseId": "matematika-1",
+  "materialId": "dokumen-4",
+  "serverSha": "926e3b6f496f4a7d045a5f6d49afa3b994803432",
+  "browser": "154.0.8037.57",
+  "timezone": "Asia/Jakarta"
+}

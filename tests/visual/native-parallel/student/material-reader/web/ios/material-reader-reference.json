@@ -1,0 +1,71 @@
+{
+  "platform": "ios",
+  "viewport": {
+    "width": 402,
+    "height": 874
+  },
+  "deviceScaleFactor": 3,
+  "locale": "id",
+  "theme": "light",
+  "states": {
+    "enrolled": {
+      "path": "/courses/matematika-1/material/dokumen-4",
+      "reducedMotion": "no-preference",
+      "status": 200,
+      "visibleContent": [
+        "Catatan belajar mengenai Turunan.",
+        "Tandai selesai dan simpan",
+        "Tandai selesai"
+      ],
+      "scenario": "course-material-enrolled",
+      "courseAccess": "full",
+      "materialAccess": "open"
+    },
+    "unenrolled": {
+      "path": "/courses/matematika-1/material/dokumen-4",
+      "reducedMotion": "reduce",
+      "status": 200,
+      "visibleContent": [
+        "Ganti mata kuliah: Matematika I",
+        "Aktifkan kelas untuk membuka \"Turunan\".",
+        "Aktivasi kelas",
+        "Masukkan token kelas"
+      ],
+      "hydrationWarnings": [
+        "React regenerated part of the server-rendered tree after a hydration mismatch."
+      ],
+      "scenario": "course-material-unenrolled",
+      "courseAccess": "preview",
+      "materialAccess": "locked"
+    },
+    "revoked": {
+      "path": "/courses/matematika-1/material/dokumen-4",
+      "reducedMotion": "reduce",
+      "status": 200,
+      "visibleContent": [
+        "Ganti mata kuliah: Matematika I",
+        "Aktifkan kelas untuk membuka \"Turunan\".",
+        "Aktivasi kelas",
+        "Masukkan token kelas"
+      ],
+      "hydrationWarnings": [
+        "React regenerated part of the server-rendered tree after a hydration mismatch."
+      ],
+      "scenario": "course-material-revoked",
+      "courseAccess": "preview",
+      "materialAccess": "locked"
+    }
+  },
+  "captures": {
+    "material-reader-enrolled.png": "ba9348aec25c8eba63c2c09e278f4cc692f04ce0fe2b7996b60e118c8888397c",
+    "material-reader-revoked.png": "2d8e17ef654eeb273dd6de050dc37067c3d4a397abdbcc4a6a4c9907b2c32fec",
+    "material-reader-unenrolled.png": "2d8e17ef654eeb273dd6de050dc37067c3d4a397abdbcc4a6a4c9907b2c32fec"
+  },
+  "fixtureSha256": "6e6d778272a246d1bcbb14d2eacea72be77cfd76d41d3266034ecd9e18636113",
+  "seedSha256": "ade70ea8501b2521fc5d2c93fe14ce87551bf4d04b38df45a2193f7e57538520",
+  "courseId": "matematika-1",
+  "materialId": "dokumen-4",
+  "serverSha": "926e3b6f496f4a7d045a5f6d49afa3b994803432",
+  "browser": "154.0.8037.57",
+  "timezone": "Asia/Jakarta"
+}
