@@ -28,21 +28,21 @@ const cases: Capture[] = [
   { ...courseCase("flashcard", "flashcard"), text: ["Kapan limit dari dua arah ada?"], flip: true },
   { ...courseCase("mastery", "mastery"), text: ["Limit dari dua arah", "56"] },
   { ...courseCase("mastery-locked", "mastery"), text: ["Kelas memerlukan token"], scenario: "visitor" },
-  { ...courseCase("path", "path"), text: ["Limit dari dua arah"] },
+  { ...courseCase("path", "path"), text: ["Limit dari dua arah"], selector: "main #study-path-days" },
   { ...courseCase("playground", "playground"), selector: "main .cm-content" },
   { ...courseCase("progress", "progress"), text: ["Membaca limit dari tabel"], selector: 'main [aria-label="Statistik belajar"]' },
   { ...courseCase("video", "video"), text: ["Pembahasan limit", "Membaca limit dengan tabel"] },
   { ...courseCase("live", "live"), text: ["Belum ada sesi kuis langsung"] },
-  { ...courseCase("live-host", "live/host"), redirects: [`/tutor/${learningEvidence.course}/live`, "/"], terminal: "/" },
+  { ...courseCase("live-host", "live/host"), redirects: [`/tutor/${learningEvidence.course}/live`, "/"], terminal: "/", text: ["Belajar lebih terarah"] },
   { id: "pka-home", pattern: pka, path: pka, text: ["Persiapan sesi Matematika", "Diskusi limit PKA"] },
   { id: "pka-registration", pattern: `${pka}/daftar`, path: `${pka}/daftar`, text: ["Pendaftaran ditutup"], scenario: "visitor" },
-  { id: "pka-schedule", pattern: `${pka}/jadwal`, path: `${pka}/jadwal`, text: ["Diskusi limit PKA", "Gabung Meet"] },
+  { id: "pka-schedule", pattern: `${pka}/jadwal`, path: `${pka}/jadwal`, text: ["Diskusi limit PKA", "Gabung Meet"], selector: 'main a[href^="https://meet.google.com/"]' },
   { id: "pka-report", pattern: `${pka}/laporan`, path: `${pka}/laporan`, text: ["Laporan diagnostik", "85%"] },
   { id: "pka-material-list", pattern: `${pka}/material`, path: `${pka}/material`, text: ["Persiapan limit PKA"] },
   { id: "pka-material-detail", pattern: `${pka}/material/[materialId]`, path: `${pka}/material/${learningEvidence.pkaMaterial}`, text: ["Bandingkan nilai dari kiri dan kanan"] },
   { id: "pka-simulation", pattern: `${pka}/simulasi`, path: `${pka}/simulasi`, text: ["Simulasi Ujian PKA", "Simulasi matematika tahap 1"] },
-  { id: "pka-stage", pattern: `${pka}/simulasi/[subject]/[stage]`, path: `${pka}/simulasi/matematika/1`, text: ["Ambang kelulusan stage ini", "Mulai simulasi"] },
-  { id: "pka-stage-locked", pattern: `${pka}/simulasi/[subject]/[stage]`, path: `${pka}/simulasi/matematika/2`, text: ["Stage 2 masih terkunci"] },
+  { id: "pka-stage", pattern: `${pka}/simulasi/[subject]/[stage]`, path: `${pka}/simulasi/matematika/1`, text: ["Ambang kelulusan stage ini"], selector: 'main button:has-text("Mulai simulasi")' },
+  { id: "pka-stage-locked", pattern: `${pka}/simulasi/[subject]/[stage]`, path: `${pka}/simulasi/matematika/2`, text: ["Stage 2 masih terkunci", "Selesaikan stage sebelumnya"] },
   { id: "pka-simulation-visitor", pattern: `${pka}/simulasi`, path: `${pka}/simulasi`, text: ["Pendaftaran ditutup"], scenario: "visitor",
     redirects: [`${pka}/daftar`], terminal: `${pka}/daftar` },
 ];
@@ -131,6 +131,9 @@ try {
       if (expectedPath.startsWith("/courses/")) {
         await page.getByText(/^Memuat mata kuliah(?:\.+|…)$/).filter({ visible: true }).first().waitFor({ state: "hidden", timeout: 35_000 });
       }
+      // The signed-in notification control is client-rendered after session resolution.
+      await page.getByRole("button", { name: "Notifikasi", exact: true }).filter({ visible: true }).first()
+        .waitFor({ state: "visible", timeout: 35_000 });
       for (const text of item.text ?? []) await page.getByText(text, { exact: false }).filter({ visible: true }).first().waitFor({ state: "visible", timeout: 35_000 });
       if (item.selector) await page.locator(item.selector).first().waitFor({ state: "visible", timeout: 15_000 });
       const redirectEvidence: { path: string; streamed: boolean }[] = [];
@@ -143,7 +146,7 @@ try {
           redirectEvidence.push({ path: expected, streamed });
         }
       }
-      await page.evaluate(() => document.fonts.ready);
+      await page.evaluate(async () => { await document.fonts.ready; });
       await page.addStyleTag({ content: "nextjs-portal { display: none !important }" });
       if (await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)) throw new Error("Horizontal overflow");
       if (errors.length || failedRequests.length) throw new Error("Same-origin HTTP or page runtime error");
@@ -154,12 +157,15 @@ try {
         await page.locator("[data-flashcard-rating-dock]").waitFor({ state: "visible" });
         screenshots.push(await capture(page, `${item.id}-answer.png`));
       }
+      if (errors.length || failedRequests.length) throw new Error("Same-origin HTTP or page runtime error");
       results.push({ ...item, terminal: expectedPath, status: response.status(), preflightStatus, documents, redirectRequests, redirectEvidence, screenshots });
       console.log(`${item.id}: captured`);
     } catch (error) {
-      const heading = await page.locator("main h1:visible, main h2:visible, main h3:visible").first()
-        .textContent({ timeout: 1_000 }).catch(() => null);
-      results.push({ ...item, actualPath: new URL(page.url()).pathname, preflightStatus, documents, redirectRequests, visibleHeadings: heading ? [heading] : [],
+      const headings = await Promise.race([
+        page.locator("main h1:visible, main h2:visible, main h3:visible").allTextContents().catch(() => []),
+        new Promise<string[]>(resolve => setTimeout(() => resolve([]), 1_000)),
+      ]);
+      results.push({ ...item, actualPath: new URL(page.url()).pathname, preflightStatus, documents, redirectRequests, visibleHeadings: headings.slice(0, 5),
         error: error instanceof Error ? error.message.slice(0, 400) : "Unavailable", failedRequests, runtimeErrors: errors });
       console.log(`${item.id}: unavailable`);
     } finally {

@@ -488,6 +488,54 @@
       "coursePickerLoading": false,
       "consoleErrors": [],
       "screenshot": "mobile-380-public-student-profile.png"
+    },
+    {
+      "id": "dashboard-discussions-via-profile",
+      "scenario": "community-enrolled",
+      "path": "/dashboard/discussions",
+      "expected": [
+        "Strategi menentukan limit kiri dan kanan"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "entryPath": "/profile",
+      "entryErrors": [],
+      "terminal": "/dashboard/discussions",
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": false,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-dashboard-discussions-via-profile.png"
+    },
+    {
+      "id": "settings-via-profile",
+      "scenario": "community-enrolled",
+      "path": "/settings",
+      "expected": [
+        "Preferensi",
+        "Bahasa Indonesia",
+        "English"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "entryPath": "/profile",
+      "entryErrors": [],
+      "terminal": "/settings",
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": false,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-settings-via-profile.png"
     }
   ]
 }

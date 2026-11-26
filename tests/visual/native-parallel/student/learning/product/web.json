@@ -65,17 +65,48 @@
         "Limit dari dua arah",
         "56"
       ],
-      "actualPath": "/courses/learning-evidence-math/mastery",
+      "terminal": "/courses/learning-evidence-math/mastery",
+      "status": 200,
+      "preflightStatus": 200,
       "documents": [
         {
           "status": 200,
           "path": "/courses/learning-evidence-math/mastery"
         }
       ],
-      "error": "Same-origin HTTP or page runtime error",
-      "failedRequests": [],
-      "runtimeErrors": [
-        "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/clien"
+      "redirectRequests": [],
+      "redirectEvidence": [],
+      "screenshots": [
+        {
+          "file": "mastery.png",
+          "sha256": "56aba314fde3776d949b9e52010824f6101b640926e8472759af21e9fb0343bf"
+        }
+      ]
+    },
+    {
+      "id": "mastery-locked",
+      "pattern": "/courses/[id]/mastery",
+      "path": "/courses/learning-evidence-math/mastery",
+      "text": [
+        "Kelas memerlukan token"
+      ],
+      "scenario": "visitor",
+      "terminal": "/courses/learning-evidence-math/mastery",
+      "status": 200,
+      "preflightStatus": 200,
+      "documents": [
+        {
+          "status": 200,
+          "path": "/courses/learning-evidence-math/mastery"
+        }
+      ],
+      "redirectRequests": [],
+      "redirectEvidence": [],
+      "screenshots": [
+        {
+          "file": "mastery-locked.png",
+          "sha256": "98ac995046ee13457a4e646bc79605d8588de891e80ee6b638f06f96c866a734"
+        }
       ]
     },
     {
@@ -85,16 +116,24 @@
       "text": [
         "Limit dari dua arah"
       ],
-      "actualPath": "/courses/learning-evidence-math/path",
+      "selector": "main #study-path-days",
+      "terminal": "/courses/learning-evidence-math/path",
+      "status": 200,
+      "preflightStatus": 200,
       "documents": [
         {
           "status": 200,
           "path": "/courses/learning-evidence-math/path"
         }
       ],
-      "error": "waitFor: Timeout 12000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText('Limit dari dua arah').filter({ visible: true }).first() to be visible\u001b[22m\n",
-      "failedRequests": [],
-      "runtimeErrors": []
+      "redirectRequests": [],
+      "redirectEvidence": [],
+      "screenshots": [
+        {
+          "file": "path.png",
+          "sha256": "f6a2bc31b2dd1c3759f469517b9be8eabc73c5b608831e2b96a0ef1ab23d38fa"
+        }
+      ]
     },
     {
       "id": "playground",
@@ -193,16 +232,53 @@
         "/"
       ],
       "terminal": "/",
-      "actualPath": "/courses/learning-evidence-math/live/host",
+      "text": [
+        "Belajar lebih terarah"
+      ],
+      "status": 200,
+      "preflightStatus": 200,
       "documents": [
         {
           "status": 200,
           "path": "/courses/learning-evidence-math/live/host"
+        },
+        {
+          "status": 307,
+          "path": "/tutor/learning-evidence-math/live"
+        },
+        {
+          "status": 200,
+          "path": "/"
         }
       ],
-      "error": "waitForURL: Timeout 30000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation until \"load\"\n  navigated to \"http://127.0.0.1:3140/courses/learning-evidence-math/live/host\"\n============================================================",
-      "failedRequests": [],
-      "runtimeErrors": []
+      "redirectRequests": [
+        {
+          "status": 307,
+          "path": "/tutor/learning-evidence-math/live",
+          "type": "document"
+        },
+        {
+          "status": 200,
+          "path": "/",
+          "type": "document"
+        }
+      ],
+      "redirectEvidence": [
+        {
+          "path": "/tutor/learning-evidence-math/live",
+          "streamed": true
+        },
+        {
+          "path": "/",
+          "streamed": false
+        }
+      ],
+      "screenshots": [
+        {
+          "file": "live-host.png",
+          "sha256": "8ae1092978d20b4d365153d28859c99dd8f9cc4d57f5cda02b37774c56036ea5"
+        }
+      ]
     },
     {
       "id": "pka-home",
@@ -261,7 +337,9 @@
         "Diskusi limit PKA",
         "Gabung Meet"
       ],
-      "actualPath": "/courses/tutorial-pka/jadwal",
+      "selector": "main a[href^=\"https://meet.google.com/\"]",
+      "terminal": "/courses/tutorial-pka/jadwal",
+      "status": 200,
       "preflightStatus": 200,
       "documents": [
         {
@@ -270,14 +348,12 @@
         }
       ],
       "redirectRequests": [],
-      "visibleHeadings": [
-        "Jadwal Live Tutorial",
-        "Sesi tutorial"
-      ],
-      "error": "Same-origin HTTP or page runtime error",
-      "failedRequests": [],
-      "runtimeErrors": [
-        "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/clien"
+      "redirectEvidence": [],
+      "screenshots": [
+        {
+          "file": "pka-schedule.png",
+          "sha256": "93a72f30842304cab1fcd008c98ee31bf6a62a6922e6840ec31abeb7b0e36c99"
+        }
       ]
     },
     {
@@ -313,7 +389,8 @@
       "text": [
         "Persiapan limit PKA"
       ],
-      "actualPath": "/courses/tutorial-pka/material",
+      "terminal": "/courses/tutorial-pka/material",
+      "status": 200,
       "preflightStatus": 200,
       "documents": [
         {
@@ -322,13 +399,12 @@
         }
       ],
       "redirectRequests": [],
-      "visibleHeadings": [
-        "Materi belajar: Tutorial PKA Referensi"
-      ],
-      "error": "Same-origin HTTP or page runtime error",
-      "failedRequests": [],
-      "runtimeErrors": [
-        "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/clien"
+      "redirectEvidence": [],
+      "screenshots": [
+        {
+          "file": "pka-material-list.png",
+          "sha256": "7b304e2b1f86083fb145ee36721696051d8b44efdae1a7b49898138572f1cfed"
+        }
       ]
     },
     {
@@ -387,16 +463,106 @@
       "pattern": "/courses/tutorial-pka/simulasi/[subject]/[stage]",
       "path": "/courses/tutorial-pka/simulasi/matematika/1",
       "text": [
-        "Ambang kelulusan stage ini",
-        "Mulai simulasi"
+        "Ambang kelulusan stage ini"
       ],
-      "actualPath": "blank",
-      "documents": [],
+      "selector": "main button:has-text(\"Mulai simulasi\")",
+      "terminal": "/courses/tutorial-pka/simulasi/matematika/1",
+      "status": 200,
+      "preflightStatus": 200,
+      "documents": [
+        {
+          "status": 200,
+          "path": "/courses/tutorial-pka/simulasi/matematika/1"
+        }
+      ],
       "redirectRequests": [],
-      "visibleHeadings": [],
-      "error": "goto: Timeout 125000ms exceeded.\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:3140/courses/tutorial-pka/simulasi/matematika/1\", waiting until \"commit\"\u001b[22m\n",
-      "failedRequests": [],
-      "runtimeErrors": []
+      "redirectEvidence": [],
+      "screenshots": [
+        {
+          "file": "pka-stage.png",
+          "sha256": "859d8f02e4c54a953f1941c51ba25d82248e595aab2cba803130352a15760d07"
+        }
+      ]
+    },
+    {
+      "id": "pka-stage-locked",
+      "pattern": "/courses/tutorial-pka/simulasi/[subject]/[stage]",
+      "path": "/courses/tutorial-pka/simulasi/matematika/2",
+      "text": [
+        "Stage 2 masih terkunci",
+        "Selesaikan stage sebelumnya"
+      ],
+      "terminal": "/courses/tutorial-pka/simulasi/matematika/2",
+      "status": 200,
+      "preflightStatus": 200,
+      "documents": [
+        {
+          "status": 200,
+          "path": "/courses/tutorial-pka/simulasi/matematika/2"
+        }
+      ],
+      "redirectRequests": [],
+      "redirectEvidence": [],
+      "screenshots": [
+        {
+          "file": "pka-stage-locked.png",
+          "sha256": "76df73aa01ae60508dd06241efa426848f1df79b0b548602bec695444ed263e0"
+        }
+      ]
+    },
+    {
+      "id": "pka-simulation-visitor",
+      "pattern": "/courses/tutorial-pka/simulasi",
+      "path": "/courses/tutorial-pka/simulasi",
+      "text": [
+        "Pendaftaran ditutup"
+      ],
+      "scenario": "visitor",
+      "redirects": [
+        "/courses/tutorial-pka/daftar"
+      ],
+      "terminal": "/courses/tutorial-pka/daftar",
+      "status": 200,
+      "preflightStatus": 200,
+      "documents": [
+        {
+          "status": 200,
+          "path": "/courses/tutorial-pka/simulasi"
+        },
+        {
+          "status": 200,
+          "path": "/courses/tutorial-pka/daftar"
+        }
+      ],
+      "redirectRequests": [
+        {
+          "status": 200,
+          "path": "/courses/tutorial-pka/daftar",
+          "type": "document"
+        },
+        {
+          "status": 200,
+          "path": "/courses/tutorial-pka/daftar",
+          "type": "fetch"
+        },
+        {
+          "status": 200,
+          "path": "/courses/tutorial-pka/daftar",
+          "type": "fetch"
+        }
+      ],
+      "redirectEvidence": [
+        {
+          "path": "/courses/tutorial-pka/daftar",
+          "streamed": true
+        }
+      ],
+      "screenshots": [
+        {
+          "file": "pka-simulation-visitor.png",
+          "sha256": "3e10946e250d55d3665ec46126e44eca232e7af92fd10d574cc72f15b4594eca"
+        }
+      ]
     }
   ]
 }
