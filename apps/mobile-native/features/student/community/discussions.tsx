@@ -234,7 +234,7 @@ function Composer({ context, channelId, skinId, onSent }: {
   if (loading) return <Copy kind="muted">{tr("Memuat draf", "Loading draft")}</Copy>;
   return <View style={styles.block}>
     {storageError && <>
-      <Notice notice={tr("Draf belum dapat disimpan atau dimuat.", "The draft could not be saved or loaded.")} />
+      <Notice notice={{ message: tr("Draf belum dapat disimpan atau dimuat.", "The draft could not be saved or loaded."), failed: true }} />
       <Actions><Action label={tr("Coba lagi", "Try again")} onPress={() => {
         if (loaded) void save(current.current, current.current);
         else setLoadVersion(value => value + 1);

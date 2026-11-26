@@ -52,7 +52,7 @@ export function CourseMarkdown({ source, services, centered, muted, paragraphSty
   }), [paragraphStyle, fontFamily, fontSize, lineHeight, color, textAlign]);
   const markdownStyle = useMemo<MarkdownStyle>(() => {
     const base = { color, fontSize, fontFamily, fontWeight, lineHeight };
-    const heading = { ...base, fontFamily: nativeTypography.headingBold.fontFamily, fontWeight: "700", textAlign };
+    const heading = { ...base, fontFamily: nativeTypography.headingBold.fontFamily, fontWeight: "700", textAlign } satisfies NonNullable<MarkdownStyle["h1"]>;
     return {
       paragraph: { ...base, textAlign, marginTop: 0, marginBottom: 8 },
       h1: heading, h2: heading, h3: heading, h4: heading, h5: heading, h6: heading,
