@@ -750,6 +750,20 @@
             "status": "in_progress_at_observation",
             "details": "Hosted macOS assigned, boot simulator and install iOS release in progress."
           }
+        },
+        {
+          "observedAt": "2026-11-26T16:13:31Z",
+          "ios": {
+            "jobId": 139977461611,
+            "status": "bootstrap_failed_before_device_flows",
+            "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45839001628/artifacts/15136581520",
+            "summaryCounts": {
+              "not_run": 200,
+              "blocked": 3
+            },
+            "reason": "iOS release build and installation passed. Maestro tapped the enabled Open button for the exact Zyx Academy Native prompt, but the system dialog remained visible and the gallery assertion timed out.",
+            "device": "iPhone 17 Pro, iOS 26.2"
+          }
         }
       ]
     },
