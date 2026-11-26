@@ -5,7 +5,18 @@ import sys
 from tempfile import TemporaryDirectory
 import unittest
 
-from summarize import check_device, check_page, page_summary
+from relative_policy import POLICY
+from summarize import android_relative_rows, check_device, check_page, page_summary
+
+
+def relative_case(case, *, raw=1):
+    return {"id": case, "differentPixels": raw, "blankReference": False, "blankNative": False,
+            "relativeVisual": {
+                "policy": POLICY, "framePixels": [320, 100], "fullSsim": 0.9991, "foregroundSsim": 0.9801,
+                "referenceForeground": 28, "nativeForeground": 28, "referenceBounds": [10, 10, 22, 14],
+                "nativeBounds": [10, 10, 22, 14], "canvasMaxRgbDelta": 0, "flatColorWindow": 0,
+                "unmatchedSalienceWindow": 0,
+            }}
 
 
 class DeviceSummaryTest(unittest.TestCase):
@@ -36,6 +47,23 @@ class DeviceSummaryTest(unittest.TestCase):
         self.assertEqual("1 differing pixels", self.result())
         self.report["cases"][0]["blankReference"] = True
         self.assertEqual("Invalid reference", self.result())
+
+    def test_android_requires_three_current_nonblank_relative_measurements(self):
+        report = {"platform": "android", "component": "button", "commit": "fixture", "buildCommit": "merge",
+                  "scale": 1, "referenceEngine": "android-webview", "cases": [relative_case(case) for case in self.cases]}
+
+        def states():
+            return [row[-1] for row in android_relative_rows(
+                report, "button", self.cases, dict.fromkeys(self.cases, 100), "fixture", "merge"
+            )]
+
+        self.assertEqual(["Pass"] * 3, states())
+        report["cases"][0]["blankNative"] = True
+        report["cases"][1]["relativeVisual"]["framePixels"] = [320, 99]
+        report["cases"][2]["relativeVisual"]["foregroundSsim"] = 0.97999
+        self.assertEqual(["Invalid blank crop", "missing or incompatible measurement", "local luminance SSIM"], states())
+        report["buildCommit"] = "earlier"
+        self.assertEqual(["Missing or incompatible evidence"] * 3, states())
 
 
 class PageSummaryTest(unittest.TestCase):
@@ -150,9 +178,7 @@ class PageSummaryTest(unittest.TestCase):
             webview = android / "native-vs-webview"
             webview.mkdir(parents=True)
             identity = {"platform": "android", "scale": 1, "component": "button", "commit": "fixture", "buildCommit": "merge"}
-            result = {**identity, "cases": [
-                {"id": case, "differentPixels": 0, "blankReference": False} for case in case_ids
-            ]}
+            result = {**identity, "cases": [relative_case(case) for case in case_ids]}
             (android / "result-button.json").write_text(json.dumps(result))
             (webview / "result-button.json").write_text(json.dumps({**result, "referenceEngine": "android-webview"}))
             (android / "directory").mkdir()
@@ -161,7 +187,10 @@ class PageSummaryTest(unittest.TestCase):
                 [sys.executable, str(Path(__file__).with_name("summarize.py")), str(root), "fixture", "merge", "--platform", "android"],
                 check=True, capture_output=True, text=True,
             ).stdout
-            self.assertIn("1/1 components matched", report)
+            self.assertIn("1/1 components passed all three Android WebView visual cases", report)
+            self.assertIn("3 differing pixels", report)
+            self.assertIn("| first | 0.9991 | 0.9801 | 1 | Pass |", report)
+            self.assertIn("accessibility and product readiness require separate evidence", report)
             self.assertNotIn("/tautan", report)
 
     def test_external_redirect_needs_two_handoff_frames_and_never_counts_as_a_pixel_match(self):

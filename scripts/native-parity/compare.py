@@ -8,6 +8,7 @@ from pathlib import Path
 from PIL import Image, ImageChops, ImageCms, ImageOps
 
 from case_manifest import load_case_layout
+from relative_policy import relative_issues
 
 MARKER = (224, 0, 239)
 
@@ -38,6 +39,23 @@ def crop_positions(frame, scale, identity_width):
     return positions if identified else []
 
 
+def component_crops(frame, scale, index, cases, heights, *, webview=False):
+    positions = crop_positions(frame, scale, ((96 if webview else 16) + index) * scale)
+    width = 320 * scale
+    if len(positions) != len(cases):
+        raise ValueError(f"Expected {len(cases)} marker strips, found {len(positions)}")
+    bounds = [(x, y, x + width, y + heights[case] * scale) for case, (x, y) in zip(cases, positions)]
+    if any(right > frame.width or bottom > frame.height for _, _, right, bottom in bounds):
+        raise ValueError("Expected every fixture to fit within the capture")
+    return [frame.crop(box) for box in bounds]
+
+
+def unchanged_crops(previous, current):
+    return previous is not None and len(previous) == len(current) and all(
+        not ImageChops.difference(a, b).getbbox() for a, b in zip(previous, current)
+    )
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("frame", type=Path)
@@ -46,11 +64,16 @@ def main():
     parser.add_argument("--ready", action="store_true")
     parser.add_argument("--mobile-webview-reference", type=Path)
     args = parser.parse_args()
+    platform = args.frame.parent.name
+    relative = platform == "android" and args.mobile_webview_reference is not None
+    diagnostic = platform == "android" and args.mobile_webview_reference is None
+    if relative and args.scale != 1:
+        parser.error("Android relative comparisons require the DPR 1 emulator")
     frame = load_frame(args.frame)
     reference_dir = args.mobile_webview_reference or Path(f"artifacts/native-parity/web/dpr{args.scale}")
     output_dir = args.frame.parent
     if args.mobile_webview_reference:
-        if output_dir.name not in {"android", "ios"}:
+        if platform not in {"android", "ios"}:
             parser.error("Mobile WebView comparisons require an Android or iOS native frame")
         output_dir = output_dir / "native-vs-webview"
         output_dir.mkdir(exist_ok=True)
@@ -59,60 +82,79 @@ def main():
         parser.error(f"Unknown component {args.component}")
     ordinal = list(groups).index(args.component)
     cases = groups[args.component]
-    positions = crop_positions(frame, args.scale, (16 + ordinal) * args.scale)
-    if len(positions) != len(cases):
-        raise SystemExit(f"Expected {len(cases)} marker strips, found {len(positions)}")
-    if any(x + 320 * args.scale > frame.width or y + heights[case] * args.scale > frame.height
-           for case, (x, y) in zip(cases, positions)):
-        raise SystemExit("Expected every fixture to fit within the native capture")
+    try:
+        crops = component_crops(frame, args.scale, ordinal, cases, heights)
+    except ValueError as error:
+        raise SystemExit(str(error))
     if args.ready:
         return
     mismatches = []
     rows = []
     measurements = []
-    for case, (x, y) in zip(cases, positions):
-        reference = reference_dir / f"{case}.png"
-        web = Image.open(reference).convert("RGB")
+    for case, native in zip(cases, crops):
         expected = (320 * args.scale, heights[case] * args.scale)
-        if web.size != expected:
-            raise ValueError(f"{case}: invalid capture dimensions")
-        native = frame.crop((x, y, x + expected[0], y + expected[1]))
         native.save(output_dir / f"{case}.png")
+        try:
+            with Image.open(reference_dir / f"{case}.png") as image:
+                web = image.convert("RGB")
+            if web.size != expected:
+                raise ValueError("incompatible dimensions")
+        except (OSError, ValueError):
+            measurements.append({"id": case, "evidenceIssue": "missing or incompatible reference"})
+            mismatches.append(case)
+            rows.append(f"| {case} |  |  |  | Missing or incompatible reference |")
+            continue
         difference = ImageChops.difference(web, native)
         ImageOps.autocontrast(difference).save(output_dir / f"{case}-diff.png")
         # A missing primitive on both platforms must never give a passing blank crop.
         changed = sum(pixel != (0, 0, 0) for pixel in difference.get_flattened_data())
         blank_reference = not any(lo < hi for lo, hi in web.getextrema())
-        passed = changed == 0 and not blank_reference
+        blank_native = not any(lo < hi for lo, hi in native.getextrema())
+        measurement = {"id": case, "differentPixels": changed, "blankReference": blank_reference,
+                       "blankNative": blank_native}
+        issues = []
+        if relative:
+            from relative_visual import measure_relative
+            metrics = measure_relative(web, native)
+            measurement["relativeVisual"] = metrics
+            issues = relative_issues(metrics, expected)
+        if blank_reference or blank_native:
+            issues.insert(0, "blank crop")
+        passed = not issues and (relative or changed == 0)
         if not passed:
             mismatches.append(case)
         bounds = difference.getbbox()
         extent = ", ".join(map(str, bounds)) if bounds else ""
         max_delta = max(hi for _, hi in difference.getextrema())
-        measurements.append({"id": case, "differentPixels": changed, "maxRgbDelta": max_delta,
-                             "bounds": bounds, "blankReference": blank_reference})
-        rows.append(f"| {case} | {changed} | {max_delta} | {extent} | {'Pass' if passed else 'Fail'} |")
+        measurement.update(maxRgbDelta=max_delta, bounds=bounds)
+        measurements.append(measurement)
+        if relative:
+            detail = f"SSIM {metrics['fullSsim']:.4f} / {metrics['foregroundSsim']:.4f}" if metrics else "No SSIM"
+            status = detail + (" · " + ", ".join(issues) if issues else " · Pass")
+        elif diagnostic:
+            status = "Diagnostic" if not issues else ", ".join(issues)
+        else:
+            status = "Pass" if passed else "Fail"
+        rows.append(f"| {case} | {changed} | {max_delta} | {extent} | {status} |")
     report = "\n".join([
         f"### {args.frame.parent.name}: {args.component} at DPR {args.scale}"
         + (" vs mobile WebView" if args.mobile_webview_reference else ""), "",
         "| Case | Different pixels | Maximum RGB delta | Difference bounds (px) | Result |",
         "| --- | ---: | ---: | --- | --- |", *rows, "",
     ])
-    evidence = {"component": args.component, "platform": args.frame.parent.name, "scale": args.scale,
+    evidence = {"component": args.component, "platform": platform, "scale": args.scale,
                 "commit": os.environ.get("PARITY_HEAD_SHA"), "buildCommit": os.environ.get("GITHUB_SHA"),
                 "cases": measurements}
     if args.mobile_webview_reference:
-        evidence["referenceEngine"] = "android-webview" if args.frame.parent.name == "android" else "ios-wkwebview"
+        evidence["referenceEngine"] = "android-webview" if relative else "ios-wkwebview"
     (output_dir / f"result-{args.component}.json").write_text(json.dumps(evidence, indent=2) + "\n")
     print(report)
     if summary := os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(summary, "a", encoding="utf-8") as stream:
             stream.write(report + "\n")
-    if args.mobile_webview_reference and any(case["blankReference"] for case in measurements):
-        raise SystemExit("Mobile WebView reference contains a blank crop")
-    if mismatches:
-        raise SystemExit(f"Pixel parity failed: {', '.join(mismatches)}")
-    if not mismatches:
+    if mismatches and not diagnostic:
+        raise SystemExit(f"Visual parity failed: {', '.join(mismatches)}")
+    if not relative and not mismatches:
         print(f"All {len(cases)} crops match at DPR {args.scale}")
 
 

@@ -15,7 +15,7 @@ from urllib.parse import urlsplit
 
 from case_manifest import DIRECTORY_CASES, PAGE_CAPTURES, load_case_layout, load_page_manifest
 from device_capture import open_route, screenshot
-from compare import MARKER, crop_positions, load_frame
+from compare import MARKER, component_crops, load_frame, unchanged_crops
 from page_frames import blank_frame, capture_stable_page, compare_page_frames
 
 
@@ -57,21 +57,23 @@ def capture(platform, device, selected):
             continue
         destination = references / f"frame-{component}.png"
         open_route(platform, device, f"internal/webview-reference/{component}")
+        previous = None
         for _ in range(30):
             screenshot(platform, device, destination)
-            frame = load_frame(destination)
-            positions = crop_positions(frame, scale, (96 + ordinal) * scale)
-            width = 320 * scale
-            if len(positions) == len(cases) and all(
-                x + width <= frame.width and y + heights[case] * scale <= frame.height
-                for case, (x, y) in zip(cases, positions)
-            ):
-                for case, (x, y) in zip(cases, positions):
-                    frame.crop((x, y, x + width, y + heights[case] * scale)).save(references / f"{case}.png")
+            try:
+                crops = component_crops(load_frame(destination), scale, ordinal, cases, heights, webview=True)
+            except ValueError:
+                previous = None
+                time.sleep(1)
+                continue
+            if platform == "ios" or unchanged_crops(previous, crops):
+                for case, crop in zip(cases, crops):
+                    crop.save(references / f"{case}.png")
                 break
+            previous = crops
             time.sleep(1)
         else:
-            print(f"WebView fixture did not expose all crop markers for {component}", file=sys.stderr)
+            print(f"WebView fixture did not expose stable crops for {component}", file=sys.stderr)
             errors.append(component)
             continue
 
@@ -149,6 +151,14 @@ def main():
     site = ARTIFACTS / "webview-site"
     if not (site / "index.html").is_file():
         raise SystemExit("Missing Next.js static export for mobile WebView")
+    if args.platform == "android":
+        expected = {"commit": os.environ.get("PARITY_HEAD_SHA"), "buildCommit": os.environ.get("GITHUB_SHA")}
+        try:
+            exported = json.loads((site / "parity-build.json").read_text())
+        except (OSError, ValueError):
+            raise SystemExit("Missing mobile WebView export build identity")
+        if not all(expected.values()) or exported != expected:
+            raise SystemExit("Mobile WebView export differs from the tested build")
 
     with ThreadingHTTPServer((HOST, PORT), partial(FixtureServer, directory=site)) as server:
         thread = Thread(target=server.serve_forever, daemon=True)

@@ -16,7 +16,7 @@ Dari [inventaris awal](../plans/native-parallel/routes.tsv), 151 pola tetap masu
 
 ## Bukti Android setelah baseline
 
-Prioritas verifikasi harian adalah Android. Workflow `Native component parity` mengukur tiga kasus per komponen terhadap Chromium dan WebView di emulator yang sama. Laporan gabungan Android dan iOS tersedia dengan opsi `include_ios` pada dispatch manual. Alur produk iOS tetap menjalani smoke test navigasi.
+Prioritas verifikasi harian adalah Android. Workflow `Native component parity` memakai Next.js di Android WebView pada emulator yang sama sebagai acuan utama galeri komponen, sesuai mesin web di Capacitor. Chromium dan selisih piksel eksak tersedia sebagai pembanding diagnostik Android. Opsi `include_ios` menambahkan pengukuran eksak iOS terhadap Chromium dan WKWebView. Alur produk iOS tetap menjalani smoke test navigasi.
 
 Pada `1587768e8`, 20 alur interaksi Maestro lulus di Android, termasuk pemilihan tunggal dan jamak, kotak masuk, serta formulir. Ketiga kasus Separator cocok persis dengan kedua referensi Android. Pada Progress, keadaan penuh masih berbeda 28 piksel terhadap WebView. [Hasil perangkat Android](https://github.com/soezyxstt/zyxacademy/actions/runs/45867381115/job/140074591471).
 
@@ -38,6 +38,18 @@ Pada `ecf50dd0f`, perbandingan RGB tanpa resize pada DPR 1 menemukan selisih ant
 Pada baris tengah isi tombol teks, warna tombol Expo membentang dari x=125 sampai x=195. Kedua referensi web berhenti di x=194. Tombol ikon memiliki lebar yang sama pada ketiga mesin. Shaping label `Simpan` pada 14 px menghasilkan advance 50,169 px untuk TTF Inter Medium native dan WOFF2 web pada bobot 500. Pengukuran intrinsik teks React Native Android memakai lebar layout dalam piksel fisik utuh. Mekanisme pembulatan ini konsisten dengan selisih lebar satu piksel yang teramati. [Kode pengukuran React Native 0.88.1](https://github.com/facebook/react-native/blob/v0.88.1/packages/react-native/ReactAndroid/src/main/java/com/facebook/react/views/text/TextLayoutManager.kt).
 
 Piksel label Button yang kontras mulai di y=44 pada Expo dan Chromium, serta y=43 pada WebView. Simulasi geser area teks ke atas satu piksel mengubah selisih crop teks Expo terhadap WebView dari 301 ke 222 dan dari 300 ke 219. Selisih terhadap Chromium naik dari 412 ke 471 dan dari 411 ke 464. Untuk tiga kasus Label, posisi saat ini menghasilkan selisih terkecil dari pergeseran vertikal bulat yang diuji, dari minus dua sampai plus dua piksel. Hasil ini mendukung mempertahankan pengukuran teks dan posisi label saat ini. Kasus Button dan Label masih terbuka pada gerbang piksel.
+
+### Gerbang visual relatif Android WebView
+
+Setiap kasus galeri memakai tiga bukti identitas: marker komponen, ukuran crop DPR 1 sesuai manifest, dan revisi ekspor Next.js yang sama dengan checkout. Android menunggu dua pengambilan crop berturut-turut yang stabil untuk Expo dan WebView. Setiap komponen membutuhkan ketiga kasus dengan pengukuran yang valid.
+
+- SSIM luminans BT.709 dihitung pada jendela 7 × 7 dengan crop pada posisi asli. Rata-rata untuk seluruh frame dan untuk jendela yang menyentuh konten di salah satu gambar masing-masing harus mencapai 0,98. Pengukuran mempertahankan ukuran dan posisi piksel.
+- Warna kanvas ditentukan dari warna paling sering di tepi crop. Area konten memakai selisih minimal 12 dari kanvas pada salah satu kanal RGB, minimal delapan piksel per crop, serta toleransi selisih area 20%. Batas konten pada tiap sisi boleh bergeser paling banyak 2 dp. Selisih kanvas maksimum 8 per kanal.
+- Jika lingkungan 3 × 3 bersifat datar pada kedua gambar (rentang kanal maksimal 8), paling banyak delapan piksel dalam setiap jendela 7 × 7 boleh berbeda lebih dari 12 per kanal. Untuk kontur dengan rentang kanal minimal 32, gambar pembanding perlu memiliki 65% dari kontras lokal dalam radius satu piksel. Kedua arah diukur. Lebih dari delapan piksel kontur yang kehilangan pasangan dalam satu jendela 7 × 7 menggagalkan kasus.
+
+Kalibrasi ulang terhadap run `ecf50dd0f` meluluskan 18 dari 54 kasus visual. Separator, Skeleton, Switch, Progress dan Slider meluluskan ketiganya. Button ikon lulus. Kedua Button teks mencapai SSIM di atas 0,98 pada frame penuh, tetapi area konten berada di bawah ambang. Frame kotak masuk tidak memiliki marker native yang dapat dipakai untuk kalibrasi. Kasus sintetis memeriksa toleransi antialiasing, crop kosong atau salah ukuran, hilangnya ikon kecil meski kedua SSIM tinggi, pergeseran geometri, warna dengan luminans serupa, dan hilangnya kontras.
+
+Gerbang ini berlaku untuk galeri komponen Android. Pemeriksaan aksi pengguna, nama aksesibel, status, dan hasil operasi tetap memerlukan bukti tersendiri. Cakupan 95% mengikuti inventaris per komponen, halaman, dan operasi. Penerapan pada Shared UI dan halaman memerlukan crop Expo dan WebView pada perangkat yang sama, anchor konten per layar, serta verifikasi perilaku dan otorisasi sesuai peran. [Kebijakan ukuran](../scripts/native-parity/relative_policy.py), [perhitungan visual](../scripts/native-parity/relative_visual.py).
 
 ## Review integrasi 26 November 2026
 

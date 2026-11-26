@@ -200,6 +200,11 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m pip install Pillow==12.2.0
+      - if: matrix.platform == 'android'
+        name: Verify the relative visual policy against synthetic regressions
+        run: |
+          python -m pip install numpy==2.3.5
+          python -m unittest discover -s scripts/native-parity -p 'test_relative_visual.py'
       - run: npm ci
         working-directory: apps/mobile-native
       - uses: actions/setup-java@v4
