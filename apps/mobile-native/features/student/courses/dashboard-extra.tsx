@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { nativeColors } from "../../../../../packages/design-tokens/native-colors";
 import { coursePath, learningEndpoint, type DashboardExtrasData } from "../../../../../packages/native-parity/student/courses/contract";
 import studentCourseEn from "../../../../../messages/en/studentCourse.json";
@@ -12,6 +12,7 @@ import type { StudentRequest } from "../contracts";
 import { matchStudentRoute } from "../routes";
 import type { CourseCopy } from "./copy";
 import { dashboardMessages } from "./dashboard-overview";
+import { DashboardLink } from "./dashboard-link";
 import { NavigationIcon } from "../../shared-ui/navigation-icons";
 
 type Theme = keyof typeof nativeColors;
@@ -163,22 +164,25 @@ export function DashboardTop({ data, request, ...props }: PaneProps & { data?: D
   const colors = nativeColors[theme];
   const count = new Intl.NumberFormat(locale);
   const { today, achievements, intervention } = data;
+  const xp = achievements ? `${count.format(achievements.xp)} XP` : "";
+  const lp = achievements ? `${count.format(achievements.lp)} LP` : "";
   return <>
     {intervention ? <Intervention key={intervention.id} {...props} request={request} intervention={intervention} /> : null}
     {today ? <Today {...props} request={request} today={today} /> : null}
-    {achievements ? <Pressable accessibilityRole="link" testID="student-dashboard-achievements" onPress={() => navigate("/achievements")}
+    {achievements ? <DashboardLink theme={theme} label={`${copy.achievements}, ${achievements.rank}, ${xp}, ${lp}`}
+      testID="student-dashboard-achievements" onPress={() => navigate("/achievements")}
       style={[styles.achievements, { borderBottomColor: colors.border }]}>
       <NavigationIcon name="classes" size={28} color={colors.primary} />
       <View style={styles.achievementLabels}>
         <Text style={[styles.achievementHeading, { color: colors.foreground }]}>{copy.achievements}</Text>
         <View style={styles.achievementValues}>
           <Text style={[styles.achievementRank, { color: colors.foreground }]}>{achievements.rank}</Text>
-          <Text style={[styles.achievementValue, { color: colors.mutedForeground }]}>{count.format(achievements.xp)} XP</Text>
-          <Text style={[styles.achievementValue, { color: colors.mutedForeground }]}>{count.format(achievements.lp)} LP</Text>
+          <Text style={[styles.achievementValue, { color: colors.mutedForeground }]}>{xp}</Text>
+          <Text style={[styles.achievementValue, { color: colors.mutedForeground }]}>{lp}</Text>
         </View>
       </View>
       <NavigationIcon name="chevron" size={16} color={colors.mutedForeground} />
-    </Pressable> : null}
+    </DashboardLink> : null}
   </>;
 }
 

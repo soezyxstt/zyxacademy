@@ -40,6 +40,21 @@ name: Student dashboard enrollment states
 - assertNotVisible:
     id: student-dashboard-achievements
 - takeScreenshot: student-dashboard-unenrolled
+- tapOn:
+    id: student-dashboard-first-chapter-matematika-1
+- extendedWaitUntil:
+    visible: Pembaca materi belum tersedia di aplikasi ini.
+    timeout: 30000
+- assertVisible: Sistem bilangan real
+- assertNotVisible:
+    id: student-material-locked
+- tapOn:
+    id: student-learning-back
+- extendedWaitUntil:
+    visible:
+      id: student-dashboard-first-chapter-matematika-1
+    timeout: 30000
+- assertVisible: Course untukmu
 - openLink: "zyx-native-parity://student-fixture?scenario=dashboard-parity-revoked"
 - extendedWaitUntil:
     visible:
@@ -58,3 +73,18 @@ name: Student dashboard enrollment states
 - assertNotVisible:
     id: student-dashboard-achievements
 - takeScreenshot: student-dashboard-revoked
+- tapOn:
+    id: student-dashboard-first-chapter-matematika-1
+- extendedWaitUntil:
+    visible: Pembaca materi belum tersedia di aplikasi ini.
+    timeout: 30000
+- assertVisible: Sistem bilangan real
+- assertNotVisible:
+    id: student-material-locked
+- tapOn:
+    id: student-learning-back
+- extendedWaitUntil:
+    visible:
+      id: student-dashboard-first-chapter-matematika-1
+    timeout: 30000
+- assertVisible: Course untukmu

@@ -8,7 +8,8 @@ import { dashboardFixtureState, readDashboardFixture } from "./dashboard/fixture
 
 export function createStudentFixtureRequest(scenario: string) {
   const dashboardState = dashboardFixtureState(scenario);
-  const courses = createCourseFixtureRequest(dashboardState ?? courseFixtureScenarios.find(value => value === scenario) ?? "enrolled");
+  const courses = createCourseFixtureRequest(dashboardState ? `course-material-${dashboardState}`
+    : courseFixtureScenarios.find(value => value === scenario) ?? "enrolled");
   const community = createCommunityFixtureRequest(
     ["offline", "revoked", "unavailable"].includes(scenario) ? "unavailable" : ["empty", "unenrolled"].includes(scenario) ? "empty" : "loaded",
     calendarFixtureForScenario(scenario),

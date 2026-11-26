@@ -13,4 +13,9 @@ export function readDashboardFixture(state: DashboardState, path: string, init?:
   if (init?.signal?.aborted) throw new Error("ABORTED");
   if (path === learningEndpoint({ view: "dashboard" })) return Response.json(responses[state].dashboard);
   if (path === learningEndpoint({ view: "dashboard-extras" })) return Response.json(responses[state].extras);
+  if (path === learningEndpoint({ view: "catalog" })) {
+    const dashboard = responses[state].dashboard;
+    return Response.json({ view: "catalog", targetCategory: "preview" in dashboard ? dashboard.preview.targetCategory : null,
+      courses: [...dashboard.enrolled, ...dashboard.recommended] });
+  }
 }

@@ -159,6 +159,10 @@ export function materialPath(courseId: string, materialId?: string, section?: st
   return section ? `${path}?section=${encodeURIComponent(section)}` : path;
 }
 
+export function dashboardPreviewPath(course: Pick<DashboardPreview["courses"][number], "id" | "firstIncompleteMaterialId">): string {
+  return course.firstIncompleteMaterialId ? materialPath(course.id, course.firstIncompleteMaterialId) : coursePath(course.id);
+}
+
 export function materialRowPath(courseId: string, row: MaterialRow): string {
   const id = encodeURIComponent(row.id);
   const course = coursePath(courseId);

@@ -1,12 +1,13 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { nativeColors, nativeLinkInks, nativeRadii } from "../../../../../packages/design-tokens/native-colors";
-import { coursePath, materialPath, type CourseCard, type DashboardPreview } from "../../../../../packages/native-parity/student/courses/contract";
+import { coursePath, dashboardPreviewPath, type CourseCard, type DashboardPreview } from "../../../../../packages/native-parity/student/courses/contract";
 import studentEn from "../../../../../messages/en/student.json";
 import studentId from "../../../../../messages/id/student.json";
 import { Button } from "../../../components/Button";
 import { nativeTypography } from "../../../typography";
 import { NavigationIcon, type NavigationIconName } from "../../shared-ui/navigation-icons";
 import type { StudentScreenProps } from "../contracts";
+import { DashboardLink } from "./dashboard-link";
 
 type Theme = keyof typeof nativeColors;
 type DashboardPane = Pick<StudentScreenProps, "navigate" | "openExternal"> & { locale: string; theme: Theme };
@@ -31,17 +32,21 @@ function Heading({ title, icon, theme, tone = "muted" }: { title: string; icon: 
   </View>;
 }
 
-function Progress({ done, total, title, theme, label }: { done: number; total: number; title: string; theme: Theme; label: string }) {
-  const colors = nativeColors[theme];
+function dashboardProgress(done: number, total: number, message: string) {
   const percent = total > 0 ? Math.max(0, Math.min(100, Math.round(done / total * 100))) : 0;
-  const progress = label.replace("{done}", String(done)).replace("{complete}", String(done)).replace("{total}", String(total));
+  const label = message.replace("{done}", String(done)).replace("{complete}", String(done)).replace("{total}", String(total));
+  return { percent, label };
+}
+
+function Progress({ percent, label, title, theme }: ReturnType<typeof dashboardProgress> & { title: string; theme: Theme }) {
+  const colors = nativeColors[theme];
   return <View style={styles.progress}>
     <View accessibilityRole="progressbar" accessibilityLabel={title} accessibilityValue={{ min: 0, now: percent, max: 100 }}
       style={[styles.track, { backgroundColor: colors.muted }]}>
       <View style={[styles.trackFill, { width: `${percent}%`, backgroundColor: percent === 100 ? nativeLinkInks.success : colors.primary }]} />
     </View>
     <Text style={[styles.progressNumber, { color: colors.foreground }]}>{percent}%</Text>
-    <Text style={[styles.meta, { color: colors.mutedForeground }]}>{progress}</Text>
+    <Text style={[styles.meta, { color: colors.mutedForeground }]}>{label}</Text>
   </View>;
 }
 
@@ -56,16 +61,18 @@ export function ActiveDashboardCourses({ courses, completed, locale, theme, navi
       <Button theme={theme} variant="outline" size="sm" accessibilityState={{ expanded: activationOpen }} onPress={activate}>{t.activateClass}</Button>
       <Button theme={theme} variant="ghost" size="sm" onPress={() => navigate("/courses")}>{t.viewAll}</Button>
     </View>
-    {courses.map(course => <Pressable key={course.id} testID={`student-course-${course.id}`} accessibilityRole="link"
-      style={({ pressed }) => [styles.activeCourse, pressed && { backgroundColor: `${colors.muted}66` }]}
-      onPress={() => navigate(coursePath(course.id))}>
-      <View style={styles.inline}>
-        <Text style={[styles.heading, { color: colors.foreground }]}>{course.title}</Text>
-        <Text style={[styles.meta, styles.category, { color: colors.mutedForeground }]}>{course.category}</Text>
-      </View>
-      <Progress title={course.title} done={completed[course.id] ?? 0} total={course.materialsCount ?? 0}
-        label={t.materialProgressShort} theme={theme} />
-    </Pressable>)}
+    {courses.map(course => {
+      const progress = dashboardProgress(completed[course.id] ?? 0, course.materialsCount ?? 0, t.materialProgressShort);
+      return <DashboardLink key={course.id} testID={`student-course-${course.id}`} theme={theme} style={styles.activeCourse}
+        label={[course.title, course.category, `${progress.percent}%`, progress.label].filter(Boolean).join(", ")}
+        onPress={() => navigate(coursePath(course.id))}>
+        <View style={styles.inline}>
+          <Text style={[styles.heading, { color: colors.foreground }]}>{course.title}</Text>
+          <Text style={[styles.meta, styles.category, { color: colors.mutedForeground }]}>{course.category}</Text>
+        </View>
+        <Progress {...progress} title={course.title} theme={theme} />
+      </DashboardLink>;
+    })}
   </View>;
 }
 
@@ -93,7 +100,6 @@ export function DashboardPreviewCourses({ preview, locale, theme, navigate, open
       <Text style={[styles.meta, { color: colors.mutedForeground }]}>{t.firstChapterFree}</Text>
     </View>
     {preview.courses.map(course => {
-      const href = materialPath(course.id, course.firstIncompleteMaterialId ?? undefined);
       const next = course.completedFreeMaterialCount > 0 && course.completedFreeMaterialCount < course.freeMaterialCount
         ? t.continueLearning : t.startChapterOne;
       const offer = offerLabel(course);
@@ -109,7 +115,7 @@ export function DashboardPreviewCourses({ preview, locale, theme, navigate, open
             <Text style={[styles.courseTitle, { color: colors.foreground }]}>{course.title}</Text>
           </View>
           <Button theme={theme} size="sm" accessibilityRole="link" testID={`student-dashboard-first-chapter-${course.id}`}
-            onPress={() => navigate(course.firstIncompleteMaterialId ? href : coursePath(course.id))}>{next}</Button>
+            onPress={() => navigate(dashboardPreviewPath(course))}>{next}</Button>
         </View>
         {offer ? <Text style={[styles.meta, { color: colors.mutedForeground }]}>{offer}</Text> :
           <Text style={[styles.pill, styles.pricing, { color: colors.foreground, backgroundColor: colors.muted }]}>
@@ -121,8 +127,8 @@ export function DashboardPreviewCourses({ preview, locale, theme, navigate, open
               {countLabel(message, count, locale)}
             </Text>)}
         </View>
-        <Progress title={course.title} done={course.completedFreeMaterialCount} total={course.freeMaterialCount}
-          label={t.onboardingMaterialProgress} theme={theme} />
+        <Progress {...dashboardProgress(course.completedFreeMaterialCount, course.freeMaterialCount, t.onboardingMaterialProgress)}
+          title={course.title} theme={theme} />
         {course.freeChapters.length > 0 ? course.freeChapters.map((chapter, index) => <View key={chapter.id} style={styles.spread}>
           <View style={styles.inline}>
             {chapter.completed ? <NavigationIcon name="check" color={nativeLinkInks.success} size={16} /> :

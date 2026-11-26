@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import {
-  canShowOfflineCourse, coursesEndpoint, learningEndpoint, materialPath, materialRowPath, normalizeMaterialTab,
-  type LearningQuery, type MaterialListData, type MaterialDetailData,
+  canShowOfflineCourse, coursesEndpoint, dashboardPreviewPath, learningEndpoint, materialPath, materialRowPath, normalizeMaterialTab,
+  type CatalogData, type CourseData, type DashboardData, type LearningQuery, type MaterialListData, type MaterialDetailData,
 } from "@/packages/native-parity/student/courses/contract";
 import { createCourseFixtureRequest } from "@/packages/native-parity/student/courses/fixtures";
 import { materialReferenceScenarios } from "@/packages/native-parity/student/courses/material-reference";
+import { createStudentFixtureRequest } from "@/packages/native-parity/student/fixture-request";
 import { matchStudentRoute, studentMaterialReaderTarget } from "@/apps/mobile-native/features/student/routes";
 
 const authGuard = mock(async (_request: Request): Promise<{ userId: string } | Response> => ({ userId: "learner-a" }));
@@ -67,6 +68,32 @@ describe("native Student course fixtures", () => {
   const dashboard = learningEndpoint({ view: "dashboard" });
   const materialList = learningEndpoint({ view: "material-list", courseId });
   const materialDetail = (materialId: string) => learningEndpoint({ view: "material-detail", courseId, materialId });
+
+  test.each([["unenrolled", "Bima"], ["revoked", "Citra"]] as const)(
+    "replays the signed dashboard chapter action for %s and keeps premium content locked",
+    async (state, firstName) => {
+      const learner = createStudentFixtureRequest(`dashboard-parity-${state}`);
+      const home: DashboardData = await (await learner(dashboard)).json();
+      expect(home.firstName).toBe(firstName);
+      expect(home.enrolled).toEqual([]);
+      const preview = home.preview!.courses[0];
+      const target = matchStudentRoute(dashboardPreviewPath(preview))!;
+      expect(target.path).toBe("/courses/matematika-1/material/dokumen-1");
+      const opened = await learner(learningEndpoint({ view: "material-detail", courseId: target.params.id, materialId: target.params.materialId }));
+      expect(opened.status).toBe(200);
+      const detail: MaterialDetailData = await opened.json();
+      expect(detail.material).toMatchObject({ id: "dokumen-1", title: "Sistem bilangan real", locked: false });
+      const catalog: CatalogData = await (await learner(learningEndpoint({ view: "catalog" }))).json();
+      expect(catalog.courses).toMatchObject([{ id: courseId, hasFullContentAccess: false }]);
+      const course: CourseData = await (await learner(learningEndpoint({ view: "course", courseId }))).json();
+      expect(course.course.hasFullContentAccess).toBeFalse();
+      const list: MaterialListData = await (await learner(materialList)).json();
+      expect(list.materials.find(row => row.id === "dokumen-4")?.locked).toBeTrue();
+      const premium: MaterialDetailData = await (await learner(materialDetail("dokumen-4"))).json();
+      expect(premium.material.locked).toBeTrue();
+      expect(await (await learner(dashboard)).json()).toEqual(home);
+    },
+  );
 
   test("traverses the enrolled path from dashboard to a selectable document", async () => {
     const learner = createCourseFixtureRequest("enrolled");
