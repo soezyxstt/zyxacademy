@@ -21,7 +21,7 @@ function find(tree: unknown, predicate: (node: Node) => boolean): Node | undefin
 const byId = (root: unknown, id: string) => find(root, node => node.props.testID === id);
 
 async function harness(file: "response" | "fields", OS: "android" | "ios" = "android") {
-  const compiled = await Bun.build({ entrypoints: [`./apps/mobile-native/features/public-forms/${file}.tsx`], format: "cjs", external: ["*"], write: false });
+  const compiled = await Bun.build({ entrypoints: [`./apps/mobile-native/features/public-forms/${file}.tsx`], format: "cjs", external: ["*"] });
   const module = { exports: {} as Record<string, (props: Record<string, unknown>) => Node> };
   const hooks: unknown[] = [];
   const dialogs: { text: string; onPress(): void }[][] = [];
