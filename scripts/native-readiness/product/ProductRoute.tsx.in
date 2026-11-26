@@ -62,7 +62,7 @@ function ProductRoute({ href, pattern, owner }: { href: string; pattern: string;
     });
   }, [context, getSnapshot, href, owner, state, transport]));
 
-  if (owner === "public") return <SafeAreaView style={{ flex: 1 }}>
+  if (owner === "public") return <SafeAreaView testID={pattern === "/" ? "product-landing" : undefined} style={{ flex: 1 }}>
     <PublicOperationsScreen href={href} origin={NATIVE_STAGING_ORIGIN} locale={locale} theme={theme} onNavigate={navigate} onBack={back} />
   </SafeAreaView>;
   if (state.status === "signed-out") {

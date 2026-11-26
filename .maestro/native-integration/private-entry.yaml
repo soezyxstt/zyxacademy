@@ -2,6 +2,10 @@ appId: com.zyx.academy.nativeparity
 name: Canonical Student, Tutor and Admin entries require sign-in
 ---
 - launchApp
+- extendedWaitUntil:
+    visible:
+      id: product-landing
+    timeout: 30000
 - openLink: zyx-native-parity://sign-up?locale=en
 - assertVisible: "Sign up with Google"
 - openLink: zyx-native-parity://murid
