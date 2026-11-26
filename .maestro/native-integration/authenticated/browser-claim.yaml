@@ -1,0 +1,11 @@
+appId: com.android.chrome
+name: Enter the one-time runner claim in the preview browser
+---
+- extendedWaitUntil:
+    visible: Native Preview Sign-in
+    timeout: 30000
+- tapOn:
+    text: Runner code
+    optional: true
+- inputText: ${PREVIEW_CLAIM}
+- tapOn: "Continue as preview (student|tutor|admin)"

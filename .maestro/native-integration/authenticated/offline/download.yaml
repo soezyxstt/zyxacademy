@@ -11,14 +11,7 @@ name: Download an authorized Student reading
 - tapOn:
     id: native-auth-google
     enabled: true
-- extendedWaitUntil:
-    visible: Native Preview Sign-in
-    timeout: 30000
-- tapOn:
-    text: Runner code
-    optional: true
-- inputText: ${PREVIEW_CLAIM}
-- tapOn: Continue as preview student
+- runFlow: ../browser-claim.yaml
 - extendedWaitUntil:
     visible: "(Simpan|Save) Diktat verifikasi offline"
     timeout: 45000

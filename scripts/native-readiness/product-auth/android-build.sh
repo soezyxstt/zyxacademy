@@ -10,10 +10,7 @@ root=$(git rev-parse --show-toplevel)
 app="$root/apps/mobile-native"
 private="$RUNNER_TEMP/native-auth-preview"
 umask 077
-mkdir "$private"
-openssl req -x509 -newkey rsa:2048 -sha256 -nodes -days 1 \
-  -subj /CN=127.0.0.1 -addext subjectAltName=IP:127.0.0.1 \
-  -keyout "$private/key.pem" -out "$private/cert.pem" 2>/dev/null
+bash "$root/scripts/native-readiness/product-auth/android-tls.sh"
 
 sources=(session-api.ts browser-login.ts auth-entry.tsx)
 for source in "${sources[@]}"; do cp "$app/auth/$source" "$private/$source"; done

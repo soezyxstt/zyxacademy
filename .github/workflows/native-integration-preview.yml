@@ -56,11 +56,21 @@ on:
         type: choice
         options: ['skip', 'also', 'only']
         default: 'skip'
+      browser_probe:
+        description: Verify only the authenticated loopback browser form on Android
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 jobs:
+  authenticated-browser-probe:
+    if: github.event_name == 'workflow_dispatch' && github.ref_name == 'soezyxst/react-native-monorepo' && inputs.browser_probe
+    uses: ./.github/workflows/native-authenticated-preview.yml
+    with:
+      probe: true
+
   authenticated-session:
     if: github.head_ref == 'soezyxst/react-native-monorepo' || (github.event_name == 'workflow_dispatch' && github.ref_name == 'soezyxst/react-native-monorepo')
     needs: combined-native
@@ -75,7 +85,7 @@ jobs:
       offline: ${{ matrix.group == 'offline' && 'only' || (matrix.group == 'student' && inputs.offline == 'also' && 'also' || '') }}
 
   combined-native:
-    if: github.head_ref == 'soezyxst/react-native-monorepo' || (github.event_name == 'workflow_dispatch' && github.ref_name == 'soezyxst/react-native-monorepo')
+    if: ${{ !inputs.browser_probe && (github.head_ref == 'soezyxst/react-native-monorepo' || (github.event_name == 'workflow_dispatch' && github.ref_name == 'soezyxst/react-native-monorepo')) }}
     concurrency:
       group: native-combined-preview-committed${{ inputs.offline == 'only' && '-offline' || '' }}
       cancel-in-progress: true

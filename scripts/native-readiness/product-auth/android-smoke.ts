@@ -1,4 +1,6 @@
+import { createHash, randomBytes } from "node:crypto";
 import { dirname, join } from "node:path";
+import { EXPO_STAGING_SCHEME } from "@/lib/native/expo-auth-config";
 import { notificationId } from "./inbox-fixture";
 import { fixtureOrigin } from "./scope";
 import { startAuthFixture } from "./server";
@@ -18,6 +20,10 @@ async function emulator(...args: string[]) {
   } finally {
     clearTimeout(timeout);
   }
+}
+
+function openChrome(url: string) {
+  return emulator("shell", "am", "start", "-W", "-a", "android.intent.action.VIEW", "-d", url, "-p", "com.android.chrome");
 }
 
 async function connectOfflineFixture() {
@@ -108,16 +114,28 @@ async function reportDeviceState() {
 try {
   if (!certificate || !key || !maestro || !device || !/^emulator-\d+$/.test(device)) throw new Error();
   const offlineProduct = process.env.NATIVE_PRODUCT_AUTH_ROLE === "offline";
-  const staff = offlineProduct ? undefined : staffRole(process.env.NATIVE_PRODUCT_AUTH_ROLE);
-  fixture = await startAuthFixture(certificate, key, { studentProduct: !staff && !offlineProduct, staff, offlineProduct });
-  const chrome = Bun.spawn(["adb", "-s", device, "shell", "am", "start", "-W", "-a", "android.intent.action.VIEW",
-    "-d", fixtureOrigin + "/__preview/health", "-p", "com.android.chrome"], { stdout: "ignore", stderr: "ignore" });
-  if (await chrome.exited !== 0) throw new Error();
+  const chromeProbe = process.env.NATIVE_PRODUCT_AUTH_ROLE === "probe";
+  const staff = offlineProduct || chromeProbe ? undefined : staffRole(process.env.NATIVE_PRODUCT_AUTH_ROLE);
+  fixture = await startAuthFixture(certificate, key, { studentProduct: !staff && !offlineProduct && !chromeProbe, staff, offlineProduct });
+  await openChrome(fixtureOrigin + "/__preview/health");
   await runFlow("browser-trust", [], `${process.env.NATIVE_PRODUCT_AUTH_ROLE ?? "student"}-browser-trust`);
   if (!fixture.browserTrustVerified()) throw new Error();
   console.log("Verified Chrome trusts the runner-local HTTPS certificate");
 
-  if (offlineProduct) {
+  if (chromeProbe) {
+    step = "submit a one-time claim in Chrome and complete the real native browser handoff";
+    const verifier = randomBytes(32).toString("hex");
+    const query = new URLSearchParams({ scheme: EXPO_STAGING_SCHEME, next: "/dashboard",
+      state: randomBytes(24).toString("hex"), challenge: createHash("sha256").update(verifier).digest("base64url") });
+    // adb passes intent arguments through the device shell. Keep the path and
+    // query in one argument. The verifier and runner claim stay out of the URL.
+    await openChrome(`'${fixtureOrigin}/api/auth/native/start?${query}'`);
+    await runFlow("browser-claim", ["-e", `PREVIEW_CLAIM=${fixture.claim}`]);
+    const deadline = Date.now() + 8_000;
+    while (fixture.progress() !== "browser completion" && Date.now() < deadline) await Bun.sleep(100);
+    if (fixture.progress() !== "browser completion") throw new Error();
+    console.log("Chrome completed the actual native-start and browser form handoff on runner-local HTTPS");
+  } else if (offlineProduct) {
     try {
       step = "sign in as a Student and save the authorized reading";
       await runFlow("offline/download", ["-e", `PREVIEW_CLAIM=${fixture.claim}`], "offline-download");
@@ -146,7 +164,6 @@ try {
     const inputs = Object.entries({
       PREVIEW_SIGN_IN_URL: `${scheme}sign-in?next=${encodeURIComponent(selected.route)}&locale=id`,
       PREVIEW_CLAIM: fixture.claim,
-      PREVIEW_BROWSER_BUTTON: `Continue as preview ${staff}`,
       PREVIEW_RECORD: selected.recordTitle,
       PREVIEW_OTHER_RECORD: opposite.recordTitle,
       PREVIEW_WRONG_ROLE_URL: scheme + opposite.route.slice(1),

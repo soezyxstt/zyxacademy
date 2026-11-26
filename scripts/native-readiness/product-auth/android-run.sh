@@ -7,7 +7,6 @@ if [[ ${GITHUB_ACTIONS:-} != true || ${RUNNER_ENVIRONMENT:-} != github-hosted ||
 fi
 root=$(git rev-parse --show-toplevel)
 private="$RUNNER_TEMP/native-auth-preview"
-test -s "$private/preview.apk"
 test -s "$private/cert.pem"
 device=$(adb devices | awk '$1 ~ /^emulator-[0-9]+$/ && $2 == "device" { print $1 }')
 [[ $device =~ ^emulator-[0-9]+$ ]]
@@ -51,7 +50,10 @@ emulator reverse tcp:9443 tcp:9443
 emulator shell iptables -I OUTPUT 1 -m owner --uid-owner 10000-99999 '!' -o lo -j REJECT
 emulator shell ip6tables -I OUTPUT 1 -m owner --uid-owner 10000-99999 '!' -o lo -j REJECT
 emulator shell am force-stop com.android.chrome
-emulator install "$private/preview.apk" >/dev/null
+if [[ ${NATIVE_PRODUCT_AUTH_CHROME_PROBE:-} != true ]]; then
+  test -s "$private/preview.apk"
+  emulator install "$private/preview.apk" >/dev/null
+fi
 mkdir "$private/maestro"
 bash "$root/scripts/native-parity/install-maestro.sh" "$private/maestro"
 roles=(student)
@@ -60,6 +62,7 @@ case ${NATIVE_PRODUCT_AUTH_OFFLINE:-} in
   only) roles=(offline) ;;
   also) roles+=(offline) ;;
 esac
+if [[ ${NATIVE_PRODUCT_AUTH_CHROME_PROBE:-} == true ]]; then roles=(probe); fi
 if [[ " ${roles[*]} " == *" student "* ]]; then
   if ! command -v ffmpeg >/dev/null; then
     sudo apt-get update -qq

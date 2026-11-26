@@ -11,14 +11,7 @@ name: Verified staff role, protected read, wrong-role denial and logout
 - tapOn:
     id: native-auth-google
     enabled: true
-- extendedWaitUntil:
-    visible: Native Preview Sign-in
-    timeout: 30000
-- tapOn:
-    text: Runner code
-    optional: true
-- inputText: ${PREVIEW_CLAIM}
-- tapOn: "${PREVIEW_BROWSER_BUTTON}"
+- runFlow: browser-claim.yaml
 - extendedWaitUntil:
     visible: ".*${PREVIEW_RECORD}.*"
     timeout: 45000
