@@ -42,7 +42,7 @@ Urutan ini adalah backlog, bukan bukti implementasi atau paritas. Setiap kotak m
 | P0 | [ ] `radio-group`, `app/(student)/courses/[id]/flashcard/flashcard-client.tsx` | Belum dipilih; satu opsi dipilih; disabled. |
 | P0 | [ ] `select`, `components/student-leaderboard-controls.tsx` | Tertutup tanpa pilihan; terbuka; pilihan panjang terpilih. |
 | P0 | [ ] `badge`, `components/course/dashboard-weak-concepts.tsx` | Default; sekunder; teks panjang. |
-| P0 | [ ] `avatar`, `components/auth/sidebar-account-menu.tsx` | Gambar tersedia; gambar gagal dengan fallback; inisial panjang. |
+| P0 | [ ] `avatar`, `components/ui/avatar.tsx` dan `components/auth/sidebar-account-menu.tsx` | Potret lokal dengan fallback saat memuat; gambar gagal dengan fallback; tiga inisial pada tema gelap. |
 | P0 | [ ] `skeleton`, `components/course/quiz-player.tsx` | Baris pendek; blok multiline; dark dengan reduced motion. |
 | P0 | [ ] `progress`, diadaptasi dari jalur indikator `components/gamification/mission-list.tsx` dan `badge-list.tsx` | Kosong tema terang; 3 dari 8 tema gelap; penuh tema terang. |
 | P0 | [ ] `card`, `components/admin/bundle-importer-tab.tsx` | Default; varian alternatif; konten panjang. |
