@@ -14,6 +14,12 @@ Repo `soezyxstt/zyxacademy`. Semua PR jalur eksternal memakai base **`soezyxst/r
 
 Inventaris [routes.tsv](routes.tsv) berisi setiap berkas halaman dan pemilik tunggal pada baseline. Jalur pemilik halaman juga memiliki komposisi UI, adapter data domain dan pemulihan halaman itu. Sebagai contoh, Agen 1 memiliki rute Student yang menampilkan artikel, sedangkan renderer konten di dalamnya milik thread utama. Kuis akademik Tutor dan Admin academic dimiliki Agen 2. Halaman Admin eval, meski berisi kuis, milik Agen 3. Versi desktop/mobile atau alias yang memakai satu operasi tidak menambah kredit backend ganda.
 
+## Kontrak yang disediakan induk
+
+- `useNativeSession()` di `apps/mobile-native/auth/session-provider.tsx` menyediakan `transport` hanya untuk sesi terverifikasi. Pemanggil menangkap transport ketika operasi dimulai. `request("/api/…", { method, body, headers, signal })` mendukung JSON dan stream. Setelah menunggu operasi lain dan sebelum menyimpan hasil, panggil `assertCurrent()`. Untuk operasi streaming atau respons dengan body yang tidak dibaca, panggil `dispose()` saat selesai.
+- `useNativeAccountContext()` di `apps/mobile-native/auth/use-account-context.ts` menyediakan konteks navigasi. Backend memakai keanggotaan aktif kanonik `murid`, `tutor`, `admin`, identitas akun/sesi dan locale. Integrator memetakan `murid` ke prop tampilan `student`. Tiap handler tetap memeriksa izin domain dan akses objek.
+- Shell integrasi memakai Expo Router. Ekspor screen melalui direktori fitur masing-masing dan dokumentasikan nama ekspor, parameter, serta callback navigasi di PR. Integrator memasang route entry serta service adapter. Dalam fixture lokal, inject data sintetis melalui kontrak yang sama.
+
 ## Cara bekerja
 
 1. Baca AGENTS.md, docs/mobile-native.md dan docs/native-readiness.md. Cek git status. Gunakan checkout bersih di mesin sendiri. Ambil branch tugas yang sudah dibuat dari remote. Sinkronkan perubahan induk secara reguler. Pertahankan commit milik agen lain.
