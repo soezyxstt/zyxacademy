@@ -83,4 +83,7 @@ fi
   --format junit --output "$output/report.xml" \
   --test-output-dir "$output/results" --debug-output "$output/logs" \
   "${targets[@]}" || status=1
+if [[ ${3:-parity} == product && $platform == android ]]; then
+  python3 "$root/scripts/native-parity/product-website-entry.py" "$device" "$maestro" "$output/website" || status=1
+fi
 exit "$status"

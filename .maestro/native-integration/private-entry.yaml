@@ -1,11 +1,12 @@
 appId: com.zyx.academy.nativeparity
-name: Warm Student, Tutor and Admin entries require sign-in
+name: Product launch and warm protected links require sign-in
 ---
-- launchApp
+- launchApp:
+    clearState: true
 - extendedWaitUntil:
-    visible:
-      id: product-landing
+    visible: "(Sign in with Google|Masuk dengan Google)"
     timeout: 30000
+- takeScreenshot: guest-product-sign-in
 - openLink: zyx-native-parity://sign-up?locale=en
 - runFlow:
     when:
@@ -19,6 +20,20 @@ name: Warm Student, Tutor and Admin entries require sign-in
     visible: "(Sign in with Google|Masuk dengan Google)"
     timeout: 20000
 - takeScreenshot: guest-murid
+- openLink: zyx-native-parity://sign-up?locale=en
+- assertVisible: "Sign up with Google"
+- openLink: zyx-native-parity://dashboard
+- extendedWaitUntil:
+    visible: "(Sign in with Google|Masuk dengan Google)"
+    timeout: 20000
+- takeScreenshot: guest-dashboard
+- openLink: zyx-native-parity://sign-up?locale=en
+- assertVisible: "Sign up with Google"
+- openLink: zyx-native-parity://courses
+- extendedWaitUntil:
+    visible: "(Sign in with Google|Masuk dengan Google)"
+    timeout: 20000
+- takeScreenshot: guest-courses
 - openLink: zyx-native-parity://sign-up?locale=en
 - assertVisible: "Sign up with Google"
 - openLink: zyx-native-parity://tutor
