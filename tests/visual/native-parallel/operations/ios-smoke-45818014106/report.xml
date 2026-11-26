@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+  <testsuite name="Test Suite" device="iPhone 17 Pro - iOS 26.2 - EED6FB0A-E273-43C6-B5DE-3DF739543042" tests="3" failures="0" time="24.074" timestamp="2026-11-26T14:23:22">
+    <testcase id="operations-public-blog-detail-content" name="operations-public-blog-detail-content" classname="operations-public-blog-detail-content" file="/var/folders/q2/p1t6rgxj5fj32g1dc7dmd49r0000gn/T/tmp.X4FBlYa2r7/operations/operations-public-blog-detail-content.yaml" time="12.295" timestamp="2026-11-26T14:23:22" status="SUCCESS"/>
+    <testcase id="operations-public-blog-list-empty" name="operations-public-blog-list-empty" classname="operations-public-blog-list-empty" file="/var/folders/q2/p1t6rgxj5fj32g1dc7dmd49r0000gn/T/tmp.X4FBlYa2r7/operations/operations-public-blog-list-empty.yaml" time="5.696" timestamp="2026-11-26T14:23:34" status="SUCCESS"/>
+    <testcase id="operations-public-blog-list-open-back" name="operations-public-blog-list-open-back" classname="operations-public-blog-list-open-back" file="/var/folders/q2/p1t6rgxj5fj32g1dc7dmd49r0000gn/T/tmp.X4FBlYa2r7/operations/operations-public-blog-list-open-back.yaml" time="6.026" timestamp="2026-11-26T14:23:40" status="SUCCESS"/>
+  </testsuite>
+</testsuites>
