@@ -122,7 +122,7 @@
   },
   "sourceDigests": {
     "tests/visual/fixtures/student-learning-reference.tsx": "7da7472fdc812a5e306dbb7b3ed2d7885ada05cbf29670efbb1fdaaac10397f7",
-    "tests/visual/native-parallel/student/learning-reference.spec.ts": "cd8cb1b3020cf37a757ddb3f826c27b0ed616b03771166e5255fa1ab47c49705",
+    "tests/visual/native-parallel/student/learning-reference.spec.ts": "689b69cc1486d855f404a51546b89b3806671c4aca1f0b83c058495242192dfb",
     "tests/visual/fixtures/interactive-document-build.ts": "dc51a2f41b0a567504d40004f1ec44e9469601c8e74eb6fd71b6da23ebd45053",
     "app/globals.css": "be812b64b005159daf0c3db873b0a8571952834222d9c8906019650388becf83",
     "components/course/course-page-shell.tsx": "e4171dee451d6ca3e9049e0fafb61061392cfa23d3d2fb8c1451dd7f75f05aa6",
@@ -132,7 +132,7 @@
     "packages/native-parity/student/learning/fixtures.ts": "ebadf962b505c8ff90a63ee9e0a3809c99e021b11af4760b2e877588a9483f6c",
     "packages/native-parity/student/learning/messages-id.json": "31b159634be1bc9bbf4264d7eeb4f9642d3a6ce1af6f6d72f42e04316ab5b9b6",
     "apps/mobile-native/features/student/StudentFixtureRoute.tsx": "9d137376881ead4134ec428c5957ed21afa3fdf9f7d094e431a186ca123984bd",
-    "apps/mobile-native/features/student/learning/knowledge.tsx": "5e3f5f0e0f41442e8ad19a2a9c47ed82fd5912e78fcdcde54a6cc583b52e4aba",
+    "apps/mobile-native/features/student/learning/knowledge.tsx": "45637fd799424eb28b52d40b8d663852496efe3aa03b44a8de91484756e58cdf",
     "apps/mobile-native/features/student/learning/index.tsx": "49f4e3bfb143d7f7ec791b1186e7151006d47b4b0db1a8d4d2deb438916c6c75",
     "apps/mobile-native/features/student/learning/ui.tsx": "c849d71311766b75f32720dec8d291177eecdf05dbae31d5621fb30097fddbbe",
     "messages/id/learning.json": "e5376bea4a130042fea063ca931aca3c135994777ee3ebe4300ae107877ecc54",

@@ -5,7 +5,7 @@ Playwright menjalankan `StudyPathTimeline` produksi dengan permintaan yang sama 
 | Keadaan | Pemeriksaan |
 | --- | --- |
 | `roadmap` | Langkah Limit fungsi tersedia dengan perkiraan 8 menit. Kekontinuan terkunci dan menampilkan prasyarat setelah panel web dibuka. |
-| `plan` | Memasukkan target 7 hari menampilkan rencana Hari 1, dengan data dan durasi 8 menit dari fixture. Aksi Lihat roadmap mengembalikan daftar sebelumnya. |
+| `plan` | Playwright memeriksa permintaan `days=7`. Maestro memeriksa nilai 7 pada input dan rencana Hari 1 dengan durasi 8 menit. Fixture mengembalikan rencana yang sama untuk setiap target. Aksi Lihat roadmap mengembalikan daftar sebelumnya. |
 | `empty` | Data langkah kosong memunculkan penjelasan dan kontrol perencanaan tersembunyi. |
 
 Kedua target memakai bahasa Indonesia, tema terang, serta font Inter dan Lexend. Referensi Chromium memakai Android 380 × 820 DPR 1 dan iOS 402 × 874 DPR 3. Manifest mencatat data, selector Maestro, serta SHA-256 berkas sumber, font, dan PNG. [Manifest Android](web/android/study-path-reference.json) · [Manifest iOS](web/ios/study-path-reference.json) · [Skenario Maestro](../../../../../.maestro/native-parallel/student/study-path-parity.yaml)

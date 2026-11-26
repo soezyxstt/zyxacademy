@@ -181,6 +181,7 @@ export function StudyPathContent({ props, t }: { props: StudentScreenProps; t: T
     <Section title={t(studyPath + "targetDuration")}>
       <View style={styles.wrap}>
         <Input value={days} onChangeText={(text) => { setDays(text); setInvalid(false); }} keyboardType="number-pad" accessibilityLabel={t(studyPath + "targetDuration")}
+          testID="student-study-path-duration"
           placeholder="7" maxLength={2} style={{ width: 65, minHeight: 44 }} />
         <Copy>{t(studyPath + "days")}</Copy>
         <Button variant="outline" style={styles.action} isLoading={pending} disabled={!days} onPress={() => {

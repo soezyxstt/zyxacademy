@@ -41,7 +41,7 @@ const studyPathRequest = (days?: number) => {
 };
 
 type Scenario = "enrolled" | "long" | "empty";
-type Marker = { id: string } | { text: string };
+type Marker = { id: string; text?: string } | { text: string };
 type Capture = (state: string, nativeMarkers: Marker[], days?: number) => Promise<void>;
 type Playback = { open(scenario: Scenario): Promise<void>; capture: Capture; page: Page };
 type Configuration = {
@@ -114,7 +114,10 @@ const studyPath: Configuration = {
     await expect(page.getByText("Kekontinuan", { exact: true })).toHaveCount(0);
     const returnToRoadmap = page.getByRole("button", { name: "Lihat roadmap" });
     await expect(returnToRoadmap).toBeInViewport();
-    await capture("plan", [{ text: ".*Hari 1.*" }, { text: ".*8 menit.*" }, { text: "Lihat roadmap" }], 7);
+    await capture("plan", [
+      { id: "student-study-path-duration", text: "7" },
+      { text: ".*Hari 1.*" }, { text: ".*8 menit.*" }, { text: "Lihat roadmap" },
+    ], 7);
     await returnToRoadmap.click();
     await expect(page.getByRole("link", { name: "Mulai" })).toBeVisible();
 

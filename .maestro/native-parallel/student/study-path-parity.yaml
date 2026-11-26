@@ -19,8 +19,7 @@ name: Student study path roadmap and day plan
     id: student-fixture-id-light
 - takeScreenshot: student-study-path-roadmap
 - tapOn:
-    text: Target selesai dalam
-    index: 1
+    id: student-study-path-duration
 - inputText: "7"
 - hideKeyboard
 - tapOn: Buat rencana
@@ -30,6 +29,9 @@ name: Student study path roadmap and day plan
 - assertVisible: '.*Hari 1.*'
 - assertVisible: '.*8 menit.*'
 - assertVisible: Lihat roadmap
+- assertVisible:
+    id: student-study-path-duration
+    text: "7"
 - assertNotVisible: '.*Kekontinuan.*'
 - assertVisible:
     id: student-fixture-id-light

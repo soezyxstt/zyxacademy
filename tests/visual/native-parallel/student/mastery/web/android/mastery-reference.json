@@ -169,7 +169,7 @@
     "packages/native-parity/student/learning/contracts.ts": "2a1cf81df56c117429678fbb197edeb74bcef6344461757859e4674e346de3eb",
     "packages/native-parity/student/learning/fixtures.ts": "ebadf962b505c8ff90a63ee9e0a3809c99e021b11af4760b2e877588a9483f6c",
     "apps/mobile-native/features/student/StudentFixtureRoute.tsx": "9d137376881ead4134ec428c5957ed21afa3fdf9f7d094e431a186ca123984bd",
-    "apps/mobile-native/features/student/learning/knowledge.tsx": "5e3f5f0e0f41442e8ad19a2a9c47ed82fd5912e78fcdcde54a6cc583b52e4aba",
+    "apps/mobile-native/features/student/learning/knowledge.tsx": "45637fd799424eb28b52d40b8d663852496efe3aa03b44a8de91484756e58cdf",
     "apps/mobile-native/features/student/learning/index.tsx": "49f4e3bfb143d7f7ec791b1186e7151006d47b4b0db1a8d4d2deb438916c6c75",
     "apps/mobile-native/features/student/learning/ui.tsx": "c849d71311766b75f32720dec8d291177eecdf05dbae31d5621fb30097fddbbe",
     ".maestro/native-parallel/student/mastery-parity.yaml": "2e727e679618206e81f089b2d2e1c5bc01be708105ddda0640b8d115b5956de5",

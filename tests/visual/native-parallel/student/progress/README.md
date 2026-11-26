@@ -1,6 +1,6 @@
 # Progres belajar Student
 
-Playwright merender `StudentCourseProgressView` produksi dengan data statistik dan aktivitas dari fixture Student yang juga dibaca Expo. Maestro membuka layar Expo dengan tautan fixture yang sama. Layar web menampilkan waktu relatif dengan jam browser tetap. Expo memakai tanggal dan waktu setempat dari timestamp yang sama. Web menampilkan hitungan nol untuk statistik kosong, sementara Expo memakai tanda pisah saat statistik belum tersedia.
+Playwright merender `StudentCourseProgressView` produksi dengan data statistik dan aktivitas dari fixture Student yang juga dibaca Expo. Maestro membuka layar Expo dengan tautan fixture yang sama. Layar web menampilkan waktu relatif dengan jam browser tetap. Expo memakai tanggal dan waktu setempat dari timestamp yang sama. Kedua layar menampilkan hitungan nol saat statistik belum tersedia.
 
 | Keadaan | Pemeriksaan |
 | --- | --- |
