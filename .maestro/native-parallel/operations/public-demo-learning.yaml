@@ -1,0 +1,69 @@
+appId: com.zyx.academy.nativeparity
+name: Operations public demo completion, study planning and tryout list
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: separator
+    timeout: 30000
+- openLink: "zyx-native-parity://operations-fixture?caseId=&mode=populated&theme=light&locale=en&path=%2Fdemo%2Farticle%3Fcourse%3Ddemo-kalkulus"
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - runFlow:
+          when:
+            visible: 'Open in .*Zyx Academy Native.*'
+          commands:
+            - tapOn: "Open"
+- scrollUntilVisible:
+    element:
+      id: public-demo-complete-material
+- tapOn:
+    id: public-demo-complete-material
+- assertVisible: Completed
+- openLink: "zyx-native-parity://operations-fixture?caseId=&mode=populated&theme=light&locale=en&path=%2Fdemo%2Fprogress%3Fcourse%3Ddemo-kalkulus"
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - runFlow:
+          when:
+            visible: 'Open in .*Zyx Academy Native.*'
+          commands:
+            - tapOn: "Open"
+- assertVisible: 3 of 8 materials completed
+- takeScreenshot: demo-progress
+- scrollUntilVisible:
+    element: Topic results
+- tapOn: Topic results
+- assertVisible: Topic to revisit
+- takeScreenshot: demo-mastery
+- tapOn: Open study path
+- tapOn:
+    id: public-demo-path-days
+- inputText: "2"
+- hideKeyboard
+- tapOn:
+    id: public-demo-path-create-plan
+- assertVisible: "Day 1 · 12 min"
+- tapOn: "Day 2 · 12 min"
+- assertVisible: "Luas bertanda · 12 min"
+- takeScreenshot: demo-path-planned
+- tapOn: View roadmap
+- assertNotVisible: "Day 1 · 12 min"
+- openLink: "zyx-native-parity://operations-fixture?caseId=&mode=populated&theme=light&locale=en&path=%2Fdemo%2Ftryout-list%3Fcourse%3Ddemo-kalkulus"
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - runFlow:
+          when:
+            visible: 'Open in .*Zyx Academy Native.*'
+          commands:
+            - tapOn: "Open"
+- assertVisible: "3 questions · 15 min · Up to 2 attempts"
+- takeScreenshot: demo-tryout-list
+- tapOn:
+    id: public-demo-tryout-start
+- assertVisible: Open demo in browser

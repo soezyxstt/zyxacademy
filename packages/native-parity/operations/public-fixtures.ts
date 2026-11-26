@@ -1,3 +1,4 @@
+import { createDemoPathSteps } from "../../../lib/demo/learning-path";
 import { planTiers } from "../../../lib/plan-tiers";
 import { getPlanPriceQuote, getPlanPricingPhase } from "../../../lib/pricing-calculations";
 import { DEFAULT_PRICING_DISCOUNTS } from "../../../lib/pricing-discounts";
@@ -197,21 +198,38 @@ export function createFixturePublicClient(scenario: PublicScenario = "populated"
       before("demo-content", signal);
       const params = new URLSearchParams(search);
       if (scenario === "empty" || (params.has("course") && params.get("course") !== "demo-kalkulus")) return null;
+      const courseId = "demo-kalkulus";
+      const revision = "fixture-demo-v1";
       switch (view) {
+        case "progress": return { kind: view, baseline: {
+          courseId, revision, course: { completedMaterials: 2, totalMaterials: 8, nextConcept: "Integral tentu" },
+          flashcards: { dueCount: 6 }, streakDays: 3,
+          history: [{ date: "2026-09-19", materialsCompleted: 1, flashcardsReviewed: 2, quizzesCompleted: 1 }],
+        } };
+        case "path": return { kind: view, steps: createDemoPathSteps([
+          { title: "Integral tentu", masteryPercent: 62 }, { title: "Luas bertanda", masteryPercent: 48 },
+        ], "Integral tentu") };
+        case "mastery": return { kind: view, groups: [{
+          chapter: { id: "integral", title: "Integral tentu", orderIndex: 1 },
+          concepts: [{ conceptName: "Luas bertanda", conceptSlug: null, masteryScore: 48, confidence: 70, trend: "improving", blockedBy: [] }],
+        }] };
+        case "tryout-list": return { kind: view, exam: {
+          id: "synthetic-study-skills-v1", title: "Tryout latihan", questionCount: 3, timeLimitMinutes: 15, maximumAttempts: 2,
+        } };
         case "overview": return { kind: view, chapters: [{ id: "integral", orderIndex: 1, title: "Integral tentu" }] };
         case "documents": return { kind: view, documents: [{ kind: "article", id: "demo-integral", title: "Menghitung integral tentu", collectionOffset: 0 }] };
-        case "article": return { kind: view, title: "Menghitung integral tentu", minutes: 4, sections: [{
+        case "article": return { kind: view, courseId, revision, materialId: "demo-integral", title: "Menghitung integral tentu", minutes: 4, sections: [{
           id: "integral", title: "Integral tentu", objective: "Hitung luas dengan mengevaluasi batas.",
           blocks: [{ id: "batas", title: "Evaluasi batas", text: "Kurangi nilai antiturunan di batas bawah dari batas atas." }],
         }] };
-        case "diktat": return { kind: view, title: "Latihan integral tentu", sections: [{ title: "Soal", content: "Hitung luas persegi dengan panjang sisi 4." }] };
-        case "flashcards": return { kind: view, offset: 0, nextOffset: null, cards: [{
+        case "diktat": return { kind: view, courseId, revision, materialId: "demo-diktat", title: "Latihan integral tentu", sections: [{ title: "Soal", content: "Hitung luas persegi dengan panjang sisi 4." }] };
+        case "flashcards": return { kind: view, courseId, revision, setId: "demo-cards", offset: 0, nextOffset: null, cards: [{
           front: "Apa yang diwakili integral tentu?", back: "Luas bertanda di bawah kurva.", explanation: null,
         }] };
         case "quiz-list":
         case "quiz-start":
         case "quiz":
-          return { kind: view, courseId: "demo-kalkulus", offset: 0, nextOffset: null, previousOffset: null, total: 1,
+          return { kind: view, courseId, revision, offset: 0, nextOffset: null, previousOffset: null, total: 1,
             token: view === "quiz" ? "fixture-token" : "", questions: view === "quiz" ? [{
               id: "demo-question", prompt: "Apa hasil dari 2 + 2?", options: ["3", "4", "5"], multiple: false,
             }] : [] };

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { isValid, parseISO } from "date-fns";
-import { formatIsoDateUtc } from "@/lib/date-utils";
+import { formatIsoDateUtc } from "../date-utils";
 
 const eventSchema = z.object({
   kind: z.enum(["article", "review", "quiz"]),

@@ -86,7 +86,7 @@ export function Demo({ route }: { route: DemoRoute }) {
       {!!course.description && <Label>{course.description}</Label>}
     </View>
     {view ? <>
-      {isNativeDemoContentView(view) && <NativeDemoContent view={view} search={search} />}
+      {isNativeDemoContentView(view) && <NativeDemoContent key={handoff} view={view} search={search} />}
       {view === "courses" && <View style={layout.section}>
         {courses.map((item) => <View key={item.id} style={layout.item}>
           <Label tone="subheading">{item.title}</Label>

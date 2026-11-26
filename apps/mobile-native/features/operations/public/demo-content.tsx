@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
+import { formatIsoDate } from "../../../../../lib/date-utils";
+import { scopedDemoReviewId } from "../../../../../lib/demo/session-overlay";
 import { demoSelectionHref } from "../../../../../lib/demo/selection";
 import { demoPageHref, type NativeDemoContentView, type PublicDemoContent, type PublicQuizResult } from "../../../../../packages/native-parity/operations/public-contract";
 import { ReadMarkdown } from "./blog";
+import { DemoMasteryView, DemoPathView, DemoProgressView, DemoTryoutListView } from "./demo-learning";
+import { readNativeDemoProgress, recordNativeDemoProgress } from "./demo-progress-store";
 import { Action, Divider, Label, layout, StatePanel, textWith, usePublic, usePublicResource } from "./ui";
 
 type Cards = Extract<PublicDemoContent, { kind: "flashcards" }>;
@@ -12,6 +16,15 @@ function Flashcards({ data, href }: { data: Cards; href: string }) {
   const { copy: { demo }, colors, openExternal } = usePublic();
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
+  const { setId } = data;
+  const grades = [demo.flashcards.grades.again, demo.flashcards.grades.hard, demo.flashcards.grades.good, demo.flashcards.grades.easy];
+  function grade(setId: string, value: number) {
+    recordNativeDemoProgress(data.courseId, data.revision, {
+      kind: "review", id: scopedDemoReviewId(setId, data.offset, String(index)), grade: value, date: formatIsoDate(new Date()),
+    });
+    if (index + 1 < data.cards.length) setIndex(index + 1);
+    setFlipped(false);
+  }
   const card = data.cards[index];
   const total = data.cards.length;
   if (!card) return <StatePanel kind="empty" title={demo.flashcards.empty} />;
@@ -23,6 +36,9 @@ function Flashcards({ data, href }: { data: Cards; href: string }) {
       {flipped && card.explanation && <ReadMarkdown markdown={card.explanation} onLink={openExternal} />}
       <Action onPress={() => setFlipped(!flipped)}>{flipped ? demo.flashcards.flipBack : demo.flashcards.flip}</Action>
     </View>
+    {flipped && setId && <View style={layout.row}>
+      {grades.map((label, gradeIndex) => <Action key={label} onPress={() => grade(setId, gradeIndex + 1)}>{label}</Action>)}
+    </View>}
     <View style={layout.row}>
       <Action disabled={index === 0} onPress={() => { setIndex(index - 1); setFlipped(false); }}>{demo.flashcards.previous}</Action>
       <Action disabled={index + 1 >= total} onPress={() => { setIndex(index + 1); setFlipped(false); }}>{demo.flashcards.next}</Action>
@@ -67,8 +83,12 @@ function QuizPractice({ data, href, reload }: { data: Quiz; href: string; reload
       answers: data.questions.map(({ id }) => answers[id]),
     }, controller.signal).then((graded) => {
       if (controller.signal.aborted) return;
-      if (graded) setResult(graded);
-      else setError("expired");
+      if (graded) {
+        recordNativeDemoProgress(data.courseId, data.revision, {
+          kind: "quiz", id: `quiz-page-${data.offset}`, date: formatIsoDate(new Date()),
+        });
+        setResult(graded);
+      } else setError("expired");
     }, () => {
       if (!controller.signal.aborted) setError("network");
     }).finally(() => {
@@ -105,6 +125,18 @@ function QuizPractice({ data, href, reload }: { data: Quiz; href: string; reload
   </View>;
 }
 
+function CompleteMaterial({ data }: { data: { courseId: string; revision: string; materialId: string } }) {
+  const { copy: { demo } } = usePublic();
+  const { courseId, revision, materialId } = data;
+  const hasCompleted = () => readNativeDemoProgress(courseId, revision).events.some(({ kind, id }) => kind === "article" && id === materialId);
+  const [completed, setCompleted] = useState(hasCompleted);
+  return completed ? <Label live="polite">{demo.session.completed}</Label>
+    : <Action id="public-demo-complete-material" onPress={() => {
+      recordNativeDemoProgress(courseId, revision, { kind: "article", id: materialId, date: formatIsoDate(new Date()) });
+      setCompleted(hasCompleted());
+    }}>{demo.session.markComplete}</Action>;
+}
+
 export function NativeDemoContent({ view, search }: { view: NativeDemoContentView; search: string }) {
   const { client, openExternal, renderArticle, origin, copy: { demo } } = usePublic();
   const { resource, retry } = usePublicResource(`${view}${search}`, client, (api, signal) => api.demoContent(view, search, signal));
@@ -112,12 +144,18 @@ export function NativeDemoContent({ view, search }: { view: NativeDemoContentVie
   if (!resource.value) return <StatePanel kind="empty" title={demo.emptyTitle} description={demo.emptyDescription} />;
   const data = resource.value;
   switch (data.kind) {
+    case "progress": return <DemoProgressView key={`${data.baseline.courseId}:${data.baseline.revision}`} data={data} search={search} />;
+    case "path": return <DemoPathView data={data} search={search} />;
+    case "mastery": return <DemoMasteryView data={data} search={search} />;
+    case "tryout-list": return <DemoTryoutListView data={data} search={search} />;
     case "overview":
       return <View style={layout.section}>
         {data.chapters.map((chapter) => <Label key={chapter.id}>{textWith(demo.chapter, { number: chapter.orderIndex, title: chapter.title })}</Label>)}
         <View style={layout.row}>
           <Action href={`/demo/documents${search}`}>{demo.products.choose}</Action>
           <Action href={`/demo/quiz-list${search}`}>{demo.session.assessments}</Action>
+          <Action href={`/demo/progress${search}`}>{demo.views.progress}</Action>
+          <Action href={`/demo/tryout-list${search}`}>{demo.views["tryout-list"]}</Action>
         </View>
       </View>;
     case "documents": {
@@ -145,6 +183,7 @@ export function NativeDemoContent({ view, search }: { view: NativeDemoContentVie
             {renderArticle ? renderArticle({ markdown: block.text, origin, onLink: openExternal }) : <ReadMarkdown markdown={block.text} onLink={openExternal} />}
           </View>)}
         </View>)}
+        <CompleteMaterial key={data.materialId} data={data} />
       </View>;
     case "diktat":
       return <View style={layout.stack}>
@@ -153,7 +192,7 @@ export function NativeDemoContent({ view, search }: { view: NativeDemoContentVie
           <Divider /><Label tone="subheading">{section.title}</Label>
           <ReadMarkdown markdown={section.content} onLink={openExternal} />
         </View>)}
-        {!data.sections.length && <StatePanel kind="empty" title={demo.diktat.empty} />}
+        {data.sections.length ? <CompleteMaterial key={data.materialId} data={data} /> : <StatePanel kind="empty" title={demo.diktat.empty} />}
       </View>;
     case "flashcards": return <Flashcards data={data} href={`/demo/flashcards${search}`} />;
     case "quiz": return <QuizPractice data={data} href={`/demo/quiz${search}`} reload={retry} />;

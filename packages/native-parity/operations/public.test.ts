@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { planLocalStudyDays } from "../../../lib/demo/learning-path";
+import { chooseMasteryFocus } from "../../../lib/demo/view-mastery";
 import { operationsPatterns } from "../../../apps/mobile-native/features/operations/routes";
 import {
   blogArticleHref, blogListHref, createPublicClient, demoPageHref, demoViews,
@@ -45,6 +47,9 @@ describe("public operations routes", () => {
   test("tracks every detailed demo variant and verifies scoped content fixtures", async () => {
     const client = createFixturePublicClient();
     expect((await client.demo()).courses[0].id).toBe("demo-kalkulus");
+    expect(demoViews).toHaveLength(37);
+    expect(nativeDemoContentViews).toHaveLength(12);
+    expect(demoViews.filter((view) => view !== "courses" && !isNativeDemoContentView(view))).toHaveLength(24);
     for (const view of demoViews) expect(resolvePublicRoute(`/demo/${view}`)).toMatchObject({ kind: "demo", view });
     for (const view of nativeDemoContentViews) {
       expect(isNativeDemoContentView(view)).toBe(true);
@@ -59,6 +64,22 @@ describe("public operations routes", () => {
     expect(await client.gradeDemoQuiz(answer)).toMatchObject({ score: 1, total: 1 });
     expect(await client.gradeDemoQuiz({ ...answer, answers: [[0]] })).toMatchObject({ score: 0, total: 1 });
     expect(await client.gradeDemoQuiz({ ...answer, questionSetToken: "expired" })).toBeNull();
+  });
+
+  test("plans demo topics locally and identifies the topic to revisit", async () => {
+    const client = createFixturePublicClient();
+    const path = await client.demoContent("path", "?course=demo-kalkulus");
+    if (path?.kind !== "path") throw new Error("Expected study path fixture");
+    expect(planLocalStudyDays(path.steps, 0)).toBeNull();
+    expect(planLocalStudyDays(path.steps, 61)).toBeNull();
+    expect(planLocalStudyDays(path.steps, 1)).toEqual([{ day: 1, steps: path.steps, totalMinutes: 24 }]);
+    expect(planLocalStudyDays(path.steps, 60)).toEqual([
+      { day: 1, steps: [path.steps[0]], totalMinutes: 12 },
+      { day: 2, steps: [path.steps[1]], totalMinutes: 12 },
+    ]);
+    const mastery = await client.demoContent("mastery", "?course=demo-kalkulus");
+    if (mastery?.kind !== "mastery") throw new Error("Expected mastery fixture");
+    expect(chooseMasteryFocus(mastery.groups).review?.topic.conceptName).toBe("Luas bertanda");
   });
 
   test("keeps the current course and non-default set while paging flashcards", () => {

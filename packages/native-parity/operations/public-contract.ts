@@ -1,3 +1,6 @@
+import type { DemoMastery } from "../../../lib/demo/mastery";
+import type { createDemoPathSteps } from "../../../lib/demo/learning-path";
+import type { PublicDemoSnapshot } from "../../../lib/demo/snapshot";
 import { parseDemoSelection } from "../../../lib/demo/selection";
 import { localizedPublicPath } from "../../../lib/public-locale-routes";
 import type { EmailNotificationCategory } from "../../../lib/email-preferences/contracts";
@@ -96,7 +99,7 @@ export type PublicDemoList = {
   }>;
 };
 
-export const nativeDemoContentViews = ["overview", "documents", "article", "diktat", "flashcards", "quiz-list", "quiz-start", "quiz"] as const;
+export const nativeDemoContentViews = ["overview", "documents", "article", "diktat", "flashcards", "quiz-list", "quiz-start", "quiz", "progress", "path", "mastery", "tryout-list"] as const;
 export type NativeDemoContentView = (typeof nativeDemoContentViews)[number];
 
 export function isNativeDemoContentView(value: string): value is NativeDemoContentView {
@@ -106,10 +109,14 @@ export function isNativeDemoContentView(value: string): value is NativeDemoConte
 export type PublicDemoContent =
   | { kind: "overview"; chapters: { id: string; title: string; orderIndex: number }[] }
   | { kind: "documents"; documents: { id: string; title: string; kind: "article" | "diktat"; collectionOffset: number }[] }
-  | { kind: "article"; title: string; minutes: number; sections: { id: string; title: string; objective: string; blocks: { id: string; title: string | null; text: string }[] }[] }
-  | { kind: "diktat"; title: string; sections: { title: string; content: string }[] }
-  | { kind: "flashcards"; cards: { front: string; back: string; explanation: string | null }[]; nextOffset: number | null; offset: number }
-  | { kind: "quiz-list" | "quiz-start" | "quiz"; courseId: string; offset: number; nextOffset: number | null; previousOffset: number | null; total: number; token: string; questions: { id: string; prompt: string; options: string[]; multiple: boolean }[] };
+  | { kind: "article"; materialId: string; courseId: string; revision: string; title: string; minutes: number; sections: { id: string; title: string; objective: string; blocks: { id: string; title: string | null; text: string }[] }[] }
+  | { kind: "diktat"; materialId: string; courseId: string; revision: string; title: string; sections: { title: string; content: string }[] }
+  | { kind: "flashcards"; setId: string | null; courseId: string; revision: string; cards: { front: string; back: string; explanation: string | null }[]; nextOffset: number | null; offset: number }
+  | { kind: "quiz-list" | "quiz-start" | "quiz"; courseId: string; revision: string; offset: number; nextOffset: number | null; previousOffset: number | null; total: number; token: string; questions: { id: string; prompt: string; options: string[]; multiple: boolean }[] }
+  | { kind: "progress"; baseline: Pick<PublicDemoSnapshot, "courseId" | "revision" | "course" | "history" | "streakDays"> & { flashcards: Pick<PublicDemoSnapshot["flashcards"], "dueCount"> } }
+  | { kind: "path"; steps: ReturnType<typeof createDemoPathSteps> }
+  | { kind: "mastery"; groups: DemoMastery["groups"] }
+  | { kind: "tryout-list"; exam: { id: string; title: string; questionCount: number; timeLimitMinutes: number; maximumAttempts: number } };
 
 export type PublicQuizAnswers = { courseId: string; quizOffset: number; questionIds: string[]; questionSetToken: string; answers: number[][] };
 export type PublicQuizResult = { score: number; total: number; results: { index: number; isCorrect: boolean; correctIndices: number[]; explanation: string | null }[] };

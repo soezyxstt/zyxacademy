@@ -138,6 +138,43 @@ test("native demo reads the same scoped products and grades only a signed questi
   expect((await submit({ ...payload, questionIds: ["q1"] })).status).toBe(409);
 });
 
+test("native demo projects progress, path, mastery and the synthetic tryout list for the selected public course", async () => {
+  const { GET: read } = await import("@/app/api/native/public/demo/[view]/route");
+  const open = (view: string, course: string, locale = "id") => read(
+    new Request(`http://localhost/api/native/public/demo/${view}?course=${course}`, { headers: { "Accept-Language": locale } }),
+    { params: Promise.resolve({ view }) },
+  );
+  const snapshot = fictionalDemoSnapshot("course-0");
+  for (const view of ["progress", "path", "mastery", "tryout-list"]) {
+    expect((await open(view, "unknown")).status).toBe(404);
+    expect((await open(view, "course-0&course=course-1")).status).toBe(404);
+    const response = await open(view, "course-0", "en");
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    const payload = await response.json();
+    expect(payload.kind).toBe(view);
+    expect(JSON.stringify(payload)).not.toMatch(/ARTICLE BODY|DIKTAT BODY|CARD BACK|SOLUTION|PRIVATE SOURCE|displayName|recentReviews|correctIndices/);
+    switch (view) {
+      case "progress":
+        expect(payload.baseline).toEqual({
+          courseId: snapshot.courseId, revision: snapshot.revision, course: snapshot.course,
+          flashcards: { dueCount: snapshot.flashcards.dueCount }, history: snapshot.history, streakDays: snapshot.streakDays,
+        });
+        break;
+      case "path":
+        expect(payload.steps.map((step: { conceptName: string }) => step.conceptName)).toEqual(snapshot.weakConcepts.map((topic) => topic.title));
+        break;
+      case "mastery":
+        expect(payload.groups[0]).toMatchObject({ chapter: { title: "Chapter 1" }, concepts: [{ conceptName: "Free article" }, { conceptName: "Free diktat" }] });
+        break;
+      case "tryout-list":
+        expect(payload.exam).toEqual({ id: "synthetic-study-skills-v1", title: "Practice tryout", questionCount: 3, timeLimitMinutes: 15, maximumAttempts: 2 });
+        expect((await (await open(view, "course-0")).json()).exam.title).toBe("Tryout latihan");
+        break;
+    }
+  }
+});
+
 test("quiz pages redact solutions, bind revision and versions, and grading reads the solution", async () => {
   const first = await getDemoExperience("course-0", {}, "quiz");
   const second = await getDemoExperience("course-0", { quizOffset: 3 }, "quiz");

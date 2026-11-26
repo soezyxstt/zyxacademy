@@ -1,4 +1,8 @@
 import { getDemoCatalogue, getDemoExperience } from "@/app/(marketing)/demo/demo-data";
+import { syntheticTryout } from "@/lib/demo/assessment/tryout";
+import { createDemoPathSteps } from "@/lib/demo/learning-path";
+import { getDemoMastery } from "@/lib/demo/mastery-repository";
+import { demoMasteryGroups } from "@/lib/demo/view-mastery";
 import { collectDemoProducts } from "@/lib/demo/product-pages";
 import { parseDemoSelection } from "@/lib/demo/selection";
 import { materializeArticleParts } from "@/lib/materials/article-parts";
@@ -17,11 +21,33 @@ export async function GET(request: Request, { params }: { params: Promise<{ view
   const summaries = await getDemoSummaries();
   const selected = parsed.course ? summaries.find(({ snapshot }) => snapshot.courseId === parsed.course) : summaries[0];
   if (!selected) return missing();
-  const courseId = selected.snapshot.courseId;
+  const { snapshot, content: { course } } = selected;
+  const { courseId, revision } = snapshot;
 
   if (view === "overview") {
     const catalogue = await getDemoCatalogue(courseId);
     return catalogue ? found({ kind: view, chapters: catalogue.chapters }) : missing();
+  }
+
+  if (view === "progress") {
+    const { course: metrics, flashcards, history, streakDays } = snapshot;
+    return found({ kind: view, baseline: { courseId, revision, course: metrics, flashcards: { dueCount: flashcards.dueCount }, history, streakDays } });
+  }
+  if (view === "path") {
+    return found({ kind: view, steps: createDemoPathSteps(snapshot.weakConcepts, course.chapterTitle) });
+  }
+  if (view === "mastery") {
+    const mastery = await getDemoMastery([courseId]);
+    return found({ kind: view, groups: demoMasteryGroups(mastery[courseId], snapshot, course.chapterTitle) });
+  }
+  if (view === "tryout-list") {
+    const locale = request.headers.get("Accept-Language") === "en" ? "en" : "id";
+    const exam = syntheticTryout(courseId, locale);
+    return found({ kind: view, exam: {
+      id: exam.id, title: exam.title, questionCount: exam.questions.length,
+      timeLimitMinutes: exam.settings?.timeLimitMinutes ?? 90,
+      maximumAttempts: exam.settings?.maxAttempts ?? 2,
+    } });
   }
 
   const kind = view === "quiz" || view === "quiz-list" || view === "quiz-start" ? "quiz" : view;
@@ -43,6 +69,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ view
     case "article":
       return found({
         kind: view,
+        revision, courseId, materialId: content.article.id,
         title: content.article.title,
         minutes: content.article.totalEstimatedReadingMinutes,
         sections: content.article.sections.map(({ id, title, learningObjective, blocks }) => ({
@@ -55,16 +82,16 @@ export async function GET(request: Request, { params }: { params: Promise<{ view
         })),
       });
     case "diktat":
-      return found({ kind: view, title: content.diktat.title, sections: content.diktat.sections });
+      return found({ kind: view, revision, courseId, materialId: content.selected.diktatId, title: content.diktat.title, sections: content.diktat.sections });
     case "flashcards":
-      return found({ kind: view, cards: content.flashcards,
+      return found({ kind: view, revision, courseId, setId: content.selected.flashcardSetId, cards: content.flashcards,
         nextOffset: collections.flashcards.nextOffset, offset: collections.flashcards.offset });
     case "quiz-list":
     case "quiz-start":
     case "quiz":
       return found({
         kind: view,
-        courseId,
+        courseId, revision,
         offset: collections.quiz.offset,
         nextOffset: collections.quiz.nextOffset,
         previousOffset: collections.quiz.previousOffset,
