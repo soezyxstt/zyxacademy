@@ -4,6 +4,8 @@ import { createNativeIntentRedirect } from "../../apps/mobile-native/routing/con
 import { createNativeBrowserLogin, type AdditionalLoginScope } from "../../apps/mobile-native/auth/browser-flow";
 import { operationsCatalog } from "../../lib/admin-mcp/operations-catalog";
 import { allowsSavedAccountLogin, describeSavedAccount, savedAccountError } from "../../apps/mobile-native/auth/saved-account-model";
+import { createSavedAccountsJourney } from "../../scripts/native-readiness/product-auth/saved-accounts-fixture";
+import { fixtureDatabase } from "../../scripts/native-readiness/product-auth/scope";
 import {
   NATIVE_BROWSER_FINISH_PATH,
   NATIVE_BROWSER_REDIRECT,
@@ -138,6 +140,38 @@ describe("native saved-account browser login", () => {
     expect(entry?.status).toBe("excluded");
     expect(entry?.tools).toEqual([]);
     expect(entry?.actions).toEqual(["listSavedAccounts", "switchSavedAccount", "removeSavedAccount", "acceptAdditionalLogin"]);
+  });
+
+  test("the runner evidence requires two claims, exact role reads and revocation of only the removed account", async () => {
+    expect(() => createSavedAccountsJourney({})).toThrow();
+    const fixture = createSavedAccountsJourney({
+      GITHUB_ACTIONS: "true", RUNNER_ENVIRONMENT: "github-hosted",
+      NATIVE_PRODUCT_AUTH_FIXTURE: "1", DATABASE_URL: fixtureDatabase,
+    });
+    expect(fixture.claims[0]).not.toBe(fixture.claims[1]);
+    const tutor = { accountId: "tutor", sessionId: "one", cookie: "fixture=one; Secure" };
+    const admin = { accountId: "admin", sessionId: "two", cookie: "fixture=two; Secure" };
+    expect(fixture.next()?.role).toBe("tutor");
+    expect(fixture.exchanged(undefined)).toBe(false);
+    fixture.seeded("tutor", tutor);
+    expect(fixture.exchanged(tutor.accountId)).toBe(true);
+    expect(fixture.next()?.role).toBe("admin");
+    expect(fixture.exchanged(tutor.accountId)).toBe(false);
+    fixture.seeded("admin", admin);
+    expect(fixture.exchanged(admin.accountId)).toBe(true);
+    expect(fixture.next()).toBeUndefined();
+    fixture.recordContext({ ...tutor, roles: ["tutor"] });
+    fixture.recordContext({ ...admin, roles: ["admin"] });
+    const tutorViewer = { user: { id: tutor.accountId }, session: { id: tutor.sessionId } };
+    const adminViewer = { user: { id: admin.accountId }, session: { id: admin.sessionId } };
+    const readSession = async (headers: Headers) => headers.get("Cookie") === "fixture=one" ? tutorViewer : null;
+    fixture.recordRead("tutor", tutorViewer);
+    fixture.recordRead("tutor", adminViewer);
+    fixture.recordRead("admin", adminViewer);
+    expect(await fixture.verified(readSession)).toBe(false);
+    fixture.recordRead("tutor", tutorViewer);
+    expect(await fixture.verified(readSession)).toBe(true);
+    expect(await fixture.verified(async headers => await readSession(headers) ?? adminViewer)).toBe(false);
   });
 });
 

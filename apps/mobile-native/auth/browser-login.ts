@@ -53,24 +53,24 @@ export function useNativeBrowserLogin() {
   }, [acceptAdditionalLogin, acceptLogin, authorizeAttempt]);
   const signIn = useCallback(async (intent?: NativeLoginIntent, preferBrowser = false) => {
     if (!isNativeBuild || sessionStatus !== "signed-out" || googleCredentialLogin.isRunning()) return;
-    if (preferBrowser || !googleCredentialLogin.isConfigured()) {
+    if (preferBrowser || !isCredentialAvailable) {
       setUseBrowserStatus(true);
       return browserLogin.signIn(acceptBrowser, intent, { authorize: authorizeAttempt });
     }
     setUseBrowserStatus(false);
     return googleCredentialLogin.signIn(acceptLogin, intent, browserLogin.retirePending);
-  }, [acceptBrowser, acceptLogin, authorizeAttempt, sessionStatus]);
+  }, [acceptBrowser, acceptLogin, authorizeAttempt, isCredentialAvailable, sessionStatus]);
   const addAccount = useCallback(async (fromSessionId: string, preferBrowser = false) => {
     const scope: AdditionalLoginScope = { kind: "additional", fromSessionId };
     if (!isNativeBuild || googleCredentialLogin.isRunning()) return "unavailable" as const;
     if (!await authorizeAttempt(scope, new AbortController().signal)) return "stale" as const;
-    if (preferBrowser || !googleCredentialLogin.isConfigured()) {
+    if (preferBrowser || !isCredentialAvailable) {
       setUseBrowserStatus(true);
       return browserLogin.signIn(acceptBrowser, undefined, { scope, authorize: authorizeAttempt });
     }
     setUseBrowserStatus(false);
     return googleCredentialLogin.signIn(acceptBrowser, undefined, browserLogin.retirePending, scope);
-  }, [acceptBrowser, authorizeAttempt]);
+  }, [acceptBrowser, authorizeAttempt, isCredentialAvailable]);
   const completePending = useCallback(async () => {
     if (!isNativeBuild || (sessionStatus !== "signed-out" && sessionStatus !== "signed-in") || googleCredentialLogin.isRunning()) return false;
     return browserLogin.completePending(acceptBrowser, authorizeAttempt);

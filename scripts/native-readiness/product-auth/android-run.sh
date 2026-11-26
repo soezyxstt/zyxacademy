@@ -62,6 +62,7 @@ mkdir "$private/maestro"
 bash "$root/scripts/native-parity/install-maestro.sh" "$private/maestro"
 roles=(student)
 if [[ ${NATIVE_PRODUCT_AUTH_STAFF:-} == true ]]; then roles=(tutor admin); fi
+if [[ ${NATIVE_PRODUCT_AUTH_SAVED_ACCOUNTS:-} == true ]]; then roles=(saved-accounts); fi
 case ${NATIVE_PRODUCT_AUTH_OFFLINE:-} in
   only) roles=(offline) ;;
   also) roles+=(offline) ;;

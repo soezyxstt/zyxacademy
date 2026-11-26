@@ -67,6 +67,8 @@ async function runFlow(name: string, inputs: string[] = [], label = name) {
       ["student-inbox", "Student inbox"],
       ["PREVIEW_RECORD", "protected staff read"],
       ["Preview Tutor Course", "protected Tutor read"], ["Preview Admin Form", "protected Admin read"],
+      ["native-account-add", "add saved account"], ["native-saved-account-0", "select saved account"],
+      ["native-account-confirm-remove", "confirm saved-account removal"],
       ["admin-navbar-ops-ai", "Admin Ops AI entry"], ["admin-ops-ai-input", "Admin Ops AI composer"],
       ["Formulir preview tersedia", "Admin Ops AI Ask response"], ["Izinkan sekali", "Admin Ops AI proposal"],
       ["Aksi selesai", "Admin Ops AI action outcome"],
@@ -153,6 +155,7 @@ async function reportDeviceState() {
       ["tidak memiliki akses ke halaman", "login return denied"], ["does not have access to the requested", "login return denied"],
       ["Memeriksa akun", "account verification"], ["Masuk untuk melihat bacaan Anda", "offline sign-in gate"],
       ["native-auth-google", "signed-out entry"], ["student-dashboard", "Student dashboard"],
+      ["native-saved-accounts", "saved accounts"], ["native-account-add", "add account"],
       ["native-tour", "guided tour"], ["Sign in", "sign-in control"], ["Dashboard", "dashboard navigation"],
       ["offline-library-list", "library collection"], ["Coba lagi", "retry action"], ["Try again", "retry action"],
     ].filter(([needle]) => hierarchy.includes(needle)).map(([, label]) => label);
@@ -168,8 +171,11 @@ try {
   if (!certificate || !key || !maestro || !device || !/^emulator-\d+$/.test(device)) throw new Error();
   const offlineProduct = process.env.NATIVE_PRODUCT_AUTH_ROLE === "offline";
   const chromeProbe = process.env.NATIVE_PRODUCT_AUTH_ROLE === "probe";
-  const staff = offlineProduct || chromeProbe ? undefined : staffRole(process.env.NATIVE_PRODUCT_AUTH_ROLE);
-  fixture = await startAuthFixture(certificate, key, { studentProduct: !staff && !offlineProduct && !chromeProbe, staff, offlineProduct });
+  const savedAccountsProduct = process.env.NATIVE_PRODUCT_AUTH_ROLE === "saved-accounts";
+  const staff = offlineProduct || chromeProbe || savedAccountsProduct ? undefined : staffRole(process.env.NATIVE_PRODUCT_AUTH_ROLE);
+  fixture = await startAuthFixture(certificate, key, {
+    studentProduct: !staff && !offlineProduct && !chromeProbe && !savedAccountsProduct, staff, offlineProduct, savedAccountsProduct,
+  });
   await openChrome(fixtureOrigin + "/__preview/health");
   await runFlow("browser-trust", [], `${process.env.NATIVE_PRODUCT_AUTH_ROLE ?? "student"}-browser-trust`);
   if (!fixture.browserTrustVerified()) throw new Error();
@@ -212,6 +218,18 @@ try {
     await runFlow("offline/sign-out", [], "offline-sign-out");
     if (!await fixture.verifiedAndRevoked()) throw new Error();
     console.log("Android verified a Student download, two disconnected cold starts, enrollment withdrawal and session revocation");
+  } else if (savedAccountsProduct) {
+    const [first, second] = fixture.savedAccountClaims ?? [];
+    if (!first || !second || first === second) throw new Error();
+    step = "sign in as the first identity and open the authorized Tutor course";
+    await runFlow("saved-accounts-login", ["-e", `PREVIEW_CLAIM=${first}`]);
+    step = "add the second identity and open the authorized Admin form";
+    await runFlow("saved-accounts-add", ["-e", `PREVIEW_CLAIM=${second}`]);
+    step = "switch back, remove the inactive account and restore the original account after restart";
+    await runFlow("saved-accounts-switch-remove");
+    step = "verify both assigned audiences, the retained Tutor session and the revoked Admin session";
+    if (!await fixture.verifiedSavedAccounts()) throw new Error();
+    console.log("Android verified two distinct saved accounts, changed roles, revoked the removed account and restored the retained session after restart");
   } else if (staff) {
     const selected = staffRoles[staff];
     const opposite = staffRoles[oppositeStaffRole(staff)];

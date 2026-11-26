@@ -12,6 +12,9 @@ on:
       staff:
         type: boolean
         default: false
+      saved_accounts:
+        type: boolean
+        default: false
       offline:
         type: string
         default: ''
@@ -23,7 +26,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: native-authenticated-preview-${{ github.event.pull_request.number || github.ref }}${{ inputs.staff && '-staff' || '' }}${{ inputs.student_protocol && '-student-protocol' || '' }}${{ inputs.offline == 'only' && '-offline' || '' }}${{ inputs.probe && '-chrome-probe' || '' }}
+  group: native-authenticated-preview-${{ github.event.pull_request.number || github.ref }}${{ inputs.staff && '-staff' || '' }}${{ inputs.saved_accounts && '-saved-accounts' || '' }}${{ inputs.student_protocol && '-student-protocol' || '' }}${{ inputs.offline == 'only' && '-offline' || '' }}${{ inputs.probe && '-chrome-probe' || '' }}
   # Let an explicitly requested device journey finish when a newer manual build queues.
   cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
 
@@ -98,7 +101,7 @@ jobs:
 
   authenticated-android:
     needs: authenticated-routes
-    if: inputs.android || inputs.staff || inputs.offline == 'only' || inputs.probe
+    if: inputs.android || inputs.staff || inputs.saved_accounts || inputs.offline == 'only' || inputs.probe
     runs-on: ubuntu-latest
     timeout-minutes: 50
     services:
@@ -119,6 +122,7 @@ jobs:
       DATABASE_URL: postgresql://native_preview:native_preview@127.0.0.1:55453/native_preview
       NATIVE_PRODUCT_AUTH_FIXTURE: '1'
       NATIVE_PRODUCT_AUTH_STAFF: ${{ inputs.staff }}
+      NATIVE_PRODUCT_AUTH_SAVED_ACCOUNTS: ${{ inputs.saved_accounts }}
       NATIVE_PRODUCT_AUTH_OFFLINE: ${{ inputs.offline }}
       NATIVE_PRODUCT_AUTH_CHROME_PROBE: ${{ inputs.probe }}
       EXPO_NO_TELEMETRY: '1'

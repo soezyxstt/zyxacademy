@@ -1,0 +1,25 @@
+appId: com.zyx.academy.nativeparity
+name: Add a different Google identity while the first is signed in
+---
+- extendedWaitUntil:
+    visible:
+      id: tutor-navbar-account
+    timeout: 30000
+- tapOn:
+    id: tutor-navbar-account
+- scrollUntilVisible:
+    element:
+      id: native-account-add
+- tapOn:
+    id: native-account-add
+    enabled: true
+- runFlow: browser-claim.yaml
+- runFlow: browser-return.yaml
+- extendedWaitUntil:
+    visible:
+      id: admin-navbar-account
+    timeout: 45000
+- openLink: "zyx-native-parity://admin/forms?tab=forms"
+- extendedWaitUntil:
+    visible: ".*Preview Admin Form.*"
+    timeout: 30000

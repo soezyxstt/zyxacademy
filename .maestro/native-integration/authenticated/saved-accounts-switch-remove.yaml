@@ -1,0 +1,47 @@
+appId: com.zyx.academy.nativeparity
+name: Switch to the original account, remove the alternate and restart
+---
+- tapOn:
+    id: admin-navbar-account
+- scrollUntilVisible:
+    element:
+      id: native-saved-account-0
+- tapOn:
+    id: native-saved-account-0
+    enabled: true
+- extendedWaitUntil:
+    visible: ".*Preview Tutor Course.*"
+    timeout: 45000
+- assertNotVisible: ".*Preview Admin Form.*"
+- tapOn:
+    id: tutor-navbar-account
+- scrollUntilVisible:
+    element:
+      id: native-saved-account-0
+- tapOn: "Hapus akun.*|Remove account.*"
+- extendedWaitUntil:
+    visible:
+      id: native-account-confirm-remove
+    timeout: 20000
+- tapOn:
+    id: native-account-confirm-remove
+    enabled: true
+- extendedWaitUntil:
+    notVisible:
+      id: native-account-confirm-remove
+    timeout: 20000
+- assertNotVisible:
+    id: native-saved-account-0
+- stopApp
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible: ".*Preview Tutor Course.*"
+    timeout: 45000
+- tapOn:
+    id: tutor-navbar-account
+- scrollUntilVisible:
+    element:
+      id: native-account-add
+- assertNotVisible:
+    id: native-saved-account-0

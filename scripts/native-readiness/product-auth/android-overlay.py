@@ -16,14 +16,12 @@ def apply(source: Path, certificate: Path):
     browser = source / "auth" / "browser-login.ts"
     browser_source = browser.read_text()
     original_browser = "openBrowser: (url, redirect) => WebBrowser.openAuthSessionAsync(url, redirect),"
+    credential_availability = "const isCredentialAvailable = isNativeBuild && googleCredentialLogin.isConfigured();"
     if browser_source.count(original_browser) != 1:
         raise ValueError("Unexpected Expo browser handoff")
-    entry = source / "auth" / "auth-entry.tsx"
-    entry_source = entry.read_text()
-    original_button = "disabled={!login.isAvailable}"
-    if entry_source.count(original_button) != 1:
-        raise ValueError("Unexpected native Google sign-in button")
-
+    if browser_source.count(credential_availability) != 1:
+        raise ValueError("Unexpected Expo Google credential availability")
+    browser_source = browser_source.replace(credential_availability, "const isCredentialAvailable = false;")
     manifest = source / "android" / "app" / "src" / "main" / "AndroidManifest.xml"
     resource = manifest.parent / "res"
     xml = resource / "xml"
@@ -65,7 +63,6 @@ def apply(source: Path, certificate: Path):
       throw error;
     }
   },"""))
-    entry.write_text(entry_source.replace(original_button, 'testID="native-auth-google" ' + original_button))
 
 
 

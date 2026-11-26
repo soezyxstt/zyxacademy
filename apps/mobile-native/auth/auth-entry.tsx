@@ -75,6 +75,7 @@ function GoogleEntryForm({ intent, incomingError }: {
     {error && <AuthStatus error>{error}</AuthStatus>}
     <View style={styles.actions}>
       <Button
+        testID="native-auth-google"
         disabled={!login.isAvailable || savedBusy}
         isLoading={busy}
         onPress={() => void start()}

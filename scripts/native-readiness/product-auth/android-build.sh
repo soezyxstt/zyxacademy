@@ -12,7 +12,7 @@ private="$RUNNER_TEMP/native-auth-preview"
 umask 077
 bash "$root/scripts/native-readiness/product-auth/android-tls.sh"
 
-sources=(session-api.ts browser-login.ts auth-entry.tsx)
+sources=(session-api.ts browser-login.ts)
 for source in "${sources[@]}"; do cp "$app/auth/$source" "$private/$source"; done
 restore_sources() {
   for source in "${sources[@]}"; do mv "$private/$source" "$app/auth/$source"; done

@@ -138,7 +138,7 @@ on:
       verification:
         description: Select the authenticated role or run the build and backend checks only
         type: choice
-        options: ['all', 'student', 'student-protocol', 'staff', 'contracts']
+        options: ['all', 'student', 'student-protocol', 'staff', 'accounts', 'contracts']
         default: 'all'
       browser_probe:
         description: Verify only the authenticated loopback browser form on Android
@@ -161,12 +161,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: ${{ fromJSON(inputs.offline == 'only' && '["offline"]' || (inputs.verification == 'staff' && '["staff"]' || (inputs.verification == 'student' || inputs.verification == 'student-protocol') && '["student"]' || github.event_name == 'workflow_dispatch' && '["student","staff"]' || '["student"]')) }}
+        group: ${{ fromJSON(inputs.offline == 'only' && '["offline"]' || (inputs.verification == 'staff' && '["staff"]' || inputs.verification == 'accounts' && '["accounts"]' || (inputs.verification == 'student' || inputs.verification == 'student-protocol') && '["student"]' || github.event_name == 'workflow_dispatch' && '["student","staff"]' || '["student"]')) }}
     uses: ./.github/workflows/native-authenticated-preview.yml
     with:
       android: ${{ github.event_name == 'workflow_dispatch' && matrix.group == 'student' && inputs.verification != 'student-protocol' }}
       student_protocol: ${{ inputs.verification == 'student-protocol' }}
       staff: ${{ github.event_name == 'workflow_dispatch' && matrix.group == 'staff' }}
+      saved_accounts: ${{ github.event_name == 'workflow_dispatch' && matrix.group == 'accounts' }}
       offline: ${{ matrix.group == 'offline' && 'only' || (matrix.group == 'student' && inputs.offline == 'also' && 'also' || '') }}
 
   combined-native:

@@ -11,6 +11,7 @@ import { assertFixtureRunner, fixtureHost, fixtureOrigin, fixturePort, fixtureSe
 import { prepareFixtureDatabase, seedBrowserSession } from "./seed";
 import { notificationId, seedStudentInbox, verifiedInboxAcknowledgement } from "./inbox-fixture";
 import { createTutorLiveFixture } from "./tutor-live-fixture";
+import { createSavedAccountsJourney } from "./saved-accounts-fixture";
 import { containsStaffRecord, matchesStaffContext, oppositeStaffRole, staffRoles, type StaffRole } from "./staff-role";
 
 const noStore = { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" };
@@ -79,11 +80,12 @@ function browserFixturePage(query: URLSearchParams, staff?: StaffRole) {
 }
 
 export async function startAuthFixture(certPath: string, keyPath: string, options: {
-  studentProduct?: boolean; staff?: StaffRole; offlineProduct?: boolean;
+  studentProduct?: boolean; staff?: StaffRole; offlineProduct?: boolean; savedAccountsProduct?: boolean;
 } = {}) {
-  const { studentProduct = false, staff, offlineProduct = false } = options;
+  const { studentProduct = false, staff, offlineProduct = false, savedAccountsProduct = false } = options;
   assertFixtureRunner();
   if (offlineProduct && (staff || studentProduct)) throw new Error("Offline preview requires its own Student fixture");
+  if (savedAccountsProduct && (staff || studentProduct || offlineProduct)) throw new Error("Saved accounts require an isolated fixture");
   process.env.SKIP_ENV_VALIDATION = "1";
   process.env.QUEUE_PROVIDER = "noop";
   process.env.GOOGLE_CLIENT_ID = "native-preview-disabled";
@@ -141,7 +143,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
   const previewVideo = studentProduct ? await (await import("./video-fixture")).createVideoPreview() : null;
   const studentNavigation = studentProduct || offlineProduct ? await import("@/app/api/student/navigation/route") : null;
   const opsAi = staff === "admin" ? await (await import("./ops-ai-fixture")).loadOpsAiPreview() : null;
-  const staffReads = staff ? await (await import("./staff-fixture")).loadStaffReads() : null;
+  const staffReads = staff || savedAccountsProduct ? await (await import("./staff-fixture")).loadStaffReads() : null;
   const staffProfile = staff ? await import("@/app/api/native/student/community/[operation]/route") : null;
   const offline = offlineProduct ? await (await import("./offline-fixture")).createOfflinePreview() : null;
   const liveRoutes = tutorLive ? await Promise.all([
@@ -149,6 +151,8 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
     import("@/app/api/native/academic/tutor-support/courses/[courseId]/live/host/route"),
   ]) : null;
   const opposite = staff ? oppositeStaffRole(staff) : null;
+  const accounts = savedAccountsProduct ? createSavedAccountsJourney() : null;
+  const readSession = (headers: Headers) => auth.api.getSession({ headers, query: { disableCookieCache: true, disableRefresh: true } });
 
   const claim = randomBytes(32).toString("hex");
   let claimExpiresAt = 0;
@@ -205,7 +209,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
         const response = await start(upstream);
         const query = handoffQuery(url);
         startStatus = response.status;
-        if (response.status === 302 && query && !claimed) {
+        if (response.status === 302 && query && !claimed && (!accounts || accounts.next())) {
           confirmedState = query.get("state");
           claimExpiresAt ||= Date.now() + 120_000;
         }
@@ -215,7 +219,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
         const query = handoffQuery(url);
         if (query && confirmedState === query.get("state") && !claimed && Date.now() < claimExpiresAt) {
           browserStep = "browser page served";
-          return browserFixturePage(query, staff);
+          return browserFixturePage(query, accounts?.next()?.role ?? staff);
         }
         browserStep = "browser page rejected";
         return result(403);
@@ -232,15 +236,19 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
           return result(403);
         }
         const submitted = (await upstream.formData()).get("claim");
+        const nextAccount = accounts?.next();
+        if (accounts && !nextAccount) return result(403);
+        const currentClaim = nextAccount?.claim ?? claim;
         if (typeof submitted !== "string" || !/^[a-f\d]{64}$/.test(submitted) ||
-          !timingSafeEqual(Buffer.from(claim, "hex"), Buffer.from(submitted, "hex"))) {
+          !timingSafeEqual(Buffer.from(currentClaim, "hex"), Buffer.from(submitted, "hex"))) {
           browserStep = "browser claim rejected";
           return result(403);
         }
         claimed = true;
         try {
           browserSetupFailed = "browser session setup failed";
-          browserIdentity = await seedBrowserSession(staff);
+          browserIdentity = await seedBrowserSession(nextAccount?.role ?? staff);
+          if (nextAccount) accounts?.seeded(nextAccount.role, browserIdentity);
           browserSetupFailed = tutorLive ? "Tutor Live setup failed" : "Student setup failed";
           await tutorLive?.seed(browserIdentity.accountId);
           if (studentProduct) await seedStudentInbox(browserIdentity.accountId);
@@ -264,11 +272,23 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
       }
       if (route === "POST /api/auth/native/expo/exchange") {
         const response = await exchange(upstream);
-        if (response.ok) exchangedCode = true;
+        if (response.ok) {
+          exchangedCode = true;
+          if (accounts) {
+            const identity = await response.clone().json();
+            if (!accounts.exchanged(identity.user?.id)) return result(403);
+            if (accounts.next()) {
+              confirmedState = null;
+              claimExpiresAt = 0;
+              claimed = false;
+            }
+          }
+        }
         return response;
       }
       if (route === "GET /api/native/context") {
         const response = await requestContext.run(upstream, accountContext);
+        if (response.ok && accounts) accounts.recordContext(await response.clone().json());
         if (response.ok && (!staff || (browserIdentity && matchesStaffContext(staff, await response.clone().json(), browserIdentity)))) {
           verifiedContext = true;
         }
@@ -312,6 +332,14 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
         if (url.pathname === staffRoles[opposite].apiPath) {
           const response = await requestContext.run(upstream, () => staffReads[opposite](upstream));
           if (response.ok) unauthorizedRead = true;
+          return response;
+        }
+      }
+      if (accounts && staffReads && request.method === "GET") {
+        for (const role of ["tutor", "admin"] as const) {
+          if (url.pathname !== staffRoles[role].apiPath) continue;
+          const response = await requestContext.run(upstream, () => staffReads[role](upstream));
+          if (response.ok && containsStaffRecord(role, await response.clone().json())) accounts.recordRead(role, await readSession(upstream.headers));
           return response;
         }
       }
@@ -392,6 +420,8 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
 
   return {
     claim,
+    savedAccountClaims: accounts?.claims,
+    verifiedSavedAccounts: () => accounts?.verified(readSession),
     async withdrawOfflineEnrollment() {
       if (!offline || !verifiedContext || !browserIdentity) throw new Error("Offline preview account is unavailable");
       await offline.revoke(browserIdentity.accountId);
@@ -407,6 +437,8 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
     identity: () => browserIdentity && { accountId: browserIdentity.accountId, sessionId: browserIdentity.sessionId },
     progress() {
       if (signedOut) return "sign-out";
+      const savedAccountStage = accounts?.progress();
+      if (savedAccountStage) return savedAccountStage;
       if (verifiedStaffProfile) return "authorized staff profile";
       if (verifiedStaffRead) return "authorized staff read";
       if (acknowledgedInbox) return "inbox acknowledgement";
