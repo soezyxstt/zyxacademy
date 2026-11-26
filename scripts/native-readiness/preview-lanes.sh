@@ -11,9 +11,9 @@ host=$(git rev-parse HEAD)
 printf '### Native integration preview\n\nHost commit: `%s`\n\n| Lane | Commit | Merge |\n| --- | --- | --- |\n' \
   "$host" >> "$GITHUB_STEP_SUMMARY"
 
-keep_host_routing() {
+keep_reviewed_host_files() {
   local path incoming
-  for path in apps/mobile-native/app/+native-intent.tsx apps/mobile-native/routing/consent-intent.ts; do
+  for path in apps/mobile-native/app/+native-intent.tsx apps/mobile-native/routing/consent-intent.ts apps/mobile-native/features/shared-ui/layout.tsx; do
     if git diff --cached --quiet "$host" -- "$path"; then
       continue
     fi
@@ -27,13 +27,15 @@ keep_host_routing() {
       apps/mobile-native/app/+native-intent.tsx:db2e069c63d05cc1df136702d6b3fffc0d01020c|\
       apps/mobile-native/routing/consent-intent.ts:e3cc5a864ff1f229fd28e9e31e087cfc6a1cea73|\
       apps/mobile-native/routing/consent-intent.ts:23b07316c4f3aefc94cfe9f79914696719705d0b|\
-      apps/mobile-native/routing/consent-intent.ts:d33af995ad91cf13b260432eadbeffc5d7af89e0)
-        # Preserve the composed host routing even when a partial wrapper merged cleanly.
+      apps/mobile-native/routing/consent-intent.ts:d33af995ad91cf13b260432eadbeffc5d7af89e0|\
+      apps/mobile-native/features/shared-ui/layout.tsx:93171b46f91c6d058687d241bc0d81418f8016bb|\
+      apps/mobile-native/features/shared-ui/layout.tsx:5ae05129ef3821a80a50f8f2aaed59a1799e6ed3)
+        # Preserve the composed host file even when the partial copy merged cleanly.
         git checkout "$host" -- "$path"
         result='Reviewed merge resolution'
         ;;
       *)
-        printf '| %s | `%s` | Routing requires review |\n\n`%s` incoming blob `%s`\n' \
+        printf '| %s | `%s` | Host file requires review |\n\n`%s` incoming blob `%s`\n' \
           "$lane" "$revision" "$path" "$incoming" >> "$GITHUB_STEP_SUMMARY"
         return 1
         ;;
@@ -76,7 +78,7 @@ for lane in shared-ui student academic operations; do
       esac
     done < <(git diff --name-only --diff-filter=U -z)
   fi
-  keep_host_routing
+  keep_reviewed_host_files
   unresolved=$(git diff --name-only --diff-filter=U)
   if [[ -n $unresolved ]]; then
     printf '| %s | `%s` | Conflict |\n\nUnresolved files:\n\n' "$lane" "$revision" >> "$GITHUB_STEP_SUMMARY"

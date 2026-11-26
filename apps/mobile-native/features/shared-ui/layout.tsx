@@ -263,10 +263,12 @@ export type NativeListRowProps<Id extends string = string> = SharedUiActionGroup
   layout: NativeListLayout;
   title: string;
   subtitle?: string;
+  titleRole?: "header";
   leading?: ReactNode;
   metadata?: readonly { id: string; label: string; value: string }[];
-  primary?: { onPress: () => void; label?: string; role?: "button" | "link"; disabled?: boolean };
+  primary?: { onPress: () => void; label?: string; role?: "button" | "link"; disabled?: boolean; testID?: string };
   theme?: SharedUiTheme;
+  /** Identifies the primary control when it has no test ID of its own. */
   testID?: string;
 };
 
@@ -274,6 +276,7 @@ export function NativeListRow<Id extends string>({
   layout,
   title,
   subtitle,
+  titleRole,
   leading,
   primary,
   metadata,
@@ -290,14 +293,14 @@ export function NativeListRow<Id extends string>({
     <>
       {leading && <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">{leading}</View>}
       <View style={styles.rowText}>
-        <Text style={[styles.rowTitle, { color: colors.foreground }]}>{title}</Text>
+        <Text accessibilityRole={titleRole} style={[styles.rowTitle, { color: colors.foreground }]}>{title}</Text>
         {subtitle && <Text style={[styles.supportingText, { color: colors.mutedForeground }]}>{subtitle}</Text>}
       </View>
     </>
   );
 
   return (
-    <View style={[styles.row, layout === "wide" && styles.wideRow]} testID={testID}>
+    <View style={[styles.row, layout === "wide" && styles.wideRow]} testID={primary && primary.testID === undefined ? undefined : testID}>
       {primary ? (
         <Pressable
           accessibilityLabel={primary.label ?? (subtitle ? `${title}. ${subtitle}` : title)}
@@ -307,6 +310,7 @@ export function NativeListRow<Id extends string>({
           onBlur={() => setFocused(false)}
           onFocus={() => setFocused(true)}
           onPress={primary.onPress}
+          testID={primary.testID ?? testID}
           style={({ pressed }) => [
             styles.identity,
             styles.rowPress,

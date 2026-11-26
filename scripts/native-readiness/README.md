@@ -37,4 +37,6 @@ Each module includes a hash, declarations that may render, imports, export bindi
 
 The GitHub Actions preview composes the four migration branches on a disposable checkout. The host dispatches staged OAuth consent, native authentication and the two Academic aliases. The preview retains the reviewed host router when a branch carries an earlier copy.
 
+The host shared row combines the Student title role and actionable test ID with the Academic primary-action test ID. The preview retains this component for the reviewed Student and Academic blobs, including when Git merges both JSX attributes cleanly.
+
 The reviewed Student submission and Academic draft and grading changes compose in the shared tryout action. Operations and Academic disclosure checks follow their shared read models. The resolver checks the exact three input blobs before applying either targeted resolution. New conflicts require source review. The preview records the branch commits and runs the focused routing and disclosure tests before the Expo typecheck.
