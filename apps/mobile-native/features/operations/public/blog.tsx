@@ -1,5 +1,6 @@
 import { Fragment, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
+import { BlogShareCard } from "./blog-share";
 import { sharePublicLink } from "../../../device/share";
 import { localizedPublicPath } from "../../../../../lib/public-locale-routes";
 import {
@@ -172,10 +173,7 @@ export function BlogArticle({ slug }: { slug: string }) {
     <Figure source={article.thumbnailUrl} title={article.title} />
     {renderArticle ? renderArticle({ markdown: article.content, origin, onLink: openLink }) : <ReadMarkdown markdown={article.content} onLink={openLink} />}
     <Divider />
-    <View style={layout.between}>
-      <Label tone="subheading">{blog.shareArticleTitle}</Label>
-      <Action onPress={share} variant="outline">{blog.shareViaSystem}</Action>
-    </View>
+    <BlogShareCard title={article.title} url={articleUrl} onShare={share} />
     <View style={layout.section}>
       <Label tone="subheading">{blog.others}</Label>
       <Divider />
