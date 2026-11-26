@@ -1,0 +1,51 @@
+import type { ReactNode } from "react";
+
+export interface StudentSession {
+  userId: string;
+  role: "student";
+  origin: string;
+  locale: string;
+}
+
+export interface StudentRoute {
+  pattern: string;
+  path: string;
+  params: Readonly<Record<string, string>>;
+  query: Readonly<Record<string, string>>;
+}
+
+export type StudentRequest = (path: string, init?: RequestInit) => Promise<Response>;
+
+export interface StudentServices {
+  session: StudentSession;
+  /** Transport bound to the current session. Only relative API paths are passed. */
+  request: StudentRequest;
+  /** The host isolates storage by session, account, origin and locale and purges it on logout. */
+  drafts?: {
+    get(key: string): Promise<string | null>;
+    set(key: string, value: string): Promise<void>;
+    remove(key: string): Promise<void>;
+  };
+  renderMaterial?: (props: { courseId: string; materialId: string }) => ReactNode;
+  openExternal?: (path: string) => void;
+  nativeAuthScheme?: string;
+  devicePreferences?: {
+    theme: "light" | "dark" | "system";
+    setTheme(theme: "light" | "dark" | "system"): void;
+    haptics: boolean;
+    setHaptics(enabled: boolean): void;
+  };
+  notifications?: { enabled: boolean; setEnabled(enabled: boolean): Promise<void> };
+  pickAssessmentFile?: () => Promise<{uri: string; name: string; type: string; size?: number} | null>;
+  renderAssessmentMarkdown?: (markdown: string, courseId: string) => ReactNode;
+  renderAssessmentParts?: (parts: unknown[], courseId: string, visuals?: unknown[]) => ReactNode;
+}
+
+export interface StudentScreenProps extends StudentServices {
+  route: StudentRoute;
+  navigate(path: string): void;
+  replace(path: string): void;
+  back(): void;
+  initialScrollY: number;
+  onScrollY(y: number): void;
+}
