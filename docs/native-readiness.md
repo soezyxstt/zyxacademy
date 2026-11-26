@@ -51,6 +51,20 @@ Kalibrasi ulang terhadap run `ecf50dd0f` meluluskan 18 dari 54 kasus visual. Sep
 
 Gerbang ini berlaku untuk galeri komponen Android. Pemeriksaan aksi pengguna, nama aksesibel, status, dan hasil operasi tetap memerlukan bukti tersendiri. Cakupan 95% mengikuti inventaris per komponen, halaman, dan operasi. Penerapan pada Shared UI dan halaman memerlukan crop Expo dan WebView pada perangkat yang sama, anchor konten per layar, serta verifikasi perilaku dan otorisasi sesuai peran. [Kebijakan ukuran](../scripts/native-parity/relative_policy.py), [perhitungan visual](../scripts/native-parity/relative_visual.py).
 
+### Review independen atas 54 crop galeri Android
+
+GPT-6.2 Sol High menilai 54 pasangan crop Expo dan Android WebView pada DPR 1 untuk sumber dan build `81f25dcdaba4be3ed9abb56d31413edb5d490dff`. Review visual meluluskan 50/54 kasus dan 16/18 komponen dengan ketiga kasus lulus. Tiga kasus kotak masuk gagal karena perbedaan ikon dan pembungkusan waktu relatif pada keadaan campuran. Teks Textarea nonaktif terang gagal karena warna `#ccc` di Expo dan `#999` di WebView. Pergeseran sekitar 3 px pada baseline teks tanggal masih diterima pada review ini. [Putusan per kasus](../packages/native-parity/evidence/android-webview-review-45877794715.json), [crop berpasangan](https://github.com/soezyxstt/zyxacademy/actions/runs/45877794715/artifacts/15147365402).
+
+Gerbang relatif otomatis pada run yang sama meluluskan 18/54 kasus dan 5/18 komponen. Status CI tetap gagal. Bukti ini berlaku untuk crop galeri dalam run tersebut. Verifikasi berkas memeriksa SHA-256 manifest kasus, setiap pasangan crop, dan laporan mentah, serta mencocokkan revisi sumber dan build pada laporan. [Hasil CI](https://github.com/soezyxstt/zyxacademy/actions/runs/45877794715), [pengukuran mentah](https://github.com/soezyxstt/zyxacademy/actions/runs/45877794715/artifacts/15147360525).
+
+```sh
+gh run download 45877794715 -n android-parity -n android-measurements -D /tmp/zyx-review-45877794715
+python3 scripts/native-parity/verify-android-webview-review.py \
+  packages/native-parity/evidence/android-webview-review-45877794715.json \
+  /tmp/zyx-review-45877794715/android-parity \
+  /tmp/zyx-review-45877794715/android-measurements
+```
+
 ## Review integrasi 26 November 2026
 
 Reviewer independen GPT-6.2 Sol High memeriksa revisi induk `be5e5e13`. Empat branch dapat digabung di checkout CI sementara. Generator memasang 153 entry kanonik dari inventaris eksternal: 50 halaman Student, 54 Academic, 36 Admin Operations dan 13 publik. Tipe Expo gabungan gagal pada implementasi formulir publik dan dua atribut pada baris daftar bersama. Angka 153 mengukur pemasangan rute di checkout tersebut. Gerbang halaman tetap membutuhkan navigasi, otorisasi dan data yang teruji melalui entry produk di perangkat. [Uji gabungan](https://github.com/soezyxstt/zyxacademy/actions/runs/45808986956).
