@@ -10,6 +10,28 @@ let fixture: Awaited<ReturnType<typeof startAuthFixture>> | undefined;
 let step = "open the runner-local HTTPS browser fixture";
 let lastDeviceCheck = "none";
 
+async function emulator(...args: string[]) {
+  const child = Bun.spawn(["adb", "-s", device, ...args], { stdout: "ignore", stderr: "ignore" });
+  const timeout = setTimeout(() => child.kill(), 10_000);
+  try {
+    if (await child.exited !== 0) throw new Error();
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function connectOfflineFixture() {
+  await emulator("reverse", "tcp:9443", "tcp:9443");
+  await emulator("shell", "cmd", "connectivity", "airplane-mode", "disable");
+  await emulator("shell", "svc", "wifi", "enable");
+}
+
+async function disconnectOfflineFixture() {
+  await emulator("reverse", "--remove", "tcp:9443");
+  await emulator("shell", "cmd", "connectivity", "airplane-mode", "enable");
+  await emulator("shell", "svc", "wifi", "disable");
+}
+
 async function runFlow(name: string, inputs: string[] = [], label = name) {
   const privateDir = dirname(key);
   const child = Bun.spawn([maestro, "--platform", "android", "--device", device, "test",
@@ -31,6 +53,8 @@ async function runFlow(name: string, inputs: string[] = [], label = name) {
       ["student-dashboard-preview", "Student dashboard"],
       ["student-inbox", "Student inbox"],
       ["PREVIEW_RECORD", "protected staff read"],
+      ["Diktat verifikasi offline", "saved reading"],
+      ["offline-library-list", "offline library"],
       ["Akses ditolak", "wrong-role screen"],
       ["Kamu sudah keluar", "sign-out"],
     ] as const) {
@@ -63,16 +87,39 @@ async function reportDeviceState() {
 
 try {
   if (!certificate || !key || !maestro || !device || !/^emulator-\d+$/.test(device)) throw new Error();
-  const staff = staffRole(process.env.NATIVE_PRODUCT_AUTH_ROLE);
-  fixture = await startAuthFixture(certificate, key, { studentProduct: !staff, staff });
+  const offlineProduct = process.env.NATIVE_PRODUCT_AUTH_ROLE === "offline";
+  const staff = offlineProduct ? undefined : staffRole(process.env.NATIVE_PRODUCT_AUTH_ROLE);
+  fixture = await startAuthFixture(certificate, key, { studentProduct: !staff && !offlineProduct, staff, offlineProduct });
   const chrome = Bun.spawn(["adb", "-s", device, "shell", "am", "start", "-W", "-a", "android.intent.action.VIEW",
     "-d", fixtureOrigin + "/__preview/health", "-p", "com.android.chrome"], { stdout: "ignore", stderr: "ignore" });
   if (await chrome.exited !== 0) throw new Error();
-  await runFlow("browser-trust", [], staff ? `${staff}-browser-trust` : "browser-trust");
+  await runFlow("browser-trust", [], `${process.env.NATIVE_PRODUCT_AUTH_ROLE ?? "student"}-browser-trust`);
   if (!fixture.browserTrustVerified()) throw new Error();
   console.log("Verified Chrome trusts the runner-local HTTPS certificate");
 
-  if (staff) {
+  if (offlineProduct) {
+    try {
+      step = "sign in as a Student and save the authorized reading";
+      await runFlow("offline/download", ["-e", `PREVIEW_CLAIM=${fixture.claim}`], "offline-download");
+      step = "show the saved reading after a disconnected cold start";
+      await disconnectOfflineFixture();
+      await runFlow("offline/cold-reading", [], "offline-cold-reading");
+      step = "withdraw the seeded enrollment and confirm delivery in the live sync response";
+      await fixture.withdrawOfflineEnrollment();
+      await connectOfflineFixture();
+      await runFlow("offline/revoked", [], "offline-revoked");
+      if (!fixture.sawOfflineRevocation()) throw new Error();
+      step = "keep the revoked reading out of the disconnected library after a second cold start";
+      await disconnectOfflineFixture();
+      await runFlow("offline/cold-revoked", [], "offline-cold-revoked");
+    } finally {
+      await connectOfflineFixture();
+    }
+    step = "sign out and verify the same Student session is revoked";
+    await runFlow("offline/sign-out", [], "offline-sign-out");
+    if (!await fixture.verifiedAndRevoked()) throw new Error();
+    console.log("Android verified a Student download, two disconnected cold starts, enrollment withdrawal and session revocation");
+  } else if (staff) {
     const selected = staffRoles[staff];
     const opposite = staffRoles[oppositeStaffRole(staff)];
     const scheme = "zyx-native-parity://";

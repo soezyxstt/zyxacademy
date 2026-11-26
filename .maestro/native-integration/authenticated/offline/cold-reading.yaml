@@ -1,0 +1,11 @@
+appId: com.zyx.academy.nativeparity
+name: Cold start shows the saved reading while disconnected
+---
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: offline-library-list
+    timeout: 30000
+- assertVisible: Offline
+- assertVisible: "(Hapus|Remove) Diktat verifikasi offline"

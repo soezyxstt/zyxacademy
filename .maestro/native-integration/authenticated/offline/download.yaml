@@ -1,0 +1,27 @@
+appId: com.zyx.academy.nativeparity
+name: Download an authorized Student reading
+---
+- launchApp:
+    clearState: true
+- openLink: "zyx-native-parity://sign-in?next=%2Foffline&locale=id"
+- extendedWaitUntil:
+    visible:
+      id: native-auth-google
+    timeout: 30000
+- tapOn:
+    id: native-auth-google
+    enabled: true
+- extendedWaitUntil:
+    visible: Native Preview Sign-in
+    timeout: 30000
+- tapOn: Runner code
+- inputText: ${PREVIEW_CLAIM}
+- hideKeyboard
+- tapOn: Continue as preview student
+- extendedWaitUntil:
+    visible: "(Simpan|Save) Diktat verifikasi offline"
+    timeout: 45000
+- tapOn: "(Simpan|Save) Diktat verifikasi offline"
+- extendedWaitUntil:
+    visible: "(Hapus|Remove) Diktat verifikasi offline"
+    timeout: 30000

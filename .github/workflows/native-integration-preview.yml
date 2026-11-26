@@ -29,6 +29,11 @@ on:
         description: Also run the guest product entry on an iOS simulator
         type: boolean
         default: false
+      offline:
+        description: Run the authenticated Android offline journey
+        type: choice
+        options: ['skip', 'also', 'only']
+        default: 'skip'
 
 permissions:
   contents: read
@@ -40,16 +45,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: ${{ fromJSON(github.event_name == 'workflow_dispatch' && '["student","staff"]' || '["student"]') }}
+        group: ${{ fromJSON(inputs.offline == 'only' && '["offline"]' || (github.event_name == 'workflow_dispatch' && '["student","staff"]' || '["student"]')) }}
     uses: ./.github/workflows/native-authenticated-preview.yml
     with:
       android: ${{ github.event_name == 'workflow_dispatch' && matrix.group == 'student' }}
       staff: ${{ github.event_name == 'workflow_dispatch' && matrix.group == 'staff' }}
+      offline: ${{ matrix.group == 'offline' && 'only' || (matrix.group == 'student' && inputs.offline == 'also' && 'also' || '') }}
 
   combined-native:
     if: github.head_ref == 'soezyxst/react-native-monorepo' || (github.event_name == 'workflow_dispatch' && github.ref_name == 'soezyxst/react-native-monorepo')
     concurrency:
-      group: native-combined-preview-committed
+      group: native-combined-preview-committed${{ inputs.offline == 'only' && '-offline' || '' }}
       cancel-in-progress: true
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -113,6 +119,7 @@ jobs:
 
   product-backend:
     needs: combined-native
+    if: inputs.offline != 'only'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     concurrency:
@@ -174,6 +181,7 @@ jobs:
 
   product-entry:
     needs: combined-native
+    if: inputs.offline != 'only'
     strategy:
       fail-fast: false
       matrix:

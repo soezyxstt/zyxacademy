@@ -9,12 +9,15 @@ on:
       staff:
         type: boolean
         default: false
+      offline:
+        type: string
+        default: ''
 
 permissions:
   contents: read
 
 concurrency:
-  group: native-authenticated-preview-${{ github.event.pull_request.number || github.ref }}${{ inputs.staff && '-staff' || '' }}
+  group: native-authenticated-preview-${{ github.event.pull_request.number || github.ref }}${{ inputs.staff && '-staff' || '' }}${{ inputs.offline == 'only' && '-offline' || '' }}
   cancel-in-progress: true
 
 jobs:
@@ -46,12 +49,12 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-      - if: inputs.android
+      - if: inputs.android || inputs.offline == 'only'
         uses: actions/download-artifact@v4
         with:
           name: mounted-product-sources
           path: ${{ runner.temp }}/product-source
-      - if: inputs.android
+      - if: inputs.android || inputs.offline == 'only'
         name: Restore the exact mounted product tree
         run: bash scripts/native-readiness/product-auth/restore-mounted.sh
       - uses: actions/setup-node@v4
@@ -64,6 +67,7 @@ jobs:
       - name: Verify the authenticated Expo protocol over loopback HTTPS
         env:
           AUTH_STUDENT_PRODUCT: ${{ inputs.android }}
+          AUTH_OFFLINE_PRODUCT: ${{ inputs.offline == 'only' }}
         run: |
           umask 077
           tls_dir="$(mktemp -d "${RUNNER_TEMP}/native-auth.XXXXXX")"
@@ -75,7 +79,7 @@ jobs:
 
   authenticated-android:
     needs: authenticated-routes
-    if: inputs.android || inputs.staff
+    if: inputs.android || inputs.staff || inputs.offline == 'only'
     runs-on: ubuntu-latest
     timeout-minutes: 50
     services:
@@ -96,6 +100,7 @@ jobs:
       DATABASE_URL: postgresql://native_preview:native_preview@127.0.0.1:55453/native_preview
       NATIVE_PRODUCT_AUTH_FIXTURE: '1'
       NATIVE_PRODUCT_AUTH_STAFF: ${{ inputs.staff }}
+      NATIVE_PRODUCT_AUTH_OFFLINE: ${{ inputs.offline }}
       EXPO_NO_TELEMETRY: '1'
       NEXT_TELEMETRY_DISABLED: '1'
       PUPPETEER_SKIP_DOWNLOAD: 'true'

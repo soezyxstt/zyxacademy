@@ -56,6 +56,10 @@ mkdir "$private/maestro"
 bash "$root/scripts/native-parity/install-maestro.sh" "$private/maestro"
 roles=(student)
 if [[ ${NATIVE_PRODUCT_AUTH_STAFF:-} == true ]]; then roles=(tutor admin); fi
+case ${NATIVE_PRODUCT_AUTH_OFFLINE:-} in
+  only) roles=(offline) ;;
+  also) roles+=(offline) ;;
+esac
 status=0
 for role in "${roles[@]}"; do
   NATIVE_PRODUCT_AUTH_ROLE="$role" bun --no-env-file "$root/scripts/native-readiness/product-auth/android-smoke.ts" \

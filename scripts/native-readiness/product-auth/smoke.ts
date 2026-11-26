@@ -28,7 +28,8 @@ let fixture: Awaited<ReturnType<typeof startAuthFixture>> | undefined;
 try {
   check(certificate && key, "TLS material is required");
   const studentProduct = process.env.AUTH_STUDENT_PRODUCT === "true";
-  fixture = await startAuthFixture(certificate, key, { studentProduct });
+  const offlineProduct = process.env.AUTH_OFFLINE_PRODUCT === "true";
+  fixture = await startAuthFixture(certificate, key, { studentProduct, offlineProduct });
   const ca = await Bun.file(certificate).text();
   const local = (path: string, init?: RequestInit) => {
     const url = new URL(path, fixtureOrigin);
@@ -131,11 +132,40 @@ try {
     check((await loadInbox(binding, false, signal)).unread === 0, "The read notification remained unread");
   }
 
+  if (offlineProduct) {
+    stage = "download a protected Student reading from real offline routes";
+    const { offlineTitle } = await import("./offline-fixture");
+    const headers = { Cookie: sessionCookie, Origin: fixtureOrigin, "Content-Type": "application/json",
+      "x-offline-account-id": expected.accountId, "x-offline-session-id": expected.sessionId };
+    const sync = (courseIds: string[], cursor: string | null) => local("/api/offline/sync", {
+      method: "POST", headers, body: JSON.stringify({ courseIds, cursor, locale: "id" }),
+    });
+    const initial = await sync([], null);
+    check(initial.ok && initial.headers.get("x-offline-environment") === fixtureOrigin, "Offline sync did not authorize the session");
+    const { enrollments, cursor } = await initial.json();
+    const courseId = enrollments?.[0]?.id;
+    check(typeof courseId === "string" && enrollments.length === 1 && typeof cursor === "string", "Expected one enrolled course and cursor");
+    const manifest = await local("/api/offline/manifest?" + new URLSearchParams({ courseId, locale: "id" }), { headers });
+    check(manifest.ok, "Manifest HTTP " + manifest.status);
+    const material = (await manifest.json()).resources.find((entry: { kind: string; title: string }) =>
+      entry.kind === "diktat" && entry.title === offlineTitle);
+    check(material?.id, "Protected reading missing from manifest");
+    const resource = "/api/offline/resource?" + new URLSearchParams({ courseId, kind: "diktat", id: material.id, locale: "id" });
+    const downloaded = await local(resource, { headers });
+    check(downloaded.ok && (await downloaded.json()).resource?.title === offlineTitle, "Protected download failed");
+    stage = "withdraw the enrollment and reject the same authenticated download";
+    await fixture.withdrawOfflineEnrollment();
+    const updated = await sync([courseId], cursor);
+    check(updated.ok && fixture.sawOfflineRevocation(), "Access revocation missing from sync");
+    check((await local(resource, { headers })).status === 403, "Withdrawn reading remained downloadable");
+  }
+
   stage = "revoke the authenticated session";
   await api.revoke(sessionCookie);
   check((await local("/api/native/context", { headers: { Cookie: sessionCookie } })).status === 401, "Revoked context stayed active");
   check(await fixture.verifiedAndRevoked(), "Expected authenticated database changes or revocation missing");
-  console.log("Verified loopback Native start, complete, exchange, session, Student context and logout" + (studentProduct ? ", plus mounted Student dashboard and inbox" : ""));
+  console.log("Verified loopback Native start, complete, exchange, session, Student context and logout" +
+    (studentProduct ? ", plus mounted Student dashboard and inbox" : offlineProduct ? ", plus protected offline download and revocation" : ""));
 } catch (error) {
   // Response bodies, cookies, verifier and grant never appear in job logs.
   console.error("Native authenticated fixture failed to " + stage +

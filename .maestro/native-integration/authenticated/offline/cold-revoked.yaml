@@ -1,0 +1,11 @@
+appId: com.zyx.academy.nativeparity
+name: A later disconnected cold start cannot restore the withdrawn reading
+---
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: offline-library-list
+    timeout: 30000
+- assertVisible: Offline
+- assertNotVisible: ".*Diktat verifikasi offline.*"

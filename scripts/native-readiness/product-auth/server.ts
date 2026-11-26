@@ -52,9 +52,12 @@ function browserFixturePage(query: URLSearchParams, staff?: StaffRole) {
   });
 }
 
-export async function startAuthFixture(certPath: string, keyPath: string, options: { studentProduct?: boolean; staff?: StaffRole } = {}) {
-  const { studentProduct = false, staff } = options;
+export async function startAuthFixture(certPath: string, keyPath: string, options: {
+  studentProduct?: boolean; staff?: StaffRole; offlineProduct?: boolean;
+} = {}) {
+  const { studentProduct = false, staff, offlineProduct = false } = options;
   assertFixtureRunner();
+  if (offlineProduct && (staff || studentProduct)) throw new Error("Offline preview requires its own Student fixture");
   process.env.SKIP_ENV_VALIDATION = "1";
   process.env.QUEUE_PROVIDER = "noop";
   process.env.GOOGLE_CLIENT_ID = "native-preview-disabled";
@@ -100,6 +103,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
     import("@/app/api/student/upcoming-sessions/route"),
   ]) : null;
   const staffReads = staff ? await (await import("./staff-fixture")).loadStaffReads() : null;
+  const offline = offlineProduct ? await (await import("./offline-fixture")).createOfflinePreview() : null;
   const opposite = staff ? oppositeStaffRole(staff) : null;
 
   const claim = randomBytes(32).toString("hex");
@@ -171,6 +175,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
         claimed = true;
         browserIdentity = await seedBrowserSession(staff);
         if (studentProduct) await seedStudentInbox(browserIdentity.accountId);
+        await offline?.seed(browserIdentity.accountId);
         return new Response(null, { status: 303, headers: {
           ...noStore, Location: fixtureOrigin + nativeComplete + "?" + query, "Set-Cookie": browserIdentity.cookie,
         } });
@@ -191,6 +196,10 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
           verifiedContext = true;
         }
         return response;
+      }
+      if (offline && browserIdentity && url.pathname.startsWith("/api/offline/")) {
+        const response = await requestContext.run(upstream, () => offline.handle(route, upstream, browserIdentity));
+        if (response) return response;
       }
       if (staff && opposite && staffReads && request.method === "GET") {
         if (url.pathname === staffRoles[staff].apiPath) {
@@ -250,6 +259,11 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
 
   return {
     claim,
+    async withdrawOfflineEnrollment() {
+      if (!offline || !verifiedContext || !browserIdentity) throw new Error("Offline preview account is unavailable");
+      await offline.revoke(browserIdentity.accountId);
+    },
+    sawOfflineRevocation: () => offline?.sawRevocation() ?? false,
     browserTrustVerified: () => visitedHealth,
     identity: () => browserIdentity && { accountId: browserIdentity.accountId, sessionId: browserIdentity.sessionId },
     progress() {
@@ -271,6 +285,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
       if (staff && (!verifiedStaffRead || !deniedOppositeRole || unauthorizedRead)) return false;
       if (studentProduct && (!loadedDashboard || !acknowledgedInbox ||
         !await verifiedInboxAcknowledgement(browserIdentity.accountId))) return false;
+      if (offline && !offline.sawRevocation()) return false;
       const headers = new Headers({ Cookie: browserIdentity.cookie.split(";", 1)[0] });
       return (await auth.api.getSession({ headers, query: { disableCookieCache: true, disableRefresh: true } })) === null;
     },

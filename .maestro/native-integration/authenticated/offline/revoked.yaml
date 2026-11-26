@@ -1,0 +1,12 @@
+appId: com.zyx.academy.nativeparity
+name: A live enrollment withdrawal clears the previously saved reading
+---
+- extendedWaitUntil:
+    visible: "(Periksa pembaruan|Check for updates)"
+    timeout: 30000
+- tapOn: "(Periksa pembaruan|Check for updates)"
+- extendedWaitUntil:
+    notVisible: ".*Diktat verifikasi offline.*"
+    timeout: 30000
+- assertVisible:
+    id: offline-library-list

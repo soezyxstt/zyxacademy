@@ -1,0 +1,10 @@
+appId: com.zyx.academy.nativeparity
+name: Sign out of the verified offline Student account
+---
+- extendedWaitUntil:
+    visible: "(Periksa pembaruan|Check for updates)"
+    timeout: 30000
+- openLink: "zyx-native-parity://sign-out?locale=id"
+- extendedWaitUntil:
+    visible: '(Kamu sudah keluar\.|You are signed out\.)'
+    timeout: 30000
