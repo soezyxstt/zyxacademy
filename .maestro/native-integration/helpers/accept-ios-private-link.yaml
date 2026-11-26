@@ -1,0 +1,10 @@
+appId: com.zyx.academy.nativeparity
+---
+- extendedWaitUntil:
+    visible: '(Open in .*Zyx Academy Native.*|${EXPECTED})'
+    timeout: 30000
+- runFlow:
+    when:
+      visible: 'Open in .*Zyx Academy Native.*'
+    commands:
+      - tapOn: Open

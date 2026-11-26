@@ -31,23 +31,22 @@ fi
 
 export MAESTRO_CLI_NO_ANALYTICS=true
 export MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED=true
-if [[ $platform == ios && ${3:-parity} == product ]]; then
-  xcrun simctl openurl "$device" zyx-native-parity://gallery/separator
-  "$maestro" --platform ios --device "$device" test \
-    "$root/.maestro/native-parity/helpers/confirm-ios-gallery.yaml"
-fi
-if [[ ${3:-parity} == product ]]; then
-  app=com.zyx.academy.nativeparity
+
+run_cold_entry() {
+  local app=com.zyx.academy.nativeparity termination
   if [[ $platform == ios ]]; then
-    xcrun simctl terminate "$device" "$app"
-    xcrun simctl openurl "$device" zyx-native-parity://admin
+    if ! termination=$(xcrun simctl terminate "$device" "$app" 2>&1); then
+      printf '%s\n' "$termination" | tee "$output/cold-terminate.txt"
+      if ! grep -Eqi 'found nothing to terminate|is not running' <<< "$termination"; then return 1; fi
+    fi
+    xcrun simctl openurl "$device" zyx-native-parity://admin 2>&1 | tee "$output/cold-start.txt" || return
   else
-    adb -s "$device" shell am force-stop "$app"
-    adb -s "$device" shell am start -W -a android.intent.action.VIEW -d zyx-native-parity://admin "$app" | tee "$output/cold-start.txt"
+    adb -s "$device" shell am force-stop "$app" || return
+    adb -s "$device" shell am start -W -a android.intent.action.VIEW -d zyx-native-parity://admin "$app" | tee "$output/cold-start.txt" || return
   fi
   "$maestro" --platform "$platform" --device "$device" test \
     --format junit --output "$output/cold-entry.xml" --test-output-dir "$output/cold-results" \
-    --debug-output "$output/cold-logs" "$flows/helpers/cold-private-entry.yaml"
+    --debug-output "$output/cold-logs" "$flows/helpers/cold-private-entry.yaml" || return
   if [[ $platform == android ]]; then
     adb -s "$device" shell dumpsys meminfo "$app" > "$output/sign-in-meminfo.txt"
     # Keep raw emulator measurements next to the route assertion and source
@@ -61,8 +60,18 @@ if [[ ${3:-parity} == product ]]; then
       echo '```'
     } >> "$GITHUB_STEP_SUMMARY"
   fi
+}
+
+status=0
+if [[ ${3:-parity} == product ]]; then
+  if [[ $platform == ios ]]; then
+    run_cold_entry || status=1
+  else
+    run_cold_entry
+  fi
 fi
 "$maestro" --platform "$platform" --device "$device" test \
   --format junit --output "$output/report.xml" \
   --test-output-dir "$output/results" --debug-output "$output/logs" \
-  "$flows"/*.yaml
+  "$flows"/*.yaml || status=1
+exit "$status"
