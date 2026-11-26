@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { operationsCatalog } from "../../../../lib/admin-mcp/operations-catalog";
-import { communityRoutes } from "./contracts";
+import { summarizeCourseLeaderboard } from "../../../../lib/student/course-leaderboard";
+import { communityRoutes, type CourseRanking } from "./contracts";
 import { createCommunityFixtureRequest, isCommunityFixturePath } from "./fixtures";
 import { communityCases, studentCommunityAlias } from "./routes";
 
@@ -36,8 +37,23 @@ test("academic ranking, participation, and profile privacy keep distinct fixture
   expect(participation.entries[0]).not.toHaveProperty("average");
   expect(publicProfile.baseXpMicro).toBeNull();
   expect(publicProfile).not.toHaveProperty("email");
-  const empty = createCommunityFixtureRequest("empty");
-  expect((await empty(base + "course-ranking?id=matematika-1")).status).toBe(403);
+});
+
+test("course ranking uses only podium rows and a rank summary, with empty and locked states", async () => {
+  const ranks = ["first", "second", "third", "hidden", "viewer"].map((studentId, index) => ({ studentId, rank: index + 1 }));
+  expect(summarizeCourseLeaderboard(ranks, "viewer")).toEqual({ topRows: ranks.slice(0, 3), ownRank: 5, totalStudents: 5 });
+  expect(summarizeCourseLeaderboard(ranks, "unranked").ownRank).toBeNull();
+  const request = createCommunityFixtureRequest();
+  const path = base + "course-ranking?id=matematika-1";
+  const ranking = await (await request(path)).json() as CourseRanking;
+  expect(ranking).toMatchObject({ assessment: "quiz", ownRank: 5, totalStudents: 5 });
+  expect(ranking.rows.map(row => row.rank)).toEqual([1, 2, 3]);
+  expect(ranking.rows[0]).toMatchObject({ average: 94.5, attempts: 4, averageDurationSeconds: 132, correctHardCount: 3, attemptedMediumCount: 6 });
+  const simulation = await (await request(path + "&type=simulation")).json() as CourseRanking;
+  expect(simulation).toMatchObject({ assessment: "simulation", ownRank: null, totalStudents: 0, rows: [] });
+  const locked = await createCommunityFixtureRequest("empty")(path);
+  expect(locked.status).toBe(403);
+  expect(await locked.json()).toEqual({ code: "forbidden" });
 });
 
 test("community fixture recovery is scoped to its own transport and retry keeps discussion IDs", async () => {

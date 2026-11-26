@@ -3,23 +3,13 @@ import { TranslatedText } from "@/components/i18n/translated-text";
 import { StudentIdentity } from "@/components/gamification/student-identity";
 import type { StudentIdentity as PublicStudentIdentity } from "@/lib/gamification/social-contracts";
 import type { getCourseLeaderboard } from "@/lib/course-utils";
-function formatDuration(seconds: number) {
-  if (!seconds || seconds <= 0) return "0s";
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  if (mins > 0) {
-    return `${mins}m ${secs}s`;
-  }
-  return `${secs}s`;
-}
+import { formatCourseLeaderboardDuration, summarizeCourseLeaderboard } from "@/lib/student/course-leaderboard";
 
 export function StudentCourseLeaderboardContent({ rankedRows, userId, activeType, isPka = false, identities = {} }: {
  rankedRows: Awaited<ReturnType<typeof getCourseLeaderboard>>; userId?: string;
  activeType: "quiz" | "simulation"; isPka?: boolean; identities?: Record<string, PublicStudentIdentity>;
 }) {
-  const totalStudents = rankedRows.length;
-  const myEntry = rankedRows.find((r) => r.studentId === userId);
-  const top3 = rankedRows.slice(0, 3);
+  const { totalStudents, ownRank, topRows } = summarizeCourseLeaderboard(rankedRows, userId);
   const typeLabel = activeType === "simulation" ? (isPka ? "simulation" : "tryout") : "quiz";
 
   return (
@@ -37,8 +27,8 @@ export function StudentCourseLeaderboardContent({ rankedRows, userId, activeType
           <div className="flex items-center gap-2 shrink-0">
             <Trophy className="size-4 text-brand-secondary" aria-hidden="true" />
             <div className="text-body-base font-semibold tabular-nums text-foreground">
-              {myEntry ? (
-                <TranslatedText namespace="learning" messageKey="leaderboard.rankOf" values={{ rank: myEntry.rank, total: totalStudents }} />
+              {ownRank !== null ? (
+                <TranslatedText namespace="learning" messageKey="leaderboard.rankOf" values={{ rank: ownRank, total: totalStudents }} />
               ) : (
                 <TranslatedText namespace="learning" messageKey="leaderboard.noScore" values={{ total: totalStudents, type: typeLabel }} />
               )}
@@ -47,7 +37,7 @@ export function StudentCourseLeaderboardContent({ rankedRows, userId, activeType
         </div>
       </section>
 
-      {rankedRows.length === 0 ? (
+      {totalStudents === 0 ? (
         <div className="flex min-h-[45vh] flex-col items-center justify-center px-4 py-12 text-center">
           <div className="mx-auto flex max-w-md flex-col items-center">
             <Trophy className="size-10 text-muted-foreground/30 mb-3" aria-hidden />
@@ -67,13 +57,13 @@ export function StudentCourseLeaderboardContent({ rankedRows, userId, activeType
             <TranslatedText namespace="learning" messageKey="leaderboard.topThree" />
           </h2>
           <ol className="divide-y divide-border/30">
-            {top3.map((entry) => (
+            {topRows.map((entry) => (
               <li key={entry.studentId} className="flex items-start gap-3 py-3">
                 <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted/60 text-body-sm font-semibold tabular-nums">{entry.rank}</span>
                 <div className="min-w-0 flex-1">
                   <StudentIdentity name={entry.studentName} identity={identities[entry.studentId]} />
                   <p className="mt-1 text-body-xs text-muted-foreground">
-                    <TranslatedText namespace="learning" messageKey="leaderboard.attemptDuration" values={{ count: entry.attemptCount, type: typeLabel, duration: formatDuration(entry.avgDuration) }} />
+                    <TranslatedText namespace="learning" messageKey="leaderboard.attemptDuration" values={{ count: entry.attemptCount, type: typeLabel, duration: formatCourseLeaderboardDuration(entry.avgDuration) }} />
                   </p>
                   <p className="mt-0.5 text-body-xs text-muted-foreground"><TranslatedText namespace="learning" messageKey="leaderboard.questionStats" values={{ hard: entry.correctHardCount, medium: entry.attemptedMediumCount }} /></p>
                 </div>

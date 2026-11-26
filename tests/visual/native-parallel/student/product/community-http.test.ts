@@ -14,9 +14,19 @@ import { localStudentCookie } from "./session";
 
 const http = process.env.STUDENT_COMMUNITY_HTTP_BASE;
 const key = "community-test-" + randomUUID().slice(0, 8);
-const ids = { enrolled: key + "-learner", peer: key + "-peer", dual: key + "-dual", active: key + "-active", archived: key + "-archived" };
+const ids = {
+  enrolled: key + "-learner", peer: key + "-peer", dual: key + "-dual", second: key + "-second",
+  third: key + "-third", hidden: key + "-hidden", active: key + "-active", archived: key + "-archived",
+};
 const publicId = key + "-display";
-const users = [ids.enrolled, ids.peer, ids.dual];
+const ranked = [
+  { id: ids.peer, name: "Nara for native community", score: 93 },
+  { id: ids.second, name: "Second-place synthetic learner", score: 88 },
+  { id: ids.third, name: "Third-place synthetic learner", score: 85 },
+  { id: ids.hidden, name: "Fourth-place synthetic learner", score: 77 },
+  { id: ids.enrolled, name: "Synthetic native community", score: 64 },
+];
+const users = [...ranked.map(row => row.id), ids.dual];
 const tokens = new Map<string, string>();
 let client: Client | undefined;
 
@@ -49,7 +59,7 @@ describe.skipIf(!http)("Next native community against disposable local PostgreSQ
     await drizzle(client).transaction(async tx => {
       const expiresAt = new Date(Date.now() + 3600_000);
       for (const id of users) {
-        const name = id === ids.peer ? "Nara for native community" : "Synthetic native community";
+        const name = ranked.find(row => row.id === id)?.name ?? "Synthetic dual-role learner";
         const token = randomUUID();
         tokens.set(id, token);
         await tx.insert(user).values({ id, name, email: id + "@example.invalid", faculty: "FMIPA", major: "Matematika", role: "student" });
@@ -66,7 +76,13 @@ describe.skipIf(!http)("Next native community against disposable local PostgreSQ
         await tx.insert(mataKuliah).values({ id: id + "-canonical", code: id, legacyCourseId: id, title, status: id === ids.active ? "active" : "archived" });
         await tx.insert(enrollments).values({ id, userId: ids.enrolled, courseId: id, expiresAt });
         await tx.insert(quizTemplates).values({ id, title, courseId: id, category: "chapter", status: "published", selectionRules: {}, closeAt: new Date(Date.now() + 86_400_000) });
-        await tx.insert(studentQuizAttempts).values({ id, studentId: ids.peer, templateId: id, score: 93, durationSeconds: 120, status: "completed", questionsSnapshot: [], answersSnapshot: {} });
+        const entries = id === ids.active ? ranked : ranked.slice(0, 1);
+        await tx.insert(studentQuizAttempts).values(entries.map(row => ({
+          id: `${id}-${row.id}`, studentId: row.id, templateId: id, score: row.score, durationSeconds: 120,
+          status: "completed" as const, questionsSnapshot: [
+            { id: "hard", difficulty: "hard", correct_indices: [0] }, { id: "medium", difficulty: "medium" },
+          ], answersSnapshot: { hard: [0] },
+        })));
       }
       await tx.insert(gamificationProfiles).values({
         userId: ids.peer, publicId, visibility: "members", showFaculty: true, showMajor: false, leaderboardOptIn: true,
@@ -107,18 +123,41 @@ describe.skipIf(!http)("Next native community against disposable local PostgreSQ
     expect(result.boards[0].rows[0]).toMatchObject({ average: 93, attempts: 1, identity: { publicId } });
     expect(result.boards[0].rows[0]).not.toHaveProperty("studentId");
     expect(result.boards[0].rows[0]).not.toHaveProperty("questionsSnapshot");
-    expect((await request("course-ranking?id=" + ids.active, ids.peer)).status).toBe(403);
-    expect((await request("course-ranking?id=matematika-1", "student-evidence-revoked")).status).toBe(403);
-    const course = await request("course-ranking?id=" + ids.active + "&type=simulation", ids.enrolled);
-    expect(course.status).toBe(200);
-    const simulations = await course.json() as CourseRanking;
-    expect(simulations.assessment).toBe("simulation");
-    expect(simulations.rows).toHaveLength(0);
     const calendar = await request("calendar", ids.enrolled);
     expect(calendar.status).toBe(200);
     const agenda = await calendar.json() as AgendaData;
     expect(agenda.events.some(event => event.id === "quiz-" + ids.active)).toBe(true);
     expect(agenda.events.some(event => event.id === "quiz-" + ids.archived)).toBe(false);
+  }, 90_000);
+
+  test("course ranking sends three named rows and the signed-in learner's rank summary", async () => {
+    const path = "course-ranking?id=" + ids.active;
+    const course = { id: ids.active, title: "Native community math" };
+    const response = await request(path, ids.enrolled);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    const board = await response.json() as CourseRanking;
+    expect(board).toEqual({
+      course, assessment: "quiz", ownRank: 5, totalStudents: 5,
+      rows: ranked.slice(0, 3).map((row, index) => ({
+        rank: index + 1, name: row.name, average: row.score, attempts: 1, isSelf: false,
+        averageDurationSeconds: 120, correctHardCount: 1, attemptedMediumCount: 1,
+        identity: index === 0 ? {
+          publicId, displayName: row.name, avatarUrl: null, rankKey: "rakyat", equippedFrameId: null, equippedThemeId: null,
+        } : null,
+      })),
+    });
+
+    const simulations = await request(path + "&type=simulation", ids.enrolled);
+    expect(simulations.status).toBe(200);
+    expect(await simulations.json()).toEqual({ course, assessment: "simulation", ownRank: null, totalStudents: 0, rows: [] });
+    const anonymous = await request(path);
+    expect(anonymous.status).toBe(401);
+    expect(await anonymous.json()).toEqual({ code: "SESSION_EXPIRED" });
+    const locked = await request(path, ids.peer);
+    expect(locked.status).toBe(403);
+    expect(await locked.json()).toEqual({ code: "forbidden" });
+    expect((await request("course-ranking?id=matematika-1", "student-evidence-revoked")).status).toBe(403);
   }, 90_000);
 
   test("the weekly schedule supplies seven Jakarta dates and notification timing is account-owned", async () => {

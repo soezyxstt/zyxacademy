@@ -1,4 +1,5 @@
 import { View } from "react-native";
+import { formatCourseLeaderboardDuration } from "../../../../../lib/student/course-leaderboard";
 import type { AcademicRanking, CourseRanking, LeaderboardPage, RankingRow } from "../../../../../packages/native-parity/student/community/contracts";
 import { Action, Actions, Choices, Copy, Page, Remote, Row, Rows, communityPath, styles, useCommunity, useRemote } from "./ui";
 
@@ -75,15 +76,44 @@ export function LeaderboardScreen() {
 }
 
 export function CourseLeaderboardScreen() {
-  const { route, navigate, tr } = useCommunity();
+  const { route, navigate, session, tr } = useCommunity();
   const id = route.params.id;
   const type = route.query.type === "simulation" ? "simulation" : "quiz";
+  const quizLabel = tr("Kuis", "Quiz");
+  const simulationLabel = id === "tutorial-pka" ? tr("Simulasi", "Simulation") : "Tryout";
+  const assessmentLabel = (type === "quiz" ? quizLabel : simulationLabel).toLowerCase();
   const data = useRemote<CourseRanking>(communityPath("course-ranking", { id, type }));
   const base = `/courses/${encodeURIComponent(id)}/leaderboard`;
+  const number = new Intl.NumberFormat(session.locale);
+  const percent = new Intl.NumberFormat(session.locale, { style: "percent", maximumFractionDigits: 1 });
   return <Page title={data.data ? `${tr("Papan peringkat", "Leaderboard")} · ${data.data.course.title}` : tr("Papan peringkat kursus", "Course leaderboard")}>
-    <Choices value={type} options={[{ value: "quiz", label: tr("Kuis", "Quiz") },
-      { value: "simulation", label: id === "tutorial-pka" ? tr("Simulasi", "Simulation") : "Tryout" }]}
+    <Choices value={type} options={[{ value: "quiz", label: quizLabel }, { value: "simulation", label: simulationLabel }]}
       onSelect={value => navigate(`${base}?type=${value}`)} />
-    <Remote state={data}>{board => <AcademicRows rows={board.rows} />}</Remote>
+    <Remote state={data}>{board => {
+      const rank = board.ownRank === null ? "-" : number.format(board.ownRank);
+      const total = number.format(board.totalStudents);
+      return <>
+        <View style={styles.block}>
+          <Copy kind="heading">{tr("Peringkat Anda", "Your rank")}</Copy>
+          <Copy kind="strong">{tr(`${rank} dari ${total}`, `${rank} of ${total}`)}</Copy>
+          {board.ownRank === null && <Copy kind="muted">{tr(`Belum ada skor ${assessmentLabel}.`, `No ${assessmentLabel} scores yet.`)}</Copy>}
+        </View>
+        {board.rows.length > 0 ? <View style={styles.block}>
+          <Copy kind="heading">{tr("3 teratas", "Top 3")}</Copy>
+          <Rows>{board.rows.map(row => {
+            const attempts = number.format(row.attempts);
+            const duration = formatCourseLeaderboardDuration(row.averageDurationSeconds);
+            const hard = number.format(row.correctHardCount);
+            const medium = number.format(row.attemptedMediumCount);
+            const attemptStats = tr(`${attempts} percobaan ${assessmentLabel} · ${duration}`, `${attempts} ${assessmentLabel} ${row.attempts === 1 ? "attempt" : "attempts"} · ${duration}`);
+            const questionStats = tr(`${hard} soal sulit benar · ${medium} soal sedang dikerjakan`, `${hard} difficult questions correct · ${medium} medium questions attempted`);
+            return <Row key={row.rank} title={`#${number.format(row.rank)} ${row.name}${row.isSelf ? tr(" (Anda)", " (You)") : ""}`}
+              meta={`${attemptStats}\n${questionStats}`}
+              aside={percent.format(row.average / 100)}
+              onPress={row.identity ? () => navigate(identityPath(row.identity!.publicId)) : undefined} />;
+          })}</Rows>
+        </View> : <Copy kind="muted">{tr(`Selesaikan ${assessmentLabel} untuk masuk peringkat.`, `Complete a ${assessmentLabel} to appear in the rankings.`)}</Copy>}
+      </>;
+    }}</Remote>
   </Page>;
 }

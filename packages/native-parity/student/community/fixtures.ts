@@ -1,6 +1,6 @@
 import type { DiscussionChannelMetadata, DiscussionMessage, DiscussionThread } from "../../../../lib/discussions/contracts";
 import type {
-  AchievementData, AgendaData, Group, LeaderboardPage, NotificationPreferences, Profile,
+  AchievementData, AgendaData, CourseRanking, Group, LeaderboardPage, NotificationPreferences, Profile,
   PublicStudentProfile, Reflection, Schedule, StudentIdentity,
 } from "./contracts";
 
@@ -27,6 +27,14 @@ const initialRewards: AchievementData["rewards"] = [
   { id: "frame-classic", name: "Bingkai klasik", slot: "frame", priceLp: 200, owned: true, equipped: true },
 ];
 const ranking = { rank: 1, name: identity.displayName, average: 94.5, attempts: 4, identity, isSelf: false };
+const courseRanking = {
+  course: subject, ownRank: 5, totalStudents: 5,
+  rows: [
+    { ...ranking, averageDurationSeconds: 132, correctHardCount: 3, attemptedMediumCount: 6 },
+    { rank: 2, name: "Raisa Dewi", average: 92, attempts: 4, identity: null, isSelf: false, averageDurationSeconds: 147, correctHardCount: 2, attemptedMediumCount: 6 },
+    { rank: 3, name: "Gilang Pratama", average: 90, attempts: 3, identity: null, isSelf: false, averageDurationSeconds: 156, correctHardCount: 1, attemptedMediumCount: 5 },
+  ],
+} satisfies Omit<CourseRanking, "assessment">;
 const rankedStudent = { ...identity, position: 1, baseXpMicro: 165_000_000, avatarMode: "photo", avatarBadgeId: null, badgeTier: null } as const;
 const initialPublic: PublicStudentProfile = {
   ...identity, avatarBadgeId: null, avatarMode: "photo", baseXpMicro: null, avatarBadgeTier: null,
@@ -226,9 +234,14 @@ export function createCommunityFixtureRequest(scenario: CommunityFixtureScenario
       case "pet": return response({ summary: currentSummary, items: populated ? rewards.filter(item => item.slot.startsWith("pet_") || item.slot === "zyra_avatar") : [] });
       case "academic-ranking": return response({ courses: member ? [subject] : [], courseId: query.get("course") === subject.id && member ? subject.id : null,
         boards: member ? [{ course: subject, rows: populated ? [ranking] : [] }] : [] });
-      case "course-ranking": return query.get("id") !== subject.id ? response({ code: "unavailable" }, 404)
-        : member ? response({ course: subject, rows: populated ? [ranking] : [], assessment: query.get("type") === "simulation" ? "simulation" : "quiz" })
-          : response({ code: "forbidden" }, 403);
+      case "course-ranking": {
+        if (query.get("id") !== subject.id) return response({ code: "unavailable" }, 404);
+        if (!member) return response({ code: "forbidden" }, 403);
+        const board: CourseRanking = query.get("type") === "simulation"
+          ? { course: subject, assessment: "simulation", rows: [], ownRank: null, totalStudents: 0 }
+          : { ...courseRanking, assessment: "quiz" };
+        return response(board);
+      }
       case "participation-ranking": return response({ entries: populated ? [rankedStudent] : [], ownEntry: null, nextCursor: null } satisfies LeaderboardPage);
       case "groups": return response(member ? [group] : []);
       case "group-rename": return response({ success: member, canRename: member, nextRenameAt: null });

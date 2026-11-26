@@ -18,7 +18,8 @@ import { getActivityNotificationPreferences } from "@/lib/notifications/activity
 import { getJakartaCalendarDate } from "@/lib/date-utils";
 import { addTutorialDays, canBookTutorialSlot } from "@/lib/schedule/week-policy";
 import { getPeranCodes } from "@/lib/auth/authorization";
-import type { AcademicRanking, AchievementTab, Group, NotificationPreferences, RankingRow, Schedule } from "@/packages/native-parity/student/community/contracts";
+import { summarizeCourseLeaderboard } from "@/lib/student/course-leaderboard";
+import type { AcademicRanking, AchievementTab, CourseRanking, Group, NotificationPreferences, RankingRow, Schedule } from "@/packages/native-parity/student/community/contracts";
 
 type Ranked = Awaited<ReturnType<typeof getCourseLeaderboard>>;
 
@@ -41,13 +42,21 @@ export async function getNativeAcademicRanking(userId: string, requestedCourse?:
   return { courses, courseId, boards: ranked.map(({ course, rows }) => ({ course, rows: projectRankings(userId, rows, identities) })) };
 }
 
-export async function getNativeCourseRanking(userId: string, id: string, assessment: "quiz" | "simulation") {
+export async function getNativeCourseRanking(userId: string, id: string, assessment: "quiz" | "simulation"): Promise<CourseRanking | null> {
   const course = await getCourse(id);
   if (!course) return null;
   if (!await checkFullCourseContentAccess(id)) throw new Error("Forbidden");
-  const rows = await getCourseLeaderboard(id, assessment);
-  const identities = rows.length ? await getVisibleStudentIdentities(userId, rows.slice(0, 3).map(row => row.studentId)).catch(() => new Map()) : new Map();
-  return { course: { id, title: course.title }, assessment, rows: projectRankings(userId, rows, identities) };
+  const rankedRows = await getCourseLeaderboard(id, assessment);
+  const { topRows, ownRank, totalStudents } = summarizeCourseLeaderboard(rankedRows, userId);
+  const identities = topRows.length ? await getVisibleStudentIdentities(userId, topRows.map(row => row.studentId)).catch(() => new Map()) : new Map();
+  return {
+    course: { id, title: course.title }, assessment, ownRank, totalStudents,
+    rows: topRows.map(row => ({
+      rank: row.rank, name: row.studentName, average: row.avgScore, attempts: row.attemptCount,
+      identity: identities.get(row.studentId) ?? null, isSelf: row.studentId === userId,
+      averageDurationSeconds: row.avgDuration, correctHardCount: row.correctHardCount, attemptedMediumCount: row.attemptedMediumCount,
+    })),
+  };
 }
 
 export async function getNativeAchievements(userId: string, tab: AchievementTab) {

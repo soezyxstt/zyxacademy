@@ -31,7 +31,13 @@ export type AcademicRanking = {
   courseId: string | null;
   boards: { course: CourseChoice; rows: RankingRow[] }[];
 };
-export type CourseRanking = { course: CourseChoice; assessment: "quiz" | "simulation"; rows: RankingRow[] };
+export type CourseRanking = {
+  course: CourseChoice;
+  assessment: "quiz" | "simulation";
+  ownRank: number | null;
+  totalStudents: number;
+  rows: (RankingRow & { averageDurationSeconds: number; correctHardCount: number; attemptedMediumCount: number })[];
+};
 export type Group = {
   id: string; name: string; status: string; packageName: string | null;
   remainingQuota: number; weeklyRemainingQuota: number;
