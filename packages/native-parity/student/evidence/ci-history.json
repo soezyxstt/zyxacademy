@@ -286,6 +286,128 @@
       "ios": {
         "jobId": 139905770793,
         "status": "pending_at_observation"
+      },
+      "checkoutSha": "8f073512c063882ac5a24621824ad7cee84c2832",
+      "laterObservations": [
+        {
+          "observedAt": "2026-11-26T13:08:38Z",
+          "android": {
+            "jobId": 139905770183,
+            "status": "device_flows_completed_with_failures",
+            "reason": "Android captured 180 smoke passes, with 20 transport failures remaining after one targeted retry recovered ten of 30 cases. Three cases were blocked. Sixteen of 18 standalone scenarios passed, including quiz draft and flashcard grading. Material scroll restoration passed, and all six matched catalog and flashcard pairs differed from web.",
+            "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45818468369/artifacts/15120241857",
+            "summaryCounts": {
+              "passed": 180,
+              "blocked": 3,
+              "failed": 20
+            },
+            "standaloneCounts": {
+              "passed": 16,
+              "failed": 2
+            },
+            "comparison": [
+              {
+                "id": "catalog-all",
+                "status": "different",
+                "differing_pixels": 53261,
+                "max_channel_difference": 227
+              },
+              {
+                "id": "catalog-tpb",
+                "status": "different",
+                "differing_pixels": 45211,
+                "max_channel_difference": 227
+              },
+              {
+                "id": "catalog-pka",
+                "status": "different",
+                "differing_pixels": 28344,
+                "max_channel_difference": 227
+              },
+              {
+                "id": "flashcard-question",
+                "status": "different",
+                "differing_pixels": 23397,
+                "max_channel_difference": 214
+              },
+              {
+                "id": "flashcard-review-pending",
+                "status": "different",
+                "differing_pixels": 45803,
+                "max_channel_difference": 255
+              },
+              {
+                "id": "flashcard-review-failed",
+                "status": "different",
+                "differing_pixels": 68175,
+                "max_channel_difference": 255
+              }
+            ],
+            "scrollRestoration": {
+              "status": "pass",
+              "region": [
+                38,
+                205,
+                342,
+                615
+              ],
+              "dimensions": [
+                380,
+                820
+              ],
+              "different_pixels": 0,
+              "before": "results/2026-11-26_124659/Student course long material list fixture/takeScreenshot/student-long-content.png",
+              "after": "results/2026-11-26_124659/Student course long material list fixture/takeScreenshot/student-long-content-restored.png"
+            },
+            "transportRetry": {
+              "initialFailed": 30,
+              "retryPassed": 10,
+              "retryFailed": 20,
+              "recovered": [
+                "smoke-046",
+                "smoke-047",
+                "smoke-048",
+                "smoke-049",
+                "smoke-050",
+                "smoke-051",
+                "smoke-052",
+                "smoke-053",
+                "smoke-054",
+                "smoke-055"
+              ],
+              "originalJunit": "smoke-junit/community.xml",
+              "retryJunit": "smoke-junit/community-retry/report.xml",
+              "selection": "smoke-junit/community-retry/selected.json",
+              "preferenceConfirmation": "The preference case smoke-070 lost device transport in both attempts."
+            }
+          },
+          "ios": {
+            "jobId": 139905770793,
+            "status": "cancelled_before_device_flows"
+          }
+        }
+      ]
+    },
+    {
+      "runId": 45824831032,
+      "sourceHead": "bdae1785d8e95d542df36c6b7ee2bbcb500f3859",
+      "checkoutSha": "ccfeb5809bb8da43b2fc2973ad34a6546d9a1d17",
+      "url": "https://github.com/soezyxstt/zyxacademy/actions/runs/45824831032",
+      "observedAt": "2026-11-26T13:08:38Z",
+      "web": {
+        "jobId": 139926225522,
+        "status": "passed",
+        "details": "Six primary synthetic web reference tests and one matched flashcard test passed.",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45824831032/artifacts/15120456140"
+      },
+      "android": {
+        "jobId": 139927769797,
+        "status": "in_progress_at_observation",
+        "details": "Android release build in progress."
+      },
+      "ios": {
+        "jobId": 139927769305,
+        "status": "pending_at_observation"
       }
     }
   ]

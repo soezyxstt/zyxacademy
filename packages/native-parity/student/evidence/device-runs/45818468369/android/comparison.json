@@ -1,0 +1,178 @@
+[
+  {
+    "id": "catalog-all",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/android/catalog-all.png",
+      "width": 380,
+      "height": 820
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/results/2026-11-26_124659/Catalog comparable fixture all TPB and PKA/takeScreenshot/student-catalog-all.png",
+      "width": 380,
+      "height": 820
+    },
+    "status": "different",
+    "differing_pixels": 53261,
+    "max_channel_difference": 227,
+    "bounds": [
+      0,
+      5,
+      380,
+      817
+    ],
+    "diff": "artifacts/student-evidence/android/comparison/catalog-all-diff.png"
+  },
+  {
+    "id": "catalog-tpb",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/android/catalog-tpb.png",
+      "width": 380,
+      "height": 820
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/results/2026-11-26_124659/Catalog comparable fixture all TPB and PKA/takeScreenshot/student-catalog-tpb.png",
+      "width": 380,
+      "height": 820
+    },
+    "status": "different",
+    "differing_pixels": 45211,
+    "max_channel_difference": 227,
+    "bounds": [
+      0,
+      5,
+      380,
+      817
+    ],
+    "diff": "artifacts/student-evidence/android/comparison/catalog-tpb-diff.png"
+  },
+  {
+    "id": "catalog-pka",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/android/catalog-pka.png",
+      "width": 380,
+      "height": 820
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/results/2026-11-26_124659/Catalog comparable fixture all TPB and PKA/takeScreenshot/student-catalog-pka.png",
+      "width": 380,
+      "height": 820
+    },
+    "status": "different",
+    "differing_pixels": 28344,
+    "max_channel_difference": 227,
+    "bounds": [
+      0,
+      5,
+      380,
+      817
+    ],
+    "diff": "artifacts/student-evidence/android/comparison/catalog-pka-diff.png"
+  },
+  {
+    "id": "flashcard-question",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/flashcard/learning-query-flashcard-reference-matches-the-device-inputs-mobile-380/android/flashcard-question.png",
+      "width": 380,
+      "height": 820
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/results/2026-11-26_124659/Learning flashcard flip and grade/takeScreenshot/student-flashcard-question.png",
+      "width": 380,
+      "height": 820
+    },
+    "status": "different",
+    "differing_pixels": 23397,
+    "max_channel_difference": 214,
+    "bounds": [
+      14,
+      5,
+      366,
+      810
+    ],
+    "diff": "artifacts/student-evidence/android/comparison/flashcard-question-diff.png"
+  },
+  {
+    "id": "flashcard-review-pending",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/flashcard/learning-query-flashcard-reference-matches-the-device-inputs-mobile-380/android/flashcard-review-pending.png",
+      "width": 380,
+      "height": 820
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/results/2026-11-26_124659/Learning flashcard flip and grade/takeScreenshot/student-flashcard-review-pending.png",
+      "width": 380,
+      "height": 820
+    },
+    "status": "different",
+    "differing_pixels": 45803,
+    "max_channel_difference": 255,
+    "bounds": [
+      0,
+      5,
+      380,
+      810
+    ],
+    "diff": "artifacts/student-evidence/android/comparison/flashcard-review-pending-diff.png"
+  },
+  {
+    "id": "flashcard-review-failed",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/flashcard/learning-query-flashcard-reference-matches-the-device-inputs-mobile-380/android/flashcard-review-failed.png",
+      "width": 380,
+      "height": 820
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/results/2026-11-26_124659/Learning flashcard flip and grade/takeScreenshot/student-flashcard-review-failed.png",
+      "width": 380,
+      "height": 820
+    },
+    "status": "different",
+    "differing_pixels": 68175,
+    "max_channel_difference": 255,
+    "bounds": [
+      0,
+      5,
+      380,
+      810
+    ],
+    "diff": "artifacts/student-evidence/android/comparison/flashcard-review-failed-diff.png"
+  },
+  {
+    "id": "catalog-versus-enrolled-dashboard",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/visual-quality/results/native-parallel-student-we-a025d-ulated-filtered-and-loading-mobile-380/catalog-populated.png",
+      "width": 380,
+      "height": 844
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/results/2026-11-26_124659/Student course enrolled fixture/takeScreenshot/student-enrolled-dashboard.png",
+      "width": 380,
+      "height": 820
+    },
+    "status": "not_comparable",
+    "reason": "Different screen and synthetic course records; cannot compare pixels."
+  },
+  {
+    "id": "catalog-versus-unenrolled-dashboard",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/visual-quality/results/native-parallel-student-we-a025d-ulated-filtered-and-loading-mobile-380/catalog-populated.png",
+      "width": 380,
+      "height": 844
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/results/2026-11-26_124659/Student course unenrolled fixture/takeScreenshot/student-unenrolled-dashboard.png",
+      "width": 380,
+      "height": 820
+    },
+    "status": "not_comparable",
+    "reason": "Different screen and synthetic course records; cannot compare pixels."
+  }
+]
