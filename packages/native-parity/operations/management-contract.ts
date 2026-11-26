@@ -1,4 +1,4 @@
-import type { FormQuestion as ValidatedFormQuestion } from "../../../lib/forms/validation";
+import type { FormQuestion as ValidatedFormQuestion, FormSettings as ValidatedFormSettings } from "../../../lib/forms/validation";
 
 export const managementRoutes = [
   "/admin/blog", "/admin/blog/new", "/admin/blog/[id]/edit", "/admin/forms", "/admin/forms/[id]",
@@ -57,11 +57,7 @@ export const questionTypes = {
   DATE: "Tanggal", TIME: "Waktu", SECTION: "Bagian", STATEMENT: "Pernyataan",
 } as const;
 export type FormQuestion = ValidatedFormQuestion;
-export type FormSettings = {
-  acceptingResponses?: boolean; displayMode?: "question" | "section"; collectEmail?: "none" | "input" | "verified";
-  openAt?: string; closeAt?: string; closedMessage?: string; customSuccessMessage?: string;
-  allowResponseEditing?: boolean; limitToOneResponse?: boolean; sendResponseCopy?: "off" | "requested" | "always";
-};
+export type FormSettings = ValidatedFormSettings;
 export type FormFields = {
   title: string; description: string; category: keyof typeof formCategories; slug: string; questions: FormQuestion[]; settings: FormSettings;
 };
