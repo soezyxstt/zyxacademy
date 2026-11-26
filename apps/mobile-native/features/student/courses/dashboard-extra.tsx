@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { nativeColors } from "../../../../../packages/design-tokens/native-colors";
+import { nativeColors, nativeLinkInks } from "../../../../../packages/design-tokens/native-colors";
 import { coursePath, learningEndpoint, type DashboardExtrasData } from "../../../../../packages/native-parity/student/courses/contract";
 import studentCourseEn from "../../../../../messages/en/studentCourse.json";
 import studentCourseId from "../../../../../messages/id/studentCourse.json";
@@ -11,9 +11,10 @@ import { StudentListRow } from "../ListRow";
 import type { StudentRequest } from "../contracts";
 import { matchStudentRoute } from "../routes";
 import type { CourseCopy } from "./copy";
-import { dashboardMessages } from "./dashboard-overview";
+import { countLabel, dashboardMessages, DashboardSectionHeading } from "./dashboard-overview";
 import { DashboardLink } from "./dashboard-link";
-import { NavigationIcon } from "../../shared-ui/navigation-icons";
+import { RankArtwork } from "./RankArtwork";
+import { NavigationIcon, type NavigationIconName } from "../../shared-ui/navigation-icons";
 
 type Theme = keyof typeof nativeColors;
 type PaneProps = { copy: CourseCopy; theme: Theme; locale: string; navigate(path: string): void };
@@ -48,9 +49,11 @@ export function useDashboardExtras(request: StudentRequest, enabled: boolean) {
   return { ...(enabled ? state : {}), reload: () => setRevision(value => value + 1) };
 }
 
-function Panel({ title, theme, children }: { title: string; theme: Theme; children: ReactNode }) {
+function Panel({ title, theme, icon, meta, children }: {
+  title: string; theme: Theme; icon?: NavigationIconName; meta?: ReactNode; children: ReactNode;
+}) {
   return <View style={styles.panel}>
-    <Text accessibilityRole="header" style={[styles.heading, { color: nativeColors[theme].foreground }]}>{title}</Text>
+    <DashboardSectionHeading title={title} theme={theme} icon={icon} meta={meta} />
     {children}
   </View>;
 }
@@ -172,22 +175,23 @@ export function DashboardTop({ data, request, ...props }: PaneProps & { data?: D
     {achievements ? <DashboardLink theme={theme} label={`${copy.achievements}, ${achievements.rank}, ${xp}, ${lp}`}
       testID="student-dashboard-achievements" onPress={() => navigate("/achievements")}
       style={[styles.achievements, { borderBottomColor: colors.border }]}>
-      <NavigationIcon name="classes" size={28} color={colors.primary} />
+      <RankArtwork rank={achievements.rank} size={56} />
       <View style={styles.achievementLabels}>
         <Text style={[styles.achievementHeading, { color: colors.foreground }]}>{copy.achievements}</Text>
         <View style={styles.achievementValues}>
           <Text style={[styles.achievementRank, { color: colors.foreground }]}>{achievements.rank}</Text>
-          <Text style={[styles.achievementValue, { color: colors.mutedForeground }]}>{xp}</Text>
-          <Text style={[styles.achievementValue, { color: colors.mutedForeground }]}>{lp}</Text>
+          <Text style={[styles.achievementValue, styles.separated, { color: colors.mutedForeground, borderLeftColor: colors.border }]}>{xp}</Text>
+          <Text style={[styles.achievementValue, styles.separated, { color: colors.mutedForeground, borderLeftColor: colors.border }]}>{lp}</Text>
         </View>
       </View>
-      <NavigationIcon name="chevron" size={16} color={colors.mutedForeground} />
+      <NavigationIcon name="chevron-right" size={16} color={colors.mutedForeground} />
     </DashboardLink> : null}
   </>;
 }
 
 export function DashboardBottom({ state, ...props }: PaneProps & { state: ExtrasState & { reload(): void } }) {
   const { copy, theme, locale } = props;
+  const colors = nativeColors[theme];
   const { assessments, mastery, reviews, reflection } = state.data ?? {};
   const count = new Intl.NumberFormat(locale);
   const date = new Intl.DateTimeFormat(locale, { dateStyle: "medium" });
@@ -196,9 +200,14 @@ export function DashboardBottom({ state, ...props }: PaneProps & { state: Extras
   const masteryMeasured = mastery?.concepts.some(item => item.measured);
   const reviewCourseId = reviews?.courseId;
   return <>
-    {reviews ? <Panel theme={theme} title={messages.spacedRepetition}>
-      <Info theme={theme}>{reviews.due > 0 ? `${count.format(reviews.due)} ${copy.reviewDue}` : messages.allCardsDone}</Info>
-      {reviewCourseId ? <Button theme={theme} size="default" variant={reviews.due ? "default" : "outline"} accessibilityRole="link"
+    {reviews ? <Panel theme={theme} title={messages.spacedRepetition} icon="layers" meta={
+      <View style={styles.status}>
+        <View style={[styles.dot, { backgroundColor: reviews.due ? nativeLinkInks.warning : nativeLinkInks.success }]} />
+        <Text style={[styles.statusText, { color: colors.foreground }]}>{reviews.due ? countLabel(messages.cardsDue, reviews.due, locale) : messages.allCardsDone}</Text>
+      </View>
+    }>
+      {reviewCourseId ? <Button theme={theme} size="sm" wrapLabel style={styles.reviewButton} labelStyle={{ textAlign: "left" }}
+        renderIcon={(color, size) => <NavigationIcon name="arrow-right" color={color} size={size} />} iconPosition="end" variant={reviews.due ? "default" : "outline"} accessibilityRole="link"
         onPress={() => props.navigate(`${coursePath(reviewCourseId)}/flashcard`)}>
         {reviews.courseTitle ? (reviews.due ? messages.startFlashcardReviewCourse : messages.openFlashcardCollectionCourse).replace("{courseTitle}", reviews.courseTitle)
           : reviews.due ? messages.startFlashcardReview : messages.openFlashcardCollection}
@@ -208,20 +217,30 @@ export function DashboardBottom({ state, ...props }: PaneProps & { state: Extras
         subtitle={`${item.courseTitle} · ${date.format(new Date(item.reviewedAt))}`}
         metadata={[{ id: "grade", label: locale.startsWith("en") ? "Grade" : "Nilai", value: count.format(item.grade) }]} />)}
     </Panel> : null}
-    {assessments ? <Panel theme={theme} title={messages.availableAssessments}>
-      {assessments.total === 0 ? <Info theme={theme}>{messages.allExamsDone}</Info> : null}
+    {assessments ? <Panel theme={theme} title={messages.availableAssessments} icon="clipboard" meta={
+      assessments.total > 0 && <Info theme={theme}>{countLabel(messages.examCount, assessments.total, locale)}</Info>
+    }>
+      {assessments.total === 0 && <View style={styles.inlineEmpty}>
+        <NavigationIcon name="circle-check" size={16} color={nativeLinkInks.success} />
+        <Text style={[styles.emptyLabel, { color: colors.mutedForeground }]}>{messages.allExamsDone}</Text>
+      </View>}
       {assessments.items.map(item => <LinkRow key={item.id} {...props} title={item.title} subtitle={`${item.courseTitle} · ${copy[item.type]}`}
         path={`${coursePath(item.courseId)}/${item.type}/${encodeURIComponent(item.id)}`} />)}
       {assessments.total > assessments.items.length && assessments.items[0] ? <LinkRow {...props} title={copy.moreAssessments}
         path={`${coursePath(assessments.items[0].courseId)}/quiz`} /> : null}
     </Panel> : null}
-    {mastery ? <Panel theme={theme} title={masteryMessages.title.replace("{courseTitle}", mastery.title)}>
+    {mastery ? <Panel theme={theme} icon="target" title={masteryMessages.title.replace("{courseTitle}", mastery.title)}>
       {masteryMeasured ? mastery.concepts.map(item => <StudentListRow key={item.name} theme={theme} title={item.name}
         subtitle={item.measured ? `${item.score}%` : copy.masteryUnavailable} />) : <View style={styles.masteryEmpty}>
-        <Info theme={theme}>{masteryMessages.noData}</Info>
-        <Info theme={theme}>{masteryMessages.noDataDescription}</Info>
+        <NavigationIcon name="target" size={24} color={`${colors.mutedForeground}80`} />
+        <Text style={[styles.achievementRank, { color: colors.foreground }]}>{masteryMessages.noData}</Text>
+        <Text style={[styles.info, styles.masteryHint, { color: colors.mutedForeground }]}>{masteryMessages.noDataDescription}</Text>
       </View>}
-      <LinkRow {...props} path={`${coursePath(mastery.courseId)}/mastery`} title={messages.fullMasteryMap} />
+      <DashboardLink label={messages.fullMasteryMap} theme={theme} testID="student-dashboard-mastery"
+        onPress={() => props.navigate(`${coursePath(mastery.courseId)}/mastery`)} style={styles.masteryLink}>
+        <Text style={[styles.statusText, { color: colors.mutedForeground }]}>{messages.fullMasteryMap}</Text>
+        <NavigationIcon name="arrow-up-right" size={14} color={colors.mutedForeground} />
+      </DashboardLink>
     </Panel> : null}
     {reflection ? <LinkRow {...props} path="/profile/reflections" title={copy.weeklyReflection}
       subtitle={[
@@ -241,15 +260,23 @@ export function DashboardBottom({ state, ...props }: PaneProps & { state: Extras
 
 const styles = StyleSheet.create({
   panel: { gap: 10, marginTop: 14 },
-  heading: { fontSize: 16, lineHeight: 24, ...nativeTypography.headingBold, includeFontPadding: false },
+  inlineEmpty: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 8 },
+  emptyLabel: { ...nativeTypography.bodyRegular, fontSize: 14, lineHeight: 20, flexShrink: 1, includeFontPadding: false },
+  status: { flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 1 },
+  statusText: { ...nativeTypography.bodySemibold, fontSize: 12, lineHeight: 18, flexShrink: 1, includeFontPadding: false },
+  dot: { width: 8, height: 8, borderRadius: 4 },
+  reviewButton: { height: "auto", minHeight: 32, paddingVertical: 6 },
   info: { fontSize: 12, lineHeight: 18, ...nativeTypography.bodyRegular, includeFontPadding: false },
   achievements: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 76, paddingBottom: 16, borderBottomWidth: StyleSheet.hairlineWidth },
   achievementLabels: { flex: 1, minWidth: 0, gap: 4 },
   achievementHeading: { ...nativeTypography.headingBold, fontSize: 14, lineHeight: 20, includeFontPadding: false },
   achievementValues: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  separated: { borderLeftWidth: StyleSheet.hairlineWidth, paddingLeft: 10 },
   achievementRank: { ...nativeTypography.bodySemibold, fontSize: 14, lineHeight: 20, includeFontPadding: false },
   achievementValue: { ...nativeTypography.bodyRegular, fontSize: 14, lineHeight: 20, includeFontPadding: false },
-  masteryEmpty: { alignItems: "center", gap: 4, paddingVertical: 16 },
+  masteryEmpty: { alignItems: "center", gap: 4, paddingVertical: 16, paddingHorizontal: 12 },
+  masteryHint: { textAlign: "center", maxWidth: 320 },
+  masteryLink: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", gap: 4, minHeight: 32 },
   task: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 48, paddingHorizontal: 4 },
   taskLink: { flex: 1, minWidth: 0 },
   action: { alignSelf: "flex-start", minHeight: 44 },
