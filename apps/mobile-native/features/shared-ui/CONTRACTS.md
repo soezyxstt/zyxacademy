@@ -30,7 +30,7 @@ Toolbar daftar diskusi dapat memberi ruang pencarian saat dibuka, dengan query d
 
 | Ekspor | Props dan callback | ID pengujian |
 | --- | --- | --- |
-| `ResponsiveGrid<Item>` | `items`, `getItemKey(item)`, dan `renderItem(item)`. Lebar kontainer, skala teks, `minItemWidth`, dan `maxColumns` menentukan kolom. | `T` |
+| `ResponsiveGrid<Item>` | `items`, `getItemKey(item)`, dan `renderItem(item)`. Secara bawaan, grid dokumen Student beralih ke 2–5 kolom pada lebar kontainer 464, 704, 944, dan 1184 dp yang disesuaikan dengan skala teks. `minItemWidth` atau `gap` mengaktifkan hitungan berdasarkan lebar kartu minimum. `maxColumns` membatasi jumlah kolom. | `T` |
 | `ResponsiveTable<Row>` | `rows`, `getRowKey(row)`, dan `columns` dengan `id`, label kolom, dan `renderCell(row)`. `empty` memberikan isi saat hasil kosong. Kolom berubah menjadi baris bertumpuk pada kontainer sempit atau skala teks besar. | `T` |
 | `Calendar` | Berikan `periodLabel`, `days`, dan `events` dalam zona waktu layar. `CalendarDay.label` adalah tanggal lengkap untuk pembaca layar. `CalendarEvent.dateId` mengacu ke `CalendarDay.id`. Kelola `selectedDateId` dan `selectedEventId` melalui `onDateChange(id)` dan `onEventPress(id)`. `onPeriodChange` menerima `-1` atau `1`. `labels` memasok nama periode, penanda hari ini, kondisi kosong, dan jumlah acara. | `T-previous`, `T-next`, `T-date-<id>`, `T-event-<id>` |
 | `Pagination` | `page` berbasis 1, `pageCount`, dan `onPageChange(page)`. 0 hasil tampil sebagai 0 / 0 jika memakai formatter berikut. `labels` memberi nama navigasi dan teks sibuk. `pending` mengunci perpindahan selama pemuatan. | `T-previous`, `T-next` |
@@ -65,6 +65,10 @@ ID tujuan mengikuti `roleNavigationDestinations`.
 
 Contoh pilihan tab tetap melalui callback yang sama ketika tab ada di overflow. Contoh overlay dapat mempertahankan formulir saat validasi gagal dan mengembalikan fokus ke pemicu setelah ditutup.
 
+Gunakan `SharedDialogFooter` di prop `footer` untuk aksi dialog responsif. Berikan tombol dalam urutan layar lebar, dengan aksi utama terakhir. Di bawah lebar jendela 640 dp, tombol memenuhi lebar footer dan aksi utama tampil serta dibaca lebih dahulu.
+
+Untuk mengukur posisi native di Android, bungkus `SharedPopover` dan tombol pemicunya dalam `SharedPopoverAnchor`. Pastikan batas pembungkus mengikuti tombol dan tombol memiliki area sentuh yang cukup di dalam pembungkus. Teruskan ref tombol ke `anchorRef` untuk pemulihan fokus. `SharedPopover` juga menerima `anchorRef` secara langsung saat pembungkus tidak tersedia. Jika posisi pemicu belum terukur, panel dapat tampil di tengah dan mengikuti posisi pemicu saat pengukuran tersedia.
+
 ```tsx
 <NavigationTabs
   accessibilityLabel="Tampilan peringkat"
@@ -90,7 +94,7 @@ Tombol tutup, backdrop, Back Android, dan gestur Escape VoiceOver memiliki alasa
 
 `SharedPopover` mendukung `maxWidth`, `sideOffset`, `panelStyle`, `bodyMaxHeight`, dan `bodyInsets={false}` untuk panel seperti kotak masuk. Jika memakai `renderHeader`, pasang `headingRef` pada judul dan `closeRef` pada tombol tutup berlabel. Teruskan `onClose`, `closeLabel`, dan `dismissDisabled` ke tombol tersebut agar fokus awal dan penutupan tetap ditangani overlay.
 
-## Uji perilaku kontrol
+## Uji perilaku kontrol dan overlay
 
 Dari akar repo dengan dependensi repo terpasang, jalankan pengujian handler React pada host uji terisolasi.
 

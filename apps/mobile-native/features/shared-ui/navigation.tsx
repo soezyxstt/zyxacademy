@@ -15,7 +15,7 @@ import { hapticSelection } from "../../device/haptics";
 import { nativeControlLabelPosition, nativeTypography } from "../../typography";
 import { BrandSymbol, NavigationIcon, type NavigationIconName } from "./navigation-icons";
 import { visibleNavigationTabs } from "./navigation-model";
-import { SharedPopover } from "./overlays";
+import { SharedPopover, SharedPopoverAnchor } from "./overlays";
 
 type NavigationTheme = keyof typeof nativeColors;
 
@@ -391,77 +391,77 @@ export function NavigationTabs<Id extends string>({
         ))}
         {(!inline || hasOverflow || trailing) ? <View style={styles.tabEnd}>
           {hasOverflow ? (
-            <NavigationControl
-              ref={moreRef}
-              focusColor={colors.accent}
-              accessibilityRole="button"
-              accessibilityState={{ expanded: open, selected: activeInOverflow }}
-              accessibilityLabel={moreLabel}
-              testID={testID ? `${testID}-more` : undefined}
-              onPress={() => setOpen(true)}
-              style={({ pressed }) => [
-                styles.tabControl,
-                styles.moreTab,
-                {
-                  borderBottomColor: activeInOverflow ? indicatorColor : "transparent",
-                  backgroundColor: pressed ? `${colors.muted}66` : undefined,
-                },
-                inline && styles.inlineTabControl,
-              ]}
-            >
-              <View accessible={false} style={[styles.moreDivider, { backgroundColor: colors.border }]} />
-              <Text style={[styles.tabLabel, nativeTypography.bodyMedium, styles.courseTitle, { color: activeInOverflow ? colors.foreground : colors.mutedForeground }]}>
-                {moreLabel}
-              </Text>
-              <NavigationIcon name="chevron" color={colors.mutedForeground} size={14} />
-              {inline && activeInOverflow && <View pointerEvents="none" style={[styles.inlineIndicator, { backgroundColor: indicatorColor }]} />}
-            </NavigationControl>
+            <SharedPopoverAnchor style={styles.moreTab}>
+              <NavigationControl
+                ref={moreRef}
+                focusColor={colors.accent}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: open, selected: activeInOverflow }}
+                accessibilityLabel={moreLabel}
+                testID={testID ? `${testID}-more` : undefined}
+                onPress={() => setOpen(true)}
+                style={({ pressed }) => [
+                  styles.tabControl,
+                  styles.moreTab,
+                  {
+                    borderBottomColor: activeInOverflow ? indicatorColor : "transparent",
+                    backgroundColor: pressed ? `${colors.muted}66` : undefined,
+                  },
+                  inline && styles.inlineTabControl,
+                ]}
+              >
+                <View accessible={false} style={[styles.moreDivider, { backgroundColor: colors.border }]} />
+                <Text style={[styles.tabLabel, nativeTypography.bodyMedium, styles.courseTitle, { color: activeInOverflow ? colors.foreground : colors.mutedForeground }]}>
+                  {moreLabel}
+                </Text>
+                <NavigationIcon name="chevron" color={colors.mutedForeground} size={14} />
+                {inline && activeInOverflow && <View pointerEvents="none" style={[styles.inlineIndicator, { backgroundColor: indicatorColor }]} />}
+              </NavigationControl>
+              <SharedPopover
+                open={open}
+                title={moreLabel}
+                closeLabel={closeLabel}
+                theme={resolvedTheme}
+                testID={testID ? `${testID}-overflow` : undefined}
+                anchorRef={moreRef}
+                align="end"
+                onDismiss={() => setOpen(false)}
+              >
+                {overflow.map(tab => {
+                  const { id, label, disabled, accessibilityLabel } = tab;
+                  const active = id === activeId;
+                  const color = active ? colors.foreground : colors.mutedForeground;
+                  return (
+                    <NavigationControl
+                      key={id}
+                      focusColor={colors.accent}
+                      accessibilityRole="tab"
+                      accessibilityLabel={accessibilityLabel}
+                      accessibilityState={{ selected: active, disabled }}
+                      testID={testID ? `${testID}-overflow-${id}` : undefined}
+                      disabled={disabled}
+                      onPress={() => {
+                        setOpen(false);
+                        select(id);
+                      }}
+                      style={({ pressed }) => [
+                        styles.overflowItem,
+                        { borderStartColor: active ? colors.primary : "transparent",
+                          backgroundColor: active || pressed ? `${colors.muted}80` : "transparent" },
+                        disabled && styles.disabled,
+                      ]}
+                    >
+                      {tab.renderIcon || tab.accessory ? <View style={styles.overflowContent}>{tabContent(tab, color)}</View>
+                        : <Text style={[styles.tabLabel, nativeTypography.bodyMedium, { color }]}>{label}</Text>}
+                    </NavigationControl>
+                  );
+                })}
+              </SharedPopover>
+            </SharedPopoverAnchor>
           ) : null}
           {trailing ? <View onLayout={(event) => setTrailingWidth(event.nativeEvent.layout.width)}>{trailing}</View> : null}
         </View> : null}
       </View>
-      {hasOverflow ? (
-        <SharedPopover
-          open={open}
-          title={moreLabel}
-          closeLabel={closeLabel}
-          theme={resolvedTheme}
-          testID={testID ? `${testID}-overflow` : undefined}
-          anchorRef={moreRef}
-          align="end"
-          onDismiss={() => setOpen(false)}
-        >
-          {overflow.map(tab => {
-            const { id, label, disabled, accessibilityLabel } = tab;
-            const active = id === activeId;
-            const color = active ? colors.foreground : colors.mutedForeground;
-            return (
-              <NavigationControl
-                key={id}
-                focusColor={colors.accent}
-                accessibilityRole="tab"
-                accessibilityLabel={accessibilityLabel}
-                accessibilityState={{ selected: active, disabled }}
-                testID={testID ? `${testID}-overflow-${id}` : undefined}
-                disabled={disabled}
-                onPress={() => {
-                  setOpen(false);
-                  select(id);
-                }}
-                style={({ pressed }) => [
-                  styles.overflowItem,
-                  { borderStartColor: active ? colors.primary : "transparent",
-                    backgroundColor: active || pressed ? `${colors.muted}80` : "transparent" },
-                  disabled && styles.disabled,
-                ]}
-              >
-                {tab.renderIcon || tab.accessory ? <View style={styles.overflowContent}>{tabContent(tab, color)}</View>
-                  : <Text style={[styles.tabLabel, nativeTypography.bodyMedium, { color }]}>{label}</Text>}
-              </NavigationControl>
-            );
-          })}
-        </SharedPopover>
-      ) : null}
     </>
   );
 }

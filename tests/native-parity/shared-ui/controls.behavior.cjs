@@ -12,26 +12,53 @@ const { act, create } = testRequire("react-test-renderer");
 
 global.IS_REACT_ACT_ENVIRONMENT = true;
 
-const platform = { OS: "web" };
+const frames = new Map();
+let nextFrame = 0;
+global.requestAnimationFrame = (callback) => {
+  const frame = ++nextFrame;
+  frames.set(frame, callback);
+  return frame;
+};
+global.cancelAnimationFrame = (frame) => frames.delete(frame);
+
+const platform = {
+  OS: "web",
+  select(options) { return options[this.OS] ?? options.default; },
+};
 const focusEvents = [];
+let windowWidth = 380;
 const nativeHost = {
   AccessibilityInfo: { sendAccessibilityEvent: (target, event) => focusEvents.push([target.testID, event]) },
   ActivityIndicator: "ActivityIndicator",
   I18nManager: { isRTL: false },
+  KeyboardAvoidingView: "KeyboardAvoidingView",
+  Modal: ({ children, ...props }) => React.createElement("Modal", props, props.visible ? children : null),
   Platform: platform,
-  Pressable: "Pressable",
-  StyleSheet: { create: (styles) => styles },
+  Pressable: React.forwardRef(function Pressable({ children, ...props }, ref) {
+    const content = typeof children === "function" ? children({ pressed: false }) : children;
+    return React.createElement("Pressable", { ...props, ref }, content);
+  }),
+  ScrollView: "ScrollView",
+  StyleSheet: {
+    create: (styles) => styles,
+    flatten: (styles) => Object.assign({}, ...[styles].flat(Infinity).filter(Boolean)),
+  },
   Text: "Text",
   TextInput: "TextInput",
   View: "View",
   useColorScheme: () => "light",
-  useWindowDimensions: () => ({ width: 380, fontScale: 1 }),
+  useWindowDimensions: () => ({ width: windowWidth, height: 752, fontScale: 1 }),
 };
 
 const mobilePath = resolve(__dirname, "../../../apps/mobile-native/features/shared-ui");
 const built = buildSync({
   stdin: {
-    contents: 'export * from "./controls"; export * from "./ControlCases";',
+    contents: `
+      export * from "./controls";
+      export * from "./ControlCases";
+      export * from "./overlays";
+      export { Button } from "../../components/Button";
+    `,
     resolveDir: mobilePath,
   },
   bundle: true,
@@ -44,14 +71,18 @@ const built = buildSync({
 
 const modules = {
   "react-native": nativeHost,
-  "react-native-safe-area-context": { SafeAreaView: "SafeAreaView" },
+  "react-native-safe-area-context": {
+    SafeAreaListener: "SafeAreaListener",
+    SafeAreaView: "SafeAreaView",
+    useSafeAreaInsets: () => ({ left: 0, top: 24, right: 0, bottom: 24 }),
+  },
   "react-native-svg": { __esModule: true, default: "svg", Path: "path" },
 };
 const entry = { exports: {} };
 const execute = new Function("require", "module", "exports", built.outputFiles[0].text);
 execute((id) => modules[id] ?? testRequire(id), entry, entry.exports);
 
-const { SharedUiComposer, SharedUiControlCase, SharedUiSearch } = entry.exports;
+const { Button, SharedDialog, SharedDialogFooter, SharedPopover, SharedPopoverAnchor, SharedUiComposer, SharedUiControlCase, SharedUiSearch } = entry.exports;
 const { createElement: h, useState } = React;
 let renderer;
 
@@ -97,11 +128,222 @@ function visibleText(text) {
   return renderer.root.findAllByType("Text").some((node) => node.children.includes(text));
 }
 
+function flushAnimationFrame() {
+  const callbacks = [...frames.values()];
+  frames.clear();
+  act(() => callbacks.forEach((callback) => callback()));
+}
+
 afterEach(() => {
   if (renderer) act(() => renderer.unmount());
   renderer = undefined;
   focusEvents.length = 0;
   platform.OS = "web";
+  windowWidth = 380;
+  frames.clear();
+});
+
+test("Dialog actions follow compact and wide reading order with focus on the same action", () => {
+  function Example() {
+    return h(SharedDialog, {
+      open: true,
+      onDismiss: () => {},
+      title: "Permohonan",
+      closeLabel: "Tutup",
+      footer: h(SharedDialogFooter, null,
+        h(Button, { testID: "cancel", variant: "outline" }, "Batal"),
+        h(Button, { testID: "submit" }, "Ajukan permohonan"),
+      ),
+    }, "Alasan permohonan");
+  }
+
+  function actionOrder() {
+    return renderer.root.findAllByType("Pressable")
+      .map((node) => node.props.testID)
+      .filter((id) => id === "cancel" || id === "submit");
+  }
+
+  function isFocused(id) {
+    const style = host("Pressable", id).props.style({ pressed: false });
+    return nativeHost.StyleSheet.flatten(style).outlineWidth === 2;
+  }
+
+  mount(h(Example));
+  assert.deepEqual(actionOrder(), ["submit", "cancel"]);
+  const compactFooter = renderer.root.findAllByType("View")
+    .map((node) => nativeHost.StyleSheet.flatten(node.props.style))
+    .find(({ flexDirection }) => flexDirection === "column");
+  assert.equal(compactFooter?.alignItems, "stretch");
+  act(() => host("Pressable", "submit").props.onFocus({}));
+
+  windowWidth = 640;
+  act(() => renderer.update(h(Example)));
+  assert.deepEqual(actionOrder(), ["cancel", "submit"]);
+  assert.equal(isFocused("submit"), true);
+  assert.equal(isFocused("cancel"), false);
+});
+
+test("Ref-only popover remeasures after native show and restores focus after Android Back", () => {
+  platform.OS = "android";
+  let anchorY = 16;
+  const anchorRef = { current: {
+    testID: "trigger",
+    measure: (callback) => callback(0, 0, 56, 32, 308, anchorY),
+    focus: () => focusEvents.push(["trigger", "imperative"]),
+  } };
+
+  function Example() {
+    const [open, setOpen] = useState(true);
+    return h(SharedPopover, {
+      open,
+      onDismiss: () => setOpen(false),
+      title: "Filter",
+      closeLabel: "Tutup",
+      anchorRef,
+      align: "end",
+      testID: "popover",
+    }, "Semua kelas");
+  }
+
+  mount(h(Example));
+  act(() => renderer.root.findByType("KeyboardAvoidingView").props.onLayout({
+    nativeEvent: { layout: { width: 380, height: 800 } },
+  }));
+  flushAnimationFrame();
+  assert.equal(nativeHost.StyleSheet.flatten(host("View", "popover").props.style).top, 52);
+  anchorY = 40;
+  const modal = renderer.root.findByType("Modal");
+  act(() => modal.props.onShow());
+  flushAnimationFrame();
+  const position = nativeHost.StyleSheet.flatten(host("View", "popover").props.style);
+  assert.equal(position.top, 76);
+  assert.equal(position.left, 76);
+  assert.equal(position.maxHeight, 688);
+
+  assert.deepEqual(focusEvents.slice(-2), [["popover-close", "imperative"], ["popover-close", "focus"]]);
+  act(() => modal.props.onRequestClose());
+  flushAnimationFrame();
+  assert.equal(host("View", "popover"), undefined);
+  assert.deepEqual(focusEvents.slice(-2), [["trigger", "imperative"], ["trigger", "focus"]]);
+});
+
+test("Android popover uses native anchor and modal frames in dp for both opening orders", () => {
+  platform.OS = "android";
+  const triggerRef = React.createRef();
+  const triggerFrame = { x: 308, y: 40, width: 56, height: 32 };
+
+  function Example({ initiallyOpen }) {
+    const [open, setOpen] = useState(initiallyOpen);
+    return h(SharedPopoverAnchor, null,
+      h(Button, { ref: triggerRef, testID: "trigger", onPress: () => setOpen(true) }, "Filter"),
+      h(SharedPopover, {
+        open,
+        onDismiss: () => setOpen(false),
+        title: "Filter",
+        closeLabel: "Tutup",
+        anchorRef: triggerRef,
+        align: "end",
+        testID: "popover",
+      }, "Semua kelas"),
+    );
+  }
+
+  function reportFrame(listener, frame, insets) {
+    const view = renderer.root.findAllByType("SafeAreaListener")[listener];
+    act(() => view.props.onChange({ frame, insets }));
+  }
+
+  function position() {
+    return nativeHost.StyleSheet.flatten(host("View", "popover").props.style);
+  }
+
+  const screenInsets = { top: 24, left: 0, right: 0, bottom: 24 };
+  mount(h(Example, { initiallyOpen: true }));
+  const modal = renderer.root.findByType("Modal");
+  act(() => modal.props.onShow());
+  reportFrame(1, { x: 0, y: 0, width: 380, height: 800 }, screenInsets);
+  flushAnimationFrame();
+  assert.equal(host("View", "popover"), undefined);
+  assert.deepEqual(focusEvents, []);
+  reportFrame(0, triggerFrame, screenInsets);
+  flushAnimationFrame();
+  assert.equal(position().top, 76);
+  assert.equal(position().left, 76);
+  assert.deepEqual(focusEvents.at(-1), ["popover-close", "focus"]);
+  act(() => modal.props.onRequestClose());
+  flushAnimationFrame();
+  assert.equal(host("View", "popover"), undefined);
+  assert.deepEqual(focusEvents.at(-1), ["trigger", "focus"]);
+
+  click("trigger");
+  assert.equal(host("View", "popover"), undefined);
+  const modalInsets = { ...screenInsets, top: 0 };
+  const shiftedModal = { x: 20, y: 24, width: 360, height: 776 };
+  reportFrame(1, shiftedModal, modalInsets);
+  assert.equal(shiftedModal.y + position().top, 76);
+  assert.equal(shiftedModal.x + position().left, 76);
+
+  reportFrame(0, { ...triggerFrame, y: 140 }, screenInsets);
+  reportFrame(1, { ...shiftedModal, height: 212 }, modalInsets);
+  assert.equal(position().bottom, 100);
+  assert.equal(position().maxHeight, 100);
+});
+
+test("Popovers stay usable when a measured anchor is unavailable", (context) => {
+  platform.OS = "android";
+  context.mock.timers.enable({ apis: ["setTimeout"] });
+  const triggerRef = React.createRef();
+  const dismissals = [];
+
+  function Example({ tracked, dismissDisabled }) {
+    const [open, setOpen] = useState(true);
+    const popover = h(SharedPopover, {
+      open,
+      onDismiss: (reason) => { dismissals.push(reason); setOpen(false); },
+      title: "Filter",
+      closeLabel: "Tutup",
+      anchorRef: triggerRef,
+      dismissDisabled,
+      testID: "popover",
+    }, "Semua kelas");
+    return tracked ? h(SharedPopoverAnchor, null, popover) : popover;
+  }
+
+  function assertCentered() {
+    const viewport = renderer.root.findByType("KeyboardAvoidingView");
+    const panel = host("View", "popover");
+    assert.equal(nativeHost.StyleSheet.flatten(viewport.props.style).justifyContent, "center");
+    assert.equal(nativeHost.StyleSheet.flatten(panel.props.style).position, undefined);
+  }
+
+  mount(h(Example, { key: "ref-only" }));
+  assertCentered();
+  click("popover-close");
+  flushAnimationFrame();
+  assert.deepEqual(dismissals, ["close-button"]);
+
+  act(() => renderer.update(h(Example, { key: "tracked", tracked: true, dismissDisabled: true })));
+  act(() => renderer.root.findByType("Modal").props.onShow());
+  assert.equal(host("View", "popover"), undefined);
+  act(() => context.mock.timers.tick(300));
+  flushAnimationFrame();
+  assertCentered();
+  assert.equal(host("Pressable", "popover-close").props.disabled, true);
+
+  const focusBeforeLateFrames = [...focusEvents];
+  const [trigger, viewport] = renderer.root.findAllByType("SafeAreaListener");
+  const insets = { left: 0, top: 24, right: 0, bottom: 24 };
+  act(() => trigger.props.onChange({ insets, frame: { x: 308, y: 40, width: 56, height: 32 } }));
+  act(() => viewport.props.onChange({ insets, frame: { x: 0, y: 0, width: 380, height: 800 } }));
+  flushAnimationFrame();
+  const panelStyle = nativeHost.StyleSheet.flatten(host("View", "popover").props.style);
+  assert.equal(panelStyle.top, 76);
+  assert.deepEqual(focusEvents, focusBeforeLateFrames);
+
+  act(() => renderer.update(h(Example, { key: "tracked", tracked: true })));
+  click("popover-close");
+  flushAnimationFrame();
+  assert.deepEqual(dismissals, ["close-button", "close-button"]);
 });
 
 test("Search opens, clears once in controlled mode, and restores trigger focus on Escape", () => {

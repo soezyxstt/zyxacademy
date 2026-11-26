@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ComponentRef, type ReactNode, type RefObject } from "react";
+import { Children, createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ComponentRef, type ReactNode, type RefObject } from "react";
 import {
   AccessibilityInfo,
   KeyboardAvoidingView,
@@ -15,7 +15,7 @@ import {
   type TextInput,
   type ViewProps,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaListener, useSafeAreaInsets, type EdgeInsets } from "react-native-safe-area-context";
 
 import { nativeColors, nativeRadii } from "../../../../packages/design-tokens/native-colors";
 import { Button } from "../../components/Button";
@@ -67,6 +67,30 @@ export type SharedPopoverProps = SharedOverlayProps & PopoverPlacement;
 type OverlaySurfaceProps = SharedOverlayProps &
   ({ kind: "dialog" | "sheet" } | ({ kind: "popover" } & PopoverPlacement));
 
+// Null means no anchor wrapper. Undefined means its first native frame is pending.
+const PopoverAnchorFrame = createContext<LayoutRectangle | null | undefined>(null);
+const POPOVER_ANCHOR_WAIT_MS = 250;
+
+export function SharedPopoverAnchor({ children, style }: Pick<ViewProps, "children" | "style">) {
+  const [frame, setFrame] = useState<LayoutRectangle>();
+  if (Platform.OS !== "android") {
+    return <View accessible={false} pointerEvents="box-none" style={[styles.anchor, style]}>{children}</View>;
+  }
+  return (
+    <SafeAreaListener
+      accessible={false}
+      collapsable={false}
+      pointerEvents="box-none"
+      style={[styles.anchor, style]}
+      onChange={({ frame }) => {
+        setFrame(frame.width > 0 && frame.height > 0 ? frame : undefined);
+      }}
+    >
+      <PopoverAnchorFrame.Provider value={frame}>{children}</PopoverAnchorFrame.Provider>
+    </SafeAreaListener>
+  );
+}
+
 function focusTarget(target: OverlayFocusTarget | null | undefined) {
   if (!target) return;
   target.focus();
@@ -98,27 +122,44 @@ function OverlaySurface({
   const { kind } = placement;
   const anchorRef = kind === "popover" ? placement.anchorRef : undefined;
   const align = kind === "popover" ? (placement.align ?? "center") : "center";
+  const nativeAnchor = useContext(PopoverAnchorFrame);
+  const trackNativeAnchor = Platform.OS === "android" && kind === "popover" && nativeAnchor !== null;
   const restoreRef = returnFocusRef ?? anchorRef;
   const closeRef = useRef<ComponentRef<typeof Pressable>>(null);
   const headingRef = useRef<ComponentRef<typeof Text>>(null);
-  const focusFrame = useRef<number | null>(null);
+  const focusedOnOpen = useRef(false);
   const wasOpen = useRef(false);
   const openRef = useRef(open);
   const afterDismissRef = useRef(onAfterDismiss);
-  const [anchor, setAnchor] = useState<LayoutRectangle>();
+  const [shown, setShown] = useState(false);
+  const [measuredAnchor, setMeasuredAnchor] = useState<LayoutRectangle>();
+  const [viewport, setViewport] = useState<Pick<LayoutRectangle, "width" | "height">>();
+  const [nativeViewport, setNativeViewport] = useState<{ frame: LayoutRectangle; insets: EdgeInsets }>();
   const [panelHeight, setPanelHeight] = useState(0);
+  const [fallbackReady, setFallbackReady] = useState(false);
 
   useEffect(() => {
-    if (!open || !anchorRef) return;
+    if (!open || !anchorRef || trackNativeAnchor || !viewport) return;
+    let cancelled = false;
     const frame = requestAnimationFrame(() => {
-      anchorRef.current?.measureInWindow((x, y, anchorWidth, anchorHeight) => {
-        if (anchorWidth > 0 && anchorHeight > 0) {
-          setAnchor({ x, y, width: anchorWidth, height: anchorHeight });
+      // Remeasure ref-only callers when the modal or safe-area geometry settles.
+      anchorRef.current?.measure((_x, _y, anchorWidth, anchorHeight, x, y) => {
+        if (!cancelled && anchorWidth > 0 && anchorHeight > 0) {
+          setMeasuredAnchor({ x, y, width: anchorWidth, height: anchorHeight });
         }
       });
     });
-    return () => cancelAnimationFrame(frame);
-  }, [anchorRef, height, open, width]);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frame);
+    };
+  }, [anchorRef, height, insets.bottom, insets.left, insets.right, insets.top, open, shown, trackNativeAnchor, viewport, width]);
+
+  useEffect(() => {
+    if (!open || !trackNativeAnchor) return;
+    const timeout = setTimeout(() => setFallbackReady(true), POPOVER_ANCHOR_WAIT_MS);
+    return () => clearTimeout(timeout);
+  }, [open, trackNativeAnchor]);
 
   useEffect(() => {
     afterDismissRef.current = onAfterDismiss;
@@ -126,6 +167,15 @@ function OverlaySurface({
 
   useLayoutEffect(() => {
     openRef.current = open;
+    if (!open) {
+      focusedOnOpen.current = false;
+      setShown(false);
+      setMeasuredAnchor(undefined);
+      setViewport(undefined);
+      setNativeViewport(undefined);
+      setPanelHeight(0);
+      setFallbackReady(false);
+    }
     if (!open && wasOpen.current && Platform.OS !== "ios") {
       const frame = requestAnimationFrame(() => {
         focusTarget(restoreRef?.current);
@@ -136,24 +186,6 @@ function OverlaySurface({
     }
     if (open) wasOpen.current = true;
   }, [open, restoreRef]);
-
-  useEffect(() => () => {
-    if (focusFrame.current !== null) cancelAnimationFrame(focusFrame.current);
-  }, []);
-
-  function onShow() {
-    focusFrame.current = requestAnimationFrame(() => {
-      focusFrame.current = null;
-      if (!openRef.current) return;
-      if (initialFocusRef?.current) {
-        focusTarget(initialFocusRef.current);
-      } else if (!dismissDisabled) {
-        focusTarget(closeRef.current);
-      } else if (headingRef.current) {
-        AccessibilityInfo.sendAccessibilityEvent(headingRef.current, "focus");
-      }
-    });
-  }
 
   function onNativeDismiss() {
     if (!wasOpen.current || openRef.current) return;
@@ -168,19 +200,30 @@ function OverlaySurface({
 
   const popover = kind === "popover" ? placement : null;
   const popoverMaxWidth = popover?.maxWidth ?? 288;
-  const panelWidth = Math.max(1, Math.min(popoverMaxWidth, width - insets.left - insets.right - 32));
-  const rightEdge = width - insets.right - 16;
-  const leftEdge = insets.left + 16;
-  const topEdge = insets.top + 12;
-  const bottomEdge = height - insets.bottom - 12;
+  const viewportWidth = nativeViewport?.frame.width ?? viewport?.width ?? width;
+  const viewportHeight = nativeViewport?.frame.height ?? viewport?.height ?? height;
+  const viewportInsets = nativeViewport?.insets ?? insets;
+  // On Android both native frames are relative to their full-screen window decor.
+  const anchor = trackNativeAnchor
+    ? nativeAnchor && nativeViewport && {
+        ...nativeAnchor,
+        x: nativeAnchor.x - nativeViewport.frame.x,
+        y: nativeAnchor.y - nativeViewport.frame.y,
+      }
+    : measuredAnchor;
+  const panelWidth = Math.max(1, Math.min(popoverMaxWidth, viewportWidth - viewportInsets.left - viewportInsets.right - 32));
+  const rightEdge = viewportWidth - viewportInsets.right - 16;
+  const leftEdge = viewportInsets.left + 16;
+  const topEdge = viewportInsets.top + 12;
+  const bottomEdge = viewportHeight - viewportInsets.bottom - 12;
   let popoverPosition: ViewProps["style"];
   if (kind === "popover" && anchor) {
     const indicatedLeft = align === "start"
       ? anchor.x
       : align === "end" ? anchor.x + anchor.width - panelWidth : anchor.x + (anchor.width - panelWidth) / 2;
     const offset = placement.sideOffset ?? 4;
-    const below = anchor.y + anchor.height + offset;
-    const above = anchor.y - offset;
+    const below = Math.max(topEdge, anchor.y + anchor.height + offset);
+    const above = Math.min(bottomEdge, anchor.y - offset);
     const belowSpace = bottomEdge - below;
     const aboveSpace = above - topEdge;
     const showAbove = (panelHeight > belowSpace || belowSpace < 140) && aboveSpace > belowSpace;
@@ -188,46 +231,56 @@ function OverlaySurface({
       position: "absolute",
       width: panelWidth,
       left: Math.max(leftEdge, Math.min(rightEdge - panelWidth, indicatedLeft)),
-      ...(showAbove ? { bottom: height - above } : { top: Math.max(topEdge, below) }),
+      ...(showAbove ? { bottom: viewportHeight - above } : { top: below }),
       maxHeight: Math.max(1, showAbove ? aboveSpace : belowSpace),
     };
   }
 
-  return (
-    <Modal
-      visible={open}
-      transparent
-      animationType="none"
-      presentationStyle="overFullScreen"
-      statusBarTranslucent
-      navigationBarTranslucent
-      onShow={onShow}
-      onDismiss={onNativeDismiss}
-      onRequestClose={() => dismiss("back")}
+  const panelReady = !trackNativeAnchor || Boolean(popoverPosition) || fallbackReady;
+  useEffect(() => {
+    if (!open || !shown || !panelReady || focusedOnOpen.current) return;
+    const frame = requestAnimationFrame(() => {
+      if (!openRef.current) return;
+      focusedOnOpen.current = true;
+      if (initialFocusRef?.current) {
+        focusTarget(initialFocusRef.current);
+      } else if (!dismissDisabled) {
+        focusTarget(closeRef.current);
+      } else if (headingRef.current) {
+        AccessibilityInfo.sendAccessibilityEvent(headingRef.current, "focus");
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [dismissDisabled, initialFocusRef, open, panelReady, shown]);
+
+  const viewportContent = (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" && kind !== "popover" ? "padding" : undefined}
+      pointerEvents="box-none"
+      onLayout={kind === "popover" && !trackNativeAnchor ? ({ nativeEvent: { layout } }) => {
+        if (layout.width > 0 && layout.height > 0) setViewport({ width: layout.width, height: layout.height });
+      } : undefined}
+      style={[
+        styles.viewport,
+        kind === "sheet" && styles.viewportSheet,
+        { paddingTop: viewportInsets.top + 16, paddingBottom: kind === "sheet" ? 0 : viewportInsets.bottom + 16 },
+        { paddingLeft: viewportInsets.left + (kind === "sheet" ? 0 : 16), paddingRight: viewportInsets.right + (kind === "sheet" ? 0 : 16) },
+      ]}
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" && kind !== "popover" ? "padding" : undefined}
-        pointerEvents="box-none"
+      <Pressable
+        accessible={false}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        disabled={!dismissOnBackdrop || dismissDisabled}
+        onPress={() => dismiss("backdrop")}
+        testID={testID ? `${testID}-backdrop` : undefined}
         style={[
-          styles.viewport,
-          kind === "sheet" && styles.viewportSheet,
-          { paddingTop: insets.top + 16, paddingBottom: kind === "sheet" ? 0 : insets.bottom + 16 },
-          { paddingLeft: insets.left + (kind === "sheet" ? 0 : 16), paddingRight: insets.right + (kind === "sheet" ? 0 : 16) },
+          StyleSheet.absoluteFill,
+          kind === "dialog" && styles.dialogBackdrop,
+          kind === "sheet" && styles.sheetBackdrop,
         ]}
-      >
-        <Pressable
-          accessible={false}
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-          disabled={!dismissOnBackdrop || dismissDisabled}
-          onPress={() => dismiss("backdrop")}
-          testID={testID ? `${testID}-backdrop` : undefined}
-          style={[
-            StyleSheet.absoluteFill,
-            kind === "dialog" && styles.dialogBackdrop,
-            kind === "sheet" && styles.sheetBackdrop,
-          ]}
-        />
+      />
+      {panelReady ? (
         <View
           role="dialog"
           accessibilityViewIsModal
@@ -282,13 +335,52 @@ function OverlaySurface({
           </ScrollView>
           {footer ? <View style={styles.footer}>{footer}</View> : null}
         </View>
-      </KeyboardAvoidingView>
+      ) : null}
+    </KeyboardAvoidingView>
+  );
+
+  return (
+    <Modal
+      visible={open}
+      transparent
+      animationType="none"
+      presentationStyle="overFullScreen"
+      statusBarTranslucent
+      navigationBarTranslucent
+      onShow={() => { if (openRef.current) setShown(true); }}
+      onDismiss={onNativeDismiss}
+      onRequestClose={() => dismiss("back")}
+    >
+      {trackNativeAnchor ? (
+        <SafeAreaListener
+          accessible={false}
+          collapsable={false}
+          pointerEvents="box-none"
+          onChange={({ frame, insets }) => {
+            if (openRef.current && frame.width > 0 && frame.height > 0) setNativeViewport({ frame, insets });
+          }}
+        >
+          {viewportContent}
+        </SafeAreaListener>
+      ) : viewportContent}
     </Modal>
   );
 }
 
 export function SharedDialog(props: SharedDialogProps) {
   return <OverlaySurface {...props} kind="dialog" />;
+}
+
+/** Pass actions in wide-layout order so compact dialogs show the primary action first. */
+export function SharedDialogFooter({ children }: { children: ReactNode }) {
+  const { width } = useWindowDimensions();
+  const compact = width < 640;
+  const actions = Children.toArray(children);
+  return (
+    <View style={[styles.dialogActions, compact && styles.dialogActionsCompact]}>
+      {compact ? actions.reverse() : actions}
+    </View>
+  );
 }
 
 export function SharedSheet(props: SharedSheetProps) {
@@ -300,6 +392,7 @@ export function SharedPopover(props: SharedPopoverProps) {
 }
 
 const styles = StyleSheet.create({
+  anchor: { flex: 0 },
   viewport: { flex: 1, justifyContent: "center", alignItems: "center" },
   viewportSheet: { justifyContent: "flex-end" },
   dialogBackdrop: { backgroundColor: "#00000066" },
@@ -323,4 +416,6 @@ const styles = StyleSheet.create({
   scroll: { flexGrow: 0, flexShrink: 1 },
   content: { gap: 8, padding: 16, paddingTop: 8 },
   footer: { flexShrink: 0, paddingHorizontal: 16, paddingBottom: 16 },
+  dialogActions: { flexDirection: "row", flexWrap: "wrap", justifyContent: "flex-end", gap: 8 },
+  dialogActionsCompact: { flexDirection: "column", flexWrap: "nowrap", alignItems: "stretch" },
 });
