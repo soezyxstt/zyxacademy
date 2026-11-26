@@ -244,7 +244,8 @@ export const assessmentReadServices: AssessmentReadServices = {
       remainingEssays: detail.questions.filter((row) => row.isEssay && row.currentScore === null).length,
       answers: detail.questions.map((row) => ({
         questionId: row.id, prompt: row.prompt, type: type(row.questionType), submittedAnswer: row.submittedText,
-        attachmentLabel: row.fileName ?? undefined, automaticScore: row.isEssay ? null : row.isDeterministicCorrect ? 100 : 0,
+        attachmentLabel: row.fileName ?? undefined, attachmentAvailable: Boolean(row.fileKey),
+        automaticScore: row.isEssay ? null : row.isDeterministicCorrect ? 100 : 0,
         reviewScore: row.reviewRevision > 0 ? row.currentScore : null, reviewNotes: row.reviewNotes, revision: row.reviewRevision,
       })),
     };

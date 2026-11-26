@@ -588,6 +588,14 @@ describe("Tutor Quiz Manual Grading Contracts", () => {
       expect(final.score).toBe(90);
       expect(await gradeQuizAttemptAction(input, request)).toEqual({ ...first, replayed: true });
 
+      const replacementSession = "session-native-quiz-grading-replacement";
+      await testDb.insert(schema.session).values({
+        id: replacementSession, token: replacementSession, userId: "usr-tutor-assigned", expiresAt: new Date(Date.now() + 60_000),
+      });
+      mockSession = { ...mockSession, session: { id: replacementSession } };
+      await expect(gradeQuizAttemptAction(input, request)).rejects.toThrow(TUTOR_QUIZ_GRADING_ERRORS.REQUEST_CONFLICT);
+      mockSession = { ...mockSession, session: { id: liveSession } };
+
       const detail = await getQuizAttemptDetailsForGrading("mk-calc", attemptId, "usr-tutor-assigned");
       expect(detail?.questions.map((row) => row.reviewRevision)).toEqual([1, 1]);
       const receipts = await testDb.select().from(schema.auditMutasi).where(eq(schema.auditMutasi.entityId, attemptId));

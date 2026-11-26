@@ -105,6 +105,7 @@ export type GradingAnswer = {
   type: QuestionType;
   submittedAnswer: string;
   attachmentLabel?: string;
+  attachmentAvailable?: boolean;
   automaticScore: number | null;
   reviewScore: number | null;
   reviewNotes: string;
@@ -147,6 +148,8 @@ export type OutstandingQuizSave = {
   command: Extract<AssessmentCommand, { kind: "quiz.save" }>;
   confirmed: boolean;
 };
+export type QuizGradeCommand = Extract<AssessmentCommand, { kind: "grading.save" }>;
+export type OutstandingQuizGrade = { requestId: string; command: QuizGradeCommand };
 export type TryoutDraftCommand = Extract<AssessmentCommand, { kind: "tryout.save" | "tryout.question.import" | "tryout.question.delete" }>;
 
 export type MutationEffect = {
@@ -166,6 +169,8 @@ export interface AssessmentGateway {
   confirmTryoutDraft?(context: AssessmentContext, requestId: string): void;
   takeQuizSaveNotice?(context: AssessmentContext, requestId: string): string | null;
   pendingQuizSave?(context: AssessmentContext, quizId: string | null): OutstandingQuizSave | null;
+  pendingQuizGrade?(context: AssessmentContext): OutstandingQuizGrade | null;
+  confirmQuizGrade?(context: AssessmentContext, requestId: string): void;
   listQuizzes(context: AssessmentContext, signal?: AbortSignal): Promise<AssessmentResult<QuizCollection>>;
   previewQuiz(context: AssessmentContext, id: string, signal?: AbortSignal): Promise<AssessmentResult<QuizPreviewQuestion[]>>;
   listQuizAttempts(context: AssessmentContext, quizId: string, signal?: AbortSignal): Promise<AssessmentResult<QuizAttemptsSheet>>;

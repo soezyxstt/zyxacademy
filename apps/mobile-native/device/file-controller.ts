@@ -24,6 +24,7 @@ export type DraftDocument = Readonly<{
 
 export type NativeDownloadTarget =
   | { kind: "diktat-pdf"; courseId: string; diktatId: string }
+  | { kind: "quiz-grade-attachment"; courseId: string; attemptId: string; questionId: string }
   | { kind: "discussion-image"; attachmentId: string };
 
 export type NativeDownloadRequest = {
@@ -139,6 +140,10 @@ function downloadPath(target: NativeDownloadTarget): string | null {
   }
   if (target.kind === "discussion-image" && id(target.attachmentId)) {
     return `/api/discussions/attachments/${encodeURIComponent(target.attachmentId)}?download=1`;
+  }
+  if (target.kind === "quiz-grade-attachment" && [target.courseId, target.attemptId, target.questionId].every(id)) {
+    const [course, attempt, question] = [target.courseId, target.attemptId, target.questionId].map(encodeURIComponent);
+    return `/api/native/academic-assessment/tutor/${course}/grading/${attempt}/attachment/${question}`;
   }
   return null;
 }
@@ -399,11 +404,14 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
     const before = current();
     if (before) return before;
     const diskImages = request.target.kind === "discussion-image";
+    const quiz = request.target.kind === "quiz-grade-attachment";
     // The existing discussion API authorizes only these three image types and caps each at 8 MiB.
-    const domainTypes = diskImages ? ["image/jpeg", "image/png", "image/webp"] : ["application/pdf"];
+    const imageTypes = ["image/jpeg", "image/png", "image/webp"];
+    const domainTypes = quiz ? [...imageTypes, "application/pdf"] : diskImages ? imageTypes : ["application/pdf"];
     const permitted = request.policy.mimeTypes.filter(mimeType => domainTypes.includes(mimeType));
     if (!permitted.length) return { status: "error", issue: "policy" };
-    const maxBytes = diskImages ? Math.min(request.policy.maxBytes, 8 * 1024 * 1024) : request.policy.maxBytes;
+    const maxBytes = quiz ? Math.min(request.policy.maxBytes, 4 * 1024 * 1024)
+      : diskImages ? Math.min(request.policy.maxBytes, 8 * 1024 * 1024) : request.policy.maxBytes;
     const assertCurrent = () => { if (current()) throw new FileIssue("fetch"); };
     sharing = true;
     let response: Awaited<ReturnType<NativeSessionTransport["request"]>> | undefined;
@@ -415,7 +423,8 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
       if (!await device.canShare()) return { status: "unavailable" };
       assertCurrent();
       errorStage = "fetch";
-      response = await request.session.request(path, { signal: request.signal, headers: { Accept: permitted.join(", ") } });
+      response = await request.session.request(path, { signal: request.signal, requiredRole: quiz ? "tutor" : undefined,
+        headers: { Accept: permitted.join(", ") } });
       if (response.status === 401 || response.status === 403) return { status: "error", issue: "unauthorized" };
       if (response.status === 404) return { status: "error", issue: "not-found" };
       if (response.status !== 200 || !response.body) return { status: "error", issue: "fetch" };

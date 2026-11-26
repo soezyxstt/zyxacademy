@@ -7,6 +7,7 @@ import {
 } from "../../../../../packages/native-parity/academic/assessment";
 import { Action, DataRow, Field, Ink, SearchBox, layout } from "../courses/ui";
 import type { AcademicScreenProps } from "../contracts";
+import { GradeAttachment } from "./grade-attachment";
 import { AssessmentNotice, AssessmentPage, dateLabel, MutationProblem, Pagination, ReadState, SectionRow, SelectField, useMutation, useRead } from "./ui";
 
 type Props = AcademicScreenProps & { gateway: AssessmentGateway; context: AssessmentContext; base: string };
@@ -65,9 +66,11 @@ export function QuizGrading({ gateway, context, base, replace, query }: Props) {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const queue = useRead(useCallback((signal: AbortSignal) => gateway.pendingGrading(context, signal), [gateway, context]));
+  const recovery = gateway.pendingQuizGrade?.(context);
 
   if (attemptId) {
     return <GradingDetails key={attemptId} gateway={gateway} context={context} attemptId={attemptId}
+      onRecover={setAttemptId}
       back={() => setAttemptId("")} onSaved={(notice) => {
         setAttemptId("");
         setMessage(notice);
@@ -77,6 +80,9 @@ export function QuizGrading({ gateway, context, base, replace, query }: Props) {
 
   return <AssessmentPage title="Penilaian kuis" back={() => replace(`${base}/quizzes`)} backLabel="Kembali ke kuis">
     {message ? <AssessmentNotice message={message} /> : null}
+    {recovery ? <AssessmentNotice message="Periksa hasil penyimpanan sebelum menilai percobaan lain." action={
+      <Action label="Periksa hasil" onPress={() => setAttemptId(recovery.command.attemptId)} testID="academic-grade-recovery" />
+    } /> : null}
     <ReadState result={queue.result} retry={queue.retry}>{(attempts) => {
       const filtered = attempts.filter((attempt) => matchesSearch(attempt, search));
       const currentPage = Math.min(page, Math.max(0, Math.ceil(filtered.length / pageSize) - 1));
@@ -87,7 +93,7 @@ export function QuizGrading({ gateway, context, base, replace, query }: Props) {
         {filtered.slice(currentPage * pageSize, (currentPage + 1) * pageSize).map((attempt) => (
           <DataRow key={attempt.id} title={attempt.studentName}
             description={`${attempt.quizTitle} · ${dateLabel(attempt.submittedAt)}`} detail={`${attempt.remainingEssays} esai`}
-            onPress={() => { setMessage(""); setAttemptId(attempt.id); }} testID={`academic-grade-attempt-${attempt.id}`} />
+            onPress={() => { setMessage(""); setAttemptId(recovery?.command.attemptId ?? attempt.id); }} testID={`academic-grade-attempt-${attempt.id}`} />
         ))}
         <Pagination page={currentPage} count={filtered.length} size={pageSize} change={setPage} />
       </>;
@@ -95,11 +101,17 @@ export function QuizGrading({ gateway, context, base, replace, query }: Props) {
   </AssessmentPage>;
 }
 
-function GradingDetails({ gateway, context, attemptId, back, onSaved }: {
-  gateway: AssessmentGateway; context: AssessmentContext; attemptId: string; back(): void; onSaved(message: string): void;
+function GradingDetails({ gateway, context, attemptId, back, onSaved, onRecover }: {
+  gateway: AssessmentGateway; context: AssessmentContext; attemptId: string; back(): void; onSaved(message: string): void; onRecover(attemptId: string): void;
 }) {
   const { result, retry } = useRead(useCallback((signal: AbortSignal) => gateway.loadGradingAttempt(context, attemptId, signal), [gateway, context, attemptId]));
   const mutation = useMutation(gateway, context);
+  const recovery = gateway.pendingQuizGrade?.(context);
+  const outstanding = recovery?.command.attemptId === attemptId ? recovery : null;
+  function finish(effect: { message: string }, requestId: string) {
+    gateway.confirmQuizGrade?.(context, requestId);
+    onSaved(effect.message);
+  }
 
   function reload() {
     mutation.reset();
@@ -109,15 +121,24 @@ function GradingDetails({ gateway, context, attemptId, back, onSaved }: {
   return <AssessmentPage title={result?.ok ? result.value.studentName : "Detail penilaian"}
     subtitle={result?.ok ? result.value.quizTitle : undefined}
     back={() => { if (!mutation.pending) back(); }} backLabel="Kembali ke antrean">
+    {outstanding && !mutation.pending && !mutation.problem ? <AssessmentNotice
+      message="Hasil penyimpanan sebelumnya belum diketahui." action={<Action label="Periksa hasil"
+        onPress={() => mutation.resume(outstanding.requestId, outstanding.command, finish)} testID="academic-grade-resume" />} /> : null}
+    {recovery && !outstanding ? <AssessmentNotice message="Periksa penilaian sebelumnya sebelum melanjutkan." action={
+      <Action label="Periksa hasil" onPress={() => onRecover(recovery.command.attemptId)} />
+    } /> : null}
     <ReadState result={result} retry={retry}>{(attempt) => (
-      <GradeForm attempt={attempt} readOnly={!gateway.canGrade} busy={mutation.pending || mutation.problem?.code === "unavailable"} feedback={<MutationProblem mutation={mutation} reload={reload} />}
-        save={(items, finalize) => mutation.send({ kind: "grading.save", attemptId, items, finalize }, (effect) => onSaved(effect.message))} />
+      <GradeForm attempt={attempt} courseId={context.scope.kind === "tutor" ? context.scope.courseId : undefined}
+        readOnly={!gateway.canGrade} busy={Boolean(recovery) || mutation.pending || mutation.problem?.code === "unavailable"}
+        feedback={<MutationProblem mutation={mutation} reload={reload} />}
+        save={(items, finalize) => mutation.send({ kind: "grading.save", attemptId, items, finalize }, finish)} />
     )}</ReadState>
   </AssessmentPage>;
 }
 
-function GradeForm({ attempt, busy, save, feedback, readOnly }: {
+function GradeForm({ attempt, courseId, busy, save, feedback, readOnly }: {
   attempt: QuizAttempt; readOnly: boolean; busy: boolean; save(items: GradeItem[], finalize: boolean): void;
+  courseId?: string;
   feedback: React.ReactNode;
 }) {
   type Draft = { score: string; notes: string };
@@ -168,6 +189,8 @@ function GradeForm({ attempt, busy, save, feedback, readOnly }: {
         <Ink kind="strong">{answer.prompt}</Ink>
         <Ink>{answer.submittedAnswer || "Tidak ada jawaban"}</Ink>
         {answer.attachmentLabel ? <Ink>{answer.attachmentLabel}</Ink> : null}
+        {courseId && answer.attachmentAvailable ? <GradeAttachment fileName={answer.attachmentLabel}
+          target={{ kind: "quiz-grade-attachment", courseId, attemptId: attempt.id, questionId: answer.questionId }} /> : null}
         {answer.automaticScore !== null ? <Ink kind="meta" tone="muted">Nilai otomatis {answer.automaticScore}/100</Ink> : null}
         {readOnly ? <>
           {answer.reviewScore !== null ? <Ink>Nilai penilaian {answer.reviewScore}/100</Ink> : null}

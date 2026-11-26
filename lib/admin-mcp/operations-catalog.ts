@@ -89,7 +89,7 @@ export const operationsCatalog = [
     "actions": ["GET", "POST", "PATCH"],
     "tools": [],
     "status": "excluded",
-    "reason": "Interactive assessment reads and manual grading require the signed-in academic role, disclosure checks and course scope. Tryout draft metadata and bank selection require an active Admin session and course-scoped revision and retry checks. Existing MCP authoring tools use their registered scopes, consent and service contracts."
+    "reason": "Interactive assessment reads and manual grading use the signed-in role, disclosure checks and course access. Tutor attachment downloads resolve the exact submitted answer and use protected storage. Grading retries are bound to the active Tutor session. Tryout drafts and bank selection require active Admin authority and course-scoped revisions. Existing MCP authoring tools keep their registered scopes, consent and service contracts."
   },
   {
     "source": "app/api/native/academic-administration/[...resource]/route.ts",

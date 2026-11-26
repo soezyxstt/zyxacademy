@@ -3,6 +3,8 @@ import { test } from "node:test";
 import { handleAssessmentRead, type AssessmentReadServices } from "../../../../lib/native/academic/assessment/handle-read";
 import { tryoutCorrectIndices } from "../../../../lib/native/academic/assessment/tryout-answer";
 import { createAssessmentReadGateway } from "../../../../apps/mobile-native/features/academic/assessment/client";
+import type { AcademicTransport } from "../../../../apps/mobile-native/features/academic/client";
+import { handleGradeAttachment } from "../../../../lib/native/academic/assessment/grade-attachment";
 
 function services(override: Partial<AssessmentReadServices> = {}): AssessmentReadServices {
   return {
@@ -126,7 +128,7 @@ test("native grading command validates origin, session, Tutor role and path-scop
 test("native grading client preserves request id and does not accept an unrelated receipt", async () => {
   const calls: unknown[] = [];
   const requestId = "grade-retry-12345678";
-  const gateway = createAssessmentReadGateway({
+  const transport: AcademicTransport = {
     accountId: "session-user", origin: "https://example.test", locale: "id",
     get: async () => Response.json(null, { status: 404 }),
     command: async (path, init) => {
@@ -134,16 +136,61 @@ test("native grading client preserves request id and does not accept an unrelate
       const id = calls.length === 1 ? "different-request" : requestId;
       return Response.json({ requestId: id, attemptId: "attempt", gradingStatus: "graded" });
     },
-  });
+  };
+  const gateway = createAssessmentReadGateway(transport);
   const context = { actor: { id: "session-user", role: "tutor" }, scenario: "populated", scope: { kind: "tutor", courseId: "course" } } as const;
   const command = { kind: "grading.save", attemptId: "attempt", items: [{ questionId: "essay", expectedRevision: 1, score: 70, reviewNotes: null }], finalize: true } as const;
   const data = { ...command, items: [...command.items] };
   assert.equal(gateway.canGrade, true);
   assert.equal(gateway.canMutate, false);
   assert.equal((await gateway.mutate(context, requestId, data)).ok, false);
-  assert.equal((await gateway.mutate(context, requestId, data)).ok, true);
+  const reopened = createAssessmentReadGateway(transport);
+  const pending = reopened.pendingQuizGrade?.(context);
+  assert.deepEqual(pending, { requestId, command: data });
+  assert.equal(createAssessmentReadGateway({ ...transport }).pendingQuizGrade?.(context), null);
+  assert.equal((await reopened.mutate(context, "another-request", { ...data, attemptId: "other" })).ok, false);
+  assert.equal((await reopened.mutate(context, pending!.requestId, pending!.command)).ok, true);
+  assert.equal((await reopened.mutate(context, pending!.requestId, pending!.command)).ok, true);
   assert.equal(calls.length, 2);
   assert.deepEqual(calls[0], calls[1]);
+  reopened.confirmQuizGrade?.(context, requestId);
+  assert.equal(reopened.pendingQuizGrade?.(context), null);
+});
+
+test("Tutor grading attachment is resolved from the exact submitted answer and remains private", async () => {
+  const request = new Request("https://example.test/quiz-grade");
+  const path = ["tutor", "course", "grading", "attempt", "attachment", "question"];
+  const viewer = { user: { id: "tutor" }, session: { id: "live-session" } };
+  let saved = { templateId: "template", key: "quizzes/template/attachments/owned.pdf" };
+  let mimeType = "application/pdf";
+  let reads = 0;
+  const service = {
+    session: async () => viewer,
+    async find(course: string, attempt: string, question: string, actor: typeof viewer) {
+      assert.deepEqual(actor, viewer);
+      if (course !== "course" || attempt !== "attempt" || question !== "question") return null;
+      return saved;
+    },
+    async download(request: Request, key: string[]) {
+      reads++;
+      assert.deepEqual(key, ["quizzes", "template", "attachments", "owned.pdf"]);
+      assert.equal(new URL(request.url).searchParams.get("download"), "1");
+      return new Response("%PDF-1.7", { headers: { "Content-Type": mimeType } });
+    },
+  };
+  assert.equal((await handleGradeAttachment(request, path, { ...service, session: async () => null })).status, 404);
+  assert.equal((await handleGradeAttachment(request, ["admin", ...path.slice(1)], service)).status, 404);
+  assert.equal((await handleGradeAttachment(request, [...path.slice(0, -1), "another-question"], service)).status, 404);
+  saved = { ...saved, key: "quizzes/other/attachments/owned.pdf" };
+  assert.equal((await handleGradeAttachment(request, path, service)).status, 404);
+  assert.equal(reads, 0);
+  saved = { ...saved, key: "quizzes/template/attachments/owned.pdf" };
+  const result = await handleGradeAttachment(request, path, service);
+  assert.equal(result.status, 200);
+  assert.equal(result.headers.get("Cache-Control"), "private, no-store");
+  assert.equal(await result.text(), "%PDF-1.7");
+  mimeType = "text/html";
+  assert.equal((await handleGradeAttachment(request, path, service)).status, 404);
 });
 
 test("native quiz editor sends canonical create and edit commands and records only verified notices", async () => {

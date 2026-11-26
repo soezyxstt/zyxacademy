@@ -191,6 +191,7 @@ export async function gradeQuizAttempt(
   const now = new Date();
   const auditCourseId = access.courseId ?? courseId;
   const requestDigest = request && gradingRequestHash(parsed.data, auditCourseId, request.requireAllEssays);
+  const sessionHash = request?.sessionId && createHash("sha256").update(request.sessionId).digest("hex");
   // A caller key identifies one authenticated write to the exact grading resource.
   const requestId = request
     ? `req-native-grade-${createHash("sha256").update(JSON.stringify([tutorPenggunaId, "POST", courseId, attemptId, request.requestId])).digest("hex")}`
@@ -242,8 +243,9 @@ export async function gradeQuizAttempt(
         if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) {
           throw new Error(TUTOR_QUIZ_GRADING_ERRORS.REQUEST_CONFLICT);
         }
-        const { requestDigest: savedDigest, gradingStatus, score, reviewedCount } = snapshot as Record<string, unknown>;
+        const { requestDigest: savedDigest, sessionHash: savedSession, gradingStatus, score, reviewedCount } = snapshot as Record<string, unknown>;
         if (receipt.actorId !== tutorPenggunaId || savedDigest !== requestDigest ||
+          (savedSession !== undefined && savedSession !== sessionHash) ||
           (gradingStatus !== "pending" && gradingStatus !== "graded") ||
           (score !== null && typeof score !== "number") || typeof reviewedCount !== "number") {
           throw new Error(TUTOR_QUIZ_GRADING_ERRORS.REQUEST_CONFLICT);
@@ -322,7 +324,7 @@ export async function gradeQuizAttempt(
       before: { attemptId, gradingStatus: lockedAttempt.gradingStatus, score: lockedAttempt.score },
       after: {
         attemptId, gradingStatus: nextGradingStatus, score: finalCalculatedScore, reviewedCount: items.length,
-        ...(requestDigest ? { requestDigest } : {}),
+        ...(requestDigest ? { requestDigest, sessionHash } : {}),
       },
     }, tx);
     return {

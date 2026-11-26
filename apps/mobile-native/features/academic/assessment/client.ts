@@ -1,5 +1,5 @@
 import type {
-  AssessmentContext, AssessmentErrorCode, AssessmentGateway, AssessmentResult, MutationEffect, OutstandingQuizSave, TryoutDraftCommand,
+  AssessmentContext, AssessmentErrorCode, AssessmentGateway, AssessmentResult, MutationEffect, OutstandingQuizSave, QuizGradeCommand, TryoutDraftCommand,
 } from "../../../../../packages/native-parity/academic/assessment/model";
 import { quizAuthoringPayload } from "../../../../../packages/native-parity/academic/assessment/quiz-payload";
 import type { TryoutDraftWrite, TryoutQuestionSetWrite } from "../../../../../packages/native-parity/academic/assessment/tryout-draft";
@@ -29,7 +29,7 @@ function responseError(status: number): { ok: false; code: AssessmentErrorCode; 
 
 type SaveResult = AssessmentResult<MutationEffect>;
 type SaveCommand = OutstandingQuizSave["command"];
-type PendingTryoutDraft = {
+type PendingAssessmentWrite = {
   requestId: string;
   fingerprint: string;
   effect?: MutationEffect;
@@ -48,7 +48,8 @@ export function createAssessmentReadGateway(transport: AcademicTransport): Asses
   const existing = sessionGateways.get(transport);
   if (existing) return existing;
   const outstanding = new Map<string, SaveEntry>();
-  const tryoutDrafts = new Map<string, PendingTryoutDraft>();
+  const tryoutDrafts = new Map<string, PendingAssessmentWrite>();
+  const quizGrades = new Map<string, PendingAssessmentWrite>();
   const scopeKey = (context: AssessmentContext) => JSON.stringify([context.actor.id, context.scope]);
   const quizKey = (context: AssessmentContext, quizId: string | null) => JSON.stringify([scopeKey(context), quizId]);
   function accountMatches(context: AssessmentContext) {
@@ -171,7 +172,7 @@ export function createAssessmentReadGateway(transport: AcademicTransport): Asses
     if (previous?.effect) return { ok: true, value: previous.effect };
     if (previous?.inFlight) return previous.inFlight;
 
-    const entry: PendingTryoutDraft = previous ?? { requestId, fingerprint };
+    const entry: PendingAssessmentWrite = previous ?? { requestId, fingerprint };
     tryoutDrafts.set(key, entry);
     const operation: Promise<SaveResult> = (async () => {
       try {
@@ -226,6 +227,16 @@ export function createAssessmentReadGateway(transport: AcademicTransport): Asses
     canGrade: Boolean(transport.command),
     canSaveQuiz: Boolean(transport.command),
     canSaveTryoutDraft: Boolean(transport.command),
+    pendingQuizGrade(context) {
+      const entry = accountMatches(context) ? quizGrades.get(scopeKey(context)) : undefined;
+      return entry ? { requestId: entry.requestId, command: JSON.parse(entry.fingerprint) as QuizGradeCommand } : null;
+    },
+    confirmQuizGrade(context, requestId) {
+      if (!accountMatches(context)) return;
+      const key = scopeKey(context);
+      const entry = quizGrades.get(key);
+      if (entry?.requestId === requestId && entry.effect) quizGrades.delete(key);
+    },
     pendingTryoutDraft(context) {
       if (!accountMatches(context)) return null;
       const entry = tryoutDrafts.get(scopeKey(context));
@@ -293,26 +304,43 @@ export function createAssessmentReadGateway(transport: AcademicTransport): Asses
         }
       }
       if (context.scope.kind !== "tutor" || command.kind !== "grading.save") return forbidden;
-      const { attemptId, items, finalize } = command;
-      try {
-        const response = await transport.command(endpoint(context, `grading/${encodeURIComponent(attemptId)}`), {
-          method: "POST", requestId, body: { items, finalize },
-        }, signal ?? new AbortController().signal);
-        if (!response.ok) return response.status >= 500 ? uncertain : responseError(response.status);
-        const data = await response.json();
-        if (!data || typeof data !== "object") return uncertain;
-        const receipt = data as Record<string, unknown>;
-        const { gradingStatus } = receipt;
-        if (receipt.requestId !== requestId || receipt.attemptId !== attemptId || (gradingStatus !== "pending" && gradingStatus !== "graded")) {
+      const key = scopeKey(context);
+      const fingerprint = JSON.stringify(command);
+      const previous = quizGrades.get(key);
+      if (previous && (previous.requestId !== requestId || previous.fingerprint !== fingerprint)) return uncertain;
+      if ([...quizGrades].some(([otherKey, entry]) => otherKey !== key && entry.requestId === requestId)) {
+        return { ok: false, code: "conflict", message: "Lanjutkan penilaian dari kursus semula." };
+      }
+      if (previous?.effect) return { ok: true, value: previous.effect };
+      if (previous?.inFlight) return previous.inFlight;
+      const entry = previous ?? { requestId, fingerprint };
+      const { attemptId, items, finalize } = JSON.parse(entry.fingerprint) as QuizGradeCommand;
+      const send = transport.command.bind(transport);
+      quizGrades.set(key, entry);
+      const operation: Promise<SaveResult> = (async () => {
+        try {
+          const response = await send(endpoint(context, `grading/${encodeURIComponent(attemptId)}`), {
+            method: "POST", requestId, body: { items, finalize },
+          }, signal ?? new AbortController().signal);
+          if (!response.ok) {
+            if (response.status >= 500 || response.status === 429) return uncertain;
+            quizGrades.delete(key);
+            return responseError(response.status);
+          }
+          const data = await response.json();
+          if (!data || typeof data !== "object") return uncertain;
+          const receipt = data as Record<string, unknown>;
+          const { gradingStatus } = receipt;
+          if (receipt.requestId !== requestId || receipt.attemptId !== attemptId || (gradingStatus !== "pending" && gradingStatus !== "graded")) return uncertain;
+          entry.effect = { id: attemptId, gradingStatus, message: gradingStatus === "graded" ? "Penilaian selesai." : "Draf penilaian tersimpan." };
+          return { ok: true, value: entry.effect };
+        } catch {
           return uncertain;
         }
-        return { ok: true, value: {
-          id: attemptId, gradingStatus,
-          message: gradingStatus === "graded" ? "Penilaian selesai." : "Draf penilaian tersimpan.",
-        } };
-      } catch {
-        return uncertain;
-      }
+      })();
+      entry.inFlight = operation;
+      try { return await operation; }
+      finally { entry.inFlight = undefined; }
     },
   };
   sessionGateways.set(transport, gateway);

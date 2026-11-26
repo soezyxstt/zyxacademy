@@ -1,7 +1,13 @@
 import { gradeQuizAttemptAction } from "@/app/actions/tutor-quiz-grading";
 import { getAuthSession } from "@/lib/auth-session";
 import { resolveAuthBaseUrl } from "@/lib/auth-site-url";
+import { db } from "@/db";
+import { studentQuizAttempts } from "@/db/schema";
+import { and, eq } from "drizzle-orm";
+import { requireNativeQuizWriter } from "@/lib/asesmen/quiz-template-write";
+import { getQuizAttemptDetailsForGrading } from "@/lib/tutor/quiz-grading";
 import { handleAssessmentRead } from "@/lib/native/academic/assessment/handle-read";
+import { handleGradeAttachment } from "@/lib/native/academic/assessment/grade-attachment";
 import { handleGradeCommand } from "@/lib/native/academic/assessment/handle-grade-command";
 import { assessmentReadServices } from "@/lib/native/academic/assessment/read-services";
 
@@ -18,8 +24,31 @@ function tryoutDraftCommand(request: Request, parts: string[], origin: string) {
 }
 
 type Context = { params: Promise<{ resource: string[] }> };
-export async function GET(_request: Request, { params }: Context) {
-  return handleAssessmentRead((await params).resource, assessmentReadServices);
+export async function GET(request: Request, { params }: Context) {
+  const { resource } = await params;
+  if (resource[4] === "attachment") {
+    return handleGradeAttachment(request, resource, {
+      session: getAuthSession,
+      async find(courseId, attemptId, questionId, viewer) {
+        const completed = await db.transaction(async tx => {
+          await requireNativeQuizWriter(tx, { actorId: viewer.user.id, sessionId: viewer.session.id, courseId, role: "tutor" });
+          const [attempt] = await tx.select({ templateId: studentQuizAttempts.templateId }).from(studentQuizAttempts).where(and(
+            eq(studentQuizAttempts.id, attemptId), eq(studentQuizAttempts.status, "completed"),
+          )).limit(1).for("share");
+          return attempt;
+        });
+        if (!completed) return null;
+        const detail = await getQuizAttemptDetailsForGrading(courseId, attemptId, viewer.user.id);
+        const key = detail?.questions.find(question => question.id === questionId)?.fileKey;
+        return detail?.templateId === completed.templateId && key ? { templateId: detail.templateId, key } : null;
+      },
+      async download(fileRequest, key) {
+        const { GET: serveStorage } = await import("@/app/api/storage/file/[...key]/route");
+        return serveStorage(fileRequest, { params: Promise.resolve({ key }) });
+      },
+    });
+  }
+  return handleAssessmentRead(resource, assessmentReadServices);
 }
 
 export async function POST(request: Request, { params }: Context) {
