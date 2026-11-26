@@ -51,13 +51,37 @@ async function selectSection(page: Page, label: string, locale: "id" | "en" = "i
 
 for (const theme of ["light", "dark"] as const) test(`web offline library, reader and storage in ${theme}`, async ({ page }, info) => {
   const failures = await openFixture(page, theme);
+  const offlineIndicator = page.getByText("Offline", { exact: true });
+  await expect(offlineIndicator).toHaveCount(1);
   await capture(page, info, `offline-web-courses-${theme}`, failures);
+  await page.evaluate(() => {
+    window.__offlineWebConfig.online = true;
+    window.dispatchEvent(new Event("online"));
+  });
+  await expect(offlineIndicator).toHaveCount(0);
+  await expect(page.getByText("Online", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Buka aplikasi" })).toHaveAttribute("href", "/dashboard");
+  await capture(page, info, `offline-web-courses-online-${theme}`, failures);
+  await page.evaluate(() => {
+    window.__offlineWebConfig.online = false;
+    window.dispatchEvent(new Event("offline"));
+  });
   await page.getByRole("button", { name: /^Matematika I/ }).click();
   await capture(page, info, `offline-web-course-${theme}`, failures);
   await page.locator("li").filter({ hasText: "Limit fungsi" }).getByRole("button", { name: "Buka", exact: true }).click();
   await expect(page.locator("article .katex").first()).toBeVisible();
   await expect(page.getByRole("heading", { name: "Mendekati suatu nilai", exact: true })).toHaveCount(1);
+  await expect(offlineIndicator).toHaveCount(1);
   await capture(page, info, `offline-web-reader-${theme}`, failures);
+  await page.evaluate(() => {
+    window.__offlineWebConfig.online = true;
+    window.dispatchEvent(new Event("online"));
+  });
+  await expect(offlineIndicator).toHaveCount(0);
+  await expect(page.getByText(/^(Online|Koneksi kembali tersedia)$/)).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Buka aplikasi" })).toHaveAttribute("href", /^\/courses\//);
+  await expect(page.locator("article .katex").first()).toBeVisible();
+  await capture(page, info, `offline-web-reader-online-${theme}`, failures);
   await page.evaluate(() => window.__offlineWebControls.updateReading());
   await expect(page.getByRole("button", { name: "Buka versi baru", exact: true })).toBeVisible();
   await expect(page.locator("article")).not.toContainText("Penjelasan versi terbaru");

@@ -438,7 +438,7 @@ The `/feedback` form keeps Send available while idle. Empty, short or whitespace
 
 ### Desktop launch and offline recovery
 
-Android and desktop open a bundled local library with saved courses, material lists, Article/Diktat readings, video links and achievement definitions. Sync checks current versions and access in the background; the online application remains an explicit navigation choice. Saved packages include required images and local math assets, with per-account limits and pinned downloads. Admins control schedules, access limits and targeted refresh at `/admin/ops/offline`. The [offline data contract](operations/offline-data-sync.md) defines version checks, missed-event recovery and the physical limit of revoking access on an offline device. These changes ship in the native installer; a web merge alone does not update an installed app.
+Android and desktop open a bundled local library with saved courses, material lists, Article/Diktat readings, video links and achievement definitions. Sync checks current versions and access in the background; learners can open the web app explicitly. The library and reader show a single muted Offline label when disconnected. Saved packages include required images and local math assets, with per-account limits and pinned downloads. Admins control schedules, access limits and targeted refresh at `/admin/ops/offline`. The [offline data contract](operations/offline-data-sync.md) defines version checks, missed-event recovery and the physical limit of revoking access on an offline device. These changes ship in the native installer; a web merge alone does not update an installed app.
 
 ### Learning Outcomes & Career Paths
 - CPL/CPMK/Sub-CPMK hierarchy mapped to concepts

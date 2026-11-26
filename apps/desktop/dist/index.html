@@ -24,10 +24,7 @@
         --zx-x-fill: #cc542b;
         --nav-bg: rgba(255, 255, 255, 0.88);
         --status-warning-bg: rgba(217, 119, 6, 0.11);
-        --status-warning-border: rgba(217, 119, 6, 0.24);
         --status-warning-fg: #b45309;
-        --status-success-bg: rgba(22, 163, 74, 0.11);
-        --status-success-border: rgba(22, 163, 74, 0.24);
         --status-success-fg: #15803d;
         --ring: rgba(42, 60, 106, 0.28);
         --radius: 10px;
@@ -50,10 +47,7 @@
           --zx-x-fill: #d96238;
           --nav-bg: rgba(18, 19, 22, 0.88);
           --status-warning-bg: rgba(245, 158, 11, 0.14);
-          --status-warning-border: rgba(245, 158, 11, 0.28);
           --status-warning-fg: #fbbf24;
-          --status-success-bg: rgba(34, 197, 94, 0.14);
-          --status-success-border: rgba(34, 197, 94, 0.28);
           --status-success-fg: #4ade80;
           --ring: rgba(99, 130, 232, 0.36);
         }
@@ -135,30 +129,13 @@
         gap: 10px;
       }
 
-      .status-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 4px 10px;
-        border-radius: 999px;
-        border: 1px solid var(--status-warning-border);
+      .connection-note {
+        color: var(--muted-foreground);
         font-size: 12px;
-        font-weight: 600;
-        background: var(--status-warning-bg);
-        color: var(--status-warning-fg);
       }
 
-      .status-pill-dot {
-        width: 6px;
-        height: 6px;
-        border-radius: 999px;
-        background: currentColor;
-      }
-
-      .status-pill.online {
-        background: var(--status-success-bg);
-        border-color: var(--status-success-border);
-        color: var(--status-success-fg);
+      .connection-note:empty {
+        position: absolute;
       }
 
       .lang-switch {
@@ -188,39 +165,6 @@
         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
       }
 
-      .reconnect-banner {
-        position: sticky;
-        top: 52px;
-        z-index: 19;
-        background: var(--status-success-bg);
-        border-bottom: 1px solid var(--status-success-border);
-      }
-
-      .reconnect-banner-inner {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        max-width: 860px;
-        margin: 0 auto;
-        padding: 8px 24px;
-      }
-
-      .reconnect-banner-text {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--status-success-fg);
-      }
-
-      .reconnect-banner-actions {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-      }
-
       .page {
         flex: 1;
         width: 100%;
@@ -243,25 +187,6 @@
         align-items: flex-start;
         gap: 14px;
         min-width: 0;
-      }
-
-      .offline-icon-box {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 40px;
-        height: 40px;
-        border-radius: 10px;
-        background: var(--status-warning-bg);
-        border: 1px solid var(--status-warning-border);
-        color: var(--status-warning-fg);
-        flex-shrink: 0;
-      }
-
-      .offline-icon-box.online {
-        background: var(--status-success-bg);
-        border-color: var(--status-success-border);
-        color: var(--status-success-fg);
       }
 
       .offline-header-copy {
@@ -653,7 +578,6 @@
 
       @media (max-width: 600px) {
         .navbar-inner,
-        .reconnect-banner-inner,
         .page {
           padding-left: 16px;
           padding-right: 16px;
@@ -937,10 +861,7 @@
           <span class="brand-name">Zyx Academy</span>
         </div>
         <div class="nav-controls">
-          <div class="status-pill" id="conn-pill" role="status" aria-live="polite">
-            <span class="status-pill-dot" aria-hidden="true"></span>
-            <span id="conn-label">Menghubungkan</span>
-          </div>
+          <span class="connection-note" id="offline-indicator" role="status"></span>
           <div class="lang-switch" role="group" aria-label="Language">
             <button type="button" class="lang-btn" id="lang-id" aria-pressed="true">ID</button>
             <button type="button" class="lang-btn" id="lang-en" aria-pressed="false">EN</button>
@@ -953,38 +874,10 @@
       <div id="reader-progress-bar" class="reader-progress-bar"></div>
     </div>
 
-    <div id="reconnect-banner" class="reconnect-banner hidden" role="status" aria-live="polite">
-      <div class="reconnect-banner-inner">
-        <span class="reconnect-banner-text" id="reconnect-banner-text">Koneksi kembali tersedia</span>
-        <div class="reconnect-banner-actions">
-          <button type="button" class="btn btn-primary btn-sm" id="banner-online-btn">
-            Kembali online
-          </button>
-          <button type="button" class="icon-btn" id="banner-dismiss-btn" aria-label="Tutup">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M18 6 6 18" />
-              <path d="m6 6 12 12" />
-            </svg>
-          </button>
-        </div>
-      </div>
-    </div>
-
     <main class="page">
       <div id="home-view">
         <section class="offline-header">
           <div class="offline-header-left">
-            <div class="offline-icon-box" id="offline-icon-box" aria-hidden="true">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 20h.01" />
-                <path d="M8.5 16.429a5 5 0 0 1 7 0" />
-                <path d="M5 12.859a10 10 0 0 1 5.17-2.69" />
-                <path d="M19 12.859a10 10 0 0 0-2.007-1.523" />
-                <path d="M2 8.82a15 15 0 0 1 4.177-2.643" />
-                <path d="M22 8.82a15 15 0 0 0-11.288-3.764" />
-                <path d="m2 2 20 20" />
-              </svg>
-            </div>
             <div class="offline-header-copy">
               <h1 id="title">Membuka Zyx Academy</h1>
               <p class="lead hidden" id="message"></p>
@@ -1041,7 +934,7 @@
             <span id="reader-back-label">Kembali</span>
           </button>
           <button type="button" class="btn btn-outline btn-sm" id="reader-reconnect-btn">
-            Kembali online
+            Buka aplikasi
           </button>
         </div>
         <p class="reader-meta" id="reader-meta"></p>
@@ -1056,17 +949,12 @@
     <script>
       (function () {
         var POSITION_PREFIX = "zyx:offline-reading-pos:";
-        var isNightly = /nightly/i.test(navigator.userAgent || "");
         var targetOrigin = window.__ZYX_NATIVE_SERVER_ORIGIN__ || "https://www.zyxacademy.com";
 
         var COPY = {
           id: {
-            connectingPill: "Menghubungkan",
-            offlinePill: "Offline",
-            onlinePill: "Terhubung",
-            unavailablePill: "Belum terhubung",
+            offline: "Offline",
             connectingTitle: "Membuka Zyx Academy",
-            offlineTitle: "Sedang offline",
             offlineMsg: "Periksa koneksi internet Anda lalu coba lagi, atau buka materi tersimpan di bawah.",
             unavailableTitle: "Zyx belum dapat dibuka",
             unavailableMsg: "Coba lagi, atau buka bacaan yang tersimpan di perangkat ini.",
@@ -1082,9 +970,7 @@
             emptySearchTitle: "Tidak ada bacaan yang cocok",
             emptySearchDesc: "Coba kata kunci lain atau hapus pencarian.",
             back: "Kembali",
-            reconnect: "Kembali online",
-            bannerText: "Koneksi kembali tersedia",
-            bannerDismiss: "Tutup",
+            reconnect: "Buka aplikasi",
             deleteLabel: "Hapus bacaan",
             minUnit: "mnt",
             noContent: "Konten bacaan tidak tersedia di penyimpanan lokal.",
@@ -1093,12 +979,8 @@
             },
           },
           en: {
-            connectingPill: "Connecting",
-            offlinePill: "Offline",
-            onlinePill: "Connected",
-            unavailablePill: "Not connected",
+            offline: "Offline",
             connectingTitle: "Opening Zyx Academy",
-            offlineTitle: "You are offline",
             offlineMsg: "Check your internet connection and try again, or open saved materials below.",
             unavailableTitle: "Zyx could not be opened",
             unavailableMsg: "Try again, or open readings saved on this device.",
@@ -1114,9 +996,7 @@
             emptySearchTitle: "No matching readings",
             emptySearchDesc: "Try a different keyword or clear the search.",
             back: "Back",
-            reconnect: "Return online",
-            bannerText: "Connection restored",
-            bannerDismiss: "Dismiss",
+            reconnect: "Open app",
             deleteLabel: "Remove reading",
             minUnit: "min",
             noContent: "Reading content is not available in local storage.",
@@ -1132,9 +1012,7 @@
 
         var startupSplash = document.getElementById("startup-splash");
         var offlineShell = document.getElementById("offline-shell");
-        var offlineIconBox = document.getElementById("offline-icon-box");
-        var connPill = document.getElementById("conn-pill");
-        var connLabel = document.getElementById("conn-label");
+        var offlineIndicator = document.getElementById("offline-indicator");
         var titleEl = document.getElementById("title");
         var messageEl = document.getElementById("message");
         var statusEl = document.getElementById("status-text");
@@ -1163,17 +1041,12 @@
         var readerMetaEl = document.getElementById("reader-meta");
         var readerTitleEl = document.getElementById("reader-title");
         var readerBodyEl = document.getElementById("reader-body");
-        var reconnectBanner = document.getElementById("reconnect-banner");
-        var reconnectBannerText = document.getElementById("reconnect-banner-text");
-        var bannerOnlineBtn = document.getElementById("banner-online-btn");
-        var bannerDismissBtn = document.getElementById("banner-dismiss-btn");
 
         var cachedItems = [];
         var cachedTotalBytes = 0;
         var searchQuery = "";
         var activeReading = null;
         var scrollSaveTimer = null;
-        var bannerDismissed = false;
         var enteredOfflineMode = false;
         var connectionState = navigator.onLine === false ? "offline" : "connecting";
         var connectionGeneration = 0;
@@ -1465,17 +1338,17 @@
           persistActiveReadingPosition();
           var generation = connectionGeneration;
           connectionState = "connecting";
-          updateConnectionUI(false);
+          updateConnectionUI();
           var reachable = await probeServerReachable();
           if (generation !== connectionGeneration) return;
           if (!reachable) {
             enteredOfflineMode = true;
             connectionState = navigator.onLine === false ? "offline" : "unreachable";
-            updateConnectionUI(false);
+            updateConnectionUI();
             return;
           }
           connectionState = "online";
-          updateConnectionUI(false);
+          updateConnectionUI();
           window.location.replace(targetOrigin + "/");
         }
 
@@ -1793,26 +1666,18 @@
           renderLibrary();
         }
 
-        function updateConnectionUI(showBannerIfOnline) {
+        function updateConnectionUI() {
           var t = COPY[currentLang];
-          var isOnline = connectionState === "online";
           var isConnecting = connectionState === "connecting";
           var isOffline = connectionState === "offline";
-          connPill.classList.toggle("online", isOnline);
-          connPill.classList.toggle("offline", isOffline);
-          connPill.classList.toggle("unreachable", connectionState === "unreachable");
-          if (offlineIconBox) offlineIconBox.classList.toggle("online", isOnline);
-          connLabel.textContent = isConnecting
-            ? t.connectingPill
-            : isOnline ? t.onlinePill : isOffline ? t.offlinePill : t.unavailablePill;
+          offlineIndicator.textContent = isOffline ? t.offline : "";
           retryButton.disabled = isConnecting;
           readerReconnectBtn.disabled = isConnecting;
-          bannerOnlineBtn.disabled = isConnecting;
           if (retryIcon) retryIcon.classList.toggle("spin", isConnecting);
-          if (retryLabel) retryLabel.textContent = isConnecting ? t.retrying : t.retry;
+          if (retryLabel) retryLabel.textContent = isConnecting ? t.retrying : connectionState === "online" ? t.reconnect : t.retry;
           statusEl.textContent = "";
           if (isOffline) {
-            titleEl.textContent = t.offlineTitle;
+            titleEl.textContent = t.libraryTitle;
             messageEl.textContent = t.offlineMsg;
           } else if (connectionState === "unreachable") {
             titleEl.textContent = t.unavailableTitle;
@@ -1823,11 +1688,6 @@
           }
           messageEl.classList.toggle("hidden", !messageEl.textContent);
           librarySection.classList.toggle("hidden", isConnecting && !enteredOfflineMode);
-          if (!isOnline) {
-            reconnectBanner.classList.add("hidden");
-          } else if (showBannerIfOnline && enteredOfflineMode && !bannerDismissed) {
-            reconnectBanner.classList.remove("hidden");
-          }
         }
 
         function renderLang(lang) {
@@ -1843,12 +1703,9 @@
           }
           readerBackLabel.textContent = t.back;
           readerReconnectBtn.textContent = t.reconnect;
-          reconnectBannerText.textContent = t.bannerText;
-          bannerOnlineBtn.textContent = t.reconnect;
-          bannerDismissBtn.setAttribute("aria-label", t.bannerDismiss);
           langIdBtn.setAttribute("aria-pressed", String(lang === "id"));
           langEnBtn.setAttribute("aria-pressed", String(lang === "en"));
-          updateConnectionUI(false);
+          updateConnectionUI();
           renderLibrary();
         }
 
@@ -1864,16 +1721,9 @@
         readerReconnectBtn.addEventListener("click", function () {
           void handleReturnOnline();
         });
-        bannerOnlineBtn.addEventListener("click", function () {
-          void handleReturnOnline();
-        });
-        bannerDismissBtn.addEventListener("click", function () {
-          bannerDismissed = true;
-          reconnectBanner.classList.add("hidden");
-        });
         if (refreshLibraryBtn) {
           refreshLibraryBtn.addEventListener("click", function () {
-            showOfflineShell(false);
+            showOfflineShell();
             librarySection.scrollIntoView({ behavior: "smooth", block: "start" });
           });
         }
@@ -1916,31 +1766,29 @@
         });
         window.addEventListener("pagehide", persistActiveReadingPosition);
 
-        function showOfflineShell(showBannerIfOnline) {
+        function showOfflineShell() {
           enteredOfflineMode = true;
           if (startupSplash) startupSplash.classList.add("hidden");
           if (offlineShell) offlineShell.classList.remove("hidden");
-          updateConnectionUI(Boolean(showBannerIfOnline));
+          updateConnectionUI();
           void loadLibrary();
         }
 
         // Never auto-redirect mid-read when connectivity returns.
         window.addEventListener("online", function () {
           var generation = connectionGeneration;
-          bannerDismissed = false;
           connectionState = "connecting";
-          updateConnectionUI(false);
+          updateConnectionUI();
           void probeServerReachable().then(function (reachable) {
             if (generation !== connectionGeneration) return;
             connectionState = reachable ? "online" : navigator.onLine === false ? "offline" : "unreachable";
-            updateConnectionUI(true);
+            updateConnectionUI();
           });
         });
         window.addEventListener("offline", function () {
           invalidateConnectionProbe();
           connectionState = "offline";
-          bannerDismissed = false;
-          showOfflineShell(false);
+          showOfflineShell();
         });
 
         renderLang(currentLang);
@@ -1950,22 +1798,22 @@
         void (async function initialConnect() {
           if (window.zyxOfflineShell) {
             await window.zyxOfflineShell.ready;
-            if (window.zyxOfflineShell.hasIdentity) showOfflineShell(false);
+            if (window.zyxOfflineShell.hasIdentity) showOfflineShell();
           }
           var generation = connectionGeneration;
           if (navigator.onLine === false) {
             connectionState = "offline";
-            showOfflineShell(false);
+            showOfflineShell();
             return;
           }
           var reachable = await probeServerReachable();
           if (generation !== connectionGeneration) return;
           connectionState = reachable ? "online" : navigator.onLine === false ? "offline" : "unreachable";
           if (reachable && !activeReading && !enteredOfflineMode) {
-            updateConnectionUI(false);
+            updateConnectionUI();
             window.location.replace(targetOrigin + "/");
           } else {
-            showOfflineShell(reachable);
+            showOfflineShell();
           }
         })();
       })();

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { BookOpen, Download, GraduationCap, HardDrive, Pin, Play, RefreshCw, Trash2, Trophy, Wifi, WifiOff } from "lucide-react";
+import { BookOpen, Download, GraduationCap, HardDrive, Pin, Play, RefreshCw, Trash2, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -67,7 +67,8 @@ export function OfflineLibraryBrowser({ locale, snapshot: storedSnapshot, items,
     <header className="flex flex-wrap items-start justify-between gap-(--related-gap) border-b border-border/60 pb-(--related-gap)">
       <div><h1 className="font-heading text-h5 font-bold">{copy.title}</h1>{snapshot?.lastVerifiedAt ? <p className="mt-1 text-body-xs text-muted-foreground">{copy.lastChecked} {date(snapshot.lastVerifiedAt)}</p> : null}</div>
       <div className="flex flex-wrap items-center gap-2">
-        <span role="status" className="inline-flex items-center gap-1.5 text-body-xs text-muted-foreground">{online ? <Wifi className="size-3.5" /> : <WifiOff className="size-3.5" />}{syncing ? copy.syncing : online ? copy.online : copy.offline}</span>
+        <span role="status" className="text-body-xs text-muted-foreground empty:sr-only">{!online ? copy.offline : ""}</span>
+        <span role="status" className="text-body-xs text-muted-foreground empty:sr-only">{syncing ? copy.syncing : ""}</span>
         <Button type="button" variant="outline" disabled={!online || syncing} onClick={() => void run("sync", onSync)}><RefreshCw className={cn("size-3.5", syncing && "animate-spin motion-reduce:animate-none")} />{copy.sync}</Button>
         {online && <Button asChild variant="ghost"><Link href="/dashboard">{copy.openOnline}</Link></Button>}
       </div>

@@ -195,9 +195,11 @@ function render(): void {
   const title = node("div"); title.append(node("h1", "", copy.title));
   if (snapshot?.lastVerifiedAt) title.append(node("p", "offline-v2-meta", `${copy.lastChecked} ${date(snapshot.lastVerifiedAt)}`));
   const controls = node("div", "offline-v2-head-actions");
-  const state = syncing ? "syncing" : error ? "error" : navigator.onLine === false ? "offline" : "ready";
-  const status = node("span", "offline-v2-status", syncing ? copy.syncing : navigator.onLine === false ? copy.offline : copy.ready);
-  status.dataset.state = state; status.setAttribute("role", "status"); controls.append(status);
+  if (syncing) {
+    const status = node("span", "offline-v2-sync-status", copy.syncing);
+    status.setAttribute("role", "status");
+    controls.append(status);
+  }
   const syncButton = action(copy.sync, sync, "btn btn-outline"); syncButton.disabled = syncing || !controller; controls.append(syncButton);
   if (navigator.onLine !== false) controls.append(action(copy.openOnline, showOnline, "btn btn-ghost"));
   head.append(title, controls); root.append(head);

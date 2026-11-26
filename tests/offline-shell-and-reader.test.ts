@@ -397,12 +397,13 @@ describe("Item #4: offline KaTeX, visuals, reading position, and non-disruptive 
 
       const html = readFileSync(htmlPath, "utf8");
       expect(html).toContain('href="vendor/katex/katex.min.css"');
-      expect(html).toContain("reconnect-banner");
+      expect(html).toContain('id="offline-indicator" role="status"');
+      expect(html).not.toMatch(/channel-badge|status-pill|reconnect-banner/);
       expect(html).toContain("sanitizeHtmlFragment");
       expect(html).toContain("persistActiveReadingPosition");
       expect(html).toContain("restoreReadingPosition");
 
-      // Online event listener must show reconnect banner instead of auto-redirecting mid-read
+      // Online event listener must keep the open reader in place
       const onlineMatch = html.match(/window\.addEventListener\("online",\s*function\s*\(\)\s*\{([\s\S]*?)\}\);/);
       expect(onlineMatch).not.toBeNull();
       const onlineBody = onlineMatch![1];

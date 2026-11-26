@@ -123,6 +123,8 @@ for (const platform of ["desktop", "android"] as const) for (const theme of ["li
   test(`${platform} bundled library, course, reader and storage in ${theme}`, async ({ page }, info) => {
     const { failures } = await launch(page, platform, theme);
     await expect(page.getByRole("heading", { name: "Materi di perangkat" })).toBeVisible();
+    await expect(page.getByText("Offline", { exact: true })).toHaveCount(1);
+    await expect(page.locator("#offline-indicator")).toHaveText("Offline");
     await capture(page, info, `offline-${platform}-courses-${theme}`, failures);
     await page.locator(".offline-v2-row-main").filter({ hasText: "Matematika I" }).click();
     await expect(page.locator(".offline-v2-content")).toContainText("Limit fungsi");
@@ -130,6 +132,7 @@ for (const platform of ["desktop", "android"] as const) for (const theme of ["li
     await page.locator(".offline-v2-row").filter({ hasText: "Limit fungsi" }).getByRole("button", { name: "Buka", exact: true }).click();
     await expect(page.locator("#reader-view")).toBeVisible();
     await expect(page.locator("#reader-body .katex")).toBeVisible();
+    await expect(page.getByText("Offline", { exact: true })).toHaveCount(1);
     await capture(page, info, `offline-${platform}-reader-${theme}`, failures);
     await page.locator("#reader-back-btn").click();
     await selectSection(page, "storage");
@@ -155,17 +158,14 @@ for (const platform of ["desktop", "android"] as const) test(`${platform} Englis
   await capture(page, info, "offline-native-videos-en", failures);
   await page.evaluate(() => { const state = (window as unknown as { __offlineNativeFixture: { online: boolean } }).__offlineNativeFixture; state.online = true; window.dispatchEvent(new Event("online")); });
   await expect(page.locator(".offline-v2-notice")).toContainText("Could not update");
-  await expect(page.locator("#reconnect-banner-text")).toHaveText("Connection restored");
-  await expect(page.locator("#banner-online-btn")).toHaveText("Return online");
-  if (platform === "android") {
-    for (const lang of ["id", "en"]) {
-      await page.locator(`#lang-${lang}`).click();
-      await expect(page.locator("#conn-label")).toHaveText("Online");
-      const bounds = await page.locator("#channel-badge, #conn-pill, .nav-right .lang-switch").evaluateAll(elements => elements.map(element => { const rect = element.getBoundingClientRect(); return { left: rect.left, right: rect.right }; }));
-      expect(bounds).toHaveLength(3);
-      expect(bounds[0].right).toBeLessThanOrEqual(bounds[1].left);
-      expect(bounds[1].right).toBeLessThanOrEqual(bounds[2].left);
-    }
+  await expect(page.locator("#offline-indicator")).toBeHidden();
+  await expect(page.locator(".offline-v2-head-actions").getByText(/^(Online|Saved|Connected)$/)).toHaveCount(0);
+  await expect(page.getByText("Connection restored", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Open app", exact: true })).toBeVisible();
+  for (const lang of ["id", "en"]) {
+    await page.locator(`#lang-${lang}`).click();
+    await expect(page.locator("#offline-indicator")).toBeHidden();
+    await expect(page.locator("#channel-badge, #conn-pill, #reconnect-banner")).toHaveCount(0);
   }
   expect(page.url()).toContain(`${origin}/native-offline/${platform}/`);
   await page.locator('[data-section="readings"]').click();
@@ -196,7 +196,7 @@ test("empty Nightly desktop opens the configured staging app", async ({ page }) 
   await launch(page, "desktop", "light", "en", "empty");
   await page.route(`${environment}/dashboard`, route => route.fulfill({ contentType: "text/html", body: "<h1>Online app</h1>" }));
   await page.locator("#lang-en").click();
-  await page.getByRole("button", { name: "Open the online app", exact: true }).click();
+  await page.getByRole("button", { name: "Open app", exact: true }).click();
   await expect(page).toHaveURL(`${environment}/dashboard`);
 });
 
@@ -219,6 +219,8 @@ for (const platform of ["desktop", "android"] as const) test(`${platform} cached
   await page.locator('[data-section="readings"]').click();
   await page.locator(".offline-v2-row").filter({ hasText: "Limit fungsi" }).getByRole("button", { name: "Buka", exact: true }).click();
   await expect(page.locator("#reader-body .katex")).toBeVisible();
+  await expect(page.locator("#offline-indicator")).toBeHidden();
+  await expect(page.locator("#reader-reconnect-btn")).toHaveText("Buka aplikasi");
   await capture(page, info, `offline-${platform}-cold-online-stalled`, failures);
   await releaseProbe();
   await expect(page).toHaveURL(`${origin}/native-offline/${platform}/index.html`);

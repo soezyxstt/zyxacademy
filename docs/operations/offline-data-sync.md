@@ -67,7 +67,7 @@ Admins can request checks for all data, one course or one material, using title 
 
 Automatic cache entries can be removed to make room. Explicit downloads stay pinned until removed or access ends. Pinning preserves the user's download choice, not permanent authorization. If pinned data fills the limit, a new download reports a storage problem instead of silently removing a saved download.
 
-The UI distinguishes connection errors, pending updates, expired access and empty storage. Reading position belongs to its account and material. A content update must not mix private state into another account.
+Native and web libraries and saved readers show Offline once as muted text when the device is disconnected. The indicator takes up no space while connected. Reconnection leaves the current reading open. Learners can choose Buka aplikasi to return to the web app. Sync progress, failed requests, expired access and empty storage retain their own messages. Release channel selection still uses the configured environment. Reading position belongs to its account and material. A content update must not mix private state into another account.
 
 An offline device cannot learn about a server-side permission change until it reconnects. The stored access limit bounds this delay. After that limit expires, the app requires a new check. A shorter limit provides a tighter revocation window. No push transport guarantees immediate removal from a device without a connection.
 
@@ -90,9 +90,11 @@ Resource headers include `x-offline-*` identity, cursor, revision and validation
 
 Existing publication and academic tools receive invalidation through the same services. This change adds no MCP tools and does not change OAuth scopes, consent, discovery, packaged skills, playbooks, host prompts or environment bindings. Policy editing and manual revalidation are intentionally admin-UI-only, as recorded in `lib/admin-mcp/operations-catalog.ts`.
 
+The library, reader and native shell connectivity presentation is device-local. The existing desktop recovery and admin policy entries in the operations catalog still cover the affected workflows. Native origin lookup and web API calls use the existing clients and environment bindings.
+
 ## Rollout and evidence
 
-Apply the additive migration to the intended environment before deploying routes that query its tables. Release the staging web build separately from this draft. Build native packages from the same revision and install the resulting Nightly builds to test the new bridge and local entry page. Web deployment cannot replace embedded installer files.
+Apply the additive migration to the intended environment before deploying routes that query its tables. Release the staging web build separately from this draft. Build native packages from the same revision and install the resulting Nightly builds to test the new bridge and local entry page. Web deployment cannot replace embedded installer files. Edit the tracked mobile and desktop `index.html` templates and the shared native source. Build the ignored shell bundles, CSS, origins and fonts with `bun run build:native-offline` during packaging.
 
 This draft does not run a remote migration, publish an installer or change production data. Android and Tauri still need installed-device acceptance. The browser fixture tests shipped HTML and the shared controller with a simulated bridge; it does not establish Android WebView or OS cookie behavior.
 

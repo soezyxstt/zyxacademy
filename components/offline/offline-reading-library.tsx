@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Wifi, WifiOff, X } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { StructuredArticleSectionContent } from "@/components/course/structured-article-section-content";
@@ -43,7 +43,6 @@ export function OfflineReadingLibrary() {
   const [updatedRecord, setUpdatedRecord] = useState<OfflineReadingRecord | null>(null);
   const activeUserId = session?.user?.id ?? null;
   const [online, setOnline] = useState(true);
-  const [reconnectedBannerVisible, setReconnectedBannerVisible] = useState(false);
   const [items, setItems] = useState<OfflineReadingSummary[]>([]);
   const [stats, setStats] = useState<OfflineCacheStats | null>(null);
   const [activeRecord, setActiveRecord] = useState<OfflineReadingRecord | null>(null);
@@ -133,11 +132,9 @@ export function OfflineReadingLibrary() {
     }
     const handleOnline = () => {
       setOnline(true);
-      setReconnectedBannerVisible(true);
     };
     const handleOffline = () => {
       setOnline(false);
-      setReconnectedBannerVisible(false);
     };
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
@@ -244,38 +241,6 @@ export function OfflineReadingLibrary() {
 
     return (
       <div className="mx-auto max-w-4xl px-(--page-gutter) py-(--section-gap)">
-        {online && reconnectedBannerVisible && (
-          <div
-            role="status"
-            aria-live="polite"
-            className="mb-(--related-gap) flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-2 text-body-xs text-status-success"
-          >
-            <span className="inline-flex items-center gap-1.5 font-semibold">
-              <Wifi className="size-3.5" />
-              {locale === "id" ? "Koneksi kembali tersedia" : "Connection restored"}
-            </span>
-            <div className="flex items-center gap-1.5">
-              <Button
-                asChild
-                size="sm"
-                variant="default"
-                onClick={() => persistCurrentPosition()}
-              >
-                <Link href={onlineReturnHref}>{copy.openOnline}</Link>
-              </Button>
-              <Button
-                type="button"
-                size="icon-sm"
-                variant="ghost"
-                aria-label={copy.dismiss}
-                onClick={() => setReconnectedBannerVisible(false)}
-              >
-                <X className="size-4" />
-              </Button>
-            </div>
-          </div>
-        )}
-
         <div className="mb-(--section-gap) flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-(--compact-gap)">
           <Button
             type="button"
@@ -286,10 +251,12 @@ export function OfflineReadingLibrary() {
             <ArrowLeft className="size-4" />
             {copy.readings}
           </Button>
-          <span className="inline-flex items-center gap-1.5 text-body-xs text-muted-foreground">
-            {online ? <Wifi className="size-3.5 text-status-success" /> : <WifiOff className="size-3.5 text-status-warning" />}
-            {online ? copy.online : copy.offline}
-          </span>
+          <span role="status" className="text-body-xs text-muted-foreground empty:sr-only">{!online ? copy.offline : ""}</span>
+          {online && (
+            <Button asChild variant="ghost" onClick={() => persistCurrentPosition()}>
+              <Link href={onlineReturnHref}>{copy.openOnline}</Link>
+            </Button>
+          )}
         </div>
 
         {updatedRecord && <div role="status" className="mb-(--related-gap) flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-2 text-body-xs text-muted-foreground"><span>{copy.updateAvailable}</span><Button variant="ghost" onClick={() => { persistCurrentPosition(); setActiveRecord(updatedRecord); setUpdatedRecord(null); }}>{copy.updateNow}</Button></div>}
