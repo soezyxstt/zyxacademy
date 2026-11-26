@@ -1,6 +1,7 @@
 import { randomUUID } from "expo-crypto";
 import { useEffect, useRef, useState } from "react";
 import { Image, View } from "react-native";
+import { SharedUiComposer, type SharedUiAction } from "../../shared-ui";
 import { DiscussionMessageBody } from "./discussion-markdown";
 import type {
   DiscussionAttachment, DiscussionAuthorProfile, DiscussionChannelMetadata, DiscussionMention, DiscussionMessage, DiscussionPage,
@@ -42,8 +43,10 @@ type UploadedImage = { id: string; name: string };
 function Composer({ context, channelId, skinId, onSent }: {
   context: DraftContext; channelId: string; skinId: string | null; onSent(target: { threadId: string; messageId: string }): void;
 }) {
-  const { request, tr, session, pickAssessmentFile } = useCommunity();
+  const { request, tr, session, theme, pickAssessmentFile } = useCommunity();
   const [body, setBody] = useState("");
+  const selection = useRef({ start: 0, end: 0 });
+  const [requestedSelection, setRequestedSelection] = useState<{ start: number; end: number }>();
   const [title, setTitle] = useState("");
   const [askZyra, setAskZyra] = useState(false);
   const [attachments, setAttachments] = useState<UploadedImage[]>([]);
@@ -130,40 +133,71 @@ function Composer({ context, channelId, skinId, onSent }: {
       : { action: "mentions", threadId: context.threadId, search: search.trim() }));
   });
   const locked = Boolean(pendingSend) || sending;
+  const tools: SharedUiAction<"attach" | "mention">[] = [
+    { id: "mention", label: tr("Sebut peserta", "Mention someone") },
+  ];
+  if (pickAssessmentFile) tools.unshift({
+    id: "attach", label: tr("Lampirkan gambar", "Attach image"), disabled: action.pending || attachments.length >= 4,
+  });
   return <View style={styles.block}>
     {context.action === "create" && <Field label={tr("Judul pertanyaan (opsional)", "Question title (optional)")} value={title} onChangeText={setTitle} maxLength={160} editable={!locked} />}
-    <Field testID={context.action === "answer" ? "student-discussion-answer" : undefined} label={context.action === "create" ? tr("Pertanyaan", "Question") : context.action === "answer" ? tr("Jawaban", "Answer") : tr("Balasan", "Reply")}
-      value={body} onChangeText={value => {
+    <SharedUiComposer
+      testID={context.action === "answer" ? "student-discussion-answer" : "student-discussion-composer"}
+      theme={theme}
+      label={context.action === "create" ? tr("Pertanyaan", "Question") : context.action === "answer" ? tr("Jawaban", "Answer") : tr("Balasan", "Reply")}
+      draft={body}
+      onDraftChange={value => {
+        setRequestedSelection(undefined);
         setBody(value);
         setMentions(items => items.filter(item => value.includes(`@${item.handle}`)));
-      }} multiline maxLength={12000} editable={!locked} />
+      }}
+      selection={requestedSelection}
+      onSelectionChange={value => {
+        selection.current = value;
+        if (requestedSelection?.start === value.start && requestedSelection.end === value.end) setRequestedSelection(undefined);
+      }}
+      maxLength={12000}
+      canSubmitEmpty={attachments.length > 0}
+      pending={sending}
+      editingDisabled={locked}
+      submitDisabled={action.pending || Boolean(replayTarget)}
+      submitLabel={context.action === "create" ? tr("Kirim pertanyaan", "Send question") : context.action === "answer" ? tr("Kirim jawaban", "Send answer") : tr("Kirim balasan", "Send reply")}
+      onSubmit={() => void submit()}
+      tools={tools}
+      onTool={tool => tool === "attach" ? upload() : setMentionOpen(value => !value)}
+      recovery={notice ? {
+        message: notice,
+        retry: pendingSend && !replayTarget ? { label: tr("Coba kirim ulang", "Retry submission"), onRetry: () => void submit() } : undefined,
+      } : undefined}
+      beforeInput={attachments.length ? <Rows>{attachments.map(image => <Row key={image.id} title={image.name}>
+        <Actions><Action label={tr("Lepas gambar", "Remove image")} disabled={locked} onPress={() => setAttachments(items => items.filter(item => item.id !== image.id))} /></Actions>
+      </Row>)}</Rows> : undefined}
+    />
     <Toggle label={tr("Tanya Zyra", "Ask Zyra")} value={askZyra} onChange={setAskZyra} disabled={locked} />
-    <Actions>{pickAssessmentFile && <Action label={tr("Lampirkan gambar", "Attach image")} disabled={locked || action.pending || attachments.length >= 4} onPress={upload} />}
-      <Action label={tr("Sebut peserta", "Mention someone")} disabled={locked} onPress={() => setMentionOpen(value => !value)} /></Actions>
-    {attachments.map(image => <Row key={image.id} title={image.name}>
-      <Actions><Action label={tr("Lepas gambar", "Remove image")} disabled={locked} onPress={() => setAttachments(items => items.filter(item => item.id !== image.id))} /></Actions>
-    </Row>)}
     {mentionOpen && <>
       <Field label={tr("Nama peserta", "Participant name")} value={search} onChangeText={setSearch} maxLength={80} editable={!locked} />
       <Actions><Action label={tr("Cari peserta", "Find participant")} busy={action.pending} disabled={locked || !search.trim()} onPress={lookup} /></Actions>
       {mentionResults.map(item => <Row key={item.id} title={item.name} meta={item.context ?? undefined} onPress={locked ? undefined : () => {
         let handle = item.name.normalize("NFKD").replace(/[^\p{L}\p{N}_]/gu, "").slice(0, 60) || "anggota";
         if (handle.toLowerCase() === "zyra" || mentions.some(value => value.handle.toLowerCase() === handle.toLowerCase())) handle = `${handle}_${mentions.length}`;
-        if (mentions.length >= 10 || mentions.some(value => value.id === item.id) || body.length + handle.length + 2 > 12000) return;
-        setMentions(items => [...items, { id: item.id, handle }]);
-        setBody(value => `${value} @${handle} `);
+        const { start, end } = selection.current;
+        const insert = ` @${handle} `;
+        const nextBody = body.slice(0, start) + insert + body.slice(end);
+        if (mentions.length >= 10 || nextBody.length > 12000 || mentions.some(value => value.id === item.id)) return;
+        setMentions(items => [...items.filter(value => nextBody.includes(`@${value.handle}`)), { id: item.id, handle }]);
+        setBody(nextBody);
+        setRequestedSelection({ start: start + insert.length, end: start + insert.length });
         setMentionOpen(false);
       }} />)}
     </>}
-    {notice && <Notice notice={{ message: notice, failed: true }} />}
     <Notice notice={action.notice} />
-    <Actions>{replayTarget ? <Action label={tr("Buka kiriman", "Open submission")} mode="default" onPress={() => {
-      reset();
-      onSent(replayTarget);
-    }} /> : <Action label={pendingSend ? tr("Coba kirim ulang", "Retry submission") : context.action === "create"
-      ? tr("Kirim pertanyaan", "Send question") : context.action === "answer" ? tr("Kirim jawaban", "Send answer") : tr("Kirim balasan", "Send reply")}
-      mode="default" busy={sending} disabled={(!body.trim() && !attachments.length) || action.pending} onPress={() => void submit()} />}
-      {pendingSend && !sending && <Action label={tr("Tinggalkan kiriman", "Discard submission")} onPress={reset} />}</Actions>
+    {(replayTarget || pendingSend && !sending) && <Actions>
+      {replayTarget && <Action label={tr("Buka kiriman", "Open submission")} mode="default" onPress={() => {
+        reset();
+        onSent(replayTarget);
+      }} />}
+      {pendingSend && !sending && <Action label={tr("Tinggalkan kiriman", "Discard submission")} onPress={reset} />}
+    </Actions>}
   </View>;
 }
 

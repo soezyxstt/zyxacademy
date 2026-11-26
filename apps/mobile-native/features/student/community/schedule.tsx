@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { View, Share } from "react-native";
+import { Calendar, type CalendarDay, type CalendarEvent } from "../../shared-ui";
 import type { AgendaData, Booking, Group, NativeOperationResult, Schedule, Slot } from "../../../../../packages/native-parity/student/community/contracts";
 import { Action, Actions, Choices, Copy, Field, Notice, Page, Remote, Row, Rows, communityPath, dateLabel, operationResult, post, readJson, styles, useCommunity, useOperation, useRemote } from "./ui";
 
@@ -256,50 +257,87 @@ function BookingDetails({ booking, schedule, apply, pending }: {
   </View>;
 }
 
+function WeekCalendar({ schedule, pending, offset, onPeriodChange, apply }: {
+  schedule: Schedule; pending: boolean; offset: number;
+  onPeriodChange(direction: -1 | 1): void; apply: ScheduleAction;
+}) {
+  const { tr, session, theme } = useCommunity();
+  const [selectedDate, setDate] = useState<string>();
+  const [selectedEvent, setEvent] = useState<string>();
+  const shortDay = new Intl.DateTimeFormat(session.locale, { weekday: "short", timeZone: "Asia/Jakarta" });
+  const dateNumber = new Intl.DateTimeFormat(session.locale, { day: "numeric", timeZone: "Asia/Jakarta" });
+  const clock = new Intl.DateTimeFormat(session.locale, { timeStyle: "short", timeZone: "Asia/Jakarta" });
+  const days: CalendarDay[] = schedule.dates.map(id => {
+    const date = new Date(`${id}T00:00:00+07:00`);
+    return { id, weekday: shortDay.format(date), day: dateNumber.format(date), label: dateLabel(id, session.locale), today: id === schedule.todayDate };
+  });
+  const events: CalendarEvent[] = [
+    ...schedule.bookings.map(booking => ({
+      id: `booking-${booking.id}`, dateId: booking.date, title: booking.topic || booking.course,
+      caption: `${booking.startTime}–${booking.endTime} · ${booking.tutor} · ${booking.status}`,
+    })),
+    ...schedule.slots.map(slot => ({
+      id: `slot-${slot.id}`, dateId: slot.date, title: slot.tutor,
+      caption: `${slot.startTime}–${slot.endTime} · ${!schedule.locked && !slot.occupied && slot.bookable ? tr("Tersedia", "Available") : tr("Tidak tersedia", "Unavailable")}`,
+      disabled: schedule.locked || slot.occupied || !slot.bookable,
+    })),
+    ...schedule.academic.map(event => ({
+      id: `academic-${event.id}`, dateId: event.dateId, title: event.title,
+      caption: `${clock.format(new Date(event.startTime))} · ${tr("Agenda akademik", "Academic calendar")}`,
+    })),
+  ];
+  const dateId = selectedDate ?? days.find(day => day.today)?.id ?? days.find(day => events.some(item => item.dateId === day.id))?.id ?? days[0]?.id;
+  const booking = schedule.bookings.find(item => `booking-${item.id}` === selectedEvent && item.date === dateId);
+  const slot = schedule.slots.find(item => `slot-${item.id}` === selectedEvent && item.date === dateId);
+  const bookable = slot && !schedule.locked && !slot.occupied && slot.bookable;
+  return <>
+    <Calendar
+      testID="student-tutorial-calendar"
+      theme={theme}
+      periodLabel={`${dateLabel(schedule.week.startIso, session.locale)} · ${dateLabel(schedule.week.endIso, session.locale)}`}
+      days={days}
+      events={events}
+      selectedDateId={dateId}
+      selectedEventId={selectedEvent}
+      labels={{
+        previous: tr("Minggu lalu", "Previous week"), next: tr("Minggu depan", "Next week"),
+        today: tr("Hari ini", "Today"), empty: tr("Belum ada jadwal pada tanggal ini.", "No events on this date."),
+        getEventCountLabel: count => `${count} ${tr("agenda", "events")}`,
+      }}
+      previousDisabled={offset <= -104 || pending}
+      nextDisabled={offset >= 104 || pending}
+      onPeriodChange={onPeriodChange}
+      onDateChange={id => { setDate(id); setEvent(undefined); }}
+      onEventPress={id => setEvent(active => active === id ? undefined : id)}
+    />
+    {booking && <BookingDetails key={booking.id} booking={booking} schedule={schedule} apply={apply} pending={pending} />}
+    {bookable && <SlotBooking key={slot.id} slot={slot} schedule={schedule} apply={apply} pending={pending} />}
+  </>;
+}
+
 export function ScheduleScreen() {
-  const { route, tr, request, session, navigate } = useCommunity();
+  const { route, tr, request, navigate } = useCommunity();
   const [offset, setOffset] = useState(0);
-  const [slotId, setSlot] = useState<string>();
-  const [bookingId, setBooking] = useState<string>();
   const state = useRemote<Schedule>(communityPath("schedule", { offset, course: route.query.course }));
   const calendar = useRemote<AgendaData["sync"]>(communityPath("calendar-status"));
   const operation = useOperation();
-  useEffect(() => { setSlot(undefined); setBooking(undefined); }, [offset, route.query.course]);
   const apply: ScheduleAction = (body, success, after) => void operation.run(async () => {
     operationResult(await post(request, "schedule", body));
     after?.();
     state.reload();
   }, success, tr("Hasil tindakan belum terkonfirmasi. Perbarui jadwal sebelum mencoba lagi.", "The outcome is unconfirmed. Refresh the schedule before trying again."));
   return <Page title={tr("Jadwal tutorial", "Tutorial schedule")}>
-    <Actions><Action label={tr("Minggu lalu", "Previous week")} onPress={() => setOffset(value => value - 1)} disabled={offset <= -104 || operation.pending} />
-      <Action label={tr("Minggu ini", "This week")} onPress={() => setOffset(0)} disabled={!offset || operation.pending} />
-      <Action label={tr("Minggu depan", "Next week")} onPress={() => setOffset(value => value + 1)} disabled={offset >= 104 || operation.pending} /></Actions>
     <CalendarSync status={calendar.data ?? null} path="/dashboard/schedule" reload={calendar.reload} />
     <Notice notice={operation.notice} />
     <Remote state={state}>{data => <>
-      <Copy kind="heading">{dateLabel(data.week.startIso, session.locale)} · {dateLabel(data.week.endIso, session.locale)}</Copy>
-      <Actions><Action label={tr("Perbarui jadwal", "Refresh schedule")} onPress={state.reload} disabled={operation.pending} />
-        {route.query.course && <Action label={tr("Semua kursus", "All courses")} onPress={() => navigate("/dashboard/schedule")} />}</Actions>
+      <Actions>
+        {offset !== 0 && <Action label={tr("Minggu ini", "This week")} onPress={() => setOffset(0)} disabled={operation.pending} />}
+        <Action label={tr("Perbarui jadwal", "Refresh schedule")} onPress={state.reload} disabled={operation.pending} />
+        {route.query.course && <Action label={tr("Semua kursus", "All courses")} onPress={() => navigate("/dashboard/schedule")} />}
+      </Actions>
       {data.locked && <Copy kind="muted">{tr("Pemesanan minggu ini sudah ditutup.", "Booking for this week is closed.")}</Copy>}
-      <Copy kind="heading">{tr("Sesi kelompok", "Group sessions")}</Copy>
-      {!data.bookings.length && <Copy kind="muted">{tr("Belum ada sesi minggu ini.", "No sessions this week.")}</Copy>}
-      <Rows>{data.bookings.map(booking => <Row key={booking.id} title={booking.topic || booking.course}
-        meta={`${dateLabel(booking.date, session.locale)} · ${booking.startTime}–${booking.endTime} · ${booking.tutor}`} aside={booking.status}
-        onPress={() => setBooking(booking.id === bookingId ? undefined : booking.id)}>
-        {booking.id === bookingId && <BookingDetails booking={booking} schedule={data} apply={apply} pending={operation.pending} />}
-      </Row>)}</Rows>
-      <Copy kind="heading">{tr("Slot tutor", "Tutor slots")}</Copy>
-      {!data.slots.length && <Copy kind="muted">{tr("Belum ada slot minggu ini.", "No slots this week.")}</Copy>}
-      <Rows>{data.slots.map(slot => {
-        const bookable = !data.locked && !slot.occupied && slot.bookable;
-        return <Row key={slot.id} title={slot.tutor} meta={`${dateLabel(slot.date, session.locale)} · ${slot.startTime}–${slot.endTime}`}
-          aside={bookable ? tr("Tersedia", "Available") : tr("Tidak tersedia", "Unavailable")}
-          onPress={bookable ? () => setSlot(slotId === slot.id ? undefined : slot.id) : undefined}>
-          {slot.id === slotId && bookable && <SlotBooking slot={slot} schedule={data} apply={apply} pending={operation.pending} />}
-        </Row>;
-      })}</Rows>
-      {data.academic.length > 0 && <><Copy kind="heading">{tr("Agenda akademik", "Academic calendar")}</Copy>
-        <Rows>{data.academic.map(event => <Row title={event.title} key={event.id} meta={dateLabel(event.date, session.locale, true)} />)}</Rows></>}
+      <WeekCalendar key={`${route.query.course ?? "all"}:${data.week.startIso}`} schedule={data} pending={operation.pending} offset={offset}
+        onPeriodChange={direction => setOffset(value => value + direction)} apply={apply} />
     </>}</Remote>
   </Page>;
 }

@@ -15,7 +15,8 @@ import { getPrivateProfileAggregates } from "@/lib/gamification/profile-aggregat
 import { getStudentSocialSettings, getVisibleStudentIdentities } from "@/lib/gamification/social";
 import { getEmailNotificationPreferences } from "@/lib/email-preferences/repository";
 import { getActivityNotificationPreferences } from "@/lib/notifications/activity-preferences";
-import { canBookTutorialSlot } from "@/lib/schedule/week-policy";
+import { getJakartaCalendarDate } from "@/lib/date-utils";
+import { addTutorialDays, canBookTutorialSlot } from "@/lib/schedule/week-policy";
 import { getPeranCodes } from "@/lib/auth/authorization";
 import type { AcademicRanking, AchievementTab, Group, NotificationPreferences, RankingRow, Schedule } from "@/packages/native-parity/student/community/contracts";
 
@@ -91,6 +92,8 @@ export async function getNativeSchedule(userId: string, offset: number, courseId
   const schedule = await getScheduleData(offset, courseId);
   return {
     week: schedule.weekRange,
+    dates: Array.from({ length: 7 }, (_, index) => addTutorialDays(schedule.weekRange.startIso, index)),
+    todayDate: getJakartaCalendarDate(),
     locked: schedule.isWeekLocked,
     courses: schedule.enrollments.map(({ course }) => ({ id: course.id, title: course.title })),
     groups: schedule.groups.map(group => ({ id: group.id, name: group.name, courseIds: group.courses.map(course => course.courseId) })),
@@ -107,7 +110,7 @@ export async function getNativeSchedule(userId: string, offset: number, courseId
         messages: ticket.messages.map(message => ({ id: message.id, body: message.message, sender: message.sender?.name ?? "" })) })),
     })),
     academic: schedule.academicSchedules.map(event => ({
-      id: event.id, title: event.title, date: event.startDate.toISOString(), startTime: event.startDate.toISOString(), endTime: event.endDate?.toISOString() ?? "",
+      id: event.id, title: event.title, dateId: getJakartaCalendarDate(event.startDate), startTime: event.startDate.toISOString(), endTime: event.endDate?.toISOString() ?? "",
     })),
   };
 }

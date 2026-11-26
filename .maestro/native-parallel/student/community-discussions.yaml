@@ -16,18 +16,19 @@ name: Student opens a discussion alias and posts a scoped answer
 - tapOn: "Tulis jawaban"
 - scrollUntilVisible:
     element:
-      id: student-discussion-answer
+      id: student-discussion-answer-input
     direction: DOWN
 - tapOn:
-    id: student-discussion-answer
+    id: student-discussion-answer-input
 - inputText: "Periksa nilai dari kedua sisi titik sambung."
 - hideKeyboard
 - scrollUntilVisible:
     element:
-      text: "Kirim jawaban"
+      id: student-discussion-answer-submit
     direction: DOWN
 - takeScreenshot: student-community-discussion-draft
-- tapOn: "Kirim jawaban"
+- tapOn:
+    id: student-discussion-answer-submit
 - scrollUntilVisible:
     element:
       text: "Periksa nilai dari kedua sisi titik sambung."

@@ -47,10 +47,10 @@ export type Booking = {
   tickets: { id: string; status: string; reason: string | null; messages: { id: string; body: string; sender: string }[] }[];
 };
 export type Schedule = {
-  week: { startIso: string; endIso: string }; locked: boolean;
+  week: { startIso: string; endIso: string }; dates: string[]; todayDate: string; locked: boolean;
   courses: CourseChoice[]; groups: { id: string; name: string; courseIds: string[] }[];
   slots: Slot[]; bookings: Booking[];
-  academic: { id: string; title: string; date: string; startTime: string; endTime: string }[];
+  academic: { id: string; title: string; dateId: string; startTime: string; endTime: string }[];
 };
 export type Profile = {
   account: { name: string; email: string; image: string | null; faculty: string | null; major: string | null; entryYear: number | null };

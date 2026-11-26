@@ -1,0 +1,32 @@
+appId: com.zyx.academy.nativeparity
+name: Student weekly calendar selects tutor slots and another day
+---
+- launchApp:
+    clearState: true
+- openLink: "zyx-native-parity://student-fixture?scenario=loaded&path=%2Fdashboard%2Fschedule"
+- extendedWaitUntil:
+    visible:
+      id: student-tutorial-calendar-event-slot-slot-integral
+    timeout: 30000
+- takeScreenshot: student-community-schedule-slot
+- tapOn:
+    id: student-tutorial-calendar-event-slot-slot-integral
+- scrollUntilVisible:
+    element:
+      text: "Kelompok turunan"
+    direction: DOWN
+- tapOn: "Kelompok turunan"
+- scrollUntilVisible:
+    element:
+      text: "Pesan slot"
+    direction: DOWN
+- takeScreenshot: student-community-schedule-booking
+- scrollUntilVisible:
+    element:
+      id: student-tutorial-calendar-date-2026-11-27
+    direction: UP
+- tapOn:
+    id: student-tutorial-calendar-date-2026-11-27
+- assertVisible:
+    id: student-tutorial-calendar-event-academic-evt-limit
+- takeScreenshot: student-community-schedule-academic

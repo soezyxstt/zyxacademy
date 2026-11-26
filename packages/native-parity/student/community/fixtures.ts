@@ -56,10 +56,12 @@ const initialGroup: Group = {
   token: { value: "Zyx-DEMO0001-4-1", capacity: 4, expiresAt: null },
 };
 const schedule: Schedule = {
-  week: { startIso: "2026-11-23", endIso: "2026-11-29" }, locked: false, courses: [subject],
+  week: { startIso: "2026-11-23", endIso: "2026-11-29" },
+  dates: ["2026-11-23", "2026-11-24", "2026-11-25", "2026-11-26", "2026-11-27", "2026-11-28", "2026-11-29"],
+  todayDate: "2026-11-28", locked: false, courses: [subject],
   groups: [{ id: initialGroup.id, name: initialGroup.name, courseIds: [subject.id] }],
   slots: [{ id: "slot-integral", date: "2026-11-28", startTime: "10:00", endTime: "11:00", tutor: "Raisa Dewi", courseIds: [subject.id], occupied: false, bookable: true }],
-  bookings: [], academic: [{ id: "evt-limit", title: "Kuis limit", date: "2026-11-27T05:00:00.000Z", startTime: "2026-11-27T05:00:00.000Z", endTime: "" }],
+  bookings: [], academic: [{ id: "evt-limit", title: "Kuis limit", dateId: "2026-11-27", startTime: "2026-11-27T05:00:00.000Z", endTime: "" }],
 };
 const events: AgendaData["events"] = [
   { id: "quiz-limit", title: "Kuis limit", category: "quiz", categoryLabel: "quiz", timeKind: "deadline", dateValue: "2026-11-27T05:00:00.000Z",
