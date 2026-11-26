@@ -111,7 +111,7 @@ function AcademicForm({ account }: { account: Profile["account"] }) {
       <Copy kind="strong">{tr("Program studi", "Major")}</Copy>
       <Choices options={majors.map(value => ({ value, label: value }))} value={major} onSelect={setMajor} disabled={action.pending} />
     </>}
-    <Field label={tr("Tahun masuk", "Entry year")} value={entryYear} onChangeText={setEntryYear} keyboardType="number-pad" maxLength={4} />
+    <Field label={tr("Tahun masuk", "Entry year")} testID="student-profile-entry-year" value={entryYear} onChangeText={setEntryYear} keyboardType="number-pad" maxLength={4} />
     <Notice notice={action.notice} />
     <Actions><Action label={tr("Simpan profil", "Save profile")} mode="default" busy={action.pending}
       disabled={!faculty || !major || !/^\d{4}$/.test(entryYear)} onPress={() => void action.run(async () => {
