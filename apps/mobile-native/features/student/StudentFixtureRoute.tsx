@@ -15,6 +15,7 @@ import { MobileNavbar, RoleBottomNavigation } from "../shared-ui/navigation";
 import { StudentEntry } from "./StudentEntry";
 import type { StudentSession } from "./contracts";
 import { studentFixturePath } from "./fixture-location";
+import { matchStudentRoute } from "./routes";
 
 // Keep device evidence separate from product drafts, including garbage collection.
 const fixtureRepository = createAssessmentDraftRepository(() => openDatabaseAsync("student-fixture-answers.db"));
@@ -50,6 +51,8 @@ function Fixture({ scenario, initialPath, theme, locale, persistent }: { persist
   const offsets = useRef(new Map<number, number>());
   const [stack, setStack] = useState([{ id: 0, path: initialPath, initialScrollY: 0 }]);
   const active = stack[stack.length - 1];
+  const route = matchStudentRoute(active.path);
+  const courseBack = route?.area === "courses" && Boolean(route.params.id);
   const back = useCallback(() => {
     const savedOffsets = new Map(offsets.current);
     setStack(current => {
@@ -94,7 +97,7 @@ function Fixture({ scenario, initialPath, theme, locale, persistent }: { persist
     style={{ flex: 1, backgroundColor: colors.background }}>
     {dashboardState && active.path === "/dashboard" && <MobileNavbar role="student" title={messages.routeTitles.dashboard}
       home={{ label: mobile.home }} includeSafeArea={false} onAction={() => {}} />}
-    {stack.length > 1 && <View style={{ alignItems: "flex-start", paddingHorizontal: 12 }}>
+    {stack.length > 1 && !courseBack && <View style={{ alignItems: "flex-start", paddingHorizontal: 12 }}>
       <Button variant="ghost" accessibilityLabel="Kembali" testID="student.back" onPress={back}>Kembali</Button>
     </View>}
     {refocusResults

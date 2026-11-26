@@ -25,7 +25,7 @@ name: Student course long material list fixture
     id: student-material-bab-24
 - assertVisible: "24. Menentukan domain fungsi komposisi dan menjelaskan syarat pada setiap tahap perhitungan"
 - tapOn:
-    id: student.back
+    id: student-learning-back
 - assertVisible:
     id: student-material-bab-24
 - takeScreenshot: student-long-content-restored

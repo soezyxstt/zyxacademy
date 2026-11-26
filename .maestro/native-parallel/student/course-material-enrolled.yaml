@@ -21,6 +21,10 @@ name: Student course and material reference enrolled
     timeout: 30000
 - assertVisible: "Matematika I"
 - assertVisible:
+    id: student-learning-back
+- assertNotVisible:
+    id: 'student\.back'
+- assertVisible:
     id: student-material-dokumen-1
 - assertNotVisible: "Token kelas"
 - takeScreenshot: student-material-list-enrolled
@@ -34,6 +38,8 @@ name: Student course and material reference enrolled
     visible: "Turunan"
     timeout: 30000
 - assertVisible: "Matematika I"
+- assertNotVisible:
+    id: 'student\.back'
 - assertNotVisible:
     id: student-material-locked
 - assertNotVisible: "Token kelas"

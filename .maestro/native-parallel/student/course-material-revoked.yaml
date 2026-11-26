@@ -21,6 +21,10 @@ name: Student course and material reference revoked
     timeout: 30000
 - assertVisible: "Matematika I"
 - assertVisible:
+    id: student-learning-back
+- assertNotVisible:
+    id: 'student\.back'
+- assertVisible:
     id: student-material-dokumen-1
 - assertVisible: "Token kelas"
 - takeScreenshot: student-material-list-revoked
@@ -34,6 +38,8 @@ name: Student course and material reference revoked
     visible: "Turunan"
     timeout: 30000
 - assertVisible: "Matematika I"
+- assertNotVisible:
+    id: 'student\.back'
 - assertVisible:
     id: student-material-locked
 - assertVisible: "Token kelas"
