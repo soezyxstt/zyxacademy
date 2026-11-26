@@ -1,0 +1,428 @@
+{
+  "platform": "android",
+  "device": "sdk_gphone64_x86_64 | 15 | Physical size: 320x640 | Override size: 380x900 | Physical density: 160 | 1",
+  "deviceRevision": "06ac6f8f84b740a5fae96f2cfaf2b272f9982659",
+  "sourceRevision": "06ac6f8f84b740a5fae96f2cfaf2b272f9982659",
+  "referenceViewport": {
+    "width": 380,
+    "height": 852
+  },
+  "referenceDeviceScaleFactor": 1,
+  "deviceViewport": {
+    "width": 380,
+    "height": 852
+  },
+  "deviceScaleFactor": 1,
+  "unpairedReferenceCases": [],
+  "cases": [
+    {
+      "id": "tutor-dashboard-assigned-light",
+      "passed": false,
+      "reference": {
+        "frame": {
+          "width": 380,
+          "height": 852
+        },
+        "bounds": {
+          "x": 0,
+          "y": 0,
+          "width": 380,
+          "height": 852
+        },
+        "viewport": {
+          "width": 380,
+          "height": 852
+        },
+        "deviceScaleFactor": 1,
+        "theme": "light"
+      },
+      "device": {
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "viewport": {
+          "width": 380,
+          "height": 852
+        },
+        "deviceScaleFactor": 1,
+        "theme": "light"
+      },
+      "comparison": "full-frame",
+      "mismatches": [],
+      "overlap": {
+        "width": 380,
+        "height": 852
+      },
+      "differentOverlapPixels": 34017,
+      "maxRgbDelta": 204,
+      "differenceBoundsInOverlap": [
+        0,
+        8,
+        380,
+        649
+      ],
+      "blankReference": false,
+      "sourceRouteCase": "academic-tutor-populated",
+      "differentPixelPercent": 10.5069,
+      "files": {
+        "web": "examples/tutor-dashboard-assigned-light-web.png",
+        "nativeFrame": "examples/tutor-dashboard-assigned-light-nativeFrame.png",
+        "difference": "examples/tutor-dashboard-assigned-light-difference.png"
+      }
+    },
+    {
+      "id": "tutor-participants-enrolled-light",
+      "passed": false,
+      "reference": {
+        "frame": {
+          "width": 380,
+          "height": 852
+        },
+        "bounds": {
+          "x": 0,
+          "y": 0,
+          "width": 380,
+          "height": 852
+        },
+        "viewport": {
+          "width": 380,
+          "height": 852
+        },
+        "deviceScaleFactor": 1,
+        "theme": "light"
+      },
+      "device": {
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "viewport": {
+          "width": 380,
+          "height": 852
+        },
+        "deviceScaleFactor": 1,
+        "theme": "light"
+      },
+      "comparison": "full-frame",
+      "mismatches": [],
+      "overlap": {
+        "width": 380,
+        "height": 852
+      },
+      "differentOverlapPixels": 53098,
+      "maxRgbDelta": 213,
+      "differenceBoundsInOverlap": [
+        0,
+        8,
+        380,
+        731
+      ],
+      "blankReference": false,
+      "sourceRouteCase": "academic-tutor-courseId-participants-populated",
+      "differentPixelPercent": 16.4004
+    },
+    {
+      "id": "tutor-tryout-grading-pending-light",
+      "passed": false,
+      "reference": {
+        "frame": {
+          "width": 380,
+          "height": 852
+        },
+        "bounds": {
+          "x": 0,
+          "y": 0,
+          "width": 380,
+          "height": 852
+        },
+        "viewport": {
+          "width": 380,
+          "height": 852
+        },
+        "deviceScaleFactor": 1,
+        "theme": "light"
+      },
+      "device": {
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "viewport": {
+          "width": 380,
+          "height": 852
+        },
+        "deviceScaleFactor": 1,
+        "theme": "light"
+      },
+      "comparison": "full-frame",
+      "mismatches": [],
+      "overlap": {
+        "width": 380,
+        "height": 852
+      },
+      "differentOverlapPixels": 14421,
+      "maxRgbDelta": 213,
+      "differenceBoundsInOverlap": [
+        0,
+        8,
+        380,
+        231
+      ],
+      "blankReference": false,
+      "sourceRouteCase": "academic-tutor-courseId-grading-populated",
+      "differentPixelPercent": 4.4542
+    },
+    {
+      "id": "tutor-quizzes-list-light",
+      "passed": false,
+      "reference": {
+        "frame": {
+          "width": 380,
+          "height": 852
+        },
+        "bounds": {
+          "x": 0,
+          "y": 0,
+          "width": 380,
+          "height": 852
+        },
+        "viewport": {
+          "width": 380,
+          "height": 852
+        },
+        "deviceScaleFactor": 1,
+        "theme": "light"
+      },
+      "device": {
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "viewport": {
+          "width": 380,
+          "height": 852
+        },
+        "deviceScaleFactor": 1,
+        "theme": "light"
+      },
+      "comparison": "full-frame",
+      "mismatches": [],
+      "overlap": {
+        "width": 380,
+        "height": 852
+      },
+      "differentOverlapPixels": 53660,
+      "maxRgbDelta": 216,
+      "differenceBoundsInOverlap": [
+        0,
+        8,
+        380,
+        848
+      ],
+      "blankReference": false,
+      "sourceRouteCase": "academic-tutor-courseId-quizzes-populated",
+      "differentPixelPercent": 16.574
+    },
+    {
+      "id": "admin-courses-list-light",
+      "passed": false,
+      "reference": {
+        "frame": {
+          "width": 380,
+          "height": 852
+        },
+        "bounds": {
+          "x": 0,
+          "y": 0,
+          "width": 380,
+          "height": 852
+        },
+        "viewport": {
+          "width": 380,
+          "height": 852
+        },
+        "deviceScaleFactor": 1,
+        "theme": "light"
+      },
+      "device": {
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "viewport": {
+          "width": 380,
+          "height": 852
+        },
+        "deviceScaleFactor": 1,
+        "theme": "light"
+      },
+      "comparison": "full-frame",
+      "mismatches": [],
+      "overlap": {
+        "width": 380,
+        "height": 852
+      },
+      "differentOverlapPixels": 31150,
+      "maxRgbDelta": 221,
+      "differenceBoundsInOverlap": [
+        0,
+        8,
+        380,
+        394
+      ],
+      "blankReference": false,
+      "sourceRouteCase": "academic-admin-courses-populated",
+      "differentPixelPercent": 9.6213
+    },
+    {
+      "id": "admin-courses-empty-dark",
+      "passed": false,
+      "reference": {
+        "frame": {
+          "width": 380,
+          "height": 852
+        },
+        "bounds": {
+          "x": 0,
+          "y": 0,
+          "width": 380,
+          "height": 852
+        },
+        "viewport": {
+          "width": 380,
+          "height": 852
+        },
+        "deviceScaleFactor": 1,
+        "theme": "dark"
+      },
+      "device": {
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "viewport": {
+          "width": 380,
+          "height": 852
+        },
+        "deviceScaleFactor": 1,
+        "theme": "dark"
+      },
+      "comparison": "full-frame",
+      "mismatches": [],
+      "overlap": {
+        "width": 380,
+        "height": 852
+      },
+      "differentOverlapPixels": 29617,
+      "maxRgbDelta": 227,
+      "differenceBoundsInOverlap": [
+        0,
+        0,
+        380,
+        237
+      ],
+      "blankReference": false,
+      "sourceRouteCase": "academic-admin-courses-empty",
+      "differentPixelPercent": 9.1478,
+      "files": {
+        "web": "examples/admin-courses-empty-dark-web.png",
+        "nativeFrame": "examples/admin-courses-empty-dark-nativeFrame.png",
+        "difference": "examples/admin-courses-empty-dark-difference.png"
+      }
+    },
+    {
+      "id": "admin-course-chapters-light",
+      "passed": false,
+      "reference": {
+        "frame": {
+          "width": 380,
+          "height": 852
+        },
+        "bounds": {
+          "x": 0,
+          "y": 0,
+          "width": 380,
+          "height": 852
+        },
+        "viewport": {
+          "width": 380,
+          "height": 852
+        },
+        "deviceScaleFactor": 1,
+        "theme": "light"
+      },
+      "device": {
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "viewport": {
+          "width": 380,
+          "height": 852
+        },
+        "deviceScaleFactor": 1,
+        "theme": "light"
+      },
+      "comparison": "full-frame",
+      "mismatches": [],
+      "overlap": {
+        "width": 380,
+        "height": 852
+      },
+      "differentOverlapPixels": 38127,
+      "maxRgbDelta": 241,
+      "differenceBoundsInOverlap": [
+        0,
+        8,
+        380,
+        838
+      ],
+      "blankReference": false,
+      "sourceRouteCase": "academic-admin-courses-slug-populated",
+      "differentPixelPercent": 11.7763
+    }
+  ]
+}

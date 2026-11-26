@@ -1,4 +1,4 @@
-"""Regenerate route crosswalk from local source and recorded captures; no device claims."""
+"""Regenerate route crosswalk from local source and recorded web and device captures."""
 import csv,json,re,pathlib,urllib.parse,subprocess,datetime
 R=pathlib.Path('.');P=R/'tests/visual/native-parallel/academic/pages'
 rows=list(csv.DictReader((R/'plans/native-parallel/routes.tsv').open(),delimiter='\t'))
@@ -22,15 +22,18 @@ interactions=json.loads((P/'interactions-results.json').read_text()) if (P/'inte
 flows={}
 for f in (R/'.maestro/native-parallel/academic').glob('*.yaml'):
  paths=[]
- for link in re.findall(r'openLink:\s*(\S+)',f.read_text()):
+ for link in re.findall(r'(?:openLink:|#\s*fixture:)\s*(\S+)',f.read_text()):
   params=urllib.parse.parse_qs(urllib.parse.urlsplit(link).query);paths+=params.get('path',[])
  for pattern in routes:
-  if any(matches(pattern,path) for path in paths):flows.setdefault(pattern,[]).append(f.as_posix())
+  if any(matches(pattern,path) for path in paths):
+   description = ' (synthetic TutorSchedule editor)' if f.name == 'tutor-schedule.yaml' else ''
+   flows.setdefault(pattern,[]).append(f.as_posix()+description)
 
 def native(pattern, group):
  if group=='administration':
-  end={'/admin/users':'users','/admin/groups':'groups','/admin/tokens':'tokens','/admin/notifications':'notifications','/admin/schedules':'schedules','/admin/tutorial-pka/registrations':'registrations','/admin/tutorial-pka/announcements':'announcements','/admin/tutorial-pka/schedules':'sessions'}
+  end={'/admin/users':'users','/admin/groups':'groups','/admin/notifications':'notifications','/admin/schedules':'schedules','/admin/tutorial-pka/registrations':'registrations','/admin/tutorial-pka/announcements':'announcements','/admin/tutorial-pka/schedules':'sessions'}
   if pattern=='/admin/groups':return ('GET /api/native/academic-administration/groups and group-editor[/id]; POST groups; PATCH groups/[id]', 'Group members and deletion require further review; group create/edit client in study-group-client.ts')
+  if pattern=='/admin/tokens':return ('GET /api/native/academic-administration/tokens and token-editor[/id]; POST tokens; PATCH tokens/[id] for revoke', 'Issue and revoke use scoped receipts; broader token management remains fixture')
   if pattern in end:
    add='; PATCH announcement text supported' if pattern.endswith('/announcements') else ''
    return ('GET /api/native/academic-administration/'+end[pattern]+add,'Other edits/broadcasts are fixture; review domain README for partial support')
@@ -39,22 +42,23 @@ def native(pattern, group):
   return ('GET /api/native/academic-administration/alias/... resolves or redirects','Alias destination and selection require screen navigation')
  if group=='courses':
   if pattern=='/admin/courses':return ('GET /api/native/academic/admin/courses','Create course uses fixture')
-  if pattern=='/admin/courses/[slug]':return ('GET /api/native/academic/admin/courses/[slug]','Chapter create/edit/delete/reorder use fixture')
+  if pattern=='/admin/courses/[slug]':return ('GET /api/native/academic/admin/courses/[slug]; POST chapters; PATCH chapters/[chapterId]','Chapter create and edit use revision and receipt; delete and reorder use fixture')
   suffix=pattern.removeprefix('/admin/courses/[slug]/')
   if suffix=='settings':return ('GET and PATCH /api/native/academic/admin/courses/[slug]/settings','Only information fields saved; pricing, demo and archive use fixture')
+  if suffix=='documents/[materialId]':return ('GET /api/native/academic/admin/courses/[slug]/documents[/materialId]; PATCH documents/[materialId]/metadata','Title edit for uploaded PDFs only; linked file data, publication, and other metadata stay outside this write')
   return ('GET /api/native/academic/admin/courses/[slug]/'+suffix,'Subsection changes use fixture; content renderer and AI may require web')
  if group=='assessment':
   if pattern=='/tutor/[courseId]/tryouts':return ('Alias to /tutor/[courseId]','No independent tryout route')
-  if pattern=='/admin/courses/[slug]/tryouts':return ('GET /api/native/academic-assessment/admin/[slug]/tryouts','Tryout and question mutations use fixture')
+  if pattern=='/admin/courses/[slug]/tryouts':return ('GET and POST /api/native/academic-assessment/admin/[slug]/tryouts; PATCH tryouts/[examId]','Create and edit draft metadata; publication, deletion and question mutations use fixture')
   if '/attempts' in pattern:return ('GET /api/native/academic-assessment/tutor/[courseId]/attempts/[quizId]','Attachment/complex renderer dependencies')
-  if '/grading' in pattern:return ('GET /api/native/academic-assessment/tutor/[courseId]/grading[/attemptId]; POST grading/[attemptId]','Attachment and complex formula renderer dependencies')
+  if '/grading' in pattern:return ('GET /api/native/academic-assessment/tutor/[courseId]/grading[/attemptId]; POST grading/[attemptId]','Quiz essay and fill-in grading uses answer revisions; attachment and complex formula renderer dependencies')
   role='tutor' if pattern.startswith('/tutor') else 'admin'; key='[courseId]' if role=='tutor' else '[slug]'
   return (f'GET /api/native/academic-assessment/{role}/{key}/quizzes and preview; POST/PATCH/DELETE /api/quiz/templates[/id]', 'Question-bank mutations use fixture; formula renderer dependency')
  if pattern=='/tutor':return ('GET /api/native/academic/tutor/dashboard','Dashboard fixture for gallery')
  if pattern=='/tutor/[courseId]':return ('GET /api/native/academic/tutor/courses/[courseId]/analytics','Refresh and full web analytics not established')
  if pattern=='/tutor/[courseId]/participants':return ('GET /api/native/academic/tutor/courses/[courseId]/participants','Participant details from read model')
- if pattern=='/tutor/[courseId]/grading':return ('GET /api/native/academic/tutor/courses/[courseId]/grading; POST /api/native/academic/tutor-support/courses/[courseId]/grading/[submissionId]', 'Native grade editor wired via tutor/index.tsx; attachments require web; runtime unverified')
- if pattern=='/tutor/schedule':return ('GET /api/native/academic/tutor-support/schedule; slot-client.ts defines POST schedule/slots and PATCH schedule/slots/[id]', 'Slot client supplied in support-client.ts; screen consumer not yet found; other scheduling mutations fixture/web')
+ if pattern=='/tutor/[courseId]/grading':return ('GET /api/native/academic/tutor/courses/[courseId]/grading; POST /api/native/academic/tutor-support/courses/[courseId]/grading/[submissionId]', 'Connected Tutor editor submits final tryout grade and note with revision and receipt; attachments require web; live device interaction unverified')
+ if pattern=='/tutor/schedule':return ('GET /api/native/academic/tutor-support/schedule; ConnectedSchedule uses POST schedule/slots and PATCH schedule/slots/[id]', 'Live slot form preserves course restrictions and validates booking history; bookings, tickets and course restriction edits require web; live device interaction unverified')
  if pattern in ('/tutor/discussions','/tutor/[courseId]/discussions'):return ('GET and POST /api/native/academic/tutor-support/[courses/courseId/]discussions','Text replies; attachment, reactions, mentions and Zyra require web')
  if pattern=='/tutor/[courseId]/materials':return ('GET /api/native/academic/tutor-support/courses/[courseId]/materials','Material management and full renderer require web')
  if pattern=='/tutor/[courseId]/videos':return ('GET /api/native/academic/tutor-support/courses/[courseId]/videos; playback URL','Upload/management and cookie-bound playback require web')
@@ -84,14 +88,38 @@ def references(pattern):
    p=R/'tests/visual/native-parallel/academic/web/local-routes'/f"{e['key']}.png";assert p.is_file();out.append(f"original:{e['key']} {p.as_posix()} (original protected smoke; see its manifest)")
  return '; '.join(out) or 'No protected page capture recorded'
 
+device_indexes = P.parent.glob('device/*/index.json')
+device_reports = [(path, json.loads(path.read_text())) for path in device_indexes]
+device_path, device_report = max(device_reports, key=lambda item: int(item[1]['runId']), default=(None, {}))
+device_platforms = {}
+for platform, report in device_report.get('platforms', {}).items():
+ route_evidence = report.get('routeEvidence')
+ if route_evidence:
+  evidence_path = device_path.parent/route_evidence
+  evidence = json.loads(evidence_path.read_text())
+  device_platforms[platform] = (evidence_path, {case['id']: case['status'] for case in evidence['cases']})
+
+def device_observation(pattern, markdown=False):
+ parts=[]
+ for platform, name in (('android', 'Android'), ('ios', 'iOS')):
+  if platform not in device_platforms:
+   parts.append(f'{name}: no device captures')
+   continue
+  evidence_path, statuses = device_platforms[platform]
+  outcomes = {scenario: statuses.get(case['id'], 'absent') for scenario, case in case_index[pattern].items()}
+  states = ', '.join(f'{scenario} {status}' for scenario, status in outcomes.items())
+  link = f'../device/{device_path.parent.name}/{platform}/{evidence_path.name}'
+  parts.append(f'[{name}]({link}): {states}' if markdown else f'{name}: {states} ({evidence_path.as_posix()})')
+ return '; '.join(parts)
+
 with (P/'coverage.tsv').open('w',newline='') as f:
  fields=['route','family','case_populated_id','case_empty_id','case_denied_id','web_source','verified_protected_web_cases','native_live_code_paths','native_fixture_or_dependency','native_implementation_source','native_device_scenarios_planned','native_device_executed_evidence','domain_readme']
  w=csv.DictWriter(f,fieldnames=fields,delimiter='\t',lineterminator='\n');w.writeheader()
  for route,source in routes.items():
   fam=family[route];live,fixture=native(route,fam); readme=f'packages/native-parity/academic/{fam}/README.md';implementation=f'apps/mobile-native/features/academic/{fam}/index.tsx'
   assert (R/source).is_file() and (R/readme).is_file() and (R/implementation).is_file()
-  w.writerow(dict(route=route,family=fam,case_populated_id=case_index[route]['populated']['id'],case_empty_id=case_index[route]['empty']['id'],case_denied_id=case_index[route]['denied']['id'],web_source=source,verified_protected_web_cases=references(route),native_live_code_paths=live,native_fixture_or_dependency=fixture,native_implementation_source=implementation,native_device_scenarios_planned='; '.join(flows.get(route,[])) or 'No direct openLink matched; indirect navigation not assessed',native_device_executed_evidence='No Android/iOS run artifact verified in this crosswalk',domain_readme=readme))
-meta={'generated_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'head':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'scope':'local worktree, including uncommitted changes; no deployment or device execution asserted','route_count':len(routes),'capture_manifest':'tests/visual/native-parallel/academic/pages/results.json'}
+  w.writerow(dict(route=route,family=fam,case_populated_id=case_index[route]['populated']['id'],case_empty_id=case_index[route]['empty']['id'],case_denied_id=case_index[route]['denied']['id'],web_source=source,verified_protected_web_cases=references(route),native_live_code_paths=live,native_fixture_or_dependency=fixture,native_implementation_source=implementation,native_device_scenarios_planned='; '.join(flows.get(route,[])) or 'No direct fixture entry matched; indirect navigation unassessed',native_device_executed_evidence=device_observation(route),domain_readme=readme))
+meta={'generated_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'head':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'scope':'Web and implementation observations are from a changing local worktree. Device observations refer to the archived fixture run.','route_count':len(routes),'capture_manifest':'tests/visual/native-parallel/academic/pages/results.json','device_evidence_index':device_path.as_posix() if device_path else None,'device_evidence_revision':device_report.get('revision')}
 (P/'coverage-meta.json').write_text(json.dumps(meta,indent=2)+'\n')
 print('wrote',len(routes),'route rows; sources and referenced screenshots verified')
 
@@ -102,22 +130,23 @@ for e in results['entries']:
  for c in e['cases']:
   if c.get('pass'):counts['new_pass']+=1
   elif c.get('notFoundVisible'):counts['missing_ui']+=1
+  elif c.get('classification','').startswith('shell-only'):counts['shell_only']+=1
   else:counts['unpassed']+=1
 for e in interactions['entries']:
  counts['interaction_pass' if e.get('pass') else 'interaction_unpassed']+=1
 lines=['# Protected web route evidence', '',
  f"Index generated {meta['generated_utc']}; HEAD then was `{meta['head']}` with local uncommitted changes. Captures span a changing worktree and are not attributable to one verified commit.",
- f"Current capture manifest records {counts['new_pass']} passing browser cases, {counts['missing_ui']} unseeded/missing cases with a rendered 404, and {counts['unpassed']} unsuccessful or interrupted cases. Interaction manifest records {counts['interaction_pass']} passing and {counts['interaction_unpassed']} unsuccessful cases. The six earlier protected smoke records are listed separately. Counts are cases, not parity credit.",
+ f"Current capture manifest records {counts['new_pass']} passing browser cases, {counts['missing_ui']} unseeded/missing cases with a rendered 404, {counts['shell_only']} shell-only or loading cases, and {counts['unpassed']} other unsuccessful or interrupted cases. Interaction manifest records {counts['interaction_pass']} passing and {counts['interaction_unpassed']} unsuccessful cases. The six earlier protected smoke records are listed separately. Counts are cases, not parity credit.",
  '', '[Route crosswalk and three registry case IDs](coverage.tsv) · [Protected page results](results.json) · [Interaction results](interactions-results.json) · [Original smoke manifest](../web/local-routes/manifest.json)', '',
- 'Every link below points to an existing capture. Missing IDs show a 404 page and are not populated-page evidence. Absence of a link means no passing screenshot has been recorded for that route. Initial HTTP 200 with a rendered 404 is identified explicitly. Device execution remains unverified.', '', '| Route | Screen family | Recorded original protected web cases |', '|---|---|---|']
+ 'Web links identify passing screenshots, shell-only/loading outcomes, or rendered 404s. Initial HTTP 200 with a rendered 404 is identified explicitly. Device statuses come from stamped fixture route captures. Live device operations remain unverified.', f"[Device run index](../device/{device_path.parent.name}/index.json) · [GitHub Actions run]({device_report['runUrl']})" if device_path else 'Device evidence index unavailable.', '', '| Route | Screen family | Recorded original protected web cases | Device fixture observations |', '|---|---|---|---|']
 for route,source in routes.items():
  links=[]
  for e in results['entries']:
   if matches(route,e['path']):
    for c in e['cases']:
-    if c.get('screenshot') and (c.get('pass') or c.get('notFoundVisible')):
+    if c.get('screenshot') and (c.get('pass') or c.get('notFoundVisible') or c.get('classification','').startswith('shell-only')):
      candidate=P/c['screenshot'];assert candidate.is_file()
-     tag=e['id']+' '+c['theme']+(' 404 UI, HTTP '+str(c.get('status')) if c.get('notFoundVisible') else '')
+     tag=e['id']+' '+c['theme']+(' 404 UI, HTTP '+str(c.get('status')) if c.get('notFoundVisible') else ' shell-only or loading' if c.get('classification','').startswith('shell-only') else '')
      links.append('['+tag+']('+c['screenshot']+')')
  for e in interactions['entries']:
   if matches(route,e['path']) and e.get('pass'):
@@ -126,5 +155,5 @@ for route,source in routes.items():
   if matches(route,e['path']):
    candidate=R/'tests/visual/native-parallel/academic/web/local-routes'/f"{e['key']}.png";assert candidate.is_file()
    links.append('['+e['key']+' smoke](../web/local-routes/'+e['key']+'.png)')
- lines.append('| `'+route+'` | '+family[route]+' | '+('; '.join(links) if links else 'Not captured or no passing screenshot')+' |')
+ lines.append('| `'+route+'` | '+family[route]+' | '+('; '.join(links) if links else 'Not captured or no passing screenshot')+' | '+device_observation(route, markdown=True)+' |')
 (P/'summary.md').write_text('\n'.join(lines)+'\n')
