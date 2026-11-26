@@ -218,7 +218,7 @@ export function createFixturePublicClient(scenario: PublicScenario = "populated"
       before("demo-grade", signal);
       if (answers.questionSetToken !== "fixture-token" || answers.questionIds.join(",") !== "demo-question") return null;
       const correct = answers.answers[0]?.[0] === 1;
-      return { score: Number(correct), total: 1, results: [{ index: 0, isCorrect: correct, explanation: "Dua ditambah dua sama dengan empat." }] };
+      return { score: Number(correct), total: 1, results: [{ index: 0, isCorrect: correct, correctIndices: [1], explanation: "Dua ditambah dua sama dengan empat." }] };
     },
     async plans({ people, subjects, otherSubjects }, signal) {
       before("plans", signal);

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import { demoSelectionHref } from "../../../../../lib/demo/selection";
-import type { NativeDemoContentView, PublicDemoContent, PublicQuizResult } from "../../../../../packages/native-parity/operations/public-contract";
+import { demoPageHref, type NativeDemoContentView, type PublicDemoContent, type PublicQuizResult } from "../../../../../packages/native-parity/operations/public-contract";
 import { ReadMarkdown } from "./blog";
 import { Action, Divider, Label, layout, StatePanel, textWith, usePublic, usePublicResource } from "./ui";
 
@@ -28,8 +28,8 @@ function Flashcards({ data, href }: { data: Cards; href: string }) {
       <Action disabled={index + 1 >= total} onPress={() => { setIndex(index + 1); setFlipped(false); }}>{demo.flashcards.next}</Action>
     </View>
     {(data.offset > 0 || data.nextOffset !== null) && <View style={layout.row}>
-      {data.offset > 0 && <Action href={demoSelectionHref(href, {}, { flashcardOffset: Math.max(0, data.offset - 100) })}>{demo.products.previousPage}</Action>}
-      {data.nextOffset !== null && <Action href={demoSelectionHref(href, {}, { flashcardOffset: data.nextOffset })}>{demo.products.nextPage}</Action>}
+      {data.offset > 0 && <Action href={demoPageHref(href, "flashcardOffset", Math.max(0, data.offset - 100))}>{demo.products.previousPage}</Action>}
+      {data.nextOffset !== null && <Action href={demoPageHref(href, "flashcardOffset", data.nextOffset)}>{demo.products.nextPage}</Action>}
     </View>}
   </View>;
 }
@@ -81,10 +81,13 @@ function QuizPractice({ data, href, reload }: { data: Quiz; href: string; reload
   return <View style={layout.stack}>
     {data.questions.map((question, i) => <View key={question.id} style={[layout.panel, { borderColor: colors.border }]}>
       <ReadMarkdown markdown={question.prompt} onLink={openExternal} />
-      {question.options.map((option, index) => (
-        <Action key={index} disabled={busy || Boolean(result)} variant={answers[question.id]?.includes(index) ? "default" : "outline"}
-          onPress={() => select(question, index)}>{option}</Action>
-      ))}
+      {question.options.map((option, index) => {
+        const selected = answers[question.id]?.includes(index);
+        const correct = result?.results[i]?.correctIndices.includes(index);
+        return <Action key={index} disabled={busy || Boolean(result)} selected={selected} variant={correct || selected ? "default" : "outline"}
+          accessibilityLabel={correct ? `${option}, ${demo.quiz.correct}` : option}
+          onPress={() => select(question, index)}>{option}</Action>;
+      })}
       {result?.results[i] && <>
         <Label tone={result.results[i].isCorrect ? "link" : "error"}>{result.results[i].isCorrect ? demo.quiz.correct : demo.quiz.incorrect}</Label>
         {!!result.results[i].explanation && <ReadMarkdown markdown={result.results[i].explanation!} onLink={openExternal} />}
@@ -95,15 +98,15 @@ function QuizPractice({ data, href, reload }: { data: Quiz; href: string; reload
       <Label tone="subheading" live="polite">{textWith(demo.quiz.score, { score: result.score, total: result.total })}</Label>
       <View style={layout.row}>
         <Action onPress={() => { setAnswers({}); setResult(null); }}>{demo.quiz.retry}</Action>
-        {data.nextOffset !== null && <Action href={demoSelectionHref(href, {}, { quizOffset: data.nextOffset })}>{demo.products.nextPage}</Action>}
+        {data.nextOffset !== null && <Action href={demoPageHref(href, "quizOffset", data.nextOffset)}>{demo.products.nextPage}</Action>}
       </View>
     </View> : <Action disabled={!answered || error === "expired"} onPress={submit} loading={busy} variant="default">{demo.quiz.submit}</Action>}
-    {data.previousOffset !== null && <Action href={demoSelectionHref(href, {}, { quizOffset: data.previousOffset })}>{demo.products.previousPage}</Action>}
+    {data.previousOffset !== null && <Action href={demoPageHref(href, "quizOffset", data.previousOffset)}>{demo.products.previousPage}</Action>}
   </View>;
 }
 
 export function NativeDemoContent({ view, search }: { view: NativeDemoContentView; search: string }) {
-  const { client, openExternal, copy: { demo } } = usePublic();
+  const { client, openExternal, renderArticle, origin, copy: { demo } } = usePublic();
   const { resource, retry } = usePublicResource(`${view}${search}`, client, (api, signal) => api.demoContent(view, search, signal));
   if (resource.status !== "ready") return <StatePanel kind={resource.status} retry={resource.status === "error" ? retry : undefined} />;
   if (!resource.value) return <StatePanel kind="empty" title={demo.emptyTitle} description={demo.emptyDescription} />;
@@ -139,7 +142,7 @@ export function NativeDemoContent({ view, search }: { view: NativeDemoContentVie
           {!!section.objective && <Label tone="muted">{section.objective}</Label>}
           {section.blocks.map((block) => <View key={block.id} style={layout.item}>
             {!!block.title && <Label tone="subheading">{block.title}</Label>}
-            <ReadMarkdown markdown={block.text} onLink={openExternal} />
+            {renderArticle ? renderArticle({ markdown: block.text, origin, onLink: openExternal }) : <ReadMarkdown markdown={block.text} onLink={openExternal} />}
           </View>)}
         </View>)}
       </View>;

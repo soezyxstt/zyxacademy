@@ -1,0 +1,25 @@
+@import "../../../../../app/globals.css";
+
+@source "../../../../../components/ui/*.tsx";
+@source "./";
+
+@font-face {
+  font-family: "Parity Inter";
+  src: url("../../../fixtures/fonts/inter-latin.woff2") format("woff2");
+  font-weight: 100 900;
+}
+@font-face {
+  font-family: "Parity Lexend";
+  src: url("../../../fixtures/fonts/lexend-latin.woff2") format("woff2");
+  font-weight: 100 900;
+}
+:root {
+  --font-inter: "Parity Inter";
+  --font-lexend: "Parity Lexend";
+}
+@source "../../../../../components/admin/*.tsx";
+@source "../../../../../components/blog/*.tsx";
+@source "../../../../../app/(marketing)/blog/**/*.tsx";
+@source "../../../../../app/(marketing)/blog/*.tsx";
+@source "../../../../../components/marketing-page-hero.tsx";
+@source "../../../../../components/course/markdown-renderer.tsx";

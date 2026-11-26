@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useWindowDimensions, View } from "react-native";
 import idNotifications from "../../../../../messages/id/notifications.json";
 import enNotifications from "../../../../../messages/en/notifications.json";
-import { isEmailNotificationCategory, type EmailNotificationCategory } from "../../../../../lib/email-preferences/contracts";
+import { emailCategoryPreference, isEmailNotificationCategory, type EmailNotificationCategory } from "../../../../../lib/email-preferences/contracts";
 import { demoViews, isNativeDemoContentView, type PublicRoute } from "../../../../../packages/native-parity/operations/public-contract";
 import { NativeDemoContent } from "./demo-content";
 import { Action, Divider, Hero, Label, layout, RowLink, StatePanel, textWith, usePublic, usePublicResource } from "./ui";
@@ -48,7 +48,7 @@ export function Download() {
 
 type DemoRoute = Extract<PublicRoute, { kind: "demo" }>;
 export function Demo({ route }: { route: DemoRoute }) {
-  const { client, copy, locale } = usePublic();
+  const { client, copy, locale, onBack, onNavigate } = usePublic();
   const { demo, meta } = copy;
   const { resource, retry } = usePublicResource("demo", client, (api, signal) => api.demo(signal));
   const { view } = route;
@@ -70,7 +70,11 @@ export function Demo({ route }: { route: DemoRoute }) {
   const search = `?${selection.toString()}`;
   const handoff = `/demo/${view ?? "overview"}${search}`;
   return <View style={layout.stack} testID={view ? "public-demo-view" : "public-demo"}>
-    {view && <View style={layout.row}><Action href={`/demo${courseQuery}`} variant="link">{demo.backToDemo}</Action></View>}
+    {view && <View style={layout.row}><Action onPress={() => {
+      const fallback = `/demo${search}`;
+      if (onBack) onBack(fallback);
+      else onNavigate(fallback);
+    }} variant="link">{demo.backToDemo}</Action></View>}
     <Hero title={title} description={view ? undefined : demo.dashboard.subtitle} />
     <View style={layout.row}>
       {courses.map((item) => <Action key={item.id} variant={course.id === item.id ? "default" : "outline"}
@@ -109,13 +113,6 @@ export function Demo({ route }: { route: DemoRoute }) {
   </View>;
 }
 
-const categoryKey = {
-  course_updates: "courseUpdates",
-  events_and_schedules: "eventsAndSchedules",
-  learning_reminders: "learningReminders",
-  news_and_offers: "newsAndOffers",
-} as const;
-
 type UnsubscribeRoute = Extract<PublicRoute, { kind: "unsubscribe" }>;
 export function Unsubscribe({ route }: { route: UnsubscribeRoute }) {
   const { client, locale, copy } = usePublic();
@@ -132,7 +129,7 @@ export function Unsubscribe({ route }: { route: UnsubscribeRoute }) {
   const inFlight = useRef<AbortController | null>(null);
   useEffect(() => () => inFlight.current?.abort(), []);
   const category = successCategory ?? confirmed ?? (resource.status === "ready" ? resource.value : null);
-  const categoryLabel = category ? email.categories[categoryKey[category]].label : "";
+  const categoryLabel = category ? email.categories[emailCategoryPreference[category]].label : "";
   const confirm = () => {
     if (!token || inFlight.current) return;
     const controller = new AbortController();

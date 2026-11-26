@@ -1,4 +1,5 @@
 import { parseDemoSelection } from "../../../lib/demo/selection";
+import { localizedPublicPath } from "../../../lib/public-locale-routes";
 import type { EmailNotificationCategory } from "../../../lib/email-preferences/contracts";
 
 
@@ -111,13 +112,22 @@ export type PublicDemoContent =
   | { kind: "quiz-list" | "quiz-start" | "quiz"; courseId: string; offset: number; nextOffset: number | null; previousOffset: number | null; total: number; token: string; questions: { id: string; prompt: string; options: string[]; multiple: boolean }[] };
 
 export type PublicQuizAnswers = { courseId: string; quizOffset: number; questionIds: string[]; questionSetToken: string; answers: number[][] };
-export type PublicQuizResult = { score: number; total: number; results: { index: number; isCorrect: boolean; explanation: string | null }[] };
+export type PublicQuizResult = { score: number; total: number; results: { index: number; isCorrect: boolean; correctIndices: number[]; explanation: string | null }[] };
 
 export function demoSearchParams(search: URLSearchParams) {
   return Object.fromEntries([...search.keys()].map((key) => {
     const values = search.getAll(key);
     return [key, values.length === 1 ? values[0] : values];
   }));
+}
+
+export function demoPageHref(href: string, offset: "quizOffset" | "flashcardOffset", next: number) {
+  const [path, search = ""] = href.split("?", 2);
+  const params = new URLSearchParams(search);
+  if (next === 0) params.delete(offset);
+  else params.set(offset, String(next));
+  const query = params.toString();
+  return query ? `${path}?${query}` : path;
 }
 
 export type PublicPlansQuery = {
@@ -198,6 +208,19 @@ export interface PublicClient {
   plans(query: PublicPlansQuery, signal?: AbortSignal): Promise<PublicPlansData>;
   release(signal?: AbortSignal): Promise<{ channel: "stable" | "nightly"; release: PublishedPublicRelease | null }>;
   unsubscribe(token: string, intent: "inspect" | "confirm", signal?: AbortSignal): Promise<EmailNotificationCategory | null>;
+}
+
+export function publicExternalUrl(value: string, origin: string, locale: PublicLocale): string {
+  const base = new URL(origin);
+  const target = new URL(value, base.origin);
+  if (target.username || target.password || (target.protocol !== "https:" && target.protocol !== "mailto:" && target.origin !== base.origin)) {
+    throw new Error("Unavailable link");
+  }
+  if (target.origin === base.origin) {
+    const path = localizedPublicPath(locale, target.pathname);
+    if (path) target.pathname = path;
+  }
+  return target.toString();
 }
 
 export function createPublicClient(origin: string, locale: PublicLocale, transport: typeof fetch = fetch): PublicClient {

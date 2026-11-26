@@ -73,7 +73,7 @@ export function Plans() {
           {standardSubjects.map((subject) => {
             const selected = subjects.includes(subject);
             return <Action key={subject} onPress={() => toggle(subject)} variant={selected ? "default" : "outline"}
-              disabled={selected ? count <= MIN_COURSES : count >= MAX_COURSES}>{subject}</Action>;
+              selected={selected} disabled={selected ? count <= MIN_COURSES : count >= MAX_COURSES}>{subject}</Action>;
           })}
           {otherSubjects ? <Stepper
             label={pricing.otherCourse}

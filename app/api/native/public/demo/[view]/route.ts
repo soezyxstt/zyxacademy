@@ -1,6 +1,7 @@
 import { getDemoCatalogue, getDemoExperience } from "@/app/(marketing)/demo/demo-data";
 import { collectDemoProducts } from "@/lib/demo/product-pages";
 import { parseDemoSelection } from "@/lib/demo/selection";
+import { materializeArticleParts } from "@/lib/materials/article-parts";
 import { getDemoSummaries } from "@/lib/demo/summary-repository";
 import { demoSearchParams, isNativeDemoContentView, type PublicDemoContent } from "@/packages/native-parity/operations/public-contract";
 
@@ -46,7 +47,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ view
         minutes: content.article.totalEstimatedReadingMinutes,
         sections: content.article.sections.map(({ id, title, learningObjective, blocks }) => ({
           id, title, objective: learningObjective,
-          blocks: blocks.map(({ id: blockId, title: heading, content: text }) => ({ id: blockId, title: heading, text })),
+          blocks: blocks.map(({ id: blockId, title: heading, content: text, parts }) => ({
+            id: blockId,
+            title: heading,
+            text: parts?.length ? materializeArticleParts(parts).replace(/<!-- visual:[^>]* -->/g, "") : text,
+          })),
         })),
       });
     case "diktat":

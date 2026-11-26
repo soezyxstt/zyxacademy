@@ -1,0 +1,2 @@
+const unavailable = async () => { throw new Error("Tutor actions are disabled in the visual fixture"); };
+export const explainConceptAction = unavailable, analyzeMistakeAction = unavailable, buildStudyPlanAction = unavailable, saveTutorMessagesAction = unavailable, loadTutorHistoryAction = unavailable, clearTutorHistoryAction = unavailable, getTutorCourseContextAction = unavailable, listTutorSessionsAction = unavailable, quickExplainSnippetAction = unavailable, findKoForMaterialSectionAction = unavailable;

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type ComponentRef, type RefObject } from "react";
 import { Linking, ScrollView, StyleSheet, useColorScheme, View } from "react-native";
 import { nativeColors } from "../../../../../packages/design-tokens/native-colors";
-import { resolvePublicRoute, type PublicRoute } from "../../../../../packages/native-parity/operations/public-contract";
-import { localizedPublicPath, stripPublicLocalePrefix } from "../../../../../lib/public-locale-routes";
+import { publicExternalUrl, resolvePublicRoute, type PublicRoute } from "../../../../../packages/native-parity/operations/public-contract";
+import { stripPublicLocalePrefix } from "../../../../../lib/public-locale-routes";
 import id from "../../../../../messages/id/marketing.json";
 import en from "../../../../../messages/en/marketing.json";
 import { BlogArticle, BlogList } from "./blog";
@@ -58,16 +58,8 @@ export function PublicScreen(props: PublicScreenProps) {
   function openExternal(value: string) {
     setFailedLink(false);
     void Promise.resolve().then(() => {
-      const origin = new URL(props.origin).origin;
-      const target = new URL(value, origin);
-      if (target.username || target.password || (target.protocol !== "https:" && target.protocol !== "mailto:" && target.origin !== origin)) {
-        throw new Error("Unavailable link");
-      }
-      if (target.origin === origin) {
-        const path = localizedPublicPath(props.locale, target.pathname);
-        if (path) target.pathname = path;
-      }
-      return props.onOpenExternal ? props.onOpenExternal(target.toString()) : Linking.openURL(target.toString());
+      const target = publicExternalUrl(value, props.origin, props.locale);
+      return props.onOpenExternal ? props.onOpenExternal(target) : Linking.openURL(target);
     }).catch(() => setFailedLink(true));
   }
 

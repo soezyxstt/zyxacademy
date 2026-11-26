@@ -83,10 +83,10 @@ export function Hero({ title, description, centered = false, compact = false, ch
   );
 }
 
-export function Action({ children, href, external, onPress, variant = "outline", disabled, loading, id, accessibilityLabel }: {
+export function Action({ children, href, external, onPress, variant = "outline", disabled, loading, id, accessibilityLabel, selected }: {
   children: string; href?: string; external?: boolean; onPress?: () => void;
   variant?: "default" | "outline" | "destructive" | "link" | "ghost" | "secondary";
-  disabled?: boolean; loading?: boolean; id?: string; accessibilityLabel?: string;
+  disabled?: boolean; loading?: boolean; id?: string; accessibilityLabel?: string; selected?: boolean;
 }) {
   const { onNavigate, openExternal, theme } = usePublic();
   return <Button
@@ -96,6 +96,7 @@ export function Action({ children, href, external, onPress, variant = "outline",
     style={{ minHeight: 44 }}
     accessibilityRole={href ? "link" : "button"}
     accessibilityLabel={accessibilityLabel}
+    accessibilityState={selected === undefined ? undefined : { selected }}
     testID={id}
     disabled={disabled}
     isLoading={loading}

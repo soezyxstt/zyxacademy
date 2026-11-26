@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { operationsPatterns } from "../../../apps/mobile-native/features/operations/routes";
 import {
-  blogArticleHref, blogListHref, createPublicClient, demoViews,
-  isNativeDemoContentView, nativeDemoContentViews, parseBlogQuery, resolvePublicRoute,
+  blogArticleHref, blogListHref, createPublicClient, demoPageHref, demoViews,
+  isNativeDemoContentView, nativeDemoContentViews, parseBlogQuery, publicExternalUrl, resolvePublicRoute,
 } from "./public-contract";
 import {
   createFixturePublicClient, publicArticleFixture, publicCases,
@@ -61,6 +61,14 @@ describe("public operations routes", () => {
     expect(await client.gradeDemoQuiz({ ...answer, questionSetToken: "expired" })).toBeNull();
   });
 
+  test("keeps the current course and non-default set while paging flashcards", () => {
+    const start = "/demo/flashcards?course=calculus&flashcardSetId=second&articleId=integral&collectionOffset=500&quizOffset=3";
+    const next = demoPageHref(start, "flashcardOffset", 100);
+    expect(next).toBe(`${start}&flashcardOffset=100`);
+    expect(demoPageHref(next, "flashcardOffset", 0)).toBe(start);
+    expect(demoPageHref(next, "quizOffset", 6)).toContain("flashcardSetId=second&articleId=integral&collectionOffset=500&quizOffset=6&flashcardOffset=100");
+  });
+
   test("blog is deterministic across open, detail, back, pagination, empty and retry", async () => {
     const client = createFixturePublicClient();
     const index = await client.blog(null, 1);
@@ -105,8 +113,10 @@ describe("public operations routes", () => {
 describe("public operations HTTPS transport", () => {
   test("sends guest requests to the configured origin with bounded query, locale and cancellation", async () => {
     const received: Request[] = [];
+    const options: RequestInit[] = [];
     const client = createPublicClient("https://staging.zyxacademy.com", "en", Object.assign(async (input: RequestInfo | URL, init?: RequestInit) => {
       received.push(new Request(input, init));
+      options.push(init ?? {});
       return Response.json({ release: null });
     }, { preconnect() {} }));
     const controller = new AbortController();
@@ -124,12 +134,23 @@ describe("public operations HTTPS transport", () => {
       ["GET", "/api/app/latest?channel=nightly"],
       ["POST", "/api/native/public/unsubscribe"],
     ]);
-    expect(received.every(({ credentials, redirect, url }) => credentials === "omit" && redirect === "error" && new URL(url).hostname === "staging.zyxacademy.com")).toBe(true);
+    expect(options.every(({ credentials, redirect }) => credentials === "omit" && redirect === "error")).toBe(true);
+    expect(received.every(({ url }) => new URL(url).hostname === "staging.zyxacademy.com")).toBe(true);
     expect(received[0].headers.get("Accept-Language")).toBe("en");
     controller.abort();
-    expect(received[0].signal.aborted).toBe(true);
+    expect(options[0].signal?.aborted).toBe(true);
     expect(await received[3].json()).toMatchObject({ locale: "en", people: 3, otherSubjects: 1 });
     expect(await received[5].json()).toEqual({ token: "secret-token", intent: "inspect" });
+  });
+
+  test("hands off the selected demo and locale through a safe browser URL", () => {
+    const origin = "https://staging.zyxacademy.com";
+    expect(publicExternalUrl("/demo/quiz?course=calculus&quizOffset=3", origin, "en"))
+      .toBe(`${origin}/en/demo/quiz?course=calculus&quizOffset=3`);
+    expect(publicExternalUrl("/id/blog", origin, "id")).toBe(`${origin}/id/blog`);
+    expect(publicExternalUrl("mailto:contact@zyxacademy.com", origin, "en")).toBe("mailto:contact@zyxacademy.com");
+    expect(() => publicExternalUrl("javascript:void(0)", origin, "id")).toThrow();
+    expect(() => publicExternalUrl("https://name:secret@example.test/", origin, "id")).toThrow();
   });
 
   test("distinguishes missing content from unavailable service and stale quiz order", async () => {

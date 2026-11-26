@@ -1,5 +1,6 @@
-import { useState, type ComponentRef, type RefObject } from "react";
+import { useEffect, useState, type ComponentRef, type RefObject } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { marketingFounders } from "../../../../../lib/marketing-founders";
 import { testimonialStories } from "../../../../../lib/testimonials";
 import { Action, Divider, Figure, Hero, Label, layout, RowLink, textWith, usePublic } from "./ui";
 
@@ -77,6 +78,13 @@ export function Landing() {
 
 export function About() {
   const { copy: { about } } = usePublic();
+  const [adi, ...team] = marketingFounders;
+  const profiles = {
+    adi: { role: about.founderAdiRole, bio: about.founderAdiBio },
+    dawam: { role: about.founderDawamRole, bio: about.founderDawamBio },
+    heidi: { role: about.founderHeidiRole, bio: about.founderHeidiBio },
+    raihan: { role: about.founderRaihanRole, bio: about.founderRaihanBio },
+  };
   return <View style={layout.stack} testID="public-about">
     <Hero title={about.title} description={about.intro} centered />
     <Divider />
@@ -101,13 +109,14 @@ export function About() {
     <View style={layout.section}>
       <Label tone="heading">{about.founderSectionTitle}</Label>
       <Label>{about.founderSectionDescription}</Label>
-      <Label tone="subheading">Adi Haditya Nursyam</Label>
-      <Label>{about.founderAdiRole}</Label>
-      <Label>{about.founderAdiBio}</Label>
+      <Figure source={adi.image} title={textWith(about.founderPhoto, { name: adi.name })} style={styles.founder} />
+      <Label tone="subheading">{adi.name}</Label>
+      <Label>{profiles.adi.role}</Label>
+      <Label>{profiles.adi.bio}</Label>
       <Label tone="subheading">{about.productContribution}</Label>
       <Label>{about.founderAdiContribution}</Label>
       <View style={layout.row}>
-        <Action href="https://adihnursyam.com" external>{about.founderPortfolio}</Action>
+        <Action href={adi.socials.website} external>{about.founderPortfolio}</Action>
         <Action href="https://github.com/soezyxstt/zyx-authoring-mcp" external>{about.authoringTools}</Action>
       </View>
     </View>
@@ -115,13 +124,19 @@ export function About() {
     <View style={layout.section}>
       <Label tone="heading">{about.peopleTitle}</Label>
       <Label>{about.peopleDescription}</Label>
-      {[
-        ["Dawam", about.founderDawamRole, about.founderDawamBio],
-        ["Heidi", about.founderHeidiRole, about.founderHeidiBio],
-        ["Raihan", about.founderRaihanRole, about.founderRaihanBio],
-      ].map(([name, role, bio]) => <View key={name} style={layout.item}>
-        <Label tone="subheading">{name}</Label><Label tone="meta">{role}</Label><Label>{bio}</Label>
-      </View>)}
+      {team.map((founder) => {
+        const profile = profiles[founder.id as keyof typeof profiles];
+        return <View key={founder.id} style={layout.item}>
+          <Figure source={founder.image} title={textWith(about.founderPhoto, { name: founder.name })} style={styles.founder} />
+          <Label tone="subheading">{founder.name}</Label>
+          <Label tone="meta">{profile.role}</Label>
+          <Label>{profile.bio}</Label>
+          <View style={layout.row}>
+            <Action href={founder.socials.linkedin} external accessibilityLabel={`LinkedIn, ${founder.name}`}>LinkedIn</Action>
+            <Action href={founder.socials.instagram} external accessibilityLabel={`Instagram, ${founder.name}`}>Instagram</Action>
+          </View>
+        </View>;
+      })}
     </View>
   </View>;
 }
@@ -157,11 +172,16 @@ const documentIds = {
 };
 
 export function Legal({ document, scroller }: { document: "privacy" | "terms"; scroller: RefObject<ComponentRef<typeof ScrollView> | null> }) {
-  const { copy, colors, brandEmail, onNavigate, openExternal } = usePublic();
+  const { copy, colors, brandEmail, href, onNavigate, openExternal } = usePublic();
   const page = copy[document];
   const title = copy.meta[document].title;
   const updated = new Intl.DateTimeFormat(copy.legal.localeTag, { dateStyle: "long", timeZone: "UTC" }).format(new Date("2026-08-30T00:00:00Z"));
   const [positions, setPositions] = useState<Record<string, number>>({});
+  const anchor = href.split("#", 2)[1];
+  const anchorOffset = positions[anchor];
+  useEffect(() => {
+    if (anchorOffset !== undefined) scroller.current?.scrollTo({ y: anchorOffset + 16, animated: false });
+  }, [anchorOffset, scroller]);
   return <View style={layout.stack} testID={`public-${document}`}>
     <Hero title={title} description={page.pageDescription} compact>
       <Label tone="meta">{copy.legal.updatedAt} {updated}</Label>
@@ -170,7 +190,7 @@ export function Legal({ document, scroller }: { document: "privacy" | "terms"; s
       <Label tone="subheading">{copy.legal.tableOfContentsHeading}</Label>
       {page.sections.map((section, index) => {
         const id = documentIds[document][index];
-        return <RowLink key={id} onPress={() => scroller.current?.scrollTo({ y: (positions[id] ?? 0) + 24 })}>
+        return <RowLink key={id} onPress={() => scroller.current?.scrollTo({ y: (positions[id] ?? 0) + 16 })}>
           <Label tone="link">{section.title}</Label>
         </RowLink>;
       })}
@@ -208,4 +228,5 @@ export function Legal({ document, scroller }: { document: "privacy" | "terms"; s
 const styles = StyleSheet.create({
   avatar: { width: 40, height: 40, aspectRatio: 1, borderRadius: 20 },
   name: { fontWeight: "700" },
+  founder: { aspectRatio: 1, width: 104 },
 });
