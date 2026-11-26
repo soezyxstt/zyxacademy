@@ -2,13 +2,14 @@ import { useEffect, useState, type ComponentRef, type RefObject } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { marketingFounders } from "../../../../../lib/marketing-founders";
 import { testimonialStories } from "../../../../../lib/testimonials";
+import { LandingLearningSections } from "./landing-learning";
 import { Action, Divider, Figure, Hero, Label, layout, RowLink, textWith, usePublic } from "./ui";
 
 type FAQ = "free" | "preview" | "paid" | "pricing" | "tutorial" | "activation";
 const faqKeys: FAQ[] = ["free", "preview", "paid", "pricing", "tutorial", "activation"];
 
 export function Landing() {
-  const { copy: { home, faq, support }, colors } = usePublic();
+  const { copy: { home, faq, support } } = usePublic();
   const [open, setOpen] = useState<FAQ | null>(null);
   return <View style={layout.stack} testID="public-home">
     <Hero title={`${home.heroTitle} ${home.heroEmphasis}`} description={home.heroDescription} centered>
@@ -32,16 +33,7 @@ export function Landing() {
         <Label>{item.body}</Label>
       </View>)}
     </View>
-    {[
-      { title: home.quizTitle, description: home.quizDescription, route: "/demo/quiz" },
-      { title: home.tutorTitle, description: home.tutorDescription, route: "/demo/zyra" },
-      { title: home.flashcardsTitle, description: home.flashcardsDescription, route: "/demo/flashcards" },
-      { title: home.pathTitle, description: home.loop.unlockDescription, route: "/demo/path" },
-    ].map((item) => <View style={[layout.panel, { borderColor: colors.border }]} key={item.route}>
-      <Label tone="subheading">{item.title}</Label>
-      <Label>{item.description}</Label>
-      <Action href={item.route} variant="link">{home.tryDemo}</Action>
-    </View>)}
+    <LandingLearningSections />
     <View style={layout.section}>
       <Label tone="heading">{support.title}</Label>
       {[

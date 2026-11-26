@@ -4,7 +4,7 @@ The 13 public route patterns have native entries in `apps/mobile-native/features
 
 | Pattern | Native flow | Remaining comparison or integration |
 |---|---|---|
-| `/` | Landing narrative, demo and auth links, FAQ, course and pricing links | Interactive marketing frames and desktop composition |
+| `/` | Landing narrative with local quiz feedback, scripted Zyra conversation, flashcard grading, mastery profile switching, FAQ and navigation | Device comparison for stacked and wide layouts |
 | `/about` | Story, principles, founders, photos, biographies and public profiles | Native image and layout comparison |
 | `/blog` | Lead and recent entries, categories, scoped pagination, empty and retry | Device image, typography and ScrollView position comparison |
 | `/blog/[slug]` | Published article, metadata, native share, related articles and Back | Rich Markdown, math and interactive visuals require the renderer binding. The base reader handles paragraphs, headings, lists, links and images. |
@@ -22,6 +22,7 @@ The `/demo/[view]` entry recognizes all 37 documented views. The detailed browse
 
 | Operation | Web source and authorization | Native behavior |
 |---|---|---|
+| Home learning frames | Web marketing quiz, scripted conversation, flashcards and mastery profiles | The quiz, grades and mastery profiles share example data with web. Tap to play the tutor transcript and show its source references. All interaction state stays on the landing screen. |
 | Blog list, category and article | Marketing blog repository. Guest query selects published records. Web staff access keeps existing server role check. | Guest results come from `GET /api/native/public/blog` and `GET /api/native/public/blog/{slug}`. Unpublished and missing detail share 404. Network failure supports retry. |
 | Demo summaries and product views | Existing public demo summaries, selection validation and free-first-chapter resolver | Read-only projection under `GET /api/native/public/demo[/{view}]`. The quiz payload has scoped IDs and token, with answer data omitted. |
 | Demo grade | Existing `POST /api/demo/quiz`; exact question order and signed content revision | Score and per-question feedback. Reload on stale token, retry on network failure. |

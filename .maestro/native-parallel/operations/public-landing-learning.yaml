@@ -1,0 +1,77 @@
+appId: com.zyx.academy.nativeparity
+name: Operations public homepage learning interactions
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: separator
+    timeout: 30000
+- openLink: "zyx-native-parity://operations-fixture?caseId=operations-public-hero-id"
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - runFlow:
+          when:
+            visible: 'Open in .*Zyx Academy Native.*'
+          commands:
+            - tapOn: "Open"
+- scrollUntilVisible:
+    element:
+      id: landing-quiz-option-a
+- tapOn:
+    id: landing-quiz-option-a
+- scrollUntilVisible:
+    element:
+      text: "Kenapa salah\\?"
+- takeScreenshot: landing-quiz-feedback
+- scrollUntilVisible:
+    element:
+      id: landing-quiz-reset
+- tapOn:
+    id: landing-quiz-reset
+- scrollUntilVisible:
+    direction: UP
+    element:
+      id: landing-quiz-option-b
+- tapOn:
+    id: landing-quiz-option-b
+- scrollUntilVisible:
+    element:
+      text: "Benar"
+- scrollUntilVisible:
+    element:
+      id: landing-tutor-play
+- tapOn:
+    id: landing-tutor-play
+- scrollUntilVisible:
+    element:
+      text: "Bab 5 · Volume Benda Putar"
+- scrollUntilVisible:
+    element:
+      text: "Bab 5.2 · Memilih Metode"
+- scrollUntilVisible:
+    element:
+      id: landing-flashcards-flip
+- tapOn:
+    id: landing-flashcards-flip
+- scrollUntilVisible:
+    element:
+      id: landing-flashcards-grade-good
+- tapOn:
+    id: landing-flashcards-grade-good
+- assertVisible: "Bagus → diulang 6 hari lagi"
+- scrollUntilVisible:
+    element:
+      text: "Kartu 2 / 2"
+    direction: UP
+- takeScreenshot: landing-flashcard-reviewed
+- scrollUntilVisible:
+    element:
+      id: landing-path-profile-b
+- tapOn:
+    id: landing-path-profile-b
+- scrollUntilVisible:
+    element:
+      text: "sedang dipelajari · 58%"
+- takeScreenshot: landing-mastery-profile
