@@ -99,6 +99,34 @@ export const operationsCatalog = [
     "reason": "The Expo client reads the active account's own role memberships and locale for routing. Each product API still enforces object permissions. MCP client identity, consent, scopes, discovery, playbooks, packaged skills and environment bindings are independent."
   },
   {
+    "source": "apps/mobile-native/routing/BrowserHandoff.tsx",
+    "actions": ["open"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The app opens the staging Next consent, account connections or meeting URL in the system browser. The browser owns the session. Consent, registration, scopes, redirect validation, revocation and environment binding stay on their existing server paths."
+  },
+  {
+    "source": "apps/mobile-native/device/reminder-controller.ts",
+    "actions": ["updateSettings", "refreshTutorSessions"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Study reminders use local OS permission and an account-bound schedule. Tutor reminder inputs come from existing user-authorized reads. No MCP tool controls local notification delivery."
+  },
+  {
+    "source": "apps/mobile-native/device/file-controller.ts",
+    "actions": ["pickDocument", "shareDocument", "shareAuthorizedDownload"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The signed-in user selects a local document or downloads using an existing authorized route. The OS sheet controls sharing on the device. MCP authorization and publication are independent."
+  },
+  {
+    "source": "apps/mobile-native/device/audio-controller.ts",
+    "actions": ["play", "pause"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Playback controls operate on local media on the device, with no server mutation, recording permission or MCP operation."
+  },
+  {
     "source": "apps/mobile-native/device/photo-controller.ts",
     "actions": ["pick", "recover"],
     "tools": [],

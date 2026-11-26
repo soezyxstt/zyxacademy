@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { createNativeTransport } from "../../apps/mobile-native/network/transport";
-import { loadNativeAccountContext } from "../../apps/mobile-native/network/account-context";
+import { loadNativeAccountContext, NativeAccountAccessDenied } from "../../apps/mobile-native/network/account-context";
 
 const origin = "https://staging.zyxacademy.com";
 const context = { accountId: "student", sessionId: "one", roles: ["tutor", "murid"], dashboard: "/tutor", locale: "id" } as const;
@@ -23,5 +23,9 @@ test("rejects cross-session data and inconsistent memberships or locale", async 
   }
 });
 test("does not provide access on an expired or unauthorized session", async () => {
-  for (const status of [401, 403]) await expect(run(context, status)).rejects.toThrow();
+  for (const status of [401, 403]) await expect(run(context, status)).rejects.toBeInstanceOf(NativeAccountAccessDenied);
+});
+
+test("a temporary data service failure does not revoke previous local schedules", async () => {
+  await expect(run(context, 503)).rejects.toThrow("Konteks akun belum tersedia.");
 });

@@ -1,6 +1,6 @@
 # Simpler Idea and Product authoring
 
-Status: `OPEN / IN PROGRESS`. PR #480 continuation, 2026-11-25. Local implementation and repeatable synthetic measurements. Hosted acceptance, installed skill distribution and real time/token savings remain separate release checks.
+Status: `ACTIVE`. Updated 2026-11-26 with compact discovery, typed V4/V5 creation and exact-target proof reuse. Local synthetic measurements do not establish hosted latency, token billing, visual quality or installed-host refresh.
 
 ## Implemented scope
 
@@ -8,13 +8,13 @@ Status: `OPEN / IN PROGRESS`. PR #480 continuation, 2026-11-25. Local implementa
 | --- | --- | --- |
 | Agent builds Idea source records, offsets, metadata and ZIP | `authoring.create_idea_draft` accepts atomic Ideas, teaching sections, explained relations and exact source quotes. The server reads the bound validated Source Pack and builds V3. | All documents and units remain in coverage checks. Ambiguous quotes require a longer unique quote or an exact offset. |
 | Agent cannot inspect a raw draft cheaply | `bun run authoring:preview` renders the same Product draft JSON with shared learner and print components, without login, DB or network. `--watch` reuses compiled assets, server and browser. | Local preview, never trusted release evidence. Reports retain exact input hash and honest untested states. |
-| Agent assembles Product manifests, hashes and ZIP bytes | `authoring.create_product_draft` accepts typed Article/Diktat content and source/Idea IDs. The server loads current references, assigns missing mechanical IDs and constructs the canonical archive. | Initial V4 only; existing admission and staging policy still run. |
+| Agent assembles Product manifests, hashes and ZIP bytes | `authoring.create_product_draft` accepts Article, Diktat, flashcard/set and standalone V5 collection content with source/Idea IDs. The server binds references and creates the archive. | Initial V4 or one V5 collection; canonical admission and staging still run. |
 | Every edit returns the entire artifact and review state | Opt-in `responseMode: "compact"` on context, create, patch and restore. A `target` selects one stable unit on context reads. | Full remains the default. Integrity and scope still load and validate the stored archive; compact saves response size and review/readiness queries. |
 | Agent manually tracks successor IDs and run tokens | `createIdeaAuthoringClient` and `createProductAuthoringClient` wrap existing revision MCP calls through an injected transport. Exact reads cannot silently adopt a different kind/import/revision; `readFull()` obtains review context. | In-repo helper, not a published SDK. Errors preserve the last observed identity; no automatic write retries, reviews or publication. |
 | One validation failure starts another blind loop | Error responses add `category`, `retryable`, `nextAction` and bounded `diagnostics`. Final draft validation preserves all independent issues. | Existing error fields and OAuth challenges remain. Transient failures require a status check before retry. |
 | Browser work runs before deterministic findings are resolved | Structure/model checks run first and collect their findings. | Blocked browser/print checks remain `NOT_TESTED`. The requirement matrix and final acceptance are unchanged. |
 | PDF renders twice for its file and page images | The PDF check captures every page from the same bytes. The paired image check reuses those captures. | Older executors that return only a PDF keep the separate image execution fallback. |
-| Failed attempts rerun successful work | Private signed batch checkpoints bind the exact plan, staging audit, requirement and capture batch. Retries verify metadata and bytes, then copy valid artifacts to the new attempt. | No reuse across changed revisions, references, runtime or browser bindings. Failed and incomplete checks are not proof. |
+| Failed attempts or unrelated edits repeat rendering | Signed checkpoints and target proofs verify metadata and bytes before copying artifacts to a new exact-plan attempt. | Reuse needs the same target, relevant upstream graph, assets, environment, course, revision root and runtime. Structure always reruns. Cold, incomplete or damaged proof rerenders. |
 
 ## Idea authoring
 
@@ -32,7 +32,27 @@ Supply titles, content, Idea IDs, and source/excerpt IDs. Missing entity/section
 
 For a draft edit, read one unit, patch it and continue with the returned successor identity. Read full context at the review boundary and use the release planner for current blockers. `evaluation.review` and `evaluation.readiness` return `not_requested` in a compact response; those fields cannot stand in for approval or publication readiness.
 
-The typed creation path currently supports standalone Articles, standalone Diktats and a Diktat derived from an Article in the same request. Flashcards, V5 collections, binary interactive documents and external Article lineage retain the archive path. Read or patch one Diktat unit with `{ entityType: "diktat", entityId, unitId }`, without section/block/item selectors. Address its parts with stable paths such as `parts[summary-part].markdown`. The server rebuilds projections and hashes and invalidates affected review and print evidence.
+The typed path supports Articles, Diktats, same-request Article lineage, flashcards/sets and a standalone V5 collection. A flashcard supplies one Idea, front/back and optional explanation/setId. A set may omit cards to derive membership from same-request setId links. A V5 collection supplies title/items; the server binds current active course/chapter titles and missing mechanical IDs, while options keep explicit IDs. Canonical V5 provenance, static content and standalone-profile rules still apply. The request permits 256 products, at most 16 Articles/Diktats and 512 KiB. Binary interactive documents and external Article lineage retain the archive path.
+
+Read or patch one Diktat unit with `{ entityType: "diktat", entityId, unitId }`, without section/block/item selectors. Address parts with stable paths such as `parts[summary-part].markdown`. The server rebuilds projections/hashes and invalidates affected evidence. An initial draft without revision lineage advertises `create_revision` before patching.
+
+## Compact discovery and contract reuse
+
+Opt-in compact `list_imports` supports course/chapter/query/statuses/headsOnly and a filter-bound keyset cursor. It selects summaries in one database query, without ZIP reads or readiness evaluation. Heads retain the live import and latest editable candidate per lineage. Compact `get_import` returns metadata; inventory and readiness are explicit projections. Full legacy response shapes remain available. Full Product reads share the admitted row/bundle and computed readiness within the request.
+
+Compact playbooks return changed module bodies once; `knownModuleChecksums` refers to already retained content. Compatibility and bootstrap remain fresh. Compact contracts select the active stage and Product profile, omit the duplicate pilot body and support `knownViewChecksum` for that exact view. Descriptor checksums still pin schemas. Content caching never authorizes writes or replaces tokens.
+
+### Measured response sizes, 2026-11-26
+
+The current contract fixtures measure UTF-8 JSON bytes. Playbook measurements use the same API, actor and bootstrap envelope. Cached requests retain previously verified document bytes; bootstrap and run checks remain current.
+
+| Fixture | Full or baseline | Compact | Cached compact |
+| --- | ---: | ---: | ---: |
+| Product playbook, six modules | 125,085 B | 64,882 B (48.1% less) | 4,835 B (96.1% less) |
+| Product workflow contract, V4 projection | 76,103 B | 46,755 B (38.6% less) | 3,102 B (95.9% less) |
+| Twenty stored import rows versus metadata projection | 212,386 B | 12,579 B (94.1% less) | Not applicable |
+
+The import baseline is the synthetic stored-row fixture, not the old full MCP response. Unfiltered discovery makes one query and zero ZIP reads. Course filtering also resolves course identity. An admitted compact patch reads the predecessor ZIP once; exact retry reads its existing successor. The warm card-edit integration needs only the structural executor check and no new PDF render; it still produces a new receipt for all current requirements. Missing proof advances the print version. These measurements do not establish hosted latency, token charges, money saved or teaching quality.
 
 ## Preview the same draft JSON
 
@@ -113,11 +133,11 @@ Compared with the previous PR head, Idea and Product skill files plus host promp
 - Complete authenticated staging acceptance with a synthetic authorized draft and real storage, including scope denial, concurrent edits, failed verification retry and final review. The current private local operator deliberately targets its configured production origin; do not relabel that as a staging run or use production data for this PR.
 - Measure real short and long chapter authoring before claiming lower token cost or duration. The synthetic response/executor benchmark above does not measure model tokens, money, wall time or live storage. Compare quality with the same source and a blind rubric for correctness, coverage, teaching order and readability.
 - Decide whether binary-asset input and external Article lineage belong in the next typed-draft contract. Preserve reference and asset admission checks in each extension.
-- Design any reuse across revisions separately. Split content/runtime fingerprints only with dependency-specific invalidation tests. The exact-plan cache here deliberately does not claim that unrelated edits are safe to ignore.
+- Exercise the scoped revision proof cache with real storage and renderer output. Local tests cover target/upstream changes, assets, course, revision root, runtime changes, tampered bytes and proof disappearance after a draft is sealed. They do not establish hosted hit rates or visual quality.
 - Check the refreshed package in installed hosts and their OAuth sessions. The reviewed external staging release and exact source pin are complete; a server build alone does not establish host acceptance.
 - Review CI and bot comments on the latest commit before merging to staging. The owner marked PR #480 ready for review on 2026-11-25 while the skill update was in progress. A code merge does not run the authenticated checks above or deploy the application; deployment and content publication retain their own verification.
 
-## Verification record
+## Prior verification record
 
 The initial PR recorded 265 passing tests across 27 focused files. The continuation adds direct Idea, descriptor, client, unit-edit, preview and measurement checks; the current PR verification record supersedes the initial counts. Pinned staging and repository-candidate skill builds remain distinct. Focused TypeScript checking includes changed TypeScript source/test files and their imports. The repository ESLint configuration excludes test files. Initial CI identified two older test fixtures that needed the new tool name and production-compatible missing-object errors; both affected contracts now pass. The PR description records reproducible commands, current test/type/visual results and the latest CI status.
 

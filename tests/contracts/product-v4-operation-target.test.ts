@@ -157,9 +157,17 @@ test("the manual verify job keeps branch isolation and uses the deployed Bun run
   const runtimeVersion = readFileSync("Dockerfile.cloud-run", "utf8").match(/^FROM oven\/bun:([\d.]+)-/m)?.[1];
   expect(runtimeVersion).toBe("1.3.14");
   expect(verify.steps.find(step => step.uses === "oven-sh/setup-bun@v2")?.with?.["bun-version"]).toBe(runtimeVersion);
-  expect(verify.steps.find(step => step.run?.includes("operate-v4-verification.ts"))?.run).toBe("bun --conditions=react-server scripts/authoring/operate-v4-verification.ts");
+  const command = "bun --conditions=react-server scripts/authoring/operate-v4-verification.ts";
+  const operation = verify.steps.find(step => step.run?.includes(command));
+  expect(operation?.run?.trim().split("\n").map(line => line.trim())).toEqual([
+    'if [ "$ZYX_ENVIRONMENT" = staging ]; then',
+    "python3 .github/scripts/staging_authoring_browser.py " + command,
+    "else",
+    command,
+    "fi",
+  ]);
   expect(verify.environment).toBe("${{ inputs.environment }}");
-  expect(verify.if).toBe("inputs.action != 'prepare-fixture' && ((inputs.environment == 'production' && github.ref == 'refs/heads/main') || (inputs.environment == 'staging' && github.ref == 'refs/heads/staging'))");
+  expect(verify.if).toBe("(inputs.environment == 'production' && github.ref == 'refs/heads/main') || (inputs.environment == 'staging' && github.ref == 'refs/heads/staging')");
   expect(workflow.permissions).toEqual({ contents: "read" });
   expect(verify.steps.find(step => step.uses === "actions/checkout@v4")?.with?.["persist-credentials"]).toBe(false);
   expect(verify.steps.find(step => step.uses === "actions/upload-artifact@v4")?.with?.["retention-days"]).toBe(3);

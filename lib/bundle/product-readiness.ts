@@ -20,12 +20,22 @@ export async function publisherProductReviewReadiness(row: NonNullable<Awaited<R
   return { reviewApproved, missingSections, missingSectionTargets };
 }
 
-export async function currentPublisherProductReadiness(importId: string, publisherId: string, options: { v4Verification?: Awaited<ReturnType<typeof getProductV4VerificationReadiness>> | null } = {}) {
-  const row = await getProductBundleImport(importId);
+type AdmittedReadContext = {
+  row: NonNullable<Awaited<ReturnType<typeof getProductBundleImport>>>;
+  bundle: Extract<ReturnType<typeof validateProductBundle>, { success: true }>["data"];
+};
+export type ProductReadSnapshot = { checksum: string; status: string; version: number; updatedAt: string };
+
+export async function currentPublisherProductReadiness(importId: string, publisherId: string, options: { v4Verification?: Awaited<ReturnType<typeof getProductV4VerificationReadiness>> | null; admittedContext?: AdmittedReadContext; expectedSnapshot?: ProductReadSnapshot } = {}) {
+  const row = options.admittedContext?.row ?? await getProductBundleImport(importId);
   if (!row) throw new Error("PRODUCT_BUNDLE_NOT_FOUND");
+  if (row.id !== importId || row.bundleType !== "product") throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
+  const expected = options.expectedSnapshot;
+  if (expected && (expected.checksum !== row.checksum || expected.status !== row.status || expected.version !== row.version || expected.updatedAt !== row.updatedAt.toISOString())) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
+  if (row.validationReport.valid !== true) throw new Error("PRODUCT_BUNDLE_ADMISSION_REQUIRED");
   const { parseStagedProductBundle } = await import("@/lib/bundle/product-staging");
-  const bundle = await parseStagedProductBundle(importId);
-  if (bundle.checksum !== row.checksum) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
+  const bundle = options.admittedContext?.bundle ?? await parseStagedProductBundle(importId, row);
+  if (bundle.checksum !== row.checksum || bundle.manifest.bundleId !== row.bundleId || bundle.manifest.schemaVersion !== `product-bundle.v${row.version}`) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
   let verification = options.v4Verification;
   if (row.version === 4 && verification === undefined) {
     const ref = row.validationReport.productV4Verification as { runId?: string } | undefined;

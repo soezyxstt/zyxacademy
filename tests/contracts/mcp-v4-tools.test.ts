@@ -73,7 +73,7 @@ test("MCP verification accepts canonical aliases and rejects stale content and f
     const input = { runToken: runToken(), bootstrapToken: bootstrapToken("actor", "product"), importId: "allowed", expectedContentHash: contentHash };
     expect((await connection.client.callTool({ name: "authoring.verify_product_bundle", arguments: input })).isError).toBeUndefined();
     expect(enqueues).toBe(1);
-    expect((await connection.client.callTool({ name: "authoring.verify_product_bundle", arguments: { ...input, expectedContentHash: "c".repeat(64) } })).structuredContent).toMatchObject({ ok: false, error: "PRODUCT_V4_VERIFICATION_CONFLICT", category: "conflict" });
+    expect((await connection.client.callTool({ name: "authoring.verify_product_bundle", arguments: { ...input, expectedContentHash: "c".repeat(64) } })).structuredContent).toMatchObject({ ok: false, error: "PRODUCT_V4_VERIFICATION_CONFLICT", category: "conflict", currentVerification: { contentHash, planHash }, nextAction: { kind: "read_context", tool: "authoring.get_import" } });
     expect((await connection.client.callTool({ name: "authoring.verify_product_bundle", arguments: { ...input, importId: "foreign" } })).isError).toBe(true);
     expect((await connection.client.callTool({ name: "authoring.verify_product_bundle", arguments: { ...input, importId: "wrong-run" } })).isError).toBe(true);
     expect((await connection.client.callTool({ name: "authoring.verify_product_bundle", arguments: { ...input, runToken: issueBoundMcpRunToken({ courseId: "canonical-course", chapterId: "other", workflow: "idea_product" }, input.bootstrapToken) } })).structuredContent).toMatchObject({ ok: false, error: "PRODUCT_V4_VERIFICATION_CONFLICT", category: "conflict" });
@@ -89,6 +89,26 @@ test("V4 diagnostics expose safe codes without runtime paths or identifiers", ()
   expect(productV4RequestErrorCode(Object.assign(new Error("secret/path"), { code: "ENOENT" }))).toBe("PRODUCT_V4_RUNTIME_ASSET_UNAVAILABLE");
   expect(productV4RequestErrorCode(new Error("PRODUCT_V4_VERIFICATION_CONFLICT:private-id"))).toBe("PRODUCT_V4_VERIFICATION_CONFLICT");
   expect(productV4RequestErrorCode(new Error("private credentials"))).toBe("AUTHORING_MCP_V4_REQUEST_FAILED");
+});
+
+test("reading an unstarted current plan returns next steps without enqueueing or editing", async () => {
+  let requests = 0;
+  const contentHash = "a".repeat(64), planHash = "b".repeat(64);
+  const connection = await connect(principal.scopes, {
+    getImport: async () => ({ courseId: "legacy-course" }) as never,
+    courseAliases: async () => new Set(["canonical-course", "legacy-course"]), assertStagingScope: async () => {},
+    readiness: async () => ({ plan: { contentHash, planHash }, jobId: null, receipt: null, state: { status: "not_started", reason: "plan_changed" }, nextAction: { kind: "request_verification", tool: "authoring.verify_product_bundle", expectedContentHash: contentHash, expectedPlanHash: planHash } }) as never,
+    verification: async () => { throw new Error("PRODUCT_V4_VERIFICATION_JOB_NOT_FOUND"); },
+    request: async () => { requests++; throw new Error("NO_WRITE_ALLOWED"); },
+  });
+  try {
+    const input = { runToken: runToken(), bootstrapToken: bootstrapToken("actor", "product"), importId: "allowed", planHash };
+    const response = await connection.client.callTool({ name: "authoring.get_verification", arguments: input });
+    expect(response.isError).toBeUndefined();
+    expect(response.structuredContent).toMatchObject({ ok: true, result: { state: { status: "not_started" }, nextAction: { kind: "request_verification", expectedPlanHash: planHash } } });
+    expect(requests).toBe(0);
+    expect((await connection.client.callTool({ name: "authoring.get_verification", arguments: { ...input, planHash: "c".repeat(64) } })).structuredContent).toMatchObject({ error: "PRODUCT_V4_VERIFICATION_CONFLICT", currentVerification: { contentHash, planHash, status: "not_started" } });
+  } finally { await connection.close(); }
 });
 
 

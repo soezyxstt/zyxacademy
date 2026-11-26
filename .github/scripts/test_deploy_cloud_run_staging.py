@@ -4,6 +4,7 @@ import re
 import tempfile
 import unittest
 from unittest.mock import patch
+from staging_authoring_browser import staging_browser_settings
 
 from deploy_cloud_run_staging import (
     REQUIRED_SECRET_KEYS, REVISION, RUNTIME_ACCOUNT, STAGING, change_traffic,
@@ -121,7 +122,7 @@ class CloudRunStagingTest(unittest.TestCase):
                 for operation, revision in (("promote", CANDIDATE), ("rollback", PREVIOUS)):
                     with self.subTest(operation=operation):
                         with patch.dict("os.environ", {"CLOUD_RUN_OPERATION": operation, "CLOUD_RUN_REVISION": revision}):
-                            self.assertEqual(prepare(), CONFIG)
+                            self.assertEqual(prepare(), CONFIG | staging_browser_settings() if operation == "promote" else CONFIG)
                         for invalid in ("", "latest", "zyx-academy-production-web-r123a1"):
                             with patch.dict("os.environ", {"CLOUD_RUN_OPERATION": operation, "CLOUD_RUN_REVISION": invalid}):
                                 with self.assertRaisesRegex(ValueError, "An exact revision is required"):
@@ -155,6 +156,23 @@ class CloudRunStagingTest(unittest.TestCase):
             entries[:] = [entry for entry in entries if entry["name"] != key] + [{"name": key, **value}]
             with self.subTest(key=key), self.assertRaises(ValueError):
                 validate_template(changed, CONFIG)
+
+    def test_staging_browser_transition_keeps_other_runtime_settings_strict(self):
+        desired = CONFIG | staging_browser_settings()
+        previous = spec()
+        validate_template(previous, desired, allow_browser_transition=True)
+        with self.assertRaisesRegex(ValueError, "public settings do not match"):
+            validate_template(previous, desired)
+        candidate = spec()
+        entries = candidate["containers"][0]["env"]
+        entries.extend({"name": key, "value": value} for key, value in staging_browser_settings().items())
+        validate_template(candidate, desired)
+        validate_template(candidate, CONFIG, allow_browser_transition=True)
+        entries[:] = [entry for entry in entries if entry["name"] != "AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION"]
+        with self.assertRaisesRegex(ValueError, "previous browser identity is invalid"):
+            validate_template(candidate, desired, allow_browser_transition=True)
+        with self.assertRaisesRegex(ValueError, "public settings do not match"):
+            validate_template(candidate, desired)
 
     def test_accepts_gateway_route_and_byok_aliases_and_rejects_provider_keys_in_plaintext(self):
         candidate = spec()

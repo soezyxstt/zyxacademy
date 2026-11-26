@@ -2,8 +2,8 @@ import type { DiagnosticIssue } from "@/lib/materials/quality-policy";
 
 export type AuthoringFailureCategory = "content" | "conflict" | "runtime" | "permission";
 export type AuthoringNextAction = {
-  kind: "edit_content" | "read_context" | "refresh_bootstrap" | "request_access" | "check_status" | "inspect_runtime";
-  tool?: "authoring.get_edit_context" | "workflow.get_playbook";
+  kind: "edit_content" | "read_context" | "refresh_bootstrap" | "request_access" | "check_status" | "inspect_runtime" | "request_verification" | "refresh_verification";
+  tool?: "authoring.get_edit_context" | "authoring.get_import" | "authoring.patch_revision" | "workflow.get_playbook" | "authoring.verify_product_bundle";
   instruction: string;
 };
 export type AuthoringDiagnostic = DiagnosticIssue & { category: AuthoringFailureCategory; retryable: boolean; path?: string };
@@ -28,6 +28,10 @@ function safeText(value: unknown, limit = 600): string {
 }
 
 function recovery(code: string): { category: AuthoringFailureCategory; retryable: boolean; nextAction: AuthoringNextAction } {
+  if (code === "PRODUCT_V4_VERIFICATION_JOB_NOT_FOUND") return { category: "runtime", retryable: false, nextAction: { kind: "request_verification", tool: "authoring.verify_product_bundle", instruction: "No attempt is attached to the current plan. Keep the content unchanged and request verification with the current content and plan hashes. Polling alone cannot start it." } };
+  if (code === "PRODUCT_V4_VERIFICATION_CONFLICT") return { category: "conflict", retryable: false, nextAction: { kind: "read_context", tool: "authoring.get_import", instruction: "Read the current import readiness and compare its content and plan hashes. Review any changed content before requesting verification for that exact plan." } };
+  if (code === "PRODUCT_V4_PRINT_REUSE_CHANGED") return { category: "conflict", retryable: false, nextAction: { kind: "refresh_verification", tool: "authoring.patch_revision", instruction: "The preserved print proof no longer matches the current runtime or artifacts. Create a new revision with refreshPrintEvidence:true and operations:[] so the server can advance its evidence version. Keep authored text unchanged, then verify and review the new revision." } };
+  if (code === "PRODUCT_V4_VERIFICATION_CANCELLED") return { category: "runtime", retryable: false, nextAction: { kind: "request_verification", tool: "authoring.verify_product_bundle", instruction: "The prior attempt was revoked. To resume, request verification for the current content and plan hashes with retry:true." } };
   if (/BOOTSTRAP|LEGACY_RUN_RESTART|TOKEN_(?:INVALID|EXPIRED)|SESSION/.test(code)) return { category: "permission", retryable: false, nextAction: { kind: "refresh_bootstrap", tool: "workflow.get_playbook", instruction: "Read the matching stage playbook with the current account and session before retrying." } };
   if (/SCOPE_REQUIRED|NOT_IN_SCOPE|ADMIN_REQUIRED|FORBIDDEN|ACCESS_DENIED|UNAUTHORIZED|CONSENT/.test(code)) return { category: "permission", retryable: false, nextAction: { kind: "request_access", instruction: "Use the permitted scope and account. Request the missing grant when required; do not alter content to bypass access." } };
   if (!/_ID_CONFLICT$/.test(code) && /STALE|CONFLICT|PLAN_CHANGED|REVISION_NOT_FOUND/.test(code)) return { category: "conflict", retryable: false, nextAction: { kind: "read_context", tool: "authoring.get_edit_context", instruction: "Read current context and reconcile changes. Keep the observed revision; never substitute a newer checksum without review." } };
@@ -50,6 +54,7 @@ export function authoringFailureDiagnostics(error: unknown, options: { code?: st
   const code = safeCode(options.code, safeCode(messageCode, "AUTHORING_REQUEST_FAILED"));
   const top = recovery(code);
   const issues = Array.isArray(raw?.issues) ? raw.issues : [];
+  const diagnosticCount = typeof raw?.issueCount === "number" && Number.isSafeInteger(raw.issueCount) && raw.issueCount >= issues.length ? raw.issueCount : issues.length;
   const diagnostics: AuthoringDiagnostic[] = issues.slice(0, AUTHORING_DIAGNOSTIC_LIMIT).map(value => {
     const issue = record(value) ?? {};
     const target = record(issue.target);
@@ -70,5 +75,9 @@ export function authoringFailureDiagnostics(error: unknown, options: { code?: st
       remediation: safeText(issue.remediation) || details.nextAction.instruction,
     };
   });
-  return { ...top, diagnostics, diagnosticsTruncated: issues.length > AUTHORING_DIAGNOSTIC_LIMIT, diagnosticCount: issues.length };
+  const candidate = record(raw?.currentVerification);
+  const currentVerification = candidate && [candidate.contentHash, candidate.planHash].every(value => typeof value === "string" && /^[a-f0-9]{64}$/.test(value))
+    ? { contentHash: String(candidate.contentHash), planHash: String(candidate.planHash),
+      ...(typeof candidate.status === "string" && ["not_started", "pending", "running", "complete", "failed", "stale", "cancelled"].includes(candidate.status) ? { status: candidate.status } : {}) } : undefined;
+  return { ...top, ...(currentVerification ? { currentVerification } : {}), diagnostics, diagnosticsTruncated: diagnosticCount > diagnostics.length, diagnosticCount };
 }

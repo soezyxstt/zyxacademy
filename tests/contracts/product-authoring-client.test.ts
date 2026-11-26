@@ -7,6 +7,23 @@ const observedPlan = { contentHash: "c".repeat(64), planHash: "d".repeat(64) };
 const patch: ProductAuthoringPatch[] = [{ op: "set", target: { entityType: "article", entityId: "article", sectionId: "section", blockId: "block" }, field: "title", value: "Judul" }];
 
 describe("Product authoring client", () => {
+  test("sends only explicit derived review or print refresh inputs with the current identity", async () => {
+    const calls: Record<string, unknown>[] = [];
+    const client = createProductAuthoringClient({ bootstrapToken: "bootstrap", identity: { importId: "draft", revision: revisionA },
+      transport: async (_name, input) => {
+        calls.push(input);
+        return { ok: true, kind: "product", importId: "successor", revision: revisionB };
+      },
+    });
+    const derivedContentReviews = [{ entityId: "diktat", sourceArticleId: "article", expectedArticleHash: "c".repeat(64), unitIds: ["unit"], notes: "The revised source still supports this unchanged summary." }];
+    await client.patch([], { derivedContentReviews });
+    await client.patch([], { refreshPrintEvidence: true });
+    expect(calls).toEqual([
+      { kind: "product", bootstrapToken: "bootstrap", importId: "draft", expectedRevision: revisionA, responseMode: "compact", operations: [], derivedContentReviews },
+      { kind: "product", bootstrapToken: "bootstrap", importId: "successor", expectedRevision: revisionB, responseMode: "compact", operations: [], refreshPrintEvidence: true },
+    ]);
+  });
+
   test("threads successor identity and execution into the next exact-revision call", async () => {
     const calls: { name: string; input: Record<string, unknown> }[] = [];
     const client = createProductAuthoringClient({ bootstrapToken: "bootstrap", identity: { importId: "original", revision: revisionA },

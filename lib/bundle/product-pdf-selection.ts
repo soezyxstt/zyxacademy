@@ -1,4 +1,5 @@
 import { buildProductVerificationKey } from "@/lib/storage/keys";
+import { createHash } from "node:crypto";
 import { PRODUCT_DIKTAT_PRINT_PROFILE } from "@/lib/materials/diktat-renderer-policy";
 import type { PdfArtifactEvidence } from "@/lib/materials/pdf-artifact-contract";
 import { parseProductV4VerificationReceipt, type ProductV4VerificationPlan } from "./product-v4-verification";
@@ -18,6 +19,16 @@ export interface ProductV4PdfBinding {
   pageCount: number;
   checksum?: string;
   byteLength?: number;
+}
+
+/** Retain an immutable canonical key only when its bytes match the current trusted receipt. */
+export async function verifyCanonicalProductPdf(input: {
+  existingKey: string; binding: ProductV4PdfBinding; read(key: string): Promise<Uint8Array>;
+}): Promise<boolean> {
+  const { checksum, byteLength } = input.binding;
+  if (!checksum || !/^[a-f0-9]{64}$/.test(checksum) || byteLength === undefined || byteLength <= 0 || !Number.isSafeInteger(byteLength) || byteLength > 50 * 1024 * 1024) return false;
+  const bytes = await input.read(input.existingKey);
+  return bytes.byteLength === byteLength && createHash("sha256").update(bytes).digest("hex") === checksum;
 }
 
 type Verification = {

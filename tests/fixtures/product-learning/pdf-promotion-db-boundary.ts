@@ -6,6 +6,12 @@ import * as schema from "@/db/schema";
 import { fixture } from "./pdf-verification-receipt";
 import { buildProductVerificationKey } from "@/lib/storage/keys";
 
+// This isolated fixture supplies a supported execution target while substituting
+// the DB, storage, queue and executor below. No provider connection is made.
+process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER = "cloudflare";
+process.env.ZYX_ENVIRONMENT = process.env.ZYX_MCP_ENVIRONMENT = "staging";
+process.env.BETTER_AUTH_URL = process.env.NEXT_PUBLIC_APP_URL = "https://staging.zyxacademy.com";
+
 const input = await fixture();
 process.env.BETTER_AUTH_SECRET = input.authority.signingKey;
 const { client, testDb: local } = await createPostgresTestDb();
