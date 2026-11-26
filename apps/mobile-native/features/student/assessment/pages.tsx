@@ -149,7 +149,7 @@ function QuizGateway({ data }: { data: Extract<AssessmentPage, { kind: "quiz-det
     actionMessage = tx("Soal kuis belum tersedia untuk kelas ini. Hubungi pengajar Anda untuk mempublikasikan soal kuis.", "No quiz questions are available for this course yet. Contact your instructor to publish questions.");
   }
   const { border, destructive } = useAssessmentColors();
-  return <Frame title={assessment.title} subtitle={data.courseTitle}>
+  return <Frame title={assessment.title} subtitle={data.courseTitle} compactCourseHeader>
     {open ? <QuizGatewayInstructions assessment={assessment} completedCount={history.length} /> : <AvailabilityMessage kind="quiz" assessment={assessment} />}
     {error ? <View accessibilityLiveRegion="assertive"><Body tone="error">{error}</Body></View> : null}
     {draftReadError ? <Message title={tx("Percobaan tersimpan belum dapat dibuka", "Could not read the saved attempt")}

@@ -124,7 +124,7 @@ export function useOperation() {
   return { pending, notice, run };
 }
 
-export function Page({ title, headerAction, children }: { title: string; headerAction?: ReactNode; children: ReactNode }) {
+export function Page({ title, headerAction, compactTitle, children }: { title: string; headerAction?: ReactNode; compactTitle?: boolean; children: ReactNode }) {
   const { colors, initialScrollY, onScrollY } = useCommunity();
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
   const start = useRef(initialScrollY);
@@ -147,7 +147,7 @@ export function Page({ title, headerAction, children }: { title: string; headerA
     {headerAction ? <View style={styles.compactHeader}>
       <Text accessibilityRole="header" style={[styles.compactTitle, { color: colors.foreground }]}>{title}</Text>
       {headerAction}
-    </View> : <Text accessibilityRole="header" style={[styles.title, { color: colors.foreground }]}>{title}</Text>}
+    </View> : <Text accessibilityRole="header" style={[compactTitle ? styles.compactPageTitle : styles.title, { color: colors.foreground }]}>{title}</Text>}
     {children}
   </ScrollView>;
 }
@@ -252,6 +252,7 @@ export const styles = StyleSheet.create({
   title: { ...nativeTypography.headingBold, fontSize: 24, lineHeight: 31 },
   compactHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
   compactTitle: { ...nativeTypography.headingSemibold, flex: 1, fontSize: 14, lineHeight: 20 },
+  compactPageTitle: { ...nativeTypography.headingSemibold, fontSize: 14, lineHeight: 20, includeFontPadding: false },
   body: { ...nativeTypography.bodyRegular, fontSize: 14, lineHeight: 21 },
   heading: { ...nativeTypography.headingBold, fontSize: 17, lineHeight: 23 },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: 8, alignItems: "center" },

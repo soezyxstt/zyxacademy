@@ -2,6 +2,7 @@ import { createContext, useContext, type ReactNode } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, useColorScheme, View, type TextStyle } from "react-native";
 import { nativeColors, nativeRadii } from "../../../../../packages/design-tokens/native-colors";
 import { nativeTypography } from "../../../typography";
+import { useHasStudentCourseNavbar } from "../../../routing/student-course-chrome-context";
 import { Button } from "../../../components/Button";
 import type { StudentScreenProps } from "../contracts";
 import { StudentListRow } from "../ListRow";
@@ -45,15 +46,18 @@ export function Heading({ children, level = 2 }: { children: ReactNode; level?: 
   return <Text accessibilityRole="header" style={[styles.heading, { color: colors.foreground }, level === 1 ? styles.pageHeading : level === 3 ? styles.smallHeading : undefined]}>{children}</Text>;
 }
 
-export function Frame({ title, subtitle, children, onBack }: { title: string; subtitle?: string; children: ReactNode; onBack?: () => void }) {
+export function Frame({ title, subtitle, children, onBack, compactCourseHeader }: { title: string; subtitle?: string; children: ReactNode; onBack?: () => void; compactCourseHeader?: boolean }) {
   const props = useAssessment();
   const colors = useAssessmentColors();
   const { tx } = useAssessmentCopy();
+  const courseNavbar = useHasStudentCourseNavbar();
   return <ScrollView keyboardShouldPersistTaps="handled" contentOffset={{ x: 0, y: props.initialScrollY }}
     onScroll={(event) => props.onScrollY(event.nativeEvent.contentOffset.y)} scrollEventThrottle={32}
     style={{ backgroundColor: colors.background }} contentContainerStyle={styles.page}>
-    <Button variant="ghost" size="sm" style={styles.back} accessibilityLabel={tx("Kembali", "Back")} onPress={onBack ?? props.back}>{tx("‹ Kembali", "‹ Back")}</Button>
-    <View style={styles.title}><Heading level={1}>{title}</Heading>{subtitle ? <Body tone="muted">{subtitle}</Body> : null}</View>
+    {compactCourseHeader && courseNavbar ? <Text accessibilityRole="header" style={[styles.compactTitle, { color: colors.foreground }]}>{title}</Text> : <>
+      <Button variant="ghost" size="sm" style={styles.back} accessibilityLabel={tx("Kembali", "Back")} onPress={onBack ?? props.back}>{tx("‹ Kembali", "‹ Back")}</Button>
+      <View style={styles.title}><Heading level={1}>{title}</Heading>{subtitle ? <Body tone="muted">{subtitle}</Body> : null}</View>
+    </>}
     {children}
   </ScrollView>;
 }
@@ -100,6 +104,7 @@ export function Markdown({ value }: { value: string }) {
 export const styles = StyleSheet.create({
   page: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 28, gap: 16 },
   title: { gap: 4 },
+  compactTitle: { ...nativeTypography.headingSemibold, fontSize: 14, lineHeight: 20, includeFontPadding: false },
   back: { alignSelf: "flex-start" },
   section: { gap: 9 },
   body: { ...nativeTypography.bodyRegular, fontSize: 14, lineHeight: 21, includeFontPadding: false },

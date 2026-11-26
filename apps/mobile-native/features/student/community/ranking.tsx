@@ -86,7 +86,7 @@ export function LeaderboardScreen() {
     navigate(studentPathWithQuery(route.path, { [key]: value, cursor: undefined }));
   }
 
-  return <Page title={tr("Papan peringkat", "Leaderboard")}>
+  return <Page title={tr("Papan peringkat", "Leaderboard")} compactTitle>
     <NavigationTabs tabs={[{ id: "rank", label: "Rank" }, { id: "academic", label: tr("Akademik", "Academic") }]}
       activeId={active} onTabPress={tab => select("tab", tab === "rank" ? undefined : "academic")}
       accessibilityLabel={tr("Jenis peringkat", "Leaderboard type")} moreLabel={tr("Lainnya", "More")} closeLabel={closeLabel}
@@ -137,7 +137,7 @@ function FocusedCourseLeaderboard() {
   const base = `/courses/${encodeURIComponent(id)}/leaderboard`;
   const number = new Intl.NumberFormat(session.locale);
   const percent = new Intl.NumberFormat(session.locale, { style: "percent", maximumFractionDigits: 1 });
-  return <Page title={data.data ? `${tr("Peringkat kelas", "Course leaderboard")}: ${data.data.course.title}` : tr("Peringkat kelas", "Course leaderboard")}>
+  return <Page compactTitle title={data.data ? `${tr("Peringkat kelas", "Course leaderboard")}: ${data.data.course.title}` : tr("Peringkat kelas", "Course leaderboard")}>
     <NavigationTabs tabs={[{ id: "quiz", label: quizLabel }, { id: "simulation", label: simulationLabel }]}
       activeId={type} onTabPress={value => navigate(`${base}?type=${value}`)}
       accessibilityLabel={tr("Jenis peringkat", "Ranking type")} moreLabel={tr("Lainnya", "More")} closeLabel={tr("Tutup", "Close")}
