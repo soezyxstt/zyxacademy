@@ -1,5 +1,5 @@
 import { BookOpen, CalendarRange, Home, MessageSquareText, UserRound } from "lucide-react";
-import { studentMobileHrefs } from "./student-nav-model";
+import { studentMobileHrefs } from "./student-mobile-hrefs.mjs";
 
 export const STUDENT_MOBILE_DESTINATIONS = [
   { id: "home", href: studentMobileHrefs.home, icon: Home, iconName: "Home" },
