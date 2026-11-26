@@ -36,6 +36,7 @@ export function useRoleAccountMenu({ enabled, theme, visit }: {
 
   const copy = accountMenuCopy(context.locale);
   const recoveryCopy = savedAccountCopy(context.locale);
+  const recoveryMessage = accountChangeIssue && savedAccountError(context.locale, accountChangeIssue.code, accountChangeIssue.action);
   const entries = accountMenuEntries(context, sitemap);
   const name = context.display?.name.trim();
   const email = context.display?.email.trim();
@@ -59,10 +60,10 @@ export function useRoleAccountMenu({ enabled, theme, visit }: {
       <Button variant="destructive" testID="role-account-sign-out" theme={theme}
           onPress={() => choose(`/sign-out?locale=${context.locale}`)}>{copy.logOut}</Button>
     </SharedSheet>
-      {accountChangeIssue && !open ? <SharedDialog open testID="role-account-change-recovery" theme={theme}
+      {accountChangeIssue && recoveryMessage && !open ? <SharedDialog open testID="role-account-change-recovery" theme={theme}
         title={recoveryCopy.saved} closeLabel={copy.close} returnFocusRef={trigger}
         onDismiss={() => dismissAccountChangeIssue(accountChangeIssue)}>
-        <AuthStatus error>{savedAccountError(context.locale, accountChangeIssue.code, accountChangeIssue.action)}</AuthStatus>
+        <AuthStatus error>{recoveryMessage}</AuthStatus>
         <Button theme={theme} onPress={() => {
           if (!current()) return;
           dismissAccountChangeIssue(accountChangeIssue);
