@@ -352,3 +352,14 @@ describe("Expo offline metadata synchronization", () => {
     expect(fixture.observed).toHaveLength(3);
   });
 });
+
+
+test("first library visit fetches a newly enrolled course manifest before returning an empty result", async () => {
+  const fixture = setup(authorized(page()), authorized(manifest()));
+  const result = await fixture.controller.sync([]);
+  expect(fixture.observed).toEqual([
+    { path: "/api/offline/sync", body: { cursor: null, courseIds: [], locale: "id" } },
+    { path: "/api/offline/manifest?courseId=course-1&locale=id" },
+  ]);
+  expect(result?.courses[0]?.materials).toEqual([descriptor]);
+});

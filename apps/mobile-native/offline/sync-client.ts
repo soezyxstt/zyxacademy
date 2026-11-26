@@ -208,8 +208,12 @@ export function createNativeOfflineSyncController({ session, locale, repository,
     let accessRevision = revision;
     const cachedCourses = new Map(snapshot?.courses.map(course => [course.id, course]));
     const manifests: NativeOfflineManifestResponse[] = [];
-    for (const courseId of courseIds) {
-      const grant = grants.get(courseId)!;
+    // Enrollment discovery can start with an empty local database. The same
+    // sync response contains the authorized grants for newly found courses.
+    const manifestIds = new Set([...courseIds, ...response.enrollments.map(entry => entry.id)]);
+    for (const courseId of manifestIds) {
+      const grant = grants.get(courseId);
+      if (!grant) continue;
       if (!grant.allowed) continue;
       const cached = cachedCourses.get(courseId);
       const changed = response.changes.some(change => (!change.courseId || change.courseId === courseId)

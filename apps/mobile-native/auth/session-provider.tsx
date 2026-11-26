@@ -57,6 +57,7 @@ export function useNativeSession() {
     ...snapshot,
     acceptLogin: controller.acceptLogin,
     clearLoginIntent: controller.clearLoginIntent,
+    rememberAccountAccess: controller.rememberAccountAccess,
     logout: controller.logout,
     refresh: controller.refresh,
     subscribeBeforeLogout: controller.subscribeBeforeLogout,

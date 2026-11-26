@@ -1,0 +1,15 @@
+appId: com.zyx.academy.nativeparity
+name: Published link directory in Indonesian and English
+---
+- launchApp
+- openLink: zyx-native-parity://internal/public-links/empty
+- assertVisible: "Belum ada tautan"
+- takeScreenshot: directory-empty
+- openLink: zyx-native-parity://internal/public-links/single
+- assertVisible: "Zyx Academy links"
+- assertVisible: "Komunitas mahasiswa"
+- takeScreenshot: directory-single
+- openLink: zyx-native-parity://internal/public-links/grouped
+- assertVisible: "Komunitas"
+- assertVisible: "Umum"
+- takeScreenshot: directory-grouped

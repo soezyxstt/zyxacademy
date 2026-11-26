@@ -9,11 +9,15 @@ import {
   type NativeOfflineSyncResponse,
 } from "./sync-contract";
 import type { NativeSessionScope } from "../network/transport";
+import type { OfflinePolicy } from "../../../lib/offline/policy-types";
+import { notifyOfflineReadingChanges } from "./reading-events";
 
 // These storage bounds mirror lib/offline/metadata-cache.ts and sync-contract.ts.
 const maxManifestEntries = 10_000;
 const maxMetadataBytes = 8 * 1024 * 1024;
-const schema = `
+const maxReadingInvalidations = 512;
+export const EXPO_OFFLINE_DATABASE_NAME = "zyx-offline-reading-metadata.db";
+export const offlineMetadataSchema = `
   PRAGMA secure_delete = ON;
   CREATE TABLE IF NOT EXISTS offline_reading_metadata_v1 (
     origin TEXT NOT NULL,
@@ -40,12 +44,15 @@ type StoredManifest = {
   materials: NativeOfflineResourceDescriptor[];
 };
 type StoredCourse = NativeOfflineCourseAccess & { title: string; manifest?: StoredManifest };
+type ReadingValidation = { generation: number; invalidations: Record<string, string> };
 type StoredSnapshot = {
   sessionId: string;
   cursor: string | null;
   lastVerifiedAt: number;
   leaseExpiresAt: number;
   activeCheckIntervalMs?: number;
+  readingPolicy?: Pick<OfflinePolicy, "maxBytes" | "maxEntries" | "retentionMs" | "contentMaxAgeMs">;
+  readingValidation?: ReadingValidation;
   pending?: { cursor: string; reset: boolean };
   courses: StoredCourse[];
 };
@@ -85,17 +92,38 @@ function readSnapshot(row: RawRow | null): StoredSnapshot | null {
   return null;
 }
 
+export async function readOfflineReadingAuthority(db: Pick<OfflineMetadataDatabase, "getFirstAsync">, scope: NativeOfflineScope) {
+  const row = await db.getFirstAsync<RawRow>(
+    "SELECT revision, session_id, snapshot FROM offline_reading_metadata_v1 WHERE origin = ? AND account_id = ? AND locale = ?",
+    scope.origin, scope.accountId, scope.locale,
+  );
+  const snapshot = readSnapshot(row);
+  return snapshot && snapshot.sessionId === scope.sessionId ? snapshot : null;
+}
+
 function allowedChapters(grant: NativeOfflineCourseAccess, resource: NativeOfflineResourceDescriptor) {
   // Keep the same conservative chapter proof as lib/offline/sync-client.ts.
   return grant.allowed && resource.chapterIds.length > 0
     && resource.chapterIds.every(chapter => grant.chapterIds.includes(chapter));
 }
 
-function applyPageAccess(previous: StoredSnapshot | null, response: NativeOfflineSyncResponse): StoredSnapshot {
+function applyPageAccess(previous: StoredSnapshot | null, response: NativeOfflineSyncResponse, nextRevision: number): StoredSnapshot {
   const courses = new Map((response.reset ? [] : previous?.courses ?? []).map(course => [course.courseId, course]));
   const enrollments = new Map(response.enrollments.map(course => [course.id, course]));
   const grants = new Map(response.access.map(grant => [grant.courseId, grant]));
+  let readingValidation: ReadingValidation = !response.reset && previous?.readingValidation
+    ? { ...previous.readingValidation, invalidations: { ...previous.readingValidation.invalidations } }
+    : { generation: nextRevision, invalidations: {} };
   for (const change of response.changes) {
+    if (change.kind === "article" || change.kind === "diktat") {
+      if (change.courseId && change.resourceId) {
+        const key = JSON.stringify([change.kind, change.courseId, change.resourceId]);
+        const earlier = readingValidation.invalidations[key];
+        if (!earlier || compareCursor(change.cursor, earlier) >= 0) readingValidation.invalidations[key] = change.cursor;
+      } else {
+        readingValidation = { generation: nextRevision, invalidations: {} };
+      }
+    }
     if (!change.courseId && (change.kind === "access" || change.kind === "course")) {
       if (change.kind === "access" && change.action === "delete") {
         courses.clear();
@@ -122,6 +150,10 @@ function applyPageAccess(previous: StoredSnapshot | null, response: NativeOfflin
         } });
       }
     }
+  }
+  if (Object.keys(readingValidation.invalidations).length > maxReadingInvalidations) {
+    // Fall back to a new verification generation to keep persisted invalidations bounded.
+    readingValidation = { generation: nextRevision, invalidations: {} };
   }
 
   for (const [id, grant] of grants) {
@@ -152,6 +184,9 @@ function applyPageAccess(previous: StoredSnapshot | null, response: NativeOfflin
   authorized.sort((a, b) => Number(grants.has(b.courseId)) - Number(grants.has(a.courseId)));
   return { sessionId: response.sessionId, cursor: previous?.cursor ?? null, lastVerifiedAt: response.serverTime,
     leaseExpiresAt: response.leaseExpiresAt, activeCheckIntervalMs: response.policy.activeCheckIntervalMs,
+    readingPolicy: { maxBytes: response.policy.maxBytes, maxEntries: response.policy.maxEntries, retentionMs: response.policy.retentionMs,
+      contentMaxAgeMs: response.policy.contentMaxAgeMs },
+    readingValidation,
     pending: { cursor: response.cursor, reset: response.reset },
     courses: authorized.slice(0, NATIVE_OFFLINE_COURSE_LIMIT) };
 }
@@ -190,7 +225,7 @@ export function createOfflineMetadataStore(db: OfflineMetadataDatabase) {
   let ready: Promise<void> | undefined;
   const keys = (scope: NativeOfflineScope) => [scope.origin, scope.accountId, scope.locale] as const;
   function initialize() {
-    ready ??= db.execAsync(schema).catch(error => {
+    ready ??= db.execAsync(offlineMetadataSchema).catch(error => {
       ready = undefined;
       throw error;
     });
@@ -219,12 +254,16 @@ export function createOfflineMetadataStore(db: OfflineMetadataDatabase) {
       assertCurrent?.();
     } catch (error) {
       // Native SQL can finish while the session changes. Do not purge a newer writer's revision.
-      if (changes === 1) await db.runAsync(`
-        UPDATE offline_reading_metadata_v1 SET snapshot = NULL, revision = revision + 1
-        WHERE origin = ? AND account_id = ? AND locale = ? AND session_id = ? AND revision = ?
-      `, ...keys(scope), scope.sessionId, revision + 1);
+      if (changes === 1) {
+        await db.runAsync(`
+          UPDATE offline_reading_metadata_v1 SET snapshot = NULL, revision = revision + 1
+          WHERE origin = ? AND account_id = ? AND locale = ? AND session_id = ? AND revision = ?
+        `, ...keys(scope), scope.sessionId, revision + 1);
+        notifyOfflineReadingChanges();
+      }
       throw error;
     }
+    if (changes === 1) notifyOfflineReadingChanges();
     return changes === 1;
   }
 
@@ -256,7 +295,7 @@ export function createOfflineMetadataStore(db: OfflineMetadataDatabase) {
           || (pending && compareCursor(response.cursor, pending.cursor) < 0)))) return null;
       const revision = row?.revision ?? 0;
       // Always apply access revocations before fetching any replacements, even if a new policy cuts the quota.
-      const updated = applyPageAccess(previous, response);
+      const updated = applyPageAccess(previous, response, revision + 1);
       const encoded = encodeSnapshot(updated, maxMetadataBytes)
         ?? encodeSnapshot({ ...updated, courses: updated.courses.map(course => ({ ...course, manifest: undefined })) }, maxMetadataBytes)
         ?? JSON.stringify({ ...updated, courses: [] });
@@ -299,6 +338,7 @@ export function createOfflineMetadataStore(db: OfflineMetadataDatabase) {
           snapshot = NULL, revision = offline_reading_metadata_v1.revision + 1
         WHERE offline_reading_metadata_v1.session_id = excluded.session_id
       `, ...keys(scope), scope.sessionId);
+      if (changes === 1) notifyOfflineReadingChanges();
       return changes === 1;
     },
 
@@ -311,6 +351,7 @@ export function createOfflineMetadataStore(db: OfflineMetadataDatabase) {
           snapshot = NULL, revision = offline_reading_metadata_v1.revision + 1
         WHERE offline_reading_metadata_v1.session_id = excluded.session_id
       `, origin, accountId, sessionId, origin, accountId, sessionId);
+      notifyOfflineReadingChanges();
     },
   };
 }

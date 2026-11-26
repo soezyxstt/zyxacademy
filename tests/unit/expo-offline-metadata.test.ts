@@ -110,9 +110,12 @@ describe("Expo SQLite reading metadata", () => {
     expect(await store.read(scope, now + 2)).toMatchObject({ cursor: "13", knownCourseIds: ["course-1"],
       courses: [{ materials: [descriptor("retained", "chapter-1")] }] });
     const raw = database.query<{ snapshot: string }, []>("SELECT snapshot FROM offline_reading_metadata_v1").get();
-    expect(raw?.snapshot).not.toContain("narrowed");
-    expect(raw?.snapshot).not.toContain("deleted");
-    expect(raw?.snapshot).not.toContain("denied");
+    const persisted = JSON.parse(raw!.snapshot);
+    const courses = JSON.stringify(persisted.courses);
+    expect(courses).not.toContain("narrowed");
+    expect(courses).not.toContain("deleted");
+    expect(courses).not.toContain("denied");
+    expect(persisted.readingValidation.invalidations).toEqual({ [JSON.stringify(["article", "course-1", "deleted"])]: "14" });
 
     await expect(store.commitPage(scope, { expectedCursor: "13", response: changed, accessRevision: accessRevision!,
       manifests: [manifest(changed, narrowed, [descriptor("retained", "chapter-1")]), manifest(changed, deniedCourse, [])] })).rejects.toThrow();

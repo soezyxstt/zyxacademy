@@ -3,11 +3,14 @@ import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useStat
 import { AppState, Platform } from "react-native";
 
 import { useNativeSession } from "../auth/session-provider";
+import { useNativeAccountContext } from "../auth/use-account-context";
 import type { NativeSessionTransport } from "../network/transport";
 import { openExpoOfflineMetadataStore } from "./metadata-expo";
 import { createOfflineMetadataLifecycle, inactiveCourseMetadata, visibleCourseMetadata } from "./lifecycle";
 import { createNativeOfflineSyncController } from "./sync-client";
 import { NATIVE_OFFLINE_COURSE_LIMIT, type NativeOfflineLocale } from "./sync-contract";
+import { openExpoOfflineReadingStore } from "./reading-expo";
+import { purgeOfflineReadingSession, unblockOfflineReadingSession, waitForOfflineReadingPurge } from "./reading-session-storage";
 
 const supported = Platform.OS === "ios" || Platform.OS === "android";
 const inactiveSnapshot = () => inactiveCourseMetadata;
@@ -15,8 +18,8 @@ const inactiveSubscribe = () => () => {};
 const inactiveRetry = () => Promise.resolve();
 
 function createDriver(session: NativeSessionTransport, locale: NativeOfflineLocale, {
-  onRevoked, onAuthorized, waitForPurge,
-}: { onRevoked: () => void; onAuthorized: () => void; waitForPurge: () => Promise<void> | undefined }) {
+  onRevoked, onAuthorized,
+}: { onRevoked: () => void; onAuthorized: () => void }) {
   const scope = { ...session.scope, locale };
   let syncController: ReturnType<typeof createNativeOfflineSyncController> | undefined;
   let generation = 0;
@@ -24,7 +27,7 @@ function createDriver(session: NativeSessionTransport, locale: NativeOfflineLoca
     read: async () => (await openExpoOfflineMetadataStore()).read(scope),
     async sync(courseIds, publishAccess) {
       const current = generation;
-      await waitForPurge();
+      await waitForOfflineReadingPurge(scope);
       const repository = await openExpoOfflineMetadataStore();
       if (current !== generation) return;
       session.assertCurrent();
@@ -38,6 +41,12 @@ function createDriver(session: NativeSessionTransport, locale: NativeOfflineLoca
         await syncController.sync(courseIds);
       } finally {
         unsubscribe();
+        if (current === generation && session.isCurrent()) {
+          await openExpoOfflineReadingStore().then(readings => readings.reconcile(scope, () => {
+            session.assertCurrent();
+            if (current !== generation) throw new Error("Offline authority changed.");
+          })).catch(() => {});
+        }
       }
     },
     cancelSync() {
@@ -58,14 +67,26 @@ function isOnline(state: NetworkState) {
 
 export function OfflineMetadataProvider({ children }: { children: ReactNode }) {
   const { state, transport, revalidating, refresh, subscribeBeforeLocalLogout } = useNativeSession();
+  const { context, denied } = useNativeAccountContext();
+  const roleDenied = denied || Boolean(context && !context.roles.includes("murid"));
+  const student = Boolean(context?.roles.includes("murid"));
   const [drivers, setDrivers] = useState<SessionDrivers | null>(null);
   const [foreground, setForeground] = useState(() => !AppState.currentState || AppState.currentState === "active");
   const [online, setOnline] = useState(true);
 
   useLayoutEffect(() => {
     if (!supported) return;
-    return subscribeBeforeLocalLogout(async scope => (await openExpoOfflineMetadataStore()).clearSession(scope));
+    return subscribeBeforeLocalLogout(purgeOfflineReadingSession);
   }, [subscribeBeforeLocalLogout]);
+
+  useLayoutEffect(() => {
+    if (!supported || !transport || !roleDenied) return;
+    if (drivers?.transport === transport) {
+      drivers.id.markRevoked();
+      drivers.en.markRevoked();
+    }
+    void purgeOfflineReadingSession(transport.scope).catch(() => {});
+  }, [drivers, roleDenied, transport]);
 
   useEffect(() => {
     if (!supported) return;
@@ -94,35 +115,42 @@ export function OfflineMetadataProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   useEffect(() => {
-    if (!supported || !transport) {
+    if (!supported || !transport || !student) {
       setDrivers(null);
       return;
     }
+    let active = true;
+    // The library can register its manifest sync only after a new Student check opens its scope.
+    void waitForOfflineReadingPurge(transport.scope)?.then(() => {
+      if (active && transport.isCurrent()) unblockOfflineReadingSession(transport.scope);
+    }).catch(() => {});
     let purge: Promise<void> | undefined;
     let scopeRevoked = false;
     const onRevoked = () => {
       if (purge) return;
       next.id.markRevoked();
       next.en.markRevoked();
-      purge = openExpoOfflineMetadataStore().then(repository => repository.clearSession(transport.scope))
-        .catch(() => {}).finally(() => { purge = undefined; });
+      purge = purgeOfflineReadingSession(transport.scope).catch(() => {}).finally(() => { purge = undefined; });
       if (!scopeRevoked) {
         scopeRevoked = true;
         void refresh();
       }
     };
-    const waitForPurge = () => purge;
-    const onAuthorized = () => { scopeRevoked = false; };
-    const recovery = { onRevoked, onAuthorized, waitForPurge };
+    const onAuthorized = () => {
+      scopeRevoked = false;
+      unblockOfflineReadingSession(transport.scope);
+    };
+    const recovery = { onRevoked, onAuthorized };
     const next = { transport, id: createDriver(transport, "id", recovery), en: createDriver(transport, "en", recovery) };
     setDrivers(next);
     return () => {
+      active = false;
       next.id.dispose();
       next.en.dispose();
     };
-  }, [transport, refresh]);
+  }, [transport, refresh, student]);
 
-  const currentDrivers = drivers?.transport === transport ? drivers : null;
+  const currentDrivers = student && drivers?.transport === transport ? drivers : null;
   const verifiedUntil = state.status === "signed-in" && !revalidating ? state.expiresAt : 0;
   useEffect(() => {
     const environment = { foreground, online, verified: verifiedUntil > Date.now(), expiresAt: verifiedUntil };

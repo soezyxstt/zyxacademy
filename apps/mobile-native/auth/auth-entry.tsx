@@ -9,7 +9,7 @@ import { AuthContinuation, AuthSessionStatus } from "./auth-continuation";
 import { authCopy, authLocale } from "./auth-copy";
 import { AuthPage, AuthStatus } from "./auth-page";
 import { useNativeBrowserLogin } from "./browser-login";
-import { authEntryHref, parseNativeLoginIntent, type NativeAuthEntry, type NativeLoginIntent } from "./login-intent";
+import { authEntryHref, readAuthReturnTo, type NativeAuthEntry, type NativeLoginIntent } from "./login-intent";
 import { useNativeSession } from "./session-provider";
 
 function GoogleMark() {
@@ -22,9 +22,9 @@ function GoogleMark() {
 }
 
 export function AuthEntry({ entry }: { entry: NativeAuthEntry }) {
-  const params = useLocalSearchParams<{ next?: string | string[]; locale?: string | string[]; error?: string | string[] }>();
+  const params = useLocalSearchParams<{ returnTo?: string | string[]; locale?: string | string[]; error?: string | string[] }>();
   const locale = authLocale(params.locale);
-  const intent = parseNativeLoginIntent({ entry, locale, next: params.next }) ?? { entry, locale };
+  const intent: NativeLoginIntent = { entry, locale, next: readAuthReturnTo(params.returnTo) };
   const { state } = useNativeSession();
 
   if (state.status === "signed-in") return <AuthContinuation fallbackLocale={locale} next={intent.next} />;
