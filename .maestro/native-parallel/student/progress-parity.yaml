@@ -1,0 +1,48 @@
+appId: com.zyx.academy.nativeparity
+name: Student course progress metrics and recent activity
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: separator
+    timeout: 30000
+- openLink: "zyx-native-parity://student-fixture?scenario=enrolled&theme=light&locale=id&path=%2Fcourses%2Fmatematika-1%2Fprogress"
+- extendedWaitUntil:
+    visible: Statistik belajar
+    timeout: 30000
+- assertVisible: "Progres belajar: Kalkulus Dasar"
+- assertVisible: '.*35 menit.*'
+- assertVisible: '.*2 materi.*'
+- assertVisible: '.*12 ulasan.*'
+- assertVisible: '.*3 hari.*'
+- assertVisible: '.*Limit fungsi.*'
+- assertVisible: Hasil per topik
+- assertVisible:
+    id: student-fixture-id-light
+- takeScreenshot: student-progress-populated
+- tapOn: Hasil per topik
+- extendedWaitUntil:
+    visible: Topik untuk diulang
+    timeout: 30000
+
+- openLink: "zyx-native-parity://student-fixture?scenario=long&theme=light&locale=id&path=%2Fcourses%2Fmatematika-1%2Fprogress"
+- extendedWaitUntil:
+    visible: '.*pembuktian hubungan antara pembilang dan penyebut.*'
+    timeout: 30000
+- assertVisible: Aktivitas terbaru
+- assertVisible: '.*pembuktian hubungan antara pembilang dan penyebut.*'
+- assertVisible:
+    id: student-fixture-id-light
+- takeScreenshot: student-progress-long
+
+- openLink: "zyx-native-parity://student-fixture?scenario=empty&theme=light&locale=id&path=%2Fcourses%2Fmatematika-1%2Fprogress"
+- extendedWaitUntil:
+    visible: 'Belum ada aktivitas belajar\.'
+    timeout: 30000
+- assertVisible: Statistik belajar
+- assertVisible: 'Belum ada aktivitas belajar\.'
+- assertVisible: Hasil kuis dan ujian
+- assertNotVisible: '.*35 menit.*'
+- assertVisible:
+    id: student-fixture-id-light
+- takeScreenshot: student-progress-empty
