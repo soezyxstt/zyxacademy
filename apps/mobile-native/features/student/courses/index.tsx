@@ -127,7 +127,7 @@ function Section({ title, children }: { title?: string; children: ReactNode }) {
 function Row({ title, meta, onPress, testID }: { title: string; meta?: string; onPress?: () => void; testID?: string }) {
   const theme = useContext(ThemeContext);
   return (
-    <StudentListRow title={title} subtitle={meta} testID={testID} theme={theme} chevron
+    <StudentListRow title={title} subtitle={meta} testID={testID} theme={theme}
       primary={onPress ? { onPress, role: "link" } : undefined} />
   );
 }
@@ -220,7 +220,19 @@ function Enrollment({ request, reload }: { request: Request; reload: () => void 
   );
 }
 
-function CourseRows({ courses, navigate, catalog = false }: { courses: CourseCard[]; navigate: Navigate; catalog?: boolean }) {
+function getOffer(course: CourseCard, asOf: string | undefined, locale: string, copy: CourseCopy): string | undefined {
+  const pricing = course.pricing;
+  if (!pricing || pricing.category !== "limited_time_free" || !pricing.startsAt || !pricing.endsAt) return undefined;
+  const start = new Date(pricing.startsAt);
+  const end = new Date(pricing.endsAt);
+  if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || start >= end) return undefined;
+  const current = asOf ? new Date(asOf) : new Date();
+  const label = current < start ? copy.offerUpcoming : current >= end ? copy.offerEnded : copy.offerActive;
+  const format = new Intl.DateTimeFormat(locale, { timeZone: "Asia/Jakarta", dateStyle: "medium", timeStyle: "short" });
+  return `${label} · ${format.format(start)} - ${format.format(end)} WIB`;
+}
+
+function CourseRows({ courses, navigate, catalog = false, asOf, locale = "id-ID" }: { courses: CourseCard[]; navigate: Navigate; catalog?: boolean; asOf?: string; locale?: string }) {
   const copy = useContext(CopyContext);
   return courses.map((course) => {
     const counts = [
@@ -230,7 +242,8 @@ function CourseRows({ courses, navigate, catalog = false }: { courses: CourseCar
     ].flatMap(([count, label]) => typeof count === "number" && count > 0 ? [`${count} ${String(label).toLocaleLowerCase()}`] : []);
     const countsOrEmpty = counts.length > 0 ? counts : [copy.noCourseContents];
     const details = catalog ? countsOrEmpty : [course.description, ...counts];
-    const meta = [...details, course.hasFullContentAccess ? "" : copy.limitedAccess].filter(Boolean).join(" · ");
+    const offer = catalog ? getOffer(course, asOf, locale, copy) : undefined;
+    const meta = [...details, offer ?? (course.hasFullContentAccess ? "" : copy.limitedAccess)].filter(Boolean).join(" · ");
     return (
       <Row key={course.id} title={course.title} meta={meta} testID={`student-course-${course.id}`} onPress={() => navigate(coursePath(course.id))} />
     );
@@ -264,11 +277,12 @@ function Dashboard({ data, navigate, request, reload }: { data: DashboardData } 
   );
 }
 
-function Toggle({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+function Toggle({ label, selected, onPress, testID }: { label: string; selected: boolean; onPress: () => void; testID?: string }) {
   const colors = nativeColors[useContext(ThemeContext)];
   return (
     <Pressable
       accessibilityRole="tab"
+      testID={testID}
       accessibilityState={{ selected }}
       onPress={onPress}
       style={[styles.toggle, { borderColor: selected ? colors.primary : colors.border, backgroundColor: selected ? `${colors.primary}14` : colors.background }]}
@@ -278,13 +292,17 @@ function Toggle({ label, selected, onPress }: { label: string; selected: boolean
   );
 }
 
-function Catalog({ data, navigate, route, replace, openExternal }: { data: CatalogData } & Pick<StudentScreenProps, "navigate" | "route" | "replace" | "openExternal">) {
+function categorySlug(category: string) {
+  return category.toLowerCase().trim().replace(/[^\w\s-]/gu, "").replace(/\s+/gu, "-");
+}
+
+function Catalog({ data, navigate, route, replace, openExternal, locale }: { data: CatalogData; locale: string } & Pick<StudentScreenProps, "navigate" | "route" | "replace" | "openExternal">) {
   const copy = useContext(CopyContext);
   const theme = useContext(ThemeContext);
   const search = route.query.q ?? "";
   const searchTerm = search.trim().toLocaleLowerCase();
   const categories = [...new Set(data.courses.map((course) => course.category))];
-  const legacyCategory = categories.find((category) => category.toLowerCase().trim().replace(/[^\w\s-]/gu, "").replace(/\s+/gu, "-") === route.query.jurusan);
+  const legacyCategory = categories.find((category) => categorySlug(category) === route.query.jurusan);
   const category = route.query.category || legacyCategory || null;
   const supportUrl = data.supportUrl;
   const matching = data.courses.filter((course) => (!category || course.category === category)
@@ -297,15 +315,15 @@ function Catalog({ data, navigate, route, replace, openExternal }: { data: Catal
           <Input theme={theme} accessibilityLabel={copy.search} placeholder={copy.search} value={search} onChangeText={(q) => updateListQuery(route, replace, { q })} />
           {categories.length > 1 && (
             <View style={styles.toggles} accessibilityRole="tablist">
-              <Toggle label={copy.allCategories} selected={category === null} onPress={() => updateListQuery(route, replace, { category: undefined, jurusan: undefined })} />
-              {categories.map((name) => <Toggle key={name} label={name} selected={category === name} onPress={() => updateListQuery(route, replace, { category: name, jurusan: undefined })} />)}
+              <Toggle testID="student-catalog-tab-all" label={`${copy.all} (${data.courses.length})`} selected={category === null} onPress={() => updateListQuery(route, replace, { category: undefined, jurusan: undefined })} />
+              {categories.map((name) => <Toggle key={name} testID={`student-catalog-tab-${categorySlug(name)}`} label={name} selected={category === name} onPress={() => updateListQuery(route, replace, { category: name, jurusan: undefined })} />)}
             </View>
           )}
         </>
       )}
       {matching.length === 0 ? <LearningText>{copy.noCourses}</LearningText> : categories.filter((name) => matching.some((course) => name === course.category)).map((name) => (
         <Section key={name} title={name}>
-          <CourseRows courses={matching.filter((course) => name === course.category)} navigate={navigate} catalog />
+          <CourseRows courses={matching.filter((course) => name === course.category)} navigate={navigate} catalog asOf={data.asOf} locale={locale} />
         </Section>
       ))}
       {openExternal ? <Section>
@@ -466,7 +484,7 @@ function CourseEntry(props: StudentScreenProps & { query: LearningQuery }) {
   } else {
     switch (resource.data.view) {
       case "dashboard": content = <Dashboard data={resource.data} navigate={navigate} request={request} reload={reload} />; break;
-      case "catalog": content = <Catalog data={resource.data} navigate={navigate} route={route} replace={replace} openExternal={openExternal} />; break;
+      case "catalog": content = <Catalog data={resource.data} navigate={navigate} route={route} replace={replace} openExternal={openExternal} locale={session.locale === "en" ? "en-GB" : "id-ID"} />; break;
       case "course": content = <CourseOverview data={resource.data} navigate={navigate} request={request} reload={reload} />; break;
       case "material-list": content = <Documents data={resource.data} route={route} replace={replace} navigate={navigate} request={request} reload={reload} />; break;
       case "material-detail": content = <Document data={resource.data} request={request} reload={reload} renderMaterial={renderMaterial} route={route} />; break;

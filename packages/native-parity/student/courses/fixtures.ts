@@ -3,7 +3,7 @@ import {
   type CourseCard, type CourseData, type MaterialListData, type MaterialRow,
 } from "./contract";
 
-export const courseFixtureScenarios = ["enrolled", "unenrolled", "revoked", "offline", "long-content"] as const;
+export const courseFixtureScenarios = ["enrolled", "unenrolled", "revoked", "offline", "long-content", "catalog-parity"] as const;
 export type CourseFixtureScenario = (typeof courseFixtureScenarios)[number];
 
 export const studentCourseCases = [
@@ -12,6 +12,9 @@ export const studentCourseCases = [
   { id: "student-course-revoked", component: "CourseScreen", theme: "light", scenario: "revoked", initialPath: "/dashboard" },
   { id: "student-course-offline", component: "CourseScreen", theme: "dark", scenario: "offline", initialPath: "/dashboard" },
   { id: "student-course-long-content", component: "CourseScreen", theme: "light", scenario: "long-content", initialPath: "/dashboard" },
+  { id: "student-catalog-all", component: "CourseScreen", theme: "dark", scenario: "catalog-parity", initialPath: "/courses" },
+  { id: "student-catalog-tpb", component: "CourseScreen", theme: "dark", scenario: "catalog-parity", initialPath: "/courses?jurusan=tpb" },
+  { id: "student-catalog-pka", component: "CourseScreen", theme: "dark", scenario: "catalog-parity", initialPath: "/courses?jurusan=pka" },
 ] as const;
 
 const math = {
@@ -35,6 +38,19 @@ const physics = {
   quizzesCount: 12,
   tryoutsCount: 3,
 } satisfies CourseCard;
+
+const premiumPricing = { category: "premium", startsAt: null, endsAt: null } as const;
+
+const catalogParityCourses = [
+  { ...math, id: "bk1101", title: "Berpikir Komputasi", description: "", pricing: premiumPricing, materialsCount: 0, quizzesCount: 0, tryoutsCount: 0 },
+  { ...physics, id: "fi1101", description: "", pricing: premiumPricing, materialsCount: 1, quizzesCount: 0, tryoutsCount: 0 },
+  { ...math, id: "ma1101", description: "", pricing: premiumPricing, materialsCount: 6, quizzesCount: 2, tryoutsCount: 0 },
+  {
+    ...math, id: "ma1102", title: "Matematika Lanjut untuk Sains dan Rekayasa", description: "", materialsCount: 0, quizzesCount: 0, tryoutsCount: 1,
+    pricing: { category: "limited_time_free", startsAt: "2030-01-01T00:00:00Z", endsAt: "2030-01-03T00:00:00Z" },
+  },
+  { ...physics, id: "tutorial-pka", title: "Tutorial PKA", category: "PKA", description: "", pricing: premiumPricing, materialsCount: 0, quizzesCount: 0, tryoutsCount: 0 },
+] satisfies CourseCard[];
 
 const documents: ReadonlyArray<MaterialRow> = [
   { id: "pengantar", title: "Sistem bilangan real", group: "materi", kind: "article", completed: false, locked: false, chapterIds: ["bab-1"], meta: "8 menit baca" },
@@ -89,6 +105,9 @@ export function createCourseFixtureRequest(scenario: CourseFixtureScenario): (pa
     }
 
     const view = url.searchParams.get("view");
+    if (scenario === "catalog-parity" && view === "catalog") {
+      return json({ view, targetCategory: null, asOf: "2030-01-02T00:00:00Z", supportUrl: "https://wa.me/620000000000", courses: catalogParityCourses });
+    }
     if (scenario === "revoked" && view === "material-detail" && url.searchParams.get("materialId") === "catatan-fungsi") {
       accessRevoked = true;
     }

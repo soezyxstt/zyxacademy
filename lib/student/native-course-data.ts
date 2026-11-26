@@ -165,7 +165,8 @@ async function findLegacyDetail(
   const isManual = reference === manual;
   const isDiktat = reference === diktat;
   const title = reference === generatedArticle ? reference.title.replace(/^\[DRAF\]\s*/u, "") : reference.title;
-  const chapterIds = "chapterId" in reference ? [reference.chapterId] : reference.chapterIds;
+  const chapterIds = "chapterId" in reference ? [reference.chapterId]
+    : Array.isArray(reference.chapterIds) ? reference.chapterIds : [];
   const isFreePdf = isManual && hasChapterScopeWithin(chapterIds, access.policy.scopedChapterIds);
   const locked = !isFreePdf && !canAccessCourseContent(access.policy, isDiktat ? "diktat" : "article", chapterIds);
   const kind = isDiktat || isManual ? "pdf" : "article";
@@ -189,6 +190,11 @@ export async function loadNativeCourseData(studentId: string, query: LearningQue
         materialsCount: course.materialsCount,
         quizzesCount: course.quizzesCount,
         tryoutsCount: course.tryoutsCount,
+        pricing: course.pricing ? {
+          category: course.pricing.category,
+          startsAt: course.pricing.startsAt?.toISOString() ?? null,
+          endsAt: course.pricing.endsAt?.toISOString() ?? null,
+        } : undefined,
       }))),
     };
   }

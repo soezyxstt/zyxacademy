@@ -33,6 +33,7 @@ export type CourseCard = {
   quizzesCount?: number;
   tryoutsCount?: number;
   priority?: boolean;
+  pricing?: { category: "premium" | "free" | "limited_time_free"; startsAt: string | null; endsAt: string | null };
 };
 
 export type ReadingLink = {
@@ -57,6 +58,7 @@ export type CatalogData = {
   courses: CourseCard[];
   targetCategory: string | null;
   supportUrl?: string | null;
+  asOf?: string;
 };
 
 export type CourseChapter = {

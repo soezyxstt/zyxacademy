@@ -256,6 +256,8 @@ export type NativeListRowProps<Id extends string = string> = SharedUiActionGroup
   layout: NativeListLayout;
   title: string;
   subtitle?: string;
+  testID?: string;
+  titleRole?: "header";
   leading?: ReactNode;
   metadata?: readonly { id: string; label: string; value: string }[];
   primary?: { onPress: () => void; label?: string; role?: "button" | "link"; disabled?: boolean };
@@ -266,6 +268,8 @@ export function NativeListRow<Id extends string>({
   layout,
   title,
   subtitle,
+  testID,
+  titleRole,
   leading,
   primary,
   metadata,
@@ -281,16 +285,17 @@ export function NativeListRow<Id extends string>({
     <>
       {leading && <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">{leading}</View>}
       <View style={styles.rowText}>
-        <Text style={[styles.rowTitle, { color: colors.foreground }]}>{title}</Text>
+        <Text accessibilityRole={titleRole} style={[styles.rowTitle, { color: colors.foreground }]}>{title}</Text>
         {subtitle && <Text style={[styles.supportingText, { color: colors.mutedForeground }]}>{subtitle}</Text>}
       </View>
     </>
   );
 
   return (
-    <View style={[styles.row, layout === "wide" && styles.wideRow]}>
+    <View testID={primary ? undefined : testID} style={[styles.row, layout === "wide" && styles.wideRow]}>
       {primary ? (
         <Pressable
+          testID={testID}
           accessibilityLabel={primary.label ?? (subtitle ? `${title}. ${subtitle}` : title)}
           accessibilityRole={primary.role ?? "button"}
           accessibilityState={{ disabled: primary.disabled }}
