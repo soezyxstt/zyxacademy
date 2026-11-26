@@ -150,6 +150,11 @@ export const STORAGE_DOMAIN_LABELS: Record<string, string> = {
   legacy: "Legacy drive files",
 };
 
+export function filterMediaNames<T>(items: T[], query: string, name: (item: T) => string): T[] {
+  const term = query.trim().toLowerCase();
+  return term ? items.filter(item => name(item).toLowerCase().includes(term)) : items;
+}
+
 export function baseFolderName(path: string): string {
   const parts = path.split("/").filter(Boolean);
   return parts[parts.length - 1] || "";

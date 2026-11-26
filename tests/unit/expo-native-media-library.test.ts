@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { baseFolderName, filterMediaNames } from "../../lib/media";
 import { createMediaFilePicker } from "../../apps/mobile-native/features/operations/management/media-upload";
 import { mediaDestination, mediaSelection, runMediaBatch } from "../../apps/mobile-native/features/operations/management/media-batch";
 import type { NativeSessionTransport } from "../../apps/mobile-native/network/transport";
@@ -111,4 +112,14 @@ test("stops on revoked Admin access and retains unsent selections", async () => 
   const result = await runMediaBatch(client, new Map(), commands, () => "copy-id", signal);
   expect(seen).toEqual(["one", "two"]);
   expect(result.failed.map(({ item }) => item.key)).toEqual(["two", "three"]);
+});
+
+test("media search matches visible file and folder names in the current folder only", () => {
+  const files = [{ key: "media/hidden-parent/notes.pdf", name: "Notes.PDF" }, { key: "media/notes/figure.png", name: "figure.png" }];
+  const folders = ["media/hidden-parent/NOTES", "media/notes/figures"];
+  expect(filterMediaNames(files, " nOtEs ", item => item.name)).toEqual([files[0]]);
+  expect(filterMediaNames(folders, " nOtEs ", baseFolderName)).toEqual([folders[0]]);
+  expect(filterMediaNames(folders, "hidden-parent", baseFolderName)).toEqual([]);
+  expect(filterMediaNames(files, "missing", item => item.name)).toEqual([]);
+  expect(filterMediaNames(files, " ", item => item.name)).toBe(files);
 });

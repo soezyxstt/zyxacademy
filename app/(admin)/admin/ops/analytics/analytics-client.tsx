@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Activity, CheckCircle2, Clock, Cpu, Globe, RefreshCw } from "lucide-react";
+import { aiModelBreakdown, formatAiLatency } from "@/lib/ai/model-breakdown";
 import { modelDisplayName } from "@/lib/ai/provider/recent-models";
 import { AdminIconAction } from "@/components/admin/icon-action";
 import { AiAnalyticsSkeleton } from "@/components/admin/content-loading-skeletons";
@@ -19,10 +20,6 @@ import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 const LOGS_PER_PAGE = 15;
 
 type LogFilter = "all" | "failed" | "gateway";
-
-function formatLatency(ms: number) {
-  return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${Math.round(ms)}ms`;
-}
 
 function ModelSuccessRate({ value, label }: { value: number; label?: string }) {
   const tone = value >= 95 ? "bg-status-success" : value >= 80 ? "bg-status-warning" : "bg-status-error";
@@ -61,30 +58,7 @@ export function AiAnalyticsClient() {
   } = useQuery(adminAnalyticsQuery(userId ?? ""));
 
   const recentLogs = stats?.recentLogs;
-  const modelBreakdown = useMemo(() => {
-    if (!recentLogs?.length) return [];
-    const map = new Map<
-      string,
-      { model: string; count: number; successes: number; totalLatencyMs: number }
-    >();
-    for (const log of recentLogs) {
-      const key = log.model || "unknown";
-      const entry = map.get(key) ?? { model: key, count: 0, successes: 0, totalLatencyMs: 0 };
-      entry.count += 1;
-      if (log.success) entry.successes += 1;
-      entry.totalLatencyMs += log.latencyMs;
-      map.set(key, entry);
-    }
-    const total = recentLogs.length;
-    return [...map.values()]
-      .sort((a, b) => b.count - a.count)
-      .map((item) => ({
-        ...item,
-        sharePct: Math.round((item.count / total) * 100),
-        successRatePct: Math.round((item.successes / item.count) * 100),
-        avgLatencyMs: item.totalLatencyMs / item.count,
-      }));
-  }, [recentLogs]);
+  const modelBreakdown = useMemo(() => aiModelBreakdown(recentLogs ?? []), [recentLogs]);
 
   const filteredLogs = useMemo(() => {
     if (!recentLogs) return [];
@@ -175,7 +149,7 @@ export function AiAnalyticsClient() {
         />
         <AdminStatStripItem
           label={t("analyticsUI.avgLatency")}
-          value={formatLatency(stats.averageLatencyMs)}
+          value={formatAiLatency(stats.averageLatencyMs)}
           icon={Clock}
         />
         <AdminStatStripItem
@@ -214,7 +188,7 @@ export function AiAnalyticsClient() {
                         <ModelSuccessRate value={item.successRatePct} />
                       </td>
                       <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">
-                        {formatLatency(item.avgLatencyMs)}
+                        {formatAiLatency(item.avgLatencyMs)}
                       </td>
                     </tr>
                   ))}
@@ -230,7 +204,7 @@ export function AiAnalyticsClient() {
                     {modelDisplayName(item.model)}
                   </p>
                   <p className="m-0 mt-1 text-body-xs tabular-nums text-muted-foreground">
-                    {item.count} ({item.sharePct}%) · {formatLatency(item.avgLatencyMs)}
+                    {item.count} ({item.sharePct}%) · {formatAiLatency(item.avgLatencyMs)}
                   </p>
                 </div>
                 <ModelSuccessRate value={item.successRatePct} label={t("analyticsUI.successRate")} />
@@ -321,7 +295,7 @@ export function AiAnalyticsClient() {
                           {log.viaGateway ? t("analyticsUI.gateway") : t("analyticsUI.direct")}
                         </td>
                         <td className="px-4 py-2.5 text-right tabular-nums text-foreground">
-                          {formatLatency(log.latencyMs)}
+                          {formatAiLatency(log.latencyMs)}
                         </td>
                         <td className="px-4 py-2.5 text-right">
                           <RequestOutcome success={log.success} label={log.success ? t("analyticsUI.successful") : t("analyticsUI.failed")} />
@@ -357,7 +331,7 @@ export function AiAnalyticsClient() {
                         {log.viaGateway ? t("analyticsUI.gateway") : t("analyticsUI.direct")}
                       </span>
                       <span className="tabular-nums text-foreground">
-                        {formatLatency(log.latencyMs)}
+                        {formatAiLatency(log.latencyMs)}
                       </span>
                     </div>
                     <span className="tabular-nums text-muted-foreground">

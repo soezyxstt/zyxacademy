@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { View } from "react-native";
+import { aiModelBreakdown, formatAiLatency } from "../../../../../lib/ai/model-breakdown";
+import { modelDisplayName } from "../../../../../lib/ai/provider/recent-models";
 import {
   featureKeys, filterAiRequests,
   type FeatureKey, type MonitoringActions, type MonitoringRange, type MonitoringReader,
@@ -179,14 +181,7 @@ export function AiAnalyticsScreen({ reader }: { reader: MonitoringReader }) {
   const gateway = "Gateway";
   const direct = t("Langsung", "Direct");
   const latency = (milliseconds: number) => milliseconds >= 1000 ? `${n(milliseconds / 1000)} s` : `${n(milliseconds)} ms`;
-  const modelCounts = new Map<string, { count: number; successes: number }>();
-  for (const row of stats?.recentLogs ?? []) {
-    const name = row.model || t("Tidak diketahui", "Unknown");
-    const item = modelCounts.get(name) ?? { count: 0, successes: 0 };
-    item.count += 1;
-    item.successes += Number(row.success);
-    modelCounts.set(name, item);
-  }
+  const modelBreakdown = useMemo(() => aiModelBreakdown(stats?.recentLogs ?? []), [stats?.recentLogs]);
 
   if (isMonitoringAccessError(view.error)) return <ReadState error={view.error} />;
   return <>
@@ -207,9 +202,14 @@ export function AiAnalyticsScreen({ reader }: { reader: MonitoringReader }) {
         </List>
       </Section>
       <Section title={t("Model aktif", "Active models")}>
-        <List>{[...modelCounts].sort(([, first], [, second]) => second.count - first.count).map(([name, model]) =>
-          <ActionRow key={name} label={name} detail={`${n(model.count)} ${t("permintaan", "requests")}`} value={`${Math.round(model.successes / model.count * 100)}%`} />
-        )}</List>
+        {modelBreakdown.length ? <>
+          <Body small muted>{t(`Sampel ${n(stats.recentLogs.length)} permintaan terbaru`, `Sample of ${n(stats.recentLogs.length)} recent requests`)}</Body>
+          <List>{modelBreakdown.map(model => <ActionRow key={model.model}
+            label={model.model === "unknown" ? t("Tidak diketahui", "Unknown") : modelDisplayName(model.model)}
+            detail={t(`${n(model.count)} permintaan (${model.sharePct}%) · ${formatAiLatency(model.avgLatencyMs)} rata-rata`,
+              `${n(model.count)} requests (${model.sharePct}%) · ${formatAiLatency(model.avgLatencyMs)} average`)}
+            value={t(`${model.successRatePct}% berhasil`, `${model.successRatePct}% successful`)} />)}</List>
+        </> : <Body muted>{t("Belum ada sampel permintaan model.", "No model requests in the sample.")}</Body>}
       </Section>
       <Section title={t("Permintaan terbaru", "Recent requests")}>
         <View style={styles.actions}>

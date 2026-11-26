@@ -100,7 +100,8 @@ route	action_family	source_status	web_entry	native_entry
 /admin/materials/review/product/[slug]	Resolve the authorized destination and replace the old route	alias	app/(admin)/admin/(academic)/materials/review/product/[slug]/page.tsx	packages/native-parity/academic/administration/live.ts
 /admin/media	Create folders and rename, move or delete library items	connected	app/(admin)/admin/media/page.tsx	apps/mobile-native/features/operations/management/media.tsx
 /admin/media	Open file preview and download an accessible asset	connected	app/(admin)/admin/media/page.tsx	apps/mobile-native/features/operations/management/media.tsx
-/admin/media	Search library or storage and copy an object into the library	connected	app/(admin)/admin/media/page.tsx	apps/mobile-native/features/operations/management/media.tsx
+/admin/media	Filter file and folder names in the current library or storage folder	connected	components/admin/media-library.tsx; components/admin/storage-browser.tsx	apps/mobile-native/features/operations/management/media.tsx
+/admin/media	Copy a single storage object into the media library	connected	components/admin/storage-browser.tsx	apps/mobile-native/features/operations/management/media.tsx
 /admin/media	Select multiple items to copy, move or remove	connected	app/(admin)/admin/media/page.tsx	apps/mobile-native/features/operations/management/media.tsx
 /admin/media	Upload and replace files	connected	app/(admin)/admin/media/page.tsx	apps/mobile-native/features/operations/management/media.tsx
 /admin/meet	Create a meeting with its access policy and individual invitees	connected	app/(admin)/admin/meet/page.tsx	apps/mobile-native/features/operations/management/tools.tsx
@@ -117,6 +118,7 @@ route	action_family	source_status	web_entry	native_entry
 /admin/ops	Read and refresh operational diagnostics and Zyra telemetry	connected	app/(admin)/admin/ops/page.tsx	apps/mobile-native/features/operations/monitoring/diagnostics.tsx
 /admin/ops/analytics	Filter AI usage and per-user aggregates by date	connected	app/(admin)/admin/ops/analytics/page.tsx	apps/mobile-native/features/operations/monitoring/analytics.tsx
 /admin/ops/analytics	Inspect, filter and paginate AI requests	connected	app/(admin)/admin/ops/analytics/page.tsx	apps/mobile-native/features/operations/monitoring/analytics.tsx
+/admin/ops/analytics	Read per-model request count, share of recent sample, success rate and average latency	connected	app/(admin)/admin/ops/analytics/analytics-client.tsx	apps/mobile-native/features/operations/monitoring/analytics.tsx
 /admin/ops/feature-usage	Change the usage window and open linked analytics	connected	app/(admin)/admin/ops/feature-usage/page.tsx	apps/mobile-native/features/operations/monitoring/analytics.tsx
 /admin/ops/keys	Inspect masked provider key diagnostics	connected	app/(admin)/admin/ops/keys/page.tsx	apps/mobile-native/features/operations/monitoring/diagnostics.tsx
 /admin/ops/models	Filter model assignments and save or reset the current revision	connected	app/(admin)/admin/ops/models/page.tsx	apps/mobile-native/features/operations/monitoring/diagnostics.tsx

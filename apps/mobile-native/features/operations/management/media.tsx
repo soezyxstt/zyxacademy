@@ -1,8 +1,14 @@
 import { randomUUID } from "expo-crypto";
 import { useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from "react";
 import { View } from "react-native";
 import { ManagementFailure, type MediaFile, type MediaLocation } from "../../../../../packages/native-parity/operations/management-contract";
+import mediaEn from "../../../../../messages/en/adminMedia.json";
+import mediaId from "../../../../../messages/id/adminMedia.json";
+import { baseFolderName, filterMediaNames } from "../../../../../lib/media";
+import { Button } from "../../../components/Button";
+import { Input } from "../../../components/Input";
+import { NavigationIcon } from "../../shared-ui/navigation-icons";
 import { useProtectedInteraction } from "../../../routing/protected-interaction";
 import { mediaDestination, mediaSelection, runMediaBatch, type MediaItem, type MediaMutation } from "./media-batch";
 import { MediaContentPreview } from "./media-preview";
@@ -16,7 +22,7 @@ type BatchAction = { type: "media.delete" } | { type: "media.move" | "media.copy
 type Prepared = Extract<Awaited<ReturnType<PickMediaFile>>, { status: "ready" }>["file"];
 
 export function MediaLibrary({ initialSpace }: { initialSpace?: string }) {
-  const { client, retries, locale, pickMediaFile } = useManagement();
+  const { client, retries, locale, pickMediaFile, theme } = useManagement();
   const { canInteract } = useProtectedInteraction();
   const activeRoute = useRef<symbol | null>(null);
   useFocusEffect(useCallback(() => {
@@ -25,6 +31,9 @@ export function MediaLibrary({ initialSpace }: { initialSpace?: string }) {
   }, []));
   const [location, setLocation] = useState<MediaLocation>({ space: initialSpace === "storage" ? "storage" : "media", folder: "" });
   const { space, folder } = location;
+  const [query, setQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchTrigger = useRef<ComponentRef<typeof Button>>(null);
   const [editor, setEditor] = useState<Editor>();
   const [preview, setPreview] = useState<MediaFile>();
   const [selected, setSelected] = useState<MediaItem[] | null>(null);
@@ -45,6 +54,11 @@ export function MediaLibrary({ initialSpace }: { initialSpace?: string }) {
   const busy = working || action.busy;
   const isMedia = space === "media";
   const parent = folder.slice(0, folder.lastIndexOf("/"));
+  const copyText = locale === "en" ? mediaEn : mediaId;
+  const searchLabel = isMedia ? copyText.media.search : copyText.storage.search;
+  const closeSearchLabel = locale === "en" ? "Close search" : "Tutup pencarian";
+  const files = useMemo(() => filterMediaNames(read.data?.files ?? [], query, item => item.name), [read.data, query]);
+  const folders = useMemo(() => filterMediaNames(read.data?.folders ?? [], query, baseFolderName), [read.data, query]);
   const targets = [["", "Pustaka media"], ...(read.data?.destinations ?? read.data?.folders ?? []).map(key => [key, key.slice(6)] as const)] as const;
   const options = moving ? targets.filter(([key]) => mediaDestination(moving, key)) : [];
   const copyOptions = copying
@@ -55,7 +69,14 @@ export function MediaLibrary({ initialSpace }: { initialSpace?: string }) {
     if (busy) return;
     discardUpload();
     setPreview(undefined); setEditor(undefined); setSelected(null); setMoving(undefined); setCopying(undefined); setError(undefined); setMessage("");
+    if (next.space !== space) { setQuery(""); setSearchOpen(false); }
     setLocation(next);
+  }
+
+  function closeSearch() {
+    setQuery("");
+    setSearchOpen(false);
+    requestAnimationFrame(() => searchTrigger.current?.focus());
   }
 
   function toggle(item: MediaItem) {
@@ -202,7 +223,17 @@ export function MediaLibrary({ initialSpace }: { initialSpace?: string }) {
 
   return <Screen title="Media">
     <Sections values={[["media", "Pustaka media"], ["storage", "Penyimpanan"]]} current={space} onChange={next => browse({ space: next, folder: "" })} />
-    <View style={styles.row}>
+    {searchOpen ? <View style={[styles.row, { alignItems: "center", flexWrap: "nowrap" }]}>
+      <Input testID="admin-media-search-query" autoFocus theme={theme} value={query} onChangeText={setQuery}
+        accessibilityLabel={searchLabel} placeholder={searchLabel} autoCapitalize="none" returnKeyType="search" style={{ flex: 1 }}
+        onKeyPress={({ nativeEvent }) => { if (nativeEvent.key === "Escape") closeSearch(); }} />
+      <Button theme={theme} size="icon-lg" variant="ghost" testID="admin-media-close-search" accessibilityLabel={closeSearchLabel}
+        renderIcon={(color, size) => <NavigationIcon name="close" color={color} size={size} />}
+        onPress={closeSearch} />
+    </View> : <View style={styles.row}>
+      <Button ref={searchTrigger} theme={theme} size="icon-lg" variant="outline" testID="admin-media-open-search" accessibilityLabel={searchLabel}
+        renderIcon={(color, size) => <NavigationIcon name="search" color={color} size={size} />}
+        onPress={() => { if (canInteract()) setSearchOpen(true); }} />
       {folder && <Action disabled={busy} onPress={() => browse({ space, folder: isMedia && parent === "media" ? "" : parent })}>Folder induk</Action>}
       <Action disabled={busy} onPress={read.reload}>Muat ulang</Action>
       {isMedia && <>
@@ -210,7 +241,7 @@ export function MediaLibrary({ initialSpace }: { initialSpace?: string }) {
         <Action disabled={busy} onPress={() => { discardUpload(); setEditor({ name: "" }); }}>Folder baru</Action>
       </>}
       <Action disabled={busy || Boolean(copying)} onPress={() => setSelected(selected ? null : [])}>{selected ? "Selesai memilih" : "Pilih item"}</Action>
-    </View>
+    </View>}
     {folder && <Copy muted>{folder}</Copy>}
     <Feedback error={action.error} status={action.status} />
     {message && <Copy>{message}</Copy>}
@@ -259,12 +290,12 @@ export function MediaLibrary({ initialSpace }: { initialSpace?: string }) {
     </Section>}
     <LoadState {...read} retry={read.reload} />
     {read.data && <Section>
-      {!read.data.files.length && !read.data.folders.length && <Copy muted>Folder ini masih kosong.</Copy>}
-      {read.data.folders.map(key => {
-        const title = key.split("/").at(-1) ?? key;
+      {!files.length && !folders.length && <Copy muted>{query.trim() ? copyText.media.noResults : copyText.media.emptyFolder}</Copy>}
+      {folders.map(key => {
+        const title = baseFolderName(key);
         return <Item key={key} title={title} meta="Folder" onPress={() => browse({ space, folder: key })} actions={rowActions({ key, folder: true }, title)} />;
       })}
-      {read.data.files.map(file => <Item key={file.key} title={file.name} meta={`${Math.ceil(file.size / 1024)} KB`}
+      {files.map(file => <Item key={file.key} title={file.name} meta={`${Math.ceil(file.size / 1024)} KB`}
         onPress={!busy && !selected ? () => { if (canInteract()) setPreview(file); } : undefined}
         actions={rowActions({ key: file.key, folder: false }, file.name)} />)}
     </Section>}

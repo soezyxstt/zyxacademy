@@ -1919,7 +1919,7 @@ export const operationsCatalog = [
       "media.upload"
     ],
     "status": "partial",
-    "reason": "Related MCP operations are implemented; this source may contain additional UI actions. See docs/operations/admin-mcp.md for exact supported boundaries."
+    "reason": "The signed Admin UI filters file and folder names within the current authorized listing. The local search adds no MCP scope. media.list and media.upload retain their existing grants and boundaries."
   },
   {
     "source": "app/(admin)/admin/meet/[id]/page.tsx",
@@ -2022,7 +2022,7 @@ export const operationsCatalog = [
     "actions": ["GET", "POST"],
     "tools": ["shortlinks.create"],
     "status": "partial",
-    "reason": "The native Admin UI reuses web monitoring behind canonical admin session authorization. Native writes validate origin and input, including short links, analytics sync, versioned model changes, latency scheduling and read-only report proposal creation/review/confirmation. Its MCP equivalent retains its existing scope and request-key contract. This adapter changes no MCP tools, scopes, consent, discovery, playbooks, packaged skills, host prompts or environment bindings."
+    "reason": "The native Admin UI reuses web monitoring behind canonical admin session authorization. Native writes validate origin and input, including short links, analytics sync, versioned model changes, latency scheduling and read-only report proposal creation/review/confirmation. Model request share and average latency are local summaries of the same authorized recent-log sample as web. Its MCP equivalent retains its existing scope and request-key contract. This adapter changes no MCP tools, scopes, consent, discovery, playbooks, packaged skills, host prompts or environment bindings."
   },
   {
     "source": "app/(admin)/admin/ops/web-analytics/page.tsx",
