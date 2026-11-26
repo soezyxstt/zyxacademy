@@ -30,7 +30,7 @@ export default function OfflineRoute() {
   const packages = useOfflineReadingPackages(locale);
   const access = readingSession.scope && packages.available ? readingSession.scope : null;
   const offline = readingSession.offline;
-  const metadata = useOfflineCourseMetadata(access && !offline ? null : noCourses, locale);
+  const metadata = useOfflineCourseMetadata(readingSession.transport ? null : noCourses, locale);
   const scope = metadata.status === "revoked" ? null : access;
   const library = useOfflineLibraryData({ scope, verifiedUntil: readingSession.verifiedUntil, list: packages.list, subscribe: packages.subscribe });
   const { observation, revision } = library;

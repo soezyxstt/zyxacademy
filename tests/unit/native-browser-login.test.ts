@@ -359,7 +359,7 @@ describe("native login destination", () => {
   });
 
   test("rejects external, ambiguous, encoded separator, auth and unsanctioned application paths", () => {
-    const intent = { entry: "sign-in", locale: "id" };
+    const intent = { entry: "sign-in", locale: "id" } as const;
     for (const next of [
       "https://staging.zyxacademy.com/profile", "//staging.zyxacademy.com/profile", "/\\external.invalid/profile",
       ["/dashboard", "/admin"], "/courses/a%2Fb", "/courses/a%5cb", "/courses/[id]", "/courses/a/./material",
