@@ -46,7 +46,7 @@ export function SharedUiCase({ id }: { id: string }) {
     >
       {item.family === "layout" ? <FirstSliceExample key={id} caseId={item.id} /> : (
         <SafeAreaView key={id} style={styles.frame}>
-          {item.family === "navigation" ? <NavigationCase id={item.id} geometryMarker={geometryMarker} />
+          {item.family === "navigation" ? <NavigationCase id={item.id} />
             : item.family === "data" ? <DataCases id={item.id} />
             : <SharedUiControlCase id={item.id} />}
         </SafeAreaView>
