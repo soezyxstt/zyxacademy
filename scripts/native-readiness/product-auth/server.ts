@@ -1,5 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { randomBytes, timingSafeEqual } from "node:crypto";
+import { createConnection } from "node:net";
 import { mock } from "bun:test";
 import { NextRequest } from "next/server";
 import { studentNavigationEndpoint } from "@/components/navigation/student/student-nav-model";
@@ -18,6 +19,26 @@ const browserSubmit = "/api/auth/native/fixture";
 const nativeComplete = "/api/auth/native/complete";
 const result = (status: number) => new Response(null, { status, headers: noStore });
 const requestContext = new AsyncLocalStorage<NextRequest>();
+
+// Bun can keep the shutdown promise pending after a TLS WebSocket upgrade
+// even once the listener has released its port. Verify the socket directly.
+async function confirmListenerClosed() {
+  const deadline = Date.now() + 8_000;
+  while (Date.now() < deadline) {
+    const closed = await new Promise<boolean>((resolve, reject) => {
+      const socket = createConnection({ host: fixtureHost, port: fixturePort });
+      socket.setTimeout(1_000, () => socket.destroy(new Error("Loopback probe timed out")));
+      socket.once("connect", () => { socket.destroy(); resolve(false); });
+      socket.once("error", (error: NodeJS.ErrnoException) => {
+        if (error.code === "ECONNREFUSED") resolve(true);
+        else reject(error);
+      });
+    });
+    if (closed) return;
+    await Bun.sleep(100);
+  }
+  throw new Error("Fixture listener still accepting connections");
+}
 
 function currentRequest() {
   const request = requestContext.getStore();
@@ -378,8 +399,8 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
     async stop() {
       previewReading?.stop();
       tutorLive?.closeSockets();
-      await server.stop(true);
-      await pool.end();
+      const listenerStopped = server.stop(true);
+      await Promise.all([pool.end(), Promise.race([listenerStopped, confirmListenerClosed()])]);
     },
   };
 }
