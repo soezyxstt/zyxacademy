@@ -70,8 +70,8 @@ const dimensions = {
   android: { width: 380, height: 820, dpr: 1 },
   ios: { width: 402, height: 874, dpr: 3 },
 };
-if (viewport && viewport !== "android" && viewport !== "ios") throw new Error("Expected android or ios capture target");
-const { width, height, dpr } = viewport ? dimensions[viewport] : { width: 380, height: 844, dpr: 1 };
+if (viewport !== undefined && viewport !== "android" && viewport !== "ios") throw new Error("Expected android or ios capture target");
+const { width, height, dpr } = viewport === undefined ? { width: 380, height: 844, dpr: 1 } : dimensions[viewport];
 const theme = "light", locale = "id-ID", timezone = "Asia/Jakarta";
 
 const secret = process.env.BETTER_AUTH_SECRET;
