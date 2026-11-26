@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { useIsFocused } from "expo-router";
+import { ActivityIndicator, AppState, View } from "react-native";
 import { randomUUID } from "expo-crypto";
 import type { DiscussionChannelMetadata, DiscussionPage } from "../../../../../lib/discussions/contracts";
 import type { TutorDiscussionWorkspaceClient } from "../../../../../packages/academic/tutor-discussion-workspace";
@@ -9,11 +10,11 @@ import { useProtectedInteraction } from "../../../routing/protected-interaction"
 import { Label, Row, tutorLayout, type TutorTheme } from "./ui";
 
 type Props = {
-  client: TutorDiscussionWorkspaceClient; courseId?: string; theme: TutorTheme; selected?: DiscussionChannelMetadata;
+  active: boolean; client: TutorDiscussionWorkspaceClient; courseId?: string; theme: TutorTheme; selected?: DiscussionChannelMetadata;
   choose(channel?: DiscussionChannelMetadata): void; create(channel: DiscussionChannelMetadata): void;
 };
 
-export function TutorDiscussionChannels({ client, courseId, theme, selected, choose, create }: Props) {
+export function TutorDiscussionChannels({ active, client, courseId, theme, selected, choose, create }: Props) {
   const { canInteract, suspended } = useProtectedInteraction();
   const [page, setPage] = useState<DiscussionPage<DiscussionChannelMetadata>>();
   const [open, setOpen] = useState(false);
@@ -26,25 +27,41 @@ export function TutorDiscussionChannels({ client, courseId, theme, selected, cho
   const [muting, setMuting] = useState(false);
   const [muteError, setMuteError] = useState("");
   const write = useRef<AbortController | null>(null);
+  const focused = useIsFocused();
+  const selectedId = useRef(selected?.id);
+  selectedId.current = selected?.id;
   const apply = useRef(choose);
   apply.current = choose;
   useEffect(() => () => write.current?.abort(), []);
   useEffect(() => {
-    if (suspended) return;
-    const controller = new AbortController();
-    setLoading(true);
-    setReadError(false);
-    void client.catalog(courseId, term, cursor, controller.signal).then(result => {
-      if (controller.signal.aborted) return;
-      setPage(result);
-      if (courseId) apply.current(result.items.find(item => item.kind === "course"));
-    }).catch(() => {
-      if (!controller.signal.aborted) setReadError(true);
-    }).finally(() => {
-      if (!controller.signal.aborted) setLoading(false);
-    });
-    return () => controller.abort();
-  }, [client, courseId, term, cursor, attempt, suspended]);
+    if (suspended || !focused || !active || muting) return;
+    let controller: AbortController | undefined;
+    let timer: ReturnType<typeof setTimeout>;
+    const stop = () => { clearTimeout(timer); controller?.abort(); };
+    const refresh = (initial: boolean) => {
+      stop();
+      if (AppState.currentState !== "active" || !canInteract()) return;
+      const next = new AbortController();
+      controller = next;
+      if (initial) setLoading(true);
+      void client.catalog(courseId, term, cursor, next.signal).then(result => {
+        if (next.signal.aborted) return;
+        setPage(result);
+        setReadError(false);
+        const selected = result.items.find(item => courseId ? item.kind === "course" : item.id === selectedId.current);
+        if (courseId || selected) apply.current(selected);
+      }).catch(() => {
+        if (!next.signal.aborted) setReadError(true);
+      }).finally(() => {
+        if (next.signal.aborted) return;
+        setLoading(false);
+        timer = setTimeout(() => refresh(false), 60_000);
+      });
+    };
+    refresh(true);
+    const foreground = AppState.addEventListener("change", state => { if (state === "active") refresh(false); else stop(); });
+    return () => { foreground.remove(); stop(); };
+  }, [client, courseId, term, cursor, attempt, suspended, focused, active, muting, canInteract]);
 
   async function mute(channel: DiscussionChannelMetadata) {
     if (!canInteract() || write.current) return;

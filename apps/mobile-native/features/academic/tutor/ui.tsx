@@ -177,8 +177,9 @@ export function DashboardEmpty({ theme, icon, title, description, onAddSlot }: {
   </View>;
 }
 
-export function TutorDetail({ theme, title, subtitle, onBack, children, footer }: {
+export function TutorDetail({ theme, title, subtitle, onBack, children, footer, viewport }: {
   theme: TutorTheme; title: string; subtitle?: string; onBack: () => void; children: ReactNode; footer?: ReactNode;
+  viewport?: ReturnType<typeof import("../../discussions/read-viewport").useDiscussionViewport>;
 }) {
   const { suspended, canInteract } = useProtectedInteraction();
   const colors = nativeColors[theme];
@@ -189,7 +190,7 @@ export function TutorDetail({ theme, title, subtitle, onBack, children, footer }
         <Header theme={theme} title={title} subtitle={subtitle} onBack={close} />
       </View>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
-        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.page} style={{ flex: 1 }}>
+        <ScrollView ref={viewport?.scroller.ref} {...viewport?.scrollProps} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.page} style={{ flex: 1 }}>
           {children}
         </ScrollView>
         {footer ? <View style={[styles.footer, { borderColor: colors.border }]}>{footer}</View> : null}
@@ -205,8 +206,8 @@ export function Heading({ theme, title, count }: { theme: TutorTheme; title: str
   </View>;
 }
 
-export function Row({ theme, title, subtitle, meta, onPress, children, testID }: {
-  theme: TutorTheme; title: string; subtitle?: string; meta?: string;
+export function Row({ theme, title, subtitle, meta, onPress, children, testID, contentRef }: {
+  theme: TutorTheme; title: string; subtitle?: string; meta?: string; contentRef?: Ref<ComponentRef<typeof View>>;
   onPress?: () => void; children?: ReactNode; testID?: string;
 }) {
   const colors = nativeColors[theme];
@@ -214,10 +215,13 @@ export function Row({ theme, title, subtitle, meta, onPress, children, testID }:
     return <NativeListRow layout="compact" theme={theme} title={title} subtitle={subtitle}
       primary={{ onPress, testID }} />;
   }
+  const identity = <>
+    <Label theme={theme} tone="strong">{title}</Label>
+    {subtitle ? <Label theme={theme} tone="muted">{subtitle}</Label> : null}
+  </>;
   const content = <>
     <View style={styles.rowText}>
-      <Label theme={theme} tone="strong">{title}</Label>
-      {subtitle ? <Label theme={theme} tone="muted">{subtitle}</Label> : null}
+      {contentRef ? <View ref={contentRef} collapsable={false}>{identity}</View> : identity}
       {children}
     </View>
     {meta ? <Label theme={theme} tone="muted">{meta}</Label> : null}

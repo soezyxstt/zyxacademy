@@ -10,7 +10,7 @@ import { hasAnyPeran, listTutorAccessibleCourses, requireTutorCourseAccess } fro
 import { canForwardDiscussion } from "@/lib/discussions/policy";
 import { requireDiscussionMessageAccess, requireDiscussionThreadAccess } from "@/lib/discussions/access";
 import { reply } from "@/lib/discussions/actions";
-import { getDiscussionAuthorProfile, getThread, listChannelMetadataPage, listThreadsAcrossChannels, markRead, searchMentions, setReaction, setResolved } from "@/lib/discussions/service";
+import { getDiscussionAuthorProfile, getThread, listChannelMetadata, listChannelMetadataPage, listThreadsAcrossChannels, markRead, searchMentions, setReaction, setResolved } from "@/lib/discussions/service";
 import { env } from "@/lib/env";
 import { listPublishedCodingProblems } from "@/lib/coding/published-problems";
 import { addCalendarDays, getCalendarWeekRange, getJakartaCalendarDate } from "@/lib/schedule/calendar-date";
@@ -86,7 +86,12 @@ export const tutorSupportServices = {
     if (courseId && filter?.channelId && filter.channelId !== channelId) throw new Error("DISCUSSION_UNAVAILABLE");
     if (courseId && !channelId) return { items: [], nextCursor: null };
     const result = await listThreadsAcrossChannels(userId, { channelId, search, cursor, status: filter?.status });
-    return { items: result.items.map(({ id, channelId, title, status, answerCount, canReply, unreadCount }) => ({ id, channelId, title, status, answerCount, canReply, unreadCount })), nextCursor: result.nextCursor };
+    const ids = [...new Set(result.items.map(thread => thread.channelId))];
+    const channels = ids.length ? await listChannelMetadata(userId, ids) : [];
+    const labels = new Map(channels.map(channel => [channel.id, channel.courseTitle ?? channel.requesterName ?? channel.title]));
+    return { items: result.items.map(({ id, channelId, title, status, answerCount, canReply, unreadCount }) => ({
+      id, channelId, title, status, answerCount, canReply, unreadCount, channelLabel: labels.get(channelId),
+    })), nextCursor: result.nextCursor };
   },
   async discussion(userId, courseId, threadId, cursor, targetMessageId) {
     const channel = courseId ? await requireCourseThread(userId, courseId, threadId)

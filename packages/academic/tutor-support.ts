@@ -40,6 +40,7 @@ export type TutorDiscussThread = {
   canResolve?: boolean;
   unreadCount?: number;
   channelId?: string;
+  channelLabel?: string;
 };
 
 export type TutorDiscussionList = {

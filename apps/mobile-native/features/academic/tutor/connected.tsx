@@ -3,6 +3,7 @@ import { discussionDestination, discussionWorkspaceHref } from "../../../../../p
 import { useStaffChromeVisibility } from "../../../routing/staff-chrome-visibility";
 import { useCallback, useContext, useEffect, useRef, useState, type ComponentRef, type ReactNode } from "react";
 import { randomUUID } from "expo-crypto";
+import { useIsFocused } from "expo-router";
 import { openBrowserAsync } from "expo-web-browser";
 import { AccessibilityInfo, ActivityIndicator, AppState, View } from "react-native";
 import type {
@@ -23,6 +24,8 @@ import type { DiscussionChannelMetadata, DiscussionMention } from "../../../../.
 import { activeTutorMentions, insertTutorMention, tutorMentionSubmission } from "../../../../../packages/academic/tutor-discussion-mentions";
 import { discussionAiMessage, threadRefreshDelay } from "../../student/community/discussion-refresh";
 import { TutorDiscussionMessageActions } from "./discussion-message-actions";
+import { useDiscussionViewport, useVisibleDiscussionRead } from "../../discussions/read-viewport";
+import type { ReadPage } from "../../discussions/read-batches";
 import { TutorDiscussionChannels } from "./discussion-channels";
 import { TutorDiscussionQuestion } from "./discussion-question";
 import { TutorDiscussionMentionPicker, TutorDiscussionPerson } from "./discussion-mentions";
@@ -355,6 +358,9 @@ export function ConnectedDiscussions({ theme, back, replace, query, courseId, se
   const [submittedMessage, setSubmittedMessage] = useState<{ threadId: string; messageId: string }>();
   const [discussionStatus, setDiscussionStatus] = useState<"open" | "resolved">("open");
   const listChannel = courseId ? undefined : channel?.id;
+  const focused = useIsFocused();
+  const { canInteract, suspended } = useProtectedInteraction();
+  const [loadedCursors, setLoadedCursors] = useState<(string | undefined)[]>([undefined]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -362,6 +368,7 @@ export function ConnectedDiscussions({ theme, back, replace, query, courseId, se
     setPage(undefined);
     setListError("");
     setListUnavailable(false);
+    setLoadedCursors([undefined]);
     setLoadingMore(false);
     service.discussions(courseId, term, undefined, signal, service.discussionWorkspace ? { channelId: listChannel, status: discussionStatus } : undefined)
       .then((data) => { if (!signal.aborted) setPage(data); })
@@ -376,6 +383,30 @@ export function ConnectedDiscussions({ theme, back, replace, query, courseId, se
     };
   }, [service, courseId, term, attempt, listChannel, discussionStatus]);
 
+  useEffect(() => {
+    if (!focused || suspended || active || creating) return;
+    const controller = new AbortController();
+    let pageIndex = 0;
+    let timer: ReturnType<typeof setTimeout>;
+    const refresh = async () => {
+      if (AppState.currentState === "active" && canInteract()) {
+        try {
+          const result = await service.discussions(courseId, term, loadedCursors[pageIndex], controller.signal,
+            service.discussionWorkspace ? { channelId: listChannel, status: discussionStatus } : undefined);
+          if (controller.signal.aborted) return;
+          const updates = new Map(result.items.map(item => [item.id, item]));
+          setPage(previous => previous && { ...previous, items: previous.items.map(item => updates.get(item.id) ?? item) });
+          pageIndex = (pageIndex + 1) % loadedCursors.length;
+        } catch (error) {
+          if (!controller.signal.aborted && accessEnded(error)) { setPage(undefined); setListUnavailable(true); return; }
+        }
+      }
+      if (!controller.signal.aborted) timer = setTimeout(() => void refresh(), 60_000);
+    };
+    timer = setTimeout(() => void refresh(), 60_000);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [active, creating, focused, suspended, canInteract, loadedCursors, service, courseId, term, listChannel, discussionStatus]);
+
   async function more() {
     if (!page?.nextCursor || loadingMore) return;
     const controller = new AbortController();
@@ -384,7 +415,10 @@ export function ConnectedDiscussions({ theme, back, replace, query, courseId, se
     setListError("");
     try {
       const next = await service.discussions(courseId, term, page.nextCursor, controller.signal, service.discussionWorkspace ? { channelId: listChannel, status: discussionStatus } : undefined);
-      if (!controller.signal.aborted) setPage({ items: [...page.items, ...next.items], nextCursor: next.nextCursor });
+      if (!controller.signal.aborted) {
+        setPage({ items: [...page.items, ...next.items], nextCursor: next.nextCursor });
+        setLoadedCursors(previous => [...new Set([...previous, page.nextCursor ?? undefined])]);
+      }
     } catch (error) {
       if (!controller.signal.aborted) {
         if (accessEnded(error)) {
@@ -403,7 +437,7 @@ export function ConnectedDiscussions({ theme, back, replace, query, courseId, se
     <TutorPage title="Diskusi" subtitle={subtitle} theme={theme} onBack={back} header={header}>
       {service.discussionWorkspace ? <>
         <TutorDiscussionChannels client={service.discussionWorkspace} {...{ courseId, theme }} selected={channel}
-          choose={setChannel} create={setCreating} />
+          active={!active && !creating} choose={setChannel} create={setCreating} />
         <Choices theme={theme} label="Status diskusi" value={discussionStatus} change={setDiscussionStatus} tabBar
           options={[["open", "Terbuka"], ["resolved", "Selesai"]]} />
       </> : null}
@@ -417,7 +451,7 @@ export function ConnectedDiscussions({ theme, back, replace, query, courseId, se
       {!page && !listError && !listUnavailable ? <ActivityIndicator accessibilityLabel="Memuat diskusi" /> : null}
       {page ? <View>
         {page.items.map((thread) => <Row key={thread.id} theme={theme} title={thread.title}
-          subtitle={thread.status === "resolved" ? "Terselesaikan" : undefined} meta={`${thread.answerCount} jawaban`}
+          subtitle={[!courseId && thread.channelLabel, thread.status === "resolved" && "Terselesaikan"].filter(Boolean).join(" · ") || undefined} meta={`${thread.answerCount} jawaban`}
           onPress={() => setActive(thread.id)} />)}
         {page.items.length === 0 ? <Empty theme={theme} title={term ? "Diskusi tidak ditemukan" : "Belum ada diskusi"} /> : null}
         {page.nextCursor && !listError ? <Button theme={theme} variant="outline" style={tutorLayout.action}
@@ -436,23 +470,35 @@ export function ConnectedDiscussions({ theme, back, replace, query, courseId, se
       }}
       close={() => {
         setActive(null);
+        setAttempt(value => value + 1);
         setSubmittedMessage(undefined);
         if (active === target?.thread) {
           const path = workspacePath ?? (courseId ? `/tutor/${encodeURIComponent(courseId)}/discussions` : "/tutor/discussions");
           replace(discussionWorkspaceHref(path, new URLSearchParams(query)));
         }
       }} onThread={(thread) => setPage((previous) => previous && ({
-        ...previous, items: previous.items.map((item) => item.id === thread.id ? thread : item),
+        ...previous, items: previous.items.map((item) => item.id === thread.id ? { ...item, ...thread } : item),
       }))} /> : null}
   </>;
 }
 
-function mergeDiscussionMessages(previous: TutorDiscussionDetail | undefined, next: TutorDiscussionDetail, keepCursor = false) {
+type DiscussionPages = TutorDiscussionDetail & { readPages?: ReadPage[] };
+function observedPages(data?: DiscussionPages): ReadPage[] {
+  if (data?.readPages) return data.readPages;
+  if (!data?.observed) return [];
+  const messages = new Map(data.messages.items.map(item => [item.id, item]));
+  return [{ ...data.observed, status: data.thread.status, items: data.observed.items.map(item =>
+    ({ ...item, revision: messages.get(item.id)?.revision })) }];
+}
+
+function mergeDiscussionMessages(previous: DiscussionPages | undefined, next: TutorDiscussionDetail, keepCursor = false) {
   const unique = new Map([...previous?.messages.items ?? [], ...next.messages.items].map((message) => [message.id, message]));
   const refreshedIds = new Set(next.messages.items.map(message => message.id));
   return {
     thread: next.thread,
     observed: next.observed,
+    readPages: [...observedPages(previous).map(page => ({ ...page, items: page.items.filter(item => !refreshedIds.has(item.id)) }))
+      .filter(page => page.items.length > 0), ...observedPages(next)],
     aiStatuses: [...(previous?.aiStatuses ?? []).filter(status => !refreshedIds.has(status.messageId)), ...(next.aiStatuses ?? [])],
     messages: {
       items: [...unique.values()].sort((left, right) => left.seq - right.seq),
@@ -474,7 +520,7 @@ function ConnectedDiscussionDetail({ theme, courseId, threadId, targetMessage, s
 }) {
   const { canInteract } = useProtectedInteraction();
   const imageActions = useContext(TutorDiscussionImages);
-  const [data, setData] = useState<TutorDiscussionDetail>();
+  const [data, setData] = useState<DiscussionPages>();
   const [attempt, setAttempt] = useState(0);
   const [error, setError] = useState("");
   const [unavailable, setUnavailable] = useState(false);
@@ -714,13 +760,16 @@ function ConnectedDiscussionDetail({ theme, courseId, threadId, targetMessage, s
     requestAnimationFrame(() => editor.current?.focus());
   }
 
-  function markPageRead() {
-    if (!data?.observed) return;
-    const { receipt, items } = data.observed;
-    let throughSeq = data.observed.throughSeq;
-    for (const item of [...items].sort((a, b) => a.seq - b.seq)) if (item.seq === throughSeq + 1) throughSeq++;
-    void change({ action: "read", throughSeq, receipt, messageIds: items.map(item => item.id) });
-  }
+  const viewport = useDiscussionViewport();
+  const visibleRead = useVisibleDiscussionRead({
+    scroller: viewport.scroller,
+    pages: observedPages(data),
+    enabled: Boolean(service.changeDiscussion && data && !unavailable && !picking),
+    submit: async (batch, signal) => {
+      if (!service.changeDiscussion || !canInteract()) throw new Error("Discussion unavailable");
+      await service.changeDiscussion(courseId, threadId, { action: "read", ...batch }, randomUUID(), signal);
+    },
+  });
 
   async function retryReadback(messageId = readback) {
     if (!messageId || sendRequest.current || !canInteract()) return;
@@ -733,7 +782,7 @@ function ConnectedDiscussionDetail({ theme, courseId, threadId, targetMessage, s
     }
   }
 
-  return <TutorDetail title={data?.thread.title ?? "Diskusi"} theme={theme} onBack={() => { if (!sending) close(); }}
+  return <TutorDetail viewport={viewport} title={data?.thread.title ?? "Diskusi"} theme={theme} onBack={() => { if (!sending) close(); }}
     subtitle={data?.thread.status === "resolved" ? "Terselesaikan" : undefined}
     footer={service.answer && (data?.thread.canReply || pending) && !unavailable ? <View style={tutorLayout.group}>
       {replyTo ? <View style={tutorLayout.cluster}>
@@ -777,13 +826,13 @@ function ConnectedDiscussionDetail({ theme, courseId, threadId, targetMessage, s
     {sendMessage && !unavailable ? <Label theme={theme}>{sendMessage}</Label> : null}
     {!unavailable && data && service.changeDiscussion ? <View style={tutorLayout.cluster}>
       <Button theme={theme} variant="outline" disabled={changing} onPress={() => setAttempt(value => value + 1)}>Muat ulang diskusi</Button>
-      {data.observed && Boolean(data.thread.unreadCount) ? <Button theme={theme} variant="outline" disabled={changing} onPress={markPageRead}>Tandai telah dibaca</Button> : null}
+      {visibleRead.failed ? <Button theme={theme} variant="outline" onPress={visibleRead.retry}>Coba perbarui status baca</Button> : null}
       {data.thread.canResolve ? <Button theme={theme} variant="outline" disabled={changing}
         onPress={() => void change({ action: "resolve", resolved: data.thread.status !== "resolved" })}>
         {data.thread.status === "resolved" ? "Buka kembali" : "Tandai selesai"}
       </Button> : null}
     </View> : null}
-    {!unavailable && data?.messages.items.map((message) => <Row key={message.id} theme={theme}
+    {!unavailable && data?.messages.items.map((message) => <Row key={message.id} contentRef={visibleRead.bindRow(message.id)} theme={theme}
       title={message.kind === "zyra" ? "Zyra" : message.author ?? "Pengguna"}
       subtitle={message.body} meta={!imageActions && message.attachmentCount ? `${message.attachmentCount} lampiran` : undefined}>
       {data.aiStatuses?.filter(status => status.messageId === message.id).map(status => <Label key={status.messageId}
