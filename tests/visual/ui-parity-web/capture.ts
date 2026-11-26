@@ -8,6 +8,7 @@ import { getProgressPosition } from "../../../packages/ui-parity/progress-cases"
 import { getSeparatorPosition } from "../../../packages/ui-parity/separator-cases";
 import { galleryCases, type GalleryCase } from "../../../packages/ui-parity/gallery";
 import { sliderPosition } from "../../../packages/ui-parity/slider-cases";
+import { toggleGroupLabel, toggleSubjects } from "../../../packages/ui-parity/toggle-group-cases";
 import { notificationInboxCases, notificationInboxCopy } from "../../../packages/ui-parity/notification-inbox-cases";
 import { formatNotificationTime } from "../../../lib/date-utils/notification-display";
 import { capturePublicForms } from "./capture-public-forms";
@@ -18,7 +19,7 @@ const avatarSelector = '[data-slot="avatar"]';
 const avatarImageSelector = '[data-slot="avatar-image"]';
 const avatarFallbackSelector = '[data-slot="avatar-fallback"]';
 
-function specimenCapture(item: GalleryCase) {
+function specimenCapture(item: GalleryCase): { selector: string; size: { width: number; height: number } | null } {
   switch (item.family) {
     case "separator":
       return {
@@ -43,6 +44,8 @@ function specimenCapture(item: GalleryCase) {
       return { selector: item.rows.length ? "ul" : "p", size: null };
     case "slider":
       return { selector: "[data-parity-slider]", size: sliderPosition };
+    case "toggle-group":
+      return { selector: '[role="group"]', size: null };
     case "control":
     case "radio":
     case "choice":
@@ -134,6 +137,16 @@ try {
       await expect(thumb).toHaveAttribute("aria-valuemax", String(item.max));
       await expect(thumb).toHaveAttribute("aria-valuenow", String(item.value));
       if (item.disabled) await expect(thumb).toBeDisabled();
+    }
+    if (item.family === "toggle-group") {
+      await expect(specimen).toHaveAccessibleName(toggleGroupLabel);
+      for (const subject of toggleSubjects) {
+        const single = item.type === "single";
+        const choice = specimen.getByRole(single ? "radio" : "button", { name: subject.label, exact: true });
+        const selected = item.type === "single" ? item.initial === subject.value : item.initial.some(value => value === subject.value);
+        await expect(choice).toHaveAttribute(single ? "aria-checked" : "aria-pressed", String(selected));
+        if ("disabled" in item || ("disabledItem" in item && item.disabledItem === subject.value)) await expect(choice).toBeDisabled();
+      }
     }
     if (item.family === "avatar") {
       await expect(frame.getByRole("img", { name: item.label })).toBeVisible();

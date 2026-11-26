@@ -34,11 +34,11 @@ export async function capturePublicForms(browser: Browser, origin: string, dpr: 
           json: publicFormFixtureEnvelope(caseId),
         }));
         try {
-          const [apiResponse, document] = await Promise.all([
+          const [apiResponse, navigationResponse] = await Promise.all([
             page.waitForResponse(response => api(new URL(response.url())) && response.request().method() === "GET"),
             page.goto(url),
           ]);
-          if (!document?.ok()) throw new Error(`Public form fixture returned HTTP ${document?.status()}`);
+          if (!navigationResponse?.ok()) throw new Error(`Public form fixture returned HTTP ${navigationResponse?.status()}`);
           expect(new URL(apiResponse.url()).searchParams.get("entry")).toBe(sample.entry === "short" ? "short" : null);
           if (sample.status === "ready") {
             await expect(page.getByRole("heading", { name: publicFormFixtureTitle })).toBeVisible();

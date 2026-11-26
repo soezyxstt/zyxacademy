@@ -22,7 +22,7 @@ test("public page visual references cover every full and short entry fixture in 
   const { forms, "short-forms": short } = publicFormPageCases;
   expect(forms.cases.map(id => publicFormCases[id].status)).toEqual(["ready", "closed", "missing"]);
   expect(short.cases.map(id => publicFormCases[id].status)).toEqual(["ready", "meeting", "missing"]);
-  expect([...forms.cases, ...short.cases]).toEqual(Object.keys(publicFormCases));
+  expect(Object.keys(publicFormCases)).toEqual([...forms.cases, ...short.cases]);
 });
 
 function reply(value: unknown, status = 200) {
