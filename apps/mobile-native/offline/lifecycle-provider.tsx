@@ -22,15 +22,23 @@ function createDriver(session: NativeSessionTransport, locale: NativeOfflineLoca
   let generation = 0;
   return createOfflineMetadataLifecycle({
     read: async () => (await openExpoOfflineMetadataStore()).read(scope),
-    async sync(courseIds) {
+    async sync(courseIds, publishAccess) {
       const current = generation;
       await waitForPurge();
       const repository = await openExpoOfflineMetadataStore();
       if (current !== generation) return;
       session.assertCurrent();
       syncController ??= createNativeOfflineSyncController({ session, locale, repository });
-      await syncController.sync(courseIds);
-      if (current === generation) onAuthorized();
+      const unsubscribe = syncController.subscribeAccess(snapshot => {
+        if (current !== generation || !session.isCurrent()) return;
+        onAuthorized();
+        publishAccess(snapshot);
+      });
+      try {
+        await syncController.sync(courseIds);
+      } finally {
+        unsubscribe();
+      }
     },
     cancelSync() {
       generation++;

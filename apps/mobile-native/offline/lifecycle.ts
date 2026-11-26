@@ -36,7 +36,7 @@ function checkInterval(snapshot: NativeOfflineMetadataSnapshot | null): number {
 
 export function createOfflineMetadataLifecycle({ read, sync, cancelSync, onRevoked, now = Date.now, schedule = scheduleTimeout }: {
   read: () => Promise<NativeOfflineMetadataSnapshot | null>;
-  sync: (courseIds: readonly string[]) => Promise<unknown>;
+  sync: (courseIds: readonly string[], publishAccess: (snapshot: NativeOfflineMetadataSnapshot | null) => void) => Promise<unknown>;
   cancelSync: () => void;
   onRevoked?: () => void;
   now?: () => number;
@@ -93,7 +93,12 @@ export function createOfflineMetadataLifecycle({ read, sync, cancelSync, onRevok
           continue;
         }
         publish("syncing");
-        await sync(selection);
+        await sync(selection, snapshot => {
+          if (!isCurrent()) return;
+          revoked = false;
+          publish(environment.online ? "syncing" : "offline", snapshot);
+          scheduleExpiry();
+        });
         if (!isCurrent()) continue;
         const cached = await read();
         if (isCurrent()) {

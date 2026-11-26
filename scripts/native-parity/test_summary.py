@@ -20,6 +20,12 @@ class DeviceSummaryTest(unittest.TestCase):
         self.report["cases"].pop()
         self.assertEqual("Missing", self.result())
 
+    def test_requires_the_correct_reference_engine(self):
+        self.assertEqual("Missing", check_device(self.report, "button", self.cases, "ios", "fixture", "merge", "ios-wkwebview"))
+        self.report["referenceEngine"] = "ios-wkwebview"
+        self.assertEqual("Pass", check_device(self.report, "button", self.cases, "ios", "fixture", "merge", "ios-wkwebview"))
+        self.assertEqual("Missing", self.result())
+
     def test_retains_single_pixel_mismatches_and_blank_references(self):
         self.report["cases"][1]["differentPixels"] = 1
         self.assertEqual("1 differing pixels", self.result())

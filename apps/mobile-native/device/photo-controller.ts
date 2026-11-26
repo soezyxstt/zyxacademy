@@ -36,7 +36,8 @@ export type PhotoOutcome =
 
 export type PhotoPickerResult =
   | { status: "selected"; asset: PickerPhoto }
-  | { status: "cancelled" | "error" };
+  | { status: "cancelled" }
+  | { status: "error" };
 
 type PhotoDevice = {
   available: boolean;

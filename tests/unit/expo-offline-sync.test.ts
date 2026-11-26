@@ -1,6 +1,7 @@
 import { Database } from "bun:sqlite";
 import { afterEach, describe, expect, test } from "bun:test";
 import { createNativeTransport } from "../../apps/mobile-native/network/transport";
+import { createOfflineMetadataLifecycle } from "../../apps/mobile-native/offline/lifecycle";
 import { createOfflineMetadataStore } from "../../apps/mobile-native/offline/metadata-store";
 import { createNativeOfflineSyncController } from "../../apps/mobile-native/offline/sync-client";
 import type {
@@ -67,7 +68,7 @@ const headers = {
   "x-offline-locale": scope.locale,
 };
 
-function authorized(value: unknown, responseHeaders = headers) {
+function authorized(value: unknown, responseHeaders: HeadersInit = headers) {
   return Response.json(value, { headers: responseHeaders });
 }
 
@@ -108,6 +109,77 @@ function setup(...responses: Array<Response | Respond>) {
 }
 
 describe("Expo offline metadata synchronization", () => {
+  test("publishes the authorized lifecycle projection before another course manifest finishes", async () => {
+    const retainedGrant = { ...grant, courseId: "course-2" };
+    const retainedMaterial = { ...descriptor, courseId: "course-2", key: '["article","course-2","material-1"]' };
+    const enrollments = [
+      { id: "course-1", title: "Statistika", expiresAt: null },
+      { id: "course-2", title: "Geometri", expiresAt: null },
+    ];
+    const next = "9007199254740994";
+    const manifestStarted = Promise.withResolvers<void>();
+    const pendingManifest = Promise.withResolvers<Response>();
+    const fixture = setup(
+      authorized(page(firstCursor, { access: [grant, retainedGrant], enrollments })),
+      authorized(manifest()),
+      authorized(manifest(firstCursor, { resource: retainedGrant, resources: [retainedMaterial] })),
+      authorized(page(next, {
+        reset: false,
+        access: [{ ...grant, allowed: false, fullContent: false, chapterIds: [] }, retainedGrant],
+        enrollments,
+        changes: [{ cursor: next, kind: "course", courseId: "course-2", resourceId: null, action: "invalidate", revision: null }],
+      })),
+      url => {
+        expect(url.pathname + url.search).toBe("/api/offline/manifest?courseId=course-2&locale=id");
+        manifestStarted.resolve();
+        return pendingManifest.promise;
+      },
+    );
+    await fixture.controller.sync(["course-1", "course-2"]);
+    const lifecycle = createOfflineMetadataLifecycle({
+      read: () => fixture.repository.read(scope, verifiedAt),
+      async sync(courseIds, publishAccess) {
+        const stop = fixture.controller.subscribeAccess(publishAccess);
+        try {
+          await fixture.controller.sync(courseIds);
+        } finally {
+          stop();
+        }
+      },
+      cancelSync: fixture.controller.dispose,
+      now: () => verifiedAt,
+      schedule: () => () => {},
+    });
+    const completed = Promise.withResolvers<void>();
+    const titles: string[][] = [];
+    const unsubscribe = lifecycle.subscribe(() => {
+      const { status, snapshot } = lifecycle.getSnapshot();
+      titles.push(snapshot?.courses.map(course => course.title) ?? []);
+      if (status === "ready") completed.resolve();
+    });
+    lifecycle.setEnvironment({ foreground: true, online: true, verified: true, expiresAt: leaseExpiresAt });
+    lifecycle.register(["course-1", "course-2"]);
+    try {
+      await manifestStarted.promise;
+      expect(titles).toContainEqual(["Statistika", "Geometri"]);
+      expect(lifecycle.getSnapshot()).toMatchObject({
+        status: "syncing",
+        snapshot: { cursor: firstCursor, knownCourseIds: ["course-2"], courses: [{ title: "Geometri", materials: [] }] },
+      });
+      expect((await fixture.repository.read(scope, verifiedAt))?.knownCourseIds).toEqual(["course-2"]);
+      pendingManifest.resolve(authorized(manifest(next, { resource: retainedGrant, resources: [retainedMaterial] })));
+      await completed.promise;
+      expect(lifecycle.getSnapshot().snapshot).toMatchObject({
+        cursor: next,
+        courses: [{ title: "Geometri", materials: [retainedMaterial] }],
+      });
+    } finally {
+      lifecycle.dispose();
+      unsubscribe();
+      pendingManifest.resolve(new Response(null, { status: 503 }));
+    }
+  });
+
   test("still reports a revoked session if clearing local metadata fails", async () => {
     const fixture = setup(new Response(null, { status: 401 }));
     let purgeAttempted = false;

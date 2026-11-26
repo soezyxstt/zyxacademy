@@ -1,4 +1,5 @@
 import type { NativeRequestInit, NativeResponse, NativeSessionTransport } from "../network/transport";
+import type { NativeOfflineMetadataSnapshot } from "./metadata-store";
 import {
   isNativeOfflineCursor,
   NATIVE_OFFLINE_COURSE_LIMIT,
@@ -9,7 +10,6 @@ import {
   type NativeOfflineCourseAccess,
   type NativeOfflineLocale,
   type NativeOfflineManifestResponse,
-  type NativeOfflineResourceDescriptor,
   type NativeOfflineScope,
   type NativeOfflineSyncResponse,
 } from "./sync-contract";
@@ -18,17 +18,8 @@ const REQUEST_TIMEOUT_MS = 20_000;
 const MAX_RESPONSE_BYTES = 25 * 1024 * 1024;
 const MAX_PAGES = 20;
 
-export type NativeOfflineSnapshot = {
-  cursor: string | null;
-  knownCourseIds: readonly string[];
-  courses: readonly {
-    id: string;
-    title: string;
-    leaseExpiresAt: number;
-    manifestCheckedAt?: number;
-    materials: readonly NativeOfflineResourceDescriptor[];
-  }[];
-};
+export type NativeOfflineSnapshot = NativeOfflineMetadataSnapshot;
+type AccessListener = (snapshot: NativeOfflineSnapshot | null) => void;
 
 type PendingPage = { expectedCursor: string | null; response: NativeOfflineSyncResponse };
 type CompletePage = PendingPage & { manifests: NativeOfflineManifestResponse[]; accessRevision: number };
@@ -136,6 +127,7 @@ export function createNativeOfflineSyncController({ session, locale, repository,
   if (locale !== "id" && locale !== "en") throw new TypeError("Unsupported offline metadata locale.");
   const scope: NativeOfflineScope = Object.freeze({ ...session.scope, locale });
   const lifetime = new AbortController();
+  const accessListeners = new Set<AccessListener>();
   let targets: readonly string[] = [];
   let flight: Promise<NativeOfflineSnapshot | null> | undefined;
 
@@ -194,18 +186,27 @@ export function createNativeOfflineSyncController({ session, locale, repository,
     }
     response.access = [...grants.values()];
 
-    async function applyAccess(): Promise<number> {
+    async function applyAccess() {
       assertCurrent();
       const revision = await repository.applyAccess(scope, { expectedCursor, response }, assertCurrent);
       assertCurrent();
       if (revision === null) throw new NativeOfflineSyncError("conflict");
-      return revision;
+      let snapshot: NativeOfflineSnapshot | null;
+      try {
+        snapshot = await repository.read(scope, now());
+      } catch (error) {
+        assertCurrent();
+        for (const listener of accessListeners) listener(null);
+        throw error;
+      }
+      assertCurrent();
+      for (const listener of accessListeners) listener(snapshot);
+      return { revision, snapshot };
     }
 
-    let accessRevision = await applyAccess();
-    const authorized = await repository.read(scope, now());
-    assertCurrent();
-    const cachedCourses = new Map(authorized?.courses.map(course => [course.id, course]));
+    const { revision, snapshot } = await applyAccess();
+    let accessRevision = revision;
+    const cachedCourses = new Map(snapshot?.courses.map(course => [course.id, course]));
     const manifests: NativeOfflineManifestResponse[] = [];
     for (const courseId of courseIds) {
       const grant = grants.get(courseId)!;
@@ -234,7 +235,7 @@ export function createNativeOfflineSyncController({ session, locale, repository,
         || grant.leaseExpiresAt !== manifest.leaseExpiresAt) {
         grants.set(courseId, manifest.resource);
         response.access = [...grants.values()];
-        accessRevision = await applyAccess();
+        accessRevision = (await applyAccess()).revision;
       }
       manifests.push(manifest);
     }
@@ -298,9 +299,16 @@ export function createNativeOfflineSyncController({ session, locale, repository,
   return {
     scope,
     sync,
+    subscribeAccess(listener: AccessListener) {
+      accessListeners.add(listener);
+      return () => { accessListeners.delete(listener); };
+    },
     resume: () => sync(),
     reconnect: () => sync(),
     retry: () => sync(),
-    dispose: () => lifetime.abort(),
+    dispose() {
+      lifetime.abort();
+      accessListeners.clear();
+    },
   };
 }

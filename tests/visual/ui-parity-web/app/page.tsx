@@ -11,6 +11,7 @@ import { RadioCase } from "./RadioCases";
 import { ProgressCase } from "./ProgressCases";
 import { ChoiceCase } from "./ChoiceCases";
 import { ControlCase } from "./ControlCases";
+import { MobileReference } from "./MobileReference";
 
 type ParityCaseFrameProps = { id: string; theme: "light" | "dark"; children: ReactNode };
 
@@ -55,12 +56,15 @@ function Specimen({ item }: { item: GalleryCase }) {
 
 export default function ParityPage() {
   return (
-    <main style={{ display: "grid", justifyContent: "center", gap: parityFrame.gap, paddingBlock: parityFrame.gap }}>
-      {galleryCases.map((item) => (
-        <ParityCaseFrame key={item.id} id={item.id} theme={item.theme}>
-          <Specimen item={item} />
-        </ParityCaseFrame>
-      ))}
-    </main>
+    <>
+      <main style={{ display: "grid", justifyContent: "center", gap: parityFrame.gap, paddingBlock: parityFrame.gap }}>
+        {galleryCases.map((item) => (
+          <ParityCaseFrame key={item.id} id={item.id} theme={item.theme}>
+            <Specimen item={item} />
+          </ParityCaseFrame>
+        ))}
+      </main>
+      <MobileReference />
+    </>
   );
 }
