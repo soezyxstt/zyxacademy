@@ -115,8 +115,17 @@ export type GradingAnswer = {
 };
 export type QuizAttempt = QuizAttemptSummary & { answers: GradingAnswer[] };
 export type QuizAttemptSnapshot = QuizAttemptSummary & {
-  questions: Array<{ id: string; prompt: string; answer: string; answerKey?: string }>;
+  startedAt?: string | null;
+  questions: Array<{ id: string; prompt: string; answer: string; answerKey?: string; options?: string[] }>;
 };
+
+export function filterQuizAttempts<T extends QuizAttemptSummary>(attempts: T[], search: string,
+  status: QuizAttemptSummary["status"] | "all", includeInProgress: boolean): T[] {
+  const needle = search.trim().toLowerCase();
+  return attempts.filter(attempt => (includeInProgress || attempt.status !== "in_progress") &&
+    (status === "all" || status === attempt.status) &&
+    [attempt.quizTitle, attempt.studentName, attempt.studentEmail].join(" ").toLowerCase().includes(needle));
+}
 export type QuizAttemptsSheet = {
   quizTitle: string;
   attempts: QuizAttemptSnapshot[];

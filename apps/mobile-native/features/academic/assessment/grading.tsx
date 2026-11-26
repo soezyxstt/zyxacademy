@@ -2,50 +2,71 @@ import { useStaffChromeVisibility } from "../../../routing/staff-chrome-visibili
 import { useCallback, useState } from "react";
 import { View } from "react-native";
 import {
-  canGrade, questionTypes, type AssessmentContext, type AssessmentGateway, type GradeItem,
+  canGrade, filterQuizAttempts, questionTypes, type AssessmentContext, type AssessmentGateway, type GradeItem,
   type QuizAttempt, type QuizAttemptSummary,
 } from "../../../../../packages/native-parity/academic/assessment";
+import { CourseMarkdown } from "../../student/CourseMarkdown";
 import { Action, DataRow, Field, Ink, SearchBox, layout } from "../courses/ui";
 import type { AcademicScreenProps } from "../contracts";
 import { GradeAttachment } from "./grade-attachment";
-import { AssessmentNotice, AssessmentPage, dateLabel, MutationProblem, Pagination, ReadState, SectionRow, SelectField, useMutation, useRead } from "./ui";
+import { AssessmentNotice, AssessmentPage, ChoiceCheck, dateLabel, MutationProblem, Pagination, ReadState, SectionRow, SelectField, useMutation, useRead } from "./ui";
 
 type Props = AcademicScreenProps & { gateway: AssessmentGateway; context: AssessmentContext; base: string };
 const pageSize = 10;
-const attemptStatuses = { in_progress: "Berlangsung", pending: "Menunggu penilaian", graded: "Sudah dinilai", abandoned: "Ditinggalkan" };
+const finishedStatuses = { pending: "Menunggu penilaian", graded: "Sudah dinilai", abandoned: "Ditinggalkan" };
+const attemptStatuses = { in_progress: "Berlangsung", ...finishedStatuses };
+const assessmentMarkdownSession = { session: { origin: "", locale: "id" } };
 
-export function QuizAttempts({ gateway, context, params, base, replace }: Props) {
+export function QuizAttempts({ gateway, context, params, base, replace, theme }: Props) {
   const { result, retry } = useRead(useCallback((signal: AbortSignal) => gateway.listQuizAttempts(context, params.templateId, signal), [gateway, context, params.templateId]));
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [status, setStatus] = useState<keyof typeof attemptStatuses | "all">("all");
   const [expanded, setExpanded] = useState("");
+  const [includeInProgress, setIncludeInProgress] = useState(true);
   const title = result?.ok ? result.value.quizTitle : undefined;
   return <AssessmentPage title="Hasil kuis" subtitle={title} back={() => replace(`${base}/quizzes`)} backLabel="Kembali ke kuis">
     <ReadState result={result} retry={retry}>{({ attempts }) => {
-      const matches = attempts.filter((attempt) => matchesSearch(attempt, search) && (status === "all" || status === attempt.status));
+      const matches = filterQuizAttempts(attempts, search, status, includeInProgress);
       const currentPage = Math.min(page, Math.max(0, Math.ceil(matches.length / pageSize) - 1));
       return <>
         <SearchBox label="Cari peserta" value={search} onChange={(value) => { setSearch(value); setPage(0); }} />
-        <SelectField label="Status" options={{ all: "Semua status", ...attemptStatuses }} value={status}
-          change={(value) => { setStatus(value); setPage(0); }} />
+        <SelectField label="Status" options={{ all: "Semua status", ...finishedStatuses, in_progress: attemptStatuses.in_progress }}
+          value={status} change={(value) => { setStatus(value); if (value === "in_progress") setIncludeInProgress(true); setPage(0); }} />
+        <ChoiceCheck label="Tampilkan percobaan berlangsung" checked={includeInProgress} testID="academic-quiz-include-in-progress"
+          change={() => {
+            if (includeInProgress && status === "in_progress") setStatus("all");
+            setIncludeInProgress(!includeInProgress);
+            setPage(0);
+          }} />
         <Ink kind="meta" tone="muted">{matches.length === attempts.length ? attempts.length : `${matches.length} dari ${attempts.length}`} percobaan</Ink>
-        {!matches.length ? <AssessmentNotice message={search || status !== "all" ? "Peserta yang cocok tidak ditemukan." : "Belum ada percobaan."} /> : null}
+        {!matches.length ? <AssessmentNotice message={search || status !== "all" || !includeInProgress ? "Peserta yang cocok tidak ditemukan." : "Belum ada percobaan."} /> : null}
         {matches.slice(currentPage * pageSize, (currentPage + 1) * pageSize).map((attempt) => (
           <SectionRow key={attempt.id} testID={`academic-quiz-result-${attempt.id}`}>
             <Ink kind="heading">{attempt.studentName}</Ink>
             <Ink kind="meta" tone="muted">{attempt.studentEmail}</Ink>
             <Ink>{attemptStatuses[attempt.status]}{attempt.score === null ? "" : ` · Nilai ${attempt.score}/100`}</Ink>
-            <Ink kind="meta" tone="muted">{dateLabel(attempt.submittedAt)}{attempt.submittedAt ? ` · ${Math.floor(attempt.durationSeconds / 60)} menit ${attempt.durationSeconds % 60} detik` : ""}</Ink>
+            {attempt.startedAt ? <Ink kind="meta" tone="muted">Mulai {dateLabel(attempt.startedAt)}</Ink> : null}
+            <Ink kind="meta" tone="muted">{dateLabel(attempt.submittedAt)} · {Math.floor(attempt.durationSeconds / 60)} menit {attempt.durationSeconds % 60} detik</Ink>
             {attempt.questions.length ? <View style={layout.row}>
               <Action label={expanded === attempt.id ? "Sembunyikan jawaban" : `Jawaban (${attempt.questions.length})`}
                 onPress={() => setExpanded(expanded === attempt.id ? "" : attempt.id)} />
             </View> : null}
             {expanded === attempt.id ? attempt.questions.map((question, index) => <SectionRow key={question.id}>
               <Ink kind="meta" tone="muted">Soal {index + 1}</Ink>
-              <Ink kind="strong">{question.prompt}</Ink>
-              <Ink>Jawaban peserta: {question.answer || "Kosong"}</Ink>
-              {question.answerKey ? <Ink>Kunci jawaban: {question.answerKey}</Ink> : null}
+              <CourseMarkdown theme={theme} source={question.prompt} services={assessmentMarkdownSession} allowLinks={false} renderPreviewImage={() => null} />
+              {question.options?.map((option, position) => <View key={position} style={layout.row}>
+                <Ink kind="meta">{String.fromCharCode(65 + position)}.</Ink>
+                <View style={{ flex: 1 }}>
+                  <CourseMarkdown theme={theme} source={option} services={assessmentMarkdownSession} allowLinks={false} renderPreviewImage={() => null} />
+                </View>
+              </View>)}
+              <Ink kind="strong">Jawaban peserta</Ink>
+              <CourseMarkdown theme={theme} source={question.answer || "Kosong"} services={assessmentMarkdownSession} allowLinks={false} renderPreviewImage={() => null} />
+              {question.answerKey ? <>
+                <Ink kind="strong">Kunci jawaban</Ink>
+                <CourseMarkdown theme={theme} source={question.answerKey} services={assessmentMarkdownSession} allowLinks={false} renderPreviewImage={() => null} />
+              </> : null}
             </SectionRow>) : null}
           </SectionRow>
         ))}

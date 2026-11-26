@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import {
-  assessmentActors, createAssessmentFixtureGateway, defaultQuiz, targetVersion,
+  assessmentActors, createAssessmentFixtureGateway, defaultQuiz, filterQuizAttempts, targetVersion,
   type AssessmentCommand, type AssessmentContext, type AssessmentResult,
 } from "./index";
 
@@ -138,4 +138,18 @@ test("imports course bank questions in order, skips duplicate provenance and app
   assert.equal(code(await gateway.mutate(admin, "stale-delete", { kind: "tryout.delete", target: targetVersion(exam) })), "conflict");
   value(await gateway.mutate(admin, "fresh-delete", { kind: "tryout.delete", target: targetVersion(fresh) }));
   assert.deepEqual(value(await gateway.listTryouts(admin)).tryouts, []);
+});
+
+test("Tutor attempt filters exclude ongoing attempts while retaining completed and abandoned results", async () => {
+  const gateway = createAssessmentFixtureGateway();
+  const { quizzes } = value(await gateway.listQuizzes(tutor));
+  const { attempts } = value(await gateway.listQuizAttempts(tutor, quizzes[0].id));
+  const someone = attempts[0];
+  const ongoing = { ...someone, id: "ongoing-fixture", status: "in_progress" } as const;
+  const abandoned = { ...someone, id: "abandoned-fixture", status: "abandoned" } as const;
+  const rows = [...attempts, ongoing, abandoned];
+  assert.deepEqual(filterQuizAttempts(rows, "", "all", false), rows.filter(row => row.status !== "in_progress"));
+  assert.deepEqual(filterQuizAttempts(rows, "", "in_progress", false), []);
+  assert.ok(filterQuizAttempts(rows, someone.studentName.toUpperCase(), "all", true).includes(ongoing));
+  assert.ok(filterQuizAttempts(rows, someone.studentEmail, "abandoned", false).includes(abandoned));
 });

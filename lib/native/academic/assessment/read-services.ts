@@ -190,7 +190,8 @@ export const assessmentReadServices: AssessmentReadServices = {
       id: studentQuizAttempts.id, studentName: user.name, studentEmail: user.email,
       durationSeconds: studentQuizAttempts.durationSeconds, score: studentQuizAttempts.score,
       status: studentQuizAttempts.status, gradingStatus: studentQuizAttempts.gradingStatus,
-      submittedAt: studentQuizAttempts.submittedAt, questionsSnapshot: studentQuizAttempts.questionsSnapshot,
+      startedAt: studentQuizAttempts.startedAt, submittedAt: studentQuizAttempts.submittedAt,
+      questionsSnapshot: studentQuizAttempts.questionsSnapshot,
       answersSnapshot: studentQuizAttempts.answersSnapshot,
     }).from(studentQuizAttempts)
       .innerJoin(quizTemplates, and(eq(quizTemplates.id, studentQuizAttempts.templateId), eq(quizTemplates.courseId, quiz.courseId)))
@@ -208,7 +209,7 @@ export const assessmentReadServices: AssessmentReadServices = {
         return {
           id: row.id, templateId: quizId, quizTitle: quiz.title,
           studentName: row.studentName ?? "Tanpa nama", studentEmail: row.studentEmail ?? "",
-          durationSeconds: row.durationSeconds ?? 0, submittedAt: iso(row.submittedAt), score: row.score, remainingEssays: 0,
+          durationSeconds: row.durationSeconds ?? 0, startedAt: iso(row.startedAt), submittedAt: iso(row.submittedAt), score: row.score, remainingEssays: 0,
           status: row.status === "completed" ? row.gradingStatus === "pending" ? "pending" : "graded" : row.status,
           questions: array(row.questionsSnapshot).flatMap((value) => {
             const snapshot = object(value);
@@ -217,6 +218,7 @@ export const assessmentReadServices: AssessmentReadServices = {
             return [{
               id: snapshot.id,
               prompt: typeof snapshot.prompt === "string" ? snapshot.prompt : typeof snapshot.content === "string" ? snapshot.content : "",
+              options,
               answer: snapshotAnswer(answers[snapshot.id], options),
               answerKey: snapshotAnswer(snapshot.correct_indices ?? snapshot.correctIndices, options) || undefined,
             }];
