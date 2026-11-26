@@ -4,7 +4,7 @@ import { fetch } from "expo/fetch";
 import { NATIVE_STAGING_ORIGIN } from "../../auth/session-api";
 import { scopedFiles } from "../../device/files";
 import type { DocumentDraftRequest } from "../../device/file-controller";
-import { uploadPublicForm, type FormRequest, type FormUpload } from "./client";
+import { uploadPublicForm, type FormCredentialRejection, type FormRequest, type FormUpload } from "./client";
 
 export const requestPublicForm: FormRequest = async (path, init) => {
   const url = new URL(path, NATIVE_STAGING_ORIGIN);
@@ -22,7 +22,7 @@ export const requestPublicForm: FormRequest = async (path, init) => {
 
 export type PickedFormUpload = Exclude<FormUpload, { status: "uploaded" }> | { status: "cancelled" } | { status: "uploaded"; storageUrl: string; filename: string };
 
-export async function pickAndUploadFormFile(resolveWrite: () => Promise<{ request: FormRequest; identity?: FormWriteIdentity } | null>, draft: DocumentDraftRequest, formId: string, questionIndex: number): Promise<PickedFormUpload> {
+export async function pickAndUploadFormFile(resolveWrite: () => Promise<{ request: FormRequest; identity?: FormWriteIdentity } | null>, draft: DocumentDraftRequest, formId: string, questionIndex: number): Promise<PickedFormUpload | FormCredentialRejection> {
   const selected = await scopedFiles.pickDocument(draft);
   if (selected.status !== "ready") {
     if (selected.status === "cancelled" || selected.status === "stale") return { status: "cancelled" };
