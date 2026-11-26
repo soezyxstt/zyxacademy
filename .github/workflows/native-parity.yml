@@ -7,9 +7,33 @@ on:
       - 'apps/mobile-native/**'
       - 'packages/**'
       - 'app/globals.css'
+      - 'app/tautan/**'
+      - 'app/api/tautan/**'
+      - 'app/forms/**'
+      - 'app/f/**'
+      - 'app/api/forms/**'
+      - 'app/meet/**'
+      - 'app/api/meet/**'
+      - 'components/meet/**'
+      - 'components/forms/public-form-viewer.tsx'
+      - 'messages/*/publicForms.json'
+      - 'components/logo.tsx'
+      - 'lib/links.ts'
+      - 'lib/public-links.ts'
+      - 'messages/*/marketing.json'
+      - 'messages/*/notifications.json'
+      - 'messages/*/student.json'
+      - 'components/navigation/student/student-nav-model.ts'
+      - 'components/notifications/notification-inbox-panel.tsx'
+      - 'components/notifications/notification-bell.tsx'
+      - 'lib/date-utils.ts'
+      - 'lib/date-utils/**'
+      - 'lib/pka-config.ts'
+      - 'public/brand/zyx-logo-symbol-*.svg'
       - 'components/ui/**'
       - 'tests/visual/ui-parity-web/**'
       - 'tests/unit/expo-*.test.ts'
+      - 'tests/unit/form-native-entry-routes.test.ts'
       - 'tests/unit/native-*.test.ts'
       - 'tests/unit/progress-parity.test.ts'
       - 'tests/unit/avatar-parity.test.ts'
@@ -110,7 +134,7 @@ jobs:
           path: ${{ runner.temp }}/component-symbols.json
           if-no-files-found: error
           retention-days: 7
-      - run: bun test tests/unit/progress-parity.test.ts tests/unit/avatar-parity.test.ts
+      - run: bun test tests/unit/progress-parity.test.ts tests/unit/avatar-parity.test.ts tests/unit/form-native-entry-routes.test.ts
       - run: bun scripts/native-parity/generate-tokens.ts --check
       - run: bunx playwright install --with-deps chromium
       - name: Capture the Next.js component
@@ -129,7 +153,12 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: reference-manifests
-          path: artifacts/native-parity/web/dpr*/cases.json
+          path: |
+            artifacts/native-parity/web/dpr*/cases.json
+            artifacts/native-parity/web/dpr*/directory.json
+            artifacts/native-parity/web/dpr*/forms.json
+            artifacts/native-parity/web/dpr*/short-forms.json
+            artifacts/native-parity/web/dpr*/meet.json
           if-no-files-found: error
 
       - name: Export the mobile WebView reference
@@ -159,7 +188,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     env:
       EXPO_PUBLIC_PARITY_WEBVIEW: '1'
-    timeout-minutes: 60
+    timeout-minutes: 80
     steps:
       - uses: actions/checkout@v4
         with:
@@ -195,6 +224,9 @@ jobs:
           cd android
           ./gradlew :app:assembleRelease -PreactNativeArchitectures=x86_64 --max-workers=2
       - if: matrix.platform == 'android'
+        name: Prepare the Android emulator image after compilation
+        run: bash scripts/native-parity/prepare-android-emulator.sh
+      - if: matrix.platform == 'android'
         run: sudo chmod a+rw /dev/kvm
       - if: matrix.platform == 'android'
         uses: reactivecircus/android-emulator-runner@v2.38.0
@@ -218,6 +250,10 @@ jobs:
           path: |
             artifacts/native-parity/${{ matrix.platform }}/result-*.json
             artifacts/native-parity/${{ matrix.platform }}/native-vs-webview/result-*.json
+            artifacts/native-parity/${{ matrix.platform }}/directory/result.json
+            artifacts/native-parity/${{ matrix.platform }}/forms/result.json
+            artifacts/native-parity/${{ matrix.platform }}/short-forms/result.json
+            artifacts/native-parity/${{ matrix.platform }}/meet/result.json
           retention-days: 7
 
   visual-summary:

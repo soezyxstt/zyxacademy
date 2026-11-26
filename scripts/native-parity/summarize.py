@@ -4,7 +4,7 @@ import json
 import os
 from pathlib import Path
 
-from case_manifest import load_case_groups
+from case_manifest import PAGE_BEHAVIORS, PAGE_CAPTURES, load_case_groups, load_page_manifest, page_behavior_cases
 
 SCALES = {"android": 1, "ios": 3}
 
@@ -31,6 +31,83 @@ def check_device(report, component, case_ids, platform, commit, build_commit, re
     return "Pass"
 
 
+def check_page(report, manifest, platform):
+    scale = SCALES[platform]
+    viewport = [manifest["width"], manifest["height"]]
+    case_ids = manifest["cases"]
+    missing = ["Missing"] * len(case_ids)
+    if not isinstance(report, dict) or (
+        report.get("route"), report.get("platform"), report.get("scale"), report.get("viewport"),
+        report.get("referenceEngine"), report.get("commit"), report.get("buildCommit"),
+    ) != (manifest["route"], platform, scale, viewport, "chromium", manifest["commit"], manifest["buildCommit"]):
+        return missing
+    results = report.get("cases")
+    if not isinstance(results, list) or not all(isinstance(item, dict) for item in results):
+        return missing
+    if [item.get("case") for item in results] != case_ids:
+        return missing
+    expected_size = [value * scale for value in viewport]
+    behavior_cases = page_behavior_cases(manifest)
+    states = []
+    for item in results:
+        status, changed = item.get("status"), item.get("differentPixels")
+        if status == "invalid-reference" or item.get("blankReference") is True:
+            states.append("Invalid reference")
+        elif status == "missing-stable-frame":
+            states.append("Missing stable frame")
+        elif status == "navigation-failed":
+            states.append("Fixture navigation failed")
+        elif item["case"] in behavior_cases:
+            key = behavior_cases[item["case"]]
+            required_status, label = PAGE_BEHAVIORS[key]
+            if (status == required_status and item.get(key) == manifest[key]
+                    and item.get("framePixels") == expected_size and "differentPixels" not in item):
+                states.append(label)
+            else:
+                states.append("Missing behavior evidence")
+        elif (item.get("framePixels") != expected_size or item.get("blankReference") is not False
+              or type(changed) is not int or changed < 0 or status != ("fail" if changed else "pass")):
+            states.append("Missing")
+        else:
+            states.append(f"{changed:,} differing pixels" if changed else "Pass")
+    return states
+
+
+def page_summary(artifacts, commit, build_commit, group):
+    route, _ = PAGE_CAPTURES[group]
+    title = f"#### `{route}` route vs Chromium"
+    try:
+        manifest = load_page_manifest(artifacts / f"reference-manifests/dpr1/{group}.json", group)
+        ios_manifest = load_page_manifest(artifacts / f"reference-manifests/dpr3/{group}.json", group)
+    except (OSError, ValueError):
+        return [title, "", "Missing or invalid page case manifest.", ""], False
+    if manifest != ios_manifest or (manifest["commit"], manifest["buildCommit"]) != (commit, build_commit):
+        return [title, "", "Page case manifests do not match the two reference scales and tested revision.", ""], False
+
+    platforms = []
+    for platform in SCALES:
+        try:
+            path = artifacts / f"{platform}-measurements/{group}/result.json"
+            report = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            report = None
+        platforms.append(check_page(report, manifest, platform))
+    rows = [f"| {case} | {android} | {ios} |" for case, android, ios in zip(manifest["cases"], *platforms)]
+    behaviors = page_behavior_cases(manifest)
+    comparable = len(rows) - len(behaviors)
+    passed = sum(android == ios == "Pass" for android, ios in zip(*platforms))
+    behavior_ok = all(
+        states[manifest["cases"].index(case)] == PAGE_BEHAVIORS[key][1]
+        for case, key in behaviors.items() for states in platforms
+    )
+    explanation = ["Redirect and recovery cases are reported as behavior evidence.", ""] if behaviors else []
+    return [
+        title, "", f"Viewport {manifest['width']} × {manifest['height']}. "
+        f"{passed}/{comparable} comparable route cases matched exactly on both platforms.", "", *explanation,
+        "| Case | Android DPR 1 | iOS DPR 3 |", "| --- | --- | --- |", *rows, "",
+    ], passed == comparable and behavior_ok
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("artifacts", type=Path)
@@ -54,17 +131,19 @@ def main():
                 states.append(check_device(result, component, case_ids, platform, args.commit, args.build_commit, reference))
         passed += all(state == "Pass" for state in states)
         rows.append(f"| {component} | {' | '.join(states)} |")
+    pages = [page_summary(args.artifacts, args.commit, args.build_commit, group) for group in PAGE_CAPTURES]
     output = "\n".join([
         f"### Native pixel parity for `{args.commit}`", "", f"Tested checkout: `{args.build_commit}`.", "",
         f"{passed}/{len(groups)} components matched all three cases against Chromium and the same-device WebView on both platforms.", "",
         "| Component | Android vs Chromium | Android vs WebView | iOS vs Chromium | iOS vs WKWebView |", "| --- | --- | --- | --- | --- |", *rows, "",
+        *(line for section, _ in pages for line in section),
         "Interaction and accessibility checks are reported by each device job.", "",
     ])
     print(output)
     if summary := os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(summary, "a", encoding="utf-8") as stream:
             stream.write(output)
-    if passed != len(groups):
+    if passed != len(groups) or not all(page_passed for _, page_passed in pages):
         raise SystemExit(1)
 
 

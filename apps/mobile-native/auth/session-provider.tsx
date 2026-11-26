@@ -1,8 +1,10 @@
 import * as SecureStore from "expo-secure-store";
+import { addNetworkStateListener, getNetworkStateAsync } from "expo-network";
 import { fetch } from "expo/fetch";
 import { createContext, useContext, useEffect, useSyncExternalStore, type ReactNode } from "react";
 import { AppState, Platform } from "react-native";
 
+import { createNativeConnectivity, initialConnectivity } from "../device/connectivity";
 import { createExpoNativeTransport } from "../network/expo-transport";
 import { createNativeSessionApi, NATIVE_STAGING_ORIGIN } from "./session-api";
 import { createNativeSessionController } from "./session-controller";
@@ -20,8 +22,27 @@ const session = createNativeSessionController({
   },
 });
 
+export const nativeConnectivity: ReturnType<typeof createNativeConnectivity> = createNativeConnectivity({
+  reverify(reason) {
+    const snapshot = session.getSnapshot();
+    if (reason === "first-online" && !snapshot.revalidating &&
+      snapshot.state.status !== "loading" && snapshot.state.status !== "unavailable") return;
+    void session.refreshAfterRecovery(() => {
+      const { foreground, online } = nativeConnectivity.getSnapshot();
+      return foreground && online === true;
+    });
+  },
+});
+const getServerConnectivity = () => initialConnectivity;
+
+export function useNativeConnectivity() {
+  return useSyncExternalStore(nativeConnectivity.subscribe, nativeConnectivity.getSnapshot, getServerConnectivity);
+}
+
 const SessionContext = createContext<typeof session | null>(null);
-const serverSnapshot = { state: { status: "loading" }, transport: null, revalidating: false } as const;
+const serverSnapshot: ReturnType<typeof session.getSnapshot> = {
+  state: { status: "loading" }, transport: null, revalidating: false,
+};
 const getServerSnapshot = () => serverSnapshot;
 
 export function NativeSessionProvider({ children, origin }: { children: ReactNode; origin: string }) {
@@ -29,11 +50,24 @@ export function NativeSessionProvider({ children, origin }: { children: ReactNod
 
   useEffect(() => {
     if (Platform.OS !== "ios" && Platform.OS !== "android") return;
-    void session.refresh();
-    const subscription = AppState.addEventListener("change", state => {
-      if (state === "active") void session.refresh();
+    let active = true;
+    let networkChanged = false;
+    const network = addNetworkStateListener(state => {
+      if (!active) return;
+      networkChanged = true;
+      nativeConnectivity.updateNetwork(state);
     });
-    return () => subscription.remove();
+    const app = AppState.addEventListener("change", state => nativeConnectivity.updateForeground(state === "active"));
+    nativeConnectivity.updateForeground(!AppState.currentState || AppState.currentState === "active");
+    void getNetworkStateAsync().then(state => {
+      if (active && !networkChanged) nativeConnectivity.updateNetwork(state);
+    }).catch(() => {});
+    return () => {
+      active = false;
+      app.remove();
+      network.remove();
+      nativeConnectivity.updateForeground(false);
+    };
   }, []);
 
   useEffect(() => {
@@ -53,7 +87,11 @@ export function useNativeSession() {
   if (!controller) throw new Error("Provider sesi Expo belum dipasang.");
   return {
     ...snapshot,
+    getSnapshot: controller.getSnapshot,
+    subscribeSession: controller.subscribe,
     acceptLogin: controller.acceptLogin,
+    clearLoginIntent: controller.clearLoginIntent,
+    rememberAccountAccess: controller.rememberAccountAccess,
     logout: controller.logout,
     refresh: controller.refresh,
     subscribeBeforeLogout: controller.subscribeBeforeLogout,

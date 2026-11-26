@@ -7,6 +7,7 @@ import { useCallback, useSyncExternalStore } from "react";
 import { Platform } from "react-native";
 import { createNativeBrowserLogin } from "./browser-flow";
 import { takeNativeBrowserCallback } from "./browser-intent";
+import type { NativeLoginIntent } from "./login-intent";
 import { useNativeSession } from "./session-provider";
 
 const attemptKey = "zyx-native.staging.browser-login.v1";
@@ -35,12 +36,15 @@ const browserLogin = createNativeBrowserLogin({
 export function useNativeBrowserLogin() {
   const { state: { status: sessionStatus }, acceptLogin } = useNativeSession();
   const status = useSyncExternalStore(browserLogin.subscribe, browserLogin.getStatus, browserLogin.getStatus);
-  const signIn = useCallback(async () => {
-    if (isNativeBuild && sessionStatus === "signed-out") await browserLogin.signIn(acceptLogin);
+  const signIn = useCallback(async (intent?: NativeLoginIntent) => {
+    if (isNativeBuild && sessionStatus === "signed-out") return browserLogin.signIn(acceptLogin, intent);
   }, [acceptLogin, sessionStatus]);
   const completePending = useCallback(async () => {
     if (!isNativeBuild || sessionStatus !== "signed-out") return false;
     return browserLogin.completePending(acceptLogin);
   }, [acceptLogin, sessionStatus]);
-  return { status, signIn, cancel: browserLogin.cancel, completePending, isAvailable: isNativeBuild };
+  return {
+    status, signIn, cancel: browserLogin.cancel, completePending, isAvailable: isNativeBuild,
+    getRecoveryIntent: browserLogin.getRecoveryIntent,
+  };
 }

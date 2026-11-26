@@ -45,6 +45,7 @@ export function createOfflineMetadataLifecycle({ read, sync, cancelSync, onRevok
   let environment: Environment = { foreground: false, online: true, verified: false, expiresAt: 0 };
   let state = inactiveCourseMetadata;
   let selection: readonly string[] = [];
+  let observing = false;
   let flight: Promise<void> | undefined;
   let queued = false;
   let disposed = false;
@@ -53,14 +54,22 @@ export function createOfflineMetadataLifecycle({ read, sync, cancelSync, onRevok
   let stopPoll: (() => void) | undefined;
   let stopExpiry: (() => void) | undefined;
   const listeners = new Set<() => void>();
-  const registrations = new Map<object, readonly string[]>();
+  const registrations = new Map<object, readonly string[] | null>();
 
-  const canRead = () => !disposed && environment.verified && environment.expiresAt > now() && selection.length > 0;
+  const canRead = () => !disposed && environment.verified && environment.expiresAt > now() && observing;
   const canSync = () => canRead() && environment.foreground && environment.online;
 
   function publish(status: CourseMetadataState["status"], snapshot: NativeOfflineMetadataSnapshot | null = state.snapshot) {
     state = canRead() ? { status, snapshot: visibleCourseMetadata(snapshot, now()) } : inactiveCourseMetadata;
     for (const listener of listeners) listener();
+  }
+
+  function pause() {
+    queued = false;
+    stopPoll?.();
+    if (!flight) return;
+    generation++;
+    cancelSync();
   }
 
   function scheduleExpiry() {
@@ -70,6 +79,7 @@ export function createOfflineMetadataLifecycle({ read, sync, cancelSync, onRevok
     const leases = (state.snapshot?.courses ?? []).flatMap(course => [course.leaseExpiresAt, course.manifestLeaseExpiresAt ?? 0]);
     const next = Math.min(environment.expiresAt, ...leases.filter(lease => lease > current));
     stopExpiry = schedule(() => {
+      if (environment.expiresAt <= now()) pause();
       publish(state.status);
       scheduleExpiry();
     }, Math.min(MAX_TIMEOUT_MS, Math.max(1, next - current)));
@@ -135,10 +145,13 @@ export function createOfflineMetadataLifecycle({ read, sync, cancelSync, onRevok
   }
 
   function updateSelection() {
-    const next = [...new Set([...registrations.values()].reverse().flat())].slice(0, NATIVE_OFFLINE_COURSE_LIMIT);
-    if (next.length === selection.length && next.every((id, index) => id === selection[index])) return;
+    const subscribers = [...registrations.values()].reverse();
+    const next = [...new Set(subscribers.flatMap(ids => ids ?? []))].slice(0, NATIVE_OFFLINE_COURSE_LIMIT);
+    const active = next.length > 0 || subscribers.includes(null);
+    if (active === observing && next.length === selection.length && next.every((id, index) => id === selection[index])) return;
+    observing = active;
     selection = next;
-    if (!selection.length) {
+    if (!observing) {
       publish("inactive", null);
       stopPoll?.();
       stopExpiry?.();
@@ -154,7 +167,7 @@ export function createOfflineMetadataLifecycle({ read, sync, cancelSync, onRevok
       listeners.add(listener);
       return () => { listeners.delete(listener); };
     },
-    register(courseIds: readonly string[]) {
+    register(courseIds: readonly string[] | null) {
       const registration = {};
       registrations.set(registration, courseIds);
       updateSelection();
@@ -169,7 +182,7 @@ export function createOfflineMetadataLifecycle({ read, sync, cancelSync, onRevok
       scheduleExpiry();
       if (!canRead()) publish("inactive", null);
       if (canRead() && !next.online) publish(revoked ? "revoked" : "offline");
-      if (!canSync()) stopPoll?.();
+      if (previous.foreground && previous.online && previous.verified && !canSync()) pause();
       if (canRead() && next.foreground && (!previous.verified || !previous.foreground || previous.online !== next.online)) void trigger();
     },
     retry: trigger,

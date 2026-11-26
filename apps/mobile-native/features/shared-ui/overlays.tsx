@@ -44,13 +44,28 @@ export type SharedOverlayProps = {
 
 export type SharedDialogProps = SharedOverlayProps;
 export type SharedSheetProps = SharedOverlayProps;
-export type SharedPopoverProps = SharedOverlayProps & {
-  anchorRef: RefObject<OverlayFocusTarget | null>;
-  align?: "start" | "center" | "end";
+export type PopoverHeaderControls = {
+  headingRef: RefObject<ComponentRef<typeof Text> | null>;
+  closeRef: RefObject<ComponentRef<typeof Pressable> | null>;
+  closeLabel: string;
+  dismissDisabled: boolean;
+  onClose(): void;
 };
 
+type PopoverPlacement = {
+  anchorRef: RefObject<OverlayFocusTarget | null>;
+  align?: "start" | "center" | "end";
+  maxWidth?: number;
+  sideOffset?: number;
+  panelStyle?: ViewProps["style"];
+  bodyMaxHeight?: number;
+  bodyInsets?: boolean;
+  renderHeader?: (controls: PopoverHeaderControls) => ReactNode;
+};
+export type SharedPopoverProps = SharedOverlayProps & PopoverPlacement;
+
 type OverlaySurfaceProps = SharedOverlayProps &
-  ({ kind: "dialog" | "sheet" } | { kind: "popover"; anchorRef: SharedPopoverProps["anchorRef"]; align?: SharedPopoverProps["align"] });
+  ({ kind: "dialog" | "sheet" } | ({ kind: "popover" } & PopoverPlacement));
 
 // Null means no anchor wrapper. Undefined means its first native frame is pending.
 const PopoverAnchorFrame = createContext<LayoutRectangle | null | undefined>(null);
@@ -183,6 +198,8 @@ function OverlaySurface({
     if (!dismissDisabled) onDismiss(reason);
   }
 
+  const popover = kind === "popover" ? placement : null;
+  const popoverMaxWidth = popover?.maxWidth ?? 288;
   const viewportWidth = nativeViewport?.frame.width ?? viewport?.width ?? width;
   const viewportHeight = nativeViewport?.frame.height ?? viewport?.height ?? height;
   const viewportInsets = nativeViewport?.insets ?? insets;
@@ -194,7 +211,7 @@ function OverlaySurface({
         y: nativeAnchor.y - nativeViewport.frame.y,
       }
     : measuredAnchor;
-  const panelWidth = Math.max(1, Math.min(288, viewportWidth - viewportInsets.left - viewportInsets.right - 32));
+  const panelWidth = Math.max(1, Math.min(popoverMaxWidth, viewportWidth - viewportInsets.left - viewportInsets.right - 32));
   const rightEdge = viewportWidth - viewportInsets.right - 16;
   const leftEdge = viewportInsets.left + 16;
   const topEdge = viewportInsets.top + 12;
@@ -204,8 +221,9 @@ function OverlaySurface({
     const indicatedLeft = align === "start"
       ? anchor.x
       : align === "end" ? anchor.x + anchor.width - panelWidth : anchor.x + (anchor.width - panelWidth) / 2;
-    const below = Math.max(topEdge, anchor.y + anchor.height + 4);
-    const above = Math.min(bottomEdge, anchor.y - 4);
+    const offset = placement.sideOffset ?? 4;
+    const below = Math.max(topEdge, anchor.y + anchor.height + offset);
+    const above = Math.min(bottomEdge, anchor.y - offset);
     const belowSpace = bottomEdge - below;
     const aboveSpace = above - topEdge;
     const showAbove = (panelHeight > belowSpace || belowSpace < 140) && aboveSpace > belowSpace;
@@ -273,11 +291,13 @@ function OverlaySurface({
             styles.panel,
             { backgroundColor: colors.background, borderColor: colors.border },
             kind === "sheet" && [styles.sheet, { paddingBottom: Math.max(12, insets.bottom) }],
-            kind === "popover" && styles.popover,
+            popover && [styles.popover, { maxWidth: popoverMaxWidth }, popover.panelStyle],
             popoverPosition,
           ]}
         >
-          <View style={[styles.headingRow, kind === "sheet" && { borderBottomWidth: 1, borderColor: colors.border }]}>
+          {popover?.renderHeader ? popover.renderHeader({
+            headingRef, closeRef, closeLabel, dismissDisabled, onClose: () => dismiss("close-button"),
+          }) : <View style={[styles.headingRow, kind === "sheet" && { borderBottomWidth: 1, borderColor: colors.border }]}>
             <View style={styles.headingText}>
               <Text
                 ref={headingRef}
@@ -305,11 +325,11 @@ function OverlaySurface({
               style={styles.close}
               onPress={() => dismiss("close-button")}
             />
-          </View>
+          </View>}
           <ScrollView
             keyboardShouldPersistTaps="handled"
-            style={styles.scroll}
-            contentContainerStyle={styles.content}
+            style={[styles.scroll, popover?.bodyMaxHeight === undefined ? null : { maxHeight: popover.bodyMaxHeight }]}
+            contentContainerStyle={popover?.bodyInsets === false ? undefined : styles.content}
           >
             {children}
           </ScrollView>
@@ -387,7 +407,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   sheet: { maxWidth: "100%", maxHeight: "80%", borderTopLeftRadius: 16, borderTopRightRadius: 16, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 },
-  popover: { maxWidth: 288, maxHeight: "80%", borderRadius: nativeRadii.sm, boxShadow: "0 4px 12px #00000024" },
+  popover: { maxHeight: "80%", borderRadius: nativeRadii.sm, boxShadow: "0 4px 12px #00000024" },
   headingRow: { flexDirection: "row", alignItems: "flex-start", paddingStart: 16, paddingEnd: 8, paddingVertical: 8, gap: 8 },
   headingText: { flex: 1, minWidth: 0, gap: 4, paddingVertical: 6 },
   title: { fontSize: 16, lineHeight: 21 },

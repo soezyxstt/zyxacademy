@@ -34,6 +34,13 @@ test("article reading presentation remains browser-only", () => {
   expect(entry.actions).toContain("toggleReadingFocus");
 });
 
+test("Expo download and storage recovery stay device-local", () => {
+  const entry = operationsCatalog.find(item => item.source === "apps/mobile-native/app/offline.tsx");
+  expect(entry?.status).toBe("excluded");
+  expect(entry?.tools).toEqual([]);
+  expect(entry?.actions).toEqual(["download", "forget", "revalidateSaved", "purgeUnavailable"]);
+});
+
 test("device sign-in, role context, photo recovery and OS permissions stay user-scoped", () => {
   for (const source of [
     "app/api/auth/native/expo/exchange/route.ts",
@@ -48,5 +55,14 @@ test("device sign-in, role context, photo recovery and OS permissions stay user-
     const entry = operationsCatalog.find(item => item.source === source);
     expect(entry?.status).toBe("excluded");
     expect(entry?.tools).toEqual([]);
+  }
+});
+
+test("live public form writes stay separate from MCP preview and simulation", () => {
+  for (const source of ["app/api/forms/[idOrSlug]/route.ts", "app/api/forms/upload/route.ts"]) {
+    const entry = operationsCatalog.find(item => item.source === source);
+    expect(entry?.status).toBe("excluded");
+    expect(entry?.tools).toEqual([]);
+    expect(entry?.actions).toContain("POST");
   }
 });

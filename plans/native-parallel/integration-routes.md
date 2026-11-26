@@ -34,3 +34,21 @@ Code inventory for the 15 `integration` entries in `routes.tsv`. Dispositions be
 The Expo routes for `/mcp/authorize`, `/mcp/connections` and `/meet/[slug]` now open the corresponding staging Next route on explicit activation. The server handles consent and meeting resolution in the browser session. The URL builder preserves supported OAuth parameters, rejects ambiguous repeated values and encodes the exact meeting slug as one path segment. Focused tests cover URI construction. Browser return, server responses and Back still need Android and iOS evidence.
 
 The Expo native-intent entry captures the raw consent request before Expo Router parses its query. The router receives an in-memory locator with a five-minute expiry. This preserves nested redirect URIs and opaque OAuth state across navigation inside the running app.
+
+### Session-bound navigation
+
+When Expo verifies a different account or session, or begins logout, it removes the previous stack entries and preloads. An active login, form, public link, or browser handoff keeps its route and parameters. Foreground checks and temporary connection failures preserve the stack for the same session. Academic details reload their protected resource on return. The Admin course list keeps its filters and refreshes on focus.
+
+The stack uses Expo's staging session identity and leaves MCP tools, authorization scopes, consent, discovery, playbooks, packaged skills, host prompts, and browser OAuth bindings as documented above. Local tests cover the reset inputs and focus policy. Android and iOS execution still needs device evidence.
+
+### Student navigation
+
+The mounted Student routes use the shared mobile navbar and five Student destinations with the same Indonesian and English labels as the web. The bar follows the current URL and stays out of active assessment and flashcard sessions, reader and playground routes, live sessions, and individual discussion threads. Course and document filters update the existing entry so typing and scroll position can continue across query changes. The Student bell reads the verified account’s unread count and latest 20 visible notifications. The popover supports acknowledging one or all visible notifications. Navigation checks the active role and installed route. Search, the account menu, and course switching still need wiring.
+
+This navigation only connects existing UI routes. It introduces no new HTTP operation or MCP capability. Focused checks cover route targets, selection, visibility, and query patches. Device and visual verification remain pending.
+
+### Tutor and Admin navigation
+
+The integrated Academic and Operations routes mount the shared navbar and role destinations after checking the current account. Admin More uses the web's module categories and shows only installed routes available to the verified roles. Tutor Classes reads the current tutor's assigned courses through the existing Academic dashboard adapter. A single course opens directly. Multiple courses can be selected in a sheet. Editors and active inline grading, discussion, and live views retain the applicable mobile visibility rules.
+
+The Tutor and Admin navbars include the same tap-open inbox as the Student navbar. It reads only the verified account's inbox and sends read acknowledgements through the existing endpoint. Opening it does not start an OS permission prompt. Canonical discussion links carry their query to the verified account's discussion route. Search, account menus, Admin pins, and course sub-tabs remain outside this mount. The shell uses the existing session, API, and MCP contracts. Authenticated Android and iOS interaction and visual verification remain pending.

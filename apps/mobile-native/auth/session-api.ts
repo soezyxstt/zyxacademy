@@ -47,6 +47,13 @@ type SessionFetcher = (url: string, init: RequestInit) => Promise<Pick<Response,
   "ok" | "url" | "type" | "redirected" | "status" | "json" | "body"
 >>;
 
+export class NativeSessionConnectionError extends Error {
+  constructor() {
+    super("Server sesi belum dapat dihubungi.");
+    this.name = "NativeSessionConnectionError";
+  }
+}
+
 export function createNativeSessionApi(origin: string, fetcher: SessionFetcher) {
   if (origin !== NATIVE_STAGING_ORIGIN) throw new Error("Origin sesi Expo tidak didukung.");
 
@@ -64,13 +71,16 @@ export function createNativeSessionApi(origin: string, fetcher: SessionFetcher) 
         redirect: "manual",
         signal: controller.signal,
         headers: { Cookie: cookie, Origin: origin, "Cache-Control": "no-store, no-cache" },
+      }).catch(() => {
+        if (signal?.aborted) throw new Error("Permintaan sesi dibatalkan.");
+        throw new NativeSessionConnectionError();
       });
       if (controller.signal.aborted || response.redirected || response.type === "opaqueredirect"
         || (response.url && response.url !== url) || (response.status >= 300 && response.status < 400)) {
         void response.body?.cancel().catch(() => {});
         throw new Error("Respons sesi tidak valid.");
       }
-      if (response.status === 401) {
+      if (response.status === 401 || (path === SESSION_PATH && response.status === 403)) {
         void response.body?.cancel().catch(() => {});
         return null;
       }

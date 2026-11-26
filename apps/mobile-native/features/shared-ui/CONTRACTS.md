@@ -92,6 +92,8 @@ Untuk mengukur posisi native di Android, bungkus `SharedPopover` dan tombol pemi
 
 Tombol tutup, backdrop, Back Android, dan gestur Escape VoiceOver memiliki alasan penutupan masing-masing. Verifikasi fokus pembaca layar dan keyboard perangkat pada build Android dan iOS.
 
+`SharedPopover` mendukung `maxWidth`, `sideOffset`, `panelStyle`, `bodyMaxHeight`, dan `bodyInsets={false}` untuk panel seperti kotak masuk. Jika memakai `renderHeader`, pasang `headingRef` pada judul dan `closeRef` pada tombol tutup berlabel. Teruskan `onClose`, `closeLabel`, dan `dismissDisabled` ke tombol tersebut agar fokus awal dan penutupan tetap ditangani overlay.
+
 ## Uji perilaku kontrol dan overlay
 
 Dari akar repo dengan dependensi repo terpasang, jalankan pengujian handler React pada host uji terisolasi.

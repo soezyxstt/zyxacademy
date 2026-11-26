@@ -1,9 +1,12 @@
 import { CryptoDigestAlgorithm, digestStringAsync } from "expo-crypto";
 import type { Notification, NotificationResponse } from "expo-notifications";
-import { usePathname, useRootNavigationState, useRouter, useSitemap } from "expo-router";
+import { usePathname, useRootNavigationState, useRouter, useSitemap, type Href } from "expo-router";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Platform } from "react-native";
 
+import { NATIVE_STAGING_ORIGIN } from "../auth/session-api";
+import { resolveNativeLoginReturn } from "../auth/login-intent";
+import { createPushResponseController, remotePushData, type PushHostState } from "./remote-response";
 import { useNativeSession } from "../auth/session-provider";
 import { useNativeAccountContext } from "../auth/use-account-context";
 import type { NativeSessionTransport } from "../network/transport";
@@ -34,7 +37,7 @@ function readNotification(notification: Notification, platform: "android" | "ios
     identifier: typeof request.identifier === "string" ? request.identifier : "",
     deliveredAt: normalizeNotificationDate(date, platform),
     trigger: trigger && typeof trigger === "object" && "type" in trigger ? trigger.type : undefined,
-    data: request.content.data,
+    data: trigger && "type" in trigger && trigger.type === "push" ? remotePushData(request.content.data, trigger) : request.content.data,
   };
 }
 
@@ -43,9 +46,10 @@ export function LocalReminderResponseLifecycle() {
   const pathname = usePathname();
   const sitemap = useSitemap();
   const router = useRouter();
-  const { state, transport, revalidating } = useNativeSession();
-  const { context, failed } = useNativeAccountContext();
+  const { state, transport, revalidating, refresh, getSnapshot } = useNativeSession();
+  const { context, failed, denied } = useNativeAccountContext();
   const [identity, setIdentity] = useState<{ session: NativeSessionTransport; prefix: string | null } | null>(null);
+  const push = useRef<ReturnType<typeof createPushResponseController> | null>(null);
   const controller = useRef<ReturnType<typeof createReminderResponseController> | null>(null);
 
   useEffect(() => {
@@ -80,11 +84,48 @@ export function LocalReminderResponseLifecycle() {
     },
   }), [navigationReady, pathname, router, sitemap]);
 
-  const latest = useRef({ recipient, routes });
+  const remoteHost = useMemo<PushHostState>(() => {
+    if (state.status === "loading") return { status: "checking" };
+    if (state.status === "unavailable" && state.offlineIdentity && state.offlineIdentity.expiresAt > Date.now()) {
+      const { accountId, sessionId } = state.offlineIdentity;
+      return { status: "checking", scope: { origin: NATIVE_STAGING_ORIGIN, accountId, sessionId } };
+    }
+    if (!transport?.isCurrent() || state.status !== "signed-in" || denied) return null;
+    const waiting = { status: "checking", scope: transport.scope } as const;
+    if (revalidating || !context) return waiting;
+    if (context.accountId !== state.accountId || context.sessionId !== state.sessionId) return null;
+    return {
+      session: transport,
+      navigationReady: navigationReady && !!sitemap && pathname !== "/" && pathname !== "/auth/native-finish",
+      isCurrent() {
+        const snapshot = getSnapshot();
+        return snapshot.state === state && snapshot.transport === transport && !snapshot.revalidating && state.expiresAt > Date.now();
+      },
+      async revalidate() {
+        await refresh();
+        const snapshot = getSnapshot();
+        const identity = snapshot.state.status === "signed-in" ? snapshot.state
+          : snapshot.state.status === "unavailable" ? snapshot.state.offlineIdentity : null;
+        if (!identity || identity.accountId !== state.accountId || identity.sessionId !== state.sessionId || identity.expiresAt <= Date.now()) {
+          return "unavailable";
+        }
+        if (snapshot.state.status === "unavailable" || snapshot.revalidating) return "checking";
+        return snapshot.transport?.isCurrent() && snapshot.transport.scope.origin === transport.scope.origin ? "verified" : "unavailable";
+      },
+      resolve(path) {
+        const target = resolveNativeLoginReturn(path, context, sitemap);
+        return target.status === "ready" ? target.href : target.dashboard;
+      },
+      navigate: path => router.navigate(path as Href),
+    };
+  }, [context, denied, getSnapshot, navigationReady, pathname, refresh, revalidating, router, sitemap, state, transport]);
+
+  const latest = useRef({ recipient, routes, remoteHost });
   useLayoutEffect(() => {
-    latest.current = { recipient, routes };
+    latest.current = { recipient, routes, remoteHost };
     controller.current?.updateHost(recipient, routes);
-  }, [recipient, routes]);
+    push.current?.update(remoteHost);
+  }, [recipient, routes, remoteHost]);
 
   useEffect(() => {
     const platform = Platform.OS;
@@ -95,6 +136,9 @@ export function LocalReminderResponseLifecycle() {
       if (!active) return;
       const bridge = createReminderResponseController({ defaultAction: notifications.DEFAULT_ACTION_IDENTIFIER });
       controller.current = bridge;
+      const remote = createPushResponseController(notifications.DEFAULT_ACTION_IDENTIFIER);
+      push.current = remote;
+      remote.update(latest.current.remoteHost);
       bridge.updateHost(latest.current.recipient, latest.current.routes);
       const compact = (response: NotificationResponse): ReminderResponse => ({
         ...readNotification(response.notification, platform),
@@ -110,7 +154,7 @@ export function LocalReminderResponseLifecycle() {
           const subscription = notifications.addNotificationResponseReceivedListener(response => listener(compact(response)));
           return () => subscription.remove();
         },
-      }, bridge.consume);
+      }, response => bridge.consume(response) || remote.consume(response));
       notifications.setNotificationHandler({
         handleNotification: async notification => {
           const presentation = reminderPresentation(readNotification(notification, platform), latest.current.recipient);
@@ -120,6 +164,8 @@ export function LocalReminderResponseLifecycle() {
       });
       unsubscribe = () => {
         stop();
+        remote.close();
+        if (push.current === remote) push.current = null;
         notifications.setNotificationHandler({ handleNotification: async () => sdkDefault });
         if (controller.current === bridge) controller.current = null;
       };

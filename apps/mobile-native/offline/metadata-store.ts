@@ -2,18 +2,23 @@ import {
   compareNativeOfflineCursors as compareCursor,
   isNativeOfflineCursor,
   NATIVE_OFFLINE_COURSE_LIMIT,
+  NATIVE_OFFLINE_MANIFEST_ENTRY_LIMIT,
   type NativeOfflineCourseAccess,
+  type NativeOfflineLocale,
   type NativeOfflineManifestResponse,
   type NativeOfflineResourceDescriptor,
   type NativeOfflineScope,
   type NativeOfflineSyncResponse,
 } from "./sync-contract";
 import type { NativeSessionScope } from "../network/transport";
+import type { OfflinePolicy } from "../../../lib/offline/policy-types";
+import { notifyOfflineReadingChanges } from "./reading-events";
 
 // These storage bounds mirror lib/offline/metadata-cache.ts and sync-contract.ts.
-const maxManifestEntries = 10_000;
 const maxMetadataBytes = 8 * 1024 * 1024;
-const schema = `
+const maxReadingInvalidations = 512;
+export const EXPO_OFFLINE_DATABASE_NAME = "zyx-offline-reading-metadata.db";
+export const offlineMetadataSchema = `
   PRAGMA secure_delete = ON;
   CREATE TABLE IF NOT EXISTS offline_reading_metadata_v1 (
     origin TEXT NOT NULL,
@@ -39,19 +44,32 @@ type StoredManifest = {
   leaseExpiresAt: number;
   materials: NativeOfflineResourceDescriptor[];
 };
-type StoredCourse = NativeOfflineCourseAccess & { title: string; manifest?: StoredManifest };
+type StoredCourse = NativeOfflineCourseAccess & { title: string; grantRevision?: number; manifest?: StoredManifest };
+export type OfflineReadingCourseVersion = { locale: NativeOfflineLocale; revision: number };
+export type OfflineReadingDeletion = { courseId: string; key: string; cursor: string };
+export type OfflineReadingRestrictions = {
+  grants: readonly NativeOfflineCourseAccess[];
+  deletions: readonly OfflineReadingDeletion[];
+  manifests?: readonly NativeOfflineManifestResponse[];
+  manifestGrantCursors?: ReadonlyMap<string, string>;
+};
+type ReadingValidation = { generation: number; invalidations: Record<string, string> };
 type StoredSnapshot = {
   sessionId: string;
   cursor: string | null;
   lastVerifiedAt: number;
   leaseExpiresAt: number;
   activeCheckIntervalMs?: number;
+  readingPolicy?: Pick<OfflinePolicy, "maxBytes" | "maxEntries" | "retentionMs" | "contentMaxAgeMs">;
+  readingValidation?: ReadingValidation;
   pending?: { cursor: string; reset: boolean };
   courses: StoredCourse[];
 };
 type RawRow = { revision: number; session_id: string; snapshot: string | null };
 type MetadataPage = { expectedCursor: string | null; response: NativeOfflineSyncResponse };
+export type OfflineMetadataAccessPage = MetadataPage & { expectedRevision?: number; reapply?: boolean };
 type WriterGuard = () => void;
+const metadataKeys = (scope: NativeOfflineScope) => [scope.origin, scope.accountId, scope.locale] as const;
 
 export type NativeOfflineMetadataSnapshot = {
   cursor: string | null;
@@ -85,17 +103,173 @@ function readSnapshot(row: RawRow | null): StoredSnapshot | null {
   return null;
 }
 
+function readAuthorityRow(db: Pick<OfflineMetadataDatabase, "getFirstAsync">, scope: NativeOfflineScope) {
+  return db.getFirstAsync<RawRow>(
+    "SELECT revision, session_id, snapshot FROM offline_reading_metadata_v1 WHERE origin = ? AND account_id = ? AND locale = ?",
+    scope.origin, scope.accountId, scope.locale,
+  );
+}
+
+export async function readOfflineReadingAuthority(db: Pick<OfflineMetadataDatabase, "getFirstAsync">, scope: NativeOfflineScope) {
+  const row = await readAuthorityRow(db, scope);
+  const snapshot = readSnapshot(row);
+  return snapshot && snapshot.sessionId === scope.sessionId ? snapshot : null;
+}
+
+export async function readOfflineReadingAuthorities(
+  db: { getAllAsync<T>(sql: string, ...params: Bind[]): Promise<T[]> },
+  session: NativeSessionScope,
+) {
+  const rows = await db.getAllAsync<RawRow & { locale: NativeOfflineLocale }>(`
+    SELECT revision, session_id, snapshot, locale FROM offline_reading_metadata_v1
+    WHERE origin = ? AND account_id = ? AND session_id = ? AND locale IN ('id', 'en')
+  `, session.origin, session.accountId, session.sessionId);
+  return rows.flatMap(row => {
+    const snapshot = readSnapshot(row);
+    return snapshot ? [{ locale: row.locale, revision: row.revision, snapshot }] : [];
+  });
+}
+
+export function readOfflineReadingAuthorityVersions(
+  db: { getAllAsync<T>(sql: string, ...params: Bind[]): Promise<T[]> },
+  session: NativeSessionScope,
+) {
+  return db.getAllAsync<OfflineReadingCourseVersion>(`
+    SELECT locale, revision FROM offline_reading_metadata_v1
+    WHERE origin = ? AND account_id = ? AND session_id = ? AND locale IN ('id', 'en') AND snapshot IS NOT NULL
+  `, session.origin, session.accountId, session.sessionId);
+}
+
+export async function withdrawOfflineReadingCourses(
+  tx: Pick<OfflineMetadataDatabase, "getFirstAsync" | "runAsync">,
+  session: NativeSessionScope,
+  courseIds: readonly string[],
+  version: OfflineReadingCourseVersion,
+  assertCurrent: WriterGuard,
+): Promise<string[]> {
+  const scope = { ...session, locale: version.locale };
+  const row = await readAuthorityRow(tx, scope);
+  const snapshot = readSnapshot(row);
+  // Grant and generation revisions come from the containing row. Older grants use the whole row as their bound.
+  if (!row || snapshot?.sessionId !== scope.sessionId || row.revision < version.revision
+    || (snapshot.readingValidation?.generation ?? 0) > version.revision) return [];
+  const grantRevisions = new Map(snapshot.courses.map(course => [course.courseId, course.grantRevision ?? row.revision]));
+  const denied = new Set(courseIds.filter(id => (grantRevisions.get(id) ?? row.revision) <= version.revision));
+  if (!denied.size) return [];
+  const withdrawn = { ...snapshot, courses: snapshot.courses.filter(course => !denied.has(course.courseId)) };
+  assertCurrent();
+  // Advancing the row revision also prevents a pending manifest from restoring this grant.
+  const { changes } = await tx.runAsync(`
+    UPDATE offline_reading_metadata_v1 SET revision = revision + 1, snapshot = ?
+    WHERE origin = ? AND account_id = ? AND locale = ? AND session_id = ? AND revision = ?
+  `, JSON.stringify(withdrawn), ...metadataKeys(scope), scope.sessionId, row.revision);
+  return changes === 1 ? [...denied] : [];
+}
+
 function allowedChapters(grant: NativeOfflineCourseAccess, resource: NativeOfflineResourceDescriptor) {
   // Keep the same conservative chapter proof as lib/offline/sync-client.ts.
   return grant.allowed && resource.chapterIds.length > 0
     && resource.chapterIds.every(chapter => grant.chapterIds.includes(chapter));
 }
 
-function applyPageAccess(previous: StoredSnapshot | null, response: NativeOfflineSyncResponse): StoredSnapshot {
+export function equivalentOfflineCourseAccess(left: NativeOfflineCourseAccess, right: NativeOfflineCourseAccess) {
+  return left.courseId === right.courseId && left.allowed === right.allowed && left.fullContent === right.fullContent
+    && left.chapterIds.length === right.chapterIds.length && left.chapterIds.every(chapter => right.chapterIds.includes(chapter));
+}
+
+export type OfflineReadingRemoval = {
+  denied: string[];
+  chapterLimits: Map<string, string[]>;
+  deleted: Map<string, string>;
+  omitted: Map<string, { keys: Set<string>; cursor: string }>;
+};
+
+export async function restrictOfflineReadingAuthority(
+  tx: Pick<OfflineMetadataDatabase, "getFirstAsync" | "runAsync">,
+  scope: NativeOfflineScope,
+  version: number,
+  { grants, deletions, manifests = [], manifestGrantCursors }: OfflineReadingRestrictions,
+  assertCurrent: WriterGuard,
+): Promise<OfflineReadingRemoval | null> {
+  const row = await readAuthorityRow(tx, scope);
+  const snapshot = readSnapshot(row);
+  if (!row || snapshot?.sessionId !== scope.sessionId || row.revision < version
+    || (snapshot.readingValidation?.generation ?? 0) > version) return null;
+  const courses = new Map(snapshot.courses.map(course => [course.courseId, course]));
+  const eligible = (id: string) => (courses.get(id)?.grantRevision ?? row.revision) <= version;
+  const removal: OfflineReadingRemoval = { denied: [], chapterLimits: new Map(), deleted: new Map(), omitted: new Map() };
+  for (const event of deletions) {
+    const course = courses.get(event.courseId);
+    const cursor = course?.manifest?.cursor ?? snapshot.cursor;
+    const newer = snapshot.readingValidation?.invalidations[event.key];
+    if (eligible(event.courseId) && (!cursor || compareCursor(cursor, event.cursor) <= 0)
+      && (!newer || compareCursor(newer, event.cursor) <= 0)) removal.deleted.set(event.key, event.cursor);
+  }
+  for (const manifest of manifests) {
+    const prior = courses.get(manifest.resource.courseId);
+    if (prior?.manifest && !snapshot.pending?.reset && eligible(prior.courseId)
+      && Math.min(snapshot.leaseExpiresAt, prior.leaseExpiresAt, prior.manifest.leaseExpiresAt) > manifest.serverTime
+      && equivalentOfflineCourseAccess(prior, manifest.resource) && compareCursor(prior.manifest.cursor, manifest.cursor) <= 0) {
+      removal.omitted.set(prior.courseId, { keys: new Set(manifest.resources.map(item => item.key)), cursor: manifest.cursor });
+    }
+  }
+  for (const grant of grants) {
+    if (!eligible(grant.courseId)) continue;
+    if (!grant.allowed) {
+      removal.denied.push(grant.courseId);
+      courses.delete(grant.courseId);
+      continue;
+    }
+    const prior = courses.get(grant.courseId);
+    const cursor = manifestGrantCursors?.get(grant.courseId);
+    if (!prior?.allowed || (cursor && prior.manifest && compareCursor(prior.manifest.cursor, cursor) > 0)) continue;
+    const chapterIds = prior.chapterIds.filter(chapter => grant.chapterIds.includes(chapter));
+    const fullContent = prior.fullContent && grant.fullContent;
+    if (chapterIds.length === prior.chapterIds.length && fullContent === prior.fullContent) continue;
+    removal.chapterLimits.set(grant.courseId, chapterIds);
+    courses.set(grant.courseId, { ...prior, chapterIds, fullContent, grantRevision: row.revision + 1 });
+  }
+
+  let changed = removal.denied.length > 0 || removal.chapterLimits.size > 0 || removal.deleted.size > 0;
+  for (const [courseId, course] of courses) {
+    const stored = course.manifest;
+    if (!stored) continue;
+    const omitted = removal.omitted.get(courseId);
+    const materials = stored.materials.filter(item => !removal.deleted.has(item.key)
+      && (!removal.chapterLimits.has(courseId) || allowedChapters(course, item))
+      && (!omitted || omitted.keys.has(item.key)
+        || compareCursor(snapshot.readingValidation?.invalidations[item.key] ?? "0", omitted.cursor) > 0));
+    if (materials.length === stored.materials.length) continue;
+    courses.set(courseId, { ...course, manifest: { ...stored, checkedAt: null, materials } });
+    changed = true;
+  }
+  if (!changed) return removal;
+  assertCurrent();
+  // Advancing the row revision fences any other pass based on the earlier projection.
+  const updated = await writeOfflineReadingSnapshot(tx, scope, row.revision,
+    JSON.stringify({ ...snapshot, courses: [...courses.values()] }));
+  return updated ? removal : null;
+}
+
+function applyPageAccess(previous: StoredSnapshot | null, response: NativeOfflineSyncResponse, nextRevision: number, reapply: boolean): StoredSnapshot {
   const courses = new Map((response.reset ? [] : previous?.courses ?? []).map(course => [course.courseId, course]));
+  const previousGrantRevisions = new Map((reapply ? previous?.courses ?? [] : []).map(course => [course.courseId, course.grantRevision]));
+  const verificationGeneration = (reapply ? previous?.readingValidation?.generation : undefined) ?? nextRevision;
   const enrollments = new Map(response.enrollments.map(course => [course.id, course]));
   const grants = new Map(response.access.map(grant => [grant.courseId, grant]));
+  let readingValidation: ReadingValidation = !response.reset && previous?.readingValidation
+    ? { ...previous.readingValidation, invalidations: { ...previous.readingValidation.invalidations } }
+    : { generation: verificationGeneration, invalidations: {} };
   for (const change of response.changes) {
+    if (change.kind === "article" || change.kind === "diktat") {
+      if (change.courseId && change.resourceId) {
+        const key = JSON.stringify([change.kind, change.courseId, change.resourceId]);
+        const earlier = readingValidation.invalidations[key];
+        if (!earlier || compareCursor(change.cursor, earlier) >= 0) readingValidation.invalidations[key] = change.cursor;
+      } else {
+        readingValidation = { generation: verificationGeneration, invalidations: {} };
+      }
+    }
     if (!change.courseId && (change.kind === "access" || change.kind === "course")) {
       if (change.kind === "access" && change.action === "delete") {
         courses.clear();
@@ -123,6 +297,10 @@ function applyPageAccess(previous: StoredSnapshot | null, response: NativeOfflin
       }
     }
   }
+  if (Object.keys(readingValidation.invalidations).length > maxReadingInvalidations) {
+    // Fall back to a new verification generation to keep persisted invalidations bounded.
+    readingValidation = { generation: verificationGeneration, invalidations: {} };
+  }
 
   for (const [id, grant] of grants) {
     if (!grant.allowed || grant.leaseExpiresAt <= response.serverTime) {
@@ -144,7 +322,8 @@ function applyPageAccess(previous: StoredSnapshot | null, response: NativeOfflin
       materials: old.manifest.materials.filter(resource => allowedChapters(grant, resource)),
     };
     courses.set(id, { courseId: id, allowed: true, fullContent: grant.fullContent, chapterIds: [...grant.chapterIds],
-      leaseExpiresAt, title: enrollment?.title ?? old?.title ?? id, manifest });
+      leaseExpiresAt, title: enrollment?.title ?? old?.title ?? id,
+      grantRevision: previousGrantRevisions.get(id) ?? nextRevision, manifest });
   }
 
   const authorized = [...courses.values()];
@@ -152,6 +331,9 @@ function applyPageAccess(previous: StoredSnapshot | null, response: NativeOfflin
   authorized.sort((a, b) => Number(grants.has(b.courseId)) - Number(grants.has(a.courseId)));
   return { sessionId: response.sessionId, cursor: previous?.cursor ?? null, lastVerifiedAt: response.serverTime,
     leaseExpiresAt: response.leaseExpiresAt, activeCheckIntervalMs: response.policy.activeCheckIntervalMs,
+    readingPolicy: { maxBytes: response.policy.maxBytes, maxEntries: response.policy.maxEntries, retentionMs: response.policy.retentionMs,
+      contentMaxAgeMs: response.policy.contentMaxAgeMs },
+    readingValidation,
     pending: { cursor: response.cursor, reset: response.reset },
     courses: authorized.slice(0, NATIVE_OFFLINE_COURSE_LIMIT) };
 }
@@ -162,7 +344,7 @@ function reconcileManifest(scope: NativeOfflineScope, response: NativeOfflineSyn
   if (!course || !manifest.resource.allowed || !response.access.some(grant => grant.courseId === course.courseId && grant.allowed)
     || compareCursor(manifest.cursor, response.cursor) < 0
     || (course.manifest && compareCursor(manifest.cursor, course.manifest.cursor) < 0)
-    || manifest.resources.length > maxManifestEntries) throw new Error("Offline manifest is stale or unauthorized.");
+    || manifest.resources.length > NATIVE_OFFLINE_MANIFEST_ENTRY_LIMIT) throw new Error("Offline manifest is stale or unauthorized.");
   const chapterIds = course.chapterIds.filter(chapter => manifest.resource.chapterIds.includes(chapter));
   const fullContent = course.fullContent && manifest.resource.fullContent;
   const leaseExpiresAt = Math.min(response.leaseExpiresAt, course.leaseExpiresAt, manifest.leaseExpiresAt, manifest.resource.leaseExpiresAt);
@@ -186,11 +368,76 @@ function encodeSnapshot(snapshot: StoredSnapshot, limit: number): string | null 
   return new TextEncoder().encode(encoded).byteLength <= limit ? encoded : null;
 }
 
+export async function prepareOfflineReadingAccess(
+  db: Pick<OfflineMetadataDatabase, "getFirstAsync">,
+  scope: NativeOfflineScope,
+  { expectedCursor, expectedRevision, reapply = false, response }: OfflineMetadataAccessPage,
+) {
+  requireIdentity(scope, response);
+  const row = await readAuthorityRow(db, scope);
+  const revision = row?.revision ?? 0;
+  if (expectedRevision !== undefined && revision !== expectedRevision) return null;
+  const stored = readSnapshot(row);
+  const previous = stored?.sessionId === scope.sessionId ? stored : null;
+  const pending = previous?.pending;
+  if ((previous?.cursor ?? null) !== expectedCursor || response.serverTime < (previous?.lastVerifiedAt ?? 0)
+    || (!response.reset && (expectedCursor === null
+      || compareCursor(response.cursor, expectedCursor) < 0
+      || (pending && compareCursor(response.cursor, pending.cursor) < 0)))) return null;
+  const updated = applyPageAccess(previous, response, revision + 1, reapply);
+  const encoded = encodeSnapshot(updated, maxMetadataBytes)
+    ?? encodeSnapshot({ ...updated, courses: updated.courses.map(course => ({ ...course, manifest: undefined })) }, maxMetadataBytes)
+    ?? JSON.stringify({ ...updated, courses: [] });
+  return { revision, encoded, previous };
+}
+
+export type OfflineMetadataCompletePage = MetadataPage & {
+  manifests: readonly NativeOfflineManifestResponse[];
+  accessRevision: number;
+};
+
+export async function prepareOfflineReadingPage(
+  db: Pick<OfflineMetadataDatabase, "getFirstAsync">,
+  scope: NativeOfflineScope,
+  { expectedCursor, response, manifests, accessRevision }: OfflineMetadataCompletePage,
+) {
+  requireIdentity(scope, response);
+  const row = await readAuthorityRow(db, scope);
+  const current = readSnapshot(row);
+  if (!current || current.sessionId !== scope.sessionId || row?.revision !== accessRevision || current.cursor !== expectedCursor
+    || current.pending?.cursor !== response.cursor || current.pending.reset !== response.reset
+    || current.lastVerifiedAt !== response.serverTime) return null;
+  const courses = new Map(current.courses.map(course => [course.courseId, course]));
+  const reconciled = new Set<string>();
+  for (const manifest of manifests) {
+    const id = manifest.resource.courseId;
+    if (reconciled.has(id)) throw new Error("Duplicate offline manifest.");
+    reconciled.add(id);
+    courses.set(id, { ...reconcileManifest(scope, response, courses.get(id), manifest), grantRevision: accessRevision + 1 });
+  }
+  const complete = { ...current, cursor: response.cursor, pending: undefined, courses: [...courses.values()] };
+  const encoded = encodeSnapshot(complete, Math.min(maxMetadataBytes, Math.floor(response.policy.maxBytes / 4)));
+  if (!encoded) throw new Error("Offline metadata storage limit exceeded.");
+  return encoded;
+}
+
+export async function writeOfflineReadingSnapshot(db: Pick<OfflineMetadataDatabase, "runAsync">,
+  scope: NativeOfflineScope, revision: number, snapshot: string) {
+  // One compare-and-swap commits both metadata and its cursor, across SQLite connections.
+  const { changes } = await db.runAsync(`
+    INSERT INTO offline_reading_metadata_v1 (origin, account_id, locale, session_id, revision, snapshot)
+    VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT (origin, account_id, locale) DO UPDATE SET
+      session_id = excluded.session_id, revision = excluded.revision, snapshot = excluded.snapshot
+    WHERE offline_reading_metadata_v1.revision = ?
+  `, ...metadataKeys(scope), scope.sessionId, revision + 1, snapshot, revision);
+  return changes === 1;
+}
+
 export function createOfflineMetadataStore(db: OfflineMetadataDatabase) {
   let ready: Promise<void> | undefined;
-  const keys = (scope: NativeOfflineScope) => [scope.origin, scope.accountId, scope.locale] as const;
   function initialize() {
-    ready ??= db.execAsync(schema).catch(error => {
+    ready ??= db.execAsync(offlineMetadataSchema).catch(error => {
       ready = undefined;
       throw error;
     });
@@ -199,36 +446,39 @@ export function createOfflineMetadataStore(db: OfflineMetadataDatabase) {
 
   async function load(scope: NativeOfflineScope) {
     await initialize();
-    return db.getFirstAsync<RawRow>(
-      "SELECT revision, session_id, snapshot FROM offline_reading_metadata_v1 WHERE origin = ? AND account_id = ? AND locale = ?",
-      ...keys(scope),
-    );
+    return readAuthorityRow(db, scope);
   }
 
   async function save(scope: NativeOfflineScope, revision: number, snapshot: string, assertCurrent?: WriterGuard) {
     assertCurrent?.();
-    // One compare-and-swap commits both metadata and its cursor, across SQLite connections.
-    const { changes } = await db.runAsync(`
-      INSERT INTO offline_reading_metadata_v1 (origin, account_id, locale, session_id, revision, snapshot)
-      VALUES (?, ?, ?, ?, ?, ?)
-      ON CONFLICT (origin, account_id, locale) DO UPDATE SET
-        session_id = excluded.session_id, revision = excluded.revision, snapshot = excluded.snapshot
-      WHERE offline_reading_metadata_v1.revision = ?
-    `, ...keys(scope), scope.sessionId, revision + 1, snapshot, revision);
+    const changed = await writeOfflineReadingSnapshot(db, scope, revision, snapshot);
     try {
       assertCurrent?.();
     } catch (error) {
       // Native SQL can finish while the session changes. Do not purge a newer writer's revision.
-      if (changes === 1) await db.runAsync(`
-        UPDATE offline_reading_metadata_v1 SET snapshot = NULL, revision = revision + 1
-        WHERE origin = ? AND account_id = ? AND locale = ? AND session_id = ? AND revision = ?
-      `, ...keys(scope), scope.sessionId, revision + 1);
+      if (changed) {
+        await db.runAsync(`
+          UPDATE offline_reading_metadata_v1 SET snapshot = NULL, revision = revision + 1
+          WHERE origin = ? AND account_id = ? AND locale = ? AND session_id = ? AND revision = ?
+        `, ...metadataKeys(scope), scope.sessionId, revision + 1);
+        notifyOfflineReadingChanges();
+      }
       throw error;
     }
-    return changes === 1;
+    if (changed) notifyOfflineReadingChanges();
+    return changed;
   }
 
   return {
+    async accessRevision(scope: NativeOfflineScope): Promise<number> {
+      await initialize();
+      const row = await db.getFirstAsync<Pick<RawRow, "revision">>(
+        "SELECT revision FROM offline_reading_metadata_v1 WHERE origin = ? AND account_id = ? AND locale = ?",
+        ...metadataKeys(scope),
+      );
+      return row?.revision ?? 0;
+    },
+
     async read(scope: NativeOfflineScope, now = Date.now()): Promise<NativeOfflineMetadataSnapshot | null> {
       const snapshot = readSnapshot(await load(scope));
       if (!snapshot || snapshot.sessionId !== scope.sessionId) return null;
@@ -244,48 +494,16 @@ export function createOfflineMetadataStore(db: OfflineMetadataDatabase) {
         }) };
     },
 
-    async applyAccess(scope: NativeOfflineScope, { expectedCursor, response }: MetadataPage, assertCurrent?: WriterGuard): Promise<number | null> {
-      requireIdentity(scope, response);
-      const row = await load(scope);
-      const stored = readSnapshot(row);
-      const previous = stored?.sessionId === scope.sessionId ? stored : null;
-      const pending = previous?.pending;
-      if ((previous?.cursor ?? null) !== expectedCursor || response.serverTime < (previous?.lastVerifiedAt ?? 0)
-        || (!response.reset && (expectedCursor === null
-          || compareCursor(response.cursor, expectedCursor) < 0
-          || (pending && compareCursor(response.cursor, pending.cursor) < 0)))) return null;
-      const revision = row?.revision ?? 0;
-      // Always apply access revocations before fetching any replacements, even if a new policy cuts the quota.
-      const updated = applyPageAccess(previous, response);
-      const encoded = encodeSnapshot(updated, maxMetadataBytes)
-        ?? encodeSnapshot({ ...updated, courses: updated.courses.map(course => ({ ...course, manifest: undefined })) }, maxMetadataBytes)
-        ?? JSON.stringify({ ...updated, courses: [] });
-      if (await save(scope, revision, encoded, assertCurrent)) return revision + 1;
-      return null;
+    async applyAccess(scope: NativeOfflineScope, page: OfflineMetadataAccessPage, assertCurrent?: WriterGuard): Promise<number | null> {
+      await initialize();
+      const update = await prepareOfflineReadingAccess(db, scope, page);
+      return update && await save(scope, update.revision, update.encoded, assertCurrent) ? update.revision + 1 : null;
     },
 
-    async commitPage(scope: NativeOfflineScope, { expectedCursor, response, manifests, accessRevision }: MetadataPage & {
-      manifests: readonly NativeOfflineManifestResponse[];
-      accessRevision: number;
-    }, assertCurrent?: WriterGuard): Promise<boolean> {
-      requireIdentity(scope, response);
-      const row = await load(scope);
-      const current = readSnapshot(row);
-      if (!current || current.sessionId !== scope.sessionId || row?.revision !== accessRevision || current.cursor !== expectedCursor
-        || current.pending?.cursor !== response.cursor || current.pending.reset !== response.reset
-        || current.lastVerifiedAt !== response.serverTime) return false;
-      const courses = new Map(current.courses.map(course => [course.courseId, course]));
-      const reconciled = new Set<string>();
-      for (const manifest of manifests) {
-        const id = manifest.resource.courseId;
-        if (reconciled.has(id)) throw new Error("Duplicate offline manifest.");
-        reconciled.add(id);
-        courses.set(id, reconcileManifest(scope, response, courses.get(id), manifest));
-      }
-      const complete = { ...current, cursor: response.cursor, pending: undefined, courses: [...courses.values()] };
-      const encoded = encodeSnapshot(complete, Math.min(maxMetadataBytes, Math.floor(response.policy.maxBytes / 4)));
-      if (!encoded) throw new Error("Offline metadata storage limit exceeded.");
-      return save(scope, accessRevision, encoded, assertCurrent);
+    async commitPage(scope: NativeOfflineScope, page: OfflineMetadataCompletePage, assertCurrent?: WriterGuard): Promise<boolean> {
+      await initialize();
+      const encoded = await prepareOfflineReadingPage(db, scope, page);
+      return encoded !== null && save(scope, page.accessRevision, encoded, assertCurrent);
     },
 
     async clear(scope: NativeOfflineScope, assertCurrent?: WriterGuard): Promise<boolean> {
@@ -298,7 +516,8 @@ export function createOfflineMetadataStore(db: OfflineMetadataDatabase) {
         ON CONFLICT (origin, account_id, locale) DO UPDATE SET
           snapshot = NULL, revision = offline_reading_metadata_v1.revision + 1
         WHERE offline_reading_metadata_v1.session_id = excluded.session_id
-      `, ...keys(scope), scope.sessionId);
+      `, ...metadataKeys(scope), scope.sessionId);
+      if (changes === 1) notifyOfflineReadingChanges();
       return changes === 1;
     },
 
@@ -311,6 +530,7 @@ export function createOfflineMetadataStore(db: OfflineMetadataDatabase) {
           snapshot = NULL, revision = offline_reading_metadata_v1.revision + 1
         WHERE offline_reading_metadata_v1.session_id = excluded.session_id
       `, origin, accountId, sessionId, origin, accountId, sessionId);
+      notifyOfflineReadingChanges();
     },
   };
 }

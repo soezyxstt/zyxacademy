@@ -10,9 +10,39 @@
 
 Ketiga ambang berlaku sendiri-sendiri. Persentase komponen terhadap jumlah berkas hanya membantu menemukan celah. Modul dengan lima komponen baru mendapat kredit modul ketika kelimanya lulus. Sebelum keputusan akhir, buat entri per komponen dengan ID berkas dan simbol, termasuk komponen di halaman atau renderer, subkomponen, variasi aksesibel dan alias. Catat alasan untuk modul utilitas, ekspor ulang atau implementasi desktop yang dilayani oleh padanan mobile. Laporkan juga item belum dipetakan, sebab item tersebut masih masuk lingkup audit.
 
+## Review integrasi 26 November 2026
+
+Reviewer independen GPT-6.2 Sol High memeriksa revisi induk `be5e5e13`. Empat branch dapat digabung di checkout CI sementara. Generator memasang 153 entry kanonik dari inventaris eksternal: 50 halaman Student, 54 Academic, 36 Admin Operations dan 13 publik. Tipe Expo gabungan gagal pada implementasi formulir publik dan dua atribut pada baris daftar bersama. Angka 153 mengukur pemasangan rute di checkout tersebut. Gerbang halaman tetap membutuhkan navigasi, otorisasi dan data yang teruji melalui entry produk di perangkat. [Uji gabungan](https://github.com/soezyxstt/zyxacademy/actions/runs/45808986956).
+
+| Sumbu | Temuan reviewer | Bukti berikutnya |
+| --- | --- | --- |
+| Komponen | Referensi Next untuk tiga kasus direktori tersedia. Android dan iOS dilewati setelah typecheck gagal. Satu modul separator mempunyai bukti visual historis pada tabel baseline. | Capture berpasangan, hasil piksel dan interaksi per komponen pada SHA yang sama. |
+| Halaman | Review belum menambahkan kelulusan halaman. Ada celah pemeriksaan ulang akses kursus saat Back, pemisahan riwayat navigasi ketika berganti akun, dan sambungan shell serta renderer. | Uji dua akun dengan peran yang sama, pencabutan akses kursus dalam satu sesi, dan tiga keadaan halaman pada kedua platform. |
+| Operasi backend | Review belum menambahkan operasi end-to-end terverifikasi. Sebagian adapter sudah memiliki tes terfokus. Inventaris operasi produk yang sudah dideduplikasi masih terbuka. | Tautkan setiap operasi dengan aksi pengguna, izin, efek server, identitas retry dan hasil pada klien. |
+
+Penilaian 95% masih terbuka untuk ketiga sumbu. Hasil review ini berlaku pada SHA yang tercantum. Perbaikan berikutnya memerlukan bukti pada revisinya sendiri. [CI referensi dan perangkat](https://github.com/soezyxstt/zyxacademy/actions/runs/45808986811).
+
 ## Bukti visual pada commit baseline
 
 Run 45784124155 membandingkan separator horizontal terang, vertikal terang dan horizontal gelap. Masing-masing mencatat 0 piksel berbeda pada emulator Android dan simulator iOS. Implementasi web juga menerima `decorative={false}`, sementara komponen Expo di commit tersebut selalu tersembunyi dari pembaca layar. Belum ada bukti semantik untuk varian itu atau pengujian perangkat fisik. Skeleton yang tersedia di working tree saat audit belum tercakup dalam run ini. [Hasil Android](https://github.com/soezyxstt/zyxacademy/actions/runs/45784124155/job/139786898021), [hasil iOS](https://github.com/soezyxstt/zyxacademy/actions/runs/45784124155/job/139786897915), [kontrak Separator web](https://github.com/soezyxstt/zyxacademy/blob/fa3ce04ed78181810b31ff1b3bf5852c24f6ec5f/components/ui/separator.tsx), [implementasi Expo saat diuji](https://github.com/soezyxstt/zyxacademy/blob/fa3ce04ed78181810b31ff1b3bf5852c24f6ec5f/apps/mobile-native/components/Separator.tsx).
+
+### Hasil pengujian gabungan berikutnya
+
+Pada induk `a6c60e56`, CI memasang 153 rute dari empat jalur, meluluskan typecheck Expo dan menghasilkan bundle Android 6.960.978 byte serta iOS 6.957.402 byte. Job perangkat memakai salinan sumber yang cocok dengan Git tree hasil pemasangan. Pengujian tamu membuka `/murid`, `/tutor` dan `/admin` melalui tautan kanonik dan memeriksa tindakan masuk. Gerbang halaman juga membutuhkan sesi terautentikasi, operasi data dan tiga kasus visual. [Job integrasi](https://github.com/soezyxstt/zyxacademy/actions/runs/45812972858/job/139885305251).
+
+Reviewer GPT-6.2 Sol High memeriksa artefak Android dan iOS pada `f4ed84dc`. Android menghasilkan tiga kecocokan piksel untuk Separator. Delapan kontrol lain yang diukur memiliki perbedaan. Tangkapan iOS tidak menghasilkan tiga area pembanding yang valid, sehingga tidak ada tambahan komponen yang lulus pada pasangan ini. Bukti historis Separator pada `fa3ce04e` tetap tercatat di baseline. [Artefak berpasangan](https://github.com/soezyxstt/zyxacademy/actions/runs/45796391363).
+
+Reviewer juga memeriksa transport kotak masuk Student, pembatasan akun dan peran, serta pencabutan bacaan offline. Pada `ed469032`, penolakan eksplisit dari manifest, resource, dan aset mengunci kedua bahasa. Saat itu respons sukses sinkronisasi yang memuat `allowed: false` masih dapat menyisakan akses dalam bahasa lain. Verifikasi berikutnya perlu menguji respons ini pada dua bahasa dan dua kursus, serta menguji pergantian akun saat kotak masuk sedang dibuka. [Revisi offline yang diperiksa](https://github.com/soezyxstt/zyxacademy/commit/ed469032).
+
+### Verifikasi integrasi rute dan sesi
+
+Pada `14e95ce3`, empat jalur kembali dapat digabung dengan pemasangan 153 entry fisik. Typecheck dan bundling Expo Android serta iOS lulus. Pada build yang lebih awal, Android lulus pembukaan dingin `/admin` dan pengalihan ketiga peran ke login saat belum ada sesi. Pada iOS, pembukaan hangat ketiga rute telah lulus di build sebelumnya. Uji ini berakhir di layar login. [Build gabungan](https://github.com/soezyxstt/zyxacademy/actions/runs/45843783636/job/139992039618), [uji masuk Android](https://github.com/soezyxstt/zyxacademy/actions/runs/45814669718/job/139892061323), [uji masuk iOS](https://github.com/soezyxstt/zyxacademy/actions/runs/45812142193).
+
+Review lanjutan pada `aa006de8` memeriksa pencabutan lintas bahasa untuk respons `allowed: false`, hilangnya materi dari manifest lengkap, dan pengurangan hak sebagian bab. Pada `1e5f85ed`, tautan dari notifikasi push diperoleh dari baris kotak masuk pengguna yang terverifikasi. Hasil lama dibuang saat sesi berubah. Pengiriman push pada perangkat fisik dan sinkronisasi offline setelah aplikasi dibuka kembali masih memerlukan pengujian. [Pencabutan akses](https://github.com/soezyxstt/zyxacademy/commit/aa006de8), [pengalihan push](https://github.com/soezyxstt/zyxacademy/commit/1e5f85ed).
+
+Pada jalur Shared UI `4805e7d1`, reviewer memeriksa 52 tangkapan Android dengan geometri yang valid. Seluruh 52 masih memiliki selisih piksel. Sebelas dari 12 alur interaksi lulus setelah retry, dan uji teks besar lulus. Percobaan tersisa kehilangan koneksi ADB sebelum memeriksa daftar pada layar lebar. Bukti ini belum menambah komponen yang lulus tiga keadaan di kedua platform. [Artefak Shared UI Android](https://github.com/soezyxstt/zyxacademy/actions/runs/45837732023/artifacts/15129611377).
+
+Pada induk `c7fddf65`, kelima kelompok uji kontrak backend lulus pada gabungan empat jalur. Untuk kotak masuk, klien Expo memanggil handler Next.js melalui transport bersesi. Pengujian memeriksa dua akun terhadap database uji, termasuk isolasi riwayat dan efek menandai pesan sebagai dibaca. Kelompok lain menguji otorisasi dan cursor offline, pembelajaran dan sesi langsung Murid, jadwal dan tryout Academic, serta handler Admin. Alur masuk hingga layar produk pada perangkat dan penilaian per operasi masih berjalan. [Hasil lima kelompok](https://github.com/soezyxstt/zyxacademy/actions/runs/45846036130/job/140001017502).
 
 ## Inventaris per permukaan
 

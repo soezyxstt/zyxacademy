@@ -1,0 +1,47 @@
+appId: com.zyx.academy.nativeparity
+name: Toggle group single, multiple and disabled selections
+---
+- runFlow:
+    file: helpers/open-gallery.yaml
+    env:
+      COMPONENT: toggle-group
+- assertVisible:
+    id: toggle-group-single-light-calc
+    enabled: true
+- tapOn:
+    id: toggle-group-single-light-phys
+- assertVisible:
+    id: toggle-group-single-light-selection
+    text: Fisika
+- tapOn:
+    id: toggle-group-single-light-phys
+- assertVisible:
+    id: toggle-group-single-light-selection
+    text: Belum dipilih
+- assertVisible:
+    id: toggle-group-multiple-dark-chem
+    enabled: false
+- tapOn:
+    id: toggle-group-multiple-dark-chem
+- assertNotVisible:
+    id: toggle-group-multiple-dark-selection
+- tapOn:
+    id: toggle-group-multiple-dark-calc
+- assertVisible:
+    id: toggle-group-multiple-dark-selection
+    text: Kimia
+- tapOn:
+    id: toggle-group-multiple-dark-phys
+- assertVisible:
+    id: toggle-group-multiple-dark-selection
+    text: Fisika, Kimia
+- assertVisible:
+    id: toggle-group-disabled-light-calc
+    enabled: false
+- assertVisible:
+    id: toggle-group-disabled-light-phys
+    enabled: false
+- tapOn:
+    id: toggle-group-disabled-light-calc
+- assertNotVisible:
+    id: toggle-group-disabled-light-selection

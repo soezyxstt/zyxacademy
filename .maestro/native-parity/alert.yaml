@@ -1,0 +1,17 @@
+appId: com.zyx.academy.nativeparity
+name: Alert content and recovery link
+---
+- runFlow:
+    file: helpers/open-gallery.yaml
+    env:
+      COMPONENT: alert
+- assertVisible:
+    id: alert-title-light-alert
+- assertVisible: Unduhan siap
+- assertVisible:
+    id: alert-with-description-dark-alert
+- assertVisible: Device push notifications. Permission granted, device not registered.
+- assertVisible:
+    id: alert-destructive-action-light-alert
+- assertVisible: 3 generasi soal gagal
+- assertVisible: Tinjau generasi

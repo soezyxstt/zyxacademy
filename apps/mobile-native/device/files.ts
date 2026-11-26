@@ -1,3 +1,5 @@
+import { requireNativeModule } from "expo";
+import { openAndroidDocument, type AndroidDocumentReader } from "./document-stream";
 import { randomUUID } from "expo-crypto";
 import { getDocumentAsync } from "expo-document-picker";
 import { Directory, File, FileMode, Paths } from "expo-file-system";
@@ -54,6 +56,9 @@ function discardPickerImport(asset: PickerDocument): void {
 }
 
 function openSourceFile(asset: PickerDocument): ReadableStream<Uint8Array> {
+  if (Platform.OS === "android" && asset.uri.startsWith("content://")) {
+    return openAndroidDocument(requireNativeModule<AndroidDocumentReader>("ZyxDocumentStream"), asset.uri);
+  }
   const handle = sourceFile(asset).open(FileMode.ReadOnly);
   let open = true;
   const close = () => {
@@ -87,9 +92,18 @@ export const scopedFiles = createNativeFileController({
   androidExports: Platform.OS === "android",
   async pick(mimeTypes) {
     const result = await getDocumentAsync({ type: [...mimeTypes], multiple: false, copyToCacheDirectory: false });
-    return result.canceled ? null : result.assets;
+    if (result.canceled) return null;
+    return result.assets.map(asset => {
+      if (Platform.OS === "android" && asset.uri.startsWith("content://") && (asset.size ?? 0) <= 0) {
+        return { ...asset, size: undefined };
+      }
+      return asset;
+    });
   },
   inspect(asset) {
+    if (Platform.OS === "android" && asset.uri.startsWith("content://")) {
+      return { mimeType: asset.mimeType ?? undefined, size: asset.size };
+    }
     const file = sourceFile(asset);
     return { mimeType: file.type, size: file.size };
   },

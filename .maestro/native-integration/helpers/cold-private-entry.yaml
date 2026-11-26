@@ -1,0 +1,7 @@
+appId: com.zyx.academy.nativeparity
+name: Cold deep link to a protected product route
+---
+- extendedWaitUntil:
+    visible: "(Sign in with Google|Masuk dengan Google)"
+    timeout: 30000
+- takeScreenshot: cold-admin-sign-in

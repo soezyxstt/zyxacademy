@@ -74,13 +74,11 @@ jobs:
           echo '54dbb0716425626604973cbb374c585ca30272375d9ce15177a1152765ddd9d7  maestro.zip' | shasum -a 256 -c -
           unzip -q maestro.zip
           echo "$PWD/maestro/bin" >> "$GITHUB_PATH"
-      - name: Prepare reference host and resolve gallery assets
+      - name: Prepare reference host and record Metro config
         run: |
           set -euo pipefail
           output="artifacts/native-parity/shared-ui/$SHARED_PLATFORM"
-          # The gallery imports JPEGs outside the npm-isolated app. Resolve Metro's
-          # standard RN asset registry from the app for this test-only build.
-          echo 'module.exports.transformer.assetRegistryPath = require.resolve("react-native/asset-registry");' >> apps/mobile-native/metro.config.js
+          git hash-object -- apps/mobile-native/metro.config.js > "$output/metro-config-git-blob.txt"
           git diff -- apps/mobile-native/metro.config.js > "$output/test-build.patch"
           git rev-parse HEAD > "$output/checkout-sha.txt"
           node node_modules/next/dist/bin/next dev tests/visual/native-parallel/shared-ui --hostname 127.0.0.1 --port 3217 > "$output/next.log" 2>&1 &
@@ -175,7 +173,6 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$SHARED_BUILD"
           npm ci --prefix apps/mobile-native
-          echo 'module.exports.transformer.assetRegistryPath = require.resolve("react-native/asset-registry");' >> apps/mobile-native/metro.config.js
       - name: Compile Release app for iOS Simulator
         timeout-minutes: 105
         working-directory: apps/mobile-native
@@ -227,6 +224,7 @@ jobs:
             echo 'Mach-O load command diagnostics unavailable.' >> "$archive/mach-o-build.txt"
           fi
           git rev-parse HEAD > "$archive/checkout-sha.txt"
+          git hash-object -- apps/mobile-native/metro.config.js > "$archive/metro-config-git-blob.txt"
           git diff -- apps/mobile-native/metro.config.js > "$archive/test-build.patch"
           shasum -a 256 "$binary" | awk '{print $1}' > "$archive/app-executable.sha256"
       - name: Upload immutable iOS app
@@ -327,7 +325,7 @@ jobs:
           grep -qwF -- "$(uname -m)" architecture.txt
           executable_sha=$(shasum -a 256 "$binary" | awk '{print $1}')
           test "$executable_sha" = "$(cat app-executable.sha256)"
-          cp checkout-sha.txt architecture.txt mach-o-build.txt test-build.patch app-archive.sha256 app-executable.sha256 "$output/"
+          cp checkout-sha.txt architecture.txt mach-o-build.txt metro-config-git-blob.txt test-build.patch app-archive.sha256 app-executable.sha256 "$output/"
           printf '%s\n' "$SHARED_IOS_ARTIFACT_ID" > "$output/build-artifact-id.txt"
           printf 'SHARED_IOS_APP=%s\nSHARED_IOS_EXECUTABLE_SHA256=%s\n' "$app" "$executable_sha" >> "$GITHUB_ENV"
       - *node

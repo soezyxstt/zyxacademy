@@ -11,8 +11,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { nativeColors, nativeRadii } from "../../../../packages/design-tokens/native-colors";
 import { Button } from "../../components/Button";
-import { hapticSelection } from "../../device/haptics";
-import { nativeTypography } from "../../typography";
+import { hapticLight, hapticSelection } from "../../device/haptics";
+import { nativeControlLabelPosition, nativeTypography } from "../../typography";
 import { BrandSymbol, NavigationIcon, type NavigationIconName } from "./navigation-icons";
 import { visibleNavigationTabs } from "./navigation-model";
 import { SharedPopover, SharedPopoverAnchor } from "./overlays";
@@ -91,6 +91,11 @@ export function MobileNavbar({
 
   if (hidden) return null;
 
+  function activate(id: NavbarActionId) {
+    void hapticLight();
+    onAction(id);
+  }
+
   function action(id: NavbarActionId, descriptor: NavbarAction) {
     return (
       <Button
@@ -101,7 +106,7 @@ export function MobileNavbar({
         accessibilityLabel={descriptor.label}
         accessibilityState={{ expanded: descriptor.expanded }}
         disabled={descriptor.disabled}
-        onPress={() => onAction(id)}
+        onPress={() => activate(id)}
         variant={id === "home" ? "ghost" : "outline"}
         size="icon-lg"
         renderIcon={(color, size) => id === "home"
@@ -132,7 +137,7 @@ export function MobileNavbar({
             accessibilityState={{ expanded: course.expanded, disabled: course.disabled }}
             disabled={course.disabled}
             testID={testID ? `${testID}-switch-course` : undefined}
-            onPress={() => onAction("switch-course")}
+            onPress={() => activate("switch-course")}
             style={({ pressed }) => [
               styles.courseButton,
               { borderColor: colors.border, backgroundColor: pressed ? colors.muted : colors.background },
@@ -260,7 +265,14 @@ export function RoleBottomNavigation<Role extends RoleNavigationRole>({
   );
 }
 
-export type NavigationTab<Id extends string> = { id: Id; label: string; disabled?: boolean };
+export type NavigationTab<Id extends string> = {
+  id: Id;
+  label: string;
+  accessibilityLabel?: string;
+  disabled?: boolean;
+  renderIcon?: (color: string) => ReactNode;
+  accessory?: ReactNode;
+};
 export type NavigationTabsProps<Id extends string> = {
   tabs: readonly NavigationTab<Id>[];
   activeId: NoInfer<Id> | null;
@@ -268,7 +280,9 @@ export type NavigationTabsProps<Id extends string> = {
   accessibilityLabel: string;
   moreLabel: string;
   closeLabel: string;
+  activeIndicatorColor?: string;
   trailing?: ReactNode;
+  variant?: "page" | "inline";
   theme?: NavigationTheme;
   testID?: string;
 };
@@ -280,25 +294,30 @@ export function NavigationTabs<Id extends string>({
   accessibilityLabel,
   moreLabel,
   closeLabel,
+  activeIndicatorColor,
   trailing,
+  variant = "page",
   theme,
   testID,
 }: NavigationTabsProps<Id>) {
   const systemTheme = useColorScheme();
   const resolvedTheme = theme ?? systemTheme ?? "light";
   const colors = nativeColors[resolvedTheme];
+  const indicatorColor = activeIndicatorColor ?? colors.primary;
   const moreRef = useRef<ComponentRef<typeof Pressable>>(null);
   const [availableWidth, setAvailableWidth] = useState(0);
   const [trailingWidth, setTrailingWidth] = useState(0);
   const [measuredWidths, setMeasuredWidths] = useState<Partial<Record<string, number>>>({});
   const [open, setOpen] = useState(false);
   const moreKey = JSON.stringify([null, moreLabel]);
+  const inline = variant === "inline";
+  const triggerStyle = inline ? [styles.tabControl, styles.inlineTabControl] : styles.tabControl;
 
   const widths = tabs.map(({ id, label }) => measuredWidths[JSON.stringify([id, label])] ?? 0);
   const moreWidth = measuredWidths[moreKey] ?? 0;
   const hasMeasurements = availableWidth > 0 && moreWidth > 0 && widths.every((width) => width > 0);
   const available = availableWidth - (trailing ? trailingWidth + styles.tabRow.gap : 0);
-  const visibleCount = hasMeasurements ? visibleNavigationTabs(widths, available, moreWidth, styles.tabRow.gap) : 0;
+  const visibleCount = hasMeasurements ? visibleNavigationTabs(widths, available, moreWidth, styles.tabRow.gap) : inline ? tabs.length : 0;
 
   const visible = tabs.slice(0, visibleCount);
   const overflow = hasMeasurements ? tabs.slice(visibleCount) : [];
@@ -320,6 +339,15 @@ export function NavigationTabs<Id extends string>({
     }
   }
 
+  function tabContent(tab: NavigationTab<Id>, color: string) {
+    return <>
+      {tab.renderIcon?.(color)}
+      <Text style={[styles.tabLabel, nativeTypography.bodyMedium, inline && styles.inlineTabLabel,
+        inline && nativeControlLabelPosition, { color }]}>{tab.label}</Text>
+      {tab.accessory}
+    </>;
+  }
+
   return (
     <>
       <View
@@ -327,18 +355,18 @@ export function NavigationTabs<Id extends string>({
         role="tablist"
         accessibilityLabel={accessibilityLabel}
         onLayout={(event) => setAvailableWidth(event.nativeEvent.layout.width)}
-        style={[styles.tabRow, { borderBottomColor: `${colors.border}b3` }]}
+        style={[styles.tabRow, { borderBottomColor: `${colors.border}b3` }, inline && styles.inlineTabRow]}
       >
         <View style={styles.measureRow} pointerEvents="none" aria-hidden importantForAccessibility="no-hide-descendants">
-          {tabs.map(({ id, label }) => {
-            const key = JSON.stringify([id, label]);
+          {tabs.map(tab => {
+            const key = JSON.stringify([tab.id, tab.label]);
             return (
-              <View key={key} onLayout={(event) => recordWidth(key, event.nativeEvent.layout.width)} style={styles.tabControl}>
-                <Text style={[styles.tabLabel, nativeTypography.bodyMedium]}>{label}</Text>
+              <View key={key} onLayout={(event) => recordWidth(key, event.nativeEvent.layout.width)} style={triggerStyle}>
+                {tabContent(tab, colors.mutedForeground)}
               </View>
             );
           })}
-          <View onLayout={(event) => recordWidth(moreKey, event.nativeEvent.layout.width)} style={styles.tabControl}>
+          <View onLayout={(event) => recordWidth(moreKey, event.nativeEvent.layout.width)} style={triggerStyle}>
             <Text style={[styles.tabLabel, nativeTypography.bodyMedium]}>{moreLabel}</Text>
             <View style={{ width: 14 }} />
           </View>
@@ -348,23 +376,25 @@ export function NavigationTabs<Id extends string>({
             key={tab.id}
             focusColor={colors.accent}
             accessibilityRole="tab"
+            accessibilityLabel={tab.accessibilityLabel}
             accessibilityState={{ selected: tab.id === activeId, disabled: tab.disabled }}
+            hitSlop={inline ? { top: 2, bottom: 2 } : undefined}
             disabled={tab.disabled}
             testID={testID ? `${testID}-${tab.id}` : undefined}
             style={({ pressed }) => [
               styles.tabControl,
-              { borderBottomColor: tab.id === activeId ? colors.primary : "transparent",
+              { borderBottomColor: tab.id === activeId ? indicatorColor : "transparent",
                 backgroundColor: pressed ? `${colors.muted}66` : undefined },
+              inline && styles.inlineTabControl,
               tab.disabled && styles.disabled,
             ]}
             onPress={() => select(tab.id)}
           >
-            <Text style={[styles.tabLabel, nativeTypography.bodyMedium, { color: tab.id === activeId ? colors.foreground : colors.mutedForeground }]}>
-              {tab.label}
-            </Text>
+            {tabContent(tab, tab.id === activeId ? colors.foreground : colors.mutedForeground)}
+            {inline && tab.id === activeId && <View pointerEvents="none" style={[styles.inlineIndicator, { backgroundColor: indicatorColor }]} />}
           </NavigationControl>
         ))}
-        <View style={styles.tabEnd}>
+        {(!inline || hasOverflow || trailing) ? <View style={styles.tabEnd}>
           {hasOverflow ? (
             <SharedPopoverAnchor style={styles.moreTab}>
               <NavigationControl
@@ -379,9 +409,10 @@ export function NavigationTabs<Id extends string>({
                   styles.tabControl,
                   styles.moreTab,
                   {
-                    borderBottomColor: activeInOverflow ? colors.primary : "transparent",
+                    borderBottomColor: activeInOverflow ? indicatorColor : "transparent",
                     backgroundColor: pressed ? `${colors.muted}66` : undefined,
                   },
+                  inline && styles.inlineTabControl,
                 ]}
               >
                 <View accessible={false} style={[styles.moreDivider, { backgroundColor: colors.border }]} />
@@ -389,6 +420,7 @@ export function NavigationTabs<Id extends string>({
                   {moreLabel}
                 </Text>
                 <NavigationIcon name="chevron" color={colors.mutedForeground} size={14} />
+                {inline && activeInOverflow && <View pointerEvents="none" style={[styles.inlineIndicator, { backgroundColor: indicatorColor }]} />}
               </NavigationControl>
               <SharedPopover
                 open={open}
@@ -400,13 +432,16 @@ export function NavigationTabs<Id extends string>({
                 align="end"
                 onDismiss={() => setOpen(false)}
               >
-                {overflow.map(({ id, label, disabled }) => {
+                {overflow.map(tab => {
+                  const { id, label, disabled, accessibilityLabel } = tab;
                   const active = id === activeId;
+                  const color = active ? colors.foreground : colors.mutedForeground;
                   return (
                     <NavigationControl
                       key={id}
                       focusColor={colors.accent}
                       accessibilityRole="tab"
+                      accessibilityLabel={accessibilityLabel}
                       accessibilityState={{ selected: active, disabled }}
                       testID={testID ? `${testID}-overflow-${id}` : undefined}
                       disabled={disabled}
@@ -416,14 +451,13 @@ export function NavigationTabs<Id extends string>({
                       }}
                       style={({ pressed }) => [
                         styles.overflowItem,
-                        { borderStartColor: active ? colors.primary : "transparent",
+                        { borderStartColor: active ? indicatorColor : "transparent",
                           backgroundColor: active || pressed ? `${colors.muted}80` : "transparent" },
                         disabled && styles.disabled,
                       ]}
                     >
-                      <Text style={[styles.tabLabel, nativeTypography.bodyMedium, { color: active ? colors.foreground : colors.mutedForeground }]}>
-                        {label}
-                      </Text>
+                      {tab.renderIcon || tab.accessory ? <View style={styles.overflowContent}>{tabContent(tab, color)}</View>
+                        : <Text style={[styles.tabLabel, nativeTypography.bodyMedium, { color }]}>{label}</Text>}
                     </NavigationControl>
                   );
                 })}
@@ -431,7 +465,7 @@ export function NavigationTabs<Id extends string>({
             </SharedPopoverAnchor>
           ) : null}
           {trailing ? <View onLayout={(event) => setTrailingWidth(event.nativeEvent.layout.width)}>{trailing}</View> : null}
-        </View>
+        </View> : null}
       </View>
     </>
   );
@@ -471,11 +505,16 @@ const styles = StyleSheet.create({
   dot: { width: 8, height: 8, borderRadius: 4, position: "absolute", top: -2, end: -4 },
   disabled: { opacity: 0.5 },
   tabRow: { flexDirection: "row", minHeight: 44, borderBottomWidth: 1, gap: 2, overflow: "hidden" },
+  inlineTabRow: { borderBottomWidth: 0, alignItems: "center", justifyContent: "center" },
   measureRow: { position: "absolute", left: 0, top: 0, width: 10000, opacity: 0, flexDirection: "row" },
   tabControl: { flexDirection: "row", minWidth: 44, minHeight: 44, paddingHorizontal: 12, paddingVertical: 6, gap: 6, alignItems: "center", justifyContent: "center", borderBottomWidth: 2, flexShrink: 0 },
+  inlineTabControl: { minHeight: 40, paddingVertical: 10, gap: 8, borderBottomWidth: 0 },
+  inlineTabLabel: { lineHeight: 20, includeFontPadding: false },
+  inlineIndicator: { position: "absolute", left: 0, right: 0, bottom: 0, height: 2 },
   tabLabel: { fontSize: 14, lineHeight: 19 },
   tabEnd: { marginStart: "auto", flexDirection: "row", alignItems: "center", flexShrink: 1, gap: 2 },
   moreTab: { flexShrink: 1, alignSelf: "stretch" },
   moreDivider: { position: "absolute", left: 0, top: 12, bottom: 12, width: 1 },
   overflowItem: { minHeight: 44, justifyContent: "center", paddingHorizontal: 10, paddingVertical: 6, borderStartWidth: 2, borderRadius: nativeRadii.md },
+  overflowContent: { flexDirection: "row", alignItems: "center", gap: 8 },
 });

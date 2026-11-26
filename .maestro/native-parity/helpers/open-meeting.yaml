@@ -1,0 +1,13 @@
+appId: com.zyx.academy.nativeparity
+---
+- runFlow:
+    when:
+      platform: iOS
+    file: open-capture.yaml
+    env:
+      TARGET_ID: parity-capture-meet-${CASE_ID}
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - openLink: zyx-native-parity://internal/meet/${CASE_ID}

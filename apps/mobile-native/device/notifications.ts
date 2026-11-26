@@ -1,4 +1,4 @@
-import { isRunningInExpoGo } from "expo";
+import { isRunningInExpoGo, requireOptionalNativeModule } from "expo";
 import { AppState, Platform } from "react-native";
 
 import {
@@ -33,22 +33,18 @@ function mapPermission(
 }
 
 export function createExpoNotificationController({
-  configured,
   getLocale = () => "id",
   onStatusChange,
 }: {
-  configured: boolean;
   getLocale?: () => "id" | "en";
   onStatusChange?: (status: NativePushStatus | null) => void;
 }) {
   const platform = Platform.OS;
-  const registration: NativePushDevice["registration"] = !configured || isRunningInExpoGo()
-    ? null
-    : platform === "android"
-      ? { platform, transport: "fcm", device: "expo-android" }
-      : platform === "ios"
-        ? { platform, transport: "apns", device: "expo-ios" }
-        : null;
+  const installed = platform === "android" && !isRunningInExpoGo()
+    && requireOptionalNativeModule<{ isConfigured(): boolean }>("ZyxAndroidPushConfiguration")?.isConfigured() === true;
+  const registration: NativePushDevice["registration"] = installed
+    ? { platform: "android", transport: "fcm", device: "expo-android" }
+    : null;
   const load = () => import("expo-notifications");
   let preparedLocale: "id" | "en" | undefined;
 

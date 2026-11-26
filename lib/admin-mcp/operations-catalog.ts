@@ -1,6 +1,34 @@
 /** Source-level coverage index. Tool registration is authoritative; partial does not imply every action is exposed. */
 export const operationsCatalog = [
   {
+    "source": "app/api/forms/[idOrSlug]/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Public form links resolve published respondent content. Live submissions use the respondent session or the form's anonymous policy. Admin MCP forms preview and simulation use separate read scopes and never submit live responses."
+  },
+  {
+    "source": "app/api/forms/upload/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Public file uploads attach files to a live respondent form under its current upload and authentication policy. Admin MCP preview and simulation do not upload respondent files."
+  },
+  {
+    "source": "app/api/meet/[slug]/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The public lookup reports the title behind one exact Zyx meeting link. The canonical web route rechecks availability before Google Meet applies its own admission policy. Administrative meeting operations and MCP authorization, scopes, consent and environment bindings are independent."
+  },
+  {
+    "source": "app/api/tautan/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Public clients read the same published link fields as the public directory. Existing administrative links tools retain their scopes, consent, environment and ability to manage unpublished entries."
+  },
+  {
     "source": "app/api/auth/native/expo/exchange/route.ts",
     "actions": ["POST"],
     "tools": [],
@@ -13,6 +41,20 @@ export const operationsCatalog = [
     "tools": [],
     "status": "excluded",
     "reason": "Offline cache policy and manual invalidation currently use the authenticated admin UI with origin checks and revision conflicts. Existing publication, revision, withdrawal, enrollment, course and video services record durable offline changes for their existing Admin and MCP callers. This adds no MCP tools or changes to scopes, consent, discovery, skills, host prompts or staging/production bindings. Device download and storage choices remain local to the signed-in user."
+  },
+  {
+    "source": "apps/mobile-native/offline/lifecycle-provider.tsx",
+    "actions": ["foregroundSync"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Foreground recovery rechecks the current Expo session and Student role before fetching its offline metadata on the configured origin. The native lifecycle and connectivity state are device-local. Existing MCP authorization and environment bindings still apply to the server operations that change offline content."
+  },
+  {
+    "source": "apps/mobile-native/app/offline.tsx",
+    "actions": ["download", "forget", "revalidateSaved", "purgeUnavailable"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Expo manages the signed-in learner's local downloads. Refresh reads existing authenticated offline endpoints on the configured app origin. MCP tools, scopes, consent, discovery, playbooks, packaged skills, host prompts and environment bindings are unchanged."
   },
   {
     "source": "app/(student)/feedback/feedback-form.tsx",
@@ -34,6 +76,20 @@ export const operationsCatalog = [
     "tools": [],
     "status": "excluded",
     "reason": "Personal interface language and device display, vibration and alert choices require the signed-in UI or local device. Preference grouping and reset do not change MCP tools, scopes, consent, discovery, playbooks, packaged skills, host prompts or environment bindings."
+  },
+  {
+    "source": "apps/mobile-native/device/preferences.ts",
+    "actions": ["setTheme", "setHaptics"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Expo appearance and haptics are personal device preferences. The host uses the existing verified account locale, session and origin for app copy. MCP tools, scopes, consent, discovery, playbooks, packaged skills, host prompts and environment bindings are unchanged."
+  },
+  {
+    "source": "apps/mobile-native/routing/route-history.ts",
+    "actions": ["remember", "restore", "clear"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The app remembers a local navigation destination for the verified session. Installed routes, roles and product authorization still apply. MCP tools, scopes, consent, discovery, playbooks, packaged skills, host prompts and environment bindings are unchanged."
   },
   {
     "source": "components/onboarding/guided-tour.tsx",
@@ -68,7 +124,35 @@ export const operationsCatalog = [
     "actions": ["open"],
     "tools": [],
     "status": "excluded",
-    "reason": "The app opens the staging Next consent, account connections or meeting URL in the system browser. The browser owns the session. Consent, registration, scopes, redirect validation, revocation and environment binding stay on their existing server paths."
+    "reason": "The app opens the staging Next consent or account connections URL in the system browser. The browser owns the session. Consent, registration, scopes, redirect validation, revocation and environment binding stay on their existing server paths."
+  },
+  {
+    "source": "apps/mobile-native/app/meet/[slug].tsx",
+    "actions": ["open"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The app opens the canonical public meeting link on its configured staging origin. Browser and Google accounts handle admission independently of the Expo session. No MCP or OAuth credential is passed."
+  },
+  {
+    "source": "app/api/notifications/history/route.ts",
+    "actions": ["resolveOwnNotificationTap"],
+    "status": "excluded",
+    "tools": [],
+    "reason": "An OS push tap resolves one visible inbox notification owned by the active app session. This personal device interaction cannot query another account. Administrative notification history has a separate authorized operation."
+  },
+  {
+    "source": "apps/mobile-native/device/remote-response.ts",
+    "actions": ["consume"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Expo handles an interactive device tap within its verified origin, account and session. Session revalidation can retry the personal visibility lookup once. The read acknowledgement has no automatic replay. Administrative MCP tools, scopes, consent and environment bindings are unchanged."
+  },
+  {
+    "source": "apps/mobile-native/features/notification-inbox/client.ts",
+    "actions": ["loadInbox", "markInboxRead"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The account holder opens their own notification history and acknowledges visible notifications through their interactive session. Administrative notification history and sending retain their existing MCP authorization."
   },
   {
     "source": "apps/mobile-native/device/reminder-controller.ts",
@@ -86,7 +170,7 @@ export const operationsCatalog = [
   },
   {
     "source": "apps/mobile-native/device/audio-controller.ts",
-    "actions": ["play", "pause"],
+    "actions": ["play", "pause", "seekBy", "seekTo"],
     "tools": [],
     "status": "excluded",
     "reason": "Playback controls operate on local media on the device, with no server mutation, recording permission or MCP operation."

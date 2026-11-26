@@ -10,17 +10,23 @@
  */
 
 import type { CSSProperties } from "react";
+import {
+  ornamentCircles, ornamentCornerOffsets, ornamentGlowStop, ornamentPolygonPoints, ornamentViewBox,
+  testimonialOrnaments, type TestimonialOrnamentColor,
+} from "@/packages/design-tokens/testimonial-ornaments";
 
 // ─── Layer: Glow blobs ────────────────────────────────────────────────────────
 
 function GlowBlob({
   colorVar,
-  positionClasses,
+  positionClasses = "",
+  position,
   size = 700,
   intensity = 0.2,
 }: {
   colorVar: string;
-  positionClasses: string;
+  positionClasses?: string;
+  position?: CSSProperties;
   size?: number;
   intensity?: number;
 }) {
@@ -28,9 +34,10 @@ function GlowBlob({
     <div
       className={`absolute rounded-full pointer-events-none ${positionClasses}`}
       style={{
+        ...position,
         width: size,
         height: size,
-        background: `radial-gradient(circle, color-mix(in oklch, ${colorVar} ${Math.round(intensity * 100)}%, transparent) 0%, transparent 65%)`,
+        background: `radial-gradient(circle, color-mix(in oklch, ${colorVar} ${Math.round(intensity * 100)}%, transparent) 0%, transparent ${ornamentGlowStop}%)`,
       }}
     />
   );
@@ -57,8 +64,6 @@ function RingCluster({
   opacity?: number;
   strokeWidth?: number;
 }) {
-  const cx = corner.includes("right") ? size : 0;
-  const cy = corner.includes("bottom") ? size : 0;
   const posClass = {
     "top-right": "absolute top-0 right-0",
     "top-left": "absolute top-0 left-0",
@@ -68,16 +73,8 @@ function RingCluster({
 
   return (
     <svg className={posClass} width={size} height={size} viewBox={`0 0 ${size} ${size}`} fill="none" aria-hidden>
-      {Array.from({ length: count }).map((_, i) => (
-        <circle
-          key={i}
-          cx={cx}
-          cy={cy}
-          r={r0 + i * gap}
-          stroke={color}
-          strokeWidth={Math.max(strokeWidth - i * 0.12, 0.4)}
-          opacity={Math.max(opacity - i * 0.016, 0.012)}
-        />
+      {ornamentCircles({ size, corner, count, r0, gap, opacity, strokeWidth }).map((circle, i) => (
+        <circle key={i} {...circle} stroke={color} />
       ))}
     </svg>
   );
@@ -97,47 +94,24 @@ type ShapeSpec = {
   strokeWidth?: number;
 };
 
-function hexPoints(cx: number, cy: number, r: number, angleDeg = 30): string {
-  return Array.from({ length: 6 }, (_, i) => {
-    const a = ((i * 60 + angleDeg) * Math.PI) / 180;
-    // Keep SVG attributes identical across server and browser math engines.
-    return `${(cx + r * Math.cos(a)).toFixed(3)},${(cy + r * Math.sin(a)).toFixed(3)}`;
-  }).join(" ");
-}
-
-function triPoints(cx: number, cy: number, r: number, angleDeg = 0): string {
-  return Array.from({ length: 3 }, (_, i) => {
-    const a = ((i * 120 + angleDeg) * Math.PI) / 180;
-    // Keep SVG attributes identical across server and browser math engines.
-    return `${(cx + r * Math.cos(a)).toFixed(3)},${(cy + r * Math.sin(a)).toFixed(3)}`;
-  }).join(" ");
-}
-
 function GeometricLayer({ shapes }: { shapes: ShapeSpec[] }) {
-  const VW = 1440;
-  const VH = 900;
   return (
     <svg
       className="absolute inset-0 w-full h-full pointer-events-none"
-      viewBox={`0 0 ${VW} ${VH}`}
+      viewBox={`0 0 ${ornamentViewBox.width} ${ornamentViewBox.height}`}
       fill="none"
       preserveAspectRatio="xMidYMid slice"
       aria-hidden
     >
-      {shapes.map((s, i) => {
-        const cx = (s.cx / 100) * VW;
-        const cy = (s.cy / 100) * VH;
-        const pts = s.type === "hex" ? hexPoints(cx, cy, s.r, s.rotation) : triPoints(cx, cy, s.r, s.rotation);
-        return (
-          <polygon
-            key={i}
-            points={pts}
-            stroke={s.color}
-            strokeWidth={s.strokeWidth ?? 1.5}
-            opacity={s.opacity ?? 0.09}
-          />
-        );
-      })}
+      {shapes.map((s, i) => (
+        <polygon
+          key={i}
+          points={ornamentPolygonPoints(s)}
+          stroke={s.color}
+          strokeWidth={s.strokeWidth ?? 1.5}
+          opacity={s.opacity ?? 0.09}
+        />
+      ))}
     </svg>
   );
 }
@@ -181,26 +155,6 @@ function MathLayer({ symbols }: { symbols: MathSpec[] }) {
 }
 
 // ─── Variant data ─────────────────────────────────────────────────────────────
-
-const T_SHAPES: ShapeSpec[] = [
-  { type: "hex", cx: 4,  cy: 10, r: 58,  rotation: 30,  color: "var(--primary)",               opacity: 0.09  },
-  { type: "hex", cx: 93, cy: 7,  r: 82,  rotation: 0,   color: "var(--primary)",               opacity: 0.075 },
-  { type: "hex", cx: 88, cy: 90, r: 48,  rotation: 15,  color: "var(--color-brand-secondary)", opacity: 0.1   },
-  { type: "tri", cx: 12, cy: 82, r: 44,  rotation: 15,  color: "var(--primary)",               opacity: 0.09  },
-  { type: "tri", cx: 56, cy: 4,  r: 32,  rotation: 180, color: "var(--color-brand-secondary)", opacity: 0.085 },
-  { type: "hex", cx: 47, cy: 94, r: 38,  rotation: 0,   color: "var(--color-tertiary-1)",      opacity: 0.085 },
-  { type: "tri", cx: 75, cy: 50, r: 28,  rotation: 0,   color: "var(--primary)",               opacity: 0.065 },
-];
-
-const T_MATH: MathSpec[] = [
-  { symbol: "∑", x: "9%",  y: "32%", size: 80,  rotation: -8,  opacity: 0.08 },
-  { symbol: "π", x: "83%", y: "18%", size: 88,  rotation: 12,  opacity: 0.085 },
-  { symbol: "∫", x: "91%", y: "62%", size: 96,  rotation: 5,   color: "var(--color-brand-secondary)", opacity: 0.08 },
-  { symbol: "√", x: "19%", y: "74%", size: 72,  rotation: -5,  opacity: 0.08 },
-  { symbol: "∞", x: "60%", y: "87%", size: 66,  rotation: 0,   color: "var(--color-brand-secondary)", opacity: 0.085 },
-  { symbol: "Δ", x: "45%", y: "13%", size: 58,  rotation: 0,   opacity: 0.09 },
-  { symbol: "∂", x: "33%", y: "52%", size: 52,  rotation: 15,  opacity: 0.065 },
-];
 
 const P_SHAPES: ShapeSpec[] = [
   { type: "hex", cx: 6,  cy: 8,  r: 72,  rotation: 0,   color: "var(--primary)",               opacity: 0.085 },
@@ -250,24 +204,24 @@ const A_MATH: MathSpec[] = [
 type Variant = "testimonial" | "plans" | "about";
 
 type VariantConfig = {
-  glows: { colorVar: string; positionClasses: string; size?: number; intensity?: number }[];
+  glows: { colorVar: string; positionClasses?: string; position?: CSSProperties; size?: number; intensity?: number }[];
   rings: { corner: "top-right" | "top-left" | "bottom-right" | "bottom-left"; size: number; color: string; count?: number; r0?: number; gap?: number; opacity?: number }[];
   shapes: ShapeSpec[];
   math: MathSpec[];
 };
 
+function testimonialColor(color: TestimonialOrnamentColor) {
+  return color === "primary" ? "var(--primary)" : `var(--color-${color})`;
+}
+
 const CONFIGS: Record<Variant, VariantConfig> = {
   testimonial: {
-    glows: [
-      { colorVar: "var(--primary)",               positionClasses: "-top-52 -right-52", size: 760, intensity: 0.22 },
-      { colorVar: "var(--color-brand-secondary)", positionClasses: "-bottom-44 -left-44", size: 620, intensity: 0.19 },
-    ],
-    rings: [
-      { corner: "top-right",   size: 580, color: "var(--primary)",               count: 8, r0: 90,  gap: 76, opacity: 0.15 },
-      { corner: "bottom-left", size: 400, color: "var(--color-brand-secondary)", count: 5, r0: 80,  gap: 72, opacity: 0.13 },
-    ],
-    shapes: T_SHAPES,
-    math:   T_MATH,
+    glows: testimonialOrnaments.glows.map(({ color, corner, offsetRem, ...glow }) => ({
+      ...glow, colorVar: testimonialColor(color), position: ornamentCornerOffsets(corner, `${offsetRem}rem`),
+    })),
+    rings: testimonialOrnaments.rings.map(ring => ({ ...ring, color: testimonialColor(ring.color) })),
+    shapes: testimonialOrnaments.shapes.map(shape => ({ ...shape, color: testimonialColor(shape.color) })),
+    math: testimonialOrnaments.math.map(symbol => ({ ...symbol, color: testimonialColor(symbol.color) })),
   },
   plans: {
     glows: [
@@ -299,8 +253,18 @@ const CONFIGS: Record<Variant, VariantConfig> = {
 
 export function PageOrnaments({ variant }: { variant: Variant }) {
   const cfg = CONFIGS[variant];
+  const opacity = variant === "testimonial" ? {
+    "--ornament-opacity": testimonialOrnaments.opacity.light,
+    "--ornament-opacity-dark": testimonialOrnaments.opacity.dark,
+  } as CSSProperties : undefined;
   return (
-    <div data-page-ornaments className="pointer-events-none select-none absolute inset-0 overflow-hidden opacity-35 dark:opacity-25" aria-hidden>
+    <div
+      data-page-ornaments
+      className={`pointer-events-none select-none absolute inset-0 overflow-hidden ${opacity
+        ? "opacity-[var(--ornament-opacity)] dark:opacity-[var(--ornament-opacity-dark)]" : "opacity-35 dark:opacity-25"}`}
+      style={opacity}
+      aria-hidden
+    >
       {cfg.glows.map((g, i) => <GlowBlob key={i} {...g} />)}
       {cfg.rings.map((r, i) => <RingCluster key={i} {...r} />)}
       <GeometricLayer shapes={cfg.shapes} />

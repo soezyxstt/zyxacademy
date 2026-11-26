@@ -12,6 +12,9 @@ export default function GalleryRoute() {
     <ParityGallery
       component={selected}
       onSelect={(name) => router.replace({ pathname: "/gallery/[component]", params: { component: name } })}
+      onOpenCaptureMenu={process.env.EXPO_PUBLIC_PARITY_CAPTURE_NAVIGATION === "1"
+        ? () => router.replace("/internal/parity-capture")
+        : undefined}
     />
   );
 }

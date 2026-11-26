@@ -10,7 +10,8 @@ import sys
 from threading import Thread
 import time
 
-from case_manifest import load_case_groups
+from case_manifest import load_case_layout
+from device_capture import open_route, screenshot
 from compare import crop_positions, load_frame
 
 
@@ -26,28 +27,10 @@ class FixtureServer(SimpleHTTPRequestHandler):
         super().end_headers()
 
 
-def open_component(platform, device, component):
-    url = f"zyx-native-parity://internal/webview-reference/{component}"
-    if platform == "ios":
-        command = ["xcrun", "simctl", "openurl", device, url]
-    else:
-        command = ["adb", "shell", "am", "start", "-W", "-a", "android.intent.action.VIEW", "-d", url,
-                   "com.zyx.academy.nativeparity"]
-    subprocess.run(command, check=True)
-
-
-def screenshot(platform, device, destination):
-    if platform == "ios":
-        subprocess.run(["xcrun", "simctl", "io", device, "screenshot", str(destination)], check=True)
-    else:
-        with destination.open("wb") as stream:
-            subprocess.run(["adb", "exec-out", "screencap", "-p"], stdout=stream, check=True)
-
-
 def capture(platform, device, selected):
     scale = 3 if platform == "ios" else 1
     manifest = ARTIFACTS / "web" / f"dpr{scale}" / "cases.json"
-    groups = load_case_groups(manifest)
+    groups, heights = load_case_layout(manifest)
     if selected and selected not in groups:
         raise SystemExit(f"Unknown WebView component {selected}")
     native = ARTIFACTS / platform
@@ -60,15 +43,18 @@ def capture(platform, device, selected):
         if selected and component != selected:
             continue
         destination = references / f"frame-{component}.png"
-        open_component(platform, device, component)
+        open_route(platform, device, f"internal/webview-reference/{component}")
         for _ in range(30):
             screenshot(platform, device, destination)
             frame = load_frame(destination)
             positions = crop_positions(frame, scale, (96 + ordinal) * scale)
-            width, height = 320 * scale, 100 * scale
-            if len(positions) == len(cases) and all(x + width <= frame.width and y + height <= frame.height for x, y in positions):
+            width = 320 * scale
+            if len(positions) == len(cases) and all(
+                x + width <= frame.width and y + heights[case] * scale <= frame.height
+                for case, (x, y) in zip(cases, positions)
+            ):
                 for case, (x, y) in zip(cases, positions):
-                    frame.crop((x, y, x + width, y + height)).save(references / f"{case}.png")
+                    frame.crop((x, y, x + width, y + heights[case] * scale)).save(references / f"{case}.png")
                 break
             time.sleep(1)
         else:

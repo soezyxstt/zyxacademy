@@ -1,0 +1,222 @@
+name: Native integration preview
+
+on:
+  pull_request:
+    paths:
+      - 'apps/mobile-native/**'
+      - 'packages/**'
+      - 'app/api/notifications/**'
+      - 'app/api/offline/**'
+      - 'tests/contracts/notifications-history.test.ts'
+      - 'tests/contracts/offline-server-sync.test.ts'
+      - 'scripts/native-readiness/**'
+      - 'scripts/native-parity/check-interactions.sh'
+      - 'scripts/native-parity/prepare-android-emulator.sh'
+      - 'scripts/native-parity/capture-*.sh'
+      - '.maestro/native-integration/**'
+      - '.github/workflows/native-integration-preview.yml'
+      - '.github/workflows/native-authenticated-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  authenticated-session:
+    if: github.head_ref == 'soezyxst/react-native-monorepo' || (github.event_name == 'workflow_dispatch' && github.ref_name == 'soezyxst/react-native-monorepo')
+    uses: ./.github/workflows/native-authenticated-preview.yml
+
+  combined-native:
+    if: github.head_ref == 'soezyxst/react-native-monorepo' || (github.event_name == 'workflow_dispatch' && github.ref_name == 'soezyxst/react-native-monorepo')
+    concurrency:
+      group: native-combined-preview
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - run: bash scripts/native-readiness/preview-lanes.sh
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.14'
+      - run: |
+          python3 scripts/native-readiness/test_merge_reviewed_preview.py
+          bun test tests/unit/expo-academic-intent.test.ts tests/gamification/question-disclosure-calls.test.ts
+      - name: Mount canonical Expo product routes
+        run: python3 scripts/native-readiness/product/mount.py
+      - name: Record the mounted product sources for the device jobs
+        env:
+          HOST_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/product-source"
+          git add -- apps/mobile-native
+          git write-tree > "$RUNNER_TEMP/product-source/tree"
+          git diff --cached --binary --no-renames "$HOST_COMMIT" | gzip > "$RUNNER_TEMP/product-source/changes.patch.gz"
+          git log -5 --format='%H %P' > "$RUNNER_TEMP/product-source/commits"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mounted-product-sources
+          path: ${{ runner.temp }}/product-source
+          retention-days: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci
+        working-directory: apps/mobile-native
+      - run: npx --no-install tsc --noEmit
+        working-directory: apps/mobile-native
+      - name: Bundle mounted Android and iOS product entry points
+        working-directory: apps/mobile-native
+        env:
+          EXPO_NO_TELEMETRY: '1'
+        run: npx --no-install expo export --platform all --max-workers 2 --output-dir "$RUNNER_TEMP/native-product"
+      - name: Verify both native bundles were produced
+        run: |
+          python3 - <<'CHECK'
+          import json, os
+          from pathlib import Path
+          out = Path(os.environ["RUNNER_TEMP"]) / "native-product"
+          metadata = json.loads((out / "metadata.json").read_text())["fileMetadata"]
+          for platform in ["android", "ios"]:
+              bundle = out / metadata[platform]["bundle"]
+              size = bundle.stat().st_size
+              if not size:
+                  raise SystemExit(f"Empty {platform} bundle")
+              print(f"{platform}: {size:,} bytes")
+          CHECK
+
+  product-backend:
+    needs: combined-native
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: native-combined-backend
+      cancel-in-progress: true
+    env:
+      DATABASE_URL: postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder
+      ZYX_POSTGRES_BUILD_PLACEHOLDER: '1'
+      SKIP_ENV_VALIDATION: '1'
+      BETTER_AUTH_SECRET: ci-contract-tests-only-not-a-real-secret
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: mounted-product-sources
+          path: ${{ runner.temp }}/product-source
+      - name: Restore the exact source tree checked by Metro
+        run: |
+          gzip -dc "$RUNNER_TEMP/product-source/changes.patch.gz" | git apply --binary --index --whitespace=nowarn
+          test "$(git write-tree)" = "$(cat "$RUNNER_TEMP/product-source/tree")"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.14'
+      - name: Install contracts from the combined product tree
+        id: install
+        run: bun install --frozen-lockfile
+      - name: Host inbox recipient reads and acknowledgements
+        run: bun scripts/test-contracts.ts tests/contracts/notifications-history.test.ts
+      - name: Offline authorization, cursors and revocation
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: bun scripts/test-contracts.ts tests/contracts/offline-server-sync.test.ts
+      - name: Student learning and live-session operations
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: bun scripts/test-contracts.ts tests/contracts/native-student-learning-postgres.test.ts
+      - name: Academic scheduling and tryout operations
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          bun scripts/test-contracts.ts tests/contracts/native-tutor-slot.test.ts tests/contracts/native-tryout-draft.test.ts
+      - name: Operations authorization and native handlers
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          bun tests/integration/operations-admin-access.ts
+          bun tests/integration/operations-admin-handlers.mjs
+      - name: Save backend contract results and source identity
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: product-backend-contracts
+          path: |
+            artifacts/test-contracts/*/results.json
+            ${{ runner.temp }}/product-source/tree
+            ${{ runner.temp }}/product-source/commits
+          retention-days: 7
+
+  product-entry:
+    needs: combined-native
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: android
+            runner: ubuntu-latest
+          - platform: ios
+            runner: macos-26
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 65
+    concurrency:
+      group: native-combined-entry-${{ matrix.platform }}
+      cancel-in-progress: false
+    env:
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: mounted-product-sources
+          path: ${{ runner.temp }}/product-source
+      - name: Restore the exact source tree checked by Metro
+        run: |
+          gzip -dc "$RUNNER_TEMP/product-source/changes.patch.gz" | git apply --binary --index --whitespace=nowarn
+          test "$(git write-tree)" = "$(cat "$RUNNER_TEMP/product-source/tree")"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci
+        working-directory: apps/mobile-native
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - if: matrix.platform == 'ios'
+        run: bash scripts/native-parity/capture-ios.sh product
+      - if: matrix.platform == 'android'
+        name: Build combined product APK for emulator
+        working-directory: apps/mobile-native
+        run: |
+          npx --no-install expo prebuild --platform android --no-install
+          cd android
+          ./gradlew :app:assembleRelease -PreactNativeArchitectures=x86_64 --max-workers=2
+      - if: matrix.platform == 'android'
+        name: Prepare the Android emulator image after compilation
+        run: bash scripts/native-parity/prepare-android-emulator.sh
+      - if: matrix.platform == 'android'
+        run: sudo chmod a+rw /dev/kvm
+      - if: matrix.platform == 'android'
+        uses: reactivecircus/android-emulator-runner@v2.38.0
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          script: bash scripts/native-parity/capture-android.sh product
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: product-entry-${{ matrix.platform }}
+          path: |
+            artifacts/native-integration/${{ matrix.platform }}
+            ${{ runner.temp }}/product-source/tree
+            ${{ runner.temp }}/product-source/commits
+          retention-days: 7

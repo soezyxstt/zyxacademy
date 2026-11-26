@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
-import { and, eq, isNull, or } from "drizzle-orm";
-import { db } from "@/db";
-import { customForms } from "@/db/schema";
+import { findFullFormEntry } from "@/lib/forms/short-entry";
 import { createMetadata } from "@/lib/site";
 import { PublicFormViewer } from "@/components/forms/public-form-viewer";
 import { getAppLocale, getTranslations } from "@/lib/i18n/server";
@@ -14,21 +12,7 @@ export async function generateMetadata({
   const { id } = await params;
   const locale = await getAppLocale();
   const t = await getTranslations("marketing");
-  const normalized = id.toLowerCase();
-
-  const [form] = await db
-    .select({
-      title: customForms.title,
-      description: customForms.description,
-    })
-    .from(customForms)
-    .where(
-      and(
-        isNull(customForms.deletedAt),
-        or(eq(customForms.id, id), eq(customForms.slug, normalized))
-      )
-    )
-    .limit(1);
+  const form = await findFullFormEntry(id);
 
   if (form) {
     return createMetadata({

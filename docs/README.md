@@ -77,7 +77,7 @@ docs/
 | Document | Category | Status | Purpose and Scope |
 | --- | --- | --- | --- |
 | [data-fetching.md](data-fetching.md) | Architecture | `ACTIVE` | TanStack Query 5 standard: account-scoped keys, validated API functions, freshness/retry/invalidation policies, student return navigation, and RSC boundaries. |
-| [mobile-native.md](mobile-native.md) | Plan | `OPEN / IN PROGRESS` | Staged Expo and Next.js mobile migration, component inventory, shared streaming transport, library selection, pixel parity gates, and native capability boundaries. |
+| [mobile-native.md](mobile-native.md) | Plan | `OPEN / IN PROGRESS` | Staged Expo and Next.js mobile migration, component inventory, shared transport, public form respondent checks and upload limits, offline reading verification and storage recovery, pixel parity gates, and native capability boundaries. |
 | [native-readiness.md](native-readiness.md) | Audit | `OPEN / IN PROGRESS` | Independent baseline and evidence for native component, page and backend readiness. |
 | [coding-foundation.md](coding-foundation.md) | Feature Contract | `ACTIVE` | Editable Python Markdown in Articles, viewport-aware Playground, Pyodide/WASI execution, Submit grading, Live Quiz, and Zyra Python coaching. |
 | [discussions.md](discussions.md) | Feature Contract | `ACTIVE` | Bilingual scoped Q&A discussions, compact composer, immutable retries, mention handles, full-text search, and single-dispatch `@Zyra` AI cooldowns. |
