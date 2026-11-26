@@ -200,7 +200,7 @@ export function QuestionEditor({ action, courses, request, presentation, importM
     {uncertain && <Copy theme={theme} tone="error">{language(locale, "Status penyimpanan belum diketahui. Periksa Bank Soal sebelum mengirim ulang.", "Save status is unknown. Review the question bank before submitting again.")}</Copy>}
     <Row>
       <Button theme={theme} variant="outline" disabled={submitting} onPress={edit(onClose)}>{t.cancel}</Button>
-      <Button theme={theme} variant="outline" isLoading={submitting} disabled={uncertain} onPress={() => void save("generated")}>{t.saveDraft}</Button>
+      <Button testID="evaluation-question-save-draft" theme={theme} variant="outline" isLoading={submitting} disabled={uncertain} onPress={() => void save("generated")}>{t.saveDraft}</Button>
       <Button theme={theme} isLoading={submitting} disabled={uncertain} onPress={() => void save("published")}>{t.savePublish}</Button>
     </Row>
   </>;

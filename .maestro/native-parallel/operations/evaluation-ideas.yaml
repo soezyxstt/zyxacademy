@@ -38,8 +38,12 @@ name: Operations question Idea weights and draft revision
 - takeScreenshot: evaluation-idea-weights
 - scrollUntilVisible:
     element:
-      text: Simpan draft
-- tapOn: Simpan draft
+      id: evaluation-question-save-draft
+# The footer can match at the bottom of the screen while clipped by the scroll view.
+- scroll
+- waitForAnimationToEnd
+- tapOn:
+    id: evaluation-question-save-draft
 - extendedWaitUntil:
     visible: Perubahan disimpan sebagai draf.
     timeout: 20000
