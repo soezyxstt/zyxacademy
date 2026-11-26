@@ -777,16 +777,19 @@ export function renderOfflineVisualHtml(visual: PublicVisualSpec, options?: Offl
   }
 }
 
-export function renderOfflineWorkedExampleHtml(workedExample: PublicWorkedExamplePayload, options?: OfflineRenderOptions): string {
+export function renderOfflineWorkedExampleHtml(workedExample: PublicWorkedExamplePayload, options?: OfflineRenderOptions,
+  renderMarkdownPart?: (value: string, field: string) => string): string {
   if (!workedExample?.steps?.length) return "";
+  const renderPart = (value: string, field: string) => renderMarkdownPart?.(value, field) ?? renderInlineFormatting(value, options);
   const stepsHtml = workedExample.steps
     .map(
       (step) =>
-        `<li><strong>${renderInlineFormatting(step.label, options)}</strong>: ${renderInlineFormatting(step.explanation, options)}${step.reason ? `<div class="offline-step-reason">${renderInlineFormatting(step.reason, options)}</div>` : ""}</li>`,
+        `<li><strong>${renderInlineFormatting(step.label, options)}</strong>: ${renderPart(step.explanation, `step:${step.stepIndex}:explanation`)}${step.reason ? `<div class="offline-step-reason">${renderPart(step.reason, `step:${step.stepIndex}:reason`)}</div>` : ""}</li>`,
     )
     .join("");
+  const verifyTag = renderMarkdownPart ? "div" : "p";
   const verifyHtml = workedExample.verification?.trim()
-    ? `<p class="offline-worked-verify"><strong>Verifikasi:</strong> ${renderInlineFormatting(workedExample.verification.trim(), options)}</p>`
+    ? `<${verifyTag} class="offline-worked-verify"><strong>Verifikasi:</strong> ${renderPart(workedExample.verification.trim(), "verification")}</${verifyTag}>`
     : "";
   return `<div class="offline-worked-example"><ol>${stepsHtml}</ol>${verifyHtml}</div>`;
 }

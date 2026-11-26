@@ -63,7 +63,7 @@ export function buildOfflineReadingSections(record: ReadingSource, options?: Off
   const markdown = (value: string) => renderOfflineMarkdownHtml(value, options);
   const scopedOptions = (raw: string, scope?: string): OfflineRenderOptions | undefined => renderCodingAction && scope
     ? { ...options, renderCodeAction: renderMarkdownCodeActions(raw, scope, renderCodingAction) } : options;
-  const scopedMarkdown = (raw: string, scope: string) => renderOfflineMarkdownHtml(raw, scopedOptions(raw, scope));
+  const scopedMarkdown = (raw: string, scope: string) => renderOfflineMarkdownHtml(cleanOfflineMarkdown(raw), scopedOptions(raw, scope));
   const visualHtml = (visual: PublicVisualSpec, location?: ReadingVisualLocation) =>
     renderOfflineVisualHtml(visual, options) +
     (location && visual.kind === "interactive_document" ? renderVisualAction?.(visual, location) ?? "" : "");
@@ -201,7 +201,10 @@ export function buildOfflineReadingSections(record: ReadingSource, options?: Off
             stepLines.push(block.workedExample.verification.trim());
           }
           parts.push(stepLines.join("\n"));
-          htmlParts.push(renderOfflineWorkedExampleHtml(block.workedExample, options));
+          htmlParts.push(renderOfflineWorkedExampleHtml(block.workedExample, options,
+            renderCodingAction && block.blockType === "worked_example"
+              ? (value, field) => scopedMarkdown(value, appendArticleMarkdownScope(sourceScope, field))
+              : undefined));
         }
 
         for (const visual of block.visuals ?? []) {

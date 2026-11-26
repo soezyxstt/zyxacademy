@@ -214,3 +214,26 @@ test("a signed Article result anchors only its admitted target and leaves offlin
   expect(stale).not.toContain('id="reading-search-result"');
   expect(buildReadingDocumentHtml(props, "")).not.toContain('id="reading-search-result"');
 });
+
+test("legacy Article example controls stay in the concept and worked step that contain them", () => {
+  const fence = "```python\nprint(8)\n```";
+  const blocks = [{
+    ...block, id: "concept", content: [":::concept {id=concept title=Scope}", "Explanation for the concept.", fence, ":::"].join("\n"),
+  }, {
+    ...block, id: "worked", blockType: "worked_example",
+    workedExample: {
+      steps: [{ stepIndex: 0, label: "Apply the result", explanation: "Observe the output.", reason: fence }],
+      verification: "End of the example.",
+    },
+  }];
+  const saved: OfflineReadingPackage = { summary, data: { ...identity, chapterId: "chapter", version: 3, sections: [{ ...section, blocks }] }, assets: [] };
+  const actions = new Map(sectionCodingParts(blocks, section.id).map(({ part }, index) => [part.id, "Legacy run " + (index + 1)]));
+  expect(actions.size).toBe(2);
+  const props = { saved, locale: "en" as const };
+  const html = buildReadingContentHtml(savedReadingContent(props), "", "light", undefined, actions)!;
+  expect(html.indexOf("Explanation for the concept.")).toBeLessThan(html.indexOf("Legacy run 1"));
+  expect(html.indexOf("Legacy run 1")).toBeLessThan(html.indexOf("Apply the result"));
+  expect(html.indexOf("Apply the result")).toBeLessThan(html.indexOf("Legacy run 2"));
+  expect(html.indexOf("Legacy run 2")).toBeLessThan(html.indexOf("End of the example."));
+  expect(buildReadingDocumentHtml(props, "")).not.toContain("reader.invalid");
+});

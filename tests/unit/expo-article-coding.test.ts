@@ -91,3 +91,26 @@ test("Python fences use the web examples' namespace and AST location without rev
   expect(articleCodingDraftKey("article", 3, entries[0].part, entries[0].namespace)).toBe("markdown-example:article:3:" + expected);
   expect(sectionCodingParts([{ id: "body", parts: [{ kind: "markdown", id: "p", markdown: content }] }], "section")[0].part.id).not.toBe(expected);
 });
+
+test("legacy concept and worked-example Markdown fences keep the web's nested draft IDs", async () => {
+  const { appendArticleMarkdownScope, markdownPythonId } = await import("@/lib/coding/article-markdown-scope");
+  const fence = "```python\nprint(8)\n```";
+  const blockScope = appendArticleMarkdownScope(null, JSON.stringify(["section", "legacy"]));
+  const conceptScope = appendArticleMarkdownScope(appendArticleMarkdownScope(blockScope, "concept"), "body");
+  const stepScope = appendArticleMarkdownScope(blockScope, "step:2:reason");
+  const drafts = sectionCodingParts([{
+    id: "legacy", blockType: "worked_example", parts: [
+      { id: "typed", kind: "markdown", markdown: "Intro" },
+    ], workedExample: { steps: [{ stepIndex: 2, label: "Why", explanation: "Show output", reason: fence }], verification: "" },
+  }], "section");
+  const concept = sectionCodingParts([{
+    id: "legacy", content: [":::concept {id=concept title=Scope}", fence, ":::"].join("\n"),
+  }], "section");
+  for (const [entries, parent] of [[concept, conceptScope], [drafts, stepScope]] as const) {
+    const expected = markdownPythonId(appendArticleMarkdownScope(parent, "md-0-code"), "md-0-code");
+    expect(entries.map(entry => entry.part)).toEqual([
+      { id: expected, kind: "code_example", runnable: true, language: "python", code: "print(8)" },
+    ]);
+  }
+  expect(sectionCodingParts([{ id: "legacy", parts: [], content: fence }], "section")).toHaveLength(1);
+});
