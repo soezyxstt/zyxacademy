@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { AcademicCommand } from "../../../../apps/mobile-native/features/academic/client";
+import { saveEnrollmentToken } from "../../../../apps/mobile-native/features/academic/administration/enrollment-token-client";
+import { handleEnrollmentTokenWrite } from "../../../../lib/native/academic/administration/enrollment-token-handler";
 import { saveStudyGroup } from "../../../../apps/mobile-native/features/academic/administration/study-group-client";
 import { handleStudyGroupWrite } from "../../../../lib/native/academic/administration/study-group-handler";
 import { rebaseStudyGroupFields, type StudyGroupCreate, type StudyGroupFields } from "../../../academic/study-group-edit";
@@ -309,4 +311,41 @@ test("the Admin study group transport forwards a bounded command and matches its
   assert.deepEqual(await saveStudyGroup(transport, { type: "create", fields: draft }, requestId, signal), { status: "saved", id: "saved-group" });
   assert.equal((await saveStudyGroup(transport, { type: "create", fields: { ...draft, weeklyQuotaSessions: 99 } }, requestId, signal)).status, "error");
   assert.deepEqual(seen, [requestId]);
+});
+
+
+test("native token issuance validates scope and revocation rejects a stale revision", async () => {
+  const origin = "https://academic.invalid";
+  const id = "fixture-token-id";
+  const calls: string[] = [];
+  const current = { id, capacity: 2, used: 1, expiresAt: "2027-01-31T23:59:00+07:00", status: "active" as const,
+    revision: "b".repeat(64), courses: [{ id: "academic-course-1", title: "Biologi Dasar" }] };
+  const transport = {
+    origin, accountId: "signed-admin", locale: "id", get: async () => Response.json({}),
+    command: async (path: string, request: AcademicCommand) => handleEnrollmentTokenWrite(new Request(origin + path, {
+      method: request.method,
+      headers: { Origin: origin, "Content-Type": "application/json", "Idempotency-Key": request.requestId },
+      body: JSON.stringify(request.body),
+    }), path.split("/").slice(4), origin, {
+      session: async () => ({ user: { id: "signed-admin" }, session: { id: "signed-session" } }),
+      hasAdmin: async (actor) => actor === "signed-admin",
+      write: async (command, requestId, viewer) => {
+        assert.equal(viewer.session.id, "signed-session");
+        calls.push(requestId);
+        if (command.type === "revoke" && command.fields.expectedRevision !== current.revision) return { status: "conflict", token: current };
+        return { status: "saved", id };
+      },
+    }),
+  };
+  const signal = new AbortController().signal;
+  const issueId = "academic-issue-request";
+  const revokeId = "academic-revoke-request";
+  const fields = { courseIds: ["academic-course-1"], capacity: 2, totalQuotaSessions: 0, weeklyQuotaSessions: 0 };
+  assert.equal((await saveEnrollmentToken(transport, { type: "issue", fields: { ...fields, courseIds: [] } }, issueId, signal)).status, "error");
+  assert.deepEqual(await saveEnrollmentToken(transport, { type: "issue", fields }, issueId, signal), { status: "saved", id });
+  assert.deepEqual(await saveEnrollmentToken(transport, { type: "revoke", id, fields: { expectedRevision: "a".repeat(64) } }, revokeId, signal),
+    { status: "conflict", token: current });
+  assert.deepEqual(await saveEnrollmentToken(transport, { type: "revoke", id, fields: { expectedRevision: current.revision } }, revokeId, signal),
+    { status: "saved", id });
+  assert.deepEqual(calls, [issueId, revokeId, revokeId]);
 });

@@ -40,7 +40,7 @@ export async function readCourseCommandBody<T>(request: Request, schema: ZodType
 
 export async function handleCourseCommand<T>(request: Request, origin: string, auth: CourseCommandAuth, options: {
   schema: ZodType<T>;
-  invalidError: "INVALID_COURSE" | "INVALID_CHAPTER";
+  invalidError: "INVALID_COURSE" | "INVALID_CHAPTER" | "INVALID_MATERIAL";
   write(draft: T, requestId: string, viewer: CourseCommandViewer): Promise<void>;
 }) {
   const reply = courseCommandReply;
@@ -61,7 +61,7 @@ export async function handleCourseCommand<T>(request: Request, origin: string, a
     const code = error instanceof Error ? error.message : "";
     if (code === "UNAUTHENTICATED") return reply(401, { error: code });
     if (code === "FORBIDDEN") return reply(403, { error: code });
-    if (code === "COURSE_NOT_FOUND" || code === "CHAPTER_NOT_FOUND") return reply(404, { error: "NOT_FOUND" });
+    if (code === "COURSE_NOT_FOUND" || code === "CHAPTER_NOT_FOUND" || code === "MATERIAL_NOT_FOUND") return reply(404, { error: "NOT_FOUND" });
     if (code === "REVISION_CONFLICT" || code === "REQUEST_CONFLICT" ||
       code === "COURSE_IDENTITY_AMBIGUOUS" || code === "CHAPTER_IDENTITY_AMBIGUOUS") return reply(409, { error: code });
     if (code === "COURSE_PROJECTION_UNAVAILABLE" || code === "CHAPTER_PROJECTION_UNAVAILABLE" || code === "CHAPTER_ORDER_INVALID") {

@@ -14,6 +14,7 @@ import { assertAdmin } from "@/lib/auth/admin-guards-server";
 import type { CourseMaterial } from "@/lib/student-course-fixtures";
 import { isAdminCourseLiveSection, type AdminCourseSectionResult, type CourseDocumentRow } from "@/packages/native-parity/academic/courses/sections";
 
+import { readCoursePdfTitleEdit } from "./course-material-service";
 import { readCourseSettingsEditView } from "./course-settings-service";
 
 const documentCategories = { materi: "Materi", soal: "Soal", solusi: "Pembahasan", diktat: "Diktat" };
@@ -140,7 +141,10 @@ export async function readAdminCourseSection(slug: string, section: string, item
     }));
     if (itemId) {
       const matches = materials.filter((material) => material.id === itemId);
-      return matches.length === 1 ? { type: "document", course, chapters, document: documentRow(matches[0]) } : null;
+      if (matches.length !== 1) return null;
+      const material = matches[0];
+      const titleEdit = material.source === "legacy-pdf" ? await readCoursePdfTitleEdit(identity, itemId) : null;
+      return { type: "document", course, chapters, document: documentRow(material), titleEdit };
     }
     return { type: "documents", course, chapters, documents: materials.map(documentRow) };
   }

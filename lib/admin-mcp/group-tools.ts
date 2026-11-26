@@ -1,6 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { and, asc, eq, inArray } from "drizzle-orm";
-import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { courses, groups, groupCourses, groupMembers, enrollmentTokens, enrollmentTokenCourses, enrollments, pengguna } from "@/db/schema";
@@ -8,7 +7,8 @@ import type { McpPrincipal } from "@/lib/authoring/mcp-auth";
 import { dualWriteEnrollment } from "@/lib/migrasi/repository-kompatibilitas";
 import { PACKAGE_PRESETS } from "@/lib/group-constants";
 import { normalizeGroupName, validateGroupName } from "@/lib/groups/group-name-policy";
-import { minutesAgo, normalizeDate } from "@/lib/date-utils";
+import { normalizeDate } from "@/lib/date-utils";
+import { expireEnrollmentToken, generateEnrollmentTokenCode } from "@/lib/groups/enrollment-token-lifecycle";
 import { adminToolkit, adminId, adminRevision } from "./toolkit";
 import { AdminMcpError, revisionOf, type AdminTransaction } from "./mutations";
 type Source = typeof db | AdminTransaction;
@@ -99,7 +99,7 @@ export function registerGroupTools(server: McpServer, principal: McpPrincipal) {
     await validCourses(tx, input.courseIds); const values = packageValues(input);
     if (values.endDate.getTime() <= Date.now()) throw new AdminMcpError("TOKEN_EXPIRY_IN_PAST");
     const groupId = crypto.randomUUID(), id = crypto.randomUUID(); const now = new Date();
-    const token = `Zyx-${randomBytes(4).toString("hex").toUpperCase()}-${input.capacity}-${input.courseIds.length}`;
+    const token = generateEnrollmentTokenCode(input.capacity, input.courseIds.length);
     await tx.insert(groups).values({ ...values, id: groupId, usedQuotaSessions: 0, status: "active", createdAt: now, updatedAt: now });
     const [row] = await tx.insert(enrollmentTokens).values({ id, token, groupId, capacity: input.capacity, expiresAt: values.endDate, createdAt: now }).returning();
     for (const courseId of input.courseIds) { await tx.insert(enrollmentTokenCourses).values({ tokenId: id, courseId }); await tx.insert(groupCourses).values({ id: crypto.randomUUID(), groupId, courseId, createdAt: now }); }
@@ -108,6 +108,6 @@ export function registerGroupTools(server: McpServer, principal: McpPrincipal) {
   write("tokens.revoke", "access:write", z.object({ id: adminId, expectedRevision: adminRevision }), "Cabut token untuk pendaftaran baru. Akses anggota tetap mengikuti enrollment.", async (tx, input) => {
     const [old] = await tx.select().from(enrollmentTokens).where(eq(enrollmentTokens.id, input.id)).limit(1); if (!old) throw new AdminMcpError("NOT_FOUND");
     if (tokenView(old).revision !== input.expectedRevision) throw new AdminMcpError("REVISION_CONFLICT");
-    const [row] = await tx.update(enrollmentTokens).set({ expiresAt: minutesAgo(1) }).where(eq(enrollmentTokens.id, input.id)).returning(); return tokenView(row);
+    const row = await expireEnrollmentToken(tx, input.id); return tokenView(row);
   });
 }

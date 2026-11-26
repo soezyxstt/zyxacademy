@@ -1,11 +1,13 @@
 import { useEffect, useState, useContext } from "react";
-import { View, StyleSheet, useWindowDimensions } from "react-native";
+import { Text, View, StyleSheet, useWindowDimensions } from "react-native";
 import {
   administrationReadPath, type LiveAdministrationRead, type LiveRow,
 } from "../../../../../packages/native-parity/academic/administration/live";
 import { matchAdministrationRoute, type AdministrationPattern } from "../../../../../packages/native-parity/academic/administration/routes";
+import { nativeTypography } from "../../../typography";
 import { NativeListRow, NativeStatusPanel, ResponsiveTable, type SharedUiAction, type SharedUiActionHandler } from "../../shared-ui";
 import { AdministrationCalendar } from "./calendar";
+import { LiveEnrollmentTokenEditor } from "./enrollment-token-editor";
 import { LiveStudyGroupEditor } from "./study-group-editor";
 import { PkaAnnouncementEditor } from "./pka-edit";
 import { DiktatPdfControls, readDiktatScope } from "./diktat-controls";
@@ -79,8 +81,10 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
   const [pdfRow, setPdfRow] = useState<LiveRow>();
   const [pkaDraft, setPkaDraft] = useState<{ actorTransport: AcademicTransport; row: LiveRow }>();
   const [groupDraft, setGroupDraft] = useState<{ actorTransport: AcademicTransport; id?: string }>();
+  const [tokenDraft, setTokenDraft] = useState<{ actorTransport: AcademicTransport; id?: string; reference?: string }>();
   const [success, setSuccess] = useState("");
   const groupEditor = groupDraft?.actorTransport === transport ? groupDraft : undefined;
+  const tokenEditor = tokenDraft?.actorTransport === transport ? tokenDraft : undefined;
   const announcement = pkaDraft?.actorTransport === transport ? pkaDraft.row : undefined;
   const theme = useContext(CourseTheme);
   const palette = useCourseColors();
@@ -111,6 +115,12 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
     {pattern === "/admin/users" ? <View style={layout.row}>
       <Picker label="Peran" options={usersRole} selected={filters.role ?? ""} onSelect={(id) => filter("role", id)} />
       <Picker label="Status" options={usersStatus} selected={filters.status ?? ""} onSelect={(id) => filter("status", id)} />
+    </View> : null}
+    {pattern === "/admin/tokens" && data && transport.command ? <View style={layout.row}>
+      <Action label="Buat token" variation="default" testID="academic-live-token-create" onPress={() => {
+        setSuccess("");
+        setTokenDraft({ actorTransport: transport });
+      }} />
     </View> : null}
     {pattern === "/admin/groups" ? <View style={layout.row}>
       {data && transport.command ? <Action label="Buat kelompok" variation="default" testID="academic-live-group-create" onPress={() => {
@@ -160,9 +170,10 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
         { id: "success", label: "Berhasil", renderCell: (row) => row.fields?.find((field) => field.label === "Berhasil")?.value ?? "0" },
         { id: "failure", label: "Gagal", renderCell: (row) => row.fields?.find((field) => field.label === "Gagal")?.value ?? "0" },
       ]} /> : !data?.week ? data?.rows.map((row) => {
-      type ActionId = "pdf" | "edit" | "edit-group";
+      type ActionId = "pdf" | "edit" | "edit-group" | "revoke-token";
       const actions: SharedUiAction<ActionId>[] = [];
       if (row.pdf && transport.command && !pdfPending) actions.push({ id: "pdf", label: "Minta PDF" });
+      if (row.tokenActive !== undefined && transport.command) actions.push({ id: "revoke-token", label: row.tokenActive ? "Cabut token" : "Status token" });
       if (row.groupEditable && transport.command) actions.push({ id: "edit-group", label: "Edit kelompok" });
       if (row.announcementEdit && transport.command) actions.push({ id: "edit", label: "Edit pengumuman" });
       const onAction: SharedUiActionHandler<ActionId> = (id) => {
@@ -170,6 +181,7 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
         else {
           setSuccess("");
           if (id === "edit-group") setGroupDraft({ actorTransport: transport, id: row.id });
+          else if (id === "revoke-token") setTokenDraft({ actorTransport: transport, id: row.id, reference: row.title });
           else setPkaDraft({ actorTransport: transport, row });
         }
       };
@@ -194,7 +206,18 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
         setGroupDraft(undefined);
         retry();
       }} /> : null}
-    {selected ? <CourseDialog title={selected.title} onClose={() => setSelected(undefined)}>
+    {tokenEditor ? <LiveEnrollmentTokenEditor key={tokenEditor.id ?? "issue"} id={tokenEditor.id} reference={tokenEditor.reference} transport={transport}
+      cancel={() => setTokenDraft(undefined)} saved={() => {
+        setSuccess(tokenEditor.id ? "Token dicabut." : "Token dibuat.");
+        if (!tokenEditor.id) {
+          setSearch("");
+          setFilters((previous) => ({ ...previous, search: "", page: "1" }));
+        }
+        setTokenDraft(undefined);
+        retry();
+      }} /> : null}
+    {selected ? <CourseDialog title={pattern === "/admin/tokens" ? "Token pendaftaran" : selected.title} onClose={() => setSelected(undefined)}>
+      {pattern === "/admin/tokens" ? <Text selectable style={{ ...nativeTypography.bodyRegular, color: palette.foreground, fontSize: 16, lineHeight: 24 }}>{selected.title}</Text> : null}
       {selected.fields?.map((item) => <View key={item.label} style={layout.compact}>
         <Ink kind="strong">{item.label}</Ink><Ink>{item.value}</Ink>
       </View>)}

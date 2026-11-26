@@ -3,6 +3,8 @@ import { getAuthSession } from "@/lib/auth-session";
 import { handleAdminCourseChapterCommand } from "@/lib/native/academic/course-chapter-command";
 import { saveCourseChapterFromNative } from "@/lib/native/academic/course-chapter-service";
 import { handleAdminCourseSettingsCommand } from "@/lib/native/academic/course-settings-command";
+import { handleAdminCourseMaterialCommand } from "@/lib/native/academic/course-material-command";
+import { updateCoursePdfTitleFromNative } from "@/lib/native/academic/course-material-service";
 import { updateCourseSettingsFromNative } from "@/lib/native/academic/course-settings-service";
 import { handleAcademicRead } from "@/lib/native/academic/handle-read";
 import { academicReadServices } from "@/lib/native/academic/read-services";
@@ -24,6 +26,9 @@ export async function PATCH(request: Request, { params }: Context) {
   const origin = new URL(resolveAuthBaseUrl()).origin;
   if (resource[3] === "chapters") {
     return handleAdminCourseChapterCommand(request, resource, origin, { ...auth, save: saveCourseChapterFromNative });
+  }
+  if (resource[3] === "documents") {
+    return handleAdminCourseMaterialCommand(request, resource, origin, { ...auth, update: updateCoursePdfTitleFromNative });
   }
   return handleAdminCourseSettingsCommand(request, resource, origin, { ...auth, update: updateCourseSettingsFromNative });
 }

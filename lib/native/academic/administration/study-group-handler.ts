@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { studyGroupPackages, studyGroupStatuses, validateStudyGroupFields, type StudyGroupWrite } from "../../../../packages/academic/study-group-edit";
+import { nativeAdminIdSchema, readNativeAdminJson } from "./request-validation";
 import type { StudyGroupWriteResult } from "./study-group-service";
 
 type Viewer = { user: { id: string }; session: { id: string } };
@@ -9,7 +10,6 @@ type Services = {
   write(command: StudyGroupWrite, requestId: string, viewer: Viewer): Promise<StudyGroupWriteResult>;
 };
 
-const idSchema = z.string().trim().min(1).max(256).regex(/^[^/\\\u0000-\u001f]+$/u);
 const fields = z.object({
   name: z.string().trim().min(1).max(180),
   packageType: z.enum(studyGroupPackages),
@@ -22,29 +22,8 @@ const fields = z.object({
   status: z.enum(studyGroupStatuses),
   notes: z.string().trim().max(2000),
 }).strict();
-const createSchema = fields.extend({ courseIds: z.array(idSchema).max(100) });
+const createSchema = fields.extend({ courseIds: z.array(nativeAdminIdSchema).max(100) });
 const editSchema = fields.extend({ expectedRevision: z.string().regex(/^[a-f0-9]{64}$/) });
-
-async function readBody(request: Request) {
-  const reader = request.body?.getReader();
-  if (!reader) return null;
-  try {
-    const decoder = new TextDecoder();
-    let bytes = 0;
-    let text = "";
-    for (;;) {
-      const chunk = await reader.read();
-      if (chunk.done) return JSON.parse(text + decoder.decode()) as unknown;
-      bytes += chunk.value.byteLength;
-      if (bytes > 48 * 1024) { await reader.cancel(); return null; }
-      text += decoder.decode(chunk.value, { stream: true });
-    }
-  } catch {
-    return null;
-  } finally {
-    reader.releaseLock();
-  }
-}
 
 const reply = (status: number, body: unknown) => Response.json(body, { status, headers: { "Cache-Control": "private, no-store" } });
 
@@ -53,7 +32,7 @@ export async function handleStudyGroupWrite(request: Request, parts: string[], o
   const create = parts.length === 1 && request.method === "POST";
   const edit = parts.length === 2 && request.method === "PATCH";
   if (section !== "groups" || (!create && !edit)) return reply(404, { error: "NOT_FOUND" });
-  if (edit && !idSchema.safeParse(id).success) return reply(400, { error: "INVALID_PATH" });
+  if (edit && !nativeAdminIdSchema.safeParse(id).success) return reply(400, { error: "INVALID_PATH" });
   const fetchSite = request.headers.get("sec-fetch-site");
   if (request.headers.get("origin") !== origin || (fetchSite && fetchSite !== "same-origin")) return reply(403, { error: "INVALID_ORIGIN" });
   if (request.headers.get("content-type")?.split(";")[0].trim() !== "application/json") return reply(415, { error: "INVALID_CONTENT_TYPE" });
@@ -63,7 +42,7 @@ export async function handleStudyGroupWrite(request: Request, parts: string[], o
     if (!(await services.hasAdmin(viewer.user.id))) return reply(403, { error: "FORBIDDEN" });
     const requestId = request.headers.get("idempotency-key");
     if (!requestId || !/^[\w-]{16,100}$/.test(requestId)) return reply(400, { error: "INVALID_REQUEST_ID" });
-    const body = await readBody(request);
+    const body = await readNativeAdminJson(request);
     let command: StudyGroupWrite;
     if (create) {
       const parsed = createSchema.safeParse(body);

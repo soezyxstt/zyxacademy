@@ -74,10 +74,11 @@ test("native academic transports use interactive sessions", () => {
   }
 });
 
-test("native chapter commands reuse the administrative projection with session authorization", () => {
+test("native course commands reuse administrative projections with session authorization", () => {
   const entry = operationsCatalog.find(item => item.source === "app/api/native/academic/[...resource]/route.ts")!;
   expect(entry.actions).toEqual(["GET", "POST", "PATCH"]);
   expect(entry.tools).toEqual([]);
   expect(entry.reason).toContain("chapters.create");
   expect(entry.reason).toContain("chapters.update");
+  expect(entry.reason).toContain("materials.update_metadata");
 });

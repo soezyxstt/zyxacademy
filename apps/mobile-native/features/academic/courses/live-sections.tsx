@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { View } from "react-native";
 import { adminCoursePath } from "../../../../../packages/native-parity/academic/courses/model";
-import type { AdminCourseEditor } from "../../../../../packages/native-parity/academic/courses/edit-contract";
+import type { AdminCourseEditor, AdminMaterialEditor } from "../../../../../packages/native-parity/academic/courses/edit-contract";
 import type { AdminCourseSectionResult } from "../../../../../packages/native-parity/academic/courses/sections";
 import { CourseLeaderboard } from "./leaderboard";
+import { LivePdfTitleEdit } from "./live-material";
 import { LiveCourseEdit } from "./live-settings";
 import { QuizAttemptsTable, QuizResultsTable } from "./tables";
 import { Action, CourseDialog, CourseStatus, DataRow, Ink, Metrics, Panel, Picker, SearchBox, Tabs, layout } from "./ui";
@@ -30,8 +31,8 @@ function match(text: string, query: string) {
   return text.toLocaleLowerCase("id").includes(query.trim().toLocaleLowerCase("id"));
 }
 
-export function LiveCourseSection({ data, query, navigate, updateSettings, refresh }: {
-  data: AdminCourseSectionResult; query: Query; navigate: Navigate; updateSettings?: AdminCourseEditor; refresh(): void;
+export function LiveCourseSection({ data, query, navigate, updateSettings, updateMaterial, refresh }: {
+  data: AdminCourseSectionResult; query: Query; navigate: Navigate; updateSettings?: AdminCourseEditor; updateMaterial?: AdminMaterialEditor; refresh(): void;
 }) {
   switch (data.type) {
     case "analytics":
@@ -42,13 +43,16 @@ export function LiveCourseSection({ data, query, navigate, updateSettings, refre
     case "documents":
       return <LiveDocuments data={data} query={query} navigate={navigate} />;
     case "document": {
-      const { document, chapters } = data;
+      const { document, chapters, titleEdit } = data;
+      const editTitle = titleEdit && updateMaterial ? (
+        <LivePdfTitleEdit initial={titleEdit} target={updateMaterial(data.course.id, document.id)} refresh={refresh} />
+      ) : null;
       return (
-        <Panel title={document.title}>
+        <Panel title={document.title} action={editTitle}>
           <Ink kind="meta" tone="muted">{document.category}{document.year ? ` · ${document.year}` : ""}</Ink>
           {document.status ? <DataRow title="Status" detail={localLabel(document.status) ?? undefined} /> : null}
           {chapters.filter(({ id }) => document.chapterIds.includes(id)).map(({ id, title }) => <DataRow key={id} title={title} description="Bab" />)}
-          <CourseStatus label="Pratinjau dan penyuntingan dokumen tersedia di Zyx web." />
+          <CourseStatus label={editTitle ? "Pratinjau dokumen tersedia di Zyx web." : "Pratinjau dan penyuntingan dokumen tersedia di Zyx web."} />
         </Panel>
       );
     }

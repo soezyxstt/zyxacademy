@@ -1,4 +1,4 @@
-import type { AdminChapterDraft, AdminChapterEditor, AdminCourseEditDraft, AdminCourseEditor } from "../../../../packages/native-parity/academic/courses/edit-contract";
+import type { AdminChapterDraft, AdminChapterEditor, AdminCourseEditDraft, AdminCourseEditor, AdminMaterialEditor, AdminMaterialTitleDraft } from "../../../../packages/native-parity/academic/courses/edit-contract";
 import type { AdminCourseSectionResult } from "../../../../packages/native-parity/academic/courses/sections";
 import type { AdminCourse, AdminCourseOverview } from "../../../../packages/native-parity/academic/courses/model";
 import { TutorDataError, type TutorDataSource } from "../../../../packages/native-parity/academic/tutor/model";
@@ -53,15 +53,19 @@ function buildAcademicClient(transport: AcademicTransport) {
   const command = transport.command?.bind(transport);
   const settingsTarget = command ? createCourseCommandTarget<AdminCourseEditDraft>(command) : undefined;
   const chapterTarget = command ? createCourseCommandTarget<AdminChapterDraft>(command) : undefined;
+  const materialTarget = command ? createCourseCommandTarget<AdminMaterialTitleDraft>(command) : undefined;
   const updateCourseSettings: AdminCourseEditor | undefined = settingsTarget ? (courseId) =>
     settingsTarget(`${encodeURIComponent(courseId)}/settings`, "PATCH") : undefined;
   const saveChapter: AdminChapterEditor | undefined = chapterTarget ? (courseId, chapterId) =>
     chapterTarget(`${encodeURIComponent(courseId)}/chapters${chapterId ? `/${encodeURIComponent(chapterId)}` : ""}`,
       chapterId ? "PATCH" : "POST") : undefined;
+  const updateMaterial: AdminMaterialEditor | undefined = materialTarget ? (courseId, materialId) =>
+    materialTarget(`${encodeURIComponent(courseId)}/documents/${encodeURIComponent(materialId)}/metadata`, "PATCH") : undefined;
   return {
     tutor,
     updateCourseSettings,
     saveChapter,
+    updateMaterial,
     courses: (signal: AbortSignal) => read<AdminCourse[]>("/api/native/academic/admin/courses", signal),
     course: (slug: string, signal: AbortSignal) => read<AdminCourseOverview>(`/api/native/academic/admin/courses/${encodeURIComponent(slug)}`, signal),
     courseSection: (slug: string, section: string, itemId: string | undefined, signal: AbortSignal) => {

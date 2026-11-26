@@ -16,6 +16,8 @@ const resource = `${collection}/${courseId}`;
 const settings = `${resource}/settings`;
 const quizId = `fixture-native-analytics-${suffix}`;
 const materialId = `fixture-native-material-${suffix}`;
+const projectionId = `sm-legacy-${materialId}`;
+const materialKey = "fixture/private/test.pdf";
 const admin = { cookie: fixtureCookie("admin") };
 
 async function read(target) {
@@ -52,8 +54,10 @@ try {
     [quizId, courseId, "Kuis transaksi"]);
   await pool.query(`insert into student_quiz_attempts(id,student_id,template_id,score,duration_seconds,status,questions_snapshot)
     values ($1,'academic-student',$2,80,90,'completed','[]')`, [`fixture-native-attempt-${suffix}`, quizId]);
-  await pool.query(`insert into course_materials(id,course_id,title,type,file_url,chapter_ids)
-    values ($1,$2,$3,'materi','fixture/private/test.pdf','[]')`, [materialId, courseId, "Dokumen transaksi"]);
+  await pool.query(`insert into course_materials(id,course_id,title,type,subcategory,year,file_url,chapter_ids)
+    values ($1,$2,$3,'materi','modul',2024,$4,'[]')`, [materialId, courseId, "Dokumen transaksi", materialKey]);
+  await pool.query(`insert into sumber_materi(id,mata_kuliah_id,source_type,title,canonical_uri_or_r2_key,checksum,status,creator_id)
+    values ($1,$2,'pdf',$3,$4,$4,'active','academic-admin')`, [projectionId, canonicalId, "Dokumen transaksi", materialKey]);
   const reads = [
     ["analytics", "analytics", (result) => assert.equal(result.quizzes[0].id, quizId)],
     [`analytics/${quizId}`, "quiz-insight", (result) => {
@@ -80,6 +84,37 @@ try {
     const foreign = await fetch(`${collection}/fisika-dasar/${section}`, { headers: admin, redirect: "manual" });
     assert.equal(foreign.status, 404, section);
   }
+
+  const materialPath = `${resource}/documents/${materialId}`;
+  const materialCommandPath = `${collection}/${canonicalId}/documents/${materialId}/metadata`;
+  const beforePdf = await read(materialPath);
+  assert.deepEqual(Object.keys(beforePdf.titleEdit).sort(), ["revision", "title"]);
+  assert.equal(beforePdf.titleEdit.title, "Dokumen transaksi");
+  assert.ok(/^[a-f0-9]{64}$/.test(beforePdf.titleEdit.revision));
+  const protectedFields = "select course_id, type, subcategory, year, file_url, chapter_ids, checksum from course_materials where id = $1";
+  const originalPdf = (await pool.query(protectedFields, [materialId])).rows[0];
+  const newTitle = { title: "Dokumen PDF tersimpan", expectedRevision: beforePdf.titleEdit.revision };
+  const materialRequestId = randomUUID();
+  const renamePdf = (input, key = randomUUID(), headers) => courseCommand(materialCommandPath, "PATCH", input, key, headers);
+  assert.equal((await renamePdf(newTitle, randomUUID(), { cookie: fixtureCookie("tutor") })).status, 403);
+  assert.equal((await renamePdf({ ...newTitle, fileUrl: "not-writable" })).status, 422);
+  const foreignMaterial = `${collection}/fisika-dasar/documents/${materialId}/metadata`;
+  assert.equal((await courseCommand(foreignMaterial, "PATCH", newTitle, randomUUID())).status, 404);
+  const pdfConcurrent = await Promise.all([renamePdf(newTitle, materialRequestId), renamePdf(newTitle, materialRequestId)]);
+  for (const reply of pdfConcurrent) {
+    assert.equal(reply.status, 200, JSON.stringify(await reply.clone().json()));
+    assert.deepEqual(await reply.json(), { status: "saved", requestId: materialRequestId });
+  }
+  const afterPdf = await read(materialPath);
+  assert.equal(afterPdf.document.title, newTitle.title);
+  assert.notEqual(afterPdf.titleEdit.revision, beforePdf.titleEdit.revision);
+  assert.deepEqual((await pool.query(protectedFields, [materialId])).rows[0], originalPdf);
+  assert.deepEqual((await pool.query("select title, canonical_uri_or_r2_key, status from sumber_materi where id = $1", [projectionId])).rows[0],
+    { title: newTitle.title, canonical_uri_or_r2_key: materialKey, status: "active" });
+  assert.equal((await renamePdf({ ...newTitle, title: "Payload berbeda" }, materialRequestId)).status, 409);
+  assert.equal((await renamePdf(newTitle)).status, 409);
+  assert.equal((await pool.query("select id from audit_mutasi where entity_type = 'native_course_material' and entity_id = $1", [materialId])).rowCount, 1);
+  assert.equal((await pool.query("select cursor from offline_content_changes where course_id = $1 and kind = 'course' and action = 'invalidate'", [courseId])).rowCount, 1);
 
   const initial = await readSettings();
   assert.equal(initial.course.id, canonicalId);
@@ -162,12 +197,14 @@ try {
   await pool.query("update mata_kuliah set status = 'archived' where id = $1", [canonicalId]);
   assert.equal((await patch(draft, requestId)).status, 404);
   assert.equal((await append(chapterDraft, chapterKey)).status, 404);
-  console.log("course slices, cross-course denial, settings and chapter replay, active target checks and revision races passed");
+  assert.equal((await renamePdf(newTitle, materialRequestId)).status, 404);
+  console.log("course slices, cross-course denial, settings, PDF titles and chapter replay, active target checks and revision races passed");
 } finally {
   try {
     await pool.query(`delete from audit_mutasi where course_id = any($1) or entity_id = any($1)
       or entity_id in (select id from bab where mata_kuliah_id = any($1))`, [[canonicalId, standaloneId]]);
     await pool.query("delete from offline_content_changes where course_id = any($1)", [[canonicalId, standaloneId, courseId]]);
+    await pool.query("delete from sumber_materi where id = $1 and mata_kuliah_id = $2", [projectionId, canonicalId]);
     await pool.query("delete from mata_kuliah where id = any($1)", [[canonicalId, standaloneId]]);
     await pool.query("delete from courses where id = $1", [courseId]);
   } finally {

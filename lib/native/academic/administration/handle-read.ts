@@ -1,3 +1,4 @@
+import { isEnrollmentTokenEditor, type EnrollmentTokenEditor } from "../../../../packages/academic/enrollment-token-admin";
 import { isStudyGroupEditorRead, type StudyGroupEditorRead } from "../../../../packages/academic/study-group-edit";
 import {
   isLiveAdministrationRead, type DiktatEvidenceStatus, type DiktatPdfTarget, type LiveAdministrationRead, type LiveListSection, type LivePage,
@@ -24,6 +25,7 @@ export type AdministrationReadServices = {
   hasAdmin(id: string): Promise<boolean>;
   list(section: LiveListSection, query: AdministrationQuery): Promise<LivePage>;
   groupEditor?(id?: string): Promise<StudyGroupEditorRead | null>;
+  tokenEditor?(id?: string): Promise<EnrollmentTokenEditor | null>;
   bundle(kind: ReviewKind, slug: string, bundleId: string, page: number): Promise<LivePage | null>;
   pdfStatus(slug: string, target: DiktatPdfTarget, attemptId: string): Promise<DiktatEvidenceStatus | null>;
   courseSlug(id: string): Promise<string | null>;
@@ -68,6 +70,11 @@ export async function handleAdministrationRead(parts: string[], search: URLSearc
       const result = await services.groupEditor(kind);
       if (!result) return notFound();
       return isStudyGroupEditorRead(result) ? Response.json(result, { headers }) : problem(500, "READ_FAILED");
+    }
+    if (section === "token-editor" && parts.length <= 2 && services.tokenEditor) {
+      const result = await services.tokenEditor(kind);
+      if (!result) return notFound();
+      return isEnrollmentTokenEditor(result) ? Response.json(result, { headers }) : problem(500, "READ_FAILED");
     }
     if (section === "pdf-status" && parts.length === 3) {
       const productId = search.get("productId") ?? "";

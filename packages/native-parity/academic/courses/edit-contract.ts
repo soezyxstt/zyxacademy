@@ -26,3 +26,7 @@ export type AdminChapterDraft = {
 };
 
 export type AdminChapterEditor = (courseId: string, chapterId?: string) => CourseWriteTarget<AdminChapterDraft>;
+
+export type AdminMaterialTitleDraft = { title: string; expectedRevision: string };
+export type AdminMaterialTitleEdit = { title: string; revision: string };
+export type AdminMaterialEditor = (courseId: string, materialId: string) => CourseWriteTarget<AdminMaterialTitleDraft>;

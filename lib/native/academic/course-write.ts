@@ -7,7 +7,7 @@ import { assertAuthoringActor } from "@/lib/auth/authoring-actor";
 import type { CourseCommandViewer } from "./course-command";
 
 export type CourseWriteTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
-type Saved = { id: string; canonicalCourseId: string };
+type Saved = { id: string; canonicalCourseId: string; legacyCourseId?: string };
 type RevisionDraft = { expectedRevision: string };
 
 async function assertAuthority(tx: CourseWriteTransaction, viewer: CourseCommandViewer) {
@@ -25,7 +25,7 @@ export async function courseWrite<T extends RevisionDraft>({
   draft: T;
   requestId: string;
   viewer: CourseCommandViewer;
-  entityType: "native_course_settings" | "native_course_chapter";
+  entityType: "native_course_settings" | "native_course_chapter" | "native_course_material";
   action: "create" | "update";
   write(tx: CourseWriteTransaction): Promise<Saved>;
   validateReplay(tx: CourseWriteTransaction, result: Saved): Promise<void>;
@@ -70,7 +70,8 @@ export async function courseWrite<T extends RevisionDraft>({
 
 function isSaved(value: unknown): value is Saved {
   return Boolean(value && typeof value === "object" && "id" in value && typeof value.id === "string" &&
-    "canonicalCourseId" in value && typeof value.canonicalCourseId === "string");
+    "canonicalCourseId" in value && typeof value.canonicalCourseId === "string" &&
+    (!("legacyCourseId" in value) || typeof value.legacyCourseId === "string"));
 }
 
 function postgresCode(error: unknown): string | undefined {

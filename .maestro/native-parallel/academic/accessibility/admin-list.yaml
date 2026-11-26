@@ -1,0 +1,13 @@
+appId: com.zyx.academy.nativeparity
+name: Academic Admin course list accessibility
+---
+- launchApp
+- openLink: zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fcourses&theme=light
+- extendedWaitUntil:
+    visible:
+      id: course-row-biologi-dasar
+    timeout: 20000
+- assertVisible: Biologi Dasar.*
+- assertVisible:
+    id: course-search
+- takeScreenshot: academic-accessibility-admin-list

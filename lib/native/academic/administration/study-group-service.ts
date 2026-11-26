@@ -1,18 +1,17 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { auditMutasi, bookings, courses, enrollmentTokens, groupCourses, groups, mataKuliah, session } from "@/db/schema";
-import { resolveCourseIdentity } from "@/lib/admin/course-identity";
+import { auditMutasi, bookings, courses, enrollmentTokens, groupCourses, groups } from "@/db/schema";
+import { listNativeCourseChoices, lockNativeCourseAssignments } from "./course-assignments";
 import { revisionOf } from "@/lib/admin-mcp/revision";
-import { assertAuthoringActor } from "@/lib/auth/authoring-actor";
+import { assertNativeAdminTransaction, postgresCode, type NativeAdminViewer } from "./admin-transaction";
 import { insertStudyGroupCourses, insertStudyGroupRecord, updateStudyGroupRecord } from "@/lib/groups/study-group-records";
 import { getSemesterEndDate } from "@/lib/utils";
 import { validateStudyGroupFields, type StudyGroupEditorRead, type StudyGroupRecord, type StudyGroupWrite } from "@/packages/academic/study-group-edit";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
-type Viewer = { user: { id: string }; session: { id: string } };
 const receiptType = "native_study_group";
 
 async function readGroup(tx: Transaction, id: string, lock = false) {
@@ -46,54 +45,19 @@ async function readGroup(tx: Transaction, id: string, lock = false) {
 }
 
 export async function readNativeStudyGroupEditor(id?: string): Promise<StudyGroupEditorRead | null> {
-  if (!id) {
-    const available = await db.select({ id: mataKuliah.id, title: mataKuliah.title }).from(mataKuliah)
-      .innerJoin(courses, eq(mataKuliah.legacyCourseId, courses.id)).where(eq(mataKuliah.status, "active"))
-      .orderBy(asc(mataKuliah.title), asc(mataKuliah.id));
-    return { type: "create", courses: available };
-  }
+  if (!id) return { type: "create", courses: await listNativeCourseChoices() };
   const result = await db.transaction((tx) => readGroup(tx, id), { isolationLevel: "repeatable read", accessMode: "read only" });
   return result && !result.tokenLinked ? { type: "edit", record: result.view } : null;
 }
 
-async function lockCourseAssignments(tx: Transaction, requested: string[]) {
-  const identities = await Promise.all(requested.map((id) => resolveCourseIdentity(id, tx)));
-  const expected = new Map<string, string>();
-  for (const identity of identities) {
-    if (!identity?.canonicalId || !identity.legacyId || identity.status !== "active" || expected.has(identity.canonicalId)) {
-      throw new Error("INVALID_COURSE");
-    }
-    expected.set(identity.canonicalId, identity.legacyId);
-  }
-  if (!expected.size) return [];
-  const canonical = await tx.select({ id: mataKuliah.id, legacyId: courses.id }).from(mataKuliah)
-    .innerJoin(courses, eq(mataKuliah.legacyCourseId, courses.id))
-    .where(and(inArray(mataKuliah.id, [...expected.keys()]), eq(mataKuliah.status, "active")))
-    .orderBy(asc(mataKuliah.id)).for("share", { of: [mataKuliah, courses] });
-  if (canonical.length !== expected.size || canonical.some((course) => expected.get(course.id) !== course.legacyId)) throw new Error("INVALID_COURSE");
-  return canonical.map((course) => course.legacyId);
-}
 
-async function assertAuthority(tx: Transaction, viewer: Viewer) {
-  await assertAuthoringActor(tx, viewer.user.id, { roles: ["admin"], error: "FORBIDDEN", lock: true });
-  const [active] = await tx.select({ expiresAt: session.expiresAt }).from(session)
-    .where(and(eq(session.id, viewer.session.id), eq(session.userId, viewer.user.id))).limit(1).for("share");
-  if (!active || active.expiresAt.getTime() <= Date.now()) throw new Error("UNAUTHENTICATED");
-}
-
-function postgresCode(error: unknown): string | undefined {
-  if (!error || typeof error !== "object") return undefined;
-  if ("code" in error && typeof error.code === "string") return error.code;
-  return "cause" in error && error.cause !== error ? postgresCode(error.cause) : undefined;
-}
-
-export async function saveNativeStudyGroup(command: StudyGroupWrite, requestId: string, viewer: Viewer) {
+export async function saveNativeStudyGroup(command: StudyGroupWrite, requestId: string, viewer: NativeAdminViewer) {
   const actorId = viewer.user.id;
   const receiptId = `native_group_${revisionOf({ actorId, sessionId: viewer.session.id, requestId })}`;
   const inputHash = revisionOf(command);
   async function write() {
     return db.transaction(async (tx) => {
-      await assertAuthority(tx, viewer);
+      await assertNativeAdminTransaction(tx, viewer);
       const current = command.type === "edit" ? await readGroup(tx, command.id, true) : undefined;
       const [receipt] = await tx.select().from(auditMutasi).where(eq(auditMutasi.id, receiptId)).limit(1);
       if (receipt) {
@@ -124,7 +88,7 @@ export async function saveNativeStudyGroup(command: StudyGroupWrite, requestId: 
         });
       } else {
         if (validateStudyGroupFields(command.fields)) throw new Error("INVALID_GROUP");
-        const courseIds = await lockCourseAssignments(tx, command.fields.courseIds);
+        const courseIds = await lockNativeCourseAssignments(tx, command.fields.courseIds);
         const date = new Date();
         const semesterEnd = getSemesterEndDate(date);
         const effectiveStart = command.fields.startDate ? Date.parse(command.fields.startDate) : date.getTime();

@@ -15,6 +15,7 @@ import { getIdeaBundleImport } from "@/lib/bundle/staging";
 import { formatJakartaDatetimeLocal, getJakartaCalendarDate, toIsoTimestamp } from "@/lib/date-utils";
 import type { ReviewKind } from "@/packages/native-parity/academic/administration/fixtures";
 import type { DiktatEvidenceStatus, LiveField, LivePage, LiveRow } from "@/packages/native-parity/academic/administration/live";
+import { readNativeEnrollmentToken } from "./enrollment-token-service";
 import { readNativeStudyGroupEditor } from "./study-group-service";
 import { announcementRevision } from "./announcement-edit-transaction";
 import type { AdministrationQuery, AdministrationReadServices } from "./handle-read";
@@ -121,6 +122,7 @@ export const administrationReadServices: AdministrationReadServices = {
   },
   bundle: readBundle,
   groupEditor: readNativeStudyGroupEditor,
+  tokenEditor: readNativeEnrollmentToken,
   async pdfStatus(slug, { importId, productId, expectedRevision }, attemptId): Promise<DiktatEvidenceStatus | null> {
     const [identity, bundle] = await Promise.all([resolveCourseIdentity(slug), getProductBundleImport(importId)]);
     if (!identity || !bundle || !matchesCourseIdentity(bundle.courseId, identity)) return null;
@@ -179,6 +181,7 @@ export const administrationReadServices: AdministrationReadServices = {
         const entries = await getEnrollmentTokens();
         return paginate(entries.filter((entry) => matches(query.search, [entry.token, ...entry.courses.map((course) => course.title)])).map((entry) => ({
           id: entry.id, title: entry.token, subtitle: entry.courses.map((course) => course.title).join(", "),
+          tokenActive: Boolean(entry.group && Math.min(entry.expiresAt.getTime(), entry.group.endDate?.getTime() ?? Infinity) > Date.now()),
           detail: `${entry.group?.members.length ?? 0}/${entry.capacity} terpakai`,
           fields: [field("Kelompok", entry.group?.name), field("Kedaluwarsa", jakDateTime(entry.expiresAt)),
             field("Kuota sesi", entry.group?.totalQuotaSessions), field("Batas per minggu", entry.group?.weeklyQuotaSessions)],

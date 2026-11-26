@@ -109,7 +109,7 @@ function LiveCourseRoute({ live, isList, section, actor, navigate, query, back }
           {(payload) => (
             <>
               <Ink kind="heading">{sections.find((item) => item.id === section)?.label}</Ink>
-              <LiveCourseSection data={payload} query={query} navigate={navigate} updateSettings={live.updateSettings} refresh={live.retry} />
+              <LiveCourseSection data={payload} query={query} navigate={navigate} updateSettings={live.updateSettings} updateMaterial={live.updateMaterial} refresh={live.retry} />
             </>
           )}
         </LiveStatus>

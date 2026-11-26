@@ -1,0 +1,12 @@
+appId: com.zyx.academy.nativeparity
+name: Academic Admin list unavailable to students
+---
+- launchApp
+- openLink: zyx-native-parity://academic?role=student&path=%2Fadmin%2Fcourses&theme=light
+- extendedWaitUntil:
+    visible: Akses ditolak.*
+    timeout: 20000
+- assertNotVisible: Biologi Dasar.*
+- assertNotVisible:
+    id: course-search
+- takeScreenshot: academic-accessibility-admin-student-denied

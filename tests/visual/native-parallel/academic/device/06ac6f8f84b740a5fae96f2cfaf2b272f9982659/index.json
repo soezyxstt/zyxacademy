@@ -1,0 +1,59 @@
+{
+  "revision": "06ac6f8f84b740a5fae96f2cfaf2b272f9982659",
+  "pr": 514,
+  "run": 45804599913,
+  "runUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45804599913",
+  "platforms": {
+    "android": {
+      "job": {
+        "id": 139856557602,
+        "url": "https://github.com/soezyxstt/zyxacademy/actions/runs/45804599913/job/139856557602",
+        "status": "in_progress",
+        "conclusion": null
+      },
+      "artifact": null,
+      "device": null,
+      "dpr": null,
+      "routeCaptureCounts": {},
+      "frames": [],
+      "contentBounds": [],
+      "missingOrInvalidRawImages": [],
+      "interactions": null,
+      "collectionStatus": null,
+      "baselineComparisonStatus": null,
+      "matchedViewportComparison": null
+    },
+    "ios": {
+      "job": {
+        "id": 139856558241,
+        "url": "https://github.com/soezyxstt/zyxacademy/actions/runs/45804599913/job/139856558241",
+        "status": "completed",
+        "conclusion": "failure"
+      },
+      "artifact": {
+        "name": "academic-ios-evidence",
+        "id": 15110856315,
+        "url": "https://github.com/soezyxstt/zyxacademy/actions/runs/45804599913/artifacts/15110856315",
+        "sizeBytes": 3847
+      },
+      "device": null,
+      "dpr": null,
+      "routeCaptureCounts": {},
+      "frames": [],
+      "contentBounds": [],
+      "missingOrInvalidRawImages": [],
+      "interactions": null,
+      "collectionStatus": null,
+      "baselineComparisonStatus": null,
+      "matchedViewportComparison": null,
+      "observedBlocker": {
+        "phase": "Expo CLI before iOS app build",
+        "error": "ENOENT opening .expo/devicectl-exists because the Expo home directory was absent",
+        "fixtureCasesExported": 162,
+        "screenshots": 0,
+        "verification": "unverified"
+      }
+    }
+  },
+  "matchedViewportArtifact": null
+}

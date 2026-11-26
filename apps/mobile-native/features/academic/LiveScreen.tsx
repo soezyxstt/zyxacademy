@@ -4,7 +4,7 @@ import { Button } from "../../components/Button";
 import { nativeTypography } from "../../typography";
 import { nativeColors } from "../../../../packages/design-tokens/native-colors";
 import { matchAcademicRoute } from "../../../../packages/native-parity/academic/match";
-import type { AdminChapterEditor, AdminCourseEditor } from "../../../../packages/native-parity/academic/courses/edit-contract";
+import type { AdminChapterEditor, AdminCourseEditor, AdminMaterialEditor } from "../../../../packages/native-parity/academic/courses/edit-contract";
 import type { AdminCourse, AdminCourseOverview, LiveCourseRead } from "../../../../packages/native-parity/academic/courses/model";
 import { isAdminCourseLiveSection, type AdminCourseSectionResult } from "../../../../packages/native-parity/academic/courses/sections";
 import { TutorDataError } from "../../../../packages/native-parity/academic/tutor/model";
@@ -67,13 +67,14 @@ function LiveCourseSectionScreen(props: AcademicScreenProps & {
   section: string;
   refresh?: number;
   updateSettings?: AdminCourseEditor;
+  updateMaterial?: AdminMaterialEditor;
   itemId: string | undefined;
   read: (slug: string, section: string, itemId: string | undefined, signal: AbortSignal) => Promise<AdminCourseSectionResult>;
 }) {
   const { read, section, itemId, params: { slug } } = props;
   const load = useCallback((signal: AbortSignal) => read(slug, section, itemId, signal), [read, slug, section, itemId]);
   const [readSection, retry] = useCourseRead(load, props.refresh);
-  return <CourseScreen {...props} live={{ section: readSection, retry, updateSettings: props.updateSettings }} />;
+  return <CourseScreen {...props} live={{ section: readSection, retry, updateSettings: props.updateSettings, updateMaterial: props.updateMaterial }} />;
 }
 
 /** Product entry. Transport and actor must come from the same authenticated host session. */
@@ -97,7 +98,7 @@ export function AcademicLiveScreen({ href, transport, refresh, ...host }: LivePr
     const itemId = match.params.quizId ?? match.params.materialId;
     if (isAdminCourseLiveSection(section, itemId)) {
       return <LiveCourseSectionScreen key={key} {...props} read={client.courseSection} section={section} itemId={itemId}
-        refresh={refresh} updateSettings={client.updateCourseSettings} />;
+        refresh={refresh} updateSettings={client.updateCourseSettings} updateMaterial={client.updateMaterial} />;
     }
   }
   return <AcademicMessage {...host}>Sumber data halaman ini belum terhubung.</AcademicMessage>;
