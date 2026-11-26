@@ -4,7 +4,7 @@ import {
   featureKeys, filterAiRequests,
   type FeatureKey, type MonitoringActions, type MonitoringRange, type MonitoringReader,
 } from "../../../../../packages/native-parity/operations/monitoring-contract";
-import { ActionRow, Body, Control, List, RangeSelect, ReadState, Section, Stats, TrendChart, styles, useMonitoringRead, useMonitoringUi, isMonitoringAccessError } from "./ui";
+import { ActionRow, Body, Control, Heading, List, RangeSelect, ReadState, Section, Stats, TrendChart, styles, useMonitoringRead, useMonitoringUi, isMonitoringAccessError } from "./ui";
 import { useMonitoringAction } from "./mutation";
 
 export function HomeDashboardScreen({ reader, actions, navigate }: {
@@ -63,11 +63,15 @@ export function WebAnalyticsScreen({ reader, actions, navigate }: {
           ]} />
           <Section title={t("Tren pengunjung", "Visitor trends")}>
             <TrendChart points={metrics.dailyData.map(point => ({ label: date(point.date, true), values: [point.views, point.sessions] }))}
-              series={[views, t("Sesi", "Sessions")]} empty={t("Belum ada lalu lintas harian", "No daily traffic yet")} />
+              series={[views, t("Sesi", "Sessions")]} empty={t("Belum ada lalu lintas harian", "No daily traffic yet")} webAnalytics />
           </Section>
-          <Section title={t("Halaman terpopuler", "Top pages")}>
+          <Section>
+            <View style={styles.header}>
+              <Heading section>{t("Halaman terpopuler", "Top pages")}</Heading>
+              {metrics.topPages.length ? <Body small muted>{views}</Body> : null}
+            </View>
             {metrics.topPages.length ? <List>{metrics.topPages.map((page, index) =>
-              <ActionRow key={`${page.path}:${page.title}:${index}`} label={page.title || page.path}
+              <ActionRow key={`${page.path}:${page.title}:${index}`} rank={index + 1} label={page.title || page.path}
                 detail={page.title && page.title !== page.path ? page.path : undefined} value={n(page.views)} />)}</List> :
               <Body muted>{t("Belum ada halaman terpopuler", "No top pages yet")}</Body>}
           </Section>

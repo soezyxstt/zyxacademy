@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { AppState, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Line, Path, Rect, Text as SvgText } from "react-native-svg";
-import { nativeColors, nativeRadii } from "../../../../../packages/design-tokens/native-colors";
+import { nativeColors, nativeLinkInks, nativeRadii } from "../../../../../packages/design-tokens/native-colors";
 import {
   MonitoringError, monitoringRanges, monitoringResultMatches,
   type MonitoringData, type MonitoringLocale, type MonitoringRange, type MonitoringReader, type MonitoringRequest,
@@ -9,6 +9,7 @@ import {
 import { Button } from "../../../components/Button";
 import { Skeleton } from "../../../components/Skeleton";
 import { nativeTypography } from "../../../typography";
+import { monotonePath, webAnalyticsDateTicks, webAnalyticsTicks } from "./web-chart";
 
 export type Theme = keyof typeof nativeColors;
 
@@ -180,9 +181,9 @@ export function List({ children }: { children: ReactNode }) {
   return <View style={[styles.list, { borderColor: colors.border }]}>{children}</View>;
 }
 
-export function ActionRow({ label, detail, value, icon, selected, onPress }: {
+export function ActionRow({ label, detail, value, icon, rank, selected, onPress }: {
   label: string; detail?: string | null; value?: string | number; icon?: string;
-  selected?: boolean; onPress?: () => void;
+  rank?: number; selected?: boolean; onPress?: () => void;
 }) {
   const { colors } = useMonitoringUi();
   const content = <>
@@ -191,6 +192,7 @@ export function ActionRow({ label, detail, value, icon, selected, onPress }: {
         <MonitoringIcon icon={icon} color={colors.primary} />
       </View>
     ) : null}
+    {rank === undefined ? null : <Body small muted>{rank}</Body>}
     <View style={styles.rowLabel}>
       <Body strong>{label}</Body>
       {detail ? <Body small muted>{detail}</Body> : null}
@@ -198,7 +200,7 @@ export function ActionRow({ label, detail, value, icon, selected, onPress }: {
     {value !== undefined ? <Body small>{value}</Body> : null}
     {onPress && !icon && value === undefined ? <Body muted>›</Body> : null}
   </>;
-  if (!onPress) return <View style={[styles.row, { borderColor: colors.border }]}>{content}</View>;
+  if (!onPress) return <View style={[styles.row, rank !== undefined && styles.rankedRow, { borderColor: colors.border }]}>{content}</View>;
   return (
     <Pressable accessibilityRole={icon ? "link" : "button"}
       accessibilityLabel={[label, detail].filter(Boolean).join(". ")}
@@ -277,16 +279,24 @@ export function ReadState({ loading, error, retry, message }: {
 }
 
 type ChartPoint = { label: string; values: number[] };
-export function TrendChart({ points, series, empty, stacked, secondary, seriesColors }: {
+export function TrendChart({ points, series, empty, stacked, secondary, seriesColors, webAnalytics }: {
   points: ChartPoint[]; series: string[]; empty: string; stacked?: boolean; secondary?: boolean;
-  seriesColors?: string[];
+  seriesColors?: string[]; webAnalytics?: boolean;
 }) {
   const { colors, n, t } = useMonitoringUi();
   const [selected, setSelected] = useState<number>();
-  const palette = seriesColors ?? [colors.primary, "#33c1a5", colors.secondary];
+  const [measuredWidth, setMeasuredWidth] = useState(340);
+  const palette = seriesColors ?? (webAnalytics
+    ? [colors.brandPrimary, nativeLinkInks["tertiary-1"]]
+    : [colors.primary, "#33c1a5", colors.secondary]);
   if (!points.length || (stacked && points.every(point => point.values.every(value => !value)))) return <Body muted>{empty}</Body>;
   const active = selected === undefined ? undefined : points[selected];
-  const width = 340, left = 36, right = secondary ? 308 : 328, top = 16, baseline = 165;
+  const width = webAnalytics ? measuredWidth : 340;
+  const height = webAnalytics ? 200 : 196;
+  const left = webAnalytics ? 40 : 36;
+  const right = width - (secondary ? 32 : webAnalytics ? 10 : 12);
+  const top = webAnalytics ? 10 : 16;
+  const baseline = webAnalytics ? 169 : 165;
   const secondaryIndex = secondary ? series.length - 1 : -1;
   const primaryTotal = (point: ChartPoint) => stacked
     ? point.values.reduce((sum, value, index) => index === secondaryIndex ? sum : sum + value, 0)
@@ -296,16 +306,22 @@ export function TrendChart({ points, series, empty, stacked, secondary, seriesCo
     const magnitude = Math.pow(10, Math.floor(Math.log10(peak)));
     return Math.ceil(peak / magnitude) * magnitude;
   };
-  const max = axisMax(points.map(primaryTotal));
+  const totals = points.map(primaryTotal);
+  const webTicks = webAnalytics ? webAnalyticsTicks(Math.max(...totals)) : undefined;
+  const max = webTicks?.at(-1) ?? axisMax(totals);
   const secondMax = secondary ? axisMax(points.map(point => point.values[secondaryIndex])) : 0;
   const chartWidth = right - left;
   const barWidth = Math.min(secondary ? 22 : 24, chartWidth / points.length / (secondary ? 2.3 : 1.3));
   const x = (index: number) => stacked ? left + chartWidth * (index + 0.5) / points.length
     : points.length === 1 ? (left + right) / 2 : left + chartWidth * index / (points.length - 1);
   const y = (value: number, scale = max) => baseline - (baseline - top) * value / scale;
-  const tickIndices = [...new Set([0, Math.floor((points.length - 1) / 2), points.length - 1])];
+  const numericTicks = webTicks ?? [0, 1, 2, 3].map(index => max * index / 3);
+  const dateTicks = webAnalytics
+    ? webAnalyticsDateTicks(points.map(point => point.label), left, right)
+    : [...new Set([0, Math.floor((points.length - 1) / 2), points.length - 1])].map(index => ({ index, x: x(index) }));
   return <View style={styles.section}>
     <View accessible accessibilityLabel={`${series.join(", ")}. ${active?.label ?? `${points[0].label} ${t("sampai", "to")} ${points.at(-1)?.label}`}`}
+      onLayout={webAnalytics ? event => setMeasuredWidth(event.nativeEvent.layout.width) : undefined}
       accessibilityRole="adjustable" accessibilityActions={[{ name: "increment" }, { name: "decrement" }]}
       accessibilityValue={active ? { text: active.values.map((value, index) => `${series[index]} ${n(value)}`).join(", ") } : undefined}
       onAccessibilityAction={event => {
@@ -313,20 +329,16 @@ export function TrendChart({ points, series, empty, stacked, secondary, seriesCo
           ? Math.min(points.length - 1, (previous ?? -1) + 1)
           : Math.max(0, (previous ?? 1) - 1));
       }}>
-      <Svg width="100%" height={196} viewBox={`0 0 ${width} 196`}>
-        {[0, 1, 2, 3].map(index => {
-          const ratio = index / 3;
-          const value = max * ratio;
-          return <Line key={index} x1={left} y1={y(value)} x2={right} y2={y(value)} stroke={colors.border} strokeDasharray="3 3" />;
-        })}
-        {[0, 1, 2, 3].map(index => {
-          const value = max * index / 3;
-          return <SvgText key={index} x={left - 5} y={y(value) + 4} textAnchor="end" fill={colors.mutedForeground} fontSize="10">
-            {value >= 1000 ? `${n(value / 1000)}k` : n(value)}
-          </SvgText>;
-        })}
-        {tickIndices.map(index => <SvgText key={index} x={x(index)} y={188} textAnchor={points.length === 1 ? "middle" : index === 0 ? "start" : index === points.length - 1 ? "end" : "middle"}
-          fill={colors.mutedForeground} fontSize="11">{points[index].label}</SvgText>)}
+      <Svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`}>
+        {numericTicks.map(value => <Line key={value} x1={left} y1={y(value)} x2={right} y2={y(value)}
+          stroke={colors.border} opacity={webAnalytics ? 0.5 : 1} strokeDasharray="3 3" />)}
+        {numericTicks.map(value => <SvgText key={value} x={left - 5} y={y(value) + 4} textAnchor="end"
+          fill={colors.mutedForeground} fontSize={webAnalytics ? 12 : 10}>
+          {value >= 1000 ? `${webAnalytics ? (value / 1000).toFixed(1) : n(value / 1000)}k` : webAnalytics ? value : n(value)}
+        </SvgText>)}
+        {dateTicks.map(({ index, x }) => <SvgText key={index} x={x} y={webAnalytics ? 194 : 188}
+          textAnchor={webAnalytics || points.length === 1 ? "middle" : index === 0 ? "start" : index === points.length - 1 ? "end" : "middle"}
+          fill={colors.mutedForeground} fontSize={webAnalytics ? 12 : 11}>{points[index].label}</SvgText>)}
         {secondary && [0, 1, 2, 3].map(index => {
           const value = Math.round(secondMax * index / 3);
           return <SvgText key={index} x={right + 5} y={y(value, secondMax) + 4} fill={colors.mutedForeground} fontSize="10">
@@ -345,8 +357,10 @@ export function TrendChart({ points, series, empty, stacked, secondary, seriesCo
               height={Math.max(0, lower - upper)} fill={palette[index]} />;
           });
         }) : series.map((name, index) => {
-          const path = points.map((point, pointIndex) => `${pointIndex ? "L" : "M"} ${x(pointIndex)} ${y(point.values[index])}`).join(" ");
-          return <Path key={name} d={path} stroke={palette[index]} strokeWidth={2.5}
+          const coordinates = points.map((point, pointIndex) => ({ x: x(pointIndex), y: y(point.values[index]) }));
+          const path = webAnalytics ? monotonePath(coordinates)
+            : coordinates.map((point, pointIndex) => `${pointIndex ? "L" : "M"} ${point.x} ${point.y}`).join(" ");
+          return <Path key={name} d={path} stroke={palette[index]} strokeWidth={webAnalytics ? 3 : 2.5}
             strokeDasharray={index === 1 ? "4 4" : undefined} fill="none" />;
         })}
         {selected !== undefined && active ? <Line x1={x(selected)} x2={x(selected)} y1={top} y2={baseline} stroke={colors.mutedForeground} strokeDasharray="4 4" /> : null}
@@ -361,9 +375,11 @@ export function TrendChart({ points, series, empty, stacked, secondary, seriesCo
       </View>
     </View>
     <View style={styles.legend}>
-      {series.map((name, index) => <View key={name} style={styles.legendItem}>
-        <View style={[styles.swatch, { backgroundColor: palette[index % palette.length] }]} />
-        <Body small>{name}</Body>
+      {(webAnalytics ? [1, 0] : [...series.keys()]).map(index => <View key={series[index]} style={styles.legendItem}>
+        {webAnalytics ? <Svg width={16} height={8}>
+          <Line x1={0} y1={4} x2={16} y2={4} stroke={palette[index]} strokeWidth={2} strokeDasharray={index === 1 ? "4 4" : undefined} />
+        </Svg> : <View style={[styles.swatch, { backgroundColor: palette[index % palette.length] }]} />}
+        <Body small>{series[index]}</Body>
       </View>)}
     </View>
     {active ? <Body small>{`${active.label}: ${active.values.map((value, index) => `${series[index]} ${n(value)}`).join(" · ")}`}</Body> : null}
@@ -385,6 +401,7 @@ export const styles = StyleSheet.create({
   button: { minHeight: 44, flexShrink: 1 },
   list: { borderTopWidth: StyleSheet.hairlineWidth },
   row: { paddingVertical: 10, minHeight: 44, flexDirection: "row", alignItems: "center", gap: 12, borderBottomWidth: StyleSheet.hairlineWidth },
+  rankedRow: { alignItems: "flex-start" },
   rowLabel: { flex: 1, minWidth: 0, gap: 2 },
   iconTile: { width: 32, height: 32, borderRadius: nativeRadii.md, alignItems: "center", justifyContent: "center" },
   stats: { flexDirection: "row", flexWrap: "wrap", gap: 10, borderBottomWidth: StyleSheet.hairlineWidth, paddingBottom: 12 },

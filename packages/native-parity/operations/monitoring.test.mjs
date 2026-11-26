@@ -5,6 +5,7 @@ import {
 } from "./monitoring-contract.ts";
 import { createMonitoringFixture, monitoringCases, monitoringFixtureData } from "./monitoring-fixtures.ts";
 import { createMonitoringReader, createSessionMonitoringActions, createSessionMonitoringReader } from "../../../apps/mobile-native/features/operations/monitoring/transport.ts";
+import { monotonePath, webAnalyticsDateTicks, webAnalyticsTicks } from "../../../apps/mobile-native/features/operations/monitoring/web-chart.ts";
 
 const signal = () => new AbortController().signal;
 
@@ -31,6 +32,16 @@ test("web analytics and learner activity remain separate sources with distinct e
   assert.equal((await reader.read({ view: "usage", range: 7 }, signal())).users.length, 0);
   assert.equal((await createMonitoringFixture("unavailable").reader.read({ view: "web" }, signal())), null);
   assert.equal((await createMonitoringFixture("empty").reader.read({ view: "web" }, signal())).summary.views, 0);
+});
+
+test("mobile web analytics uses the same traffic scale, dates and monotone turns as the reference", () => {
+  const { dailyData } = monitoringFixtureData.web;
+  assert.deepEqual(webAnalyticsTicks(Math.max(...dailyData.flatMap(day => [day.views, day.sessions]))), [0, 200, 400, 600, 800]);
+  assert.deepEqual(webAnalyticsTicks(0), [0, 1, 2, 3, 4]);
+  const labels = dailyData.map(day => new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(day.date)));
+  assert.deepEqual(webAnalyticsDateTicks(labels, 40, 338).map(({ index }) => labels[index]), ["19 Nov", "21 Nov", "23 Nov"]);
+  const turn = [{ x: 0, y: 0 }, { x: 6, y: 6 }, { x: 12, y: 0 }];
+  assert.equal(monotonePath(turn), "M 0 0 C 2 3 4 6 6 6 C 8 6 10 3 12 0");
 });
 
 test("filters use gateway attribution and tutor audit outcomes independently", async () => {
