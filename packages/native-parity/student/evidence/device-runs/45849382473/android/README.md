@@ -1,0 +1,7 @@
+# Bukti Android Student pada 4a1d9c86
+
+Job Android menjalankan APK rilis dari checkout `dc861fff2555c34797c543dc74268abceedc2e5f`, hasil merge PR head `4a1d9c866fd24047db59585f66dded3671cbc4c5`. Job secara keseluruhan gagal. [Run](https://github.com/soezyxstt/zyxacademy/actions/runs/45849382473) · [Job Android](https://github.com/soezyxstt/zyxacademy/actions/runs/45849382473/job/140013786870) · [Provenance dan SHA-256](provenance.json)
+
+- Maestro mandiri mencatat satu lulus dan 26 kegagalan transport pada percobaan awal. Empat partisi retry selesai dan memulihkan lima skenario, sehingga hasil efektifnya enam lulus dan 21 gagal karena ADB `device offline`. Dashboard, gerbang kuis, dan daftar materi panjang gagal karena transport pada kedua percobaan. [JUnit awal](report.xml) · [Indeks percobaan](standalone-attempts.json) · [Status efektif](standalone-status.json)
+- Smoke yang dihasilkan mencatat 167 lulus, 33 gagal karena ADB, dan tiga terblokir. Retry memulihkan 93 dari 126 kegagalan transport awal. [Ringkasan](smoke-summary.json) · [Penyebab kegagalan](generated-failure-classification.json) · [Indeks tangkapan](smoke-captures.json)
+- Ketiga puluh tiga pasangan target kehilangan tangkapan native dari percobaan efektif. Pemeriksaan posisi gulir tidak dapat disimpulkan karena skenario materi yang dipilih gagal. [Perbandingan](comparison.json) · [Pemulihan gulir](scroll-restoration.json)

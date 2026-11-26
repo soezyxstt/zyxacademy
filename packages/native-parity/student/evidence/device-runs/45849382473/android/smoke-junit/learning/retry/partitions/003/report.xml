@@ -1,0 +1,13 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+  <testsuite name="Test Suite" device="test" tests="8" failures="0" time="26.456" timestamp="2026-11-26T16:17:30">
+    <testcase id="smoke-100" name="smoke-100" classname="smoke-100" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/learning/smoke-100.yaml" time="4.564" timestamp="2026-11-26T16:17:30" status="SUCCESS"/>
+    <testcase id="smoke-101" name="smoke-101" classname="smoke-101" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/learning/smoke-101.yaml" time="3.551" timestamp="2026-11-26T16:17:34" status="SUCCESS"/>
+    <testcase id="smoke-110" name="smoke-110" classname="smoke-110" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/learning/smoke-110.yaml" time="3.267" timestamp="2026-11-26T16:17:38" status="SUCCESS"/>
+    <testcase id="smoke-111" name="smoke-111" classname="smoke-111" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/learning/smoke-111.yaml" time="2.691" timestamp="2026-11-26T16:17:41" status="SUCCESS"/>
+    <testcase id="smoke-112" name="smoke-112" classname="smoke-112" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/learning/smoke-112.yaml" time="3.419" timestamp="2026-11-26T16:17:44" status="SUCCESS"/>
+    <testcase id="smoke-113" name="smoke-113" classname="smoke-113" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/learning/smoke-113.yaml" time="3.513" timestamp="2026-11-26T16:17:47" status="SUCCESS"/>
+    <testcase id="smoke-114" name="smoke-114" classname="smoke-114" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/learning/smoke-114.yaml" time="2.882" timestamp="2026-11-26T16:17:51" status="SUCCESS"/>
+    <testcase id="smoke-115" name="smoke-115" classname="smoke-115" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/learning/smoke-115.yaml" time="2.535" timestamp="2026-11-26T16:17:54" status="SUCCESS"/>
+  </testsuite>
+</testsuites>
