@@ -21,7 +21,8 @@ export function createManagementHttpClient({ request, userId, sessionId, assertC
       if (response.status === 424) throw new ManagementFailure("uncertain");
       if (response.status === 425) throw new ManagementFailure("pending");
       if (response.status === 409) throw new ManagementFailure("conflict");
-      if (response.status === 400 || response.status === 413 || response.status === 415) throw new ManagementFailure("invalid");
+      if (response.status === 413) throw new ManagementFailure("payload-too-large");
+      if (response.status === 400 || response.status === 415) throw new ManagementFailure("invalid");
       if (!response.ok) throw new ManagementFailure("unavailable");
       const data = await response.json();
       assertCurrent?.();

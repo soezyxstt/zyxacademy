@@ -6,7 +6,7 @@ export const managementRoutes = [
 
 export type ManagementRoute = typeof managementRoutes[number];
 export type ManagementMode = "populated" | "empty" | "recoverable-error";
-export type ManagementError = "forbidden" | "not-found" | "conflict" | "invalid" | "unavailable" | "unsupported" | "pending" | "uncertain";
+export type ManagementError = "forbidden" | "not-found" | "conflict" | "invalid" | "unavailable" | "unsupported" | "pending" | "uncertain" | "payload-too-large";
 
 export class ManagementFailure extends Error {
   constructor(readonly code: ManagementError, message?: string) {

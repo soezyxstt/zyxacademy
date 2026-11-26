@@ -33,6 +33,7 @@ test("replays an unchanged article draft save once and rejects stale revisions",
   const [first, repeated] = await Promise.all([local.mutate(operation, "create"), local.mutate(operation, "create")]);
   expect(first).toEqual(repeated);
   expect(await local.read("articles", undefined)).toHaveLength(1);
+  expect((await local.read("articles", undefined))[0]).not.toHaveProperty("content");
   const original = await local.read("article", first.id!);
   const updated = await local.mutate({ type: "article.save", id: original.id, revision: original.revision, fields: { ...validArticle, title: "Suntingan" } }, "edit");
   expect(updated.revision).not.toBe(original.revision);

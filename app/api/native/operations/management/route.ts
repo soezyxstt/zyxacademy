@@ -12,7 +12,7 @@ import { BlogServiceError, getBlogArticle } from "@/lib/blog/service";
 import { listThreadsAcrossChannels, getThread, listChannelMetadata } from "@/lib/discussions/service";
 import { getCompleteMeetingAnalytics, listConferenceRecords } from "@/lib/google-meet";
 import { getPricingDiscounts } from "@/lib/pricing-settings";
-import type { Article, ManagementPage, MeetingDetails, MeetingRecord, PricingData } from "@/packages/native-parity/operations/management-contract";
+import { ManagementFailure, type Article, type ManagementPage, type MeetingDetails, type MeetingRecord, type PricingData } from "@/packages/native-parity/operations/management-contract";
 
 function reply(value: unknown, status = 200) {
   return NextResponse.json(value, { status, headers: { "Cache-Control": "private, no-store" } });
@@ -103,6 +103,35 @@ export async function GET(request: NextRequest) {
   }
 }
 
+const maximumPayloadBytes = 1024 * 1024;
+
+async function readAction(request: NextRequest): Promise<unknown> {
+  if (Number(request.headers.get("content-length")) > maximumPayloadBytes) throw new ManagementFailure("payload-too-large");
+  if (!request.body) throw new ManagementFailure("invalid");
+  const reader = request.body.getReader();
+  let size = 0;
+  let text = "";
+  const decode = new TextDecoder();
+  try {
+    for (;;) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      size += chunk.value.byteLength;
+      if (size > maximumPayloadBytes) {
+        await reader.cancel();
+        throw new ManagementFailure("payload-too-large");
+      }
+      text += decode.decode(chunk.value, { stream: true });
+    }
+    return JSON.parse(text + decode.decode()) as unknown;
+  } catch (error) {
+    if (error instanceof ManagementFailure) throw error;
+    throw new ManagementFailure("invalid");
+  } finally {
+    reader.releaseLock();
+  }
+}
+
 export async function POST(request: NextRequest) {
   const origin = request.headers.get("origin");
   if (origin && origin !== request.nextUrl.origin) return reply({ error: "forbidden" }, 403);
@@ -113,12 +142,7 @@ export async function POST(request: NextRequest) {
     const auth = await getAuthSession();
     const sessionId = auth?.session?.id;
     if (!sessionId || auth.user.id !== admin.user.id || request.headers.get("x-native-operations-user-id") !== admin.user.id || request.headers.get("x-native-operations-session-id") !== sessionId) return reply({ error: "forbidden" }, 403);
-    const length = Number(request.headers.get("content-length"));
-    if (length > 1_048_576) return reply({ error: "payload-too-large" }, 413);
-    const text = await request.text();
-    if (text.length > 1_048_576) return reply({ error: "payload-too-large" }, 413);
-    let action: unknown;
-    try { action = JSON.parse(text); } catch { return reply({ error: "invalid" }, 400); }
+    const action = await readAction(request);
     const requestKey = request.headers.get("x-native-operations-request-key");
     if (isDiscussionOperation(action)) {
       const [active] = await db.select({ id: session.id }).from(session).where(and(eq(session.id, sessionId), eq(session.userId, admin.user.id), gt(session.expiresAt, new Date()))).limit(1);
@@ -130,6 +154,7 @@ export async function POST(request: NextRequest) {
     return reply(await nativeAuthoringMutation(actor, request.nextUrl.origin, requestKey, action));
   } catch (error) {
     const status = nativeAuthoringStatus(error);
-    return reply({ error: status === 409 ? "conflict" : status === 503 ? "unavailable" : "invalid" }, status);
+    const codes: Partial<Record<number, string>> = { 400: "invalid", 403: "forbidden", 404: "not-found", 409: "conflict", 413: "payload-too-large", 424: "uncertain", 425: "pending" };
+    return reply({ error: codes[status] ?? "unavailable" }, status);
   }
 }

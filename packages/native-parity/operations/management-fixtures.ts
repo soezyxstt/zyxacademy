@@ -93,7 +93,7 @@ export function createManagementFixture({ mode = "populated", admin = true }: Ma
   let serial = 10;
   const nextId = (prefix: string) => `${prefix}-${++serial}`;
   const reads: { [K in keyof ManagementReads]: (input: ManagementReads[K][0]) => ManagementReads[K][1] } = {
-    articles: () => articles,
+    articles: () => articles.map(({ id, slug, title, category, status, author }) => ({ id, slug, title, category, status, author })),
     article: id => required(articles.find(article => article.id === id)),
     forms: () => forms.map(detail => detail.form),
     form: id => required(forms.find(detail => detail.form.id === id)),
@@ -101,7 +101,7 @@ export function createManagementFixture({ mode = "populated", admin = true }: Ma
       const prefix = folder || (space === "media" ? "media" : "");
       return { folders: (space === "media" ? folders : storageFolders).filter(key => directChild(key, prefix)), files: (space === "media" ? files : storage).filter(file => directChild(file.key, prefix)) };
     },
-    meetings: () => ({ items: meetings }),
+    meetings: () => ({ items: meetings.map(({ id, title, startTime, endTime, participantCount, peakConcurrentParticipants }) => ({ id, title, startTime, endTime, participantCount, peakConcurrentParticipants })) }),
     meeting: id => required(meetings.find(record => record.id === id)),
     meetingDirectory: () => data ? initialDirectory : { users: [], courses: [] },
     discussions: ({ search, status }) => ({ items: threads.filter(thread => (!status || thread.status === status) && (!search || `${thread.title} ${thread.channel}`.toLowerCase().includes(search.toLowerCase()))) }),

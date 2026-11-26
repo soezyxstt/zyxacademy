@@ -39,6 +39,7 @@ export function managementErrorMessage(error: unknown): string {
     unsupported: "Operasi belum tersedia di aplikasi ini.",
     pending: "Operasi masih diproses. Coba periksa statusnya lagi.",
     uncertain: "Hasil operasi belum dapat dipastikan. Periksa statusnya di web Admin.",
+    "payload-too-large": "Ukuran perubahan melebihi batas.",
   };
   return error.code === "invalid" && error.message !== "invalid" ? error.message : messages[error.code];
 }

@@ -8,14 +8,26 @@ import { revisionOf } from "@/lib/admin-mcp/revision";
 import { assertAuthoringActor } from "@/lib/auth/authoring-actor";
 import { blogFieldsSchema, createBlogArticle, updateBlogArticle } from "@/lib/blog/service";
 import { nextMonotonicTimestamp } from "@/lib/date-utils";
-import { formDefinitionSchema, formSettingsSchema } from "@/lib/forms/validation";
+import { formDefinitionSchema, formQuestionSchema, formSettingsSchema } from "@/lib/forms/validation";
 import { applyConfiguration, configurationOperations } from "./configuration";
 import { ManagementFailure } from "@/packages/native-parity/operations/management-contract";
 
 const id = z.string().regex(/^[A-Za-z0-9_-]{1,180}$/);
 const articleRevision = z.string().regex(/^[a-f0-9]{64}$/);
 const requestKeySchema = z.string().regex(/^[A-Za-z0-9_-]{16,100}$/);
-const formFields = formDefinitionSchema.extend({ slug: z.union([formDefinitionSchema.shape.slug, z.literal("")]) });
+const optionalHeading = z.unknown().transform((value, ctx) => {
+  if (value && typeof value === "object" && "type" in value && "title" in value &&
+    (value.type === "SECTION" || value.type === "STATEMENT") && typeof value.title === "string" && !value.title.trim()) {
+    const question = formQuestionSchema.safeParse({ ...value, title: "Bagian" });
+    if (question.success && (question.data.type === "SECTION" || question.data.description?.trim() || question.data.imageUrl)) return { ...question.data, title: "" };
+  }
+  ctx.addIssue({ code: "custom", message: "Bagian atau pernyataan tidak valid." });
+  return z.NEVER;
+});
+const formFields = formDefinitionSchema.extend({
+  slug: z.union([formDefinitionSchema.shape.slug, z.literal("")]),
+  questions: z.array(z.union([formQuestionSchema, optionalHeading])).min(1).max(200),
+});
 const nativeAuthoring = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("article.save"), id: id.optional(), revision: articleRevision.optional(), fields: blogFieldsSchema.omit({ slug: true, readMinutes: true }).extend({ status: z.enum(["draft", "published"]) }) }),
   z.strictObject({ type: z.literal("form.save"), id: id.optional(), revision: z.iso.datetime().optional(), fields: formFields }),
@@ -122,6 +134,7 @@ export function nativeAuthoringStatus(error: unknown) {
   switch (code) {
     case authorityFailure: case "forbidden": case "BLOG_FORBIDDEN": return 403;
     case "not-found": case "NOT_FOUND": return 404;
+    case "payload-too-large": return 413;
     case "uncertain": return 424;
     case "pending": return 425;
     case "conflict": case "REVISION_CONFLICT": case "SLUG_CONFLICT": case "BLOG_SLUG_CONFLICT": case "23505": return 409;
