@@ -64,6 +64,13 @@ export const operationsCatalog = [
     "reason": "The Expo client reads the active account's own role memberships and locale for routing. Each product API still enforces object permissions. MCP client identity, consent, scopes, discovery, playbooks, packaged skills and environment bindings are independent."
   },
   {
+    "source": "apps/mobile-native/device/photo-controller.ts",
+    "actions": ["pick", "recover"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "A signed-in user chooses a photo for one local device draft. Camera consent and Android picker recovery are device actions. Upload authorization stays with the consuming domain. This adds no MCP operation, scope or environment binding."
+  },
+  {
     "source": "apps/mobile-native/device/notifications-controller.ts",
     "actions": ["requestPermission", "sync", "setAccount"],
     "tools": [],
