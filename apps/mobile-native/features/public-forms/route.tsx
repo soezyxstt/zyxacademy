@@ -1,18 +1,19 @@
 import { randomUUID } from "expo-crypto";
 import { useRouter } from "expo-router";
 import { openBrowserAsync } from "expo-web-browser";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { authLocale } from "../../auth/auth-copy";
 import { authEntryHref } from "../../auth/login-intent";
 import { NATIVE_STAGING_ORIGIN } from "../../auth/session-api";
 import { useNativeSession } from "../../auth/session-provider";
 import { useNativeAccountContext } from "../../auth/use-account-context";
-import type { NativeSessionTransport } from "../../network/transport";
+import type { NativeSessionScope } from "../../network/transport";
 import { createFormSubmissionGate, loadPublicForm, submitPublicForm } from "./client";
 import { pickAndUploadFormFile, requestPublicForm } from "./expo-client";
 import { formIdentifier, formUploadPolicy, publicFormPath, type FormEntry, type FormLocale, type PublicForm, type PublicFormLoad } from "./model";
 import { PublicFormResponse } from "./response";
 import { PublicFormScreen } from "./screen";
+import { formDraftOwner, formWriteAccess } from "./session";
 
 type WebStatus = "idle" | "opening" | "error";
 
@@ -20,16 +21,20 @@ export function PublicFormRoute({ entry, identifier: raw, requestedLocale }: { e
   const id = formIdentifier(raw);
   const { context } = useNativeAccountContext();
   const locale: FormLocale = context?.locale ?? authLocale(requestedLocale);
-  return <PublicFormLocation key={JSON.stringify([entry, id, locale])} entry={entry} id={id} locale={locale} />;
+  return <PublicFormLocation key={JSON.stringify([entry, id])} entry={entry} id={id} locale={locale} />;
 }
 
 function PublicFormLocation({ id, entry, locale }: { id: string | null; entry: FormEntry; locale: FormLocale }) {
-  const { state, transport, revalidating, refresh } = useNativeSession();
+  const session = useNativeSession();
+  const { state, refresh } = session;
   const router = useRouter();
   const [data, setData] = useState<PublicFormLoad | null>(id ? null : { status: "missing" });
   const [web, setWeb] = useState<WebStatus>("idle");
   const [statusCheck, setStatusCheck] = useState(0);
   const [submissionGate] = useState(createFormSubmissionGate);
+  const [previousOwner, setPreviousOwner] = useState<NativeSessionScope | "anonymous" | null>(null);
+  const owner = formDraftOwner(session, previousOwner);
+  if (owner !== previousOwner) setPreviousOwner(owner);
   const [checking, setChecking] = useState(false);
   const [checkFailed, setCheckFailed] = useState(false);
   const read = useRef<AbortController | null>(null);
@@ -91,32 +96,32 @@ function PublicFormLocation({ id, entry, locale }: { id: string | null; entry: F
   }
 
   const openWeb = () => void open(route && (NATIVE_STAGING_ORIGIN + route));
-  const signedIn = state.status === "signed-in" && transport?.isCurrent() ? transport : null;
-  const access = state.status === "loading" || revalidating ? "waiting"
-    : state.status === "signed-out" ? "anonymous" : signedIn ? "signed-in" : "unavailable";
+  const access = state.status === "loading" || session.revalidating ? "waiting"
+    : state.status === "signed-out" ? "anonymous" : formWriteAccess(session, owner) ? "signed-in" : "unavailable";
   const form = data?.status === "ready" ? data.form : null;
-  const formKey = useMemo(() => JSON.stringify([signedIn?.scope ?? "anonymous", form]), [signedIn?.scope, form]);
+  const formKey = JSON.stringify([owner, form]);
 
   return <PublicFormScreen state={data} locale={locale} access={access} opening={web === "opening"} browserFailed={web === "error"}
     onRetry={tryAgain} onLogin={login} onWeb={openWeb} onMeet={() => void open(data?.status === "meeting" ? data.url : null)} onBack={leave}>
-    {form && route && (access === "anonymous" || access === "signed-in") && (
+    {form && route && owner && (
       <FormSession key={formKey}
-        locale={locale} route={route} form={form} transport={signedIn}
+        locale={locale} route={route} form={form} owner={owner} session={session} access={access}
         onLogin={login} onWeb={openWeb} onCheck={() => load(true)} statusCheck={statusCheck}
+        onUploadWeb={() => void open(NATIVE_STAGING_ORIGIN + publicFormPath("full", form.id))}
         checking={checking} checkFailed={checkFailed} onDone={leave} submissionGate={submissionGate} />
     )}
   </PublicFormScreen>;
 }
 
-function FormSession({ form, locale, route, transport, onLogin, onWeb, onCheck, onDone, statusCheck, checking, checkFailed, submissionGate }: {
-  form: PublicForm; locale: FormLocale; route: string; transport: NativeSessionTransport | null;
-  onLogin(): void; onWeb(): void; onCheck(): void; onDone(): void; statusCheck: number; checking: boolean; checkFailed: boolean;
+function FormSession({ form, locale, route, owner, session, access, onLogin, onWeb, onUploadWeb, onCheck, onDone, statusCheck, checking, checkFailed, submissionGate }: {
+  form: PublicForm; locale: FormLocale; route: string; owner: NativeSessionScope | "anonymous";
+  session: ReturnType<typeof useNativeSession>; access: "waiting" | "unavailable" | "signed-in" | "anonymous";
+  onLogin(): void; onWeb(): void; onUploadWeb(): void; onCheck(): void; onDone(): void; statusCheck: number; checking: boolean; checkFailed: boolean;
   submissionGate: ReturnType<typeof createFormSubmissionGate>;
 }) {
   const lifetime = useRef<AbortController | null>(null);
   const [draftId] = useState(randomUUID);
-  const request = transport?.request ?? requestPublicForm;
-  const submissionKey = JSON.stringify([form.id, transport?.scope ?? "anonymous"]);
+  const submissionKey = JSON.stringify([form.id, owner]);
 
   useLayoutEffect(() => {
     const controller = new AbortController();
@@ -125,29 +130,48 @@ function FormSession({ form, locale, route, transport, onLogin, onWeb, onCheck, 
       lifetime.current = null;
       controller.abort();
     };
-  }, [transport]);
+  }, []);
 
-  return <PublicFormResponse form={form} locale={locale} signedIn={!!transport}
+  return <PublicFormResponse form={form} locale={locale} signedIn={owner !== "anonymous"}
+    sessionStatus={access === "waiting" || access === "unavailable" ? access : undefined}
+    onSessionRetry={() => void session.refresh()} onUploadWeb={onUploadWeb}
     onLogin={onLogin} onWeb={onWeb} onCheck={onCheck} onDone={onDone} statusCheck={statusCheck} checking={checking} checkFailed={checkFailed}
     onRepeat={() => submissionGate.fillAgain(submissionKey)}
     onSubmit={draft => {
       const local = lifetime.current;
-      return local && (!transport || transport.isCurrent())
-        ? submissionGate.send(submissionKey, () => submitPublicForm(request, form, draft, local.signal))
-        : Promise.resolve({ status: "uncertain" });
+      const current = formWriteAccess(session.getSnapshot(), owner);
+      if (!local || !current) return Promise.resolve({ status: "session-pending" });
+      const request = current === "anonymous" ? requestPublicForm : current.request;
+      const identity = current === "anonymous" ? undefined : current.scope;
+      return submissionGate.send(submissionKey, () => {
+        if (local.signal.aborted || formWriteAccess(session.getSnapshot(), owner) !== current) {
+          return Promise.resolve({ status: "session-pending" });
+        }
+        return submitPublicForm(request, form, draft, local.signal, identity);
+      });
     }}
     onUpload={index => {
       const local = lifetime.current;
       const question = form.questions[index];
-      if (!local || question?.type !== "FILE_UPLOAD" || (transport && !transport.isCurrent())) return Promise.resolve({ status: "cancelled" });
-      // The picker also isolates anonymous temp files with a local per-draft binding. It grants no network access.
-      const fileScope = transport ?? {
-        scope: { origin: NATIVE_STAGING_ORIGIN, sessionId: draftId, accountId: "anonymous-public-form" },
-        signal: local.signal, isCurrent: () => lifetime.current === local && !local.signal.aborted,
-      };
-      return pickAndUploadFormFile(request, {
-        session: fileScope, target: { route, locale, draftId }, signal: local.signal,
-        isDraftCurrent: () => lifetime.current === local && !local.signal.aborted, policy: formUploadPolicy(question),
+      const current = formWriteAccess(session.getSnapshot(), owner);
+      if (!local || !current || question?.type !== "FILE_UPLOAD") return Promise.resolve({ status: "cancelled" });
+      const isDraftCurrent = () => !local.signal.aborted && formDraftOwner(session.getSnapshot(), owner) === owner;
+      const policy = formUploadPolicy(question);
+      return pickAndUploadFormFile(async () => {
+        // The system picker can return before the foreground refresh notification reaches React.
+        if (owner !== "anonymous") await session.refresh();
+        if (!isDraftCurrent()) return null;
+        const verified = formWriteAccess(session.getSnapshot(), owner);
+        if (!verified) return null;
+        return verified === "anonymous" ? { request: requestPublicForm }
+          : { request: verified.request, identity: verified.scope };
+      }, {
+        // The draft stays alive while credentials are being checked. Every write uses current credentials.
+        session: {
+          scope: owner === "anonymous" ? { origin: NATIVE_STAGING_ORIGIN, sessionId: draftId, accountId: "anonymous-public-form" } : owner,
+          signal: local.signal, isCurrent: isDraftCurrent,
+        },
+        signal: local.signal, target: { route, locale, draftId }, isDraftCurrent, policy,
       }, form.id, index);
     }} />;
 }

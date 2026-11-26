@@ -1,6 +1,20 @@
 /** Source-level coverage index. Tool registration is authoritative; partial does not imply every action is exposed. */
 export const operationsCatalog = [
   {
+    "source": "app/api/forms/[idOrSlug]/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Public form links resolve published respondent content. Live submissions use the respondent session or the form's anonymous policy. Admin MCP forms preview and simulation use separate read scopes and never submit live responses."
+  },
+  {
+    "source": "app/api/forms/upload/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Public file uploads attach files to a live respondent form under its current upload and authentication policy. Admin MCP preview and simulation do not upload respondent files."
+  },
+  {
     "source": "app/api/tautan/route.ts",
     "actions": ["GET"],
     "tools": [],

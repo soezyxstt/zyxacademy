@@ -5,12 +5,20 @@ import { customForms } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { detectFormFileMime } from "@/lib/forms/file-types";
 import { formFileSizeLimitMb } from "@/lib/forms/presentation";
-import { getFormClosedReason, getFormRespondentError } from "@/lib/forms/response-policy";
+import { expectsFormWriteSession, formWriteSessionError, getFormClosedReason, getFormRespondentError, matchesFormWriteSession } from "@/lib/forms/response-policy";
 import { storage } from "@/lib/storage";
 import { buildFormStorageKey } from "@/lib/forms/storage-utils";
 
 export async function POST(req: Request) {
   try {
+    const expectedSession = expectsFormWriteSession(req);
+    const session = expectedSession
+      ? await auth.api.getSession({ headers: req.headers, query: { disableCookieCache: true, disableRefresh: true } })
+      : null;
+    if (expectedSession && !matchesFormWriteSession(req.headers, session)) {
+      return NextResponse.json({ error: formWriteSessionError }, { status: 401 });
+    }
+
     const formData = await req.formData().catch(() => null);
     const file = formData?.get("file");
     const formIdentifier = formData?.get("formSlug");
@@ -50,8 +58,8 @@ export async function POST(req: Request) {
     }
 
     if (settings.requireLogin || settings.collectEmail === "verified") {
-      const session = await auth.api.getSession({ headers: req.headers });
-      const respondentError = getFormRespondentError(settings, session?.user);
+      const respondent = session ?? await auth.api.getSession({ headers: req.headers });
+      const respondentError = getFormRespondentError(settings, respondent?.user);
       if (respondentError) {
         return NextResponse.json({ error: respondentError.message }, { status: respondentError.status });
       }

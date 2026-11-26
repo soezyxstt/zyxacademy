@@ -53,3 +53,24 @@ export function getFormRespondentError(settings: FormResponseSettings, user?: Re
   }
   return null;
 }
+
+export type FormWriteIdentity = { accountId: string; sessionId: string };
+
+const formAccountHeader = "X-Zyx-Form-Account";
+const formSessionHeader = "X-Zyx-Form-Session";
+
+export function formWriteSessionHeaders(identity: FormWriteIdentity): Record<string, string> {
+  return { [formAccountHeader]: identity.accountId, [formSessionHeader]: identity.sessionId };
+}
+
+export function expectsFormWriteSession(request: Request): boolean {
+  return new URL(request.url).searchParams.get("respondent") === "session"
+    || request.headers.has(formAccountHeader) || request.headers.has(formSessionHeader);
+}
+
+export function matchesFormWriteSession(headers: Headers, auth: { user: { id: string }; session: { id: string } } | null): boolean {
+  return !!auth?.user?.id && !!auth.session?.id
+    && auth.user.id === headers.get(formAccountHeader) && auth.session.id === headers.get(formSessionHeader);
+}
+
+export const formWriteSessionError = "Sesi akun Zyx berubah atau tidak dapat diverifikasi.";
