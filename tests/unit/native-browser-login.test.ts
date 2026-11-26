@@ -10,6 +10,7 @@ import {
   type NativeBrowserCallback,
 } from "../../apps/mobile-native/auth/browser-intent";
 import { NATIVE_STAGING_ORIGIN } from "../../apps/mobile-native/auth/session-api";
+import { parseNativeLoginIntent, resolveNativeLoginReturn, type NativeLoginIntent } from "../../apps/mobile-native/auth/login-intent";
 
 const state = "01".repeat(24);
 const verifier = "01".repeat(32);
@@ -27,7 +28,7 @@ function setup(overrides: Partial<Parameters<typeof createNativeBrowserLogin>[0]
   let stored: string | null = null;
   let queued: NativeBrowserCallback | null = null;
   const requests: Array<{ url: string; init: RequestInit }> = [];
-  const accepted: Array<{ accountId: string; signal: AbortSignal; setCookie: string | null }> = [];
+  const accepted: Array<{ accountId: string; signal: AbortSignal; setCookie: string | null; intent?: NativeLoginIntent }> = [];
   const response = () => Response.json({ user: { id: "account" } }, { headers: { "Set-Cookie": "fixture=value" } });
   const controller = createNativeBrowserLogin({
     randomBytes: async count => new Uint8Array(count).fill(1),
@@ -53,8 +54,8 @@ function setup(overrides: Partial<Parameters<typeof createNativeBrowserLogin>[0]
     set queued(value: NativeBrowserCallback | null) { queued = value; },
     requests,
     accepted,
-    acceptLogin: async (...[headers, accountId, signal]: Parameters<Parameters<typeof controller.signIn>[0]>) => {
-      accepted.push({ accountId, signal, setCookie: headers.get("Set-Cookie") });
+    acceptLogin: async (...[headers, accountId, signal, intent]: Parameters<Parameters<typeof controller.signIn>[0]>) => {
+      accepted.push({ accountId, signal, setCookie: headers.get("Set-Cookie"), intent });
     },
   };
 }
@@ -234,5 +235,105 @@ describe("native browser login", () => {
     await login;
     expect(fixture.accepted).toHaveLength(0);
     expect(fixture.controller.getStatus()).toBe("idle");
+  });
+
+  test("keeps the validated return intent in the matching cold attempt and outside the browser request", async () => {
+    const intent = { entry: "sign-up", locale: "en", next: "/courses/course-1/material/m1?tab=notes#example" } as const;
+    const warm = setup({
+      preserveAttemptOnDismiss: true,
+      openBrowser: async url => {
+        expect(new URL(url).searchParams.get("next")).toBe("/dashboard");
+        expect(url).not.toContain("course-1");
+        return { type: "dismiss" };
+      },
+    });
+    await warm.controller.signIn(warm.acceptLogin, intent);
+    expect(JSON.parse(warm.stored!)).toMatchObject({ intent });
+
+    const cold = setup();
+    cold.stored = warm.stored;
+    cold.queued = callback;
+    expect(await cold.controller.completePending(cold.acceptLogin)).toBe(true);
+    expect(cold.accepted[0].intent).toEqual(intent);
+    expect(cold.controller.getRecoveryIntent()).toBeUndefined();
+  });
+
+  test("retains the safe destination for retry only after a matching failed exchange", async () => {
+    const fixture = setup({ fetcher: async () => Response.json(null, { status: 401 }) });
+    const intent = { entry: "sign-up", locale: "id", next: "/profile" } as const;
+    fixture.stored = storedAttempt({ intent });
+    fixture.queued = { ...callback, state: "02".repeat(24) };
+    expect(await fixture.controller.completePending(fixture.acceptLogin)).toBe(false);
+    expect(fixture.controller.getRecoveryIntent()).toBeUndefined();
+    fixture.queued = callback;
+    expect(await fixture.controller.completePending(fixture.acceptLogin)).toBe(false);
+    expect(fixture.controller.getRecoveryIntent()).toEqual(intent);
+    expect(fixture.stored).toBeNull();
+  });
+
+  test("cancels an outstanding attempt from a previous process during sign-out", async () => {
+    const deleted = deferred<void>();
+    const fixture = setup({
+      deleteAttempt: async () => {
+        fixture.stored = null;
+        deleted.resolve();
+      },
+    });
+    fixture.stored = storedAttempt();
+    fixture.controller.cancel();
+    await deleted.promise;
+    fixture.queued = callback;
+    expect(await fixture.controller.completePending(fixture.acceptLogin)).toBe(false);
+    expect(fixture.requests).toHaveLength(0);
+  });
+});
+
+describe("native login destination", () => {
+  const account = { dashboard: "/dashboard", roles: ["murid"] } as const;
+  type RouteNode = NonNullable<Parameters<typeof resolveNativeLoginReturn>[2]>;
+  const leaf = (href: string, config?: Partial<RouteNode>): RouteNode => ({
+    href, contextKey: `.${href}.tsx`, children: [], isInternal: false, isGenerated: false, ...config,
+  });
+  const sitemap = (...children: RouteNode[]) => leaf("/", { contextKey: "./_layout.tsx", children });
+
+  test("rejects external, ambiguous, encoded separator, auth and unsanctioned application paths", () => {
+    const intent = { entry: "sign-in", locale: "id" };
+    for (const next of [
+      "https://staging.zyxacademy.com/profile", "//staging.zyxacademy.com/profile", "/\\external.invalid/profile",
+      ["/dashboard", "/admin"], "/courses/a%2Fb", "/courses/a%5cb", "/courses/[id]", "/courses/a/./material",
+      "/auth/native-finish", "/sign-out", "/mcp/authorize", "/gallery/separator", "/tutor/a/unknown",
+    ]) {
+      expect(parseNativeLoginIntent({ ...intent, next })).toEqual(intent);
+    }
+    expect(parseNativeLoginIntent({ ...intent, next: "/murid?tab=today" })?.next).toBe("/dashboard?tab=today");
+    expect(parseNativeLoginIntent({ ...intent, next: "/meet/bahasa-%c3%a9" })?.next).toBe("/meet/bahasa-%C3%A9");
+  });
+
+  test("requires the canonical role and matching concrete route pattern to continue", () => {
+    const app = sitemap(leaf("/(student)/dashboard"), leaf("/(admin)/admin"), leaf("/(tutor)/tutor"),
+      leaf("/(student)/courses/[id]/material/[materialId]"), leaf("/meet/[slug]"));
+    const next = "/courses/c1/material/m1?tab=notes#examples";
+    expect(resolveNativeLoginReturn(next, account, app)).toEqual({ status: "ready", href: next });
+    expect(resolveNativeLoginReturn("/admin", account, app)).toEqual({ status: "denied", dashboard: "/dashboard" });
+    expect(resolveNativeLoginReturn(undefined, { dashboard: "/admin", roles: ["admin"] }, app))
+      .toEqual({ status: "ready", href: "/admin" });
+    expect(resolveNativeLoginReturn("/tutor", { dashboard: "/admin", roles: ["admin"] }, app))
+      .toEqual({ status: "ready", href: "/tutor" });
+    expect(resolveNativeLoginReturn("/meet/session-name?from=schedule", account, app))
+      .toEqual({ status: "ready", href: "/meet/session-name?from=schedule" });
+  });
+
+  test("retains a real destination pending integration and ignores layouts, wildcards and galleries", () => {
+    const app = sitemap(leaf("/[...path]"), leaf("/admin", { contextKey: "./admin/_layout.tsx" }),
+      leaf("/(student)/dashboard", { isGenerated: true }), leaf("/(internal)/dashboard", { isInternal: true }),
+      leaf("/gallery/courses/[id]"), leaf("/courses/[id]"));
+    expect(resolveNativeLoginReturn("/courses/tutorial-pka", account, app))
+      .toEqual({ status: "unavailable", dashboard: null });
+    expect(resolveNativeLoginReturn("/courses/%74utorial-pka", account, app))
+      .toEqual({ status: "unavailable", dashboard: null });
+    expect(resolveNativeLoginReturn("/admin", { dashboard: "/admin", roles: ["admin"] }, app))
+      .toEqual({ status: "unavailable", dashboard: null });
+    expect(resolveNativeLoginReturn("/courses/science", account, app))
+      .toEqual({ status: "ready", href: "/courses/science" });
   });
 });

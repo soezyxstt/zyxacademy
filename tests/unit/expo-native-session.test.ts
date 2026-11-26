@@ -113,6 +113,34 @@ describe("Expo staging session", () => {
     }
   });
 
+  test("retains an unconsumed intent only with its verified session and clears it on consumption", async () => {
+    const harness = createHarness();
+    const session = harness.controller();
+    const intent = { entry: "sign-up", locale: "en", next: "/settings?tab=learning" } as const;
+    await session.refresh();
+    await session.acceptLogin(loginHeaders, identity.accountId, undefined, intent);
+    expect(session.getSnapshot().loginIntent).toEqual(intent);
+    expect(JSON.parse(harness.readStored()!).loginIntent).toEqual(intent);
+
+    const restarted = harness.controller();
+    expect(restarted.getSnapshot().loginIntent).toBeUndefined();
+    await restarted.refresh();
+    expect(restarted.getSnapshot().loginIntent).toEqual(intent);
+    await restarted.clearLoginIntent({ ...identity, sessionId: "other-session" });
+    expect(restarted.getSnapshot().loginIntent).toEqual(intent);
+    await restarted.clearLoginIntent(identity);
+    expect(restarted.getSnapshot().loginIntent).toBeUndefined();
+    expect(JSON.parse(harness.readStored()!).loginIntent).toBeUndefined();
+    expect(restarted.getSnapshot().transport?.isCurrent()).toBe(true);
+
+    harness.setStored({ status: "active", origin, cookie, ...identity, loginIntent: intent });
+    harness.setServerSession(null);
+    const revoked = harness.controller();
+    await revoked.refresh();
+    expect(revoked.getSnapshot().loginIntent).toBeUndefined();
+    expect(harness.readStored()).toBeNull();
+  });
+
   test("hides data access during failed logout and verifies revocation on restart", async () => {
     const harness = createHarness();
     const session = harness.controller();
