@@ -70,7 +70,9 @@ for lane in shared-ui student academic operations; do
           git add -- "$conflict"
           ;;
         app/actions/tutor-management.ts:12f2cf10a8aa9689c4b1cecd00ee789905bb4430|\
-        tests/gamification/question-disclosure-calls.test.ts:4885627aaf0124bedf92991befcc551bf05fbb58)
+        tests/gamification/question-disclosure-calls.test.ts:4885627aaf0124bedf92991befcc551bf05fbb58|\
+        apps/mobile-native/offline/library-view.tsx:e5effb595b5d85823a8ac9973d6c1549b9a64b35|\
+        tests/contracts/admin-mcp-catalog.test.ts:7a3108126b63a3453759a3798304e5c28a61d699)
           if python3 scripts/native-readiness/merge_reviewed_preview.py "$conflict"; then
             git add -- "$conflict"
           fi

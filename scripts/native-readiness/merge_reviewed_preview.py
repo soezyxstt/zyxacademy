@@ -9,6 +9,8 @@ GRADE = "export async function gradeSubmissionAction("
 STUDENT_IMPORT = 'import { submitStudentTryout } from "@/lib/student/tryout-submit";'
 OPERATIONS_CHECK = "test('web and native evaluation share disclosures before projecting protected question data'"
 INSIGHT_MODEL = "'lib/admin/quiz-insight-read-model.ts'"
+DEVICE_CHECK = 'test("device sign-in, role context, photo recovery and OS permissions stay user-scoped"'
+STUDENT_ASSESSMENT_CHECK = 'test("Student assessment operations are limited to learner app sessions"'
 
 
 def submit_action(source):
@@ -52,6 +54,27 @@ def combine_disclosure_checks(academic, operations):
     return combined.rstrip() + "\n\n" + operations[operations.index(OPERATIONS_CHECK):]
 
 
+def combine_offline_library(offline, student):
+    clear_target = "  onClearTarget?: () => void;\n"
+    clear_target_action = """          {onClearTarget && (
+            <SharedUiActionButton action={{ id: "all-readings", label: copy.allReadings, variant: "outline" }} onAction={onClearTarget} />
+          )}
+"""
+    if clear_target not in student or clear_target_action not in student:
+        raise ValueError("The Student offline target control changed")
+    combined = replace_once(offline, "  onRefresh?: () => void;\n", clear_target + "  onRefresh?: () => void;\n")
+    combined = replace_once(combined, "  onQuery, onRefresh, onPurgeUnavailable,", "  onQuery, onClearTarget, onRefresh, onPurgeUnavailable,")
+    return replace_once(combined, "          {onRefresh && (\n", clear_target_action + "          {onRefresh && (\n")
+
+
+def combine_catalog_checks(offline, student):
+    if student.count(STUDENT_ASSESSMENT_CHECK) != 1 or student.count(DEVICE_CHECK) != 1 or STUDENT_ASSESSMENT_CHECK in offline:
+        raise ValueError("The Student MCP catalog check changed")
+    start = student.index(STUDENT_ASSESSMENT_CHECK)
+    end = student.index(DEVICE_CHECK, start)
+    return replace_once(offline, DEVICE_CHECK, student[start:end] + DEVICE_CHECK)
+
+
 REVIEWED = {
     "app/actions/tutor-management.ts": (combine_tutor_actions, (
         "6a120d445b0f1556d1bad1b4bdf726b28e5bf887",
@@ -62,6 +85,16 @@ REVIEWED = {
         "3c38389c1281bc19b3547ba77ecc0e4c7348829e",
         "8ee7a56473fa675df632b44a7fe029ea78ea675c",
         "4885627aaf0124bedf92991befcc551bf05fbb58",
+    )),
+    "apps/mobile-native/offline/library-view.tsx": (combine_offline_library, (
+        "4892cdae3d4034e82564f4b47bd9eca06fb2f823",
+        "47dfdd0b6de8f41710be89b625f83e96a0918ef0",
+        "e5effb595b5d85823a8ac9973d6c1549b9a64b35",
+    )),
+    "tests/contracts/admin-mcp-catalog.test.ts": (combine_catalog_checks, (
+        "10e8d08c1cd43b0e2b203286ba17087a8422da84",
+        "d2bec2c58c54f9753d502f23a231d9693f3f6ea5",
+        "7a3108126b63a3453759a3798304e5c28a61d699",
     )),
 }
 
