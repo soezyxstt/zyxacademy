@@ -12,7 +12,8 @@ export function studentEnrollmentsQuery(userId: string) {
       signal, headers: { "x-student-id": userId },
     }),
     enabled: !!userId,
-    staleTime: 0,
+    staleTime: 24 * 60 * 60_000,
+    gcTime: 30 * 24 * 60 * 60_000,
   });
 }
 
@@ -23,6 +24,7 @@ export function studentCourseQuery(userId: string, courseId: string) {
       signal, headers: { "x-student-id": userId },
     }),
     enabled: !!userId && !!courseId,
-    staleTime: 5 * 60_000,
+    staleTime: 24 * 60 * 60_000,
+    gcTime: 30 * 24 * 60 * 60_000,
   });
 }

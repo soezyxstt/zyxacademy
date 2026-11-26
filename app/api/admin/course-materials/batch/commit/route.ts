@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import { recordOfflineChange } from "@/lib/offline/server-events";
 import { db } from "@/db";
 import { courseMaterials } from "@/db/schema";
 import { auth } from "@/lib/auth";
@@ -193,6 +194,7 @@ export async function POST(req: NextRequest) {
         created += 1;
       }
     }
+    await recordOfflineChange(tx, { kind: "course", courseId, action: "invalidate" });
   });
 
   for (const key of replacedKeys) {

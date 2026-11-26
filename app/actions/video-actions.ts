@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { recordOfflineChange, type OfflineTransaction } from "@/lib/offline/server-events";
 import { db } from "@/db";
 import {
   courses,
@@ -110,6 +111,14 @@ async function assertVideoManagerPermission(courseId: string): Promise<{
   } catch {
     throw new Error("Akses ditolak: Anda bukan pengajar untuk mata kuliah ini");
   }
+}
+
+async function mutateVideoCatalog<T>(courseId: string, write: (tx: OfflineTransaction) => Promise<T>): Promise<T> {
+  return db.transaction(async tx => {
+    const result = await write(tx);
+    await recordOfflineChange(tx, { kind: "video_catalog", courseId, action: "invalidate" });
+    return result;
+  });
 }
 
 function revalidateVideoPaths(courseId: string, courseSlug?: string) {
@@ -273,7 +282,7 @@ export async function createVideoPlaylistAction(
       .from(courseVideoPlaylists)
       .where(eq(courseVideoPlaylists.courseId, authInfo.courseId));
 
-    await db.insert(courseVideoPlaylists).values({
+    await mutateVideoCatalog(authInfo.courseId, async tx => tx.insert(courseVideoPlaylists).values({
       id,
       courseId: authInfo.courseId,
       title: cleanTitle,
@@ -281,7 +290,7 @@ export async function createVideoPlaylistAction(
       orderIndex: existing.length + 1,
       createdAt: new Date(),
       updatedAt: new Date(),
-    });
+    }));
 
     revalidateVideoPaths(authInfo.courseId, authInfo.courseSlug);
     return { success: true, playlistId: id };
@@ -317,14 +326,14 @@ export async function updateVideoPlaylistAction(
       return { success: false, error: "Judul playlist wajib diisi" };
     }
 
-    await db
+    await mutateVideoCatalog(authInfo.courseId, async tx => tx
       .update(courseVideoPlaylists)
       .set({
         title: cleanTitle,
         description: description?.trim() || null,
         updatedAt: new Date(),
       })
-      .where(eq(courseVideoPlaylists.id, playlistId));
+      .where(eq(courseVideoPlaylists.id, playlistId)));
 
     revalidateVideoPaths(authInfo.courseId, authInfo.courseSlug);
     return { success: true };
@@ -369,15 +378,10 @@ export async function deleteVideoPlaylistAction(playlistId: string) {
       if (v.thumbnailUrl && !isExtThumb) await storage.delete(v.thumbnailUrl).catch(() => {});
     }
 
-    await db
-      .delete(courseVideos)
-      .where(
-        and(
-          eq(courseVideos.playlistId, playlistId),
-          inArray(courseVideos.courseId, authInfo.validCourseIds)
-        )
-      );
-    await db.delete(courseVideoPlaylists).where(eq(courseVideoPlaylists.id, playlistId));
+    await mutateVideoCatalog(authInfo.courseId, async tx => {
+      await tx.delete(courseVideos).where(and(eq(courseVideos.playlistId, playlistId), inArray(courseVideos.courseId, authInfo.validCourseIds)));
+      await tx.delete(courseVideoPlaylists).where(eq(courseVideoPlaylists.id, playlistId));
+    });
 
     revalidateVideoPaths(authInfo.courseId, authInfo.courseSlug);
     return { success: true };
@@ -471,7 +475,7 @@ export async function saveCourseVideoAction(input: {
         return { success: false, error: "Video bukan bagian dari mata kuliah ini" };
       }
 
-      await db
+      await mutateVideoCatalog(authInfo.courseId, async tx => tx
         .update(courseVideos)
         .set({
           playlistId: input.playlistId,
@@ -484,7 +488,7 @@ export async function saveCourseVideoAction(input: {
           fileSize: input.fileSize || null,
           updatedAt: new Date(),
         })
-        .where(eq(courseVideos.id, input.id));
+        .where(eq(courseVideos.id, input.id!)));
     } else {
       // Insert new
       const id = randomUUID();
@@ -493,7 +497,7 @@ export async function saveCourseVideoAction(input: {
         .from(courseVideos)
         .where(eq(courseVideos.playlistId, input.playlistId));
 
-      await db.insert(courseVideos).values({
+      await mutateVideoCatalog(authInfo.courseId, async tx => tx.insert(courseVideos).values({
         id,
         courseId: authInfo.courseId,
         playlistId: input.playlistId,
@@ -508,7 +512,7 @@ export async function saveCourseVideoAction(input: {
         uploadedBy: authInfo.userId,
         createdAt: new Date(),
         updatedAt: new Date(),
-      });
+      }));
     }
 
     revalidateVideoPaths(authInfo.courseId, authInfo.courseSlug);
@@ -544,7 +548,7 @@ export async function deleteCourseVideoAction(videoId: string) {
     if (video.videoUrl && !isExtVid) await storage.delete(video.videoUrl).catch(() => {});
     if (video.thumbnailUrl && !isExtThumb) await storage.delete(video.thumbnailUrl).catch(() => {});
 
-    await db.delete(courseVideos).where(eq(courseVideos.id, videoId));
+    await mutateVideoCatalog(authInfo.courseId, async tx => tx.delete(courseVideos).where(eq(courseVideos.id, videoId)));
 
     revalidateVideoPaths(authInfo.courseId, authInfo.courseSlug);
     return { success: true };

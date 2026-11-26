@@ -22,6 +22,7 @@ import { assertAdmin } from "@/lib/auth/admin-guards";
 import { z } from "zod";
 import { eq, asc, desc, inArray, and, or, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
+import { recordOfflineChange } from "@/lib/offline/server-events";
 import { storage } from "@/lib/storage";
 import { isSafeKey, joinKey, slugifySegment } from "@/lib/storage/keys";
 import { generateAndSavePdfThumbnail } from "@/lib/thumbnail";
@@ -315,6 +316,7 @@ export async function setDemoCourse(courseId: string, enabled: boolean) {
         .update(mataKuliah)
         .set({ isDemo: enabled, updatedAt: now })
         .where(eq(mataKuliah.id, canonicalCourse.id));
+      await recordOfflineChange(tx, { kind: "access", action: "invalidate" });
     });
 
     revalidatePath("/demo");
@@ -1022,33 +1024,37 @@ export async function updateDocumentStatusAction(input: {
   const now = new Date();
 
   try {
-    if (source === "canonical-article") {
-      await db
-        .update(artikel)
-        .set({
-          status,
-          publishedAt: status === "published" ? now : null,
-          updatedAt: now,
-        })
-        .where(or(eq(artikel.id, materialId), eq(artikel.slug, materialId)));
-    } else if (source === "canonical-diktat") {
-      await db
-        .update(diktatMateri)
-        .set({
-          status,
-          publishedAt: status === "published" ? now : null,
-          updatedAt: now,
-        })
-        .where(eq(diktatMateri.id, materialId));
-    } else if (source === "legacy-article") {
-      await db
-        .update(websiteMaterials)
-        .set({
-          status: status === "published" ? "published" : "draft",
-        })
-        .where(eq(websiteMaterials.id, materialId));
-    }
-
+    await db.transaction(async tx => {
+      if (source === "canonical-article") {
+        const changed = await tx
+          .update(artikel)
+          .set({
+            status,
+            publishedAt: status === "published" ? now : null,
+            updatedAt: now,
+          })
+          .where(or(eq(artikel.id, materialId), eq(artikel.slug, materialId))).returning({ id: artikel.id, courseId: artikel.mataKuliahId });
+        for (const row of changed) await recordOfflineChange(tx, { kind: "article", resourceId: row.id, courseId: row.courseId, action: status === "published" ? "upsert" : "delete" });
+      } else if (source === "canonical-diktat") {
+        const changed = await tx
+          .update(diktatMateri)
+          .set({
+            status,
+            publishedAt: status === "published" ? now : null,
+            updatedAt: now,
+          })
+          .where(eq(diktatMateri.id, materialId)).returning({ id: diktatMateri.id, courseId: diktatMateri.mataKuliahId });
+        for (const row of changed) await recordOfflineChange(tx, { kind: "diktat", resourceId: row.id, courseId: row.courseId, action: status === "published" ? "upsert" : "delete" });
+      } else if (source === "legacy-article") {
+        const changed = await tx
+          .update(websiteMaterials)
+          .set({
+            status: status === "published" ? "published" : "draft",
+          })
+          .where(eq(websiteMaterials.id, materialId)).returning({ courseId: websiteMaterials.courseId });
+        for (const row of changed) await recordOfflineChange(tx, { kind: "course", courseId: row.courseId, action: "invalidate" });
+      }
+    });
     revalidatePath("/admin/courses");
     return { success: true };
   } catch (err: any) {
@@ -1074,37 +1080,41 @@ export async function updateArticleContentAction(input: {
   const now = new Date();
 
   try {
-    if (source === "canonical-article") {
-      await db
-        .update(artikel)
-        .set({
-          title: cleanTitle,
-          contentMarkdown,
-          babId: babId || null,
-          updatedAt: now,
-        })
-        .where(or(eq(artikel.id, id), eq(artikel.slug, id)));
-    } else if (source === "canonical-diktat") {
-      await db
-        .update(diktatMateri)
-        .set({
-          title: cleanTitle,
-          contentMarkdown,
-          babId: babId || null,
-          updatedAt: now,
-        })
-        .where(eq(diktatMateri.id, id));
-    } else if (source === "legacy-article") {
-      await db
-        .update(websiteMaterials)
-        .set({
-          title: cleanTitle,
-          canonicalMarkdown: contentMarkdown,
-          chapterId: babId || "",
-        })
-        .where(eq(websiteMaterials.id, id));
-    }
-
+    await db.transaction(async tx => {
+      if (source === "canonical-article") {
+        const changed = await tx
+          .update(artikel)
+          .set({
+            title: cleanTitle,
+            contentMarkdown,
+            babId: babId || null,
+            updatedAt: now,
+          })
+          .where(or(eq(artikel.id, id), eq(artikel.slug, id))).returning({ id: artikel.id, courseId: artikel.mataKuliahId });
+        for (const row of changed) await recordOfflineChange(tx, { kind: "article", resourceId: row.id, courseId: row.courseId, action: "upsert" });
+      } else if (source === "canonical-diktat") {
+        const changed = await tx
+          .update(diktatMateri)
+          .set({
+            title: cleanTitle,
+            contentMarkdown,
+            babId: babId || null,
+            updatedAt: now,
+          })
+          .where(eq(diktatMateri.id, id)).returning({ id: diktatMateri.id, courseId: diktatMateri.mataKuliahId });
+        for (const row of changed) await recordOfflineChange(tx, { kind: "diktat", resourceId: row.id, courseId: row.courseId, action: "upsert" });
+      } else if (source === "legacy-article") {
+        const changed = await tx
+          .update(websiteMaterials)
+          .set({
+            title: cleanTitle,
+            canonicalMarkdown: contentMarkdown,
+            chapterId: babId || "",
+          })
+          .where(eq(websiteMaterials.id, id)).returning({ courseId: websiteMaterials.courseId });
+        for (const row of changed) await recordOfflineChange(tx, { kind: "course", courseId: row.courseId, action: "invalidate" });
+      }
+    });
     revalidatePath("/admin/courses");
     return { success: true };
   } catch (err: any) {

@@ -91,7 +91,8 @@ export type AdminOpsSubTabId =
   | "usage"
   | "tutor"
   | "models"
-  | "keys";
+  | "keys"
+  | "offline";
 
 export interface AdminOpsSubTabLabels {
   web: string;
@@ -101,6 +102,7 @@ export interface AdminOpsSubTabLabels {
   tutor: string;
   models: string;
   keys: string;
+  offline: string;
 }
 
 export interface AdminSubTabDescriptor<TId extends string = string> {
@@ -141,6 +143,7 @@ export type AdminMoreIconId =
   | "zyraAnalytics"
   | "featureUsage"
   | "webAnalytics"
+  | "offlineCache"
   | "aiModels"
   | "apiKeys"
   | "docs"
@@ -375,6 +378,13 @@ export const ADMIN_MORE_CATEGORIES: AdminMoreCategoryDef[] = [
         href: "/admin/ops/models",
         icon: "aiModels",
         labelKey: "aiModels",
+        labelSource: "nav",
+      },
+      {
+        id: "offline-cache",
+        href: "/admin/ops/offline",
+        icon: "offlineCache",
+        labelKey: "offlineCache",
         labelSource: "nav",
       },
       {
@@ -817,6 +827,7 @@ export function buildAdminOpsSubTabs(
     },
     { id: "models", href: "/admin/ops/models", label: labels.models },
     { id: "keys", href: "/admin/ops/keys", label: labels.keys },
+    { id: "offline", href: "/admin/ops/offline", label: labels.offline },
   ];
 }
 

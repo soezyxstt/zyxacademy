@@ -66,6 +66,7 @@ export function getRouteTitle(
   if (pathname.startsWith("/admin/ops/models")) return roleTitle("admin", "aiModels", "AI models");
   if (pathname.startsWith("/admin/ops/analytics")) return roleTitle("admin", "zyraAnalytics", "Zyra analytics");
   if (pathname.startsWith("/admin/ops/feature-usage")) return roleTitle("admin", "featureUsage", "Feature usage");
+  if (pathname.startsWith("/admin/ops/offline")) return roleTitle("admin", "offlineCache", "Offline data");
   if (pathname.startsWith("/admin/ops/keys")) return roleTitle("admin", "apiKeys", "API keys");
   if (pathname.startsWith("/admin/ops/short-links")) return roleTitle("admin", "shortLinks", "Short links");
   if (pathname.startsWith("/admin/ops/tutor-activity")) return roleTitle("admin", "tutorActivity", "Tutor activity");

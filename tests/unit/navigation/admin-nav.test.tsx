@@ -73,6 +73,7 @@ const OPS_LABELS: AdminOpsSubTabLabels = {
   web: "Web",
   models: "Models",
   keys: "Keys",
+  offline: "Offline",
 };
 
 function buildBottomNavItems(pathname: string): MobileBottomNavItem[] {
@@ -296,9 +297,9 @@ describe("Admin Course, People, and Ops Sub-Tab Builders", () => {
     expect(isAdminSubTabActive(tabs[3], "/admin/pricing")).toBe(true);
   });
 
-  test("prioritizes Web Analytics in the seven Ops sub-tabs and excludes short links", () => {
+  test("prioritizes Web Analytics in the eight Ops sub-tabs and excludes short links", () => {
     const tabs = buildAdminOpsSubTabs(OPS_LABELS);
-    expect(tabs).toHaveLength(7);
+    expect(tabs).toHaveLength(8);
     expect(tabs.map((tab) => tab.label)).toEqual([
       "Web",
       "Monitor",
@@ -307,6 +308,7 @@ describe("Admin Course, People, and Ops Sub-Tab Builders", () => {
       "Tutor",
       "Models",
       "Keys",
+      "Offline",
     ]);
 
     expect(isAdminOpsHubRoute("/admin/ops")).toBe(true);

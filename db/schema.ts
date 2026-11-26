@@ -19,6 +19,39 @@ import {
 } from "drizzle-orm/pg-core";
 import type { PricingDiscounts } from "@/lib/pricing-discounts";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
+import type { OfflinePolicySettings } from "@/lib/offline/policy-types";
+
+/** Row-locked counter: event order follows transaction commit order, not sequence allocation. */
+export const offlineSyncState = pgTable("offline_sync_state", {
+ id: text("id").primaryKey(),
+ cursor: bigint("cursor", { mode: "bigint" }).notNull().default(sql`0`),
+ updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, table => [check("offline_sync_state_singleton", sql`${table.id} = 'default'`)]);
+
+/** Durable client invalidations. Kept independently of best-effort live delivery. */
+export const offlineContentChanges = pgTable("offline_content_changes", {
+ cursor: bigint("cursor", { mode: "bigint" }).primaryKey(),
+ courseId: text("course_id"),
+ userId: text("user_id"),
+ kind: text("kind").$type<"article" | "diktat" | "course_outline" | "video_catalog" | "achievement_catalog" | "enrollments" | "course" | "policy" | "access">().notNull(),
+ resourceId: text("resource_id"),
+ action: text("action").$type<"upsert" | "delete" | "invalidate">().notNull(),
+ revision: text("revision"),
+ createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, table => [
+ index("offline_content_changes_course_cursor_idx").on(table.courseId, table.cursor),
+ index("offline_content_changes_user_cursor_idx").on(table.userId, table.cursor),
+ index("offline_content_changes_created_idx").on(table.createdAt),
+ check("offline_content_changes_action_check", sql`${table.action} in ('upsert', 'delete', 'invalidate')`),
+]);
+
+export const offlineCachePolicy = pgTable("offline_cache_policy", {
+ id: text("id").primaryKey(),
+ revision: integer("revision").notNull().default(1),
+ settings: jsonb("settings").$type<OfflinePolicySettings>().notNull(),
+ updatedBy: text("updated_by").references(() => user.id, { onDelete: "set null" }),
+ updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, table => [check("offline_cache_policy_singleton", sql`${table.id} = 'default'`)]);
 
 export const pricingSettings = pgTable("pricing_settings", {
  id: text("id").primaryKey(),

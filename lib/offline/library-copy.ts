@@ -1,0 +1,28 @@
+export const OFFLINE_LIBRARY_COPY = {
+  id: {
+    title: "Materi di perangkat", courses: "Mata kuliah", readings: "Bacaan", videos: "Video", achievements: "Pencapaian", storage: "Penyimpanan", more: "Lebih",
+    online: "Online", offline: "Offline", syncing: "Memperbarui", ready: "Tersimpan", sync: "Periksa pembaruan", syncFailed: "Pembaruan belum berhasil. Materi tersimpan tetap dapat dibuka.",
+    storageFailed: "Penyimpanan penuh. Hapus beberapa materi lalu coba lagi.", expired: "Hubungkan ke internet untuk memeriksa akses materi Anda.",
+    emptyTitle: "Belum ada materi tersimpan", emptyBody: "Buka mata kuliah saat online untuk menyimpan daftar materi di perangkat ini.",
+    emptyReadings: "Belum ada bacaan tersimpan", emptyReadingsBody: "Buka artikel atau diktat saat online, atau pilih Simpan pada daftar materi.",
+    noVideos: "Belum ada video tersimpan", noAchievements: "Daftar pencapaian belum tersimpan", noCourses: "Belum ada mata kuliah tersimpan",
+    allCourses: "Semua mata kuliah", openOnline: "Buka aplikasi online", open: "Buka", save: "Simpan", saving: "Menyimpan", saved: "Tersimpan", notSaved: "Belum tersimpan", videoNeedsConnection: "Internet diperlukan untuk memutar video.",
+    video: "Video", article: "Artikel", diktat: "Diktat", material: "Materi", items: "materi", minutes: "menit", lastChecked: "Terakhir diperiksa", accessUntil: "Akses offline hingga",
+    remove: "Hapus", pin: "Simpan tetap", unpin: "Lepas simpan tetap", pinned: "Disimpan tetap", clear: "Hapus unduhan", clearTitle: "Hapus unduhan?", clearBody: "Bacaan tersimpan di perangkat ini akan dihapus. Daftar mata kuliah tetap tersedia dan Anda dapat mengunduh materinya lagi.", cancel: "Batal",
+    usage: "Pemakaian", of: "dari", automatic: "Materi otomatis", pinnedHelp: "Materi yang disimpan tetap tidak ikut terhapus saat ruang cache penuh.",
+    updateAvailable: "Versi baru tersedia", updateNow: "Buka versi baru", unavailable: "Materi ini tidak lagi tersedia. Periksa akses saat online.", dismiss: "Tutup", search: "Cari materi", noResults: "Materi tidak ditemukan",
+  },
+  en: {
+    title: "Materials on this device", courses: "Courses", readings: "Readings", videos: "Videos", achievements: "Achievements", storage: "Storage", more: "More",
+    online: "Online", offline: "Offline", syncing: "Updating", ready: "Saved", sync: "Check for updates", syncFailed: "Could not update. You can still open saved materials.",
+    storageFailed: "Storage is full. Remove some materials and try again.", expired: "Connect to the internet to check your access to these materials.",
+    emptyTitle: "No saved materials yet", emptyBody: "Open a course while online to save its material list on this device.",
+    emptyReadings: "No saved readings yet", emptyReadingsBody: "Open an article or study guide while online, or choose Save in the material list.",
+    noVideos: "No saved videos yet", noAchievements: "Achievement list has not been saved", noCourses: "No saved courses yet",
+    allCourses: "All courses", openOnline: "Open the online app", open: "Open", save: "Save", saving: "Saving", saved: "Saved", notSaved: "Not saved", videoNeedsConnection: "An internet connection is needed to play videos.",
+    video: "Video", article: "Article", diktat: "Study guide", material: "Material", items: "materials", minutes: "min", lastChecked: "Last checked", accessUntil: "Offline access until",
+    remove: "Remove", pin: "Keep downloaded", unpin: "Remove download pin", pinned: "Kept downloaded", clear: "Clear downloads", clearTitle: "Clear downloads?", clearBody: "This removes saved readings from this device. The course list stays available so you can download materials again.", cancel: "Cancel",
+    usage: "Storage used", of: "of", automatic: "Automatic downloads", pinnedHelp: "Pinned materials stay on the device when the cache fills up.",
+    updateAvailable: "A new version is available", updateNow: "Open new version", unavailable: "This material is no longer available. Check your access while online.", dismiss: "Dismiss", search: "Search materials", noResults: "No materials found",
+  },
+} as const;

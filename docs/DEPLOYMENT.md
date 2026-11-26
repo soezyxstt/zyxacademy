@@ -625,3 +625,7 @@ The local Admin MCP expansion has not been deployed. Inspect the exact target be
 Status: `OPEN / IN PROGRESS`
 
 Apply the generated additive `0008_moaning_mole_man` PostgreSQL migration to an explicitly verified and authorized target before deploying the web revision that queries `solution_collections`. Deploy the matching MCP contract and refresh host bootstrap. The profile is always on; new publication permission still requires consent. The source-to-Idea-to-Pembahasan review and publication tools support headless operation. Local synthetic tests and screenshots do not establish a deployed migration, OAuth consent, storage writes, or live publication. See the [V5 contract](bundle/product-bundle-v5.md).
+
+## Offline library rollout
+
+The [offline data contract](operations/offline-data-sync.md#rollout-and-evidence) requires additive migration `0048_offline_content_sync.sql` before the matching web routes, followed by native Nightly builds from the same source revision. The draft PR does not deploy either environment or apply a remote migration. Preserve the change log on rollback; old cursors recover with a full authorized manifest. Native cookie transport and cold launch still require installed Android and desktop acceptance.

@@ -77,6 +77,8 @@ import type { StudentCourseAccessTier } from "@/lib/course-utils";
 import { ChapterSummarySheet } from "@/components/course/chapter-summary-sheet";
 import { useMaterialReadingProgress } from "@/hooks/use-material-reading-progress";
 import { useQueryAccountCurrent } from "@/hooks/use-query-account";
+import { OfflineReadingActions } from "@/components/offline/offline-reading-actions";
+import { watchOfflineReading } from "@/lib/offline/sync-client";
 import { saveTextMaterialOffline } from "@/lib/offline/reading-cache";
 import { ShareLinkButton } from "@/components/share-link-button";
 import { hapticSelection } from "@/lib/native/haptics";
@@ -527,7 +529,9 @@ function MaterialViewerContent({
   useEffect(() => {
     if (demo || !studentId || !learnerMode) return;
     if (material.kind !== "article" || !material.body?.trim()) return;
+    const unwatch = watchOfflineReading(studentId, { kind: material.docCategory === "diktat" ? "diktat" : "article", id: material.id, courseId: material.courseId });
     void saveTextMaterialOffline(studentId, material, course?.title);
+    return unwatch;
   }, [demo, studentId, learnerMode, material, course?.title]);
 
   useEffect(() => {
@@ -1448,6 +1452,7 @@ function MaterialViewerContent({
                           <TooltipContent side="bottom">{t("reader.downloadPdf")}</TooltipContent>
                         </Tooltip>
                       )}
+                      {learnerMode && !demo && <OfflineReadingActions userId={studentId} courseId={material.courseId} materialId={material.id} kind={material.docCategory === "diktat" ? "diktat" : "article"} />}
                       <ShareLinkButton
                         title={articleDisplayTitle}
                         variant="ghost"

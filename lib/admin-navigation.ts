@@ -26,6 +26,7 @@ import {
   Calculator,
   Cpu,
   MessageSquareText,
+  HardDriveDownload,
 } from "lucide-react";
 
 // PKA tabs default archived per user request
@@ -101,6 +102,7 @@ export const ALL_ADMIN_TABS: AdminTabDef[] = [
   // Sistem
   { id: "ai-models", label: "Model AI", href: "/admin/ops/models", icon: Cpu, group: "sistem" },
   { id: "api-keys", label: "API Keys", href: "/admin/ops/keys", icon: Lock, group: "sistem" },
+  { id: "offline-cache", label: "Data offline", href: "/admin/ops/offline", icon: HardDriveDownload, group: "sistem" },
 
   // Utilitas
   { id: "docs", label: "Dokumentasi", href: "/admin/docs", icon: BookOpen, group: "utilitas" },
@@ -120,6 +122,7 @@ export const ADMIN_TAB_MESSAGE_KEYS: Record<string, string> = {
   notifications: "notifications", "ops-monitor": "opsMonitor", "ai-models": "aiModels",
   "tutor-activity": "tutorActivity", "ai-analytics": "zyraAnalytics",
   "feature-usage": "featureUsage", "api-keys": "apiKeys", "short-links": "shortLinks",
+  "offline-cache": "offlineCache",
   "web-analytics": "webAnalytics", "pka-registrations": "pkaRegistrations",
   "pka-announcements": "pkaAnnouncements", "pka-schedules": "pkaSchedules",
   "pka-quizzes": "pkaQuizzes", "pka-materials": "pkaMaterials",

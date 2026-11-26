@@ -13,7 +13,7 @@ Tauri v2 desktop wrapper for Zyx Academy.
 
 ## Environment override
 
-By default, the desktop window opens `https://www.zyxacademy.com`.
+By default, the desktop app uses `https://www.zyxacademy.com` for online features.
 
 To point the desktop wrapper at a local or staging server, set `ZYX_DESKTOP_SERVER_URL` before launching:
 
@@ -29,16 +29,21 @@ Only `http` and `https` origins are accepted. Invalid values fall back to `https
 
 ## Startup and offline fallback
 
-The bundled shell starts with a neutral connecting state, then opens the configured
-origin after a fresh static `HEAD /favicon.ico` probe. It does not call the session
-endpoint or wait for database work to establish reachability. The probe omits
-credentials and bypasses the HTTP cache; the offline service worker does not
-handle `HEAD` requests.
+The bundled shell shows saved courses, article and diktat packages, video metadata
+and achievement definitions before a server response. A saved account keeps the
+local library open while the shared sync controller checks versions and access in
+the background. Its native transport only accepts the fixed offline API routes on
+the configured server and keeps WebView session cookies out of JavaScript.
 
-An unavailable origin shows retry and saved readings. The shell labels the device
-offline only when the browser reports that its connection is down. Opening saved
-readings during startup keeps the reader open, and a confirmed reconnection offers
-a return button without navigating away from the reader.
+The store scopes packages to the account, server and language. A reading must have
+an active lease and a current course/chapter grant. Expired data stays hidden until
+a server check succeeds. Atomic package replacement preserves complete images and
+reading position, and a new version waits for the reader's confirmation before it
+replaces the open text. Logout or revoked access closes the reader and clears data.
+
+An empty install probes `HEAD /favicon.ico` without credentials or cached responses
+and opens the configured app for sign-in. When the server cannot be reached, the
+bundled retry view stays available. Reconnection keeps an open reader in place.
 
 This shell ships inside the desktop installer. Merging a web change does not
 replace it in an installed app. Run **Release Apps (Desktop & Mobile)** manually
@@ -75,6 +80,10 @@ Staging Nightly builds can reuse an installed AppImage or a cached installer whe
 ## Commands
 
 Run from `apps/desktop`:
+
+First run `bun run build:native-offline` from the repository root after installing
+the root dependencies. This produces the local scripts, styles and fonts without
+server secrets. Release Apps builds and passes these assets to each packaging job.
 
 ```bash
 npm install

@@ -127,9 +127,42 @@ jobs:
 
           echo "Resolved release: channel=${CHANNEL}, version=${VERSION}, tag=${TAG}, build_id=${BUILD_ID}, title=${RELEASE_TITLE}"
 
+  build-offline-shell:
+    needs: prepare
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - name: Install shared browser build dependencies
+        run: bun install --frozen-lockfile --ignore-scripts
+      - name: Build local offline shell from shared source
+        env:
+          ZYX_APP_CHANNEL: ${{ needs.prepare.outputs.channel }}
+        run: bun scripts/build-native-offline.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-offline-shell-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            apps/mobile/www/offline-shell.js
+            apps/mobile/www/offline-shell.css
+            apps/mobile/www/offline-origin.js
+            apps/mobile/www/vendor/fonts/
+            apps/desktop/dist/offline-shell.js
+            apps/desktop/dist/offline-shell.css
+            apps/desktop/dist/offline-origin.js
+            apps/desktop/dist/vendor/fonts/
+
   build-desktop:
     if: inputs.android_candidate != true
-    needs: prepare
+    needs: [prepare, build-offline-shell]
     strategy:
       fail-fast: false
       matrix:
@@ -146,6 +179,12 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Restore shared offline shell
+        uses: actions/download-artifact@v4
+        with:
+          name: native-offline-shell-${{ github.sha }}
+          path: apps
 
       - uses: actions/setup-node@v4
         with:
@@ -259,10 +298,16 @@ jobs:
           if-no-files-found: error
 
   build-android:
-    needs: prepare
+    needs: [prepare, build-offline-shell]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Restore shared offline shell
+        uses: actions/download-artifact@v4
+        with:
+          name: native-offline-shell-${{ github.sha }}
+          path: apps
 
       - uses: actions/setup-node@v4
         with:

@@ -103,7 +103,8 @@
     "analyticsMonitor": "Analitik dan monitor",
     "system": "Sistem",
     "systemOps": "Sistem dan ops",
-    "pka": "Tutorial PKA"
+    "pka": "Tutorial PKA",
+    "offlineCache": "Data offline"
   },
   "routeTitles": {
     "docs": "Dokumentasi",
@@ -150,7 +151,8 @@
     "pkaSchedules": "Jadwal Live PKA",
     "pka": "Tutorial PKA",
     "ideaBundles": "Idea Bundles",
-    "productBundles": "Product Bundles"
+    "productBundles": "Product Bundles",
+    "offlineCache": "Data offline"
   },
   "states": {
     "retry": "Coba lagi",

@@ -6,6 +6,8 @@ import { gamificationMissionsCron, gamificationMissionsPage } from './gamificati
 export { gamificationMissionsCron, gamificationMissionsPage } from './gamification-missions';
 import { gamificationOutboxCron } from "./gamification";
 export { gamificationOutboxCron } from "./gamification";
+import { offlineChangeRetentionCron } from "./offline";
+export { offlineChangeRetentionCron } from "./offline";
 import { adminOperationsWorker } from "./admin-operations";
 export { adminOperationsWorker } from "./admin-operations";
 export { inngest } from "./client";
@@ -99,6 +101,7 @@ export const computeFunctions = [
   tutorAvailabilityReminderCron,
   tutorialSessionEmailCron,
   tutorialSessionEmailWorker,
+  offlineChangeRetentionCron,
   quietNotificationWorker,
   aiModelCatalogCron,
   googleCalendarSyncCron,

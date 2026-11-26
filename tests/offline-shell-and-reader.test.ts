@@ -639,10 +639,11 @@ describe("Item #4: offline KaTeX, visuals, reading position, and non-disruptive 
     expect(swSrc).toContain("extractCssStaticAssetUrls");
     expect(swSrc).toContain('pathname.endsWith(".css")');
 
-    // 5. Tauri write_file_atomic uses direct rename without remove_file gap, and async spawn_blocking commands
+    // 5. Atomic tempfile replacement preserves the prior file on failure, including Windows.
     const rustSrc = readFileSync(join(ROOT, "apps/desktop/src-tauri/src/lib.rs"), "utf8");
     const writeAtomicBlock = rustSrc.match(/fn write_file_atomic[\s\S]*?\n\}/)?.[0] ?? "";
-    expect(writeAtomicBlock).toContain("std::fs::rename(&tmp, path)");
+    expect(writeAtomicBlock).toContain("tempfile::NamedTempFile::new_in(parent)");
+    expect(writeAtomicBlock).toContain("file.persist(path)");
     expect(writeAtomicBlock).not.toContain("remove_file(path)");
     expect(rustSrc).toContain("async fn save_offline_reading(");
     expect(rustSrc).toContain("async fn get_offline_reading(");

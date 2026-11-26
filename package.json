@@ -112,7 +112,8 @@
     "db:sync-prod-to-staging:destructive": "bun scripts/sync-turso-db.ts --destructive",
     "watch-start": "nodemon --watch app --watch components --watch styles -e js,jsx,ts,tsx,css --exec \"next build && next start\"",
     "typegen": "next typegen",
-    "ci:plan": "python3 scripts/ci/plan.py"
+    "ci:plan": "python3 scripts/ci/plan.py",
+    "build:native-offline": "node scripts/build-native-offline.mjs"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "2.0.94",

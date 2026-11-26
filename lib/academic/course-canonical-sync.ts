@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { auditMutasi, bab, chapters, courses, knowledgeObjects, mataKuliah, vectorSyncQueue } from "@/db/schema";
 import { dispatchVectorSync } from "@/lib/vector-sync-dispatch";
 import { validateCoursePricing, type CoursePricing } from "@/lib/student/course-pricing";
+import { recordOfflineChange } from "@/lib/offline/server-events";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type DbOrTx = Tx | typeof db;
@@ -57,6 +58,8 @@ async function recordAudit(
     afterSnapshot: input.afterSnapshot,
     correlationId: input.entityId,
   });
+  const courseId = typeof input.afterSnapshot.legacyCourseId === "string" ? input.afterSnapshot.legacyCourseId : input.entityType === "mata_kuliah" ? input.entityId : null;
+  await recordOfflineChange(tx, { kind: "course", courseId, action: "invalidate" });
 }
 
 async function findCanonicalCourse(tx: DbOrTx, legacyCourseId: string) {

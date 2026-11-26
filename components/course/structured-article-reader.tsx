@@ -59,6 +59,8 @@ import { isLearnerReaderMode, type MaterialReaderMode } from "@/lib/materials/re
 import { useTranslations } from "@/lib/i18n/client";
 import { useArticleReadingProgress } from "@/hooks/use-article-reading-progress";
 import { useQueryAccountCurrent } from "@/hooks/use-query-account";
+import { OfflineReadingActions } from "@/components/offline/offline-reading-actions";
+import { watchOfflineReading } from "@/lib/offline/sync-client";
 import { saveStructuredArticleOffline } from "@/lib/offline/reading-cache";
 import { ShareLinkButton } from "@/components/share-link-button";
 import {
@@ -131,7 +133,9 @@ function StructuredArticleReaderContent({
   // Save lightweight text reading payload for offline reuse (bounded LRU cache).
   useEffect(() => {
     if (!studentId || !learnerMode) return;
+    const unwatch = watchOfflineReading(studentId, { kind: "article", id: article.id, courseId: article.courseId });
     void saveStructuredArticleOffline(studentId, article);
+    return unwatch;
   }, [studentId, learnerMode, article]);
 
   // Active section resolution
@@ -955,6 +959,7 @@ function StructuredArticleReaderContent({
 
                 {/* Right: Progress + Action controls */}
                 <div className="flex items-center gap-2 shrink-0">
+                  {learnerMode && !adapter && <OfflineReadingActions userId={studentId} courseId={article.courseId} materialId={article.id} kind="article" />}
                   <ShareLinkButton
                     title={article.title}
                     variant="ghost"

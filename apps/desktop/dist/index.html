@@ -6,6 +6,7 @@
     <meta name="color-scheme" content="light dark" />
     <title>Zyx Academy</title>
     <link rel="stylesheet" href="vendor/katex/katex.min.css" />
+    <link rel="stylesheet" href="offline-shell.css" />
     <style>
       :root {
         --background: #ffffff;
@@ -1050,13 +1051,13 @@
     </main>
     </div>
 
+    <script src="offline-origin.js"></script>
+    <script src="offline-shell.js"></script>
     <script>
       (function () {
         var POSITION_PREFIX = "zyx:offline-reading-pos:";
         var isNightly = /nightly/i.test(navigator.userAgent || "");
-        var targetOrigin = isNightly
-          ? "https://staging.zyxacademy.com"
-          : "https://www.zyxacademy.com";
+        var targetOrigin = window.__ZYX_NATIVE_SERVER_ORIGIN__ || "https://www.zyxacademy.com";
 
         var COPY = {
           id: {
@@ -1624,6 +1625,7 @@
         }
 
         function closeReadingView() {
+          window.dispatchEvent(new Event("zyx:offline-reader-closed"));
           persistActiveReadingPosition();
           activeReading = null;
           readerView.classList.add("hidden");
@@ -1881,6 +1883,22 @@
             renderLibrary();
           });
         }
+        window.addEventListener("zyx:offline-open-reading", function (event) {
+          var key = event.detail && event.detail.key;
+          var invoke = getTauriInvoke();
+          if (!key || !invoke) return;
+          persistActiveReadingPosition();
+          void invoke("get_offline_reading", { key: key }).then(function (result) {
+            if (result && result.reading) openReadingView(result.reading);
+          });
+        });
+        window.addEventListener("zyx:offline-lock-reader", function () {
+          closeReadingView();
+          readerTitleEl.textContent = "";
+          readerMetaEl.textContent = "";
+          readerBodyEl.replaceChildren();
+        });
+
         readerBackBtn.addEventListener("click", closeReadingView);
 
         window.addEventListener(
@@ -1927,10 +1945,13 @@
 
         renderLang(currentLang);
 
-        // Fast startup reachability check on desktop launch:
-        // keep a minimal splash while probing a static edge asset, navigate immediately when online,
-        // and only reveal the offline shell if the device is actually offline or unreachable.
+        // A saved account opens the local library before probing the server.
+        // Empty installs keep the upstream splash and fast static reachability check.
         void (async function initialConnect() {
+          if (window.zyxOfflineShell) {
+            await window.zyxOfflineShell.ready;
+            if (window.zyxOfflineShell.hasIdentity) showOfflineShell(false);
+          }
           var generation = connectionGeneration;
           if (navigator.onLine === false) {
             connectionState = "offline";

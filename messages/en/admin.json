@@ -103,7 +103,8 @@
     "analyticsMonitor": "Analytics and monitor",
     "system": "System",
     "systemOps": "System and ops",
-    "pka": "PKA tutorials"
+    "pka": "PKA tutorials",
+    "offlineCache": "Offline data"
   },
   "routeTitles": {
     "docs": "Documentation",
@@ -150,7 +151,8 @@
     "pkaSchedules": "PKA live schedule",
     "pka": "PKA tutorials",
     "ideaBundles": "Idea Bundles",
-    "productBundles": "Product Bundles"
+    "productBundles": "Product Bundles",
+    "offlineCache": "Offline data"
   },
   "states": {
     "retry": "Try again",

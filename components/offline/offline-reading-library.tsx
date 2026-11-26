@@ -2,19 +2,27 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, BookOpen, Trash2, Wifi, WifiOff, X } from "lucide-react";
+import { ArrowLeft, Wifi, WifiOff, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { StructuredArticleSectionContent } from "@/components/course/structured-article-section-content";
 import { useSession } from "@/lib/auth-client";
+import { useAppLocale } from "@/lib/i18n/client";
+import { OfflineLibraryBrowser } from "@/components/offline/offline-library-browser";
+import { OfflineSnapshotContent } from "@/components/offline/offline-snapshot-content";
+import { OFFLINE_LIBRARY_COPY } from "@/lib/offline/library-copy";
+import { OFFLINE_CACHE_CHANGED_EVENT, requestOfflineSync, type NativeOfflineLibrarySnapshot } from "@/lib/offline/library-contract";
+import { readOfflineLibrarySnapshot } from "@/lib/offline/metadata-cache";
+import { downloadOfflineReading } from "@/lib/offline/sync-client";
+import { getOfflineScope, setOfflineAccount } from "@/lib/offline/cache-scope";
 import {
   clearAllOfflineReadings,
   clearOfflineReadingsForOtherUsers,
-  formatOfflineBytes,
   getOfflineCacheStats,
   getOfflineReadingByKey,
   listOfflineReadings,
   removeOfflineReadingByKey,
+  setOfflineReadingPinned,
   type OfflineCacheStats,
   type OfflineReadingRecord,
   type OfflineReadingSummary,
@@ -27,7 +35,12 @@ import {
 } from "@/lib/offline/reading-position";
 
 export function OfflineReadingLibrary() {
-  const { data: session, isPending } = useSession();
+  const { data: session, isPending, error: sessionError } = useSession();
+  const { locale } = useAppLocale();
+  const copy = OFFLINE_LIBRARY_COPY[locale];
+  const [library, setLibrary] = useState<NativeOfflineLibrarySnapshot | null>(null);
+  const [expired, setExpired] = useState(false);
+  const [updatedRecord, setUpdatedRecord] = useState<OfflineReadingRecord | null>(null);
   const activeUserId = session?.user?.id ?? null;
   const [online, setOnline] = useState(true);
   const [reconnectedBannerVisible, setReconnectedBannerVisible] = useState(false);
@@ -79,37 +92,40 @@ export function OfflineReadingLibrary() {
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      // When online, wait for confirmed session and enforce strict account isolation.
-      // Never interrupt an active offline reading session mid-read when connectivity returns,
-      // unless a different user is now authenticated.
-      if (online) {
-        if (isPending) return;
+      // A network failure is not a confirmed sign-out. Read only the last
+      // verified scope while the session check is pending or unavailable.
+      if (online && !isPending && !sessionError) {
         if (!activeUserId) {
-          if (!activeRecordRef.current) {
-            await clearAllOfflineReadings();
-            setItems([]);
-            setStats({ count: 0, totalBytes: 0, maxEntries: 25, maxBytes: 8 * 1024 * 1024 });
-          }
+          if (getOfflineScope()) await clearOfflineReadingsForOtherUsers(null);
+          setItems([]); setLibrary(null); setStats(null); setActiveRecord(null);
           return;
         }
         if (activeRecordRef.current && activeRecordRef.current.userId !== activeUserId) {
-          restorationReadyRef.current = false;
-          setActiveRecord(null);
+          restorationReadyRef.current = false; setActiveRecord(null);
         }
-        await clearOfflineReadingsForOtherUsers(activeUserId);
+        const previous = getOfflineScope();
+        if (previous?.userId !== activeUserId || previous?.locale !== locale) {
+          setOfflineAccount(activeUserId, locale);
+          await clearOfflineReadingsForOtherUsers(activeUserId);
+        }
       }
-
-      const scopeUserId = activeUserId ?? undefined;
-      const [list, cacheStats] = await Promise.all([
-        listOfflineReadings(scopeUserId),
-        getOfflineCacheStats(scopeUserId),
+      const scopeUserId = activeUserId ?? getOfflineScope()?.userId;
+      if (!scopeUserId) { setItems([]); setLibrary(null); return; }
+      const [list, cacheStats, snapshot] = await Promise.all([
+        listOfflineReadings(scopeUserId), getOfflineCacheStats(scopeUserId), readOfflineLibrarySnapshot(scopeUserId, true),
       ]);
-      setItems(list);
+      const accessExpired = Boolean(snapshot && snapshot.accessValidUntil <= Date.now());
+      setExpired(accessExpired);
+      setLibrary(accessExpired ? null : snapshot);
+      setItems(accessExpired ? [] : list.filter(item => !item.invalidated && (item.accessValidUntil ?? 0) > Date.now()));
       setStats(cacheStats);
-    } finally {
-      setLoading(false);
-    }
-  }, [online, isPending, activeUserId]);
+      if (activeRecordRef.current) {
+        const current = await getOfflineReadingByKey(activeRecordRef.current.key);
+        if (!current || accessExpired) { setActiveRecord(null); setUpdatedRecord(null); }
+        else if (current.contentVersion !== activeRecordRef.current.contentVersion) setUpdatedRecord(current);
+      }
+    } finally { setLoading(false); }
+  }, [online, isPending, sessionError, activeUserId, locale]);
 
   useEffect(() => {
     if (typeof navigator !== "undefined") {
@@ -133,6 +149,10 @@ export function OfflineReadingLibrary() {
 
   useEffect(() => {
     void refresh();
+    const update = () => { void refresh(); };
+    window.addEventListener(OFFLINE_CACHE_CHANGED_EVENT, update);
+    const timer = setInterval(update, 30_000);
+    return () => { window.removeEventListener(OFFLINE_CACHE_CHANGED_EVENT, update); clearInterval(timer); };
   }, [refresh]);
 
   // Restore reading position when opening an offline record and persist on scroll/hide.
@@ -192,7 +212,8 @@ export function OfflineReadingLibrary() {
 
   const handleOpen = async (key: string) => {
     const record = await getOfflineReadingByKey(key);
-    if (record && (!activeUserId || record.userId === activeUserId)) {
+    if (record && record.userId === (activeUserId ?? getOfflineScope()?.userId)) {
+      setUpdatedRecord(null);
       setActiveRecord(record);
     }
   };
@@ -231,7 +252,7 @@ export function OfflineReadingLibrary() {
           >
             <span className="inline-flex items-center gap-1.5 font-semibold">
               <Wifi className="size-3.5" />
-              Koneksi kembali tersedia
+              {locale === "id" ? "Koneksi kembali tersedia" : "Connection restored"}
             </span>
             <div className="flex items-center gap-1.5">
               <Button
@@ -240,13 +261,13 @@ export function OfflineReadingLibrary() {
                 variant="default"
                 onClick={() => persistCurrentPosition()}
               >
-                <Link href={onlineReturnHref}>Kembali online</Link>
+                <Link href={onlineReturnHref}>{copy.openOnline}</Link>
               </Button>
               <Button
                 type="button"
                 size="icon-sm"
                 variant="ghost"
-                aria-label="Tutup pemberitahuan koneksi"
+                aria-label={copy.dismiss}
                 onClick={() => setReconnectedBannerVisible(false)}
               >
                 <X className="size-4" />
@@ -263,14 +284,15 @@ export function OfflineReadingLibrary() {
             onClick={handleCloseReader}
           >
             <ArrowLeft className="size-4" />
-            Daftar bacaan offline
+            {copy.readings}
           </Button>
           <span className="inline-flex items-center gap-1.5 text-body-xs text-muted-foreground">
             {online ? <Wifi className="size-3.5 text-status-success" /> : <WifiOff className="size-3.5 text-status-warning" />}
-            {online ? "Online" : "Offline"}
+            {online ? copy.online : copy.offline}
           </span>
         </div>
 
+        {updatedRecord && <div role="status" className="mb-(--related-gap) flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-2 text-body-xs text-muted-foreground"><span>{copy.updateAvailable}</span><Button variant="ghost" onClick={() => { persistCurrentPosition(); setActiveRecord(updatedRecord); setUpdatedRecord(null); }}>{copy.updateNow}</Button></div>}
         <article ref={articleBodyRef} className="space-y-(--section-gap)">
           <header className="space-y-1">
             {activeRecord.courseTitle && (
@@ -305,13 +327,15 @@ export function OfflineReadingLibrary() {
                 </section>
               ))}
             </div>
+          ) : activeRecord.snapshot ? (
+            <OfflineSnapshotContent snapshot={activeRecord.snapshot} />
           ) : activeRecord.material?.body ? (
             <div className="prose prose-sm max-w-none dark:prose-invert">
               <MarkdownRenderer content={activeRecord.material.body} />
             </div>
           ) : (
             <p className="text-body-sm text-muted-foreground">
-              Konten bacaan ini tidak tersedia di penyimpanan lokal.
+              {copy.unavailable}
             </p>
           )}
         </article>
@@ -319,89 +343,25 @@ export function OfflineReadingLibrary() {
     );
   }
 
-  return (
-    <div className="mx-auto max-w-4xl px-(--page-gutter) py-(--section-gap)">
-      <div className="flex flex-wrap items-start justify-between gap-(--compact-gap) border-b border-border/60 pb-(--related-gap)">
-        <div className="min-w-0 flex-1 basis-64 space-y-1">
-          <h1 className="font-heading text-h5 font-bold text-foreground">
-            Bacaan offline
-          </h1>
-          <p className="text-body-xs text-muted-foreground">
-            Materi teks dan artikel yang terakhir dibuka tersimpan otomatis hingga{" "}
-            {stats ? `${stats.maxEntries} bacaan (${formatOfflineBytes(stats.maxBytes)})` : "25 bacaan (8.0 MB)"}.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 text-body-xs text-muted-foreground">
-            {online ? <Wifi className="size-3.5 text-status-success" /> : <WifiOff className="size-3.5 text-status-warning" />}
-            {online ? "Online" : "Offline"}
-          </span>
-          {online && (
-            <Button asChild variant="ghost">
-              <Link href="/dashboard">Kembali ke beranda</Link>
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {stats && stats.count > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 py-1 text-body-xs text-muted-foreground">
-          <span>
-            {stats.count} / {stats.maxEntries} bacaan tersimpan ({formatOfflineBytes(stats.totalBytes)} / {formatOfflineBytes(stats.maxBytes)})
-          </span>
-          <Button type="button" variant="ghost" onClick={() => void handleClearAll()}>
-            <Trash2 className="size-3.5" />
-            Hapus semua
-          </Button>
-        </div>
-      )}
-
-      <div className="divide-y divide-border/60">
-        {loading ? (
-          <p role="status" className="py-(--section-gap) text-body-sm text-muted-foreground">
-            Memuat bacaan tersimpan...
-          </p>
-        ) : items.length === 0 ? (
-          <div className="flex items-start gap-(--compact-gap) py-(--section-gap)">
-            <BookOpen className="mt-0.5 size-5 shrink-0 text-muted-foreground" aria-hidden />
-            <div className="space-y-1">
-              <p className="text-body-sm font-medium text-foreground">Belum ada bacaan offline</p>
-              <p className="text-body-xs text-muted-foreground">
-                Buka artikel atau materi teks saat online agar otomatis tersimpan di sini.
-              </p>
-            </div>
-          </div>
-        ) : (
-          items.map((item) => (
-            <div key={item.key} className="flex items-center justify-between gap-(--compact-gap)">
-              <button
-                type="button"
-                onClick={() => void handleOpen(item.key)}
-                className="min-h-11 min-w-0 flex-1 cursor-pointer rounded-sm py-(--row-padding) text-left transition-colors hover:bg-muted/40 focus-visible:outline-2 focus-visible:outline-ring"
-              >
-                <p className="wrap-anywhere text-body-sm font-medium text-foreground">
-                  {item.title}
-                </p>
-                <p className="wrap-anywhere text-body-xs text-muted-foreground">
-                  {item.courseTitle ? `${item.courseTitle} · ` : ""}
-                  {formatOfflineBytes(item.sizeBytes)}
-                  {item.estimatedMinutes ? ` · ${item.estimatedMinutes} menit` : ""}
-                </p>
-              </button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-lg"
-                aria-label={`Hapus ${item.title}`}
-                onClick={() => void handleRemove(item.key)}
-              >
-                <Trash2 className="size-4 text-muted-foreground" />
-              </Button>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  );
+  return <OfflineLibraryBrowser
+    locale={locale}
+    snapshot={library}
+    items={items}
+    stats={stats}
+    online={online}
+    loading={loading}
+    expired={expired}
+    onOpen={handleOpen}
+    onRemove={handleRemove}
+    onPin={async (key, pinned) => { await setOfflineReadingPinned(key, pinned); await refresh(); }}
+    onSync={requestOfflineSync}
+    onSave={async (material) => {
+      const userId = activeUserId ?? getOfflineScope()?.userId;
+      if (!userId) return;
+      const saved = await downloadOfflineReading(userId, { kind: material.kind === "diktat" ? "diktat" : "article", id: material.id, courseId: material.courseId });
+      if (!saved) throw new Error("offline_download_failed");
+      await refresh();
+    }}
+    onClear={handleClearAll}
+  />;
 }

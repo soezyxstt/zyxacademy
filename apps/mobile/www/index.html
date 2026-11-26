@@ -9,6 +9,7 @@
     <meta name="color-scheme" content="light dark" />
     <title>Zyx Academy</title>
     <link rel="stylesheet" href="vendor/katex/katex.min.css" />
+    <link rel="stylesheet" href="offline-shell.css" />
     <style>
       :root {
         --background: #ffffff;
@@ -928,13 +929,13 @@
       </article>
     </main>
 
+    <script src="offline-origin.js"></script>
+    <script src="offline-shell.js"></script>
     <script>
       (function () {
         var POSITION_PREFIX = "zyx:offline-reading-pos:";
         var isNightly = /nightly/i.test(navigator.userAgent || "");
-        var DEFAULT_ORIGIN = isNightly
-          ? "https://staging.zyxacademy.com"
-          : "https://www.zyxacademy.com";
+        var DEFAULT_ORIGIN = window.__ZYX_NATIVE_SERVER_ORIGIN__ || "https://www.zyxacademy.com";
 
         if (isNightly) {
           var badge = document.getElementById("channel-badge");
@@ -1434,6 +1435,7 @@
         }
 
         function closeReadingView() {
+          window.dispatchEvent(new Event("zyx:offline-reader-closed"));
           persistActiveReadingPosition();
           activeReading = null;
           readerView.classList.add("hidden");
@@ -1618,6 +1620,36 @@
           bannerDismissed = true;
           reconnectBanner.classList.add("hidden");
         });
+
+
+        window.addEventListener("zyx:offline-open-reading", function (event) {
+          var key = event.detail && event.detail.key;
+          var store = getOfflineStorePlugin();
+          if (!key || !store) return;
+          persistActiveReadingPosition();
+          void store.getReading({ key: key }).then(function (result) {
+            if (result && result.reading) openReadingView(result.reading);
+          });
+        });
+        if (window.zyxOfflineShell) {
+          void window.zyxOfflineShell.ready.then(async function () {
+            if (window.zyxOfflineShell.hasIdentity || navigator.onLine === false) return;
+            try {
+              var controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+              var timer = controller ? setTimeout(function () { controller.abort(); }, 3500) : null;
+              var response = await fetch(DEFAULT_ORIGIN + "/favicon.ico", { method: "HEAD", cache: "no-store", credentials: "omit", mode: "no-cors", signal: controller ? controller.signal : undefined });
+              if (timer) clearTimeout(timer);
+              if (response.ok || response.type === "opaque") window.location.replace(DEFAULT_ORIGIN + "/");
+            } catch { /* The local library remains usable. */ }
+          });
+        }
+        window.addEventListener("zyx:offline-lock-reader", function () {
+          closeReadingView();
+          readerTitleEl.textContent = "";
+          readerMetaEl.textContent = "";
+          readerBodyEl.replaceChildren();
+        });
+
 
         readerBackBtn.addEventListener("click", closeReadingView);
 

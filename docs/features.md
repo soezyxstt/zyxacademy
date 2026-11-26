@@ -438,7 +438,7 @@ The `/feedback` form keeps Send available while idle. Empty, short or whitespace
 
 ### Desktop launch and offline recovery
 
-The bundled desktop page starts with a neutral Connecting state while checking the configured Zyx origin through a fresh static HEAD request. The check does not load an account session. A disconnected device opens its saved readings; a failed server check shows a separate recovery message. Reconnect requires a successful fresh check, ignores results from a prior connection and never leaves a reading automatically after the user has chosen saved content. This behavior ships inside the desktop installer: merging the web branch alone does not update an installed app. The Nightly release workflow must run from staging, followed by installation of that build.
+Android and desktop open a bundled local library with saved courses, material lists, Article/Diktat readings, video links and achievement definitions. Sync checks current versions and access in the background; the online application remains an explicit navigation choice. Saved packages include required images and local math assets, with per-account limits and pinned downloads. Admins control schedules, access limits and targeted refresh at `/admin/ops/offline`. The [offline data contract](operations/offline-data-sync.md) defines version checks, missed-event recovery and the physical limit of revoking access on an offline device. These changes ship in the native installer; a web merge alone does not update an installed app.
 
 ### Learning Outcomes & Career Paths
 - CPL/CPMK/Sub-CPMK hierarchy mapped to concepts
