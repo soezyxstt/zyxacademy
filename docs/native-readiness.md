@@ -10,6 +10,14 @@
 
 Ketiga ambang berlaku sendiri-sendiri. Persentase komponen terhadap jumlah berkas hanya membantu menemukan celah. Modul dengan lima komponen baru mendapat kredit modul ketika kelimanya lulus. Sebelum keputusan akhir, buat entri per komponen dengan ID berkas dan simbol, termasuk komponen di halaman atau renderer, subkomponen, variasi aksesibel dan alias. Catat alasan untuk modul utilitas, ekspor ulang atau implementasi desktop yang dilayani oleh padanan mobile. Laporkan juga item belum dipetakan, sebab item tersebut masih masuk lingkup audit.
 
+## Bukti Android setelah baseline
+
+Prioritas verifikasi harian adalah Android. Workflow `Native component parity` mengukur tiga kasus per komponen terhadap Chromium dan WebView di emulator yang sama. Laporan gabungan Android dan iOS tersedia dengan opsi `include_ios` pada dispatch manual. Alur produk iOS tetap menjalani smoke test navigasi.
+
+Pada `1587768e8`, 20 alur interaksi Maestro lulus di Android, termasuk pemilihan tunggal dan jamak, kotak masuk, serta formulir. Ketiga kasus Separator cocok persis dengan kedua referensi Android. Pada Progress, keadaan penuh masih berbeda 28 piksel terhadap WebView. [Hasil perangkat Android](https://github.com/soezyxstt/zyxacademy/actions/runs/45867381115/job/140074591471).
+
+Pada `f2c2fb262`, checkout gabungan empat branch menjalankan alur login PKCE dengan identitas browser sintetis, akses dashboard Student, perubahan status baca milik penerima, pemeriksaan isolasi akun lain, dan pencabutan sesi terhadap handler Next.js serta PostgreSQL di runner. Pengujian itu berjalan pada tingkat protokol. [Kontrak sesi dan otorisasi](https://github.com/soezyxstt/zyxacademy/actions/runs/45867603711/job/140075317358).
+
 ## Review integrasi 26 November 2026
 
 Reviewer independen GPT-6.2 Sol High memeriksa revisi induk `be5e5e13`. Empat branch dapat digabung di checkout CI sementara. Generator memasang 153 entry kanonik dari inventaris eksternal: 50 halaman Student, 54 Academic, 36 Admin Operations dan 13 publik. Tipe Expo gabungan gagal pada implementasi formulir publik dan dua atribut pada baris daftar bersama. Angka 153 mengukur pemasangan rute di checkout tersebut. Gerbang halaman tetap membutuhkan navigasi, otorisasi dan data yang teruji melalui entry produk di perangkat. [Uji gabungan](https://github.com/soezyxstt/zyxacademy/actions/runs/45808986956).

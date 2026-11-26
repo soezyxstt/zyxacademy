@@ -73,29 +73,38 @@ def check_page(report, manifest, platform):
     return states
 
 
-def page_summary(artifacts, commit, build_commit, group):
+def table_row(cells):
+    return "| " + " | ".join(cells) + " |"
+
+
+def platform_label(platforms):
+    return "both platforms" if len(platforms) == 2 else {"android": "Android", "ios": "iOS"}[platforms[0]]
+
+
+def page_summary(artifacts, commit, build_commit, group, selected=("android", "ios")):
     route, _ = PAGE_CAPTURES[group]
     title = f"#### `{route}` route vs Chromium"
     try:
-        manifest = load_page_manifest(artifacts / f"reference-manifests/dpr1/{group}.json", group)
-        ios_manifest = load_page_manifest(artifacts / f"reference-manifests/dpr3/{group}.json", group)
+        manifests = [load_page_manifest(artifacts / f"reference-manifests/dpr{SCALES[platform]}/{group}.json", group)
+                     for platform in selected]
+        manifest = manifests[0]
     except (OSError, ValueError):
         return [title, "", "Missing or invalid page case manifest.", ""], False
-    if manifest != ios_manifest or (manifest["commit"], manifest["buildCommit"]) != (commit, build_commit):
-        return [title, "", "Page case manifests do not match the two reference scales and tested revision.", ""], False
+    if any(other != manifest for other in manifests) or (manifest["commit"], manifest["buildCommit"]) != (commit, build_commit):
+        return [title, "", "Page case manifests do not match the selected reference scales and tested revision.", ""], False
 
     platforms = []
-    for platform in SCALES:
+    for platform in selected:
         try:
             path = artifacts / f"{platform}-measurements/{group}/result.json"
             report = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             report = None
         platforms.append(check_page(report, manifest, platform))
-    rows = [f"| {case} | {android} | {ios} |" for case, android, ios in zip(manifest["cases"], *platforms)]
+    rows = [table_row(row) for row in zip(manifest["cases"], *platforms)]
     behaviors = page_behavior_cases(manifest)
     comparable = len(rows) - len(behaviors)
-    passed = sum(android == ios == "Pass" for android, ios in zip(*platforms))
+    passed = sum(all(state == "Pass" for state in row) for row in zip(*platforms))
     behavior_ok = all(
         states[manifest["cases"].index(case)] == PAGE_BEHAVIORS[key][1]
         for case, key in behaviors.items() for states in platforms
@@ -103,8 +112,9 @@ def page_summary(artifacts, commit, build_commit, group):
     explanation = ["Redirect and recovery cases are reported as behavior evidence.", ""] if behaviors else []
     return [
         title, "", f"Viewport {manifest['width']} × {manifest['height']}. "
-        f"{passed}/{comparable} comparable route cases matched exactly on both platforms.", "", *explanation,
-        "| Case | Android DPR 1 | iOS DPR 3 |", "| --- | --- | --- |", *rows, "",
+        f"{passed}/{comparable} comparable route cases matched exactly on {platform_label(selected)}.", "", *explanation,
+        table_row(["Case", *(f"{platform_label([platform])} DPR {SCALES[platform]}" for platform in selected)]),
+        table_row(["---"] * (1 + len(selected))), *rows, "",
     ], passed == comparable and behavior_ok
 
 
@@ -113,16 +123,18 @@ def main():
     parser.add_argument("artifacts", type=Path)
     parser.add_argument("commit")
     parser.add_argument("build_commit")
+    parser.add_argument("--platform", choices=SCALES, help="Report one platform as soon as its measurements exist")
     args = parser.parse_args()
-    groups = load_case_groups(args.artifacts / "reference-manifests/dpr1/cases.json")
-    ios_groups = load_case_groups(args.artifacts / "reference-manifests/dpr3/cases.json")
-    if groups != ios_groups:
+    selected = (args.platform,) if args.platform else tuple(SCALES)
+    manifests = [load_case_groups(args.artifacts / f"reference-manifests/dpr{SCALES[p]}/cases.json") for p in selected]
+    groups = manifests[0]
+    if any(other != groups for other in manifests):
         raise ValueError("Case manifests differ between Android and iOS reference scales")
     rows = []
     passed = 0
     for component, case_ids in groups.items():
         states = []
-        for platform in SCALES:
+        for platform in selected:
             directory = args.artifacts / f"{platform}-measurements"
             engine = "android-webview" if platform == "android" else "ios-wkwebview"
             for root, reference in ((directory, None), (directory / "native-vs-webview", engine)):
@@ -131,11 +143,13 @@ def main():
                 states.append(check_device(result, component, case_ids, platform, args.commit, args.build_commit, reference))
         passed += all(state == "Pass" for state in states)
         rows.append(f"| {component} | {' | '.join(states)} |")
-    pages = [page_summary(args.artifacts, args.commit, args.build_commit, group) for group in PAGE_CAPTURES]
+    pages = [page_summary(args.artifacts, args.commit, args.build_commit, group, selected) for group in PAGE_CAPTURES]
     output = "\n".join([
         f"### Native pixel parity for `{args.commit}`", "", f"Tested checkout: `{args.build_commit}`.", "",
-        f"{passed}/{len(groups)} components matched all three cases against Chromium and the same-device WebView on both platforms.", "",
-        "| Component | Android vs Chromium | Android vs WebView | iOS vs Chromium | iOS vs WKWebView |", "| --- | --- | --- | --- | --- |", *rows, "",
+        f"{passed}/{len(groups)} components matched all three cases against Chromium and the same-device WebView on {platform_label(selected)}.", "",
+        table_row(["Component", *(f"{platform_label([platform])} vs {engine}" for platform in selected
+                                  for engine in ("Chromium", "WebView" if platform == "android" else "WKWebView"))]),
+        table_row(["---"] * (1 + 2 * len(selected))), *rows, "",
         *(line for section, _ in pages for line in section),
         "Interaction and accessibility checks are reported by each device job.", "",
     ])

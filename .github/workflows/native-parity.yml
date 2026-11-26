@@ -2,6 +2,11 @@ name: Native component parity
 
 on:
   workflow_dispatch:
+    inputs:
+      include_ios:
+        description: Also measure exact pixel parity on iOS
+        type: boolean
+        default: false
   pull_request:
     paths:
       - 'apps/mobile-native/**'
@@ -24,6 +29,7 @@ on:
       - 'messages/*/notifications.json'
       - 'messages/*/student.json'
       - 'components/navigation/student/student-nav-model.ts'
+      - 'components/navigation/student/student-mobile-hrefs.mjs'
       - 'components/notifications/notification-inbox-panel.tsx'
       - 'components/notifications/notification-bell.tsx'
       - 'lib/date-utils.ts'
@@ -175,11 +181,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - platform: android
-            runner: ubuntu-latest
-          - platform: ios
-            runner: macos-26
+        include: ${{ fromJSON(inputs.include_ios && '[{"platform":"android","runner":"ubuntu-latest"},{"platform":"ios","runner":"macos-26"}]' || '[{"platform":"android","runner":"ubuntu-latest"}]') }}
     # Finish each started device capture. A slow iOS build must not delay
     # contract checks, web references, or the next Android run.
     concurrency:
@@ -269,4 +271,10 @@ jobs:
         with:
           pattern: '{reference-manifests,android-measurements,ios-measurements}'
           path: ${{ runner.temp }}/parity-results
-      - run: python3 scripts/native-parity/summarize.py "$RUNNER_TEMP/parity-results" "$PARITY_HEAD_SHA" "$GITHUB_SHA"
+      - name: Summarize the requested device measurements
+        env:
+          INCLUDE_IOS: ${{ inputs.include_ios || false }}
+        run: |
+          platforms=(--platform android)
+          if [[ "$INCLUDE_IOS" == true ]]; then platforms=(); fi
+          python3 scripts/native-parity/summarize.py "$RUNNER_TEMP/parity-results" "$PARITY_HEAD_SHA" "$GITHUB_SHA" "${platforms[@]}"
