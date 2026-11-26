@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useRef, useState, type ComponentRef, type ReactNode, type Ref } from "react";
+import { Fragment, forwardRef, useEffect, useRef, useState, type ComponentRef, type ReactNode, type Ref } from "react";
 import {
   Pressable,
   StyleSheet,
@@ -63,6 +63,7 @@ export type MobileNavbarProps = {
   actionRefs?: Partial<Record<NavbarActionId, Ref<ComponentRef<typeof Pressable>>>>;
   onAction: (id: NavbarActionId) => void;
   pageActions?: ReactNode;
+  notificationSlot?: ReactNode;
   includeSafeArea?: boolean;
   hidden?: boolean;
   theme?: NavigationTheme;
@@ -80,6 +81,7 @@ export function MobileNavbar({
   actionRefs,
   onAction,
   pageActions,
+  notificationSlot,
   includeSafeArea = true,
   hidden = false,
   theme,
@@ -168,7 +170,11 @@ export function MobileNavbar({
           </View>
         )}
         {pageActions}
-        {roleNavbarActions[role].map((id) => actions?.[id] ? action(id, actions[id]) : null)}
+        {roleNavbarActions[role].map(id => {
+          if (id === "notifications" && notificationSlot != null) return <Fragment key={id}>{notificationSlot}</Fragment>;
+          const descriptor = actions?.[id];
+          return descriptor ? action(id, descriptor) : null;
+        })}
       </View>
     </View>
   );

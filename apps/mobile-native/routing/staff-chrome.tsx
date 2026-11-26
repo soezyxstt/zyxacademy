@@ -103,7 +103,7 @@ export function StaffChrome({ role, href, theme, focused, context, checkingAcces
     <SafeAreaView style={[styles.frame, { backgroundColor: colors.background }]}>
       <MobileNavbar role={role} theme={theme} title={navigation.title} includeSafeArea={false} testID={`${role}-navbar`}
         hidden={visibility.hideTop}
-        pageActions={focused && !visibility.hideTop ? <NativeInboxBell role={role} locale={locale} theme={theme} visit={visit} /> : null}
+        notificationSlot={focused && !visibility.hideTop ? <NativeInboxBell role={role} locale={locale} theme={theme} visit={visit} /> : null}
         actions={{ search: siteSearch.action, account: accountMenu.action }} actionRefs={{ search: siteSearch.trigger, account: accountMenu.trigger }}
         home={navigation.backTo === null ? { label: navigation.homeLabel } : undefined}
         back={navigation.backTo ? { label: navigation.labels.back } : undefined}

@@ -41,7 +41,7 @@ export function StudentChrome({ href, pattern, locale, theme, enabled, visit, ba
     <SafeAreaView style={{ flex: 1, backgroundColor: nativeColors[theme].background }}>
       <MobileNavbar role="student" theme={theme} title={title} includeSafeArea={false} testID="student-navbar"
         hidden={!enabled || visibility.hideTop}
-        pageActions={enabled && !visibility.hideTop ? <NativeInboxBell role="student" locale={locale} theme={theme} visit={visit} /> : null}
+        notificationSlot={enabled && !visibility.hideTop ? <NativeInboxBell role="student" locale={locale} theme={theme} visit={visit} /> : null}
         actions={{ search: siteSearch.action, account: accountMenu.action }} actionRefs={{ search: siteSearch.trigger, account: accountMenu.trigger }}
         home={backTo === null ? { label: homeLabel } : undefined}
         back={backTo ? { label: labels.back } : undefined}
