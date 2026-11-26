@@ -77,6 +77,7 @@ Urutan ini adalah backlog, bukan bukti implementasi atau paritas. Setiap kotak m
 | P0 | [ ] `progress`, diadaptasi dari jalur indikator `components/gamification/mission-list.tsx` dan `badge-list.tsx` | Kosong tema terang; 3 dari 8 tema gelap; penuh tema terang. |
 | P0 | [ ] `card`, `components/admin/bundle-importer-tab.tsx` | Default; varian alternatif; konten panjang. |
 | P0 | [ ] `alert`, `features/admin-home/ui/mobile/admin-home-mobile.tsx` | Default; destructive; deskripsi panjang. |
+| P0 | [ ] `alert`, `features/admin-home/ui/mobile/admin-home-mobile.tsx` | Judul tanpa ikon, deskripsi pada tema gelap, dan peringatan kegagalan generasi dengan tautan pemulihan. Ketiga kasus terdaftar untuk verifikasi perangkat. |
 | P0 | [ ] `formatted-date`, `components/student-reflections-view.tsx`, `components/admin/offline-cache-settings.tsx` | Tanggal refleksi Indonesia dari epoch detik, waktu revisi Inggris dalam zona Asia/Jakarta, dan teks cadangan ketika tanggal refleksi tidak valid. Ketiga kasus terdaftar di galeri dan perlu verifikasi perangkat. |
 | P1 | [ ] `slider`, `components/course/interactive-scene-renderer.tsx` | Nilai minimum; tengah; maksimum. |
 | P1 | [ ] `toggle-group`, `components/landing/landing-subject-showcase.tsx` | Tanpa pilihan; satu pilihan aktif; kontrol disabled. |

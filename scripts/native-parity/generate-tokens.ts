@@ -5,7 +5,7 @@ import postcss from "postcss";
 const cssFile = new URL("../../app/globals.css", import.meta.url);
 const outputFile = new URL("../../packages/design-tokens/native-colors.ts", import.meta.url);
 const colorProperties = {
-  background: "background", card: "card", border: "border", muted: "muted", foreground: "foreground",
+  background: "background", card: "card", cardForeground: "card-foreground", border: "border", muted: "muted", foreground: "foreground",
   popover: "popover", popoverForeground: "popover-foreground",
   input: "input", mutedForeground: "muted-foreground", primary: "primary",
   primaryForeground: "primary-foreground", primaryHover: "primary-hover", secondary: "secondary",

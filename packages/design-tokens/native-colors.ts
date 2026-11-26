@@ -3,6 +3,7 @@ export const nativeColors = {
   "light": {
     "background": "#ffffff",
     "card": "#ffffff",
+    "cardForeground": "#333333",
     "border": "#e0e0e0",
     "muted": "#e0e0e0",
     "foreground": "#333333",
@@ -25,6 +26,7 @@ export const nativeColors = {
   "dark": {
     "background": "#1d1d1d",
     "card": "#282828",
+    "cardForeground": "#ffffff",
     "border": "#4f4f4f",
     "muted": "#4f4f4f",
     "foreground": "#ffffff",

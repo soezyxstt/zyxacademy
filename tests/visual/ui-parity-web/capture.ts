@@ -28,6 +28,8 @@ function specimenCapture(item: GalleryCase) {
       return { selector: skeletonSelector, size: { width: item.width, height: item.height } };
     case "avatar":
       return { selector: avatarSelector, size: avatarPosition };
+    case "alert":
+      return { selector: '[data-slot="alert"]', size: null };
     case "badge":
       return { selector: "[data-parity-badge]", size: null };
     case "beta-badge":
@@ -150,6 +152,34 @@ try {
       await expect(specimen).toHaveCSS("height", "24px");
       await expect(frame.getByRole("button")).toHaveCount(0);
       await expect(frame.getByRole("link")).toHaveCount(0);
+    }
+    if (item.family === "alert") {
+      await expect(specimen).toHaveRole("alert");
+      await expect(specimen).toHaveCSS("padding", "12px");
+      await expect(specimen).toHaveCSS("border-top-left-radius", "10px");
+      const title = specimen.locator('[data-slot="alert-title"]');
+      const description = specimen.locator('[data-slot="alert-description"]');
+      const icon = specimen.locator("svg");
+      await expect(title).toHaveText(item.title);
+      await expect(title).toHaveCSS("font-size", "14px");
+      await expect(title).toHaveCSS("font-weight", "600");
+      if ("icon" in item) {
+        await expect(icon).toHaveAttribute("aria-hidden", "true");
+        await expect(icon).toHaveCSS("width", "16px");
+        await expect(icon).toHaveCSS("height", "16px");
+        const iconBox = await icon.boundingBox();
+        const titleBox = await title.boundingBox();
+        if (!iconBox || !titleBox) throw new Error(`${item.id}: missing alert text or icon bounds`);
+        expect(titleBox.x - iconBox.x).toBeCloseTo(28, 1);
+        expect(iconBox.y - titleBox.y).toBeCloseTo(2, 1);
+        await expect(description).toHaveCSS("font-size", "12px");
+        await expect(description).toHaveCSS("line-height", "18px");
+      } else {
+        await expect(icon).toHaveCount(0);
+        await expect(description).toHaveCount(0);
+      }
+      if ("description" in item) await expect(description).toHaveText(item.description);
+      if ("action" in item) await expect(specimen.getByRole("link", { name: item.action.label })).toHaveAttribute("href", item.action.href);
     }
     if (item.family === "formatted-date" && item.expected !== null) {
       await expect(specimen).toHaveText(item.expected);
