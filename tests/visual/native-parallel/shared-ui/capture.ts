@@ -49,14 +49,19 @@ async function waitForState(page: Page, id: string) {
             ? "Nara Pratama"
             : /belum ada/i,
       )
+      .filter({ visible: true })
       .first()
       .waitFor();
   }
   if (id.includes("-grid-")) {
-    await page
-      .locator('div.grid[class*="/documents:grid-cols-2"]')
-      .first()
-      .waitFor();
+    const grid = page.locator('div.grid[class*="/documents:grid-cols-2"]').first();
+    await grid.waitFor();
+    const valid = await grid.evaluate(el => {
+      const width = el.getBoundingClientRect().width;
+      const expected = 1 + [464, 704, 944, 1184].filter(min => width >= min).length;
+      return getComputedStyle(el).gridTemplateColumns.split(" ").length === expected;
+    });
+    if (!valid) throw new Error("Document grid does not match its source container breakpoints");
   }
   if (
     id === "shared-ui-calendar-available" ||
