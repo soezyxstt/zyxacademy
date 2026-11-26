@@ -138,6 +138,32 @@ test("native demo reads the same scoped products and grades only a signed questi
   expect((await submit({ ...payload, questionIds: ["q1"] })).status).toBe(409);
 });
 
+test("native product revisions match the scoped experience when the summary is stale", async () => {
+  const { GET: read } = await import("@/app/api/native/public/demo/[view]/route");
+  const summaryModule = await import("@/lib/demo/summary-repository");
+  const original = await summaryModule.getDemoSummaries();
+  const stale = spyOn(summaryModule, "getDemoSummaries").mockResolvedValue(
+    original.map((summary) => ({ ...summary, snapshot: { ...summary.snapshot, revision: "older-revision" } })),
+  );
+  try {
+    const open = (view: string) => read(new Request(`http://localhost/api/native/public/demo/${view}?course=course-0`), {
+      params: Promise.resolve({ view }),
+    });
+    const progress = await (await open("progress")).json();
+    expect(progress.baseline.revision).toBe("older-revision");
+    for (const view of ["article", "diktat", "flashcards", "quiz", "quiz-list", "quiz-start"]) {
+      const response = await open(view);
+      expect(response.status).toBe(200);
+      const content = await response.json();
+      expect(content.revision).toBe(fictionalDemoSnapshot("course-0").revision);
+      if (view === "quiz") {
+        const scope = JSON.parse(Buffer.from(content.token.split(".")[0], "base64url").toString("utf8"));
+        expect(scope.contentRevision).toBe(content.revision);
+      }
+    }
+  } finally { stale.mockRestore(); }
+});
+
 test("native demo projects progress, path, mastery and the synthetic tryout list for the selected public course", async () => {
   const { GET: read } = await import("@/app/api/native/public/demo/[view]/route");
   const open = (view: string, course: string, locale = "id") => read(

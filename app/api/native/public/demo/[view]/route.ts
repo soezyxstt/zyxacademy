@@ -22,7 +22,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ view
   const selected = parsed.course ? summaries.find(({ snapshot }) => snapshot.courseId === parsed.course) : summaries[0];
   if (!selected) return missing();
   const { snapshot, content: { course } } = selected;
-  const { courseId, revision } = snapshot;
+  const { courseId } = snapshot;
 
   if (view === "overview") {
     const catalogue = await getDemoCatalogue(courseId);
@@ -30,7 +30,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ view
   }
 
   if (view === "progress") {
-    const { course: metrics, flashcards, history, streakDays } = snapshot;
+    const { revision, course: metrics, flashcards, history, streakDays } = snapshot;
     return found({ kind: view, baseline: { courseId, revision, course: metrics, flashcards: { dueCount: flashcards.dueCount }, history, streakDays } });
   }
   if (view === "path") {
@@ -54,7 +54,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ view
   const requestedKind = parsed.selection.collectionOffset && kind !== "documents" && kind !== "flashcards" ? "all" : kind;
   const experience = await getDemoExperience(courseId, parsed.selection, requestedKind);
   if (!experience) return missing();
-  const { content } = experience;
+  const { content, snapshot: { revision } } = experience;
   const { collections } = content;
   if (collections.page.offset > 0 && !collections.articles.length && !collections.diktats.length && !collections.flashcardSets.length) return missing();
 

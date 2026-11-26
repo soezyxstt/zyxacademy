@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { advanceDemoQuiz } from "../../../lib/demo/quiz-progress";
 import { planLocalStudyDays } from "../../../lib/demo/learning-path";
 import { chooseMasteryFocus } from "../../../lib/demo/view-mastery";
 import { operationsPatterns } from "../../../apps/mobile-native/features/operations/routes";
@@ -80,6 +81,17 @@ describe("public operations routes", () => {
     const mastery = await client.demoContent("mastery", "?course=demo-kalkulus");
     if (mastery?.kind !== "mastery") throw new Error("Expected mastery fixture");
     expect(chooseMasteryFocus(mastery.groups).review?.topic.conceptName).toBe("Luas bertanda");
+  });
+
+  test("counts a signed quiz only after grading every page in order", () => {
+    const first = { offset: 0, total: 4, nextOffset: 3, questionCount: 3 };
+    const last = { offset: 3, total: 4, nextOffset: null, questionCount: 1 };
+    expect(advanceDemoQuiz(null, last)).toEqual({ complete: false, pending: null });
+    const progress = advanceDemoQuiz(null, first);
+    expect(progress).toEqual({ complete: false, pending: { total: 4, nextOffset: 3 } });
+    expect(advanceDemoQuiz(progress.pending, { ...last, total: 7 })).toEqual(progress);
+    expect(advanceDemoQuiz(progress.pending, last)).toEqual({ complete: true, pending: null });
+    expect(advanceDemoQuiz(null, { offset: 0, total: 1, nextOffset: null, questionCount: 1 }).complete).toBe(true);
   });
 
   test("keeps the current course and non-default set while paging flashcards", () => {

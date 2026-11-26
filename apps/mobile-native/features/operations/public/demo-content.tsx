@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import { formatIsoDate } from "../../../../../lib/date-utils";
-import { scopedDemoReviewId } from "../../../../../lib/demo/session-overlay";
+import { scopedDemoMaterialId, scopedDemoReviewId } from "../../../../../lib/demo/session-overlay";
 import { demoSelectionHref } from "../../../../../lib/demo/selection";
 import { demoPageHref, type NativeDemoContentView, type PublicDemoContent, type PublicQuizResult } from "../../../../../packages/native-parity/operations/public-contract";
 import { ReadMarkdown } from "./blog";
 import { DemoMasteryView, DemoPathView, DemoProgressView, DemoTryoutListView } from "./demo-learning";
-import { readNativeDemoProgress, recordNativeDemoProgress } from "./demo-progress-store";
+import { readNativeDemoProgress, recordNativeDemoProgress, recordNativeDemoQuizPage } from "./demo-progress-store";
 import { Action, Divider, Label, layout, StatePanel, textWith, usePublic, usePublicResource } from "./ui";
 
 type Cards = Extract<PublicDemoContent, { kind: "flashcards" }>;
@@ -84,9 +84,9 @@ function QuizPractice({ data, href, reload }: { data: Quiz; href: string; reload
     }, controller.signal).then((graded) => {
       if (controller.signal.aborted) return;
       if (graded) {
-        recordNativeDemoProgress(data.courseId, data.revision, {
-          kind: "quiz", id: `quiz-page-${data.offset}`, date: formatIsoDate(new Date()),
-        });
+        recordNativeDemoQuizPage(data.courseId, data.revision, {
+          offset: data.offset, total: data.total, nextOffset: data.nextOffset, questionCount: data.questions.length,
+        }, formatIsoDate(new Date()));
         setResult(graded);
       } else setError("expired");
     }, () => {
@@ -125,14 +125,14 @@ function QuizPractice({ data, href, reload }: { data: Quiz; href: string; reload
   </View>;
 }
 
-function CompleteMaterial({ data }: { data: { courseId: string; revision: string; materialId: string } }) {
+function CompleteMaterial({ data, completionId }: { data: { courseId: string; revision: string }; completionId: string }) {
   const { copy: { demo } } = usePublic();
-  const { courseId, revision, materialId } = data;
-  const hasCompleted = () => readNativeDemoProgress(courseId, revision).events.some(({ kind, id }) => kind === "article" && id === materialId);
+  const { courseId, revision } = data;
+  const hasCompleted = () => readNativeDemoProgress(courseId, revision).events.some(({ kind, id }) => kind === "article" && id === completionId);
   const [completed, setCompleted] = useState(hasCompleted);
   return completed ? <Label live="polite">{demo.session.completed}</Label>
     : <Action id="public-demo-complete-material" onPress={() => {
-      recordNativeDemoProgress(courseId, revision, { kind: "article", id: materialId, date: formatIsoDate(new Date()) });
+      recordNativeDemoProgress(courseId, revision, { kind: "article", id: completionId, date: formatIsoDate(new Date()) });
       setCompleted(hasCompleted());
     }}>{demo.session.markComplete}</Action>;
 }
@@ -170,7 +170,8 @@ export function NativeDemoContent({ view, search }: { view: NativeDemoContentVie
         {data.documents.length === 0 && <StatePanel kind="empty" title={demo.session.noDocuments} />}
       </View>;
     }
-    case "article":
+    case "article": {
+      const completionId = scopedDemoMaterialId(data.kind, data.materialId);
       return <View style={layout.stack}>
         <Label tone="heading">{data.title}</Label>
         <Label tone="meta">{textWith(demo.article.readTime, { count: data.minutes })}</Label>
@@ -183,17 +184,20 @@ export function NativeDemoContent({ view, search }: { view: NativeDemoContentVie
             {renderArticle ? renderArticle({ markdown: block.text, origin, onLink: openExternal }) : <ReadMarkdown markdown={block.text} onLink={openExternal} />}
           </View>)}
         </View>)}
-        <CompleteMaterial key={data.materialId} data={data} />
+        <CompleteMaterial key={completionId} data={data} completionId={completionId} />
       </View>;
-    case "diktat":
+    }
+    case "diktat": {
+      const completionId = scopedDemoMaterialId(data.kind, data.materialId);
       return <View style={layout.stack}>
         <Label tone="heading">{data.title}</Label>
         {data.sections.map((section, i) => <View key={i} style={layout.section}>
           <Divider /><Label tone="subheading">{section.title}</Label>
           <ReadMarkdown markdown={section.content} onLink={openExternal} />
         </View>)}
-        {data.sections.length ? <CompleteMaterial key={data.materialId} data={data} /> : <StatePanel kind="empty" title={demo.diktat.empty} />}
+        {data.sections.length ? <CompleteMaterial key={completionId} data={data} completionId={completionId} /> : <StatePanel kind="empty" title={demo.diktat.empty} />}
       </View>;
+    }
     case "flashcards": return <Flashcards data={data} href={`/demo/flashcards${search}`} />;
     case "quiz": return <QuizPractice data={data} href={`/demo/quiz${search}`} reload={retry} />;
     case "quiz-list":
