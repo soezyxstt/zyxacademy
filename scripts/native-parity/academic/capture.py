@@ -116,7 +116,11 @@ def main():
     raw.mkdir(exist_ok=True)
     matrix = json.loads(args.cases.read_text())
     provenance = json.loads((args.output.parent / "provenance.json").read_text())
-    result = {**provenance, "deviceScaleFactor": dpr, "captures": []}
+    device_info = (args.output.parent / "device.txt").read_text().splitlines()
+    result = {
+        **provenance, "device": " | ".join(line.strip() for line in device_info if line.strip()),
+        "deviceScaleFactor": dpr, "captures": [],
+    }
     checked_stamps = 0
     verified_identity = False
     with tempfile.TemporaryDirectory(prefix="zyx-academic-device-") as temporary:

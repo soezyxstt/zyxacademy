@@ -1,4 +1,4 @@
-import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useIsFocused, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, useColorScheme } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -13,6 +13,7 @@ export default function AcademicSessionRoute() {
   const { state, transport } = useNativeSession();
   const { context, failed, retry } = useNativeAccountContext();
   const router = useRouter();
+  const isFocused = useIsFocused();
   const focusedOnce = useRef(false);
   const [refresh, setRefresh] = useState(0);
   useFocusEffect(useCallback(() => {
@@ -38,6 +39,9 @@ export default function AcademicSessionRoute() {
   }
   if (!client || !context || !transport) return <ActivityIndicator accessibilityLabel="Memuat akun" />;
   if (!context.roles.includes(role)) return <AcademicMessage theme={theme} back={back}>Akses ditolak.</AcademicMessage>;
+  // Keep the course list mounted so its filters survive Back. Re-enter every other
+  // protected route through a fresh read before showing course or participant data.
+  if (!isFocused && href.split("?")[0] !== "/admin/courses") return null;
   return <SafeAreaView style={{ flex: 1 }}>
     <AcademicLiveScreen key={context.sessionId} transport={client} theme={theme} actor={{ id: context.accountId, role }}
       href={href} refresh={refresh} back={back} navigate={p => router.push(target(p))} replace={p => router.replace(target(p))} />

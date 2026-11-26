@@ -104,10 +104,77 @@ jobs:
             npx --no-install expo run:ios --configuration Release --device "$device" --no-bundler
           ) 2>&1 | tee "$root/$ACADEMIC_OUTPUT/build.log"
           bash scripts/native-parity/academic/run-device.sh ios "$device"
+      - name: Record collection status
+        if: always()
+        shell: bash
+        env:
+          ACADEMIC_JOB_STATUS: ${{ job.status }}
+        run: |
+          mkdir -p "$ACADEMIC_OUTPUT"
+          printf '{"jobStatus":"%s"}\n' "$ACADEMIC_JOB_STATUS" > "$ACADEMIC_OUTPUT/job-status.json"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: academic-${{ matrix.platform }}-evidence
           path: artifacts/native-parity/academic/${{ matrix.platform }}
+          retention-days: 7
+          if-no-files-found: warn
+
+  compare-matched-viewport:
+    needs: device
+    if: ${{ always() && !cancelled() && github.head_ref == 'native-migration/academic' && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      DEVICE_ARTIFACTS: artifacts/native-parity/academic/device-artifacts
+      COMPARISON_OUTPUT: artifacts/native-parity/academic/matched-viewport
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: academic-*-evidence
+          path: ${{ env.DEVICE_ARTIFACTS }}
+      - name: Check device geometry metadata
+        id: geometry
+        shell: bash
+        run: |
+          if test -f "$DEVICE_ARTIFACTS/academic-android-evidence/interaction-manifest.json" ||
+             test -f "$DEVICE_ARTIFACTS/academic-ios-evidence/interaction-manifest.json"; then
+            echo 'available=true' >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.geometry.outputs.available == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - if: steps.geometry.outputs.available == 'true'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.14'
+      - if: steps.geometry.outputs.available == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - if: steps.geometry.outputs.available == 'true'
+        name: Install browser capture dependencies
+        shell: bash
+        run: |
+          bun install --frozen-lockfile
+          python -m pip install Pillow==12.2.0
+          if command -v google-chrome >/dev/null; then
+            printf 'PARITY_CHROMIUM_EXECUTABLE=%s\n' "$(command -v google-chrome)" >> "$GITHUB_ENV"
+          else
+            bunx playwright install chromium --with-deps
+          fi
+      - name: Capture and compare measured device viewports
+        run: python3 scripts/native-parity/academic/match-viewport.py "$DEVICE_ARTIFACTS" "$COMPARISON_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: academic-matched-viewport
+          path: ${{ env.COMPARISON_OUTPUT }}
           retention-days: 7
           if-no-files-found: warn

@@ -19,8 +19,11 @@ Jalankan dari terminal kedua.
 
 ```sh
 node packages/native-parity/academic/local/smoke.mjs
+node packages/native-parity/academic/local/course-settings-smoke.mjs
 node packages/native-parity/academic/local/pka-announcement-smoke.mjs
 PARITY_CHROMIUM_EXECUTABLE=/usr/bin/chromium node tests/visual/native-parallel/academic/route-smoke.mjs
 ```
 
 Kontainer menyimpan data dalam penyimpanan sementara. Setelah pengujian, hentikan server Next.js dan jalankan `docker stop academic-smoke`. Referensi rute bersesi disimpan di `artifacts/native-parity/academic/routes`.
+
+Capture web menyembunyikan indikator pengembangan Next.js pada elemen `nextjs-portal`. Font, isi halaman, navigasi dan ukuran viewport tetap berasal dari halaman web yang diuji.

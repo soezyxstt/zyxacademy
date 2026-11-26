@@ -66,6 +66,7 @@ def main():
         "revision": args.revision,
         "deviceScaleFactor": args.dpr,
         "viewport": {"width": viewport_width, "height": viewport_height},
+        "expectedDeviceCases": list(MAESTRO_CASES.values()),
         "captures": captures,
         "missingDeviceCases": missing,
     }

@@ -11,15 +11,20 @@ import { Action, CourseDialog, Field, Ink, SaveButtons, layout } from "./ui";
 
 type Pending = { draft: PkaAnnouncementEdit; requestId: string };
 
+// A pending PATCH may have committed even after navigation aborted its response.
+// Bind recovery to the verified transport and the exact announcement.
+const pendingEdits = new WeakMap<AcademicTransport, Map<string, Pending>>();
+
 export function PkaAnnouncementEditor({ id, initial, transport, cancel, saved }: {
   id: string; initial: PkaAnnouncementRevision; transport: AcademicTransport;
   cancel(): void; saved(): void;
 }) {
-  const [title, setTitle] = useState(initial.title);
-  const [body, setBody] = useState(initial.body);
-  const [revision, setRevision] = useState(initial.revision);
+  const recovered = pendingEdits.get(transport)?.get(id);
+  const [title, setTitle] = useState(recovered?.draft.title ?? initial.title);
+  const [body, setBody] = useState(recovered?.draft.body ?? initial.body);
+  const [revision, setRevision] = useState(recovered?.draft.expectedRevision ?? initial.revision);
   const [conflict, setConflict] = useState<PkaAnnouncementRevision>();
-  const [uncertain, setUncertain] = useState<Pending>();
+  const [uncertain, setUncertain] = useState<Pending>(recovered);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const inFlight = useRef<AbortController | undefined>(undefined);
@@ -32,6 +37,12 @@ export function PkaAnnouncementEditor({ id, initial, transport, cancel, saved }:
 
   function submit(pending: Pending) {
     if (inFlight.current) return;
+    let commands = pendingEdits.get(transport);
+    if (!commands) {
+      commands = new Map();
+      pendingEdits.set(transport, commands);
+    }
+    commands.set(id, pending);
     const active = new AbortController();
     inFlight.current = active;
     setError("");
@@ -42,6 +53,7 @@ export function PkaAnnouncementEditor({ id, initial, transport, cancel, saved }:
         setUncertain(pending);
         return;
       }
+      if (commands.get(id) === pending) commands.delete(id);
       setUncertain(undefined);
       switch (result.status) {
         case "saved": saved(); break;

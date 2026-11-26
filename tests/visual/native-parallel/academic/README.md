@@ -22,7 +22,7 @@ Tangkapan mobile menggunakan viewport 380 × 844 CSS px, DPR 1 atau 3, locale `i
 
 ## Perbandingan perangkat
 
-Workflow `.github/workflows/native-parity.yml` membaca registri galeri pusat dan membandingkan cuplikan primitif 320 × 100 px. Skrip `scripts/native-parity/check-interactions.sh` menjalankan `.maestro/native-parity/academic.yaml` bersama alur Maestro lain setelah build Expo terpasang. Arsip `android-parity` dan `ios-parity` menyimpan PNG dari langkah `takeScreenshot` di `interactions/results/`. Catat SHA build, model dan versi OS, viewport konten dalam dp, densitas, serta batas konten dalam piksel. Ukur batas aktual dengan memperhitungkan status bar, safe area dan navbar perangkat. Pertahankan file PNG mentah saat membuat manifest.
+Workflow `.github/workflows/academic-native-evidence.yml` menjalankan job Android dan iOS secara independen dari galeri komponen. Setiap job menguji tiap berkas Maestro akademik dalam proses terpisah, lalu membuka 162 kasus dari manifest akademik. Penanda sesaat di kedua sudut frame memverifikasi identitas kasus dan mengukur batas konten setelah safe area. Job menyimpan frame bersih setelah dua frame konten berturut-turut sama dan menandai kasus yang gagal diverifikasi. Arsip `academic-android-evidence` dan `academic-ios-evidence` menyimpan PNG mentah, manifest rute, log, status tiap alur, dan hasil pembandingan selama tujuh hari. Job Linux menyiapkan referensi Playwright pada viewport terukur serta menyimpan referensi, selisih, dan status dalam arsip `academic-matched-viewport`.
 
 `device-manifest.py` menggunakan delapan pasangan nama screenshot Maestro dan kasus Playwright dengan peran, data, state, dan tema yang sama. Kasus yang tidak memiliki padanan semantik, seperti layar detail peserta yang terpisah di native, tidak dipasangkan. Nama screenshot yang tidak ditemukan tercatat dalam manifest perangkat.
 
@@ -30,7 +30,7 @@ Unduh artefak Android dari run yang ingin diuji. Untuk iOS, gunakan nama artefak
 
 ```sh
 gh run download <ID-run> --repo soezyxstt/zyxacademy \
-  --name android-parity \
+  --name academic-android-evidence \
   --dir artifacts/native-parity/academic/android/raw
 ```
 
@@ -38,7 +38,7 @@ Buat manifest dengan ukuran yang diukur dari build dan screenshot perangkat. Gun
 
 ```sh
 python3 tests/visual/native-parallel/academic/device-manifest.py \
-  artifacts/native-parity/academic/android/raw/interactions/results \
+  artifacts/native-parity/academic/android/raw/interactions \
   artifacts/native-parity/academic/android/manifest.json \
   --platform android --device "<model dan versi Android>" --revision "<SHA build>" \
   --dpr 1 --viewport <lebar-dp> <tinggi-dp> \
@@ -52,5 +52,13 @@ python3 tests/visual/native-parallel/academic/compare.py \
 ```
 
 Pembanding menggunakan piksel asli dan memotong hanya sesuai batas konten yang dicatat. Status lulus mensyaratkan viewport, DPR, tema, dimensi konten, gambar referensi yang berisi, dan selisih nol piksel. Perbedaan ukuran menghasilkan PNG area tumpang tindih dan PNG area yang tidak berpasangan sebagai diagnostik. Run standar memeriksa semua pasangan semantik, dan `--case` membatasi pemeriksaan ke kasus tertentu. Hasil JSON mencatat dimensi PNG mentah, batas konten, dan alasan kasus gagal.
+
+Untuk pembandingan yang sesuai ukuran perangkat, ambil nilai `contentViewport` dari `comparison-status.json` hasil run. Gunakan dimensi tersebut, DPR perangkat, dan kasus yang sudah dipasangkan saat menangkap ulang referensi Playwright. Simpan referensi baru di folder ukuran perangkat agar baseline 380 × 844 tetap tersedia.
+
+```sh
+PARITY_WIDTH=<lebar-dp> PARITY_HEIGHT=<tinggi-dp> PARITY_DPR=1 \
+  PARITY_CASES=tutor-dashboard-assigned-light \
+  bun tests/visual/native-parallel/academic/capture.ts
+```
 
 Linux lokal memiliki Chromium. Android SDK, emulator, ADB, KVM, Xcode dan Maestro tidak tersedia, sehingga pengukuran antarplatform menunggu tangkapan perangkat.

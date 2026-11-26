@@ -32,7 +32,7 @@ try {
       const landed = new URL(page.url()).pathname;
       assert.equal(landed, key === "tutor-denied" ? "/tutor" : path);
       await page.evaluate(() => document.fonts.ready);
-      await page.screenshot({ path: output + "/" + key + ".png", animations: "disabled" });
+      await page.screenshot({ path: output + "/" + key + ".png", animations: "disabled", style: "nextjs-portal { display: none !important; }" });
       results.push({ role, path, landed, key, status: res.status() });
       console.log(key, landed, res.status());
     } finally { await ctx.close(); }
