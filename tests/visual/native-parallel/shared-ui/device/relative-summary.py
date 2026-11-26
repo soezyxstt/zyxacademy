@@ -2,6 +2,7 @@
 from collections import defaultdict
 import json
 from pathlib import Path
+import re
 import sys
 
 from relative_catalog import expected_relative_cases
@@ -30,6 +31,10 @@ def summarize(root, build, expected):
             size = geometry["width"], geometry["height"]
             if geometry.get("scale") != "1" or any(type(value) is not int or value <= 0 for value in size):
                 raise ValueError("invalid native geometry at DPR 1")
+            insets = geometry["insets"]
+            if not isinstance(insets, list) or len(insets) != 4 or any(type(value) is not int or value < 0 for value in insets):
+                raise ValueError("invalid safe area insets")
+            box = [insets[0], insets[1], insets[0] + size[0], insets[1] + size[1]]
             evidence = json.loads((summary_dir / "relative/results.json").read_text())
             if (evidence.get("policy"), evidence.get("platform"), evidence.get("referenceEngine"),
                     evidence.get("build"), evidence.get("dpr"), evidence.get("device")) != (
@@ -39,6 +44,10 @@ def summarize(root, build, expected):
             if sorted(row["id"] for row in cases) != sorted(summary["relativeCases"]):
                 raise ValueError("report does not cover the expected cases for this viewport")
             for row in cases:
+                if row.get("status") == "pass" and (row.get("cropPixels") != box or any(
+                    not re.fullmatch(r"[a-f0-9]{64}", str(row.get(key))) for key in ("expoRawSha256", "webviewRawSha256")
+                )):
+                    raise ValueError(f"{row['id']}: missing or incompatible crop provenance")
                 reports[row["id"]].append((row, size))
         except (OSError, ValueError, KeyError, TypeError) as error:
             errors.append(f"{group}: {error}")
@@ -55,6 +64,7 @@ def summarize(root, build, expected):
         metrics = row.get("relativeVisual")
         raw = row.get("differentPixels")
         verified = (row.get("status") == "pass" and row.get("issues") == [] and size
+                    and row.get("referenceBlank") is False and row.get("nativeBlank") is False
                     and type(raw) is int and 0 <= raw <= size[0] * size[1] and not relative_issues(metrics, size))
         groups[component].append(verified)
         scores = [metrics.get(key) if isinstance(metrics, dict) else None for key in ("fullSsim", "foregroundSsim")]

@@ -110,7 +110,9 @@ jobs:
           script: bash tests/visual/native-parallel/shared-ui/device/ci-android.sh
       - name: Summarize the three Android WebView cases per Shared UI component
         if: always()
-        run: python3 tests/visual/native-parallel/shared-ui/device/relative-summary.py artifacts/native-parity/shared-ui/android "$SHARED_BUILD" | tee -a "$GITHUB_STEP_SUMMARY"
+        run: |
+          set -euo pipefail
+          python3 tests/visual/native-parallel/shared-ui/device/relative-summary.py artifacts/native-parity/shared-ui/android "$SHARED_BUILD" | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Archive evidence and diagnostic logs
         id: evidence-artifact
         if: always()

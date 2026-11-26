@@ -32,7 +32,7 @@ class RelativeSharedUiTest(unittest.TestCase):
                 (folder.parent / "latest-run.json").write_text(json.dumps({"runDirectory": str(folder)}))
                 (folder / "ci-summary.json").write_text(json.dumps({
                     "build": build, "device": device_name, "platform": "android", "group": group,
-                    "geometry": {"scale": "1", "width": width, "height": 100}, "relativeCases": cases,
+                    "geometry": {"scale": "1", "width": width, "height": 100, "insets": [0, 24, 0, 24]}, "relativeCases": cases,
                 }))
                 if cases:
                     (folder / "relative").mkdir(exist_ok=True)
@@ -40,7 +40,9 @@ class RelativeSharedUiTest(unittest.TestCase):
                         "platform": "android", "policy": summary.POLICY, "referenceEngine": "android-webview",
                         "build": build, "device": device_name, "dpr": 1,
                         "cases": [{"id": case, "component": "grid", "status": "pass", "issues": [],
-                                   "differentPixels": 1, "relativeVisual": metrics} for case in cases],
+                                   "differentPixels": 1, "relativeVisual": metrics, "referenceBlank": False,
+                                   "nativeBlank": False, "cropPixels": [0, 24, width, 124],
+                                   "expoRawSha256": "b" * 64, "webviewRawSha256": "c" * 64} for case in cases],
                     }))
 
             def check():

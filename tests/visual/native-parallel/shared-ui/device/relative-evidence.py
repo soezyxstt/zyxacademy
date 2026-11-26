@@ -60,11 +60,16 @@ def compare_relative_case(case, args, scratch):
     ImageOps.autocontrast(diff).save(args.output / f"{case_id}-diff.png")
     metrics = measure_relative(reference, native)
     issues = relative_issues(metrics, dimensions)
-    if flat_color(reference) or flat_color(native):
+    reference_blank, native_blank = flat_color(reference), flat_color(native)
+    if reference_blank or native_blank:
         issues.insert(0, "blank crop")
-    return { "id": case_id, "component": case["component"], "status": "fail" if issues else "pass", "issues": issues,
-             "differentPixels": sum(pixel != (0, 0, 0) for pixel in diff.get_flattened_data()), "cropPixels": box,
-             "expoRawSha256": sha256(native_path), "webviewRawSha256": sha256(target), "relativeVisual": metrics }
+    return {
+        "id": case_id, "component": case["component"], "status": "fail" if issues else "pass", "issues": issues,
+        "differentPixels": sum(pixel != (0, 0, 0) for pixel in diff.get_flattened_data()),
+        "maxRgbDelta": max(hi for _, hi in diff.getextrema()), "differenceBounds": diff.getbbox(),
+        "referenceBlank": reference_blank, "nativeBlank": native_blank, "cropPixels": box,
+        "expoRawSha256": sha256(native_path), "webviewRawSha256": sha256(target), "relativeVisual": metrics,
+    }
 
 
 def main():
