@@ -1465,6 +1465,13 @@ export const operationsCatalog = [
     "reason": "No operations tool implemented for this source; mutations require service invariants and concurrency review."
   },
   {
+    "source": "app/api/admin/native-monitoring/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The native Admin UI reuses web monitoring projections behind canonical admin session authorization. The read-only adapter adds no MCP tools or changes to scopes, consent, discovery, playbooks, packaged skills, host prompts or environment bindings."
+  },
+  {
     "source": "app/(admin)/admin/ops/web-analytics/page.tsx",
     "actions": [],
     "tools": [],

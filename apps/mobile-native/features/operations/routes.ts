@@ -61,9 +61,20 @@ export const operationsPatterns = {
 
 export type OperationsArea = keyof typeof operationsPatterns;
 
+function hasValidSegments(path: string): boolean {
+  try {
+    return path.split("/").every(part => {
+      const decoded = decodeURIComponent(part);
+      return decoded !== "." && decoded !== ".." && !/[/\\\x00-\x1f]/.test(decoded);
+    });
+  } catch {
+    return false;
+  }
+}
+
 export function resolveOperationsArea(href: string): OperationsArea | null {
   const path = href.split(/[?#]/, 1)[0].replace(/\/$/, "");
-  if (!href.startsWith("/") || href.startsWith("//")) return null;
+  if (!href.startsWith("/") || href.startsWith("//") || !hasValidSegments(path)) return null;
   const segments = path.split("/");
   for (const [area, patterns] of Object.entries(operationsPatterns)) {
     for (const pattern of patterns) {

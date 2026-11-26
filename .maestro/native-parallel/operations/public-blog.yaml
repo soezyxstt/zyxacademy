@@ -1,0 +1,27 @@
+appId: com.zyx.academy.nativeparity
+name: Operations public blog list, detail, Back and retry
+---
+- launchApp
+- openLink: "zyx-native-parity://operations-fixture?path=%2Fblog&mode=populated"
+- scrollUntilVisible:
+    element:
+      id: public-blog-article-belajar-dengan-latihan-terarah
+- takeScreenshot: ${SCREENSHOT_DIR}/blog-list
+- tapOn:
+    id: public-blog-article-belajar-dengan-latihan-terarah
+- assertVisible:
+    id: public-blog-back
+- takeScreenshot: ${SCREENSHOT_DIR}/blog-detail
+- tapOn:
+    id: public-blog-back
+- assertVisible:
+    id: public-blog
+- openLink: "zyx-native-parity://operations-fixture?path=%2Fblog&mode=empty&theme=dark"
+- assertVisible: Belum ada artikel
+- takeScreenshot: ${SCREENSHOT_DIR}/blog-empty-dark
+- openLink: "zyx-native-parity://operations-fixture?path=%2Fblog&mode=recoverable"
+- assertVisible: Coba lagi
+- tapOn: Coba lagi
+- scrollUntilVisible:
+    element:
+      id: public-blog-article-belajar-dengan-latihan-terarah

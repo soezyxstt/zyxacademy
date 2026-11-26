@@ -1,0 +1,18 @@
+appId: com.zyx.academy.nativeparity
+name: Operations Admin home to Web Analytics and access denial
+---
+- launchApp
+- openLink: "zyx-native-parity://operations-fixture?path=%2Fadmin"
+- scrollUntilVisible:
+    element:
+      text: '.*Web Analytics.*'
+- tapOn: '.*Web Analytics.*'
+- assertVisible: Tampilan halaman
+- takeScreenshot: ${SCREENSHOT_DIR}/web-analytics
+- openLink: "zyx-native-parity://operations-fixture?path=%2Fadmin%2Fops%2Fweb-analytics&mode=empty&theme=dark"
+- assertVisible: Tampilan halaman
+- takeScreenshot: ${SCREENSHOT_DIR}/web-analytics-empty-dark
+- openLink: "zyx-native-parity://operations-fixture?path=%2Fadmin%2Fops%2Fweb-analytics&mode=denied"
+- assertVisible: Akses ditolak
+- assertNotVisible: Tampilan halaman
+- takeScreenshot: ${SCREENSHOT_DIR}/web-analytics-denied

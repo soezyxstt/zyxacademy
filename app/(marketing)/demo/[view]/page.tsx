@@ -39,8 +39,7 @@ type Props = {
   searchParams: Promise<DemoSearchParams>;
 };
 
-const supportedViews = ["pet", "discussions", "course-discussions", "feedback", "tryout-review", "quiz-review", "quiz-summary", "profile-edit", "reflections", "achievements", "leaderboard", "course-leaderboard", "playground", "live", "profile", "settings", "notifications", "groups", "schedule", "video", "path", "mastery", "tryout-list", "results", "quiz-list", "quiz-start", "documents", "overview", "courses", "progress", "history", "article", "diktat", "flashcards", "quiz", "tryout", "zyra"] as const;
-type SupportedView = (typeof supportedViews)[number];
+import { isPublicDemoView as isSupportedView, type PublicDemoView as SupportedView } from "@/packages/native-parity/operations/public-contract";
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { view } = await params;
@@ -50,10 +49,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 
 export const dynamic = "force-dynamic";
-
-function isSupportedView(value: string): value is SupportedView {
-  return (supportedViews as readonly string[]).includes(value);
-}
 
 export default async function DemoViewPage({ params, searchParams }: Props) {
   const { view } = await params;

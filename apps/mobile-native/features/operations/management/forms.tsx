@@ -1,0 +1,255 @@
+import { useState } from "react";
+import { View } from "react-native";
+import { buildFormSteps } from "../../../../../lib/forms/presentation";
+import { summarizeFormResponses, type FormQuestion as ValidatedFormQuestion } from "../../../../../lib/forms/validation";
+import { ManagementFailure, formCategories, newForm, newQuestion, questionTypes, validateForm, validateFormSettings, type FormDefinition, type FormDetails, type FormFields, type FormQuestion, type FormSettings } from "../../../../../packages/native-parity/operations/management-contract";
+import { Action, Choices, Confirm, Copy, Feedback, Field, Heading, Item, LoadState, Screen, Section, Sections, formatTimestamp, styles, useAction, useDraft, useManagement, useRead, type Confirmation } from "./ui";
+
+const builderTabs = [["builder", "Pembuat"], ["preview", "Pratinjau"], ["settings", "Setelan"], ["forms", "Daftar formulir"]] as const;
+const detailTabs = [["summary", "Ringkasan"], ["question", "Pertanyaan"], ["individual", "Individu"], ["settings", "Setelan"]] as const;
+const categories = Object.entries(formCategories) as [FormFields["category"], string][];
+const types = Object.entries(questionTypes) as [FormQuestion["type"], string][];
+const optionTypes: ReadonlySet<FormQuestion["type"]> = new Set(["RADIO", "CHECKBOX", "DROP_DOWN"]);
+const nonAnswers = (q: FormQuestion) => q.type === "SECTION" || q.type === "STATEMENT";
+
+export function FormBuilderRoute({ id, tab }: { id?: string; tab?: string }) {
+  const { navigate } = useManagement();
+  // The native builder also keeps publication separate from preview and draft edits.
+  const read = useRead("form", id ?? "", Boolean(id));
+  if (!id || read.data) return <FormBuilder form={read.data?.form} initialTab={tab} />;
+  return <Screen title="Formulir" back={{ label: "Formulir", run: () => navigate("/admin/forms?tab=forms") }}><LoadState {...read} retry={read.reload} /></Screen>;
+}
+
+function FormBuilder({ form, initialTab }: { form?: FormDefinition; initialTab?: string }) {
+  const { navigate, client } = useManagement();
+  const [tab, setTab] = useState<typeof builderTabs[number][0]>(builderTabs.find(([key]) => key === initialTab)?.[0] ?? "builder");
+  const [search, setSearch] = useState("");
+  const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
+  const [latest, setLatest] = useState<FormDefinition | null>(null);
+  const [reading, setReading] = useState(false);
+  const read = useRead("forms", undefined, tab === "forms");
+  const action = useAction();
+  const draft = useDraft<FormFields>(`forms:${form?.id ?? "new"}`, form ? { title: form.title, description: form.description, slug: form.slug, category: form.category, questions: form.questions, settings: form.settings } : newForm(), form?.revision);
+  const value = draft.value;
+  const edit = <K extends keyof FormFields>(key: K, next: FormFields[K]) => draft.change({ ...value, [key]: next });
+  const questionEdit = (index: number, changes: Partial<FormQuestion>) => edit("questions", value.questions.map((question, order) => order === index ? { ...question, ...changes } : question));
+  const move = (index: number, amount: number) => {
+    const items = [...value.questions];
+    [items[index], items[index + amount]] = [items[index + amount], items[index]];
+    edit("questions", items);
+  };
+
+  function submit() {
+    const error = validateForm(value);
+    if (error) { setTab("builder"); return action.setError(new ManagementFailure("invalid", error)); }
+    const doSave = () => action.run({ type: "form.save", id: form?.id, revision: draft.revision, fields: value }, result => {
+      draft.clear();
+      if (form && result.revision) draft.reviewRevision(result.revision);
+      if (!form) {
+        // Following creation, the web switches to the form list.
+        navigate("/admin/forms?tab=forms");
+      }
+      read.reload();
+    });
+    if (form) void doSave();
+    else setConfirmation({ title: "Publikasikan formulir?", description: `${value.title} akan dapat diakses melalui tautan formulir.`, label: "Publikasikan", run: doSave });
+  }
+
+  function deleteForm(item: FormDefinition) {
+    setConfirmation({ title: "Hapus formulir?", description: `Formulir ${item.title} akan dihapus dari daftar.`, label: "Hapus formulir", danger: true,
+      run: () => void action.run({ type: "form.delete", id: item.id, revision: item.revision }, read.reload, "Formulir dihapus."),
+    });
+  }
+
+  async function inspectLatest() {
+    if (!form || reading) return;
+    setReading(true);
+    try { setLatest((await client.read("form", form.id)).form); }
+    catch (error) { action.setError(error); }
+    finally { setReading(false); }
+  }
+
+  const listedForms = read.data?.filter(item => `${item.title} ${item.slug} ${item.description}`.toLocaleLowerCase().includes(search.toLocaleLowerCase().trim()));
+  return <Screen title="Formulir">
+    <Sections values={builderTabs} current={tab} onChange={setTab} />
+    {tab !== "forms" && <View style={styles.row}><Action variant="default" onPress={submit} busy={action.busy}>{form ? "Simpan perubahan" : "Publikasikan formulir"}</Action>
+      {form && <Action onPress={() => navigate("/admin/forms?tab=forms")}>Batal</Action>}
+    </View>}
+    <Feedback {...action} />
+    {action.error instanceof ManagementFailure && action.error.code === "conflict" && form && <Action onPress={inspectLatest} busy={reading}>Muat revisi terbaru</Action>}
+    {latest && <Section title="Revisi tersimpan">
+      <Copy strong>{latest.title}</Copy><Copy muted>{latest.description}</Copy>
+      {latest.questions.map((question, index) => <Copy key={index}>{question.title}</Copy>)}
+      <Action onPress={() => { draft.reviewRevision(latest.revision); setLatest(null); action.setError(undefined); }}>Lanjutkan dengan perubahan lokal</Action>
+    </Section>}
+    {tab === "builder" && <>
+      <Field label="Nama formulir" value={value.title} onChangeText={next => edit("title", next)} />
+      <Field label="Deskripsi" multiline value={value.description} onChangeText={next => edit("description", next)} />
+      <Field label="Slug tautan" value={value.slug} onChangeText={next => edit("slug", next)} autoCapitalize="none" />
+      <Copy strong>Kategori</Copy><Choices values={categories} current={value.category} onChange={next => edit("category", next)} />
+      {value.questions.map((question, index) => <Section key={index} title={`${index + 1}. ${questionTypes[question.type]}`}>
+        <Field label={nonAnswers(question) ? "Judul" : "Teks pertanyaan"} value={question.title} onChangeText={next => questionEdit(index, { title: next })} />
+        <Field label="Deskripsi" value={question.description ?? ""} onChangeText={next => questionEdit(index, { description: next })} multiline />
+        {!nonAnswers(question) && <>
+          <Choices current={question.type} values={types.filter(([type]) => type !== "SECTION" && type !== "STATEMENT")} onChange={type => questionEdit(index, { type })} />
+          <Toggle label="Wajib diisi" value={question.required ?? false} onChange={next => questionEdit(index, { required: next })} />
+        </>}
+        {optionTypes.has(question.type) && <LineField label="Pilihan jawaban" value={question.options} onChange={next => questionEdit(index, { options: next })} />}
+        {question.type.startsWith("GRID_") && <><LineField label="Baris kisi" value={question.gridRows} onChange={next => questionEdit(index, { gridRows: next })} /><LineField label="Kolom kisi" value={question.gridColumns} onChange={next => questionEdit(index, { gridColumns: next })} /></>}
+        <View style={styles.row}>
+          <Action disabled={index === 0} onPress={() => move(index, -1)}>Naik</Action>
+          <Action disabled={index === value.questions.length - 1} onPress={() => move(index, 1)}>Turun</Action>
+          <Action onPress={() => edit("questions", [...value.questions.slice(0, index + 1), { ...question }, ...value.questions.slice(index + 1)])}>Duplikat</Action>
+          <Action disabled={value.questions.length === 1} onPress={() => edit("questions", value.questions.filter((_, order) => order !== index))}>Hapus</Action>
+        </View>
+      </Section>)}
+      <View style={styles.row}>
+        <Action onPress={() => edit("questions", [...value.questions, newQuestion()])}>Tambah pertanyaan</Action>
+        <Action onPress={() => edit("questions", [...value.questions, { title: "", type: "STATEMENT" }])}>Tambah pernyataan</Action>
+        <Action onPress={() => edit("questions", [...value.questions, { title: "", type: "SECTION" }])}>Tambah bagian</Action>
+      </View>
+    </>}
+    {tab === "preview" && <FormPreview fields={value} />}
+    {tab === "settings" && <Settings settings={value.settings} update={next => edit("settings", next)} />}
+    {tab === "forms" && <>
+      <Field label="Cari formulir" value={search} onChangeText={setSearch} />
+      <LoadState {...read} retry={read.reload} />
+      {listedForms && <Section>
+        {!listedForms.length && <Copy muted>Belum ada formulir yang sesuai.</Copy>}
+        {listedForms.map(item => <Item key={item.id} title={item.title} meta={`${formCategories[item.category]} · ${item.totalResponses} respons`}
+          onPress={() => navigate(`/admin/forms/${encodeURIComponent(item.id)}`)} actions={<>
+            <Action onPress={() => navigate(`/admin/forms?edit=${encodeURIComponent(item.id)}`)}>Sunting</Action>
+            <Action onPress={() => deleteForm(item)} disabled={action.busy} variant="destructive">Hapus</Action>
+          </>} />)}
+      </Section>}
+    </>}
+    <Confirm value={confirmation} onClose={() => setConfirmation(null)} />
+  </Screen>;
+}
+
+function LineField({ label, value, onChange }: { label: string; value?: string[]; onChange: (value: string[]) => void }) {
+  return <Field label={label} value={value?.join("\n") ?? ""} onChangeText={next => onChange(next.split("\n"))} multiline placeholder="Satu pilihan per baris" />;
+}
+
+function Toggle({ label, value, onChange }: { label: string; value: boolean; onChange: (value: boolean) => void }) {
+  return <View style={styles.field}><Copy strong>{label}</Copy><Choices current={value ? "on" : "off"} values={[["on", "Ya"], ["off", "Tidak"]]} onChange={next => onChange(next === "on")} /></View>;
+}
+
+function Settings({ settings, update }: { settings: FormSettings; update: (settings: FormSettings) => void }) {
+  const edit = <K extends keyof FormSettings>(key: K, value: FormSettings[K]) => update({ ...settings, [key]: value });
+  return <>
+    <Section title="Status dan jadwal">
+      <Toggle label="Terima respons" value={settings.acceptingResponses ?? true} onChange={next => edit("acceptingResponses", next)} />
+      <Field label="Jadwal buka" value={settings.openAt ?? ""} placeholder="2026-12-01T09:00:00+07:00" autoCapitalize="none" onChangeText={next => edit("openAt", next)} />
+      <Field label="Jadwal tutup" value={settings.closeAt ?? ""} placeholder="2026-12-01T16:00:00+07:00" autoCapitalize="none" onChangeText={next => edit("closeAt", next)} />
+      <Field label="Pesan saat ditutup" value={settings.closedMessage ?? ""} onChangeText={next => edit("closedMessage", next)} />
+    </Section>
+    <Section title="Email dan autentikasi">
+      <Copy strong>Kumpulkan alamat email</Copy><Choices values={[["none", "Tidak"], ["input", "Masukan manual"], ["verified", "Terverifikasi"]]} current={settings.collectEmail ?? "none"} onChange={next => edit("collectEmail", next)} />
+      <Toggle label="Izinkan pengeditan respons" value={settings.allowResponseEditing ?? false} onChange={next => edit("allowResponseEditing", next)} />
+      <Toggle label="Batasi ke satu respons" value={settings.limitToOneResponse ?? false} onChange={next => edit("limitToOneResponse", next)} />
+      <Copy strong>Kirim salinan respons</Copy><Choices values={[["off", "Tidak"], ["requested", "Jika diminta"], ["always", "Selalu"]]} current={settings.sendResponseCopy ?? "off"} onChange={next => edit("sendResponseCopy", next)} />
+    </Section>
+    <Section title="Tampilan formulir">
+      <Choices values={[["question", "Per pertanyaan"], ["section", "Per bagian"]]} current={settings.displayMode ?? "question"} onChange={next => edit("displayMode", next)} />
+      <Field label="Pesan konfirmasi" value={settings.customSuccessMessage ?? ""} onChangeText={next => edit("customSuccessMessage", next)} />
+    </Section>
+  </>;
+}
+
+function FormPreview({ fields }: { fields: FormFields }) {
+  const steps = buildFormSteps(fields.questions, fields.settings.displayMode, fields.settings.collectEmail === "input");
+  const [index, setIndex] = useState(0);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [done, setDone] = useState(false);
+  const step = steps[Math.min(index, steps.length - 1)];
+  const cover = step.kind === "cover" || (step.kind === "page" && step.includeCover);
+  const email = step.kind === "email" || (step.kind === "page" && step.includeEmail);
+  const shownQuestions = step.kind === "page" ? step.questionIndices : "questionIndex" in step ? [step.questionIndex] : [];
+  const answer = (key: string, value: string) => setAnswers(previous => ({ ...previous, [key]: value }));
+  if (done) return <Section title="Pratinjau selesai"><Copy>{fields.settings.customSuccessMessage || "Terima kasih."}</Copy><Action onPress={() => { setDone(false); setIndex(0); setAnswers({}); }}>Ulangi</Action></Section>;
+  return <Section>
+    {cover && <><Heading>{fields.title || "Formulir tanpa judul"}</Heading>{fields.description && <Copy muted>{fields.description}</Copy>}</>}
+    {email && <Field label="Alamat email" value={answers.email ?? ""} onChangeText={next => answer("email", next)} keyboardType="email-address" autoCapitalize="none" />}
+    {shownQuestions.map(questionIndex => {
+      const question = fields.questions[questionIndex];
+      const key = String(questionIndex);
+      if (nonAnswers(question)) return <View key={key} style={styles.field}>{question.title && <Heading>{question.title}</Heading>}{question.description && <Copy>{question.description}</Copy>}</View>;
+      if (question.type === "FILE_UPLOAD") return <View key={key} style={styles.field}><Heading>{question.title || questionTypes[question.type]}</Heading><Copy muted>Unggahan dinonaktifkan dalam pratinjau.</Copy></View>;
+      if (question.options?.length && optionTypes.has(question.type)) return <View key={key} style={styles.field}><Heading>{question.title || questionTypes[question.type]}</Heading>
+        <View style={styles.row}>{question.options.filter(Boolean).map((option, order) => {
+          const entries = (answers[key] ?? "").split("\n").filter(Boolean);
+          const selected = entries.includes(option);
+          return <Action key={order} selected={selected} variant={selected ? "default" : "outline"} onPress={() => answer(key, question.type === "CHECKBOX" ? (selected ? entries.filter(value => value !== option) : [...entries, option]).join("\n") : option)}>{option}</Action>;
+        })}</View>
+      </View>;
+      if (question.type.startsWith("GRID_")) return <View key={key} style={styles.field}><Heading>{question.title || questionTypes[question.type]}</Heading>{question.gridRows?.filter(Boolean).map((row, order) => <View key={order} style={styles.field}><Copy strong>{row}</Copy><Choices current={answers[`${key}-${order}`] ?? ""} values={(question.gridColumns ?? []).filter(Boolean).map(column => [column, column] as const)} onChange={next => answer(`${key}-${order}`, next)} /></View>)}</View>;
+      if (question.type === "SCALE" || question.type === "RATING") return <View key={key} style={styles.field}><Heading>{question.title || questionTypes[question.type]}</Heading><Choices current={answers[key] ?? ""} values={Array.from({ length: Math.max(0, (question.scaleHigh ?? 5) - (question.scaleLow ?? 1) + 1) }, (_, offset) => String(offset + (question.scaleLow ?? 1))).map(value => [value, value] as const)} onChange={next => answer(key, next)} /></View>;
+      return <Field key={key} label={question.title || questionTypes[question.type]} value={answers[key] ?? ""} onChangeText={next => answer(key, next)} multiline={question.type === "PARAGRAPH"} />;
+    })}
+    <View style={styles.row}>
+      {index > 0 && <Action onPress={() => setIndex(index - 1)}>Kembali</Action>}
+      <Action variant="default" onPress={() => index + 1 < steps.length ? setIndex(index + 1) : setDone(true)}>{index + 1 < steps.length ? "Berikutnya" : "Selesaikan pratinjau"}</Action>
+    </View>
+  </Section>;
+}
+
+export function FormDetailRoute({ id, tab }: { id: string; tab?: string }) {
+  const { navigate } = useManagement();
+  const read = useRead("form", id);
+  return <Screen title={read.data?.form.title ?? "Formulir"} back={{ label: "Daftar formulir", run: () => navigate("/admin/forms?tab=forms") }} actions={<Action onPress={read.reload}>Muat ulang</Action>}>
+    <LoadState {...read} retry={read.reload} />
+    {read.data && <FormDetail details={read.data} initialTab={tab} />}
+  </Screen>;
+}
+
+function formatAnswer(value: unknown): string {
+  if (value == null || value === "") return "Belum dijawab";
+  if (Array.isArray(value)) return value.map(formatAnswer).join(", ");
+  if (typeof value === "object") return Object.entries(value).map(([key, item]) => `${key}: ${formatAnswer(item)}`).join(" · ");
+  return String(value);
+}
+
+function FormDetail({ details, initialTab }: { details: FormDetails; initialTab?: string }) {
+  const { form, responses } = details;
+  const { navigate, locale } = useManagement();
+  const [tab, setTab] = useState<typeof detailTabs[number][0]>(detailTabs.find(([key]) => key === initialTab)?.[0] ?? "summary");
+  const [questionIndex, setQuestionIndex] = useState(0);
+  const [respondentIndex, setRespondentIndex] = useState(0);
+  const draft = useDraft(`forms-settings:${form.id}`, form.settings, form.revision);
+  const action = useAction();
+  const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
+  const summary = summarizeFormResponses(form.questions as ValidatedFormQuestion[], responses);
+  const respondent = responses[respondentIndex];
+  const question = summary.questions[questionIndex];
+  function saveSettings() {
+    const error = validateFormSettings(draft.value);
+    if (error) return action.setError(new ManagementFailure("invalid", error));
+    const save = () => action.run({ type: "form.settings", id: form.id, settings: draft.value, revision: draft.revision ?? form.revision }, result => { draft.clear(); if (result.revision) draft.reviewRevision(result.revision); });
+    if ((draft.value.acceptingResponses ?? true) !== (form.settings.acceptingResponses ?? true)) setConfirmation({ title: "Ubah penerimaan respons?", description: "Perubahan berlaku pada halaman formulir.", label: "Simpan setelan", run: save });
+    else void save();
+  }
+  return <>
+    <View style={styles.row}><Action onPress={() => navigate(`/admin/forms?edit=${encodeURIComponent(form.id)}`)}>Sunting formulir</Action></View>
+    <Sections current={tab} values={detailTabs} onChange={setTab} />
+    {tab === "summary" && <Section title={`${summary.totalResponses} respons`}>
+      {summary.questions.map(item => <Item key={item.index} title={item.title} meta={`${item.answered} / ${item.denominator} respons`} actions={Object.keys(item.counts).length > 0 ? <View style={styles.field}>{Object.entries(item.counts).map(([label, count]) => <Copy key={label}>{`${label} · ${count} (${Math.round(100 * count / item.denominator)}%)`}</Copy>)}</View> : undefined} />)}
+    </Section>}
+    {tab === "question" && <Section title={question?.title ?? "Belum ada pertanyaan"}>
+      {question && <>
+        <View style={styles.row}><Action disabled={!questionIndex} onPress={() => setQuestionIndex(questionIndex - 1)}>Sebelumnya</Action><Action disabled={questionIndex >= summary.questions.length - 1} onPress={() => setQuestionIndex(questionIndex + 1)}>Berikutnya</Action></View>
+        {responses.filter(response => response.answers[question.index] != null || response.answers[question.title] != null).map(response => <Item key={response.id} title={response.responderEmail ?? "Anonim"} meta={formatAnswer(response.answers[question.index] ?? response.answers[question.title])} />)}
+      </>}
+    </Section>}
+    {tab === "individual" && <Section title={respondent ? `Responden ${respondentIndex + 1} dari ${responses.length}` : "Belum ada respons"}>
+      {respondent && <><Copy muted>{`${respondent.responderEmail ?? "Anonim"} · ${formatTimestamp(respondent.submittedAt, locale)}`}</Copy>
+        <View style={styles.row}><Action disabled={!respondentIndex} onPress={() => setRespondentIndex(respondentIndex - 1)}>Sebelumnya</Action><Action disabled={respondentIndex >= responses.length - 1} onPress={() => setRespondentIndex(respondentIndex + 1)}>Berikutnya</Action></View>
+        {summary.questions.map(item => <Item key={item.index} title={item.title} meta={formatAnswer(respondent.answers[item.index] ?? respondent.answers[item.title])} />)}
+      </>}
+    </Section>}
+    {tab === "settings" && <>
+      <Feedback {...action} /><Action variant="default" busy={action.busy} onPress={saveSettings}>Simpan setelan</Action><Settings settings={draft.value} update={draft.change} />
+    </>}
+    <Confirm value={confirmation} onClose={() => setConfirmation(null)} />
+  </>;
+}

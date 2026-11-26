@@ -23,3 +23,10 @@ test("auth, academic targets and external destinations belong to the host router
     assert.equal(resolveOperationsArea(href), null);
   }
 });
+
+test("reject malformed, traversal and encoded separator path segments", () => {
+  for (const path of ["/blog/%", "/blog/%2F", "/admin/forms/%5c", "/demo/%00", "/blog/%2e%2e"]) {
+    assert.equal(resolveOperationsArea(path), null);
+  }
+  assert.equal(resolveOperationsArea("/blog/cerita%20siswa"), "public");
+});
