@@ -69,9 +69,10 @@ export function createExpoNotificationController({
       const notifications = await load();
       return mapPermission(notifications, await notifications.getPermissionsAsync());
     },
-    async requestPermission() {
+    async requestPermission(canPrompt) {
       const notifications = await load();
       await prepareChannels(notifications);
+      if (!canPrompt()) return null;
       return mapPermission(notifications, await notifications.requestPermissionsAsync({
         ios: { allowAlert: true, allowBadge: true, allowSound: true },
       }));

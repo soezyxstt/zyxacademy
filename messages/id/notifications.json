@@ -26,6 +26,12 @@
   "unread": "Belum dibaca",
   "loading": "Memuat notifikasi…",
   "empty": "Belum ada notifikasi.",
+  "devicePush": {
+    "enable": "Aktifkan notifikasi perangkat",
+    "settings": "Buka pengaturan aplikasi",
+    "requestFailed": "Izin notifikasi belum dapat diperiksa. Coba lagi.",
+    "settingsFailed": "Pengaturan aplikasi belum dapat dibuka. Coba lagi."
+  },
   "relative": {
     "justNow": "Baru saja",
     "minutes": "{count} m lalu",

@@ -32,7 +32,7 @@ export type NativePushSession = Pick<NativeSessionTransport, "scope" | "isCurren
 export type NativePushDevice = {
   registration: (NativePushPlatform & { device: string }) | null;
   getPermission(): Promise<NativePushPermission>;
-  requestPermission(): Promise<NativePushPermission>;
+  requestPermission(canPrompt: () => boolean): Promise<NativePushPermission | null>;
   getToken(): Promise<string | null>;
   onToken(listener: (token: string) => void): () => void;
   clearNotifications(): Promise<void>;
@@ -162,12 +162,13 @@ export function createNativePushController(
     return candidate.attemptedTokens.size === 0;
   }
 
-  async function syncAccount(candidate: ActiveAccount, requestPermission: boolean) {
+  async function syncAccount(candidate: ActiveAccount, canPrompt?: () => boolean) {
     try {
       const permission = await device.getPermission();
       if (!current(candidate)) return null;
-      const resolved = requestPermission && permission.canAskAgain && permission.status !== "granted"
-        ? await device.requestPermission()
+      const mayPrompt = () => current(candidate) && canPrompt?.() === true;
+      const resolved = permission.canAskAgain && permission.status !== "granted" && mayPrompt()
+        ? await device.requestPermission(mayPrompt) ?? permission
         : permission;
       if (!current(candidate)) return null;
       candidate.permission = resolved;
@@ -208,16 +209,16 @@ export function createNativePushController(
     return current(candidate) ? getStatus() : null;
   }
 
-  function sync(requestPermission = false): Promise<NativePushStatus | null> {
+  function sync(canPrompt?: () => boolean): Promise<NativePushStatus | null> {
     const candidate = account;
     if (!candidate || !current(candidate) || !device.registration) return Promise.resolve(getStatus());
-    if (candidate.pending && (!requestPermission || candidate.requestingPermission)) return candidate.pending;
+    if (candidate.pending && (!canPrompt || candidate.requestingPermission)) return candidate.pending;
 
     const previous = candidate.pending;
-    candidate.requestingPermission = requestPermission;
+    candidate.requestingPermission = canPrompt !== undefined;
     const pending = (async () => {
       await previous;
-      return current(candidate) ? syncAccount(candidate, requestPermission) : null;
+      return current(candidate) ? syncAccount(candidate, canPrompt) : null;
     })().finally(() => {
       if (candidate.pending === pending) candidate.pending = undefined;
     });
@@ -260,7 +261,7 @@ export function createNativePushController(
     getStatus,
     setAccount,
     sync: () => sync(),
-    requestPermission: () => sync(true),
+    requestPermission: (canPrompt: () => boolean = () => true) => sync(canPrompt),
     dispose() {
       disposed = true;
       account?.stopTokenListener?.();

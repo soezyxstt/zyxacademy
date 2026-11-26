@@ -132,6 +132,43 @@ test("never requests blocked permissions or attempts registration without build 
   expect(fixture.activity).toEqual(activityBeforeRequest);
 });
 
+for (const stage of ["permission check", "device preparation"] as const) {
+  test(`a staff opt-in cannot open the system prompt if the inbox closes during ${stage}`, async () => {
+    const fixture = createFixture();
+    const { controller, activity, calls } = fixture;
+    await controller.setAccount(fixture.session("staff-a").client);
+    await controller.sync();
+    expect(activity).not.toContain("prompt");
+
+    const started = deferred<void>();
+    const continued = deferred<void>();
+    const active = Symbol();
+    let opening = active;
+    if (stage === "permission check") {
+      const check = fixture.device.getPermission;
+      fixture.device.getPermission = async () => {
+        started.resolve();
+        await continued.result;
+        return check();
+      };
+    } else {
+      const request = fixture.device.requestPermission;
+      fixture.device.requestPermission = async canPrompt => {
+        started.resolve();
+        await continued.result;
+        return canPrompt() ? request(canPrompt) : null;
+      };
+    }
+    const pending = controller.requestPermission(() => active === opening);
+    await started.result;
+    opening = Symbol();
+    continued.resolve();
+    expect(await pending).toMatchObject({ status: "prompt", registered: false });
+    expect(activity).not.toContain("prompt");
+    expect(calls).toEqual([]);
+  });
+}
+
 test("uses the newest native token and only deletes the current session registration", async () => {
   const fixture = createFixture();
   fixture.changePermission(granted);

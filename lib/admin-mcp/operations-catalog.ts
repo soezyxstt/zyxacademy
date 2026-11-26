@@ -155,6 +155,13 @@ export const operationsCatalog = [
     "reason": "The account holder opens their own notification history and acknowledges visible notifications through their interactive session. Administrative notification history and sending retain their existing MCP authorization."
   },
   {
+    "source": "apps/mobile-native/features/notification-inbox/staff-device-push.tsx",
+    "actions": ["requestPermission", "openSettings"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "A verified Tutor or Admin explicitly chooses a device notification action from an open inbox on a supported build. The OS manages user consent and app settings. Existing registration uses the same verified account session and app origin. Administrative MCP tools and bindings remain unchanged."
+  },
+  {
     "source": "apps/mobile-native/device/reminder-controller.ts",
     "actions": ["updateSettings", "refreshTutorSessions"],
     "tools": [],

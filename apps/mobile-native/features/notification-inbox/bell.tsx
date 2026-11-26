@@ -1,6 +1,6 @@
 import { useIsFocused, useNavigation, useSitemap } from "expo-router";
 import { addNotificationReceivedListener } from "expo-notifications";
-import { useCallback, useEffect, useRef, useState, type ComponentRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ComponentRef } from "react";
 import { AppState, Pressable, StyleSheet, Text, View } from "react-native";
 import en from "../../../../messages/en/notifications.json";
 import id from "../../../../messages/id/notifications.json";
@@ -9,13 +9,15 @@ import type { NativeAccountContext } from "../../../../packages/native-session/c
 import { useNativeSession } from "../../auth/session-provider";
 import { useNativeAccountContext } from "../../auth/use-account-context";
 import { Button } from "../../components/Button";
+import { useDeviceNotificationSettings } from "../../device/notifications-provider";
 import type { NativeSessionTransport } from "../../network/transport";
 import { nativeTypography } from "../../typography";
 import { SharedPopover, SharedPopoverAnchor } from "../shared-ui/overlays";
-import { hasVerifiedInboxAccess, inboxDestination, type InboxSurfaceRole } from "./access";
+import { hasVerifiedInboxAccess, inboxDestination, staffInboxPushAction, type InboxSurfaceRole } from "./access";
 import { loadInbox, markInboxRead, type InboxPage, type InboxRow } from "./client";
 import { InboxContent, InboxHeader, inboxPanelSurface } from "./content";
 import { InboxIcon } from "./icons";
+import { StaffDevicePush } from "./staff-device-push";
 
 type BellProps = { role: InboxSurfaceRole; locale: "id" | "en"; theme: "dark" | "light"; visit(href: string): void };
 
@@ -40,9 +42,12 @@ function InboxBell({ role, session, account, locale, theme, visit, isActive }: B
   session: NativeSessionTransport; account: NativeAccountContext; isActive(): boolean;
 }) {
   const sitemap = useSitemap();
+  const push = useDeviceNotificationSettings();
   const anchor = useRef<ComponentRef<typeof Pressable>>(null);
   const write = useRef<AbortController | null>(null);
-  const [open, setOpen] = useState(false);
+  const visibleOpening = useRef<symbol | null>(null);
+  const [opening, setOpening] = useState<symbol | null>(null);
+  const open = opening !== null;
   const [refresh, setRefresh] = useState(0);
   const [data, setData] = useState<InboxPage | null>(null);
   const [loading, setLoading] = useState(false);
@@ -52,6 +57,8 @@ function InboxBell({ role, session, account, locale, theme, visit, isActive }: B
   const colors = nativeColors[theme];
   const testID = `${role}-inbox`;
   const staff = role !== "student";
+
+  useLayoutEffect(() => () => { visibleOpening.current = null; }, []);
 
   useEffect(() => {
     const retry = () => setRefresh(value => value + 1);
@@ -81,7 +88,16 @@ function InboxBell({ role, session, account, locale, theme, visit, isActive }: B
     write.current?.abort();
     write.current = null;
     setSaving(false);
-    setOpen(false);
+    visibleOpening.current = null;
+    setOpening(null);
+  }
+
+  function show() {
+    if (!isActive() || visibleOpening.current) return;
+    const next = Symbol();
+    visibleOpening.current = next;
+    setLoading(true);
+    setOpening(next);
   }
 
   async function select(row?: InboxRow) {
@@ -105,11 +121,12 @@ function InboxBell({ role, session, account, locale, theme, visit, isActive }: B
   }
 
   const unread = data?.unread;
+  const pushAction = staffInboxPushAction(role, open, open && isActive(), push.status);
   return <SharedPopoverAnchor>
     <Button ref={anchor} variant={staff ? "outline" : "ghost"} size={staff ? "icon-lg" : "icon"} theme={theme}
       accessibilityLabel={unread ? `${copy.bell}, ${unread} ${locale === "id" ? "belum dibaca" : "unread"}` : copy.bell}
       accessibilityState={{ expanded: open }} testID={testID}
-      onPress={() => { if (isActive()) { setLoading(true); setOpen(true); } }}
+      onPress={show}
       renderIcon={(color, size) => <InboxIcon name="bell" color={color} size={size} />} />
     {!!unread && <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants"
       style={[styles.badge, { backgroundColor: colors.destructive }]}>
@@ -117,6 +134,9 @@ function InboxBell({ role, session, account, locale, theme, visit, isActive }: B
     </View>}
     <SharedPopover open={open} anchorRef={anchor} align="end" title={copy.title} theme={theme} onDismiss={dismiss}
       closeLabel={copy.close} maxWidth={352} sideOffset={8} panelStyle={inboxPanelSurface(theme)} bodyInsets={false} bodyMaxHeight={384}
+      footer={pushAction && <StaffDevicePush action={pushAction} copy={copy.devicePush} theme={theme} testID={testID}
+        isCurrent={() => opening !== null && visibleOpening.current === opening && isActive()}
+        requestPermission={push.requestPermission} />}
       renderHeader={controls => <InboxHeader {...controls} locale={locale} theme={theme} unread={unread ?? 0} testID={testID}
         saving={saving} onMarkAllRead={() => void select()} />}>
       <InboxContent locale={locale} theme={theme} rows={data?.rows}
