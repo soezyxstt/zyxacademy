@@ -10,7 +10,7 @@ permissions:
 
 concurrency:
   group: academic-native-evidence-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   CI: '1'
@@ -31,7 +31,7 @@ jobs:
           - platform: ios
             runner: macos-26
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 60
+    timeout-minutes: 100
     env:
       ACADEMIC_PLATFORM: ${{ matrix.platform }}
       ACADEMIC_OUTPUT: artifacts/native-parity/academic/${{ matrix.platform }}
@@ -85,6 +85,7 @@ jobs:
         run: sudo chmod a+rw /dev/kvm
       - if: matrix.platform == 'android'
         uses: reactivecircus/android-emulator-runner@v2.38.0
+        timeout-minutes: 70
         with:
           api-level: 35
           arch: x86_64
@@ -93,6 +94,7 @@ jobs:
           script: bash scripts/native-parity/academic/run-device.sh android "$(adb get-serialno)"
       - if: matrix.platform == 'ios'
         name: Build, install and capture on the iOS simulator
+        timeout-minutes: 85
         shell: bash
         run: |
           root="$PWD"

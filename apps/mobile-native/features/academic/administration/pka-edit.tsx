@@ -24,7 +24,7 @@ export function PkaAnnouncementEditor({ id, initial, transport, cancel, saved }:
   const [body, setBody] = useState(recovered?.draft.body ?? initial.body);
   const [revision, setRevision] = useState(recovered?.draft.expectedRevision ?? initial.revision);
   const [conflict, setConflict] = useState<PkaAnnouncementRevision>();
-  const [uncertain, setUncertain] = useState<Pending>(recovered);
+  const [uncertain, setUncertain] = useState<Pending | undefined>(recovered);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const inFlight = useRef<AbortController | undefined>(undefined);

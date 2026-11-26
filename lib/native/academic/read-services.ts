@@ -69,7 +69,7 @@ export const academicReadServices = {
     return { course: { courseId: access.courseId ?? courseId, legacyCourseId: access.legacyCourseId,
       title: courseTitle, code: null, groupCount: 0 },
       submissions: submissionsList.map(row => ({ id: row.id, examTitle: row.examTitle, studentName: row.studentName,
-        studentEmail: row.studentEmail, status: row.status, score: row.score, teacherNotes: row.teacherNotes,
+        studentEmail: row.studentEmail, status: row.status, score: row.score, teacherNotes: row.teacherNotes, reviewRevision: row.reviewRevision,
         ...projectTryoutSnapshots(row.questionsSnapshot, row.answersSnapshot), submittedAt: row.submittedAt?.toISOString() ?? null })) };
   },
   async courses(): Promise<AdminCourse[]> {
@@ -90,6 +90,7 @@ export const academicReadServices = {
     return {
       course: { id, slug, title, category, description, chapterCount: detail.stats.totalChapters,
         materialCount: detail.stats.totalMaterials, quizCount: detail.stats.totalQuizzes },
+      chapterEdit: detail.chapterEdit,
       chapters: detail.chapters.map(({ id, title, description, orderIndex }) => ({
         id, title, description, orderIndex, materialCount: materialCounts.get(id) ?? 0,
         // The web chapter overview uses the same detail read with includeQuestions=false.

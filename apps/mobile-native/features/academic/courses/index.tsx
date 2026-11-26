@@ -117,12 +117,15 @@ function LiveCourseRoute({ live, isList, section, actor, navigate, query, back }
     );
   }
   if (isList) {
+    const status = live.list?.status ?? "loading";
     return (
       <CoursePage title="Mata kuliah" back={back} scroll={false}>
-        <LiveStatus read={live.list} retry={live.retry}>
-          {(data) => <CourseList courses={data} actor={actor} navigate={navigate} allowCreate={false}
-            initialSearch={query.search ?? ""} initialCategory={query.category ?? ""} />}
-        </LiveStatus>
+        {status === "denied" || status === "missing" ? <CourseStatus error
+          label={status === "denied" ? "Akses ditolak." : "Mata kuliah tidak ditemukan."} /> : (
+          <CourseList courses={live.list?.status === "ready" ? live.list.data : []} actor={actor}
+            navigate={navigate} allowCreate={false} initialSearch={query.search ?? ""} initialCategory={query.category ?? ""}
+            pending={status === "loading"} readError={status === "error"} retry={live.retry} />
+        )}
       </CoursePage>
     );
   }
@@ -131,7 +134,8 @@ function LiveCourseRoute({ live, isList, section, actor, navigate, query, back }
     <CoursePage title={detail?.course.title ?? "Mata kuliah"} back={back}
       subtitle={detail ? `${detail.course.category} · ${detail.course.id}` : undefined}>
       <LiveStatus read={live.detail} retry={live.retry}>
-        {(data) => <CourseOverview data={data} actor={actor} navigate={navigate} />}
+        {(data) => <CourseOverview data={data} actor={actor} navigate={navigate}
+          liveChapterEditor={live.saveChapter ? { save: live.saveChapter, refresh: live.retry } : undefined} />}
       </LiveStatus>
       {detail ? <CourseMenu slug={detail.course.slug} navigate={navigate} live /> : null}
     </CoursePage>

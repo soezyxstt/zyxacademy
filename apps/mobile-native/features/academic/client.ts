@@ -1,4 +1,4 @@
-import type { AdminCourseEditor } from "../../../../packages/native-parity/academic/courses/edit-contract";
+import type { AdminChapterEditor, AdminCourseEditor, AdminCourseEditResponse } from "../../../../packages/native-parity/academic/courses/edit-contract";
 import type { AdminCourseSectionResult } from "../../../../packages/native-parity/academic/courses/sections";
 import type { AdminCourse, AdminCourseOverview } from "../../../../packages/native-parity/academic/courses/model";
 import { TutorDataError, type TutorDataSource } from "../../../../packages/native-parity/academic/tutor/model";
@@ -50,14 +50,13 @@ function buildAcademicClient(transport: AcademicTransport) {
     grading: (id, signal) => read(`/api/native/academic/tutor/courses/${encodeURIComponent(id)}/grading`, signal),
   };
   const command = transport.command;
-  const updateCourseSettings: AdminCourseEditor | undefined = command ? async (slug, draft, requestId, signal) => {
-    const response = await command(`/api/native/academic/admin/courses/${encodeURIComponent(slug)}/settings`,
-      { method: "PATCH", body: draft, requestId }, signal);
+  async function saveCourseResource(send: NonNullable<AcademicTransport["command"]>, path: string, input: AcademicCommand, signal: AbortSignal): Promise<AdminCourseEditResponse> {
+    const response = await send(`/api/native/academic/admin/courses/${path}`, input, signal);
     switch (response.status) {
       case 200: {
         const result = await response.json();
         if (result && typeof result === "object" && "status" in result && "requestId" in result &&
-            result.status === "saved" && result.requestId === requestId) return { status: "saved" };
+            result.status === "saved" && result.requestId === input.requestId) return { status: "saved" };
         return { status: "retry" };
       }
       case 400:
@@ -68,10 +67,17 @@ function buildAcademicClient(transport: AcademicTransport) {
       case 409: return { status: "conflict" };
       default: return { status: "retry" };
     }
-  } : undefined;
+  }
+
+  const updateCourseSettings: AdminCourseEditor | undefined = command ? (slug, draft, requestId, signal) =>
+    saveCourseResource(command, `${encodeURIComponent(slug)}/settings`, { method: "PATCH", body: draft, requestId }, signal) : undefined;
+  const saveChapter: AdminChapterEditor | undefined = command ? (slug, chapterId, draft, requestId, signal) =>
+    saveCourseResource(command, `${encodeURIComponent(slug)}/chapters${chapterId ? `/${encodeURIComponent(chapterId)}` : ""}`,
+      { method: chapterId ? "PATCH" : "POST", body: draft, requestId }, signal) : undefined;
   return {
     tutor,
     updateCourseSettings,
+    saveChapter,
     courses: (signal: AbortSignal) => read<AdminCourse[]>("/api/native/academic/admin/courses", signal),
     course: (slug: string, signal: AbortSignal) => read<AdminCourseOverview>(`/api/native/academic/admin/courses/${encodeURIComponent(slug)}`, signal),
     courseSection: (slug: string, section: string, itemId: string | undefined, signal: AbortSignal) => {

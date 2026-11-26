@@ -9,6 +9,18 @@ scripts="$root/scripts/native-parity/academic"
 output="$root/${ACADEMIC_OUTPUT:-artifacts/native-parity/academic/$platform}"
 mkdir -p "$output"
 app_id=com.zyx.academy.nativeparity
+stage=setup
+priority_status=null
+maestro_status=null
+capture_status=null
+compare_status=null
+
+write_status() {
+  printf '{"stage":"%s","priorityExitCode":%s,"interactionExitCode":%s,"captureExitCode":%s,"comparisonExitCode":%s}\n' \
+    "$stage" "$priority_status" "$maestro_status" "$capture_status" "$compare_status" > "$output/status.json"
+}
+trap write_status EXIT
+write_status
 
 case "$platform" in
   android)
@@ -39,10 +51,17 @@ case "$platform" in
     ;;
 esac
 
+stage=priority
+write_status
+priority_status=0
+python "$scripts/capture.py" "$platform" "$device" "$output/cases.json" "$output/routes" --priority || priority_status=$?
+
+stage=interactions
+write_status
 version=2.12.1
 sha256=54dbb0716425626604973cbb374c585ca30272375d9ce15177a1152765ddd9d7
 maestro_dir="$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/zyx-academic-maestro.XXXXXX")"
-trap 'rm -rf "$maestro_dir"' EXIT
+trap 'write_status; rm -rf "$maestro_dir"' EXIT
 
 maestro_status=0
 if (
@@ -57,12 +76,22 @@ else
   maestro_status=1
 fi
 
-capture_status=0
-python "$scripts/capture.py" "$platform" "$device" "$output/cases.json" "$output/routes" || capture_status=$?
+stage=comparison
+write_status
 compare_status=0
 python "$scripts/evaluate.py" "$output" || compare_status=$?
-printf '{"interactionExitCode":%s,"captureExitCode":%s,"comparisonExitCode":%s}\n' \
-  "$maestro_status" "$capture_status" "$compare_status" > "$output/status.json"
+
+stage=remaining-routes
+write_status
+capture_status=0
+python "$scripts/capture.py" "$platform" "$device" "$output/cases.json" "$output/routes" --resume || capture_status=$?
+if [[ ! -s "$output/interaction-manifest.json" ]]; then
+  stage=comparison-retry
+  write_status
+  compare_status=0
+  python "$scripts/evaluate.py" "$output" || compare_status=$?
+fi
+stage=finished
 if (( maestro_status || capture_status || compare_status )); then
   exit 1
 fi

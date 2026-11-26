@@ -5,6 +5,8 @@ import { parseCoursePricingInput, type CoursePricing } from "../../../../../pack
 import { emptyCourseFixture, type CourseFixture } from "../../../../../packages/native-parity/academic/courses/fixtures";
 import { adminCoursePath, filterAdminCourses, type AdminChapter, type AdminCourse, type AdminCourseOverview } from "../../../../../packages/native-parity/academic/courses/model";
 import { NativeListRow, NativeResponsiveList } from "../../shared-ui";
+import type { AdminChapterEditor } from "../../../../../packages/native-parity/academic/courses/edit-contract";
+import { LiveChapterEditor } from "./live-chapters";
 import type { AcademicActor } from "../contracts";
 import { MutationStatus, useCourseMutation } from "./scope";
 import { Action, CourseDialog, CourseStatus, CourseTheme, DataRow, Field, Ink, Metrics, Panel, Picker, SearchBox, layout } from "./ui";
@@ -18,13 +20,16 @@ const pricingChoices = [
 const courseCategoryChoices = allowedCategories.map((id) => ({ id, label: id }));
 const pageSize = 12;
 
-export function CourseList({ courses, actor, navigate, allowCreate, initialSearch, initialCategory }: {
+export function CourseList({ courses, actor, navigate, allowCreate, initialSearch, initialCategory, pending, readError, retry }: {
   courses: readonly AdminCourse[];
   actor: AcademicActor;
   navigate: Navigate;
   allowCreate: boolean;
   initialSearch: string;
   initialCategory: string;
+  pending?: boolean;
+  readError?: boolean;
+  retry?(): void;
 }) {
   const theme = useContext(CourseTheme);
   const [search, setSearch] = useState(initialSearch);
@@ -50,7 +55,11 @@ export function CourseList({ courses, actor, navigate, allowCreate, initialSearc
       <NativeResponsiveList
         label="Daftar mata kuliah"
         theme={theme}
-        state={{ status: "ready", rows: visible }}
+        state={pending ? { status: "loading", label: "Memuat mata kuliah" }
+          : readError && retry ? {
+            status: "error", title: "Data mata kuliah gagal dimuat.",
+            action: { id: "retry", label: "Coba lagi" }, onAction: retry,
+          } : { status: "ready", rows: visible }}
         empty={{ title: search || category ? "Tidak ada mata kuliah yang sesuai." : "Belum ada mata kuliah." }}
         getRowKey={(row) => row.id}
         renderRow={(course, listLayout) => (
@@ -182,9 +191,10 @@ function CourseFields({ actor, data, onSaved, onCancel, onReload }: {
   );
 }
 
-export function CourseOverview({ data, fixture, actor, navigate }: {
+export function CourseOverview({ data, fixture, liveChapterEditor, actor, navigate }: {
   data: AdminCourseOverview;
   fixture?: CourseFixture;
+  liveChapterEditor?: { save: AdminChapterEditor; refresh(): void };
   actor: AcademicActor;
   navigate: Navigate;
 }) {
@@ -192,7 +202,8 @@ export function CourseOverview({ data, fixture, actor, navigate }: {
   const [editing, setEditing] = useState<AdminChapter | "new" | null>(null);
   const [deleting, setDeleting] = useState<AdminChapter | null>(null);
   const reorder = useCourseMutation(actor, () => undefined);
-  const { course, chapters } = data;
+  const { course, chapters, chapterEdit } = data;
+  const canEdit = fixture || (liveChapterEditor && chapterEdit);
 
   function move(chapter: AdminChapter, offset: number) {
     if (!fixture) return;
@@ -218,7 +229,7 @@ export function CourseOverview({ data, fixture, actor, navigate }: {
         { label: "Dokumen", value: course.materialCount },
         { label: "Kuis", value: course.quizCount },
       ]} />
-      <Panel title="Bab" action={fixture ? <Action label="Tambah bab" onPress={() => setEditing("new")} testID="course-chapter-create" /> : null}>
+      <Panel title="Bab" action={canEdit ? <Action label="Tambah bab" onPress={() => setEditing("new")} testID="course-chapter-create" /> : null}>
         <MutationStatus mutation={reorder} reload={reorder.clear} success="Urutan bab tersimpan." />
         {chapters.length === 0 ? <CourseStatus label="Belum ada bab." /> : chapters.map((chapter, index) => {
           const isExpanded = expanded === chapter.id;
@@ -231,15 +242,15 @@ export function CourseOverview({ data, fixture, actor, navigate }: {
               {isExpanded ? (
                 <View style={layout.group}>
                   {chapter.description ? <Ink>{chapter.description}</Ink> : null}
-                  {fixture ? (
+                  {canEdit ? (
                     <>
                       <View style={layout.row}>
                         <Action label="Dokumen" onPress={() => navigate(`${adminCoursePath(course.slug, "documents")}?chapter=${encodeURIComponent(chapter.id)}`)} />
                         <Action label="Bank soal" onPress={() => navigate(`${adminCoursePath(course.slug, "questions")}?chapter=${encodeURIComponent(chapter.id)}`)} />
-                        <Action label="Edit bab" onPress={() => setEditing(chapter)} />
-                        <Action label="Hapus bab" onPress={() => setDeleting(chapter)} variation="destructive" />
+                        <Action label="Edit bab" onPress={() => setEditing(chapter)} testID={`course-chapter-edit-${chapter.id}`} />
+                        {fixture ? <Action label="Hapus bab" onPress={() => setDeleting(chapter)} variation="destructive" /> : null}
                       </View>
-                      {chapters.length > 1 ? (
+                      {fixture && chapters.length > 1 ? (
                         <View style={layout.row}>
                           <Action label="Naikkan" onPress={() => move(chapter, -1)} disabled={index === 0} />
                           <Action label="Turunkan" onPress={() => move(chapter, 1)} disabled={index === chapters.length - 1} />
@@ -255,6 +266,10 @@ export function CourseOverview({ data, fixture, actor, navigate }: {
       </Panel>
       {fixture && editing ? (
         <ChapterEditor data={fixture} chapter={editing === "new" ? undefined : editing} actor={actor} onClose={() => setEditing(null)} />
+      ) : null}
+      {editing && liveChapterEditor && chapterEdit ? (
+        <LiveChapterEditor course={course} edit={chapterEdit} chapter={editing === "new" ? undefined : editing}
+          save={liveChapterEditor.save} close={() => setEditing(null)} refresh={liveChapterEditor.refresh} />
       ) : null}
       {fixture && deleting ? (
         <DeleteRecord title={deleting.title} actor={actor} data={fixture} close={() => setDeleting(null)}
@@ -301,7 +316,10 @@ function ChapterEditor({ data, chapter, actor, onClose }: {
       <Field label="Judul bab" value={title} onChangeText={(value) => { setTitle(value); mutation.clear(); }} testID="course-chapter-title" />
       {!data.canonicalOnly ? <Field label="Deskripsi bab" value={description} multiline onChangeText={(value) => { setDescription(value); mutation.clear(); }} /> : null}
       <MutationStatus mutation={mutation} reload={onClose} />
-      <Action label="Simpan bab" onPress={save} variation="default" testID="course-chapter-save" disabled={mutation.result?.status === "retry" || mutation.result?.status === "conflict"} />
+      <View style={layout.row}>
+        <Action label="Simpan bab" onPress={save} variation="default" testID="course-chapter-save" disabled={mutation.result?.status === "retry" || mutation.result?.status === "conflict"} />
+        <Action label="Batal" onPress={onClose} variation="ghost" testID="course-chapter-cancel" />
+      </View>
     </CourseDialog>
   );
 }

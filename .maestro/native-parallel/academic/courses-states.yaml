@@ -52,5 +52,20 @@ name: Admin course empty, recovery and access denial
     id: course-retry
 - assertVisible: 3. Biologi molekuler
 - takeScreenshot: academic-admin-courses-overview-recovered-dark
+- tapOn:
+    id: course-chapter-academic-chapter-1
+- tapOn:
+    id: course-chapter-edit-academic-chapter-1
+- assertVisible:
+    id: course-chapter-dialog
+- tapOn:
+    id: course-chapter-title
+- inputText: " (perubahan batal)"
+- hideKeyboard
+- tapOn:
+    id: course-chapter-cancel
+- assertNotVisible:
+    id: course-chapter-dialog
+- assertVisible: 1. Struktur sel
 - openLink: zyx-native-parity://academic?role=tutor&path=%2Fadmin%2Fcourses&theme=dark
 - assertVisible: Akses ditolak.

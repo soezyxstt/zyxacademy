@@ -4,7 +4,7 @@ import { Button } from "../../components/Button";
 import { nativeTypography } from "../../typography";
 import { nativeColors } from "../../../../packages/design-tokens/native-colors";
 import { matchAcademicRoute } from "../../../../packages/native-parity/academic/match";
-import type { AdminCourseEditor } from "../../../../packages/native-parity/academic/courses/edit-contract";
+import type { AdminChapterEditor, AdminCourseEditor } from "../../../../packages/native-parity/academic/courses/edit-contract";
 import type { AdminCourse, AdminCourseOverview, LiveCourseRead } from "../../../../packages/native-parity/academic/courses/model";
 import { isAdminCourseLiveSection, type AdminCourseSectionResult } from "../../../../packages/native-parity/academic/courses/sections";
 import { TutorDataError } from "../../../../packages/native-parity/academic/tutor/model";
@@ -31,19 +31,23 @@ type LiveProps = Pick<AcademicScreenProps, "actor" | "theme" | "navigate" | "rep
 };
 
 function useCourseRead<T>(load: (signal: AbortSignal) => Promise<T>, refresh?: number) {
-  const [state, setState] = useState<LiveCourseRead<T>>({ status: "loading" });
+  const [result, setResult] = useState<{
+    load: typeof load; refresh: number | undefined; attempt: number; state: LiveCourseRead<T>;
+  } | null>(null);
   const [attempt, changeAttempt] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
-    load(controller.signal).then(data => {
-      if (!controller.signal.aborted) setState({ status: "ready", data });
-    }).catch((error: unknown) => {
-      if (controller.signal.aborted) return;
+    const report = (state: LiveCourseRead<T>) => {
+      if (!controller.signal.aborted) setResult({ load, refresh, attempt, state });
+    };
+    load(controller.signal).then(data => report({ status: "ready", data })).catch((error: unknown) => {
       const code = error instanceof TutorDataError ? error.status : 0;
-      setState({ status: code === 401 || code === 403 ? "denied" : code === 404 ? "missing" : "error" });
+      report({ status: code === 401 || code === 403 ? "denied" : code === 404 ? "missing" : "error" });
     });
     return () => controller.abort();
   }, [load, attempt, refresh]);
+  const state: LiveCourseRead<T> = result?.load === load && result.refresh === refresh && result.attempt === attempt
+    ? result.state : { status: "loading" };
   return [state, () => changeAttempt(i => i + 1)] as const;
 }
 
@@ -52,11 +56,11 @@ function LiveCourseList(props: AcademicScreenProps & { refresh?: number; read: (
   return <CourseScreen {...props} live={{ list, retry }} />;
 }
 
-function LiveCourseDetail(props: AcademicScreenProps & { refresh?: number; read: (slug: string, signal: AbortSignal) => Promise<AdminCourseOverview> }) {
+function LiveCourseDetail(props: AcademicScreenProps & { refresh?: number; saveChapter?: AdminChapterEditor; read: (slug: string, signal: AbortSignal) => Promise<AdminCourseOverview> }) {
   const { read, params: { slug } } = props;
   const load = useCallback((signal: AbortSignal) => read(slug, signal), [read, slug]);
   const [detail, retry] = useCourseRead(load, props.refresh);
-  return <CourseScreen {...props} live={{ detail, retry }} />;
+  return <CourseScreen {...props} live={{ detail, retry, saveChapter: props.saveChapter }} />;
 }
 
 function LiveCourseSectionScreen(props: AcademicScreenProps & {
@@ -87,7 +91,7 @@ export function AcademicLiveScreen({ href, transport, refresh, ...host }: LivePr
   if (match.feature === "administration") return <AdministrationLiveScreen key={key} {...props} transport={transport} />;
   if (match.feature === "tutor") return <TutorScreen key={key} {...props} dataSource={client.tutor} />;
   if (match.pattern === "/admin/courses") return <LiveCourseList key={key} {...props} read={client.courses} refresh={refresh} />;
-  if (match.pattern === "/admin/courses/[slug]") return <LiveCourseDetail key={key} {...props} read={client.course} refresh={refresh} />;
+  if (match.pattern === "/admin/courses/[slug]") return <LiveCourseDetail key={key} {...props} read={client.course} refresh={refresh} saveChapter={client.saveChapter} />;
   if (match.feature === "courses") {
     const section = match.pattern.split("/")[4];
     const itemId = match.params.quizId ?? match.params.materialId;

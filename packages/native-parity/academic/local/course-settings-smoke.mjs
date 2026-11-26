@@ -10,6 +10,7 @@ const pool = new pg.Pool({ connectionString: "postgres://postgres:academic-local
 const suffix = randomUUID();
 const courseId = `fixture-course-atomic-${suffix}`;
 const canonicalId = `fixture-course-canonical-${suffix}`;
+const standaloneId = `fixture-course-standalone-${suffix}`;
 const collection = `${server}/api/native/academic/admin/courses`;
 const resource = `${collection}/${courseId}`;
 const settings = `${resource}/settings`;
@@ -17,21 +18,25 @@ const quizId = `fixture-native-analytics-${suffix}`;
 const materialId = `fixture-native-material-${suffix}`;
 const admin = { cookie: fixtureCookie("admin") };
 
-async function readSettings() {
-  const response = await fetch(settings, { headers: admin, redirect: "manual" });
+async function read(target) {
+  const response = await fetch(target, { headers: admin, redirect: "manual" });
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("Cache-Control"), "private, no-store");
   return response.json();
 }
 
-function patch(draft, requestId, headers = admin) {
-  return fetch(settings, {
-    method: "PATCH",
+const readSettings = () => read(settings);
+
+function courseCommand(target, method, draft, requestId, headers = admin) {
+  return fetch(target, {
+    method,
     headers: { ...headers, Origin: trustedOrigin, "Content-Type": "application/json", "Idempotency-Key": requestId },
     body: JSON.stringify(draft),
     redirect: "manual",
   });
 }
+
+const patch = (draft, requestId, headers) => courseCommand(settings, "PATCH", draft, requestId, headers);
 
 try {
   // Confirm the local synthetic Admin session and academic seed before inserting rows.
@@ -103,11 +108,61 @@ try {
   assert.ok(["Versi satu", "Versi dua"].includes(afterRace.course.title));
   assert.equal((await patch(draft, requestId)).status, 200);
   assert.equal((await readSettings()).revision, afterRace.revision);
-  console.log("course slices, cross-course denial, course settings durable replay and revision races passed");
+  const baseBefore = await read(resource);
+  assert.equal(baseBefore.chapterEdit.allowsDescription, true);
+  const chaptersEndpoint = `${resource}/chapters`;
+  const chapterDraft = { title: "Bab transaksi", description: "Catatan uji", expectedRevision: baseBefore.chapterEdit.revision };
+  const chapterKey = randomUUID();
+  const append = (input, id = randomUUID(), headers) => courseCommand(chaptersEndpoint, "POST", input, id, headers);
+  assert.equal((await append(chapterDraft, randomUUID(), { cookie: fixtureCookie("tutor") })).status, 403);
+  assert.equal((await append({ ...chapterDraft, title: " " })).status, 422);
+  const chapterCopies = await Promise.all([append(chapterDraft, chapterKey), append(chapterDraft, chapterKey)]);
+  for (const response of chapterCopies) {
+    assert.equal(response.status, 200, JSON.stringify(await response.clone().json()));
+    assert.deepEqual(await response.json(), { status: "saved", requestId: chapterKey });
+  }
+  const afterChapter = await read(resource);
+  assert.equal(afterChapter.chapters.length, 1);
+  assert.equal(afterChapter.chapters[0].title, chapterDraft.title);
+  assert.equal(afterChapter.chapters[0].description, chapterDraft.description);
+  assert.notEqual(afterChapter.chapterEdit.revision, baseBefore.chapterEdit.revision);
+  const singleReceipt = await pool.query("select id from audit_mutasi where entity_type = 'native_course_chapter' and course_id = $1", [canonicalId]);
+  assert.equal(singleReceipt.rowCount, 1);
+
+  const chapterId = afterChapter.chapters[0].id;
+  const editPath = `${chaptersEndpoint}/${encodeURIComponent(chapterId)}`;
+  assert.equal((await courseCommand(editPath, "PATCH", chapterDraft, chapterKey)).status, 409);
+  const foreignCourse = await read(`${collection}/fisika-dasar`);
+  const foreign = await courseCommand(`${collection}/fisika-dasar/chapters/${encodeURIComponent(chapterId)}`, "PATCH",
+    { ...chapterDraft, expectedRevision: foreignCourse.chapterEdit.revision }, randomUUID());
+  assert.equal(foreign.status, 404);
+  assert.equal((await append({ ...chapterDraft, title: "Bab kedua", expectedRevision: afterChapter.chapterEdit.revision })).status, 200);
+  const editingChapter = await read(resource);
+  const chapterRace = await Promise.all(["Bab edit satu", "Bab edit dua"].map((title) =>
+    courseCommand(editPath, "PATCH", { ...chapterDraft, title, expectedRevision: editingChapter.chapterEdit.revision }, randomUUID())));
+  assert.deepEqual(chapterRace.map((response) => response.status).sort(), [200, 409]);
+  const afterEdit = await read(resource);
+  assert.deepEqual(afterEdit.chapters.map(({ orderIndex }) => orderIndex), editingChapter.chapters.map(({ orderIndex }) => orderIndex));
+  assert.ok(["Bab edit satu", "Bab edit dua"].includes(afterEdit.chapters[0].title));
+  assert.equal(afterEdit.chapters[1].title, "Bab kedua");
+  assert.equal((await append(chapterDraft, chapterKey)).status, 200);
+  assert.equal((await read(resource)).chapterEdit.revision, afterEdit.chapterEdit.revision);
+
+  await pool.query("insert into mata_kuliah(id,code,title) values ($1,$2,$3)", [standaloneId, `STANDALONE-${suffix}`, "Biologi canonical"]);
+  const standalone = `${collection}/${standaloneId}`;
+  const canonical = await read(standalone);
+  assert.equal(canonical.chapterEdit.allowsDescription, false);
+  const canonicalDraft = { ...chapterDraft, expectedRevision: canonical.chapterEdit.revision };
+  assert.equal((await courseCommand(`${standalone}/chapters`, "POST", canonicalDraft, randomUUID())).status, 422);
+  assert.equal((await courseCommand(`${standalone}/chapters`, "POST", { ...canonicalDraft, description: null }, randomUUID())).status, 200);
+  assert.equal((await read(standalone)).chapters[0].title, chapterDraft.title);
+  console.log("course slices, cross-course denial, settings and chapter replay and revision races passed");
 } finally {
   try {
-    await pool.query("delete from audit_mutasi where course_id = $1 or entity_id = $1", [canonicalId]);
-    await pool.query("delete from mata_kuliah where id = $1", [canonicalId]);
+    await pool.query(`delete from audit_mutasi where course_id = any($1) or entity_id = any($1)
+      or entity_id in (select id from bab where mata_kuliah_id = any($1))`, [[canonicalId, standaloneId]]);
+    await pool.query("delete from offline_content_changes where course_id = any($1)", [[canonicalId, standaloneId, courseId]]);
+    await pool.query("delete from mata_kuliah where id = any($1)", [[canonicalId, standaloneId]]);
     await pool.query("delete from courses where id = $1", [courseId]);
   } finally {
     await pool.end();

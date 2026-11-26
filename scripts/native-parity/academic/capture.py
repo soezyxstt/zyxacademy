@@ -14,6 +14,17 @@ from PIL import Image, ImageChops, ImageCms
 
 
 APP_ID = "com.zyx.academy.nativeparity"
+PRIORITY = {
+    ("/tutor", "populated"),
+    ("/tutor", "denied"),
+    ("/tutor/[courseId]/participants", "populated"),
+    ("/tutor/[courseId]/participants", "empty"),
+    ("/tutor/[courseId]/grading", "populated"),
+    ("/tutor/[courseId]/quizzes", "populated"),
+    ("/admin/courses", "populated"),
+    ("/admin/courses", "empty"),
+    ("/admin/courses/[slug]", "populated"),
+}
 
 
 def run(args):
@@ -109,6 +120,8 @@ def main():
     parser.add_argument("cases", type=Path)
     parser.add_argument("output", type=Path)
     parser.add_argument("--case", action="append")
+    parser.add_argument("--priority", action="store_true", help="Collect the first Tutor and Admin evidence before interaction flows")
+    parser.add_argument("--resume", action="store_true", help="Continue the current revision without replacing verified captures")
     args = parser.parse_args()
     dpr = 1 if args.platform == "android" else 3
     args.output.mkdir(parents=True, exist_ok=True)
@@ -117,20 +130,36 @@ def main():
     matrix = json.loads(args.cases.read_text())
     provenance = json.loads((args.output.parent / "provenance.json").read_text())
     device_info = (args.output.parent / "device.txt").read_text().splitlines()
-    result = {
+    metadata = {
         **provenance, "device": " | ".join(line.strip() for line in device_info if line.strip()),
-        "deviceScaleFactor": dpr, "captures": [],
+        "deviceScaleFactor": dpr,
     }
+    manifest = args.output / "manifest.json"
+    captures = {}
+    if args.resume and manifest.is_file():
+        previous = json.loads(manifest.read_text())
+        if any(previous.get(key) != metadata[key] for key in ("revision", "platform", "deviceScaleFactor")):
+            parser.error("Cannot resume a different revision, platform, or density")
+        captures = {row["id"]: row for row in previous["captures"]}
+
+    def save():
+        write_manifest(manifest, {**metadata, "captures": [captures[case["id"]] for case in matrix if case["id"] in captures]})
+
+    selected = [
+        (ordinal, case) for ordinal, case in enumerate(matrix, 1)
+        if (not args.case or case["id"] in args.case)
+        and (not args.priority or (case["pattern"], case["id"].rsplit("-", 1)[-1]) in PRIORITY)
+    ]
     checked_stamps = 0
-    verified_identity = False
+    verified_identity = any(row.get("bounds") for row in captures.values())
     with tempfile.TemporaryDirectory(prefix="zyx-academic-device-") as temporary:
         scratch = Path(temporary) / "latest.png"
-        for ordinal, case in enumerate(matrix, 1):
+        for ordinal, case in selected:
             case_id = case["id"]
-            if args.case and case_id not in args.case:
+            if captures.get(case_id, {}).get("status") == "captured":
                 continue
             if checked_stamps >= 3 and not verified_identity:
-                result["captures"].append({**case, "status": "unverified", "failures": ["device did not render the readiness stamps in the first three cases"]})
+                captures[case_id] = {**case, "status": "unverified", "failures": ["device did not render the readiness stamps in the first three cases"]}
                 continue
             data, frame, bounds, status, attempts, failures = capture_case(
                 args.platform, args.device, case, ordinal, dpr, scratch,
@@ -147,13 +176,13 @@ def main():
                 image.write_bytes(data)
                 capture["image"] = str(image.relative_to(args.output))
                 capture["sha256"] = hashlib.sha256(data).hexdigest()
-            result["captures"].append(capture)
-            write_manifest(args.output / "manifest.json", result)
+            captures[case_id] = capture
+            save()
             print(f"{status.upper()} {case_id}", flush=True)
-    write_manifest(args.output / "manifest.json", result)
-    captured = sum(row["status"] == "captured" for row in result["captures"])
-    print(f"{captured}/{len(result['captures'])} academic cases captured on {args.platform}")
-    return 0 if captured and captured == len(result["captures"]) else 1
+    save()
+    captured = sum(captures[case["id"]]["status"] == "captured" for _, case in selected)
+    print(f"{captured}/{len(selected)} academic cases captured on {args.platform}")
+    return 0 if captured and captured == len(selected) else 1
 
 
 if __name__ == "__main__":
