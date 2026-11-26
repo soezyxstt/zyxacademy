@@ -17,7 +17,10 @@ export const createProductDraftRequestSchema = z.object({
 // the pinned productDraftInput descriptor, and still parsed strictly below.
 export const createProductDraftToolSchema = z.object({
   ...requestIdentity,
-  draft: z.object({ products: z.array(z.object({ productType: z.enum(["article", "diktat"]), title: z.string().trim().min(1).max(1000) }).passthrough()).min(1).max(PRODUCT_DRAFT_LIMITS.products) }).strict(),
+  draft: z.object({ products: z.array(z.union([
+    z.object({ productType: z.enum(["article", "diktat", "flashcard_set", "solution_collection"]), title: z.string().trim().min(1).max(1000) }).passthrough(),
+    z.object({ productType: z.literal("flashcard"), front: z.string().trim().min(1), back: z.string().trim().min(1) }).passthrough(),
+  ])).min(1).max(PRODUCT_DRAFT_LIMITS.products) }).strict(),
 }).strict();
 export type CreateProductDraftRequest = z.infer<typeof createProductDraftRequestSchema>;
 export type ProductDraftRun = ReturnType<typeof readMcpRunToken>;
@@ -43,7 +46,7 @@ export async function createProductDraft(input: unknown, principal: McpPrincipal
   if (!built.success) {
     return { ok: false, valid: false, staged: false, publicationReady: false, error: "PRODUCT_DRAFT_INPUT_INVALID",
       issues: built.issues, issueCount: built.issueCount,
-      ...authoringFailureDiagnostics({ issues: built.issues }, { code: "PRODUCT_DRAFT_INPUT_INVALID" }) };
+      ...authoringFailureDiagnostics({ issues: built.issues, issueCount: built.issueCount }, { code: "PRODUCT_DRAFT_INPUT_INVALID" }) };
   }
   // ZIP and base64 are internal transport details, never model-authored input or response data.
   const staged = await ports.stage({ principal, runToken: parsed.runToken, bootstrapToken: parsed.bootstrapToken,
@@ -51,6 +54,8 @@ export async function createProductDraft(input: unknown, principal: McpPrincipal
   return { ...staged, draftKey: parsed.draftKey,
     ...(staged.ok === false ? authoringFailureDiagnostics(staged, { code: typeof staged.error === "string" ? staged.error : "PRODUCT_DRAFT_INPUT_INVALID" }) : {}),
     ...(staged.ok === true ? { authoredProducts: built.bundle.products.map(product => ({ id: product.id, productType: product.productType, ...("title" in product ? { title: product.title } : {}) })),
-      nextActions: ["authoring.get_edit_context", "authoring.verify_product_bundle", "authoring.get_product_review_context"] } : {}),
+      nextActions: ["authoring.get_edit_context", ...(built.bundle.manifest.schemaVersion === "product-bundle.v4"
+        ? ["authoring.verify_product_bundle", "authoring.get_product_review_context"]
+        : ["authoring.get_solution_collection_review_context"])] } : {}),
   };
 }

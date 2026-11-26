@@ -12,7 +12,7 @@ import { productVersionId } from "@/lib/bundle/product-identity";
 import { parseAdmittedProductBundle } from "@/lib/bundle/product-staged-worker";
 import { buildLocalVerificationFixture } from "../../scripts/authoring/local-verification-fixture";
 import * as realRuntime from "@/lib/compute/product-v4-runtime-binding";
-import { parseProductV4VerificationReceipt, type ProductV4VerificationRequirement } from "@/lib/bundle/product-v4-verification";
+import { parseProductV4VerificationReceipt, type ProductV4ObservedCheck, type ProductV4VerificationRequirement } from "@/lib/bundle/product-v4-verification";
 import { computeProductV4SectionSemanticHash } from "@/lib/bundle/product-v4-review";
 import { productPedagogyFingerprint } from "@/lib/bundle/product-review-gate";
 import { PEDAGOGIC_CRITERION_IDS, QUALITY_POLICY_VERSION } from "@/lib/materials/quality-policy";
@@ -35,8 +35,11 @@ const originalRuntime = { ...realRuntime };
 const buildRealBinding = realRuntime.buildProductV4RuntimeBinding;
 const previousSecret = process.env.BETTER_AUTH_SECRET;
 const previousBrowser = process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER;
+const previousOrigins = { app: process.env.NEXT_PUBLIC_APP_URL, auth: process.env.BETTER_AUTH_URL, environment: process.env.ZYX_ENVIRONMENT };
 process.env.BETTER_AUTH_SECRET = "local-test-only-revision-verification-signing-secret";
 process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER = "cloudflare";
+process.env.NEXT_PUBLIC_APP_URL = process.env.BETTER_AUTH_URL = "https://staging.zyxacademy.com";
+process.env.ZYX_ENVIRONMENT = "staging";
 let renders = 0, deliveries = 0;
 const checkpoint = (phase: string) => { if (process.env.ZYX_REVISION_V4_TEST_TRACE === "1") console.info(`[revision-v4-test] ${phase}`); };
 mock.module("@/db", () => ({ db: testDb }));
@@ -51,7 +54,7 @@ mock.module("@/lib/storage", () => ({ ...originalStorage, storage: {
 mock.module("@/lib/vector-sync-dispatch", () => ({ dispatchVectorSync: async () => undefined }));
 mock.module("@/jobs/client", () => ({ inngest: { send: async () => { deliveries++; return { ids: [] }; } } }));
 const fixedHash = "a".repeat(64);
-mock.module("@/lib/compute/product-v4-runtime-binding", () => ({ ...originalRuntime, buildProductV4RuntimeBinding: async (input: Parameters<typeof buildRealBinding>[0], _ports?: Parameters<typeof buildRealBinding>[1], read?: Parameters<typeof buildRealBinding>[2], connection?: Parameters<typeof buildRealBinding>[3]) => {
+async function fixtureBinding(input: Parameters<typeof buildRealBinding>[0], read?: Parameters<typeof buildRealBinding>[2], connection?: Parameters<typeof buildRealBinding>[3], unstaged = false) {
   // The mocked runtime executes against PGlite even when its public port is
   // typed as the production driver. Keep that adapter local to this fixture.
   const database = (connection ?? testDb) as unknown as typeof testDb;
@@ -75,15 +78,19 @@ mock.module("@/lib/compute/product-v4-runtime-binding", () => ({ ...originalRunt
     // Guard accidental fixture drift in the regular live case using the same
     // complete graph validator. Prospective references intentionally fail here.
     const [importRow] = await database.select().from(schema.imporBundle).where(eq(schema.imporBundle.id, input.row.id));
-    if (!importRow.validationReport.revisionVerificationContext) await assertProspectiveReleaseDependencies({ productBundle: bundle, ideaDrafts: [], scope: { courseId: "course-physics" }, connection: database as unknown as NonNullable<Parameters<typeof assertProspectiveReleaseDependencies>[0]["connection"]> });
+    if (!importRow?.validationReport.revisionVerificationContext) await assertProspectiveReleaseDependencies({ productBundle: bundle, ideaDrafts: [], scope: { courseId: "course-physics" }, connection: database as unknown as NonNullable<Parameters<typeof assertProspectiveReleaseDependencies>[0]["connection"]> });
     return rows;
   },
-  async revisionDependencies(value) {
+  revisionDependencies: unstaged ? undefined : async value => {
     const { resolveRevisionVerificationContext } = await import("@/lib/authoring/revision-verification-context");
     return resolveRevisionVerificationContext(value, database as unknown as NonNullable<Parameters<typeof resolveRevisionVerificationContext>[1]>);
   },
   }, read, connection);
-} }));
+}
+mock.module("@/lib/compute/product-v4-runtime-binding", () => ({ ...originalRuntime,
+  buildProductV4RuntimeBinding: (input: Parameters<typeof buildRealBinding>[0], _ports?: Parameters<typeof buildRealBinding>[1], read?: Parameters<typeof buildRealBinding>[2], connection?: Parameters<typeof buildRealBinding>[3]) => fixtureBinding(input, read, connection),
+  buildProductV4RevisionReuseBinding: (input: Parameters<typeof buildRealBinding>[0]) => fixtureBinding(input, undefined, undefined, true),
+}));
 const revisions = await import("@/lib/authoring/revision-service");
 const { provisionPenggunaForNewUser } = await import("@/lib/auth/authorization");
 const { getIdeaRevisionReviewContext, reviewIdeaBundleRevision, publishIdeaBundle } = await import("@/lib/bundle/publication");
@@ -101,6 +108,9 @@ afterAll(async () => {
   mock.module("@/lib/compute/product-v4-runtime-binding", () => originalRuntime);
   if (previousSecret === undefined) delete process.env.BETTER_AUTH_SECRET; else process.env.BETTER_AUTH_SECRET = previousSecret;
   if (previousBrowser === undefined) delete process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER; else process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER = previousBrowser;
+  for (const [name, value] of [["NEXT_PUBLIC_APP_URL", previousOrigins.app], ["BETTER_AUTH_URL", previousOrigins.auth], ["ZYX_ENVIRONMENT", previousOrigins.environment]] as const) {
+    if (value === undefined) delete process.env[name]; else process.env[name] = value;
+  }
   await client.close();
 });
 
@@ -157,7 +167,9 @@ const executeFixture = async ({ requirement }: { requirement: ProductV4Verificat
   renders++;
   const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64");
   const bytes = requirement.artifactType === "application/pdf" ? new TextEncoder().encode(`%PDF-1.7\nSYNTHETIC TEST ONLY ${renders}\n%%EOF`) : requirement.artifactType === "image/png" ? png : new TextEncoder().encode("{}");
-  return { checkId: requirement.id, status: "PASS" as const, expected: "Injected integration observation", observed: "Synthetic executor, no browser or PDF renderer", artifacts: [{ id: "fixture", mediaType: requirement.artifactType, bytes, ...(requirement.layer === "print" && requirement.artifactType === "image/png" ? { pageNumber: 1 } : {}) }], ...(requirement.layer === "print" ? { pageCount: 1 } : {}) };
+  const artifacts: ProductV4ObservedCheck["artifacts"] = [{ id: "fixture", mediaType: requirement.artifactType, bytes, ...(requirement.layer === "print" && requirement.artifactType === "image/png" ? { pageNumber: 1 } : {}) }];
+  if (requirement.artifactType === "application/pdf") artifacts.push({ id: "page", mediaType: "image/png", bytes: png, pageNumber: 1 });
+  return { checkId: requirement.id, status: "PASS" as const, expected: "Injected integration observation", observed: "Synthetic executor, no browser or PDF renderer", artifacts, ...(requirement.layer === "print" ? { pageCount: 1 } : {}) };
 };
 async function verify(importId: string) {
   checkpoint("verification request");
@@ -221,8 +233,11 @@ beforeEach(async () => {
   checkpoint("Product baseline published");
 }, 30000);
 
-test("a card-only V4 revision obtains a fresh immutable Diktat PDF and publishes atomically", async () => {
+test("a cold card-only V4 revision advances its evidence version and publishes a fresh immutable PDF", async () => {
   checkpoint("card revision start");
+  // Predeployment imports have signed exact-plan checkpoints, but no new target
+  // scope proof. Never promote those old descriptors into cross-revision proof.
+  for (const key of objects.keys()) if (key.includes("product-verification-reuse")) objects.delete(key);
   const original = await storedBundle(liveProductId);
   const article = original.products.find(product => product.productType === "article")!;
   const diktat = original.products.find(product => product.productType === "diktat")!;
@@ -264,6 +279,79 @@ test("a card-only V4 revision obtains a fresh immutable Diktat PDF and publishes
   expect(rows.some(row => row.downstreamEntityType === "diktat" && row.downstreamEntityId === diktat.id && row.downstreamVersion === diktat.version)).toBe(false);
   expect(renders).toBeGreaterThan(0);
   expect(deliveries).toBeGreaterThanOrEqual(2);
+}, 30000);
+
+test("a warm card-only revision reuses trusted print bytes and preserves the immutable canonical PDF", async () => {
+  const original = await storedBundle(liveProductId);
+  const diktat = original.products.find(product => product.productType === "diktat")!;
+  const id = productVersionId(diktat.id, diktat.version);
+  const [canonicalBefore] = await testDb.select().from(schema.diktatMateri).where(eq(schema.diktatMateri.id, id));
+  if (!canonicalBefore.fileKey) throw new Error("CANONICAL_FIXTURE_PDF_REQUIRED");
+  const originalPdf = new Uint8Array(objects.get(canonicalBefore.fileKey)!);
+  const fork = await revisions.createRevisionDraft({ actorId, kind: "product", baseImportId: liveProductId, expectedRevision: original.checksum, entityIds: ["release-card"] });
+  const patched = await revisions.patchRevisionDraft({ actorId, kind: "product", importId: fork.importId, expectedRevision: fork.revision, operations: [{ op: "set", target: { entityType: "flashcard", entityId: "release-card" }, field: "back", value: "Delta membatasi jarak masukan untuk setiap epsilon." }] });
+  const changed = await storedBundle(patched.importId);
+  expect(changed.products.find(product => product.productType === "diktat")).toEqual(diktat);
+  const lineage = (await rowFor(patched.importId)).validationReport.revisionLineage as { impact: { printVersionReuse?: unknown } };
+  expect(lineage.impact.printVersionReuse).toEqual({ preservedEntityIds: [diktat.id], advancedEntityIds: [], reason: "verified" });
+  const beforeRenders = renders;
+  const fresh = await verify(patched.importId);
+  expect(renders - beforeRenders).toBe(1);
+  expect(fresh.selectedKey).not.toBe(canonicalBefore.fileKey);
+  expect(objects.get(fresh.selectedKey)).toEqual(originalPdf);
+  await approveProduct(patched.importId, fresh, true);
+  const entries = [{ importId: patched.importId, expectedRevision: patched.revision }];
+  const plan = await revisions.planRevisionRelease({ actorId, entries });
+  expect(plan.publicationReady).toBe(true);
+
+  objects.set(canonicalBefore.fileKey, new TextEncoder().encode("%PDF-changed-canonical-bytes"));
+  await expect(revisions.publishRevisionRelease({ actorId, entries, expectedPlanHash: plan.planHash })).rejects.toThrow("PRODUCT_BUNDLE_VERSION_CONFLICT");
+  expect((await rowFor(liveProductId)).status).toBe("published");
+  expect((await rowFor(patched.importId)).status).toBe("draft");
+  objects.set(canonicalBefore.fileKey, originalPdf);
+
+  await testDb.update(schema.diktatMateri).set({ title: "Changed canonical printed metadata" }).where(eq(schema.diktatMateri.id, id));
+  await expect(revisions.publishRevisionRelease({ actorId, entries, expectedPlanHash: plan.planHash })).rejects.toThrow();
+  expect((await rowFor(liveProductId)).status).toBe("published");
+  await testDb.update(schema.diktatMateri).set({ title: canonicalBefore.title }).where(eq(schema.diktatMateri.id, id));
+
+  expect((await revisions.publishRevisionRelease({ actorId, entries, expectedPlanHash: plan.planHash })).published).toBe(true);
+  expect((await rowFor(liveProductId)).status).toBe("withdrawn");
+  expect((await rowFor(patched.importId)).status).toBe("published");
+  const [canonical] = await testDb.select().from(schema.diktatMateri).where(eq(schema.diktatMateri.id, id));
+  expect(canonical).toMatchObject({ version: diktat.version, generationHash: diktat.generationHash, fileKey: canonicalBefore.fileKey, status: "published" });
+  const verification = await getProductV4VerificationReadiness(patched.importId, fresh.plan.binding.runId);
+  expect(verification.evaluation.ready).toBe(true);
+  expect(verification.receipt).toEqual(fresh.receipt);
+}, 30000);
+
+test("lost warm proof refreshes an immutable evidence revision without changing authored text", async () => {
+  const original = await storedBundle(liveProductId);
+  const diktat = original.products.find(product => product.productType === "diktat")!;
+  const fork = await revisions.createRevisionDraft({ actorId, kind: "product", baseImportId: liveProductId, expectedRevision: original.checksum, entityIds: ["release-card"] });
+  const patched = await revisions.patchRevisionDraft({ actorId, kind: "product", importId: fork.importId, expectedRevision: fork.revision, operations: [{ op: "set", target: { entityType: "flashcard", entityId: "release-card" }, field: "back", value: "Jarak masukan harus menjamin batas keluaran." }] });
+  const preserved = await storedBundle(patched.importId);
+  expect(preserved.products.find(product => product.productType === "diktat")).toEqual(diktat);
+  for (const key of objects.keys()) if (key.includes("product-verification-reuse")) objects.delete(key);
+  const before = renders;
+  await expect(verify(patched.importId)).rejects.toThrow("PRODUCT_V4_PRINT_REUSE_CHANGED");
+  expect(renders).toBe(before);
+  const refreshed = await revisions.patchRevisionDraft({ actorId, kind: "product", importId: patched.importId, expectedRevision: patched.revision, operations: [], refreshPrintEvidence: true });
+  expect(refreshed.importId).not.toBe(patched.importId);
+  const refreshedBundle = await storedBundle(refreshed.importId);
+  const next = refreshedBundle.products.find(product => product.productType === "diktat")!;
+  if (next.productType !== "diktat" || diktat.productType !== "diktat") throw new Error("DIKTAT_FIXTURE_REQUIRED");
+  expect(next.version).toBe(diktat.version + 1);
+  expect(next.contentMarkdown).toBe(diktat.contentMarkdown);
+  expect(next.units).toEqual(diktat.units);
+  expect(refreshedBundle.products.find(product => product.id === "release-card")).toEqual(preserved.products.find(product => product.id === "release-card"));
+  expect((await rowFor(patched.importId)).status).toBe("withdrawn");
+  const verification = await verify(refreshed.importId);
+  await approveProduct(refreshed.importId, verification, true);
+  const entries = [{ importId: refreshed.importId, expectedRevision: refreshed.revision }];
+  const plan = await revisions.planRevisionRelease({ actorId, entries });
+  expect(plan.publicationReady).toBe(true);
+  expect((await revisions.publishRevisionRelease({ actorId, entries, expectedPlanHash: plan.planHash })).published).toBe(true);
 }, 30000);
 
 test("a mixed Idea and V4 release verifies the exact prospective graph before atomic promotion", async () => {

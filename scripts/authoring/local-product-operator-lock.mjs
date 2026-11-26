@@ -1,6 +1,7 @@
 import { mkdir, rmdir, readFile, unlink, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { isProductImportId } from "../../lib/bundle/product-import-id.mjs";
 
 export const localProductOperatorLockPath = path.join(tmpdir(), `zyx-product-local-${process.getuid?.() ?? "user"}.lock`);
 
@@ -25,7 +26,7 @@ export async function cleanupOwnedV4ImportLock(args, childPid, root) {
       const index = args.indexOf("--import-id");
       if (index >= 0) importId = args[index + 1];
     }
-    if (typeof importId !== "string" || !/^impor-product-[a-f0-9]{32}$/.test(importId)) return;
+    if (!isProductImportId(importId)) return;
     const lock = path.join(root, importId, ".lock");
     const owner = JSON.parse(await readFile(path.join(lock, "owner.json"), "utf8"));
     if (owner.pid !== childPid) return;

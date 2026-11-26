@@ -116,7 +116,7 @@ async function seedReady() {
     for (const [index, id] of source.excerptIds.entries()) await testDb.insert(schema.potonganSumber).values({ id, sumberMateriId: source.sourceId, sourceVersion: source.version, content: "Fixture source", startOffset: index * 20, endOffset: index * 20 + 14, checksum: source.checksum });
   }
   for (const [index, section] of article.sections.entries()) if (section.learningSectionId) await testDb.insert(schema.bagianPembelajaran).values({ id: section.learningSectionId, mataKuliahId: bundle.manifest.courseId, babId: "chapter-limit", stableKey: section.learningSectionId, title: section.title, slug: section.slug, orderIndex: index, learningObjective: section.learningObjective });
-  await testDb.insert(schema.imporBundle).values({ id: importId, bundleId: bundle.manifest.bundleId, checksum: bundle.checksum, bundleType: "product", courseId: "postgres-legacy-course", sourceUriOrKey: "fixture-v4.zip", version: 4, status: "draft", requestedBy: publisherId });
+  await testDb.insert(schema.imporBundle).values({ id: importId, bundleId: bundle.manifest.bundleId, checksum: bundle.checksum, bundleType: "product", courseId: "postgres-legacy-course", sourceUriOrKey: "fixture-v4.zip", version: 4, status: "draft", requestedBy: publisherId, validationReport: { valid: true } });
   await testDb.insert(schema.auditMutasi).values({ id: "fixture-stage", entityType: "product_bundle", entityId: importId, action: "draft_created", correlationId: "postgres-run", afterSnapshot: { checksum: bundle.checksum } });
   await testDb.insert(schema.reviewBundle).values({ id: "v4-bundle-review", imporBundleId: importId, reviewerId: publisherId, status: "approved" });
   const plan = await currentPlan();
@@ -124,15 +124,33 @@ async function seedReady() {
   const pdf = new TextEncoder().encode("%PDF-1.7\nfixture\n%%EOF");
   const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64");
   trustedReceipt = await runProductV4Verification(plan, authority, async requirement => ({ checkId: requirement.id, status: "PASS", expected: "Fixture machine check", observed: "Fixture executor observation", pageCount: requirement.layer === "print" ? 1 : undefined, artifacts: [{ id: `artifact-${attemptId}-${requirement.id}-0.${requirement.artifactType === "application/pdf" ? "pdf" : requirement.artifactType === "image/png" ? "png" : "json"}`, mediaType: requirement.artifactType, bytes: requirement.artifactType === "application/pdf" ? pdf : requirement.artifactType === "image/png" ? png : new TextEncoder().encode("{}"), pageNumber: requirement.layer === "print" && requirement.artifactType === "image/png" ? 1 : undefined }] }));
-  await testDb.update(schema.imporBundle).set({ validationReport: { productV4Verification: { runId: "postgres-run", stagingAuditId: "fixture-stage", planHash: plan.planHash, attemptId }, productV4PdfEvidence: { planHash: plan.planHash, attemptId, receiptSignature: trustedReceipt.signature } } }).where(eq(schema.imporBundle.id, importId));
+  const validationReport = { valid: true, productV4Verification: { runId: "postgres-run", stagingAuditId: "fixture-stage", planHash: plan.planHash, attemptId }, productV4PdfEvidence: { planHash: plan.planHash, attemptId, receiptSignature: trustedReceipt.signature } };
+  await testDb.update(schema.imporBundle).set({ validationReport }).where(eq(schema.imporBundle.id, importId));
   const fingerprint = computePedagogyContentFingerprint({ article: Object.fromEntries(Object.entries(article)), diktat: Object.fromEntries(Object.entries(diktat)) });
   await testDb.insert(schema.reviewPedagogiBundle).values({ id: "v4-pedagogic-review", imporBundleId: importId, reviewerId: publisherId, contentFingerprint: fingerprint, policyVersion: QUALITY_POLICY_VERSION, status: "approved", exceptions: [], rubric: { verificationPlanHash: plan.planHash, verificationReceiptSignature: trustedReceipt.signature, sectionDecisions: article.sections.map(section => ({ sectionId: section.id, semanticHash: computeProductV4SectionSemanticHash(article, section.id), decision: "approved" })), criteria: PEDAGOGIC_CRITERION_IDS.map(criterionId => ({ criterionId, status: "met", contentAnchors: [{ targetType: "section", targetId: article.sections[0].id }], reason: "Explicit fixture section review" })) } });
   for (const section of article.sections) await testDb.insert(schema.reviewItemBundle).values({ id: `v4-section-${section.id}`, imporBundleId: importId, productId: article.id, reviewerId: publisherId, targetType: "article_section", targetId: section.id, status: "approved" });
-  const snapshot = { importId, checksum: bundle.checksum, sourceUriOrKey: "fixture-v4.zip", stagingAuditId: "fixture-stage", stagingRunId: "postgres-run", importState: { bundleType: "product" as const, bundleId: bundle.manifest.bundleId, courseId: "postgres-legacy-course", version: 4, status: "draft" as const, validationReport: {} }, bundle, binding: plan.binding, verificationAttemptId: attemptId, verificationPlanHash: plan.planHash };
+  const snapshot = { importId, checksum: bundle.checksum, sourceUriOrKey: "fixture-v4.zip", stagingAuditId: "fixture-stage", stagingRunId: "postgres-run", importState: { bundleType: "product" as const, bundleId: bundle.manifest.bundleId, courseId: "postgres-legacy-course", version: 4, status: "draft" as const, validationReport }, bundle, binding: plan.binding, verificationAttemptId: attemptId, verificationPlanHash: plan.planHash };
   const artifactBytes = new Map(trustedReceipt.results.flatMap(result => result.artifacts.filter(artifact => artifact.mediaType === "application/pdf").map(artifact => [artifact.id, pdf] as const)));
   const evidence = deriveProductV4PdfEvidence({ snapshot, plan, attemptId, receipt: trustedReceipt, authority, artifactBytes });
   for (const row of evidence) await testDb.insert(schema.buktiPdfBundle).values(row);
 }
+
+test("readiness rejects missing or failed admission even when a parsed bundle context is supplied", async () => {
+  await seedReady();
+  const { currentPublisherProductReadiness } = await import("@/lib/bundle/product-readiness");
+  const { getProductBundleImport } = await import("@/lib/bundle/product-staging");
+  const { valid: _valid, ...report } = (await getRow()).validationReport;
+  for (const validationReport of [report, { ...report, valid: false }]) {
+    await testDb.update(schema.imporBundle).set({ validationReport }).where(eq(schema.imporBundle.id, importId));
+    const row = await getProductBundleImport(importId);
+    if (!row) throw new Error("ADMISSION_FIXTURE_IMPORT_MISSING");
+    await expect(currentPublisherProductReadiness(importId, publisherId)).rejects.toThrow("PRODUCT_BUNDLE_ADMISSION_REQUIRED");
+    await expect(currentPublisherProductReadiness(importId, publisherId, { admittedContext: { row, bundle } })).rejects.toThrow("PRODUCT_BUNDLE_ADMISSION_REQUIRED");
+  }
+  expect(verificationReads).toBe(0);
+  expect((await getRow()).status).toBe("draft");
+  expect(await testDb.select().from(schema.artikel)).toHaveLength(0);
+}, 30000);
 
 test("real V4 PostgreSQL publication requires a current receipt, explicit review and PDF evidence", async () => {
   await seedReady();

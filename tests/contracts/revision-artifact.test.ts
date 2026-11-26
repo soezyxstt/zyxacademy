@@ -2,10 +2,12 @@ import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
-import { buildRevisionArtifact, type ValidRevisionProductBundle, type RevisionPatchOperation } from "@/lib/authoring/revision-artifact";
+import { buildRevisionArtifact, revisionValidationError, type ValidRevisionProductBundle, type RevisionPatchOperation } from "@/lib/authoring/revision-artifact";
+import { AUTHORING_DIAGNOSTIC_LIMIT, authoringFailureDiagnostics } from "@/lib/authoring/diagnostics";
 import { computeIdeaBundleChecksum, serializeDeterministically, validateIdeaBundle, type ValidatedIdeaBundle } from "@/lib/bundle/idea-bundle-v2";
 import { computeProductBundleChecksum, parseProductBundle, productEntitySchema, type ProductEntity, type ProductDependency } from "@/lib/bundle/product-validator";
 import { buildLocalVerificationFixture } from "../../scripts/authoring/local-verification-fixture";
+import { assessDerivedContent } from "@/lib/authoring/revision-derived";
 
 const encode = (value: unknown) => new TextEncoder().encode(`${serializeDeterministically(value)}\n`);
 const sha = (value: Uint8Array) => createHash("sha256").update(value).digest("hex");
@@ -211,11 +213,12 @@ test("collection title changes synchronize the enclosing identity instead of sil
   expect(product.collection.title).toBe("Pembahasan baru");
 });
 
-test("V4 Article edits explicitly stale a derived Diktat, and authored regeneration closes the recovery loop", () => {
+test("relevant V4 Article edits stale a derived Diktat, and authored regeneration closes the recovery loop", () => {
   const original = buildLocalVerificationFixture().bundle;
   const article = original.products.find(product => product.productType === "article")!;
   if (article.productType !== "article") throw new Error("FIXTURE_TYPE");
-  const section = article.sections[0], block = section.blocks[0];
+  const section = article.sections.find(value => value.blocks.some(block => block.id === "block-ed-exp-def"))!;
+  const block = section.blocks.find(value => value.id === "block-ed-exp-def")!;
   const changed = buildRevisionArtifact({ kind: "product", original, bundleId: "revision", operations: [{ op: "set", target: { entityType: "article", entityId: article.id, sectionId: section.id, blockId: block.id }, field: `parts[${block.id}-prose].markdown`, value: "Penjelasan revisi tentang limit dan toleransi." }] });
   const changedBundle = changed.bundle as ValidRevisionProductBundle;
   expect(changedBundle.dependencies.find(edge => edge.id === "local-lineage")?.freshness).toBe("STALE");
@@ -230,6 +233,118 @@ test("V4 Article edits explicitly stale a derived Diktat, and authored regenerat
   expect(recoveredBundle.dependencies.find(edge => edge.id === "local-lineage")?.freshness).toBe("UP_TO_DATE");
   expect(recovered.impact.evidenceInvalidations).toContainEqual({ entityId: "local-diktat", reason: "PRINT_SOURCE_CHANGED" });
   expect(recovered.impact.reviewInvalidations.some(value => value.entityId === "local-diktat")).toBe(true);
+});
+
+function derivedFixture(twoUnits = false) {
+  let bundle = buildLocalVerificationFixture().bundle as ValidRevisionProductBundle;
+  const initial = bundle.products.find(product => product.productType === "diktat")!;
+  if (initial.productType !== "diktat" || !initial.units) throw new Error("FIXTURE_DIKTAT_REQUIRED");
+  if (twoUnits) bundle = buildRevisionArtifact({ kind: "product", original: bundle, bundleId: "two-units", operations: [{
+    op: "add", target: { entityType: "diktat", entityId: initial.id, unitId: "second-summary" }, value: {
+      ...initial.units[0], id: "second-summary", parts: initial.units[0].parts.map(part => ({ ...part, id: `second-${part.id}` })),
+    },
+  }] }).bundle as ValidRevisionProductBundle;
+  const article = bundle.products.find(product => product.productType === "article")!;
+  const diktat = bundle.products.find(product => product.productType === "diktat")!;
+  if (article.productType !== "article" || diktat.productType !== "diktat" || !diktat.units) throw new Error("FIXTURE_TYPE");
+  const section = article.sections.find(value => value.blocks.some(block => block.id === "block-ed-exp-def"))!;
+  const change = { op: "set" as const, target: { entityType: "article", entityId: article.id, sectionId: section.id, blockId: "block-ed-exp-def" }, field: "parts[block-ed-exp-def-prose].markdown", value: "Penjelasan baru menjaga urutan toleransi keluaran lalu batas jarak masukan." };
+  const changed = buildRevisionArtifact({ kind: "product", original: bundle, bundleId: "changed-source", operations: [change] });
+  const current = changed.bundle as ValidRevisionProductBundle;
+  const source = current.products.find(product => product.id === article.id)!;
+  const review = { entityId: diktat.id, sourceArticleId: article.id, expectedArticleHash: source.generationHash,
+    unitIds: [diktat.units[0].id], notes: "Saya memeriksa rumus, syarat, arti, dan rujukan; isi ringkasan tetap tepat untuk artikel ini." };
+  return { bundle, article, diktat, changed, current, review };
+}
+
+test("unreferenced Article sections and document titles do not require a fake Diktat edit", () => {
+  const { bundle, article } = derivedFixture();
+  const overview = article.sections.find(section => section.kind === "overview")!;
+  for (const operation of [
+    { op: "set" as const, target: { entityType: "article", entityId: article.id }, field: "title", value: "Judul artikel yang lebih jelas" },
+    { op: "set" as const, target: { entityType: "article", entityId: article.id, sectionId: overview.id, blockId: overview.blocks[0].id }, field: `parts[${overview.blocks[0].id}-prose].markdown`, value: "Pengantar baru sebelum pembahasan limit." },
+  ]) {
+    const result = buildRevisionArtifact({ kind: "product", original: bundle, bundleId: "unrelated-source", operations: [operation] });
+    expect((result.bundle as ValidRevisionProductBundle).dependencies.find(edge => edge.id === "local-lineage")?.freshness).toBe("UP_TO_DATE");
+    expect(result.impact.derivedReviewRequirements).toEqual([]);
+  }
+});
+
+test("an exact explicit review rebinds unchanged summary prose and retains source hash audit evidence", () => {
+  const { article, diktat, changed, current, review } = derivedFixture();
+  const reviewed = buildRevisionArtifact({ kind: "product", original: current, bundleId: "reviewed-source", operations: [],
+    priorDerivedReviewRequirements: changed.impact.derivedReviewRequirements, derivedContentReviews: [review] });
+  const bundle = reviewed.bundle as ValidRevisionProductBundle;
+  const summary = bundle.products.find(product => product.id === diktat.id)!;
+  expect(summary).toHaveProperty("units", diktat.units);
+  expect(summary).toHaveProperty("contentMarkdown", diktat.contentMarkdown);
+  expect(bundle.dependencies.find(edge => edge.id === "local-lineage")?.freshness).toBe("UP_TO_DATE");
+  expect(reviewed.impact.appliedDerivedContentReviews).toEqual([{ ...review, previousArticleHash: article.generationHash }]);
+  expect(reviewed.impact.derivedReviewRequirements).toEqual([]);
+  expect(summary.version).toBeGreaterThan(current.products.find(product => product.id === summary.id)!.version);
+  for (const [invalid, error] of [
+    [{ ...review, expectedArticleHash: article.generationHash }, "REVISION_DERIVED_REVIEW_STALE"],
+    [{ ...review, unitIds: ["unknown-unit"] }, "REVISION_DERIVED_REVIEW_UNIT_NOT_FOUND"],
+    [{ ...review, notes: "ok" }, "REVISION_DERIVED_REVIEW_INVALID"],
+    [{ ...review, sourceArticleId: "wrong-article" }, "REVISION_DERIVED_REVIEW_STALE"],
+  ] as Array<[typeof review, string]>) expect(() => buildRevisionArtifact({ kind: "product", original: current, bundleId: "invalid-review", operations: [], derivedContentReviews: [invalid] })).toThrow(error);
+});
+
+test("partial review or a one-unit edit never clears other pending derived units", () => {
+  const { current, changed, review } = derivedFixture(true);
+  const partial = buildRevisionArtifact({ kind: "product", original: current, bundleId: "partial-review", operations: [],
+    priorDerivedReviewRequirements: changed.impact.derivedReviewRequirements, derivedContentReviews: [review] });
+  expect(partial.impact.changed).toBe(true);
+  expect((partial.bundle as ValidRevisionProductBundle).dependencies.find(edge => edge.id === "local-lineage")?.freshness).toBe("STALE");
+  expect(partial.impact.derivedReviewRequirements?.[0].unitIds).toEqual(["second-summary"]);
+  const finished = buildRevisionArtifact({ kind: "product", original: partial.bundle, bundleId: "finished-review", operations: [],
+    priorDerivedReviewRequirements: partial.impact.derivedReviewRequirements, derivedContentReviews: [{ ...review, unitIds: ["second-summary"] }] });
+  expect((finished.bundle as ValidRevisionProductBundle).dependencies.find(edge => edge.id === "local-lineage")?.freshness).toBe("UP_TO_DATE");
+  const edited = buildRevisionArtifact({ kind: "product", original: current, bundleId: "one-unit-edit", operations: [{
+    op: "set", target: { entityType: "diktat", entityId: review.entityId, unitId: review.unitIds[0] }, field: "parts[summary-heading].markdown", value: "## Ringkasan yang saya perbarui",
+  }], priorDerivedReviewRequirements: changed.impact.derivedReviewRequirements });
+  expect(edited.impact.derivedReviewRequirements?.[0].unitIds).toEqual(["second-summary"]);
+  expect((edited.bundle as ValidRevisionProductBundle).dependencies.find(edge => edge.id === "local-lineage")?.freshness).toBe("STALE");
+});
+
+test("relevant Idea and source pin changes require explicit derived review", () => {
+  const { bundle, article } = derivedFixture();
+  for (const operation of [
+    { op: "set" as const, target: { entityType: "article", entityId: article.id }, field: "ideaLinks", value: article.ideaLinks.map(link => ({ ...link, semanticHash: "e".repeat(64) })) },
+    { op: "set" as const, target: { entityType: "article", entityId: article.id }, field: "sourceRefs", value: article.sourceRefs.map(ref => ({ ...ref, excerptIds: [...ref.excerptIds, "new-source-excerpt"] })) },
+  ]) {
+    const result = buildRevisionArtifact({ kind: "product", original: bundle, bundleId: "new-source-pin", operations: [operation] });
+    expect((result.bundle as ValidRevisionProductBundle).dependencies.find(edge => edge.id === "local-lineage")?.freshness).toBe("STALE");
+    expect(result.impact.derivedReviewRequirements?.[0].unitIds).toEqual(["local-summary"]);
+  }
+});
+
+test("a changed source visual refreshes its generated snapshot but still requires derived review", () => {
+  const { bundle, article, diktat } = derivedFixture();
+  const changed = buildRevisionArtifact({ kind: "product", original: bundle, bundleId: "visual-revision", operations: [{
+    op: "set", target: { entityType: "article", entityId: article.id }, field: `visuals[${article.visuals![0].id}].label`, value: "Hubungan batas jarak masukan dan keluaran",
+  }] });
+  const current = changed.bundle as ValidRevisionProductBundle;
+  const summary = current.products.find(product => product.id === diktat.id)!;
+  expect(current.dependencies.find(edge => edge.id === "local-lineage")?.freshness).toBe("STALE");
+  expect(changed.impact.derivedReviewRequirements?.[0].unitIds).toEqual(["local-summary"]);
+  if (summary.productType !== "diktat") throw new Error("FIXTURE_TYPE");
+  expect(summary.units![0].parts.find(part => part.kind === "visual_ref")).not.toEqual(diktat.units![0].parts.find(part => part.kind === "visual_ref"));
+  expect(changed.impact.derivedVisualChanges).toEqual([expect.objectContaining({ entityId: diktat.id, unitId: "local-summary", visualId: article.visuals![0].id, previousVisualHash: expect.stringMatching(/^[a-f0-9]{64}$/), visualHash: expect.stringMatching(/^[a-f0-9]{64}$/) })]);
+  expect(changed.impact.derivedVisualChanges![0].previousVisualHash).not.toBe(changed.impact.derivedVisualChanges![0].visualHash);
+  const reviewed = buildRevisionArtifact({ kind: "product", original: current, bundleId: "visual-reviewed", operations: [], priorDerivedReviewRequirements: changed.impact.derivedReviewRequirements,
+    derivedContentReviews: [{ entityId: diktat.id, sourceArticleId: article.id, expectedArticleHash: current.products.find(product => product.id === article.id)!.generationHash, unitIds: ["local-summary"], notes: "Grafik kini memakai label baru; rumus, arti dan syarat ringkasan tetap tepat." }] });
+  expect((reviewed.bundle as ValidRevisionProductBundle).dependencies.find(edge => edge.id === "local-lineage")?.freshness).toBe("UP_TO_DATE");
+});
+
+test("missing or ambiguous source element references cannot be cleared with an explicit review", () => {
+  const { article, diktat } = derivedFixture();
+  const review = { entityId: diktat.id, sourceArticleId: article.id, expectedArticleHash: article.generationHash, unitIds: ["local-summary"], notes: "Isi ringkasan telah saya baca ulang untuk sumber saat ini." };
+  const noRefs = { ...diktat, units: diktat.units!.map(unit => ({ ...unit, sourceElementRefs: [] })) };
+  expect(() => assessDerivedContent({ previous: noRefs, current: noRefs, previousArticle: article, article, wasStale: true, review })).toThrow("REVISION_DERIVED_REVIEW_SOURCE_REQUIRED");
+  const ambiguous = structuredClone(article);
+  ambiguous.sections[0].blocks[0].parts!.push({ id: "local-epsilon-distance", kind: "markdown", markdown: "Ambiguous source" });
+  expect(() => assessDerivedContent({ previous: diktat, current: diktat, previousArticle: ambiguous, article: ambiguous, wasStale: true, review })).toThrow("REVISION_DERIVED_REVIEW_SOURCE_REQUIRED");
 });
 
 test("an unrelated card edit advances only the Diktat evidence identity needed for its new PDF", () => {
@@ -251,6 +366,13 @@ test("an unrelated card edit advances only the Diktat evidence identity needed f
   expect(bundle.products.find(product => product.id === article.id)).toEqual(article);
   expect(bundle.dependencies.find(edge => edge.downstreamEntityId === after.id)?.downstreamVersion).toBe(after.version);
   expect(revised.impact.evidenceInvalidations).toContainEqual({ entityId: after.id, reason: "PRINT_CONTEXT_CHANGED" });
+  const reused = buildRevisionArtifact({ kind: "product", original: withCards, bundleId: "verified-card-edit",
+    preserveUnchangedDiktatIds: [before.id], operations: [{ op: "set", target: { entityType: "flashcard", entityId: "card" }, field: "back", value: "Penjelasan jawaban diperbaiki." }] });
+  expect((reused.bundle as ValidRevisionProductBundle).products.find(product => product.id === before.id)).toEqual(before);
+  expect(reused.impact.evidenceInvalidations.some(value => value.entityId === before.id)).toBe(false);
+  const changed = buildRevisionArtifact({ kind: "product", original: withCards, bundleId: "changed-summary",
+    preserveUnchangedDiktatIds: [before.id], operations: [{ op: "set", target: { entityType: "diktat", entityId: before.id }, field: "title", value: "Ringkasan dengan judul baru" }] });
+  expect((changed.bundle as ValidRevisionProductBundle).products.find(product => product.id === before.id)!.version).toBeGreaterThan(before.version);
 });
 
 test("a V4 block can be added structurally without dropping the archive or original asset bytes", () => {
@@ -320,6 +442,25 @@ test("protected fields, array positions, unsafe objects, invalid references and 
   expect(() => buildRevisionArtifact({ kind: "product", original, bundleId: "invalid", operations: [{ op: "remove", target: { entityType: "solution_collection", entityId: "collection", itemId: "item" } }] })).toThrow("REVISION_ARTIFACT_INVALID");
   const v2 = { ...cards(), manifest: { ...cards().manifest, schemaVersion: "product-bundle.v2" as const } };
   expect(() => buildRevisionArtifact({ kind: "product", original: v2, bundleId: "invalid", operations: [] })).toThrow("REVISION_PROFILE_UNSUPPORTED");
+});
+
+test("invalid canonical references retain structured findings instead of an opaque error", () => {
+  const original = ideas();
+  let error: unknown;
+  try {
+    buildRevisionArtifact({ kind: "idea", original, bundleId: "invalid-reference", operations: [
+      { op: "remove", target: { entityType: "idea", entityId: original.entities.ideas[0].id } },
+    ] });
+  } catch (caught) { error = caught; }
+  expect(error).toBeInstanceOf(Error);
+  expect((error as Error).message).toBe("REVISION_ARTIFACT_INVALID");
+  const failure = authoringFailureDiagnostics(error);
+  expect(failure.category).toBe("content");
+  expect(failure.diagnosticCount).toBeGreaterThan(0);
+  expect(failure.diagnostics.every(issue => issue.code && issue.reason)).toBe(true);
+  const bounded = revisionValidationError("REVISION_ARTIFACT_INVALID", Array.from({ length: AUTHORING_DIAGNOSTIC_LIMIT + 5 }, () => ({ code: "ARTICLE_PART_ID_DUPLICATE", message: "Duplicate part" })));
+  expect((bounded as Error & { issues: unknown[] }).issues).toHaveLength(AUTHORING_DIAGNOSTIC_LIMIT);
+  expect(bounded).toHaveProperty("issueCount", AUTHORING_DIAGNOSTIC_LIMIT + 5);
 });
 
 test("unknown target IDs and conflicting insertion identities are rejected instead of silently ignored", () => {
