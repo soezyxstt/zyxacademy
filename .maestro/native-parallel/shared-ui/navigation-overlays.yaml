@@ -2,7 +2,11 @@ appId: com.zyx.academy.nativeparity
 name: Dialog validation and overlay dismissal
 ---
 - launchApp
-- openLink: zyx-native-parity://shared-ui/shared-dialog-closed-light
+- extendedWaitUntil:
+    visible: separator
+    timeout: 20000
+- openLink: zyx-native-parity://internal/shared-ui/shared-dialog-closed-light
+- runFlow: helpers/confirm-ios-link.yaml
 - extendedWaitUntil:
     visible:
       id: shared-dialog-closed-light-trigger
@@ -15,23 +19,37 @@ name: Dialog validation and overlay dismissal
     id: shared-dialog-closed-light-panel-close
 - assertVisible:
     id: shared-dialog-closed-light-trigger
-- openLink: zyx-native-parity://shared-ui/shared-dialog-validation-light
+- openLink: zyx-native-parity://internal/shared-ui/shared-dialog-validation-light
+- runFlow: helpers/confirm-ios-link.yaml
 - tapOn:
     id: shared-dialog-validation-light-submit
 - assertVisible: Alasan permohonan wajib diisi.
 - inputText: Jadwal praktikum bertabrakan.
-- hideKeyboard
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - assertVisible:
+          id: shared-dialog-validation-light-reason
+          text: '^Jadwal praktikum bertabrakan\.$'
 - tapOn:
     id: shared-dialog-validation-light-submit
 - assertVisible: Permohonan berhasil diajukan kepada tutor.
 - assertNotVisible:
     id: shared-dialog-validation-light-panel
-- openLink: zyx-native-parity://shared-ui/shared-dialog-long-dark
+- openLink: zyx-native-parity://internal/shared-ui/shared-dialog-long-dark
+- runFlow: helpers/confirm-ios-link.yaml
 - assertVisible:
     id: shared-dialog-long-dark-reason
 - tapOn:
     id: shared-dialog-long-dark-panel-close
-- openLink: zyx-native-parity://shared-ui/shared-sheet-closed-light
+- openLink: zyx-native-parity://internal/shared-ui/shared-sheet-closed-light
+- runFlow: helpers/confirm-ios-link.yaml
 - tapOn:
     id: shared-sheet-closed-light-trigger
 - tapOn:
@@ -39,20 +57,22 @@ name: Dialog validation and overlay dismissal
 - assertVisible:
     id: shared-sheet-closed-light-chapter
     text: Representasi dan tipe data
-- openLink: zyx-native-parity://shared-ui/shared-sheet-outline-light
+- openLink: zyx-native-parity://internal/shared-ui/shared-sheet-outline-light
+- runFlow: helpers/confirm-ios-link.yaml
 - tapOn:
     id: shared-sheet-outline-light-chapter-3
 - assertVisible:
     id: shared-sheet-outline-light-chapter
     text: Percabangan dan perulangan
-- openLink: zyx-native-parity://shared-ui/shared-sheet-back-dark
+- openLink: zyx-native-parity://internal/shared-ui/shared-sheet-back-dark
+- runFlow: helpers/confirm-ios-link.yaml
 - assertVisible:
     id: shared-sheet-back-dark-panel
 - runFlow:
     when:
       platform: Android
     commands:
-      - pressKey: BACK
+      - pressKey: Back
 - runFlow:
     when:
       platform: iOS
@@ -63,7 +83,8 @@ name: Dialog validation and overlay dismissal
     id: shared-sheet-back-dark-panel
 - assertVisible:
     id: shared-sheet-back-dark-trigger
-- openLink: zyx-native-parity://shared-ui/shared-popover-closed-light
+- openLink: zyx-native-parity://internal/shared-ui/shared-popover-closed-light
+- runFlow: helpers/confirm-ios-link.yaml
 - tapOn:
     id: shared-popover-closed-light-trigger
 - tapOn:
@@ -72,13 +93,15 @@ name: Dialog validation and overlay dismissal
     id: shared-popover-closed-light-panel
 - assertVisible:
     id: shared-popover-closed-light-trigger
-- openLink: zyx-native-parity://shared-ui/shared-popover-filters-light
+- openLink: zyx-native-parity://internal/shared-ui/shared-popover-filters-light
+- runFlow: helpers/confirm-ios-link.yaml
 - tapOn:
     id: shared-popover-filters-light-option-2
 - assertVisible:
     id: shared-popover-filters-light-selection
     text: Minggu
-- openLink: zyx-native-parity://shared-ui/shared-popover-long-dark
+- openLink: zyx-native-parity://internal/shared-ui/shared-popover-long-dark
+- runFlow: helpers/confirm-ios-link.yaml
 - tapOn:
     id: shared-popover-long-dark-option-2
 - assertVisible:

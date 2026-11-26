@@ -106,7 +106,7 @@ export const dataCases = [
     selectedDateId: week[2].id, selectedEventId: events[0].id, events,
   },
   { ...frame, id: "shared-ui-pagination-first", component: "pagination", theme: "light", initialPage: 1, pageCount: 3, pending: false },
-  { ...frame, id: "shared-ui-pagination-middle", component: "pagination", theme: "light", initialPage: 2, pageCount: 5, pending: false },
+  { ...frame, id: "shared-ui-pagination-middle", component: "pagination", theme: "light", initialPage: 2, pageCount: 3, pending: false },
   { ...frame, id: "shared-ui-pagination-pending", component: "pagination", theme: "dark", initialPage: 2, pageCount: 5, pending: true },
 ] as const;
 
