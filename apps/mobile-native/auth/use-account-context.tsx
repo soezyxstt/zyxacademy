@@ -29,7 +29,7 @@ export function NativeAccountContextProvider({ children }: { children: ReactNode
     const request = new AbortController();
     const finish = (context: NativeAccountContext | null, denied = false) => {
       if (request.signal.aborted || !transport.isCurrent()) return;
-      if (context || denied) void rememberAccountAccess(context, transport).catch(() => {});
+      if (context || denied) void rememberAccountAccess(context, transport, state).catch(() => {});
       setResult({ state, transport, attempt, context, denied });
     };
     void loadNativeAccountContext(transport, request.signal).then(finish, error => finish(null, error instanceof NativeAccountAccessDenied));

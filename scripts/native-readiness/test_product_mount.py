@@ -56,11 +56,32 @@ export default function App() {
             "VerifiedStudentEntry.tsx": "",
             "assessment-drafts.tsx": '''const { subscribeBeforeLogout } = useNativeSession();
   useEffect(() => subscribeBeforeLogout(cleanup => repository.purgeSession(cleanup.scope)), [subscribeBeforeLogout]);''',
-            "assessment/player.tsx": "const props = useAssessment();",
             "learning/flashcards.tsx": "const card = index < batchSize ? queue[position] : undefined;",
             "courses/index.tsx": "const { course, material } = data;",
         }.items():
             self.write("features/student/" + feature, f"import {{ useEffect }} from 'react';\n  {anchor}\n")
+        self.write("features/student/assessment/client.ts", '  const response = await request(assessmentApiPath(path), init);\n')
+        self.write("features/student/assessment/player.tsx", '''import { useEffect } from "react";
+  const props = useAssessment();
+  const submit = useCallback(async () => {
+    if (!current || pendingRequest.current || uploadInProgress.current) return;
+    try {
+      let destination = `${course}/my-results`;
+    } catch (error) {
+      if (!alive.current) return;
+      if (error instanceof AssessmentRequestError) return;
+    }
+  }, [attemptId, base, course, drafts, kind, player.questions, replace, request, stage, storageKey, tx, update]);
+  useEffect(() => {
+    if (totalLeft !== 0 || !draft || uploading || auto.current || draft.pending) return;
+  }, [draft, kind, submit, totalLeft, tryout.timeExpired, tx, uploading]);
+  useEffect(() => {
+    if (!draft || draft.pending || questionLeft !== 0 || totalLeft === 0 || confirm || uploading) return;
+  }, [confirm, draft, messages.quiz.questionTimeEnded, messages.quiz.questionTimeEndedFinal, player.questions.length, questionLeft, totalLeft, update, uploading]);
+    <Modal transparent visible={confirm} animationType="none" onRequestClose={() => setConfirm(false)}>
+      <Button onPress={() => setConfirm(false)}>{tryout.reviewAgain}</Button>
+    </Modal>
+''')
 
     def test_mount_without_student_then_upgrade_and_repeat(self):
         self.mount(with_student=False)
@@ -94,6 +115,14 @@ export default function App() {
                       self.read("app/dashboard/discussions.tsx"))
         self.assertIn("<AssessmentDraftCleanup />", self.read("app/_layout.tsx"))
         self.assertIn("subscribeBeforeLocalLogout", self.read("features/student/assessment-drafts.tsx"))
+        self.assertIn('requiredRole: "murid"', self.read("features/student/assessment/client.ts"))
+        player = self.read("features/student/assessment/player.tsx")
+        self.assertIn('visible={confirm && !suspended && props.focused !== false}', player)
+        self.assertIn('if (suspended || !canInteract() || totalLeft !== 0', player)
+        self.assertIn('if (suspended || !canInteract() || !draft || draft.pending || questionLeft !== 0', player)
+        self.assertIn('if (!canInteract()) throw new NativeRequestNotDispatched();', player)
+        self.assertIn('if (error instanceof NativeRequestNotDispatched) {\n'
+                      '        auto.current = false;\n        await update(current);\n        return;\n', player)
 
     def test_full_mount_requires_student_before_writing_and_refuses_edited_dashboard(self):
         original = self.snapshot()

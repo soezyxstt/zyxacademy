@@ -1,6 +1,8 @@
 import { Children, createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ComponentRef, type ReactNode, type RefObject } from "react";
 import {
   AccessibilityInfo,
+  ActivityIndicator,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -19,6 +21,7 @@ import { SafeAreaListener, useSafeAreaInsets, type EdgeInsets } from "react-nati
 
 import { nativeColors, nativeRadii } from "../../../../packages/design-tokens/native-colors";
 import { Button } from "../../components/Button";
+import { useProtectedInteraction } from "../../routing/protected-interaction";
 import { nativeTypography } from "../../typography";
 import { NavigationIcon } from "./navigation-icons";
 
@@ -114,6 +117,7 @@ function OverlaySurface({
   testID,
   ...placement
 }: OverlaySurfaceProps) {
+  const { suspended, canInteract } = useProtectedInteraction();
   const systemTheme = useColorScheme();
   const resolvedTheme = theme ?? systemTheme ?? "light";
   const colors = nativeColors[resolvedTheme];
@@ -195,7 +199,7 @@ function OverlaySurface({
   }
 
   function dismiss(reason: OverlayDismissReason) {
-    if (!dismissDisabled) onDismiss(reason);
+    if (!dismissDisabled && canInteract()) onDismiss(reason);
   }
 
   const popover = kind === "popover" ? placement : null;
@@ -238,9 +242,15 @@ function OverlaySurface({
 
   const panelReady = !trackNativeAnchor || Boolean(popoverPosition) || fallbackReady;
   useEffect(() => {
-    if (!open || !shown || !panelReady || focusedOnOpen.current) return;
+    if (open && suspended) {
+      focusedOnOpen.current = false;
+      Keyboard.dismiss();
+    }
+  }, [open, suspended]);
+  useEffect(() => {
+    if (!open || !shown || !panelReady || suspended || focusedOnOpen.current) return;
     const frame = requestAnimationFrame(() => {
-      if (!openRef.current) return;
+      if (!openRef.current || !canInteract()) return;
       focusedOnOpen.current = true;
       if (initialFocusRef?.current) {
         focusTarget(initialFocusRef.current);
@@ -251,12 +261,14 @@ function OverlaySurface({
       }
     });
     return () => cancelAnimationFrame(frame);
-  }, [dismissDisabled, initialFocusRef, open, panelReady, shown]);
+  }, [canInteract, dismissDisabled, initialFocusRef, open, panelReady, shown, suspended]);
 
   const viewportContent = (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" && kind !== "popover" ? "padding" : undefined}
-      pointerEvents="box-none"
+      accessibilityElementsHidden={suspended}
+      importantForAccessibility={suspended ? "no-hide-descendants" : "auto"}
+      pointerEvents={suspended ? "none" : "box-none"}
       onLayout={kind === "popover" && !trackNativeAnchor ? ({ nativeEvent: { layout } }) => {
         if (layout.width > 0 && layout.height > 0) setViewport({ width: layout.width, height: layout.height });
       } : undefined}
@@ -265,6 +277,7 @@ function OverlaySurface({
         kind === "sheet" && styles.viewportSheet,
         { paddingTop: viewportInsets.top + 16, paddingBottom: kind === "sheet" ? 0 : viewportInsets.bottom + 16 },
         { paddingLeft: viewportInsets.left + (kind === "sheet" ? 0 : 16), paddingRight: viewportInsets.right + (kind === "sheet" ? 0 : 16) },
+        suspended && { display: "none" },
       ]}
     >
       <Pressable
@@ -363,6 +376,9 @@ function OverlaySurface({
           {viewportContent}
         </SafeAreaListener>
       ) : viewportContent}
+      {suspended && <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.background, justifyContent: "center" }]}>
+        <ActivityIndicator color={colors.foreground} />
+      </View>}
     </Modal>
   );
 }

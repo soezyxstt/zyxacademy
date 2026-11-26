@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { randomUUID } from "expo-crypto";
 import { ActivityIndicator, View } from "react-native";
+import { useProtectedInteraction } from "../../../routing/protected-interaction";
 import { tryoutGradeNotesLimit, type TryoutGradeEditor } from "../../../../../packages/academic/tryout-grade";
 import {
   parseGrade,
@@ -199,6 +200,7 @@ export function TutorGrading({ theme, back, data, onSave, editor, reload }: Navi
   editor?: TryoutGradeEditor;
   reload?: (signal: AbortSignal) => Promise<GradingData>;
 }) {
+  const { canInteract } = useProtectedInteraction();
   const [tab, setTab] = useState<GradeTab>("pending");
   const [active, setActive] = useState<TutorSubmission | null>(null);
   const [drafts, setDrafts] = useState<Record<string, GradeDraft>>({});
@@ -297,7 +299,7 @@ export function TutorGrading({ theme, back, data, onSave, editor, reload }: Navi
   }
 
   async function publish() {
-    if (!active || !canSave || !draft || savingRef.current || blocked || outdated) return;
+    if (!canInteract() || !active || !canSave || !draft || savingRef.current || blocked || outdated) return;
     const score = parseGrade(draft.score);
     if (score === null) {
       setSaveError("Masukkan nilai 0 sampai 100.");

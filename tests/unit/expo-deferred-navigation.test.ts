@@ -2,7 +2,9 @@ import { expect, test } from "bun:test";
 import type { NativeRouteNode } from "../../apps/mobile-native/auth/login-intent";
 import { createNativeSessionApi, NATIVE_STAGING_ORIGIN } from "../../apps/mobile-native/auth/session-api";
 import { createNativeSessionController } from "../../apps/mobile-native/auth/session-controller";
-import { createNativeTransport } from "../../apps/mobile-native/network/transport";
+import { createAcademicClient } from "../../apps/mobile-native/features/academic/client";
+import { bindAcademicSession } from "../../apps/mobile-native/features/academic/session-transport";
+import { createNativeTransport, NativeRequestNotDispatched } from "../../apps/mobile-native/network/transport";
 import { productQueryUpdate } from "../../apps/mobile-native/routing/product-location";
 import { createDeferredSessionNavigation, nativeSessionNavigationStatus } from "../../apps/mobile-native/routing/session-stack";
 import { tutorClassEntries } from "../../apps/mobile-native/routing/staff-navigation";
@@ -100,6 +102,58 @@ test("a completed Student submission replaces the quiz query once after the actu
   expect(destinations).toEqual([{ submitted: "1" }]);
   route.navigation.run(() => destinations.push({ submitted: undefined }), route.status, route.controller.getPendingRefresh);
   expect(destinations.at(-1)).toEqual({ submitted: undefined });
+});
+
+test("protected writes wait for fresh account roles after session verification without cancelling an in-flight write", async () => {
+  const route = await activeRoute("tutor-a");
+  const { controller, transport } = route;
+  const initial = controller.getSnapshot().state;
+  const context = { ...transport.scope, locale: "en", roles: ["tutor"] } as const;
+  const command = { method: "POST", body: "{}", requiredRole: "tutor" } as const;
+  const write = () => transport.request("/api/native/academic/tutor-support/discussions", command);
+
+  await expect(write()).rejects.toBeInstanceOf(NativeRequestNotDispatched);
+  expect(route.sent).toEqual([]);
+  await controller.rememberAccountAccess(context, transport, initial);
+  const sent = write();
+  await route.started;
+
+  const { operation } = await route.refresh();
+  await expect(write()).rejects.toBeInstanceOf(NativeRequestNotDispatched);
+  route.response.resolve(Response.json({ ok: true }));
+  (await sent).dispose();
+  route.verified();
+  await operation;
+  expect(route.status()).toBe("ready");
+  await controller.rememberAccountAccess(context, transport, initial);
+  await expect(write()).rejects.toBeInstanceOf(NativeRequestNotDispatched);
+  await controller.rememberAccountAccess({ ...context, roles: ["murid"] }, transport);
+  await expect(write()).rejects.toBeInstanceOf(NativeRequestNotDispatched);
+  expect(route.sent).toEqual(["POST"]);
+
+  const student = await transport.request(assessmentApi, { ...command, requiredRole: "murid" });
+  student.dispose();
+  expect(route.sent).toEqual(["POST", "POST"]);
+});
+
+test("refused Tutor writes leave drafts editable and avoid creating uncertain attempts", async () => {
+  const route = await activeRoute("tutor-a");
+  const client = createAcademicClient(bindAcademicSession(route.transport, "en", "tutor")).tutor.support!;
+  const signal = new AbortController().signal;
+  const grade = { score: 75, notes: "Keep revising", expectedRevision: "a".repeat(64) };
+  const slot = { date: "2026-11-27", start: "09:00", mode: "online", location: "", notes: "Draft" } as const;
+  client.tryoutGrade!.changeDraft("physics", "submission", { ...grade, score: "75" });
+  await expect(client.tryoutGrade!.publish("physics", "submission", grade, "grade-1", signal))
+    .rejects.toBeInstanceOf(NativeRequestNotDispatched);
+  await expect(client.slotEditor!.save(undefined, slot, "slot-1", signal))
+    .rejects.toBeInstanceOf(NativeRequestNotDispatched);
+  await expect(client.answer!("physics", "thread", { body: "Draft", requestId: "answer-1" }, signal))
+    .rejects.toBeInstanceOf(NativeRequestNotDispatched);
+  expect(client.tryoutGrade!.draft("physics", "submission")?.notes).toBe("Keep revising");
+  expect(client.tryoutGrade!.pending("physics", "submission")).toBeUndefined();
+  expect(client.slotEditor!.pending()).toEqual([]);
+  expect(client.pendingAnswer!("thread")).toBeUndefined();
+  expect(route.sent).toEqual([]);
 });
 
 function node(href: string): NativeRouteNode {

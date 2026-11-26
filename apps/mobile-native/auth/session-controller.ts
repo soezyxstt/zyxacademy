@@ -78,6 +78,7 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
   let validation: AbortController | null = null;
   let refreshOperation: Promise<void> | null = null;
   let logoutOperation: Promise<void> | null = null;
+  let verifiedAccess: { state: NativeSessionState; roles: NativeAccountContext["roles"] } | undefined;
   const subscriptions = new Set<() => void>();
   const beforeLogout = new Set<BeforeLogout>();
   const beforeLocalLogout = new Set<BeforeLocalLogout>();
@@ -86,6 +87,7 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
     state: NativeSessionState, transport: NativeSessionTransport | null = null,
     revalidating = false, loginIntent?: NativeLoginIntent,
   ) {
+    if (revalidating || state !== snapshot.state) verifiedAccess = undefined;
     const offlineReadingDenied = state.status === "signed-in" && record?.status === "active" &&
       state.accountId === record.accountId && state.sessionId === record.sessionId && record.readingDenied;
     snapshot = { state, transport, revalidating, ...(loginIntent && { loginIntent }),
@@ -153,7 +155,8 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
         accountId: identity.accountId,
         sessionId: identity.sessionId,
         // Keep submitted requests alive without starting new writes during verification.
-        canStartRequest: method => !snapshot.revalidating || method === "GET" || method === "HEAD",
+        canStartRequest: (method, role) => method === "GET" || method === "HEAD" || (!snapshot.revalidating &&
+          (!role || (verifiedAccess?.state === snapshot.state && verifiedAccess.roles.includes(role)))),
         readCookie: scope => record?.status === "active" && record.expiresAt > now()
           && record.origin === scope.origin && record.sessionId === scope.sessionId && record.accountId === scope.accountId
           ? record.cookie : null,
@@ -337,10 +340,16 @@ export function createNativeSessionController({ origin, store, api, dataTranspor
   function rememberAccountAccess(
     context: Pick<NativeAccountContext, "accountId" | "sessionId" | "locale" | "roles"> | null,
     transport: NativeSessionTransport,
+    checkedState = snapshot.state,
   ) {
+    const { accountId, sessionId } = transport.scope;
+    if (snapshot.state === checkedState && !snapshot.revalidating && snapshot.transport === transport && transport.isCurrent() &&
+      (!context || (context.accountId === accountId && context.sessionId === sessionId))) {
+      verifiedAccess = context ? { state: checkedState, roles: context.roles } : undefined;
+    }
     return enqueue(async () => {
-      const { accountId, sessionId } = transport.scope;
-      if (snapshot.transport !== transport || !transport.isCurrent() || record?.status !== "active" ||
+      if (snapshot.state !== checkedState || snapshot.revalidating || snapshot.transport !== transport ||
+        !transport.isCurrent() || record?.status !== "active" ||
         record.accountId !== accountId || record.sessionId !== sessionId) return;
       if (context && (context.accountId !== accountId || context.sessionId !== sessionId ||
         (context.locale !== "id" && context.locale !== "en"))) return;

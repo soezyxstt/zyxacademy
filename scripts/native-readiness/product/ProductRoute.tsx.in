@@ -19,6 +19,7 @@ import { useDevicePreferences } from "../device/preferences-provider";
 import { AcademicLiveScreen, bindAcademicSession, createAcademicClient } from "../features/academic";
 import { AdminOperationsScreen, PublicOperationsScreen } from "../features/operations";
 import { academicRouteCanRead, productLocation, productQueryUpdate } from "./product-location";
+import { ProtectedInteractionContext } from "./protected-interaction";
 import { expoRouteHistory } from "./route-history-expo";
 import { createDeferredSessionNavigation, nativeSessionNavigationStatus } from "./session-stack";
 import { StaffChrome } from "./staff-chrome";
@@ -69,6 +70,8 @@ function ProductRoute({ href, pattern, owner, StudentScreen }: {
     if (!screenNavigation.isFocused()) return "blocked";
     return nativeSessionNavigationStatus(state, transport, getSnapshot());
   }, [getSnapshot, owner, screenNavigation, state, transport]);
+  const canInteract = useCallback(() => !access.retaining && getSnapshot().state === state &&
+    navigationStatus() === "ready", [access.retaining, getSnapshot, navigationStatus, state]);
   useFocusEffect(useCallback(() => deferredNavigation.cancel, [deferredNavigation]));
   const commitPath = useCallback((path: string, replace?: boolean) => {
     if (replace) router.replace(path as Href);
@@ -103,7 +106,7 @@ function ProductRoute({ href, pattern, owner, StudentScreen }: {
   }, [deferredNavigation, getPendingRefresh, href, navigationStatus, router, tutor]);
   const loadTutorCourses = useCallback(async (signal: AbortSignal) => {
     if (!transport?.isCurrent() || !context?.roles.includes("tutor")) return [];
-    const dashboard = await createAcademicClient(bindAcademicSession(transport, locale)).tutor.dashboard(signal);
+    const dashboard = await createAcademicClient(bindAcademicSession(transport, locale, "tutor")).tutor.dashboard(signal);
     if (!Array.isArray(dashboard.courses)) throw new Error("Invalid tutor course list");
     return dashboard.courses.filter(course => typeof course?.courseId === "string" && typeof course.title === "string");
   }, [context, locale, transport]);
@@ -121,7 +124,7 @@ function ProductRoute({ href, pattern, owner, StudentScreen }: {
   }
   if (owner === "student" && StudentScreen && (state.status === "signed-in" || (state.status === "unavailable" && state.offlineIdentity))) {
     const identity = state.status === "signed-in" ? state : state.offlineIdentity;
-    return <RecheckingRoute enabled={studentAssessment} checking={access.retaining}>
+    return <RecheckingRoute enabled={studentAssessment} checking={access.retaining} canInteract={canInteract}>
       <StudentScreen key={JSON.stringify([identity?.accountId, identity?.sessionId])} href={href} pattern={pattern}
         locale={locale} theme={theme} showChrome={!access.retaining && context?.roles.includes("murid") === true}
         context={context} devicePreferences={devicePreferences}
@@ -143,7 +146,7 @@ function ProductRoute({ href, pattern, owner, StudentScreen }: {
   const accountKey = JSON.stringify([context.accountId, context.sessionId, locale]);
   if (role === "murid") return isFocused ? <StudentBrowserPage key={accountKey} locale={locale} href={href}
     canNavigate={() => navigationStatus() === "ready"} signOut={() => navigate("/sign-out")} /> : null;
-  return <RecheckingRoute enabled={tutor} checking={access.retaining}>
+  return <RecheckingRoute enabled={tutor} checking={access.retaining} canInteract={canInteract}>
     <StaffChrome key={accountKey} role={role} href={href} theme={theme} focused={isFocused} context={context}
       checkingAccess={access.retaining} session={transport} visit={visit} back={back} loadTutorCourses={loadTutorCourses}>
       {owner === "academic" ? <AcademicRoute href={href} session={transport} accountId={context.accountId}
@@ -154,10 +157,14 @@ function ProductRoute({ href, pattern, owner, StudentScreen }: {
   </RecheckingRoute>;
 }
 
-function RecheckingRoute({ enabled, checking, children }: { enabled: boolean; checking: boolean; children: ReactNode }) {
+function RecheckingRoute({ enabled, checking, canInteract, children }: {
+  enabled: boolean; checking: boolean; canInteract(): boolean; children: ReactNode;
+}) {
   if (!enabled) return children;
   return <>
-    <View style={checking ? { display: "none" } : { flex: 1 }}>{children}</View>
+    <ProtectedInteractionContext.Provider value={{ suspended: checking, canInteract }}>
+      <View style={checking ? { display: "none" } : { flex: 1 }}>{children}</View>
+    </ProtectedInteractionContext.Provider>
     {checking && <ActivityIndicator />}
   </>;
 }
@@ -173,7 +180,7 @@ function AcademicRoute({ session, locale, accountId, role, ...props }: {
     if (preserveList && focusedOnce.current) setRefresh(value => value + 1);
     focusedOnce.current = true;
   }, [preserveList]));
-  const transport = useMemo(() => bindAcademicSession(session, locale), [session, locale]);
+  const transport = useMemo(() => bindAcademicSession(session, locale, role === "tutor" ? role : undefined), [session, locale, role]);
 
   // Keep list filters on Back. Other Academic screens recheck their protected
   // resource from a fresh mount before displaying any previous result.

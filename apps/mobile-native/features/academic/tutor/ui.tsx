@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, type ViewProps } from "react-native";
+import { useProtectedInteraction } from "../../../routing/protected-interaction";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import { nativeColors, nativeLinkInks, nativeRadii } from "../../../../../packages/design-tokens/native-colors";
@@ -172,11 +173,13 @@ export function DashboardEmpty({ theme, icon, title, description, onAddSlot }: {
 export function TutorDetail({ theme, title, subtitle, onBack, children, footer }: {
   theme: TutorTheme; title: string; subtitle?: string; onBack: () => void; children: ReactNode; footer?: ReactNode;
 }) {
+  const { suspended, canInteract } = useProtectedInteraction();
   const colors = nativeColors[theme];
-  return <Modal animationType="none" presentationStyle="fullScreen" onRequestClose={onBack}>
+  const close = () => { if (canInteract()) onBack(); };
+  return <Modal visible={!suspended} animationType="none" presentationStyle="fullScreen" onRequestClose={close}>
     <SafeAreaView accessibilityViewIsModal testID="tutor-detail" style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={[styles.detailHeader, { borderColor: colors.border }]}>
-        <Header theme={theme} title={title} subtitle={subtitle} onBack={onBack} />
+        <Header theme={theme} title={title} subtitle={subtitle} onBack={close} />
       </View>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.page} style={{ flex: 1 }}>

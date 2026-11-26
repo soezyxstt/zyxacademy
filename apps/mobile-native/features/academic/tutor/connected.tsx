@@ -17,6 +17,8 @@ import type { TutorSlotEditor, TutorSlotPending } from "../../../../../packages/
 import { TutorDataError } from "../../../../../packages/native-parity/academic/tutor/model";
 import { Button } from "../../../components/Button";
 import { Input } from "../../../components/Input";
+import { NativeRequestNotDispatched } from "../../../network/transport";
+import { useProtectedInteraction } from "../../../routing/protected-interaction";
 import type { AcademicScreenProps } from "../contracts";
 import { SharedDialog } from "../../shared-ui";
 import { TutorWeekCalendar, tutorJakartaToday } from "./schedule-calendar";
@@ -45,6 +47,7 @@ export function ConnectedSchedule({ data: initial, week, theme, back, replace, q
   editor?: TutorSlotEditor;
   reload(signal: AbortSignal): Promise<TutorScheduleData>;
 }) {
+  const { canInteract } = useProtectedInteraction();
   const [scheduleState, setScheduleState] = useState<{ data: TutorScheduleData } | { error: string }>({ data: initial });
   const [tab, setTab] = useState<ScheduleTab>(query.tab === "tickets" ? "tickets" : "calendar");
   const [search, setSearch] = useState("");
@@ -105,7 +108,7 @@ export function ConnectedSchedule({ data: initial, week, theme, back, replace, q
   }
 
   async function save() {
-    if (!editor || !draft || !schedule || attempt.current || blocked) return;
+    if (!canInteract() || !editor || !draft || !schedule || attempt.current || blocked) return;
     const controller = new AbortController();
     const { signal } = controller;
     attempt.current = controller;
@@ -139,6 +142,8 @@ export function ConnectedSchedule({ data: initial, week, theme, back, replace, q
           setNeedsRefresh(true);
         }
       }
+    } catch {
+      if (!signal.aborted) setSlotError("Slot belum tersimpan. Coba simpan lagi.");
     } finally {
       attempt.current = null;
       if (!signal.aborted) setSaving(false);
@@ -356,6 +361,7 @@ function ConnectedDiscussionDetail({ theme, courseId, threadId, service, close, 
   close: () => void;
   onThread(thread: TutorDiscussThread): void;
 }) {
+  const { canInteract } = useProtectedInteraction();
   const [data, setData] = useState<TutorDiscussionDetail>();
   const [attempt, setAttempt] = useState(0);
   const [error, setError] = useState("");
@@ -428,7 +434,7 @@ function ConnectedDiscussionDetail({ theme, courseId, threadId, service, close, 
   }
 
   async function sendAnswer() {
-    if (!service.answer || !draft.trim() || sendRequest.current) return;
+    if (!canInteract() || !service.answer || !draft.trim() || sendRequest.current) return;
     const controller = new AbortController();
     const { signal } = controller;
     sendRequest.current = controller;
@@ -460,7 +466,8 @@ function ConnectedDiscussionDetail({ theme, courseId, threadId, service, close, 
     } catch (error) {
       if (!signal.aborted) {
         setPending(Boolean(service.pendingAnswer?.(threadId)));
-        if (accessEnded(error)) setUnavailable(true);
+        if (error instanceof NativeRequestNotDispatched && !service.pendingAnswer?.(threadId)) setSendMessage("Jawaban belum terkirim. Coba kirim lagi.");
+        else if (accessEnded(error)) setUnavailable(true);
         else if (error instanceof TutorDataError && error.status === 409) setSendMessage("Data telah berubah. Muat ulang diskusi.");
         else setSendMessage("Pengiriman belum terkonfirmasi. Coba lagi.");
       }

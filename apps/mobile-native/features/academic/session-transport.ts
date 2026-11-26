@@ -1,11 +1,11 @@
-import type { NativeRequestInit, NativeSessionTransport } from "../../network/transport";
+import type { NativeAccountRole, NativeRequestInit, NativeSessionTransport } from "../../network/transport";
 import type { AcademicResponse, AcademicTransport } from "./client";
 
 // Transport identity includes the server session, account, origin and locale. Previously
 // mounted routes may reuse their outstanding command receipts until this session ends.
 const bindings = new WeakMap<NativeSessionTransport, Map<string, AcademicTransport>>();
 
-export function bindAcademicSession(session: NativeSessionTransport, locale: string): AcademicTransport {
+export function bindAcademicSession(session: NativeSessionTransport, locale: string, writeRole?: NativeAccountRole): AcademicTransport {
   session.assertCurrent();
   let locales = bindings.get(session);
   if (!locales) {
@@ -13,7 +13,8 @@ export function bindAcademicSession(session: NativeSessionTransport, locale: str
     bindings.set(session, locales);
     session.signal.addEventListener("abort", () => bindings.delete(session), { once: true });
   }
-  const bound = locales.get(locale);
+  const key = JSON.stringify([locale, writeRole]);
+  const bound = locales.get(key);
   if (bound) return bound;
   async function request(path: string, init: NativeRequestInit): Promise<AcademicResponse> {
     const response = await session.request(path, init);
@@ -36,7 +37,7 @@ export function bindAcademicSession(session: NativeSessionTransport, locale: str
     accountId: session.scope.accountId, origin: session.scope.origin, locale,
     get: (path, signal) => request(path, { signal }),
     command: (path, init, signal) => request(path, {
-      method: init.method, signal, body: JSON.stringify(init.body),
+      method: init.method, signal, body: JSON.stringify(init.body), requiredRole: writeRole,
       headers: {
         "Content-Type": "application/json",
         "Origin": session.scope.origin,
@@ -44,6 +45,6 @@ export function bindAcademicSession(session: NativeSessionTransport, locale: str
       },
     }),
   };
-  locales.set(locale, boundTransport);
+  locales.set(key, boundTransport);
   return boundTransport;
 }

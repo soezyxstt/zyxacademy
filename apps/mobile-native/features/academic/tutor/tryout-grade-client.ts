@@ -1,4 +1,5 @@
 import { tryoutGradeRevisionPattern, type TryoutGradeCommand, type TryoutGradeDraft, type TryoutGradeEditor, type TryoutGradeResult } from "../../../../../packages/academic/tryout-grade";
+import { NativeRequestNotDispatched } from "../../../network/transport";
 import type { AcademicTransport } from "../client";
 
 type Pending = { data: TryoutGradeCommand; requestId: string; operation?: Promise<TryoutGradeResult> };
@@ -55,7 +56,11 @@ export function createTryoutGradeEditor(transport: AcademicTransport): TryoutGra
           pending.delete(key);
           drafts.delete(key);
           return { status: "saved", receipt: { requestId: entry.requestId, submissionId: submission, reviewRevision: payload.reviewRevision } };
-        } catch {
+        } catch (error) {
+          if (error instanceof NativeRequestNotDispatched && !existing) {
+            pending.delete(key);
+            throw error;
+          }
           return { status: "unknown" };
         }
       };

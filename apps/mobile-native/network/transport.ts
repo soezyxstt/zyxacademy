@@ -1,3 +1,7 @@
+import type { NativeAccountContext } from "../../../packages/native-session/context";
+
+export type NativeAccountRole = NativeAccountContext["roles"][number];
+
 export type NativeSessionScope = Readonly<{
   origin: string;
   accountId: string;
@@ -8,12 +12,14 @@ export type NativeSessionCredentials = NativeSessionScope & {
   /** Read the cookie header for this verified session from the caller's credential store. */
   readCookie(scope: NativeSessionScope): string | null | Promise<string | null>;
   /** Recheck immediately before dispatching a new request. */
-  canStartRequest?(method: string): boolean;
+  canStartRequest?(method: string, requiredRole?: NativeAccountRole): boolean;
 };
 
 export type NativeRequestInit = Pick<RequestInit, "body" | "headers" | "method" | "signal"> & {
   /** One replay on a network failure or a 502, 503, or 504 response. Only for bodyless GET and HEAD. */
   retry?: "transient-read";
+  /** Require fresh account access before a protected write reaches the network. */
+  requiredRole?: NativeAccountRole;
 };
 
 export type NativeResponse = Readonly<{
@@ -51,6 +57,13 @@ export class NativeTransportError extends Error {
   constructor(readonly code: keyof typeof ERROR_MESSAGES) {
     super(ERROR_MESSAGES[code]);
     this.name = "NativeTransportError";
+  }
+}
+
+export class NativeRequestNotDispatched extends Error {
+  constructor() {
+    super("Account access is not verified for this request.");
+    this.name = "NativeRequestNotDispatched";
   }
 }
 
@@ -255,7 +268,7 @@ export function createNativeTransport({ origin: configuredOrigin, fetcher }: { o
         signal,
         isCurrent: () => !signal.aborted,
         assertCurrent: () => assertActive(signal),
-        async request(path, { signal: caller, headers: requestHeaders, body, method = "GET", retry } = {}) {
+        async request(path, { signal: caller, headers: requestHeaders, body, method = "GET", retry, requiredRole } = {}) {
           assertActive(signal, caller);
           const url = originRequestUrl(path, origin);
           const headers = new Headers(requestHeaders);
@@ -286,7 +299,10 @@ export function createNativeTransport({ origin: configuredOrigin, fetcher }: { o
               let response: FetchResponse;
               try {
                 response = await untilAborted(lifetime.signal, () => {
-                  if (credentials.canStartRequest?.(requestMethod) === false) throw new NativeTransportError("credentials");
+                  if (credentials.canStartRequest?.(requestMethod, requiredRole) === false) {
+                    if (requiredRole) throw new NativeRequestNotDispatched();
+                    throw new NativeTransportError("credentials");
+                  }
                   return fetcher(url, {
                     method: requestMethod,
                     body,
@@ -298,7 +314,8 @@ export function createNativeTransport({ origin: configuredOrigin, fetcher }: { o
                 }, discardResponse);
               } catch (error) {
                 lifetime.assertCurrent();
-                if (error instanceof NativeTransportError && error.code === "credentials") throw error;
+                if (error instanceof NativeRequestNotDispatched ||
+                  (error instanceof NativeTransportError && error.code === "credentials")) throw error;
                 if (remaining) continue;
                 throw new NativeTransportError("network");
               }

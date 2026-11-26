@@ -1,4 +1,5 @@
 import type { TutorSlotEditor, TutorSlotPending, TutorSlotResult } from "../../../../../packages/academic/tutor-slot";
+import { NativeRequestNotDispatched } from "../../../network/transport";
 import type { AcademicTransport } from "../client";
 
 type Attempt = TutorSlotPending & { requestId: string; operation?: Promise<TutorSlotResult> };
@@ -47,7 +48,11 @@ export function createTutorSlotEditor(transport: AcademicTransport): TutorSlotEd
           }
           pending.delete(key);
           return { status: "saved", receipt: { requestId: attempt.requestId, slotId: data.slotId, date: fields.date } };
-        } catch {
+        } catch (error) {
+          if (error instanceof NativeRequestNotDispatched && !prior) {
+            pending.delete(key);
+            throw error;
+          }
           return { status: "unknown" };
         }
       };

@@ -45,9 +45,9 @@ def rewrite_once(path, before, after):
 
 
 def insert_hook(path, hook_import, anchor, hook):
-    first_import = path.read_text().splitlines()[0]
-    if first_import != hook_import:
-        rewrite_once(path, first_import, f"{hook_import}\n{first_import}")
+    imports = path.read_text().splitlines()
+    if hook_import not in imports:
+        rewrite_once(path, imports[0], f"{hook_import}\n{imports[0]}")
     rewrite_once(path, anchor, f"{anchor}\n  {hook}")
 
 
@@ -128,11 +128,58 @@ def mount_student_integration():
     for name, (anchor, hook) in chrome_hooks.items():
         insert_hook(MOBILE / "features/student" / name,
                     'import { useStudentChromeVisibility } from "../../../routing/student-chrome";', anchor, hook)
+    mount_student_assessment_verification()
 
     layout = MOBILE / "app/_layout.tsx"
     cleanup_import = 'import { AssessmentDraftCleanup } from "../features/student/assessment-drafts";'
     rewrite_once(layout, 'import { nativeFontSources }', f'{cleanup_import}\nimport {{ nativeFontSources }}')
     rewrite_once(layout, '<NativeAccountContextProvider>', '<NativeAccountContextProvider>\n          <AssessmentDraftCleanup />')
+
+
+def mount_student_assessment_verification():
+    assessment = MOBILE / "features/student/assessment"
+    client = assessment / "client.ts"
+    rewrite_once(client, '  const response = await request(assessmentApiPath(path), init);',
+                 '  const scoped = init && { ...init, requiredRole: "murid" as const };\n'
+                 '  const response = await request(assessmentApiPath(path), scoped);')
+    player = assessment / "player.tsx"
+    hooks = '  const props = useAssessment();\n  useStudentChromeVisibility({ hideBottom: true });'
+    rewrite_once(player, 'import { useStudentChromeVisibility }',
+                 'import { NativeRequestNotDispatched } from "../../../network/transport";\n'
+                 'import { useProtectedInteraction } from "../../../routing/protected-interaction";\n'
+                 'import { useStudentChromeVisibility }')
+    changes = [
+        (hooks, hooks + '\n  const { suspended, canInteract } = useProtectedInteraction();'),
+        ('if (!current || pendingRequest.current || uploadInProgress.current) return;',
+         'if (!canInteract() || !current || pendingRequest.current || uploadInProgress.current) return;'),
+        ('      let destination = `${course}/my-results`;',
+         '      if (!canInteract()) throw new NativeRequestNotDispatched();\n      let destination = `${course}/my-results`;'),
+        ('      if (!alive.current) return;\n      if (error instanceof AssessmentRequestError',
+         '      if (!alive.current) return;\n'
+         '      if (error instanceof NativeRequestNotDispatched) {\n'
+         '        auto.current = false;\n'
+         '        await update(current);\n'
+         '        return;\n'
+         '      }\n'
+         '      if (error instanceof AssessmentRequestError'),
+        ('[attemptId, base, course, drafts, kind, player.questions, replace, request, stage, storageKey, tx, update]',
+         '[attemptId, base, canInteract, course, drafts, kind, player.questions, replace, request, stage, storageKey, tx, update]'),
+        ('if (totalLeft !== 0 || !draft || uploading || auto.current || draft.pending) return;',
+         'if (suspended || !canInteract() || totalLeft !== 0 || !draft || uploading || auto.current || draft.pending) return;'),
+        ('[draft, kind, submit, totalLeft, tryout.timeExpired, tx, uploading]',
+         '[canInteract, draft, kind, submit, suspended, totalLeft, tryout.timeExpired, tx, uploading]'),
+        ('if (!draft || draft.pending || questionLeft !== 0 || totalLeft === 0 || confirm || uploading) return;',
+         'if (suspended || !canInteract() || !draft || draft.pending || questionLeft !== 0 || totalLeft === 0 || confirm || uploading) return;'),
+        ('[confirm, draft, messages.quiz.questionTimeEnded, messages.quiz.questionTimeEndedFinal, player.questions.length, questionLeft, totalLeft, update, uploading]',
+         '[canInteract, confirm, draft, messages.quiz.questionTimeEnded, messages.quiz.questionTimeEndedFinal, player.questions.length, questionLeft, suspended, totalLeft, update, uploading]'),
+        ('    <Modal transparent visible={confirm} animationType="none" onRequestClose={() => setConfirm(false)}>',
+         '    <Modal transparent visible={confirm && !suspended && props.focused !== false} animationType="none"\n'
+         '      onRequestClose={() => { if (canInteract()) setConfirm(false); }}>'),
+        ('onPress={() => setConfirm(false)}>{tryout.reviewAgain}',
+         'onPress={() => { if (canInteract()) setConfirm(false); }}>{tryout.reviewAgain}'),
+    ]
+    for before, after in changes:
+        rewrite_once(player, before, after)
 
 
 def mount_staff_chrome():

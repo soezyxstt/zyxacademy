@@ -1,6 +1,7 @@
 import type { TutorDiscussionDraft, TutorDiscussionSendResult, TutorSupportClient } from "../../../../../packages/academic/tutor-support";
 import { tutorPlaybackUrl } from "../../../../../packages/academic/tutor-support";
 import { TutorDataError } from "../../../../../packages/native-parity/academic/tutor/model";
+import { NativeRequestNotDispatched } from "../../../network/transport";
 import type { AcademicTransport } from "../client";
 import { createTryoutGradeEditor } from "./tryout-grade-client";
 import { createTutorSlotEditor } from "./slot-client";
@@ -68,7 +69,10 @@ export function createTutorSupportClient(transport: AcademicTransport): TutorSup
           method: "POST",
           body: { ...attempt, threadId },
           requestId: attempt.requestId,
-        }, signal);
+        }, signal).catch((error: unknown) => {
+          if (error instanceof NativeRequestNotDispatched && !existing && pending.get(threadId) === attempt) pending.delete(threadId);
+          throw error;
+        });
         if (!response.ok) {
           if ([400, 413, 415, 422].includes(response.status)) {
             pending.delete(threadId);
