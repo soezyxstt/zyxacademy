@@ -25,7 +25,7 @@ export function ReadingDocument(props: ReadingDocumentProps) {
   return <ReadingContentDocument key={JSON.stringify([saved.summary.key, saved.summary.revision, section])} content={content} />;
 }
 
-export function ReadingContentDocument({ content, testID = "offline-reading-document", onProgress, codingActions, onCodingAction, onVisualAction }: {
+export function ReadingContentDocument({ content, testID = "offline-reading-document", onProgress, codingActions, onCodingAction, onVisualAction, onSelectedText }: {
   content: ReadingContent; testID?: string; onProgress?: (percent: number) => void;
   codingActions?: ReadonlyMap<string, string>; onCodingAction?: (id: string) => void;
   onSelectedText?: (key: ReadingSelectionKey, text: unknown) => void;
@@ -35,6 +35,11 @@ export function ReadingContentDocument({ content, testID = "offline-reading-docu
   const theme = useColorScheme() === "dark" ? "dark" : "light";
   const { fontSize, density } = useNativeAppearance();
   const canOpenVisuals = Boolean(onVisualAction);
+  const nativeSelection = Boolean(onSelectedText) && (Platform.OS === "ios" || Platform.OS === "android");
+  const menuItems = nativeSelection ? [
+    { label: locale === "en" ? "Ask Zyra" : "Tanya Zyra", key: readingSelectionKeys.ask },
+    { label: locale === "en" ? "Copy" : "Salin", key: readingSelectionKeys.copy },
+  ] : undefined;
   const document = useMemo(() => {
     const visualActions = new Map<string, VisualAction>();
     try {
