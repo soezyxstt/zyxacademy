@@ -3,7 +3,7 @@ import type {
   OpsAiCitation,
   OpsAiActionProposalV2,
   OpsAiErrorData,
-} from "./contracts";
+} from "./chat-contract";
 import type { OpsFollowup } from "./followups";
 
 export interface OpsAiMessageV2 {

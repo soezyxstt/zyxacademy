@@ -3,7 +3,7 @@ import { randomUUID } from "expo-crypto";
 import { useEffect, useMemo, useRef, useState, type ComponentRef, type RefObject } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useOpsAiChat } from "../../../../../lib/admin-ops-ai/chat-client";
-import { OPS_AI_POLICY_BOUNDS, OpsAiActionProposalV2Schema, type OpsAiActionProposalV2 } from "../../../../../lib/admin-ops-ai/contracts";
+import { OPS_AI_POLICY_BOUNDS, OpsAiActionProposalV2Schema, type OpsAiActionProposalV2 } from "../../../../../lib/admin-ops-ai/chat-contract";
 import { stripOpsFollowupMarkup } from "../../../../../lib/admin-ops-ai/followups";
 import { nativeColors, nativeRadii } from "../../../../../packages/design-tokens/native-colors";
 import { Button } from "../../../components/Button";

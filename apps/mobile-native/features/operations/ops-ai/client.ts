@@ -1,5 +1,5 @@
 import type { NativeSessionTransport } from "../../../network/transport";
-import type { OpsAiActionProposalV2 } from "../../../../../lib/admin-ops-ai/contracts";
+import type { OpsAiActionProposalV2 } from "../../../../../lib/admin-ops-ai/chat-contract";
 
 export type ApprovalChoice = "once" | "chat";
 export type ApprovalReply = {

@@ -1,12 +1,12 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { OPS_AI_POLICY_BOUNDS } from "./contracts";
+import { OPS_AI_POLICY_BOUNDS } from "./chat-contract";
 import { validateOpsFollowups, type OpsFollowup } from "./followups";
 import type {
   OpsAiWorkStep,
   OpsAiCitation,
   OpsAiActionProposalV2,
   OpsAiErrorData,
-} from "./contracts";
+} from "./chat-contract";
 import type { OpsAiMessageV2 } from "./chat-message";
 
 // ============================================================================
@@ -25,7 +25,9 @@ export type OpsAiStreamPart =
   | { type: "tool-result"; toolCallId: string; toolName: string; output: unknown }
   | { type: "done" };
 
-export type OpsAiChatResponse = Pick<Response, "ok" | "body"> & {
+export type OpsAiChatResponse = {
+  ok: boolean;
+  body: ReadableStream<Uint8Array> | null;
   json(): Promise<unknown>;
   dispose?(): void;
 };
