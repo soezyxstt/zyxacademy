@@ -162,7 +162,7 @@ export function FormsPlayground() {
     </View>
     <View style={layout.item}>
       <View style={layout.inline}>
-        <Checkbox checked={values.agreed} disabled={busy} theme={theme}
+        <Checkbox testID="public-form-agreement" checked={values.agreed} disabled={busy} theme={theme}
           accessibilityLabel="Agree to the terms and rules of Zyx Academy"
           onCheckedChange={(checked) => change("agreed", checked === true)} />
         <Label style={{ flex: 1 }}>Agree to the terms and rules of Zyx Academy</Label>

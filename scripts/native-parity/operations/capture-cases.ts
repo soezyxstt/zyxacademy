@@ -3,6 +3,8 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { operationsCases } from "../../../packages/native-parity/operations/cases";
 
+import { caseInteractions } from "./case-interactions";
+
 const [flowDirectory, screenshotDirectory] = process.argv.slice(2);
 if (!flowDirectory || !screenshotDirectory) throw new Error("Expected flow directory and screenshot directory");
 mkdirSync(flowDirectory, { recursive: true });
@@ -17,12 +19,19 @@ for (const item of operationsCases) {
     "name: " + item.id,
     "---",
     "- openLink: " + JSON.stringify(url),
+    "- runFlow:",
+    "    when:",
+    "      platform: iOS",
+    "      visible: 'Open in .*Zyx Academy Native.*'",
+    "    commands:",
+    '      - tapOn: "Open"',
     "- assertVisible:",
     "    id: " + item.id,
     "- extendedWaitUntil:",
     "    notVisible:",
     "      id: operations-loading",
     "    timeout: 10000",
+    ...caseInteractions(item.id).map(command => "- " + JSON.stringify(command)),
     "- waitForAnimationToEnd",
     "- takeScreenshot: " + JSON.stringify(item.id),
     "",
