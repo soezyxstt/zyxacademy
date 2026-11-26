@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { externalVideoPath, learningApi, learningRequestPath, learningRouteViews, liveHostPattern } from "@/packages/native-parity/student/learning/contracts";
+import { applyLiveStateSync, type LiveQuizState } from "@/packages/native-parity/student/learning/live-socket";
 import { createLearningFixtureRequest, learningFixtureCases } from "@/packages/native-parity/student/learning/fixtures";
 
 const sessionGuard = mock(async (_request: Request): Promise<{ userId: string } | Response> => ({ userId: "student-a" }));
@@ -127,4 +128,18 @@ test("normalizes authorized YouTube playback locators without rewriting a signed
   expect(externalVideoPath("youtube/https://other.test")).toBeNull();
   const direct = "https://storage.test/asset.mp4?signature=a%3Db";
   expect(externalVideoPath(direct)).toBe(direct);
+});
+
+test("restores the revealed question, options, and score from the worker after reconnect", () => {
+  const initial: LiveQuizState = {
+    connectionStatus: "connected", sessionState: "lobby", participantCount: 0, currentQuestion: null, myAnswer: null,
+    countdown: 0, answerCounts: [], totalAnswered: 0, totalParticipants: 0, revealCorrectIndex: null, top10: [],
+    yourRank: null, yourScore: 0, finalBoard: [],
+  };
+  const revealed = applyLiveStateSync(initial, { sessionState: "reveal", currentQuestionIndex: 1,
+    prompt: "Which value is correct?", options: ["One", "Two"], correctIndex: 1, yourRank: 1, yourScore: 100 });
+  expect(revealed).toMatchObject({
+    sessionState: "reveal", revealCorrectIndex: 1, yourScore: 100,
+    currentQuestion: { questionIndex: 1, prompt: "Which value is correct?", options: ["One", "Two"], deadline: 0, total: 0 },
+  });
 });

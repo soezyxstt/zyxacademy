@@ -144,7 +144,9 @@ function ConnectedLive({ data, props, t, code, initialEndpoint, leave }: {
     <Copy muted>{t(`live.${state.connectionStatus}`)}</Copy>
     {state.connectionStatus === "disconnected" && phase !== "ended" ? <Message action={t("live.join")} onAction={leave}>{t("live.connectionRetry")}</Message> : null}
     {phase === "lobby" ? <Section title={t("live.waitingLobby")}><Copy>{t("live.participantsJoined", { count: state.participantCount })}</Copy></Section> : null}
-    {question && (phase === "question" || phase === "reveal") ? <Section title={t("live.questionPosition", { current: question.questionIndex + 1, total: question.total })}>
+    {question && (phase === "question" || phase === "reveal") ? <Section title={question.total > 0
+      ? t("live.questionPosition", { current: question.questionIndex + 1, total: question.total })
+      : t("live.question", { number: question.questionIndex + 1 })}>
       {phase === "question" ? <Copy>{t("live.timeRemaining", { seconds: state.countdown })}</Copy> : null}
       {render(question.prompt)}
       {question.coding ? <Button variant="outline" style={styles.action} onPress={() => launchWeb(props, props.route.path)}>

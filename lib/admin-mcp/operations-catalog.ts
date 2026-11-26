@@ -8,6 +8,20 @@ export const operationsCatalog = [
     "reason": "The Expo course views return metadata for the signed-in learner under the existing course policy. Activation is the learner's existing group token redemption flow, with live Student authorization and a bound account. Admin MCP tools retain their own enrollment and group permissions."
   },
   {
+    "source": "app/api/native/student/learning/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Expo learning reads, recall grades and PKA announcement acknowledgements are bound to the current Student account and use existing course or campaign authorization. PKA remains outside Admin MCP. Existing tools, OAuth consent and scopes, discovery, playbooks, packaged skills, host prompts and environment bindings are unchanged."
+  },
+  {
+    "source": "app/api/native/student/learning/live/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Joining a live room requires an interactive Student session, an active course enrollment and a valid room code. The short-lived token is specific to the learner and room. Tutor hosting remains independently authorized."
+  },
+  {
     "source": "app/api/native/context/route.ts",
     "actions": ["GET"],
     "tools": [],

@@ -48,6 +48,40 @@ const INITIAL_STATE: LiveQuizState = {
   finalBoard: [],
 };
 
+/** The worker can sync a reveal without a timer or total, for example on a reconnect. */
+export function applyLiveStateSync<Coding>(previous: LiveQuizState<Coding>, message: Record<string, unknown>): LiveQuizState<Coding> {
+  const phase = message.sessionState;
+  if (phase !== "lobby" && phase !== "question" && phase !== "reveal" && phase !== "ended") return previous;
+  const index = typeof message.currentQuestionIndex === "number" ? message.currentQuestionIndex : -1;
+  const sameQuestion = previous.currentQuestion?.questionIndex === index ? previous.currentQuestion : null;
+  const isRound = phase === "question" || phase === "reveal";
+  const question = isRound && index >= 0 && typeof message.prompt === "string" && Array.isArray(message.options)
+    && message.options.every((option) => typeof option === "string") ? {
+      prompt: message.prompt,
+      options: message.options as string[],
+      deadline: typeof message.deadline === "number" ? message.deadline : sameQuestion?.deadline ?? 0,
+      total: typeof message.total === "number" ? message.total : sameQuestion?.total ?? 0,
+      questionIndex: index,
+      coding: message.coding as Coding | undefined,
+      origin: message.origin === "zyx_original" || message.origin === "itb_example" ? message.origin : undefined,
+      sourceEventName: typeof message.sourceEventName === "string" ? message.sourceEventName : null,
+      sourceReferenceId: typeof message.sourceReferenceId === "string" ? message.sourceReferenceId : null,
+    } satisfies LiveQuizState<Coding>["currentQuestion"] : null;
+  return {
+    ...previous,
+    sessionState: phase,
+    participantCount: typeof message.participantCount === "number" ? message.participantCount : previous.participantCount,
+    currentQuestion: question,
+    myAnswer: typeof message.myAnswer === "number" ? message.myAnswer : phase === "reveal" && sameQuestion ? previous.myAnswer : null,
+    revealCorrectIndex: phase === "reveal" && typeof message.correctIndex === "number" ? message.correctIndex : null,
+    top10: Array.isArray(message.top10) ? message.top10 as LeaderboardEntry[] : previous.top10,
+    yourRank: typeof message.yourRank === "number" ? message.yourRank : previous.yourRank,
+    yourScore: typeof message.yourScore === "number" ? message.yourScore : previous.yourScore,
+    finalBoard: phase === "ended" && Array.isArray(message.finalBoard) ? message.finalBoard as LeaderboardEntry[] : previous.finalBoard,
+    answerCounts: Array.isArray(message.perOptionCounts) ? message.perOptionCounts as number[] : previous.answerCounts,
+  };
+}
+
 const MAX_BACKOFF_MS = 16_000;
 
 // Optional async provider that returns a fresh signed ws URL before each
@@ -117,41 +151,7 @@ export function createLiveQuizSocketHook({ useCallback, useEffect, useRef, useSt
           case "state_sync": {
             const ss = msg.sessionState as SessionState;
             sessionStateRef.current = ss;
-            setState((s) => ({
-              ...s,
-              sessionState: ss,
-              participantCount:
-                typeof msg.participantCount === "number" ? msg.participantCount : s.participantCount,
-              currentQuestion:
-                ss === "question" && msg.prompt
-                  ? {
-                      prompt: msg.prompt as string,
-                      options: msg.options as string[],
-                      deadline: msg.deadline as number,
-                      total: msg.total as number,
-                      questionIndex: msg.currentQuestionIndex as number,
-                      coding: msg.coding as Coding | undefined,
-                      origin: msg.origin as "zyx_original" | "itb_example" | undefined,
-                      sourceEventName: typeof msg.sourceEventName === "string" ? msg.sourceEventName : null,
-                      sourceReferenceId: typeof msg.sourceReferenceId === "string" ? msg.sourceReferenceId : null,
-                    }
-                  : null,
-              myAnswer: typeof msg.myAnswer === "number" ? msg.myAnswer : null,
-              revealCorrectIndex:
-                ss === "reveal" && typeof msg.correctIndex === "number"
-                  ? msg.correctIndex
-                  : null,
-              top10: Array.isArray(msg.top10) ? (msg.top10 as LeaderboardEntry[]) : s.top10,
-              yourRank: typeof msg.yourRank === "number" ? msg.yourRank : s.yourRank,
-              yourScore: typeof msg.yourScore === "number" ? msg.yourScore : s.yourScore,
-              finalBoard:
-                ss === "ended" && Array.isArray(msg.finalBoard)
-                  ? (msg.finalBoard as LeaderboardEntry[])
-                  : s.finalBoard,
-              answerCounts: Array.isArray(msg.perOptionCounts)
-                ? (msg.perOptionCounts as number[])
-                : s.answerCounts,
-            }));
+            setState((state) => applyLiveStateSync(state, msg));
             if (ss === "question" && typeof msg.deadline === "number") {
               startCountdown(msg.deadline as number);
             } else {
