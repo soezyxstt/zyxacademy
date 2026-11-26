@@ -88,7 +88,7 @@ describe("Zyra Stream Consumer", () => {
   });
 
   test("validates and normalizes followups in the web adapter", async () => {
-    const valid = { label: " Contoh ", prompt: " Tunjukkan contoh ", icon: "example", intent: "explain" };
+    const valid = { label: " Contoh ", prompt: " Tunjukkan contoh ", icon: "example", intent: "explain" } as const;
     const invalid = { ...valid, intent: "unknown" };
     const stream = createMockStream([
       `data: ${JSON.stringify({ type: "data-followups", followups: [valid] })}\n`,

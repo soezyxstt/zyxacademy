@@ -1,5 +1,5 @@
 import { type ComponentRef, forwardRef, useState } from "react";
-import { StyleSheet, TextInput, useColorScheme, type TextInputProps } from "react-native";
+import { Platform, StyleSheet, TextInput, useColorScheme, type TextInputProps } from "react-native";
 
 import { nativeColors, nativeRadii } from "../../../packages/design-tokens/native-colors";
 import { nativeTypography } from "../typography";
@@ -11,26 +11,37 @@ type InputProps = TextInputProps & {
 
 export const Input = forwardRef<ComponentRef<typeof TextInput>, InputProps>(function Input({
   accessibilityState,
+  defaultValue,
   disabled = false,
   editable = true,
   multiline = false,
   onBlur,
+  onChangeText,
   onFocus,
   placeholderTextColor,
+  renderToHardwareTextureAndroid,
   style,
   theme,
+  value,
   ...props
 }, ref) {
   const systemTheme = useColorScheme();
   const colors = nativeColors[theme ?? systemTheme ?? "light"];
   const [focused, setFocused] = useState(false);
+  const [uncontrolledEmpty, setUncontrolledEmpty] = useState(!defaultValue);
+  const empty = value === undefined ? uncontrolledEmpty : value.length === 0;
+  // Android lays out native hints without the editable text's custom line height.
+  const androidInset = empty ? styles.hintInset : multiline ? styles.multilineInset : undefined;
 
   return (
     <TextInput
       {...props}
       ref={ref}
+      defaultValue={defaultValue}
+      value={value}
       editable={!disabled && editable}
       multiline={multiline}
+      renderToHardwareTextureAndroid={renderToHardwareTextureAndroid ?? (multiline && disabled)}
       accessibilityState={{ ...accessibilityState, disabled }}
       placeholderTextColor={placeholderTextColor ?? colors.mutedForeground}
       underlineColorAndroid="transparent"
@@ -42,10 +53,15 @@ export const Input = forwardRef<ComponentRef<typeof TextInput>, InputProps>(func
         setFocused(false);
         onBlur?.(event);
       }}
+      onChangeText={(next) => {
+        if (Platform.OS === "android" && value === undefined) setUncontrolledEmpty(next.length === 0);
+        onChangeText?.(next);
+      }}
       style={[
         styles.input,
         multiline && styles.multiline,
         multiline && disabled && styles.disabled,
+        Platform.OS === "android" && androidInset,
         nativeTypography.bodyRegular,
         { backgroundColor: colors.background, borderColor: colors.input, color: colors.foreground },
         focused && !disabled && {
@@ -75,6 +91,8 @@ const styles = StyleSheet.create({
     textAlignVertical: "center",
   },
   multiline: { height: "auto", minHeight: 80, borderRadius: nativeRadii.lg, textAlignVertical: "top" },
+  hintInset: { paddingTop: 9, paddingBottom: 7 },
+  multilineInset: { paddingTop: 7, paddingBottom: 9 },
   disabled: { opacity: 0.5 },
 });
 

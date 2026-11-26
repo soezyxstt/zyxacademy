@@ -19,7 +19,7 @@ name: Label focuses the associated input
       id: label-long-dark-input
     above:
       id: label-disabled-light-input
-    relativePoint: "10%,50%"
+    point: "10%,50%"
 - assertVisible:
     id: label-disabled-light-input
     text: Preset bawaan
@@ -29,7 +29,7 @@ name: Label focuses the associated input
     text: Nama preset
     above:
       id: label-empty-light-input
-    relativePoint: "10%,50%"
+    point: "10%,50%"
 # Only the label is tapped before typing into its field.
 - inputText: Preset 789
 - assertVisible:

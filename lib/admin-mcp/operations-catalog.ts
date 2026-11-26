@@ -1,13 +1,6 @@
 /** Source-level coverage index. Tool registration is authoritative; partial does not imply every action is exposed. */
 export const operationsCatalog = [
   {
-    "source": "app/api/native/context/route.ts",
-    "actions": ["GET"],
-    "tools": [],
-    "status": "excluded",
-    "reason": "The Expo client reads the active account's own role memberships and locale for routing. Each product API still enforces object permissions. MCP client identity, consent, scopes, discovery, playbooks, packaged skills and environment bindings are independent."
-  },
-  {
     "source": "app/api/auth/native/expo/exchange/route.ts",
     "actions": ["POST"],
     "tools": [],
@@ -62,6 +55,20 @@ export const operationsCatalog = [
     "tools": [],
     "status": "excluded",
     "reason": "Installed-device version checks and installer launch require the native app. MCP tokens, scopes, consent, discovery, playbooks, packaged skills and host prompts cannot install or update a user's device."
+  },
+  {
+    "source": "app/api/native/context/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The Expo client reads the active account's own role memberships and locale for routing. Each product API still enforces object permissions. MCP client identity, consent, scopes, discovery, playbooks, packaged skills and environment bindings are independent."
+  },
+  {
+    "source": "apps/mobile-native/device/photo-controller.ts",
+    "actions": ["pick", "recover"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "A signed-in user chooses a photo for one local device draft. Camera consent and Android picker recovery are device actions. Upload authorization stays with the consuming domain. This adds no MCP operation, scope or environment binding."
   },
   {
     "source": "apps/mobile-native/device/notifications-controller.ts",
