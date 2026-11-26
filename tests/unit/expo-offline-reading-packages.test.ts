@@ -5,7 +5,7 @@ import { createHash } from "node:crypto";
 import { createNativeTransport } from "../../apps/mobile-native/network/transport";
 import { createOfflineMetadataStore } from "../../apps/mobile-native/offline/metadata-store";
 import { createOfflineReadingController } from "../../apps/mobile-native/offline/reading-client";
-import { readingKey, type OfflineReadingTarget } from "../../apps/mobile-native/offline/reading-contract";
+import { readingKey, type OfflineReadingData, type OfflineReadingTarget } from "../../apps/mobile-native/offline/reading-contract";
 import { subscribeOfflineReadingChanges } from "../../apps/mobile-native/offline/reading-events";
 import { createOfflineReadingStore, type OfflineReadingDatabase } from "../../apps/mobile-native/offline/reading-store";
 import type { NativeOfflineResourceDescriptor, NativeOfflineScope, NativeOfflineSyncResponse } from "../../apps/mobile-native/offline/sync-contract";
@@ -19,7 +19,10 @@ const revision = "a".repeat(64);
 const updatedRevision = "b".repeat(64);
 const target: OfflineReadingTarget = { courseId: "course-1", kind: "diktat", id: "reading-1" };
 const grant = { courseId: target.courseId, allowed: true, fullContent: true, chapterIds: ["chapter-1"], leaseExpiresAt: lease };
-const data = { id: target.id, courseId: target.courseId, title: "Peluang", kind: "article", docCategory: "diktat", contentVersion: 1, body: "Peluang dan frekuensi." };
+const data = {
+  id: target.id, courseId: target.courseId, title: "Peluang", kind: "article", docCategory: "diktat",
+  contentVersion: 1, body: "Peluang dan frekuensi.",
+} satisfies OfflineReadingData;
 const image = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const assetPath = `/api/offline/asset?${new URLSearchParams({ ...target, locale: scope.locale, revision, asset: "/images/sample.png" })}`;
 const headerIdentity = {
