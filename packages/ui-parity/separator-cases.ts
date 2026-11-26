@@ -15,12 +15,13 @@ export const separatorCases = [
 ] as const;
 
 export function getSeparatorPosition(orientation: "horizontal" | "vertical") {
+  const { width, height, contentWidth, contentHeight } = separatorFrame;
   const horizontal = orientation === "horizontal";
   return {
     position: "absolute",
-    left: horizontal ? (separatorFrame.width - separatorFrame.contentWidth) / 2 : separatorFrame.width / 2,
-    top: horizontal ? separatorFrame.height / 2 : (separatorFrame.height - separatorFrame.contentHeight) / 2,
-    width: horizontal ? separatorFrame.contentWidth : 1,
-    height: horizontal ? 1 : separatorFrame.contentHeight,
+    left: horizontal ? (width - contentWidth) / 2 : width / 2,
+    top: horizontal ? height / 2 : (height - contentHeight) / 2,
+    width: horizontal ? contentWidth : 1,
+    height: horizontal ? 1 : contentHeight,
   } as const;
 }

@@ -1,8 +1,9 @@
 """Compare native fixture crops at device scale with the corresponding browser crops."""
 import argparse
+import io
 from pathlib import Path
 
-from PIL import Image, ImageChops, ImageOps
+from PIL import Image, ImageChops, ImageCms, ImageOps
 
 CASES = ("separator-horizontal-light", "separator-vertical-light", "separator-horizontal-dark")
 MARKER = (224, 0, 239)
@@ -28,7 +29,11 @@ def main():
     parser.add_argument("scale", type=int, choices=(1, 3))
     parser.add_argument("--ready", action="store_true")
     args = parser.parse_args()
-    frame = Image.open(args.frame).convert("RGB")
+    frame = Image.open(args.frame)
+    profile = frame.info.get("icc_profile")
+    frame = frame.convert("RGB")
+    if profile:
+        frame = ImageCms.profileToProfile(frame, io.BytesIO(profile), ImageCms.createProfile("sRGB"))
     positions = crop_positions(frame, args.scale)
     if len(positions) != len(CASES):
         raise SystemExit(f"Expected {len(CASES)} marker strips, found {len(positions)}")

@@ -3,7 +3,9 @@ import { getSeparatorPosition, separatorCases, separatorFrame } from "@/packages
 
 export default function ParityPage() {
   return (
-    <main style={{ display: "grid", justifyContent: "center", gap: separatorFrame.gap, paddingBlock: separatorFrame.gap }}>
+    <main
+      style={{ display: "grid", justifyContent: "center", gap: separatorFrame.gap, paddingBlock: separatorFrame.gap }}
+    >
       {separatorCases.map(({ id, orientation, theme }) => (
         <div
           key={id}

@@ -1,4 +1,5 @@
 import { StyleSheet, useColorScheme, View, type StyleProp, type ViewStyle } from "react-native";
+
 import { nativeColors } from "../../../packages/design-tokens/native-colors";
 
 type SeparatorProps = {

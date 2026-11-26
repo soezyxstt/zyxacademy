@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { chromium, expect } from "@playwright/test";
 import { getSeparatorPosition, separatorCases, separatorFrame } from "../../../packages/ui-parity/separator-cases";
 
-const url = process.env.PARITY_WEB_URL ?? "http://127.0.0.1:3210";
+const url = process.env.PARITY_WEB_URL ?? "http://localhost:3210";
 const dpr = Number(process.env.PARITY_DPR ?? "1");
 if (dpr !== 1 && dpr !== 3) throw new Error("PARITY_DPR must be 1 or 3");
 
