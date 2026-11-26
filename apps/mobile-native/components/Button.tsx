@@ -146,7 +146,8 @@ export const Button = forwardRef<ComponentRef<typeof Pressable>, ButtonProps>(fu
             {isLoading && (
               <ActivityIndicator accessible={false} color={palette.ink} size="small" style={styles.loading} />
             )}
-            <View style={[
+            {/* Keep the content wrapper mounted when loading changes its opacity. */}
+            <View collapsable={false} style={[
               styles.content,
               wrapLabel && styles.wrappedContent,
               !iconOnly && { gap: dimensions.gap },

@@ -98,7 +98,7 @@ for (const item of communityCases) {
     "/profile/reflections:loaded": [{ tap: text(".*23 Nov 2026.*") }, { assert: text(".*Pertumbuhan penguasaan.*12.*") }],
     "/settings:empty": [{ tap: text("Tampilan") }, { assert: text("Tema mengikuti pengaturan perangkat.") }],
     "/settings:unavailable": [{ tap: text("English") }, { assert: text("Koneksi bermasalah. Coba lagi.") }, { tap: text("English") }, { assert: text("Bahasa tersimpan.") }],
-    "/settings/notifications:empty": [{ tap: text("Pengingat flashcard") }, { assert: text("Preferensi tersimpan.") }],
+    "/settings/notifications:empty": [{ tap: text("Pengingat flashcard") }, { scroll: text("Preferensi tersimpan\\.") }],
     "/dashboard/schedule:unavailable": [{ tap: text("Coba lagi") }, { assert: id("student-tutorial-calendar-event-slot-slot-integral") }],
     "/feedback:loaded": [{ scroll: id("student-feedback-message") }],
     "/feedback:empty": [{ scroll: id("student-feedback-message") }, { tap: id("student-feedback-message") }, { input: "Materi membantu saya belajar." }, { hideKeyboard: true }, { scroll: text("Kirim masukan") }, { tap: text("Kirim masukan") }, { assert: text("Masukan terkirim.") }],
