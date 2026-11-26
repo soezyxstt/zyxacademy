@@ -1,9 +1,12 @@
-import { afterEach, expect, test } from "bun:test";
+import { afterEach, expect, mock, test } from "bun:test";
 import { Database } from "bun:sqlite";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { createNativeSessionApi, NATIVE_STAGING_ORIGIN } from "@/apps/mobile-native/auth/session-api";
+import { createNativeSessionController } from "@/apps/mobile-native/auth/session-controller";
 import { createAssessmentDraftRepository, type AssessmentDraftDatabase } from "@/apps/mobile-native/features/student/assessment-draft-store";
+import { createNativeTransport } from "@/apps/mobile-native/network/transport";
 
 const valid = () => {};
 const primary = { origin: "https://classroom.example", accountId: "learner-a", sessionId: "session-a", locale: "id" } as const;
@@ -107,6 +110,45 @@ test("logout purges all locales after in-flight work and revocation blocks stale
   const reopened = disk.create();
   expect(await reopened.bind(primary, valid).drafts.get(key)).toBeNull();
   expect(await reopened.bind({ ...primary, locale: "en" }, valid).drafts.get(key)).toBeNull();
+});
+
+test("cold start purges every retired session locale on expiry or a server identity mismatch", async () => {
+  const origin = NATIVE_STAGING_ORIGIN;
+  const scope = { ...primary, origin };
+  const now = 100_000;
+  const cookie = `__Secure-better-auth.session_token=fixture.${"A".repeat(43)}%3D`;
+  for (const expired of [true, false]) {
+    const disk = sqlite();
+    const repository = disk.create();
+    const english = { ...scope, locale: "en" as const };
+    await repository.bind(scope, valid).drafts.set(key, "Indonesian draft");
+    await repository.bind(english, valid).drafts.set(key, "English draft");
+    await repository.bind(primary, valid).drafts.set(key, "Different origin");
+    let stored: string | null = JSON.stringify({ ...scope, cookie, status: "active", expiresAt: expired ? now : now + 60_000 });
+    const fetcher = mock(async () => Response.json({ user: { id: "another-learner" }, session: {
+      id: "another-session", userId: "another-learner", expiresAt: new Date(now + 60_000).toISOString(),
+    } }));
+    const controller = createNativeSessionController({
+      origin, now: () => now,
+      api: createNativeSessionApi(origin, fetcher),
+      dataTransport: createNativeTransport({ origin, fetcher }),
+      store: {
+        read: async () => stored,
+        write: async value => { stored = value; },
+        remove: async () => { stored = null; },
+      },
+    });
+    controller.subscribeBeforeLocalLogout(repository.purgeSession);
+    await controller.refresh();
+
+    expect(fetcher).toHaveBeenCalledTimes(expired ? 0 : 1);
+    expect(controller.getSnapshot()).toMatchObject({ state: { status: "signed-out" }, transport: null });
+    expect(stored).toBeNull();
+    const reopened = disk.create();
+    expect(await reopened.bind(scope, valid).drafts.get(key)).toBeNull();
+    expect(await reopened.bind(english, valid).drafts.get(key)).toBeNull();
+    expect(await reopened.bind(primary, valid).drafts.get(key)).toBe("Different origin");
+  }
 });
 
 test("surfaces a database failure to the caller and retries connection initialization on the next operation", async () => {

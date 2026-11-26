@@ -20,7 +20,7 @@ export function useAssessmentDrafts(transport: NativeSessionTransport | null, lo
 
 /** Mount for the lifetime of the native session host. */
 export function AssessmentDraftCleanup() {
-  const { subscribeBeforeLogout } = useNativeSession();
-  useEffect(() => subscribeBeforeLogout(cleanup => repository.purgeSession(cleanup.scope)), [subscribeBeforeLogout]);
+  const { subscribeBeforeLocalLogout } = useNativeSession();
+  useEffect(() => subscribeBeforeLocalLogout(repository.purgeSession), [subscribeBeforeLocalLogout]);
   return null;
 }
