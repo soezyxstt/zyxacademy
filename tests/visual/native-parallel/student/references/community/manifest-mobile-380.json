@@ -89,18 +89,23 @@
     {
       "id": "course-discussions",
       "scenario": "community-enrolled",
-      "path": "/courses/community-reference-matematika/discussions?thread=community-reference-thread",
+      "path": "/courses/community-reference-matematika/discussions",
       "expected": [
-        "Strategi menentukan limit kiri dan kanan",
-        "Bagaimana membandingkan limit kiri dan kanan pada fungsi potongan?"
+        "Strategi menentukan limit kiri dan kanan"
       ],
-      "status": "failed",
+      "status": "passed",
       "browser": "154.0.8037.57",
       "viewport": {
         "width": 380,
         "height": 844
       },
-      "error": "Error: expect(locator).toBeVisible() failed\n\nLocator: getByText('Strategi menentukan limit kiri dan kanan', { exact: true }).filter({ visible: true }).first()\nExpected: visible\nTimeout: 25000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"toBeVisible\" with timeout 25000ms\n  - waiting for getByText('Strategi menentukan limit kiri dan kanan', { exact: true }).filter({ visible: true }).first()\n"
+      "terminal": "/courses/community-reference-matematika/discussions",
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": false,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-course-discussions.png"
     },
     {
       "id": "dashboard-discussions",
@@ -115,7 +120,8 @@
         "width": 380,
         "height": 844
       },
-      "error": "Error: expect(locator).toBeVisible() failed\n\nLocator: getByText('Strategi menentukan limit kiri dan kanan', { exact: true }).filter({ visible: true }).first()\nExpected: visible\nTimeout: 25000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"toBeVisible\" with timeout 25000ms\n  - waiting for getByText('Strategi menentukan limit kiri dan kanan', { exact: true }).filter({ visible: true }).first()\n"
+      "terminal": "/dashboard/discussions",
+      "error": "Error: expect(locator).toBeVisible() failed\n\nLocator: getByRole('button', { name: 'Strategi menentukan limit kiri dan kanan' }).filter({ visible: true }).first()\nExpected: visible\nTimeout: 25000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"toBeVisible\" with timeout 25000ms\n  - waiting for getByRole('button', { name: 'Strategi menentukan limit kiri dan kanan' }).filter({ visible: true }).first()\n"
     },
     {
       "id": "discussions-alias",
@@ -205,15 +211,21 @@
       "path": "/calendar",
       "expected": [
         "Latihan limit komunitas",
-        "Klinik integral"
+        "Tutorial: Klinik integral"
       ],
-      "status": "failed",
+      "status": "passed",
       "browser": "154.0.8037.57",
       "viewport": {
         "width": 380,
         "height": 844
       },
-      "error": "Error: expect(locator).toBeVisible() failed\n\nLocator: getByText('Klinik integral', { exact: true }).filter({ visible: true }).first()\nExpected: visible\nTimeout: 25000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"toBeVisible\" with timeout 25000ms\n  - waiting for getByText('Klinik integral', { exact: true }).filter({ visible: true }).first()\n"
+      "terminal": "/calendar",
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": false,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-calendar.png"
     }
   ]
 }
