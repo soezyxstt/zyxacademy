@@ -916,6 +916,90 @@
       "ios": {
         "jobId": 140042922883,
         "status": "pending_at_observation"
+      },
+      "laterObservations": [
+        {
+          "observedAt": "2026-11-26T17:15:28Z",
+          "checkoutSha": "628e2ab0f206385cb1fd4725b92234ae06afc45a",
+          "android": {
+            "jobId": 140042922299,
+            "status": "device_flows_completed_with_failures",
+            "reason": "Generated smoke: {'passed': 199, 'blocked': 3, 'failed': 1}. Standalone flows: {'failed': 10, 'passed': 17}. Matched comparison: {'missing': 11, 'not_comparable': 1, 'different': 20, 'blocked_renderer': 1}.",
+            "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45857948643/artifacts/15139752771",
+            "summaryCounts": {
+              "passed": 199,
+              "blocked": 3,
+              "failed": 1
+            },
+            "standaloneInitialOutcomes": {
+              "transport_failure": 26,
+              "passed": 1
+            },
+            "standaloneRetryOutcomes": {
+              "failed": 10,
+              "passed": 16
+            },
+            "standaloneCounts": {
+              "failed": 10,
+              "passed": 17
+            },
+            "matchedComparisonCounts": {
+              "missing": 11,
+              "not_comparable": 1,
+              "different": 20,
+              "blocked_renderer": 1
+            },
+            "initialFailureCategories": {
+              "ADB transport": 38
+            },
+            "finalFailureCategories": {
+              "ADB transport": 1
+            },
+            "retryOutcomes": {
+              "passed": 37,
+              "failed": 1
+            },
+            "scrollRestoration": {
+              "status": "pass",
+              "region": [
+                38,
+                205,
+                342,
+                615
+              ],
+              "dimensions": [
+                380,
+                820
+              ],
+              "different_pixels": 0,
+              "before": "standalone-retry/003/results/2026-11-26_164603/Student course long material list fixture/takeScreenshot/student-long-content.png",
+              "after": "standalone-retry/003/results/2026-11-26_164603/Student course long material list fixture/takeScreenshot/student-long-content-restored.png"
+            }
+          },
+          "ios": {
+            "jobId": 140042922883,
+            "status": "queued_at_observation"
+          }
+        }
+      ]
+    },
+    {
+      "runId": 45863831357,
+      "sourceHead": "960a226363107a7ce444b71b6ac5216cd535b600",
+      "url": "https://github.com/soezyxstt/zyxacademy/actions/runs/45863831357",
+      "observedAt": "2026-11-26T17:15:28Z",
+      "web": {
+        "jobId": 140061462559,
+        "status": "passed",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45863831357/artifacts/15140455658"
+      },
+      "ios": {
+        "jobId": 140063862934,
+        "status": "pending_at_observation"
+      },
+      "android": {
+        "jobId": 140063863414,
+        "status": "in_progress_at_observation"
       }
     }
   ]
