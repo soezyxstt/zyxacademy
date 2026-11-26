@@ -181,9 +181,9 @@ export function List({ children }: { children: ReactNode }) {
   return <View style={[styles.list, { borderColor: colors.border }]}>{children}</View>;
 }
 
-export function ActionRow({ label, detail, value, icon, rank, selected, onPress }: {
+export function ActionRow({ label, detail, value, icon, rank, selected, onPress, testID }: {
   label: string; detail?: string | null; value?: string | number; icon?: string;
-  rank?: number; selected?: boolean; onPress?: () => void;
+  rank?: number; selected?: boolean; onPress?: () => void; testID?: string;
 }) {
   const { colors } = useMonitoringUi();
   const content = <>
@@ -203,6 +203,7 @@ export function ActionRow({ label, detail, value, icon, rank, selected, onPress 
   if (!onPress) return <View style={[styles.row, rank !== undefined && styles.rankedRow, { borderColor: colors.border }]}>{content}</View>;
   return (
     <Pressable accessibilityRole={icon ? "link" : "button"}
+      testID={testID}
       accessibilityLabel={[label, detail].filter(Boolean).join(". ")}
       accessibilityState={selected === undefined ? undefined : { selected }}
       onPress={onPress}

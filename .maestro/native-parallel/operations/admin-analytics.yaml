@@ -18,8 +18,15 @@ name: Operations Admin home to Web Analytics and access denial
             - tapOn: "Open"
 - scrollUntilVisible:
     element:
-      text: '.*Web Analytics.*'
-- tapOn: '.*Web Analytics.*'
+      id: operations-admin-home-web-analytics
+    # The iOS accessibility frame can extend past the ScrollView's safe area.
+    centerElement: true
+- waitForAnimationToEnd
+- tapOn:
+    id: operations-admin-home-web-analytics
+- extendedWaitUntil:
+    visible: Analitik web, 30 hari
+    timeout: 15000
 - assertVisible: Tampilan halaman
 - takeScreenshot: web-analytics
 - openLink: "zyx-native-parity://operations-fixture?caseId=&mode=empty&theme=dark&locale=id&path=%2Fadmin%2Fops%2Fweb-analytics"

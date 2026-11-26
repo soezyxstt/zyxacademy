@@ -27,6 +27,7 @@ export function HomeDashboardScreen({ reader, actions, navigate }: {
     {view.data.categories.map(category => <Section key={category.name} title={category.name}>
       <List>
         {category.items.map(item => <ActionRow key={item.href} icon={item.iconKey} label={item.title} detail={item.stat}
+          testID={item.href === "/admin/ops/web-analytics" ? "operations-admin-home-web-analytics" : undefined}
           onPress={() => navigate(item.href)} />)}
       </List>
     </Section>)}
