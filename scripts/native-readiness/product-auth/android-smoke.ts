@@ -57,6 +57,9 @@ async function runFlow(name: string, inputs: string[] = [], label = name) {
       ["student-inbox", "Student inbox"],
       ["PREVIEW_RECORD", "protected staff read"],
       ["Kuis Live Preview", "Tutor live quiz"],
+      ["native-reading-screen", "Student native reading"],
+      ["artikel kanonis", "canonical Article body"],
+      ["diktat PKA", "canonical PKA Diktat body"],
       ["Kuis selesai", "Tutor live conclusion"],
       ["Diktat verifikasi offline", "saved reading"],
       ["offline-library-list", "offline library"],
@@ -149,8 +152,18 @@ try {
     }
     console.log(`Android verified ${selected.label} login, a protected read, opposite-role denial and session revocation`);
   } else {
-    step = "complete browser login, open the Student dashboard, mark a notification read and sign out";
+    step = "complete browser login, open the Student dashboard and mark a notification read";
     await runFlow("student", ["-e", `PREVIEW_CLAIM=${fixture.claim}`, "-e", `PREVIEW_INBOX_ROW=student-inbox-row-${notificationId}`]);
+    step = "read the published Article with an admitted image and the registered PKA Diktat";
+    await runFlow("student-reading");
+    step = "withdraw the runner-only enrollment and PKA registration";
+    await fixture.revokeOnlineReading();
+    step = "reject the withdrawn Article from the normal Android document route";
+    await runFlow("student-reading-denied");
+    if (!fixture.verifiedOnlineReading()) throw new Error();
+    console.log("Android displayed the current Article and PKA Diktat, received the admitted image and denied the withdrawn reading");
+    step = "sign out from the Student account menu";
+    await runFlow("student-sign-out");
     step = "verify the dashboard, recipient-scoped inbox update and revoked session";
     if (!await fixture.verifiedAndRevoked()) throw new Error();
     console.log("Android completed a real browser handoff, opened the Student dashboard, marked one inbox row read and revoked the native session");

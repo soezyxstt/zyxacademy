@@ -105,6 +105,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
     import("@/app/api/notifications/quiet-hours/route"),
     import("@/app/api/student/upcoming-sessions/route"),
   ]) : null;
+  const previewReading = studentProduct ? await (await import("./reading-fixture")).createReadingPreview() : null;
   const previewVideo = studentProduct ? await (await import("./video-fixture")).createVideoPreview() : null;
   const staffReads = staff ? await (await import("./staff-fixture")).loadStaffReads() : null;
   const offline = offlineProduct ? await (await import("./offline-fixture")).createOfflinePreview() : null;
@@ -249,6 +250,11 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
         if (response.ok) loadedDashboard = true;
         return response;
       }
+      if (previewReading && browserIdentity && request.method === "GET") {
+        const identity = browserIdentity;
+        const response = await requestContext.run(upstream, () => previewReading.handle(upstream, identity));
+        if (response) return response;
+      }
       if (previewVideo && browserIdentity && request.method === "GET") {
         const identity = browserIdentity;
         const response = await requestContext.run(upstream, () => previewVideo(upstream, identity));
@@ -302,6 +308,8 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
     sawOfflineRevocation: () => offline?.sawRevocation() ?? false,
     browserTrustVerified: () => visitedHealth,
     verifiedTutorLive: () => tutorLive?.verified(),
+    revokeOnlineReading: () => previewReading?.revoke(),
+    verifiedOnlineReading: () => previewReading?.verified(),
     identity: () => browserIdentity && { accountId: browserIdentity.accountId, sessionId: browserIdentity.sessionId },
     progress() {
       if (signedOut) return "sign-out";
@@ -328,6 +336,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
       return (await auth.api.getSession({ headers, query: { disableCookieCache: true, disableRefresh: true } })) === null;
     },
     async stop() {
+      previewReading?.stop();
       await server.stop(true);
       await pool.end();
     },

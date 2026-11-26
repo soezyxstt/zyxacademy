@@ -1,0 +1,28 @@
+appId: com.zyx.academy.nativeparity
+name: Verify Student account menu, sign out and deny the old session
+---
+- openLink: "zyx-native-parity://dashboard"
+- extendedWaitUntil:
+    visible:
+      id: student-navbar-account
+    timeout: 30000
+- tapOn:
+    id: student-navbar-account
+- assertVisible: Expo Preview Student
+- assertVisible:
+    id: role-account-profile
+- assertVisible:
+    id: role-account-preferences
+- assertNotVisible:
+    id: role-account-adminPanel
+- tapOn:
+    id: role-account-sign-out
+- extendedWaitUntil:
+    visible: '(Kamu sudah keluar\.|You are signed out\.)'
+    timeout: 30000
+- openLink: "zyx-native-parity://dashboard"
+- extendedWaitUntil:
+    visible: "(Masuk dengan Google|Sign in with Google)"
+    timeout: 30000
+- assertNotVisible:
+    id: student-inbox

@@ -1,0 +1,10 @@
+appId: com.zyx.academy.nativeparity
+name: Student cannot reopen a reading after course access is withdrawn
+---
+- openLink: "zyx-native-parity://courses/native-preview-reading-course/material/native-preview-reading-article"
+- extendedWaitUntil:
+    visible: "(Materi terkunci|Material locked|Akses kelas tidak tersedia|Course access unavailable)"
+    timeout: 30000
+- assertNotVisible:
+    id: student-open-native-reading
+- assertNotVisible: ".*Isi artikel kanonis versi tiga.*"
