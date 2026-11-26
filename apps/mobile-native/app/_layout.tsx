@@ -3,6 +3,9 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider, initialWindowMetrics } from "react-native-safe-area-context";
 
+import { NativeSessionProvider } from "../auth/session-provider";
+import { NATIVE_STAGING_ORIGIN } from "../auth/session-api";
+import { NotificationsProvider } from "../device/notifications-provider";
 import { nativeFontSources } from "../typography";
 
 export default function RootLayout() {
@@ -16,7 +19,11 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
       <StatusBar style="auto" />
-      <Stack screenOptions={{ headerShown: false, animation: "none" }} />
+      <NativeSessionProvider origin={NATIVE_STAGING_ORIGIN}>
+        <NotificationsProvider>
+          <Stack screenOptions={{ headerShown: false, animation: "none" }} />
+        </NotificationsProvider>
+      </NativeSessionProvider>
     </SafeAreaProvider>
   );
 }

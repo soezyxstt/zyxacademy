@@ -2,17 +2,25 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSafeRedirectPath } from "@/lib/auth-redirect";
 import {
   NATIVE_AUTH_HANDOFF_COOKIE,
-  normalizeNativeAuthScheme,
   normalizeNativeAuthState,
   resolveNativeRequestOrigin,
 } from "@/lib/native/auth-handoff";
 
+import { normalizeBrowserHandoffScheme, EXPO_STAGING_ORIGIN, EXPO_STAGING_SCHEME } from "@/lib/native/expo-auth-config";
+import { isExpoCodeChallenge } from "@/lib/native/expo-auth-code";
+import { resolveAuthBaseUrl } from "@/lib/auth-site-url";
+
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
-  const scheme = normalizeNativeAuthScheme(request.nextUrl.searchParams.get("scheme"));
+  const scheme = normalizeBrowserHandoffScheme(request.nextUrl.searchParams.get("scheme"));
   const state = normalizeNativeAuthState(request.nextUrl.searchParams.get("state"));
   const safeNext = getSafeRedirectPath(request.nextUrl.searchParams.get("next") ?? undefined);
+
+  const challenge = request.nextUrl.searchParams.get("challenge");
+  if (scheme === EXPO_STAGING_SCHEME && (new URL(resolveAuthBaseUrl()).origin !== EXPO_STAGING_ORIGIN || !isExpoCodeChallenge(challenge))) {
+    return NextResponse.json({ error: "Invalid native auth parameters" }, { status: 400 });
+  }
 
   if (!scheme || !state) {
     return NextResponse.json({ error: "Invalid native auth parameters" }, { status: 400 });
@@ -31,7 +39,7 @@ export async function GET(request: NextRequest) {
 
   response.cookies.set(
     NATIVE_AUTH_HANDOFF_COOKIE,
-    JSON.stringify({ scheme, state, next: safeNext }),
+    JSON.stringify({ scheme, state, next: safeNext, challenge: scheme === EXPO_STAGING_SCHEME ? challenge : undefined }),
     {
       httpOnly: true,
       sameSite: "lax",
