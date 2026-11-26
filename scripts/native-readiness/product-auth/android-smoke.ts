@@ -72,9 +72,16 @@ async function runFlow(name: string, inputs: string[] = [], label = name) {
       ["admin-navbar-ops-ai", "Admin Ops AI entry"], ["admin-ops-ai-input", "Admin Ops AI composer"],
       ["Formulir preview tersedia", "Admin Ops AI Ask response"], ["Izinkan sekali", "Admin Ops AI proposal"],
       ["Aksi selesai", "Admin Ops AI action outcome"],
-      ["navbar-account", "staff account menu"], ["role-account-preferences", "staff settings shortcut"],
+      ["navbar-account", "staff account menu"], ["Expo Preview", "staff account name"],
+      ["role-account-profile", "staff profile shortcut"], ["role-account-preferences", "staff settings shortcut"],
+      ["Pengaturan", "staff settings"], ["Settings", "staff settings"], ["Bahasa", "language selector"],
+      ["role-account-sign-out", "staff sign-out shortcut"],
       ["Profil akademis", "signed staff profile"], ["Academic profile", "signed staff profile"],
       ["Kuis Live Preview", "Tutor live quiz"],
+      ["Buka ruang tunggu", "Tutor opens lobby"], ["1 peserta", "Tutor lobby participant"],
+      ["Soal Live Preview", "Tutor live question"], ["menjawab", "Tutor live answer count"],
+      ["Seleksi Preview", "Tutor question source"], ["Tampilkan jawaban", "Tutor reveal action"],
+      ["Akhiri kuis", "Tutor ends quiz"],
       ["native-reading-screen", "Student native reading"],
       ["pet-scene-rendered", "Pet Studio first rendered 3D frame"], ["Latihan berhitung", "Pet practice"],
       ["Benar 1", "Pet practice score"],
@@ -160,6 +167,11 @@ async function reportDeviceState() {
       ["Memeriksa akun", "account verification"], ["Masuk untuk melihat bacaan Anda", "offline sign-in gate"],
       ["native-auth-google", "signed-out entry"], ["student-dashboard", "Student dashboard"],
       ["native-saved-accounts", "saved accounts"], ["native-account-add", "add account"],
+      ["tutor-navbar-account", "Tutor navigation"], ["admin-navbar-account", "Admin navigation"],
+      ["Preview Tutor Course", "Tutor protected record"], ["Preview Admin Form", "Admin protected record"],
+      ["role-account-preferences", "staff account menu"], ["Profil akademis", "staff profile"],
+      ["Kuis Live Preview", "Tutor live activity"], ["admin-ops-ai-input", "Admin Ops AI chat"],
+      ["Akses ditolak", "wrong role denied"], ["Access denied", "wrong role denied"],
       ["native-tour", "guided tour"], ["Sign in", "sign-in control"], ["Dashboard", "dashboard navigation"],
       ["offline-library-list", "library collection"], ["Coba lagi", "retry action"], ["Try again", "retry action"],
     ].filter(([needle]) => hierarchy.includes(needle)).map(([, label]) => label);
@@ -245,11 +257,13 @@ try {
       PREVIEW_OTHER_RECORD: opposite.recordTitle,
       PREVIEW_WRONG_ROLE_URL: scheme + opposite.route.slice(1),
       PREVIEW_READ_URL: scheme + selected.route.slice(1),
-      PREVIEW_TUTOR_LIVE: staff === "tutor" ? "true" : "false",
-      PREVIEW_ADMIN_OPS_AI: staff === "admin" ? "true" : "false",
     }).flatMap(([name, value]) => ["-e", `${name}=${value}`]);
-    step = `complete ${selected.label} browser login, read data, reject the wrong role and sign out`;
-    await runFlow("staff", inputs, staff);
+    step = `complete ${selected.label} browser login and open the protected record`;
+    await runFlow("staff", inputs, `${staff}-login`);
+    step = staff === "tutor" ? "exercise the authorized Tutor live quiz" : "exercise Admin Ops AI and approve the fixture action";
+    await runFlow(staff === "tutor" ? "tutor-live" : "admin-ops-ai");
+    step = `reject the opposite role, view ${selected.label} settings and profile, and sign out`;
+    await runFlow("staff-profile-sign-out", inputs, `${staff}-profile-sign-out`);
     step = `verify the ${selected.label} account context, database record, opposite-role HTTP denial and revocation`;
     if (!await fixture.verifiedAndRevoked()) throw new Error();
     if (staff === "tutor") {
