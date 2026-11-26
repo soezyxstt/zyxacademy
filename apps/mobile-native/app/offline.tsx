@@ -9,7 +9,7 @@ import { useNativeAccountContext } from "../auth/use-account-context";
 import { NativeCompactShell, NativeStatusPanel } from "../features/shared-ui/layout";
 import { useOfflineLibraryData } from "../offline/library-data";
 import { OfflineCatalogView, type OfflineLibrarySection } from "../offline/catalog-view";
-import { offlineDocumentHref, filterOfflineLibrary, focusOfflineLibrary, offlineLibraryCopy, offlineLibraryFeedback, offlineLibraryTarget, type OfflineLibraryRow } from "../offline/library-model";
+import { offlineDocumentHref, filterOfflineLibrary, focusOfflineLibrary, offlineLibraryCopy, offlineLibraryFeedback, offlineLibraryTarget, offlineSignInReturn, type OfflineLibraryRow } from "../offline/library-model";
 import { OfflineLibraryView, type OfflineLibraryAction, type OfflineLibraryNotice } from "../offline/library-view";
 import { useOfflineCourseMetadata } from "../offline/lifecycle-provider";
 import type { OfflineReadingDownloadStatus } from "../offline/reading-contract";
@@ -136,7 +136,7 @@ export default function OfflineRoute() {
       blocked = <NativeStatusPanel title={metadata.status === "revoked" ? shared.unavailable : copy.denied} />;
     } else if (state.status === "signed-out" && !offline) {
       blocked = <NativeStatusPanel title={copy.signInTitle} action={{ id: "sign-in", label: copy.signIn }}
-        onAction={() => router.push(authEntryHref({ entry: "sign-in", locale, next: "/offline" }))} />;
+        onAction={() => router.push(authEntryHref({ entry: "sign-in", locale, next: offlineSignInReturn(routeTarget, params.read, params.section) }))} />;
     } else if (state.status === "loading" || revalidating || (state.status === "signed-in" && !account.context && !account.failed && !offline)) {
       loading = true;
     } else {

@@ -204,6 +204,13 @@ export const operationsCatalog = [
     "reason": "Web and Expo show personal achievement notifications for the active learner and acknowledge only that account's displayed events. These participant actions use the existing learner session."
   },
   {
+    "source": "app/.well-known/assetlinks.json/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The operating system reads Android package associations. Expo adds a configured signing fingerprint for the exact staging origin; the native manifest only claims selected product destinations. Existing session and role checks govern opening private data. This discovery document grants no MCP authority."
+  },
+  {
     "source": "app/api/app/latest/route.ts",
     "actions": ["GET"],
     "tools": [],

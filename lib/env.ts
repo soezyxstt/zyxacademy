@@ -143,6 +143,8 @@ export const env = createEnv({
   ANDROID_APP_LINKS_SHA256_FINGERPRINTS: z.string().optional(),
   /** Comma-separated SHA-256 certificate fingerprints for nightly Android App Links */
   ANDROID_APP_LINKS_NIGHTLY_SHA256_FINGERPRINTS: z.string().optional(),
+  /** Comma-separated SHA-256 certificate fingerprints for Expo staging Android only */
+  ANDROID_APP_LINKS_EXPO_STAGING_SHA256_FINGERPRINTS: z.string().optional(),
   /** Comma-separated Apple App Site Association appIDs (TEAMID.bundleId) */
   APPLE_APP_SITE_ASSOCIATION_APP_IDS: z.string().optional(),
   /** 10-character Apple Developer Team ID for Universal Links */
@@ -269,6 +271,7 @@ export const env = createEnv({
   // Mobile App Links / Universal Links
   ANDROID_APP_LINKS_SHA256_FINGERPRINTS: process.env.ANDROID_APP_LINKS_SHA256_FINGERPRINTS,
   ANDROID_APP_LINKS_NIGHTLY_SHA256_FINGERPRINTS: process.env.ANDROID_APP_LINKS_NIGHTLY_SHA256_FINGERPRINTS,
+  ANDROID_APP_LINKS_EXPO_STAGING_SHA256_FINGERPRINTS: process.env.ANDROID_APP_LINKS_EXPO_STAGING_SHA256_FINGERPRINTS,
   APPLE_APP_SITE_ASSOCIATION_APP_IDS: process.env.APPLE_APP_SITE_ASSOCIATION_APP_IDS,
   APPLE_APP_SITE_ASSOCIATION_TEAM_ID: process.env.APPLE_APP_SITE_ASSOCIATION_TEAM_ID,
   // Apple Push Notification service (APNs)

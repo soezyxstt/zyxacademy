@@ -95,7 +95,7 @@ const routePatterns = (Object.keys(returnRoutes) as Area[]).flatMap(area =>
 function readPathSegment(part: string): string {
   try {
     const decoded = decodeURIComponent(part);
-    return /^[\p{L}\p{N}._~-]+$/u.test(decoded) ? decoded : "";
+    return /^[\p{L}\p{N}._~:-]+$/u.test(decoded) ? decoded : "";
   } catch {
     return "";
   }

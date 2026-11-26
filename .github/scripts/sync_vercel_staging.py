@@ -9,11 +9,17 @@ from prepare_worker_runtime import prepare_worker_runtime
 PROJECT = "prj_9wDdc36VFIH5wJT45jEXIHGst2pb"
 TEAM = "team_rMFT8hSTCTObKzXirjJcbMFc"
 ENVIRONMENT = "env_puSffSpNjRY4ZXuB03j0H5Davx0X"
+EXPO_LINKS_FINGERPRINTS = "ANDROID_APP_LINKS_EXPO_STAGING_SHA256_FINGERPRINTS"
 
 
 def staging_env(secrets, variables):
     settings = prepare_worker_runtime("staging", secrets, variables)
     settings.pop("NODE_ENV", None)
+    expo_fingerprints = variables.get(EXPO_LINKS_FINGERPRINTS) or secrets.get(EXPO_LINKS_FINGERPRINTS)
+    if expo_fingerprints:
+        if not isinstance(expo_fingerprints, str):
+            raise ValueError("STAGING_EXPO_APP_LINKS_FINGERPRINTS_INVALID")
+        settings[EXPO_LINKS_FINGERPRINTS] = expo_fingerprints
     return [{"key": key, "value": value,
              "type": "encrypted" if key.startswith("NEXT_PUBLIC_") else "sensitive",
              "customEnvironmentIds": [ENVIRONMENT]} for key, value in sorted(settings.items())]

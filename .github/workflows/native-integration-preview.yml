@@ -42,6 +42,9 @@ on:
       - 'tests/unit/expo-interactive-document.test.ts'
       - 'tests/unit/expo-google-credential-login.test.ts'
       - 'tests/unit/expo-android-update.test.ts'
+      - 'tests/unit/expo-staging-app-links.test.ts'
+      - 'app/.well-known/assetlinks.json/route.ts'
+      - 'lib/well-known/mobile-links.ts'
       - 'app/api/app/latest/route.ts'
       - 'lib/native/published-release.ts'
       - 'tests/unit/expo-android-firebase.test.ts'
@@ -177,7 +180,7 @@ jobs:
           python3 scripts/native-readiness/test_merge_reviewed_preview.py
           python3 scripts/native-readiness/test_product_mount.py
           bun test tests/unit/expo-academic-intent.test.ts tests/gamification/question-disclosure-calls.test.ts tests/unit/expo-student-playground.test.ts tests/unit/native-student-assessment-drafts.test.ts
-          bun test tests/unit/expo-google-credential-login.test.ts tests/unit/expo-android-firebase.test.ts tests/unit/native-browser-login.test.ts tests/unit/expo-android-update.test.ts
+          bun test tests/unit/expo-google-credential-login.test.ts tests/unit/expo-android-firebase.test.ts tests/unit/native-browser-login.test.ts tests/unit/expo-android-update.test.ts tests/unit/expo-staging-app-links.test.ts
       - name: Verify all native product routes are committed on the integration branch
         run: |
           python3 scripts/native-readiness/product/mount.py --verify

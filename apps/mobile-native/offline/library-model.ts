@@ -34,6 +34,19 @@ export type OfflineLibraryData = {
   saved: readonly OfflineReadingSummary[];
 };
 
+export function offlineSignInReturn(target: OfflineLibraryTarget | null, read: unknown, section: unknown): string {
+  if (!target) return "/offline";
+  const query = new URLSearchParams({ courseId: target.courseId });
+  if (target.materialId) {
+    query.set("materialId", target.materialId);
+    if (read === "article" || read === "diktat") {
+      query.set("read", read);
+      if (typeof section === "string" && /^[\p{L}\p{N}._~:-]{1,200}$/u.test(section)) query.set("section", section);
+    }
+  }
+  return "/offline?" + query;
+}
+
 export function offlineLibraryScopeKey(scope: NativeOfflineScope | null, verifiedUntil: number, now: number) {
   return scope && verifiedUntil > now
     ? JSON.stringify([scope.origin, scope.accountId, scope.sessionId, scope.locale, verifiedUntil])
