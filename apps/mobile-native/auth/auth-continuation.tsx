@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter, useSitemap, type Href } from "expo-router";
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { Button } from "../components/Button";
 import { authCopy } from "./auth-copy";
@@ -37,6 +37,8 @@ export function AuthContinuation({ fallbackLocale, next }: { fallbackLocale: Nat
   const sitemap = useSitemap();
   const router = useRouter();
   const navigating = useRef(false);
+  const [openingDashboard, setOpeningDashboard] = useState(false);
+  const [dashboardFailed, setDashboardFailed] = useState(false);
   const currentAccount = state.status === "signed-in" && context?.accountId === state.accountId &&
     context.sessionId === state.sessionId ? context : null;
   const destination = currentAccount ? resolveNativeLoginReturn(next ?? loginIntent?.next, currentAccount, sitemap) : null;
@@ -54,6 +56,24 @@ export function AuthContinuation({ fallbackLocale, next }: { fallbackLocale: Nat
   const copy = authCopy[locale];
   const signOut = () => router.replace({ pathname: "/sign-out", params: { locale } });
 
+  const openDashboard = async (dashboard: string) => {
+    if (!transport?.isCurrent() || navigating.current) return;
+    navigating.current = true;
+    setOpeningDashboard(true);
+    setDashboardFailed(false);
+    try {
+      await clearLoginIntent(state);
+      if (transport.isCurrent()) {
+        router.replace(dashboard as Href);
+        return;
+      }
+    } catch {
+      setDashboardFailed(true);
+    }
+    navigating.current = false;
+    setOpeningDashboard(false);
+  };
+
   if (failed) {
     return <AuthPage title={copy.native.unavailable}>
       <AuthStatus error>{denied ? copy.native.accountDenied : copy.native.accountUnavailable}</AuthStatus>
@@ -66,13 +86,11 @@ export function AuthContinuation({ fallbackLocale, next }: { fallbackLocale: Nat
     return <AuthPage title={copy.native.finishing}><AuthStatus busy center>{copy.native.preparing}</AuthStatus></AuthPage>;
   }
 
+  const dashboard = destination.dashboard;
   return <AuthPage title={copy.native.signedIn}>
     <AuthStatus>{destination.status === "denied" ? copy.native.destinationDenied : copy.native.destinationUnavailable}</AuthStatus>
-    {destination.dashboard && <Button onPress={() => {
-      if (!transport?.isCurrent() || !destination.dashboard) return;
-      router.replace(destination.dashboard as Href);
-      if (destination.status === "denied") void clearLoginIntent(state).catch(() => {});
-    }}>{copy.native.dashboard}</Button>}
-    <Button variant="outline" onPress={signOut}>{copy.signOut.title}</Button>
+    {dashboardFailed && <AuthStatus error>{copy.native.dashboardFailed}</AuthStatus>}
+    {dashboard && <Button isLoading={openingDashboard} onPress={() => void openDashboard(dashboard)}>{copy.native.dashboard}</Button>}
+    <Button variant="outline" disabled={openingDashboard} onPress={signOut}>{copy.signOut.title}</Button>
   </AuthPage>;
 }
