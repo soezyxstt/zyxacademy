@@ -1,0 +1,100 @@
+{
+  "sourceHead": "68d7ab400177773341ee46e4d425c4383ccc6261",
+  "checkoutSha": "32d3f391b2db18563ddb64e1b6c04b21ccfcdf4e",
+  "checkoutEvidence": "Same pull-request workflow checkout SHA verified in the paired Android job. The iOS job logs were unavailable after cancellation.",
+  "workflowRun": "https://github.com/soezyxstt/zyxacademy/actions/runs/45806783256",
+  "jobId": 139865143324,
+  "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45806783256/artifacts/15121444766",
+  "artifactSha256": "6c52672ffeedd2436700aea9cc9b86b3417ec7cb75854acfa1a4895959472022",
+  "status": "device_flows_cancelled_with_failures",
+  "reason": "Maestro produced failure diagnostics on iPhone 17 Pro. An iOS system dialog requesting permission to open Zyx Academy Native appeared on the route-entry screen. All 18 standalone scenarios failed, and all 20 generated cases with a JUnit result failed while waiting for separator. The combined step was cancelled 150 minutes after the job started, and the upload published partial evidence.",
+  "summaryCounts": {
+    "not_run": 180,
+    "blocked": 3,
+    "failed": 20
+  },
+  "standaloneCounts": {
+    "failed": 18
+  },
+  "diagnosticCounts": {
+    "rawPngs": 113,
+    "namedProductCaptures": 0,
+    "retainedFailurePngs": 4,
+    "standalonePromptHierarchies": 18,
+    "generatedPromptHierarchies": 95
+  },
+  "notes": [
+    "The 180 not_run rows have no completed JUnit record. This count does not establish that Maestro never attempted them.",
+    "Diagnostic PNGs show the blocking system state and carry no passing state or comparison credit.",
+    "The newer Student workflow confirms this specific prompt with the repository gallery helper before it runs Student flows."
+  ],
+  "comparison": [
+    {
+      "id": "catalog-all",
+      "status": "missing",
+      "reason": "One or both capture files are absent or ambiguous."
+    },
+    {
+      "id": "catalog-tpb",
+      "status": "missing",
+      "reason": "One or both capture files are absent or ambiguous."
+    },
+    {
+      "id": "catalog-pka",
+      "status": "missing",
+      "reason": "One or both capture files are absent or ambiguous."
+    }
+  ],
+  "diagnosticArchive": "diagnostic-captures.zip",
+  "diagnosticArchiveSha256": "0bba1d196397cf07d927eb927e3d3fa6398f8c8d16aa9b765785c2fe26f88f79",
+  "captures": [
+    {
+      "file": "captures/catalog-open-dialog.png",
+      "archiveFile": "catalog-open-dialog.png",
+      "member": "results/2026-11-26_120418/Catalog comparable fixture all TPB and PKA/screenshots/step-004-assertCondition-separator.png",
+      "hierarchyMember": "results/2026-11-26_120418/Catalog comparable fixture all TPB and PKA/screen-hierarchy/step-004-assertCondition-separator.json",
+      "sha256": "846dc69fb830293766f807c9ac3343cdd5856e887272f22b624c97a98475576e",
+      "dimensions": [
+        1206,
+        2622
+      ],
+      "status": "failed_before_route"
+    },
+    {
+      "file": "captures/flashcard-open-dialog.png",
+      "archiveFile": "flashcard-open-dialog.png",
+      "member": "results/2026-11-26_120418/Learning flashcard flip and grade/screenshots/step-004-assertCondition-separator.png",
+      "hierarchyMember": "results/2026-11-26_120418/Learning flashcard flip and grade/screen-hierarchy/step-004-assertCondition-separator.json",
+      "sha256": "776591d5bc5749ff83239d5d1c3497fa8e36d4c350d38a3ff0adb37899f4cc07",
+      "dimensions": [
+        1206,
+        2622
+      ],
+      "status": "failed_before_route"
+    },
+    {
+      "file": "captures/materials-open-dialog.png",
+      "archiveFile": "materials-open-dialog.png",
+      "member": "results/2026-11-26_120418/Student course long material list fixture/screenshots/step-004-assertCondition-separator.png",
+      "hierarchyMember": "results/2026-11-26_120418/Student course long material list fixture/screen-hierarchy/step-004-assertCondition-separator.json",
+      "sha256": "c1be14aac126956eab810ec5971a5e0f9142fc9a4d85385806d016fa42f8ce34",
+      "dimensions": [
+        1206,
+        2622
+      ],
+      "status": "failed_before_route"
+    },
+    {
+      "file": "captures/generated-course-open-dialog.png",
+      "archiveFile": "generated-course-open-dialog.png",
+      "member": "smoke/courses/results/2026-11-26_122143/smoke-001/screenshots/step-004-assertCondition-separator.png",
+      "hierarchyMember": "smoke/courses/results/2026-11-26_122143/smoke-001/screen-hierarchy/step-004-assertCondition-separator.json",
+      "sha256": "55e4bf83d5bdd0150bf8d6ab0b35aab34e8a6c5873c6a343beed026daa09e3f0",
+      "dimensions": [
+        1206,
+        2622
+      ],
+      "status": "failed_before_route"
+    }
+  ]
+}

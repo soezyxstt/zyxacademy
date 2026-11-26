@@ -1,0 +1,65 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+  <testsuite name="Test Suite" device="iPhone 17 Pro - iOS 26.2 - EED6FB0A-E273-43C6-B5DE-3DF739543042" tests="20" failures="20" time="956.867" timestamp="2026-11-26T12:22:11">
+    <testcase id="smoke-001" name="smoke-001" classname="smoke-001" file="/Users/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/courses/smoke-001.yaml" time="47.329" timestamp="2026-11-26T12:22:11" status="ERROR">
+      <failure>Assertion is false: "separator" is visible</failure>
+    </testcase>
+    <testcase id="smoke-002" name="smoke-002" classname="smoke-002" file="/Users/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/courses/smoke-002.yaml" time="41.481" timestamp="2026-11-26T12:22:58" status="ERROR">
+      <failure>Assertion is false: "separator" is visible</failure>
+    </testcase>
+    <testcase id="smoke-003" name="smoke-003" classname="smoke-003" file="/Users/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/courses/smoke-003.yaml" time="46.008" timestamp="2026-11-26T12:23:40" status="ERROR">
+      <failure>Assertion is false: "separator" is visible</failure>
+    </testcase>
+    <testcase id="smoke-004" name="smoke-004" classname="smoke-004" file="/Users/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/courses/smoke-004.yaml" time="51.845" timestamp="2026-11-26T12:24:26" status="ERROR">
+      <failure>Assertion is false: "separator" is visible</failure>
+    </testcase>
+    <testcase id="smoke-005" name="smoke-005" classname="smoke-005" file="/Users/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/courses/smoke-005.yaml" time="42.819" timestamp="2026-11-26T12:25:18" status="ERROR">
+      <failure>Assertion is false: "separator" is visible</failure>
+    </testcase>
+    <testcase id="smoke-006" name="smoke-006" classname="smoke-006" file="/Users/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/courses/smoke-006.yaml" time="44.669" timestamp="2026-11-26T12:26:01" status="ERROR">
+      <failure>Assertion is false: "separator" is visible</failure>
+    </testcase>
+    <testcase id="smoke-007" name="smoke-007" classname="smoke-007" file="/Users/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/courses/smoke-007.yaml" time="50.082" timestamp="2026-11-26T12:26:45" status="ERROR">
+      <failure>Assertion is false: "separator" is visible</failure>
+    </testcase>
+    <testcase id="smoke-008" name="smoke-008" classname="smoke-008" file="/Users/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/courses/smoke-008.yaml" time="49.258" timestamp="2026-11-26T12:27:35" status="ERROR">
+      <failure>Assertion is false: "separator" is visible</failure>
+    </testcase>
+    <testcase id="smoke-009" name="smoke-009" classname="smoke-009" file="/Users/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/courses/smoke-009.yaml" time="57.36" timestamp="2026-11-26T12:28:25" status="ERROR">
+      <failure>Assertion is false: "separator" is visible</failure>
+    </testcase>
+    <testcase id="smoke-010" name="smoke-010" classname="smoke-010" file="/Users/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/courses/smoke-010.yaml" time="47.002" timestamp="2026-11-26T12:29:22" status="ERROR">
+      <failure>Assertion is false: "separator" is visible</failure>
+    </testcase>
+    <testcase id="smoke-011" name="smoke-011" classname="smoke-011" file="/Users/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/courses/smoke-011.yaml" time="45.573" timestamp="2026-11-26T12:30:09" status="ERROR">
+      <failure>Assertion is false: "separator" is visible</failure>
+    </testcase>
+    <testcase id="smoke-012" name="smoke-012" classname="smoke-012" file="/Users/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/courses/smoke-012.yaml" time="47.795" timestamp="2026-11-26T12:30:55" status="ERROR">
+      <failure>Assertion is false: "separator" is visible</failure>
+    </testcase>
+    <testcase id="smoke-013" name="smoke-013" classname="smoke-013" file="/Users/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/courses/smoke-013.yaml" time="47.011" timestamp="2026-11-26T12:31:43" status="ERROR">
+      <failure>Assertion is false: "separator" is visible</failure>
+    </testcase>
+    <testcase id="smoke-014" name="smoke-014" classname="smoke-014" file="/Users/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/courses/smoke-014.yaml" time="48.441" timestamp="2026-11-26T12:32:30" status="ERROR">
+      <failure>Assertion is false: "separator" is visible</failure>
+    </testcase>
+    <testcase id="smoke-015" name="smoke-015" classname="smoke-015" file="/Users/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/courses/smoke-015.yaml" time="47.131" timestamp="2026-11-26T12:33:18" status="ERROR">
+      <failure>Assertion is false: "separator" is visible</failure>
+    </testcase>
+    <testcase id="smoke-016" name="smoke-016" classname="smoke-016" file="/Users/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/courses/smoke-016.yaml" time="43.59" timestamp="2026-11-26T12:34:05" status="ERROR">
+      <failure>Assertion is false: "separator" is visible</failure>
+    </testcase>
+    <testcase id="smoke-017" name="smoke-017" classname="smoke-017" file="/Users/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/courses/smoke-017.yaml" time="49.67" timestamp="2026-11-26T12:34:49" status="ERROR">
+      <failure>Assertion is false: "separator" is visible</failure>
+    </testcase>
+    <testcase id="smoke-018" name="smoke-018" classname="smoke-018" file="/Users/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/courses/smoke-018.yaml" time="44.609" timestamp="2026-11-26T12:35:39" status="ERROR">
+      <failure>Assertion is false: "separator" is visible</failure>
+    </testcase>
+    <testcase id="smoke-019" name="smoke-019" classname="smoke-019" file="/Users/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/courses/smoke-019.yaml" time="50.362" timestamp="2026-11-26T12:36:23" status="ERROR">
+      <failure>Assertion is false: "separator" is visible</failure>
+    </testcase>
+    <testcase id="smoke-020" name="smoke-020" classname="smoke-020" file="/Users/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/courses/smoke-020.yaml" time="54.244" timestamp="2026-11-26T12:37:14" status="ERROR">
+      <failure>Assertion is false: "separator" is visible</failure>
+    </testcase>
+  </testsuite>
+</testsuites>

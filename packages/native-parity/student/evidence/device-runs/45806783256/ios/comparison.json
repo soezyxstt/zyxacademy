@@ -1,0 +1,62 @@
+[
+  {
+    "id": "catalog-all",
+    "platform": "ios",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/ios/catalog-all.png",
+      "width": 1206,
+      "height": 2622
+    },
+    "native": null,
+    "status": "missing",
+    "reason": "One or both capture files are absent or ambiguous."
+  },
+  {
+    "id": "catalog-tpb",
+    "platform": "ios",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/ios/catalog-tpb.png",
+      "width": 1206,
+      "height": 2622
+    },
+    "native": null,
+    "status": "missing",
+    "reason": "One or both capture files are absent or ambiguous."
+  },
+  {
+    "id": "catalog-pka",
+    "platform": "ios",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/ios/catalog-pka.png",
+      "width": 1206,
+      "height": 2622
+    },
+    "native": null,
+    "status": "missing",
+    "reason": "One or both capture files are absent or ambiguous."
+  },
+  {
+    "id": "catalog-versus-enrolled-dashboard",
+    "platform": "ios",
+    "web": {
+      "path": "artifacts/student-evidence/web/visual-quality/results/native-parallel-student-we-a025d-ulated-filtered-and-loading-mobile-380/catalog-populated.png",
+      "width": 380,
+      "height": 844
+    },
+    "native": null,
+    "status": "missing",
+    "reason": "One or both capture files are absent or ambiguous."
+  },
+  {
+    "id": "catalog-versus-unenrolled-dashboard",
+    "platform": "ios",
+    "web": {
+      "path": "artifacts/student-evidence/web/visual-quality/results/native-parallel-student-we-a025d-ulated-filtered-and-loading-mobile-380/catalog-populated.png",
+      "width": 380,
+      "height": 844
+    },
+    "native": null,
+    "status": "missing",
+    "reason": "One or both capture files are absent or ambiguous."
+  }
+]
