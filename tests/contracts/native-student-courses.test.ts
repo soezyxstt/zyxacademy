@@ -4,6 +4,8 @@ import {
   type LearningQuery, type MaterialListData, type MaterialDetailData,
 } from "@/packages/native-parity/student/courses/contract";
 import { createCourseFixtureRequest } from "@/packages/native-parity/student/courses/fixtures";
+import { materialReferenceScenarios } from "@/packages/native-parity/student/courses/material-reference";
+import { matchStudentRoute, studentMaterialReaderTarget } from "@/apps/mobile-native/features/student/routes";
 
 const authGuard = mock(async (_request: Request): Promise<{ userId: string } | Response> => ({ userId: "learner-a" }));
 const loadCourse = mock(async (_student: string, _query: LearningQuery): Promise<unknown> => ({ view: "catalog", courses: [], targetCategory: null }));
@@ -90,6 +92,28 @@ describe("native Student course fixtures", () => {
       expect(preview.material.locked).toBeFalse();
       expect((await (await learner(dashboard)).json()).enrolled).toEqual([]);
       expect(Object.keys(locked.material).sort()).toEqual(["completed", "group", "id", "kind", "locked", "title"]);
+    }
+  });
+
+  test("replays product material identities and preserves the permitted preview after a locked reader", async () => {
+    for (const scenario of materialReferenceScenarios) {
+      const learner = createCourseFixtureRequest(scenario);
+      const list: MaterialListData = await (await learner(materialList)).json();
+      const premium = list.materials.find(row => row.id === "dokumen-4")!;
+      const route = matchStudentRoute(materialRowPath(courseId, premium))!;
+      expect(route.params.materialId).toBe("dokumen-4");
+      const reader: MaterialDetailData = await (await learner(materialDetail(route.params.materialId))).json();
+      expect(reader.material).toMatchObject({ id: premium.id, title: premium.title, locked: scenario !== "course-material-enrolled" });
+      const target = studentMaterialReaderTarget(route, reader);
+      if (scenario === "course-material-enrolled") {
+        expect(target).toMatchObject({ kind: "article", courseId, materialId: "dokumen-4" });
+      } else {
+        expect(target).toBeNull();
+      }
+      expect((await learner(materialDetail("missing"))).status).toBe(404);
+      const preview: MaterialDetailData = await (await learner(materialDetail("dokumen-1"))).json();
+      const previewRoute = matchStudentRoute(materialPath(courseId, "dokumen-1"))!;
+      expect(studentMaterialReaderTarget(previewRoute, preview)).toMatchObject({ kind: "article", courseId, materialId: "dokumen-1" });
     }
   });
 

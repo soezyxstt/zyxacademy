@@ -8,6 +8,10 @@ const origin = new URL(process.env.BETTER_AUTH_URL ?? "").origin;
 if (!["localhost", "127.0.0.1"].includes(new URL(origin).hostname)) throw new Error("Local product origin required");
 const out = process.env.STUDENT_CAPTURE_DIR ?? "artifacts/student-evidence/product";
 await mkdir(out, { recursive: true });
+const platform = process.env.STUDENT_CAPTURE_PLATFORM ?? "android";
+if (platform !== "android" && platform !== "ios") throw new Error("Expected android or ios capture target");
+const viewport = platform === "android" ? { width: 380, height: 820 } : { width: 402, height: 874 };
+const deviceScaleFactor = platform === "android" ? 1 : 3;
 
 const scenarios = ["enrolled", "unenrolled", "revoked"] as const;
 type Scenario = (typeof scenarios)[number];
@@ -69,6 +73,7 @@ function expectedContent(page: Page, view: View, scenario: Scenario): Record<str
         "Ganti mata kuliah: Matematika I": courseSwitcher,
         "Aktifkan kelas untuk membuka \"Turunan\".": main.getByText('Aktifkan kelas untuk membuka "Turunan".', { exact: true }),
         "Aktivasi kelas": activate,
+        "Masukkan token kelas": main.getByPlaceholder(/^Masukkan token kelas\b/),
       };
   }
 }
@@ -82,7 +87,9 @@ async function isPaintedInViewport(locator: Locator): Promise<boolean> {
       for (let ancestor: Element | null = element; ancestor; ancestor = ancestor.parentElement) {
         if (Number(getComputedStyle(ancestor).opacity) < 0.99) return false;
       }
-      return true;
+      const rect = element.getBoundingClientRect();
+      const front = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+      return Boolean(front && (element.contains(front) || front.contains(element)));
     });
     if (!painted.length) return false;
 
@@ -111,8 +118,8 @@ try {
   for (const scenario of scenarios) {
     if (selected?.length && !selected.some(id => id.startsWith(`student-${scenario}-`))) continue;
     const context = await browser.newContext({
-      viewport: { width: 380, height: 820 },
-      deviceScaleFactor: 1,
+      viewport,
+      deviceScaleFactor,
       isMobile: true,
       hasTouch: true,
       locale: "id-ID",
@@ -189,7 +196,7 @@ try {
       console.log(id, results.at(-1)?.status ?? "capture unavailable", results.at(-1)?.error ?? "");
       await writeFile(join(out, "web.json.tmp"), JSON.stringify({
         serverSha, browser: browser.version(), theme: "light", locale: "id-ID",
-        timezone: "Asia/Jakarta", width: 380, height: 820, dpr: 1, results,
+        timezone: "Asia/Jakarta", ...viewport, dpr: deviceScaleFactor, results,
       }, null, 2) + "\n");
       await rename(join(out, "web.json.tmp"), join(out, "web.json"));
     }

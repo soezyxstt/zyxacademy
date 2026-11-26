@@ -1,0 +1,578 @@
+{
+  "courseId": "matematika-1",
+  "materialId": "dokumen-4",
+  "previewId": "dokumen-1",
+  "responses": {
+    "enrolled": {
+      "course": {
+        "view": "course",
+        "course": {
+          "id": "matematika-1",
+          "title": "Matematika I",
+          "category": "Matematika",
+          "description": "Fungsi, limit, turunan dan integral.",
+          "hasFullContentAccess": true,
+          "pricing": {
+            "category": "premium",
+            "startsAt": null,
+            "endsAt": null
+          }
+        },
+        "chapters": [
+          {
+            "id": "bab-1",
+            "title": "Sistem bilangan real",
+            "materialId": "dokumen-1",
+            "completionPercent": 0,
+            "completed": false
+          },
+          {
+            "id": "bab-2",
+            "title": "Fungsi",
+            "materialId": "dokumen-2",
+            "completionPercent": 0,
+            "completed": false
+          },
+          {
+            "id": "bab-3",
+            "title": "Limit",
+            "materialId": "dokumen-3",
+            "completionPercent": 0,
+            "completed": false
+          },
+          {
+            "id": "bab-4",
+            "title": "Turunan",
+            "materialId": "dokumen-4",
+            "completionPercent": 0,
+            "completed": false
+          }
+        ],
+        "actions": [
+          {
+            "key": "reading",
+            "title": "Mulai belajar",
+            "meta": "4 dokumen tersedia",
+            "path": "/courses/matematika-1/material/dokumen-1"
+          },
+          {
+            "key": "quiz",
+            "title": "Latihan kuis",
+            "meta": "Belum ada kuis aktif",
+            "path": "/courses/matematika-1/quiz"
+          },
+          {
+            "key": "schedule",
+            "title": "Pilih sesi tutorial",
+            "meta": "Lihat jadwal dan slot yang tersedia",
+            "path": "/dashboard/schedule?course=matematika-1"
+          }
+        ],
+        "liveEnabled": false
+      },
+      "material-list": {
+        "view": "material-list",
+        "course": {
+          "id": "matematika-1",
+          "title": "Matematika I",
+          "category": "Matematika",
+          "description": "Fungsi, limit, turunan dan integral.",
+          "hasFullContentAccess": true,
+          "pricing": {
+            "category": "premium",
+            "startsAt": null,
+            "endsAt": null
+          }
+        },
+        "chapters": [
+          {
+            "id": "bab-1",
+            "title": "Sistem bilangan real",
+            "aliases": [
+              "bab-1",
+              "kanon-1"
+            ]
+          },
+          {
+            "id": "bab-2",
+            "title": "Fungsi",
+            "aliases": [
+              "bab-2",
+              "kanon-2"
+            ]
+          },
+          {
+            "id": "bab-3",
+            "title": "Limit",
+            "aliases": [
+              "bab-3",
+              "kanon-3"
+            ]
+          },
+          {
+            "id": "bab-4",
+            "title": "Turunan",
+            "aliases": [
+              "bab-4",
+              "kanon-4"
+            ]
+          }
+        ],
+        "materials": [
+          {
+            "id": "dokumen-1",
+            "title": "Sistem bilangan real",
+            "group": "materi",
+            "kind": "article",
+            "locked": false,
+            "completed": false,
+            "chapterIds": [
+              "bab-1",
+              "kanon-1"
+            ],
+            "meta": "1 menit baca"
+          },
+          {
+            "id": "dokumen-2",
+            "title": "Fungsi",
+            "group": "materi",
+            "kind": "article",
+            "locked": false,
+            "completed": false,
+            "chapterIds": [
+              "bab-2",
+              "kanon-2"
+            ],
+            "meta": "1 menit baca"
+          },
+          {
+            "id": "dokumen-3",
+            "title": "Limit",
+            "group": "materi",
+            "kind": "article",
+            "locked": false,
+            "completed": false,
+            "chapterIds": [
+              "bab-3",
+              "kanon-3"
+            ],
+            "meta": "1 menit baca"
+          },
+          {
+            "id": "dokumen-4",
+            "title": "Turunan",
+            "group": "materi",
+            "kind": "article",
+            "locked": false,
+            "completed": false,
+            "chapterIds": [
+              "bab-4",
+              "kanon-4"
+            ],
+            "meta": "1 menit baca"
+          }
+        ]
+      },
+      "material-detail": {
+        "view": "material-detail",
+        "course": {
+          "id": "matematika-1",
+          "title": "Matematika I",
+          "category": "Matematika",
+          "description": "Fungsi, limit, turunan dan integral.",
+          "hasFullContentAccess": true,
+          "pricing": {
+            "category": "premium",
+            "startsAt": null,
+            "endsAt": null
+          }
+        },
+        "material": {
+          "id": "dokumen-4",
+          "title": "Turunan",
+          "kind": "article",
+          "group": "materi",
+          "completed": false,
+          "locked": false
+        }
+      },
+      "preview": {
+        "view": "material-detail",
+        "course": {
+          "id": "matematika-1",
+          "title": "Matematika I",
+          "category": "Matematika",
+          "description": "Fungsi, limit, turunan dan integral.",
+          "hasFullContentAccess": true,
+          "pricing": {
+            "category": "premium",
+            "startsAt": null,
+            "endsAt": null
+          }
+        },
+        "material": {
+          "id": "dokumen-1",
+          "title": "Sistem bilangan real",
+          "kind": "article",
+          "group": "materi",
+          "completed": false,
+          "locked": false
+        }
+      }
+    },
+    "unenrolled": {
+      "course": {
+        "view": "course",
+        "course": {
+          "id": "matematika-1",
+          "title": "Matematika I",
+          "category": "Matematika",
+          "description": "Fungsi, limit, turunan dan integral.",
+          "hasFullContentAccess": false,
+          "pricing": {
+            "category": "premium",
+            "startsAt": null,
+            "endsAt": null
+          }
+        },
+        "chapters": [
+          {
+            "id": "bab-1",
+            "title": "Sistem bilangan real",
+            "materialId": "dokumen-1",
+            "completionPercent": 0,
+            "completed": false
+          }
+        ],
+        "actions": [],
+        "liveEnabled": false
+      },
+      "material-list": {
+        "view": "material-list",
+        "course": {
+          "id": "matematika-1",
+          "title": "Matematika I",
+          "category": "Matematika",
+          "description": "Fungsi, limit, turunan dan integral.",
+          "hasFullContentAccess": false,
+          "pricing": {
+            "category": "premium",
+            "startsAt": null,
+            "endsAt": null
+          }
+        },
+        "chapters": [
+          {
+            "id": "bab-1",
+            "title": "Sistem bilangan real",
+            "aliases": [
+              "bab-1",
+              "kanon-1"
+            ]
+          },
+          {
+            "id": "bab-2",
+            "title": "Fungsi",
+            "aliases": [
+              "bab-2",
+              "kanon-2"
+            ]
+          },
+          {
+            "id": "bab-3",
+            "title": "Limit",
+            "aliases": [
+              "bab-3",
+              "kanon-3"
+            ]
+          },
+          {
+            "id": "bab-4",
+            "title": "Turunan",
+            "aliases": [
+              "bab-4",
+              "kanon-4"
+            ]
+          }
+        ],
+        "materials": [
+          {
+            "id": "dokumen-1",
+            "title": "Sistem bilangan real",
+            "group": "materi",
+            "kind": "article",
+            "locked": false,
+            "completed": false,
+            "chapterIds": [
+              "bab-1",
+              "kanon-1"
+            ],
+            "meta": "1 menit baca"
+          },
+          {
+            "id": "dokumen-2",
+            "title": "Fungsi",
+            "group": "materi",
+            "kind": "article",
+            "locked": true,
+            "completed": false,
+            "chapterIds": [
+              "bab-2",
+              "kanon-2"
+            ],
+            "meta": "1 menit baca"
+          },
+          {
+            "id": "dokumen-3",
+            "title": "Limit",
+            "group": "materi",
+            "kind": "article",
+            "locked": true,
+            "completed": false,
+            "chapterIds": [
+              "bab-3",
+              "kanon-3"
+            ],
+            "meta": "1 menit baca"
+          },
+          {
+            "id": "dokumen-4",
+            "title": "Turunan",
+            "group": "materi",
+            "kind": "article",
+            "locked": true,
+            "completed": false,
+            "chapterIds": [
+              "bab-4",
+              "kanon-4"
+            ],
+            "meta": "1 menit baca"
+          }
+        ]
+      },
+      "material-detail": {
+        "view": "material-detail",
+        "course": {
+          "id": "matematika-1",
+          "title": "Matematika I",
+          "category": "Matematika",
+          "description": "Fungsi, limit, turunan dan integral.",
+          "hasFullContentAccess": false,
+          "pricing": {
+            "category": "premium",
+            "startsAt": null,
+            "endsAt": null
+          }
+        },
+        "material": {
+          "id": "dokumen-4",
+          "title": "Turunan",
+          "kind": "article",
+          "group": "materi",
+          "completed": false,
+          "locked": true
+        }
+      },
+      "preview": {
+        "view": "material-detail",
+        "course": {
+          "id": "matematika-1",
+          "title": "Matematika I",
+          "category": "Matematika",
+          "description": "Fungsi, limit, turunan dan integral.",
+          "hasFullContentAccess": false,
+          "pricing": {
+            "category": "premium",
+            "startsAt": null,
+            "endsAt": null
+          }
+        },
+        "material": {
+          "id": "dokumen-1",
+          "title": "Sistem bilangan real",
+          "kind": "article",
+          "group": "materi",
+          "completed": false,
+          "locked": false
+        }
+      }
+    },
+    "revoked": {
+      "course": {
+        "view": "course",
+        "course": {
+          "id": "matematika-1",
+          "title": "Matematika I",
+          "category": "Matematika",
+          "description": "Fungsi, limit, turunan dan integral.",
+          "hasFullContentAccess": false,
+          "pricing": {
+            "category": "premium",
+            "startsAt": null,
+            "endsAt": null
+          }
+        },
+        "chapters": [
+          {
+            "id": "bab-1",
+            "title": "Sistem bilangan real",
+            "materialId": "dokumen-1",
+            "completionPercent": 0,
+            "completed": false
+          }
+        ],
+        "actions": [],
+        "liveEnabled": false
+      },
+      "material-list": {
+        "view": "material-list",
+        "course": {
+          "id": "matematika-1",
+          "title": "Matematika I",
+          "category": "Matematika",
+          "description": "Fungsi, limit, turunan dan integral.",
+          "hasFullContentAccess": false,
+          "pricing": {
+            "category": "premium",
+            "startsAt": null,
+            "endsAt": null
+          }
+        },
+        "chapters": [
+          {
+            "id": "bab-1",
+            "title": "Sistem bilangan real",
+            "aliases": [
+              "bab-1",
+              "kanon-1"
+            ]
+          },
+          {
+            "id": "bab-2",
+            "title": "Fungsi",
+            "aliases": [
+              "bab-2",
+              "kanon-2"
+            ]
+          },
+          {
+            "id": "bab-3",
+            "title": "Limit",
+            "aliases": [
+              "bab-3",
+              "kanon-3"
+            ]
+          },
+          {
+            "id": "bab-4",
+            "title": "Turunan",
+            "aliases": [
+              "bab-4",
+              "kanon-4"
+            ]
+          }
+        ],
+        "materials": [
+          {
+            "id": "dokumen-1",
+            "title": "Sistem bilangan real",
+            "group": "materi",
+            "kind": "article",
+            "locked": false,
+            "completed": false,
+            "chapterIds": [
+              "bab-1",
+              "kanon-1"
+            ],
+            "meta": "1 menit baca"
+          },
+          {
+            "id": "dokumen-2",
+            "title": "Fungsi",
+            "group": "materi",
+            "kind": "article",
+            "locked": true,
+            "completed": false,
+            "chapterIds": [
+              "bab-2",
+              "kanon-2"
+            ],
+            "meta": "1 menit baca"
+          },
+          {
+            "id": "dokumen-3",
+            "title": "Limit",
+            "group": "materi",
+            "kind": "article",
+            "locked": true,
+            "completed": false,
+            "chapterIds": [
+              "bab-3",
+              "kanon-3"
+            ],
+            "meta": "1 menit baca"
+          },
+          {
+            "id": "dokumen-4",
+            "title": "Turunan",
+            "group": "materi",
+            "kind": "article",
+            "locked": true,
+            "completed": false,
+            "chapterIds": [
+              "bab-4",
+              "kanon-4"
+            ],
+            "meta": "1 menit baca"
+          }
+        ]
+      },
+      "material-detail": {
+        "view": "material-detail",
+        "course": {
+          "id": "matematika-1",
+          "title": "Matematika I",
+          "category": "Matematika",
+          "description": "Fungsi, limit, turunan dan integral.",
+          "hasFullContentAccess": false,
+          "pricing": {
+            "category": "premium",
+            "startsAt": null,
+            "endsAt": null
+          }
+        },
+        "material": {
+          "id": "dokumen-4",
+          "title": "Turunan",
+          "kind": "article",
+          "group": "materi",
+          "completed": false,
+          "locked": true
+        }
+      },
+      "preview": {
+        "view": "material-detail",
+        "course": {
+          "id": "matematika-1",
+          "title": "Matematika I",
+          "category": "Matematika",
+          "description": "Fungsi, limit, turunan dan integral.",
+          "hasFullContentAccess": false,
+          "pricing": {
+            "category": "premium",
+            "startsAt": null,
+            "endsAt": null
+          }
+        },
+        "material": {
+          "id": "dokumen-1",
+          "title": "Sistem bilangan real",
+          "kind": "article",
+          "group": "materi",
+          "completed": false,
+          "locked": false
+        }
+      }
+    }
+  }
+}
