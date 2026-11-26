@@ -179,11 +179,27 @@ try {
       const questions = frame.getByRole("tab", { name: "Analisis soal" });
       await expect(evaluation).toHaveAttribute("aria-selected", String(item.selected === "ai-insights"));
       await expect(questions).toHaveAttribute("aria-selected", String(item.selected === "questions"));
+      for (const tab of [evaluation, questions]) {
+        await expect(tab).toHaveCSS("font-size", "14px");
+        await expect(tab).toHaveCSS("font-weight", "500");
+        const appearance = await tab.evaluate(element => {
+          const indicator = getComputedStyle(element, "::after");
+          return {
+            height: element.getBoundingClientRect().height,
+            indicatorHeight: indicator.height,
+            indicatorVisible: indicator.backgroundColor !== "rgba(0, 0, 0, 0)",
+          };
+        });
+        expect(appearance.height).toBeCloseTo(40, 1);
+        expect(appearance.indicatorHeight).toBe("2px");
+        expect(appearance.indicatorVisible).toBe(await tab.getAttribute("aria-selected") === "true");
+      }
       await expect(specimen).toHaveText("Beta");
       await expect(specimen).toHaveCSS("font-size", "10px");
       await expect(specimen).toHaveCSS("font-weight", "600");
       await expect(specimen).toHaveCSS("letter-spacing", "0.5px");
       await expect(specimen).toHaveCSS("height", "16px");
+      await expect(specimen).toHaveCSS("border-top-left-radius", "4px");
       await expect(specimen).toHaveCSS("text-transform", "uppercase");
     }
     await frame.screenshot({
