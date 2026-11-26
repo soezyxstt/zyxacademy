@@ -19,6 +19,7 @@ export async function GET() {
     roles,
     locale: await getAppLocale(),
     dashboard: resolveRoleDashboardPath(roles),
+    display: { name: session.user.name, email: session.user.email },
   };
   return Response.json(result, { headers });
 }

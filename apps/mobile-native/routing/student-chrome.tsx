@@ -1,9 +1,11 @@
+import { useIsFocused } from "expo-router";
 import { createContext, useContext, useLayoutEffect, useState, type ReactNode } from "react";
 import { View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { nativeColors } from "../../../packages/design-tokens/native-colors";
 import { MobileNavbar, RoleBottomNavigation } from "../features/shared-ui/navigation";
 import { NativeInboxBell } from "../features/notification-inbox/bell";
+import { useRoleAccountMenu } from "./account-menu";
 import { studentNavigation } from "./student-navigation";
 
 type Visibility = { hideTop?: boolean; hideBottom?: boolean };
@@ -30,17 +32,21 @@ export function StudentChrome({ href, pattern, locale, theme, enabled, visit, ba
   children: ReactNode;
 }) {
   const [visibility, setVisibility] = useState(defaultVisibility);
+  const focused = useIsFocused();
+  const accountMenu = useRoleAccountMenu({ enabled: enabled && focused && !visibility.hideTop, theme, visit });
   const { active, title, labels, targets, homeLabel, backTo, hideBottom } = studentNavigation(href, pattern, locale);
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: nativeColors[theme].background }}>
       <MobileNavbar role="student" theme={theme} title={title} includeSafeArea={false} testID="student-navbar"
         hidden={!enabled || visibility.hideTop}
         pageActions={enabled && !visibility.hideTop ? <NativeInboxBell role="student" locale={locale} theme={theme} visit={visit} /> : null}
+        actions={{ account: accountMenu.action }} actionRefs={{ account: accountMenu.trigger }}
         home={backTo === null ? { label: homeLabel } : undefined}
         back={backTo ? { label: labels.back } : undefined}
         onAction={action => {
           if (action === "back" && backTo) back(backTo);
           if (action === "home") visit(targets.home);
+          if (action === "account") accountMenu.open();
         }} />
       <View style={{ flex: 1 }}>
         <VisibilityContext.Provider value={setVisibility}>{children}</VisibilityContext.Provider>
@@ -49,6 +55,7 @@ export function StudentChrome({ href, pattern, locale, theme, enabled, visit, ba
         accessibilityLabel={labels.bottomNavLabel} includeSafeArea={false} testID="student-bottom-nav"
         hidden={!enabled || hideBottom || visibility.hideBottom}
         onDestinationPress={destination => visit(targets[destination])} />
+      {accountMenu.sheet}
     </SafeAreaView>
   );
 }

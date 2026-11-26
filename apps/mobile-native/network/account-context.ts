@@ -15,6 +15,9 @@ function isAccountContext(data: unknown, session: NativeSessionTransport): data 
       !("locale" in data) || (data.locale !== "id" && data.locale !== "en") ||
       !("roles" in data) || !Array.isArray(data.roles) || data.roles.length === 0 ||
       !data.roles.every(role => role === "admin" || role === "tutor" || role === "murid")) return false;
+  if ("display" in data && (!data.display || typeof data.display !== "object" ||
+    !("name" in data.display) || typeof data.display.name !== "string" ||
+    !("email" in data.display) || typeof data.display.email !== "string")) return false;
   const dashboard = data.roles.includes("admin") ? "/admin" : data.roles.includes("tutor") ? "/tutor" : "/dashboard";
   return "dashboard" in data && data.dashboard === dashboard;
 }

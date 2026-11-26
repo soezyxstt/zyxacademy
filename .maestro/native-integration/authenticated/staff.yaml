@@ -29,7 +29,20 @@ name: Verified staff role, protected read, wrong-role denial and logout
     visible: "(Akses ditolak\\.|Access denied\\.)"
     timeout: 30000
 - assertNotVisible: ".*${PREVIEW_OTHER_RECORD}.*"
-- openLink: "zyx-native-parity://sign-out?locale=id"
+- openLink: "${PREVIEW_READ_URL}"
+- extendedWaitUntil:
+    visible:
+      id: "(tutor|admin)-navbar-account"
+    timeout: 30000
+- tapOn:
+    id: "(tutor|admin)-navbar-account"
+- assertVisible: "Expo Preview (Tutor|Admin)"
+- assertVisible:
+    id: role-account-device-preferences
+- assertNotVisible:
+    id: role-account-profile
+- tapOn:
+    id: role-account-sign-out
 - extendedWaitUntil:
     visible: '(Kamu sudah keluar\.|You are signed out\.)'
     timeout: 30000

@@ -4,4 +4,5 @@ export type NativeAccountContext = Readonly<{
   roles: readonly ("admin" | "tutor" | "murid")[];
   locale: "id" | "en";
   dashboard: "/admin" | "/tutor" | "/dashboard";
+  display?: Readonly<{ name: string; email: string }>;
 }>;

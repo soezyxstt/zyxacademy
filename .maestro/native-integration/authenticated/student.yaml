@@ -49,7 +49,22 @@ name: Verified Student dashboard, inbox acknowledgement and logout
     id: student-inbox-close
 - runFlow: student-reminders.yaml
 - runFlow: student-video.yaml
-- openLink: "zyx-native-parity://sign-out?locale=id"
+- openLink: "zyx-native-parity://dashboard"
+- extendedWaitUntil:
+    visible:
+      id: student-navbar-account
+    timeout: 30000
+- tapOn:
+    id: student-navbar-account
+- assertVisible: Expo Preview Student
+- assertVisible:
+    id: role-account-profile
+- assertVisible:
+    id: role-account-preferences
+- assertNotVisible:
+    id: role-account-adminPanel
+- tapOn:
+    id: role-account-sign-out
 - extendedWaitUntil:
     visible: '(Kamu sudah keluar\.|You are signed out\.)'
     timeout: 30000
