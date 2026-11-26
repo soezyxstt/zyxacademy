@@ -1,6 +1,6 @@
 import { memo, type ReactNode } from "react";
 import { renderKatexToString } from "@/lib/math/katex-render";
-import { safeDiscussionLink } from "@/lib/discussions/markdown-policy";
+import { DISCUSSION_HEADING_LINE, DISCUSSION_INLINE_PATTERN, safeDiscussionLink } from "@/packages/student-community/discussion-markdown";
 
 function MathValue({ value, display = false }: { value: string; display?: boolean }) {
   if (value.length > 1000) return <code>{value}</code>;
@@ -24,16 +24,11 @@ function MathValue({ value, display = false }: { value: string; display?: boolea
 
 type MentionRenderer = (handle: string) => ReactNode;
 
-const INLINE_PATTERN =
-  /!\[([^\]\n]{0,500})\]\([^\n)]{0,2048}\)|\[([^\]\n]{1,500})\]\(([^\s()]{1,2048})\)|\*\*((?:\$[^$\n]+\$|\\\((?:\\(?!\))|[^\\\n])+\\\)|\\(?!\()|[^*$\\\n])+)\*\*|\*((?:\$[^$\n]+\$|\\\((?:\\(?!\))|[^\\\n])+\\\)|\\(?!\()|[^*$\\\n])+)\*|`([^`\n]+)`|\$([^$\n]+)\$|\\\(((?:\\(?!\))|[^\\\n])+)\\\)|(?<![\p{L}\p{N}_@])@([\p{L}\p{N}_](?:[\p{L}\p{N}_.-]*[\p{L}\p{N}_])?)/gu;
-
-const HEADING_LINE = /^#{1,3}\s+(\S.*)$/;
-
 function inline(text: string, mathBudget: { remaining: number; renderMention?: MentionRenderer }, depth = 0): ReactNode[] {
   if (depth >= 4) return [text];
   const nodes: ReactNode[] = [];
   let offset = 0;
-  for (const match of text.matchAll(INLINE_PATTERN)) {
+  for (const match of text.matchAll(DISCUSSION_INLINE_PATTERN)) {
     const index = match.index;
     if (index > offset) nodes.push(text.slice(offset, index));
     if (match[1] !== undefined) nodes.push(match[1]);
@@ -88,7 +83,7 @@ function renderParagraphSegment(paragraph: string, keyPrefix: string, mathBudget
       continue;
     }
 
-    const headingMatch = line.match(HEADING_LINE);
+    const headingMatch = line.match(DISCUSSION_HEADING_LINE);
     if (headingMatch) {
       elements.push(
         <p key={`${keyPrefix}-h-${i}`} className="font-heading font-semibold text-foreground">
@@ -104,7 +99,7 @@ function renderParagraphSegment(paragraph: string, keyPrefix: string, mathBudget
       i < lines.length &&
       !/^\s*[-*] /.test(lines[i]) &&
       !/^\s*\d+\. /.test(lines[i]) &&
-      !HEADING_LINE.test(lines[i])
+      !DISCUSSION_HEADING_LINE.test(lines[i])
     ) {
       proseLines.push(lines[i]);
       i++;

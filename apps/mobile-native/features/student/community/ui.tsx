@@ -114,8 +114,8 @@ export function useOperation() {
       await work();
       if (success) setNotice({ message: success, failed: false });
     } catch (error) {
-      setNotice({ message: networkFailure && !(error instanceof CommunityError || error instanceof OperationError)
-        ? networkFailure : describeError(error, tr), failed: true });
+      const uncertain = error instanceof CommunityError ? error.status >= 500 : !(error instanceof OperationError);
+      setNotice({ message: networkFailure && uncertain ? networkFailure : describeError(error, tr), failed: true });
     } finally {
       lock.current = false;
       setPending(false);

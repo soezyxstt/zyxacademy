@@ -1,6 +1,7 @@
 import { randomUUID } from "expo-crypto";
 import { useEffect, useRef, useState } from "react";
 import { Image, View } from "react-native";
+import { DiscussionMessageBody } from "./discussion-markdown";
 import type {
   DiscussionAttachment, DiscussionAuthorProfile, DiscussionChannelMetadata, DiscussionMention, DiscussionMessage, DiscussionPage,
   DiscussionSendResult, DiscussionSubmit, DiscussionThread, DiscussionThreadStatus,
@@ -217,9 +218,8 @@ function MessageItem({ message, thread, apply, pending, onReply, channels }: {
   const targets = useRemote<DiscussionPage<DiscussionThread>>(kind === "forward" ? workspace("threads", { channelId: channel, cursor, status: "open" }) : null);
   const close = () => setKind(null);
   const name = message.author?.name ?? (message.kind === "zyra" ? "Zyra" : tr("Pengguna", "User"));
-  const profile = () => void op.run(async () => {
-    if (!message.author) return;
-    const result = await post<DiscussionAuthorProfile>(request, "discussion", { action: "author", authorId: message.author.id, threadId: thread.id });
+  const profile = (authorId: string) => void op.run(async () => {
+    const result = await post<DiscussionAuthorProfile>(request, "discussion", { action: "author", authorId, threadId: thread.id });
     if (result.kind === "student" && result.profile.publicId) navigate(`/students/${encodeURIComponent(result.profile.publicId)}`);
     else setAuthor(result);
   });
@@ -243,11 +243,12 @@ function MessageItem({ message, thread, apply, pending, onReply, channels }: {
     }
     throw new Error(result.error);
   }, undefined, tr("Pengiriman belum terkonfirmasi. Coba lagi.", "Delivery is unconfirmed. Retry this forward."));
-  return <Row title={name} meta={dateLabel(message.createdAt, session.locale, true)} onPress={message.author ? profile : undefined}>
+  return <Row title={name} meta={dateLabel(message.createdAt, session.locale, true)} onPress={message.author ? () => profile(message.author!.id) : undefined}>
     {author && <Copy kind="muted">{author.name} · {author.role}</Copy>}
     {message.replyTo?.excerpt && <Copy kind="muted">{message.replyTo.authorName} · {message.replyTo.excerpt}</Copy>}
-    <Copy>{message.bodyKind === "deleted" ? tr("Pesan dihapus.", "Message deleted.") : message.bodyKind === "source_unavailable"
-      ? tr("Sumber pesan tidak tersedia.", "Message source unavailable.") : message.body}</Copy>
+    {message.bodyKind === "deleted" || message.bodyKind === "source_unavailable"
+      ? <Copy>{message.bodyKind === "deleted" ? tr("Pesan dihapus.", "Message deleted.") : tr("Sumber pesan tidak tersedia.", "Message source unavailable.")}</Copy>
+      : <DiscussionMessageBody content={message.body} people={message.mentionedPeople} onPerson={profile} />}
     {message.attachments.map(image => <ProtectedImage key={image.id} image={image} />)}
     {message.reactions.length > 0 && <Actions>{message.reactions.map(reaction => <Action key={reaction.emoji}
       label={`${reaction.emoji} ${reaction.count}`} disabled={pending || !message.canReact}
