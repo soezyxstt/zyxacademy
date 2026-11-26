@@ -1,11 +1,13 @@
-import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { basename, dirname, join } from "node:path";
+import { basename, dirname, join, relative } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import { matchStudentRoute, studentPatterns, type StudentArea } from "../../../../apps/mobile-native/features/student/routes";
 
 // Generate smoke metadata first, then run this script. Optional platform summary
 // files can be passed with --android=... and --ios=...; absent data is not a pass.
+// Use --output=... to inspect an alternate report without touching the ledger.
 const manifestPath = process.argv.find(arg => arg.startsWith("--manifest="))?.slice(11) ?? "artifacts/student-evidence/generated/manifest.json";
 const deviceIndexPath = "packages/native-parity/student/evidence/device-runs/index.json";
 const deviceIndex = existsSync(deviceIndexPath) ? JSON.parse(readFileSync(deviceIndexPath, "utf8")) : {};
@@ -34,6 +36,7 @@ const manifest: { sourceHead?: string; routes: { source: string; cases: any[] }[
 const web = JSON.parse(readFileSync("tests/visual/native-parallel/student/product/web/web.json", "utf8"));
 const webRoot = "tests/visual/native-parallel/student/product/web";
 const base = "packages/native-parity/student/evidence";
+const output = process.argv.find(arg => arg.startsWith("--output="))?.slice(9) ?? base;
 const ciHistory = JSON.parse(readFileSync(`${base}/ci-history.json`, "utf8"));
 const webRun = ciHistory.runs.findLast((run: any) => run.web?.status === "passed" && run.web.artifact);
 const matchedGroups: Record<string, { route: string; productFixture?: string }> =
@@ -176,24 +179,63 @@ const areaInfo: Record<StudentArea, { ui: string; symbol: string; doc: string; c
 };
 const httpCourses = new Set(["/dashboard", "/courses", "/courses/[id]", "/courses/[id]/material", "/courses/[id]/material/[materialId]"]);
 const httpCommunity = new Set(["/leaderboard", "/leaderboard/academic", "/courses/[id]/leaderboard", "/calendar", "/dashboard/schedule", "/profile/reflections", "/settings/notifications", "/profile", "/students/[publicId]", "/dashboard/discussions", "/courses/[id]/discussions", "/discussions"]);
-const resultFor = (platform: "android" | "ios", source: string, caseId: string) => {
+type Platform = "android" | "ios";
+type CaseInputs = {
+  id: string;
+  path?: string;
+  scenario?: string;
+  theme?: string;
+  marker?: unknown;
+  steps?: unknown[];
+};
+
+function fixtureDefinition(entry: CaseInputs) {
+  return {
+    path: entry.path ?? null, scenario: entry.scenario ?? null, theme: entry.theme ?? null,
+    marker: entry.marker ?? null, steps: entry.steps ?? [],
+  };
+}
+
+const resultFor = (platform: Platform, source: string, current: CaseInputs, assertions: number) => {
   const summary = summaries[platform];
   if (!summary) return { status: "not_recorded" };
-  const item = summary.data.routes?.find((row: any) => row.source === source)?.cases?.find((row: any) => row.id === caseId);
+  const item = summary.data.routes?.find((row: any) => row.source === source)?.cases?.find((row: any) => row.id === current.id);
   const provenance = { summary: summary.path, sourceHead: summary.provenance.sourceHead ?? summary.data.sourceHead ?? null,
     checkoutSha: summary.provenance.checkoutSha ?? null,
     workflowRun: summary.data.workflowRun ?? summary.provenance.workflowRun ?? null, artifact: summary.provenance.artifact ?? null,
     job_status: summary.provenance.status ?? summary.data.status ?? null };
   if (!item) return { status: "not_in_summary", ...provenance };
+  const previous = fixtureDefinition(item);
+  const expected = fixtureDefinition(current);
+  const changedFields = (Object.keys(previous) as (keyof typeof previous)[])
+    .filter(key => !isDeepStrictEqual(previous[key], expected[key]));
+  const statusAtRun = item.result ?? "not_run";
+  const status = changedFields.length ? "historical_changed" : statusAtRun;
   const capture = summary.captureIndex?.captures.find((entry: any) =>
-    entry.route === source && entry.caseId === caseId && entry.theme === item.theme &&
+    entry.route === source && entry.caseId === current.id && entry.theme === item.theme &&
     entry.fixturePath === item.path && entry.status === "passed" && item.result === "passed" &&
     item.artifacts?.some((member: string) => `smoke/${member}` === entry.artifactMember));
-  return { status: item.result ?? "not_run", marker_at_run: item.marker ?? null, artifacts: item.artifacts ?? [],
+  return { status, status_at_run: statusAtRun, assertions_verified: status === "passed" ? assertions : 0,
+    marker_at_run: previous.marker, artifacts: item.artifacts ?? [],
+    ...(changedFields.length ? { changed_fields: changedFields, definition_at_run: previous } : {}),
     ...(item.attempts ? { attempts: item.attempts } : {}),
-    ...(capture ? { retained_capture: { archive: summary.archivePath, file: capture.file, sha256: capture.sha256, index: summary.captureIndexPath } } : {}),
+    ...(capture ? { [changedFields.length ? "retained_capture_at_run" : "retained_capture"]: {
+      archive: summary.archivePath, file: capture.file, sha256: capture.sha256, index: summary.captureIndexPath,
+    } } : {}),
     ...provenance };
 };
+type DeviceCase = Record<Platform, { status: string; assertions_verified?: number }>;
+function countDeviceCases(cases: DeviceCase[], platform: Platform) {
+  const counts: Record<string, number> = {};
+  let assertions = 0;
+  for (const item of cases) {
+    const result = item[platform];
+    counts[result.status] = (counts[result.status] ?? 0) + 1;
+    assertions += result.assertions_verified ?? 0;
+  }
+  return { case_counts: counts, assertions_verified: assertions };
+}
+
 const docs = "docs/native-readiness.md";
 const rows = manifest.routes.map(route => {
   const source = route.source;
@@ -229,12 +271,14 @@ const rows = manifest.routes.map(route => {
     pattern === "/calendar" ? "Calendar all, tutorial filter and empty filter" :
     pattern === "/courses/[id]/quiz/[quizId]" ? "Quiz player states and gateway reference in light/dark" :
     pattern === "/courses/[id]/my-results" ? "Populated and empty results reference in light/dark" : null;
-  const cases = route.cases.map((entry: any) => ({
-    id: entry.id, scenario: entry.scenario, theme: entry.theme, path: entry.path, fixture_status: entry.flow ? "runnable" : "blocked",
-    marker: entry.marker ?? null, steps: entry.steps ?? [], assertion_count: entry.marker ? 1 + (entry.steps ?? []).filter((step: any) => step.assert || step.absent || step.scroll).length : 0,
-    flow: entry.flow ?? null, blocked_reason: entry.reason ?? null, limitation: entry.limitation ?? null,
-    android: resultFor("android", source, entry.id), ios: resultFor("ios", source, entry.id),
-  }));
+  const cases = route.cases.map((entry: any) => {
+    const assertionCount = entry.marker ? 1 + (entry.steps ?? []).filter((step: any) => step.assert || step.absent || step.scroll).length : 0;
+    return { id: entry.id, scenario: entry.scenario, theme: entry.theme, path: entry.path, fixture_status: entry.flow ? "runnable" : "blocked",
+      marker: entry.marker ?? null, steps: entry.steps ?? [], assertion_count: assertionCount,
+      flow: entry.flow ?? null, blocked_reason: entry.reason ?? null, limitation: entry.limitation ?? null,
+      android: resultFor("android", source, entry, assertionCount), ios: resultFor("ios", source, entry, assertionCount) };
+  });
+  const comparisons = [...deviceComparisons, ...additionalComparisons.filter(item => item.pattern === pattern)];
   return { source, pattern, area, implementation: { status: "module_present_fixture_hosted", ui: info.ui, symbol: info.symbol,
       entry: "apps/mobile-native/features/student/StudentEntry.tsx", verified_entry: "apps/mobile-native/features/student/VerifiedStudentEntry.tsx",
       limitation: "The integration preview mounts the verified entry. A signed-in product run and fixture device results have separate provenance." },
@@ -247,28 +291,40 @@ const rows = manifest.routes.map(route => {
     web_ci_evidence: ciCase && webRun ? { case: ciCase, status: webRun.web.status, sourceHead: webRun.sourceHead,
       run: webRun.url, artifact: webRun.web.artifact, kind: "synthetic web component fixture" } : null,
     fixture_cases: cases,
-    device_comparisons: [...deviceComparisons, ...additionalComparisons.filter(item => item.pattern === pattern)],
+    device_comparisons: comparisons,
+    fixture_device_summary: { android: countDeviceCases(cases, "android"), ios: countDeviceCases(cases, "ios") },
     device_status: { android: summaries.android ? `see ${summaries.android.path}` : "not_recorded", ios: summaries.ios ? `see ${summaries.ios.path}` : "not_recorded" },
-    interaction_status: "Generated fixture interactions are not device results unless a matching summary records them.",
+    interaction_status: "Current fixture credit requires a device run with the same path, scenario, theme, marker and ordered steps.",
     parity_status: "not_established", known_differences: pattern === "/courses/[id]/flashcard" ?
       "See device_comparisons for measured runs of the question, pending review and explicit rejection. The web component composition, native title, system safe area and math rendering differ. See tests/visual/native-parallel/student/learning/README.md for the reference version." :
       pattern.endsWith("/material/[materialId]") ? "Fixture shows a reader-unavailable state when the shared renderer is absent; it does not render the web document. Device pixel diff is not measured." :
       pattern === "/pet" ? "Expo uses catalog posters; GLB animation and equipped visuals require the shared renderer. Device pixel diff is not measured." :
       pattern === "/settings" ? "Some web display settings are not mapped to native. Device pixel diff is not measured." :
-      deviceComparisons.length ? "Per-platform outcomes are recorded in device_comparisons at their own source commits." : "Per-case pixel diff has not been established by this report.",
+      comparisons.some(item => Number.isFinite(item.differingPixels)) ? "Per-platform outcomes are recorded in device_comparisons at their own source commits." : "Per-case pixel diff has not been established by this report.",
     pending: ["Signed-in end-to-end product flow on the integrated host", "Remaining Android and iOS captures, interactions, accessibility and matching pixel comparisons", ...(cases.some((x: any) => x.blocked_reason) ? ["Resolve named fixture or device blockers in fixture_cases"] : []),
       ...(pattern.includes("/material/[materialId]") ? ["Integrate and test authorized article, diktat and PDF renderers"] : []),
       ...(["/courses/[id]/live/host", "/settings/notifications/browser", "/courses/[id]/playground", "/courses/[id]/video"].includes(pattern) ? ["Exercise system browser handoff and return on devices"] : [])],
     readiness_reference: docs };
 });
 if (rows.length !== 50 || new Set(rows.map((row: any) => row.source)).size !== 50 || Object.keys(operations).length !== 50) throw new Error("Expected exactly 50 uniquely mapped Student routes");
+const platforms = ["android", "ios"] as const;
+const fixtureCases = rows.flatMap(row => row.fixture_cases);
+const deviceEvidence = Object.fromEntries(platforms.map(platform => {
+  const summary = summaries[platform];
+  return [platform, {
+    summary: summary?.path ?? null,
+    run_counts: summary?.data.counts ?? {},
+    current: countDeviceCases(fixtureCases, platform),
+  }];
+}));
+mkdirSync(output, { recursive: true });
 const report = { generated_from_head: sha, note: "HEAD identifies the checkout at generation time; an uncommitted working tree may differ. Evidence retains its own provenance. No platform pass or parity is inferred from fixtures.",
   smoke_manifest: manifestPath, smoke_generated_from_head: manifest.sourceHead ?? null,
-  product_capture_manifest: `${webRoot}/web.json`, ci_history: `${base}/ci-history.json`, routes: rows };
-writeFileSync(`${base}/routes.json`, JSON.stringify(report, null, 2) + "\n");
-const link = (path: string, title: string) => `[${title.replaceAll("[", "\\[").replaceAll("]", "\\]")}](../../../../${path.replaceAll(" ", "%20").replaceAll("(", "%28").replaceAll(")", "%29").replaceAll("[", "%5B").replaceAll("]", "%5D")})`;
+  product_capture_manifest: `${webRoot}/web.json`, ci_history: `${base}/ci-history.json`, device_evidence_summary: deviceEvidence, routes: rows };
+writeFileSync(join(output, "routes.json"), JSON.stringify(report, null, 2) + "\n");
+const link = (path: string, title: string) => `[${title.replaceAll("[", "\\[").replaceAll("]", "\\]")}](${relative(output, path).replaceAll(" ", "%20").replaceAll("(", "%28").replaceAll(")", "%29").replaceAll("[", "%5B").replaceAll("]", "%5D")})`;
 const lines = ["# Laporan rute Student", "", `Dihasilkan dari HEAD \`${sha}\`; working tree dapat memiliki perubahan. Detail setiap fixture, jumlah assertion, status run dan blocker tersedia di [routes.json](routes.json). Hasil fixture bukan bukti perangkat atau kelulusan paritas.`, "",
-  `Referensi web produk dan SHA server tersedia di ${link(`${webRoot}/web.json`, "web.json")}. Cakupan HTTP lokal tercatat di ${link("tests/visual/native-parallel/student/product/README.md", "laporan kursus")} dan ${link("packages/native-parity/student/community/README.md", "laporan komunitas")}. [Riwayat CI](ci-history.json) mencatat SHA dan waktu pengamatan.`, ""];
+  `Referensi web produk dan SHA server tersedia di ${link(`${webRoot}/web.json`, "web.json")}. Cakupan HTTP lokal tercatat di ${link("tests/visual/native-parallel/student/product/README.md", "laporan kursus")} dan ${link("packages/native-parity/student/community/README.md", "laporan komunitas")}. ${link(`${base}/ci-history.json`, "Riwayat CI")} mencatat SHA dan waktu pengamatan.`, ""];
 const webCoverage = rows.filter(row => row.web_evidence.some(item => item.evidence === "authenticated product web")).length;
 const hydrationWarnings = web.results.filter((entry: any) => entry.hydrationWarnings?.length).length;
 lines.push(`Referensi web produk tersedia untuk ${webCoverage} dari ${rows.length} pola rute. ${hydrationWarnings} capture kursus mencatat peringatan hidrasi. Tujuan redirect dan detail peringatan tersimpan di [routes.json](routes.json).`, "");
@@ -278,9 +334,12 @@ for (const [platform, label] of [["android", "Android"], ["ios", "iOS"]] as cons
     lines.push(`- **${label}** belum memiliki ringkasan perangkat.`);
     continue;
   }
-  const counts = Object.entries(summary.data.counts ?? {}).map(([status, count]) => `${count} \`${status}\``).join(", ");
+
+  const totals = deviceEvidence[platform];
+  const listCounts = (counts: object) => Object.entries(counts).map(([status, count]) => `${count} \`${status}\``).join(", ");
   const run = summary.data.workflowRun ?? summary.provenance.workflowRun;
-  const detail = [counts, summary.provenance.reason, link(summary.path, "Ringkasan kasus"),
+  const detail = [`Run asli mencatat ${listCounts(totals.run_counts)}. Manifest saat ini mencatat ${listCounts(totals.current.case_counts)} dengan ${totals.current.assertions_verified} assertion terverifikasi.`,
+    summary.provenance.reason, link(summary.path, "Ringkasan kasus"),
     summary.archivePath ? link(summary.archivePath, "ZIP PNG smoke") : null,
     summary.captureIndex ? link(summary.captureIndexPath, "Indeks PNG dan SHA-256") : null,
     run ? `[Run GitHub](${run})` : null].filter(Boolean);
@@ -297,12 +356,11 @@ for (const row of rows) {
   for (const attempt of row.web_attempts.filter((item: any) => item.status !== "passed"))
     captures.push(`${link(attempt.manifest, `${attempt.id}: ${attempt.status}`)} (tanpa kredit capture)`);
   const screenshots = captures.join(", ") || "Belum ada capture tercatat";
-  const platform = (["android", "ios"] as const).map(p => {
+  const platform = platforms.map(p => {
     const summary = summaries[p];
     if (!summary) return `${p} belum tercatat`;
-    const counts = new Map<string, number>();
-    for (const item of cases) counts.set(item[p].status, (counts.get(item[p].status) ?? 0) + 1);
-    const label = Array.from(counts, ([status, n]) => `${n} ${status}`).join(", ");
+    const { case_counts, assertions_verified } = row.fixture_device_summary[p];
+    const label = `${Object.entries(case_counts).map(([status, n]) => `${n} ${status}`).join(", ")} · ${assertions_verified} assertion terverifikasi`;
     const run = summary.provenance.workflowRun ?? summary.data.workflowRun;
     return run ? `[${p}](${run}) ${label}` : `${p} ${label}`;
   }).join("<br>");
@@ -310,6 +368,6 @@ for (const row of rows) {
     link(item.report, `${item.platform} ${item.id} · ${item.differingPixels === null ? item.status : item.differingPixels + " px berbeda"} · flow ${item.standaloneScenario?.status ?? "belum tercatat"}`));
   lines.push(`| ${link(row.source, row.pattern)} | ${link(row.implementation.ui, row.implementation.symbol)}; ${row.operations.map((op: string) => `\`${op}\``).join("<br>")}<br>${link(row.contract_doc, "kontrak dan izin")} | ${available.length} / ${blocked}; ${assertions} assertion yang direncanakan | ${screenshots} | ${[platform, ...compared].join("<br>")} |`);
 }
-lines.push("", "Jumlah per platform berasal dari run yang ditautkan. Setiap kasus di JSON mencatat hasil, marker saat run dan SHA perangkat. `runnable` menandai fixture yang dapat dijalankan, sedangkan `blocked` menyertakan alasannya. Perbandingan visual tiga keadaan per item dan bukti aksesibilitas masih memerlukan evaluasi perangkat.", "");
-writeFileSync(`${base}/routes.md`, lines.join("\n"));
-console.log(JSON.stringify({ routes: rows.length, webProductCaptures: rows.reduce((n: number, row: any) => n + row.web_evidence.filter((e: any) => e.evidence === "authenticated product web").length, 0), fixtureCases: rows.reduce((n: number, row: any) => n + row.fixture_cases.length, 0), android: !!summaries.android, ios: !!summaries.ios }));
+lines.push("", "Jumlah run asli dipertahankan. `historical_changed` menandai kasus lama yang berubah dan tidak menambah assertion terverifikasi. Setiap kasus di JSON mencatat hasil, marker saat run dan SHA perangkat. `runnable` menandai fixture yang dapat dijalankan, sedangkan `blocked` menyertakan alasannya. Perbandingan visual tiga keadaan per item dan bukti aksesibilitas masih memerlukan evaluasi perangkat.", "");
+writeFileSync(join(output, "routes.md"), lines.join("\n"));
+console.log(JSON.stringify({ routes: rows.length, webProductCaptures: rows.reduce((n: number, row: any) => n + row.web_evidence.filter((e: any) => e.evidence === "authenticated product web").length, 0), fixtureCases: fixtureCases.length, android: !!summaries.android, ios: !!summaries.ios }));
