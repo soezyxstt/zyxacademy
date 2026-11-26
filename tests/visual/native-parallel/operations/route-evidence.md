@@ -4,6 +4,8 @@ The [owner inventory](../../../../plans/native-parallel/routes.tsv) assigns 49 p
 
 [Android run 45814961573](android-run-45814961573/README.md) passed all 155 Maestro flows at SHA `bd3fcaaa1343011fef456f11e1fc3c69b7a88740` on Android API 35 at 380 × 844 px and 1 px/dp. This covers all 147 registered case assertions, eight scripted journeys and 175 named screenshots. [JUnit report](android-run-45814961573/report.xml) · [Screens and hashes](android-run-45814961573/provenance.json) · [Measured viewport comparisons](android-run-45814961573/comparison-provenance.json)
 
+[Full iOS run 45818014106](ios-run-45818014106/README.md) passed 152 of 155 Maestro flows on the iPhone 17 Pro simulator, including 146 of 147 named cases and six of eight scripted journeys. The run recorded 167 of 175 PNGs. One Admin navigation assertion and two numeric keyboard dismissal steps failed. The navigation and keyboard fixes await a device rerun. [JUnit report](ios-run-45818014106/report.xml) · [Raw captures and traces](ios-run-45818014106/provenance.json) · [15 viewport comparisons across 12 captures](ios-run-45818014106/comparison-provenance.json)
+
 [iOS blog smoke run 45818014106](ios-smoke-45818014106/README.md) passed three fixture checkpoints at workflow head `717b87e5cc8725e1641a42c620f5ffd9e5f00233`. The iPhone 17 Pro simulator on iOS 26.2 captured the populated list, populated article, and English dark empty category. Each 1206 × 2622 px capture has a matched Chromium comparison with the original marketing shell. [Smoke JUnit](ios-smoke-45818014106/report.xml) · [Capture and diff index](ios-smoke-45818014106/provenance.json)
 
 [iOS run 45806987342](ios-run-45806987342/README.md) produced 15 completed screenshot commands before the full suite hit its time limit. These captures cover ten named cases and five checkpoints from the Admin Analytics and Feature Usage journey. The 1206 × 2622 px captures use an iPhone 17 Pro simulator at 402 × 874 pt and 3× density. [Six matched web comparisons](ios-run-45806987342/paired/README.md)
@@ -14,7 +16,7 @@ Web evidence comes from isolated local Chromium harnesses. The table identifies 
 
 At 402 × 874 CSS px and DPR 3, Chromium captured Admin home, Web Analytics, 30-day Feature Usage, the public landing hero, form entry and demo empty state. The source captures and checks are recorded in the [monitoring manifest](references/monitoring/cases-402-dpr3.json) and the [public manifest](public-pages/references/manifest-402-dpr3.json).
 
-The current Android and partial iOS results show visible differences from the corresponding web viewports. The earlier Android archives retain [five original comparisons](android-run-45801930588/README.md) and [three alternative full-shell blog comparisons](android-run-45806987342/full-shell-blog/README.md). The complete iOS fixture suite remains pending.
+The Android and iOS captures show visible differences from the corresponding web viewports. The earlier Android archives retain [five original comparisons](android-run-45801930588/README.md) and [three alternative full-shell blog comparisons](android-run-45806987342/full-shell-blog/README.md).
 
 | Owned route | Area | Case suffixes | Historical Android observations | Saved web evidence |
 | --- | --- | --- | --- | --- |
