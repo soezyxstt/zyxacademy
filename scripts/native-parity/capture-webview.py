@@ -11,6 +11,7 @@ from threading import Thread
 import time
 
 from case_manifest import load_case_groups
+from device_capture import open_route, screenshot
 from compare import crop_positions, load_frame
 
 
@@ -24,24 +25,6 @@ class FixtureServer(SimpleHTTPRequestHandler):
         self.send_header("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; "
                          "style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; frame-src 'none'")
         super().end_headers()
-
-
-def open_component(platform, device, component):
-    url = f"zyx-native-parity://internal/webview-reference/{component}"
-    if platform == "ios":
-        command = ["xcrun", "simctl", "openurl", device, url]
-    else:
-        command = ["adb", "shell", "am", "start", "-W", "-a", "android.intent.action.VIEW", "-d", url,
-                   "com.zyx.academy.nativeparity"]
-    subprocess.run(command, check=True)
-
-
-def screenshot(platform, device, destination):
-    if platform == "ios":
-        subprocess.run(["xcrun", "simctl", "io", device, "screenshot", str(destination)], check=True)
-    else:
-        with destination.open("wb") as stream:
-            subprocess.run(["adb", "exec-out", "screencap", "-p"], stdout=stream, check=True)
 
 
 def capture(platform, device, selected):
@@ -60,7 +43,7 @@ def capture(platform, device, selected):
         if selected and component != selected:
             continue
         destination = references / f"frame-{component}.png"
-        open_component(platform, device, component)
+        open_route(platform, device, f"internal/webview-reference/{component}")
         for _ in range(30):
             screenshot(platform, device, destination)
             frame = load_frame(destination)

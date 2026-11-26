@@ -42,8 +42,8 @@ function DirectoryRow({ link, theme, errorText }: { link: PublicLink; theme: key
   </View>;
 }
 
-export function PublicDirectory({ state, retry, locale, theme: preference }: {
-  state: DirectoryState; retry(): void; locale: "id" | "en"; theme?: keyof typeof nativeColors;
+export function PublicDirectory({ state, retry, locale, theme: preference, insideSafeArea = false }: {
+  insideSafeArea?: boolean; state: DirectoryState; retry(): void; locale: "id" | "en"; theme?: keyof typeof nativeColors;
 }) {
   const systemTheme = useColorScheme();
   const theme = preference ?? (systemTheme === "dark" ? "dark" : "light");
@@ -53,7 +53,7 @@ export function PublicDirectory({ state, retry, locale, theme: preference }: {
   const fg = { color: colors.foreground };
   const groups = state.status === "ready" ? groupPublicLinks(state.links) : [];
 
-  return <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+  return <SafeAreaView edges={insideSafeArea ? [] : undefined} style={{ flex: 1, backgroundColor: colors.background }}>
     <ScrollView contentContainerStyle={styles.scroll}>
       <View style={styles.page}>
         <View style={styles.header}>
