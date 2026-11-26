@@ -106,6 +106,13 @@ export const operationsCatalog = [
     "reason": "The app opens the staging Next consent, account connections or meeting URL in the system browser. The browser owns the session. Consent, registration, scopes, redirect validation, revocation and environment binding stay on their existing server paths."
   },
   {
+    "source": "apps/mobile-native/features/notification-inbox/client.ts",
+    "actions": ["loadInbox", "markInboxRead"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The account holder opens their own notification history and acknowledges visible notifications through their interactive session. Administrative notification history and sending retain their existing MCP authorization."
+  },
+  {
     "source": "apps/mobile-native/device/reminder-controller.ts",
     "actions": ["updateSettings", "refreshTutorSessions"],
     "tools": [],
