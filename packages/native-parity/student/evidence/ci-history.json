@@ -57,6 +57,32 @@
           }
         }
       ]
+    },
+    {
+      "runId": 45806783256,
+      "sourceHead": "68d7ab400177773341ee46e4d425c4383ccc6261",
+      "url": "https://github.com/soezyxstt/zyxacademy/actions/runs/45806783256",
+      "observedAt": "2026-11-26T11:18:00Z",
+      "web": {
+        "jobId": 139864019353,
+        "status": "passed",
+        "details": "Web workflow capture step passed, including the synthetic Student references.",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45806783256/artifacts/15109487601"
+      },
+      "android": {
+        "jobId": 139865143280,
+        "status": "emulator_setup_failed_before_device_flows",
+        "reason": "Android release APK built. AVD creation failed because avdmanager could not read hardware-properties.ini; no emulator or Maestro flow launched.",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45806783256/artifacts/15109409435",
+        "summaryCounts": {
+          "not_run": 200,
+          "blocked": 3
+        }
+      },
+      "ios": {
+        "jobId": 139865143324,
+        "status": "in_progress_at_observation"
+      }
     }
   ]
 }
