@@ -1,58 +1,53 @@
 # Database Guide
 
-Staging and production use separate Neon PostgreSQL branches. See the [staging migration runbook](operations/neon-migration.md) and [production cutover runbook](operations/neon-production-cutover.md) for exact targets and evidence. The PostgreSQL adapter does not fall back to Turso or a local SQLite file.
+Zyx Academy uses PostgreSQL via Drizzle ORM (`db/schema.ts`, `lib/db/index.ts`). Staging and production run on separate Neon PostgreSQL branches with separate private Neon S3-compatible object-storage buckets (`STORAGE_PROVIDER_MODE=neon`). The adapter requires PostgreSQL in development, CI, staging, and production; it never falls back to SQLite or Turso.
 
-The serving staging target is Neon project `muddy-sky-44104897`, branch `br-gentle-scene-azq0gp91` (`staging-neon-cutover-20261102`), database `neondb`, with its own private `zyx-staging` bucket. Target credentials are in ignored `.env.neon-staging-cutover`; `.env.neon-staging-cutover-source` also contains the guarded staging source and private reconciliation key. Use the verified direct PostgreSQL endpoint for imports and the pooled endpoint for application traffic. Frozen imports can consume a signed local source snapshot; the importer never retries an ambiguous commit automatically. Earlier preparation branches were retired after acceptance; do not reuse their saved credentials.
+## Environments and Targets
 
-## Stack
+| Environment | Engine | Neon Project / Branch | Database | Object Storage |
+| --- | --- | --- | --- | --- |
+| Local development & CI | PostgreSQL (or PGlite for isolated contract tests) | Local or isolated test DB | Local / PGlite | Local / configured bucket |
+| Staging | Neon PostgreSQL | Project `muddy-sky-44104897`, branch `br-gentle-scene-azq0gp91` | `neondb` | Private bucket `zyx-staging` (`STORAGE_PROVIDER_MODE=neon`) |
+| Production | Neon PostgreSQL | Project `muddy-sky-44104897`, protected root `br-wandering-butterfly-azi11h8r` | `neondb` | Private bucket `zyx-production` (`STORAGE_PROVIDER_MODE=neon`) |
 
-| Environment | Engine | URL pattern |
-|---|---|---|
-| Development and CI on this branch | PostgreSQL | `postgresql://...` |
-| Legacy development before migration | SQLite (`dev.db`) | `file:dev.db` |
-| Staging | Neon PostgreSQL | Guarded pooled PostgreSQL URL |
-| Production | Neon PostgreSQL | Guarded production pooled PostgreSQL URL |
-
-`lib/db/index.ts` connects to PostgreSQL using `DATABASE_URL` in both serving environments. Production uses protected root `br-wandering-butterfly-azi11h8r` in project `muddy-sky-44104897`, database `neondb`, pooled host `ep-quiet-math-azyey0mb-pooler.c-3.ap-southeast-1.aws.neon.tech`, and private bucket `zyx-production`. Turso/SQLite resources remain recovery sources. After accepting Neon writes, freeze and reconcile before any return to the source.
+- Use the pooled Neon endpoint (`-pooler`) for application traffic and the direct endpoint for migrations and administrative operations.
+- Keep environment-specific credentials in ignored `.env` files (`.env.local`, `.env.staging`, `.env.prod`). Never commit credentials or print `DATABASE_URL` in logs.
+- Legacy Turso/SQLite and R2 resources are retained strictly as cold recovery backups and are never used by serving traffic.
 
 ## Migration Workflow
 
+All schema changes are authored in `db/schema.ts` and generated into `drizzle-postgres/` (42 migrations through `0041_discussion_search_indexes.sql`):
+
 ```bash
 # 1. Edit db/schema.ts (Drizzle ORM PostgreSQL schema)
-# 2. Generate migration files:
+# 2. Generate SQL migration files in drizzle-postgres/
 bun run db:generate
-# 3. Apply to the verified isolated Neon target:
+# 3. Apply pending migrations to the verified target
 bun run db:migrate
 ```
 
-Never hand-edit generated migration files. `db:push:prod` is disabled on this branch. The runner checks the isolated target identity before applying `drizzle-postgres/`.
+Rules:
+- Never hand-edit generated migration files in `drizzle-postgres/`.
+- `bun run db:push:prod` is intentionally disabled. Remote migrations must run through the guarded PostgreSQL migrator (`db/postgres-migrate.ts`) after verifying the exact Neon project, branch, host, and database.
+- Take a Neon branch snapshot before applying destructive or backfill-dependent migrations to staging or production.
+- Web and worker deployments do not run migrations or seeds automatically. Apply schema migrations before releasing code that depends on new columns, tables, or indexes.
 
-The generated `0001_source-import-order.sql` adds the internal `impor_bundle.insertion_order` identity. Fresh imports preserve the source SQLite row order and advance its sequence. For an already imported rehearsal, `bun --env-file=<source-and-target-env> scripts/neon/backfill-import-order.ts` reads the source without writes, locks the isolated target table, reconciles every target ID and order value, then advances the sequence. It rejects missing source rows or a different target. The dedicated rehearsal reconciled all 140 import records.
+## Schema Domains
 
-Historical SQLite migration `0097_mushy_bushwacker.sql` changes the Diktat PDF evidence page-count constraint to accept 1 to 4 pages. It rebuilds `bukti_pdf_bundle`, copies every existing row and lineage field, and restores its indexes. It is not a PostgreSQL migration.
+The full table-by-table reference is in [DB_SCHEMA.md](DB_SCHEMA.md) (244 PostgreSQL tables in `db/schema.ts`). High-level domains:
 
-The generated `0017_quiet_the_hand.sql` scopes item-review uniqueness to Product identity as well as import, reviewer and target. Its `NULLS NOT DISTINCT` constraint retains Idea uniqueness when `product_id` is null. It is a schema prerequisite for the flexible V3+ revision workflow and remains unapplied to serving environments until separately verified and authorized.
-
-The same migration includes upstream and downstream versions in canonical dependency-edge uniqueness. It preserves existing rows while allowing independently versioned successors to store their exact graph. Withdrawal removes only an unshared retiring version's active edges; immutable import artifacts retain its historical graph. Apply the reconciled migration before deploying the revision services, after checking its prerequisites. It has not been applied remotely as part of this task.
-
-## Schema Reference
-
-The table-by-table reference lives in [DB_SCHEMA.md](./DB_SCHEMA.md). High-level domains:
-
-- **Auth** ; Better-Auth tables plus the canonical Indonesian identity layer (`pengguna`, `peran`, `pengguna_peran`).
-- **Course and enrollment** ; catalog, cohorts, tokens.
-- **Canonical source, Idea, product, assessment, mastery** ; the additive Indonesian learning-domain layer (`sumber_materi`, `potongan_sumber`, `ide`, products, evidence).
-- **Content** ; MTDs, Knowledge Objects, assessment objects, profiles, policies.
-- **Published assets** ; website materials, flashcards, diktats, course materials.
-- **AI generation** ; jobs, question bank, usage events, traces, allowance leases.
-- **Quiz and live classroom** ; templates (compatibility projection), attempts, feedback.
-- **Mastery and analytics** ; learning events, mastery, streaks, recommendations, study paths.
-- **Zyra runtime** ; learner profiles, preferences, attachments, proposals, operational telemetry.
-- **Platform** ; blog, short links, forms, Meet sessions, media, push notifications.
+- **Identity and access**: Better Auth (`user`, `session`, `account`, `verification`), locale preferences (`account_locale_preferences`), and canonical Indonesian RBAC (`pengguna`, `peran`, `pengguna_peran`).
+- **Courses, cohorts, and enrollment**: `courses`, `chapters`, `mata_kuliah`, `bab`, `pendaftaran_murid`, `penugasan_tutor`, `groups`, `group_members`, `group_courses`, `enrollment_tokens`, `enrollment_token_courses`, `pricing_settings`, `discount_vouchers`.
+- **Canonical authoring and bundles**: `sumber_materi`, `potongan_sumber`, `ide`, `asal_ide`, `relasi_ide`, `bagian_pembelajaran`, `artikel`, `bagian_artikel`, `blok_artikel`, `diktat_materi`, `solution_collections`, `diktat_pembahasan`, `set_flashcard`, `flashcard`, `impor_bundle`, `review_bundle`, `review_item_bundle`, `publikasi_bundle`, `bukti_pdf_bundle`, `audit_mutasi`.
+- **Assessment and mastery**: `soal`, `soal_ide`, `pembahasan_soal`, `soal_itb_referensi`, `asesmen`, `item_asesmen`, `percobaan_asesmen`, `jawaban_murid`, `pemahaman_ide`, `quiz_templates`, `student_quiz_attempts`, `live_quiz_sessions`, `live_quiz_results`, `coding_problems`, `coding_drafts`, `coding_attempts`.
+- **Zyra AI and Ops**: `ai_model_settings`, `tutor_chat_sessions`, `tutor_chat_messages`, `zyra_message_attachments`, `zyra_proposals`, `zyra_operational_events`, `ai_generation_traces`, `admin_ops_knowledge_sources`, `admin_ops_knowledge_chunks`, `admin_ops_knowledge_sync_queue`, `vector_sync_queue`.
+- **Discussions**: 13 tables (`discussion_channels`, `discussion_threads`, `discussion_messages`, `discussion_attachments`, `discussion_reactions`, `discussion_reports`, `discussion_thread_participants`, `discussion_thread_reads`, `discussion_channel_preferences`, `discussion_ai_requests`, `discussion_events`, `discussion_message_observations`, `discussion_notification_deliveries`) with GIN full-text search indexes (`0041_discussion_search_indexes.sql`).
+- **Gamification and social**: `gamification_accounts`, `gamification_profiles`, `gamification_cosmetics`, `gamification_inventory`, `gamification_xp_ledger`, `gamification_lp_ledger`, `gamification_badges`, `gamification_missions`, `gamification_follows`, `gamification_blocks`, `gamification_reports`, `gamification_question_exposure_projection`, `gamification_event_outbox`, `student_streaks`.
+- **Scheduling, forms, and platform**: `tutor_slots`, `bookings`, `academic_schedules`, `google_calendar_sync`, `google_meet_sessions`, `custom_forms`, `custom_form_responses`, `custom_form_presets`, `blog_articles`, `short_link`, `important_links`, `public_demo_snapshots`, `queue_task_checkpoints`, `email_notification_preferences`, `admin_operation_jobs`.
 
 ## Key Design Decisions
 
-- **Database migration** ; staging and production serve Neon PostgreSQL after independently frozen imports and reconciliation. Legacy Turso/SQLite resources are recovery sources.
-- **Dual-hashing** ; `sourceHash` (raw content) + `derivedHash` (structured attributes) prevent unnecessary regeneration on cosmetic edits.
-- **Timestamps** in the isolated PostgreSQL schema use `timestamptz`. Import conversion is bounded and validates mixed source timestamp units; see the runbook.
-- **Vectors** are stored externally in canonical Cloudflare Vectorize, not in SQLite. Legacy vector columns remain only as preserved migration history.
+- **Timestamps**: PostgreSQL columns use `timestamptz`. Always normalize dates and Jakarta day boundaries through `lib/date-utils.ts`.
+- **Dual hashing**: Content entities track `sourceHash` (raw content) and `derivedHash` (structured attributes) to avoid unnecessary regeneration on cosmetic edits.
+- **External vector storage**: Semantic embeddings (768-dimensional Gemini embeddings) live in Cloudflare Vectorize, synchronized transactionally via `vector_sync_queue` and `admin_ops_knowledge_sync_queue`.
+- **Idempotent outboxes**: Gamification awards, vector sync, and queue task checkpoints (`queue_task_checkpoints`) use transactional outbox tables so background workers can retry safely without duplicate side effects.
