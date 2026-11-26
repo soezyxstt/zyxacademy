@@ -41,7 +41,7 @@ export function DemoProgressView({ data, search }: { data: Content<"progress">; 
     </View>)}
     {!progress.history.length && <StatePanel kind="empty" title={demo.session.noActivity} />}
     <View style={layout.row}>
-      <Action href={`/demo/mastery${search}`}>{labels.masteryMap}</Action>
+      <Action id="public-demo-progress-mastery" href={`/demo/mastery${search}`}>{labels.masteryMap}</Action>
       <Action href={`/demo/path${search}`}>{mastery.openPath}</Action>
       {overlay.events.length > 0 && <Action onPress={() => setOverlay(resetNativeDemoProgress(courseId, revision))}>{demo.session.reset}</Action>}
     </View>
@@ -80,10 +80,10 @@ export function DemoPathView({ data, search }: { data: Content<"path">; search: 
         onChangeText={setDuration}
       />
       <Action id="public-demo-path-create-plan" disabled={!valid} onPress={() => { setDays(count); setOpenDay(1); }}>{labels.createPlan}</Action>
-      {plan && <Action variant="link" onPress={() => setDays(null)}>{labels.viewRoadmap}</Action>}
+      {plan && <Action id="public-demo-path-roadmap" variant="link" onPress={() => setDays(null)}>{labels.viewRoadmap}</Action>}
     </View>
     {plan ? plan.map((day) => <View key={day.day} style={layout.item}>
-      <Action selected={openDay === day.day} onPress={() => setOpenDay(openDay === day.day ? null : day.day)}>
+      <Action id={`public-demo-path-day-${day.day}`} selected={openDay === day.day} onPress={() => setOpenDay(openDay === day.day ? null : day.day)}>
         {`${textWith(labels.day, { count: day.day })} · ${textWith(labels.minutes, { count: day.totalMinutes })}`}
       </Action>
       {openDay === day.day && stepRows(day.steps)}
@@ -108,7 +108,7 @@ export function DemoMasteryView({ data, search }: { data: Content<"mastery">; se
     <Label tone="subheading">{review ? labels.review : labels.strong}</Label>
     <Label>{focus.topic.conceptName}</Label>
     <Label tone="meta">{textWith(labels.score, { score: focus.score })}</Label>
-    <Action href={`/demo/path${search}`} variant="default">{labels.openPath}</Action>
+    <Action id="public-demo-mastery-path" href={`/demo/path${search}`} variant="default">{labels.openPath}</Action>
     <Divider />
     <Label tone="subheading">{labels.chapters}</Label>
     {data.groups.map(({ chapter, concepts }) => <View key={chapter.id} style={layout.item}>

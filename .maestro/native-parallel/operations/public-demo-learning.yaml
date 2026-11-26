@@ -35,11 +35,23 @@ name: Operations public demo completion, study planning and tryout list
 - assertVisible: 3 of 8 materials completed
 - takeScreenshot: demo-progress
 - scrollUntilVisible:
-    element: Topic results
-- tapOn: Topic results
+    element:
+      id: public-demo-progress-mastery
+    centerElement: true
+- tapOn:
+    id: public-demo-progress-mastery
 - assertVisible: Topic to revisit
 - takeScreenshot: demo-mastery
-- tapOn: Open study path
+- scrollUntilVisible:
+    element:
+      id: public-demo-mastery-path
+    centerElement: true
+- tapOn:
+    id: public-demo-mastery-path
+- scrollUntilVisible:
+    element:
+      id: public-demo-path-days
+    centerElement: true
 - tapOn:
     id: public-demo-path-days
 - inputText: "2"
@@ -47,11 +59,25 @@ name: Operations public demo completion, study planning and tryout list
 - tapOn:
     id: public-demo-path-create-plan
 - assertVisible: "Day 1 · 12 min"
-- tapOn: "Day 2 · 12 min"
+- scrollUntilVisible:
+    element:
+      id: public-demo-path-day-2
+    centerElement: true
+- tapOn:
+    id: public-demo-path-day-2
+- scrollUntilVisible:
+    element: "Luas bertanda · 12 min"
 - assertVisible: "Luas bertanda · 12 min"
 - takeScreenshot: demo-path-planned
-- tapOn: View roadmap
-- assertNotVisible: "Day 1 · 12 min"
+- scrollUntilVisible:
+    element:
+      id: public-demo-path-roadmap
+    direction: UP
+    centerElement: true
+- tapOn:
+    id: public-demo-path-roadmap
+- assertNotVisible:
+    id: public-demo-path-day-2
 - openLink: "zyx-native-parity://operations-fixture?caseId=&mode=populated&theme=light&locale=en&path=%2Fdemo%2Ftryout-list%3Fcourse%3Ddemo-kalkulus"
 - runFlow:
     when:
