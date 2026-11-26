@@ -66,6 +66,22 @@ def route_source(file, pattern, owner, *, student=False):
     return f'{imports}\nexport default productRoute("{pattern}", "{owner}"{entry});\n'
 
 
+def verify_product_routes():
+    """Check committed Expo entry points against their owners, without rewriting feature code."""
+    routes = inventory()
+    for pattern, owner in routes.items():
+        if pattern == "/":
+            continue
+        path = MOBILE / "app" / (pattern[1:] + ".tsx")
+        expected = route_source(path, pattern, owner, student=owner == "student")
+        if not path.is_file() or path.read_text() != expected:
+            raise ValueError(f"Missing or incorrect Expo entry for {pattern}: {path}")
+    for path in ("routing/ProductRoute.tsx", "routing/StudentProductRoute.tsx", "app/murid.tsx"):
+        if not (MOBILE / path).is_file():
+            raise ValueError(f"Missing product route host: {path}")
+    print(f"Verified {sum(owner != 'public' for owner in routes.values())} committed private routes and their public handoffs.")
+
+
 def mount(*, with_student=True):
     features = ["operations/index.ts", "academic/index.ts"]
     if with_student:
@@ -200,4 +216,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--without-student", action="store_true",
                         help="Mount Academic, Operations and public pages, plus the Student dashboard browser handoff.")
-    mount(with_student=not parser.parse_args().without_student)
+    parser.add_argument("--verify", action="store_true", help="Read and verify the committed four-lane Expo routes.")
+    args = parser.parse_args()
+    if args.verify:
+        verify_product_routes()
+    else:
+        mount(with_student=not args.without_student)

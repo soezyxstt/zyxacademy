@@ -80,7 +80,7 @@ jobs:
           bun test tests/unit/expo-academic-intent.test.ts tests/gamification/question-disclosure-calls.test.ts
       - name: Verify all native product routes are committed on the integration branch
         run: |
-          python3 scripts/native-readiness/product/mount.py
+          python3 scripts/native-readiness/product/mount.py --verify
           test -z "$(git status --porcelain -- apps/mobile-native)"
       - name: Record the mounted product sources for the device jobs
         env:

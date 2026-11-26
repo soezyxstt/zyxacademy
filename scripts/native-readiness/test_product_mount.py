@@ -118,6 +118,19 @@ class ProductMountTests(unittest.TestCase):
         self.assertIn('if (error instanceof NativeRequestNotDispatched) {\n'
                       '        auto.current = false;\n        await update(current);\n        return;\n', player)
 
+    def test_verify_checks_actual_committed_routes_without_rewriting_features(self):
+        self.add_student()
+        self.mount()
+        self.write("features/academic/tutor/connected.tsx", "export function ConnectedLive() { return null; }")
+        snapshot = self.snapshot()
+        with contextlib.redirect_stdout(io.StringIO()):
+            product_mount.verify_product_routes()
+        self.assertEqual(self.snapshot(), snapshot)
+        self.write("app/dashboard.tsx", 'export default publicWebRoute("/dashboard");')
+        with self.assertRaisesRegex(ValueError, "incorrect Expo entry for /dashboard"):
+            product_mount.verify_product_routes()
+        self.assertIn("publicWebRoute", self.read("app/dashboard.tsx"))
+
     def test_full_mount_requires_student_before_writing_and_refuses_edited_dashboard(self):
         original = self.snapshot()
         with self.assertRaisesRegex(ValueError, "Missing external lane entry: student/"):
