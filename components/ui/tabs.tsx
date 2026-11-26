@@ -1,13 +1,16 @@
 "use client";
 
+import { useOnboardingTour } from "@/components/onboarding/tour-context";
+
 import * as React from "react";
 import { Tabs as TabsPrimitive } from "radix-ui";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { hapticSelection } from "@/lib/native/haptics";
+import { registerMobileTabSwipe } from "@/lib/navigation/mobile-tab-swipe";
 import { useUrlTab } from "@/hooks/use-url-tab";
-import { useViewportMode } from "@/hooks/use-viewport-mode";
 import { useTranslations } from "@/lib/i18n/client";
 import {
   DropdownMenu,
@@ -17,6 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   tabListClassName,
+  tabListPageBarClassName,
   tabListStickyBarClassName,
   tabTriggerClassName,
   tabTriggerActiveClassName,
@@ -27,6 +31,7 @@ import {
 type TabsContextValue = {
   activeValue?: string;
   selectTab?: (value: string) => void;
+  rootRef?: React.RefObject<HTMLDivElement | null>;
 };
 
 const TabsContext = React.createContext<TabsContextValue>({});
@@ -48,6 +53,7 @@ function TabsInner({
   className,
   ...props
 }: TabsProps) {
+  const rootRef = React.useRef<HTMLDivElement>(null);
   const isControlled = value !== undefined;
   const [urlTab, setUrlTab] = useUrlTab(
     paramKey,
@@ -65,6 +71,7 @@ function TabsInner({
 
   const handleValueChange = React.useCallback(
     (newVal: string) => {
+      void hapticSelection();
       if (!isControlled) {
         if (syncUrl && defaultValue) {
           setUrlTab(newVal);
@@ -78,13 +85,15 @@ function TabsInner({
   );
 
   const ctxValue = React.useMemo(
-    () => ({ activeValue, selectTab: handleValueChange }),
+    () => ({ activeValue, selectTab: handleValueChange, rootRef }),
     [activeValue, handleValueChange]
   );
 
   return (
     <TabsContext.Provider value={ctxValue}>
       <TabsPrimitive.Root
+        ref={rootRef}
+        data-slot="tabs"
         value={activeValue}
         onValueChange={handleValueChange}
         defaultValue={activeValue !== undefined ? undefined : defaultValue}
@@ -102,6 +111,7 @@ function TabsStatic({
   className,
   ...props
 }: Omit<TabsProps, "paramKey" | "syncUrl">) {
+  const rootRef = React.useRef<HTMLDivElement>(null);
   const isControlled = value !== undefined;
   const [localTab, setLocalTab] = React.useState<string | undefined>(
     typeof defaultValue === "string" ? defaultValue : undefined
@@ -111,6 +121,7 @@ function TabsStatic({
 
   const handleValueChange = React.useCallback(
     (newVal: string) => {
+      void hapticSelection();
       if (!isControlled) {
         setLocalTab(newVal);
       }
@@ -120,13 +131,15 @@ function TabsStatic({
   );
 
   const ctxValue = React.useMemo(
-    () => ({ activeValue, selectTab: handleValueChange }),
+    () => ({ activeValue, selectTab: handleValueChange, rootRef }),
     [activeValue, handleValueChange]
   );
 
   return (
     <TabsContext.Provider value={ctxValue}>
       <TabsPrimitive.Root
+        ref={rootRef}
+        data-slot="tabs"
         value={activeValue}
         onValueChange={handleValueChange}
         defaultValue={activeValue !== undefined ? undefined : defaultValue}
@@ -168,6 +181,7 @@ type ExtractedTabMeta = {
   label: React.ReactNode;
   disabled?: boolean;
   href?: string;
+  tourTarget?: string;
 };
 
 function extractTextSignature(node: React.ReactNode): string {
@@ -188,6 +202,7 @@ function extractTabMeta(node: React.ReactNode): ExtractedTabMeta | null {
     children?: React.ReactNode;
     disabled?: boolean;
     "aria-label"?: string;
+    "data-tour"?: string;
     asChild?: boolean;
   };
 
@@ -205,6 +220,7 @@ function extractTabMeta(node: React.ReactNode): ExtractedTabMeta | null {
       value: props.value,
       label: label ?? props["aria-label"] ?? props.value,
       disabled: props.disabled,
+      tourTarget: props["data-tour"],
       href,
     };
   }
@@ -384,16 +400,15 @@ function normalizeHrefPath(href: string): string {
 
 type TabsListProps = React.ComponentProps<typeof TabsPrimitive.List> & {
   /**
-   * "page" (default): full-width sticky navbar-attached tab strip.
+   * "page" (default): full-width page tab strip.
    * "inline": contained horizontal tab strip for dialogs, popovers, drawers, and nested panels.
    */
   variant?: "page" | "inline";
   /**
-   * Renders an inline tab strip on mobile (<768px) to avoid double-stacking
-   * under mobile sub-tab navigation bars, while preserving the sticky page-level
-   * tab strip on desktop.
+   * Whether a page-level tab strip sticks to the top on scroll. Defaults to true.
+   * Secondary page tab bars under a primary mobile tab nav automatically become non-sticky on mobile.
    */
-  mobileInline?: boolean;
+  sticky?: boolean;
   /**
    * When variant="page", removes top ApplicationPage padding and merges seamlessly with MobileNavbar.
    * Set to false when intentional header/KPI content sits above the tabs.
@@ -410,8 +425,8 @@ type TabsListProps = React.ComponentProps<typeof TabsPrimitive.List> & {
 function TabsList({
   className,
   children,
-  variant: variantProp = "page",
-  mobileInline = false,
+  variant = "page",
+  sticky = true,
   flush = true,
   trailing,
   moreLabel: moreLabelProp,
@@ -420,11 +435,15 @@ function TabsList({
   "aria-labelledby": ariaLabelledBy,
   ...props
 }: TabsListProps) {
-  const viewportMode = useViewportMode();
-  const variant = mobileInline && viewportMode === "mobile" ? "inline" : variantProp;
-  const { activeValue, selectTab } = React.useContext(TabsContext);
+  const { activeValue, selectTab, rootRef } = React.useContext(TabsContext);
   const moreLabel = useMoreLabel(moreLabelProp);
   const [moreOpen, setMoreOpen] = React.useState(false);
+  const tour = useOnboardingTour();
+  React.useEffect(() => {
+    const closeForTourNavigation = () => setMoreOpen(false);
+    document.addEventListener("zyx:tour-navigate", closeForTourNavigation);
+    return () => document.removeEventListener("zyx:tour-navigate", closeForTourNavigation);
+  }, []);
 
   const barRef = React.useRef<HTMLDivElement>(null);
   const itemRefs = React.useRef<Array<HTMLElement | null>>([]);
@@ -433,6 +452,41 @@ function TabsList({
 
   const items = React.useMemo(() => flattenTabChildren(children), [children]);
   const itemMetas = React.useMemo(() => items.map((item) => extractTabMeta(item)), [items]);
+  const enabledValues = React.useMemo(
+    () => itemMetas.flatMap((meta) => (meta && !meta.disabled ? [meta.value] : [])),
+    [itemMetas]
+  );
+  const swipeStateRef = React.useRef({
+    values: enabledValues,
+    activeValue,
+    selectTab,
+  });
+  React.useEffect(() => {
+    swipeStateRef.current = { values: enabledValues, activeValue, selectTab };
+  }, [enabledValues, activeValue, selectTab]);
+
+  React.useEffect(() => {
+    return registerMobileTabSwipe({
+      getContainer: () => {
+        const root = rootRef?.current ?? barRef.current?.closest<HTMLElement>("[data-slot='tabs']") ?? null;
+        if (!root) return barRef.current?.parentElement ?? null;
+        return root.querySelector("[role='tabpanel']") ? root : root.parentElement ?? root;
+      },
+      getNavElement: () => barRef.current,
+      getState: () => {
+        const { values, activeValue: current } = swipeStateRef.current;
+        return {
+          count: values.length,
+          activeIndex: current !== undefined ? values.indexOf(current) : -1,
+        };
+      },
+      navigate: (nextIndex) => {
+        const { values, selectTab: select } = swipeStateRef.current;
+        const target = values[nextIndex];
+        if (target && select) select(target);
+      },
+    });
+  }, [rootRef]);
   const contentSignature = React.useMemo(
     () => items.map((item) => extractTextSignature(item)).join("||"),
     [items]
@@ -494,8 +548,13 @@ function TabsList({
       data-slot="tabs-list"
       data-tabs-variant={variant}
       data-sticky-tabs-bar={variant === "page" ? (flush ? "flush" : "inset") : undefined}
+      data-tabs-sticky={variant === "page" ? (sticky ? "true" : "false") : undefined}
       className={cn(
-        variant === "page" ? tabListStickyBarClassName : tabListClassName,
+        variant === "page"
+          ? sticky
+            ? tabListStickyBarClassName
+            : tabListPageBarClassName
+          : tabListClassName,
         className
       )}
     >
@@ -527,7 +586,7 @@ function TabsList({
           {hasOverflow && (
             <div ref={moreRef} className="flex shrink-0 items-center">
               <span aria-hidden className="my-2.5 h-4 w-px shrink-0 bg-border/70" />
-              <DropdownMenu open={moreOpen} onOpenChange={setMoreOpen}>
+              <DropdownMenu modal={!tour.active} open={moreOpen} onOpenChange={setMoreOpen}>
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
@@ -549,6 +608,7 @@ function TabsList({
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
+                  onInteractOutside={event => { if (tour.active) event.preventDefault(); }}
                   align="end"
                   sideOffset={6}
                   className="w-56 rounded-xl border border-border bg-popover p-1.5 shadow-lg"
@@ -580,6 +640,7 @@ function TabsList({
                       <DropdownMenuItem
                         key={meta.value}
                         disabled={meta.disabled}
+                        data-tour={meta.tourTarget}
                         aria-current={isActive ? "true" : undefined}
                         onSelect={() => {
                           selectTab?.(meta.value);
@@ -621,7 +682,7 @@ function TabsTrigger({ className, ...props }: React.ComponentProps<typeof TabsPr
       data-slot="tabs-trigger"
       className={cn(
         tabTriggerClassName,
-        "data-[state=active]:text-foreground data-[state=active]:after:bg-primary data-[state=active]:hover:bg-transparent",
+        "data-[state=active]:text-foreground data-[state=active]:after:bg-[var(--workspace-tab-indicator,var(--primary))] data-[state=active]:hover:bg-transparent",
         className
       )}
       {...props}
@@ -645,7 +706,10 @@ function TabNav({
   tabs,
   label,
   variant = "page",
+  sticky = true,
   flush = true,
+  primaryMobileNav = false,
+  activeTone = "primary",
   trailing,
   moreLabel: moreLabelProp,
   disableOverflow,
@@ -654,16 +718,28 @@ function TabNav({
   tabs: TabNavItem[];
   label?: string;
   variant?: "page" | "inline";
+  sticky?: boolean;
   flush?: boolean;
+  primaryMobileNav?: boolean;
+  activeTone?: "primary" | "neutral";
   trailing?: React.ReactNode;
   moreLabel?: string;
   disableOverflow?: boolean;
   className?: string;
 }) {
+  const activeTriggerClass = cn(tabTriggerActiveClassName, activeTone === "neutral" && "after:bg-foreground");
+  const activeOverflowClass = cn(tabOverflowItemActiveClassName, activeTone === "neutral" && "before:bg-foreground");
   const pathname = usePathname();
+  const router = useRouter();
   const t = useTranslations("ui");
   const moreLabel = moreLabelProp ?? t("moreTabs");
   const [moreOpen, setMoreOpen] = React.useState(false);
+  const tour = useOnboardingTour();
+  React.useEffect(() => {
+    const closeForTourNavigation = () => setMoreOpen(false);
+    document.addEventListener("zyx:tour-navigate", closeForTourNavigation);
+    return () => document.removeEventListener("zyx:tour-navigate", closeForTourNavigation);
+  }, []);
 
   const navRef = React.useRef<HTMLDivElement>(null);
   const itemRefs = React.useRef<Array<HTMLElement | null>>([]);
@@ -705,6 +781,34 @@ function TabNav({
     return tabs.map((tab, index) => ({ ...tab, isActive: index === bestIndex }));
   }, [tabs, pathname]);
 
+  const swipeTabsRef = React.useRef(resolvedTabs);
+  const routerRef = React.useRef(router);
+  React.useEffect(() => {
+    swipeTabsRef.current = resolvedTabs;
+    routerRef.current = router;
+  }, [resolvedTabs, router]);
+
+  React.useEffect(() => {
+    return registerMobileTabSwipe({
+      getContainer: () => navRef.current?.parentElement ?? null,
+      getNavElement: () => navRef.current,
+      getState: () => {
+        const current = swipeTabsRef.current;
+        return {
+          count: current.length,
+          activeIndex: current.findIndex((tab) => tab.isActive),
+        };
+      },
+      navigate: (nextIndex) => {
+        const target = swipeTabsRef.current[nextIndex];
+        if (target && !target.isActive) {
+          void hapticSelection();
+          routerRef.current?.push?.(target.href);
+        }
+      },
+    });
+  }, []);
+
   const overflowTabs =
     !disableOverflow && visibleCount < resolvedTabs.length
       ? resolvedTabs.slice(visibleCount)
@@ -718,8 +822,14 @@ function TabNav({
       data-slot="tabs-list"
       data-tabs-variant={variant}
       data-sticky-tabs-bar={variant === "page" ? (flush ? "flush" : "inset") : undefined}
+      data-tabs-sticky={variant === "page" ? (sticky ? "true" : "false") : undefined}
+      data-primary-mobile-tabs={primaryMobileNav ? "" : undefined}
       className={cn(
-        variant === "page" ? tabListStickyBarClassName : tabListClassName,
+        variant === "page"
+          ? sticky
+            ? tabListStickyBarClassName
+            : tabListPageBarClassName
+          : tabListClassName,
         className
       )}
       ref={navRef}
@@ -738,9 +848,12 @@ function TabNav({
               <Link
                 href={tab.href}
                 aria-current={tab.isActive ? "page" : undefined}
+                onClick={() => {
+                  if (!tab.isActive) void hapticSelection();
+                }}
                 className={cn(
                   tabTriggerClassName,
-                  tab.isActive ? tabTriggerActiveClassName : "text-muted-foreground"
+                  tab.isActive ? activeTriggerClass : "text-muted-foreground"
                 )}
               >
                 {tab.icon}
@@ -757,7 +870,7 @@ function TabNav({
           {hasOverflow && (
             <div ref={moreRef} className="flex shrink-0 items-center">
               <span aria-hidden className="my-2.5 h-4 w-px shrink-0 bg-border/70" />
-              <DropdownMenu open={moreOpen} onOpenChange={setMoreOpen}>
+              <DropdownMenu modal={!tour.active} open={moreOpen} onOpenChange={setMoreOpen}>
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
@@ -765,7 +878,7 @@ function TabNav({
                     data-active={hasActiveOverflow ? "true" : undefined}
                     className={cn(
                       tabTriggerClassName,
-                      hasActiveOverflow && tabTriggerActiveClassName
+                      hasActiveOverflow && activeTriggerClass
                     )}
                   >
                     <span>{moreLabel}</span>
@@ -779,6 +892,7 @@ function TabNav({
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
+                  onInteractOutside={event => { if (tour.active) event.preventDefault(); }}
                   align="end"
                   sideOffset={6}
                   className="w-56 rounded-xl border border-border bg-popover p-1.5 shadow-lg"
@@ -789,13 +903,16 @@ function TabNav({
                       asChild
                       className={cn(
                         tabOverflowItemClassName,
-                        tab.isActive && tabOverflowItemActiveClassName
+                        tab.isActive && activeOverflowClass
                       )}
                     >
                       <Link
                         href={tab.href}
                         aria-current={tab.isActive ? "page" : undefined}
-                        onClick={() => setMoreOpen(false)}
+                        onClick={() => {
+                          if (!tab.isActive) void hapticSelection();
+                          setMoreOpen(false);
+                        }}
                       >
                         {tab.icon}
                         <span>{tab.label}</span>
@@ -832,6 +949,7 @@ export {
   TabsContent,
   TabNav,
   tabListClassName,
+  tabListPageBarClassName,
   tabListStickyBarClassName,
   tabTriggerClassName,
   tabTriggerActiveClassName,

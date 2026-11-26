@@ -147,18 +147,10 @@ test("course mentions stay bounded and PKA keeps student registration and tutor 
  data.mataKuliah = [record("mataKuliah", { id: "canonical", legacyCourseId: "tutorial-pka", status: "active", pricingCategory: "free", freeStartsAt: null, freeEndsAt: null })];
  data.courses = [record("courses", { id: "tutorial-pka" })];
  data.penugasanTutor = [record("penugasanTutor", { penggunaId: "tutor", mataKuliahId: "canonical", status: "active", assignmentScope: "course" })];
- const previous = process.env.FEATURE_PKA;
- try {
-  process.env.FEATURE_PKA = "1";
-  await validate("pka", ["admin", "tutor"]);
-  await expect(validate("pka", [ids[0]])).rejects.toThrow("DISCUSSION_UNAVAILABLE");
-  data.enrollments = [record("enrollments", { userId: ids[0], courseId: "tutorial-pka", expiresAt: new Date("2000-01-01") })];
-  await validate("pka", [ids[0], "admin", "tutor"]);
-  data.penugasanTutor[0]["penugasanTutor.status"] = "revoked";
-  await expect(validate("pka", ["tutor"])).rejects.toThrow("DISCUSSION_UNAVAILABLE");
-  process.env.FEATURE_PKA = "0";
-  await expect(validate("pka", ["admin"])).rejects.toThrow("DISCUSSION_UNAVAILABLE");
- } finally {
-  if (previous === undefined) delete process.env.FEATURE_PKA; else process.env.FEATURE_PKA = previous;
- }
+ await validate("pka", ["admin", "tutor"]);
+ await expect(validate("pka", [ids[0]])).rejects.toThrow("DISCUSSION_UNAVAILABLE");
+ data.enrollments = [record("enrollments", { userId: ids[0], courseId: "tutorial-pka", expiresAt: new Date("2000-01-01") })];
+ await validate("pka", [ids[0], "admin", "tutor"]);
+ data.penugasanTutor[0]["penugasanTutor.status"] = "revoked";
+ await expect(validate("pka", ["tutor"])).rejects.toThrow("DISCUSSION_UNAVAILABLE");
 });

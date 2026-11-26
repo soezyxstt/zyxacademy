@@ -40,7 +40,7 @@ export function ZyraUsageCharts() {
 
   if (error) {
     return (
-      <div className="mt-5 space-y-4">
+      <div className="space-y-(--compact-gap)">
         <AdminErrorState message={t("loadFailed")} onRetry={() => refetch()} />
       </div>
     );
@@ -82,7 +82,7 @@ export function ZyraUsageCharts() {
   };
 
   return (
-    <div className="mt-6 space-y-5 border-t border-border pt-5">
+    <section className="min-w-0 space-y-(--related-gap)">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="font-heading text-body-base font-semibold text-foreground">
@@ -96,7 +96,7 @@ export function ZyraUsageCharts() {
             setUserPage(1);
           }}
         >
-          <SelectTrigger className="h-9 w-[170px] rounded-lg text-body-sm">
+          <SelectTrigger aria-label={t("rangeLabel")} className="h-9 text-body-sm">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -122,8 +122,8 @@ export function ZyraUsageCharts() {
                     data={daily}
                     margin={
                       isMobile
-                        ? { top: 8, right: 0, left: -16, bottom: 0 }
-                        : { top: 10, right: 10, left: -10, bottom: 0 }
+                        ? { top: 8, right: 0, left: 0, bottom: 0 }
+                        : { top: 10, right: 10, left: 0, bottom: 0 }
                     }
                   >
                     <CartesianGrid
@@ -289,20 +289,20 @@ export function ZyraUsageCharts() {
                     <li key={u.userId} className="py-3 space-y-1.5">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-body-sm font-medium text-foreground">
+                          <p className="m-0 wrap-anywhere text-body-sm font-medium text-foreground">
                             {u.name || "Unknown"}
                           </p>
                           {u.email && (
-                            <p className="truncate text-body-xs text-muted-foreground">
+                            <p className="m-0 mt-1 wrap-anywhere text-body-xs text-muted-foreground">
                               {u.email}
                             </p>
                           )}
                         </div>
                         <div className="shrink-0 text-right tabular-nums">
-                          <p className="text-body-sm font-semibold text-foreground">
+                          <p className="m-0 text-body-sm font-semibold text-foreground">
                             {u.totalTokens.toLocaleString("id-ID")}
                           </p>
-                          <p className="text-body-2xs text-muted-foreground">
+                          <p className="m-0 mt-1 text-body-xs text-muted-foreground">
                             Total token
                           </p>
                         </div>
@@ -355,6 +355,6 @@ export function ZyraUsageCharts() {
           </div>
         </>
       )}
-    </div>
+    </section>
   );
 }

@@ -62,7 +62,7 @@ export default async function AdminCourseDetailPage({
   }
 
   return (
-    <div className="space-y-4 font-sans">
+    <div className="min-w-0 space-y-(--compact-gap)">
       <CourseDetailHeader course={data.course} />
       <ChaptersTab
         courseId={data.course.id}

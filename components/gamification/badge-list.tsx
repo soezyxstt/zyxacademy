@@ -20,7 +20,7 @@ type Labels = {
 export function BadgeList({ badges, labels, locale }: { badges: AchievementBadge[]; labels: Labels; locale: string }) {
   const number = new Intl.NumberFormat(locale);
   return (
-    <div className="divide-y divide-border rounded-xl border border-border bg-card">
+    <div className="divide-y divide-border/25">
       {badges.map((badge) => {
         const thresholds = BADGE_THRESHOLDS[badge.family];
         const target = badge.nextThreshold ?? thresholds[thresholds.length - 1];

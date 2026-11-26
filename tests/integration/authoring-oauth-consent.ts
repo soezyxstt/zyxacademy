@@ -70,16 +70,24 @@ try {
   const { GET: authorize } = await import("@/app/api/mcp/oauth/authorize/route");
   const { POST: exchange } = await import("@/app/api/mcp/oauth/token/route");
   const { submitMcpAuthorization } = await import("@/app/mcp/authorize/actions");
-  const { issueClientRegistration } = await import("@/lib/authoring/mcp-oauth");
-  const { issueMcpConnectionToken, readMcpConnectionToken } = await import("@/lib/authoring/mcp-workflows");
+  const { issueClientRegistration, MCP_OAUTH_INITIAL_SCOPES, listOAuthConnections, revokeOAuthConnection } = await import("@/lib/authoring/mcp-oauth");
+  const { issueMcpConnectionToken, readMcpConnectionToken, MCP_AUTHORING_DEFAULT_SCOPES, MCP_AUTHORING_SCOPES } = await import("@/lib/authoring/mcp-workflows");
   const { principalFromConnectionToken } = await import("@/lib/authoring/mcp-auth");
+  const { POST: revoke } = await import("@/app/api/mcp/oauth/revoke/route");
+  const { assertAdminMutationAuthority } = await import("@/lib/admin-mcp/mutations");
+  // Use the application database type; its module is mocked to the PGlite fixture above.
+  const { db: applicationDb } = await import("@/lib/db");
   const clientId = issueClientRegistration({ clientName: "First", redirectUris: [callback] });
   const otherClient = issueClientRegistration({ clientName: "Second", redirectUris: [callback] });
   const params = { client_id: clientId, redirect_uri: callback, resource, scope: read, state: "opaque",
     response_type: "code", code_challenge_method: "S256", code_challenge: challenge };
 
-  async function silent(overrides: Record<string, string> = {}) {
-    const query = new URLSearchParams({ ...params, prompt: "none", ...overrides });
+  async function silent(overrides: Record<string, string | null> = {}) {
+    const query = new URLSearchParams({ ...params, prompt: "none" });
+    for (const [key, value] of Object.entries(overrides)) {
+      if (value === null) query.delete(key);
+      else query.set(key, value);
+    }
     const response = await authorize(new NextRequest(`${internalOrigin}/api/mcp/oauth/authorize?${query}`, { headers: proxyHeaders }));
     const target = new URL(response.headers.get("location")!);
     expect(target.origin + target.pathname).toBe(callback);
@@ -102,18 +110,30 @@ try {
     return response.json();
   }
 
+  async function refresh(token: string, overrides: Record<string, string> = {}) {
+    const response = await exchange(new NextRequest(`${internalOrigin}/api/mcp/oauth/token`, {
+      method: "POST", headers: { ...proxyHeaders, "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ grant_type: "refresh_token", client_id: clientId, refresh_token: token, ...overrides }),
+    }));
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    return response.json();
+  }
+
   const metadata = await (await discover(new Request(`${internalOrigin}/.well-known/oauth-authorization-server`, { headers: proxyHeaders }))).json();
   expect(metadata).toMatchObject({
     issuer: origin,
     authorization_endpoint: `${origin}/mcp/authorize`,
     registration_endpoint: `${origin}/api/mcp/oauth/register`,
     token_endpoint: `${origin}/api/mcp/oauth/token`,
+    scopes_supported: [...MCP_OAUTH_INITIAL_SCOPES],
+    grant_types_supported: ["authorization_code", "refresh_token"],
+    revocation_endpoint: `${origin}/api/mcp/oauth/revoke`,
   });
   const metadataPath = "/.well-known/oauth-protected-resource";
   const rootResource = await discoverResource(new Request(internalOrigin + metadataPath, { headers: proxyHeaders }));
   const authoringResource = await discoverAuthoringResource(new Request(internalOrigin + metadataPath + "/api/mcp/authoring", { headers: proxyHeaders }));
   for (const response of [rootResource, authoringResource]) {
-    expect(await response.json()).toMatchObject({ resource, authorization_servers: [origin] });
+    expect(await response.json()).toMatchObject({ resource, authorization_servers: [origin], scopes_supported: [...MCP_OAUTH_INITIAL_SCOPES] });
   }
   const showConsent = await authorize(new NextRequest(`${internalOrigin}/api/mcp/oauth/authorize?${new URLSearchParams(params)}`, { headers: proxyHeaders }));
   expect(new URL(showConsent.headers.get("location")!).origin).toBe(origin);
@@ -125,13 +145,28 @@ try {
   }
   const unauthenticated = await callAuthoring();
   expect(unauthenticated.status).toBe(401);
-  expect(unauthenticated.headers.get("www-authenticate")).toContain(`resource_metadata="${origin}${metadataPath}/api/mcp/authoring"`);
+  const authenticateHeader = unauthenticated.headers.get("www-authenticate")!;
+  expect(authenticateHeader).toContain(`resource_metadata="${origin}${metadataPath}/api/mcp/authoring"`);
+  const initialScope = authenticateHeader.match(/,\s*scope="([^"]+)"/)?.[1];
+  expect(initialScope?.split(" ")).toEqual([...MCP_OAUTH_INITIAL_SCOPES]);
   const silentQuery = { ...params, prompt: "none" };
   const forwarded = await redirectOf(consentPage({ searchParams: Promise.resolve(silentQuery) }));
   expect(forwarded.pathname).toBe("/api/mcp/oauth/authorize");
   expect(Object.fromEntries(forwarded.searchParams)).toEqual(silentQuery);
   expect((await silent()).get("error")).toBe("login_required");
   signedIn = true;
+  const initialPage = await consentPage({ searchParams: Promise.resolve({ ...params, scope: undefined }) });
+  expect(initialPage.props.scopes).toEqual([...MCP_OAUTH_INITIAL_SCOPES]);
+  expect(initialPage.props.scopes).toHaveLength(46);
+  expect(initialPage.props.defaultScopes).toEqual([...MCP_AUTHORING_DEFAULT_SCOPES]);
+  expect(initialPage.props.searchParams.scope).toBe(initialScope);
+  const challengePage = await consentPage({ searchParams: Promise.resolve({ ...params, scope: initialScope }) });
+  expect(challengePage.props.scopes).toEqual(initialPage.props.scopes);
+  expect(challengePage.props.defaultScopes).toEqual(initialPage.props.defaultScopes);
+  const narrowPage = await consentPage({ searchParams: Promise.resolve(params) });
+  expect(narrowPage.props.scopes).toEqual([read]);
+  expect(narrowPage.props.defaultScopes).toEqual([read]);
+  expect(narrowPage.props.searchParams.scope).toBe(read);
   expect((await silent()).get("error")).toBe("consent_required");
   expect((await consent("deny", [read])).searchParams.get("error")).toBe("access_denied");
   expect((await consent("", [read])).searchParams.get("error")).toBe("invalid_request");
@@ -156,6 +191,8 @@ try {
   const { endpoint, access_token: manual } = await connection.json();
   expect(endpoint).toBe(resource);
   expect(readMcpConnectionToken(manual).resource).toBe(resource);
+  expect(readMcpConnectionToken(manual).scopes).toEqual([...MCP_AUTHORING_SCOPES]);
+  expect(readMcpConnectionToken(manual).scopes).not.toContain("forms:read");
   expect(await (await callAuthoring(manual)).json()).toEqual({ error: "INVALID_SKILLS_PROFILE" });
   const internalToken = issueMcpConnectionToken({ ...binding, clientId: "zyx-admin-connection", resource: `${internalOrigin}/api/mcp/authoring` });
   const rejectedAudience = await callAuthoring(internalToken);
@@ -165,6 +202,20 @@ try {
   await expect(principalFromConnectionToken(manual, `${resource}-other`)).rejects.toThrow("AUTHORING_MCP_INVALID_RESOURCE");
 
   expect((await consent("approve", [read, stage])).searchParams.get("error")).toBe("invalid_scope");
+  const initialApproval = await consent("approve", [...MCP_AUTHORING_DEFAULT_SCOPES], { scope: initialScope! });
+  const initialToken = await redeem(initialApproval.searchParams.get("code")!);
+  expect(readMcpConnectionToken(initialToken.access_token).scopes).toEqual([...MCP_AUTHORING_DEFAULT_SCOPES]);
+  const initialGrant = await db.select().from(verification).where(like(verification.identifier, "mcp:oauth:consent:%"));
+  // Discovery of more scopes cannot widen an existing grant without fresh consent.
+  for (const scope of [null, "", initialScope!]) {
+    expect((await silent({ scope })).get("error")).toBe("consent_required");
+  }
+  expect(await db.select().from(verification).where(like(verification.identifier, "mcp:oauth:consent:%"))).toEqual(initialGrant);
+  expect((await principalFromConnectionToken(initialToken.access_token, resource)).scopes).toEqual([...MCP_AUTHORING_DEFAULT_SCOPES]);
+  const adminApproval = await consent("approve", [read, "forms:read"], { scope: initialScope! });
+  const adminToken = await redeem(adminApproval.searchParams.get("code")!);
+  expect(readMcpConnectionToken(adminToken.access_token).scopes).toEqual([read, "forms:read"]);
+  expect((await principalFromConnectionToken(adminToken.access_token, resource)).scopes).toEqual([read, "forms:read"]);
   const interactive = await consent("approve", [read, stage], { scope: `${read} ${stage}` });
   const interactiveToken = await redeem(interactive.searchParams.get("code")!);
   expect(readMcpConnectionToken(interactiveToken.access_token).scopes).toEqual([read, stage]);
@@ -189,7 +240,7 @@ try {
   userId = "ben"; sessionId = "ben-session";
   expect((await silent()).get("error")).toBe("consent_required");
   // Switching the browser account never retargets an existing MCP bearer token.
-  expect(await principalFromConnectionToken(subset.access_token, resource)).toMatchObject({ userId: "ada", sessionId: "ada-session" });
+  expect(await principalFromConnectionToken(subset.access_token, resource)).toMatchObject({ userId: "ada", sessionId: readMcpConnectionToken(subset.access_token).sessionId });
   userId = "student"; sessionId = "student-session";
   expect((await silent()).get("error")).toBe("access_denied");
   userId = "ada"; sessionId = "second-session";
@@ -210,10 +261,70 @@ try {
   expect((await silent()).get("error")).toBe("consent_required");
   await expect(principalFromConnectionToken(subset.access_token, resource)).rejects.toThrow("AUTHORING_MCP_CONSENT_REQUIRED");
 
-  await consent("approve", [read]);
+  // User-controlled disconnect must revoke consent, and must not affect another user.
+  const disconnectApproval = await consent("approve", [read]);
+  const disconnected = await redeem(disconnectApproval.searchParams.get("code")!);
+  const disconnectId = readMcpConnectionToken(disconnected.access_token).sessionId;
+  expect((await listOAuthConnections("ada")).map(item => item.id)).toContain(disconnectId);
+  expect(await listOAuthConnections("ben")).toEqual([]);
+  await revokeOAuthConnection("ben", disconnectId);
+  expect((await principalFromConnectionToken(disconnected.access_token, resource)).userId).toBe("ada");
+  await revokeOAuthConnection("ada", disconnectId);
+  expect((await silent()).get("error")).toBe("consent_required");
+  expect((await refresh(disconnected.refresh_token)).error).toBe("invalid_grant");
+
+  const durableApproval = await consent("approve", [read]);
+  const durable = await redeem(durableApproval.searchParams.get("code")!);
+  // Independent families must survive revocation of another provider credential.
+  const replayFamily = await redeem((await silent()).get("code")!);
+  const replayGrantId = readMcpConnectionToken(replayFamily.access_token).sessionId;
+  const expiredFamily = await redeem((await silent()).get("code")!);
+  const expiredGrantId = readMcpConnectionToken(expiredFamily.access_token).sessionId;
+  await db.update(verification).set({ expiresAt: new Date(0) }).where(eq(verification.id, expiredGrantId));
+  expect((await refresh(expiredFamily.refresh_token)).error).toBe("invalid_grant");
+  await expect(principalFromConnectionToken(expiredFamily.access_token, resource)).rejects.toThrow("AUTHORING_MCP_CONSENT_REQUIRED");
+  expect(durable.expires_in).toBeGreaterThan(0);
+  expect(durable.expires_in).toBeLessThanOrEqual(3600);
+  expect(typeof durable.refresh_token).toBe("string");
+  const grantId = readMcpConnectionToken(durable.access_token).sessionId;
+  expect(grantId).not.toBe(sessionId);
+  expect((await refresh(durable.refresh_token, { client_id: otherClient })).error).toBe("invalid_grant");
+  expect((await refresh(durable.refresh_token, { resource: otherResource })).error).toBe("invalid_target");
+  expect((await refresh(durable.refresh_token, { scope: `${read} ${stage}` })).error).toBe("invalid_scope");
   await db.delete(session).where(eq(session.id, sessionId));
   expect((await silent()).get("error")).toBe("login_required");
   await expect(principalFromConnectionToken(manual, resource)).rejects.toThrow("AUTHORING_MCP_SESSION_INVALID");
+  const durablePrincipal = await principalFromConnectionToken(durable.access_token, resource);
+  expect(durablePrincipal.userId).toBe(userId);
+  await applicationDb.transaction(tx => assertAdminMutationAuthority(tx, durablePrincipal, "admin.operation_receipt", null));
+  const replayed = await refresh(replayFamily.refresh_token);
+  const [replayGrant] = await db.select({ value: verification.value }).from(verification).where(eq(verification.id, replayGrantId));
+  const replayData = JSON.parse(replayGrant.value);
+  await db.update(verification).set({ value: JSON.stringify({ ...replayData, rotatedAt: Date.now() - 20_000 }) }).where(eq(verification.id, replayGrantId));
+  expect((await refresh(replayFamily.refresh_token)).error).toBe("invalid_grant");
+  expect((await refresh(replayed.refresh_token)).error).toBe("invalid_grant");
+  await expect(principalFromConnectionToken(replayed.access_token, resource)).rejects.toThrow("AUTHORING_MCP_CONSENT_REQUIRED");
+
+  const [rotated, parallel] = await Promise.all([refresh(durable.refresh_token), refresh(durable.refresh_token)]);
+  expect(parallel.refresh_token).toBe(rotated.refresh_token);
+  expect(rotated.refresh_token).not.toBe(durable.refresh_token);
+  expect(readMcpConnectionToken(rotated.access_token).sessionId).toBe(grantId);
+  const retried = await refresh(durable.refresh_token);
+  expect(retried.refresh_token).toBe(rotated.refresh_token);
+  expect((await principalFromConnectionToken(rotated.access_token, resource)).scopes).toEqual([read]);
+  await db.update(pengguna).set({ status: "suspended" }).where(eq(pengguna.id, userId));
+  expect((await refresh(rotated.refresh_token)).error).toBe("invalid_grant");
+  await expect(principalFromConnectionToken(rotated.access_token, resource)).rejects.toThrow("AUTHORING_MCP_ADMIN_REQUIRED");
+  await db.update(pengguna).set({ status: "active" }).where(eq(pengguna.id, userId));
+  const response = await revoke(new NextRequest(`${internalOrigin}/api/mcp/oauth/revoke`, {
+    method: "POST", body: new URLSearchParams({ client_id: clientId, token: rotated.access_token }),
+  }));
+  expect(response.status).toBe(200);
+  expect((await refresh(rotated.refresh_token)).error).toBe("invalid_grant");
+  const revoked = await callAuthoring(rotated.access_token);
+  expect(revoked.status).toBe(401);
+  expect(revoked.headers.get("www-authenticate")).toContain('error="invalid_token"');
+  await expect(applicationDb.transaction(tx => assertAdminMutationAuthority(tx, durablePrincipal, "admin.operation_receipt", null))).rejects.toThrow("OAUTH_CONSENT_REQUIRED");
 } finally {
   await client.close();
 }

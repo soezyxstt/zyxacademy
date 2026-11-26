@@ -280,20 +280,16 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
 
       return (
         <CoursePageShell>
-          <div className="space-y-2">
-            <Reveal>
-              <QuizPlayer
-                courseId={template.courseId}
-                expectedUserId={userId}
-                exam={formattedExam}
-                attemptId={attempt.id}
-                redirectBasePath={stagePath(subject, stage)}
-                initialAnswers={initialAnswers}
-                startedAtMs={startedAtMs}
-                closeAtMs={closeAtMs}
-              />
-            </Reveal>
-          </div>
+          <QuizPlayer
+            courseId={template.courseId}
+            expectedUserId={userId}
+            exam={formattedExam}
+            attemptId={attempt.id}
+            redirectBasePath={stagePath(subject, stage)}
+            initialAnswers={initialAnswers}
+            startedAtMs={startedAtMs}
+            closeAtMs={closeAtMs}
+          />
         </CoursePageShell>
       );
     }

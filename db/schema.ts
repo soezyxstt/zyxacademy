@@ -65,6 +65,33 @@ export const emailNotificationPreferences = pgTable("email_notification_preferen
   .notNull(),
 });
 
+/** Account-wide optional activity notifications, independent of email and device permissions. */
+export const activityNotificationPreferences = pgTable("activity_notification_preferences", {
+ userId: text("user_id").primaryKey().references(() => user.id, { onDelete: "cascade" }),
+ discussionsEnabled: boolean("discussions_enabled").notNull().default(true),
+ flashcardsEnabled: boolean("flashcards_enabled").notNull().default(true),
+ tutorAvailabilityEnabled: boolean("tutor_availability_enabled").notNull().default(true),
+ tutorialSessionEmailEnabled: boolean("tutorial_session_email_enabled").notNull().default(true),
+ tutorialEmailMode: text("tutorial_email_mode").$type<"once" | "repeat">().notNull().default("once"),
+ tutorialEmailLeadMinutes: integer("tutorial_email_lead_minutes").notNull().default(60),
+ tutorialEmailIntervalMinutes: integer("tutorial_email_interval_minutes").notNull().default(30),
+ updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, table => [
+ check("tutorial_email_schedule_check", sql`${table.tutorialEmailMode} in ('once','repeat') and ${table.tutorialEmailLeadMinutes} between 1 and 1440 and ${table.tutorialEmailIntervalMinutes} between 5 and 1440 and (${table.tutorialEmailMode} = 'once' or (${table.tutorialEmailIntervalMinutes} < ${table.tutorialEmailLeadMinutes} and ${table.tutorialEmailLeadMinutes} <= 12 * ${table.tutorialEmailIntervalMinutes}))`),
+]);
+
+/** Account-wide quiet hours with an explicit time zone. */
+export const notificationQuietPreferences = pgTable("notification_quiet_preferences", {
+ userId: text("user_id").primaryKey().references(() => user.id, { onDelete: "cascade" }),
+ enabled: boolean("enabled").notNull().default(false),
+ startMinute: integer("start_minute").notNull().default(1320),
+ endMinute: integer("end_minute").notNull().default(420),
+ timeZone: text("time_zone").notNull().default("Asia/Jakarta"),
+ updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, table => [
+ check("notification_quiet_minutes_check", sql`${table.startMinute} between 0 and 1439 and ${table.endMinute} between 0 and 1439 and ${table.startMinute} <> ${table.endMinute}`),
+]);
+
 /** Account presentation preference, kept separate from authorization and learning settings. */
 export const accountLocalePreferences = pgTable(
  "account_locale_preferences",
@@ -82,6 +109,26 @@ export const accountLocalePreferences = pgTable(
   check("account_locale_preferences_locale_check", sql`${table.locale} in ('id', 'en')`),
  ],
 );
+
+/** Account-bound first-use tours, separate from learning progress and browser preferences. */
+export const onboardingTours = pgTable("onboarding_tours", {
+ userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+ role: text("role").$type<"student" | "tutor">().notNull(),
+ version: integer("version").notNull().default(1),
+ generation: integer("generation").notNull().default(1),
+ status: text("status").$type<"in_progress" | "completed" | "skipped">().notNull(),
+ stepIndex: integer("step_index").notNull().default(0),
+ courseId: text("course_id"),
+ updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, table => [
+ primaryKey({ columns: [table.userId, table.role] }),
+ check("onboarding_tours_role_check", sql`${table.role} in ('student', 'tutor')`),
+ check("onboarding_tours_version_check", sql`${table.version} = 1`),
+ check("onboarding_tours_generation_check", sql`${table.generation} >= 1`),
+ check("onboarding_tours_status_check", sql`${table.status} in ('in_progress', 'completed', 'skipped')`),
+ check("onboarding_tours_step_check", sql`${table.stepIndex} between 0 and 9 and (${table.status} <> 'completed' or ${table.stepIndex} = 9)`),
+ check("onboarding_tours_course_check", sql`${table.courseId} is null or char_length(${table.courseId}) between 1 and 128`),
+]);
 
 /** Canonical domain identity for a Better Auth user. */
 export const pengguna = pgTable(
@@ -4404,6 +4451,8 @@ export const userPushTokens = pgTable(
  userId: text("user_id")
  .notNull()
  .references(() => user.id, { onDelete: "cascade" }),
+ /** Authenticated session owning this registration. Legacy tokens rebind on registration. */
+ sessionId: text("session_id").references(() => session.id, { onDelete: "cascade" }),
  /** Raw push registration token (FCM, APNs hex device token, or desktop client ID). */
  token: text("token").notNull().unique(),
  /** Human-readable device label (e.g. userAgent substring or "capacitor-ios"). */
@@ -4429,6 +4478,7 @@ export const userPushTokens = pgTable(
  index("idx_push_tokens_user_id").on(table.userId, table.id),
  index("idx_push_tokens_token").on(table.token),
  index("idx_push_tokens_user_transport").on(table.userId, table.transport),
+ index("idx_push_tokens_session").on(table.sessionId),
  ]
 );
 
@@ -4449,10 +4499,16 @@ export const notifications = pgTable(
  type: text("type")
  .$type<
  | "quiz_published"
+ | "quiz_graded"
  | "flashcard_reminder"
  | "tutor_reminder"
+ | "tutor_booking"
+ | "tutor_digest"
  | "payment_success"
+ | "weekly_progress"
+ | "study_reengagement"
  | "admin_broadcast"
+ | "admin_alert"
  | "announcement"
  | "discussion"
  >()
@@ -4478,6 +4534,19 @@ export const notifications = pgTable(
   .where(sql`${table.type} = 'discussion' and ${table.metadata}->>'pushState' = 'pending'`),
  ]
 );
+
+/** Durable quiet-hour push queue. Inbox rows remain immediately visible. */
+export const deferredNotificationPushes = pgTable("deferred_notification_pushes", {
+ notificationId: text("notification_id").primaryKey().references(() => notifications.id, { onDelete: "cascade" }),
+ userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+ deliverAfter: timestamp("deliver_after", { withTimezone: true }).notNull(),
+ claimId: text("claim_id"),
+ leaseUntil: timestamp("lease_until", { withTimezone: true }),
+}, table => [
+ index("deferred_notification_pushes_due_idx").on(table.deliverAfter, table.userId),
+ index("deferred_notification_pushes_user_idx").on(table.userId, table.deliverAfter),
+]);
+
 
 // ─── P1A: Mastery Foundation ──────────────────────────────────────────────────
 
@@ -5582,8 +5651,7 @@ export const careerPathConceptsRelations = relations(careerPathConcepts, ({ one 
 // the multi-stage Pemetaan Kesiapan Akademik test (Stage 1 -> 2 -> 3 per
 // subject; passing an earlier stage skips the rest). Routed off a hardcoded
 // course id (see lib/pka-config.ts), not a courses.type discriminator, since
-// this is a single seasonal campaign, not a general course category. Gated
-// end-to-end behind FEATURE_PKA.
+// this is a single seasonal campaign, not a general course category.
 
 // Static subject/stage -> quiz template mapping, admin/seed-authored.
 export const pkaSimulationStages = pgTable(

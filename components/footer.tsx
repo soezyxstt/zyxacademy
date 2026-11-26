@@ -24,9 +24,6 @@ export async function Footer() {
             <p className="mt-4 max-w-md text-support text-muted-foreground">
               {t("footer.description")}
             </p>
-            <p className="mt-2 text-body-xs font-semibold text-[var(--zx-accent)] tracking-wide">
-              {t("footer.tagline")}
-            </p>
           </div>
 
           <nav className="md:col-span-3" aria-label={t("footer.companyLinks")}>

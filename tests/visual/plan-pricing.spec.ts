@@ -1,6 +1,7 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
 test.setTimeout(90_000);
+test.use({ serviceWorkers: "block" });
 
 test.beforeEach(async ({ page }) => {
   await page.route("**/api/pricing", (route) => route.fulfill({ json: {
@@ -37,7 +38,7 @@ for (const [name, route] of [
     page.on("pageerror", (error) => errors.push(error.message));
     page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
     page.on("response", (response) => { if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`); });
-    await page.clock.install({ time: new Date("2026-10-31T23:59:50+07:00") });
+    await page.clock.install({ time: new Date("2026-10-31T23:59:40+07:00") });
     await page.clock.pauseAt(new Date("2026-10-31T23:59:50+07:00"));
     const pricingResponse = page.waitForResponse("**/api/pricing");
     const response = await page.goto(route, { waitUntil: "domcontentloaded" });
@@ -50,7 +51,7 @@ for (const [name, route] of [
     await page.emulateMedia({ reducedMotion: "reduce" });
     // Let entrance animations settle even while the campaign clock is paused.
     await page.clock.runFor(1000);
-    await expect(page.getByText("40% off", { exact: true })).toHaveCount(3);
+    await expect(page.getByText("Diskon 40%", { exact: true })).toHaveCount(3);
     await expect(prices.first()).toContainText(
       name === "onboarding"
         ? "Total Rp 1.170.000"
@@ -70,7 +71,7 @@ for (const [name, route] of [
             : "Rp 1.950.000",
     );
     await expect(prices.first().locator("s")).toHaveCSS("text-decoration-line", "line-through");
-    expect(await page.getByText("40% off", { exact: true }).first().evaluate((element) =>
+    expect(await page.getByText("Diskon 40%", { exact: true }).first().evaluate((element) =>
       parseFloat(getComputedStyle(element).borderTopRightRadius) < element.getBoundingClientRect().height / 2,
     )).toBe(true);
     if (name === "plans") {
@@ -79,8 +80,11 @@ for (const [name, route] of [
     }
     await capture(page, info, `${name}-intro`);
     await page.clock.fastForward(11000);
-    await expect(page.getByText("40% off", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("Diskon 40%", { exact: true })).toHaveCount(0);
     await expect(page.getByText(/Harga perkenalan sampai/)).toHaveCount(0);
+    if (name === "plans") {
+      await expect(page.locator("[data-plan-promotions]")).toHaveCount(0);
+    }
     await expect(prices.locator("s")).toHaveCount(0);
     await expect(prices.first()).toContainText(name === "onboarding" ? "Total Rp 1.950.000" : name === "plans" ? "Total Rp 1.950.000" : "Rp 1.950.000");
     await capture(page, info, `${name}-regular`);
@@ -91,11 +95,11 @@ for (const [name, route] of [
       await page.getByRole("button", { name: "Tambah mata kuliah", exact: true }).click();
       await expect(prices.first()).not.toHaveText(before);
       const paidCard = page.locator("article").filter({ has: page.locator('[data-plan-price="minimal"]') });
-      const href = await paidCard.getByRole("link", { name: "Tanya paket via WhatsApp" }).getAttribute("href");
+      const href = await paidCard.getByRole("link", { name: "Tanya paket lewat WhatsApp" }).getAttribute("href");
       const message = new URL(href!).searchParams.get("text")!;
       expect(message).toContain("4 orang");
       expect(message).not.toContain("40%");
-      await page.getByRole("button", { name: "Daftar matkul (4)", exact: true }).click();
+      await page.getByRole("button", { name: "Pilih mata kuliah (4)", exact: true }).click();
       await capture(page, info, "plans-regular-configured-open");
     }
     expect(errors).toEqual([]);
@@ -117,7 +121,7 @@ test("plans intermediate breakpoints", async ({ page }, info) => {
   for (const width of [768, 1024, 1280]) {
     await page.setViewportSize({ width, height: 864 });
     await page.addStyleTag({ content: "*, *::before, *::after { transition: none !important; }" });
-    await expect(page.getByText("40% off", { exact: true })).toHaveCount(3);
+    await expect(page.getByText("Diskon 40%", { exact: true })).toHaveCount(3);
     expect(await page.locator("[data-plan-price] p").evaluateAll((elements) =>
       elements.filter((element) => element.scrollWidth > element.clientWidth).map((element) => element.textContent),
     )).toEqual([]);
@@ -141,4 +145,46 @@ test("compact pricing in dark mode", async ({ page }, info) => {
   await expect(page.locator("html")).toHaveClass(/dark/);
   await capture(page, info, "plans-intro-dark");
   expect(errors).toEqual([]);
+});
+
+test("plans configurator clears the fixed navbar when sticky", async ({ page }, info) => {
+  await page.route("**/api/pricing", (route) => route.fulfill({ json: {
+    platform: { percent: 70, startsOn: "2026-09-12", endsOn: "2026-12-01" },
+    tutorial: { percent: 40, startsOn: "2026-09-15", endsOn: "2026-11-30" },
+  } }));
+  await page.clock.setFixedTime(new Date("2026-09-15T12:00:00+07:00"));
+  await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });
+  const response = await page.goto("/en/plans", { waitUntil: "domcontentloaded" });
+  expect(response?.status()).toBe(200);
+  await expect(page.locator("[data-plan-promotions] li")).toHaveText([
+    /70% off platform.*12 Sept? 2026 to 1 Dec 2026 WIB/,
+    /40% off tutorials.*15 Sept? 2026 to 30 Nov 2026 WIB/,
+  ]);
+  await page.evaluate(async () => { await document.fonts.ready; });
+
+  const navbar = page.getByRole("banner");
+  const toolbar = page.locator('[data-slot="collapsible"]').filter({
+    has: page.getByRole("group", { name: "Group size" }),
+  });
+  const courses = page.getByRole("button", { name: "Course list (3)", exact: true });
+  await toolbar.evaluate((element) => {
+    window.scrollTo({ top: element.getBoundingClientRect().top + window.scrollY + 32, behavior: "instant" });
+  });
+  await expect.poll(async () => {
+    const navBounds = await navbar.boundingBox();
+    const toolbarBounds = await toolbar.boundingBox();
+    return Math.abs(toolbarBounds!.y - (navBounds!.y + navBounds!.height));
+  }).toBeLessThan(1);
+  await expect(courses).toBeInViewport();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
+  await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" });
+  await page.screenshot({ path: info.outputPath("plans-sticky-dark.png") });
+
+  await courses.press("Enter");
+  await expect(courses).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByText("Courses covered (3/5)")).toBeInViewport();
+  await page.screenshot({ path: info.outputPath("plans-sticky-courses-open.png") });
+  await page.getByRole("button", { name: "Close", exact: true }).press("Enter");
+  await expect(courses).toBeFocused();
+  await expect(courses).toHaveAttribute("aria-expanded", "false");
 });

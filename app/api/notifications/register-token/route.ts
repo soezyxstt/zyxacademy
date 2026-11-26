@@ -13,7 +13,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { userPushTokens } from "@/db/schema";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne, or } from "drizzle-orm";
 import { headers } from "next/headers";
 import { randomUUID } from "crypto";
 import { z } from "zod";
@@ -24,6 +24,7 @@ import {
   isValidPushTokenForTransport,
 } from "@/lib/notifications/transport";
 import type { PushTransport } from "@/lib/notifications/types";
+import { isNativeShellUserAgent } from "@/lib/native/runtime";
 
 const registerSchema = z.object({
   token: z.string().min(16).max(4096),
@@ -34,6 +35,7 @@ const registerSchema = z.object({
 
 const unregisterSchema = z.object({
   token: z.string().min(16).max(4096),
+  browserOnly: z.boolean().default(false),
 });
 
 function isTransportActiveOnServer(transport: PushTransport): boolean {
@@ -70,6 +72,9 @@ export async function POST(req: NextRequest) {
     transport: parsed.data.transport,
   });
 
+  if (transport === "webpush" && isNativeShellUserAgent(req.headers.get("user-agent") ?? "")) {
+    return NextResponse.json({ error: "Native shell requires native push" }, { status: 422 });
+  }
   if (!isValidPushTokenForTransport(token, transport)) {
     return NextResponse.json(
       { error: `Invalid token format for transport '${transport}'` },
@@ -87,6 +92,7 @@ export async function POST(req: NextRequest) {
       .values({
         id: randomUUID(),
         userId,
+        sessionId: session.session.id,
         token,
         device,
         platform,
@@ -98,6 +104,7 @@ export async function POST(req: NextRequest) {
         target: userPushTokens.token,
         set: {
           userId,
+          sessionId: session.session.id,
           device,
           platform,
           transport,
@@ -105,6 +112,17 @@ export async function POST(req: NextRequest) {
         },
       });
 
+    // Only retire web tokens with a proven shared authenticated session. Different
+    // browser profiles/devices must never be inferred from their user agents.
+    if (transport === "fcm" || transport === "apns") {
+      // A rotated native token replaces the previous token for the same session.
+      await db.delete(userPushTokens).where(and(eq(userPushTokens.userId,userId),
+        eq(userPushTokens.sessionId,session.session.id),eq(userPushTokens.transport,transport),ne(userPushTokens.token,token)));
+      await db.delete(userPushTokens).where(and(
+        eq(userPushTokens.userId, userId), eq(userPushTokens.sessionId, session.session.id),
+        eq(userPushTokens.transport, "webpush"),
+      ));
+    }
     return NextResponse.json({
       success: true,
       registered: true,
@@ -144,6 +162,9 @@ export async function DELETE(req: NextRequest) {
         and(
           eq(userPushTokens.userId, session.user.id),
           eq(userPushTokens.token, parsed.data.token),
+          parsed.data.browserOnly
+            ? and(eq(userPushTokens.platform, "web"), inArray(userPushTokens.transport, ["webpush", "fcm"]))
+            : or(isNull(userPushTokens.sessionId), eq(userPushTokens.sessionId, session.session.id)),
         ),
       );
     return NextResponse.json({ success: true });

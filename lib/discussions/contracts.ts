@@ -10,11 +10,12 @@ export type DiscussionReplayTarget = { threadId: string; messageId: string };
 export type DiscussionSendFailure = Exclude<DiscussionSendError, "replay_unverified"> | { error: "replay_unverified"; target: DiscussionReplayTarget };
 export type DiscussionSendResult = { ok: true; value: DiscussionReplayTarget } | { ok: false; error: Exclude<DiscussionSendError, "replay_unverified"> } | { ok: false; error: "replay_unverified"; value: DiscussionReplayTarget };
 
-export type DiscussionChannel = {
+export type DiscussionChannelMetadata = {
  id: string; kind: DiscussionChannelKind; courseId: string | null; title: string;
  courseTitle?: string | null; requesterName?: string | null; isRequester?: boolean;
- muted: boolean; unreadThreads: number; activeThreads: number;
+ muted: boolean;
 };
+export type DiscussionChannel = DiscussionChannelMetadata & { unreadThreads: number; activeThreads: number };
 export type DiscussionThread = {
  id: string; channelId: string; title: string; status: DiscussionThreadStatus;
  labels: string[]; helpKind: DiscussionHelpKind | null; createdAt: string; lastActivityAt: string; answerCount: number;

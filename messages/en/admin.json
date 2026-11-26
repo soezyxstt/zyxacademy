@@ -73,6 +73,10 @@
     "courseMissing": "Course not found",
     "archivedTabs": "Archived tabs",
     "restoreTab": "Restore tab",
+    "backToCourses": "Back to courses",
+    "courseGroupContent": "Content",
+    "courseGroupEvaluation": "Evaluation",
+    "courseGroupManage": "Manage",
     "chapters": "Chapters",
     "bab": "Chapters",
     "documents": "Documents",
@@ -440,6 +444,7 @@
     "loadFailed": "Could not load the product catalog."
   },
   "usageCharts": {
+    "rangeLabel": "Zyra usage time range",
     "loadFailed": "Could not load AI usage data.",
     "previous": "Previous",
     "next": "Next",

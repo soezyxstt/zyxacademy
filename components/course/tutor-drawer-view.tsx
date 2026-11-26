@@ -1,5 +1,6 @@
 "use client";
 
+import { ZyraChatComposer, ZyraChatHeader, ZyraChatHistory, ZyraSendButton } from "./zyra-chat-frame";
 import { useDialogHistory } from "@/hooks/use-dialog-history";
 import { usePanelViewport } from "@/hooks/use-panel-viewport";
 import { useHideMobileBottomNav } from "@/components/navigation/mobile-chrome-context";
@@ -10,6 +11,10 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { TutorAssistantSurface, TutorAssistantLabel, TutorStudentMessage } from "@/components/course/tutor-message-frame";
 import type { Followup } from "@/lib/zyra/followups";
+import {
+  readPersistedZyraDrawerDraft,
+  savePersistedZyraDrawerDraft,
+} from "@/lib/zyra/drawer-persistence";
 import {
   Compass,
   AlertTriangle,
@@ -27,7 +32,6 @@ import {
   Camera,
   Paperclip,
   Plus,
-  ArrowUp,
   ChevronDown,
   Quote,
 } from "lucide-react";
@@ -469,6 +473,8 @@ function TutorDrawerContent({
     draftSequenceRef.current += 1;
     activateConversation(`draft:${draftSequenceRef.current}`);
     setSessionId(null);
+    setInputVal("");
+    setWorkStep("");
     resetComposerAttachments();
     setMessages([{ id: "chat-welcome", role: "ai", content: t("tutorDrawer.welcome") }]);
   }, [activateConversation, conversationScope, resetComposerAttachments, t]);
@@ -576,15 +582,15 @@ function TutorDrawerContent({
     return courseLabel || t("tutorDrawer.askZyra");
   }, [activeMode, data, messages, courseLabel, sessions, sessionId, sessionTitles, t]);
 
-  // Mobile body scroll lock
+  // Mobile and full-width body scroll lock
   React.useEffect(() => {
-    if (!isOpen || !window.matchMedia("(max-width: 767px)").matches) return;
+    if (!isOpen || (!isExpanded && !window.matchMedia("(max-width: 767px)").matches)) return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = previous;
     };
-  }, [isOpen]);
+  }, [isOpen, isExpanded]);
 
   // Internal container auto-scroll: strictly scrolls drawer container without moving main page
   React.useEffect(() => {
@@ -916,8 +922,8 @@ function TutorDrawerContent({
         try { localStorage.setItem(STORAGE_KEY_WIDTH, String(MIN_SIDEBAR_WIDTH)); } catch {}
       } else if (e.key === "End") {
         e.preventDefault();
-        const maxW = Math.min(MAX_SIDEBAR_WIDTH, Math.floor(window.innerWidth * 0.7));
-        setIsExpanded(true);
+        const maxW = clampTutorPanelWidth(MAX_SIDEBAR_WIDTH, window.innerWidth);
+        setIsExpanded(false);
         setSidebarWidth(maxW);
         try { localStorage.setItem(STORAGE_KEY_WIDTH, String(maxW)); } catch {}
       }
@@ -1384,7 +1390,10 @@ function TutorDrawerContent({
     }, 2000);
   };
 
-  const handleSelectSession = React.useCallback(async (targetSessionId: string) => {
+  const handleSelectSession = React.useCallback(async (
+    targetSessionId: string,
+    options?: { preserveDraft?: boolean },
+  ) => {
     if (targetSessionId === sessionId) {
       setShowMenu(false);
       return;
@@ -1393,9 +1402,11 @@ function TutorDrawerContent({
     if (!courseId) return;
     hasStartedConversationRef.current = true;
     invalidateConversationRequests();
-    resetComposerAttachments();
+    if (!options?.preserveDraft) {
+      resetComposerAttachments();
+      setWorkStep("");
+    }
     const loadEpoch = conversationEpochRef.current;
-    setWorkStep("");
     setChatLoading(true);
     setShowMenu(false);
     try {
@@ -1423,6 +1434,81 @@ function TutorDrawerContent({
       if (loadEpoch === conversationEpochRef.current) setChatLoading(false);
     }
   }, [courseIdFromPath, sessionId, t, activateConversation, invalidateConversationRequests, conversationKeyForSession, resetComposerAttachments, demo]);
+
+  const zyraDraftStateRef = React.useRef({ inputVal, workStep, sessionId });
+  zyraDraftStateRef.current = { inputVal, workStep, sessionId };
+  const [hydratedDraftScope, setHydratedDraftScope] = React.useState<string | null>(null);
+  const hydratedDraftScopeRef = React.useRef<string | null>(null);
+  hydratedDraftScopeRef.current = hydratedDraftScope;
+  const hydratingScopeRef = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    if (demo || !accountId || !courseIdFromPath) return;
+    if (hydratedDraftScope === conversationScope || hydratingScopeRef.current === conversationScope) {
+      return;
+    }
+    let cancelled = false;
+    hydratingScopeRef.current = conversationScope;
+    const saved = readPersistedZyraDrawerDraft(accountId, courseIdFromPath);
+    if (!saved) {
+      hydratingScopeRef.current = null;
+      setHydratedDraftScope(conversationScope);
+      return;
+    }
+    if (saved.inputVal && !initialQuestion) {
+      setInputVal((current) => (current.trim().length > 0 ? current : saved.inputVal));
+    }
+    if (saved.workStep) {
+      setWorkStep((current) => (current.trim().length > 0 ? current : saved.workStep));
+    }
+    if (saved.sessionId && !hasStartedConversationRef.current) {
+      void handleSelectSession(saved.sessionId, { preserveDraft: true }).finally(() => {
+        if (hydratingScopeRef.current === conversationScope) {
+          hydratingScopeRef.current = null;
+        }
+        if (!cancelled) {
+          setHydratedDraftScope(conversationScope);
+        }
+      });
+    } else {
+      hydratingScopeRef.current = null;
+      setHydratedDraftScope(conversationScope);
+    }
+    return () => {
+      cancelled = true;
+      if (hydratingScopeRef.current === conversationScope) {
+        hydratingScopeRef.current = null;
+      }
+    };
+  }, [accountId, conversationScope, courseIdFromPath, demo, handleSelectSession, hydratedDraftScope, initialQuestion]);
+
+  React.useEffect(() => {
+    if (demo || !accountId || !courseIdFromPath) return;
+    if (hydratedDraftScope !== conversationScope) return;
+    const timer = window.setTimeout(() => {
+      savePersistedZyraDrawerDraft(accountId, courseIdFromPath, zyraDraftStateRef.current);
+    }, 200);
+    return () => window.clearTimeout(timer);
+  }, [accountId, conversationScope, courseIdFromPath, demo, hydratedDraftScope, inputVal, sessionId, workStep]);
+
+  React.useEffect(() => {
+    if (demo || !accountId || !courseIdFromPath) return;
+    const flush = () => {
+      if (hydratedDraftScopeRef.current === conversationScope) {
+        savePersistedZyraDrawerDraft(accountId, courseIdFromPath, zyraDraftStateRef.current);
+      }
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      flush();
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", flush);
+    };
+  }, [accountId, conversationScope, courseIdFromPath, demo]);
 
   const handleDeleteSession = React.useCallback(async (targetSessionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -1511,9 +1597,7 @@ function TutorDrawerContent({
 
   if (!shouldRender) return null;
 
-  const targetPanelWidth = isExpanded
-    ? Math.min(MAX_SIDEBAR_WIDTH, typeof window === "undefined" ? MAX_SIDEBAR_WIDTH : window.innerWidth * 0.7)
-    : sidebarWidth;
+  const targetPanelWidth = sidebarWidth;
 
   return (
     <>
@@ -1533,24 +1617,27 @@ function TutorDrawerContent({
         ref={panelRef}
         aria-label={t("tutorDrawer.accessibleName")}
         data-state={isVisible ? "open" : "closed"}
+        data-full-width={isExpanded ? "true" : "false"}
         style={{
           "--zyra-panel-width": `${targetPanelWidth}px`,
         } as React.CSSProperties}
         className={cn(
-          "fixed inset-y-0 right-0 z-50 flex w-[min(var(--zyra-panel-width),calc(100vw-1rem))] flex-col overflow-hidden border-l border-border bg-background shadow-2xl md:sticky md:bottom-auto md:right-auto md:self-start md:z-20 md:shrink-0 md:shadow-none select-text top-[var(--panel-visible-top,0px)] h-[var(--panel-visible-height,100dvh)]",
+          "fixed inset-y-0 left-0 right-0 z-50 flex w-full flex-col overflow-hidden border-border bg-background select-text top-[var(--panel-visible-top,0px)] h-[var(--panel-visible-height,100dvh)]",
+          !isExpanded && "md:sticky md:bottom-auto md:left-auto md:right-auto md:self-start md:z-20 md:shrink-0 md:border-l md:shadow-none",
           "bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px]",
           isDragging
             ? "transition-none select-none"
             : "transition-[transform,width,opacity,border-color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
           isVisible
-            ? "translate-x-0 opacity-100 md:w-[var(--zyra-panel-width)]"
-            : "translate-x-full opacity-0 pointer-events-none md:translate-x-0 md:w-0 md:border-l-transparent"
+            ? cn("translate-x-0 opacity-100", !isExpanded && "md:w-[var(--zyra-panel-width)]")
+            : cn("translate-x-full opacity-0 pointer-events-none", !isExpanded && "md:translate-x-0 md:w-0 md:border-l-transparent")
         )}
       >
         <div
           className={cn(
-            "relative flex h-full min-h-0 w-full flex-col md:min-w-[var(--zyra-panel-width)] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
-            isVisible ? "md:translate-x-0" : "md:translate-x-4"
+            "relative flex h-full min-h-0 w-full flex-col transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+            !isExpanded && "md:min-w-[var(--zyra-panel-width)]",
+            !isExpanded && (isVisible ? "md:translate-x-0" : "md:translate-x-4")
           )}
         >
         {/* Drag-to-Resize Handle */}
@@ -1567,7 +1654,8 @@ function TutorDrawerContent({
           tabIndex={0}
           title={t("tutorDrawer.resizeHint")}
           className={cn(
-            "absolute left-0 top-0 bottom-0 z-50 hidden w-2.5 cursor-col-resize touch-none select-none items-center justify-center outline-none transition-colors group hover:bg-brand-primary/20 focus-visible:bg-brand-primary/25 md:flex",
+            "absolute left-0 top-0 bottom-0 z-50 hidden w-2.5 cursor-col-resize touch-none select-none items-center justify-center outline-none transition-colors group hover:bg-brand-primary/20 focus-visible:bg-brand-primary/25",
+            !isExpanded && "md:flex",
             isDragging && "bg-brand-primary/30"
           )}
         >
@@ -1580,7 +1668,7 @@ function TutorDrawerContent({
         </div>
 
         {/* Header: Ops AI Style (Title Dropdown + Minimal Action Icons) */}
-        <header className="shrink-0 border-b border-border/80 px-3.5 pt-[calc(0.625rem+env(safe-area-inset-top,0px))] pb-2.5 md:py-2.5 bg-background/80 backdrop-blur-md flex items-center justify-between z-20 gap-2">
+        <ZyraChatHeader>
           {/* Left: Mode / Topic Dropdown Selector */}
           <div ref={menuRef} className="relative min-w-0 flex-1">
             <button
@@ -1713,6 +1801,7 @@ function TutorDrawerContent({
               type="button"
               onClick={toggleExpand}
               aria-label={isExpanded ? t("tutorDrawer.shrinkSidebar") : t("tutorDrawer.expandSidebar")}
+              aria-pressed={isExpanded}
               title={isExpanded ? t("tutorDrawer.shrinkView") : t("tutorDrawer.expandView")}
               className="hidden md:inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
             >
@@ -1721,6 +1810,7 @@ function TutorDrawerContent({
 
             <button
               type="button"
+              data-tour="zyra-close"
               onClick={onClose}
               aria-label={t("tutorDrawer.closeAssistant")}
               title={t("tutorDrawer.closeAssistantEsc")}
@@ -1729,16 +1819,10 @@ function TutorDrawerContent({
               <X className="size-4" />
             </button>
           </div>
-        </header>
+        </ZyraChatHeader>
 
         {/* Dynamic Main Workspace / Conversation Area */}
-        <div
-          ref={scrollContainerRef}
-          role="region"
-          aria-label={t("tutorDrawer.conversationHistory")}
-          tabIndex={0}
-          className="flex-1 overflow-y-auto overscroll-contain min-h-0 p-4 space-y-(--paragraph-gap) font-sans text-body-sm focus-visible:outline-none"
-        >
+        <ZyraChatHistory ref={scrollContainerRef} aria-label={t("tutorDrawer.conversationHistory")}>
           {errors.length > 0 && (
             <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-destructive text-body-xs">
               {errors.map((err, i) => (
@@ -1960,16 +2044,12 @@ function TutorDrawerContent({
               })()}
             </>
           )}
-        </div>
+        </ZyraChatHistory>
 
         {assistantMode === "python" && codingBridge ? <div className="shrink-0 px-3 pb-1"><PythonPresets code={codingBridge.capture().context.code} hasError={["syntax_error", "runtime_error", "timeout"].includes(codingBridge.capture().context.execution?.status ?? "")} disabled={chatLoading} onSelect={handlePlaygroundPreset} /></div> : null}
 
         {/* Input Composer & Toolbar */}
-        <footer className="shrink-0 border-t border-border/40 bg-background p-2">
-          <div
-            onPasteCapture={handlePaste}
-            className="relative min-w-0 max-w-full overflow-hidden rounded-2xl border border-border bg-background/95 backdrop-blur-md shadow-md focus-within:border-brand-primary/60 focus-within:ring-1 focus-within:ring-brand-primary/20 transition-colors p-1.5"
-          >
+        <ZyraChatComposer onPasteCapture={handlePaste} footer={<div className="mt-1 empty:hidden"><ZyraAllowanceSummary courseId={courseIdFromPath} onAccessTierChange={setZyraAccessTier} /></div>}>
             {imageInputEnabled && courseIdFromPath && (
               <ZyraAttachmentComposer
                 key={attachmentComposerKey}
@@ -2091,24 +2171,14 @@ function TutorDrawerContent({
                 {assistantMode === "python" && codingBridge && !activeQuotedContext && (
                   <Button type="button" variant="outline" size="sm" className="h-8 text-body-sm" disabled={chatLoading || !attachmentsReady || (!inputVal.trim() && attachmentIds.length === 0)} onClick={() => void handleSend(undefined, null, "generate")}>Buat kode</Button>
                 )}
-                <Button
-                  size="icon-xs"
+                <ZyraSendButton
                   onClick={() => void handleSend()}
-                  disabled={
-                    chatLoading ||
-                    !attachmentsReady ||
-                    (!inputVal.trim() && !activeQuotedContext && attachmentIds.length === 0)
-                  }
-                  className="size-8 rounded-lg bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 transition-transform active:scale-95 disabled:opacity-40"
-                  aria-label={t("tutorDrawer.sendMessage")}
-                >
-                  <ArrowUp className="size-3.5" />
-                </Button>
+                  disabled={chatLoading || !attachmentsReady || (!inputVal.trim() && !activeQuotedContext && attachmentIds.length === 0)}
+                  label={t("tutorDrawer.sendMessage")}
+                />
               </div>
             </div>
-          </div>
-          <div className="mt-1 empty:hidden"><ZyraAllowanceSummary courseId={courseIdFromPath} onAccessTierChange={setZyraAccessTier} /></div>
-        </footer>
+        </ZyraChatComposer>
 
         {/* Micro-apps Modal View (Flashcards / Practice Quiz) */}
         {activityOpen && (

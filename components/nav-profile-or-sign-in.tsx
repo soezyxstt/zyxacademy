@@ -6,12 +6,13 @@ import { DropdownMenu } from "radix-ui";
 
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { signOut, useSession } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/client";
 
 type NavProfileOrSignInProps = {
-  variant?: "toolbar" | "sheet";
+  variant?: "toolbar" | "sheet" | "marketing";
   callbackURL?: string;
   onNavigate?: () => void;
   onLinkNavigate?: (event: { preventDefault: () => void }, href: string) => void;
@@ -30,6 +31,7 @@ export function NavProfileOrSignIn({
   const account = useTranslations("common");
   const { data: session, isPending } = useSession();
   const sheet = variant === "sheet";
+  const marketing = variant === "marketing";
 
   if (isPending) {
     if (!showSignIn) return null;
@@ -40,7 +42,7 @@ export function NavProfileOrSignIn({
           !sheet &&
             cn(
               "bg-muted/60 shrink-0 animate-pulse rounded-lg",
-              "size-10 xl:h-10 xl:w-28"
+              marketing ? "size-9" : "size-10 xl:h-10 xl:w-28"
             )
         )}
         aria-hidden
@@ -70,10 +72,16 @@ export function NavProfileOrSignIn({
                 "text-foreground gap-2 rounded-lg hover:bg-muted cursor-pointer",
                 sheet
                   ? "min-h-14 w-full min-w-0 justify-start border border-border px-3 py-2 text-left"
+                  : marketing ? "size-9 rounded-full p-0"
                   : "h-10 w-10 max-w-[11rem] min-w-0 shrink-0 overflow-hidden xl:w-44 xl:justify-start xl:gap-2 xl:px-2 max-xl:size-10 max-xl:justify-center max-xl:border max-xl:border-border/60 max-xl:p-0 max-xl:shadow-none max-xl:hover:border-border max-xl:hover:bg-muted/80"
               )}
             >
-              {session.user.image ? (
+              {marketing ? (
+                <Avatar className="size-8">
+                  <AvatarImage src={session.user.image ?? undefined} alt="" referrerPolicy="no-referrer" />
+                  <AvatarFallback>{label.charAt(0).toUpperCase()}</AvatarFallback>
+                </Avatar>
+              ) : session.user.image ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={session.user.image}
@@ -88,10 +96,10 @@ export function NavProfileOrSignIn({
                   <User className="text-muted-foreground size-4" aria-hidden />
                 </span>
               )}
-              <span className={cn("min-w-0 flex-1 overflow-hidden text-body-sm font-medium", !sheet && "hidden xl:block")}>
+              {!marketing && <span className={cn("min-w-0 flex-1 overflow-hidden text-body-sm font-medium", !sheet && "hidden xl:block")}>
                 <span className="block truncate">{label}</span>
                 {sheet && email && <span className="block truncate text-body-xs font-normal text-muted-foreground">{email}</span>}
-              </span>
+              </span>}
             </Button>
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
@@ -168,10 +176,11 @@ export function NavProfileOrSignIn({
       label={sheet ? t("nav.signInGoogle") : t("nav.signIn")}
       callbackURL={callbackURL}
       onBeforeOAuth={onNavigate}
-      containerClassName={sheet ? "w-full" : "max-lg:hidden shrink-0"}
+      containerClassName={sheet ? "w-full" : marketing ? "shrink-0" : "max-lg:hidden shrink-0"}
       className={cn(
         sheet
           ? "h-11 w-full rounded-xl bg-primary text-body-sm font-semibold text-primary-foreground hover:bg-primary/90"
+          : marketing ? "h-10 shrink-0 rounded-lg border-border bg-background px-3 text-body-sm font-medium text-foreground hover:bg-muted"
           : "h-10 shrink-0 rounded-lg bg-primary px-4 text-body-sm font-semibold text-primary-foreground hover:bg-primary/90"
       )}
     />

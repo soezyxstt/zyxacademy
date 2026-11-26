@@ -73,7 +73,10 @@ describe("discussion attachment routes", () => {
     signedIn = false;
     expect((await POST(request("https://example.com"))).status).toBe(401);
     signedIn = true;
-    expect((await POST(request("https://evil.test"))).status).toBe(400);
+    const rejectedOrigin = await POST(request("https://evil.test"));
+    expect(rejectedOrigin.status).toBe(403);
+    expect(await rejectedOrigin.json()).toEqual({ code: "origin", error: "Muat ulang halaman, lalu unggah lagi." });
+    expect(rejectedOrigin.headers.get("cache-control")).toBe("private, no-store");
     expect(uploads).toBe(0);
     const response = await POST(request("https://example.com"));
     expect(response.status).toBe(201);

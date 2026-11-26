@@ -63,7 +63,7 @@ export default async function DashboardPage() {
   const enrolledCourseIds = enrollments.map((e) => e.id);
 
   return (
-    <ApplicationPage className="pb-16">
+    <ApplicationPage>
       <DashboardSectionErrorBoundary variant="silent">
         <Suspense fallback={null}>
           <ProfilePromptSection user={user} />
@@ -94,22 +94,21 @@ export default async function DashboardPage() {
             </DashboardSectionErrorBoundary>
           )}
 
-          {user?.id ? (
-            <DashboardSectionErrorBoundary
-              variant="secondary"
-              fallbackHeader={<DashboardHeaderShell firstName={firstName} />}
-              sectionTitle={<TranslatedText namespace="student" messageKey="dashboard.studyPlan" />}
-            >
-              <Suspense fallback={<DashboardHeaderShell firstName={firstName} />}>
-                <TodayPlanSection userId={user.id} firstName={firstName} />
-              </Suspense>
-            </DashboardSectionErrorBoundary>
-          ) : (
-            <DashboardHeaderShell firstName={firstName} />
-          )}
-
           <StudentDashboardContent
             sections={{
+              todayPlan: user?.id ? (
+                <DashboardSectionErrorBoundary
+                  variant="secondary"
+                  fallbackHeader={<DashboardHeaderShell firstName={firstName} />}
+                  sectionTitle={<TranslatedText namespace="student" messageKey="dashboard.studyPlan" />}
+                >
+                  <Suspense fallback={<DashboardHeaderShell firstName={firstName} />}>
+                    <TodayPlanSection userId={user.id} firstName={firstName} />
+                  </Suspense>
+                </DashboardSectionErrorBoundary>
+              ) : (
+                <DashboardHeaderShell firstName={firstName} />
+              ),
               gamification: user?.id ? (
                 <DashboardSectionErrorBoundary variant="silent">
                   <Suspense fallback={null}>

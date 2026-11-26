@@ -2,7 +2,8 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/toast";
+import { hapticSelection } from "@/lib/native/haptics";
 import { useAppLocale } from "@/components/providers/locale-provider";
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/client";
@@ -22,6 +23,7 @@ export function LanguageMenu({ className }: { className?: string }) {
   }, [error]);
 
   const handleLocaleChange = async () => {
+    void hapticSelection();
     const nextLocale = locale === "en" ? "id" : "en";
     if (experience?.mode === "demo") { experience.changeLocale?.(nextLocale); return; }
     const saved = await setLocale(nextLocale);

@@ -73,6 +73,10 @@
     "courseMissing": "Mata kuliah tidak ditemukan",
     "archivedTabs": "Tab diarsipkan",
     "restoreTab": "Pulihkan tab",
+    "backToCourses": "Kembali ke Mata kuliah",
+    "courseGroupContent": "Konten",
+    "courseGroupEvaluation": "Evaluasi",
+    "courseGroupManage": "Kelola",
     "chapters": "Bab",
     "bab": "Bab",
     "documents": "Dokumen",
@@ -440,6 +444,7 @@
     "loadFailed": "Gagal memuat katalog produk."
   },
   "usageCharts": {
+    "rangeLabel": "Rentang penggunaan Zyra",
     "loadFailed": "Gagal memuat data penggunaan AI.",
     "previous": "Sebelumnya",
     "next": "Berikutnya",

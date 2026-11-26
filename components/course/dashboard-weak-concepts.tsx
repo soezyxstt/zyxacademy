@@ -4,6 +4,10 @@ import * as React from "react";
 import { TrendingUp, TrendingDown, Minus, Lock, Target } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { MathText } from "@/components/course/math-text";
+import {
+  DashboardSectionCount,
+  DashboardSectionHeading,
+} from "@/components/dashboard/dashboard-section-heading";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/client";
 
@@ -30,10 +34,37 @@ function barTone(score: number) {
   return "bg-status-error";
 }
 
-function TrendIcon({ trend }: { trend?: "improving" | "stable" | "declining" | null }) {
-  if (trend === "improving") return <TrendingUp className="size-3.5 text-status-success shrink-0" />;
-  if (trend === "declining") return <TrendingDown className="size-3.5 text-status-error shrink-0" />;
-  return <Minus className="size-3.5 text-muted-foreground shrink-0" />;
+function scoreLabelKey(score: number) {
+  if (score >= 70) return "strong";
+  if (score >= 40) return "developing";
+  return "weak";
+}
+
+function trendLabelKey(trend?: "improving" | "stable" | "declining" | null) {
+  if (trend === "improving") return "trendImproving";
+  if (trend === "declining") return "trendDeclining";
+  return "trendStable";
+}
+
+function TrendIcon({
+  trend,
+  label,
+}: {
+  trend?: "improving" | "stable" | "declining" | null;
+  label: string;
+}) {
+  return (
+    <span className="inline-flex shrink-0 items-center">
+      {trend === "improving" ? (
+        <TrendingUp className="size-3.5 text-status-success shrink-0" aria-hidden />
+      ) : trend === "declining" ? (
+        <TrendingDown className="size-3.5 text-status-error shrink-0" aria-hidden />
+      ) : (
+        <Minus className="size-3.5 text-muted-foreground shrink-0" aria-hidden />
+      )}
+      <span className="sr-only">{label}</span>
+    </span>
+  );
 }
 
 export function DashboardWeakConcepts({
@@ -51,61 +82,87 @@ export function DashboardWeakConcepts({
 
   return (
     <div className={cn("text-left", className)}>
-      {/* Clean Accessible Header */}
       {showHeader && (
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2">
-          <h2 className="flex items-center gap-2 font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <Target className="size-3.5 shrink-0 text-muted-foreground" />
-            {t("course.dashboardWeakConcepts.title", { courseTitle: resolvedCourseTitle })}
-          </h2>
-        </div>
+        <DashboardSectionHeading
+          icon={Target}
+          title={t("course.dashboardWeakConcepts.title", { courseTitle: resolvedCourseTitle })}
+          meta={
+            hasAnyMeasured ? (
+              <DashboardSectionCount>
+                {t("course.dashboardWeakConcepts.measuredOf", {
+                  measured: measuredConcepts.length,
+                  total: concepts.length,
+                })}
+              </DashboardSectionCount>
+            ) : null
+          }
+        />
       )}
 
       {!hasAnyMeasured ? (
-        <div className="flex flex-col items-center justify-center px-3 py-5 text-center">
-          <Target className="size-8 text-muted-foreground/40 mb-2" aria-hidden />
+        <div className="flex flex-col items-center justify-center px-3 py-4 text-center">
+          <Target className="size-6 text-muted-foreground/50 mb-1.5" aria-hidden />
           <p className="text-body-sm font-semibold text-foreground">{t("course.dashboardWeakConcepts.noData")}</p>
           <p className="text-body-xs text-muted-foreground mt-0.5 max-w-xs leading-relaxed">
             {t("course.dashboardWeakConcepts.noDataDescription")}
           </p>
         </div>
       ) : (
-        <div className="space-y-3.5">
-          {displayConcepts.map((c, index) => {
+        <div className="divide-y divide-border/30">
+          {displayConcepts.map((c) => {
             const isMeasured = c.isMeasured ?? (c.evidenceCount > 0);
+            const roundedScore = Math.round(c.masteryScore);
             return (
-              <div
-                key={c.conceptName}
-                className="flex flex-col gap-1.5"
-                style={{ animationDelay: `${index * 50}ms` }}
-              >
-                {/* Concept name + trend icon + score */}
-                <div className="flex items-start justify-between gap-2 text-body-sm">
-                  <span className="flex items-center gap-1.5 font-medium text-foreground min-w-0 break-words leading-snug">
+              <div key={c.conceptName} className="flex flex-col gap-2 py-3.5 first:pt-1">
+                <div className="flex items-start justify-between gap-3">
+                  <span className="min-w-0 flex-1 break-words text-body-sm font-medium leading-relaxed text-foreground">
                     <MathText as="span">{c.conceptName}</MathText>
-                    {isMeasured && !hideTrend && <TrendIcon trend={c.trend} />}
                   </span>
-                  <span className="font-mono text-body-xs font-semibold tabular-nums text-muted-foreground shrink-0 mt-0.5">
-                    {isMeasured ? `${c.masteryScore}%` : t("course.dashboardWeakConcepts.notMeasured")}
-                  </span>
+                  <div className="flex shrink-0 items-center gap-1.5 pt-0.5">
+                    {isMeasured && !hideTrend && (
+                      <TrendIcon
+                        trend={c.trend}
+                        label={t(`course.dashboardWeakConcepts.${trendLabelKey(c.trend)}`)}
+                      />
+                    )}
+                    <span
+                      className={cn(
+                        "font-mono text-body-xs font-semibold tabular-nums",
+                        isMeasured ? "text-foreground" : "text-muted-foreground",
+                      )}
+                    >
+                      {isMeasured ? (
+                        <>
+                          {roundedScore}%
+                          <span className="sr-only">
+                            {" "}
+                            ({t(`course.dashboardWeakConcepts.${scoreLabelKey(roundedScore)}`)})
+                          </span>
+                        </>
+                      ) : (
+                        t("course.dashboardWeakConcepts.notMeasured")
+                      )}
+                    </span>
+                  </div>
                 </div>
 
-                {/* Progress bar */}
-                <div className="h-1.5 overflow-hidden rounded-full bg-muted/70 w-full">
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/70">
                   <div
                     className={cn(
                       "h-full rounded-full transition-all duration-500 ease-out",
-                      isMeasured ? barTone(c.masteryScore) : "bg-transparent",
+                      isMeasured ? barTone(roundedScore) : "bg-transparent",
                     )}
-                    style={{ width: isMeasured ? `${c.masteryScore}%` : "0%" }}
+                    style={{ width: isMeasured ? `${roundedScore}%` : "0%" }}
                   />
                 </div>
 
                 {c.blockedBy && c.blockedBy.length > 0 && (
                   <div className="mt-0.5">
-                    <Badge variant="outline" className="text-muted-foreground gap-1 text-body-2xs rounded-md border-border/50 py-0.5">
-                      <Lock className="size-3" />
-                      {t("course.dashboardWeakConcepts.prerequisite")}: <MathText as="span">{c.blockedBy[0]}</MathText>
+                    <Badge variant="outline" className="max-w-full gap-1 rounded-md border-border/50 py-0.5 text-body-2xs text-muted-foreground">
+                      <Lock className="size-3 shrink-0" aria-hidden />
+                      <span className="truncate">
+                        {t("course.dashboardWeakConcepts.prerequisite")}: <MathText as="span">{c.blockedBy[0]}</MathText>
+                      </span>
                     </Badge>
                   </div>
                 )}

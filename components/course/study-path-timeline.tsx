@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Check, ChevronDown, ChevronRight, CircleAlert, Lock, Play, TriangleAlert } from "lucide-react";
+import { Check, ChevronDown, CircleAlert, Lock, Play, TriangleAlert } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -42,8 +42,8 @@ function StepRow({ step, courseId }: { step: StudyPathStep; courseId: string }) 
     }
     if (step.status === "in_progress") {
       return (
-        <span className="flex size-5 shrink-0 items-center justify-center rounded-full border-2 border-brand-primary">
-          <span className="size-1.5 rounded-full bg-brand-primary" />
+        <span className="flex size-5 shrink-0 items-center justify-center rounded-full border-2 border-foreground/75">
+          <span className="size-1.5 rounded-full bg-foreground/75" />
         </span>
       );
     }
@@ -62,17 +62,16 @@ function StepRow({ step, courseId }: { step: StudyPathStep; courseId: string }) 
   const content = (
     <div
       className={cn(
-        "flex items-center justify-between gap-3 py-3 transition-colors",
-        href && !isLocked && "group/step",
+        "flex items-start justify-between gap-3 py-(--row-padding) transition-colors",
         isLocked || !href
-          ? "bg-muted/15"
+          ? "text-muted-foreground"
           : "hover:bg-muted/30 active:bg-muted/50",
       )}
     >
-      <div className="flex min-w-0 flex-1 items-center gap-3">
+      <div className="flex min-w-0 flex-1 items-start gap-3">
         {statusIndicator}
         <div className="min-w-0 flex-1">
-          <p className="break-words text-body-sm font-medium leading-snug text-foreground transition-colors group-hover/step:text-brand-primary">
+          <p className={cn("wrap-anywhere text-body-sm font-medium leading-snug", !isLocked && "text-foreground")}>
             <MathText as="span">{step.conceptName}</MathText>
           </p>
           {isLocked && step.prerequisites.length > 0 && (
@@ -85,15 +84,12 @@ function StepRow({ step, courseId }: { step: StudyPathStep; courseId: string }) 
 
       <div className="flex items-center gap-1.5 shrink-0 text-body-xs text-muted-foreground">
         <span>{t("course.studyPath.minutesShort", { count: step.estimatedMinutes })}</span>
-        {href && !isLocked && (
-          <ChevronRight aria-hidden="true" className="size-4 text-muted-foreground group-hover/step:text-brand-primary" />
-        )}
       </div>
     </div>
   );
 
   if (href && !isLocked) {
-    return <Link href={href} className="block">{content}</Link>;
+    return <Link href={href} className="block rounded-md focus-visible:outline-2 focus-visible:outline-ring">{content}</Link>;
   }
 
   return <div>{content}</div>;
@@ -168,9 +164,9 @@ function StudyPathView({ courseId, state }: { courseId: string; state: StudyPath
       ) : (
         <>
           {nextStep ? (
-            <section className="grid gap-3 border-l-2 border-brand-primary bg-brand-primary/5 p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+            <section className="grid gap-3 border-l-2 border-foreground/35 py-2 pl-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
               <div>
-                <p className="text-body-xs font-semibold text-brand-primary">{t("course.studyPath.continueLearning")}</p>
+                <p className="text-body-xs font-semibold text-muted-foreground">{t("course.studyPath.continueLearning")}</p>
                 <h2 className="mt-1 font-heading text-body-base font-bold text-foreground">
                   <MathText as="span">{nextStep.conceptName}</MathText>
                 </h2>
@@ -179,9 +175,9 @@ function StudyPathView({ courseId, state }: { courseId: string; state: StudyPath
                 </p>
               </div>
               {primaryHref(nextStep, courseId) ? (
-                <Button asChild size="sm" className="rounded-lg bg-brand-primary text-primary-foreground hover:bg-brand-primary/90">
+                <Button asChild size="sm" variant="secondary" className="justify-self-end">
                   <Link href={href(primaryHref(nextStep, courseId)!)}>
-                    <Play className="mr-1.5 size-3.5 fill-white" />{t("course.studyPath.start")}
+                    <Play className="size-3.5" aria-hidden />{t("course.studyPath.start")}
                   </Link>
                 </Button>
               ) : null}

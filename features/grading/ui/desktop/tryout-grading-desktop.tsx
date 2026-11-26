@@ -5,7 +5,6 @@ import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 import {
   AlertCircle,
   ArrowLeft,
-  Award,
   Calendar,
   CheckCircle2,
   CheckSquare,
@@ -72,7 +71,7 @@ export function TryoutGradingDesktop({
 
     return (
       <div className="space-y-(--related-gap)" data-surface="desktop-tryout-grading-review">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-start gap-2">
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -103,7 +102,7 @@ export function TryoutGradingDesktop({
         </div>
 
         <div className="grid grid-cols-1 items-start gap-(--related-gap) lg:grid-cols-12">
-          <div className="divide-y divide-border border-y border-border lg:col-span-8">
+          <div className="divide-y divide-border/55 border-y border-border/55 lg:col-span-8">
             {questions.map((q, idx) => (
               <TryoutQuestionCard
                 key={q.id}
@@ -115,21 +114,21 @@ export function TryoutGradingDesktop({
             ))}
           </div>
 
-          <div className="space-y-(--related-gap) lg:sticky lg:top-6 lg:col-span-4">
+          <div className="space-y-(--related-gap) lg:sticky lg:top-6 lg:col-span-4 lg:border-l lg:border-border/35 lg:pl-8">
             <section
               id="tryout-grading-panel"
               tabIndex={-1}
               aria-labelledby="tryout-grading-heading"
-              className="scroll-mt-16 border-t border-border pt-3"
+              className="scroll-mt-16"
             >
-              <header className="mb-4">
-                <h3
+              <header className="mb-(--related-gap) border-b border-border/40 pb-2">
+                <h2
                   id="tryout-grading-heading"
                   className="flex items-center gap-2 font-heading text-body-base font-bold text-foreground"
                 >
-                  <Award className="size-5 text-brand-primary" aria-hidden />
-                  {tr("gradingPanel")}
-                </h3>
+                  <CheckSquare className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                  <span>{tr("gradingPanel")}</span>
+                </h2>
               </header>
 
               <div className="space-y-(--related-gap) font-sans">
@@ -145,7 +144,7 @@ export function TryoutGradingDesktop({
                     value={scoreInput}
                     onChange={(e) => onScoreChange(e.target.value)}
                     placeholder={tr("scorePlaceholder")}
-                    className="rounded-lg border-input bg-background font-sans text-body-sm font-semibold text-brand-primary focus-visible:ring-brand-primary"
+                    className="rounded-md text-body-sm font-semibold tabular-nums"
                   />
                 </div>
 
@@ -159,16 +158,16 @@ export function TryoutGradingDesktop({
                     onChange={(e) => onNotesChange(e.target.value)}
                     rows={6}
                     placeholder={tr("feedbackPlaceholder")}
-                    className="rounded-lg border-input bg-background text-body-sm leading-relaxed focus-visible:ring-brand-primary"
+                    className="rounded-md text-body-sm leading-relaxed"
                   />
                 </div>
               </div>
 
-              <div className="mt-6 space-y-2">
+              <div className="mt-(--related-gap) flex justify-end">
                 <Button
                   onClick={onSaveGrade}
                   isLoading={isPending}
-                  className="w-full gap-1.5 rounded-md bg-brand-primary font-semibold text-primary-foreground shadow-sm hover:bg-brand-primary/90"
+                  className="rounded-md font-semibold"
                 >
                   {tr("savePublish")}
                 </Button>
@@ -188,7 +187,7 @@ export function TryoutGradingDesktop({
         onValueChange={(val) => onTabChange(val as TryoutGradingTab)}
         className="w-full"
       >
-        <TabsList flush={false}>
+        <TabsList>
           <TabsTrigger value="pending">
             <AlertCircle className="mr-2 size-4 text-status-warning" aria-hidden />
             {tr("needsGrading")}
@@ -208,13 +207,13 @@ export function TryoutGradingDesktop({
 
         <TabsContent value="pending">
           {pendingList.length === 0 ? (
-            <AdminEmptyState icon={CheckCircle2} title={tr("allGraded")} />
+            <AdminEmptyState compact icon={CheckCircle2} title={tr("allGraded")} />
           ) : (
-            <div className="divide-y divide-border border-y border-border">
+            <div className="divide-y divide-border/40">
               {pendingList.map((s) => (
                 <article
                   key={s.id}
-                  className="flex flex-col justify-between gap-(--compact-gap) py-3 transition-colors hover:bg-muted/20 sm:flex-row sm:items-center"
+                  className="flex flex-col justify-between gap-(--compact-gap) py-(--row-padding) sm:flex-row sm:items-start"
                 >
                   <div className="space-y-1">
                     <h3 className="font-heading text-body-base font-semibold text-foreground">
@@ -236,7 +235,7 @@ export function TryoutGradingDesktop({
                   </div>
                   <Button
                     onClick={() => onOpenGrade(s)}
-                    className="rounded-md bg-brand-primary text-body-sm font-semibold text-primary-foreground hover:bg-brand-primary/90"
+                    className="rounded-md text-body-sm font-semibold"
                   >
                     {tr("gradeAnswer")}
                   </Button>
@@ -248,13 +247,13 @@ export function TryoutGradingDesktop({
 
         <TabsContent value="graded">
           {gradedList.length === 0 ? (
-            <AdminEmptyState icon={AlertCircle} title={tr("noGraded")} />
+            <AdminEmptyState compact icon={AlertCircle} title={tr("noGraded")} />
           ) : (
-            <div className="divide-y divide-border border-y border-border">
+            <div className="divide-y divide-border/40">
               {gradedList.map((s) => (
                 <article
                   key={s.id}
-                  className="flex flex-col justify-between gap-(--compact-gap) py-3 sm:flex-row sm:items-center"
+                  className="flex flex-col justify-between gap-(--compact-gap) py-(--row-padding) sm:flex-row sm:items-start"
                 >
                   <div className="space-y-1">
                     <h3 className="font-heading text-body-base font-semibold text-foreground">
@@ -276,10 +275,10 @@ export function TryoutGradingDesktop({
                   </div>
                   <div className="flex shrink-0 items-center gap-(--related-gap)">
                     <div className="text-right">
-                      <p className="text-body-xs font-semibold uppercase text-muted-foreground">
+                      <p className="text-body-xs text-muted-foreground">
                         {tr("finalScoreLabel")}
                       </p>
-                      <p className="font-heading text-h6 font-bold tabular-nums text-brand-primary">
+                      <p className="font-heading text-body-base font-bold tabular-nums text-foreground">
                         {s.score}%
                       </p>
                     </div>
@@ -301,11 +300,11 @@ export function TryoutGradingDesktop({
           {initialSubmissions.length === 0 ? (
             <AdminEmptyState icon={CheckSquare} title={tr("noSubmissions")} />
           ) : (
-            <div className="divide-y divide-border border-y border-border">
+            <div className="divide-y divide-border/55 border-y border-border/55">
               {initialSubmissions.map((s) => (
                 <article
                   key={s.id}
-                  className="flex flex-col justify-between gap-(--compact-gap) py-3 sm:flex-row sm:items-center"
+                  className="flex flex-col justify-between gap-(--compact-gap) py-(--row-padding) sm:flex-row sm:items-start"
                 >
                   <div className="space-y-1">
                     <h3 className="font-heading text-body-base font-semibold text-foreground">
@@ -332,16 +331,16 @@ export function TryoutGradingDesktop({
                   </div>
                   <div className="flex shrink-0 items-center gap-(--related-gap)">
                     <div className="text-right">
-                      <p className="font-sans text-body-xs font-semibold uppercase text-muted-foreground">
+                      <p className="text-body-xs text-muted-foreground">
                         {tr("score")}
                       </p>
-                      <p className="font-heading text-h6 font-bold tabular-nums text-brand-primary">
+                      <p className="font-heading text-body-base font-bold tabular-nums text-foreground">
                         {s.score != null ? `${s.score}%` : tr("pending")}
                       </p>
                     </div>
                     <Button
                       onClick={() => onOpenGrade(s)}
-                      className="rounded-md bg-brand-primary text-body-sm font-semibold text-primary-foreground hover:bg-brand-primary/90"
+                      className="rounded-md text-body-sm font-semibold"
                     >
                       {s.status === "graded" ? tr("editScore") : tr("gradeAnswer")}
                     </Button>

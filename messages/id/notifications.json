@@ -1,12 +1,23 @@
 {
   "push": {
-    "quizPublished": { "title": "📝 Kuis Baru Tersedia", "body": "{quizTitle} untuk {courseTitle} sudah bisa dikerjakan. Yuk coba sekarang!" },
+    "quizPublished": {"title": "Kuis baru: {quizTitle}", "body": "{courseTitle}. Kuis sudah bisa dikerjakan."},
+    "quizGraded": {"title": "Nilai kuis: {quizTitle}", "body": "{courseTitle}. Nilai: {scoreLabel}."},
+    "flashcardReminder": {"title": "{dueCount} flashcard siap ditinjau", "body": "{dueCount} flashcard dari kelasmu sudah waktunya ditinjau.", "bodyWithCourse": "{dueCount} flashcard siap ditinjau, mulai dari {courseTitle}."},
+    "paymentSuccess": {"title": "Akses aktif: {groupName}", "body": "Grup {groupName} aktif untuk {courseCount} mata kuliah."},
+    "weeklyProgress": { "title": "Ringkasan belajar mingguan", "body": "Minggu lalu: {quizzes} kuis, {flashcards} flashcard, {modules} modul. Rangkaian aktif {currentStreak} hari." },
+    "studyReengagement": { "title": "Lanjutkan belajar {courseTitle}", "body": "Sudah {inactiveDays} hari sejak aktivitas terakhirmu. Lanjutkan {courseTitle} sekarang.", "bodyWithTopic": "Sudah {inactiveDays} hari sejak aktivitas terakhirmu. Lanjutkan topik {topicTitle} di {courseTitle}." },
     "pkaSchedule": { "title": "Jadwal Tutorial PKA Baru: {scheduleTitle}", "body": "Jadwal sesi tutorial PKA: {scheduleTitle}, {sessionLabel}. Cek tab Jadwal untuk tautan Meet." },
     "pkaScheduleUpdate": { "title": "Pembaruan Tautan Meet: {scheduleTitle}", "body": "Tautan Google Meet ditambahkan untuk sesi {scheduleTitle} pada {sessionLabel}." },
-    "tutorScheduleMoved": { "title": "Jadwal Tutorial Diperbarui", "body": "Sesi dipindahkan ke {dayOfWeek}, {sessionDate} pukul {startTime} sampai {endTime}." },
-    "tutorTicketDecision": { "title": "Tiket {ticketType} {decision}", "body": "Pengajar telah memutuskan tiket {ticketType}." },
-    "tutorTicketMessage": { "title": "Balasan baru pada diskusi jadwal" },
-    "discussion": { "title": "Pembaruan diskusi", "body": "Ada aktivitas baru di diskusi." }
+    "tutorScheduleMoved": {"title": "Jadwal Tutorial Diperbarui", "body": "Sesi dipindahkan ke {dayOfWeek}, {sessionDate} pukul {startTime} sampai {endTime}.", "titleWithCourse": "Jadwal berubah: {courseTitle}"},
+    "tutorTicketDecision": {"title": "Tiket {ticketType} {decision}", "body": "Pengajar telah memutuskan tiket {ticketType}.", "titleWithCourse": "{ticketType} {decision}: {courseTitle}"},
+    "tutorTicketMessage": {"title": "Balasan baru pada diskusi jadwal", "titleWithCourse": "Balasan jadwal: {courseTitle}"},
+    "tutorBookingCreated": {"title": "Tutorial baru: {courseTitle}", "body": "{studentName} memesan sesi {courseTitle} pada {sessionDate} pukul {startTime}."},
+    "tutorBookingMoved": {"title": "Jadwal tutorial berubah: {courseTitle}", "body": "{studentName} memindahkan sesi {courseTitle} ke {sessionDate} pukul {startTime}."},
+    "tutorBookingCancelled": {"title": "Tutorial dibatalkan: {courseTitle}", "body": "{studentName} membatalkan sesi {courseTitle} pada {sessionDate} pukul {startTime}."},
+    "tutorTicketSubmitted": {"title": "Tiket {ticketType}: {courseTitle}", "body": "{studentName} mengajukan {ticketType} untuk sesi {courseTitle}."},
+    "upcomingSessionReminder": {"title": "Tutorial: {courseTitle}", "body24h": "Sesi {courseTitle} dijadwalkan besok ({sessionDate}) pukul {startTime}.", "body1h": "Sesi {courseTitle} dimulai sekitar 1 jam lagi ({startTime})."},
+    "tutorDailyDigest": {"title": "Antrean tutor hari ini", "body": "{pendingTickets} tiket jadwal dan {pendingGradings} penilaian kuis menunggu tinjauan."},
+    "discussion": {"title": "Pembaruan diskusi", "body": "Ada aktivitas baru di diskusi.", "titleWithThread": "Diskusi: {threadTitle}", "newMessage": "Ada pesan baru di diskusi ini.", "edited": "Sebuah pesan diubah.", "deleted": "Sebuah pesan dihapus.", "statusChanged": "Status diskusi berubah."}
   },
   "bell": "Notifikasi",
   "title": "Notifikasi",

@@ -22,7 +22,7 @@ const {
   paginateIdeaRecords,
 } = await import("@/lib/authoring/question-catalog");
 const { reviewQuestionBankDraft } = await import("@/lib/authoring/question-draft-review");
-const { MCP_OAUTH_SCOPES, approvedScopes, requestedScopes } = await import("@/lib/authoring/mcp-oauth");
+const { MCP_OAUTH_INITIAL_SCOPES, MCP_OAUTH_SCOPES, approvedScopes, defaultConsentScopes, requestedScopes } = await import("@/lib/authoring/mcp-oauth");
 const { GET: mcpGet, DELETE: mcpDelete } = await import("@/app/api/mcp/authoring/route");
 
 const testPrincipal = {
@@ -89,21 +89,18 @@ describe("provider-neutral authoring MCP workflow registry", () => {
     expect(quizBank?.sourcePackRequired).toBe(false);
   });
 
-  it("defaults OAuth to all four scopes while respecting explicit scope requests", () => {
+  it("offers all supported OAuth scopes while respecting explicit scope requests", () => {
     expect(MCP_AUTHORING_DEFAULT_SCOPES).toEqual([
       "authoring:read",
       "authoring:stage",
       "authoring:review",
       "authoring:withdraw",
     ]);
-    expect(requestedScopes(null)).toEqual([
-      "authoring:read",
-      "authoring:stage",
-      "authoring:review",
-      "authoring:withdraw",
-    ]);
-    expect(requestedScopes("")).toEqual([...MCP_AUTHORING_DEFAULT_SCOPES]);
-    expect(requestedScopes("   ")).toEqual([...MCP_AUTHORING_DEFAULT_SCOPES]);
+    expect(MCP_OAUTH_INITIAL_SCOPES).toEqual(MCP_OAUTH_SCOPES);
+    expect(MCP_OAUTH_INITIAL_SCOPES).toHaveLength(46);
+    expect(requestedScopes(null)).toEqual([...MCP_OAUTH_INITIAL_SCOPES]);
+    expect(requestedScopes("")).toEqual([...MCP_OAUTH_INITIAL_SCOPES]);
+    expect(requestedScopes("   ")).toEqual([...MCP_OAUTH_INITIAL_SCOPES]);
     expect(requestedScopes("authoring:read")).toEqual(["authoring:read"]);
     expect(MCP_OAUTH_SCOPES).toEqual(expect.arrayContaining([...MCP_AUTHORING_DEFAULT_SCOPES, "forms:read"]));
     expect(requestedScopes("forms:read")).toEqual(["forms:read"]);
@@ -114,7 +111,20 @@ describe("provider-neutral authoring MCP workflow registry", () => {
       "authoring:withdraw",
     ]);
     expect(requestedScopes("authoring:publish")).toEqual(["authoring:publish"]);
-    expect(requestedScopes(null)).not.toContain("authoring:publish");
+    expect(requestedScopes(null)).toContain("authoring:publish");
+    expect(() => requestedScopes("authoring:read unknown:scope")).toThrow("invalid_scope");
+  });
+
+  it("preselects only authoring defaults for the full scope set and preserves narrower choices", () => {
+    expect(defaultConsentScopes(requestedScopes(null))).toEqual([...MCP_AUTHORING_DEFAULT_SCOPES]);
+    expect(defaultConsentScopes([...MCP_OAUTH_INITIAL_SCOPES].reverse())).toEqual([...MCP_AUTHORING_DEFAULT_SCOPES]);
+    for (const raw of ["authoring:read", "forms:read", "authoring:publish", "authoring:read forms:write"]) {
+      const requested = requestedScopes(raw);
+      expect(defaultConsentScopes(requested)).toEqual(requested);
+      expect(approvedScopes(raw, defaultConsentScopes(requested))).toEqual(
+        MCP_OAUTH_SCOPES.filter((scope) => requested.includes(scope)),
+      );
+    }
   });
 
   it("grants only requested scopes and rejects invalid consent", () => {
@@ -124,7 +134,8 @@ describe("provider-neutral authoring MCP workflow registry", () => {
     expect(() => approvedScopes("authoring:read authoring:stage authoring:review", ["authoring:read", "authoring:stage", "authoring:review", "authoring:withdraw"])).toThrow("invalid_scope");
     expect(() => approvedScopes("authoring:read", ["authoring:withdraw"])).toThrow("invalid_scope");
     expect(() => approvedScopes("authoring:publish", ["authoring:read"])).toThrow("invalid_scope");
-    expect(() => approvedScopes(null, ["authoring:publish"])).toThrow("invalid_scope");
+    expect(approvedScopes(null, ["authoring:publish", "forms:read"])).toEqual(["authoring:publish", "forms:read"]);
+    expect(() => approvedScopes(null, ["unknown:scope"])).toThrow("invalid_scope");
     expect(() => approvedScopes(null, [new File(["authoring:read"], "scope.txt")])).toThrow("invalid_scope");
   });
 
@@ -238,7 +249,7 @@ describe("provider-neutral authoring MCP workflow registry", () => {
       }),
     }));
     expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ result: { serverInfo: { name: "zyx-authoring-local" } } });
+    expect(await response.json()).toMatchObject({ result: { serverInfo: { name: "zyx-local" } } });
   });
 
   it("rejects GET and DELETE with 405 Method Not Allowed to prevent persistent SSE compute drain", async () => {
@@ -265,61 +276,66 @@ describe("provider-neutral authoring MCP workflow registry", () => {
     const body = await response.json() as { result?: { tools?: Array<{ name: string; inputSchema?: any; annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean } }> } };
     const tools = body.result?.tools ?? [];
     const names = tools.map((tool) => tool.name);
-    expect(names).toContain("authoring.submit_idea_bundle");
-    expect(names).toContain("authoring.submit_product_bundle");
-    expect(names).toContain("assessment.list_ideas");
-    expect(names).toContain("assessment.get_idea");
-    expect(names).toContain("assessment.validate_quiz_draft");
-    expect(names).toContain("assessment.submit_quiz_draft");
-    expect(names).toContain("assessment.validate_reference_draft");
-    expect(names).toContain("assessment.submit_reference_draft");
-    expect(names).toContain("assessment.list_reference_questions");
-    expect(names).toContain("assessment.get_reference_question");
-    expect(names).toContain("knowledge.search_course_ideas");
-    expect(names).toContain("source.list_reference_files");
-    expect(names).toContain("authoring.list_imports");
-    expect(names).toContain("authoring.get_import");
-    expect(names).toContain("authoring.restage_idea_bundle");
-    expect(names).toContain("authoring.restage_product_bundle");
-    expect(names).toContain("authoring.discard_product_draft");
-    expect(names).toContain("authoring.review_idea_bundle");
-    expect(names).toContain("authoring.get_idea_review_context");
-    expect(names).toContain("authoring.review_idea_revision");
-    expect(names).toContain("authoring.publish_idea_bundle");
-    expect(names).toContain("authoring.withdraw_idea_bundle");
-    expect(names).toContain("authoring.review_product_bundle");
-    expect(names).toContain("authoring.get_product_review_context");
-    expect(names).toContain("authoring.publish_product_bundle");
-    expect(names).toContain("authoring.withdraw_product_bundle");
-    expect(names).toContain("assessment.update_question");
-    const updateLinks = tools.find((tool) => tool.name === "assessment.update_question")?.inputSchema;
+    expect(names).toContain("authoring_submit_idea_bundle");
+    expect(names).toContain("authoring_submit_product_bundle");
+    expect(names).toContain("authoring_create_product_draft");
+    expect(Buffer.byteLength(JSON.stringify(tools.find(tool => tool.name === "authoring_create_product_draft")!.inputSchema))).toBeLessThan(4000);
+    expect(names).toContain("authoring_create_idea_draft");
+    expect(Buffer.byteLength(JSON.stringify(tools.find(tool => tool.name === "authoring_create_idea_draft")!.inputSchema))).toBeLessThan(4000);
+    expect(tools.find(tool => tool.name === "authoring_create_idea_draft")?.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: false });
+    expect(names).toContain("assessment_list_ideas");
+    expect(names).toContain("assessment_get_idea");
+    expect(names).toContain("assessment_validate_quiz_draft");
+    expect(names).toContain("assessment_submit_quiz_draft");
+    expect(names).toContain("assessment_validate_reference_draft");
+    expect(names).toContain("assessment_submit_reference_draft");
+    expect(names).toContain("assessment_list_reference_questions");
+    expect(names).toContain("assessment_get_reference_question");
+    expect(names).toContain("knowledge_search_course_ideas");
+    expect(names).toContain("source_list_reference_files");
+    expect(names).toContain("authoring_list_imports");
+    expect(names).toContain("authoring_get_import");
+    expect(names).toContain("authoring_restage_idea_bundle");
+    expect(names).toContain("authoring_restage_product_bundle");
+    expect(names).toContain("authoring_discard_product_draft");
+    expect(names).toContain("authoring_review_idea_bundle");
+    expect(names).toContain("authoring_get_idea_review_context");
+    expect(names).toContain("authoring_review_idea_revision");
+    expect(names).toContain("authoring_publish_idea_bundle");
+    expect(names).toContain("authoring_withdraw_idea_bundle");
+    expect(names).toContain("authoring_review_product_bundle");
+    expect(names).toContain("authoring_get_product_review_context");
+    expect(names).toContain("authoring_publish_product_bundle");
+    expect(names).toContain("authoring_withdraw_product_bundle");
+    expect(names).toContain("assessment_update_question");
+    const updateLinks = tools.find((tool) => tool.name === "assessment_update_question")?.inputSchema;
     expect(updateLinks.required).toContain("ideaLinks");
     expect(updateLinks.properties.ideaLinks.minItems).toBe(1);
-    expect(names).toContain("source.list_files");
-    expect(names).toContain("source.read_file");
-    expect(names).toContain("source.get_read_job");
-    expect(tools.find((tool) => tool.name === "source.read_file")?.inputSchema.properties.representation.default).toBe("text");
-    expect(names).toContain("workflow.list");
-    expect(names).toContain("workflow.start");
-    expect(names).toContain("source.list_packs");
-    expect(names).toContain("source.get_pack");
-    expect(names).toContain("authoring.publish_solution_collection");
+    expect(names).toContain("source_list_files");
+    expect(names).toContain("source_read_file");
+    expect(names).toContain("source_get_read_job");
+    expect(tools.find((tool) => tool.name === "source_read_file")?.inputSchema.properties.representation.default).toBe("text");
+    expect(names).toContain("workflow_list");
+    expect(names).toContain("workflow_start");
+    expect(names).toContain("source_list_packs");
+    expect(names).toContain("source_get_pack");
+    expect(names).toContain("authoring_publish_solution_collection");
     expect(names.some((name) => name.includes("both"))).toBe(false);
-    expect(tools.find((tool) => tool.name === "authoring.list_imports")?.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false });
-    expect(tools.find((tool) => tool.name === "source.list_files")?.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false });
-    expect(tools.find((tool) => tool.name === "source.read_file")?.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: false });
-    expect(tools.find((tool) => tool.name === "source.list_packs")?.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false });
-    expect(tools.find((tool) => tool.name === "source.get_pack")?.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false });
-    expect(tools.find((tool) => tool.name === "authoring.review_idea_bundle")?.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: true });
-    expect(tools.find((tool) => tool.name === "authoring.withdraw_product_bundle")?.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: true });
+    expect(tools.find((tool) => tool.name === "authoring_list_imports")?.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false });
+    expect(tools.find((tool) => tool.name === "source_list_files")?.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false });
+    expect(tools.find((tool) => tool.name === "source_read_file")?.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: false });
+    expect(tools.find((tool) => tool.name === "source_list_packs")?.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false });
+    expect(tools.find((tool) => tool.name === "source_get_pack")?.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false });
+    expect(tools.find((tool) => tool.name === "authoring_review_idea_bundle")?.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: true });
+    expect(tools.find((tool) => tool.name === "authoring_withdraw_product_bundle")?.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: true });
 
-    const workflowStart = tools.find((tool) => tool.name === "workflow.start")?.inputSchema;
+    const workflowStart = tools.find((tool) => tool.name === "workflow_start")?.inputSchema;
     expect(workflowStart?.properties?.workflow?.enum).toEqual(["idea_product", "quiz_bank", "reference_question_ingest"]);
     expect(workflowStart?.required).toContain("courseKey");
     expect(workflowStart?.required).not.toContain("chapterKey");
     expect(workflowStart?.required).not.toContain("sourcePackToken");
 
-    const referenceList = tools.find((tool) => tool.name === "assessment.list_reference_questions")?.inputSchema;
+    const referenceList = tools.find((tool) => tool.name === "assessment_list_reference_questions")?.inputSchema;
     expect(referenceList?.properties?.limit).toMatchObject({ minimum: 1, maximum: 10, default: 10 });
   });
 

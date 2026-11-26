@@ -229,20 +229,14 @@ test("PostgreSQL channel pagination and scoped unread aggregates", { timeout: 30
    INSERT INTO penugasan_tutor (id, pengguna_id, mata_kuliah_id, status, assignment_scope)
     VALUES ('perf-pka-assignment', 'perf-tutor', 'perf-pka', 'active', 'course');
   `);
-  const previousPka = process.env.FEATURE_PKA;
-  try {
-   process.env.FEATURE_PKA = "1";
-   assert.deepEqual((await service.getDiscussionCounts("perf-viewer", { courseId: "tutorial-pka" })).course, { unreadThreads: 0, activeThreads: 0 });
-   assert.deepEqual((await service.getDiscussionCounts("perf-tutor", { courseId: "tutorial-pka" })).course, { unreadThreads: 1, activeThreads: 1 });
-   await client.exec("INSERT INTO enrollments (id, user_id, course_id, expires_at) VALUES ('perf-pka-enrollment', 'perf-viewer', 'tutorial-pka', '2099-01-01')");
-   assert.deepEqual((await service.getDiscussionCounts("perf-viewer", { courseId: "tutorial-pka" })).course, { unreadThreads: 1, activeThreads: 1 });
-   await client.exec("UPDATE penugasan_tutor SET status = 'revoked' WHERE id = 'perf-pka-assignment'");
-   assert.deepEqual((await service.getDiscussionCounts("perf-tutor", { courseId: "tutorial-pka" })).course, { unreadThreads: 0, activeThreads: 0 });
-   process.env.FEATURE_PKA = "0";
-   assert.deepEqual((await service.getDiscussionCounts("perf-viewer", { courseId: "tutorial-pka" })).course, { unreadThreads: 0, activeThreads: 0 });
-  } finally {
-   if (previousPka === undefined) delete process.env.FEATURE_PKA; else process.env.FEATURE_PKA = previousPka;
-  }
+  assert.deepEqual((await service.getDiscussionCounts("perf-viewer", { courseId: "tutorial-pka" })).course, { unreadThreads: 0, activeThreads: 0 });
+  assert.deepEqual((await service.getDiscussionCounts("perf-tutor", { courseId: "tutorial-pka" })).course, { unreadThreads: 1, activeThreads: 1 });
+  await client.exec("INSERT INTO enrollments (id, user_id, course_id, expires_at) VALUES ('perf-pka-enrollment', 'perf-viewer', 'tutorial-pka', '2099-01-01')");
+  assert.deepEqual((await service.getDiscussionCounts("perf-viewer", { courseId: "tutorial-pka" })).course, { unreadThreads: 1, activeThreads: 1 });
+  await client.exec("UPDATE penugasan_tutor SET status = 'revoked' WHERE id = 'perf-pka-assignment'");
+  assert.deepEqual((await service.getDiscussionCounts("perf-tutor", { courseId: "tutorial-pka" })).course, { unreadThreads: 0, activeThreads: 0 });
+  await client.exec("DELETE FROM enrollments WHERE id = 'perf-pka-enrollment'");
+  assert.deepEqual((await service.getDiscussionCounts("perf-viewer", { courseId: "tutorial-pka" })).course, { unreadThreads: 0, activeThreads: 0 });
   await client.exec(`
    UPDATE mata_kuliah SET pricing_category = 'free' WHERE id = 'perf-course-0';
    INSERT INTO mata_kuliah (id, code, title, pricing_category)
@@ -263,11 +257,9 @@ test("PostgreSQL channel pagination and scoped unread aggregates", { timeout: 30
    });
   };
   try {
-   process.env.FEATURE_PKA = "0";
    assert.deepEqual((await service.getDiscussionCounts("perf-viewer")).total, { unreadThreads: 10498, activeThreads: 8001 });
    assert.equal(batchQueries.length, 1);
   } finally {
-   if (previousPka === undefined) delete process.env.FEATURE_PKA; else process.env.FEATURE_PKA = previousPka;
    client.query = original;
   }
   const beforePrivate = await service.getDiscussionCounts("perf-viewer");

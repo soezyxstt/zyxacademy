@@ -35,26 +35,26 @@ export function StudentCourseCatalogView({ groups, studentTargetCategory, whatsa
         </div>
       )}
 
-        <p className="mt-8 text-body-sm text-muted-foreground">
-          <TranslatedText namespace="learning" messageKey="catalog.needMoreAccess" />{" "}
-          <Link href="/plans" className="font-semibold text-primary underline-offset-4 hover:underline">
-            <TranslatedText namespace="learning" messageKey="catalog.viewPlans" />
-          </Link>
-          {whatsappHref && (
-            <>
-              {" "}<TranslatedText namespace="learning" messageKey="catalog.or" />{" "}
-              <a
-                href={whatsappHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-semibold text-primary underline-offset-4 hover:underline"
-              >
-                <TranslatedText namespace="learning" messageKey="catalog.contactWhatsApp" />
-              </a>
-            </>
-          )}
-          .
-        </p>
+      <p className="mt-10 text-body-xs text-muted-foreground">
+        <TranslatedText namespace="learning" messageKey="catalog.needMoreAccess" />{" "}
+        <Link href="/plans" className="underline underline-offset-4 hover:text-foreground">
+          <TranslatedText namespace="learning" messageKey="catalog.viewPlans" />
+        </Link>
+        {whatsappHref && (
+          <>
+            {" "}<TranslatedText namespace="learning" messageKey="catalog.or" />{" "}
+            <a
+              href={whatsappHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-4 hover:text-foreground"
+            >
+              <TranslatedText namespace="learning" messageKey="catalog.contactWhatsApp" />
+            </a>
+          </>
+        )}
+        .
+      </p>
     </ApplicationPage>
   );
 }

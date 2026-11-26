@@ -214,7 +214,7 @@ The focused Zyra and course tests are:
 bun test tests/contracts/zyra-chat-language-contract.test.ts tests/unit/zyra-stream-client.test.ts tests/contracts/student-course-overview-refactor.test.tsx
 ```
 
-The account interface locale persists across visits. Conversation-specific Zyra overrides are in memory, limited to 32 sessions, and reset on drawer remount or reload and on account, course, or interface-locale changes. Do not describe that conversation override as durable storage. The final release candidate catalog gate passed 23 namespaces and 6,426 static translation calls, and the public route matrix passed 52 captures. The full role/state matrix remains incomplete; current browser evidence and its boundaries are tracked in `plans/bilingual-web-app.md`.
+The account interface locale persists across visits. Conversation-specific Zyra overrides are in memory, limited to 32 sessions, and reset on drawer remount or reload and on account, course, or interface-locale changes. Do not describe that conversation override as durable storage. The final release candidate catalog gate passed 23 namespaces and 6,426 static translation calls. The full role/state matrix remains incomplete; its verification boundaries are tracked in `plans/bilingual-web-app.md`.
 
 Background dispatch imports must remain server-safe for Deno compute. Do not add Next.js or React imports to worker-consumed message, notification, preference, or email-template modules. `proxy.ts` owns only the finite public locale rewrite map; test origin preservation and `skipProxyUrlNormalize` when changing that request boundary. Full role, locale, state, and visual verification belongs to the bilingual plan's CP7 gate.
 
@@ -406,7 +406,7 @@ bun run eval:zyra-copilots
 bun --env-file=.env.staging run staging:smoke-zyra-copilots -- --run-id <runId> --course tutorial-pka --no-auto-apply
 ```
 
-`FEATURE_ZYRA_TUTOR_COPILOT_V1` and `FEATURE_ZYRA_ADMIN_COPILOT_V1` are opt-out switches (enabled unless explicitly `0`) for proposal surfaces. Proposals use typed operations, scope and precondition snapshots, expiry, and audit events. The currently registered operation is read-only; unregistered mutation operations are rejected before persistence. Applying a proposal is intentionally blocked until the accepted Overhaul mutation boundary is available.
+`FEATURE_ZYRA_TUTOR_COPILOT_V1` and `FEATURE_ZYRA_ADMIN_COPILOT_V1` are opt-out switches (enabled unless explicitly `0`) for proposal API access. The proposal panel is available in Admin Ops. Proposals use typed operations, scope and precondition snapshots, expiry, and audit events. The currently registered operation is read-only; unregistered mutation operations are rejected before persistence. Applying a proposal is intentionally blocked until the accepted Overhaul mutation boundary is available.
 
 Plan 013 operations checks:
 
@@ -491,13 +491,12 @@ Feature flags are exception-based rollout controls, not a requirement for every 
 
 Before adding or removing a flag for a new capability or material behavior change, the agent or maintainer must ask the owner to choose always-on or flag-gated when the request has not already decided it. The decision records the proposed key, reason, default, scope, rollback behavior, owner, and removal condition. A temporary operational flag may protect a high-risk migration or provider boundary, but it is not automatically a product flag or an admin catalog entry.
 
-A retained flag is active only when its value is `"1"` or `"true"`; an absent value keeps that optional capability hidden. Foundational behavior is always-on and intentionally has no env flag.
+Each retained flag follows its activation rule below. Foundational behavior is always-on and intentionally has no env flag.
 
-Current approved vital flags (< 10 flags retained for high-impact runtime control):
+Retained operational feature flags:
 
 | Flag | Feature | Scope |
 |------|---------|-------|
-| `FEATURE_PKA` | Tutorial PKA campaign course & registration gate | Academic / Campaign |
 | `FEATURE_REFLECTION_EMAIL` | Weekly reflection email batch dispatch gate | Academic / Resend |
 | `FEATURE_LIVE` | Real-time interactive classroom & Cloudflare Worker switch | Quiz & Live |
 | `FEATURE_DIKTAT_AI` | LLM quota protection for Diktat AI audit suggestions | AI Architecture |
@@ -508,7 +507,7 @@ Current approved vital flags (< 10 flags retained for high-impact runtime contro
 
 > Foundational features (Tutor Portal & Overhaul, Remediation, Adaptive Quiz, Concept Graph, Interactive Material, Weekly Reflections, Tutor Analytics, Question Generator Critic, Idea & Product Bundles, Authoring Context, Zyra Allowance & Provider Router, Learning Canvas, Selection-to-Ask, Zyra Pet, AI Ops, Media Library, Link Library, Form Presets) are now mature and always-on by default, secured by role-based authorization (RBAC).
 
-The admin flag page reads this catalog from `lib/feature-flags.ts`; arbitrary `FEATURE_*` variables are not surfaced. `FEATURE_STRUCTURED_ARTICLE_READER_V1` defaults to disabled. It is owned by Akademik dan Konten together with the Zyx platform owner. Its rollback disables V3 authoring, submission, and review selection without deleting V3 data or hiding products that are already published from students. See [the rollout runbook](operations/structured-article-v3-rollout.md). Decommissioned flags have been removed from `lib/env.ts`, runtime schemas, environment files, and operational scripts.
+The read-only MCP tool `settings.feature_flags` and Admin Ops AI read the retained catalog from `lib/feature-flags.ts`. Configure these flags through the environment. Live Classroom, Diktat AI, Zyra semantic cache, Drive editor synchronization, and reflection email require `"1"`. Zyra image input accepts an absent value and is disabled by `"0"`. Set the matching `NEXT_PUBLIC_FEATURE_ZYRA_IMAGE_INPUT_V1` value to align the browser controls with the server. `FEATURE_STRUCTURED_ARTICLE_READER_V1` defaults to disabled. It is owned by Akademik dan Konten together with the Zyx platform owner. Its rollback disables V3 authoring, submission, and review selection without deleting V3 data or hiding products that are already published from students. See [the rollout runbook](operations/structured-article-v3-rollout.md). Retired flags no longer control the corresponding application capabilities.
 
 ## Code Conventions
 
@@ -703,9 +702,10 @@ The environment loader restricts the base URL to loopback, checks staging agains
 
 Report blocked routes separately and classify router prefetch separately. Interception disables HTTP cache, so these local results are not field or RUM measurements. Browser-context cold does not establish cold database or container behavior. Server RSC spans and actual Cloud Run capacity remain unmeasured. WP4 material and assessment batching is integrated; the streak GET workflow is unchanged. See the audit for remaining gates.
 
-### Navigation visual checks and provenance
+### Navigation visual checks
 
-The primary agent ran and inspected the latest standard route checks and interaction states at 380 x 844 and 1536 x 864. The exact captured-state matrix and limitations are in the [validation audit](audit/navigation-performance-validation.md). Reproduce only against a verified loopback staging production server:
+Run route and interaction checks at 380 x 844 and 1536 x 864 against a verified loopback staging production server:
+
 ```sh
 PLAYWRIGHT_BASE_URL=http://localhost:3100 VISUAL_CHECK_STAGING_SESSION=1 VISUAL_CHECK_STUB_VERCEL=1 VISUAL_CHECK_PATHS=/dashboard,/admin/questions,/admin/forms bun run test:visual -- tests/visual/visual-check.spec.ts
 PLAYWRIGHT_BASE_URL=http://localhost:3100 VISUAL_CHECK_STAGING_SESSION=1 VISUAL_CHECK_STUB_VERCEL=1 VISUAL_CHECK_PATHS=/dashboard,/admin/questions,/admin/forms bun run test:visual -- tests/visual/question-bank-pagination.spec.ts --output artifacts/visual-quality/results/pagination-contract
@@ -713,7 +713,7 @@ PLAYWRIGHT_BASE_URL=http://localhost:3100 VISUAL_CHECK_STAGING_SESSION=1 VISUAL_
 
 `tests/visual/staging-readonly-auth.ts` is opt-in via `VISUAL_CHECK_STAGING_SESSION=1`. It uses the read-only loader, probes the cookie name, and obtains a fresh authentic session for each navigation. Never record real session/database IDs or cookie values. `VISUAL_CHECK_STUB_VERCEL=1` substitutes only Vercel analytics script URLs with empty HTTP 200 responses to avoid local 404s; external analytics delivery is unverified. No database/storage writes were performed; equal sampled counts are limited evidence, not proof that the entire database was unchanged.
 
-The candidate build passed before subsequent test selector and animation changes; application source remained unchanged. A full source manifest would require a different hash if the harness were rerun. Preserve the original manifest. Screenshot directories contain staging PII and must not be embedded or shared.
+Keep staging screenshots in ignored artifacts; they may contain personal data and must not be embedded or shared.
 
 The historical mixed-assessment `scripts/staging/test-product-bundle.ts` probe is retired and fails before environment access. It does not validate the current learning-only authoring, review or publication workflow. Use focused contract suites and the documented scoped operators instead.
 
@@ -755,3 +755,9 @@ Local implementation, not deployed or verified against live OAuth/Calendar yet.
 7. After the calendar-sync code and migration are deployed, open Admin schedules, choose **Google Calendar Zyx**, then **Sinkronkan sekarang**. Check the recorded sync status, inspect the intended account's primary Google Calendar, and smoke-check existing Meet, Forms and Sheets flows. Token presence alone does not verify scopes, account identity or remote API availability. Remove only the Playground redirect URI afterwards if it is no longer needed; retain every app callback.
 
 For an external OAuth app in **Testing**, Google normally expires refresh tokens with these non-basic scopes after 7 days. Use the appropriate published/internal setup for unattended daily operation and complete verification if Google requires it. See [Google's refresh-token expiration rules](https://developers.google.com/identity/protocols/oauth2#expiration).
+
+## Offline authoring preview
+
+Status: `ACTIVE` in source. Use `bun run authoring:preview --input draft.json --out artifacts/authoring-preview` after installing dependencies and Chromium. Add `--watch` to retain the local server, compiled assets and browser across edits, or `--check` for structure and outline only. The input is the raw `productDraftInput` JSON; no credentials or staging connection are needed. Explicit browser binaries use `--executable-path /path/to/chromium` and are reported without claiming trusted runtime identity.
+
+See [the agent workflow](bundle/authoring-agent-workflow.md) for outputs, supported products, unverified boundaries and `bun scripts/authoring/benchmark-agent-workflow.ts`. Local screenshots do not replace trusted release verification.

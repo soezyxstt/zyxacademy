@@ -22,24 +22,34 @@ function harness(count: number, tokenFor: (index: number) => boolean = () => tru
  const providerCalls: string[] = [];
  const persisted: Row[] = [];
  let tokenQueries = 0, outcomeQueries = 0, pruneQueries = 0, queries = 0, active = 0, maxActive = 0;
- let providerFailure = "", invalidToken = "", writeFailure = "";
+ let providerFailure = "", invalidToken = "", writeFailure = "", insertFailure = "";
+ let inboxId = 0;
+ const accountPageSizes: number[] = [];
  const db: Row = {};
- db.select = () => ({ from: (table: never) => ({ where: async (condition: never) => {
+ db.select = () => ({ from: (table: never) => ({ where: (condition: never) => {
   queries++;
   const name = orm.getTableName(table);
+  if (name === "user") return { orderBy: () => ({ limit: async (limit: number) => {
+   const cursor = condition ? String(dialect.sqlToQuery(condition).params[0]) : "";
+   const page = ids.filter(id => id > cursor).slice(0, limit).map(id => ({ id }));
+   accountPageSizes.push(page.length);
+   return page;
+  } }) };
   if (name === "user_push_tokens") {
    tokenQueries++;
    const selected = new Set(dialect.sqlToQuery(condition).params);
    return tokenRows.filter(row => selected.has(row.userId));
   }
+  if (name === "discussion_thread_participants") return ids.map(userId => ({ userId }));
   if (name === "discussion_channel_preferences") return [...muted].map(userId => ({ userId, muted: true, updatedAt: new Date("2025-01-01") }));
   return [];
  } }) });
- db.update = (table: never) => ({ set: () => ({ where: (condition: never) => {
+ db.update = (table: never) => ({ set: (values: Row) => ({ where: (condition: never) => {
   queries++;
   if (orm.getTableName(table) === "discussion_events") return { returning: async () => [{ processedAt: new Date() }] };
   const selected = new Set(dialect.sqlToQuery(condition).params);
   for (const row of inbox.values()) if (selected.has(row.id)) row.metadata.pushState = "done";
+  for (const row of persisted) if (selected.has(row.id)) Object.assign(row, values);
   return Promise.resolve();
  } }) });
  db.execute = async (query: never) => {
@@ -69,9 +79,12 @@ function harness(count: number, tokenFor: (index: number) => boolean = () => tru
   const selected = new Set(dialect.sqlToQuery(condition).params);
   for (let i = tokenRows.length - 1; i >= 0; i--) if (selected.has(tokenRows[i].token)) tokenRows.splice(i, 1);
  } });
- db.insert = () => ({ values: async (row: Row) => { persisted.push(row); } });
+ db.insert = () => ({ values: async (row: Row) => {
+  if (row.userId === insertFailure) throw new Error("inbox write failed");
+  persisted.push(row);
+ } });
  const dependencies: Row = {
-  "node:crypto": { createHash }, crypto: { randomUUID: () => "unused" }, "drizzle-orm": orm, "@/db": { db }, "@/db/schema": schema,
+  "node:crypto": { createHash }, crypto: { randomUUID: () => "inbox-fake-" + ++inboxId }, "drizzle-orm": orm, "@/db": { db }, "@/db/schema": schema,
   "@/lib/firebase/admin": { adminMessaging: () => ({ sendEachForMulticast: async ({ tokens }: { tokens: string[] }) => {
    active++; maxActive = Math.max(maxActive, active);
    await Promise.resolve();
@@ -86,6 +99,7 @@ function harness(count: number, tokenFor: (index: number) => boolean = () => tru
   "./apns": { sendApnsNotifications: async () => ({ succeeded: 0, failedTokens: [], errors: [] }) },
   "./dispatch": { dispatchTokensByTransport },
   "./templates": { renderNotificationPayload },
+  "./quiet-delivery": { deferQuietPushes: async () => new Set(), deferredSendResult: () => ({ attempted:0,succeeded:0,failedTokens:[],errors:[] }) },
   "@/lib/discussions/access": {}, "@/lib/discussions/policy": { validDiscussionId },
   "@/lib/discussions/recipient-access": { getDiscussionRecipientAccess: async (_channel: string, recipients: string[]) => {
    queries += 2;
@@ -95,7 +109,7 @@ function harness(count: number, tokenFor: (index: number) => boolean = () => tru
  function load(path: string, extra = "") {
   const output = ts.transpileModule(readFileSync(path, "utf8") + extra, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
   const exports: Row = {};
-  runInNewContext(output, { exports, process: { env: { FIREBASE_SERVICE_ACCOUNT_JSON: "fake" } }, Date, console, require: (name: string) => {
+  runInNewContext(output, { exports, process: { env: { FIREBASE_SERVICE_ACCOUNT_JSON: "fake" } }, Date, Error, console, require: (name: string) => {
    if (!(name in dependencies)) throw new Error(name);
    return dependencies[name];
   } });
@@ -106,11 +120,13 @@ function harness(count: number, tokenFor: (index: number) => boolean = () => tru
  const event = { id: "event", channelId: "channel", threadId: "thread", actorId: "actor", kind: "message",
   status: "processing", processedAt: new Date(), createdAt: new Date("2026-01-01") };
  return {
-  ids, inbox, denied, muted, providerCalls, persisted, tokens: tokenRows,
+  ids, inbox, denied, muted, providerCalls, persisted, tokens: tokenRows, accountPageSizes,
+  setInsertFailure: (id: string) => { insertFailure = id; },
   setProviderFailure: (id: string) => { providerFailure = id; }, setInvalidToken: (id: string) => { invalidToken = id; },
   setWriteFailure: (id: string) => { writeFailure = id; },
   counts: () => ({ queries, tokenQueries, outcomeQueries, pruneQueries, maxActive }),
   push: async (batch: string[]) => testPushBatch(event, batch.map(id => inbox.get(id)), 2, "actor"),
+  broadcast: async () => dependencies["@/lib/notifications/send"].sendBroadcast({ title: "Notice", body: "Update", type: "admin_broadcast" }),
   ordinary: async (userId: string) => dependencies["@/lib/notifications/send"].sendToUser(userId,
    discussionPayload({ role: "student", channelId: "channel", threadId: "thread", seq: 2 })),
  };
@@ -121,6 +137,17 @@ test("the ordinary sender still writes one localized inbox row", async () => {
  expect(await fake.ordinary(fake.ids[0])).toMatchObject({ attempted: 1, succeeded: 1, errors: [] });
  expect(fake.persisted).toHaveLength(1);
  expect(fake.persisted[0]).toMatchObject({ userId: fake.ids[0], title: "Discussion update", attempted: 1, succeeded: 1 });
+});
+
+test("broadcast pages all accounts, bounds fanout, and reports missing inbox writes", async () => {
+ const fake = harness(105, i => i % 2 === 0);
+ fake.setInsertFailure(fake.ids[0]);
+ expect(await fake.broadcast()).toMatchObject({ attempted: 52, succeeded: 52, errors: ["inbox write failed"] });
+ expect(fake.accountPageSizes).toEqual([100, 5]);
+ expect(fake.persisted).toHaveLength(104);
+ expect(fake.persisted.some(row => row.userId === fake.ids[1] && row.attempted === 0)).toBe(true);
+ expect(fake.counts().maxActive).toBeLessThanOrEqual(10);
+ expect(fake.providerCalls).not.toContain("token-" + fake.ids[0]);
 });
 
 for (const mode of ["none", "all", "mixed"] as const) {

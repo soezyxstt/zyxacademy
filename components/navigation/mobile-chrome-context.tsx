@@ -11,6 +11,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useViewportMode } from "@/hooks/use-viewport-mode";
 
 export interface MobileTopNavConfig {
   title?: string;
@@ -310,6 +311,15 @@ export function MobileChromeProvider({
 
 export function useMobileChrome(): MobileChromeContextValue {
   return useContext(MobileChromeContext);
+}
+
+/** Registers page actions only when a mobile navbar is available. */
+export function useMobilePageActions(pageActions: ReactNode): boolean {
+  const { isTopNavActive } = useMobileChrome();
+  const viewport = useViewportMode();
+  const inNavbar = Boolean(pageActions) && isTopNavActive && viewport === "mobile";
+  useMobileTopNav(inNavbar ? { pageActions } : null);
+  return inNavbar;
 }
 
 /**

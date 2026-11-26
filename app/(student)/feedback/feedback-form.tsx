@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Star, Send, CheckCircle2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,37 +26,56 @@ export function FeedbackForm({ initialEmail }: { initialEmail?: string }) {
   const [category, setCategory] = useState<StudentFeedbackInput["category"]>("materi");
   const [rating, setRating] = useState<number>(5);
   const [hoverRating, setHoverRating] = useState<number>(0);
-  const [message, setMessage] = useState("");
   const [email, setEmail] = useState(initialEmail || "");
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [messageError, setMessageError] = useState(false);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const messageInput = useRef<HTMLTextAreaElement>(null);
+  const submitting = useRef(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!message.trim() || message.trim().length < 5) {
-      toast.error(t("feedback.messageRequired"));
+    if (submitting.current) return;
+
+    // Read the form itself so browser-restored or autofilled drafts can submit
+    // even when the browser has not emitted a React change event.
+    const formData = new FormData(e.currentTarget);
+    const submittedMessage = String(formData.get("message") ?? "").trim();
+    const submittedEmail = String(formData.get("email") ?? "").trim();
+    setEmail(String(formData.get("email") ?? ""));
+    setSubmissionError(null);
+    if (submittedMessage.length < 5) {
+      setMessageError(true);
+      messageInput.current?.focus();
       return;
     }
+    setMessageError(false);
 
-    if (experience.mode === "demo") { toast.error("Masuk untuk mengirim masukan."); return; }
+    if (experience.mode === "demo") {
+      setSubmissionError(t("feedback.signInRequired"));
+      return;
+    }
+    submitting.current = true;
     setLoading(true);
     try {
       const res = await submitStudentFeedbackAction({
         category,
         rating,
-        message,
-        email: email.trim() || undefined,
+        message: submittedMessage,
+        email: submittedEmail || undefined,
       });
 
       if (res.success) {
         setSubmitted(true);
         toast.success(t("feedback.submitted"));
       } else {
-        toast.error(t("feedback.sendFailed"));
+        setSubmissionError(t("feedback.sendFailed"));
       }
     } catch {
-      toast.error(t("feedback.sendFailed"));
+      setSubmissionError(t("feedback.sendFailed"));
     } finally {
+      submitting.current = false;
       setLoading(false);
     }
   };
@@ -78,7 +97,8 @@ export function FeedbackForm({ initialEmail }: { initialEmail?: string }) {
           variant="outline"
           className="mt-4 rounded-lg text-body-sm"
           onClick={() => {
-            setMessage("");
+            setMessageError(false);
+            setSubmissionError(null);
             setSubmitted(false);
           }}
         >
@@ -110,7 +130,7 @@ export function FeedbackForm({ initialEmail }: { initialEmail?: string }) {
               className={cn(
                 "rounded-lg px-3.5 py-1.5 text-body-sm font-medium transition-all cursor-pointer border",
                 category === cat.id
-                  ? "border-brand-primary bg-brand-primary/10 text-brand-primary ring-1 ring-brand-primary/25"
+                  ? "border-foreground/30 bg-foreground/10 text-foreground"
                   : "border-border bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
             >
@@ -165,16 +185,32 @@ export function FeedbackForm({ initialEmail }: { initialEmail?: string }) {
           {t("feedback.messageLabel")}
         </label>
         <Textarea
+          ref={messageInput}
           id="feedback-message"
+          name="message"
           rows={4}
           placeholder={t("feedback.placeholder")}
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
+          defaultValue=""
+          onChange={(e) => {
+            if (e.target.value.trim().length >= 5) setMessageError(false);
+          }}
+          onInvalid={(e) => {
+            e.preventDefault();
+            setMessageError(true);
+            e.currentTarget.focus();
+          }}
+          minLength={5}
+          aria-invalid={messageError || undefined}
+          aria-describedby="feedback-message-help"
           className="rounded-lg text-body-sm resize-y min-h-[100px]"
           required
         />
-        <p className="mt-1 text-body-xs text-muted-foreground">
-          {t("feedback.minimumLength")}
+        <p
+          id="feedback-message-help"
+          role={messageError ? "alert" : undefined}
+          className={cn("mt-1 text-body-xs", messageError ? "text-destructive" : "text-muted-foreground")}
+        >
+          {t(messageError ? "feedback.messageRequired" : "feedback.minimumLength")}
         </p>
       </div>
 
@@ -185,10 +221,11 @@ export function FeedbackForm({ initialEmail }: { initialEmail?: string }) {
         </label>
         <Input
           id="feedback-email"
+          name="email"
           type="email"
+          autoComplete="email"
           placeholder="nama@mahasiswa.itb.ac.id"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          defaultValue={email}
           className="rounded-lg text-body-sm max-w-md"
         />
         <p className="mt-1 text-body-xs text-muted-foreground">
@@ -198,9 +235,11 @@ export function FeedbackForm({ initialEmail }: { initialEmail?: string }) {
 
       {/* Submit button */}
       <div className="pt-2">
+        {submissionError && <p role="alert" className="mb-2 text-body-sm text-destructive">{submissionError}</p>}
         <Button
           type="submit"
-          disabled={loading || message.trim().length < 5}
+          disabled={loading}
+          aria-busy={loading}
           className="rounded-lg px-6 text-body-sm font-semibold"
         >
           {loading ? (

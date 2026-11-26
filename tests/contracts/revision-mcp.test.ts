@@ -16,7 +16,7 @@ function bootstrap(stage: "idea" | "product", actorId = "admin", sessionId = "se
 function harness(options: { scopes?: string[]; inactive?: boolean; stale?: boolean; wrongKind?: boolean; rejected?: boolean } = {}) {
   const tools = new Map<string, { config: { annotations: { readOnlyHint: boolean } }; execute: (input: Record<string, unknown>) => Promise<CallToolResult> }>();
   const calls: Array<{ method: RevisionServiceMethod; input: Record<string, unknown> }> = [];
-  const context = (input: Record<string, unknown>) => ({ kind: options.wrongKind ? "idea" : input.kind ?? "product", importId: input.importId ?? "draft", revision: options.stale ? nextHash : input.expectedRevision ?? nextHash, status: "draft", scope: { courseId: "course", artifactCourseId: "artifact-course", chapterId: "chapter" }, stagingRunId: runId });
+  const context = (input: Record<string, unknown>) => ({ kind: options.wrongKind ? "idea" : input.kind ?? "product", importId: input.importId ?? "draft", revision: options.stale ? nextHash : input.expectedRevision ?? nextHash, version: 4, schemaVersion: "product-bundle.v4", status: "draft", scope: { courseId: "course", artifactCourseId: "artifact-course", chapterId: "chapter" }, stagingRunId: runId, bundle: { products: [{ id: "article", content: "Full content" }] }, reviewContext: { publicationReady: true }, ...(input.target ? { selection: { target: input.target, content: { id: "block", content: "Selected content" } } } : {}) });
   const server = { registerTool(name: string, config: { annotations: { readOnlyHint: boolean } }, execute: (input: Record<string, unknown>) => Promise<CallToolResult>) { tools.set(name, { config, execute }); } };
   registerRevisionTools(server as unknown as McpServer, { ...principal, scopes: options.scopes ?? principal.scopes }, {
     async assertActor(actorId) { expect(actorId).toBe("admin"); if (options.inactive) throw new Error("AUTHORING_MCP_ADMIN_REQUIRED"); },
@@ -117,6 +117,21 @@ test("numeric and prototype paths, forged reviewer identities and oversized requ
   expect(h.calls).toHaveLength(0);
 });
 
+test("Diktat unit selectors pass through MCP and reject mixed parent selectors before I/O", async () => {
+  const target = { entityType: "diktat", entityId: "diktat", unitId: "summary-unit" };
+  const patch = { op: "set", target, field: "parts[summary-part].markdown", value: "Ringkasan baru." };
+  const h = harness();
+  expect((await h.call("patch_revision", { ...input(), operations: [patch], responseMode: "compact" })).isError).not.toBe(true);
+  expect(h.calls.find(call => call.method === "patchRevisionDraft")?.input.operations).toEqual([patch]);
+  for (const mixed of [{ ...target, sectionId: "section" }, { ...target, blockId: "block" }, { ...target, itemId: "item" }]) {
+    const denied = harness();
+    expect(data(await denied.call("patch_revision", { ...input(), operations: [{ ...patch, target: mixed }] })).error).toBe("REVISION_INPUT_INVALID");
+    expect(denied.calls).toHaveLength(0);
+    expect(data(await denied.call("get_edit_context", { ...input(), target: mixed })).error).toBe("REVISION_INPUT_INVALID");
+    expect(denied.calls).toHaveLength(0);
+  }
+});
+
 test("mixed release verifies both kind bootstraps and forwards only exact manifest entries and plan hash", async () => {
   const entries = [{ kind: "idea", importId: "idea", expectedRevision: hash }, { kind: "product", importId: "product", expectedRevision: nextHash }];
   const h = harness();
@@ -153,4 +168,37 @@ test("service rejection cannot be relabeled as a successful revision response", 
   const response = await h.call("review_revision", { ...input(), evidence: { decision: "approved" } });
   expect(response.isError).toBe(true);
   expect(data(response).ok).toBe(false);
+});
+
+test("compact edits preserve the actual successor and current execution while deferring review payloads", async () => {
+  const h = harness();
+  const full = data(await h.call("get_edit_context", input()));
+  expect(full).toHaveProperty("bundle");
+  expect(full).toHaveProperty("reviewContext");
+  const response = data(await h.call("patch_revision", { ...input(), operations: [operation], responseMode: "compact" }));
+  expect(response).toMatchObject({ ok: true, kind: "product", importId: "draft", revision: nextHash, version: 4, stagingRunId: runId, contentScope: "none", evaluation: { review: "not_requested", readiness: "not_requested" } });
+  expect(response).not.toHaveProperty("bundle");
+  expect(response).not.toHaveProperty("reviewContext");
+  expect(response).toHaveProperty("execution.runToken");
+  const patch = h.calls.find(call => call.method === "patchRevisionDraft")!;
+  expect(patch.input).toMatchObject({ responseMode: "compact", importId: "product", expectedRevision: hash });
+  expect(h.calls.filter(call => call.method === "getRevisionContext").at(-1)?.input.responseMode).toBe("compact");
+  const created = data(await h.call("create_revision", { kind: "product", bootstrapToken: bootstrap("product"), baseImportId: "product", expectedRevision: hash, responseMode: "compact" }));
+  expect(created.importId).toBe("draft");
+  expect(created).not.toHaveProperty("bundle");
+});
+
+test("target reads forward stable parent IDs and reject invalid selectors before service access", async () => {
+  const target = { entityType: "article", entityId: "article", sectionId: "section", blockId: "block" };
+  const h = harness();
+  const response = data(await h.call("get_edit_context", { ...input(), target }));
+  expect(response).toMatchObject({ ok: true, contentScope: "selected", selection: { target, content: { id: "block" } }, evaluation: { readiness: "not_requested" } });
+  expect(response).not.toHaveProperty("bundle");
+  expect(h.calls[0].input).toMatchObject({ target, expectedRevision: hash });
+  for (const invalid of [{ ...target, sectionId: undefined }, { ...target, itemId: "item" }, { ...target, path: "sections[0]" }]) {
+    const invalidHarness = harness();
+    const failure = data(await invalidHarness.call("get_edit_context", { ...input(), target: invalid }));
+    expect(failure).toMatchObject({ ok: false, error: "REVISION_INPUT_INVALID", category: "content", retryable: false });
+    expect(invalidHarness.calls).toHaveLength(0);
+  }
 });

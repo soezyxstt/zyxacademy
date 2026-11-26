@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowLeft, Bot, ChevronsUpDown } from "lucide-react";
+import { ArrowLeft, SquareTerminal, ChevronsUpDown } from "lucide-react";
 import {
   MobileTopNavActionButton,
   MobileTopNavSearchTrigger,
@@ -14,6 +14,8 @@ import { Button } from "@/components/ui/button";
 import { useCommandMenu } from "@/components/command-menu";
 import { useOptionalOpsAiContext } from "@/components/admin/ops-ai/ops-ai-context";
 import { SidebarAccountMenu } from "@/components/auth/sidebar-account-menu";
+import { AppUpdateControl } from "@/components/native/app-update-control";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import {
   StudentAccountBoundary,
   type StudentAccountState,
@@ -265,16 +267,24 @@ function AdminMobileTopNavContent({
 
   const rightActions = (
     <>
+      <AppUpdateControl variant="mobile" />
+
       <MobileTopNavActionButton
         label={tAdmin("mobile.opsAi")}
         aria-expanded={opsAi?.isOpen ?? false}
         aria-controls="ops-ai-panel"
         onClick={handleToggleOpsAi}
       >
-        <Bot className="size-4 text-primary" aria-hidden="true" />
+        <SquareTerminal className="size-4 text-primary" aria-hidden="true" />
       </MobileTopNavActionButton>
 
       <MobileTopNavSearchTrigger label={tAdmin("mobile.search")} />
+
+      {session?.user ? (
+        <div className="flex size-9 shrink-0 items-center justify-center">
+          <NotificationBell variant="sidebar" />
+        </div>
+      ) : null}
 
       {!isDeepDetail && session?.user ? (
         <div className="flex size-9 shrink-0 items-center justify-center">

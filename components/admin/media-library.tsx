@@ -23,7 +23,6 @@ import {
   MoreVertical,
   Music,
   Pencil,
-  Plus,
   RefreshCw,
   Trash2,
   UploadCloud,
@@ -731,7 +730,7 @@ export function MediaLibrary() {
   }
 
   const selectionActions = (
-    <div className="border-border bg-background/90 flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 shadow-sm">
+    <div className="flex flex-wrap items-center gap-2 border-y border-border/60 py-2">
       <div>
         <p className="text-body-sm font-medium text-foreground">{t("media.selectedCount", { count: selected.length })}</p>
         {selectedFolderCount > 0 && (
@@ -772,55 +771,53 @@ export function MediaLibrary() {
   );
 
   const headerActions = (
-    <div className="flex flex-wrap items-center gap-2">
-      <SearchBar
-        collapsible
-        value={query}
-        onSearch={setQuery}
-        onClear={() => setQuery("")}
-        placeholder={t("media.search")}
-        size="sm"
-      />
-      <div className="border-border flex rounded-lg border p-0.5">
-        <button
-          type="button"
-          className={cn(
-            "cursor-pointer rounded-md p-1.5 outline-none transition-colors",
-            view === "grid" ? "bg-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-          )}
-          aria-pressed={view === "grid"}
-          aria-label={t("media.gridView")}
-          onClick={() => setView("grid")}
-        >
-          <Grid3X3 className="size-4" />
-        </button>
-        <button
-          type="button"
-          className={cn(
-            "cursor-pointer rounded-md p-1.5 outline-none transition-colors",
-            view === "list" ? "bg-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-          )}
-          aria-pressed={view === "list"}
-          aria-label={t("media.listView")}
-          onClick={() => setView("list")}
-        >
-          <List className="size-4" />
-        </button>
+    <div data-media-toolbar="" className="flex w-full min-w-0 items-center justify-between gap-2 sm:w-auto">
+      <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:flex-initial">
+        <SearchBar
+          collapsible
+          value={query}
+          onSearch={setQuery}
+          onClear={() => setQuery("")}
+          placeholder={t("media.search")}
+          size="sm"
+        />
+        <div className="flex shrink-0 items-center gap-0.5 rounded-md bg-muted/30">
+          <AdminIconAction
+            variant="ghost"
+            className="aria-pressed:bg-foreground/10 aria-pressed:text-foreground"
+            aria-pressed={view === "grid"}
+            label={t("media.gridView")}
+            onClick={() => setView("grid")}
+          >
+            <Grid3X3 className="size-4" />
+          </AdminIconAction>
+          <AdminIconAction
+            variant="ghost"
+            className="aria-pressed:bg-foreground/10 aria-pressed:text-foreground"
+            aria-pressed={view === "list"}
+            label={t("media.listView")}
+            onClick={() => setView("list")}
+          >
+            <List className="size-4" />
+          </AdminIconAction>
+        </div>
       </div>
-      <AdminIconAction label={t("media.reload")} variant="outline" onClick={refresh}>
-        <RefreshCw className="size-4" />
-      </AdminIconAction>
-      <AdminIconAction label={t("media.newFolder")} variant="outline" onClick={() => setMkdirOpen(true)}>
-        <FolderPlus className="size-4" />
-      </AdminIconAction>
-      <AdminIconAction label={t("media.upload")} onClick={() => uploadInputRef.current?.click()}>
-        <UploadCloud className="size-4" />
-      </AdminIconAction>
+      <div className="flex shrink-0 items-center gap-1.5">
+        <AdminIconAction label={t("media.reload")} variant="outline" onClick={refresh}>
+          <RefreshCw className="size-4" />
+        </AdminIconAction>
+        <AdminIconAction label={t("media.newFolder")} variant="outline" onClick={() => setMkdirOpen(true)}>
+          <FolderPlus className="size-4" />
+        </AdminIconAction>
+        <AdminIconAction label={t("media.upload")} onClick={() => uploadInputRef.current?.click()}>
+          <UploadCloud className="size-4" />
+        </AdminIconAction>
+      </div>
     </div>
   );
 
   const renderBreadcrumb = (
-    <nav className="flex min-w-0 items-center gap-1 text-body-sm">
+    <nav className="flex min-w-0 flex-wrap items-center gap-1 text-body-sm">
       <button
         type="button"
         onClick={() => navigate("")}
@@ -854,19 +851,13 @@ export function MediaLibrary() {
   );
 
   const renderUploadDropzone = (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={() => uploadInputRef.current?.click()}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") uploadInputRef.current?.click();
-      }}
+    <label
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => {
         e.preventDefault();
         if (e.dataTransfer.files?.length) void uploadFiles(e.dataTransfer.files);
       }}
-      className="border-border bg-card flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed py-6 text-center transition-colors hover:border-primary"
+      className="flex cursor-pointer items-start gap-3 rounded-md border border-dashed border-border px-3 py-(--row-padding) transition-colors hover:bg-muted/30 focus-within:outline-2 focus-within:outline-ring"
     >
       <input
         ref={uploadInputRef}
@@ -880,22 +871,21 @@ export function MediaLibrary() {
       />
       {uploading ? (
         <>
-          <Loader2 className="size-5 animate-spin text-brand-primary" aria-hidden />
-          <p className="text-body-sm font-medium text-foreground">{t("media.uploading")}</p>
+          <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" aria-hidden />
+          <span role="status" className="text-body-sm font-medium text-foreground">{t("media.uploading")}</span>
         </>
       ) : (
         <>
-          <UploadCloud className="text-brand-primary size-6" aria-hidden />
-          <p className="text-body-sm font-medium text-foreground">{t("media.uploadFiles")}</p>
-          <p className="text-body-xs text-muted-foreground">
-            {t("media.fileTypes", { size: formatBytes(MEDIA_MAX_UPLOAD_BYTES) })}
-          </p>
-          <p className="text-body-xs text-muted-foreground">
-            {t("media.dragToMove")}
-          </p>
+          <UploadCloud className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+          <span className="min-w-0">
+            <span className="block text-body-sm font-medium text-foreground">{t("media.uploadFiles")}</span>
+            <span className="block text-body-xs text-muted-foreground">
+              {t("media.fileTypes", { size: formatBytes(MEDIA_MAX_UPLOAD_BYTES) })}
+            </span>
+          </span>
         </>
       )}
-    </div>
+    </label>
   );
 
   const renderGrid = (
@@ -1010,7 +1000,7 @@ export function MediaLibrary() {
   const renderTable = (
     <>
       {/* Mobile stacked rows */}
-      <div className="divide-y divide-border border-y border-border md:hidden">
+      <div data-media-list-rows="" className="divide-y divide-border/55 border-y border-border/55 md:hidden">
         {visibleItems.map((item) => {
           if (item.kind === "folder") {
             return (
@@ -1018,12 +1008,13 @@ export function MediaLibrary() {
                 key={item.path}
                 {...getDropProps(item.path)}
                 className={cn(
-                  "flex items-center gap-2.5 py-2.5",
+                  "flex items-start gap-2.5 py-(--row-padding)",
                   selected.includes(item.ref) && "bg-primary/5",
                   dropFolder === item.path && "bg-brand-primary/5"
                 )}
               >
                 <Checkbox
+                  className="mt-1.5"
                   checked={selected.includes(item.ref)}
                   aria-label={t("media.selectFolder", { name: item.name })}
                   onCheckedChange={() => toggleRef(item.ref)}
@@ -1031,11 +1022,11 @@ export function MediaLibrary() {
                 <button
                   type="button"
                   onClick={(e) => onItemClick(e, item.ref, () => navigate(item.path))}
-                  className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 text-left"
+                  className="flex min-h-10 min-w-0 flex-1 cursor-pointer items-start gap-2.5 rounded-md text-left focus-visible:outline-2 focus-visible:outline-ring"
                 >
-                  <Folder className="size-5 shrink-0 text-brand-primary" aria-hidden />
+                  <Folder className="mt-0.5 size-5 shrink-0 text-muted-foreground" aria-hidden />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-body-sm font-medium text-foreground">{item.name}</p>
+                    <p className="wrap-anywhere text-body-sm font-medium text-foreground">{item.name}</p>
                     <p className="text-body-xs text-muted-foreground">{t("media.folder")}</p>
                   </div>
                 </button>
@@ -1056,9 +1047,10 @@ export function MediaLibrary() {
           return (
             <div
               key={file.key}
-              className={cn("flex items-center gap-2.5 py-2.5", selected.includes(item.ref) && "bg-primary/5")}
+              className={cn("flex items-start gap-2.5 py-(--row-padding)", selected.includes(item.ref) && "bg-primary/5")}
             >
               <Checkbox
+                className="mt-1.5"
                 checked={selected.includes(item.ref)}
                 aria-label={t("media.selectFile", { name: file.name })}
                 onCheckedChange={() => toggleRef(item.ref)}
@@ -1066,12 +1058,12 @@ export function MediaLibrary() {
               <button
                 type="button"
                 onClick={(e) => onItemClick(e, item.ref, () => setViewerFile(file))}
-                className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 text-left"
+                className="flex min-h-10 min-w-0 flex-1 cursor-pointer items-start gap-2.5 rounded-md text-left focus-visible:outline-2 focus-visible:outline-ring"
               >
-                <FileIconComp className="size-5 shrink-0 text-brand-primary" aria-hidden />
+                <FileIconComp className="mt-0.5 size-5 shrink-0 text-muted-foreground" aria-hidden />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-body-sm font-medium text-foreground">{file.name}</p>
-                  <p className="truncate text-body-xs tabular-nums text-muted-foreground">
+                  <p className="wrap-anywhere text-body-sm font-medium text-foreground">{file.name}</p>
+                  <p className="text-body-xs tabular-nums text-muted-foreground">
                     {formatBytes(file.size)} · {new Date(file.lastModified).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
                   </p>
                 </div>
@@ -1220,21 +1212,22 @@ export function MediaLibrary() {
   );
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-(--compact-gap)">
       {selected.length > 0 && selectionActions}
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="min-w-0 flex-1">{renderBreadcrumb}</div>
+        <div className="min-w-0 flex-1 basis-full sm:basis-auto">{renderBreadcrumb}</div>
         {headerActions}
       </div>
 
       {renderUploadDropzone}
 
-      <div className="flex flex-col gap-4 lg:flex-row">
+      <div className="flex flex-col gap-(--related-gap) lg:flex-row">
         <aside className="hidden w-48 shrink-0 self-start border-r border-border pr-3 lg:block">
-          <p className="text-body-xs text-muted-foreground px-2 pt-1 pb-2 font-semibold uppercase tracking-wide">
+          <p className="px-2 pb-1 text-body-sm font-semibold text-foreground">
             {t("media.folder")}
           </p>
+          <p className="px-2 pb-2 text-body-xs text-muted-foreground">{t("media.dragToMove")}</p>
           <button
             type="button"
             onClick={() => navigate("")}
@@ -1300,10 +1293,10 @@ export function MediaLibrary() {
       </div>
 
       <Dialog open={mkdirOpen} onOpenChange={setMkdirOpen}>
-        <DialogContent className="max-w-md rounded-xl border border-border p-6 shadow-lg">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="font-heading text-body-base font-bold text-foreground">{t("media.createFolderTitle")}</DialogTitle>
-            <DialogDescription className="text-body-xs text-muted-foreground mt-2">
+            <DialogDescription className="text-body-sm wrap-break-word">
               {t("media.createFolderHelp")}
             </DialogDescription>
           </DialogHeader>
@@ -1324,12 +1317,12 @@ export function MediaLibrary() {
               </p>
             )}
           </div>
-          <DialogFooter className="mt-5 flex items-center justify-end gap-2.5">
-            <Button variant="outline" className="rounded-lg cursor-pointer font-bold" onClick={() => setMkdirOpen(false)}>
+          <DialogFooter className="flex-row flex-wrap items-center justify-end">
+            <Button variant="ghost" className="min-h-9" onClick={() => setMkdirOpen(false)}>
               {t("media.cancel")}
             </Button>
             <Button
-              className="rounded-lg cursor-pointer font-bold px-6 shadow-sm"
+              className="min-h-9"
               onClick={submitMkdir}
               disabled={!mkdirName.trim()}
               isLoading={busy === "mkdir"}
@@ -1346,10 +1339,10 @@ export function MediaLibrary() {
           if (!open) setRenameTarget(null);
         }}
       >
-        <DialogContent className="max-w-md rounded-xl border border-border p-6 shadow-lg">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="font-heading text-body-base font-bold text-foreground">{t("media.rename")}</DialogTitle>
-            <DialogDescription className="text-body-xs text-muted-foreground mt-2">
+            <DialogDescription className="text-body-sm wrap-break-word">
               {renameTarget?.kind === "folder" ? t("media.renameFolderHelp") : t("media.renameFileHelp")}
             </DialogDescription>
           </DialogHeader>
@@ -1364,12 +1357,12 @@ export function MediaLibrary() {
               }}
             />
           </div>
-          <DialogFooter className="mt-5 flex items-center justify-end gap-2.5">
-            <Button variant="outline" className="rounded-lg cursor-pointer font-bold" onClick={() => setRenameTarget(null)}>
+          <DialogFooter className="flex-row flex-wrap items-center justify-end">
+            <Button variant="ghost" className="min-h-9" onClick={() => setRenameTarget(null)}>
               {t("media.cancel")}
             </Button>
             <Button
-              className="rounded-lg cursor-pointer font-bold px-6 shadow-sm"
+              className="min-h-9"
               onClick={confirmRename}
               disabled={!renameName.trim()}
               isLoading={busy === "rename"}
@@ -1386,20 +1379,20 @@ export function MediaLibrary() {
           if (!open) setMoveTarget(null);
         }}
       >
-        <DialogContent className="max-w-md rounded-xl border border-border p-6 shadow-lg">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="font-heading text-body-base font-bold text-foreground">{t("media.moveTitle")}</DialogTitle>
-            <DialogDescription className="text-body-xs text-muted-foreground mt-2">
+            <DialogDescription className="text-body-sm wrap-break-word">
               {t("media.moveHelp", { name: moveTarget?.name ?? "" })}
             </DialogDescription>
           </DialogHeader>
           <FolderPicker folders={allFolders} value={moveFolder} onSelect={setMoveFolder} disabled={forbiddenPaths} rootLabel={t("media.rootLabel")} />
-          <DialogFooter className="mt-5 flex items-center justify-end gap-2.5">
-            <Button variant="outline" className="rounded-lg cursor-pointer font-bold" onClick={() => setMoveTarget(null)}>
+          <DialogFooter className="flex-row flex-wrap items-center justify-end">
+            <Button variant="ghost" className="min-h-9" onClick={() => setMoveTarget(null)}>
               {t("media.cancel")}
             </Button>
             <Button
-              className="rounded-lg cursor-pointer font-bold px-6 shadow-sm"
+              className="min-h-9"
               onClick={confirmMove}
               isLoading={busy === "move"}
             >
@@ -1415,20 +1408,20 @@ export function MediaLibrary() {
           if (!open) setCopyTarget(null);
         }}
       >
-        <DialogContent className="max-w-md rounded-xl border border-border p-6 shadow-lg">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="font-heading text-body-base font-bold text-foreground">{t("media.copyTitle")}</DialogTitle>
-            <DialogDescription className="text-body-xs text-muted-foreground mt-2">
+            <DialogDescription className="text-body-sm wrap-break-word">
               {t("media.copyHelp", { name: copyTarget?.name ?? "" })}
             </DialogDescription>
           </DialogHeader>
           <FolderPicker folders={allFolders} value={copyFolder} onSelect={setCopyFolder} disabled={forbiddenPaths} rootLabel={t("media.rootLabel")} />
-          <DialogFooter className="mt-5 flex items-center justify-end gap-2.5">
-            <Button variant="outline" className="rounded-lg cursor-pointer font-bold" onClick={() => setCopyTarget(null)}>
+          <DialogFooter className="flex-row flex-wrap items-center justify-end">
+            <Button variant="ghost" className="min-h-9" onClick={() => setCopyTarget(null)}>
               {t("media.cancel")}
             </Button>
             <Button
-              className="rounded-lg cursor-pointer font-bold px-6 shadow-sm"
+              className="min-h-9"
               onClick={confirmCopy}
               isLoading={busy === "copy"}
             >
@@ -1447,10 +1440,10 @@ export function MediaLibrary() {
           }
         }}
       >
-        <DialogContent className="max-w-md rounded-xl border border-border p-6 shadow-lg">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="font-heading text-body-base font-bold text-foreground">{t("media.replaceTitle")}</DialogTitle>
-            <DialogDescription className="text-body-xs text-muted-foreground mt-2">
+            <DialogDescription className="text-body-sm wrap-break-word">
               {t("media.replaceHelp", { name: replaceTarget?.name ?? "" })}
             </DialogDescription>
           </DialogHeader>
@@ -1468,7 +1461,7 @@ export function MediaLibrary() {
               }}
             />
           </label>
-          <DialogFooter className="mt-5 flex items-center justify-end gap-2.5">
+          <DialogFooter className="flex-row flex-wrap items-center justify-end">
             <Button
               variant="outline"
               className="rounded-lg cursor-pointer font-bold"
@@ -1480,7 +1473,7 @@ export function MediaLibrary() {
               {t("media.cancel")}
             </Button>
             <Button
-              className="rounded-lg cursor-pointer font-bold px-6 shadow-sm"
+              className="min-h-9"
               onClick={confirmReplace}
               disabled={!replaceFile}
               isLoading={busy === "replace"}
@@ -1492,20 +1485,20 @@ export function MediaLibrary() {
       </Dialog>
 
       <Dialog open={bulkMoveOpen} onOpenChange={setBulkMoveOpen}>
-        <DialogContent className="max-w-md rounded-xl border border-border p-6 shadow-lg">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="font-heading text-body-base font-bold text-foreground">{t("media.moveItemsTitle")}</DialogTitle>
-            <DialogDescription className="text-body-xs text-muted-foreground mt-2">
+            <DialogDescription className="text-body-sm wrap-break-word">
               {t("media.moveItemsHelp", { count: selected.length })}
             </DialogDescription>
           </DialogHeader>
           <FolderPicker folders={allFolders} value={bulkMoveFolder} onSelect={setBulkMoveFolder} disabled={selectionForbidden} rootLabel={t("media.rootLabel")} />
-          <DialogFooter className="mt-5 flex items-center justify-end gap-2.5">
-            <Button variant="outline" className="rounded-lg cursor-pointer font-bold" onClick={() => setBulkMoveOpen(false)}>
+          <DialogFooter className="flex-row flex-wrap items-center justify-end">
+            <Button variant="ghost" className="min-h-9" onClick={() => setBulkMoveOpen(false)}>
               {t("media.cancel")}
             </Button>
             <Button
-              className="rounded-lg cursor-pointer font-bold px-6 shadow-sm"
+              className="min-h-9"
               onClick={bulkMove}
               disabled={!selected.length}
               isLoading={busy === "bulk-move"}

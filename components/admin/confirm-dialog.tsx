@@ -1,9 +1,8 @@
 "use client";
 
-import type { ComponentProps, ReactNode } from "react";
+import { useEffect, type ComponentProps, type ReactNode } from "react";
 import { useTranslations } from "@/lib/i18n/client";
 import { ShieldAlert } from "lucide-react";
-import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -13,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { hapticHeavy, hapticMedium, hapticWarning } from "@/lib/native/haptics";
 
 export type AdminConfirmDialogProps = {
   open: boolean;
@@ -42,6 +42,13 @@ export function AdminConfirmDialog({
   onCloseAutoFocus,
 }: AdminConfirmDialogProps) {
   const t = useTranslations("admin.states");
+
+  useEffect(() => {
+    if (open && destructive) {
+      void hapticWarning();
+    }
+  }, [open, destructive]);
+
   return (
     <Dialog
       open={open}
@@ -51,25 +58,23 @@ export function AdminConfirmDialog({
         }
       }}
     >
-      <DialogContent onCloseAutoFocus={onCloseAutoFocus} className="max-w-md rounded-xl border border-border p-6 shadow-lg text-left">
-        <DialogHeader>
-          <DialogTitle
-            className={cn(
-              "flex items-center gap-2 font-heading text-body-base font-bold",
-              destructive && "text-status-error"
-            )}
-          >
-            <Icon className="size-5 shrink-0" />
-            {title}
+      <DialogContent showCloseButton={false} onCloseAutoFocus={onCloseAutoFocus} className="max-w-md text-left">
+        <DialogHeader className="pr-0">
+          <DialogTitle className="flex items-start gap-2 text-body-base">
+            <Icon
+              aria-hidden
+              className={destructive ? "mt-0.5 size-4 shrink-0 text-status-error" : "mt-0.5 size-4 shrink-0 text-muted-foreground"}
+            />
+            <span className="min-w-0 wrap-break-word">{title}</span>
           </DialogTitle>
-          <DialogDescription className="text-body-xs text-muted-foreground mt-2">
+          <DialogDescription className="text-body-sm wrap-break-word">
             {description}
           </DialogDescription>
         </DialogHeader>
-        <DialogFooter className="mt-5 flex items-center justify-end gap-2.5">
+        <DialogFooter className="flex-row flex-wrap items-center justify-end">
           <Button
-            variant="outline"
-            className="rounded-lg cursor-pointer font-bold"
+            variant="ghost"
+            className="h-auto min-h-10 max-w-full whitespace-normal"
             onClick={() => onOpenChange(false)}
             disabled={loading}
           >
@@ -77,8 +82,12 @@ export function AdminConfirmDialog({
           </Button>
           <Button
             variant={destructive ? "destructive" : "default"}
-            className="rounded-lg cursor-pointer font-bold px-6 shadow-sm"
-            onClick={onConfirm}
+            className="h-auto min-h-10 max-w-full whitespace-normal"
+            onClick={() => {
+              if (destructive) void hapticHeavy();
+              else void hapticMedium();
+              onConfirm();
+            }}
             isLoading={loading}
           >
             {confirmLabel ?? t("confirmDelete")}

@@ -5,6 +5,7 @@ import {
   parseCanvasSpec,
   type FunctionPlotCanvas,
 } from "@/lib/zyra/canvas";
+import { computeValueTableSampling } from "@/components/course/learning-canvas/learning-canvas-renderer";
 
 const spec: FunctionPlotCanvas = {
   version: "zyra-learning-canvas-v1",
@@ -99,5 +100,22 @@ describe("Learning Canvas renderer contracts", () => {
       series: [{ id: "f", label: "f(x)", expression: "y = window.alert(1)" }],
     }, ["claim-1"]);
     expect(rejected).toBeNull();
+  });
+
+  test("computes rounded table sampling across standard, narrow and empty domain intersections", () => {
+    expect(computeValueTableSampling(-2, 2, -2.2, 2.2)).toEqual({ min: -2, max: 2, sampleCount: 5 });
+    expect(computeValueTableSampling(-2, 2, 5, 10)).toBeNull();
+    expect(computeValueTableSampling(-2, 2, 2, 5)).toBeNull();
+    const narrow = computeValueTableSampling(0, 1, 0.05, 0.89);
+    expect(narrow).not.toBeNull();
+    expect(narrow!.min).toBeGreaterThanOrEqual(0.05);
+    expect(narrow!.max).toBeLessThanOrEqual(0.89);
+    expect(narrow!.min).toBeLessThan(narrow!.max);
+    expect(narrow!.sampleCount).toBeGreaterThanOrEqual(2);
+    const tiny = computeValueTableSampling(0, 1, 0.26, 0.349);
+    expect(tiny).not.toBeNull();
+    expect(tiny!.min).toBeGreaterThanOrEqual(0.26);
+    expect(tiny!.max).toBeLessThanOrEqual(0.349);
+    expect(tiny!.min).toBeLessThan(tiny!.max);
   });
 });

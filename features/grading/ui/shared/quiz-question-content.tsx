@@ -11,12 +11,10 @@ import type { QuestionDetail } from "@/features/grading/model/types";
 
 interface QuizQuestionContentProps {
   question: QuestionDetail;
-  compactAttachment?: boolean;
 }
 
 export function QuizQuestionContent({
   question: q,
-  compactAttachment = false,
 }: QuizQuestionContentProps) {
   const tr = useTranslations("tutor.grading");
 
@@ -90,17 +88,9 @@ export function QuizQuestionContent({
       </div>
 
       {q.fileName && (
-        <div
-          className={
-            compactAttachment
-              ? "flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/20 px-3 py-2.5"
-              : "flex flex-wrap items-center justify-between gap-(--compact-gap) border-t border-border p-3"
-          }
-        >
+        <div className="flex flex-wrap items-center justify-between gap-(--compact-gap) border-t border-border/55 pt-(--compact-gap)">
           <div className="flex min-w-0 items-center gap-2.5">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-status-success/10 text-status-success">
-              <FileText className="size-4" aria-hidden />
-            </span>
+            <FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden />
             <div className="min-w-0">
               <p className="max-w-[200px] truncate text-body-xs font-bold text-foreground md:max-w-xs">
                 {q.fileName}
@@ -111,36 +101,23 @@ export function QuizQuestionContent({
             </div>
           </div>
           {q.fileKey ? (
-            compactAttachment ? (
-              <Button variant="outline" size="icon-lg" asChild className="shrink-0">
-                <a
-                  href={`/api/storage/file/${q.fileKey.split("/").map(encodeURIComponent).join("/")}?download=1`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={tr("downloadFile")}
-                >
-                  <Download aria-hidden />
-                </a>
-              </Button>
-            ) : (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="outline" size="icon-lg" asChild>
-                      <a
-                        href={`/api/storage/file/${q.fileKey.split("/").map(encodeURIComponent).join("/")}?download=1`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        aria-label={tr("downloadFile")}
-                      >
-                        <Download aria-hidden />
-                      </a>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>{tr("downloadFile")}</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon-lg" asChild>
+                    <a
+                      href={`/api/storage/file/${q.fileKey.split("/").map(encodeURIComponent).join("/")}?download=1`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={tr("downloadFile")}
+                    >
+                      <Download aria-hidden />
+                    </a>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{tr("downloadFile")}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           ) : (
             <span className="shrink-0 text-body-xs italic text-muted-foreground">
               {tr("fileUnavailable")}

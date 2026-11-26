@@ -35,9 +35,7 @@ describe("Quiz Multi-Choice and Option Indicator Invariants", () => {
     expect(isQuizAnswerComplete(0)).toBe(true);
   });
 
-  it("ensures QuizPlayer renders question type badge (Pilihan Jamak vs Pilihan Tunggal)", () => {
-    expect(quizPlayerCode).toContain('t("quiz.multipleChoice")');
-    expect(quizPlayerCode).toContain('t("quiz.singleChoice")');
+  it("ensures QuizPlayer renders distinct instructions for single and multiple choices", () => {
     expect(quizPlayerCode).toContain('t("quiz.chooseAllCorrect")');
     expect(quizPlayerCode).toContain('t("quiz.chooseOne")');
     const quizMessages = JSON.parse(readFileSync("messages/id/learning.json", "utf8")).quiz;

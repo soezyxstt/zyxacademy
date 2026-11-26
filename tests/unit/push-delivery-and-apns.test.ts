@@ -20,6 +20,8 @@ import {
   getUnifiedNotificationDeliveryStatus,
   registerUnifiedPushToken,
   startDesktopNotificationBridge,
+  getUnifiedNotificationPermission,
+  sendDesktopNativeNotification,
   unregisterCurrentPushToken,
 } from "@/lib/native/notifications";
 
@@ -401,6 +403,145 @@ describe("iOS registration, desktop notification bridge, and honest client readi
     });
   });
 
+  test("uses the Tauri-injected desktop Notification API without mobile IPC", async () => {
+    const sent: Array<{ title: string; body?: string }> = [];
+    class DesktopNotification {
+      static permission = "granted";
+      constructor(title: string, options: { body?: string }) {
+        sent.push({ title, body: options.body });
+      }
+    }
+    (globalThis as unknown as { window: Record<string, unknown> }).window = {
+      __TAURI__: { core: { invoke: async (command: string) => { throw new Error(`Command ${command} not found`); } } },
+      Notification: DesktopNotification,
+    };
+    expect(await getUnifiedNotificationPermission()).toBe("granted");
+    expect(await sendDesktopNativeNotification("Desktop alert", "Delivered")).toBe(true);
+    expect(await sendDesktopNativeNotification("Stale account", "Must not show", () => false)).toBe(false);
+    expect(sent).toEqual([{ title: "Desktop alert", body: "Delivered" }]);
+  });
+
+  test("trusts native permission instead of the Windows WebView shim and awaits native delivery", async () => {
+    const calls: string[] = [];
+    let nativeAllowed = true;
+    let osFails = false;
+    class DeniedNotification {
+      static permission = "denied";
+      constructor() { throw new Error("WebView fallback must not run"); }
+    }
+    (globalThis as unknown as { window: Record<string, unknown> }).window = {
+      __TAURI__: { core: { invoke: async (command: string) => {
+        calls.push(command);
+        if (command === "plugin:notification|is_permission_granted") return nativeAllowed;
+        if (command === "show_desktop_notification") {
+          if (osFails) throw new Error("DESKTOP_NOTIFICATION_OS_ERROR");
+          return true;
+        }
+        throw new Error("Unexpected fallback");
+      } } },
+      Notification: DeniedNotification,
+    };
+    expect(await getUnifiedNotificationPermission()).toBe("granted");
+    expect(await sendDesktopNativeNotification("Native test", "Body")).toBe(true);
+    osFails = true;
+    expect(await sendDesktopNativeNotification("Native error", "Body")).toBe(false);
+    expect(calls.filter(command => command === "show_desktop_notification")).toHaveLength(2);
+    expect(calls).not.toContain("plugin:notification|notify");
+    nativeAllowed = false;
+    expect(await sendDesktopNativeNotification("Permission denied")).toBe(false);
+    expect(calls.filter(command => command === "show_desktop_notification")).toHaveLength(2);
+  });
+
+  test("never displays a different account's inbox after session recovery", async () => {
+    let attempts = 0;
+    const displayed: string[] = [];
+    const stop = startDesktopNotificationBridge({ onForeground: event => {
+      if (event.notificationId) displayed.push(event.notificationId);
+    } }, {
+      pollIntervalMs: 15,
+      userId: "current-user",
+      fetchImpl: (async () => {
+        attempts += 1;
+        const notifications = attempts === 1 ? [] : attempts === 2 ? [
+          { id: "other", userId: "other-user", title: "Other account", createdAt: "2026-11-21T11:00:00.000Z" },
+        ] : [
+          { id: "own", userId: "current-user", title: "Own account", createdAt: "2026-11-21T10:00:00.000Z" },
+        ];
+        return new Response(JSON.stringify({ notifications }), { status: 200 });
+      }) as unknown as typeof fetch,
+      sendNative: async () => {},
+    });
+    await new Promise(resolve => setTimeout(resolve, 90));
+    stop();
+    expect(displayed).toEqual(["own"]);
+  });
+
+  test("desktop holds its cursor during quiet hours and sends one unread digest on release", async () => {
+    const initial = "2026-11-21T10:00:00.000Z";
+    const queries: Array<string | null> = [];
+    const native: Array<{ title: string; body?: string }> = [];
+    const foreground: unknown[] = [];
+    let attempts = 0;
+    const documentDescriptor = Object.getOwnPropertyDescriptor(globalThis, "document");
+    Object.defineProperty(globalThis, "document", {
+      configurable: true,
+      value: { documentElement: { lang: "en" }, addEventListener() {}, removeEventListener() {} },
+    });
+    let stop: (() => void) | undefined;
+    try {
+      stop = startDesktopNotificationBridge({ onForeground: event => foreground.push(event) }, {
+        pollIntervalMs: 15,
+        userId: "owner",
+        fetchImpl: (async (url: unknown) => {
+          queries.push(new URL(String(url), "https://example.test").searchParams.get("since"));
+          attempts++;
+          if (attempts === 1) return Response.json({
+            notifications: [{ id: "old", userId: "owner", title: "Old", createdAt: initial }],
+          });
+          if (attempts <= 3) return Response.json({ quietActive: true, notifications: [] });
+          return Response.json({ notifications: [
+            { id: "unread", userId: "owner", title: "Private", read: false, createdAt: "2026-11-21T10:05:00.000Z" },
+            { id: "read", userId: "owner", title: "Read", read: true, createdAt: "2026-11-21T10:06:00.000Z" },
+          ] });
+        }) as typeof fetch,
+        sendNative: async (title, body) => { native.push({ title, body }); },
+      });
+      for (let i = 0; i < 100 && attempts < 6; i++) await new Promise(resolve => setTimeout(resolve, 15));
+      expect(attempts).toBeGreaterThanOrEqual(6);
+      expect(queries.slice(0, 4)).toEqual([null, initial, initial, initial]);
+      expect(queries[4]).toBe("2026-11-21T10:06:00.000Z");
+      expect(native).toEqual([{ title: "1 new notifications", body: "Open Zyx Academy to see your updates." }]);
+      expect(foreground).toEqual([{}]);
+    } finally {
+      stop?.();
+      if (documentDescriptor) Object.defineProperty(globalThis, "document", documentDescriptor);
+      else Reflect.deleteProperty(globalThis, "document");
+    }
+  });
+
+  test("recovers when a desktop inbox request stalls", async () => {
+    let attempts = 0;
+    let aborted = false;
+    const stop = startDesktopNotificationBridge({ onForeground: () => {} }, {
+      pollIntervalMs: 15,
+      requestTimeoutMs: 10,
+      fetchImpl: (async (_url: unknown, init?: RequestInit) => {
+        attempts += 1;
+        if (attempts === 1) return new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            aborted = true;
+            reject(new Error("Request aborted"));
+          }, { once: true });
+        });
+        return new Response(JSON.stringify({ notifications: [] }), { status: 200 });
+      }) as unknown as typeof fetch,
+    });
+    await new Promise(resolve => setTimeout(resolve, 80));
+    stop();
+    expect(aborted).toBe(true);
+    expect(attempts).toBeGreaterThanOrEqual(2);
+  });
+
   test("registers Tauri desktop token and delivers new inbox notifications to native OS", async () => {
     const postedBodies: Record<string, unknown>[] = [];
 
@@ -440,10 +581,13 @@ describe("iOS registration, desktop notification bridge, and honest client readi
     // Test desktop inbox bridge polling: first poll seeds existing IDs without firing,
     // second poll fires native notification + foreground handler for new arrival.
     const nativeCalls: Array<{ title: string; body?: string }> = [];
-    const foregroundCalls: Array<{ title?: string; body?: string; url?: string }> = [];
+    const foregroundCalls: Array<{ notificationId?: string; title?: string; body?: string; url?: string }> = [];
     let pollCount = 0;
+    const queries: URLSearchParams[] = [];
 
-    const fakeFetch = (async () => {
+    const fakeFetch = (async (url: unknown) => {
+      const query = new URL(String(url), "https://example.test").searchParams;
+      queries.push(query);
       pollCount += 1;
       if (pollCount === 1) {
         return new Response(
@@ -467,6 +611,7 @@ describe("iOS registration, desktop notification bridge, and honest client readi
               id: "new-2",
               title: "New quiz",
               body: "Calculus quiz is open",
+              read: true,
               createdAt: "2026-11-21T10:05:00.000Z",
               metadata: { url: "/courses/calc" },
             },
@@ -493,25 +638,33 @@ describe("iOS registration, desktop notification bridge, and honest client readi
     stop();
 
     expect(pollCount).toBeGreaterThanOrEqual(2);
+    expect(queries.every(query => !query.has("unreadOnly"))).toBe(true);
     expect(foregroundCalls).toEqual([
-      { title: "New quiz", body: "Calculus quiz is open", url: "/courses/calc" },
+      { notificationId: "new-2", title: "New quiz", body: "Calculus quiz is open", url: "/courses/calc" },
     ]);
     expect(nativeCalls).toEqual([{ title: "New quiz", body: "Calculus quiz is open" }]);
 
-    // Verify 401 stops polling immediately
+    // An expired session is retried without replaying old inbox history or
+    // relying on the local clock when the first successful inbox is empty.
     let unauthPolls = 0;
+    const recovered: string[] = [];
     const stopUnauth = startDesktopNotificationBridge(
-      { onForeground: () => {} },
+      { onForeground: event => { if (event.notificationId) recovered.push(event.notificationId); } },
       {
         pollIntervalMs: 15,
         fetchImpl: (async () => {
           unauthPolls += 1;
-          return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+          if (unauthPolls === 1) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+          return new Response(JSON.stringify({ notifications: unauthPolls === 2 ? [] : [
+            { id: "recovered", title: "Recovered", createdAt: "2026-11-21T10:00:00.000Z" },
+          ] }), { status: 200 });
         }) as unknown as typeof fetch,
+        sendNative: async () => {},
       },
     );
-    await new Promise((resolve) => setTimeout(resolve, 60));
+    await new Promise((resolve) => setTimeout(resolve, 90));
     stopUnauth();
-    expect(unauthPolls).toBe(1);
+    expect(unauthPolls).toBeGreaterThanOrEqual(3);
+    expect(recovered).toEqual(["recovered"]);
   });
 });

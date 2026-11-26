@@ -30,5 +30,13 @@ export function DemoAwareMarketingLayout({ children, footer }: { children: React
 
   const demo = /^\/(?:en\/|id\/)?demo(?:\/|$)/.test(pathname);
   if (demo) return <>{children}</>;
-  return <CommandMenuProvider><Navbar /><SiteMain>{children}</SiteMain>{footer}</CommandMenuProvider>;
+  return (
+    <CommandMenuProvider>
+      <div className="contents [--marketing-navbar-height:3.5rem] md:[--marketing-navbar-height:4rem]">
+        <Navbar />
+        <SiteMain>{children}</SiteMain>
+        {footer}
+      </div>
+    </CommandMenuProvider>
+  );
 }

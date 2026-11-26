@@ -39,7 +39,7 @@ import { StudentDashboardMobile } from "@/features/student-dashboard/ui/mobile/s
 import type { StudentDashboardDataProps } from "@/features/student-dashboard/model/types";
 import { StudentProfileMobile } from "@/features/student-profile/ui/mobile/student-profile-mobile";
 import { StudentScheduleMobile } from "@/features/student-schedule/ui/mobile/student-schedule-mobile";
-import { TutorDashboardMobile } from "@/features/tutor-dashboard/ui/mobile/tutor-dashboard-mobile";
+import { TutorDashboardContent } from "@/features/tutor-dashboard/ui/tutor-dashboard-content";
 import type { TutorDashboardViewProps } from "@/features/tutor-dashboard/model/types";
 import { TutorScheduleMobile } from "@/features/tutor-schedule/ui/mobile/tutor-schedule-mobile";
 import { TryoutGradingMobile } from "@/features/grading/ui/mobile/tryout-grading-mobile";
@@ -1009,14 +1009,17 @@ function TutorScheduleFixtureView() {
         filteredBookings={scheduleData.ownedBookings}
         filteredTickets={scheduleData.ownedTickets}
         slotNotes={{ "tsl-2": "Sesi klinik soal Bab 2" }}
+        slotCourses={{}}
         slotsWithHistory={new Set()}
         openedSlotCount={3}
         filledSlotCount={1}
         availableSlotCount={2}
         isAddSlotOpen={isAddSlotOpen}
         setIsAddSlotOpen={setIsAddSlotOpen}
+        editingSlotId={null}
         newSlotDate={newSlotDate}
         setNewSlotDate={setNewSlotDate}
+        derivedWeekday="Selasa"
         newSlotStart={newSlotStart}
         handleStartTimeChange={setNewSlotStart}
         newSlotEnd="20:30"
@@ -1026,8 +1029,15 @@ function TutorScheduleFixtureView() {
         setNewSlotLocation={setNewSlotLocation}
         newSlotNotes={newSlotNotes}
         setNewSlotNotes={setNewSlotNotes}
-        handleAddSlot={() => setIsAddSlotOpen(false)}
+        newSlotCourseIds={[]}
+        onToggleSlotCourse={() => undefined}
+        onSelectAllSlotCourses={() => undefined}
+        repeatWeeks={1}
+        setRepeatWeeks={() => undefined}
+        canSaveSlot={true}
+        handleSaveSlot={() => setIsAddSlotOpen(false)}
         openAddSlotDialog={() => setIsAddSlotOpen(true)}
+        openEditSlotDialog={() => setIsAddSlotOpen(true)}
         handleCreateSlotDirect={() => undefined}
         requestDeleteSlot={() => undefined}
         handleOpenMoveModal={() => undefined}
@@ -1383,7 +1393,7 @@ export function MobileUiPreviewFixtureClient({ view }: { view: MobilePreviewView
           >
             <MobileTopTitleOverride title="Beranda Tutor" />
             <ApplicationPage maxWidth="7xl">
-              <TutorDashboardMobile {...TUTOR_DASHBOARD_FIXTURE} />
+              <TutorDashboardContent {...TUTOR_DASHBOARD_FIXTURE} />
             </ApplicationPage>
           </ApplicationShell>
         </StudentExperienceProvider>

@@ -277,6 +277,8 @@ export function DiscussionListPane({
   const t = useTranslations("discussions");
   const { searchVisible, selectedChannel, mutePending, muteError, creatableChannels } =
     controller;
+  const questions = props.questions.filter(item => !controller.pendingStatusIds.has(item.id));
+  const resolvedQuestions = (props.resolvedQuestions ?? []).filter(item => !controller.pendingStatusIds.has(item.id));
 
   return (
     <>
@@ -384,7 +386,7 @@ export function DiscussionListPane({
           />
         ) : (
           <>
-            {props.questions.length === 0 ? (
+            {questions.length === 0 ? (
               <AdminEmptyState
                 icon={MessageSquareText}
                 title={t("noQuestions")}
@@ -399,7 +401,7 @@ export function DiscussionListPane({
               />
             ) : (
               <div className="divide-y divide-border">
-                {props.questions.map((item) => {
+                {questions.map((item) => {
                   const row = (
                     <DiscussionQuestionRow
                       item={item}
@@ -461,9 +463,9 @@ export function DiscussionListPane({
               </div>
             ) : (
               <>
-                {(props.resolvedQuestions ?? []).length ? (
+                {resolvedQuestions.length ? (
                   <div className="divide-y divide-border">
-                    {props.resolvedQuestions!.map((item) => {
+                    {resolvedQuestions.map((item) => {
                       const row = (
                         <DiscussionQuestionRow
                           item={item}
@@ -794,6 +796,8 @@ export function DiscussionThreadOrComposePane({
 
       <div
         data-discussion-messages
+        data-discussion-status={hideThreadHeader ? "" : undefined}
+        aria-describedby={hideThreadHeader ? "discussion-thread-status" : undefined}
         className={cn(
           "flex min-h-0 flex-1 flex-col space-y-4 overflow-y-auto",
           messagesPaddingClassName
@@ -874,7 +878,7 @@ export function DiscussionThreadOrComposePane({
       </div>
 
       {showReplyComposer && (
-        <div className="flex max-h-[80%] min-h-0 shrink-0 flex-col border-t border-border bg-background p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+        <div className="flex max-h-[80%] min-h-0 shrink-0 flex-col border-t border-border bg-background p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] md:p-3 md:pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
           <DiscussionComposer
             draft={
               question.canReply || threadLocked

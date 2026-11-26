@@ -3,12 +3,15 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getAuthUser, type AuthUser } from "@/lib/auth-session";
 import { getEmailNotificationPreferences } from "@/lib/email-preferences/repository";
+import { hasPeran } from "@/lib/auth/authorization";
+import { getActivityNotificationPreferences } from "@/lib/notifications/activity-preferences";
 import { getTranslations } from "@/lib/i18n/server";
 import { createMetadata } from "@/lib/site";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getProfileEditorData, ProfileEditor } from "../profile/edit/profile-editor";
 import { NotificationPreferencesForm } from "./notifications/notification-preferences-form";
 import { SettingsClient } from "./settings-client";
+import { resolveSettingsTab } from "@/lib/settings-tabs";
 
 export async function generateMetadata(): Promise<Metadata> {
   const [common, student] = await Promise.all([getTranslations("common"), getTranslations("student")]);
@@ -21,9 +24,9 @@ export default async function SettingsPage({
   searchParams: Promise<{ tab?: string | string[] }>;
 }) {
   const [account, query] = await Promise.all([getAuthUser(), searchParams]);
-  const initialTab = query.tab === "profile" || query.tab === "email" ? query.tab : "appearance";
+  const initialTab = resolveSettingsTab(query.tab);
   if (!account?.id) {
-    const next = initialTab === "appearance" ? "/settings" : `/settings?tab=${initialTab}`;
+    const next = initialTab === "general" ? "/settings" : `/settings?tab=${initialTab}`;
     redirect(`/sign-in?next=${encodeURIComponent(next)}`);
   }
 
@@ -50,8 +53,10 @@ async function AccountProfile({ account }: { account: AuthUser }) {
 }
 
 async function AccountEmailPreferences({ account }: { account: AuthUser }) {
-  const preferences = await getEmailNotificationPreferences(account.id);
-  return <NotificationPreferencesForm accountEmail={account.email} initialPreferences={preferences} />;
+  const [preferences, activityPreferences] = await Promise.all([
+    getEmailNotificationPreferences(account.id), getActivityNotificationPreferences(account.id),
+  ]);
+  return <NotificationPreferencesForm accountEmail={account.email} initialPreferences={preferences} initialActivityPreferences={activityPreferences} isTutor={await hasPeran(account.id, "tutor")} />;
 }
 
 function SettingsPanelSkeleton() {

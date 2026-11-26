@@ -1,7 +1,5 @@
-import { notFound } from "next/navigation";
 import { CalendarDays } from "lucide-react";
 import { pageTitle } from "@/lib/site";
-import { env } from "@/lib/env";
 import { getPkaSchedulesAction } from "../actions";
 import { SchedulesTab } from "../_components/schedules-tab";
 import { AdminPageHeader } from "@/components/admin/page-header";
@@ -18,12 +16,11 @@ export async function generateMetadata() {
 
 export default async function TutorialPkaSchedulesPage() {
   const t = await getTranslations("adminOps");
-  if (env.FEATURE_PKA !== "1") notFound();
 
   const schedules = await getPkaSchedulesAction();
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-(--related-gap)">
       <AdminPageHeader
         icon={CalendarDays}
         title={<TranslatedText namespace="adminOps" messageKey="pka.schedules" />}
@@ -37,9 +34,7 @@ export default async function TutorialPkaSchedulesPage() {
         ]}
       />
 
-      <div>
-        <SchedulesTab schedules={schedules} />
-      </div>
+      <SchedulesTab schedules={schedules} />
     </div>
   );
 }

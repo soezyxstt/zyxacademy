@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } f
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 import { Check, ChevronDown, Flag, Forward, MessageSquareReply, Pencil, Plus, Trash2 } from "lucide-react";
 import { ZyraBubbleSkin } from "@/components/gamification/zyra-bubble-skin";
+import { getZyraChatSkin } from "@/lib/gamification/zyra-cosmetics";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -13,6 +14,13 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import {
+  hapticError,
+  hapticHeavy,
+  hapticMedium,
+  hapticSuccess,
+  hapticWarning,
+} from "@/lib/native/haptics";
 import { DiscussionAttachment } from "./discussion-attachment";
 import { canSuggestForwardChannel, channelOptionIndex, mentionHandle, discussionMessageHref, zyraStatusReaction } from "./discussion-adapter";
 import { DiscussionMarkdown } from "./discussion-markdown";
@@ -116,7 +124,7 @@ export function DiscussionChannelPicker({ value, label, placeholder, onChange, o
     <PopoverTrigger asChild>
       <Button
         type="button"
-        variant={allowAll ? "ghost" : "outline"}
+        variant="ghost"
         role="combobox"
         aria-label={label}
         aria-expanded={open}
@@ -125,7 +133,7 @@ export function DiscussionChannelPicker({ value, label, placeholder, onChange, o
           singleLine
             ? "h-9 w-full min-w-0 py-0 text-left [&>span]:justify-between"
             : "h-auto min-h-9 w-full min-w-0 whitespace-normal py-1 text-left [&>span]:justify-between",
-          allowAll && "px-2 data-[state=open]:bg-muted",
+          "px-2 data-[state=open]:bg-muted",
           triggerClassName
         )}
       >
@@ -245,7 +253,7 @@ export function DiscussionMessage({ message, questionId, viewer, sourceChannel, 
 
   function startGesture(event: ReactPointerEvent<HTMLDivElement>) {
     if (gesture.current || event.pointerType !== "touch" || event.clientX < 28 || event.clientX > window.innerWidth - 28 || (event.target as HTMLElement).closest("button,a,input,textarea,select")) return;
-    const state = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, moved: false, vertical: false, longPressed: false, timer: setTimeout(() => { state.longPressed = true; setMenuOpen(true); }, 550) };
+    const state = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, moved: false, vertical: false, longPressed: false, timer: setTimeout(() => { state.longPressed = true; void hapticMedium(); setMenuOpen(true); }, 550) };
     gesture.current = state;
   }
 
@@ -267,7 +275,10 @@ export function DiscussionMessage({ message, questionId, viewer, sourceChannel, 
     clearTimeout(state.timer);
     const dx = event.clientX - state.x;
     const dy = event.clientY - state.y;
-    if (canReply && !replyDisabled && !cancelled && !state.vertical && !state.longPressed && state.moved && Math.abs(dx) >= 65 && Math.abs(dx) > Math.abs(dy) * 1.5) onReply(message);
+    if (canReply && !replyDisabled && !cancelled && !state.vertical && !state.longPressed && state.moved && Math.abs(dx) >= 65 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      void hapticMedium();
+      onReply(message);
+    }
     gesture.current = null;
   }
 
@@ -278,8 +289,14 @@ export function DiscussionMessage({ message, questionId, viewer, sourceChannel, 
     setRetry(null);
     try {
       const result = await action();
-      if (closeDialog && result !== false) { setDialog(null); setReason(""); }
+      if (closeDialog && result !== false) {
+        if (activeDialog === "delete") void hapticHeavy();
+        else void hapticSuccess();
+        setDialog(null);
+        setReason("");
+      }
     } catch {
+      void hapticError();
       setError("actionError");
       if (!closeDialog) setRetry(() => action);
     } finally {
@@ -288,6 +305,7 @@ export function DiscussionMessage({ message, questionId, viewer, sourceChannel, 
   }
 
   function openDialog(next: "edit" | "delete" | "forward" | "report") {
+    if (next === "delete") void hapticWarning();
     setError("");
     setRetry(null);
     setBody(message.body);
@@ -348,23 +366,57 @@ export function DiscussionMessage({ message, questionId, viewer, sourceChannel, 
   const zyraReaction = message.zyraStatus ? zyraStatusReaction(message.zyraStatus.status, message.zyraStatus.reason) : null;
   const showReactionRow = canReact || Boolean(zyraReaction?.emoji);
 
-  return <div data-message-id={message.id} data-own-message={isOwn ? "true" : undefined} data-discussion-target={targeted || undefined} tabIndex={targeted ? -1 : undefined} className={cn("min-w-0 touch-pan-y", targeted && "rounded-lg ring-2 ring-primary")} onPointerDown={startGesture} onPointerMove={moveGesture} onPointerUp={endGesture} onPointerCancel={(event) => endGesture(event, true)}>
-    <div className={cn("flex min-w-0 gap-2 md:gap-2.5", isOwn && "flex-row-reverse")}>
-      {canViewAuthorProfile ? (
-        <button type="button" onClick={() => onViewProfile!(message.author)} aria-label={t("viewProfile", { name: message.author.name })} className="size-7 md:size-9 shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">{avatarVisual}</button>
-      ) : (
-        <span className="size-7 md:size-9 shrink-0">{avatarVisual}</span>
-      )}
-      <div className={cn("flex min-w-0 flex-1 flex-col gap-1.5", isOwn ? "items-end" : "items-start")}>
-        <ZyraBubbleSkin skinId={message.skinId} role={message.author.role === "zyra" ? "assistant" : "user"} className={cn("min-w-0 w-full md:w-auto md:max-w-[85%]", message.skinId ? undefined : cn("rounded-xl border px-3 py-2 md:py-2.5", isOwn ? "border-primary/25 bg-primary/10 dark:bg-primary/15" : "border-border bg-card"))}>
-          <div className="mb-1 flex min-w-0 items-center justify-between gap-2">
+  const roleLabel = t(
+    message.author.role === "student"
+      ? "role_student"
+      : message.author.role === "tutor"
+        ? "role_tutor"
+        : message.author.role === "admin"
+          ? "role_admin"
+          : message.author.role === "zyra"
+            ? "role_zyra"
+            : "role_unknown"
+  );
+  const showRoleBadge = message.author.name.trim().toLowerCase() !== roleLabel.trim().toLowerCase();
+  const hasBubbleSkin = Boolean(getZyraChatSkin(message.skinId));
+
+  return <div data-message-id={message.id} data-own-message={isOwn ? "true" : undefined} data-discussion-target={targeted || undefined} data-swipe-lock="" tabIndex={targeted ? -1 : undefined} className={cn("min-w-0 touch-pan-y", targeted && "rounded-lg ring-2 ring-primary")} onPointerDown={startGesture} onPointerMove={moveGesture} onPointerUp={endGesture} onPointerCancel={(event) => endGesture(event, true)}>
+    <div className={cn("flex min-w-0 items-start gap-2 md:gap-2.5", isOwn && "flex-row-reverse")}>
+      {!isOwn ? (
+        canViewAuthorProfile ? (
+          <button type="button" onClick={() => onViewProfile!(message.author)} aria-label={t("viewProfile", { name: message.author.name })} className="mt-0.5 size-7 md:size-9 shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">{avatarVisual}</button>
+        ) : (
+          <span className="mt-0.5 size-7 md:size-9 shrink-0">{avatarVisual}</span>
+        )
+      ) : null}
+      <div className={cn("flex min-w-0 flex-1 flex-col gap-1", isOwn ? "items-end" : "items-start")}>
+        <div className={cn("relative min-w-0 w-fit max-w-[92%] md:max-w-[85%]", isOwn && "mr-1.5")}>
+          <ZyraBubbleSkin
+            skinId={message.skinId}
+            role={message.author.role === "zyra" ? "assistant" : "user"}
+            className={cn(
+              "min-w-0 w-full",
+              isOwn && "!rounded-tr-none",
+              hasBubbleSkin
+                ? undefined
+                : cn(
+                    "rounded-2xl border px-2.5 py-1.5 md:px-3.5 md:py-2.5",
+                    isOwn
+                      ? "border-primary/25 bg-[color-mix(in_oklab,var(--primary)_10%,var(--background))] dark:bg-[color-mix(in_oklab,var(--primary)_15%,var(--background))]"
+                      : "rounded-tl-sm border-border bg-card shadow-2xs"
+                  )
+            )}
+          >
+            <div className="mb-0.5 md:mb-1 flex min-w-0 items-center justify-between gap-2.5 md:gap-3">
             <div className="flex min-w-0 flex-wrap items-center gap-1.5">
               {canViewAuthorProfile ? (
-                <button type="button" onClick={() => onViewProfile!(message.author)} className="min-w-0 break-words rounded-sm text-left text-body-xs font-semibold hover:text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">{message.author.name}</button>
+                <button type="button" onClick={() => onViewProfile!(message.author)} aria-label={t("viewProfile", { name: message.author.name })} className="min-w-0 break-words rounded-sm text-left text-body-xs font-semibold hover:text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">{message.author.name}</button>
               ) : (
                 <span className="min-w-0 break-words text-body-xs font-semibold">{message.author.name}</span>
               )}
-              <span className="rounded bg-muted/70 px-1.5 py-0.5 text-body-2xs text-muted-foreground">{t(message.author.role === "student" ? "role_student" : message.author.role === "tutor" ? "role_tutor" : message.author.role === "admin" ? "role_admin" : message.author.role === "zyra" ? "role_zyra" : "role_unknown")}</span>
+              {showRoleBadge && (
+                <span className="rounded-md bg-muted/70 px-1.5 py-0.5 text-body-2xs text-muted-foreground">{roleLabel}</span>
+              )}
             </div>
             <div className="flex shrink-0 items-center gap-1">
               <span className="text-body-2xs tabular-nums text-muted-foreground"><FormattedDate date={message.createdAt} options={{ hour: "2-digit", minute: "2-digit" }} /></span>
@@ -373,7 +425,7 @@ export function DiscussionMessage({ message, questionId, viewer, sourceChannel, 
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <DropdownMenuTrigger asChild>
-                        <Button type="button" variant="ghost" size="icon-sm" className="size-6" aria-label={t("messageActionsFor", { name: message.author.name, seq: message.seq ?? "", excerpt: visibleBody.slice(0, 100) || t("image") })}>
+                        <Button type="button" variant="ghost" size="icon-sm" className="size-6 -mr-1 text-muted-foreground hover:text-foreground" aria-label={t("messageActionsFor", { name: message.author.name, seq: message.seq ?? "", excerpt: visibleBody.slice(0, 100) || t("image") })}>
                           <ChevronDown className="size-3.5" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -391,8 +443,8 @@ export function DiscussionMessage({ message, questionId, viewer, sourceChannel, 
               )}
             </div>
           </div>
-          {quote && <div className="mb-2 rounded-md border-l-2 border-primary bg-muted/50 px-2 py-1 text-body-xs"><span className="font-semibold">{quoteAuthor}</span><div className="line-clamp-2 break-words text-muted-foreground [&_div]:text-body-xs [&_p]:text-body-xs"><DiscussionMarkdown content={(quoteExcerpt ?? "").slice(0, 600)} /></div></div>}
-          <div data-discussion-content className="text-body-sm md:text-body-base [&_p]:text-body-sm md:[&_p]:text-body-base [&_li]:text-body-sm md:[&_li]:text-body-base">{visibleBody && <DiscussionMarkdown content={visibleBody} renderMention={handle => {
+          {quote && <div className="mb-2 rounded-md border-l-2 border-primary bg-muted/50 px-2.5 py-1.5 text-body-xs"><span className="font-semibold">{quoteAuthor}</span><div className="line-clamp-2 break-words text-muted-foreground [&_div]:text-body-xs [&_p]:text-body-xs"><DiscussionMarkdown content={(quoteExcerpt ?? "").slice(0, 600)} /></div></div>}
+          <div data-discussion-content className="min-w-0 text-body-sm md:text-body-base [&_p]:text-body-sm md:[&_p]:text-body-base [&_li]:text-body-sm md:[&_li]:text-body-base">{visibleBody && <DiscussionMarkdown content={visibleBody} renderMention={handle => {
             const token = handle.toLowerCase();
             const matches = message.mentionedPeople?.filter(person =>
               (person.mention ?? mentionHandle(person.id, person.name)).toLowerCase() === token);
@@ -403,7 +455,31 @@ export function DiscussionMessage({ message, questionId, viewer, sourceChannel, 
           }} />}
           {message.attachments.map((attachment) => <div key={attachment.id} className="mt-2 w-60 max-w-full">{renderAttachment ? renderAttachment(attachment) : <DiscussionAttachment attachment={attachment} />}</div>)}</div>
           {message.editedAt && <p className="mt-1 text-body-xs text-muted-foreground">{t("edited")}</p>}
-        </ZyraBubbleSkin>
+          </ZyraBubbleSkin>
+          {isOwn ? (
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 9 11"
+              className="pointer-events-none absolute top-0 -right-[7px] h-[11px] w-[9px] overflow-visible"
+            >
+              <path
+                d="M0 0.5 L7.2 0.5 C8.4 0.5 8.8 1.8 7.8 2.7 L0 10.2 Z"
+                className={
+                  hasBubbleSkin
+                    ? "fill-card"
+                    : "fill-[color-mix(in_oklab,var(--primary)_10%,var(--background))] dark:fill-[color-mix(in_oklab,var(--primary)_15%,var(--background))]"
+                }
+              />
+              <path
+                d="M0 0.5 L7.2 0.5 C8.4 0.5 8.8 1.8 7.8 2.7 L0.5 9.8"
+                fill="none"
+                strokeWidth="1"
+                strokeLinecap="round"
+                className={hasBubbleSkin ? "stroke-border" : "stroke-primary/25"}
+              />
+            </svg>
+          ) : null}
+        </div>
         {showReactionRow && <div className={cn("flex flex-wrap items-center gap-1", isOwn && "justify-end")}>
           {zyraReaction?.emoji && (
             <Tooltip>
@@ -415,7 +491,7 @@ export function DiscussionMessage({ message, questionId, viewer, sourceChannel, 
                   data-zyra-reaction={zyraReaction.emoji}
                   aria-label={t(zyraReaction.key)}
                   className={cn(
-                    "inline-flex h-7 items-center gap-1 rounded-md border px-2 text-body-xs font-medium select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                    "inline-flex h-6 items-center gap-1 rounded-md border px-1.5 text-body-xs font-medium select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
                     zyraReaction.tone === "completed"
                       ? "border-primary/25 bg-primary/10 text-foreground"
                       : "border-border bg-muted/60 text-foreground",
@@ -428,8 +504,8 @@ export function DiscussionMessage({ message, questionId, viewer, sourceChannel, 
               <TooltipContent>{t(zyraReaction.key)}</TooltipContent>
             </Tooltip>
           )}
-          {canReact && message.reactions.filter((reaction) => reaction.count > 0).map((reaction) => <Button key={reaction.emoji} type="button" variant={reaction.selected ? "secondary" : "outline"} size="xs" aria-label={`${t("reaction", { emoji: reaction.emoji, count: reaction.count })}. ${t("messageReference", { name: message.author.name, seq: message.seq ?? "", excerpt: visibleBody.slice(0, 160) || t("image") })}`} aria-pressed={reaction.selected} disabled={pending} onClick={() => void run(() => onReact({ questionId, messageId: message.id, emoji: reaction.emoji, selected: !reaction.selected }))}>{reaction.emoji} {reaction.count}</Button>)}
-          {canReact && <DropdownMenu><Tooltip><TooltipTrigger asChild><DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon-sm" aria-label={`${t("addReaction")}. ${t("messageReference", { name: message.author.name, seq: message.seq ?? "", excerpt: visibleBody.slice(0, 160) || t("image") })}`} disabled={pending}><Plus /></Button></DropdownMenuTrigger></TooltipTrigger><TooltipContent>{t("addReaction")}</TooltipContent></Tooltip><DropdownMenuContent>{REACTIONS.map((emoji) => <DropdownMenuItem key={emoji} onSelect={() => void run(() => onReact({ questionId, messageId: message.id, emoji, selected: !message.reactions.find((reaction) => reaction.emoji === emoji)?.selected }))}>{emoji}</DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu>}
+          {canReact && message.reactions.filter((reaction) => reaction.count > 0).map((reaction) => <Button key={reaction.emoji} type="button" variant={reaction.selected ? "secondary" : "outline"} size="xs" className="h-6 rounded-md px-1.5 text-body-xs" aria-label={`${t("reaction", { emoji: reaction.emoji, count: reaction.count })}. ${t("messageReference", { name: message.author.name, seq: message.seq ?? "", excerpt: visibleBody.slice(0, 160) || t("image") })}`} aria-pressed={reaction.selected} disabled={pending} onClick={() => void run(() => onReact({ questionId, messageId: message.id, emoji: reaction.emoji, selected: !reaction.selected }))}>{reaction.emoji} {reaction.count}</Button>)}
+          {canReact && <DropdownMenu><Tooltip><TooltipTrigger asChild><DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon-sm" className="size-6 rounded-md text-muted-foreground/70 hover:bg-muted/70 hover:text-foreground" aria-label={`${t("addReaction")}. ${t("messageReference", { name: message.author.name, seq: message.seq ?? "", excerpt: visibleBody.slice(0, 160) || t("image") })}`} disabled={pending}><Plus className="size-3.5" /></Button></DropdownMenuTrigger></TooltipTrigger><TooltipContent>{t("addReaction")}</TooltipContent></Tooltip><DropdownMenuContent>{REACTIONS.map((emoji) => <DropdownMenuItem key={emoji} onSelect={() => void run(() => onReact({ questionId, messageId: message.id, emoji, selected: !message.reactions.find((reaction) => reaction.emoji === emoji)?.selected }))}>{emoji}</DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu>}
         </div>}
         {zyraReaction?.tone === "error" && <p role="alert" data-zyra-status={message.zyraStatus?.status} className="text-body-xs text-destructive">{t(zyraReaction.key)}</p>}
         {error && !activeDialog && <p role="alert" className="text-body-xs text-destructive">{t(error)} {retry && <Button type="button" variant="link" size="xs" disabled={pending} onClick={() => void run(retry)}>{t("retry")}</Button>}</p>}

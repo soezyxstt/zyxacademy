@@ -18,12 +18,11 @@ export function studentInteractiveCardClass(className?: string) {
   );
 }
 
-/** List row / interactive link card */
+/** Flat interactive row with the course gutter and a visible keyboard focus state. */
 export function courseListRowClass(className?: string) {
   return cn(
-    "group flex items-start gap-3 rounded-xl border border-border/70 bg-card px-(--panel-padding) py-(--row-padding)",
-    "transition-all duration-200",
-    "hover:border-primary/40 hover:bg-muted/30",
+    "group flex min-w-0 items-start gap-3 rounded-lg py-(--row-padding) transition-colors",
+    "hover:bg-muted/40 active:bg-muted/60 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring",
     className,
   );
 }

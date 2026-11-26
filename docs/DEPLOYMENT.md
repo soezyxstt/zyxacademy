@@ -37,6 +37,10 @@ For other targets, inspect their complete history and schema independently. The 
 
 ## Nightly native app releases
 
+The public marketing page `/download` reads GitHub Releases with five-minute revalidation. The configured staging origin selects Nightly. Production selects Stable. Version, release notes and installers come from one release. Windows, Android and Linux downloads require the corresponding asset. macOS and iPhone remain disabled.
+
+For a Stable rollback, mark the intended stable app release as Latest on GitHub. For a Nightly rollback, withdraw newer published Nightlies or publish a new Nightly built from the intended revision. A web deployment rollback alone does not change GitHub release selection.
+
 Run **Release Apps (Desktop & Mobile)** manually from `staging` with the `nightly` channel. Web-only changes take effect through the staging web deployment. Reserve a native release for changes to the wrapper, native plugins, or bundled offline assets.
 
 The workflow builds the existing APK, Windows NSIS installer, macOS Apple Silicon DMG, and Linux AppImage and Debian packages. It also collects signed Tauri updater artifacts when the existing signing keys are configured. For each package, it compares up to the two most recent published Nightlies and uploads a version-specific patch when it saves at least 20% of the full download. The workflow publishes full packages for initial installation and recovery.
@@ -46,6 +50,8 @@ The workflow builds the existing APK, Windows NSIS installer, macOS Apple Silico
 - **iOS** uses TestFlight for native Nightly updates. Testers can enable automatic updates in TestFlight. The GitHub release workflow publishes no iOS binaries.
 
 Users on builds without patch support need a regular update first. If a patch is missing or fails validation, the updater uses the full package. To stop serving patches for a release, remove its `.zyxdelta`, `.zyxdelta-apk.gz`, and `.zyxdesktop.gz` assets and keep its full packages and checksums.
+
+Desktop builds without the explicit `allow-native-bridge` permission cannot call custom update or version commands from the hosted web page under Tauri 2.12.7. Publish a desktop build containing `src-tauri/permissions/native-bridge.json`, then install that release manually once from `/download`. Web-only deployment can restore the installed-version label through the core app metadata command and show manual-install guidance, but cannot repair permissions embedded in an older binary. Native updates and offline commands remain scoped to the existing main window and trusted production and staging origins; MCP tokens cannot update a user's installed app.
 
 After publishing, upgrade from the previous Nightly on each supported package format. Compare GitHub asset sizes, verify the app reports the new version and can still open saved readings, and test a missing-patch path. Test the iOS update through TestFlight. Check the staging origin and Nightly channel before collecting evidence.
 
@@ -249,7 +255,7 @@ The production migration script (`db/push-prod.ts`):
 
 The app source includes the additive Drizzle migration `0098_workable_blue_blade.sql`, which creates `account_locale_preferences` with an `id`/`en` constraint. A guarded preflight passed for the allowlisted staging database host `zyx-staging-soezyxstt.aws-ap-south-1.turso.io` (non-secret fingerprint `f8efc727c7a49567`). A proxy-enabled, read-only SQLite schema and Drizzle-ledger query exited 0 and found neither the `0098` migration-ledger entry nor the preference table. Migration 0098 is pending on that staging target. No rows were read and no staging or production write was performed. The environment's `.env.staging` and `.env.prod` files were absent, so there was no direct environment-file comparison; full evidence is in `artifacts/bilingual/staging-preflight-locale-0098.json`. Before any remote migration, recheck the exact target, use the guarded backup and verification runner, and obtain authorization. Rollback keeps the additive preference table and rows; an older application build can ignore them. Do not rewrite academic records or notification history as part of locale rollout.
 
-Public `/id/...` and `/en/...` routes are limited to the source allowlist and use same-origin Proxy rewrites with `skipProxyUrlNormalize`. A local production-build matrix covered 13 public paths, both locales, and mobile/laptop viewports: 52 captures returned HTTP 200, matching `html lang`, canonical URL, no runtime or HTTP failures, and no overflow; the primary agent inspected each capture. Populated demo states and blog article slugs were unavailable, and request-time cache behavior was not measured. The focused Playwright suite passed 20 cases and skipped 2; a separate boundary run passed 4 and skipped 2 unavailable PKA fixtures. The primary reviewer accepted 26 focused state screenshots, including 4 new MCP screenshots after the invalid-authorization shell was localized. Together with the public matrix, the accepted SHA-256 manifest contains 78 captures at `artifacts/visual-quality/bilingual-final-boundaries/accepted-capture-manifest.json`. Eight metadata browser checks passed at mobile and laptop sizes for sign-out, the localized web manifest, and representative academic/evaluation routes; these checks establish metadata behavior only. The early loading-overlay capture is handled by reduced-motion emulation in the test setup. The final release candidate build and static gates passed. The 307-route state matrix remains incomplete. The bilingual plan is still partial at CP7; no CP8 rollout is authorized or recorded here.
+Public `/id/...` and `/en/...` routes are limited to the source allowlist and use same-origin Proxy rewrites with `skipProxyUrlNormalize`. Populated demo states and blog article slugs were unavailable during local verification, and request-time cache behavior was not measured. Eight metadata browser checks passed for sign-out, the localized web manifest, and representative academic/evaluation routes; these checks establish metadata behavior only. The final release candidate build and static gates passed. The 307-route state matrix remains incomplete. The bilingual plan is still partial at CP7; no CP8 rollout is authorized or recorded here.
 
 ## Cloudflare Workers
 
@@ -386,11 +392,7 @@ bun run db:push:prod
 
 ## PKA Campaign
 
-The PKA (Tutorial Akademik) campaign is a seasonal product. Deploy steps:
-1. Enable `FEATURE_PKA` in Vercel env
-2. Configure PKA stages via admin panel
-3. Seed quiz templates for each stage
-4. Enable registration window via admin announcements
+The PKA (Tutorial Akademik) campaign opens registration through admin announcements. To prepare a campaign, configure PKA stages in the admin panel, seed quiz templates for each stage, and open the registration window.
 
 ## Email Notification Preferences
 
@@ -522,7 +524,7 @@ The smoke validates one bounded synthetic spec, records masked resource fingerpr
 
 ## Zyra private images and operations
 
-Plan 010 keeps `FEATURE_ZYRA_IMAGE_INPUT_V1` absent or `0` until its staging gate is approved. Private attachment reads and deletes require the exact course and chat-session scope in addition to authenticated owner or admin authorization. The attachment composer supplies both scope values when deleting an unsent upload. The expiry sweeper is controlled and staging-only:
+To keep image input disabled before staging approval, set `FEATURE_ZYRA_IMAGE_INPUT_V1` and `NEXT_PUBLIC_FEATURE_ZYRA_IMAGE_INPUT_V1` to `0`. Private attachment reads and deletes require the exact course and chat-session scope in addition to authenticated owner or admin authorization. The attachment composer supplies both scope values when deleting an unsent upload. The expiry sweeper is controlled and staging-only:
 
 ```bash
 bun --env-file=.env.staging run staging:sweep-zyra-attachments -- --run-id <runId> --limit 100
@@ -568,7 +570,7 @@ The MCP lifecycle surface provides inventory inspection, maintenance, and review
 
 Publication boundaries per workflow: authorized, scoped MCP tools support explicit Idea and Product Bundle publication after their applicable review and readiness gates. V5 solution collections have separate per-item review and publication tools. `quiz_bank` stages Zyx-original questions for review, `reference_question_ingest` publishes historical reference questions directly to `reference_question_bank` (`quizEligible=true` items are immediately usable in quizzes), and `quiz.create`/`quiz.update` set quiz metadata status (`draft` or `published`). Local repository behavior does not by itself establish deployment or live OAuth scope consent.
 
-The current transport is stateless and does not require a database migration. OAuth authorization codes use the existing Better Auth verification store and are single-use. Signed access tokens have a 30-day hard lifetime, are derived from `BETTER_AUTH_SECRET`, carry the authenticated user and session identity, and are checked against the live session and active-admin role on every MCP request, becoming invalid earlier if the session expires or admin privileges change. The token is never permanent. Stored file keys encrypt their material and scope payload with AES-256-GCM and are also signed and limited to one hour. Short-lived workflow tokens carry the selected course, chapter, Source Pack checksum, and quality summary without exposing raw internal IDs. Canonical quality modules validate Source Pack originals and content, Idea coverage and duplicate candidates, and Product published-Idea scope, dependency freshness, and content density before staging. A later persistence phase can add run audit rows without changing the MCP tool contract.
+The current transport is stateless and does not require a database migration. OAuth authorization codes use the existing Better Auth verification store and are single-use. OAuth connections now receive a one-hour access token and a rotating refresh token, backed by a dedicated grant in the existing verification store (90-day refresh inactivity limit, 180-day maximum lifetime from consent). The browser session must be live during authorization and code exchange; afterwards, the grant survives browser expiry and logout. The grant, resource, current consent and active admin role are checked on requests, refresh, admin mutations and delegated operations. Reuse of an older refresh token revokes its family, except for a 10-second idempotent retry of the immediately previous token. Disconnect at `/mcp/connections` (revokes the provider consent and its families; explicit user approval is needed again) or via `/api/mcp/oauth/revoke` (revokes the presented access/refresh token family). Manual bearer tokens and legacy OAuth tokens remain session-bound with their existing 30-day hard lifetime; existing provider connections must reauthorize once to receive refresh credentials. Keep `BETTER_AUTH_SECRET` and the public origin stable across deployments; credentials are never permanent. Stored file keys encrypt their material and scope payload with AES-256-GCM and are also signed and limited to one hour. Short-lived workflow tokens carry the selected course, chapter, Source Pack checksum, and quality summary without exposing raw internal IDs. Canonical quality modules validate Source Pack originals and content, Idea coverage and duplicate candidates, and Product published-Idea scope, dependency freshness, and content density before staging. A later persistence phase can add run audit rows without changing the MCP tool contract.
 
 ## Plan 017 audit rework
 

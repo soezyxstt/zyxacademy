@@ -21,7 +21,7 @@ import { getAccessibleDiscussionChannels, getDiscussionActor, getDiscussionChann
 import { getDiscussionRecipientAccess } from "./recipient-access";
 import * as discussionAccess from "./access";
 import { discussionMentionTokens, canDeleteDiscussionMessage, canEditDiscussionMessage, canForwardDiscussion, deriveInitialDiscussionTitle, DISCUSSION_REACTIONS, validDiscussionId, validDiscussionReplyType, validDiscussionText } from "./policy";
-import type { CreateDiscussionThread, DiscussionActor, DiscussionAuthorProfile, DiscussionStudentProfile, DiscussionChannel, DiscussionChannelKind, DiscussionMessage, DiscussionPage, DiscussionReport, DiscussionRole, DiscussionSubmit, DiscussionThread, ReplyToDiscussion } from "./contracts";
+import type { CreateDiscussionThread, DiscussionActor, DiscussionAuthorProfile, DiscussionStudentProfile, DiscussionChannel, DiscussionChannelMetadata, DiscussionChannelKind, DiscussionMessage, DiscussionPage, DiscussionReport, DiscussionRole, DiscussionSubmit, DiscussionThread, ReplyToDiscussion } from "./contracts";
 
 const PAGE_SIZE = 30;
 const unavailable = () => new Error("DISCUSSION_UNAVAILABLE");
@@ -127,6 +127,7 @@ export async function ensureDiscussionTeamChannel(actorId: string, _team: "techn
 }
 
 async function ensureVisibleChannels(actor: DiscussionActor) {
+ let repairedAliases = false;
  const [canonical, legacy, existing] = await Promise.all([
   db.select({ id: mataKuliah.id }).from(mataKuliah).where(eq(mataKuliah.status, "active")),
   db.select({ id: courses.id }).from(courses),
@@ -149,6 +150,7 @@ async function ensureVisibleChannels(actor: DiscussionActor) {
   })) continue;
   if (existing.some(other => other.id !== row.id && other.kind === row.kind && other.requesterId === row.requesterId &&
    (other.courseId === entry.canonicalCourseId || other.legacyCourseId === entry.legacyCourseId))) continue;
+  repairedAliases = true;
   try {
    await db.update(discussionChannels).set({ courseId: entry.canonicalCourseId, legacyCourseId: entry.legacyCourseId }).where(and(eq(discussionChannels.id, row.id),
     row.courseId ? eq(discussionChannels.courseId, row.courseId) : isNull(discussionChannels.courseId),
@@ -170,11 +172,13 @@ async function ensureVisibleChannels(actor: DiscussionActor) {
   insert.push({ id: id(), kind: "course", courseId: entry.canonicalCourseId, legacyCourseId: entry.legacyCourseId, title: entry.courseTitle ?? "Mata kuliah" });
  }
  if (insert.length) await db.insert(discussionChannels).values(insert).onConflictDoNothing();
+ return repairedAliases;
 }
 
 async function repairChannelAliases(actor: DiscussionActor, rows: ChannelRow[]) {
+ let repairedAliases = false;
  const partial = rows.filter(row => Boolean(row.courseId) !== Boolean(row.legacyCourseId));
- if (!partial.length) return;
+ if (!partial.length) return false;
  const access = await resolveDiscussionCourses(actor, partial.flatMap(row => row.courseId ?? row.legacyCourseId ?? []));
  const missing = [...new Set([...access.values()].flatMap(entry => [entry.canonicalCourseId, entry.legacyCourseId].filter((alias): alias is string => !!alias && !access.has(alias))))];
  const aliases = missing.length ? await resolveDiscussionCourses(actor, missing) : new Map();
@@ -186,6 +190,7 @@ async function repairChannelAliases(actor: DiscussionActor, rows: ChannelRow[]) 
    const match = access.get(alias);
    return match?.hasFullContentAccess && !match.reason && match.canonicalCourseId === entry.canonicalCourseId && match.legacyCourseId === entry.legacyCourseId;
   })) continue;
+  repairedAliases = true;
   try {
    await db.update(discussionChannels).set({ courseId: entry.canonicalCourseId, legacyCourseId: entry.legacyCourseId })
     .where(and(eq(discussionChannels.id, row.id), row.courseId ? eq(discussionChannels.courseId, row.courseId) : isNull(discussionChannels.courseId),
@@ -194,9 +199,10 @@ async function repairChannelAliases(actor: DiscussionActor, rows: ChannelRow[]) 
    if ((error as { code?: string })?.code !== "23505") throw error;
   }
  }
+ return repairedAliases;
 }
 
-export async function listChannels(actorId: string, channelIds?: string[]): Promise<DiscussionChannel[]> {
+export async function listChannelMetadata(actorId: string, channelIds?: string[]): Promise<DiscussionChannelMetadata[]> {
  const actor = await getDiscussionActor(actorId);
  if (channelIds !== undefined && (!Array.isArray(channelIds) || channelIds.length > 31 || !channelIds.every(validDiscussionId))) throw invalid();
  if (channelIds === undefined) await ensureVisibleChannels(actor);
@@ -212,14 +218,35 @@ export async function listChannels(actorId: string, channelIds?: string[]): Prom
   return checked && checked.kind === channel.kind && checked.requesterId === channel.requesterId
    && checked.courseId === channel.courseId && checked.legacyCourseId === channel.legacyCourseId;
  });
- const counts = await getDiscussionCounts(actorId, { channelIds: visible.map(({ channel }) => channel.id) });
- return visible.map(({ channel, muted }): DiscussionChannel => ({
-  id: channel.id, kind: channel.kind, title: channel.title, courseId: channel.courseId ?? channel.legacyCourseId,
-  muted: muted ?? false, unreadThreads: counts.channels?.[channel.id]?.unreadThreads ?? 0, activeThreads: counts.channels?.[channel.id]?.activeThreads ?? 0,
+ return visible.map(({ channel, muted }) => ({
+  id: channel.id, kind: channel.kind, title: channel.title, courseId: channel.courseId ?? channel.legacyCourseId, muted: muted ?? false,
  }));
 }
 
-export async function listChannelsPage(actorId: string, options: { cursor?: string; search?: string; courseId?: string; kind?: DiscussionChannelKind; kinds?: DiscussionChannelKind[]; limit?: number } = {}): Promise<DiscussionPage<DiscussionChannel>> {
+export async function listChannels(actorId: string, channelIds?: string[]): Promise<DiscussionChannel[]> {
+ const visible = await listChannelMetadata(actorId, channelIds);
+ if (!visible.length) return [];
+ const counts = await getDiscussionCounts(actorId, { channelIds: visible.map(channel => channel.id) });
+ return visible.map(channel => ({
+  ...channel, unreadThreads: counts.channels?.[channel.id]?.unreadThreads ?? 0, activeThreads: counts.channels?.[channel.id]?.activeThreads ?? 0,
+ }));
+}
+
+type ChannelPageOptions = { cursor?: string; search?: string; courseId?: string; kind?: DiscussionChannelKind; kinds?: DiscussionChannelKind[]; limit?: number };
+
+export async function listChannelsPage(actorId: string, options: ChannelPageOptions = {}) {
+ const { items, nextCursor } = await listChannelPage(actorId, options, listChannels);
+ return { items, nextCursor };
+}
+
+export async function listChannelMetadataPage(actorId: string, options: ChannelPageOptions = {}) {
+ return listChannelPage(actorId, options, listChannelMetadata);
+}
+
+async function listChannelPage<T extends DiscussionChannelMetadata>(
+ actorId: string, options: ChannelPageOptions, loadChannels: (id: string, channelIds: string[]) => Promise<T[]>,
+): Promise<DiscussionPage<T> & { repairedAliases?: true }> {
+ let repairedAliases = false;
  const actor = await getDiscussionActor(actorId);
  const isAllowedKind = (kind: DiscussionChannelKind): kind is "global" | "course" => kind === "global" || kind === "course";
  if (options.courseId !== undefined) checkId(options.courseId);
@@ -248,11 +275,12 @@ export async function listChannelsPage(actorId: string, options: { cursor?: stri
   if (courseEntry) {
    const entry = courseEntry;
    try {
-    await channelForScope(actor, "course", entry.canonicalCourseId, entry.legacyCourseId, entry.courseTitle ?? "Mata kuliah");
+    const channel = await channelForScope(actor, "course", entry.canonicalCourseId, entry.legacyCourseId, entry.courseTitle ?? "Mata kuliah");
+    if (options.kind === "course") return { items: await loadChannels(actor.id, [channel.id]), nextCursor: null };
    } catch (error) {
     if (!(error instanceof Error && error.message === "DISCUSSION_UNAVAILABLE")) throw error;
    }
-  } else if (!options.kind && !options.kinds) await ensureVisibleChannels(actor);
+  } else if (!options.kind && !options.kinds) repairedAliases = await ensureVisibleChannels(actor);
  }
  const search = options.search?.trim().replace(/[\\%_]/g, "\\$&");
  const pattern = search ? `%${search}%` : null;
@@ -281,7 +309,7 @@ export async function listChannelsPage(actorId: string, options: { cursor?: stri
    .orderBy(asc(discussionChannels.kind), asc(discussionChannels.title), asc(discussionChannels.id)).limit(batchSize);
   if (!candidates.length) break;
   if ((await getDiscussionActor(actor.id)).role !== actor.role) throw unavailable();
-  await repairChannelAliases(actor, candidates);
+  repairedAliases = await repairChannelAliases(actor, candidates) || repairedAliases;
   const allowed = new Map((await getAccessibleDiscussionChannels(actor.id, { channelIds: candidates.map(row => row.id) })).map(row => [row.id, row]));
   for (const candidate of candidates) {
    const channel = allowed.get(candidate.id);
@@ -295,8 +323,8 @@ export async function listChannelsPage(actorId: string, options: { cursor?: stri
  const page = authorized.slice(0, limit), last = page.at(-1);
  const batches: string[][] = [];
  for (let offset = 0; offset < page.length; offset += 31) batches.push(page.slice(offset, offset + 31).map(row => row.id));
- const items = (await Promise.all(batches.map(ids => listChannels(actor.id, ids)))).flat();
- return { items, nextCursor: authorized.length > limit && last ? encodeCursor({ kind: last.kind, title: last.title, id: last.id }) : null };
+ const items = (await Promise.all(batches.map(ids => loadChannels(actor.id, ids)))).flat();
+ return { items, ...(repairedAliases ? { repairedAliases: true as const } : {}), nextCursor: authorized.length > limit && last ? encodeCursor({ kind: last.kind, title: last.title, id: last.id }) : null };
 }
 
 export async function getDiscussionCounts(actorId: string, options: { courseId?: string; channelIds?: string[] } = {}) {
@@ -384,18 +412,20 @@ export async function listThreads(actorId: string, channelId: string, cursor?: s
 }
 
 export async function listThreadsAcrossChannels(actorId: string, options: { channelId?: string; search?: string; cursor?: string; status?: DiscussionThread["status"] } = {}): Promise<DiscussionPage<DiscussionThread>> {
- const actor = await getDiscussionActor(actorId);
  if (options.channelId !== undefined) checkId(options.channelId);
  if (options.search !== undefined && (typeof options.search !== "string" || options.search.length > 160 || options.search.includes("\0"))) throw invalid();
  if (options.status !== undefined && options.status !== "open" && options.status !== "resolved") throw invalid();
+ let actor: DiscussionActor;
  let channelFilter;
  if (options.channelId) {
+  actor = await getDiscussionActor(actorId);
   const channels = await getAccessibleDiscussionChannels(actor.id, { channelIds: [options.channelId] });
   if (!channels.length) throw unavailable();
   channelFilter = eq(discussionThreads.channelId, options.channelId);
  } else {
-  const { predicate } = await getDiscussionChannelVisibility(actor.id, { discoveryScope: discussionAccess.discussionChannelsWithThreads() });
-  channelFilter = inArray(discussionThreads.channelId, db.select({ id: discussionChannels.id }).from(discussionChannels).where(predicate));
+  const visibility = await getDiscussionChannelVisibility(actorId, { discoveryScope: discussionAccess.discussionChannelsWithThreads() });
+  actor = visibility.actor;
+  channelFilter = inArray(discussionThreads.channelId, db.select({ id: discussionChannels.id }).from(discussionChannels).where(visibility.predicate));
  }
  const after = pageCursor(options.cursor);
  const rawSearch = options.search?.trim() ?? "";
@@ -407,12 +437,9 @@ export async function listThreadsAcrossChannels(actorId: string, options: { chan
    ? or(
     sql`${discussionThreads.title} ilike ${`%${search}%`} escape '\\'`,
     sql`to_tsvector('simple', ${discussionThreads.title}) @@ to_tsquery('simple', ${prefixTsQuery})`,
-    sql`exists (
-     select 1 from ${discussionMessages}
-     where ${discussionMessages.threadId} = ${discussionThreads.id}
-      and ${discussionMessages.deletedAt} is null
-      and to_tsvector('simple', ${discussionMessages.body}) @@ to_tsquery('simple', ${prefixTsQuery})
-    )`
+    inArray(discussionThreads.id, db.select({ threadId: discussionMessages.threadId }).from(discussionMessages)
+     .where(and(isNull(discussionMessages.deletedAt),
+      sql`to_tsvector('simple', ${discussionMessages.body}) @@ to_tsquery('simple', ${prefixTsQuery})`)))
    )
    : sql`${discussionThreads.title} ilike ${`%${search}%`} escape '\\'`
   : undefined;
@@ -443,8 +470,7 @@ function safeAiStatusReason(code: string | null, status: string) {
 }
 
 export async function getThread(actorId: string, threadId: string, cursor?: string, targetMessageId?: string): Promise<{ thread: DiscussionThread; messages: DiscussionPage<DiscussionMessage> & { observationReceipt: string; startCursor?: string; previousCursor?: string }; readThroughSeq: number; aiStatuses: Array<{ messageId: string; status: string; reason: string | null }> }> {
- const actor = await getDiscussionActor(actorId);
- const { channel, thread } = await requireDiscussionThreadAccess(actor, threadId);
+ const { actor, channel, thread } = await requireDiscussionThreadAccess({ id: actorId }, threadId);
  if (targetMessageId !== undefined) checkId(targetMessageId);
  if (cursor && targetMessageId) throw invalid();
  const [target] = targetMessageId ? await db.select({ seq: discussionMessages.seq }).from(discussionMessages)
@@ -824,7 +850,7 @@ export async function markRead(actorId: string, threadId: string, throughSeq: nu
    const [missing] = await tx.select({ id: discussionMessages.id }).from(discussionMessages)
     .leftJoin(discussionMessageObservations, and(eq(discussionMessageObservations.messageId, discussionMessages.id), eq(discussionMessageObservations.userId, current.id)))
     .where(and(eq(discussionMessages.threadId, threadId), gt(discussionMessages.seq, observed?.throughSeq ?? 0),
-     lte(discussionMessages.seq, throughSeq), isNull(discussionMessageObservations.messageId))).limit(1);
+     lte(discussionMessages.seq, throughSeq), sql`${discussionMessages.authorId} is distinct from ${current.id}`, isNull(discussionMessageObservations.messageId))).limit(1);
    if (missing) throw invalid();
   }
   const [read] = await tx.insert(discussionThreadReads).values({ userId: current.id, threadId, throughSeq, observedSeq: observed?.seq ?? 0, seenStatusRevision: receipt.statusRevision }).onConflictDoUpdate({

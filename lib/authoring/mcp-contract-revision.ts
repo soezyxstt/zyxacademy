@@ -18,10 +18,26 @@ import { questionBankDraftSchema } from "@/lib/authoring/question-bank-draft";
 import { referenceQuestionDraftSchema } from "@/lib/authoring/reference-question-draft";
 import { pedagogicReviewDecisionSchema, QUALITY_POLICY_VERSION } from "@/lib/materials/quality-policy";
 import { pdfArtifactEvidenceSchema } from "@/lib/materials/pdf-artifact-contract";
+import { productDraftInputSchema } from "./product-draft-builder";
+import { ideaDraftInputSchema } from "./idea-draft-builder";
+
+export const IDEA_V3_SCHEMA_NAMES = [
+  "ideaDraftInput", "ideaBundleManifest", "learningSection", "idea", "provenance", "relation", "sourceMaterial", "sourceChunk",
+] as const;
+
+export function ideaV3SchemaDocuments() {
+  const { schemas } = authoringValidationSnapshot();
+  return IDEA_V3_SCHEMA_NAMES.map((name) => {
+    const body = JSON.stringify(schemas[name]);
+    const sha256 = createHash("sha256").update(body).digest("hex");
+    return { name, body, sha256, bytes: Buffer.byteLength(body),
+      path: `/api/authoring/contracts/idea-v3?schema=${name}&sha256=${sha256}` };
+  });
+}
 
 export const PRODUCT_V4_SCHEMA_NAMES = [
   "productBundleManifest", "product", "dependency", "articleParts", "diktatUnits",
-  "visual", "pedagogicReview", "v4ReviewContext", "pdfEvidence",
+  "visual", "pedagogicReview", "v4ReviewContext", "pdfEvidence", "productDraftInput",
 ] as const;
 
 export function productV4SchemaDocuments() {
@@ -52,6 +68,7 @@ export function authoringValidationSnapshot() {
   const schemas = {
     sourcePackManifest: sourcePackManifestSchema,
     ideaBundleManifest: ideaBundleManifestSchema,
+    ideaDraftInput: ideaDraftInputSchema,
     learningSection: learningSectionSchema,
     idea: ideaSchema,
     provenance: ideaProvenanceSchema,
@@ -60,6 +77,7 @@ export function authoringValidationSnapshot() {
     sourceChunk: sourceChunkSchema,
     productBundleManifest: productBundleManifestSchema,
     product: productEntitySchema,
+    productDraftInput: productDraftInputSchema,
     dependency: productDependencySchema,
     article: articleDocumentSchema,
     quizDraft: questionBankDraftSchema,

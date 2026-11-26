@@ -7,6 +7,7 @@ import { AdminSidebar } from "@/components/admin-sidebar";
 import { ApplicationShell } from "@/components/application-shell";
 import { OpsAiDrawer } from "@/components/admin/ops-ai/ops-ai-drawer";
 import { OpsAiProvider } from "@/components/admin/ops-ai/ops-ai-context";
+import { PushPermissionInit } from "@/components/notifications/push-permission-init";
 import { CommandMenuProvider } from "@/components/command-menu";
 import { ApplicationPage } from "@/components/application-page";
 import {
@@ -29,7 +30,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           desktopSidebar={<AdminSidebar />}
           mobileTopNav={<AdminMobileTopNav />}
           mobileBottomNav={<AdminMobileBottomNav />}
-          overlays={<OpsAiDrawer />}
+          overlays={<><OpsAiDrawer accountId={session.user.id} /><PushPermissionInit /></>}
           mainClassName="transition-[width] duration-75"
         >
           <AdminMobileSubTabNav />

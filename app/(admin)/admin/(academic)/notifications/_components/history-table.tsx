@@ -187,9 +187,9 @@ export function NotificationHistoryTable({ history: initialHistory, total, pageS
       </div>
 
       {/* Mobile stacked rows */}
-      <ul className="divide-y divide-border/40 border-y border-border md:hidden">
+      <ul className="divide-y divide-border/60 border-y border-border/60 md:hidden">
         {history.map((row) => (
-          <li key={row.id} className="py-3 space-y-2">
+          <li key={row.id} className="space-y-1.5 py-(--row-padding)">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <p className="text-body-sm font-medium text-foreground break-words">{row.title}</p>

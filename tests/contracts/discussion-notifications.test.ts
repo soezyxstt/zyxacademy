@@ -10,7 +10,7 @@ const discussionChannels = pgTable("discussion_channels", { id: text("id").prima
 const discussionThreads = pgTable("discussion_threads", { id: text("id").primaryKey(), channelId: text("channel_id").notNull(), authorId: text("author_id").notNull(), title: text("title").notNull(), statusRevision: integer("status_revision").notNull().default(0) });
 const discussionMessages = pgTable("discussion_messages", {
  id: text("id").primaryKey(), threadId: text("thread_id").notNull(), authorId: text("author_id"),
- seq: integer("seq").notNull(), kind: text("kind").notNull().default("human"), body: text("body").notNull(), replyToId: text("reply_to_id"), mentionIds: jsonb("mention_ids").$type<string[]>().notNull(),
+ revision: integer("revision").notNull().default(1), seq: integer("seq").notNull(), kind: text("kind").notNull().default("human"), body: text("body").notNull(), replyToId: text("reply_to_id"), mentionIds: jsonb("mention_ids").$type<string[]>().notNull(),
  createdAt: time("created_at"), editedAt: timestamp("edited_at", { withTimezone: true }), deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
 const discussionThreadParticipants = pgTable("discussion_thread_participants", {
@@ -28,6 +28,7 @@ const discussionNotificationDeliveries = pgTable("discussion_notification_delive
  eventId: text("event_id").notNull(), userId: text("user_id").notNull(), staffOnly: boolean("staff_only").notNull().default(false),
  attempts: integer("attempts").notNull().default(0), retryAt: timestamp("retry_at", { withTimezone: true }).notNull().defaultNow(),
 }, t => [primaryKey({ columns: [t.eventId, t.userId] })]);
+const activityNotificationPreferences = pgTable("activity_notification_preferences", { userId: text("user_id").primaryKey(), discussionsEnabled: boolean("discussions_enabled").notNull().default(true), flashcardsEnabled: boolean("flashcards_enabled").notNull().default(true) });
 const accountLocalePreferences = pgTable("account_locale_preferences", { userId: text("user_id").primaryKey(), locale: text("locale").notNull() });
 const pengguna = pgTable("pengguna", { id: text("id").primaryKey(), status: text("status").notNull() });
 const penggunaPeran = pgTable("pengguna_peran", { penggunaId: text("pengguna_id").notNull(), peranId: text("peran_id").notNull() });
@@ -53,7 +54,7 @@ let testDb: ReturnType<typeof drizzle>;
 const fixtureSql = `
  create table discussion_channels (id text primary key, kind text not null);
  create table discussion_threads (id text primary key, channel_id text not null, author_id text not null, title text not null, status_revision integer not null default 0);
- create table discussion_messages (id text primary key, thread_id text not null, author_id text, seq integer not null, kind text not null default 'human', body text not null, reply_to_id text, mention_ids jsonb not null, created_at timestamptz not null, edited_at timestamptz, deleted_at timestamptz);
+ create table discussion_messages (id text primary key, thread_id text not null, author_id text, seq integer not null, kind text not null default 'human', body text not null, revision integer not null default 1, reply_to_id text, mention_ids jsonb not null, created_at timestamptz not null, edited_at timestamptz, deleted_at timestamptz);
  create table discussion_thread_participants (thread_id text not null, user_id text not null, first_seq integer not null, first_created_at timestamptz not null, earliest_created_at timestamptz not null, earliest_created_seq integer not null, primary key (thread_id, user_id));
  create function track_test_participant() returns trigger language plpgsql as $$ begin
   if new.author_id is not null then
@@ -69,6 +70,7 @@ const fixtureSql = `
  create trigger track_test_participant after insert on discussion_messages for each row execute function track_test_participant();
  create table discussion_events (id text primary key, channel_id text not null, thread_id text not null, message_id text, message_revision integer, status_revision integer, participant_through_seq integer check (participant_through_seq is null or participant_through_seq >= 0), actor_id text not null, kind text not null, status text not null, created_at timestamptz not null, processed_at timestamptz, attempts integer not null, error_code text, recipient_cursor text, retry_at timestamptz not null default now());
  create table discussion_notification_deliveries (event_id text not null, user_id text not null, staff_only boolean not null default false, attempts integer not null default 0, retry_at timestamptz not null default now(), primary key (event_id, user_id));
+ create table activity_notification_preferences (user_id text primary key, discussions_enabled boolean not null default true, flashcards_enabled boolean not null default true);
  create table account_locale_preferences (user_id text primary key, locale text not null);
  create table pengguna (id text primary key, status text not null);
  create table pengguna_peran (pengguna_id text not null, peran_id text not null);
@@ -105,7 +107,7 @@ beforeAll(async () => {
  await client.exec(fixtureSql);
  testDb = drizzle(client, { logger: { logQuery: () => { queryCount++; } } });
  mock.module("@/db", () => ({ db: testDb }));
- mock.module("@/db/schema", () => ({ accountLocalePreferences, discussionChannels, discussionThreads, discussionMessages, discussionThreadParticipants, discussionEvents, discussionNotificationDeliveries, discussionChannelPreferences, discussionThreadReads, discussionMessageObservations, notifications, pengguna, penggunaPeran, peran }));
+ mock.module("@/db/schema", () => ({ accountLocalePreferences, activityNotificationPreferences, discussionChannels, discussionThreads, discussionMessages, discussionThreadParticipants, discussionEvents, discussionNotificationDeliveries, discussionChannelPreferences, discussionThreadReads, discussionMessageObservations, notifications, pengguna, penggunaPeran, peran }));
  mock.module("@/lib/discussions/access", () => ({
   canAccessDiscussionChannel: async (userId: string, channelId: string) => {
    if (userId === failAccessFor) throw new Error("temporary access failure");
@@ -153,7 +155,7 @@ async function seed(kind = "course") {
 }
 
 beforeEach(async () => {
- await client.exec("truncate notifications, discussion_notification_deliveries, account_locale_preferences, discussion_events, discussion_messages, discussion_message_observations, discussion_thread_participants, discussion_threads, discussion_channels, discussion_channel_preferences, discussion_thread_reads, pengguna, pengguna_peran, peran");
+ await client.exec("truncate notifications, discussion_notification_deliveries, activity_notification_preferences, account_locale_preferences, discussion_events, discussion_messages, discussion_message_observations, discussion_thread_participants, discussion_threads, discussion_channels, discussion_channel_preferences, discussion_thread_reads, pengguna, pengguna_peran, peran");
  denied.clear(); roles.clear(); staff = []; pushes = []; failPushFor = ""; failAccessFor = ""; knownChannels = new Set(); scopeCalls = 0;
  session = { user: { id: "owner", role: "student" } };
  requestHeaders = new Headers({ cookie: "session=test" });
@@ -187,13 +189,12 @@ describe("discussion notification outbox", () => {
   await testDb.insert(discussionChannelPreferences).values({ userId: "muted", channelId: "channel", muted: true, updatedAt: earlier });
   expect(await drain()).toEqual({ processed: 1, failed: 0, hasMore: false });
   const rows = await testDb.select().from(notifications);
-  expect(rows.map(row => row.userId).sort()).toEqual(["mentioned", "owner", "participant"]);
-  expect(new Set(rows.map(row => row.id)).size).toBe(3);
+  expect(rows.map(row => row.userId).sort()).toEqual(["owner", "participant"]);
+  expect(new Set(rows.map(row => row.id)).size).toBe(2);
   expect(rows.find(row => row.userId === "owner")?.id).toBe(discussionNotificationId("event", "owner"));
-  expect(pushes.map(row => row.userId).sort()).toEqual(["mentioned", "owner", "participant"]);
-  expect(pushes.find(row => row.userId === "owner")?.payload).toMatchObject({ title: "Discussion update", link: "/discussions?thread=thread&message=reply", metadata: { url: "/discussions?thread=thread&message=reply" } });
-  expect(JSON.stringify(pushes)).not.toContain("Private question title");
-  expect(JSON.stringify(pushes)).not.toContain("Private reply body");
+  expect(pushes.map(row => row.userId).sort()).toEqual(["owner", "participant"]);
+  expect(pushes.find(row => row.userId === "owner")?.payload).toMatchObject({ title: "Discussion: Private question title", body: "Private reply body", link: "/discussions?thread=thread&message=reply", metadata: { url: "/discussions?thread=thread&message=reply" } });
+  expect(rows.find(row => row.userId === "owner")?.body).toBe("Private reply body");
   expect(await dispatchDiscussionEvents()).toEqual({ processed: 0, failed: 0, hasMore: false });
  });
 
@@ -223,16 +224,16 @@ describe("discussion notification outbox", () => {
   expect(pushes.filter(row => row.userId === "owner")).toHaveLength(beforeMute);
  });
 
- test("uses an event mention snapshot after the source message changes", async () => {
+ test("does not notify a nonparticipant mentioned in an event snapshot", async () => {
   await seed();
   await client.exec(`update discussion_events set recipient_cursor = '{"phase":"direct","after":null,"mentions":["original-mention"]}'; update discussion_messages set mention_ids = '[]'::jsonb where id = 'reply'`);
   expect(await drain()).toEqual({ processed: 1, failed: 0, hasMore: false });
-  expect((await testDb.select().from(notifications)).some(row => row.userId === "original-mention")).toBe(true);
+  expect((await testDb.select().from(notifications)).some(row => row.userId === "original-mention")).toBe(false);
  });
 
  test("sequence snapshots survive older transaction timestamps for messages, edits, deletes and status", async () => {
   for (const kind of ["message", "edit", "delete", "resolved"] as const) {
-   await client.exec("truncate notifications, discussion_notification_deliveries, account_locale_preferences, discussion_events, discussion_messages, discussion_message_observations, discussion_thread_participants, discussion_threads, discussion_channels, discussion_channel_preferences, discussion_thread_reads");
+   await client.exec("truncate notifications, discussion_notification_deliveries, activity_notification_preferences, account_locale_preferences, discussion_events, discussion_messages, discussion_message_observations, discussion_thread_participants, discussion_threads, discussion_channels, discussion_channel_preferences, discussion_thread_reads");
    denied.clear();
    await seed();
    delete process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
@@ -283,13 +284,11 @@ describe("discussion notification outbox", () => {
   expect(JSON.parse((await testDb.select().from(discussionEvents))[0].recipientCursor!).legacyParticipantsRestarted).toBe(true);
  });
 
- test("does not complete an edited event when its mention snapshot is missing", async () => {
+ test("edited legacy events without mention snapshots finish without notifying outsiders", async () => {
   await seed();
   await client.exec("update discussion_messages set edited_at = now(), mention_ids = '[]'::jsonb where id = 'reply'");
-  expect(await drain()).toEqual({ processed: 0, failed: 1, hasMore: false });
-  const [event] = await testDb.select().from(discussionEvents);
-  expect(event.status).toBe("failed");
-  expect(event.errorCode).toBe("DISCUSSION_MENTION_SNAPSHOT_MISSING");
+  expect(await drain()).toEqual({ processed: 1, failed: 0, hasMore: false });
+  expect((await testDb.select().from(notifications)).some(row => row.userId === "mentioned")).toBe(false);
  });
 
  test("skips a thread already read and recovers an expired event lease", async () => {
@@ -302,18 +301,19 @@ describe("discussion notification outbox", () => {
   expect((await testDb.select().from(discussionEvents))[0].attempts).toBe(2);
  });
 
- test("notifies only currently authorized staff on a new private team question", async () => {
+ test("does not notify uninvolved staff on a new private team question", async () => {
   await seed("technical");
   await client.exec("update discussion_events set kind = 'question'; update discussion_messages set mention_ids = '[]'::jsonb where id = 'reply'; delete from discussion_messages where id = 'first'; delete from discussion_thread_participants where user_id = 'participant'; update discussion_messages set reply_to_id = null where id = 'reply'");
   staff = ["admin", "tutor", "student"];
   roles.set("admin", "admin"); roles.set("tutor", "tutor");
   denied.add("tutor:channel");
   await drain();
-  expect((await testDb.select().from(notifications)).map(row => row.userId).sort()).toEqual(["admin", "owner"]);
-  expect(pushes.find(row => row.userId === "admin")?.payload.link).toBe("/discussions?thread=thread&message=reply");
+  expect((await testDb.select().from(notifications)).map(row => row.userId).sort()).toEqual(["owner"]);
+  expect(pushes.find(row => row.userId === "admin")).toBeUndefined();
+  expect(pushes.find(row => row.userId === "owner")?.payload.title).toBe("Discussion update");
  });
 
- test("pages through more than 500 private-channel staff candidates", async () => {
+ test("does not fan out to more than 500 unrelated private-channel staff", async () => {
   await seed("technical");
   await client.exec("update discussion_events set kind = 'question'; update discussion_messages set mention_ids = '[]'::jsonb, reply_to_id = null where id = 'reply'; delete from discussion_messages where id = 'first'; delete from discussion_thread_participants where user_id = 'participant'");
   staff = Array.from({ length: 510 }, (_, i) => `admin-${String(i).padStart(3, "0")}`);
@@ -322,8 +322,8 @@ describe("discussion notification outbox", () => {
   delete process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
   expect(await drain()).toEqual({ processed: 1, failed: 0, hasMore: false });
   const rows = await testDb.select().from(notifications);
-  expect(rows).toHaveLength(510);
-  expect(rows.some(row => row.userId === "admin-509")).toBe(true);
+  expect(rows).toHaveLength(1);
+  expect(rows.some(row => row.userId === "admin-509")).toBe(false);
   expect(rows.some(row => row.userId === "admin-155")).toBe(false);
  }, 120_000);
 
@@ -362,7 +362,7 @@ describe("discussion notification outbox", () => {
   await makeRetriesDue();
   expect(await drain()).toEqual({ processed: 1, failed: 0, hasMore: false });
   rows = await testDb.select().from(notifications);
-  expect(rows).toHaveLength(552);
+  expect(rows).toHaveLength(549);
   expect(new Set(rows.map(row => row.id)).size).toBe(rows.length);
   for (const id of ["member-120", "member-220", "member-320"]) expect(rows.some(row => row.userId === id)).toBe(false);
   expect(rows.some(row => row.userId === "member-549")).toBe(true);
@@ -394,7 +394,7 @@ describe("discussion notification outbox", () => {
 
  test("uses bounded SQL work per 100 recipients without Firebase", async () => {
   async function measure(count: number) {
-   await client.exec("truncate notifications, discussion_notification_deliveries, account_locale_preferences, discussion_events, discussion_messages, discussion_message_observations, discussion_thread_participants, discussion_threads, discussion_channels, discussion_channel_preferences, discussion_thread_reads");
+   await client.exec("truncate notifications, discussion_notification_deliveries, activity_notification_preferences, account_locale_preferences, discussion_events, discussion_messages, discussion_message_observations, discussion_thread_participants, discussion_threads, discussion_channels, discussion_channel_preferences, discussion_thread_reads");
    await seed();
    await client.exec("update discussion_messages set seq = 1000 where id = 'reply'; update discussion_events set participant_through_seq = 1000");
    await testDb.insert(discussionMessages).values(Array.from({ length: count }, (_, i) => ({
@@ -465,7 +465,7 @@ describe("discussion notification outbox", () => {
 
  test("notifies participants about edits, deletions and status after an earlier read", async () => {
   for (const kind of ["edit", "delete", "resolved"]) {
-   await client.exec("truncate notifications, discussion_notification_deliveries, account_locale_preferences, discussion_events, discussion_messages, discussion_thread_participants, discussion_threads, discussion_channels, discussion_channel_preferences, discussion_thread_reads");
+   await client.exec("truncate notifications, discussion_notification_deliveries, activity_notification_preferences, account_locale_preferences, discussion_events, discussion_messages, discussion_thread_participants, discussion_threads, discussion_channels, discussion_channel_preferences, discussion_thread_reads");
    await seed();
    await testDb.insert(discussionThreadReads).values({ userId: "owner", threadId: "thread", throughSeq: 2, updatedAt: earlier });
    await client.exec(`update discussion_events set kind = '${kind}', message_id = ${kind === "resolved" ? "null" : "'reply'"}`);

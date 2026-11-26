@@ -25,7 +25,7 @@ export function AuthMarketingCard({
  footer,
 }: AuthMarketingCardProps) {
  return (
- <div className="marketing-container flex min-h-[60vh] flex-col items-center justify-center py-16">
+ <div className="marketing-container flex min-h-[60vh] flex-col items-center justify-center py-(--section-gap)">
  <div className="w-full max-w-md">
  <h1 className="text-center font-heading text-h5 font-bold text-foreground">
  {title}
@@ -36,7 +36,7 @@ export function AuthMarketingCard({
  {urlErrorMessage ? (
  <p
  role="alert"
- className="mt-4 rounded-lg border border-destructive/25 bg-destructive/10 px-3 py-2 text-body-sm text-status-error"
+ className="mt-(--related-gap) border-l-2 border-destructive/40 py-1 pl-(--compact-gap) text-body-sm text-status-error"
  >
  {urlErrorMessage}
  </p>

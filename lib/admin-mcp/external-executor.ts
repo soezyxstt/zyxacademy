@@ -11,7 +11,9 @@ export async function generationSnapshot(input: { courseId: string; chapterId: s
   return { targetCount: rows.length, dataRevision: revisionOf(rows) };
 }
 export const executeAdminOperation: AdminOperationExecutor = async job => {
-  const required = job.kind === "media_upload" ? (process.env.STORAGE_PROVIDER_MODE === "neon" ? ["AWS_ENDPOINT_URL_S3", "AWS_REGION", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "NEON_STORAGE_BUCKET"] : ["R2_ENDPOINT", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET"]) : job.kind === "notification_send" ? ["FIREBASE_SERVICE_ACCOUNT_JSON"] : ["form_sheet", "meet_create", "meet_end"].includes(job.kind) ? ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REFRESH_TOKEN"] : ["INNGEST_EVENT_KEY"];
+  // The selected queue adapter owns its credential and environment checks.
+  const queueProvider = process.env.QUEUE_PROVIDER ?? "inngest";
+  const required = job.kind === "media_upload" ? (process.env.STORAGE_PROVIDER_MODE === "neon" ? ["AWS_ENDPOINT_URL_S3", "AWS_REGION", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "NEON_STORAGE_BUCKET"] : ["R2_ENDPOINT", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET"]) : job.kind === "notification_send" ? ["FIREBASE_SERVICE_ACCOUNT_JSON"] : ["form_sheet", "meet_create", "meet_end"].includes(job.kind) ? ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REFRESH_TOKEN"] : queueProvider === "inngest" ? ["INNGEST_EVENT_KEY"] : [];
   if (required.some(key => !process.env[key]?.trim())) throw new AdminMcpError("PROVIDER_NOT_CONFIGURED");
   switch (job.kind) {
     case "media_upload": {

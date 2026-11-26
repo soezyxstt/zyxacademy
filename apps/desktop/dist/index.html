@@ -936,9 +936,9 @@
           <span class="brand-name">Zyx Academy</span>
         </div>
         <div class="nav-controls">
-          <div class="status-pill" id="conn-pill">
+          <div class="status-pill" id="conn-pill" role="status" aria-live="polite">
             <span class="status-pill-dot" aria-hidden="true"></span>
-            <span id="conn-label">Offline</span>
+            <span id="conn-label">Menghubungkan</span>
           </div>
           <div class="lang-switch" role="group" aria-label="Language">
             <button type="button" class="lang-btn" id="lang-id" aria-pressed="true">ID</button>
@@ -985,23 +985,24 @@
               </svg>
             </div>
             <div class="offline-header-copy">
-              <h1 id="title">Sedang offline</h1>
-              <p class="lead" id="message">Periksa koneksi internet Anda lalu coba lagi, atau buka materi yang sudah tersimpan di perangkat ini.</p>
+              <h1 id="title">Membuka Zyx Academy</h1>
+              <p class="lead hidden" id="message"></p>
               <p class="status" id="status-text" role="status" aria-live="polite"></p>
             </div>
           </div>
           <div class="actions">
-            <button id="retry-button" class="btn btn-primary" type="button">
+            <button id="retry-button" class="btn btn-primary" type="button" disabled>
               <svg id="retry-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
                 <path d="M21 3v5h-5" />
               </svg>
               <span id="retry-label">Coba lagi</span>
             </button>
+            <button id="refresh-library-btn" class="btn btn-outline hidden" type="button">Bacaan tersimpan</button>
           </div>
         </section>
 
-        <section class="library-section" id="library-section" aria-labelledby="library-heading">
+        <section class="library-section hidden" id="library-section" aria-labelledby="library-heading">
           <div class="section-toolbar">
             <div class="section-heading-group">
               <h2 class="section-title" id="library-heading">Bacaan tersimpan</h2>
@@ -1059,15 +1060,20 @@
 
         var COPY = {
           id: {
+            connectingPill: "Menghubungkan",
             offlinePill: "Offline",
-            onlinePill: "Koneksi kembali",
-            connectingTitle: "Menghubungkan ke Zyx Academy",
-            connectingMsg: "Menunggu koneksi jaringan untuk membuka ruang belajar Anda.",
+            onlinePill: "Terhubung",
+            unavailablePill: "Belum terhubung",
+            connectingTitle: "Membuka Zyx Academy",
             offlineTitle: "Sedang offline",
             offlineMsg: "Periksa koneksi internet Anda lalu coba lagi, atau buka materi tersimpan di bawah.",
+            unavailableTitle: "Zyx belum dapat dibuka",
+            unavailableMsg: "Coba lagi, atau buka bacaan yang tersimpan di perangkat ini.",
+            libraryTitle: "Bacaan tersimpan",
             retry: "Coba lagi",
             retrying: "Menghubungkan...",
             stillOffline: "Koneksi masih belum tersedia.",
+            offlineBtn: "Bacaan tersimpan",
             libraryHeading: "Bacaan tersimpan",
             searchPlaceholder: "Cari bacaan...",
             emptyTitle: "Belum ada bacaan tersimpan",
@@ -1086,15 +1092,20 @@
             },
           },
           en: {
+            connectingPill: "Connecting",
             offlinePill: "Offline",
-            onlinePill: "Back online",
-            connectingTitle: "Connecting to Zyx Academy",
-            connectingMsg: "Waiting for network access to load your workspace.",
+            onlinePill: "Connected",
+            unavailablePill: "Not connected",
+            connectingTitle: "Opening Zyx Academy",
             offlineTitle: "You are offline",
             offlineMsg: "Check your internet connection and try again, or open saved materials below.",
+            unavailableTitle: "Zyx could not be opened",
+            unavailableMsg: "Try again, or open readings saved on this device.",
+            libraryTitle: "Saved readings",
             retry: "Try again",
             retrying: "Reconnecting...",
             stillOffline: "Still offline. Check your connection.",
+            offlineBtn: "Saved readings",
             libraryHeading: "Saved readings",
             searchPlaceholder: "Search readings...",
             emptyTitle: "No saved readings yet",
@@ -1129,6 +1140,7 @@
         var retryButton = document.getElementById("retry-button");
         var retryLabel = document.getElementById("retry-label");
         var retryIcon = document.getElementById("retry-icon");
+        var refreshLibraryBtn = document.getElementById("refresh-library-btn");
         var langIdBtn = document.getElementById("lang-id");
         var langEnBtn = document.getElementById("lang-en");
         var librarySection = document.getElementById("library-section");
@@ -1162,6 +1174,9 @@
         var scrollSaveTimer = null;
         var bannerDismissed = false;
         var enteredOfflineMode = false;
+        var connectionState = navigator.onLine === false ? "offline" : "connecting";
+        var connectionGeneration = 0;
+        var pendingProbe = null;
 
         function getTauriInvoke() {
           if (window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke) {
@@ -1389,51 +1404,77 @@
           return targetOrigin;
         }
 
-        async function probeServerReachable(timeoutMs) {
+        async function probeServerReachable() {
           if (navigator.onLine === false) return false;
+          if (pendingProbe) return pendingProbe.promise;
+          var probe = {
+            generation: connectionGeneration,
+            controller: typeof AbortController !== "undefined" ? new AbortController() : null,
+            timer: null,
+            promise: null,
+          };
+          pendingProbe = probe;
+          probe.promise = checkServerReachable(probe);
+          try {
+            return await probe.promise;
+          } finally {
+            if (pendingProbe === probe) pendingProbe = null;
+          }
+        }
+
+        function invalidateConnectionProbe() {
+          connectionGeneration += 1;
+          var probe = pendingProbe;
+          pendingProbe = null;
+          if (!probe) return;
+          if (probe.timer !== null) window.clearTimeout(probe.timer);
+          if (probe.controller) probe.controller.abort();
+        }
+
+        async function checkServerReachable(probe) {
           var origin = await resolveOrigin();
-          var controller = typeof AbortController !== "undefined" ? new AbortController() : null;
-          var timer = controller
+          if (probe.generation !== connectionGeneration) return false;
+          var controller = probe.controller;
+          probe.timer = controller
             ? window.setTimeout(function () {
                 controller.abort();
-              }, timeoutMs || 5000)
+              }, 3500)
             : null;
           try {
-            await fetch(origin + "/brand/zyx-favicon-32.png", {
+            // Static HEAD avoids session/database startup work. This is not a
+            // navigation, so the service worker cannot serve its offline page.
+            var response = await fetch(origin + "/favicon.ico?zyx-connect=" + Date.now(), {
               method: "HEAD",
               mode: "no-cors",
               cache: "no-store",
+              credentials: "omit",
               signal: controller ? controller.signal : undefined,
             });
-            return true;
+            return probe.generation === connectionGeneration
+              && navigator.onLine !== false
+              && (response.type === "opaque" || response.ok);
           } catch {
             return false;
           } finally {
-            if (timer !== null) window.clearTimeout(timer);
+            if (probe.timer !== null) window.clearTimeout(probe.timer);
           }
         }
 
         async function handleReturnOnline() {
           persistActiveReadingPosition();
-          var t = COPY[currentLang];
-          retryButton.disabled = true;
-          readerReconnectBtn.disabled = true;
-          bannerOnlineBtn.disabled = true;
-          if (retryIcon) retryIcon.classList.add("spin");
-          if (retryLabel) retryLabel.textContent = t.retrying;
-          statusEl.textContent = "";
+          var generation = connectionGeneration;
+          connectionState = "connecting";
+          updateConnectionUI(false);
           var reachable = await probeServerReachable();
+          if (generation !== connectionGeneration) return;
           if (!reachable) {
             enteredOfflineMode = true;
-            statusEl.textContent = t.stillOffline;
-            retryButton.disabled = false;
-            readerReconnectBtn.disabled = false;
-            bannerOnlineBtn.disabled = false;
-            if (retryIcon) retryIcon.classList.remove("spin");
-            if (retryLabel) retryLabel.textContent = t.retry;
-            updateConnectionUI(false, true);
+            connectionState = navigator.onLine === false ? "offline" : "unreachable";
+            updateConnectionUI(false);
             return;
           }
+          connectionState = "online";
+          updateConnectionUI(false);
           window.location.replace(targetOrigin + "/");
         }
 
@@ -1750,21 +1791,37 @@
           renderLibrary();
         }
 
-        function updateConnectionUI(showBannerIfOnline, forceOffline) {
+        function updateConnectionUI(showBannerIfOnline) {
           var t = COPY[currentLang];
-          var isOnline = !forceOffline && navigator.onLine !== false;
+          var isOnline = connectionState === "online";
+          var isConnecting = connectionState === "connecting";
+          var isOffline = connectionState === "offline";
           connPill.classList.toggle("online", isOnline);
+          connPill.classList.toggle("offline", isOffline);
+          connPill.classList.toggle("unreachable", connectionState === "unreachable");
           if (offlineIconBox) offlineIconBox.classList.toggle("online", isOnline);
-          connLabel.textContent = isOnline ? t.onlinePill : t.offlinePill;
-          if (!isOnline || enteredOfflineMode) {
+          connLabel.textContent = isConnecting
+            ? t.connectingPill
+            : isOnline ? t.onlinePill : isOffline ? t.offlinePill : t.unavailablePill;
+          retryButton.disabled = isConnecting;
+          readerReconnectBtn.disabled = isConnecting;
+          bannerOnlineBtn.disabled = isConnecting;
+          if (retryIcon) retryIcon.classList.toggle("spin", isConnecting);
+          if (retryLabel) retryLabel.textContent = isConnecting ? t.retrying : t.retry;
+          statusEl.textContent = "";
+          if (isOffline) {
             titleEl.textContent = t.offlineTitle;
             messageEl.textContent = t.offlineMsg;
+          } else if (connectionState === "unreachable") {
+            titleEl.textContent = t.unavailableTitle;
+            messageEl.textContent = t.unavailableMsg;
           } else {
-            titleEl.textContent = t.connectingTitle;
-            messageEl.textContent = t.connectingMsg;
+            titleEl.textContent = enteredOfflineMode ? t.libraryTitle : t.connectingTitle;
+            messageEl.textContent = "";
           }
+          messageEl.classList.toggle("hidden", !messageEl.textContent);
+          librarySection.classList.toggle("hidden", isConnecting && !enteredOfflineMode);
           if (!isOnline) {
-            bannerDismissed = false;
             reconnectBanner.classList.add("hidden");
           } else if (showBannerIfOnline && enteredOfflineMode && !bannerDismissed) {
             reconnectBanner.classList.remove("hidden");
@@ -1776,6 +1833,7 @@
           document.documentElement.lang = lang;
           var t = COPY[lang];
           if (retryLabel) retryLabel.textContent = t.retry;
+          if (refreshLibraryBtn) refreshLibraryBtn.textContent = t.offlineBtn;
           libraryHeading.textContent = t.libraryHeading;
           if (librarySearch) {
             librarySearch.placeholder = t.searchPlaceholder;
@@ -1811,6 +1869,12 @@
           bannerDismissed = true;
           reconnectBanner.classList.add("hidden");
         });
+        if (refreshLibraryBtn) {
+          refreshLibraryBtn.addEventListener("click", function () {
+            showOfflineShell(false);
+            librarySection.scrollIntoView({ behavior: "smooth", block: "start" });
+          });
+        }
         if (librarySearch) {
           librarySearch.addEventListener("input", function () {
             searchQuery = librarySearch.value || "";
@@ -1834,21 +1898,31 @@
         });
         window.addEventListener("pagehide", persistActiveReadingPosition);
 
-        function showOfflineShell(forceOffline) {
+        function showOfflineShell(showBannerIfOnline) {
           enteredOfflineMode = true;
           if (startupSplash) startupSplash.classList.add("hidden");
           if (offlineShell) offlineShell.classList.remove("hidden");
-          updateConnectionUI(false, Boolean(forceOffline));
+          updateConnectionUI(Boolean(showBannerIfOnline));
           void loadLibrary();
         }
 
         // Never auto-redirect mid-read when connectivity returns.
         window.addEventListener("online", function () {
+          var generation = connectionGeneration;
           bannerDismissed = false;
-          updateConnectionUI(true);
+          connectionState = "connecting";
+          updateConnectionUI(false);
+          void probeServerReachable().then(function (reachable) {
+            if (generation !== connectionGeneration) return;
+            connectionState = reachable ? "online" : navigator.onLine === false ? "offline" : "unreachable";
+            updateConnectionUI(true);
+          });
         });
         window.addEventListener("offline", function () {
-          showOfflineShell(true);
+          invalidateConnectionProbe();
+          connectionState = "offline";
+          bannerDismissed = false;
+          showOfflineShell(false);
         });
 
         renderLang(currentLang);
@@ -1857,15 +1931,20 @@
         // keep a minimal splash while probing a static edge asset, navigate immediately when online,
         // and only reveal the offline shell if the device is actually offline or unreachable.
         void (async function initialConnect() {
+          var generation = connectionGeneration;
           if (navigator.onLine === false) {
-            showOfflineShell(true);
+            connectionState = "offline";
+            showOfflineShell(false);
             return;
           }
-          var reachable = await probeServerReachable(5000);
+          var reachable = await probeServerReachable();
+          if (generation !== connectionGeneration) return;
+          connectionState = reachable ? "online" : navigator.onLine === false ? "offline" : "unreachable";
           if (reachable && !activeReading && !enteredOfflineMode) {
+            updateConnectionUI(false);
             window.location.replace(targetOrigin + "/");
-          } else if (!enteredOfflineMode) {
-            showOfflineShell(true);
+          } else {
+            showOfflineShell(reachable);
           }
         })();
       })();

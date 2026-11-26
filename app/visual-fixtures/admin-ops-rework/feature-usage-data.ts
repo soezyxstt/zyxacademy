@@ -1,0 +1,90 @@
+import type { FeatureUsageDailyPoint, FeatureUsageRow } from "@/lib/feature-usage-metrics";
+
+const MOCK_FEATURE_ROWS: FeatureUsageRow[] = [
+  {
+    key: "materi",
+    label: "Materi",
+    events: 482,
+    previousEvents: 390,
+    trendPercent: 24,
+    users: 84,
+    adoptionPercent: 88,
+    eventsPerUser: 5.7,
+    lastUsedAt: "2026-11-23T12:00:00Z",
+  },
+  {
+    key: "zyra",
+    label: "Zyra Chat",
+    events: 318,
+    previousEvents: 215,
+    trendPercent: 48,
+    users: 68,
+    adoptionPercent: 72,
+    eventsPerUser: 4.7,
+    lastUsedAt: "2026-11-23T13:10:00Z",
+    detailCount: 94,
+  },
+  {
+    key: "kuis",
+    label: "Kuis mandiri",
+    events: 214,
+    previousEvents: 230,
+    trendPercent: -7,
+    users: 59,
+    adoptionPercent: 62,
+    eventsPerUser: 3.6,
+    lastUsedAt: "2026-11-23T11:30:00Z",
+    detailCount: 186,
+  },
+  {
+    key: "flashcard",
+    label: "Flashcard",
+    events: 145,
+    previousEvents: 112,
+    trendPercent: 29,
+    users: 41,
+    adoptionPercent: 43,
+    eventsPerUser: 3.5,
+    lastUsedAt: "2026-11-22T18:20:00Z",
+  },
+  {
+    key: "kuisLive",
+    label: "Kuis live",
+    events: 34,
+    previousEvents: 40,
+    trendPercent: -15,
+    users: 18,
+    adoptionPercent: 19,
+    eventsPerUser: 1.9,
+    lastUsedAt: "2026-11-20T15:00:00Z",
+  },
+];
+
+const MOCK_FEATURE_DAILY: FeatureUsageDailyPoint[] = [
+  { date: "2026-11-17", materi: 52, flashcard: 18, kuis: 25, tryout: 4, kuisLive: 0, zyra: 34, diskusi: 12, tutorial: 3 },
+  { date: "2026-11-18", materi: 64, flashcard: 22, kuis: 31, tryout: 6, kuisLive: 12, zyra: 41, diskusi: 15, tutorial: 5 },
+  { date: "2026-11-19", materi: 71, flashcard: 19, kuis: 28, tryout: 5, kuisLive: 0, zyra: 48, diskusi: 18, tutorial: 4 },
+  { date: "2026-11-20", materi: 68, flashcard: 24, kuis: 34, tryout: 8, kuisLive: 22, zyra: 52, diskusi: 14, tutorial: 6 },
+  { date: "2026-11-21", materi: 76, flashcard: 21, kuis: 30, tryout: 7, kuisLive: 0, zyra: 45, diskusi: 16, tutorial: 3 },
+  { date: "2026-11-22", materi: 82, flashcard: 23, kuis: 36, tryout: 9, kuisLive: 0, zyra: 51, diskusi: 20, tutorial: 4 },
+  { date: "2026-11-23", materi: 69, flashcard: 18, kuis: 30, tryout: 5, kuisLive: 0, zyra: 47, diskusi: 17, tutorial: 5 },
+];
+
+export const MOCK_FEATURE_USAGE = {
+  rows: MOCK_FEATURE_ROWS,
+  daily: MOCK_FEATURE_DAILY,
+  totals: {
+    events: 1193,
+    previousEvents: 987,
+    trendPercent: 21,
+    activeUsers: 95,
+    topFeatureKey: "materi",
+    topFeatureLabel: "Materi",
+    topFeatureSharePercent: 40,
+  },
+  insights: {
+    fastestGrowing: { key: "zyra", trendPercent: 48 },
+    highestAdoption: { key: "materi", adoptionPercent: 88 },
+    needsAttention: { key: "kuisLive", adoptionPercent: 19, events: 34 },
+  },
+} as const;

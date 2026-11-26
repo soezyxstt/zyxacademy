@@ -27,6 +27,23 @@ ZYX_DESKTOP_SERVER_URL=https://staging.zyxacademy.com npm run dev
 
 Only `http` and `https` origins are accepted. Invalid values fall back to `https://www.zyxacademy.com`.
 
+## Startup and offline fallback
+
+The bundled shell starts with a neutral connecting state, then opens the configured
+origin after a fresh static `HEAD /favicon.ico` probe. It does not call the session
+endpoint or wait for database work to establish reachability. The probe omits
+credentials and bypasses the HTTP cache; the offline service worker does not
+handle `HEAD` requests.
+
+An unavailable origin shows retry and saved readings. The shell labels the device
+offline only when the browser reports that its connection is down. Opening saved
+readings during startup keeps the reader open, and a confirmed reconnection offers
+a return button without navigating away from the reader.
+
+This shell ships inside the desktop installer. Merging a web change does not
+replace it in an installed app. Run **Release Apps (Desktop & Mobile)** manually
+from `staging` with the `nightly` channel and install that build to use the fix.
+
 ## Deep links and single instance
 
 The app registers the `zyxacademy` URL scheme (`zyxacademy-nightly` for nightly builds). Opening a URL such as `zyxacademy://courses/123` or an OAuth callback routes the main window to that path on the configured origin.
@@ -68,9 +85,35 @@ npm run info
 
 ## Capabilities
 
-`src-tauri/capabilities/default.json` grants `core:default`, `notification:default`, `opener:default`, and `deep-link:default` to the `main` window and allows remote access from:
+`src-tauri/capabilities/default.json` grants `allow-native-bridge`, `core:default`, `notification:default`, `opener:default`, and `deep-link:default` to the `main` window and allows remote access from:
 
 - `https://www.zyxacademy.com/*`
 - `https://staging.zyxacademy.com/*`
 
 `app.withGlobalTauri` is enabled in `src-tauri/tauri.conf.json` so `window.__TAURI__` is exposed to the remote Next.js application.
+
+`src-tauri/permissions/native-bridge.json` explicitly allows the existing custom update, origin and offline-reading commands. Tauri 2.12.7 checks remote custom commands against ACL permissions even when no application command manifest was configured. A trusted remote URL alone does not grant these commands. Keep the permission list aligned with `generate_handler!`; adding an application permission manifest also makes local command access explicit.
+
+Older binaries without this permission need one manual installer update. The web client falls back to the core app-version command when the custom metadata command is denied, and offers the download page when installation is ACL-blocked. An unavailable version is shown as unknown rather than `alpha.1`. This fix requires a new desktop build; web-only changes cannot replace permissions embedded in an installed binary. Verify the actual previous-to-new Windows upgrade after publishing.
+
+## Desktop notification troubleshooting
+
+The installed desktop app uses the authenticated inbox while running. The app
+polls every 15 seconds and on focus, visibility resume and reconnect. Temporary
+session errors and timed-out requests are retried. Closing the app still stops
+delivery; the desktop application does not run a background service.
+
+Windows native notifications use the installed bundle identifier, including
+the separate Nightly identifier. The native command awaits the Windows API
+instead of discarding failures in a detached task. The Tauri permission probe
+does not prove Windows will display a banner, because Windows can suppress
+notifications independently (system settings and Do not disturb). The settings
+page can send a local test without creating an inbox entry or contacting FCM.
+An older installed wrapper falls back to its existing notification plugin.
+
+Before publishing a new Nightly, run `cargo test --locked --lib` in
+`apps/desktop/src-tauri`, install the Windows package, enable system
+notifications for Zyx Academy Nightly, use the test button, and verify a real
+inbox alert while the app is active and minimized. Confirm that an Android
+read does not suppress the desktop alert. Do not claim system delivery based
+only on the native handoff or server counters.

@@ -36,17 +36,17 @@ export default async function UnsubscribePage({ searchParams }: { searchParams: 
   if (status === "success" && isEmailNotificationCategory(categoryParam)) {
     const categoryLabel = t(`email.categories.${categoryMessageKey(categoryParam)}.label`);
     return (
-      <div className="marketing-container flex min-h-[60vh] items-center justify-center py-16">
+      <div className="mx-auto max-w-xl px-(--page-gutter) py-(--section-gap)">
         <section className="w-full max-w-xl space-y-(--related-gap)">
-          <header className="flex flex-col items-center gap-2 text-center">
-            <span className="flex size-12 items-center justify-center rounded-xl bg-status-success/10 text-status-success">
-              <MailCheck className="size-6" aria-hidden />
+          <header className="space-y-(--compact-gap)">
+            <span className="flex size-8 items-center justify-center rounded-md bg-status-success/10 text-status-success">
+              <MailCheck className="size-4" aria-hidden />
             </span>
             <h1 className="font-heading text-h5 font-bold">{t("email.unsubscribe.successTitle")}</h1>
             <p className="text-body-sm text-muted-foreground">{t("email.unsubscribe.successBody", { category: categoryLabel })}</p>
           </header>
-          <div className="flex justify-center">
-            <Button asChild variant="outline" size="lg">
+          <div className="flex justify-end border-t border-border/55 pt-(--compact-gap)">
+            <Button asChild variant="outline">
               <Link href="/settings/notifications">{t("email.unsubscribe.manageAll")}</Link>
             </Button>
           </div>
@@ -67,17 +67,17 @@ export default async function UnsubscribePage({ searchParams }: { searchParams: 
 
   if (!token || !category) {
     return (
-      <div className="marketing-container flex min-h-[60vh] items-center justify-center py-16">
+      <div className="mx-auto max-w-xl px-(--page-gutter) py-(--section-gap)">
         <section className="w-full max-w-xl space-y-(--related-gap)">
-          <header className="flex flex-col items-center gap-2 text-center">
-            <span className="flex size-12 items-center justify-center rounded-xl bg-status-error/10 text-status-error">
-              <MailX className="size-6" aria-hidden />
+          <header className="space-y-(--compact-gap)">
+            <span className="flex size-8 items-center justify-center rounded-md bg-status-error/10 text-status-error">
+              <MailX className="size-4" aria-hidden />
             </span>
             <h1 className="font-heading text-h5 font-bold">{t("email.unsubscribe.invalidTitle")}</h1>
             <p className="text-body-sm text-muted-foreground">{t("email.unsubscribe.invalidBody")}</p>
           </header>
-          <div className="flex justify-center">
-            <Button asChild variant="outline" size="lg">
+          <div className="flex justify-end border-t border-border/55 pt-(--compact-gap)">
+            <Button asChild variant="outline">
               <Link href="/settings/notifications">{t("email.unsubscribe.manage")}</Link>
             </Button>
           </div>
@@ -88,7 +88,7 @@ export default async function UnsubscribePage({ searchParams }: { searchParams: 
 
   const categoryLabel = t(`email.categories.${categoryMessageKey(category)}.label`);
   return (
-    <div className="marketing-container flex min-h-[60vh] items-center justify-center py-16">
+    <div className="mx-auto max-w-xl px-(--page-gutter) py-(--section-gap)">
       <section className="w-full max-w-xl space-y-(--related-gap)">
         <header className="space-y-2">
           <h1 className="font-heading text-h5 font-bold">{t("email.unsubscribe.confirmTitle", { category: categoryLabel })}</h1>
@@ -96,14 +96,14 @@ export default async function UnsubscribePage({ searchParams }: { searchParams: 
             {t("email.unsubscribe.confirmBody", { category: categoryLabel })}
           </p>
         </header>
-        <div className="flex flex-wrap gap-(--compact-gap)">
+        <div className="flex flex-wrap justify-end gap-(--compact-gap) border-t border-border/55 pt-(--compact-gap)">
           <form action={confirmEmailUnsubscribeAction}>
             <input type="hidden" name="token" value={token} />
-            <Button type="submit" variant="destructive" size="lg">
+            <Button type="submit" variant="destructive">
               {t("email.unsubscribe.unsubscribe")}
             </Button>
           </form>
-          <Button asChild variant="outline" size="lg">
+          <Button asChild variant="outline">
             <Link href="/settings/notifications">{t("email.unsubscribe.manageAll")}</Link>
           </Button>
         </div>

@@ -1,4 +1,4 @@
 interface:
   display_name: "Zyx Operation Recovery"
-  short_description: "Resume Zyx mutations and reconcile uncertain jobs"
-  default_prompt: "Use $zyx-operation-recovery to recover the existing MCP operation with its original environment, request key and payload, distinguish committed changes from uncertain provider work, and avoid duplicate effects."
+  short_description: "Recover exact operations without duplicate effects"
+  default_prompt: "Use $zyx-operation-recovery on the original environment and actor. Separate OAuth refresh, bootstrap/run recovery, database receipts and domain job status; preserve the original payload and identity. Reconcile uncertain provider outcomes from evidence without duplicate effects or direct queue calls. Use only the zyx-stg MCP connection; use advertised tool names and keep dotted operation arguments unchanged."

@@ -200,6 +200,9 @@ export async function ensureGoogleMeetForBooking(bookingId: string): Promise<str
       })
       .where(eq(bookings.id, bookingId));
 
+    const { triggerGoogleCalendarSyncForBookingId } = await import("@/lib/google-calendar/trigger");
+    await triggerGoogleCalendarSyncForBookingId(bookingId);
+
     return meetUrl;
   } catch (err) {
     console.error("Failed to generate Google Meet for booking:", bookingId, err);

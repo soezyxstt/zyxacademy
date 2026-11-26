@@ -1,4 +1,4 @@
 interface:
   display_name: "Historical Reference Question Ingest"
-  short_description: "Import historical questions with strict source fidelity"
-  default_prompt: "Use $reference-question-ingest and call workflow.get_playbook first to fetch the active historical reference workflow and preflight playbooks. Ingest stored historical question and solution PDFs verbatim with complete source attribution and same-course published Idea links; only call submit when explicitly authorized because submission publishes directly to reference_question_bank."
+  short_description: "Import historical questions with exact source evidence"
+  default_prompt: "Use $reference-question-ingest to preserve the stored PDF wording, poll the same source read job with its delay and exact file identity, verify locators and published Idea links, keep essays ineligible for quizzes, and submit only when direct publication is authorized. Use only the zyx-stg MCP connection; use advertised tool names and keep dotted operation arguments unchanged."

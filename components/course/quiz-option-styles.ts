@@ -1,12 +1,8 @@
 import { cn } from "@/lib/utils";
 
 /**
- * Shared visual recipe for quiz answer option rows.
- *
- * Single source of truth consumed by the real quiz player
- * (`components/course/quiz-player.tsx`) and the landing-page quiz demo
- * (`components/landing/demo/quiz-option-row.tsx`) so the marketing mock can
- * never drift from the product UI.
+ * Shared styles for assessment options and their selection indicators.
+ * The active quiz player uses the indicators in a divided list of choices.
  */
 export type QuizOptionState = "idle" | "selected" | "correct" | "wrong";
 

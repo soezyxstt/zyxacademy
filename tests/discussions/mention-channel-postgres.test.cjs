@@ -40,7 +40,6 @@ if (!isBun) {
  };
 }
 const schema = require("../../db/schema.ts");
-const originalPka = process.env.FEATURE_PKA;
 const nodes = plan => [plan, ...(plan.Plans ?? []).flatMap(nodes)];
 const messageVisits = plan => nodes(plan).filter(node => node["Relation Name"] === "discussion_messages")
  .reduce((total, node) => total + (node["Actual Rows"] + (node["Rows Removed by Filter"] ?? 0)) * node["Actual Loops"], 0);
@@ -140,7 +139,6 @@ before(async () => {
 });
 
 after(async () => {
- if (originalPka === undefined) delete process.env.FEATURE_PKA; else process.env.FEATURE_PKA = originalPka;
  if (client) await client.close();
 });
 
@@ -197,7 +195,6 @@ test("mention search uses eligible roles and bounded same-channel participant co
  assert.equal(limited.length, 100);
  assert.ok(limited.every(person => person.ambiguous === true && !("hasNamesake" in person)));
 
- process.env.FEATURE_PKA = "1";
  const pka = await service.searchChannelMentions("staff-admin", "pka", "PKA");
  assert.deepEqual(Object.fromEntries(pka.map(person => [person.id, person.role])), {
   assigned: "tutor", "staff-admin": "admin", "mixed-admin": "admin", "mixed-assigned": "tutor", registered: "student",
@@ -209,8 +206,6 @@ test("mention search uses eligible roles and bounded same-channel participant co
  } finally {
   await db.update(schema.penugasanTutor).set({ status: "active" }).where(eq(schema.penugasanTutor.id, "assigned-pka"));
  }
- process.env.FEATURE_PKA = "0";
- await assert.rejects(service.searchChannelMentions("staff-admin", "pka", "PKA"), /DISCUSSION_UNAVAILABLE/);
 
  const original = client.query;
  const capturePlan = async () => {

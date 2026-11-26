@@ -7,6 +7,7 @@ import { isCurrentProductV4PdfAttachment } from "./product-pdf-selection";
 import { assertProductV4VerificationCurrent, deriveProductV4VerificationPlan, evaluateProductV4Verification, recordProductV4VerificationReport, runProductV4Verification, type ProductV4ObservedCheck, type ProductV4VerificationAuthority, type ProductV4VerificationBinding, type ProductV4VerificationPlan, type ProductV4VerificationReceipt, type ProductV4VerificationRequirement, type ProductV4VerificationResult } from "./product-v4-verification";
 import type { ProductBundleManifest, ProductDependency, ProductEntity } from "./product-validator";
 import { type ProductV4StagingSnapshot } from "./product-v4-staging-identity";
+import { issueProductV4VerificationCheckpoint, productV4VerificationBatchKey, readProductV4VerificationCheckpoint, type ProductV4VerificationBatchScope } from "./product-v4-verification-checkpoint";
 
 export interface ProductV4VerificationSnapshot extends ProductV4StagingSnapshot {
   verificationAttemptId?: string | null;
@@ -188,9 +189,12 @@ export function createProductV4VerificationService(ports: ProductV4VerificationP
             const stored = await checkpoint(`verify-${requirement.id}-${offset}`, async () => {
               await assertAttempt();
               await ports.write(stateKey, encode({ attemptId, status: "running", updatedAt: Date.now(), completedChecks, totalChecks: plan.requirements.length, currentCheckId: requirement.id }), "application/json");
+              const batchScope: ProductV4VerificationBatchScope = { planHash: plan.planHash, stagingAuditId: snapshot.stagingAuditId, checkId: requirement.id, captureOffset: offset, captureLimit: requirement.layer === "web" ? 2 : null };
+              const cached = await readProductV4VerificationCheckpoint({ scope: batchScope, requirement, authority: ports.authority(), read: key => ports.read(key) });
+              await assertAttempt();
               let result: ProductV4ObservedCheck;
               try {
-                result = await ports.execute({ plan, bundle: snapshot.bundle, requirement, ...(requirement.layer === "web" ? { captureOffset: offset, captureLimit: 2 } : {}) });
+                result = cached ?? await ports.execute({ plan, bundle: snapshot.bundle, requirement, ...(requirement.layer === "web" ? { captureOffset: offset, captureLimit: 2 } : {}) });
               } catch (error) {
                 if (error instanceof RetryAfterError) {
                   const retryAt = /^\d+$/.test(error.retryAfter) ? Date.now() + Number(error.retryAfter) * 1000 : Date.parse(error.retryAfter);
@@ -200,6 +204,7 @@ export function createProductV4VerificationService(ports: ProductV4VerificationP
                 throw error;
               }
               await assertAttempt();
+              if (result.checkId !== requirement.id) throw new Error("PRODUCT_V4_VERIFICATION_CHECK_INVALID");
               const artifacts: ProductV4ObservedCheck["artifacts"] = [];
               for (let start = 0; start < result.artifacts.length; start += 8) {
                 artifacts.push(...await Promise.all(result.artifacts.slice(start, start + 8).map(async (artifact, index) => {
@@ -210,8 +215,16 @@ export function createProductV4VerificationService(ports: ProductV4VerificationP
                 })));
               }
               const persisted = recordProductV4VerificationReport(plan, [{ ...result, artifacts }], ports.authority()).results[0];
+              await assertAttempt();
+              const saved = { ...persisted, ...(result.captureTotal === undefined ? {} : { captureTotal: result.captureTotal }) };
+              // Uploaded reports and reused descriptors cannot create new execution proof.
+              if (!cached) {
+                const proof = issueProductV4VerificationCheckpoint({ scope: batchScope, requirement, sourceAttemptId: attemptId, result: saved }, ports.authority());
+                if (proof) await ports.write(productV4VerificationBatchKey(batchScope), proof, "application/json");
+              }
+              await assertAttempt();
               await ports.write(stateKey, encode({ attemptId, status: "running", updatedAt: Date.now(), completedChecks, totalChecks: plan.requirements.length }), "application/json");
-              return { ...persisted, ...(result.captureTotal === undefined ? {} : { captureTotal: result.captureTotal }) };
+              return saved;
             });
             const { captureTotal, ...batch } = stored;
             observed = { ...batch, artifacts: [...(observed?.artifacts ?? []), ...batch.artifacts] };
@@ -223,6 +236,7 @@ export function createProductV4VerificationService(ports: ProductV4VerificationP
           return observed;
 
         });
+        completedChecks = receipt.results.length;
         return await checkpoint("finalize-verification", async () => {
           await assertAttempt();
           if (!await ports.attach(snapshot, plan.planHash, attemptId, attemptId)) throw new Error("PRODUCT_V4_VERIFICATION_CONFLICT");

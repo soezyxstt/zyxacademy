@@ -61,8 +61,8 @@ export function QuizGradingDesktop({
 
   if (activeAttempt) {
     return (
-      <div className="space-y-(--section-gap) font-sans" data-surface="desktop-quiz-grading-review">
-        <div className="flex min-w-0 items-center gap-2 border-b border-border pb-4">
+      <div className="space-y-(--related-gap) font-sans" data-surface="desktop-quiz-grading-review">
+        <div className="flex min-w-0 items-start gap-2 border-b border-border/55 pb-(--compact-gap)">
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -71,6 +71,7 @@ export function QuizGradingDesktop({
                   size="icon-lg"
                   variant="ghost"
                   aria-label={tr("backToQueue")}
+                  className="shrink-0"
                   onClick={onCloseAttempt}
                 >
                   <ArrowLeft aria-hidden />
@@ -100,7 +101,7 @@ export function QuizGradingDesktop({
           </div>
         </div>
 
-        <div className="divide-y divide-border border-y border-border">
+        <div className="divide-y divide-border/55 border-y border-border/55">
           {activeAttempt.questions.map((q) => {
             const input = gradeInputs[q.id];
             return (
@@ -108,7 +109,7 @@ export function QuizGradingDesktop({
                 <QuizQuestionContent question={q} />
 
                 {q.isFreeResponse && input && (
-                  <div className="grid grid-cols-1 gap-(--related-gap) border-t border-border/60 pt-3 md:grid-cols-4">
+                  <div className="grid grid-cols-1 gap-(--related-gap) border-t border-border/55 pt-(--related-gap) md:grid-cols-4">
                     <div className="space-y-1.5">
                       <label htmlFor={`score-${q.id}`} className="text-body-sm font-semibold text-foreground">
                         {tr("score")} {q.isEssay ? <span className="text-destructive">*</span> : null}
@@ -144,7 +145,7 @@ export function QuizGradingDesktop({
           })}
         </div>
 
-        <div className="sticky bottom-0 z-10 flex justify-end border-t border-border bg-background py-2">
+        <div className="sticky bottom-0 z-10 flex justify-end border-t border-border/55 bg-background py-2">
           <Button
             variant="default"
             size="sm"
@@ -153,9 +154,9 @@ export function QuizGradingDesktop({
             className="rounded-md text-body-sm font-semibold"
           >
             {isPending ? (
-              <Loader2 className="mr-1.5 size-4 animate-spin" aria-hidden />
+              <Loader2 className="size-4 animate-spin" aria-hidden />
             ) : (
-              <CheckCircle2 className="mr-1.5 size-4" aria-hidden />
+              <CheckCircle2 className="size-4" aria-hidden />
             )}
             {tr("finishGrading")}
           </Button>
@@ -165,7 +166,7 @@ export function QuizGradingDesktop({
   }
 
   return (
-    <div className="space-y-(--section-gap) font-sans" data-surface="desktop-quiz-grading-queue">
+    <div className="space-y-(--related-gap) font-sans" data-surface="desktop-quiz-grading-queue">
       {queueHeader}
       <div className="flex flex-wrap items-center justify-between gap-2 max-sm:[&:has(>[data-search-expanded=true])>:not([data-search-expanded=true])]:hidden">
         <SearchBar
@@ -192,14 +193,14 @@ export function QuizGradingDesktop({
           />
         </div>
       ) : (
-        <div className="border-y border-border">
-          <div className="divide-y divide-border">
+        <div className="border-y border-border/55">
+          <div className="divide-y divide-border/55">
             {filteredAttempts.map((item) => {
               const isLoadingThis = loadingAttemptId === item.id;
               return (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between gap-2 py-3 transition-colors hover:bg-muted/30"
+                  className="flex items-start justify-between gap-(--related-gap) py-(--row-padding)"
                 >
                   <div className="min-w-0 space-y-1 break-words">
                     <div className="flex flex-wrap items-center gap-2">
@@ -233,16 +234,17 @@ export function QuizGradingDesktop({
 
                   <div className="shrink-0">
                     <Button
-                      variant="default"
+                      variant="outline"
                       size="sm"
                       disabled={isLoadingThis}
+                      aria-busy={isLoadingThis}
                       onClick={() => onSelectAttempt(item.id)}
                       className="h-auto min-h-9 max-w-28 whitespace-normal rounded-md py-1.5 text-body-sm font-semibold sm:max-w-none"
                     >
                       {isLoadingThis ? (
-                        <Loader2 className="mr-1.5 size-4 animate-spin" aria-hidden />
+                        <Loader2 className="size-4 animate-spin" aria-hidden />
                       ) : (
-                        <FileText className="mr-1.5 size-4" aria-hidden />
+                        <FileText className="size-4" aria-hidden />
                       )}
                       {tr("gradeAnswer")}
                     </Button>

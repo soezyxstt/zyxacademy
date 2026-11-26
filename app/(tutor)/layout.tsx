@@ -14,7 +14,11 @@ import { listTutorAccessibleCourses } from "@/lib/auth/request-cache";
 import { db } from "@/db";
 import { mataKuliah, courses } from "@/db/schema";
 import { inArray } from "drizzle-orm";
+import { GuidedTourProvider } from "@/components/onboarding/guided-tour";
 import { CommandMenuProvider } from "@/components/command-menu";
+import { PushPermissionInit } from "@/components/notifications/push-permission-init";
+import { AppDownloadReminder } from "@/components/native/app-download-reminder";
+import { getDownloadChannel } from "@/lib/native/published-release";
 
 export default async function TutorLayout({ children }: { children: ReactNode }) {
   const session = await getAuthSession();
@@ -72,16 +76,19 @@ export default async function TutorLayout({ children }: { children: ReactNode })
   }
 
   return (
+    <GuidedTourProvider role="tutor" courseId={assignedCourses[0]?.courseId ?? null}>
     <CommandMenuProvider>
       <ApplicationShell
         personalizeTypographyAndSpacing
         desktopSidebar={<TutorSidebar assignedCourses={assignedCourses} />}
         mobileTopNav={<TutorMobileTopNav assignedCourses={assignedCourses} />}
         mobileBottomNav={<TutorMobileBottomNav assignedCourses={assignedCourses} />}
+        overlays={<><PushPermissionInit /><AppDownloadReminder channel={getDownloadChannel()} /></>}
       >
         <TutorMobileCourseTabNav assignedCourses={assignedCourses} />
         {children}
       </ApplicationShell>
     </CommandMenuProvider>
+    </GuidedTourProvider>
   );
 }

@@ -1,15 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Users, UserCheck, Layers, Shield } from "lucide-react";
+import { Users, Shield } from "lucide-react";
 import { SearchBar } from "@/components/ui/search-bar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { useUrlTab } from "@/hooks/use-url-tab";
-import { useViewportMode } from "@/hooks/use-viewport-mode";
 import { useTranslations, useAppLocale } from "@/lib/i18n/client";
 import type {
   TutorCourseParticipantsPayload,
@@ -24,7 +22,6 @@ interface ParticipantsClientProps {
 export function ParticipantsClient({ data }: ParticipantsClientProps) {
   const t = useTranslations("tutor.participants");
   const { locale } = useAppLocale();
-  const viewportMode = useViewportMode();
   const [search, setSearch] = useState("");
   const [enrollmentFilter, setEnrollmentFilter] = useState<string>("all");
   const [activeTab, setActiveTab] = useUrlTab("tab", "participants");
@@ -64,23 +61,15 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
 
   return (
     <div className="space-y-(--related-gap)">
-      {/* ── KPI Strip ── */}
-      <AdminStatStrip className="grid-cols-2 sm:grid-cols-4 gap-(--compact-gap) rounded-none border-x-0 bg-transparent [&>*]:bg-transparent [&>*]:px-0">
-        <AdminStatStripItem icon={Users} label={t("totalParticipants")} value={data.summary.totalParticipants} caption={t("activeEnrolled")} />
-        <AdminStatStripItem icon={UserCheck} label={t("directEnrollments")} value={data.summary.directEnrollmentsCount} caption={t("individualParticipants")} />
-        <AdminStatStripItem icon={Layers} label={t("groupMembers")} value={data.summary.groupParticipantsCount} caption={t("groupParticipants")} />
-        <AdminStatStripItem icon={Shield} label={t("activeGroups")} value={data.summary.activeGroupsCount} caption={t("studyGroups")} />
-      </AdminStatStrip>
-
       {/* Tabs & Search Toolbar */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-(--related-gap)">
         <div className="space-y-(--compact-gap)">
-          <TabsList variant={viewportMode === "mobile" ? "inline" : "page"} flush={false}>
+          <TabsList flush={false}>
             <TabsTrigger value="participants">
-              {t("participants")}
+              {t("participants")} ({data.summary.totalParticipants})
             </TabsTrigger>
             <TabsTrigger value="groups">
-              {t("groups")}
+              {t("groups")} ({data.summary.activeGroupsCount})
             </TabsTrigger>
           </TabsList>
 
@@ -115,21 +104,25 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
         {/* ── Tab 1: Participants List ── */}
         <TabsContent value="participants" className="mt-0 space-y-(--related-gap)">
           {filteredParticipants.length === 0 ? (
-            <div className="border-t border-border">
-              <AdminEmptyState icon={Users} title={t("noParticipantsFound")}
+            <div className="border-t border-border/40">
+              <AdminEmptyState
+                compact
+                icon={Users}
+                title={t("noParticipantsFound")}
                 description={search || enrollmentFilter !== "all"
                   ? t("changeFilters")
-                  : t("noActiveParticipants")} className="px-4 py-5" />
+                  : t("noActiveParticipants")}
+              />
             </div>
           ) : (
             <>
               {/* Mobile stacked participant cards (zero horizontal scroll) */}
-              <div className="divide-y divide-border border-y border-border md:hidden">
+              <div className="divide-y divide-border/40 border-y border-border/40 md:hidden">
                 {filteredParticipants.map((p) => (
-                  <div key={p.userId} className="space-y-2.5 py-3">
+                  <div key={p.userId} className="space-y-(--compact-gap) py-(--row-padding)">
                     <div className="flex items-start justify-between gap-2">
-                      <div className="flex min-w-0 flex-1 items-center gap-2.5">
-                        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 font-heading text-body-xs font-bold text-primary">
+                      <div className="flex min-w-0 flex-1 items-start gap-2.5">
+                        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted font-heading text-body-xs font-bold text-muted-foreground ring-1 ring-inset ring-border/60">
                           {p.name.charAt(0).toUpperCase()}
                         </div>
                         <div className="min-w-0 flex-1">
@@ -207,7 +200,7 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
                       <tr role="row" key={p.userId} className="hover:bg-muted/20">
                         <td role="cell" className="wrap-anywhere px-3 py-3">
                           <div className="flex items-center gap-(--compact-gap)">
-                            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 font-heading text-body-xs font-bold text-primary">
+                            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted font-heading text-body-xs font-bold text-muted-foreground ring-1 ring-inset ring-border/60">
                               {p.name.charAt(0).toUpperCase()}
                             </div>
                             <div className="min-w-0">
@@ -277,7 +270,7 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
                   : t("noActiveGroups")} className="px-4 py-5" />
             </div>
           ) : (
-            <div className="divide-y divide-border border-y border-border">
+            <div className="divide-y divide-border/55 border-y border-border/55">
               {filteredGroups.map((grp) => (
                 <div
                   key={grp.id}

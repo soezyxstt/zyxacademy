@@ -1,24 +1,36 @@
 "use client";
 
 import { usePanelViewport } from "@/hooks/use-panel-viewport";
-import { DIALOG_PARAM, useDialogHistory } from "@/hooks/use-dialog-history";
+import { useDialogHistory } from "@/hooks/use-dialog-history";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   X,
   Loader2,
   Trash2,
-  Bot,
+  SquareTerminal,
   Copy,
   Check,
   Square,
   ChevronDown,
+  ChevronRight,
   Plus,
   MessageSquare,
-  ArrowUp,
   Maximize2,
   Minimize2,
-  FileEdit,
+  CircleHelp,
+  Compass,
+  LayoutTemplate,
+  BarChart3,
+  UserCheck,
+  BookOpenCheck,
+  KeyRound,
+  Layers,
+  ClipboardList,
+  FileText,
+  CalendarClock,
+  LayoutGrid,
+  RotateCcw,
 } from "lucide-react";
 import { useOpsAiContext } from "./ops-ai-context";
 import {
@@ -30,6 +42,7 @@ import {
   saveActiveSessionId,
   createOpsAiSession,
   updateOpsAiSessionMessages,
+  renameOpsAiSession,
   deleteOpsAiSession,
   clearAllOpsAiSessions,
   type OpsAiMessageV2,
@@ -41,27 +54,54 @@ import {
 import { WorkTraceView } from "./work-trace-view";
 import { CitationCards } from "./citation-cards";
 import { ActionProposalCard } from "./action-proposal-card";
-import { QuickActionsBar, extractQuickActions } from "./quick-actions-bar";
+import { QuickActionsBar, stripOpsFollowupMarkup } from "./quick-actions-bar";
+import {
+  CAPABILITY_OVERVIEW_PRESET,
+  resolveDynamicOpsPresets,
+  type OpsAiPreset,
+  type OpsAiPresetIcon,
+} from "./ops-ai-presets";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
-import type {
-  OpsAiWorkStep,
-  OpsAiCitation,
-  OpsAiActionProposalV2,
-  OpsAiErrorData,
-} from "@/lib/admin-ops-ai/contracts";
-import { consumeOpsAiStream } from "./use-ops-ai-chat";
+import { useOpsAiChat } from "./use-ops-ai-chat";
+import { OPS_AI_POLICY_BOUNDS } from "@/lib/admin-ops-ai/contracts";
+import { ZyraComposerInput, type ZyraComposerInputHandle } from "@/components/course/zyra-composer-input";
+import { ZyraChatComposer, ZyraChatHeader, ZyraChatHistory, ZyraSendButton } from "@/components/course/zyra-chat-frame";
+import { TutorAssistantSurface, TutorStudentMessage } from "@/components/course/tutor-message-frame";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-const DEFAULT_SUGGESTIONS = [
-  "Jelaskan fitur dan fungsi halaman ini",
-  "Bagaimana format token aktivasi di Zyx Academy?",
-  "Cek status feature flags yang sedang aktif",
-  "Buatkan token aktivasi untuk kelompok 5 orang",
-  "Bagaimana prosedur darurat rollback cache?",
-];
+type PresetFilter = "all" | "ask" | "action";
 
-export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessageV2[] } = {}) {
+function PresetIcon({ icon, className }: { icon: OpsAiPresetIcon; className?: string }) {
+  const cls = cn("size-4 shrink-0", className);
+  switch (icon) {
+    case "compass":
+      return <Compass className={cls} aria-hidden="true" />;
+    case "layout":
+      return <LayoutTemplate className={cls} aria-hidden="true" />;
+    case "analytics":
+      return <BarChart3 className={cls} aria-hidden="true" />;
+    case "user-check":
+      return <UserCheck className={cls} aria-hidden="true" />;
+    case "book-check":
+      return <BookOpenCheck className={cls} aria-hidden="true" />;
+    case "key":
+      return <KeyRound className={cls} aria-hidden="true" />;
+    case "layers":
+      return <Layers className={cls} aria-hidden="true" />;
+    case "form":
+      return <ClipboardList className={cls} aria-hidden="true" />;
+    case "article":
+      return <FileText className={cls} aria-hidden="true" />;
+    case "calendar":
+      return <CalendarClock className={cls} aria-hidden="true" />;
+  }
+}
+
+export function OpsAiPanel({ initialMessages, accountId }: { initialMessages?: OpsAiMessageV2[]; accountId?: string } = {}) {
   const {
     isOpen,
     closePanel,
@@ -73,31 +113,79 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
 
   const [sessions, setSessions] = useState<OpsAiSession[]>(() => {
     if (typeof window === "undefined") return [];
-    return loadOpsAiSessions();
+    return loadOpsAiSessions(accountId);
   });
   const [activeSessionId, setActiveSessionId] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
-    return loadActiveSessionId();
+    return loadActiveSessionId(accountId);
   });
-  const [messages, setMessages] = useState<OpsAiMessageV2[]>(() => initialMessages ?? []);
+  const activeSessionIdRef = useRef<string | null>(activeSessionId);
+  useEffect(() => {
+    activeSessionIdRef.current = activeSessionId;
+  }, [activeSessionId]);
+
   const [hasHydrated, setHasHydrated] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [shouldRender, setShouldRender] = useState(isOpen);
   const [isVisible, setIsVisible] = useState(typeof window === "undefined" ? isOpen : false);
+  const [isFullWidth, setIsFullWidth] = useState(false);
   const [showSessionsDropdown, setShowSessionsDropdown] = useState(false);
-  const [mode, setMode] = useState<"ask" | "edit">("ask");
-  const [input, setInput] = useState("");
-  const [isStreaming, setIsStreaming] = useState(false);
+  const [showPresetsPopover, setShowPresetsPopover] = useState(false);
+  const [presetFilter, setPresetFilter] = useState<PresetFilter>("all");
+  const [chatMode, setChatMode] = useState<"ask" | "edit">("edit");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const sessionsMenuRef = useRef<HTMLDivElement>(null);
+
+  const currentSession = sessions.find((s) => s.id === activeSessionId);
+  const currentSessionNeedsTitle =
+    currentSession?.titleSource !== "ai" && currentSession?.titleSource !== "manual";
+
+  const handleSessionTitle = useCallback(
+    (title: string, sessionId?: string) => {
+      const targetId = sessionId || activeSessionIdRef.current;
+      if (!targetId) return;
+      const updated = renameOpsAiSession(targetId, title, accountId);
+      if (updated.length > 0) {
+        setSessions(updated);
+      }
+    },
+    [accountId]
+  );
 
   const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const tab = useSearchParams()?.get("tab");
+  const { messages, setMessages, input, setInput, isStreaming, stop, sendMessage } = useOpsAiChat({
+    initialMessages,
+    context: {
+      currentPath: pathname || "/admin",
+      mode: chatMode,
+      ...(tab && /^[\w-]{1,80}$/.test(tab) ? { queryParams: { tab } } : {}),
+    },
+    needsTitle: currentSessionNeedsTitle,
+    onSessionTitle: handleSessionTitle,
+  });
+  const [revoking, setRevoking] = useState(false);
+  const approvalPending = useRef(false);
+  const [isApproving, setIsApproving] = useState(false);
+  const handleApprovalPending = (pending: boolean) => {
+    if (pending && approvalPending.current) return false;
+    approvalPending.current = pending;
+    setIsApproving(pending);
+    return true;
+  };
+  const [grants, setGrants] = useState<Array<{ id: string; chatId: string; until: number }>>([]);
+  const activeGrants = grants.filter(grant => grant.chatId === activeSessionId);
+  const nextGrantExpiry = Math.min(...activeGrants.map(grant => grant.until));
+  useEffect(() => {
+    if (!Number.isFinite(nextGrantExpiry)) return;
+    const timer = window.setTimeout(() => setGrants(current => current.filter(grant => grant.until > Date.now())), Math.max(0, nextGrantExpiry - Date.now()));
+    return () => window.clearTimeout(timer);
+  }, [nextGrantExpiry]);
   useDialogHistory(isOpen, closePanel);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const textareaRef = useRef<ZyraComposerInputHandle>(null);
   const panelRef = useRef<HTMLElement>(null);
   usePanelViewport(panelRef, isVisible);
-  const abortControllerRef = useRef<AbortController | null>(null);
   const isDraggingRef = useRef(false);
   const dragStartRef = useRef<{ startX: number; startWidth: number; latestWidth: number }>({
     startX: 0,
@@ -141,13 +229,13 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
   // Hydration-safe initial load from localStorage and external update sync
   useEffect(() => {
     if (!initialMessages) {
-      const loadedSessions = loadOpsAiSessions();
+      const loadedSessions = loadOpsAiSessions(accountId);
       setSessions(loadedSessions);
 
-      let curSessionId = loadActiveSessionId();
+      let curSessionId = loadActiveSessionId(accountId);
       if (!curSessionId && loadedSessions.length > 0) {
         curSessionId = loadedSessions[0].id;
-        saveActiveSessionId(curSessionId);
+        saveActiveSessionId(curSessionId, accountId);
       }
 
       if (curSessionId) {
@@ -157,7 +245,7 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
           setMessages(curSession.messages);
         }
       } else {
-        const loaded = loadOpsAiMessages();
+        const loaded = loadOpsAiMessages(accountId);
         if (loaded.length > 0) {
           setMessages(loaded);
         }
@@ -166,14 +254,16 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
     setHasHydrated(true);
 
     const handleExternalUpdate = () => {
-      const reloadedSessions = loadOpsAiSessions();
+      const reloadedSessions = loadOpsAiSessions(accountId);
       setSessions(reloadedSessions);
-      const curId = loadActiveSessionId();
+      const curId = loadActiveSessionId(accountId);
       if (curId) {
         const current = reloadedSessions.find((s) => s.id === curId);
-        if (current) setMessages(current.messages);
+        if (current) {
+          setMessages(current.messages);
+        }
       } else {
-        const reloaded = loadOpsAiMessages();
+        const reloaded = loadOpsAiMessages(accountId);
         setMessages(reloaded);
       }
     };
@@ -184,45 +274,78 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
       window.removeEventListener("zyx:ops-ai-messages-updated", handleExternalUpdate);
       window.removeEventListener("zyx:ops-ai-sessions-updated", handleExternalUpdate);
     };
-  }, [initialMessages]);
+  }, [initialMessages, accountId, setMessages]);
 
   // Synchronize messages with persistent session storage after client mount
   useEffect(() => {
     if (hasHydrated) {
       if (activeSessionId) {
-        updateOpsAiSessionMessages(activeSessionId, messages);
+        updateOpsAiSessionMessages(activeSessionId, messages, accountId);
       } else {
-        saveOpsAiMessages(messages, true);
+        saveOpsAiMessages(messages, true, accountId);
       }
     }
-  }, [messages, hasHydrated, activeSessionId]);
+  }, [messages, hasHydrated, activeSessionId, accountId]);
 
   // Internal container auto-scroll: Strictly scrolls drawer without moving outer page
   useEffect(() => {
-    if (isOpen && scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+    const el = scrollContainerRef.current;
+    if (!isOpen || !el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    if (distanceFromBottom < 140 || messages.length <= 2) {
+      el.scrollTop = el.scrollHeight;
     }
   }, [messages, isOpen, isStreaming]);
+
+  // Dismiss session dropdown on outside click or Escape
+  useEffect(() => {
+    if (!showSessionsDropdown) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      if (sessionsMenuRef.current && !sessionsMenuRef.current.contains(event.target as Node)) {
+        setShowSessionsDropdown(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setShowSessionsDropdown(false);
+      }
+    };
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [showSessionsDropdown]);
 
   // Focus textarea when panel opens without causing mobile horizontal page shift
   useEffect(() => {
     if (isOpen && !showSessionsDropdown) {
-      setTimeout(() => {
-        textareaRef.current?.focus({ preventScroll: true });
-      }, 100);
+      const timer = window.setTimeout(() => textareaRef.current?.focus(), 100);
+      return () => window.clearTimeout(timer);
     }
   }, [isOpen, showSessionsDropdown]);
 
-  // Mobile focus trap
+  // Lock background page scroll when desktop panel is expanded to full width
+  useEffect(() => {
+    if (typeof document === "undefined" || !isOpen || !isDesktop || !isFullWidth) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen, isDesktop, isFullWidth]);
+
+  // Mobile and full-width focus trap
   const handleKeyDownTrap = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key !== "Tab" || isDesktop) return;
+      if (e.key !== "Tab" || (isDesktop && !isFullWidth)) return;
 
       const container = panelRef.current;
       if (!container) return;
 
       const focusables = container.querySelectorAll<HTMLElement>(
-        'button:not([disabled]), textarea:not([disabled]), input:not([disabled]), [tabindex="0"], a[href]'
+        'button:not([disabled]), textarea:not([disabled]), input:not([disabled]), [contenteditable="true"], [tabindex="0"], a[href]'
       );
       if (focusables.length === 0) {
         e.preventDefault();
@@ -244,7 +367,7 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
         }
       }
     },
-    [isDesktop]
+    [isDesktop, isFullWidth]
   );
 
   // Keyboard resize for accessibility (separator role)
@@ -370,37 +493,51 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
 
   // Handle creating a new session
   const handleCreateNewSession = () => {
-    const newSession = createOpsAiSession();
-    const updatedSessions = [newSession, ...sessions];
-    setSessions(updatedSessions);
+    if (approvalPending.current) return;
+    stop();
+    const newSession = createOpsAiSession(undefined, accountId);
+    setSessions(loadOpsAiSessions(accountId));
     setActiveSessionId(newSession.id);
+    activeSessionIdRef.current = newSession.id;
     setMessages([]);
+    setInput("");
     setShowSessionsDropdown(false);
     toast.success("Sesi percakapan baru telah dimulai.");
   };
 
   // Handle switching active session
   const handleSwitchSession = (session: OpsAiSession) => {
+    if (approvalPending.current) return;
+    stop();
     setActiveSessionId(session.id);
-    saveActiveSessionId(session.id);
-    setMessages(session.messages);
+    activeSessionIdRef.current = session.id;
+    saveActiveSessionId(session.id, accountId);
+    const latest = loadOpsAiSessions(accountId).find((current) => current.id === session.id);
+    setMessages(latest?.messages ?? session.messages);
+    setInput("");
     setShowSessionsDropdown(false);
   };
 
   // Handle deleting a single session
   const handleDeleteSession = (e: React.MouseEvent, sessionId: string) => {
+    if (approvalPending.current) return;
+    if (activeSessionId === sessionId) stop();
+    setGrants(current => current.filter(grant => grant.chatId !== sessionId));
     e.stopPropagation();
-    const remaining = deleteOpsAiSession(sessionId);
+    const remaining = deleteOpsAiSession(sessionId, accountId);
     setSessions(remaining);
 
     if (activeSessionId === sessionId) {
+      setInput("");
       if (remaining.length > 0) {
         setActiveSessionId(remaining[0].id);
+        activeSessionIdRef.current = remaining[0].id;
         setMessages(remaining[0].messages);
       } else {
-        const fresh = createOpsAiSession();
+        const fresh = createOpsAiSession(undefined, accountId);
         setSessions([fresh]);
         setActiveSessionId(fresh.id);
+        activeSessionIdRef.current = fresh.id;
         setMessages([]);
       }
     }
@@ -409,11 +546,14 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
 
   // Handle clearing history of active session
   const handleClearActiveHistory = () => {
+    if (approvalPending.current) return;
+    stop();
+    setGrants(current => current.filter(grant => grant.chatId !== activeSessionId));
     setMessages([]);
-    clearOpsAiMessages();
+    clearOpsAiMessages(accountId);
     if (activeSessionId) {
-      updateOpsAiSessionMessages(activeSessionId, []);
-      const reloaded = loadOpsAiSessions();
+      updateOpsAiSessionMessages(activeSessionId, [], accountId);
+      const reloaded = loadOpsAiSessions(accountId);
       setSessions(reloaded);
     }
     toast.success("Riwayat percakapan sesi ini telah dibersihkan.");
@@ -421,229 +561,122 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
 
   // Handle clearing all sessions completely
   const handleClearAllSessions = () => {
-    clearAllOpsAiSessions();
-    const fresh = createOpsAiSession();
+    if (approvalPending.current) return;
+    stop();
+    setGrants([]);
+    clearAllOpsAiSessions(accountId);
+    const fresh = createOpsAiSession(undefined, accountId);
     setSessions([fresh]);
     setActiveSessionId(fresh.id);
+    activeSessionIdRef.current = fresh.id;
     setMessages([]);
+    setInput("");
     setShowSessionsDropdown(false);
     toast.success("Seluruh riwayat sesi telah dibersihkan.");
   };
 
   const handleToggleExpandWidth = () => {
-    if (width >= maxWidth - 20) {
-      setWidth(OPS_AI_DEFAULT_WIDTH);
-    } else {
-      setWidth(maxWidth);
-    }
+    setIsFullWidth((prev) => !prev);
   };
 
   const handleCopyMessage = (id: string, text: string) => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
-      navigator.clipboard.writeText(text);
+      navigator.clipboard.writeText(stripOpsFollowupMarkup(text));
       setCopiedId(id);
       setTimeout(() => setCopiedId(null), 2000);
       toast.success("Jawaban berhasil disalin ke papan klip.");
     }
   };
 
-  const handleStopStream = () => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      setIsStreaming(false);
-      toast.info("Pemrosesan respons telah dihentikan.");
+  const handleSendMessage = (textToSend?: string, modeOverride?: "ask" | "edit") => {
+    const query = (textToSend ?? input).trim();
+    if (!query || isStreaming || approvalPending.current || revoking || query.length > OPS_AI_POLICY_BOUNDS.maxMessageCharLength) return;
+    let chatId = activeSessionId;
+    let createdFresh = false;
+    if (!chatId) {
+      const fresh = createOpsAiSession(undefined, accountId);
+      chatId = fresh.id;
+      createdFresh = true;
+      setActiveSessionId(chatId);
+      activeSessionIdRef.current = chatId;
+      setSessions(loadOpsAiSessions(accountId));
     }
+    const effectiveMode = modeOverride ?? chatMode;
+    if (modeOverride && modeOverride !== chatMode) {
+      setChatMode(modeOverride);
+    }
+    const grantIds = activeGrants.filter(grant => grant.until > Date.now()).map(grant => grant.id);
+    const needsTitleForTurn =
+      createdFresh ||
+      (currentSessionNeedsTitle &&
+        (messages.length === 0 ||
+          !currentSession?.title ||
+          currentSession.title === "Percakapan Baru" ||
+          currentSession.title === "Sesi Percakapan" ||
+          currentSession.titleSource !== "ai"));
+    void sendMessage(query, {
+      chatId,
+      grantIds,
+      mode: effectiveMode,
+      needsTitle: needsTitleForTurn,
+    });
   };
 
-  const handleSendMessage = async (textToSend?: string) => {
-    const query = (textToSend || input).trim();
-    if (!query || isStreaming) return;
+  const handleSelectPreset = (preset: OpsAiPreset) => {
+    setShowPresetsPopover(false);
+    handleSendMessage(preset.prompt, preset.recommendedMode);
+  };
 
-    let targetSessionId = activeSessionId;
-    if (!targetSessionId) {
-      const fresh = createOpsAiSession();
-      targetSessionId = fresh.id;
-      setActiveSessionId(fresh.id);
-      setSessions((prev) => [fresh, ...prev]);
-    }
-
-    const userMsg: OpsAiMessageV2 = {
-      id: `msg-user-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      role: "user",
-      content: query,
-      createdAt: Date.now(),
-    };
-
-    const assistantMsgId = `msg-asst-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    const assistantMsg: OpsAiMessageV2 = {
-      id: assistantMsgId,
-      role: "assistant",
-      content: "",
-      createdAt: Date.now(),
-      workSteps: [],
-      citations: [],
-      proposals: [],
-    };
-
-    const nextMessages = [...messages, userMsg, assistantMsg];
-    setMessages(nextMessages);
-    setInput("");
-    setIsStreaming(true);
-
-    const abortController = new AbortController();
-    abortControllerRef.current = abortController;
-
+  const handleRevokeGrants = async () => {
+    if (revoking || !activeSessionId || !activeGrants.length) return;
+    const revokeGrantIds = activeGrants.map(grant => grant.id);
+    setRevoking(true);
     try {
-      const qParams: Record<string, string> = {};
-      searchParams?.forEach((val, key) => {
-        if (key !== DIALOG_PARAM) qParams[key] = val;
-      });
-
-      const res = await fetch("/api/admin/ops-ai", {
+      const response = await fetch("/api/admin/ops-ai/execute", {
         method: "POST",
-        signal: abortController.signal,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: nextMessages
-            .filter((m) => m.role === "user" || (m.role === "assistant" && m.content.length > 0))
-            .map((m) => ({
-              role: m.role === "user" ? "user" : "assistant",
-              content: m.content,
-            })),
-          context: {
-            currentPath: pathname || "/admin",
-            queryParams: qParams,
-            mode,
-          },
-        }),
+        body: JSON.stringify({ chatId: activeSessionId, revokeGrantIds }),
       });
-
-      if (!res.ok) {
-        let errText = "Gagal menghubungi layanan Zyx Ops AI.";
-        try {
-          const errJson = await res.json();
-          if (errJson.error) errText = errJson.error;
-        } catch {
-          // Ignore parse errors
-        }
-        throw new Error(errText);
-      }
-
-      if (!res.body) {
-        throw new Error("Respons stream tidak tersedia.");
-      }
-
-      for await (const part of consumeOpsAiStream(res.body, abortController.signal)) {
-        if (part.type === "text-delta") {
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantMsgId
-                ? { ...m, content: m.content + part.textDelta }
-                : m
-            )
-          );
-        } else if (part.type === "data-work-step") {
-          const step: OpsAiWorkStep = part.data;
-          setMessages((prev) =>
-            prev.map((m) => {
-              if (m.id !== assistantMsgId) return m;
-              const existing = m.workSteps || [];
-              const stepIdx = existing.findIndex((s) => s.stepId === step.stepId);
-              let updatedSteps: OpsAiWorkStep[];
-              if (stepIdx >= 0) {
-                updatedSteps = [...existing];
-                updatedSteps[stepIdx] = step;
-              } else {
-                updatedSteps = [...existing, step];
-              }
-              return { ...m, workSteps: updatedSteps };
-            })
-          );
-        } else if (part.type === "data-citation") {
-          const citation: OpsAiCitation = part.data;
-          setMessages((prev) =>
-            prev.map((m) => {
-              if (m.id !== assistantMsgId) return m;
-              const existing = m.citations || [];
-              if (existing.some((c) => c.id === citation.id)) return m;
-              return { ...m, citations: [...existing, citation] };
-            })
-          );
-        } else if (part.type === "data-proposal") {
-          const proposal: OpsAiActionProposalV2 = part.data;
-          setMessages((prev) =>
-            prev.map((m) => {
-              if (m.id !== assistantMsgId) return m;
-              const existing = m.proposals || [];
-              if (existing.some((p) => p.id === proposal.id)) return m;
-              return { ...m, proposals: [...existing, proposal] };
-            })
-          );
-        } else if (part.type === "data-error") {
-          const errData: OpsAiErrorData = part.data;
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantMsgId
-                ? {
-                    ...m,
-                    error: errData,
-                    content: m.content || `Terjadi kendala: ${errData.message}`,
-                  }
-                : m
-            )
-          );
-        }
-      }
-    } catch (err: unknown) {
-      if (abortController.signal.aborted) {
-        setMessages((prev) =>
-          prev.map((m) => {
-            if (m.id !== assistantMsgId) return m;
-            const updatedSteps = (m.workSteps || []).map((s) =>
-              s.status === "running" ? { ...s, status: "cancelled" as const } : s
-            );
-            return {
-              ...m,
-              workSteps: updatedSteps,
-              content: m.content || "Permintaan dihentikan oleh pengguna.",
-            };
-          })
-        );
-      } else {
-        const msg = err instanceof Error ? err.message : "Terjadi kesalahan sistem saat streaming.";
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantMsgId
-              ? {
-                  ...m,
-                  content:
-                    m.content ||
-                    `Maaf, terjadi kesalahan saat menghubungi layanan AI: ${msg}`,
-                }
-              : m
-          )
-        );
-      }
+      if (!response.ok) throw new Error();
+      setGrants(current => current.filter(grant => !revokeGrantIds.includes(grant.id)));
+    } catch {
+      toast.error("Izin chat belum bisa diakhiri. Coba lagi.");
     } finally {
-      setIsStreaming(false);
-      abortControllerRef.current = null;
-    }
-  };
-
-  const handleKeyDownInput = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
+      setRevoking(false);
     }
   };
 
   if (!shouldRender) return null;
 
-  const currentSession = sessions.find((s) => s.id === activeSessionId);
   const activeTitle =
     currentSession?.title && currentSession.title !== "Percakapan Baru"
       ? currentSession.title
-      : "Zyx Ops Assistant";
+      : messages.find(message => message.role === "user")?.content.trim().slice(0, 48) || "Zyx Ops AI";
+
+  const dynamicPresets = resolveDynamicOpsPresets({
+    pathname,
+    mode: chatMode,
+    hasMessages: messages.length > 0,
+  });
+  const askPresets = resolveDynamicOpsPresets({
+    pathname,
+    mode: "ask",
+    hasMessages: false,
+  }).presets;
+  const editPresets = resolveDynamicOpsPresets({
+    pathname,
+    mode: "edit",
+    hasMessages: false,
+  }).presets;
+  const actionOnlyPresets = editPresets.filter((item) => item.category === "action");
+  const visiblePresets =
+    presetFilter === "all"
+      ? dynamicPresets.presets
+      : presetFilter === "ask"
+        ? askPresets
+        : actionOnlyPresets.length > 0
+          ? actionOnlyPresets
+          : editPresets;
 
   return (
     <>
@@ -658,37 +691,38 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
         aria-hidden="true"
       />
 
-      {/* Main Panel Container: Cloudflare Style Layout */}
+      {/* Main Panel Container */}
       <aside
         ref={panelRef}
         id="ops-ai-panel"
         role="complementary"
         aria-label="Zyx Ops AI Assistant"
         data-state={isVisible ? "open" : "closed"}
+        data-full-width={isFullWidth ? "true" : "false"}
         suppressHydrationWarning
         onKeyDown={handleKeyDownTrap}
         style={{
           "--ops-ai-width": `${width}px`,
-          width: mounted && isDesktop ? (isVisible ? `${width}px` : "0px") : undefined,
+          width: mounted && isDesktop && !isFullWidth ? (isVisible ? `${width}px` : "0px") : undefined,
         } as React.CSSProperties}
         className={cn(
-          "flex flex-col overflow-hidden border-l border-border bg-background select-text relative min-w-0",
-          "bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px]",
+          "flex flex-col overflow-hidden border-border bg-background select-text relative min-w-0",
           "transition-[transform,width,opacity,border-color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
-          "fixed inset-y-0 right-0 left-4 z-50 sm:left-auto sm:w-[480px] shadow-2xl top-[var(--panel-visible-top,0px)] h-[var(--panel-visible-height,100dvh)]",
-          "lg:sticky lg:self-start lg:shrink-0 lg:z-40 lg:shadow-none",
+          "fixed inset-y-0 left-0 right-0 z-50 w-full top-[var(--panel-visible-top,0px)] h-[var(--panel-visible-height,100dvh)]",
+          !isFullWidth && "sm:border-l sm:left-auto sm:w-[480px] sm:shadow-2xl lg:sticky lg:self-start lg:shrink-0 lg:z-40 lg:shadow-none",
           isVisible
             ? "translate-x-0 opacity-100"
-            : "translate-x-full opacity-0 pointer-events-none lg:translate-x-0 lg:border-l-transparent"
+            : cn("translate-x-full opacity-0 pointer-events-none", !isFullWidth && "lg:translate-x-0 lg:border-l-transparent")
         )}
       >
         <div
           className={cn(
-            "relative flex h-full min-h-0 w-full flex-col lg:min-w-[var(--ops-ai-width)] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
-            isVisible ? "lg:translate-x-0" : "lg:translate-x-4"
+            "relative flex h-full min-h-0 w-full flex-col transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+            !isFullWidth && "lg:min-w-[var(--ops-ai-width)]",
+            !isFullWidth && (isVisible ? "lg:translate-x-0" : "lg:translate-x-4")
           )}
         >
-        {/* Resize Handle: Desktop & Tablet with wide 24px hit area */}
+        {/* Resize Handle: Desktop & Tablet with wide hit area */}
         <div
           role="separator"
           tabIndex={0}
@@ -698,43 +732,57 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
           aria-valuemin={OPS_AI_MIN_WIDTH}
           aria-valuemax={maxWidth}
           suppressHydrationWarning
+          onDoubleClick={handleToggleExpandWidth}
           onKeyDown={handleKeyDownResize}
           onPointerDown={handlePointerDownResize}
           style={{ touchAction: "none" }}
-          className="flex absolute left-0 inset-y-0 w-3.5 cursor-col-resize items-center justify-center group select-none z-50 hover:bg-primary/5 active:bg-primary/10 transition-colors"
+          className={cn(
+            "hidden sm:flex absolute left-0 inset-y-0 w-3.5 cursor-col-resize items-center justify-center group select-none z-50 hover:bg-primary/5 active:bg-primary/10 transition-colors",
+            isFullWidth && "lg:hidden"
+          )}
         >
           <div
             className="w-1 h-16 rounded-full bg-border/90 transition-all duration-150 flex items-center justify-center group-hover:bg-primary group-hover:w-1.5 group-focus-visible:bg-primary group-focus-visible:w-1.5 active:bg-primary active:w-1.5"
           />
         </div>
 
-        {/* 1. Header: Cloudflare Style (Title Dropdown + Minimal Action Icons) */}
-        <header className="shrink-0 border-b border-border/80 px-3.5 py-2.5 pt-[calc(0.625rem+env(safe-area-inset-top,0px))] md:pt-2.5 bg-background/80 backdrop-blur-md flex items-center justify-between z-20 gap-2">
+        {/* 1. Header */}
+        <ZyraChatHeader>
           {/* Left: Session Dropdown Selector */}
-          <div className="relative min-w-0 flex-1">
+          <div ref={sessionsMenuRef} className="relative min-w-0 flex-1">
             <button
               type="button"
               onClick={() => setShowSessionsDropdown((prev) => !prev)}
               aria-expanded={showSessionsDropdown}
               aria-label="Daftar riwayat sesi"
-              className="flex items-center gap-1.5 text-left text-body-sm font-semibold text-foreground hover:text-primary transition-colors cursor-pointer truncate max-w-full group"
+              className="flex items-center gap-2 text-left text-body-sm font-semibold text-foreground hover:text-primary transition-colors cursor-pointer truncate max-w-full group rounded-md py-0.5 pr-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
-              <span className="truncate max-w-[240px]">{activeTitle}</span>
-              <ChevronDown className="size-3.5 text-muted-foreground group-hover:text-primary transition-transform shrink-0" />
+              <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                <SquareTerminal className="size-3.5" aria-hidden="true" />
+              </span>
+              <span className="truncate max-w-[220px]">{activeTitle}</span>
+              <ChevronDown
+                className={cn(
+                  "size-3.5 text-muted-foreground group-hover:text-primary transition-transform shrink-0",
+                  showSessionsDropdown && "rotate-180"
+                )}
+                aria-hidden="true"
+              />
             </button>
 
             {/* Session Dropdown Menu */}
             {showSessionsDropdown && (
-              <div className="absolute top-full left-0 mt-1 w-[min(320px,calc(100vw-2rem))] rounded-xl border border-border bg-background shadow-xl p-2 z-50 space-y-1">
-                <div className="flex items-center justify-between px-2 py-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  <span>Daftar Sesi ({sessions.length})</span>
+              <div className="absolute top-full left-0 mt-1.5 w-[min(320px,calc(100vw-2rem))] rounded-xl border border-border bg-popover text-popover-foreground shadow-lg p-2 z-50 space-y-1.5">
+                <div className="flex items-center justify-between px-2 py-1 text-body-xs font-semibold text-muted-foreground">
+                  <span>Riwayat sesi ({sessions.length})</span>
                   <button
                     type="button"
                     onClick={handleCreateNewSession}
+                    disabled={isApproving}
                     aria-label="Percakapan baru"
-                    className="text-primary hover:underline text-[11px] font-medium cursor-pointer"
+                    className="text-primary hover:underline text-body-xs font-medium cursor-pointer"
                   >
-                    + Sesi Baru
+                    + Sesi baru
                   </button>
                 </div>
 
@@ -749,30 +797,36 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
                       return (
                         <div
                           key={sess.id}
-                          onClick={() => handleSwitchSession(sess)}
                           className={cn(
-                            "flex items-center justify-between gap-2 p-2 rounded-lg text-body-xs cursor-pointer transition-colors",
+                            "flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg text-body-xs transition-colors",
                             isActive
                               ? "bg-primary/10 text-primary font-semibold"
                               : "hover:bg-muted text-foreground"
                           )}
                         >
-                          <div className="min-w-0 flex-1 flex items-center gap-1.5">
-                            <MessageSquare className="size-3 shrink-0 opacity-70" />
-                            <span className="truncate">{sess.title || "Percakapan Baru"}</span>
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleSwitchSession(sess)}
+                            disabled={isApproving}
+                            aria-current={isActive ? "true" : undefined}
+                            className="flex min-w-0 flex-1 items-center gap-1.5 text-left text-body-sm cursor-pointer"
+                          >
+                            <MessageSquare className="size-3.5 shrink-0 opacity-70" aria-hidden="true" />
+                            <span className="truncate">{sess.title || "Percakapan baru"}</span>
+                          </button>
 
                           <div className="flex items-center gap-1 shrink-0">
-                            <span className="text-[10px] text-muted-foreground font-mono">
+                            <span className="text-body-2xs text-muted-foreground font-mono">
                               {sess.messages.length}
                             </span>
                             <button
                               type="button"
                               onClick={(e) => handleDeleteSession(e, sess.id)}
+                              disabled={isApproving}
                               aria-label={`Hapus sesi ${sess.title}`}
-                              className="size-6 inline-flex items-center justify-center text-muted-foreground hover:text-destructive rounded-sm"
+                              className="size-6 inline-flex items-center justify-center text-muted-foreground hover:text-destructive rounded-md cursor-pointer"
                             >
-                              <Trash2 className="size-3" />
+                              <Trash2 className="size-3" aria-hidden="true" />
                             </button>
                           </div>
                         </div>
@@ -782,22 +836,24 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
                 </div>
 
                 {sessions.length > 0 && (
-                  <div className="pt-1 border-t border-border/50 flex justify-between px-1">
+                  <div className="pt-1.5 border-t border-border/60 flex justify-between px-1">
                     <button
                       type="button"
                       onClick={handleClearAllSessions}
-                      className="text-[11px] text-muted-foreground hover:text-destructive cursor-pointer"
+                      disabled={isApproving}
+                      className="text-body-xs text-muted-foreground hover:text-destructive cursor-pointer"
                     >
-                      Hapus Semua Sesi
+                      Hapus semua sesi
                     </button>
                     {messages.length > 0 && (
                       <button
                         type="button"
                         onClick={handleClearActiveHistory}
+                        disabled={isApproving}
                         aria-label="Bersihkan riwayat percakapan"
-                        className="text-[11px] text-muted-foreground hover:text-destructive cursor-pointer"
+                        className="text-body-xs text-muted-foreground hover:text-destructive cursor-pointer"
                       >
-                        Bersihkan Chat Ini
+                        Bersihkan chat ini
                       </button>
                     )}
                   </div>
@@ -806,31 +862,55 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
             )}
           </div>
 
-          {/* Right: Cloudflare Minimal Action Buttons */}
+          {/* Right: Action Buttons */}
           <div className="flex items-center gap-1 shrink-0">
+            {/* Help Popover */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Bantuan Zyx Ops AI"
+                  title="Bantuan Zyx Ops AI"
+                  className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+                >
+                  <CircleHelp className="size-4" aria-hidden="true" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-72 p-3 space-y-2 text-body-xs">
+                <p className="font-heading text-body-sm font-bold text-foreground">Cara pakai Zyx Ops AI</p>
+                <ul className="space-y-1.5 text-body-xs text-muted-foreground list-disc pl-4">
+                  <li>Gunakan mode <span className="font-medium text-foreground">Tanya</span> untuk memeriksa data, SOP, dan fitur tanpa mengubah data.</li>
+                  <li>Gunakan mode <span className="font-medium text-foreground">Aksi</span> untuk menyiapkan perubahan seperti token, bab, formulir, jadwal, atau blog.</li>
+                  <li>Setiap perubahan data selalu menampilkan kartu persetujuan sebelum dijalankan.</li>
+                </ul>
+              </PopoverContent>
+            </Popover>
+
             {/* New Chat Button */}
             <button
               type="button"
               onClick={handleCreateNewSession}
+              disabled={isApproving}
               aria-label="Percakapan baru"
               title="Percakapan baru"
               className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
             >
-              <Plus className="size-4" />
+              <Plus className="size-4" aria-hidden="true" />
             </button>
 
             {/* Expand / Maximize Button (Desktop only) */}
             <button
               type="button"
               onClick={handleToggleExpandWidth}
-              aria-label="Ubah lebar panel"
-              title="Ubah lebar panel"
+              aria-label={isFullWidth ? "Kembalikan lebar panel" : "Perbesar ke layar penuh"}
+              aria-pressed={isFullWidth}
+              title={isFullWidth ? "Kembalikan lebar panel" : "Perbesar ke layar penuh"}
               className="hidden lg:inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
             >
-              {width >= maxWidth - 20 ? (
-                <Minimize2 className="size-3.5" />
+              {isFullWidth ? (
+                <Minimize2 className="size-3.5" aria-hidden="true" />
               ) : (
-                <Maximize2 className="size-3.5" />
+                <Maximize2 className="size-3.5" aria-hidden="true" />
               )}
             </button>
 
@@ -842,7 +922,7 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
               title="Ciutkan panel"
               className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
             >
-              <X className="size-4" />
+              <X className="size-4" aria-hidden="true" />
             </button>
 
             {/* Dedicated accessible close button for test contracts */}
@@ -855,42 +935,104 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
               Tutup
             </button>
           </div>
-        </header>
+        </ZyraChatHeader>
 
-        {/* 2. Conversation Flow: Natural Stream Without Heavy Card Wrapper */}
-        <div
-          ref={scrollContainerRef}
-          role="region"
-          aria-label="Riwayat percakapan"
-          tabIndex={0}
-          className="flex-1 overflow-y-auto min-h-0 p-4 space-y-6 focus-visible:outline-none"
-        >
+        {/* 2. Conversation Flow */}
+        <ZyraChatHistory ref={scrollContainerRef} aria-label="Riwayat percakapan">
           {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center px-2 py-12 space-y-4">
-              <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <Bot className="size-5" />
-              </div>
-              <div>
-                <h4 className="font-heading text-body-base font-bold text-foreground">
-                  Zyx Ops AI
-                </h4>
-                <p className="mt-1 text-body-xs text-muted-foreground max-w-[320px]">
-                  Asisten operasional Zyx Academy. Tanyakan konfigurasi, jalankan query skema, atau buat token aktivasi.
-                </p>
-              </div>
+            <div className="flex flex-col gap-3">
+              {/* Featured Capability Discovery Preset */}
+              <button
+                type="button"
+                onClick={() => handleSelectPreset(CAPABILITY_OVERVIEW_PRESET)}
+                className="group w-full flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 px-3.5 py-3 text-left transition-colors hover:border-primary/60 hover:bg-primary/10 cursor-pointer"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                    <Compass className="size-4" aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0">
+                    <span className="block font-heading text-body-base font-bold text-foreground">
+                      {CAPABILITY_OVERVIEW_PRESET.label}
+                    </span>
+                    <span className="block text-body-xs text-muted-foreground">
+                      Lihat daftar pertanyaan dan aksi yang tersedia
+                    </span>
+                  </div>
+                </div>
+                <ChevronRight className="size-4 shrink-0 text-primary/70 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+              </button>
 
-              {/* Suggestions */}
-              <div className="w-full space-y-1.5 pt-4 text-left">
-                {DEFAULT_SUGGESTIONS.map((sug, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => handleSendMessage(sug)}
-                    className="w-full text-left rounded-xl border border-border/70 bg-background/80 p-2.5 text-body-sm text-foreground/90 transition-colors hover:border-primary/50 hover:bg-primary/5 cursor-pointer shadow-2xs"
+              {/* Filterable Interactive Presets */}
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div
+                    role="group"
+                    aria-label="Filter kategori preset"
+                    className="inline-flex items-center gap-1 rounded-lg bg-muted/70 p-0.5"
                   >
-                    {sug}
-                  </button>
-                ))}
+                    {(
+                      [
+                        { key: "all", label: "Semua" },
+                        { key: "ask", label: "Tanya" },
+                        { key: "action", label: "Aksi" },
+                      ] as const
+                    ).map((item) => (
+                      <button
+                        key={item.key}
+                        type="button"
+                        aria-pressed={presetFilter === item.key}
+                        onClick={() => setPresetFilter(item.key)}
+                        className={cn(
+                          "rounded-md px-2.5 py-1 text-body-xs font-medium transition-colors cursor-pointer",
+                          presetFilter === item.key
+                            ? "bg-background text-foreground shadow-2xs"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="divide-y divide-border/60 rounded-xl border border-border/80 bg-card overflow-hidden">
+                  {visiblePresets.map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => handleSelectPreset(preset)}
+                      className="group w-full flex items-center justify-between gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-muted/50 cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <PresetIcon
+                          icon={preset.icon}
+                          className={cn(
+                            preset.category === "action"
+                              ? "text-primary"
+                              : "text-muted-foreground group-hover:text-foreground"
+                          )}
+                        />
+                        <span className="text-body-sm text-foreground leading-snug break-words">
+                          {preset.label}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span
+                          className={cn(
+                            "rounded-md px-1.5 py-0.5 text-body-2xs font-medium",
+                            preset.category === "action"
+                              ? "bg-primary/10 text-primary"
+                              : "bg-muted text-muted-foreground"
+                          )}
+                        >
+                          {preset.category === "action" ? "Aksi" : "Tanya"}
+                        </span>
+                        <ChevronRight className="size-3.5 text-muted-foreground/70 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" aria-hidden="true" />
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           ) : (
@@ -898,209 +1040,288 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
               const isAssistant = msg.role === "assistant";
 
               if (!isAssistant) {
-                // User Message Bubble (Cloudflare Style: Compact Right-Aligned Bubble)
                 return (
-                  <div key={msg.id || index} className="flex justify-end">
-                    <div className="max-w-[85%] rounded-2xl bg-muted/90 text-foreground px-4 py-2.5 text-body-sm leading-relaxed shadow-2xs">
-                      <p className="whitespace-pre-wrap break-words">{msg.content}</p>
-                    </div>
-                  </div>
+                  <TutorStudentMessage key={msg.id || index}>
+                    <MarkdownRenderer content={msg.content} density="compact" />
+                  </TutorStudentMessage>
                 );
               }
 
-              // Assistant Message Stream (Cloudflare Style: Direct In-Line Flow)
+              const precedingUserMessage = messages
+                .slice(0, index)
+                .reverse()
+                .find((item) => item.role === "user");
+
               return (
                 <div key={msg.id || index} className="space-y-2 select-text">
-                  {/* Reasoning / Work Trace (In-line top) */}
-                  {msg.workSteps && msg.workSteps.length > 0 && (
-                    <WorkTraceView steps={msg.workSteps} />
-                  )}
+                  <TutorAssistantSurface>
+                    <div className="flex items-center gap-2">
+                      <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                        <SquareTerminal className="size-3.5" aria-hidden="true" />
+                      </span>
+                      <span className="font-heading text-body-xs font-bold text-foreground">
+                        Zyx Ops AI
+                      </span>
+                    </div>
 
-                  {/* Agent Header Label */}
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-heading text-body-xs font-bold text-primary">
-                      Agent
-                    </span>
-                  </div>
+                    {msg.workSteps && msg.workSteps.length > 0 && <WorkTraceView steps={msg.workSteps} />}
 
-                  {/* Message Content Flow (Natural typography, no heavy outer card) */}
-                  {(() => {
-                    const { cleanedContent, quickActions } = extractQuickActions(msg.content);
-                    const isLatestAssistant = index === messages.length - 1;
+                    {(() => {
+                      const cleanedContent = stripOpsFollowupMarkup(msg.content);
+                      const isLatestAssistant = index === messages.length - 1;
+                      const showFollowups =
+                        isLatestAssistant &&
+                        !isStreaming &&
+                        !msg.error &&
+                        !msg.proposals?.length &&
+                        (msg.followups?.length ?? 0) > 0;
 
-                    return (
-                      <>
-                        {cleanedContent ? (
-                          <div className="prose prose-sm dark:prose-invert max-w-none break-words text-body-sm leading-relaxed">
-                            <MarkdownRenderer content={cleanedContent} />
-                          </div>
-                        ) : isStreaming && isLatestAssistant ? (
-                          <div className="flex items-center gap-2 text-body-xs text-muted-foreground italic py-1">
-                            <Loader2 className="size-3 animate-spin text-primary" />
-                            <span>Sedang menganalisis dokumen dan konteks...</span>
-                          </div>
-                        ) : null}
+                      return (
+                        <>
+                          {cleanedContent ? (
+                            <div className="min-w-0 max-w-full wrap-break-word text-body-base text-foreground">
+                              <MarkdownRenderer content={cleanedContent} density="compact" />
+                            </div>
+                          ) : isStreaming && isLatestAssistant ? (
+                            <div role="status" className="flex items-center gap-2 py-1 text-body-xs text-muted-foreground">
+                              <Loader2 className="size-3.5 animate-spin text-primary" aria-hidden="true" />
+                              <span>Menyiapkan respons</span>
+                            </div>
+                          ) : null}
 
-                        {/* Interactive Quick Actions Bar */}
-                        {quickActions.length > 0 && isLatestAssistant && (
-                          <QuickActionsBar
-                            options={quickActions}
-                            onSelect={(opt) => handleSendMessage(opt)}
-                            disabled={isStreaming}
+                          {/* Deterministic Follow-up Chips */}
+                          {showFollowups && (
+                            <QuickActionsBar
+                              followups={msg.followups ?? []}
+                              onSelect={(chip) => handleSendMessage(chip.prompt, chip.mode)}
+                              disabled={isStreaming || revoking || isApproving}
+                            />
+                          )}
+                        </>
+                      );
+                    })()}
+
+                    {msg.error && msg.content !== `Terjadi kendala: ${msg.error.message}` && (
+                      <div role="alert" className="flex items-center justify-between gap-2 rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2 text-body-xs text-destructive">
+                        <span className="min-w-0 break-words">{msg.error.message}</span>
+                        {precedingUserMessage && !isStreaming && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleSendMessage(precedingUserMessage.content)}
+                            className="h-7 shrink-0 rounded-md px-2 text-body-xs"
+                          >
+                            <RotateCcw className="size-3" aria-hidden="true" />
+                            <span>Coba lagi</span>
+                          </Button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Official Grounded Citations (In-line bottom) */}
+                    {msg.citations && msg.citations.length > 0 && (
+                      <CitationCards citations={msg.citations} />
+                    )}
+
+                    {/* Action Proposals */}
+                    {msg.proposals && msg.proposals.length > 0 && (
+                      <div className="my-3 space-y-2">
+                        {msg.proposals.map((prop) => (
+                          <ActionProposalCard
+                            key={prop.id}
+                            proposal={prop}
+                            chatId={activeSessionId ?? undefined}
+                            disabled={isStreaming || revoking || isApproving}
+                            onExecutionChange={handleApprovalPending}
+                            onExecuted={(proposalId, result, grantUntil) => {
+                              if (grantUntil && grantUntil > Date.now() && activeSessionId) {
+                                const chatId = activeSessionId;
+                                setGrants(current => [...current.filter(grant => grant.id !== proposalId && grant.until > Date.now()), { id: proposalId, chatId, until: grantUntil }].slice(-8));
+                              }
+                              setMessages((prev) =>
+                                prev.map((m) => {
+                                  if (!m.proposals) return m;
+                                  return {
+                                    ...m,
+                                    proposals: m.proposals.map((p) =>
+                                      p.id === proposalId
+                                        ? {
+                                            ...p,
+                                            status: "executed" as const,
+                                            result:
+                                              typeof result === "object" && result !== null
+                                                ? (result as Record<string, unknown>)
+                                                : { result },
+                                            confirmedAt: Date.now(),
+                                          }
+                                        : p
+                                    ),
+                                  };
+                                })
+                              );
+                            }}
                           />
-                        )}
-                      </>
-                    );
-                  })()}
+                        ))}
+                      </div>
+                    )}
 
-                  {/* Official Grounded Citations (In-line bottom) */}
-                  {msg.citations && msg.citations.length > 0 && (
-                    <CitationCards citations={msg.citations} />
-                  )}
-
-                  {/* Action Proposals */}
-                  {msg.proposals && msg.proposals.length > 0 && (
-                    <div className="my-3 space-y-2">
-                      {msg.proposals.map((prop) => (
-                        <ActionProposalCard
-                          key={prop.id}
-                          proposal={prop}
-                          onExecuted={(proposalId, result) => {
-                            setMessages((prev) =>
-                              prev.map((m) => {
-                                if (!m.proposals) return m;
-                                return {
-                                  ...m,
-                                  proposals: m.proposals.map((p) =>
-                                    p.id === proposalId
-                                      ? {
-                                          ...p,
-                                          status: "executed" as const,
-                                          result:
-                                            typeof result === "object" && result !== null
-                                              ? (result as Record<string, unknown>)
-                                              : { result },
-                                          confirmedAt: Date.now(),
-                                        }
-                                      : p
-                                  ),
-                                };
-                              })
-                            );
-                          }}
-                        />
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Copy button */}
-                  {msg.content && (
-                    <div className="flex items-center gap-2 pt-1 text-muted-foreground">
-                      <button
-                        type="button"
-                        onClick={() => handleCopyMessage(msg.id, msg.content)}
-                        aria-label="Salin jawaban"
-                        title="Salin jawaban"
-                        className="inline-flex items-center gap-1 text-[11px] hover:text-foreground transition-colors cursor-pointer py-0.5 px-1.5 rounded-md hover:bg-muted"
-                      >
-                        {copiedId === msg.id ? (
-                          <>
-                            <Check className="size-3 text-emerald-500" />
-                            <span>Tersalin</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="size-3" />
-                            <span>Salin</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  )}
+                    {/* Copy button */}
+                    {msg.content && (
+                      <div className="flex items-center gap-2 pt-1 text-muted-foreground">
+                        <button
+                          type="button"
+                          onClick={() => handleCopyMessage(msg.id, msg.content)}
+                          aria-label="Salin jawaban"
+                          title="Salin jawaban"
+                          className="inline-flex items-center gap-1 text-body-xs hover:text-foreground transition-colors cursor-pointer py-0.5 px-1.5 rounded-md hover:bg-muted"
+                        >
+                          {copiedId === msg.id ? (
+                            <>
+                              <Check className="size-3 text-status-success" aria-hidden="true" />
+                              <span>Tersalin</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="size-3" aria-hidden="true" />
+                              <span>Salin</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </TutorAssistantSurface>
                 </div>
               );
             })
           )}
-        </div>
+        </ZyraChatHistory>
 
-        {/* 3. Floating Modern Composer (Cloudflare Style) */}
-        <footer className="shrink-0 border-t border-border/40 p-3 pt-2">
-          <div className="relative rounded-2xl border border-border bg-background/95 backdrop-blur-md shadow-md focus-within:border-primary/60 focus-within:ring-1 focus-within:ring-primary/20 transition-all p-2.5">
-            <textarea
-              ref={textareaRef}
-              rows={2}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDownInput}
-              disabled={isStreaming}
-              placeholder={
-                isStreaming
-                  ? "Asisten sedang merespons..."
-                  : mode === "edit"
-                  ? "Perintahkan aksi atau edit (misal: Buatkan token kelompok 5 orang)..."
-                  : "Tanyakan apa saja seputar operasional & dokumentasi Zyx..."
-              }
-              aria-label="Ketik pesan untuk Zyx Ops AI"
-              className="w-full resize-none bg-transparent px-1.5 py-1 text-body-sm text-foreground placeholder:text-muted-foreground focus:outline-none disabled:opacity-50 min-h-[44px]"
-            />
-
-            <div className="flex items-center justify-between pt-1.5 mt-1 border-t border-border/40 px-1">
-              {/* Left: Mode Selector Button (Tanya vs Edit) */}
-              <div className="flex items-center gap-1.5">
+        <ZyraChatComposer>
+          <ZyraComposerInput
+            ref={textareaRef}
+            value={input}
+            onChange={setInput}
+            onSubmit={() => handleSendMessage()}
+            disabled={isStreaming || revoking || isApproving}
+            placeholder={
+              chatMode === "ask"
+                ? "Tanyakan data, SOP, atau fitur halaman ini"
+                : "Tanyakan atau minta aksi admin"
+            }
+            aria-label="Ketik pesan untuk Zyx Ops AI"
+          />
+          {input.length > OPS_AI_POLICY_BOUNDS.maxMessageCharLength && (
+            <p role="status" className="px-1 text-body-xs text-destructive">Pesan maksimal {OPS_AI_POLICY_BOUNDS.maxMessageCharLength} karakter.</p>
+          )}
+          <div className="flex items-center justify-between gap-2 pt-1.5">
+            {/* Left controls: Mode toggle + Mid-chat Preset Launcher */}
+            <div className="flex items-center gap-1.5 min-w-0">
+              <div
+                role="group"
+                aria-label="Mode percakapan"
+                className="inline-flex items-center gap-0.5 rounded-lg border border-border/70 bg-muted/50 p-0.5"
+              >
                 <button
                   type="button"
-                  onClick={() => setMode((prev) => (prev === "ask" ? "edit" : "ask"))}
-                  aria-label={`Beralih mode. Mode saat ini: ${mode === "ask" ? "Tanya" : "Edit"}`}
-                  title={`Klik untuk beralih ke Mode ${mode === "ask" ? "Edit" : "Tanya"}`}
+                  aria-pressed={chatMode === "edit"}
+                  disabled={isStreaming}
+                  onClick={() => {
+                    setChatMode("edit");
+                    setPresetFilter("all");
+                  }}
                   className={cn(
-                    "inline-flex min-h-9 items-center gap-1.5 rounded-md px-2.5 text-body-sm font-semibold transition-colors cursor-pointer select-none border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                    mode === "edit"
-                      ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/25"
-                      : "bg-muted/80 text-foreground/90 border-border/50 hover:bg-muted"
+                    "rounded-md px-2 py-0.5 text-body-xs font-medium transition-colors cursor-pointer disabled:opacity-50",
+                    chatMode === "edit"
+                      ? "bg-background text-foreground shadow-2xs"
+                      : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  {mode === "edit" ? (
-                    <>
-                      <FileEdit className="size-3 text-amber-600 dark:text-amber-400" />
-                      <span>Mode Edit</span>
-                    </>
-                  ) : (
-                    <>
-                      <MessageSquare className="size-3 text-primary" />
-                      <span>Mode Tanya</span>
-                    </>
+                  Aksi
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={chatMode === "ask"}
+                  disabled={isStreaming}
+                  onClick={() => {
+                    setChatMode("ask");
+                    setPresetFilter("all");
+                  }}
+                  className={cn(
+                    "rounded-md px-2 py-0.5 text-body-xs font-medium transition-colors cursor-pointer disabled:opacity-50",
+                    chatMode === "ask"
+                      ? "bg-background text-foreground shadow-2xs"
+                      : "text-muted-foreground hover:text-foreground"
                   )}
+                >
+                  Tanya
                 </button>
               </div>
 
-              {/* Right: Send / Stop Circular Action Button */}
-              <div className="flex items-center gap-1.5">
-                {isStreaming ? (
-                  <button
-                    type="button"
-                    onClick={handleStopStream}
-                    aria-label="Hentikan respons"
-                    title="Hentikan respons"
-                    className="flex size-7.5 items-center justify-center rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors cursor-pointer shadow-xs"
-                  >
-                    <Square className="size-3 fill-current" />
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => handleSendMessage()}
-                    disabled={!input.trim()}
-                    aria-label="Kirim pesan"
-                    title="Kirim pesan"
-                    className="flex size-7.5 items-center justify-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer shadow-xs"
-                  >
-                    <ArrowUp className="size-4" />
-                  </button>
-                )}
-              </div>
+              {messages.length > 0 && (
+                <Popover open={showPresetsPopover} onOpenChange={setShowPresetsPopover}>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      disabled={isStreaming || revoking || isApproving}
+                      aria-label="Buka daftar preset pertanyaan dan aksi"
+                      className="inline-flex h-7 items-center gap-1 rounded-md border border-border/70 bg-background px-2 text-body-xs font-medium text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      <LayoutGrid className="size-3.5" aria-hidden="true" />
+                      <span>Preset</span>
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" side="top" className="w-72 p-1.5 space-y-1">
+                    <button
+                      type="button"
+                      onClick={() => handleSelectPreset(CAPABILITY_OVERVIEW_PRESET)}
+                      className="w-full flex items-center gap-2 rounded-lg bg-primary/5 px-2.5 py-2 text-left text-body-xs font-semibold text-primary hover:bg-primary/10 transition-colors cursor-pointer"
+                    >
+                      <Compass className="size-3.5 shrink-0" aria-hidden="true" />
+                      <span>{CAPABILITY_OVERVIEW_PRESET.label}</span>
+                    </button>
+                    <div className="max-h-56 overflow-y-auto divide-y divide-border/50">
+                      {dynamicPresets.presets.map((preset) => (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          onClick={() => handleSelectPreset(preset)}
+                          className="w-full flex items-center justify-between gap-2 px-2.5 py-2 text-left text-body-xs text-foreground hover:bg-muted/60 rounded-md transition-colors cursor-pointer"
+                        >
+                          <span className="truncate">{preset.label}</span>
+                          <span className="text-body-2xs text-muted-foreground shrink-0">
+                            {preset.category === "action" ? "Aksi" : "Tanya"}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              )}
+            </div>
+
+            {/* Right controls: Revoke grant + Send/Stop */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              {activeGrants.length > 0 && (
+                <Button type="button" size="sm" variant="ghost" disabled={isStreaming || revoking || isApproving} onClick={() => void handleRevokeGrants()}>
+                  Akhiri izin chat
+                </Button>
+              )}
+              {isStreaming ? (
+                <TooltipProvider><Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button type="button" size="icon-xs" variant="outline" onClick={stop} aria-label="Hentikan respons" className="size-8">
+                      <Square className="size-3 fill-current" aria-hidden="true" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Hentikan respons</TooltipContent>
+                </Tooltip></TooltipProvider>
+              ) : (
+                <ZyraSendButton label="Kirim pesan" onClick={() => handleSendMessage()} disabled={revoking || isApproving || !input.trim() || input.length > OPS_AI_POLICY_BOUNDS.maxMessageCharLength} />
+              )}
             </div>
           </div>
-        </footer>
+        </ZyraChatComposer>
         </div>
       </aside>
     </>

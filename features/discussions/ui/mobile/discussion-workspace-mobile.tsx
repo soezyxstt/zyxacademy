@@ -6,9 +6,11 @@ import { useTranslations } from "@/lib/i18n/client";
 import {
   MOBILE_TOP_NAV_ICON_BUTTON_CLASS,
   useHideMobileBottomNav,
+  useMobileChrome,
   useMobileTopNav,
   useMobileTopNavSearch,
 } from "@/components/navigation";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { ShareLinkButton } from "@/components/share-link-button";
@@ -26,6 +28,7 @@ import {
   useDiscussionMessageScroll,
 } from "@/features/discussions/ui/shared/discussion-workspace-parts";
 import { SwipeableDiscussionRow } from "./swipeable-discussion-row";
+import { computeMobileListFrameHeight } from "./mobile-list-layout";
 
 /**
  * Explicit 1-pane master/detail mobile workspace:
@@ -45,6 +48,7 @@ export function DiscussionWorkspaceMobile({
   const common = useTranslations("common");
   const isDetailOpen = Boolean(props.selectedQuestionId || controller.composeActive);
   useHideMobileBottomNav(isDetailOpen);
+  const { hideBottomNav } = useMobileChrome();
 
   const selectedChannelValue = useMemo(
     () => props.channels.find((item) => item.id === props.selectedChannelId) ?? null,
@@ -115,7 +119,7 @@ export function DiscussionWorkspaceMobile({
               placeholder={t("allChannels")}
               allowAll
               singleLine
-              triggerClassName="rounded-xl border border-border/60 bg-card/85 px-2.5 text-foreground shadow-xs backdrop-blur-md hover:bg-muted/70 active:scale-[0.97] transition-all duration-150 motion-reduce:transition-none motion-reduce:active:scale-100"
+              triggerClassName="rounded-md hover:bg-muted/70 active:bg-muted"
               onSearch={props.onSearchChannels}
               onChange={(next) => {
                 controller.setNewOpen(false);
@@ -149,6 +153,7 @@ export function DiscussionWorkspaceMobile({
   );
 
   const detailFrameRef = useRef<HTMLDivElement | null>(null);
+  const listFrameRef = useRef<HTMLDivElement | null>(null);
 
   useDiscussionMessageScroll(
     detailFrameRef,
@@ -164,9 +169,11 @@ export function DiscussionWorkspaceMobile({
 
     const measure = () => {
       const viewport = window.visualViewport;
-      if (!viewport) return;
+      const viewportBottom = viewport
+        ? viewport.offsetTop + viewport.height
+        : window.innerHeight;
       const top = Math.max(0, frame.getBoundingClientRect().top);
-      const available = Math.max(240, Math.floor(viewport.offsetTop + viewport.height - top));
+      const available = Math.max(240, Math.floor(viewportBottom - top));
       const height = `${available}px`;
       if (frame.style.height !== height) frame.style.height = height;
       if (frame.style.maxHeight !== height) frame.style.maxHeight = height;
@@ -185,6 +192,53 @@ export function DiscussionWorkspaceMobile({
     };
   }, [isDetailOpen]);
 
+  useEffect(() => {
+    const frame = listFrameRef.current;
+    if (!frame || isDetailOpen) return;
+
+    const measure = () => {
+      const viewport = window.visualViewport;
+      const viewportBottom = viewport
+        ? viewport.offsetTop + viewport.height
+        : window.innerHeight;
+      const bottomNav = document.querySelector<HTMLElement>("[data-mobile-bottom-nav]");
+      const available = computeMobileListFrameHeight({
+        frameTop: frame.getBoundingClientRect().top,
+        viewportBottom,
+        bottomNavRect: bottomNav?.getBoundingClientRect() ?? null,
+      });
+      const height = `${available}px`;
+      if (frame.style.height !== height) frame.style.height = height;
+      if (frame.style.maxHeight !== height) frame.style.maxHeight = height;
+    };
+
+    measure();
+    const rafId = requestAnimationFrame(measure);
+    const observer =
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    const parent = frame.closest("[data-discussion-workspace]")?.parentElement;
+    if (parent) observer?.observe(parent);
+    const topNav = document.querySelector<HTMLElement>("[data-mobile-navbar]");
+    if (topNav) observer?.observe(topNav);
+    const bottomNav = document.querySelector<HTMLElement>("[data-mobile-bottom-nav]");
+    if (bottomNav) observer?.observe(bottomNav);
+
+    window.addEventListener("resize", measure);
+    window.addEventListener("scroll", measure, { passive: true });
+    window.visualViewport?.addEventListener("resize", measure);
+    window.visualViewport?.addEventListener("scroll", measure);
+    return () => {
+      cancelAnimationFrame(rafId);
+      frame.style.height = "";
+      frame.style.maxHeight = "";
+      observer?.disconnect();
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", measure);
+      window.visualViewport?.removeEventListener("resize", measure);
+      window.visualViewport?.removeEventListener("scroll", measure);
+    };
+  }, [isDetailOpen, hideBottomNav, controller.canReport, props.readError]);
+
   if (isDetailOpen) {
     return (
       <section
@@ -200,7 +254,7 @@ export function DiscussionWorkspaceMobile({
           showBackButton={false}
           showComposeBackButton={false}
           hideThreadHeader
-          messagesPaddingClassName="px-3 py-2.5"
+          messagesPaddingClassName="px-2 py-2"
         />
       </section>
     );
@@ -208,9 +262,15 @@ export function DiscussionWorkspaceMobile({
 
   return (
     <div
+      ref={listFrameRef}
       data-discussion-frame=""
       data-discussion-layout="mobile-list"
-      className="flex h-[calc(100dvh-var(--mobile-navbar-height,3.25rem)-var(--mobile-bottom-nav-height,3.75rem)-1rem)] min-h-[20rem] min-w-0 flex-col overflow-hidden"
+      className={cn(
+        "flex min-h-0 min-w-0 flex-col overflow-hidden",
+        controller.canReport
+          ? "h-[calc(100dvh-var(--mobile-navbar-height,3.25rem)-var(--mobile-bottom-nav-height,3.75rem)-4rem)]"
+          : "h-[calc(100dvh-var(--mobile-navbar-height,3.25rem)-var(--mobile-bottom-nav-height,3.75rem)-1rem)]"
+      )}
     >
       <DiscussionListPane
         props={props}
@@ -227,11 +287,11 @@ export function DiscussionWorkspaceMobile({
             reopenLabel={t("reopen")}
             onToggleResolve={
               props.onSetQuestionStatus
-                ? () =>
-                    void props.onSetQuestionStatus?.({
-                      questionId: item.id,
-                      status: item.status === "resolved" ? "open" : "resolved",
-                    })
+                ? () => {
+                    const toastId = `discussion-status-${item.id}`;
+                    toast.dismiss(toastId);
+                    void controller.changeQuestionStatus(item).catch(() => toast.error(t("statusError"), { id: toastId }));
+                  }
                 : undefined
             }
           >
@@ -246,7 +306,7 @@ export function DiscussionWorkspaceMobile({
           data-discussion-mobile-fab=""
           aria-label={t("newQuestion")}
           onClick={controller.openNew}
-          className="fixed right-4 bottom-[calc(var(--mobile-bottom-nav-height,3.75rem)+3.5rem)] z-30 size-12 rounded-full shadow-md transition-transform duration-150 active:scale-95 motion-reduce:transition-none motion-reduce:active:scale-100 md:hidden"
+          className="fixed right-4 bottom-[calc(var(--mobile-bottom-nav-height,3.75rem)+3.5rem)] z-30 size-12 rounded-xl shadow-sm transition-transform duration-150 active:scale-95 motion-reduce:transition-none motion-reduce:active:scale-100 md:hidden"
         >
           <SquarePen className="size-5" aria-hidden="true" />
         </Button>

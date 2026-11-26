@@ -22,16 +22,14 @@ for (const user of [
     await waitForVisualReadiness(page);
     expect(new URL(page.url()).pathname).toBe("/plans");
 
-    const mobile = testInfo.project.name === "mobile-380";
-    if (mobile) await page.getByRole("button", { name: /open menu|buka menu/i }).click();
-    const container = mobile ? page.getByRole("dialog") : page.locator("header");
+    const container = page.getByRole("navigation", { name: /navigasi utama|primary navigation/i });
     const trigger = container.getByRole("button", { name: new RegExp(user.name, "i") });
     await expect(trigger).toHaveAttribute("aria-expanded", "false");
     await page.screenshot({ path: testInfo.outputPath(`${user.name}-closed.png`) });
     await trigger.click();
     const menu = page.getByRole("menu");
     await expect(trigger).toHaveAttribute("aria-expanded", "true");
-    await expect(menu.locator('a[href="/profile"]')).toBeVisible();
+    await expect(menu.locator('a[href="/settings"]')).toBeVisible();
     await expect(menu.locator('a[href="/dashboard"]')).toBeVisible();
     await expect(menu.locator('a[href="/tutor"]')).toHaveCount(user.tutor ? 1 : 0);
     await expect(menu.locator('a[href="/admin"]')).toHaveCount(user.admin ? 1 : 0);

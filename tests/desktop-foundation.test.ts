@@ -5,7 +5,9 @@ import { join } from "node:path";
 import {
   checkLatestAppRelease,
   checkTauriNativeUpdater,
+  getInstalledAppMeta,
   installAppUpdate,
+  parseInstalledAppMetaFromUa,
   resolveUpdateCheckOutcome,
   selectLatestUpdaterManifestUrl,
   type InstalledAppMeta,
@@ -255,12 +257,66 @@ describe("Tauri v2 updater manifest generation and channel selection", () => {
 
 describe("Tauri native updater bridge and graceful fallback", () => {
   const originalWindow = globalThis.window;
+  const originalNavigator = Object.getOwnPropertyDescriptor(globalThis, "navigator");
 
   afterEach(() => {
+    if (originalNavigator) Object.defineProperty(globalThis, "navigator", originalNavigator);
+    else Reflect.deleteProperty(globalThis, "navigator");
     if (originalWindow === undefined) {
       delete (globalThis as { window?: unknown }).window;
     } else {
       globalThis.window = originalWindow;
+    }
+  });
+
+  test("reads the installed release metadata from the custom bridge", async () => {
+    const info = { version: "0.1.0-alpha.18", channel: "nightly", buildId: "68b1d2e", platform: "windows" } as const;
+    globalThis.window = {
+      __TAURI__: { core: { invoke: async () => info } },
+    } as unknown as Window & typeof globalThis;
+    expect(await getInstalledAppMeta()).toEqual({ runtime: "tauri", ...info });
+  });
+
+  test("reads the real core version when an older binary denies the custom bridge", async () => {
+    const invoked: string[] = [];
+    Object.defineProperty(globalThis, "navigator", {
+      configurable: true,
+      value: { userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
+    });
+    globalThis.window = {
+      location: { hostname: "staging.zyxacademy.com" },
+      __TAURI__: { core: { invoke: async (cmd: string) => {
+        invoked.push(cmd);
+        if (cmd === "plugin:app|version") return "0.1.0-alpha.18";
+        throw `Command ${cmd} not allowed by ACL`;
+      } } },
+    } as unknown as Window & typeof globalThis;
+    expect(await getInstalledAppMeta()).toEqual({
+      runtime: "tauri", channel: "nightly", version: "0.1.0-alpha.18", buildId: null, platform: "windows",
+    });
+    expect(invoked).toEqual(["get_app_update_info", "plugin:app|version"]);
+    globalThis.window.__TAURI__!.core!.invoke = async () => { throw "bridge unavailable"; };
+    expect((await getInstalledAppMeta())?.version).toBe("");
+  });
+
+  test("does not invent alpha.1 when the User-Agent has no app version", () => {
+    expect(parseInstalledAppMetaFromUa({
+      runtime: "tauri", userAgent: "Mozilla/5.0 (Windows NT 10.0)", hostname: "staging.zyxacademy.com",
+    }).version).toBe("");
+  });
+
+  test("requires a manual installer for ACL-blocked older binaries", async () => {
+    for (const preferNativeUpdater of [false, true]) {
+      const invoked: string[] = [];
+      globalThis.window = {
+        __TAURI__: { core: { invoke: async (cmd: string) => {
+          invoked.push(cmd);
+          throw `Command ${cmd} not allowed by ACL`;
+        } } },
+      } as unknown as Window & typeof globalThis;
+      expect(await installAppUpdate(INSTALLED_META, SAMPLE_RELEASE, undefined, { preferNativeUpdater }))
+        .toEqual({ status: "manual_update_required" });
+      expect(invoked).toEqual([preferNativeUpdater ? "install_native_update" : "download_and_launch_update"]);
     }
   });
 
@@ -412,6 +468,23 @@ describe("Tauri native updater bridge and graceful fallback", () => {
 });
 
 describe("desktop Tauri configuration invariants", () => {
+  test("explicitly authorizes every existing native command for only the trusted main window origins", () => {
+    const permissions = JSON.parse(readFileSync(join(DESKTOP_TAURI_DIR, "permissions", "native-bridge.json"), "utf8"));
+    const capability = JSON.parse(readFileSync(join(DESKTOP_TAURI_DIR, "capabilities", "default.json"), "utf8"));
+    const libRs = readFileSync(join(DESKTOP_TAURI_DIR, "src", "lib.rs"), "utf8");
+    const handler = /tauri::generate_handler!\[([\s\S]*?)\]/.exec(libRs)![1];
+    const commands = handler.split(",").map(command => command.trim()).filter(Boolean);
+    expect(permissions.permission).toHaveLength(1);
+    expect(permissions.permission[0].identifier).toBe("allow-native-bridge");
+    expect(permissions.permission[0].commands.allow.toSorted()).toEqual(commands.toSorted());
+    expect(commands).toContain("show_desktop_notification");
+    expect(libRs).toContain("notification.app_id(&app_id)");
+    expect(libRs).toContain("DESKTOP_NOTIFICATION_OS_ERROR");
+    expect(capability.permissions).toContain("allow-native-bridge");
+    expect(capability.windows).toEqual(["main"]);
+    expect(capability.remote.urls).toEqual(["https://www.zyxacademy.com/*", "https://staging.zyxacademy.com/*"]);
+  });
+
   test("configures comfortable side-by-side minimum window size for stable and nightly", () => {
     for (const file of ["tauri.conf.json", "tauri.nightly.conf.json"]) {
       const conf = JSON.parse(readFileSync(join(DESKTOP_TAURI_DIR, file), "utf8")) as {
@@ -465,7 +538,7 @@ describe("desktop Tauri configuration invariants", () => {
     const html = readFileSync(join(process.cwd(), "apps", "desktop", "dist", "index.html"), "utf8");
     expect(html).toContain('id="startup-splash"');
     expect(html).toContain('id="offline-shell" class="offline-shell hidden"');
-    expect(html).toContain("/brand/zyx-favicon-32.png");
+    expect(html).toContain("/favicon.ico?zyx-connect=");
     expect(html).not.toContain("/api/auth/get-session");
   });
 

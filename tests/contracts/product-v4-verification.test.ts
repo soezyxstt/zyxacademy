@@ -88,7 +88,7 @@ test("missing artifacts, failed checks, and partial reports cannot satisfy the m
       }
       return result;
     });
-    expect(evaluateProductV4Verification(value, [receipt], authority).missingCheckIds).toEqual([value.requirements[0].id]);
+    expect(evaluateProductV4Verification(value, [receipt], authority).missingCheckIds).toEqual(value.requirements.filter(requirement => requirement.layer !== "model").map(requirement => requirement.id));
   }
   const subset = recordProductV4VerificationReport(value, [observe(value.requirements[0])], authority);
   expect(evaluateProductV4Verification(value, [subset], authority).missingCheckIds.length).toBe(value.requirements.length);

@@ -18,6 +18,7 @@ import { notifications } from "@/db/schema";
 import { eq, desc, and, gte, sql } from "drizzle-orm";
 import { notificationVisibility } from "@/lib/notifications/discussion-history";
 import { discussionNotificationLink } from "@/lib/notifications/templates";
+import { quietHoursEnd } from "@/lib/notifications/quiet-hours";
 
 export async function GET(req: NextRequest) {
   const reqHeaders = await headers();
@@ -61,6 +62,12 @@ export async function GET(req: NextRequest) {
   };
 
   try {
+    if (searchParams.get("delivery") === "desktop" && targetUserId === session.user.id) {
+      const { getQuietHours } = await import("@/lib/notifications/quiet-delivery");
+      if (quietHoursEnd(await getQuietHours(targetUserId))) {
+        return NextResponse.json({ notifications: [], quietActive: true, serverTime: new Date().toISOString(), unreadCount: 0, page, limit }, { headers: cacheHeaders });
+      }
+    }
     const visibility = await notificationVisibility(targetUserId, session.user.id, { unreadOnly: countOnly });
     const unreadQuery = db
       .select({ count: sql<number>`count(*)` })
@@ -107,7 +114,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(
       {
         notifications: rows.map(row => row.type === "discussion" && typeof row.metadata?.threadId === "string"
-          ? { ...row, metadata: { ...row.metadata, url: discussionNotificationLink(row.metadata.threadId, row.metadata.eventKind === "report", typeof row.metadata.messageId === "string" ? row.metadata.messageId : undefined) } }
+          ? { ...row, ...(targetUserId !== session.user.id ? { title: "Discussion update", body: "Discussion activity" } : {}), metadata: { ...row.metadata, url: discussionNotificationLink(row.metadata.threadId, row.metadata.eventKind === "report", typeof row.metadata.messageId === "string" ? row.metadata.messageId : undefined) } }
           : row),
         unreadCount: Number(unreadResult[0]?.count ?? 0),
         page,

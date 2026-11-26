@@ -217,6 +217,7 @@ export function StudentScheduleMobile({
               size="icon"
               className="size-9 shrink-0"
               onClick={() => onWeekChange(weekOffset + 1)}
+              data-tour="schedule-next"
               aria-label={t("calendar.nextRange")}
             >
               <ChevronRight className="size-4" aria-hidden />
@@ -286,7 +287,7 @@ export function StudentScheduleMobile({
                 className={cn(
                   "flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-lg border px-1 py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   isSelected
-                    ? "border-brand-primary bg-brand-primary/10 text-brand-primary"
+                    ? "border-foreground/30 bg-foreground/10 text-foreground"
                     : day.isToday
                       ? "border-border bg-muted/50 text-foreground"
                       : "border-transparent bg-transparent text-muted-foreground hover:bg-muted/40"

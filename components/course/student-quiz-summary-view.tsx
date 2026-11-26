@@ -37,11 +37,9 @@ export function StudentQuizSummaryView({ title, reviewHref, historyHref, retryHr
     >
       <Reveal>
         {pending ? (
-          <div className="py-5 text-center space-y-3">
-            <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
-              <BookOpen className="size-6" />
-            </div>
-            <div className="space-y-1 max-w-md mx-auto">
+          <div role="status" className="flex max-w-xl items-start gap-3 border-t border-border/55 py-(--group-gap)">
+            <BookOpen className="mt-0.5 size-5 shrink-0 text-muted-foreground" aria-hidden />
+            <div className="min-w-0 space-y-1">
               <h3 className="font-heading text-body-base font-bold text-foreground">
                 <TranslatedText namespace="learning" messageKey="summary.pendingTitle" />
               </h3>

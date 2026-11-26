@@ -1,16 +1,28 @@
 "use client";
 
 import { useMemo } from "react";
-import { OpsMetricsSkeleton } from "@/components/admin/content-loading-skeletons";
-
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { RefreshCw } from "lucide-react";
+import {
+  Activity,
+  AlertTriangle,
+  Clock,
+  Database,
+  Globe,
+  LineChart,
+  MousePointerClick,
+  RefreshCw,
+} from "lucide-react";
+import { OpsMetricsSkeleton } from "@/components/admin/content-loading-skeletons";
 import { AdminIconAction } from "@/components/admin/icon-action";
-import { AdminEmptyState, AdminErrorState } from "@/components/admin/state-panels";
 import {
   MOBILE_TOP_NAV_ICON_BUTTON_CLASS,
   useMobileTopNav,
 } from "@/components/navigation";
+import { AdminSectionTitle } from "@/components/admin/section-title";
+import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
+import { AdminErrorState } from "@/components/admin/state-panels";
+import { StatusBadge } from "@/components/admin/status-badges";
 import { adminOpsQuery } from "@/lib/admin/ops-query";
 import { useQueryAccountId } from "@/hooks/use-query-account";
 import { useTranslations } from "@/lib/i18n/client";
@@ -26,68 +38,9 @@ function relativeTime(iso: string | null, t: ReturnType<typeof useTranslations>)
   return t("opsUI.days", { count: Math.floor(diffH / 24) });
 }
 
-type StatusLevel = "healthy" | "degraded" | "down";
-
-const statusClass: Record<StatusLevel, string> = {
-  healthy: "text-status-success",
-  degraded: "text-status-warning",
-  down: "text-status-error",
-};
-
-function StatusWord({ level }: { level: StatusLevel }) {
-  const t = useTranslations("adminOps");
-  return (
-    <span className={`text-body-sm font-semibold ${statusClass[level]}`}>{t(`opsUI.status.${level}`)}</span>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  unit,
-}: {
-  label: string;
-  value: string | number;
-  unit?: string;
-}) {
-  return (
-    <div className="flex flex-col gap-0.5">
-      <span className="font-heading text-h5 font-bold text-foreground">
-        {value}
-        {unit && (
-          <span className="ml-1 text-body-sm font-normal text-muted-foreground">{unit}</span>
-        )}
-      </span>
-      <span className="text-body-sm text-muted-foreground">{label}</span>
-    </div>
-  );
-}
-
-function SectionHead({
-  title,
-  status,
-  checkedAt,
-}: {
-  title: string;
-  status?: StatusLevel;
-  checkedAt: string;
-}) {
-  const t = useTranslations("adminOps");
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-2">
-      <div className="flex items-center gap-3">
-        <h2 className="font-heading text-body-base font-semibold text-foreground">{title}</h2>
-        {status && <StatusWord level={status} />}
-      </div>
-      <span className="text-body-sm text-muted-foreground">
-        {t("opsUI.checked", { time: relativeTime(checkedAt, t) })}
-      </span>
-    </div>
-  );
-}
-
 export function OpsClient() {
   const t = useTranslations("adminOps");
+  const tNav = useTranslations("admin.navigation");
   const userId = useQueryAccountId();
   const { data, isPending, isFetching, error, refetch } = useQuery(adminOpsQuery(userId ?? ""));
 
@@ -118,117 +71,124 @@ export function OpsClient() {
     );
   }
 
-  const failureStatus: StatusLevel = data.jobFailures24h > 0 ? "degraded" : "healthy";
-  const queueStatus: StatusLevel = data.syncQueueDepth > 100 ? "degraded" : "healthy";
+  const hasFailures = data.jobFailures24h > 0;
+  const queueHigh = data.syncQueueDepth > 100;
+
+  const pipelines = [
+    {
+      id: "recommendations",
+      label: t("opsUI.dailyRecommendations"),
+      lastRun: data.jobHealth.recommendationsLastAt,
+    },
+    {
+      id: "snapshots",
+      label: t("opsUI.analyticsSnapshots"),
+      lastRun: data.jobHealth.snapshotsLastAt,
+    },
+    {
+      id: "study-paths",
+      label: t("opsUI.studyPaths"),
+      lastRun: data.jobHealth.pathsLastAt,
+    },
+  ];
+
+  const quickLinks = [
+    {
+      href: "/admin/ops/web-analytics",
+      label: tNav("webAnalytics"),
+      icon: Globe,
+    },
+    {
+      href: "/admin/ops/analytics",
+      label: tNav("zyraAnalytics"),
+      icon: LineChart,
+    },
+    {
+      href: "/admin/ops/feature-usage",
+      label: tNav("featureUsage"),
+      icon: MousePointerClick,
+    },
+    {
+      href: "/admin/ops/tutor-activity",
+      label: tNav("tutorActivity"),
+      icon: Activity,
+    },
+  ];
 
   return (
-    <div className="space-y-5">
-      <div className="hidden justify-end md:flex">
-        <AdminIconAction label={refreshLabel}
+    <div className="space-y-(--section-gap)">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <StatusBadge tone={hasFailures || queueHigh ? "warning" : "success"}>
+            {t(`opsUI.status.${hasFailures || queueHigh ? "degraded" : "healthy"}`)}
+          </StatusBadge>
+          <span className="text-body-xs text-muted-foreground">
+            {t("opsUI.checked", { time: relativeTime(data.checkedAt, t) })}
+          </span>
+        </div>
+        <AdminIconAction
+          className="hidden md:inline-flex"
+          label={refreshLabel}
           variant="outline"
           disabled={isFetching}
-          onClick={() => refetch()}>
+          onClick={() => refetch()}
+        >
           <RefreshCw className={`size-4 ${isFetching ? "animate-spin" : ""}`} />
         </AdminIconAction>
       </div>
 
-      <div className="divide-y divide-border border-y border-border">
-        {/* 1. AI usage */}
-        <div className="py-4 space-y-3">
-          <SectionHead title={t("opsUI.aiUsage")} checkedAt={data.checkedAt} />
-          <div className="flex flex-wrap gap-x-6 gap-y-3">
-            <Stat
-              label={t("opsUI.modelRequests")}
-              value={data.gemini.reqToday}
-            />
-            <Stat label={t("opsUI.cacheHits")} value={data.gemini.cacheHitToday} />
-            <Stat label={t("opsUI.cacheRate")} value={data.gemini.cacheHitPct} unit="%" />
-          </div>
-          <p className="text-body-sm text-muted-foreground">
-            {t("opsUI.budget", { tutor: data.budgets.tutorPerDay, feedback: data.budgets.feedbackPerSubmission, summaries: data.budgets.summariesPerDayPerUser })}
-          </p>
-        </div>
+      <AdminStatStrip>
+        <AdminStatStripItem
+          label={t("opsUI.jobFailures")}
+          value={data.jobFailures24h}
+          caption={t("opsUI.failedJobs")}
+          tone={hasFailures ? "error" : "default"}
+          icon={AlertTriangle}
+        />
+        <AdminStatStripItem
+          label={t("opsUI.vectorQueue")}
+          value={data.syncQueueDepth}
+          caption={t("opsUI.pendingItems")}
+          tone={queueHigh ? "warning" : "default"}
+          icon={Database}
+        />
+      </AdminStatStrip>
 
-        {/* 3. Usage by Feature */}
-        <div className="py-4 space-y-3">
-          <SectionHead title={t("opsUI.usageByFeature")} checkedAt={data.checkedAt} />
-          {data.usageByFeature.length === 0 ? (
-            <AdminEmptyState compact title={t("opsUI.noRequests")} />
-          ) : (
-            <div className="divide-y divide-border">
-              {data.usageByFeature.map((row) => (
-                <div
-                  key={row.feature}
-                  className="py-3 flex flex-wrap items-center justify-between gap-2"
-                >
-                  <span className="min-w-0 break-all text-body-sm font-medium text-foreground">
-                    {row.feature}
-                  </span>
-                  <div className="flex flex-wrap gap-x-6 gap-y-1">
-                    <span className="text-body-sm text-muted-foreground">
-                      {row.count} {t("opsUI.requests")}
-                    </span>
-                    <span className="text-body-sm text-muted-foreground">
-                      {row.tokens.toLocaleString()} {t("opsUI.tokens")}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+      <section className="space-y-1">
+        <AdminSectionTitle title={t("opsUI.jobHealth")} icon={Clock} border />
+        <ul className="divide-y divide-border/60">
+          {pipelines.map((item) => (
+            <li
+              key={item.id}
+              className="flex items-start justify-between gap-3 py-(--row-padding)"
+            >
+              <span className="min-w-0 text-body-sm font-medium text-foreground">
+                {item.label}
+              </span>
+              <StatusBadge className="shrink-0" tone={item.lastRun ? "success" : "muted"}>
+                {relativeTime(item.lastRun, t)}
+              </StatusBadge>
+            </li>
+          ))}
+        </ul>
+      </section>
 
-        {/* 4. Job Failures */}
-        <div className="py-4 space-y-3">
-          <SectionHead
-            title={t("opsUI.jobFailures")}
-            status={failureStatus}
-            checkedAt={data.checkedAt}
-          />
-          <div className="flex flex-wrap gap-x-6 gap-y-3">
-            <Stat label={t("opsUI.failedJobs")} value={data.jobFailures24h} />
-          </div>
-        </div>
-
-        {/* 5. Vector Sync Queue */}
-        <div className="py-4 space-y-3">
-          <SectionHead
-            title={t("opsUI.vectorQueue")}
-            status={queueStatus}
-            checkedAt={data.checkedAt}
-          />
-          <div className="flex flex-wrap gap-x-6 gap-y-3">
-            <Stat label={t("opsUI.pendingItems")} value={data.syncQueueDepth} />
-          </div>
-        </div>
-
-        {/* 6. Job Health */}
-        <div className="py-4 space-y-3">
-          <SectionHead title={t("opsUI.jobHealth")} checkedAt={data.checkedAt} />
-          <div className="divide-y divide-border">
-            <div className="py-3 flex flex-wrap items-center justify-between gap-2">
-              <span className="text-body-sm text-muted-foreground">{t("opsUI.dailyRecommendations")}</span>
-              <span className="text-body-sm text-foreground">
-                {relativeTime(data.jobHealth.recommendationsLastAt, t)}
-              </span>
-            </div>
-            <div className="py-3 flex flex-wrap items-center justify-between gap-2">
-              <span className="text-body-sm text-muted-foreground">
-                {t("opsUI.analyticsSnapshots")}
-              </span>
-              <span className="text-body-sm text-foreground">
-                {relativeTime(data.jobHealth.snapshotsLastAt, t)}
-              </span>
-            </div>
-            <div className="py-3 flex flex-wrap items-center justify-between gap-2">
-              <span className="text-body-sm text-muted-foreground">{t("opsUI.studyPaths")}</span>
-              <span className="text-body-sm text-foreground">
-                {relativeTime(data.jobHealth.pathsLastAt, t)}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
+      <section className="space-y-1">
+        <AdminSectionTitle title={t("opsUI.monitoringShortcuts")} border />
+        <ul className="grid sm:grid-cols-2 sm:gap-x-(--section-gap)">
+          {quickLinks.map((item) => (
+            <li key={item.href} className="border-b border-border/60 last:border-b-0 sm:nth-last-2:border-b-0">
+              <Link
+                href={item.href}
+                className="flex min-h-10 items-start gap-2 rounded-md py-(--row-padding) text-body-sm font-medium text-foreground transition-colors hover:bg-muted/40 focus-visible:outline-2 focus-visible:outline-ring"
+              >
+                <item.icon aria-hidden className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 wrap-break-word">{item.label}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
     </div>
   );
 }

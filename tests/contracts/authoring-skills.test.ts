@@ -8,13 +8,14 @@ import { registerAuthoringSkills } from "../../lib/authoring/mcp-skills";
 import { loadSkillCatalog, safeSkillPath, skillDigest, validateSkillEntry, type SkillCatalogProfile } from "../../lib/authoring/skill-catalog";
 import { buildSkillArtifact, localSkillSourceDigest, parseSkillFrontmatter } from "../../scripts/build-authoring-skills";
 import { smokeAuthoringSkills } from "../../scripts/smoke-authoring-skills";
-import { evaluatePlaybookCompatibility } from "../../lib/authoring/mcp-playbook";
+import { buildPlaybookResponse, evaluatePlaybookCompatibility } from "../../lib/authoring/mcp-playbook";
 
 mkdirSync(resolve("artifacts/authoring-skills-tests"), { recursive: true });
 const temporary = mkdtempSync(resolve("artifacts/authoring-skills-tests", "run-"));
 afterAll(() => rmSync(temporary, { recursive: true, force: true }));
 const source = resolve(temporary, "source");
-const names = ["zyx-authoring-pipeline", ...Array.from({ length: 20 }, (_, i) => `workflow-${i}`)];
+const canonicalNames = ["zyx-authoring-pipeline", ...Array.from({ length: 20 }, (_, i) => `workflow-${i}`)];
+const names = canonicalNames.map((name) => `${name}-stg`);
 mkdirSync(resolve(source, "skills"), { recursive: true });
 writeFileSync(resolve(source, "release.json"), JSON.stringify({ skills: names }));
 for (const name of names) {
@@ -71,7 +72,38 @@ describe("authoring skills distribution", () => {
     expect(entry.resources.length).toBe(43);
     const zip = unzipSync(readFileSync(resolve(root, "chatgpt-skills.zip")));
     for (const name of names) {
-      expect(Buffer.from(zip[`zyx-authoring/references/${name}/SKILL.md`])).toEqual(readFileSync(resolve(source, "skills", name, "SKILL.md")));
+      expect(Buffer.from(zip[`zyx-authoring-stg/references/${name}/SKILL.md`])).toEqual(readFileSync(resolve(source, "skills", name, "SKILL.md")));
+    }
+  });
+
+  it("keeps staging and production skill identities, router archives and references distinct", () => {
+    const productionSource = resolve(temporary, "production-source");
+    mkdirSync(resolve(productionSource, "skills"), { recursive: true });
+    writeFileSync(resolve(productionSource, "release.json"), JSON.stringify({ skills: canonicalNames }));
+    for (const name of canonicalNames) {
+      mkdirSync(resolve(productionSource, "skills", name), { recursive: true });
+      writeFileSync(resolve(productionSource, "skills", name, "SKILL.md"), `---\nname: ${name}\ndescription: Author ${name}.\n---\nUse endpoint \`https://www.zyxacademy.com/api/mcp/authoring\`.\n`);
+    }
+    const productionRoot = resolve(temporary, "production-artifact");
+    const production = buildSkillArtifact(productionSource, productionRoot, { ...provenance, environment: "production" });
+    for (const profile of ["all", "chatgpt"] as const) {
+      const productionNames = new Set(production.catalogs[profile].map((entry) => entry.frontmatter.name));
+      const productionUris = new Set(production.catalogs[profile].flatMap((entry) => entry.resources.map((resource) => resource.uri)));
+      for (const entry of manifest.catalogs[profile]) {
+        expect(entry.frontmatter.name.endsWith("-stg")).toBe(true);
+        expect(productionNames.has(entry.frontmatter.name)).toBe(false);
+        for (const resource of entry.resources) expect(productionUris.has(resource.uri)).toBe(false);
+      }
+    }
+    for (const [artifact, routerName, pipelineName] of [
+      [root, "zyx-authoring-stg", "zyx-authoring-pipeline-stg"],
+      [productionRoot, "zyx-authoring", "zyx-authoring-pipeline"],
+    ]) {
+      const zip = unzipSync(readFileSync(resolve(artifact, "chatgpt-skills.zip")));
+      const router = Buffer.from(zip[`${routerName}/SKILL.md`]).toString();
+      expect(router).toContain(`name: ${routerName}\n`);
+      expect(router).toContain(`references/${pipelineName}/SKILL.md`);
+      expect(zip[`${routerName}/references/${pipelineName}/SKILL.md`]).toBeDefined();
     }
   });
 
@@ -166,20 +198,28 @@ describe("authoring skills distribution", () => {
   });
 
   it("builds and serves the real local V4 skills, rejecting candidate serving in deployed environments", async () => {
-    const candidateSource = resolve("plugins/zyx-authoring-mcp");
+    const canonicalSource = resolve("plugins/zyx-authoring-mcp");
+    const candidateSource = resolve(temporary, "rendered-staging-source");
+    const render = Bun.spawnSync(["python3", resolve(canonicalSource, "scripts/configure_environment.py"), "build", "--plugin-root", canonicalSource, "--environment", "staging", "--output-dir", candidateSource, "--json"], { stdout: "pipe", stderr: "pipe" });
+    if (render.exitCode !== 0) throw new Error(`Plugin rendering failed: ${render.stderr.toString()}`);
     const candidateRoot = resolve(temporary, "v4-candidate");
     const candidate = buildSkillArtifact(candidateSource, candidateRoot, {
       kind: "local-candidate", repository: "workspace:plugins/zyx-authoring-mcp", baseCommit: "b".repeat(40),
       digest: localSkillSourceDigest(candidateSource), environment: "staging",
     });
     expect(candidate.catalogs.all).toHaveLength(12);
-    for (const name of ["zyx-blog-mcp", "zyx-content-revisions", "zyx-forms-mcp", "zyx-media-mcp", "zyx-operation-recovery"]) {
+    for (const name of ["zyx-blog-mcp-stg", "zyx-content-revisions-stg", "zyx-forms-mcp-stg", "zyx-media-mcp-stg", "zyx-operation-recovery-stg"]) {
       expect(candidate.catalogs.all.some(entry => entry.frontmatter.name === name)).toBe(true);
     }
-    expect(candidate.catalogs.all.some((entry) => entry.frontmatter.name === "zyx-admin-operations")).toBe(true);
-    const product = loadSkillCatalog(candidateRoot, "all").resources.get("skill://zyx-authoring/all/zyx-product-bundle-mcp/SKILL.md")!.text!;
+    expect(candidate.catalogs.all.every((entry) => entry.frontmatter.name.endsWith("-stg"))).toBe(true);
+    expect(candidate.catalogs.all.some((entry) => entry.frontmatter.name === "zyx-admin-operations-stg")).toBe(true);
+    expect(candidate.catalogs.chatgpt[0].frontmatter.name).toBe("zyx-authoring-stg");
+    const product = loadSkillCatalog(candidateRoot, "all").resources.get("skill://zyx-authoring/all/zyx-product-bundle-mcp-stg/SKILL.md")!.text!;
     const release = JSON.parse(readFileSync(resolve(candidateSource, "release.json"), "utf8"));
-    for (const required of ["product-bundle.v4", "math_unit", "visual_ref", "workflow.get_contract", "receipt tepercaya", release.version]) expect(product).toContain(required);
+    for (const required of ["productDraftInput", "authoring.create_product_draft", "authoring:preview", "workflow.get_contract", "productBundle.verification.localOperator", release.version]) expect(product).toContain(required);
+    expect(product).toContain('skill: "zyx-product-bundle-mcp"');
+    const productPlaybook = buildPlaybookResponse({ skill: "zyx-product-bundle-mcp" }).instructionsMarkdown;
+    for (const required of ["product-bundle.v4", "math_unit", "visual_ref"]) expect(productPlaybook).toContain(required);
     expect(candidate.source).toHaveProperty("kind", "local-candidate");
     expect(evaluatePlaybookCompatibility({ bootstrapProtocol: release.bootstrapProtocol, pluginVersion: release.version, stage: "product", clientCapabilities: { independentSubagents: true, localArtifactFiles: true, pdfRendering: false } }).status).toBe("compatible");
     expect((await rpc("all", "skills/list", {}, candidateRoot, "staging")).error).toBeDefined();

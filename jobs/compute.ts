@@ -75,11 +75,31 @@ export { discussionAiCron } from "./discussion-ai";
 export { discussionNotificationsWorker } from "./discussion-notifications";
 export { discussionImageSweepCron } from "./discussion-image-sweep";
 export { discussionThreadTitleWorker } from "./discussion-title";
+import {
+  studyReengagementCron,
+  flashcardReminderCron,
+  upcomingSessionReminderCron,
+  tutorDailyDigestCron,
+} from "./notification-intervals";
+export {
+  studyReengagementCron,
+  flashcardReminderCron,
+  upcomingSessionReminderCron,
+  tutorDailyDigestCron,
+} from "./notification-intervals";
 
 /**
  * All background functions for Deno/compute Inngest execution.
  */
+import { quietNotificationWorker } from "./notification-quiet";
+import { tutorAvailabilityReminderCron, tutorialSessionEmailCron, tutorialSessionEmailWorker } from "./tutorial-reminders";
+export { tutorAvailabilityReminderCron, tutorialSessionEmailCron, tutorialSessionEmailWorker } from "./tutorial-reminders";
+
 export const computeFunctions = [
+  tutorAvailabilityReminderCron,
+  tutorialSessionEmailCron,
+  tutorialSessionEmailWorker,
+  quietNotificationWorker,
   aiModelCatalogCron,
   googleCalendarSyncCron,
   googleCalendarSyncWorker,
@@ -102,6 +122,10 @@ export const computeFunctions = [
   feedbackWorker,
   courseAnalyticsSnapshotCron,
   weeklyReflectionCron,
+  studyReengagementCron,
+  flashcardReminderCron,
+  upcomingSessionReminderCron,
+  tutorDailyDigestCron,
   masterySnapshotCron,
   assessmentIngestWorker,
   contentQualityAuditCron,

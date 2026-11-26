@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookmarkCheck, ArrowRight } from "lucide-react";
+import { BookmarkCheck } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { ApplicationPage } from "@/components/application-page";
 import { Button } from "@/components/ui/button";
@@ -25,14 +25,14 @@ export function StudentReflectionsView({ href = (path: string) => path,  reflect
 
       <Reveal>
         {reflections.length > 0 ? (
-          <div className="divide-y divide-border/30">
+          <div className="divide-y divide-border/25">
             {reflections.map((ref) => {
               const start = normalizeDate(ref.weekStart);
               const weekDates = Number.isNaN(start.getTime()) ? null : { start, end: daysFrom(6, start) };
               const { completed, masteryGrowth, streak } = ref.payload;
 
               return (
-                <div key={ref.id} className="py-(--panel-padding) px-2 -mx-2 rounded-lg flex items-center justify-between gap-(--related-gap) transition-colors hover:bg-muted/40">
+                <div key={ref.id} className="flex items-start justify-between gap-(--related-gap) py-(--row-padding)">
                   <div className="min-w-0 flex-1">
                     <span className="text-body-sm font-semibold text-foreground">
                       <TranslatedText namespace="student" messageKey="reflections.week" /> {weekDates ? <><FormattedDate date={weekDates.start} options={{ day: "numeric", month: "short" }} /> - <FormattedDate date={weekDates.end} options={{ day: "numeric", month: "short", year: "numeric" }} /></> : ref.weekStart}
@@ -77,7 +77,6 @@ export function StudentReflectionsView({ href = (path: string) => path,  reflect
               <Button asChild size="sm" className="group rounded-lg text-body-sm">
                 <Link href={href("/dashboard")}>
                   <TranslatedText namespace="student" messageKey="reflections.startLearning" />
-                  <ArrowRight className="ml-1.5 size-3.5 transition-transform group-hover:translate-x-0.5" />
                 </Link>
               </Button>
             </div>

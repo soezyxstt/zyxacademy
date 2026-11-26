@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/toast";
 import { shareLink } from "@/lib/native/share";
+import { hapticSuccess } from "@/lib/native/haptics";
 import { useTranslations } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 
@@ -57,6 +58,7 @@ export function ShareLinkButton({
         dialogTitle: label,
       });
       if (result.ok) {
+        void hapticSuccess();
         if (result.method === "clipboard") {
           setCopied(true);
           toast.success(common("share.linkCopied"));

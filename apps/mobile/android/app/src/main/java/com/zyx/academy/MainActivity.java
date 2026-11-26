@@ -8,6 +8,7 @@ import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewParent;
+import android.webkit.CookieManager;
 import android.webkit.WebView;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -61,6 +62,26 @@ public class MainActivity extends BridgeActivity {
         WebView webView = getBridge() != null ? getBridge().getWebView() : null;
         if (webView != null) {
             ViewCompat.requestApplyInsets(webView);
+        }
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        flushWebViewCookies();
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        flushWebViewCookies();
+    }
+
+    private void flushWebViewCookies() {
+        try {
+            CookieManager.getInstance().flush();
+        } catch (Throwable ignored) {
+            // Ignore devices where WebView provider is unavailable.
         }
     }
 
@@ -157,6 +178,11 @@ public class MainActivity extends BridgeActivity {
             NotificationManager manager = getSystemService(NotificationManager.class);
             if (manager != null) {
                 manager.createNotificationChannel(channel);
+                boolean id = "id".equals(java.util.Locale.getDefault().getLanguage()) || "in".equals(java.util.Locale.getDefault().getLanguage());
+                manager.createNotificationChannel(new NotificationChannel("zyx_discussions", id ? "Diskusi" : "Discussions", NotificationManager.IMPORTANCE_DEFAULT));
+                manager.createNotificationChannel(new NotificationChannel("zyx_schedule", id ? "Jadwal" : "Schedules", NotificationManager.IMPORTANCE_HIGH));
+                manager.createNotificationChannel(new NotificationChannel("zyx_learning", id ? "Pembelajaran" : "Learning", NotificationManager.IMPORTANCE_DEFAULT));
+                manager.createNotificationChannel(new NotificationChannel("zyx_updates", id ? "Pembaruan" : "Updates", NotificationManager.IMPORTANCE_DEFAULT));
             }
         }
     }

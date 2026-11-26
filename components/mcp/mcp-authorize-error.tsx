@@ -18,35 +18,24 @@ export async function McpAuthorizeError({
 }: McpAuthorizeErrorProps) {
   const t = await getTranslations("consent.authorize");
   return (
-    <div className="w-full max-w-lg">
-      <div className="flex flex-col items-center text-center">
-        <div className="flex size-12 items-center justify-center rounded-xl bg-destructive/10 text-destructive mb-4">
-          <AlertCircle className="size-6" />
-        </div>
-
-        <h1 className="font-heading text-h5 font-bold text-foreground">
-          {title ?? t("invalidRequest")}
-        </h1>
-
-        <p className="mt-2 text-body-sm text-muted-foreground leading-relaxed">
-          {description}
+    <div className="space-y-(--compact-gap)">
+      <div className="flex items-start gap-2">
+        <AlertCircle className="mt-1 size-5 shrink-0 text-status-error" aria-hidden />
+        <h1 className="wrap-anywhere font-heading text-h5 font-bold">{title ?? t("invalidRequest")}</h1>
+      </div>
+      <p className="wrap-anywhere text-body-sm leading-relaxed text-muted-foreground">{description}</p>
+      {errorCode ? (
+        <p className="wrap-anywhere text-body-xs text-muted-foreground">
+          {t("errorCode")} <code>{errorCode}</code>
         </p>
-
-        {errorCode ? (
-          <div className="mt-4 inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/50 px-2.5 py-1 text-body-2xs font-mono text-muted-foreground">
-          <span>{t("errorCode")}:</span>
-            <span className="font-semibold text-foreground">{errorCode}</span>
-          </div>
-        ) : null}
-
-        <div className="mt-6 w-full pt-4 border-t border-border/60">
-          <Button asChild variant="outline" className="w-full h-10 gap-2">
-            <Link href={returnUrl}>
-              <ArrowLeft className="size-4" />
-              {t("back")}
-            </Link>
-          </Button>
-        </div>
+      ) : null}
+      <div className="flex justify-end border-t border-border/60 pt-(--compact-gap)">
+        <Button asChild variant="outline">
+          <Link href={returnUrl}>
+            <ArrowLeft className="size-4" aria-hidden />
+            {t("back")}
+          </Link>
+        </Button>
       </div>
     </div>
   );

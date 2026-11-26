@@ -1,6 +1,62 @@
 /** Source-level coverage index. Tool registration is authoritative; partial does not imply every action is exposed. */
 export const operationsCatalog = [
   {
+    "source": "app/(student)/feedback/feedback-form.tsx",
+    "actions": ["handleSubmit"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Signed-in learner feedback uses the existing server action. Browser form validation and restored-draft recovery do not add admin MCP access or change authorization, scopes, consent, discovery, playbooks, packaged skills or host prompts."
+  },
+  {
+    "source": "apps/desktop/dist/index.html",
+    "actions": ["probeServerReachable", "handleReturnOnline"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Installed-device launch and offline reading use the existing native origin and reading commands. Connection state and retry behavior do not change MCP tools, scopes, consent, discovery, playbooks, packaged skills, host prompts or environment bindings."
+  },
+  {
+    "source": "app/(student)/settings/settings-client.tsx",
+    "actions": ["setLocale", "setPreference", "setHapticsEnabled", "restoreDisplayDefaults"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Personal interface language and device display, vibration and alert choices require the signed-in UI or local device. Preference grouping and reset do not change MCP tools, scopes, consent, discovery, playbooks, packaged skills, host prompts or environment bindings."
+  },
+  {
+    "source": "components/onboarding/guided-tour.tsx",
+    "actions": ["start", "progress", "skip", "restart"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "First-use student and tutor tours guide the user's real browser or native app controls. Progress belongs to the signed-in account and role. Notification permission requires the user's direct browser or device action and does not change email preferences. Admin MCP tools, scopes, consent, discovery, playbooks, packaged skills, host prompts and environment bindings are unchanged; agents must not complete a user's tour for them."
+  },
+  {
+    "source": "app/(student)/settings/notifications/actions.ts",
+    "actions": ["updateNotificationPreferencesAction", "updateActivityNotificationPreferenceAction"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Personal notification choices are account-owned, signed-in UI preferences. No administrative MCP scope or tool changes."
+  },
+  {
+    "source": "components/native/app-update-control.tsx",
+    "actions": ["checkForUpdates", "triggerInstall"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Installed-device version checks and installer launch require the native app. MCP tokens, scopes, consent, discovery, playbooks, packaged skills and host prompts cannot install or update a user's device."
+  },
+  {
+    "source": "components/course/material-viewer.tsx",
+    "actions": ["navigateToSection"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Browser-only Diktat reading layout and position. Bundle payloads, download permissions, completion persistence and MCP contracts are unchanged."
+  },
+  {
+    "source": "components/course/structured-article-reader.tsx",
+    "actions": ["toggleReadingFocus", "toggleFormativeCheck", "navigateToSection"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Browser-only reading presentation and session checkpoint indicators. Authoring content, assessment authorization, scopes and environment bindings are unchanged."
+  },
+  {
     "source": "app/(admin)/admin/(academic)/authoring-context/page.tsx",
     "actions": [],
     "tools": [],
@@ -1454,6 +1510,13 @@ export const operationsCatalog = [
     "tools": [],
     "status": "excluded",
     "reason": "Model assignments, Gateway catalog observations and billed latency refresh use the Admin UI. Feature flag reads do not expose these actions or authorize provider probes."
+  },
+  {
+    "source": "app/api/admin/ops-ai/execute/route.ts",
+    "actions": ["confirmAdminOperation", "revokeChatOperationGrants"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Ops AI chat approvals require the active browser admin session and specific chat. Shared domain operations retain the MCP signed-plan and consent contracts."
   },
   {
     "source": "components/auth/sidebar-account-menu.tsx",

@@ -116,7 +116,7 @@ test("distinguishes own chat bubbles from others and renders profile triggers fo
   );
   expect(ownHtml).toContain('data-own-message="true"');
   expect(ownHtml).toContain("flex-row-reverse");
-  expect(ownHtml).toContain("bg-primary/10");
+  expect(ownHtml).toContain("bg-[color-mix(in_oklab,var(--primary)_10%,var(--background))]");
   expect(ownHtml).toContain("border-primary/25");
   expect(ownHtml).toContain('aria-label="Lihat profil Nadia Putri"');
 

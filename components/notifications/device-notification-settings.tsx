@@ -10,10 +10,13 @@ import { toast } from "@/components/ui/toast";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 import { useSession } from "@/lib/auth-client";
 import { useStudentExperience } from "@/components/student-experience-provider";
+import { useOnboardingTour } from "@/components/onboarding/tour-context";
+import { TourNotificationSetup } from "@/components/notifications/tour-notification-setup";
 import {
   getUnifiedNotificationDeliveryStatus,
   registerUnifiedPushToken,
   requestUnifiedNotificationPermission,
+  sendDesktopNativeNotification,
   type UnifiedNotificationDeliveryStatus,
 } from "@/lib/native/notifications";
 import {
@@ -25,6 +28,8 @@ import {
   type StudyReminderConfig,
 } from "@/lib/native/local-reminders";
 import { cn } from "@/lib/utils";
+import { getCapacitor } from "@/lib/native/runtime";
+import { isBrowserPushPaused } from "@/lib/firebase/messaging";
 
 const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const;
 const TUTOR_LEAD_OPTIONS = [15, 30, 60] as const;
@@ -36,14 +41,17 @@ function formatTimeValue(hour: number, minute: number): string {
 export function DeviceNotificationSettings() {
   const t = useTranslations("student");
   const { locale } = useAppLocale();
-  const { data: session } = useSession();
+  const { data: session, isPending } = useSession();
   const experience = useStudentExperience();
+  const { notificationStep } = useOnboardingTour();
+  const showingTourSetup = Boolean(notificationStep);
   const isDemo = experience?.mode === "demo";
   const userId = session?.user?.id ?? null;
 
   const baseId = useId();
   const [status, setStatus] = useState<UnifiedNotificationDeliveryStatus | null>(null);
   const [enablingPush, setEnablingPush] = useState(false);
+  const [testingDesktop, setTestingDesktop] = useState(false);
 
   const [localSupported, setLocalSupported] = useState(false);
   const [reminderConfig, setReminderConfig] = useState<StudyReminderConfig>(
@@ -58,8 +66,17 @@ export function DeviceNotificationSettings() {
   }, [isDemo]);
 
   useEffect(() => {
-    void refreshStatus();
-  }, [refreshStatus]);
+    let cancelled = false;
+    // The tour owns permission changes while its control is visible. Discard
+    // the earlier snapshot so the ordinary panel reads the result when it returns.
+    setStatus(null);
+    if (!isDemo && !showingTourSetup && userId) {
+      void getUnifiedNotificationDeliveryStatus().then(next => {
+        if (!cancelled) setStatus(next);
+      });
+    }
+    return () => { cancelled = true; };
+  }, [isDemo, showingTourSetup, userId]);
 
   useEffect(() => {
     setLocalSupported(isLocalReminderSchedulingSupported());
@@ -84,6 +101,22 @@ export function DeviceNotificationSettings() {
       await refreshStatus();
     } finally {
       setEnablingPush(false);
+    }
+  };
+
+  const handleDesktopTest = async () => {
+    if (isDemo || !userId || testingDesktop) return;
+    setTestingDesktop(true);
+    try {
+      const accepted = await sendDesktopNativeNotification(
+        t("notificationPreferences.desktopTestTitle"),
+        t("notificationPreferences.desktopTestBody"),
+      );
+      if (accepted) toast(t("notificationPreferences.desktopTestRequested"));
+      else toast.error(t("notificationPreferences.desktopTestFailed"));
+      await refreshStatus();
+    } finally {
+      setTestingDesktop(false);
     }
   };
 
@@ -171,7 +204,7 @@ export function DeviceNotificationSettings() {
     !isDemo &&
     status !== null &&
     (status.deliveryReadiness === "permission_required" ||
-      status.deliveryReadiness === "unregistered");
+      status.deliveryReadiness === "unregistered" || (status.platform === "web" && isBrowserPushPaused()));
 
   const enableReminderId = `${baseId}-local-reminder-enabled`;
   const timeInputId = `${baseId}-local-reminder-time`;
@@ -180,11 +213,18 @@ export function DeviceNotificationSettings() {
 
   return (
     <div className="space-y-6">
-      <section aria-labelledby={`${baseId}-device-heading`}>
+      {notificationStep ? (
+        <TourNotificationSetup
+          key={userId}
+          userId={userId}
+          disabled={isDemo || isPending}
+          onComplete={notificationStep.complete}
+        />
+      ) : <section aria-labelledby={`${baseId}-device-heading`}>
         <header className="border-b border-border/40 pb-2">
           <h2
             id={`${baseId}-device-heading`}
-            className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground"
+            className="font-heading text-body-base font-bold text-foreground"
           >
             {t("notificationPreferences.deviceSectionTitle")}
           </h2>
@@ -202,6 +242,7 @@ export function DeviceNotificationSettings() {
               {permissionText}
             </span>
           </div>
+          {status?.osPermission === "denied" ? <p className="px-3 py-3 text-body-xs text-muted-foreground">{t("notificationPreferences.permissionDeniedHelp")}</p> : null}
 
           <div className="flex flex-wrap items-center justify-between gap-3 px-3 py-(--row-padding)">
             <div className="flex min-w-0 items-center gap-3">
@@ -240,16 +281,35 @@ export function DeviceNotificationSettings() {
                   {t("notificationPreferences.enablePush")}
                 </Button>
               ) : null}
+              {!isDemo && status?.platform === "desktop" && status.osPermission === "granted" ? (
+                <Button type="button" size="sm" variant="outline"
+                  disabled={testingDesktop} onClick={() => void handleDesktopTest()}>
+                  {t("notificationPreferences.desktopTest")}
+                </Button>
+              ) : null}
             </div>
           </div>
         </div>
-      </section>
+        {!isDemo && status?.platform === "android" && status.deliveryReadiness === "ready" && (
+          <div className="space-y-2 px-3 py-3 border-t border-border/30">
+            <p className="text-body-sm font-medium">{locale === "en" ? "Already receiving Chrome notifications?" : "Masih menerima notifikasi Chrome?"}</p>
+            <p className="text-body-xs text-muted-foreground">{locale === "en" ? "If you enabled push in Chrome before installing the app, stop the old browser subscription here without affecting other devices." : "Jika Anda pernah mengaktifkan notifikasi Chrome sebelum memasang aplikasi, hentikan notifikasi lama di browser tanpa memengaruhi perangkat lain."}</p>
+            <Button type="button" variant="outline" size="sm" className="h-auto min-h-9 whitespace-normal text-left" onClick={async () => {
+              try {
+                const browser = getCapacitor()?.Plugins?.Browser;
+                if (!browser) throw Error("BROWSER_UNAVAILABLE");
+                await browser.open({url: new URL("/settings/notifications/browser", window.location.origin).href});
+              } catch { toast.error(locale === "en" ? "Could not open the browser" : "Browser belum berhasil dibuka"); }
+            }}>{locale === "en" ? "Stop Chrome notifications" : "Hentikan notifikasi Chrome"}</Button>
+          </div>
+        )}
+      </section>}
 
       <section aria-labelledby={`${baseId}-local-heading`}>
         <header className="border-b border-border/40 pb-2">
           <h2
             id={`${baseId}-local-heading`}
-            className="font-heading text-body-xs font-semibold uppercase tracking-wider text-muted-foreground"
+            className="font-heading text-body-base font-bold text-foreground"
           >
             {t("notificationPreferences.localRemindersTitle")}
           </h2>

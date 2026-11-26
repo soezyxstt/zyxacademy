@@ -190,6 +190,7 @@ export function resetApnsJwtCacheForTests(): void {
 export function buildApnsPayload(payload: NotificationPayload): Record<string, unknown> {
   return {
     ...(payload.metadata ?? {}),
+    ...(payload.notificationId ? { notificationId: payload.notificationId } : {}),
     aps: {
       alert: {
         title: payload.title,

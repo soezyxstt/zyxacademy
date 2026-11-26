@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslations } from "@/lib/i18n/client";
 import Image from "next/image";
 import { Download, ImageOff, MessageSquareText } from "lucide-react";
+import { PullToRefresh, usePullToRefreshHandler } from "@/components/pull-to-refresh";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -17,6 +18,16 @@ import { discussionChannelLabel } from "./discussion-message";
 import type { DiscussionAttachment, DiscussionChannel, DiscussionMessage, DiscussionPerson, DiscussionQuestion, DiscussionReport } from "./view-model";
 
 const FIXTURE_IMAGE = "/visual-fixtures/discussion-problem.png";
+
+function FixturePullRefresh({ children }: { children: ReactNode }) {
+  const [attempts, setAttempts] = useState(0);
+  usePullToRefreshHandler(async () => {
+    setAttempts(attempts + 1);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    if (!attempts) throw new Error("Fixture refresh failure");
+  });
+  return <div data-fixture-refresh-attempts={attempts}>{children}</div>;
+}
 
 function FixtureAttachment({ attachment, fail = false, privateRoute = false, onOpen }: { attachment: DiscussionAttachment; fail?: boolean; privateRoute?: boolean; onOpen?: () => void }) {
   const t = useTranslations("discussions");
@@ -170,7 +181,7 @@ export function DiscussionFixture({ query }: { query: { role?: string; question?
     const item = questions.find((question) => question.id === id);
     if (item?.unreadCount) {
       setQuestions((current) => current.map((question) => question.id === id ? { ...question, unreadCount: 0 } : question));
-      setChannels((current) => current.map((channel) => channel.id === item.channelId ? { ...channel, unreadCount: Math.max(0, channel.unreadCount - 1) } : channel));
+      setChannels((current) => current.map((channel) => channel.id === item.channelId ? { ...channel, unreadCount: Math.max(0, (channel.unreadCount ?? 0) - 1) } : channel));
     }
   }
   function updateMessage(questionId: string, messageId: string, update: (message: FixtureMessage) => FixtureMessage) {
@@ -205,7 +216,11 @@ export function DiscussionFixture({ query }: { query: { role?: string; question?
       onForwardMessage={async (input) => { const { questionId, messageId, targetQuestionId, requestId } = input; setForwardAttempts(current => [...current, input]); if (query.fail === "resolved-forward") { if (!failed.current.has("forward-uncertain")) { failed.current.add("forward-uncertain"); return "unknown"; } return "resolved"; } if (query.fail === "delay-forward") { await new Promise<void>(resolve => { delayedForward.current = resolve; }); return "unknown"; } if (committedRequests.current.has(requestId)) return; if (query.fail === "legacy-forward") { if (!failed.current.has("legacy-forward-unknown")) { failed.current.add("legacy-forward-unknown"); throw new Error("Response lost"); } return { error: "replay_unverified", target: { threadId: targetQuestionId, messageId: "existing-forward" } }; } failOnce("forward"); const source = (messages[questionId] ?? []).find((message) => message.id === messageId); if (!source) throw new Error("Missing message"); appendMessage(targetQuestionId, { ...source, mentionedPeople: [], id: `message-${crypto.randomUUID()}`, author: viewer, createdAt: new Date().toISOString(), messageType: "forward", replyTo: null, reactions: [] }); committedRequests.current.add(requestId); if (query.fail === "lost-forward") throw new Error("Response lost"); }}
       onReportMessage={async ({ questionId, messageId, reason }) => { failOnce("report"); setReports((current) => [{ id: `report-${crypto.randomUUID()}`, questionId, questionTitle: questions.find((question) => question.id === questionId)?.title ?? "Pertanyaan", messageId, reporterName: viewer.name, reason, createdAt: new Date().toISOString(), status: "pending" }, ...current]); }}
       onSetChannelMuted={async ({ channelId, muted }) => { failOnce("mute"); setChannels((current) => current.map((channel) => channel.id === channelId ? { ...channel, muted } : channel)); }}
-      onSetQuestionStatus={async ({ questionId, status }) => { failOnce("status"); setQuestions((current) => current.map((question) => question.id === questionId ? { ...question, status: status === "open" && question.answerCount > 0 ? "answered" : status, canReply: status !== "resolved" } : question)); }}
+      onSetQuestionStatus={async ({ questionId, status }) => {
+        if (query.fail === "status") await new Promise(resolve => setTimeout(resolve, 1500));
+        failOnce("status");
+        setQuestions((current) => current.map((question) => question.id === questionId ? { ...question, status: status === "open" && question.answerCount > 0 ? "answered" : status, canReply: status !== "resolved" } : question));
+      }}
       onSetReportStatus={async ({ reportId, status }) => { failOnce("report-status"); setReports((current) => current.map((report) => report.id === reportId ? { ...report, status } : report)); }}
       onLoadAuthorProfile={async ({ authorId }) => {
         failOnce("profile");
@@ -250,7 +265,7 @@ export function DiscussionFixture({ query }: { query: { role?: string; question?
       }}
     />
   );
-  return <main data-fixture-read-attempts={fixtureReadAttempts} data-fixture-mention-ids={submittedMentionIds.join(",")} data-fixture-read-revision={fixtureReadRevision} data-fixture-empty-observations={fixtureEmptyObservations} data-fixture-forward-attempts={JSON.stringify(forwardAttempts)} data-fixture-reply-attempts={JSON.stringify(replyAttempts)} className="min-h-screen bg-background px-4 py-5 text-foreground sm:px-6">{query.state === "read-visibility" && <style>{'[data-discussion-messages] [data-message-id="m1"] { margin-top: 1000px; }'}</style>}<div className="mx-auto max-w-7xl">{query.state === "shell" && <div aria-hidden className="h-13 md:hidden" />}<PageHeader title={t("title")} icon={MessageSquareText} actions={<Select value={role} onValueChange={(value) => { setRole(value as "student" | "tutor" | "admin"); setQuery("role", value); }}><SelectTrigger aria-label={t("fixtureRole")} className="w-32"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="student">{t("role_student")}</SelectItem><SelectItem value="tutor">Tutor</SelectItem><SelectItem value="admin">Admin</SelectItem></SelectContent></Select>} />
+  return <main data-fixture-read-attempts={fixtureReadAttempts} data-fixture-mention-ids={submittedMentionIds.join(",")} data-fixture-read-revision={fixtureReadRevision} data-fixture-empty-observations={fixtureEmptyObservations} data-fixture-forward-attempts={JSON.stringify(forwardAttempts)} data-fixture-reply-attempts={JSON.stringify(replyAttempts)} className="min-h-screen bg-background px-0 py-0 text-foreground sm:px-6 sm:py-5">{query.state === "read-visibility" && <style>{'[data-discussion-messages] [data-message-id="m1"] { margin-top: 1000px; }'}</style>}<div className="mx-auto max-w-7xl">{query.state === "shell" && <div aria-hidden className="h-13 md:hidden" />}<PageHeader title={t("title")} icon={MessageSquareText} actions={<Select value={role} onValueChange={(value) => { setRole(value as "student" | "tutor" | "admin"); setQuery("role", value); }}><SelectTrigger aria-label={t("fixtureRole")} className="w-32"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="student">{t("role_student")}</SelectItem><SelectItem value="tutor">Tutor</SelectItem><SelectItem value="admin">Admin</SelectItem></SelectContent></Select>} />
     {(query.state === "session" || query.state === "session-prepare" || query.state === "session-forward") && <div className="mb-3 flex flex-wrap gap-2">
       <Button variant="outline" size="sm" onClick={() => setSessionMode("expired")}>Expire fixture session</Button>
       <Button variant="outline" size="sm" onClick={() => setSessionMode("same")}>Resume same account</Button>
@@ -259,6 +274,6 @@ export function DiscussionFixture({ query }: { query: { role?: string; question?
       {query.fail === "delay-forward" && <Button variant="outline" size="sm" onClick={() => delayedForward.current?.()}>Finish fixture forward</Button>}
     </div>}
     {query.state === "report-target-deep" && selectedQuestionId === "study" && <div className="flex flex-wrap items-center gap-2"><Button type="button" variant="outline" size="sm" disabled={fixturePageStart === 0} onClick={() => setFixturePaging(current => current.index === 0 ? { cursors: [String(Math.max(0, fixturePageStart - 30)), ...current.cursors], index: 0 } : { ...current, index: current.index - 1 })}>{t("previousMessages")}</Button><Button type="button" variant="outline" size="sm" disabled={!fixtureNext} onClick={() => setFixturePaging(current => ({ cursors: [...current.cursors.slice(0, current.index + 1), fixtureNext!], index: current.index + 1 }))}>{t("nextMessages")}</Button></div>}
-    {query.state === "session" || query.state === "session-prepare" || query.state === "session-forward" ? <DiscussionSessionGuard viewerId={viewer.id} sessionId={sessionMode === "expired" ? undefined : sessionMode === "other" ? "other-account" : viewer.id} pending={false}>{renderWorkspace}</DiscussionSessionGuard> : renderWorkspace()}
+    {query.state === "session" || query.state === "session-prepare" || query.state === "session-forward" ? <DiscussionSessionGuard viewerId={viewer.id} sessionId={sessionMode === "expired" ? undefined : sessionMode === "other" ? "other-account" : viewer.id} pending={false}>{renderWorkspace}</DiscussionSessionGuard> : query.state === "pull-refresh" ? <PullToRefresh><FixturePullRefresh>{renderWorkspace()}</FixturePullRefresh></PullToRefresh> : renderWorkspace()}
   </div></main>;
 }

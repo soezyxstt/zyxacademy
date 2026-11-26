@@ -36,7 +36,6 @@ const SAMPLE_LABELS: TutorCourseMobileTabLabels = {
   quizGrading: "Quiz grading",
   tryoutGrading: "Tryout grading",
   participants: "Participants",
-  discussions: "Discussions",
   live: "Live",
   materials: "Materials",
   videos: "Videos",
@@ -294,20 +293,19 @@ describe("Tutor Course Switcher & Segment Preservation", () => {
 });
 
 describe("Tutor Mobile Course Tab Nav", () => {
-  test("builds all 9 course tabs in required order with active matching", () => {
+  test("builds all 8 course tabs in required order with active matching", () => {
     const tabs = buildTutorCourseMobileTabs({
       courseId: "calc-1",
       labels: SAMPLE_LABELS,
     });
 
-    expect(tabs).toHaveLength(9);
+    expect(tabs).toHaveLength(8);
     expect(tabs.map((tab) => tab.label)).toEqual([
       "Overview",
       "Quizzes",
       "Quiz grading",
       "Tryout grading",
       "Participants",
-      "Discussions",
       "Live",
       "Materials",
       "Videos",
@@ -316,9 +314,8 @@ describe("Tutor Mobile Course Tab Nav", () => {
     const overviewTab = tabs[0];
     const quizzesTab = tabs[1];
     const quizGradingTab = tabs[2];
-    const discussionsTab = tabs[5];
 
-    expect(discussionsTab?.hasDiscussionBadge).toBe(true);
+    expect(tabs.map((tab) => tab.id)).not.toContain("discussions");
 
     expect(isTutorCourseTabActive(overviewTab, "/tutor/calc-1", "calc-1")).toBe(
       true

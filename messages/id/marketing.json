@@ -3,9 +3,13 @@
     "unavailable": "Harga belum tersedia. Coba lagi.",
     "platform": "Platform",
     "tutorial": "Tutorial",
-    "schedule": "{component}: {percent}% off, {start} sampai {end} WIB."
+    "platformOffer": "Diskon platform {percent}%",
+    "tutorialOffer": "Diskon tutorial {percent}%",
+    "period": "{start} sampai {end} WIB",
+    "schedule": "Diskon {component} {percent}% dari {start} sampai {end} WIB."
   },
   "nav": {
+    "download": "Unduh",
     "plans": "Paket",
     "about": "Tentang kami",
     "testimonials": "Testimoni",
@@ -32,14 +36,22 @@
     "signInGoogle": "Masuk dengan Google",
     "signIn": "Login"
   },
+  "download": {
+    "verb": "Unduh",
+    "platforms": "Pilih platform",
+    "title": "Unduh Zyx Academy",
+    "description": "Pasang Zyx Academy di komputer atau ponsel Anda.",
+    "unavailable": "Belum tersedia",
+    "error": "Rilis gagal dimuat. Muat ulang halaman untuk mencoba lagi.",
+    "empty": "Rilis {channel} belum tersedia."
+  },
   "footer": {
-    "description": "Zyx Academy membantu mahasiswa S1 ITB tahun pertama dan kedua (TPB dan jurusan) menguasai materi dengan modul selaras kampus, latihan terarah, dan tutorial bersama tutor ITB.",
-    "tagline": "Dibuat oleh mahasiswa ITB. Belajar dengan arah yang lebih jelas.",
-    "companyLinks": "Tautan perusahaan",
-    "company": "Perusahaan",
-    "plans": "Paket layanan",
-    "legalLinks": "Tautan legal",
-    "legal": "Legal",
+    "description": "Dikembangkan oleh mahasiswa ITB untuk mahasiswa S1 ITB tahun pertama dan kedua. Pelajari materi TPB dan jurusan lewat modul kuliah, latihan soal, dan tutorial bersama tutor ITB.",
+    "companyLinks": "Tentang Zyx Academy",
+    "company": "Zyx Academy",
+    "plans": "Paket belajar",
+    "legalLinks": "Informasi hukum",
+    "legal": "Informasi hukum",
     "privacy": "Kebijakan privasi",
     "terms": "Syarat dan ketentuan",
     "instagram": "Zyx Academy di Instagram",
@@ -782,11 +794,11 @@
     "sectionTitle": "Bantu kelas melihat konsep yang perlu dibahas."
   },
   "plans": {
-    "title": "Paket & layanan",
-    "description": "Pembayaran dilakukan di luar situs. Admin mengaktifkan akses sesuai paket.",
-    "priceConfiguration": "Konfigurasi harga: {people} orang dan {courses} mata kuliah.",
+    "title": "Paket belajar",
+    "description": "Bandingkan paket untuk belajar mandiri atau bersama tutor. Pembayaran dilakukan di luar situs, lalu admin mengaktifkan paket yang dipilih.",
+    "priceConfiguration": "Harga untuk {people} orang dan {courses} mata kuliah.",
     "peopleLabel": "Jumlah anggota kelompok",
-    "group": "Grup",
+    "group": "Kelompok",
     "decreasePeople": "Kurangi jumlah orang",
     "peopleCount": "{count} orang",
     "increasePeople": "Tambah jumlah orang",
@@ -795,18 +807,19 @@
     "decreaseCourses": "Kurangi mata kuliah",
     "courseCount": "{count} matkul",
     "increaseCourses": "Tambah mata kuliah",
-    "courseList": "Daftar matkul ({count})",
-    "coveredCourses": "Mata kuliah yang ditanggung ({count}/{max})",
+    "courseList": "Pilih mata kuliah ({count})",
+    "coveredCourses": "Mata kuliah terpilih ({count}/{max})",
     "decreaseOtherCourse": "Kurangi mata kuliah lain-lain",
     "increaseOtherCourse": "Tambah mata kuliah lain-lain",
     "close": "Tutup",
-    "startWithFree": "Mulai dengan Free",
+    "startWithFree": "Daftar gratis",
     "free": "Gratis",
     "contactAdmin": "Hubungi admin",
     "contactUnavailable": "Kontak belum tersedia"
   },
   "pricing": {
     "loading": "Memuat harga...",
+    "discount": "Diskon {percent, number}%",
     "regularPriceLabel": "Harga reguler mulai {date}: {price} {unit}",
     "regularPriceDate": "1 November 2026",
     "perPerson": "per orang",
@@ -817,55 +830,55 @@
     "introPriceUntil": "Harga perkenalan sampai 31 Oktober 2026, 23.59 WIB.",
     "regularPriceStarts": "Harga coret berlaku mulai 1 November 2026.",
     "recommended": "Rekomendasi",
-    "askPlanWhatsapp": "Tanya paket via WhatsApp",
-    "askWhatsapp": "Tanya via WhatsApp",
+    "askPlanWhatsapp": "Tanya paket lewat WhatsApp",
+    "askWhatsapp": "Tanya lewat WhatsApp",
     "learnPlan": "Pelajari paket {plan}",
     "otherCourse": "Mata Kuliah Lain-Lain",
     "otherCourseCount": "Mata Kuliah Lain-Lain ({count})",
     "tiers": {
       "minimal": {
         "name": "Minimal",
-        "note": "Pendampingan platform mandiri lengkap.",
+        "note": "Belajar mandiri dengan materi dan latihan soal.",
         "features": [
-          "Bank Materi dan Soal",
-          "Solusi Soal",
-          "Diktat Lengkap",
-          "Kuis Harian & Mingguan + Pembahasan",
-          "Tryout Sebelum Ujian + Pembahasan"
+          "Bank materi dan soal",
+          "Solusi soal",
+          "Diktat lengkap",
+          "Kuis harian dan mingguan dengan pembahasan",
+          "Simulasi ujian dengan pembahasan"
         ]
       },
       "essential": {
         "name": "Essential",
-        "note": "Sesi tutorial tatap muka & pembahasan video.",
+        "note": "Bahas soal lewat video dan belajar langsung bersama tutor.",
         "features": [
-          "Semua fitur pada paket Minimal",
-          "Akses pembahasan soal berbasis Video",
-          "Tutorial Tatap Muka 15x untuk Satu Semester"
+          "Semua fitur paket Minimal",
+          "Video pembahasan soal",
+          "15 sesi tutorial tatap muka per semester"
         ]
       },
       "premium": {
         "name": "Premium",
-        "note": "Konsultasi on-demand & intensitas penuh.",
+        "note": "Lebih banyak sesi tutorial dan akses konsultasi tugas.",
         "features": [
-          "Semua fitur pada paket Essential",
-          "Konsultasi Tugas Kuliah (On-Demand)",
-          "Plus Tambahan 15x Tutorial (Total 30x Tatap Muka untuk Satu Semester)"
+          "Semua fitur paket Essential",
+          "Konsultasi tugas kuliah sesuai kebutuhan",
+          "15 sesi tambahan, total 30 sesi tatap muka per semester"
         ]
       },
       "free": {
         "name": "Free",
-        "note": "Akses materi dasar tanpa biaya.",
+        "note": "Coba materi di bab pertama.",
         "features": [
           "Bab pertama di setiap mata kuliah",
-          "Artikel, Diktat, Kuis, dan Flashcard terkait",
-          "Diktat dapat dibaca, tanpa unduhan",
+          "Artikel, Diktat, kuis, dan flashcard dari bab tersebut",
+          "Diktat bisa dibaca di situs, tanpa unduhan",
           "1 pertanyaan Zyra per hari",
           "Progres belajar tersimpan"
         ]
       },
       "custom": {
         "name": "Custom",
-        "note": "Sesuaikan kelompok, tutor, dan kurikulum.",
+        "note": "Atur kelompok, tutor, dan materi sesuai kebutuhan.",
         "features": [
           "Ada kebutuhan spesifik di luar paket? (e.g., kelompok > 5 orang, persiapan khusus, atau penyesuaian kurikulum)"
         ]
@@ -877,7 +890,7 @@
     "previous": "Sebelumnya",
     "next": "Berikutnya",
     "heroTitle": "Blog",
-    "heroDescription": "Artikel untuk membantu kamu belajar, memahami kehidupan kampus, dan mengenal kegiatan Zyx.",
+    "heroDescription": "Temukan tips kuliah, cerita kampus, fakta menarik, dan kabar dari Zyx.",
     "categories": {
       "all": "Semua",
       "studyTips": "Tips Kuliah",
@@ -886,27 +899,12 @@
       "zyxActivities": "Kegiatan Zyx"
     },
     "categoryNav": "Kategori blog",
-    "categoryCount": "{count} artikel dalam kategori ini.",
     "latest": "Artikel terbaru",
-    "latestDescription": "Baca artikel terbaru sebelum menjelajahi fitur belajar.",
     "available": "{count} artikel tersedia",
     "emptyTitle": "Belum ada artikel",
-    "emptyCategory": "Artikel untuk kategori ini akan segera hadir.",
-    "emptyLatest": "Artikel baru akan muncul di sini setelah diterbitkan.",
     "viewAll": "Lihat semua",
-    "featuresTitle": "Fitur untuk menemani belajar",
-    "featuresDescription": "Setelah membaca, lihat ruang belajar dan course yang tersedia di Zyx.",
-    "zyraTitle": "Zyra",
-    "zyraDescription": "Teman belajar AI untuk membantu memahami materi.",
-    "handoutsTitle": "Materi belajar",
-    "handoutsDescription": "Kumpulan materi untuk mendukung proses belajar.",
-    "examsTitle": "Latihan ujian",
-    "examsDescription": "Berlatih dengan soal untuk menguji pemahaman.",
-    "flashcardsTitle": "Flashcards",
-    "flashcardsDescription": "Kartu belajar untuk membantu mengingat konsep penting.",
-    "studyPathTitle": "Jalur belajar",
-    "studyPathDescription": "Rencana belajar yang membantu kamu berkembang.",
-    "courses": "Buka katalog course",
+    "coursesTitle": "Materi dan latihan untuk kuliah",
+    "courses": "Jelajahi mata kuliah",
     "draft": "Draf",
     "blogName": "Blog Zyx",
     "minutes": "{count} menit baca",

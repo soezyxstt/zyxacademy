@@ -42,7 +42,7 @@ export default async function AdminCourseDocumentsPage({ params, searchParams }:
   }));
 
   return (
-    <div className="space-y-4 font-sans">
+    <div className="min-w-0 space-y-(--compact-gap)">
       <CourseDetailHeader course={data.course} />
       <Suspense fallback={null}>
         <CourseDocumentsClient

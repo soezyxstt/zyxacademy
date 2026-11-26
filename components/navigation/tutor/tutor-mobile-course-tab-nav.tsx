@@ -8,14 +8,12 @@ import {
   FileText,
   LayoutDashboard,
   ListChecks,
-  MessageSquareText,
   Radio,
   Users,
   Video,
 } from "lucide-react";
 import { TabNav, type TabNavItem } from "@/components/ui/tabs";
 import { useMobileChrome } from "@/components/navigation/mobile-chrome-context";
-import { DiscussionCountBadge } from "@/components/discussions/discussion-count-badge";
 import { useViewportMode } from "@/hooks/use-viewport-mode";
 import { useTranslations } from "@/lib/i18n/client";
 import {
@@ -35,7 +33,6 @@ const TUTOR_COURSE_TAB_ICONS: Record<TutorCourseTabId, ElementType> = {
   quizGrading: ClipboardCheck,
   tryoutGrading: FileCheck2,
   participants: Users,
-  discussions: MessageSquareText,
   live: Radio,
   materials: FileText,
   videos: Video,
@@ -54,7 +51,6 @@ export function TutorMobileCourseTabNav({
 
   const tNav = useTranslations("tutor.navigation");
   const tMobile = useTranslations("tutor.mobile");
-  const tDiscussion = useTranslations("tutor.schedule");
 
   const courseId = getActiveTutorCourseIdFromPathname(pathname);
   const matchedCourse = findAssignedTutorCourse(assignedCourses, courseId);
@@ -81,7 +77,6 @@ export function TutorMobileCourseTabNav({
         quizGrading: tNav("quizGrading"),
         tryoutGrading: tNav("tryoutGrading"),
         participants: tMobile("participantsShort"),
-        discussions: tDiscussion("discussion"),
         live: tMobile("liveShort"),
         materials: tMobile("materialsShort"),
         videos: tNav("videos"),
@@ -95,15 +90,9 @@ export function TutorMobileCourseTabNav({
         label: tab.label,
         icon: Icon ? <Icon className="size-3.5 shrink-0" aria-hidden="true" /> : undefined,
         active: isTutorCourseTabActive(tab, pathname, courseId),
-        badge: tab.hasDiscussionBadge ? (
-          <DiscussionCountBadge
-            courseId={courseId}
-            enabled={viewportMode === "mobile"}
-          />
-        ) : undefined,
       };
     });
-  }, [courseId, pathname, tDiscussion, tMobile, tNav, viewportMode]);
+  }, [courseId, pathname, tMobile, tNav]);
 
   if (
     viewportMode === "desktop" ||
@@ -120,6 +109,7 @@ export function TutorMobileCourseTabNav({
       label={tMobile("courseTabsLabel")}
       variant="page"
       flush={true}
+      primaryMobileNav
       className="mx-0 w-full px-1 md:hidden"
     />
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 import {
   AlertCircle,
@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   CheckSquare,
   ChevronDown,
-  ChevronRight,
   ChevronUp,
   MessageSquare,
   User,
@@ -31,6 +30,7 @@ import {
 import type { SubmissionItem, TryoutGradingTab } from "@/features/grading/model/types";
 
 export interface TryoutGradingMobileProps {
+  queueHeader?: ReactNode;
   initialSubmissions: SubmissionItem[];
   pendingList: SubmissionItem[];
   gradedList: SubmissionItem[];
@@ -48,6 +48,7 @@ export interface TryoutGradingMobileProps {
 }
 
 export function TryoutGradingMobile({
+  queueHeader,
   initialSubmissions,
   pendingList,
   gradedList,
@@ -110,7 +111,6 @@ export function TryoutGradingMobile({
               answer={answers[q.id]}
               index={idx}
               submissionId={activeSub.id}
-              singleColumnOptions
             />
           ))}
         </div>
@@ -119,7 +119,7 @@ export function TryoutGradingMobile({
         <section
           aria-label={tr("gradingPanel")}
           data-grading-drawer={feedbackExpanded ? "expanded" : "collapsed"}
-          className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 shadow-lg backdrop-blur-md pb-[env(safe-area-inset-bottom,0px)]"
+          className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 backdrop-blur-md pb-[env(safe-area-inset-bottom,0px)]"
         >
           {feedbackExpanded && (
             <div className="space-y-2 border-b border-border px-4 pt-3 pb-3">
@@ -149,7 +149,7 @@ export function TryoutGradingMobile({
             </div>
           )}
 
-          <div className="flex items-center gap-2 px-4 py-3">
+          <div className="flex flex-wrap items-center justify-end gap-2 px-4 py-2">
             <div className="w-22 shrink-0">
               <Input
                 id="mobile-grade-score"
@@ -194,7 +194,7 @@ export function TryoutGradingMobile({
               type="button"
               onClick={onSaveGrade}
               isLoading={isPending}
-              className="min-h-11 flex-1 rounded-md bg-brand-primary text-body-sm font-semibold text-primary-foreground shadow-sm hover:bg-brand-primary/90"
+              className="min-h-11 rounded-md text-body-sm font-semibold"
             >
               {tr("savePublish")}
             </Button>
@@ -206,17 +206,17 @@ export function TryoutGradingMobile({
 
   function renderMobileQueueList(items: SubmissionItem[], emptyTitle: string, emptyIcon: typeof CheckCircle2) {
     if (items.length === 0) {
-      return <AdminEmptyState icon={emptyIcon} title={emptyTitle} />;
+      return <AdminEmptyState compact icon={emptyIcon} title={emptyTitle} />;
     }
 
     return (
-      <div className="divide-y divide-border border-y border-border">
+      <div className="divide-y divide-border/40">
         {items.map((s) => (
           <button
             key={s.id}
             type="button"
             onClick={() => onOpenGrade(s)}
-            className="flex min-h-14 w-full items-center justify-between gap-3 py-3 text-left transition-colors hover:bg-muted/20 active:bg-muted/40 focus-visible:outline-2 focus-visible:outline-ring"
+            className="flex min-h-11 w-full items-start justify-between gap-3 py-(--row-padding) text-left transition-colors hover:bg-muted/20 active:bg-muted/40 focus-visible:outline-2 focus-visible:outline-ring"
           >
             <div className="min-w-0 flex-1 space-y-1">
               <div className="flex flex-wrap items-center gap-1.5">
@@ -251,14 +251,11 @@ export function TryoutGradingMobile({
               </div>
             </div>
 
-            <div className="flex shrink-0 items-center gap-2">
-              {s.score != null && (
-                <span className="font-heading text-body-sm font-bold tabular-nums text-brand-primary">
-                  {s.score}%
-                </span>
-              )}
-              <ChevronRight className="size-4 text-muted-foreground" aria-hidden />
-            </div>
+            {s.score != null && (
+              <span className="shrink-0 font-heading text-body-sm font-bold tabular-nums text-foreground">
+                {s.score}%
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -267,12 +264,13 @@ export function TryoutGradingMobile({
 
   return (
     <div className="space-y-(--related-gap)" data-surface="mobile-tryout-grading-queue">
+      {queueHeader}
       <Tabs
         value={activeTab}
         onValueChange={(val) => onTabChange(val as TryoutGradingTab)}
         className="w-full"
       >
-        <TabsList variant="inline">
+        <TabsList variant="page" flush>
           <TabsTrigger value="pending">
             <AlertCircle className="mr-1.5 size-4 text-status-warning" aria-hidden />
             {tr("needsGrading")}

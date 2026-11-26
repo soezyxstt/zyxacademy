@@ -1,7 +1,5 @@
-import { notFound } from "next/navigation";
 import { Megaphone } from "lucide-react";
 import { pageTitle } from "@/lib/site";
-import { env } from "@/lib/env";
 import { getPkaAnnouncementsAction } from "../actions";
 import { AnnouncementsTab } from "../_components/announcements-tab";
 import { AdminPageHeader } from "@/components/admin/page-header";
@@ -18,12 +16,11 @@ export async function generateMetadata() {
 
 export default async function TutorialPkaAnnouncementsPage() {
   const t = await getTranslations("adminOps");
-  if (env.FEATURE_PKA !== "1") notFound();
 
   const announcements = await getPkaAnnouncementsAction();
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-(--related-gap)">
       <AdminPageHeader
         icon={Megaphone}
         title={<TranslatedText namespace="adminOps" messageKey="pka.announcements" />}
@@ -36,9 +33,7 @@ export default async function TutorialPkaAnnouncementsPage() {
         ]}
       />
 
-      <div>
-        <AnnouncementsTab history={announcements} />
-      </div>
+      <AnnouncementsTab history={announcements} />
     </div>
   );
 }

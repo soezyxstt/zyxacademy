@@ -15,6 +15,7 @@ import {
   Trophy,
 } from "lucide-react";
 import { DashboardWeakConcepts } from "@/components/course/dashboard-weak-concepts";
+import { MathText } from "@/components/course/math-text";
 import { StudentCourseProgressRow } from "@/components/dashboard/student-course-progress-row";
 import { TranslatedText } from "@/components/i18n/translated-text";
 import { Button } from "@/components/ui/button";
@@ -35,7 +36,8 @@ export function StudentDashboardMobile(props: StudentDashboardViewProps) {
   if ("sections" in props) {
     const { sections } = props;
     const hasGranularSlots = Boolean(
-      sections.gamification ||
+      sections.todayPlan ||
+        sections.gamification ||
         sections.activeAndReading ||
         sections.reviewQueue ||
         sections.availableAssessments ||
@@ -45,7 +47,8 @@ export function StudentDashboardMobile(props: StudentDashboardViewProps) {
 
     if (hasGranularSlots) {
       return (
-        <div className="flex w-full min-w-0 flex-col space-y-5">
+        <div className="flex w-full min-w-0 flex-col space-y-8">
+          {sections.todayPlan ? <div className="min-w-0">{sections.todayPlan}</div> : null}
           {sections.gamification ? <div className="min-w-0">{sections.gamification}</div> : null}
           {sections.activeAndReading ? (
             <div className="min-w-0">{sections.activeAndReading}</div>
@@ -63,10 +66,10 @@ export function StudentDashboardMobile(props: StudentDashboardViewProps) {
     }
 
     return (
-      <div className="flex w-full min-w-0 flex-col space-y-5">
-        {sections.primary ? <div className="min-w-0 space-y-5">{sections.primary}</div> : null}
+      <div className="flex w-full min-w-0 flex-col space-y-8">
+        {sections.primary ? <div className="min-w-0 space-y-8">{sections.primary}</div> : null}
         {sections.secondary ? (
-          <div className="min-w-0 space-y-5">{sections.secondary}</div>
+          <div className="min-w-0 space-y-8">{sections.secondary}</div>
         ) : null}
       </div>
     );
@@ -108,7 +111,7 @@ export function StudentDashboardMobile(props: StudentDashboardViewProps) {
             </Link>
           </div>
         </div>
-        <div className="divide-y divide-border/30">
+        <div className="divide-y divide-border/25">
           {enrollments.map((course) => {
             const { doneCount, total } = courseProgress[course.id];
             return (
@@ -145,7 +148,7 @@ export function StudentDashboardMobile(props: StudentDashboardViewProps) {
         </div>
 
         {inProgressDocuments.length > 0 ? (
-          <div className="divide-y divide-border/30">
+          <div className="divide-y divide-border/25">
             {inProgressDocuments.map((doc) => {
               if (!doc) return null;
               return (
@@ -252,7 +255,7 @@ export function StudentDashboardMobile(props: StudentDashboardViewProps) {
               <History className="size-3.5 text-muted-foreground" aria-hidden />
               <TranslatedText namespace="student" messageKey="dashboard.recentReviews" />
             </span>
-            <div className="divide-y divide-border/30">
+            <div className="divide-y divide-border/25">
               {recentReviews.slice(0, 3).map((review) => (
                 <div key={review.id} className="py-2">
                   <div className="flex items-center justify-between gap-2">
@@ -272,9 +275,9 @@ export function StudentDashboardMobile(props: StudentDashboardViewProps) {
                       <FormattedDate date={review.reviewedAt} options={{ dateStyle: "medium" }} />
                     </span>
                   </div>
-                  <p className="mt-1 truncate text-body-xs font-medium text-foreground">
+                  <MathText as="p" className="mt-1 line-clamp-2 break-words text-body-xs font-medium text-foreground">
                     {review.front}
-                  </p>
+                  </MathText>
                   <p className="mt-0.5 truncate text-body-xs text-muted-foreground">
                     {review.courseTitle}
                   </p>
@@ -304,7 +307,7 @@ export function StudentDashboardMobile(props: StudentDashboardViewProps) {
         </div>
 
         {availableExams.length > 0 ? (
-          <div className="divide-y divide-border/30">
+          <div className="divide-y divide-border/25">
             {availableExams.slice(0, 4).map((exam) => (
               <Link
                 key={exam.id}
@@ -330,7 +333,6 @@ export function StudentDashboardMobile(props: StudentDashboardViewProps) {
                     </span>
                   </p>
                 </div>
-                <ArrowRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
               </Link>
             ))}
 
@@ -406,7 +408,7 @@ export function StudentDashboardMobile(props: StudentDashboardViewProps) {
             </Link>
           </div>
 
-          <div className="divide-y divide-border/30">
+          <div className="divide-y divide-border/25">
             {recommendedUnenrolledCourses.map((course) => (
               <Link
                 key={course.id}
@@ -430,7 +432,6 @@ export function StudentDashboardMobile(props: StudentDashboardViewProps) {
                     {course.title}
                   </h3>
                 </div>
-                <ArrowRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
               </Link>
             ))}
           </div>

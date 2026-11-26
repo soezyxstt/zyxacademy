@@ -2,11 +2,47 @@
 
 import * as React from "react";
 import { useTheme } from "next-themes";
-import { Toaster as Sonner, toast } from "sonner";
+import { Toaster as Sonner, toast as sonnerToast } from "sonner";
 import { AlertCircle, AlertTriangle, CircleCheck, Info, Loader2, X } from "lucide-react";
 import { DEFAULT_APPEARANCE_PREFERENCES } from "@/lib/appearance-preferences";
+import {
+  hapticError,
+  hapticLight,
+  hapticSuccess,
+  hapticWarning,
+} from "@/lib/native/haptics";
 
 type ToasterProps = React.ComponentProps<typeof Sonner>;
+
+const toast = new Proxy(sonnerToast, {
+  get(target, prop, receiver) {
+    if (prop === "success") {
+      return (...args: Parameters<typeof sonnerToast.success>) => {
+        void hapticSuccess();
+        return target.success(...args);
+      };
+    }
+    if (prop === "warning") {
+      return (...args: Parameters<typeof sonnerToast.warning>) => {
+        void hapticWarning();
+        return target.warning(...args);
+      };
+    }
+    if (prop === "error") {
+      return (...args: Parameters<typeof sonnerToast.error>) => {
+        void hapticError();
+        return target.error(...args);
+      };
+    }
+    if (prop === "info") {
+      return (...args: Parameters<typeof sonnerToast.info>) => {
+        void hapticLight();
+        return target.info(...args);
+      };
+    }
+    return Reflect.get(target, prop, receiver);
+  },
+}) as typeof sonnerToast;
 
 function Toaster({ className, icons, toastOptions, ...props }: ToasterProps) {
   const { theme = "system" } = useTheme();

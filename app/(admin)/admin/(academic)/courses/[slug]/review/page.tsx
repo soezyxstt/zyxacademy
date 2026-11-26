@@ -66,7 +66,7 @@ export default async function AdminCourseReviewPage({ params, searchParams }: Pr
   const initialReviewTab = selectedTab === "product" ? "product" : "idea";
 
   return (
-    <div className="space-y-4 font-sans">
+    <div className="min-w-0 space-y-(--compact-gap)">
       <CourseDetailHeader
         course={courseData.course}
         breadcrumbs={[

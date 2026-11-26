@@ -132,6 +132,32 @@ describe("private prefixes and upload body", () => {
     await expect(parseDiscussionImageUpload(forged)).rejects.toMatchObject({ code: "size" });
   });
 
+  test("accepts the configured public origin behind Cloud Run without trusting forwarded headers", async () => {
+    const publicOrigin = "https://staging.zyxacademy.com";
+    const internalUrl = "http://127.0.0.1:8080/api/discussions/attachments";
+    const source = await sharp({ create: { width: 32, height: 24, channels: 3, background: "blue" } }).jpeg().toBuffer();
+    const form = new FormData();
+    form.set("channelId", "channel-1");
+    form.set("file", new File([new Uint8Array(source)], "foto-soal.jpg", { type: "image/jpeg" }));
+    const request = (headers: Record<string, string>) => new Request(internalUrl, { method: "POST", headers, body: form });
+    const parsed = await parseDiscussionImageUpload(request({ origin: publicOrigin, "sec-fetch-site": "same-origin" }), publicOrigin);
+    expect(parsed.channelId).toBe("channel-1");
+    const clean = await sanitizeDiscussionImage(new Uint8Array(await parsed.file.arrayBuffer()), parsed.file.type);
+    expect(clean.mime).toBe("image/jpeg");
+    expect([clean.width, clean.height]).toEqual([32, 24]);
+
+    for (const headers of [
+      { origin: "https://evil.example", "x-forwarded-host": "evil.example", "x-forwarded-proto": "https" },
+      { origin: publicOrigin, "sec-fetch-site": "cross-site" },
+      { origin: publicOrigin, "sec-fetch-site": "same-site" },
+      { origin: "null" },
+      {},
+    ]) {
+      await expect(parseDiscussionImageUpload(request(headers as Record<string, string>), publicOrigin)).rejects.toMatchObject({ code: "origin" });
+    }
+    await expect(parseDiscussionImageUpload(request({ origin: publicOrigin }))).rejects.toMatchObject({ code: "origin" });
+  });
+
   test("keeps non-upload discussion modules free of sharp and the upload sanitizer", () => {
     for (const file of [
       "lib/discussions/image-policy.ts",

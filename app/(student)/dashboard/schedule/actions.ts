@@ -11,6 +11,8 @@ import {
   groups,
   groupCourses,
   groupMembers,
+  enrollmentTokens,
+  enrollmentTokenCourses,
   tutorCourses,
   penugasanTutor,
   mataKuliah,
@@ -50,6 +52,12 @@ import {
 import { executeDecideTutorRescheduleTicket } from "@/app/(tutor)/tutor/schedule/actions";
 import { recordMutationAudit } from "@/lib/audit/mutasi";
 import { type DbExecutor } from "@/lib/auth/tutor-access";
+import { tutorSlotCourses } from "@/db/schedule-extras";
+import {
+  filterCourseIdsBySlotRestriction,
+  isCourseAllowedForSlot,
+  isMissingTutorSlotCoursesTable,
+} from "@/lib/schedule/slot-courses";
 import { listStudentEnrollments } from "@/lib/student/course-catalog";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 
@@ -59,6 +67,63 @@ import {
   getBookingResources,
   type AddBookingResourceInput,
 } from "@/lib/schedule/session-resources";
+import { sendToMany, sendToUser } from "@/lib/notifications/send";
+import {
+  tutorBookingCancelledPayload,
+  tutorBookingCreatedPayload,
+  tutorBookingMovedPayload,
+  tutorTicketMessagePayload,
+  tutorTicketSubmittedPayload,
+} from "@/lib/notifications/templates";
+import {
+  triggerGoogleCalendarSyncForBookingId,
+  triggerGoogleCalendarSyncForRescheduleTicketId,
+  triggerGoogleCalendarSyncForScheduleChange,
+} from "@/lib/google-calendar/trigger";
+import { sendOptionalEmail } from "@/lib/email-preferences/send";
+import { renderScheduleEventEmail } from "@/lib/notifications/email-templates";
+import type { NotificationPayload } from "@/lib/notifications/types";
+
+type TutorScheduleNotification = {
+  tutorId: string;
+  payload: NotificationPayload;
+  email?: {
+    titleEn: string;
+    titleId: string;
+    summaryEn: string;
+    summaryId: string;
+    details: Array<{ labelEn: string; labelId: string; value: string }>;
+  };
+};
+
+async function notifyTutorScheduleEventBestEffort(input: TutorScheduleNotification): Promise<void> {
+  try {
+    await sendToUser(input.tutorId, input.payload);
+    if (input.email && process.env.RESEND_API_KEY) {
+      const email = input.email;
+      await sendOptionalEmail({
+        userId: input.tutorId,
+        category: "events_and_schedules",
+        render: (locale) => {
+          const isEn = locale === "en";
+          return renderScheduleEventEmail({
+            locale,
+            recipientName: isEn ? "Tutor" : "Pengajar",
+            title: isEn ? email.titleEn : email.titleId,
+            summary: isEn ? email.summaryEn : email.summaryId,
+            details: email.details.map((d) => ({
+              label: isEn ? d.labelEn : d.labelId,
+              value: d.value,
+            })),
+            link: "/tutor/schedule",
+          });
+        },
+      });
+    }
+  } catch (err) {
+    console.error("[STUDENT_SCHEDULE] Tutor notification failed:", err);
+  }
+}
 
 function isBookingSlotUniqueViolation(error: unknown): boolean {
   const message = [
@@ -130,11 +195,26 @@ export async function getScheduleData(weekOffset = 0, courseId?: string) {
   });
 
   // ── STUDENT ROLE DATA ───────────────────────────────────────────────────────
-  // 1. Get student study groups
+  // 1. Get student study groups (including courses linked directly or via enrollment tokens)
   const myMemberships = await db.query.groupMembers.findMany({
     where: and(
       eq(groupMembers.userId, dbUser.id),
-      courseIds ? inArray(groupMembers.groupId, db.select({ id: groupCourses.groupId }).from(groupCourses).where(inArray(groupCourses.courseId, courseIds))) : undefined,
+      courseIds
+        ? or(
+            inArray(
+              groupMembers.groupId,
+              db.select({ id: groupCourses.groupId }).from(groupCourses).where(inArray(groupCourses.courseId, courseIds)),
+            ),
+            inArray(
+              groupMembers.groupId,
+              db
+                .select({ id: enrollmentTokens.groupId })
+                .from(enrollmentTokens)
+                .innerJoin(enrollmentTokenCourses, eq(enrollmentTokenCourses.tokenId, enrollmentTokens.id))
+                .where(inArray(enrollmentTokenCourses.courseId, courseIds)),
+            ),
+          )
+        : undefined,
     ),
     with: {
       group: {
@@ -143,6 +223,20 @@ export async function getScheduleData(weekOffset = 0, courseId?: string) {
             where: courseIds ? inArray(groupCourses.courseId, courseIds) : undefined,
             with: {
               course: true,
+            },
+          },
+          tokens: {
+            columns: {
+              id: true,
+              createdAt: true,
+            },
+            with: {
+              tokenCourses: {
+                where: courseIds ? inArray(enrollmentTokenCourses.courseId, courseIds) : undefined,
+                with: {
+                  course: true,
+                },
+              },
             },
           },
           members: {
@@ -155,7 +249,34 @@ export async function getScheduleData(weekOffset = 0, courseId?: string) {
     },
   });
 
-  const myGroups = myMemberships.map((m) => m.group).filter(Boolean);
+  const myGroups = myMemberships
+    .map((m) => m.group)
+    .filter(Boolean)
+    .map((g) => {
+      const seenCourseIds = new Set<string>();
+      const mergedCourses: typeof g.courses = [];
+      for (const entry of g.courses ?? []) {
+        if (!entry?.courseId || seenCourseIds.has(entry.courseId)) continue;
+        seenCourseIds.add(entry.courseId);
+        mergedCourses.push(entry);
+      }
+      for (const token of g.tokens ?? []) {
+        for (const tc of token.tokenCourses ?? []) {
+          if (!tc?.courseId || seenCourseIds.has(tc.courseId)) continue;
+          seenCourseIds.add(tc.courseId);
+          mergedCourses.push({
+            id: `token:${token.id}:${tc.courseId}`,
+            groupId: g.id,
+            courseId: tc.courseId,
+            createdAt: token.createdAt,
+            course: tc.course,
+          });
+        }
+      }
+      const { tokens: _tokens, ...groupWithoutTokens } = g;
+      void _tokens;
+      return { ...groupWithoutTokens, courses: mergedCourses };
+    });
   const myGroupIds = myGroups.map((g) => g.id);
 
   // 1b. Weekly usage per group for the viewed week (derived quota display)
@@ -262,16 +383,22 @@ export async function getScheduleData(weekOffset = 0, courseId?: string) {
   const eligibleTutorIds = new Set(eligibleTutors.map((row) => row.id));
   const adminTutorIds = new Set(eligibleTutors.filter((row) => row.role === "admin").map((row) => row.id));
   const coursesByAlias = new Map<string, typeof mappedCourses>();
+  const activeCoursesByAlias = new Map<string, typeof mappedCourses>();
   for (const row of mappedCourses) {
     for (const id of new Set([row.id, row.legacyCourseId].filter((value): value is string => Boolean(value)))) {
       const matches = coursesByAlias.get(id) ?? [];
       matches.push(row);
       coursesByAlias.set(id, matches);
+      if (row.status === "active") {
+        const activeMatches = activeCoursesByAlias.get(id) ?? [];
+        activeMatches.push(row);
+        activeCoursesByAlias.set(id, activeMatches);
+      }
     }
   }
   const adminCourseIds = mappedCourses.flatMap((row) => {
     const ids = row.legacyCourseId ? [row.id, row.legacyCourseId] : [row.id];
-    return row.status === "active" && ids.some((id) => filterCourseIds.has(id)) && ids.every((id) => coursesByAlias.get(id)?.length === 1) ? ids : [];
+    return row.status === "active" && ids.some((id) => filterCourseIds.has(id)) && ids.every((id) => activeCoursesByAlias.get(id)?.length === 1) ? ids : [];
   });
   const assignmentsByTutor = new Map<string, typeof canonicalAssignments>();
   for (const row of canonicalAssignments) {
@@ -333,6 +460,54 @@ export async function getScheduleData(weekOffset = 0, courseId?: string) {
       })
     : [];
 
+  const slotIds = allTutorSlots.map((slot) => slot.id);
+  const slotCourseRestrictionsBySlot = new Map<string, string[]>();
+  if (slotIds.length > 0) {
+    try {
+      const slotCourseRows = await db
+        .select({ slotId: tutorSlotCourses.slotId, courseId: tutorSlotCourses.courseId })
+        .from(tutorSlotCourses)
+        .where(inArray(tutorSlotCourses.slotId, slotIds));
+      for (const row of slotCourseRows) {
+        const list = slotCourseRestrictionsBySlot.get(row.slotId) ?? [];
+        list.push(row.courseId);
+        slotCourseRestrictionsBySlot.set(row.slotId, list);
+      }
+    } catch (error) {
+      if (!isMissingTutorSlotCoursesTable(error)) {
+        throw error;
+      }
+    }
+  }
+
+  const assignmentAliases = new Map<string, Set<string>>();
+  for (const row of canonicalAssignments) {
+    if (row.courseStatus !== "active") continue;
+    const ids = row.legacyCourseId ? [row.courseId, row.legacyCourseId] : [row.courseId];
+    for (const id of ids) {
+      const key = id.toLowerCase();
+      const set = assignmentAliases.get(key) ?? new Set<string>();
+      for (const alias of ids) set.add(alias);
+      assignmentAliases.set(key, set);
+    }
+  }
+
+  const expandCourseAliases = (id: string): string[] => {
+    const out = new Set<string>([id]);
+    const lower = id.toLowerCase();
+    if (courseIds?.some((cid) => cid.toLowerCase() === lower)) {
+      for (const cid of courseIds) out.add(cid);
+    }
+    for (const row of activeCoursesByAlias.get(id) ?? []) {
+      out.add(row.id);
+      if (row.legacyCourseId) out.add(row.legacyCourseId);
+    }
+    for (const alias of assignmentAliases.get(lower) ?? []) {
+      out.add(alias);
+    }
+    return Array.from(out);
+  };
+
   // A student only needs booking occupancy to hide claimed slots. Keep the
   // booking details in the group-scoped read above so another group's topic,
   // notes, resources, audit entries, and ticket thread are never exposed as
@@ -345,7 +520,7 @@ export async function getScheduleData(weekOffset = 0, courseId?: string) {
         const ids = row.legacyCourseId ? [row.courseId, row.legacyCourseId] : [row.courseId];
         return eligibleTutorIds.has(slot.tutorId) && row.courseStatus === "active"
           && (adminTutorIds.has(slot.tutorId) || (row.status === "active" && row.scope === "course"))
-          && ids.every((id) => !coursesByAlias.has(id) || (coursesByAlias.get(id)?.length === 1 && coursesByAlias.get(id)?.[0].id === row.courseId))
+          && ids.every((id) => !activeCoursesByAlias.has(id) || (activeCoursesByAlias.get(id)?.length === 1 && activeCoursesByAlias.get(id)?.[0].id === row.courseId))
           ? ids : [];
       });
       const legacy = (slot.tutor?.tutorCourses ?? []).flatMap((row) => {
@@ -353,12 +528,19 @@ export async function getScheduleData(weekOffset = 0, courseId?: string) {
         if (blocked.has(id)) return [];
         const matches = coursesByAlias.get(id) ?? [];
         if (!matches.length) return [id];
-        return matches.length === 1 && matches[0].legacyCourseId === id && matches[0].status === "active" && eligibleTutorIds.has(slot.tutorId)
-          ? [id, matches[0].id] : [];
+        const activeMatches = activeCoursesByAlias.get(id) ?? [];
+        return activeMatches.length === 1 && (activeMatches[0].legacyCourseId === id || activeMatches[0].id === id) && eligibleTutorIds.has(slot.tutorId)
+          ? [...new Set([id, activeMatches[0].id])] : [];
       });
       coursesByTutor.set(slot.tutorId, [...new Set([...compatible, ...legacy, ...(adminTutorIds.has(slot.tutorId) ? adminCourseIds : [])])]);
     }
-    const matchedCourseIds = courseIds ?? coursesByTutor.get(slot.tutorId) ?? [];
+    const baseCourseIds = courseIds ?? coursesByTutor.get(slot.tutorId) ?? [];
+    const slotRestrictions = slotCourseRestrictionsBySlot.get(slot.id);
+    const matchedCourseIds = filterCourseIdsBySlotRestriction(
+      baseCourseIds,
+      slotRestrictions,
+      expandCourseAliases,
+    );
     return matchedCourseIds.length ? [{ ...slot, matchedCourseIds, booking: occupants[0] ?? null }] : [];
   });
 
@@ -434,7 +616,20 @@ export async function collaborativeBookSlot(
   }
 
   try {
-    return await client.transaction(async (tx) => {
+    let slotRestrictedCourseIds: string[] = [];
+    try {
+      const slotCourseRows = await client
+        .select({ courseId: tutorSlotCourses.courseId })
+        .from(tutorSlotCourses)
+        .where(eq(tutorSlotCourses.slotId, slotId));
+      slotRestrictedCourseIds = slotCourseRows.map((row) => row.courseId);
+    } catch (error) {
+      if (!isMissingTutorSlotCoursesTable(error)) {
+        throw error;
+      }
+    }
+
+    const { notification, ...result } = await client.transaction(async (tx) => {
       // 1. Verify student membership in group inside transaction (TOCTOU guard)
       const membership = await tx.query.groupMembers.findFirst({
         where: and(
@@ -508,6 +703,21 @@ export async function collaborativeBookSlot(
         return {
           success: false,
           error: "Tutor ini tidak bersertifikasi untuk mata kuliah ini",
+          reason: "TUTOR_NOT_ASSIGNED",
+        };
+      }
+
+      // 6b. Verify optional per-slot course restriction chosen by tutor
+      if (
+        !isCourseAllowedForSlot(
+          [courseId, tutorAssignment.courseId, tutorAssignment.legacyCourseId],
+          slotRestrictedCourseIds,
+        )
+      ) {
+        return {
+          success: false,
+          error: "Slot ini tidak dibuka untuk mata kuliah yang dipilih.",
+          reason: "SLOT_COURSE_NOT_ALLOWED",
         };
       }
 
@@ -585,6 +795,7 @@ export async function collaborativeBookSlot(
         return {
           success: false,
           error: "Kuota total sesi kelompok telah tercapai.",
+          reason: "GROUP_QUOTA_EXHAUSTED",
         };
       }
 
@@ -671,8 +882,45 @@ export async function collaborativeBookSlot(
       } catch {
         // Ignored in non-request test runners
       }
-      return { success: true, bookingId };
+      let notification: TutorScheduleNotification | undefined;
+      if (!options?.executor && slot.tutorId) {
+        const studentName = currentUser.name || "Siswa";
+        const courseTitle = (await resolveCourseIdentity(resolvedCourseId, tx))?.title ?? resolvedCourseId;
+        notification = {
+          tutorId: slot.tutorId,
+          payload: tutorBookingCreatedPayload({
+            studentName,
+            courseTitle,
+            sessionDate: sessionDateIso,
+            startTime: slot.startTime,
+            bookingId,
+          }),
+          email: {
+            titleEn: `New tutorial booking: ${courseTitle}`,
+            titleId: `Booking sesi tutorial baru: ${courseTitle}`,
+            summaryEn: `${studentName} booked a tutorial session with you.`,
+            summaryId: `${studentName} memesan sesi tutorial bersama Anda.`,
+            details: [
+              { labelEn: "Student", labelId: "Siswa", value: studentName },
+              { labelEn: "Course", labelId: "Mata kuliah", value: courseTitle },
+              { labelEn: "Date", labelId: "Tanggal", value: sessionDateIso },
+              { labelEn: "Time", labelId: "Waktu", value: `${slot.startTime} - ${slot.endTime} WIB` },
+            ],
+          },
+        };
+      }
+      return { success: true, bookingId, notification, calendarSync: { tutorId: slot.tutorId, groupId } };
     });
+    if (notification) await notifyTutorScheduleEventBestEffort(notification);
+    if (result.success && !options?.executor && result.calendarSync) {
+      await triggerGoogleCalendarSyncForScheduleChange({
+        userIds: [result.calendarSync.tutorId],
+        groupIds: [result.calendarSync.groupId],
+        includeCentral: true,
+      });
+    }
+    const { calendarSync: _calendarSync, ...publicResult } = result;
+    return publicResult;
   } catch (err: any) {
     if (err?.message === "WEEKLY_QUOTA_EXCEEDED") {
       return {
@@ -722,7 +970,7 @@ export async function collaborativeMoveSlot(
   }
 
   try {
-    return await client.transaction(async (tx) => {
+    const { notification, ...result } = await client.transaction(async (tx) => {
       const booking = await tx.query.bookings.findFirst({
         where: eq(bookings.id, bookingId),
         with: {
@@ -917,8 +1165,52 @@ export async function collaborativeMoveSlot(
       } catch {
         // Ignored in non-request test runners
       }
-      return { success: true };
+      let notification: TutorScheduleNotification | undefined;
+      if (!options?.executor && newSlot.tutorId) {
+        const studentName = currentUser.name || "Siswa";
+        const courseTitle = (await resolveCourseIdentity(booking.courseId, tx))?.title ?? booking.courseId;
+        notification = {
+          tutorId: newSlot.tutorId,
+          payload: tutorBookingMovedPayload({
+            studentName,
+            courseTitle,
+            sessionDate: newTargetDateIso,
+            startTime: newSlot.startTime,
+            bookingId,
+          }),
+          email: {
+            titleEn: `Tutorial session moved: ${courseTitle}`,
+            titleId: `Jadwal sesi dipindahkan: ${courseTitle}`,
+            summaryEn: `${studentName} moved a tutorial session to a new slot.`,
+            summaryId: `${studentName} memindahkan sesi tutorial ke slot baru.`,
+            details: [
+              { labelEn: "Student", labelId: "Siswa", value: studentName },
+              { labelEn: "Course", labelId: "Mata kuliah", value: courseTitle },
+              { labelEn: "Date", labelId: "Tanggal", value: newTargetDateIso },
+              { labelEn: "Time", labelId: "Waktu", value: `${newSlot.startTime} - ${newSlot.endTime} WIB` },
+            ],
+          },
+        };
+      }
+      return {
+        success: true,
+        notification,
+        calendarSync: {
+          userIds: [booking.slot?.tutorId, newSlot.tutorId],
+          groupId: booking.groupId,
+        },
+      };
     });
+    if (notification) await notifyTutorScheduleEventBestEffort(notification);
+    if (result.success && !options?.executor && result.calendarSync) {
+      await triggerGoogleCalendarSyncForScheduleChange({
+        userIds: result.calendarSync.userIds,
+        groupIds: [result.calendarSync.groupId],
+        includeCentral: true,
+      });
+    }
+    const { calendarSync: _calendarSync, ...publicResult } = result;
+    return publicResult;
   } catch (err: any) {
     if (err?.message === "WEEKLY_QUOTA_EXCEEDED") {
       return {
@@ -938,12 +1230,13 @@ export async function collaborativeCancelSlot(bookingId: string) {
   const currentUser = await requireUser();
 
   try {
-    return await db.transaction(async (tx) => {
+    const { notification, ...result } = await db.transaction(async (tx) => {
       const booking = await tx.query.bookings.findFirst({
         where: eq(bookings.id, bookingId),
         with: {
           group: true,
           course: true,
+          slot: true,
         },
       });
 
@@ -1064,8 +1357,54 @@ export async function collaborativeCancelSlot(bookingId: string) {
 
       revalidatePath("/dashboard/schedule");
       revalidatePath("/dashboard/groups");
-      return { success: true };
+      let notification: TutorScheduleNotification | undefined;
+      if (booking.slot?.tutorId) {
+        const studentName = currentUser.name || "Siswa";
+        const courseTitle = booking.course?.title || (await resolveCourseIdentity(booking.courseId, tx))?.title || booking.courseId;
+        const sessionDate = booking.sessionDate ?? "-";
+        const startTime = booking.slot.startTime ?? "-";
+        notification = {
+          tutorId: booking.slot.tutorId,
+          payload: tutorBookingCancelledPayload({
+            studentName,
+            courseTitle,
+            sessionDate,
+            startTime,
+            bookingId,
+          }),
+          email: {
+            titleEn: `Tutorial session cancelled: ${courseTitle}`,
+            titleId: `Sesi tutorial dibatalkan: ${courseTitle}`,
+            summaryEn: `${studentName} cancelled a scheduled tutorial session.`,
+            summaryId: `${studentName} membatalkan sesi tutorial yang dijadwalkan.`,
+            details: [
+              { labelEn: "Student", labelId: "Siswa", value: studentName },
+              { labelEn: "Course", labelId: "Mata kuliah", value: courseTitle },
+              { labelEn: "Date", labelId: "Tanggal", value: sessionDate },
+              { labelEn: "Time", labelId: "Waktu", value: startTime },
+            ],
+          },
+        };
+      }
+      return {
+        success: true,
+        notification,
+        calendarSync: {
+          tutorId: booking.slot?.tutorId,
+          groupId: booking.groupId,
+        },
+      };
     });
+    if (notification) await notifyTutorScheduleEventBestEffort(notification);
+    if (result.success && result.calendarSync) {
+      await triggerGoogleCalendarSyncForScheduleChange({
+        userIds: [result.calendarSync.tutorId],
+        groupIds: [result.calendarSync.groupId],
+        includeCentral: true,
+      });
+    }
+    const { calendarSync: _calendarSync, ...publicResult } = result;
+    return publicResult;
   } catch (err: any) {
     console.error("Collaborative cancel slot error:", err);
     return { success: false, error: err?.message || "Gagal membatalkan jadwal" };
@@ -1141,6 +1480,7 @@ export async function updatePreSessionContextAction(
 
     revalidatePath("/dashboard/schedule");
     revalidatePath("/tutor/schedule");
+    await triggerGoogleCalendarSyncForBookingId(targetBookingId);
     return { success: true };
   } catch (error) {
     console.error("Update pre-session context error:", error);
@@ -1299,7 +1639,7 @@ export async function submitRescheduleTicket(
   const currentUser = await requireUser();
 
   try {
-    return await db.transaction(async (tx) => {
+    const { notification, ...result } = await db.transaction(async (tx) => {
       await lockScheduleEntity(tx, "ticket", bookingId);
       const booking = await tx.query.bookings.findFirst({
         where: eq(bookings.id, bookingId),
@@ -1419,8 +1759,35 @@ export async function submitRescheduleTicket(
       );
 
       revalidatePath("/dashboard/schedule");
-      return { success: true, ticketId };
+      let notification: TutorScheduleNotification | undefined;
+      if (booking.slot?.tutorId) {
+        const studentName = currentUser.name || "Siswa";
+        const courseTitle = (await resolveCourseIdentity(booking.courseId, tx))?.title ?? booking.courseId;
+        notification = {
+          tutorId: booking.slot.tutorId,
+          payload: tutorTicketSubmittedPayload({
+            studentName,
+            ticketType: type,
+            courseTitle,
+            ticketId,
+          }),
+          email: {
+            titleEn: `New ${type} request: ${courseTitle}`,
+            titleId: `Pengajuan tiket ${type === "reschedule" ? "reschedule" : "pembatalan"}: ${courseTitle}`,
+            summaryEn: `${studentName} submitted a ${type} request for your review.`,
+            summaryId: `${studentName} mengajukan tiket ${type === "reschedule" ? "reschedule" : "pembatalan"} untuk ditinjau.`,
+            details: [
+              { labelEn: "Student", labelId: "Siswa", value: studentName },
+              { labelEn: "Course", labelId: "Mata kuliah", value: courseTitle },
+              { labelEn: "Reason", labelId: "Alasan", value: reason },
+            ],
+          },
+        };
+      }
+      return { success: true, ticketId, notification };
     });
+    if (notification) await notifyTutorScheduleEventBestEffort(notification);
+    return result;
   } catch (err: any) {
     console.error("Submit reschedule ticket error:", err);
     return { success: false, error: err?.message || "Gagal mengajukan tiket" };
@@ -1441,7 +1808,7 @@ export async function sendTicketMessage(ticketId: string, message: string) {
 
     const booking = await db.query.bookings.findFirst({
       where: eq(bookings.id, ticket.bookingId),
-      columns: { groupId: true },
+      columns: { groupId: true, courseId: true },
       with: { slot: { columns: { tutorId: true } } },
     });
 
@@ -1464,11 +1831,12 @@ export async function sendTicketMessage(ticketId: string, message: string) {
     }
 
     const now = new Date();
+    const cleanMessage = message.trim();
     await db.insert(bookingTicketMessages).values({
       id: randomUUID(),
       ticketId,
       senderId: currentUser.id,
-      message: message.trim(),
+      message: cleanMessage,
       createdAt: now,
     });
 
@@ -1476,6 +1844,25 @@ export async function sendTicketMessage(ticketId: string, message: string) {
       .update(bookingRescheduleTickets)
       .set({ updatedAt: now })
       .where(eq(bookingRescheduleTickets.id, ticketId));
+
+    try {
+      const tutorId = booking.slot?.tutorId;
+      const context = { courseTitle: (await resolveCourseIdentity(booking.courseId).catch(() => null))?.title, senderName: currentUser.name ?? undefined };
+      if (tutorId && currentUser.id !== tutorId) {
+        await sendToUser(tutorId, tutorTicketMessagePayload(cleanMessage, "/tutor/schedule", context));
+      } else {
+        const members = await db
+          .select({ userId: groupMembers.userId })
+          .from(groupMembers)
+          .where(eq(groupMembers.groupId, booking.groupId));
+        const recipients = members.map((m) => m.userId).filter((uid) => uid !== currentUser.id);
+        if (recipients.length > 0) {
+          await sendToMany(recipients, tutorTicketMessagePayload(cleanMessage, "/dashboard/schedule", context));
+        }
+      }
+    } catch (notifErr) {
+      console.error("[STUDENT_SCHEDULE] Ticket message notification failed:", notifErr);
+    }
 
     revalidatePath("/dashboard/schedule");
     return { success: true };
@@ -1500,6 +1887,9 @@ export async function tutorDecideTicket(
   });
   if (res.success) {
     revalidatePath("/dashboard/schedule");
+    if (decision === "approved") {
+      await triggerGoogleCalendarSyncForRescheduleTicketId(ticketId);
+    }
   }
   return res;
 }

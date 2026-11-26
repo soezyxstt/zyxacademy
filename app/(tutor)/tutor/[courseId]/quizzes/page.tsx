@@ -66,14 +66,12 @@ export default async function TutorQuizzesPage({ params }: Props) {
 
   return (
     <ApplicationPage>
-      <Reveal>
-        <PageHeader
-          icon={ClipboardList}
-          title={<><TranslatedText namespace="tutor" messageKey="routeTitles.manageQuizzesAndBank" />: {courseTitle}</>}
-          backHref={`/tutor/${courseId}`}
-          backLabel={<TranslatedText namespace="tutor" messageKey="routeTitles.overview" />}
-        />
-      </Reveal>
+      <PageHeader
+        icon={ClipboardList}
+        title={<><TranslatedText namespace="tutor" messageKey="routeTitles.manageQuizzesAndBank" />: {courseTitle}</>}
+        backHref={`/tutor/${courseId}`}
+        backLabel={<TranslatedText namespace="tutor" messageKey="routeTitles.overview" />}
+      />
 
       <Reveal>
         <QuizzesClient

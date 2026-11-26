@@ -4,8 +4,6 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  ArrowLeft,
-  ArrowRight,
   PanelLeftClose,
   PanelLeftOpen,
   Search,
@@ -32,6 +30,7 @@ export interface DesktopSidebarShellProps {
   topSection?: (collapsed: boolean) => ReactNode;
   bottomSection?: (collapsed: boolean) => ReactNode;
   showAccountTools?: boolean;
+  defaultCollapsed?: boolean;
   className?: string;
 }
 
@@ -58,6 +57,7 @@ export function DesktopSidebarShell({
   topSection,
   bottomSection,
   showAccountTools = true,
+  defaultCollapsed = false,
   className,
 }: DesktopSidebarShellProps) {
   const t = useTranslations("common");
@@ -67,7 +67,7 @@ export function DesktopSidebarShell({
   const { setOpen: setSearchOpen } = useCommandMenu();
   const viewportMode = useViewportMode();
 
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const [mounted, setMounted] = useState(false);
   const [modKeyHint, setModKeyHint] = useState("Ctrl + K");
   const isMaterialReaderRoute = isMaterialReaderPathname(pathname);
@@ -127,8 +127,8 @@ export function DesktopSidebarShell({
     >
       <div
         className={cn(
-          "flex h-11 shrink-0 items-center gap-0.5 border-b border-border/60",
-          isCollapsed ? "justify-center px-1.5" : "px-2.5"
+          "flex h-12 shrink-0 items-center gap-1 border-b border-border/60",
+          isCollapsed ? "justify-center px-1.5" : "px-3"
         )}
       >
         {!isCollapsed ? (
@@ -136,32 +136,10 @@ export function DesktopSidebarShell({
             <Link
               href={logoHref}
               aria-label={logoLabel}
-              className="flex min-w-0 flex-1 items-center pl-1"
+              className="flex min-w-0 flex-1 items-center"
             >
               <Logo variant="symbol" className="[--logo-height:1.25rem]" />
             </Link>
-
-            <SidebarTooltip label="Back" collapsed={false}>
-              <button
-                type="button"
-                onClick={() => window.history.back()}
-                aria-label="Back"
-                className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
-              >
-                <ArrowLeft className="size-4" />
-              </button>
-            </SidebarTooltip>
-
-            <SidebarTooltip label="Forward" collapsed={false}>
-              <button
-                type="button"
-                onClick={() => window.history.forward()}
-                aria-label="Forward"
-                className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
-              >
-                <ArrowRight className="size-4" />
-              </button>
-            </SidebarTooltip>
 
             {headerActions?.(false)}
 
@@ -175,9 +153,10 @@ export function DesktopSidebarShell({
               >
                 <button
                   type="button"
+                  data-tour="search"
                   onClick={() => setSearchOpen(true)}
                   aria-label={t("searchWithShortcut", { shortcut: modKeyHint })}
-                  className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
+                  className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <Search className="size-4" />
                 </button>
@@ -189,54 +168,30 @@ export function DesktopSidebarShell({
                 type="button"
                 onClick={toggleCollapsed}
                 aria-label={t("closeSidebar")}
-                className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
+                className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <PanelLeftClose className="size-4" />
               </button>
             </SidebarTooltip>
           </>
         ) : (
-          <div className="flex flex-col items-center gap-1 py-1">
-            <SidebarTooltip label={t("openSidebar")} collapsed={true}>
-              <button
-                type="button"
-                onClick={toggleCollapsed}
-                aria-label={t("openSidebar")}
-                className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
-              >
-                <PanelLeftOpen className="size-4" />
-              </button>
-            </SidebarTooltip>
-          </div>
+          <SidebarTooltip label={t("openSidebar")} collapsed={true}>
+            <button
+              type="button"
+              onClick={toggleCollapsed}
+              aria-label={t("openSidebar")}
+              className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <PanelLeftOpen className="size-4" />
+            </button>
+          </SidebarTooltip>
         )}
       </div>
 
       {topSection?.(isCollapsed)}
 
-      {isCollapsed && (
+      {isCollapsed && (showAccountTools || headerActions) && (
         <div className="flex shrink-0 flex-col items-center gap-1 border-b border-border/60 px-1 py-1.5">
-          <div className="flex items-center gap-0.5">
-            <SidebarTooltip label="Back" collapsed={true}>
-              <button
-                type="button"
-                onClick={() => window.history.back()}
-                aria-label="Back"
-                className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
-              >
-                <ArrowLeft className="size-3.5" />
-              </button>
-            </SidebarTooltip>
-            <SidebarTooltip label="Forward" collapsed={true}>
-              <button
-                type="button"
-                onClick={() => window.history.forward()}
-                aria-label="Forward"
-                className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
-              >
-                <ArrowRight className="size-3.5" />
-              </button>
-            </SidebarTooltip>
-          </div>
           {showAccountTools && (
             <SidebarTooltip
               label={t("searchWithShortcut", { shortcut: modKeyHint })}
@@ -244,9 +199,10 @@ export function DesktopSidebarShell({
             >
               <button
                 type="button"
-                onClick={() => setSearchOpen(true)}
+                data-tour="search"
+                  onClick={() => setSearchOpen(true)}
                 aria-label={t("searchWithShortcut", { shortcut: modKeyHint })}
-                className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
+                className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <Search className="size-4" />
               </button>

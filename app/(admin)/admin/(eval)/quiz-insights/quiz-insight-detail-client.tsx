@@ -2,7 +2,7 @@
 
 import { Skeleton } from "@/components/ui/skeleton";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import {
@@ -15,19 +15,24 @@ import {
   RefreshCw,
   Lightbulb,
   FileSpreadsheet,
-  Zap,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Badge, BetaBadge } from "@/components/ui/badge";
+import { BetaBadge } from "@/components/ui/badge";
 import { FormattedDate } from "@/components/ui/formatted-date";
+import { MathText } from "@/components/course/math-text";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { QuizAttemptsSpreadsheet } from "@/app/(admin)/admin/(eval)/quiz-insights/[id]/_components/quiz-attempts-spreadsheet";
 import { AdminPageHeader } from "@/components/admin/page-header";
+import { AdminEmptyState } from "@/components/admin/state-panels";
+import { AdminSectionTitle } from "@/components/admin/section-title";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import { DifficultyBadge } from "@/components/admin/status-badges";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUrlTab } from "@/hooks/use-url-tab";
+import { useMobilePageActions } from "@/components/navigation/mobile-chrome-context";
+import { MobileTopNavActionButton } from "@/components/navigation/mobile-top-navbar";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export interface QuizDetailResponse {
   template: {
@@ -160,7 +165,7 @@ export function QuizInsightDetailClient({
     fetchDetail();
   }, [fetchDetail]);
 
-  const handleRunAiAnalysis = async () => {
+  const handleRunAiAnalysis = useCallback(async () => {
     setAnalyzingAi(true);
     setErrorMsg(null);
     try {
@@ -178,15 +183,46 @@ export function QuizInsightDetailClient({
     } finally {
       setAnalyzingAi(false);
     }
-  };
+  }, [fetchDetail, quizId, tx]);
 
-  if (loading) {
+  const hasData = data?.template.id === quizId;
+  const analysisDisabled = analyzingAi || !data?.summary.totalCompleted;
+  const analysisLabel = tx(analyzingAi ? "analyzing" : "runPerformanceAnalysis");
+  const analysisAction = useMemo(() => hasData ? (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <MobileTopNavActionButton
+            label={analysisLabel}
+            onClick={handleRunAiAnalysis}
+            disabled={analysisDisabled}
+            aria-busy={analyzingAi}
+          >
+            {analyzingAi ? <RefreshCw className="motion-safe:animate-spin" aria-hidden /> : <BrainCircuit aria-hidden />}
+          </MobileTopNavActionButton>
+        </TooltipTrigger>
+        <TooltipContent>{analysisLabel}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  ) : null, [analysisDisabled, analysisLabel, analyzingAi, handleRunAiAnalysis, hasData]);
+  const analysisInNavbar = useMobilePageActions(analysisAction);
+
+  if (loading && !hasData) {
     return (
-      <div role="status" aria-label={tx("loading")} className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4"><div className="space-y-2"><Skeleton className="h-7 w-56" /><Skeleton className="h-4 w-40" /></div><Skeleton className="h-9 w-40" /></div>
-        <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-border bg-card lg:grid-cols-4">{[0, 1, 2, 3].map((i) => <div key={i} className="space-y-2 p-4"><Skeleton className="h-4 w-24" /><Skeleton className="h-6 w-16" /></div>)}</div>
+      <div role="status" aria-label={tx("loading")} className="space-y-(--section-gap)">
+        <div className="hidden justify-end md:flex"><Skeleton className="size-9" /></div>
+        <div className="flex flex-col divide-y divide-border/40 border-y border-border/40 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-6 sm:gap-y-1.5 sm:divide-y-0 sm:py-2">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="flex items-center justify-between gap-3 py-1.5 sm:inline-flex sm:justify-start sm:gap-2 sm:py-0">
+              <Skeleton className="h-3.5 w-20" />
+              <Skeleton className="h-4 w-12" />
+            </div>
+          ))}
+        </div>
         <Skeleton className="h-10 w-80 max-w-full" />
-        <div className="grid gap-4 md:grid-cols-2">{[0, 1].map((i) => <div key={i} className="space-y-3 border-b border-border pb-4"><Skeleton className="h-5 w-40" /><Skeleton className="h-32 w-full" /></div>)}</div>
+        <div className="grid gap-(--section-gap) md:grid-cols-2">
+          {[0, 1].map((i) => <div key={i} className="space-y-3"><Skeleton className="h-5 w-40" /><Skeleton className="h-32 w-full" /></div>)}
+        </div>
       </div>
     );
   }
@@ -194,13 +230,11 @@ export function QuizInsightDetailClient({
   if (errorMsg && !data) {
     return (
       <div className="p-8 border border-status-error/30 bg-status-error/10 rounded-xl space-y-4 text-center">
-        <AlertTriangle className="size-8 mx-auto text-status-error" />
+        <AlertTriangle className="mx-auto size-8 text-status-error" aria-hidden />
         <p className="text-body-base font-semibold text-status-error">{errorMsg}</p>
-        <Link href={backHref}>
-          <Button variant="outline" size="sm" className="rounded-lg">
-            {backLabel ?? tx("backLabel")}
-          </Button>
-        </Link>
+        <Button asChild variant="outline" size="sm">
+          <Link href={backHref}>{backLabel ?? tx("backLabel")}</Link>
+        </Button>
       </div>
     );
   }
@@ -220,53 +254,32 @@ export function QuizInsightDetailClient({
   const courseDisplayName = lockedCourse?.title || template.courseName || template.courseId;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-(--section-gap)">
       <AdminPageHeader
         icon={BarChart3}
         backHref={backHref}
         backLabel={backLabel ?? tx("backLabel")}
-        title={
-          <span className="flex flex-wrap items-center gap-2">
-            <span>{template.title}</span>
-            <Badge variant="outline" className="rounded-md font-medium text-body-xs">
-              {courseDisplayName}
-            </Badge>
-            <Badge variant="secondary" className="rounded-md text-body-xs capitalize">
-              {tx(`category.${template.category}`)}
-            </Badge>
-          </span>
-        }
-        description={
-          <>
-            {tx("quizMetadata", { id: template.id, limit: template.timeLimitSeconds ? formatDuration(template.timeLimitSeconds) : tx("unlimited") })} · {tx("createdAt")} {" "}
-            <FormattedDate date={template.createdAt} options={{ day: "numeric", month: "short", year: "numeric" }} />
-          </>
-        }
-        actions={
-          <Button
-            onClick={handleRunAiAnalysis}
-            disabled={analyzingAi || summary.totalCompleted === 0}
-            className="gap-2 bg-brand-primary text-primary-foreground hover:bg-brand-primary/90 rounded-lg"
-          >
-            {analyzingAi ? (
-              <RefreshCw className="size-4 animate-spin" />
-            ) : (
-              <BrainCircuit className="size-4" />
-            )}
-            <span>{analyzingAi ? tx("analyzing") : tx("runPerformanceAnalysis")}</span>
-          </Button>
-        }
+        title={template.title}
+        actions={analysisInNavbar ? undefined : analysisAction}
       />
 
+      <div className="space-y-1">
+        <p className="wrap-anywhere text-body-sm font-semibold text-foreground">{template.title}</p>
+        <p className="wrap-anywhere text-body-xs text-muted-foreground">
+          {courseDisplayName} · {tx(`category.${template.category}`)} · {tx("quizMetadata", { id: template.id, limit: template.timeLimitSeconds ? formatDuration(template.timeLimitSeconds) : tx("unlimited") })} · {tx("createdAt")}{" "}
+          <FormattedDate date={template.createdAt} options={{ day: "numeric", month: "short", year: "numeric" }} />
+        </p>
+      </div>
+
       {errorMsg && (
-        <div className="p-4 border border-status-error/40 bg-status-error/10 text-status-error rounded-xl text-body-sm flex items-center gap-2">
-          <AlertTriangle className="size-4 shrink-0" />
+        <div role="alert" className="flex items-start gap-2 border-l-2 border-status-error pl-3 text-body-sm text-foreground">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-status-error" aria-hidden />
           <span>{errorMsg}</span>
         </div>
       )}
 
       {/* Overview Stat Strip */}
-      <AdminStatStrip className="lg:grid-cols-4">
+      <AdminStatStrip>
         <AdminStatStripItem
           label={tx("completedParticipants")}
           value={summary.totalCompleted}
@@ -288,12 +301,12 @@ export function QuizInsightDetailClient({
           label={tx("aiEvaluationStatus")}
           value={
             latestAiInsight ? (
-              <div className="flex items-center gap-1.5 text-status-success">
-                <CheckCircle2 className="size-5" />
-                <span className="text-body-sm font-semibold">{tx("available")}</span>
+              <div className="flex items-center gap-1.5">
+                <CheckCircle2 className="size-4 shrink-0 text-status-success" aria-hidden />
+                <span>{tx("available")}</span>
               </div>
             ) : (
-              <span className="text-body-sm font-normal text-muted-foreground">{tx("notAnalyzed")}</span>
+              <span>{tx("notAnalyzed")}</span>
             )
           }
           caption={latestAiInsight ? tx("basedOnAttempts", { count: latestAiInsight.sampleSize }) : undefined}
@@ -306,224 +319,191 @@ export function QuizInsightDetailClient({
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList flush={false}>
           <TabsTrigger value="ai-insights" className="gap-2">
-            <BrainCircuit className="size-4" />
+            <BrainCircuit className="size-4" aria-hidden />
             <span>{tx("aiEvaluation")}</span>
             <BetaBadge />
           </TabsTrigger>
           <TabsTrigger value="questions" className="gap-2">
-            <Target className="size-4" />
+            <Target className="size-4" aria-hidden />
             <span>{tx("questionAnalysis")}</span>
           </TabsTrigger>
           <TabsTrigger value="score-dist" className="gap-2">
-            <BarChart3 className="size-4" />
+            <BarChart3 className="size-4" aria-hidden />
             <span>{tx("scoreDistribution")}</span>
           </TabsTrigger>
           <TabsTrigger value="attempts-sheet" className="gap-2">
-            <FileSpreadsheet className="size-4" />
+            <FileSpreadsheet className="size-4" aria-hidden />
             <span>{tx("studentAttempts")}</span>
           </TabsTrigger>
         </TabsList>
 
         {/* Tab 1: AI evaluation */}
-        <TabsContent value="ai-insights" className="space-y-4">
+        <TabsContent value="ai-insights">
           {!latestAiInsight ? (
-            <div className="border border-border rounded-xl p-6 text-center bg-card space-y-4">
-              <div className="size-12 rounded-full bg-brand-primary/10 text-brand-primary flex items-center justify-center mx-auto">
-                <BrainCircuit className="size-6" />
-              </div>
-              <div className="max-w-md mx-auto space-y-1">
-                <h3 className="text-body-base font-semibold text-foreground">{tx("noAiAnalysis")}</h3>
-                <p className="text-body-sm text-muted-foreground">
-                  {tx("noAiAnalysisDescription")}
-                </p>
-              </div>
-              <Button
-                onClick={handleRunAiAnalysis}
-                disabled={analyzingAi || summary.totalCompleted === 0}
-                className="gap-2 bg-brand-primary text-primary-foreground hover:bg-brand-primary/90"
-              >
-                {analyzingAi ? <RefreshCw className="size-4 animate-spin" /> : <Zap className="size-4" />}
-                {summary.totalCompleted === 0 ? tx("needOneAttempt") : tx("runAnalysis")}
-              </Button>
-            </div>
+            <AdminEmptyState
+              compact
+              icon={BrainCircuit}
+              title={tx("noAiAnalysis")}
+              description={summary.totalCompleted === 0 ? tx("needOneAttempt") : tx("noAiAnalysisDescription")}
+            />
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-8 md:space-y-10">
               {/* Executive Summary */}
-              <div className="border border-border rounded-xl p-4 bg-card space-y-3">
-                <div className="flex items-center gap-2 text-foreground font-semibold text-body-base">
-                  <Lightbulb className="size-5 text-status-warning" />
-                  <h4>{tx("evaluationSummary")}</h4>
-                </div>
-                <p className="text-body-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+              <section className="space-y-2">
+                <AdminSectionTitle as="h2" title={tx("evaluationSummary")} icon={Lightbulb} />
+                <p className="max-w-prose whitespace-pre-wrap break-words text-body-base text-foreground">
                   {latestAiInsight.insights.summaryOverview || latestAiInsight.summary}
                 </p>
-              </div>
+              </section>
 
               {/* Teaching Recommendations & Misconceptions */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid gap-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-(--section-gap)">
                 {/* Misconceptions */}
-                <div className="border border-border rounded-xl p-4 bg-card space-y-3">
-                  <h4 className="font-semibold text-body-base text-foreground flex items-center gap-2">
-                    <AlertTriangle className="size-4 text-status-warning" />
-                    <span>{tx("misconceptions")}</span>
-                  </h4>
-                  {latestAiInsight.insights.misconceptions?.length === 0 ? (
-                    <p className="text-body-xs text-muted-foreground italic">{tx("noCriticalMisconceptions")}</p>
+                <section className="min-w-0 space-y-2">
+                  <AdminSectionTitle as="h2" title={tx("misconceptions")} icon={AlertTriangle} iconClassName="text-status-warning" />
+                  {!latestAiInsight.insights.misconceptions?.length ? (
+                    <p className="text-body-sm text-muted-foreground">{tx("noCriticalMisconceptions")}</p>
                   ) : (
-                    <div className="space-y-3">
+                    <ul className="divide-y divide-border/30">
                       {latestAiInsight.insights.misconceptions?.map((misc, idx) => (
-                        <div key={idx} className="py-3 border-b border-border last:border-0 space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="font-semibold text-body-sm text-foreground">{misc.concept}</span>
-                            <Badge
-                              variant="secondary"
-                              className={misc.frequency === "high" ? "text-body-xs capitalize border-status-error/30 text-status-error" : "text-body-xs capitalize"}
-                            >
+                        <li key={idx} className="space-y-1 py-(--row-padding)">
+                          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                            <h3 className="min-w-0 wrap-anywhere text-body-sm font-semibold text-foreground">{misc.concept}</h3>
+                            <span className="inline-flex items-center gap-1.5 text-body-xs text-muted-foreground">
+                              {misc.frequency === "high" && <span className="size-1.5 shrink-0 rounded-full bg-status-warning" aria-hidden />}
                               {tx("frequency", { level: tx(`frequencyLevels.${misc.frequency}`) })}
-                            </Badge>
+                            </span>
                           </div>
-                          <p className="text-body-xs text-muted-foreground">{misc.description}</p>
-                        </div>
+                          <p className="whitespace-pre-wrap break-words text-body-base text-foreground">{misc.description}</p>
+                        </li>
                       ))}
-                    </div>
+                    </ul>
                   )}
-                </div>
+                </section>
 
                 {/* Recommendations */}
-                <div className="border border-border rounded-xl p-4 bg-card space-y-3">
-                  <h4 className="font-semibold text-body-base text-foreground flex items-center gap-2">
-                    <Target className="size-4 text-status-info" />
-                    <span>{tx("followUps")}</span>
-                  </h4>
-                  {latestAiInsight.insights.teachingRecommendations?.length === 0 ? (
-                    <p className="text-body-xs text-muted-foreground italic">{tx("noRecommendations")}</p>
+                <section className="min-w-0 space-y-2">
+                  <AdminSectionTitle as="h2" title={tx("followUps")} icon={Target} />
+                  {!latestAiInsight.insights.teachingRecommendations?.length ? (
+                    <p className="text-body-sm text-muted-foreground">{tx("noRecommendations")}</p>
                   ) : (
-                    <div className="space-y-3">
+                    <ul className="divide-y divide-border/30">
                       {latestAiInsight.insights.teachingRecommendations?.map((rec, idx) => (
-                        <div key={idx} className="py-3 border-b border-border last:border-0 space-y-1.5">
-                          <span className="font-semibold text-body-sm text-foreground">{rec.topic}</span>
-                          <p className="text-body-xs font-medium text-brand-primary">{rec.actionItem}</p>
-                          <p className="text-body-xs text-muted-foreground">{rec.rationale}</p>
-                        </div>
+                        <li key={idx} className="space-y-1 py-(--row-padding)">
+                          <h3 className="wrap-anywhere text-body-sm font-semibold text-foreground">{rec.topic}</h3>
+                          <p className="whitespace-pre-wrap break-words text-body-base text-foreground">{rec.actionItem}</p>
+                          <p className="whitespace-pre-wrap break-words text-body-sm text-muted-foreground">{rec.rationale}</p>
+                        </li>
                       ))}
-                    </div>
+                    </ul>
                   )}
-                </div>
+                </section>
               </div>
 
               {/* Hardest Questions Deep Dive */}
               {latestAiInsight.insights.hardestQuestionsAnalysis?.length > 0 && (
-                <div className="border border-border rounded-xl p-4 bg-card space-y-3">
-                  <h4 className="font-semibold text-body-base text-foreground flex items-center gap-2">
-                    <AlertTriangle className="size-4 text-status-error" />
-                    <span>{tx("difficultQuestionsAndDistractors")}</span>
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <section className="min-w-0 space-y-2">
+                  <AdminSectionTitle as="h2" title={tx("difficultQuestionsAndDistractors")} icon={AlertTriangle} iconClassName="text-status-warning" />
+                  <ul className="divide-y divide-border/30">
                     {latestAiInsight.insights.hardestQuestionsAnalysis.map((item, idx) => (
-                      <div key={idx} className="py-3 border-b border-border last:border-0 space-y-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-body-xs font-mono text-muted-foreground">ID: {item.questionId}</span>
-                          <Badge variant="outline" className="text-status-error border-status-error/40 text-body-xs">
-                            {tx("accuracyValue", { value: item.accuracyRate })}
-                          </Badge>
+                      <li key={idx} className="grid gap-(--compact-gap) py-(--row-padding) lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-(--section-gap)">
+                        <div className="min-w-0 space-y-1">
+                          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-body-xs">
+                            <span className="min-w-0 wrap-anywhere font-mono text-muted-foreground">ID: {item.questionId}</span>
+                            <span className="font-medium tabular-nums text-foreground">{tx("accuracyValue", { value: item.accuracyRate })}</span>
+                          </div>
+                          <MathText as="div" className="min-w-0 wrap-anywhere text-body-base text-foreground">{item.promptSnippet}</MathText>
                         </div>
-                        <p className="text-body-sm font-medium text-foreground line-clamp-2">{item.promptSnippet}</p>
-                        <div className="text-body-xs space-y-1 pt-1 border-t border-border">
-                          <p className="text-muted-foreground"><strong className="text-foreground">{tx("diagnosis")}</strong> {item.diagnosis}</p>
-                          <p className="text-status-warning"><strong className="text-foreground">{tx("distractorTrap")}</strong> {item.distractorTrap}</p>
+                        <div className="min-w-0 space-y-1 wrap-anywhere text-body-sm text-muted-foreground">
+                          <p><strong className="text-foreground">{tx("diagnosis")}</strong> {item.diagnosis}</p>
+                          <p><strong className="text-foreground">{tx("distractorTrap")}</strong> {item.distractorTrap}</p>
                         </div>
-                      </div>
+                      </li>
                     ))}
-                  </div>
-                </div>
+                  </ul>
+                </section>
               )}
             </div>
           )}
         </TabsContent>
 
         {/* Tab 2: Question Item & Distractor Analysis */}
-        <TabsContent value="questions" className="space-y-4">
-          <div className="divide-y divide-border border-y border-border">
+        <TabsContent value="questions">
+          <ol className="divide-y divide-border/40">
             {questionAnalysis.map((q, idx) => (
-              <div key={q.questionId} className="p-4 space-y-3">
+              <li key={q.questionId} className="space-y-(--compact-gap) py-(--related-gap)">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="size-6 rounded-full bg-brand-primary/10 text-brand-primary text-body-xs font-bold flex items-center justify-center">
-                      {idx + 1}
-                    </span>
-                    <span className="font-mono text-body-xs text-muted-foreground">ID: {q.questionId}</span>
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <span className="text-body-sm font-semibold tabular-nums text-foreground">{idx + 1}.</span>
+                    <span className="min-w-0 wrap-anywhere font-mono text-body-xs text-muted-foreground">ID: {q.questionId}</span>
                     <DifficultyBadge difficulty={q.difficulty} />
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 tabular-nums">
                     <span className="text-body-xs text-muted-foreground">
                       {tx("studentAnswers")}: <strong className="text-foreground">{q.totalAnswers}</strong>
                     </span>
-                    <Badge
-                      variant="secondary"
-                      className={q.accuracyRate >= 70 ? "text-body-xs font-semibold" : "text-body-xs font-semibold border-status-error/30 text-status-error"}
-                    >
-                      {tx("accuracy")}: {q.accuracyRate}%
-                    </Badge>
+                    <span className="inline-flex items-center gap-1.5 text-body-xs font-medium text-foreground">
+                      {q.accuracyRate < 70 && <span className="size-1.5 shrink-0 rounded-full bg-status-warning" aria-hidden />}
+                      {tx("accuracyValue", { value: q.accuracyRate })}
+                    </span>
                   </div>
                 </div>
 
-                <div className="text-body-sm font-medium text-foreground">
+                <div className="min-w-0 text-body-base text-foreground">
                   <MarkdownRenderer content={q.prompt} />
                 </div>
 
                 {/* Option Breakdown */}
-                <div className="space-y-2 pt-2 border-t border-border">
+                <div className="space-y-1">
                   <p className="text-body-xs font-semibold text-muted-foreground">{tx("answerDistribution")}</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <ul className="divide-y divide-border/30">
                     {q.options.map((opt, optIdx) => {
                       const isCorrect = q.correctIndices.includes(optIdx);
                       const chosenCount = q.optionCounts[optIdx] || 0;
                       const percentage = q.totalAnswers > 0 ? Math.round((chosenCount / q.totalAnswers) * 100) : 0;
 
                       return (
-                        <div
+                        <li
                           key={optIdx}
-                          className={`p-2.5 rounded-lg border text-body-xs flex items-center justify-between gap-2 ${
-                            isCorrect
-                              ? "border-status-success/40 bg-status-success/10 text-status-success font-medium"
-                              : "border-border bg-muted/20 text-muted-foreground"
-                          }`}
+                          className="flex items-baseline justify-between gap-(--compact-gap) py-2 text-foreground"
                         >
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="font-bold shrink-0">{String.fromCharCode(65 + optIdx)}.</span>
-                            <div className="min-w-0 break-words"><MarkdownRenderer content={opt} density="compact" /></div>
+                          <div className="flex min-w-0 items-baseline gap-2">
+                            <span className="shrink-0 text-body-xs font-semibold">{String.fromCharCode(65 + optIdx)}.</span>
+                            <div className="min-w-0 break-words text-body-sm"><MarkdownRenderer content={opt} density="compact" /></div>
                           </div>
-                          <div className="shrink-0 tabular-nums text-right">
+                          <div className="flex shrink-0 items-center gap-1.5 text-right text-body-xs tabular-nums">
                             <span>{chosenCount} ({percentage}%)</span>
-                            {isCorrect && <CheckCircle2 className="size-3.5 inline ml-1.5 text-status-success" />}
+                            {isCorrect && (
+                              <>
+                                <CheckCircle2 className="size-3.5 text-status-success" aria-hidden />
+                                <span className="sr-only">{tx("correctOption")}</span>
+                              </>
+                            )}
                           </div>
-                        </div>
+                        </li>
                       );
                     })}
-                  </div>
+                  </ul>
                 </div>
 
                 {q.explanation && (
-                  <div className="border-t border-border pt-3 text-body-xs text-muted-foreground space-y-1">
-                    <p className="font-semibold text-foreground">{tx("solutionExplanation")}</p>
-                    <MarkdownRenderer content={q.explanation} density="compact" />
+                  <div className="space-y-1 text-body-base text-foreground">
+                    <p className="text-body-sm font-semibold">{tx("solutionExplanation")}</p>
+                    <MarkdownRenderer content={q.explanation} />
                   </div>
                 )}
-              </div>
+              </li>
             ))}
-          </div>
+          </ol>
         </TabsContent>
 
         {/* Tab 3: Score Distribution & Concept Mastery */}
         <TabsContent value="score-dist" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-(--section-gap)">
             {/* Score Ranges */}
-            <div className="border border-border rounded-xl p-4 bg-card space-y-3">
-              <h4 className="font-semibold text-body-base text-foreground flex items-center gap-2">
-                <BarChart3 className="size-4 text-brand-primary" />
-                <span>{tx("scoreDistribution")}</span>
-              </h4>
-              <div className="space-y-3 pt-2">
+            <section className="min-w-0 space-y-(--compact-gap)">
+              <AdminSectionTitle as="h2" title={tx("scoreDistribution")} icon={BarChart3} />
+              <ul className="divide-y divide-border/30">
                 {[
                   { label: tx("scoreBands.excellent"), count: summary.scoreRanges.range81_100, color: "bg-status-success" },
                   { label: tx("scoreBands.good"), count: summary.scoreRanges.range61_80, color: "bg-brand-primary" },
@@ -533,49 +513,46 @@ export function QuizInsightDetailClient({
                 ].map((range, idx) => {
                   const pct = summary.totalCompleted > 0 ? Math.round((range.count / summary.totalCompleted) * 100) : 0;
                   return (
-                    <div key={idx} className="space-y-1">
-                      <div className="flex justify-between text-body-xs text-muted-foreground">
+                    <li key={idx} className="space-y-1.5 py-2">
+                      <div className="flex flex-wrap justify-between gap-x-2 text-body-xs text-muted-foreground">
                         <span>{range.label}</span>
-                        <span className="font-semibold text-foreground">{tx("studentsPercent", { count: range.count, percent: pct })}</span>
+                        <span className="font-semibold tabular-nums text-foreground">{tx("studentsPercent", { count: range.count, percent: pct })}</span>
                       </div>
-                      <div className="h-2 w-full bg-muted rounded-md overflow-hidden">
+                      <div className="h-1.5 w-full overflow-hidden rounded-sm bg-muted" aria-hidden>
                         <div className={`h-full ${range.color}`} style={{ width: `${pct}%` }} />
                       </div>
-                    </div>
+                    </li>
                   );
                 })}
-              </div>
-            </div>
+              </ul>
+            </section>
 
             {/* Concept Mastery Tags */}
-            <div className="border border-border rounded-xl p-4 bg-card space-y-3">
-              <h4 className="font-semibold text-body-base text-foreground flex items-center gap-2">
-                <Target className="size-4 text-brand-secondary" />
-                <span>{tx("conceptMastery")}</span>
-              </h4>
+            <section className="min-w-0 space-y-(--compact-gap)">
+              <AdminSectionTitle as="h2" title={tx("conceptMastery")} icon={Target} />
               {conceptAnalysis.length === 0 ? (
-                <p className="text-body-xs text-muted-foreground italic">{tx("noQuestionTags")}</p>
+                <p className="text-body-sm text-muted-foreground">{tx("noQuestionTags")}</p>
               ) : (
-                <div className="space-y-3 pt-2">
+                <ul className="divide-y divide-border/30">
                   {conceptAnalysis.map((c, idx) => (
-                    <div key={idx} className="space-y-1">
-                      <div className="flex justify-between text-body-xs">
-                        <span className="font-medium text-foreground capitalize">{c.tag}</span>
-                        <span className="text-muted-foreground">
-                          {tx("accuracy")}: <strong className={c.accuracyRate >= 70 ? "text-status-success" : "text-status-warning"}>{c.accuracyRate}%</strong> ({c.correctCount}/{c.totalAnswered})
+                    <li key={idx} className="space-y-1.5 py-2">
+                      <div className="flex flex-wrap justify-between gap-x-2 text-body-sm">
+                        <MathText className="min-w-0 wrap-anywhere font-medium text-foreground">{c.tag}</MathText>
+                        <span className="shrink-0 text-body-xs tabular-nums text-muted-foreground">
+                          <strong className="text-foreground">{tx("accuracyValue", { value: c.accuracyRate })}</strong> ({c.correctCount}/{c.totalAnswered})
                         </span>
                       </div>
-                      <div className="h-2 w-full bg-muted rounded-md overflow-hidden">
+                      <div className="h-1.5 w-full overflow-hidden rounded-sm bg-muted" aria-hidden>
                         <div
                           className={`h-full ${c.accuracyRate >= 70 ? "bg-status-success" : "bg-status-warning"}`}
                           style={{ width: `${c.accuracyRate}%` }}
                         />
                       </div>
-                    </div>
+                    </li>
                   ))}
-                </div>
+                </ul>
               )}
-            </div>
+            </section>
           </div>
         </TabsContent>
 

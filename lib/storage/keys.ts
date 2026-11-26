@@ -477,5 +477,10 @@ export function buildProductVerificationKey(planHash: string, leaf = "manifest.j
   return joinKey("overhaul", "product-verification", planHash, leaf);
 }
 
+export function buildProductVerificationCheckpointKey(planHash: string, checkpointHash: string): string {
+  if (!/^[a-f0-9]{64}$/.test(planHash) || !/^[a-f0-9]{64}$/.test(checkpointHash)) throw new Error("INVALID_VERIFICATION_CHECKPOINT_KEY");
+  return joinKey("overhaul", "product-verification", planHash, `checkpoint-${checkpointHash}.json`);
+}
+
 
 

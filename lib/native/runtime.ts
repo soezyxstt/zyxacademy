@@ -289,6 +289,15 @@ export function getNativeRuntime(): NativeRuntime {
   return "web";
 }
 
+/** A native shell with a bridge that is not ready must never register browser push. */
+export function isNativeShellUserAgent(userAgent: string): boolean {
+  return /ZyxMobileApp\/|ZyxDesktopApp\//i.test(userAgent);
+}
+export function canUseBrowserPush(): boolean {
+  return typeof window !== "undefined" && typeof navigator !== "undefined" && getNativeRuntime() === "web" &&
+    !isNativeShellUserAgent(navigator.userAgent ?? "");
+}
+
 export function isCapacitorApp(): boolean {
   return getCapacitor() !== null;
 }

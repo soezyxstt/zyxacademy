@@ -23,3 +23,13 @@ test("every registered and conditional permission is grantable, and tool names a
   for (const scope of scopes) expect(ADMIN_MCP_SCOPES).toContain(scope);
   for (const scope of ADMIN_MCP_SCOPES) expect(scopes.has(scope)).toBe(true);
 });
+
+test("article reading presentation remains browser-only", () => {
+  const diktat = operationsCatalog.find(item => item.source === "components/course/material-viewer.tsx")!;
+  expect(diktat.status).toBe("excluded");
+  expect(diktat.tools).toEqual([]);
+  const entry = operationsCatalog.find(item => item.source === "components/course/structured-article-reader.tsx")!;
+  expect(entry.status).toBe("excluded");
+  expect(entry.tools).toEqual([]);
+  expect(entry.actions).toContain("toggleReadingFocus");
+});

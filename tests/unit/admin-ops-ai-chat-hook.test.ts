@@ -98,4 +98,34 @@ describe("useOpsAiChat - Stream Consumer & Typed Message Parts (Tahap 4A)", () =
 
     expect(parts.length).toBe(0);
   });
+
+  it("parses data-session-title SSE events in both flat and nested formats and skips empty titles", async () => {
+    const encoder = new TextEncoder();
+    const rawChunks = [
+      'data: {"type":"data-session-title","sessionId":"session-1","title":"  Audit Token Kelompok  "}\n\n',
+      'data: {"type":"data-session-title","data":{"sessionId":"session-2","title":"Buat Formulir Survei"}}\n\n',
+      'data: {"type":"data-session-title","sessionId":"session-3","title":"   "}\n\n',
+      "data: [DONE]\n\n",
+    ];
+
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const chunk of rawChunks) {
+          controller.enqueue(encoder.encode(chunk));
+        }
+        controller.close();
+      },
+    });
+
+    const parts: OpsAiStreamPart[] = [];
+    for await (const part of consumeOpsAiStream(stream)) {
+      parts.push(part);
+    }
+
+    expect(parts).toEqual([
+      { type: "data-session-title", sessionId: "session-1", title: "Audit Token Kelompok" },
+      { type: "data-session-title", sessionId: "session-2", title: "Buat Formulir Survei" },
+      { type: "done" },
+    ]);
+  });
 });

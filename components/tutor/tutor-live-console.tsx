@@ -6,11 +6,12 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Radio, Users, AlertTriangle, Play, ChevronRight, CheckCircle2, StopCircle } from "lucide-react";
+import { Loader2, Radio, Trophy, Users, AlertTriangle, Play, ChevronRight, CheckCircle2, StopCircle } from "lucide-react";
 import { useLiveQuizSocket } from "@/components/live/use-live-quiz-socket";
 import { MathText } from "@/components/course/math-text";
 import { QuestionSourceCitation } from "@/components/course/question-source-citation";
 import { cn } from "@/lib/utils";
+import { hapticHeavy, hapticLight, hapticMedium } from "@/lib/native/haptics";
 import { useTranslations } from "@/lib/i18n/client";
 import { useHideMobileBottomNav } from "@/components/navigation/mobile-chrome-context";
 
@@ -163,6 +164,9 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
   const control = useCallback(
     async (action: "start" | "next" | "reveal" | "end") => {
       if (!session) return;
+      if (action === "end") void hapticHeavy();
+      else if (action === "next") void hapticLight();
+      else void hapticMedium();
       setControlling(true);
       try {
         const res = await fetch(`/api/live/${session.sessionId}/control`, {
@@ -222,20 +226,18 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
   if (phase === "setup") {
     return (
       <div className="max-w-2xl space-y-(--related-gap)">
-        <div className="border-b border-border pb-4">
-          <div className="flex items-center gap-2">
-            <Radio className="size-5 text-brand-primary" />
-            <h2 className="font-heading text-body-base font-bold text-foreground">
-              {t("setupTitle")}
-            </h2>
-          </div>
+        <div className="border-b border-border/40 pb-2.5">
+          <h2 className="flex items-center gap-2 font-heading text-body-base font-bold text-foreground">
+            <Radio className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+            <span>{t("setupTitle")}</span>
+          </h2>
           <p className="mt-1 text-body-sm text-muted-foreground">
             {courseTitle ? t("chooseTemplateForCourse", { course: courseTitle }) : t("choosePublishedTemplate")}
           </p>
         </div>
 
         {templates.length === 0 && codingProblems.length === 0 ? (
-          <div className="rounded-lg bg-muted/40 p-4 text-body-sm text-muted-foreground">
+          <div className="py-(--row-padding) text-body-sm text-muted-foreground">
             {t("publishQuizFirst")}
           </div>
         ) : (
@@ -243,7 +245,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
             <div className="space-y-1.5">
               <label htmlFor="live-template" className="text-body-sm font-semibold text-foreground">{t("template")}</label>
               <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
-                <SelectTrigger id="live-template" className="rounded-lg text-body-sm">
+                <SelectTrigger id="live-template">
                   <SelectValue placeholder={t("selectTemplate")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -256,14 +258,30 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
               </Select>
             </div>
 
-            {codingProblems.length ? <div className="space-y-1.5">
-              <label htmlFor="live-python" className="text-body-sm font-semibold">Soal Python</label>
-              <Select value={codingChoice} onValueChange={setCodingChoice}>
-                <SelectTrigger id="live-python" className="text-body-sm"><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="none">Gunakan soal templat</SelectItem>{codingProblems.map((problem) => <SelectItem key={`${problem.problemId}@${problem.version}`} value={JSON.stringify([problem.problemId, problem.version])}>{problem.title}, versi {problem.version}</SelectItem>)}</SelectContent>
-              </Select>
-              <p className="text-body-xs text-muted-foreground">Python: 5 menit, percobaan berulang, petunjuk Zyra, skor terbaik.</p>
-            </div> : null}
+            {codingProblems.length ? (
+              <div className="space-y-1.5">
+                <label htmlFor="live-python" className="text-body-sm font-semibold text-foreground">
+                  {t("pythonProblem")}
+                </label>
+                <Select value={codingChoice} onValueChange={setCodingChoice}>
+                  <SelectTrigger id="live-python">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">{t("useTemplateQuestions")}</SelectItem>
+                    {codingProblems.map((problem) => (
+                      <SelectItem
+                        key={`${problem.problemId}@${problem.version}`}
+                        value={JSON.stringify([problem.problemId, problem.version])}
+                      >
+                        {t("pythonVersion", { title: problem.title, version: problem.version })}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-body-xs text-muted-foreground">{t("pythonHint")}</p>
+              </div>
+            ) : null}
             <Button
               onClick={createSession}
               disabled={!selectedTemplateId && codingChoice === "none"}
@@ -293,10 +311,10 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
   return (
     <div className="relative min-h-[60vh] space-y-(--related-gap) pb-24 md:pb-0">
       {/* Mobile prominent join code strip */}
-      {session && (
+      {session && sessionState !== "lobby" && (
         <div
           data-mobile-live-join-strip=""
-          className="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2.5 md:hidden"
+          className="flex items-center justify-between gap-2 border-b border-border/55 py-(--compact-gap) md:hidden"
         >
           <div className="min-w-0">
             <p className="text-body-2xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -306,7 +324,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
               {session.code}
             </p>
           </div>
-          <div className="flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5">
+          <div className="flex shrink-0 items-center gap-1.5">
             <span
               className={cn(
                 "size-2 rounded-sm",
@@ -353,11 +371,11 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
 
       {/* ── Lobby ── */}
       {sessionState === "lobby" && session && (
-        <div className="flex flex-col items-center justify-center gap-(--section-gap) py-12">
+        <div className="flex flex-col items-center justify-center gap-(--related-gap) py-(--section-gap)">
           <p className="text-body-xs font-semibold uppercase tracking-widest text-muted-foreground">
             {t("joinCode")}
           </p>
-          <span className="rounded-lg border border-border bg-muted/30 px-4 py-2 font-heading text-h2 font-bold tracking-widest text-foreground">
+          <span className="font-heading text-h2 font-bold tracking-widest text-foreground">
             {session.code}
           </span>
           <div className="flex items-center gap-2 text-muted-foreground">
@@ -374,7 +392,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
 
       {/* ── Question Phase ── */}
       {sessionState === "question" && currentQuestion && (
-        <div className="mx-auto max-w-2xl space-y-(--group-gap)">
+        <div className="mx-auto max-w-2xl space-y-(--related-gap)">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-2">
             <span className="text-body-sm font-semibold text-muted-foreground tabular-nums">
               {t("questionProgress", { current: currentQuestion.questionIndex + 1, total: currentQuestion.total })}
@@ -387,25 +405,25 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
           <MarkdownRenderer content={currentQuestion.prompt} />
 
           {/* Option Answer Bars */}
-          <div className="space-y-(--compact-gap)">
+          <div className="divide-y divide-border/55 border-y border-border/55">
             {currentQuestion.options.map((opt, i) => {
               const count = answerCounts[i] ?? 0;
               const total = Math.max(1, totalAnswered || 1);
               const pct = Math.round((count / total) * 100);
               return (
-                <div key={i} className="space-y-1">
+                <div key={i} className="space-y-1.5 py-2">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-body-sm text-foreground">
-                      <span className="mr-1.5 font-bold">{String.fromCharCode(65 + i)}.</span>
+                    <span className="min-w-0 break-words text-body-base text-foreground">
+                      <span className="mr-1.5 font-medium text-muted-foreground">{String.fromCharCode(65 + i)}.</span>
                       <MathText as="span">{opt}</MathText>
                     </span>
                     <span className="shrink-0 text-body-xs text-muted-foreground tabular-nums">
                       {count} ({pct}%)
                     </span>
                   </div>
-                  <div className="h-2.5 overflow-hidden rounded-md bg-muted">
+                  <div className="h-1 overflow-hidden rounded-sm bg-muted">
                     <div
-                      className="h-full rounded-md bg-primary transition-[width] duration-300"
+                      className="h-full rounded-sm bg-primary transition-[width] duration-300"
                       style={{ width: `${pct}%` }}
                     />
                   </div>
@@ -421,10 +439,11 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
       {/* ── Reveal / Leaderboard ── */}
       {(sessionState === "reveal" || sessionState === "ended") && top10.length > 0 && (
         <div className="mx-auto max-w-lg space-y-(--compact-gap)">
-          <h3 className="font-heading text-body-base font-bold text-foreground">
-            {sessionState === "ended" ? t("finalLeaderboard") : t("liveLeaderboard")}
+          <h3 className="flex items-center gap-2 border-b border-border/40 pb-2 font-heading text-body-base font-bold text-foreground">
+            <Trophy className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+            <span>{sessionState === "ended" ? t("finalLeaderboard") : t("liveLeaderboard")}</span>
           </h3>
-          <div className="divide-y divide-border border-y border-border">
+          <div className="divide-y divide-border/40">
             {top10.map((entry) => (
               <div key={entry.userId} className="flex items-center gap-(--compact-gap) px-4 py-2.5">
                 <span className="w-6 shrink-0 text-center font-heading text-body-sm font-bold tabular-nums text-muted-foreground">
@@ -505,7 +524,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
       {/* Mobile fixed thumb-reachable bottom host control bar */}
       <div
         data-mobile-live-controls=""
-        className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-2 border-t border-border bg-background/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] backdrop-blur-md md:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 flex flex-wrap items-center justify-end gap-2 border-t border-border bg-background/95 px-4 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] backdrop-blur-md md:hidden"
       >
         {sessionState !== "ended" ? (
           <>
@@ -513,7 +532,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
               <Button
                 isLoading={controlling}
                 onClick={() => control("start")}
-                className="min-h-11 flex-1 rounded-md text-body-sm font-semibold"
+                className="min-h-11 rounded-md text-body-sm font-semibold"
               >
                 <Play className="mr-1.5 size-4" aria-hidden />
                 {t("startQuiz")}
@@ -525,7 +544,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
                 variant="outline"
                 isLoading={controlling}
                 onClick={() => control("reveal")}
-                className="min-h-11 flex-1 rounded-md text-body-sm font-semibold"
+                className="min-h-11 rounded-md text-body-sm font-semibold"
               >
                 <CheckCircle2 className="mr-1.5 size-4" aria-hidden />
                 {t("revealAnswers")}
@@ -537,7 +556,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
                 variant="outline"
                 isLoading={controlling}
                 onClick={() => control("next")}
-                className="min-h-11 flex-1 rounded-md text-body-sm font-semibold"
+                className="min-h-11 rounded-md text-body-sm font-semibold"
               >
                 <ChevronRight className="mr-1.5 size-4" aria-hidden />
                 {t("nextQuestion")}
@@ -562,7 +581,7 @@ export function TutorLiveConsole({ courseId, courseTitle }: TutorLiveConsoleProp
               setPhase("setup");
               loadInitialData();
             }}
-            className="min-h-11 w-full rounded-md text-body-sm font-semibold"
+            className="min-h-11 rounded-md text-body-sm font-semibold"
           >
             {t("newSession")}
           </Button>

@@ -98,6 +98,7 @@ export function GradingClient({
       )}
       mobile={() => (
         <TryoutGradingMobile
+          queueHeader={queueHeader}
           initialSubmissions={initialSubmissions}
           pendingList={pendingList}
           gradedList={gradedList}

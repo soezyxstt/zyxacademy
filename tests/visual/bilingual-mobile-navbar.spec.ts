@@ -54,7 +54,7 @@ async function openMobileMenu(page: Page) {
   const openMenu = page.getByRole("button", { name: /open menu|buka menu/i });
   await expect(openMenu).toBeVisible();
   await openMenu.click();
-  const sheet = page.getByRole("dialog");
+  const sheet = page.locator("#mobile-navigation");
   await expect(sheet).toBeVisible();
   return sheet;
 }
@@ -66,6 +66,7 @@ async function prepareLocale(sheet: ReturnType<Page["getByRole"]>, page: Page, t
   if (currentLocale !== targetLocale) {
     await toggle.click();
     await expect(page.locator("html")).toHaveAttribute("lang", targetLocale);
+    if (!await sheet.isVisible()) await openMobileMenu(page);
   }
   await expect(toggle).toHaveAttribute("aria-pressed", targetLocale === "en" ? "true" : "false");
   await expect(toggle).toHaveText(targetLocale.toUpperCase());
@@ -158,19 +159,17 @@ for (const session of ["guest", "student"] as const) {
             }
 
             if (session === "student") {
-              const account = sheet.getByRole("button", { name: /bilingual student fixture/i });
+              const account = page.getByRole("button", { name: /bilingual student fixture/i });
               await expect(account).toBeVisible();
-              await expect(account).toContainText("bilingual-student@example.invalid");
-              await expectInsideViewport(account, sheet, page);
+              await expect(account).not.toContainText("bilingual-student@example.invalid");
               await account.click();
               const menu = page.getByRole("menu");
               await expect(menu.getByRole("menuitem", { name: /sign out|keluar/i })).toBeVisible();
               await expect(menu.getByRole("menuitem", { name: /student dashboard|dasbor siswa/i })).toHaveAttribute("href", "/dashboard");
               await page.keyboard.press("Escape");
             } else {
-              const signIn = sheet.getByRole("button", { name: /sign in with google|masuk dengan google/i });
+              const signIn = page.getByRole("button", { name: /^(sign in|login)$/i });
               await expect(signIn).toBeVisible();
-              await expectInsideViewport(signIn, sheet, page);
             }
 
             await captureMobileSheet(page, sheet, testInfo, `${session}-navbar-sheet-${viewport.width}-${theme}-${locale}`);

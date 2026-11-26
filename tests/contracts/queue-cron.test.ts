@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { cronWindow, isCronJobName } from "../../lib/queue/cron";
+import { classifyUpcomingSessionWindow } from "../../lib/notifications/interval-policy";
 
 test("authenticated Scheduler accepts its job ID and both pinned resource names", () => {
   for (const environment of ["staging", "production"] as const) {
@@ -18,9 +19,9 @@ test("authenticated Scheduler accepts its job ID and both pinned resource names"
 test("staging schedules one UTC day and includes Monday reflection exactly once", () => {
   const monday = new Date("2026-11-23T00:00:00Z");
   const window = cronWindow("staging", monday);
-  expect(window).toHaveLength(14);
+  expect(window).toHaveLength(65 + 288 + 1);
   expect(window.find(item => item.job === "gamification-missions-cron")?.scheduledAt).toBe(Date.parse("2026-11-23T17:05:00Z"));
-  expect(cronWindow("staging", new Date("2026-11-24T00:00:00Z"))).toHaveLength(13);
+  expect(cronWindow("staging", new Date("2026-11-24T00:00:00Z"))).toHaveLength(64 + 288 + 1);
   expect(cronWindow("staging", monday)).toEqual(window);
 });
 
@@ -29,6 +30,22 @@ test("model catalogs refresh twice daily without duplicate queue windows", () =>
   const staging = cronWindow("staging", new Date(`${day}T00:00:00Z`));
   const production = [0, 6, 12, 18].flatMap(hour => cronWindow("production", new Date(`${day}T${String(hour).padStart(2, "0")}:00:00Z`)));
   for (const jobs of [staging, production]) expect(jobs.filter(item => item.job === "ai-model-catalog-cron").map(item => item.scheduledAt)).toEqual([Date.parse(`${day}T00:00:00Z`), Date.parse(`${day}T12:00:00Z`)]);
+});
+
+test("each environment schedules 24 distinct hourly session reminders including the H-1 window", () => {
+  const midnight = Date.parse("2026-11-23T00:00:00Z");
+  const startAt = Date.parse("2026-11-24T09:00:00Z");
+  for (const environment of ["staging", "production"] as const) {
+    const starts = environment === "staging" ? [0] : [0, 6, 12, 18];
+    const reminders = starts.flatMap(hour => cronWindow(environment, new Date(midnight + hour * 3_600_000)))
+      .filter(item => item.job === "upcoming-session-reminder-cron").map(item => item.scheduledAt);
+    expect(reminders).toEqual(Array.from({ length: 24 }, (_, hour) => midnight + hour * 3_600_000));
+    const dayBefore = reminders.filter(tick => classifyUpcomingSessionWindow(startAt - tick) === "24h");
+    expect(dayBefore).toEqual([Date.parse("2026-11-23T09:00:00Z")]);
+    const dayOf = reminders.map(tick => tick + 24 * 3_600_000)
+      .filter(tick => classifyUpcomingSessionWindow(startAt - tick) === "1h");
+    expect(dayOf).toEqual([Date.parse("2026-11-24T08:00:00Z")]);
+  }
 });
 
 test("production windows share neither boundary jobs nor a shifted retry time", () => {
@@ -45,5 +62,15 @@ test("calendar sync is due once daily at 03:00 WIB in both queue environments", 
   const production = [0, 6, 12, 18].flatMap(hour => cronWindow("production", new Date(`${day}T${String(hour).padStart(2, "0")}:00:00Z`)));
   for (const jobs of [staging, production]) {
     expect(jobs.filter(item => item.job === "google-calendar-sync-cron")).toEqual([{ job: "google-calendar-sync-cron", scheduledAt: Date.parse(`${day}T20:00:00Z`) }]);
+  }
+});
+
+test("quiet-hour recovery is scheduled once per UTC hour, without boundary duplicates", () => {
+  const midnight = Date.parse("2026-11-23T00:00:00Z");
+  for (const environment of ["staging", "production"] as const) {
+    const starts = environment === "staging" ? [0] : [0, 6, 12, 18];
+    const recovery = starts.flatMap(hour => cronWindow(environment, new Date(midnight + hour * 3_600_000)))
+      .filter(item => item.job === "notification-quiet-recovery").map(item => item.scheduledAt);
+    expect(recovery).toEqual(Array.from({ length: 24 }, (_, hour) => midnight + hour * 3_600_000));
   }
 });

@@ -15,6 +15,7 @@ import {
   Trophy,
 } from "lucide-react";
 import { DashboardWeakConcepts } from "@/components/course/dashboard-weak-concepts";
+import { MathText } from "@/components/course/math-text";
 import { StudentCourseProgressRow } from "@/components/dashboard/student-course-progress-row";
 import { StudentDashboardSection } from "@/components/dashboard/student-dashboard-section";
 import { TranslatedText } from "@/components/i18n/translated-text";
@@ -34,25 +35,26 @@ export function StudentDashboardDesktop(props: StudentDashboardViewProps) {
     const primaryColumn = sections.primary ?? (
       <>
         {sections.activeAndReading}
-        {sections.recommendedCourses}
+        {sections.weakConcepts}
       </>
     );
     const secondaryColumn = sections.secondary ?? (
       <>
+        {sections.todayPlan}
         {sections.gamification}
         {sections.reviewQueue}
-        {sections.weakConcepts}
         {sections.availableAssessments}
+        {sections.recommendedCourses}
       </>
     );
 
     return (
       <Reveal duration="duration-700" className="w-full min-w-0">
-        <div className="grid w-full min-w-0 gap-(--major-gap) lg:grid-cols-12">
-          <div className="min-w-0 space-y-(--major-gap) lg:col-span-7">
+        <div className="grid w-full min-w-0 gap-10 lg:grid-cols-12">
+          <div className="min-w-0 space-y-10 lg:col-span-7">
             {primaryColumn}
           </div>
-          <div className="min-w-0 space-y-(--major-gap) lg:col-span-5 lg:border-l lg:border-border/35 lg:pl-(--major-gap)">
+          <div className="min-w-0 space-y-10 lg:col-span-5 lg:border-l lg:border-border/35 lg:pl-10">
             {secondaryColumn}
           </div>
         </div>
@@ -101,7 +103,7 @@ export function StudentDashboardDesktop(props: StudentDashboardViewProps) {
               </div>
             }
           >
-            <div className="divide-y divide-border/30">
+            <div className="divide-y divide-border/25">
               {enrollments.map((course) => {
                 const { doneCount, total } = courseProgress[course.id];
                 return (
@@ -138,7 +140,7 @@ export function StudentDashboardDesktop(props: StudentDashboardViewProps) {
             </div>
 
             {inProgressDocuments.length > 0 ? (
-              <div className="divide-y divide-border/30">
+              <div className="divide-y divide-border/25">
                 {inProgressDocuments.map((doc) => {
                   if (!doc) return null;
                   return (
@@ -227,7 +229,7 @@ export function StudentDashboardDesktop(props: StudentDashboardViewProps) {
                 </Link>
               </div>
 
-              <div className="divide-y divide-border/30">
+              <div className="divide-y divide-border/25">
                 {recommendedUnenrolledCourses.map((course) => (
                   <div
                     key={course.id}
@@ -253,9 +255,6 @@ export function StudentDashboardDesktop(props: StudentDashboardViewProps) {
                         <h3 className="mt-1 break-words font-heading text-body-sm font-bold text-foreground transition-colors group-hover:text-brand-primary">
                           {course.title}
                         </h3>
-                      </div>
-                      <div className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-background text-muted-foreground transition-all group-hover:border-brand-primary/30 group-hover:text-brand-primary">
-                        <ArrowRight className="size-4" />
                       </div>
                     </Link>
                   </div>
@@ -318,7 +317,7 @@ export function StudentDashboardDesktop(props: StudentDashboardViewProps) {
               </div>
 
               {recentReviews.length > 0 ? (
-                <div className="divide-y divide-border/30">
+                <div className="divide-y divide-border/25">
                   {recentReviews.map((review) => (
                     <div key={review.id} className="px-1 py-2.5">
                       <div className="flex items-start justify-between gap-2">
@@ -338,9 +337,9 @@ export function StudentDashboardDesktop(props: StudentDashboardViewProps) {
                           <FormattedDate date={review.reviewedAt} options={{ dateStyle: "medium" }} />
                         </span>
                       </div>
-                      <p className="mt-1 truncate text-body-xs font-medium text-foreground">
+                      <MathText as="p" className="mt-1 line-clamp-2 break-words text-body-xs font-medium text-foreground">
                         {review.front}
-                      </p>
+                      </MathText>
                       <p className="mt-0.5 truncate text-body-xs text-muted-foreground">
                         {review.courseTitle}
                       </p>
@@ -392,7 +391,7 @@ export function StudentDashboardDesktop(props: StudentDashboardViewProps) {
             </div>
 
             {availableExams.length > 0 ? (
-              <div className="divide-y divide-border/30">
+              <div className="divide-y divide-border/25">
                 {availableExams.slice(0, 4).map((exam) => (
                   <div
                     key={exam.id}
@@ -421,10 +420,6 @@ export function StudentDashboardDesktop(props: StudentDashboardViewProps) {
                           </span>
                         </p>
                       </div>
-                      <ArrowRight
-                        className="size-4 shrink-0 text-muted-foreground group-hover:text-primary"
-                        aria-hidden
-                      />
                     </Link>
                   </div>
                 ))}

@@ -4,9 +4,9 @@
  * Core server-side notification delivery layer.
  *
  * All functions in this file:
- * 1. Fetch FCM tokens from the database for the target user(s).
- * 2. Send via Firebase Admin SDK (multicast for efficiency).
- * 3. Persist a record to the `notifications` table.
+ * 1. Persist the inbox record for notifications that need one.
+ * 2. Fetch registered tokens and dispatch them through FCM or APNs.
+ * 3. Record delivery statistics on the inbox entry.
  * 4. Automatically remove tokens that FCM reports as invalid/expired.
  *
  * IMPORTANT: This module is server-only. It imports firebase-admin which
@@ -16,18 +16,21 @@
 import { db } from "@/db";
 import {
  userPushTokens,
+ activityNotificationPreferences,
  notifications,
  enrollments,
  courses,
+ user,
 } from "@/db/schema";
-import { eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, gt, gte, inArray, sql } from "drizzle-orm";
 import { adminMessaging } from "@/lib/firebase/admin";
 import { randomUUID } from "crypto";
 import { getUserLocalePreference } from "@/lib/i18n/preferences";
 import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locale";
-import type { NotificationPayload, SendResult } from "./types";
+import type { NotificationPayload, NotificationType, SendResult } from "./types";
 import { sendApnsNotifications } from "./apns";
 import { dispatchTokensByTransport, type PushTokenTarget } from "./dispatch";
+import { deferQuietPushes, deferredSendResult } from "./quiet-delivery";
 import {
  quizPublishedPayload,
  adminBroadcastPayload,
@@ -66,33 +69,39 @@ async function pruneInvalidTokens(tokens: string[]): Promise<void> {
 // ─── Internal: persist a notification row to the DB ──────────────────────────
 
 async function persistNotification(
+ notificationId: string,
  userId: string,
  payload: NotificationPayload,
- delivery: DeliveryStats
 ): Promise<void> {
- try {
-  await db.insert(notifications).values({
-  id: randomUUID(),
+ await db.insert(notifications).values({
+  id: notificationId,
   userId,
   title: payload.title,
   body: payload.body,
   type: payload.type,
   read: false,
-  metadata: (payload.metadata ?? {}) as Record<string, unknown>,
-  attempted: delivery.attempted,
-  succeeded: delivery.succeeded,
-  failedCount: delivery.failedCount,
-  sentAt: delivery.sentAt,
+  metadata: payload.metadata ?? {},
+  attempted: 0,
+  succeeded: 0,
+  failedCount: 0,
+  sentAt: null,
   createdAt: new Date(),
-  });
- } catch (err) {
-  // Non-fatal ; push was already sent; log and continue.
-  console.error("[FCM] Failed to persist notification record:", err);
- }
+ });
 }
 
 // ─── Internal: send FCM multicast to a list of tokens ────────────────────────
 
+export function getPushGroupKey(payload: NotificationPayload): string | undefined {
+ if (payload.metadata?.groupKey === "quiet-digest") return "zyx:quiet-digest";
+ if (payload.type === "discussion" && payload.metadata?.threadId) return `zyx:discussion:${payload.metadata.threadId}`;
+ return payload.notificationId ? `zyx:${payload.notificationId}` : undefined;
+}
+function androidNotificationChannel(type: NotificationType): string {
+ if (type === "discussion") return "zyx_discussions";
+ if (type === "tutor_reminder" || type === "tutor_booking") return "zyx_schedule";
+ if (["quiz_published", "quiz_graded", "flashcard_reminder", "weekly_progress", "study_reengagement", "tutor_digest"].includes(type)) return "zyx_learning";
+ return "zyx_updates";
+}
 async function sendMulticast(
  tokens: string[],
  payload: NotificationPayload,
@@ -122,6 +131,7 @@ async function sendMulticast(
  data: {
  type: payload.type,
  url: payload.link ?? "/dashboard",
+ ...(payload.notificationId ? { notificationId: payload.notificationId } : {}),
  ...(payload.metadata ?? {}),
  },
  webpush: {
@@ -129,12 +139,15 @@ async function sendMulticast(
  notification: {
           icon: "/brand/zyx-notif-icon-192.png",
           badge: "/brand/zyx-notif-badge-96.png",
+          tag: getPushGroupKey(payload),
+          renotify: false,
  },
  },
  android: {
- priority: "high",
+ priority: payload.type === "discussion" || payload.type === "tutor_reminder" || payload.type === "tutor_booking" ? "high" : "normal",
  notification: {
- channelId: "zyx_default",
+ channelId: androidNotificationChannel(payload.type),
+ tag: getPushGroupKey(payload),
  sound: "default",
  },
  },
@@ -155,7 +168,7 @@ async function sendMulticast(
  if (INVALID_TOKEN_CODES.has(code)) {
  failedTokens.push(batch[idx]);
  } else {
- errors.push(`Token ${batch[idx]}: ${code}`);
+ errors.push(`Push delivery: ${code}`);
  }
  }
  });
@@ -175,24 +188,46 @@ async function sendMulticast(
 
 /**
  * Sends a push notification to all registered devices of one user.
- * Also persists a notification record in the database.
+ * Also persists a notification record in the database with the same ID
+ * embedded in the push payload so native taps can mark it as read.
  */
 export async function sendToUser(
  userId: string,
  payload: NotificationPayload,
  deliveryLocale?: Locale,
 ): Promise<SendResult> {
+ if (payload.type === "flashcard_reminder") {
+  const [preference] = await db.select({ enabled: activityNotificationPreferences.flashcardsEnabled })
+   .from(activityNotificationPreferences).where(eq(activityNotificationPreferences.userId, userId));
+  if (preference?.enabled === false) return { attempted: 0, succeeded: 0, failedTokens: [], errors: [] };
+ }
  const locale = deliveryLocale ?? (payload.systemTemplate ? (await getUserLocalePreference(userId)) ?? DEFAULT_LOCALE : undefined);
  const renderedPayload = locale ? renderNotificationPayload(payload, locale) : payload;
- const result = await sendPushToUser(userId, renderedPayload);
-
- // Persist one notification record per user (not per token)
- await persistNotification(userId, renderedPayload, {
-  attempted: result.attempted,
-  succeeded: result.succeeded,
-  failedCount: result.failedTokens.length,
-  sentAt: result.attempted > 0 ? new Date() : null,
- });
+ const notificationId = renderedPayload.notificationId ?? randomUUID();
+ const payloadWithId: NotificationPayload = {
+  ...renderedPayload,
+  notificationId,
+  metadata: {
+   ...(renderedPayload.metadata ?? {}),
+   notificationId,
+  },
+ };
+ await persistNotification(notificationId, userId, payloadWithId);
+ const result = await sendPushToUser(userId, payloadWithId);
+ if (result.attempted > 0) {
+  const delivery: DeliveryStats = {
+   attempted: result.attempted,
+   succeeded: result.succeeded,
+   failedCount: result.failedTokens.length,
+   sentAt: new Date(),
+  };
+  try {
+   await db.update(notifications).set(delivery).where(eq(notifications.id, notificationId));
+  } catch (err) {
+   console.error("[FCM] Failed to persist notification delivery stats:", err);
+   result.errors.push("NOTIFICATION_DELIVERY_STATS_UPDATE_FAILED");
+  }
+ }
 
  return result;
 }
@@ -214,12 +249,31 @@ async function sendToTargets(
 
 /** Sends an already rendered payload without creating an inbox row. */
 export async function sendPushToUser(userId: string, renderedPayload: NotificationPayload): Promise<SendResult> {
+ const deferred = await deferQuietPushes([{ userId, payload: renderedPayload }]);
+ if (deferred.has(userId)) return deferredSendResult();
+ return sendPushToUserNow(userId, renderedPayload);
+}
+
+// Keep pre-migration registrations until they can rebind; a bound token is
+// deliverable only while its owning account session remains active.
+function activePushSessionPredicate() {
+ if (!userPushTokens.sessionId) return sql`true`;
+ return sql`(${userPushTokens.sessionId} is null or exists (
+  select 1 from "session" push_session
+  where push_session.id = ${userPushTokens.sessionId}
+   and push_session.user_id = ${userPushTokens.userId}
+   and push_session.expires_at > now()
+ ))`;
+}
+
+/** Internal immediate transport used by the quiet-hour worker after rechecking the schedule. */
+export async function sendPushToUserNow(userId: string, renderedPayload: NotificationPayload): Promise<SendResult> {
  const hasTransportColumn = Boolean((userPushTokens as unknown as Record<string, unknown>).transport);
  const rows: PushTokenTarget[] = hasTransportColumn
   ? await db
     .select({ token: userPushTokens.token, transport: userPushTokens.transport })
     .from(userPushTokens)
-    .where(eq(userPushTokens.userId, userId))
+    .where(and(eq(userPushTokens.userId, userId), activePushSessionPredicate()))
   : await db
     .select({ token: userPushTokens.token })
     .from(userPushTokens)
@@ -236,6 +290,10 @@ export async function sendPushToUsers(items: { userId: string; payload: Notifica
  if (!items.length) return results;
  const ids = items.map(item => item.userId);
  if (items.length > 10 || new Set(ids).size !== ids.length) throw new Error("INVALID_PUSH_RECIPIENT_BATCH");
+ const deferred = await deferQuietPushes(items);
+ for (const id of deferred) results.set(id, deferredSendResult());
+ items = items.filter(item => !deferred.has(item.userId));
+ if (!items.length) return results;
  const hasTransportColumn = Boolean((userPushTokens as unknown as Record<string, unknown>).transport);
  const rows = (await db.execute<{ id: string; userId: string; token: string; transport?: string }>(
   hasTransportColumn
@@ -244,6 +302,7 @@ export async function sendPushToUsers(items: { userId: string; payload: Notifica
     from jsonb_to_recordset(${JSON.stringify(items.map(item => ({ user_id: item.userId, after_id: item.after ?? null })))}::jsonb) as recipient(user_id text, after_id text)
     cross join lateral (
      select id, token, transport from ${userPushTokens} where user_id = recipient.user_id
+      and ${activePushSessionPredicate()}
       and (user_id, id) >= (recipient.user_id, coalesce(recipient.after_id, ''))
       and (recipient.after_id is null or id > recipient.after_id) order by user_id, id limit 101
     ) registry
@@ -253,6 +312,7 @@ export async function sendPushToUsers(items: { userId: string; payload: Notifica
     from jsonb_to_recordset(${JSON.stringify(items.map(item => ({ user_id: item.userId, after_id: item.after ?? null })))}::jsonb) as recipient(user_id text, after_id text)
     cross join lateral (
      select id, token from ${userPushTokens} where user_id = recipient.user_id
+      and ${activePushSessionPredicate()}
       and (user_id, id) >= (recipient.user_id, coalesce(recipient.after_id, ''))
       and (recipient.after_id is null or id > recipient.after_id) order by user_id, id limit 101
     ) registry
@@ -285,60 +345,118 @@ export async function sendPushToUsers(items: { userId: string; payload: Notifica
 
 // ─── Public: send to multiple users ──────────────────────────────────────────
 
-/**
- * Sends a notification to multiple users concurrently.
- * Uses Promise.allSettled so one failure doesn't block the rest.
- */
+const SEND_CONCURRENCY = 10;
+const BROADCAST_PAGE_SIZE = 100;
+
+function addDeliveryResult(total: SendResult, result: SendResult) {
+ total.attempted += result.attempted;
+ total.succeeded += result.succeeded;
+ total.failedTokens.push(...result.failedTokens);
+ total.errors.push(...result.errors);
+}
+
+/** Sends to a bounded number of recipients at a time and records failures. */
 export async function sendToMany(
  userIds: string[],
  payload: NotificationPayload,
  deliveryLocales?: Record<string, Locale>,
 ): Promise<SendResult> {
- const results = await Promise.allSettled(
- userIds.map((uid) => sendToUser(uid, payload, deliveryLocales?.[uid]))
- );
-
- return results.reduce<SendResult>(
- (acc, r) => {
- if (r.status === "fulfilled") {
- acc.attempted += r.value.attempted;
- acc.succeeded += r.value.succeeded;
- acc.failedTokens.push(...r.value.failedTokens);
- acc.errors.push(...r.value.errors);
- } else {
- acc.errors.push(r.reason instanceof Error ? r.reason.message : String(r.reason));
+ const total: SendResult = { attempted: 0, succeeded: 0, failedTokens: [], errors: [] };
+ for (let offset = 0; offset < userIds.length; offset += SEND_CONCURRENCY) {
+  const batch = userIds.slice(offset, offset + SEND_CONCURRENCY);
+  const results = await Promise.allSettled(batch.map(uid => sendToUser(uid, payload, deliveryLocales?.[uid])));
+  for (const result of results) {
+   if (result.status === "fulfilled") addDeliveryResult(total, result.value);
+   else total.errors.push(result.reason instanceof Error ? result.reason.message : String(result.reason));
+  }
  }
- return acc;
- },
- { attempted: 0, succeeded: 0, failedTokens: [], errors: [] }
- );
+ return total;
 }
 
-// ─── Public: broadcast to all users with tokens ──────────────────────────────
+/** Includes every registered account, even accounts without push tokens. */
+export async function sendBroadcast(payload: NotificationPayload): Promise<SendResult> {
+ const total: SendResult = { attempted: 0, succeeded: 0, failedTokens: [], errors: [] };
+ let cursor: string | undefined;
+ while (true) {
+  const page: Array<{ id: string }> = await db.select({ id: user.id }).from(user)
+   .where(cursor === undefined ? undefined : gt(user.id, cursor))
+   .orderBy(asc(user.id))
+   .limit(BROADCAST_PAGE_SIZE);
+  if (page.length === 0) break;
+  addDeliveryResult(total, await sendToMany(page.map(row => row.id), payload));
+  if (page.length < BROADCAST_PAGE_SIZE) break;
+  cursor = page[page.length - 1].id;
+ }
+ return total;
+}
 
 /**
- * Sends a notification to every user who has at least one registered FCM token.
- * Designed for admin broadcast use cases.
+ * Checks whether a user already received a notification of a given type with
+ * the specified dedupeKey since `since`. Used by interval cron jobs to stay
+ * idempotent across retries and overlapping windows.
  */
-export async function sendBroadcast(payload: NotificationPayload): Promise<SendResult> {
- // Fetch distinct userIds that have tokens registered
- const rows = await db
- .selectDistinct({ userId: userPushTokens.userId })
- .from(userPushTokens);
+export async function hasRecentNotificationByDedupeKey(input: {
+ userId: string;
+ type: NotificationType;
+ dedupeKey: string;
+ since?: Date;
+}): Promise<boolean> {
+ const conditions = [
+  eq(notifications.userId, input.userId),
+  eq(notifications.type, input.type),
+  sql`${notifications.metadata}->>'dedupeKey' = ${input.dedupeKey}`,
+ ];
+ if (input.since) {
+  conditions.push(gte(notifications.createdAt, input.since));
+ }
+ const [row] = await db
+  .select({ id: notifications.id })
+  .from(notifications)
+  .where(and(...conditions))
+  .limit(1);
+ return Boolean(row);
+}
 
- const userIds = rows.map((r) => r.userId);
- return sendToMany(userIds, payload);
+/**
+ * Sends an essential transactional email (such as course activation or critical
+ * operational alert) that bypasses optional marketing/reminder preferences.
+ */
+export async function sendTransactionalEmail(input: {
+ userId: string;
+ render: (locale: Locale, recipient: { name: string; email: string }) => { subject: string; html: string };
+ locale?: Locale;
+ from?: string;
+}): Promise<{ status: "sent"; emailId: string } | { status: "skipped"; reason: string }> {
+ if (!process.env.RESEND_API_KEY) {
+  return { status: "skipped", reason: "resend_not_configured" };
+ }
+ const [recipient] = await db
+  .select({ email: user.email, name: user.name })
+  .from(user)
+  .where(eq(user.id, input.userId))
+  .limit(1);
+ if (!recipient?.email) {
+  return { status: "skipped", reason: "account_email_not_found" };
+ }
+ const locale = input.locale ?? (await getUserLocalePreference(input.userId)) ?? DEFAULT_LOCALE;
+ const rendered = input.render(locale, { name: recipient.name ?? "Zyx Learner", email: recipient.email });
+ const { resend } = await import("@/lib/resend");
+ const { data, error } = await resend.emails.send({
+  from: input.from ?? `Zyx Academy <${process.env.NEXT_PUBLIC_BRAND_EMAIL || "contact@zyxacademy.com"}>`,
+  to: recipient.email,
+  subject: rendered.subject,
+  html: rendered.html,
+ });
+ if (error || !data?.id) {
+  throw new Error(`TRANSACTIONAL_EMAIL_SEND_FAILED:${error?.message ?? "missing_email_id"}`);
+ }
+ return { status: "sent", emailId: data.id };
 }
 
 // ─── Domain-specific senders ──────────────────────────────────────────────────
 
 /**
  * Notifies all students enrolled in a course that a new quiz is published.
- *
- * @param quizTitle - Title of the quiz.
- * @param courseId - Course ID to find enrolled students.
- * @param courseTitle - Human-readable course title.
- * @param quizUrl - Deep link to the quiz.
  */
 export async function sendQuizPublished(
  quizTitle: string,
@@ -346,7 +464,6 @@ export async function sendQuizPublished(
  courseTitle: string,
  quizUrl: string
 ): Promise<SendResult> {
- // Find all enrolled students for this course
  const enrolled = await db
  .select({ userId: enrollments.userId })
  .from(enrollments)
@@ -400,11 +517,6 @@ export async function notifyQuizPublishedBestEffort(input: {
 
 /**
  * Sends an admin-composed broadcast message.
- *
- * @param title - Notification title.
- * @param body - Notification body.
- * @param link - Optional URL to open on click.
- * @param target - "all" | specific userIds[].
  */
 export async function sendAdminBroadcast(
  title: string,

@@ -18,11 +18,17 @@ import {
   setComposerReplyTarget,
   type ComposerDraft,
 } from "@/components/discussions/composer";
+import {
+  loadPersistedDiscussionDrafts,
+  mergePersistedDiscussionDrafts,
+  savePersistedDiscussionDrafts,
+} from "@/lib/discussions/draft-persistence";
 import type {
   DiscussionChannel,
   DiscussionForwardDraft,
   DiscussionMessage as Message,
   DiscussionPerson,
+  DiscussionQuestion,
   DiscussionWorkspaceProps,
 } from "@/components/discussions/view-model";
 
@@ -94,6 +100,47 @@ export function useDiscussionWorkspace(
     draftsRef.current = drafts;
   }, [drafts]);
 
+  const draftsHydratedForRef = useRef<string | null>(null);
+  const viewerId = props.viewer.id;
+
+  useEffect(() => {
+    if (!viewerId) return;
+    if (draftsHydratedForRef.current === viewerId) return;
+    draftsHydratedForRef.current = viewerId;
+    const saved = loadPersistedDiscussionDrafts(viewerId);
+    if (!saved) return;
+    setDrafts((current) =>
+      mergePersistedDiscussionDrafts(current, saved, emptyComposerDraft),
+    );
+  }, [viewerId, setDrafts]);
+
+  useEffect(() => {
+    if (!viewerId || draftsHydratedForRef.current !== viewerId) return;
+    const timer = window.setTimeout(() => {
+      savePersistedDiscussionDrafts(viewerId, draftsRef.current);
+    }, 200);
+    return () => window.clearTimeout(timer);
+  }, [viewerId, drafts]);
+
+  useEffect(() => {
+    if (!viewerId) return;
+    const flush = () => {
+      if (draftsHydratedForRef.current === viewerId) {
+        savePersistedDiscussionDrafts(viewerId, draftsRef.current);
+      }
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      flush();
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", flush);
+    };
+  }, [viewerId]);
+
   const localNewOpen = useState(false);
   const localNewChannel = useState<DiscussionChannel | null>(null);
   const [newOpen, setNewOpen] = props.draftState?.newOpen ?? localNewOpen;
@@ -101,7 +148,8 @@ export function useDiscussionWorkspace(
 
   const [mutePending, setMutePending] = useState(false);
   const [muteError, setMuteError] = useState(false);
-  const [statusPending, setStatusPending] = useState(false);
+  const statusWrites = useRef(new Set<string>());
+  const [pendingStatusIds, setPendingStatusIds] = useState<ReadonlySet<string>>(() => new Set());
   const [statusError, setStatusError] = useState(false);
   const [profileTarget, setProfileTarget] = useState<{
     author: DiscussionPerson;
@@ -189,6 +237,7 @@ export function useDiscussionWorkspace(
     newDraft.error === "unknown" || newDraft.error === "replay_unverified";
   const question =
     props.selectedQuestion?.id === props.selectedQuestionId ? props.selectedQuestion : null;
+  const statusPending = question !== null && pendingStatusIds.has(question.id);
   const channel = props.channels.find((item) => item.id === question?.channelId);
   const selectedChannel =
     props.channels.find((item) => item.id === props.selectedChannelId) ?? channel;
@@ -255,21 +304,31 @@ export function useDiscussionWorkspace(
     }
   }, [mutePending, props, selectedChannel]);
 
+  const onSetQuestionStatus = props.onSetQuestionStatus;
+  const changeQuestionStatus = useCallback(async (item: DiscussionQuestion) => {
+    if (!item.canResolve || !onSetQuestionStatus || statusWrites.current.has(item.id)) return;
+    statusWrites.current.add(item.id);
+    setPendingStatusIds(new Set(statusWrites.current));
+    try {
+      await onSetQuestionStatus({
+        questionId: item.id,
+        status: item.status === "resolved" ? "open" : "resolved",
+      });
+    } finally {
+      statusWrites.current.delete(item.id);
+      setPendingStatusIds(new Set(statusWrites.current));
+    }
+  }, [onSetQuestionStatus]);
+
   const toggleStatus = useCallback(async () => {
-    if (!question || !props.onSetQuestionStatus || statusPending) return;
-    setStatusPending(true);
+    if (!question) return;
     setStatusError(false);
     try {
-      await props.onSetQuestionStatus({
-        questionId: question.id,
-        status: question.status === "resolved" ? "open" : "resolved",
-      });
+      await changeQuestionStatus(question);
     } catch {
       setStatusError(true);
-    } finally {
-      setStatusPending(false);
     }
-  }, [props, question, statusPending]);
+  }, [changeQuestionStatus, question]);
 
   const replyTo = useCallback(
     (message: Message) => {
@@ -301,6 +360,7 @@ export function useDiscussionWorkspace(
     mutePending,
     muteError,
     statusPending,
+    pendingStatusIds,
     statusError,
     profileTarget,
     setProfileTarget,
@@ -327,6 +387,7 @@ export function useDiscussionWorkspace(
     selectQuestion,
     toggleMute,
     toggleStatus,
+    changeQuestionStatus,
     replyTo,
   };
 }

@@ -9,9 +9,14 @@ import { MessageSquareText } from "lucide-react";
 import { ZyraFloatingPet } from "@/components/course/zyra-floating-pet";
 import { getTutorCapabilities } from "@/lib/tutor-capabilities";
 import { peekRestoredCameraPayload, ZYX_CAMERA_RESTORED_EVENT } from "@/lib/native/camera-recovery";
+import {
+  readPersistedZyraDrawerOpen,
+  savePersistedZyraDrawerOpen,
+} from "@/lib/zyra/drawer-persistence";
 import type { TutorMode } from "./tutor-drawer-view";
 
 import { useStudentExperience } from "@/components/student-experience-provider";
+import { useOnboardingTour } from "@/components/onboarding/tour-context";
 
 export type { TutorMode };
 
@@ -103,9 +108,11 @@ function ZyraWelcomeCopyGuard({ children }: { children: React.ReactNode }) {
 
 export function TutorProvider({ children }: { children: React.ReactNode }) {
   const realPathname = usePathname();
+  const tour = useOnboardingTour();
   const experience = useStudentExperience();
   const pathname = experience.pathname ?? realPathname;
   const courseIdFromPath = pathname?.startsWith("/courses/") ? pathname.split("/")[2] : null;
+  const isCourseDiscussion = Boolean(courseIdFromPath && pathname?.endsWith("/discussions"));
   const caps = getTutorCapabilities(courseIdFromPath);
 
   const [isOpen, setIsOpen] = React.useState(false);
@@ -115,11 +122,11 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
   }, [isOpen]);
   const [appearance, setAppearance] = React.useState<React.ContextType<typeof TutorAppearanceContext>>({skinId: null, avatarId: null});
   React.useEffect(() => {
-    if (experience.mode === "demo" || !realPathname?.startsWith("/courses/")) return;
+    if (experience.mode === "demo" || isCourseDiscussion || !realPathname?.startsWith("/courses/")) return;
     let active = true;
     void getMyZyraAppearance().then(value => { if (active) setAppearance(value); }).catch(() => {});
     return () => { active = false; };
-  }, [experience.mode, realPathname]);
+  }, [experience.mode, isCourseDiscussion, realPathname]);
   const [activeMode, setActiveMode] = React.useState<TutorMode>(null);
   const [suppressPet, setSuppressPet] = React.useState(false);
 
@@ -198,7 +205,50 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   React.useEffect(() => {
-    if (!courseIdFromPath) return;
+    if (tour.active) close();
+  }, [tour.active, close]);
+
+  const [hydratedDrawerCourseId, setHydratedDrawerCourseId] = React.useState<string | null>(null);
+  const isAssessmentRoute = Boolean(
+    pathname &&
+      (pathname.includes("/quiz") ||
+        pathname.includes("/simulasi") ||
+        pathname.includes("/exam") ||
+        pathname.includes("/tryout")),
+  );
+  const canPersistDrawerOpen = Boolean(
+    experience.mode !== "demo" &&
+      courseIdFromPath &&
+      !isCourseDiscussion &&
+      !isAssessmentRoute &&
+      !pathname?.includes("/live/host") &&
+      !pathname?.endsWith("/daftar") &&
+      !suppressPet,
+  );
+
+  React.useEffect(() => {
+    if (suppressPet && isOpen) {
+      setIsOpen(false);
+    }
+  }, [isOpen, suppressPet]);
+
+  React.useEffect(() => {
+    if (tour.blocking || !canPersistDrawerOpen || !courseIdFromPath) return;
+    if (hydratedDrawerCourseId === courseIdFromPath) return;
+    if (!isOpen && readPersistedZyraDrawerOpen(courseIdFromPath)) {
+      openChat();
+    }
+    setHydratedDrawerCourseId(courseIdFromPath);
+  }, [tour.blocking, canPersistDrawerOpen, courseIdFromPath, hydratedDrawerCourseId, isOpen, openChat]);
+
+  React.useEffect(() => {
+    if (tour.blocking || !canPersistDrawerOpen || !courseIdFromPath) return;
+    if (hydratedDrawerCourseId !== courseIdFromPath) return;
+    savePersistedZyraDrawerOpen(courseIdFromPath, isOpen && activeMode === "chat");
+  }, [tour.blocking, activeMode, canPersistDrawerOpen, courseIdFromPath, hydratedDrawerCourseId, isOpen]);
+
+  React.useEffect(() => {
+    if (tour.blocking || !courseIdFromPath) return;
     const reopenForRestoredPhoto = () => {
       const pending = peekRestoredCameraPayload(
         (target) => target.surface === "zyra" && target.courseId === courseIdFromPath,
@@ -209,7 +259,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
     reopenForRestoredPhoto();
     window.addEventListener(ZYX_CAMERA_RESTORED_EVENT, reopenForRestoredPhoto);
     return () => window.removeEventListener(ZYX_CAMERA_RESTORED_EVENT, reopenForRestoredPhoto);
-  }, [courseIdFromPath, openChat]);
+  }, [tour.blocking, courseIdFromPath, openChat]);
 
   return (
     <TutorContext.Provider
@@ -230,7 +280,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
         <TutorAppearanceContext.Provider value={appearance}>{children}</TutorAppearanceContext.Provider>
 
         {pathname?.startsWith("/courses/") &&
-          !(experience.mode === "demo" && pathname.endsWith("/discussions")) &&
+          !isCourseDiscussion &&
           !pathname.includes("/live/host") &&
           !pathname.endsWith("/daftar") &&
           !suppressPet &&
@@ -242,6 +292,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
           ) : (
             <button
               type="button"
+              data-tour="zyra"
               onClick={openChat}
               onPointerEnter={preloadTutorDrawer}
               onPointerDown={preloadTutorDrawer}
@@ -260,7 +311,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
         {(isOpen || hasOpened) && (
           <TutorAppearanceContext.Provider value={appearance}><ZyraWelcomeCopyGuard>
             <TutorDrawerView
-              isOpen={isOpen}
+              isOpen={isOpen && !suppressPet}
               onClose={close}
               activeMode={activeMode}
               setActiveMode={setActiveMode}

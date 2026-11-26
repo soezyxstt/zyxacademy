@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useCommandMenu } from "@/components/command-menu";
 import { NotificationBell } from "@/components/notifications/notification-bell";
+import { AppUpdateControl } from "@/components/native/app-update-control";
 import { SidebarAccountMenu } from "@/components/auth/sidebar-account-menu";
 import {
   StudentAccountBoundary,
@@ -217,6 +218,8 @@ function StudentMobileTopNavContent({
 
   const rightActions = (
     <>
+      <AppUpdateControl variant="mobile" />
+
       {isDashboard && streakCurrent !== null ? (
         <Link
           href={href("/achievements")}
