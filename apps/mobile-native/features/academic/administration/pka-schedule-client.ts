@@ -12,7 +12,8 @@ export async function savePkaSchedule(transport: AcademicTransport, id: string, 
   const value: unknown = await response.json().catch(() => null);
   if (value && typeof value === "object" && "status" in value && "id" in value && value.id === id
     && "requestId" in value && value.requestId === requestId && "schedule" in value && isPkaScheduleRevision(value.schedule)) {
-    if (response.ok && value.status === "saved") return { status: "saved", schedule: value.schedule } as const;
+    if (response.ok && value.status === "saved") return { status: "saved", schedule: value.schedule,
+      ...("delivery" in value && value.delivery === "queued" ? { delivery: "queued" as const } : {}) } as const;
     if (response.status === 409 && value.status === "conflict") return { status: "conflict", schedule: value.schedule } as const;
   }
   const error = value && typeof value === "object" && "error" in value ? value.error : undefined;

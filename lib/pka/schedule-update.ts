@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import type { db } from "@/db";
 import { pkaSchedules } from "@/db/schema";
 import { revisionOf } from "@/lib/admin-mcp/revision";
-import type { PkaScheduleRevision } from "@/packages/academic/pka-schedule-edit";
+import { pkaScheduleUpdateNeedsDelivery, type PkaScheduleRevision } from "@/packages/academic/pka-schedule-edit";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type ScheduleFields = Pick<typeof pkaSchedules.$inferSelect, "title" | "sessionAt" | "meetLink">;
@@ -18,7 +18,7 @@ export async function lockPkaSchedule(tx: Transaction, id: string) {
 }
 
 export function pkaScheduleDeliveryRequired(before: ScheduleFields, fields: ScheduleFields) {
-  return !!fields.meetLink && fields.meetLink !== before.meetLink && fields.sessionAt.getTime() > Date.now();
+  return pkaScheduleUpdateNeedsDelivery(before.meetLink, { ...fields, sessionAt: fields.sessionAt.toISOString() });
 }
 
 /** Update a row previously selected with lockPkaSchedule in this transaction. */

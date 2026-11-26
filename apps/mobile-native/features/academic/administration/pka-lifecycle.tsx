@@ -1,16 +1,17 @@
 import { randomUUID } from "expo-crypto";
-import { openBrowserAsync } from "expo-web-browser";
 import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
-import type { PkaLifecycleCommand } from "../../../../../packages/academic/pka-lifecycle";
+import { pkaScheduleCreationNeedsDelivery, type PkaLifecycleCommand } from "../../../../../packages/academic/pka-lifecycle";
+import { pkaAnnouncementBodyLimit, pkaAnnouncementTitleLimit, validatePkaAnnouncementText } from "../../../../../packages/academic/pka-announcement-edit";
 import { isValidPkaScheduleText } from "../../../../../packages/academic/pka-schedule-edit";
 import type { AcademicTransport } from "../client";
 import { submitPkaLifecycle, type PkaLifecycleAttempt } from "./pka-lifecycle-client";
 import { Action, combineDateTime, CourseDialog, Field, Ink, layout, splitDateTime } from "./ui";
 
+type PkaCreateAction = "create-schedule" | "send-announcement";
 export type PkaLifecycleTarget =
-  | { action: "create-schedule" }
-  | { command: Exclude<PkaLifecycleCommand, { action: "create-schedule" }>; title: string };
+  | { action: PkaCreateAction }
+  | { command: Exclude<PkaLifecycleCommand, { action: PkaCreateAction }>; title: string };
 export type PkaLifecycleRecovery = { attempt: PkaLifecycleAttempt; target: PkaLifecycleTarget };
 const attempts = new WeakMap<AcademicTransport, PkaLifecycleRecovery>();
 
@@ -19,16 +20,16 @@ export function clearPkaLifecycle(transport: AcademicTransport) { attempts.delet
 
 export function PkaLifecycleDialog({ target, recovery, transport, close, reload, saved, denied }: {
   target: PkaLifecycleTarget; recovery?: PkaLifecycleRecovery; transport: AcademicTransport;
-  close(): void; reload(): void; saved(action: PkaLifecycleCommand["action"]): void; denied(): void;
+  close(): void; reload(): void; saved(action: PkaLifecycleCommand["action"], delivery?: "queued"): void; denied(): void;
 }) {
   const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [meetLink, setMeetLink] = useState("");
   const [uncertain, setUncertain] = useState(recovery?.attempt);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [web, setWeb] = useState(false);
   const [conflict, setConflict] = useState(false);
   const pending = useRef<AbortController | null>(null);
   useEffect(() => () => { pending.current?.abort(); pending.current = null; }, [target, transport]);
@@ -41,7 +42,6 @@ export function PkaLifecycleDialog({ target, recovery, transport, close, reload,
     attempts.set(transport, recovery);
     setBusy(true);
     setError("");
-    setWeb(false);
     void submitPkaLifecycle(transport, attempt, request.signal).then(result => {
       if (request.signal.aborted) return;
       if (result.status === "uncertain") {
@@ -51,12 +51,11 @@ export function PkaLifecycleDialog({ target, recovery, transport, close, reload,
       if (attempts.get(transport) === recovery) attempts.delete(transport);
       setUncertain(undefined);
       switch (result.status) {
-        case "saved": saved(attempt.command.action); break;
+        case "saved": saved(attempt.command.action, result.delivery); break;
         case "conflict": setConflict(true); break;
         case "missing": reload(); break;
         case "denied": denied(); break;
         case "invalid": setError("Periksa judul, tanggal, jam dan tautan HTTPS."); break;
-        case "web": setWeb(true); break;
       }
     }).catch(() => {
       if (!request.signal.aborted) setUncertain(attempt);
@@ -71,6 +70,13 @@ export function PkaLifecycleDialog({ target, recovery, transport, close, reload,
       submit({ command: target.command, requestId: randomUUID() });
       return;
     }
+    if (target.action === "send-announcement") {
+      const fields = { title: title.trim(), body: body.trim() };
+      const error = validatePkaAnnouncementText(fields);
+      if (error) { setError(error); return; }
+      submit({ command: { action: "send-announcement", ...fields }, requestId: randomUUID() });
+      return;
+    }
     const sessionAt = combineDateTime(date, time);
     const dateValue = Date.parse(sessionAt);
     if (!isValidPkaScheduleText(title.trim()) || !Number.isFinite(dateValue)) {
@@ -82,18 +88,20 @@ export function PkaLifecycleDialog({ target, recovery, transport, close, reload,
       setError("Tanggal atau jam (WIB) tidak valid.");
       return;
     }
-    if (dateValue > Date.now()) { setWeb(true); return; }
     submit({ command: { action: "create-schedule", title: title.trim(), sessionAt, meetLink: meetLink.trim() || null }, requestId: randomUUID() });
   }
 
-  const create = !("command" in target);
+  const create = "action" in target && target.action === "create-schedule";
+  const send = "action" in target && target.action === "send-announcement";
   const change = "command" in target ? target.command : null;
   const remove = change?.action === "delete-schedule";
   const toggle = change?.action === "announcement-state"
     ? change.field === "archived" ? change.value ? "Arsipkan" : "Pulihkan" : change.value ? "Sematkan" : "Lepas sematan" : "";
-  const heading = create ? "Buat jadwal PKA" : remove ? "Hapus jadwal PKA?" : `${toggle} pengumuman?`;
+  const heading = create ? "Buat jadwal PKA" : send ? "Buat pengumuman PKA" : remove ? "Hapus jadwal PKA?" : `${toggle} pengumuman?`;
   const editable = !busy && !uncertain && !conflict;
   const pendingFields = uncertain?.command.action === "create-schedule" ? uncertain.command : undefined;
+  const pendingAnnouncement = uncertain?.command.action === "send-announcement" ? uncertain.command : undefined;
+  const upcoming = pkaScheduleCreationNeedsDelivery(new Date(combineDateTime(date, time)));
   return <CourseDialog title={heading} onClose={close} dismissDisabled={busy} testID="academic-live-pka-lifecycle">
     {"title" in target && <Ink kind="strong">{target.title}</Ink>}
     {create ? <>
@@ -105,14 +113,14 @@ export function PkaLifecycleDialog({ target, recovery, transport, close, reload,
       <Field label="Tautan Meet" value={pendingFields?.meetLink ?? meetLink} onChangeText={setMeetLink} maxLength={250}
         autoCapitalize="none" keyboardType="url" editable={editable} />
     </> : null}
-    {error ? <Ink tone="error">{error}</Ink> : null}
-    {web ? <>
-      <Ink>Jadwal mendatang mengirim pemberitahuan. Buat jadwal itu dari web.</Ink>
-      <Action label="Buka jadwal PKA di web" onPress={() => {
-        void openBrowserAsync(new URL("/admin/tutorial-pka/schedules", transport.origin).href)
-          .catch(() => setError("Jadwal web gagal dibuka."));
-      }} />
+    {send ? <>
+      <Field label="Judul pengumuman" value={pendingAnnouncement?.title ?? title} onChangeText={setTitle}
+        maxLength={pkaAnnouncementTitleLimit} editable={editable} />
+      <Field label="Isi pengumuman" value={pendingAnnouncement?.body ?? body} onChangeText={setBody}
+        maxLength={pkaAnnouncementBodyLimit} multiline editable={editable} />
+      <Ink>Peserta PKA menerima pemberitahuan sesuai preferensi mereka.</Ink>
     </> : null}
+    {error ? <Ink tone="error">{error}</Ink> : null}
     {conflict ? <>
       <Ink tone="error">Data sudah berubah. Muat ulang sebelum melanjutkan.</Ink>
       <Action label="Muat ulang" onPress={reload} />
@@ -120,7 +128,8 @@ export function PkaLifecycleDialog({ target, recovery, transport, close, reload,
       <Ink>Hasil penyimpanan belum diketahui.</Ink>
       <Action label="Periksa dengan percobaan ulang" onPress={() => submit(uncertain)} disabled={busy} />
     </> : <View style={layout.row}>
-      <Action label={create ? "Simpan jadwal" : remove ? "Hapus jadwal" : toggle} variation={remove ? "destructive" : "default"} onPress={confirm} disabled={busy} />
+      <Action label={create ? upcoming ? "Simpan dan beri tahu peserta" : "Simpan jadwal" : send ? "Kirim pengumuman" : remove ? "Hapus jadwal" : toggle}
+        variation={remove ? "destructive" : "default"} onPress={confirm} disabled={busy} />
       <Action label="Batal" onPress={close} disabled={busy} />
     </View>}
   </CourseDialog>;

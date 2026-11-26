@@ -2,7 +2,7 @@ import { randomUUID } from "expo-crypto";
 import { useEffect, useRef, useState } from "react";
 import { Linking, View } from "react-native";
 import {
-  isValidPkaScheduleText, rebasePkaScheduleFields, type PkaScheduleEdit, type PkaScheduleRevision,
+  isValidPkaScheduleText, pkaScheduleUpdateNeedsDelivery, rebasePkaScheduleFields, type PkaScheduleEdit, type PkaScheduleRevision,
 } from "../../../../../packages/academic/pka-schedule-edit";
 import { NATIVE_STAGING_ORIGIN } from "../../../auth/session-api";
 import type { AcademicTransport } from "../client";
@@ -18,7 +18,7 @@ export function clearPkaScheduleRecovery(transport: AcademicTransport) {
 
 export function PkaScheduleEditor({ id, initial, transport, close, saved, unavailable }: {
   id: string; initial: PkaScheduleRevision; transport: AcademicTransport;
-  close(): void; saved(): void; unavailable(status: "denied" | "missing"): void;
+  close(): void; saved(delivery?: "queued"): void; unavailable(status: "denied" | "missing"): void;
 }) {
   const recovered = pendingEdits.get(transport)?.get(id);
   const original = recovered?.draft ?? initial;
@@ -56,7 +56,7 @@ export function PkaScheduleEditor({ id, initial, transport, close, saved, unavai
       if (commands.get(id) === pending) commands.delete(id);
       setUncertain(undefined);
       switch (result.status) {
-        case "saved": saved(); break;
+        case "saved": saved(result.delivery); break;
         case "conflict": setConflict(result.schedule); break;
         case "denied":
         case "missing": unavailable(result.status); break;
@@ -103,6 +103,7 @@ export function PkaScheduleEditor({ id, initial, transport, close, saved, unavai
   }
 
   const editable = !busy && !uncertain;
+  const informsParticipants = pkaScheduleUpdateNeedsDelivery(base.meetLink, fields());
   return <CourseDialog title="Edit jadwal PKA" onClose={close} dismissDisabled={busy}>
     <Field label="Judul sesi" value={title} editable={editable} onChangeText={setTitle} testID="academic-live-pka-schedule-title" />
     <Field label="Tanggal sesi (YYYY-MM-DD)" value={dateTime.date} maxLength={10} editable={editable}
@@ -132,6 +133,7 @@ export function PkaScheduleEditor({ id, initial, transport, close, saved, unavai
       <Ink>Hasil penyimpanan belum diketahui.</Ink>
       <Action label="Periksa dengan percobaan ulang" onPress={() => submit(uncertain)} disabled={busy} />
     </View> : null}
-    {!conflict && !uncertain ? <SaveButtons onSave={start} onCancel={close} busy={busy} /> : null}
+    {!conflict && !uncertain ? <SaveButtons onSave={start} onCancel={close} busy={busy}
+      saveLabel={informsParticipants ? "Simpan dan beri tahu peserta" : "Simpan"} /> : null}
   </CourseDialog>;
 }

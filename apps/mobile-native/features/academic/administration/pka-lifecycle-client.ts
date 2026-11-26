@@ -12,13 +12,13 @@ export async function submitPkaLifecycle(transport: AcademicTransport, attempt: 
   if (response.status === 404) return { status: "missing" } as const;
   const value: unknown = await response.json().catch(() => null);
   const body = value && typeof value === "object" ? value as Record<string, unknown> : {};
-  const idMatches = typeof body.id === "string" && Boolean(body.id) && (attempt.command.action === "create-schedule" || attempt.command.id === body.id);
+  const idMatches = typeof body.id === "string" && Boolean(body.id) && (!("id" in attempt.command) || attempt.command.id === body.id);
   if (idMatches && body.requestId === attempt.requestId) {
-    if (response.ok && body.status === "saved") return { status: "saved" } as const;
+    if (response.ok && body.status === "saved") return { status: "saved",
+      ...(body.delivery === "queued" ? { delivery: "queued" as const } : {}) } as const;
     if (response.status === 409 && body.status === "conflict") return { status: "conflict" } as const;
   }
   if (response.status === 409 && body.error === "REQUEST_CONFLICT") return { status: "conflict" } as const;
-  if (response.status === 422 && body.error === "WEB_DELIVERY_REQUIRED") return { status: "web" } as const;
   if ([400, 415, 422].includes(response.status)) return { status: "invalid" } as const;
   return { status: "uncertain" } as const;
 }

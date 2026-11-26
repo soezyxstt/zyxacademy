@@ -19,9 +19,9 @@ test("authenticated Scheduler accepts its job ID and both pinned resource names"
 test("staging schedules one UTC day and includes Monday reflection exactly once", () => {
   const monday = new Date("2026-11-23T00:00:00Z");
   const window = cronWindow("staging", monday);
-  expect(window).toHaveLength(65 + 288 + 2);
+  expect(window).toHaveLength(66 + 288 + 2);
   expect(window.find(item => item.job === "gamification-missions-cron")?.scheduledAt).toBe(Date.parse("2026-11-23T17:05:00Z"));
-  expect(cronWindow("staging", new Date("2026-11-24T00:00:00Z"))).toHaveLength(64 + 288 + 2);
+  expect(cronWindow("staging", new Date("2026-11-24T00:00:00Z"))).toHaveLength(65 + 288 + 2);
   expect(cronWindow("staging", monday)).toEqual(window);
 });
 
@@ -81,5 +81,13 @@ test("quiet-hour recovery is scheduled once per UTC hour, without boundary dupli
     const recovery = starts.flatMap(hour => cronWindow(environment, new Date(midnight + hour * 3_600_000)))
       .filter(item => item.job === "notification-quiet-recovery").map(item => item.scheduledAt);
     expect(recovery).toEqual(Array.from({ length: 24 }, (_, hour) => midnight + hour * 3_600_000));
+  }
+});
+
+test("native PKA delivery has its own recovery job in each queue window", () => {
+  for (const environment of ["staging", "production"] as const) {
+    const start = new Date("2026-11-23T00:00:00Z");
+    expect(cronWindow(environment, start).filter(item => item.job === "pka-native-delivery"))
+      .toEqual([{ job: "pka-native-delivery", scheduledAt: start.getTime() }]);
   }
 });

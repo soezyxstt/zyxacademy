@@ -68,6 +68,10 @@ const pkaTabs = [
 ] as const;
 const scheduleTabs = [
   { id: "calendar", label: "Kalender" }, { id: "academic", label: "Daftar jadwal" },
+const pkaDeliveryLabels = {
+  queued: "Pengiriman dalam antrean", running: "Sedang mengirim", succeeded: "Pengiriman selesai",
+  partial: "Sebagian pengiriman gagal", failed: "Pengiriman gagal", unknown: "Hasil pengiriman belum diketahui",
+} as const;
   { id: "tutors", label: "Tutor" }, { id: "tickets", label: "Tiket" }, { id: "audit", label: "Jejak audit" },
 ] as const;
 const usersRole = [
@@ -136,8 +140,9 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
   const data = state.status === "ready" && state.data.type === "page" ? state.data : undefined;
   const recoveredPka = data ? recoverPkaLifecycle(transport) : undefined;
   const canRecoverPka = Boolean(recoveredPka && (pkaAnnouncementPage
-    ? recoveredPka.attempt.command.action === "announcement-state"
-    : pkaSchedulePage && recoveredPka.attempt.command.action !== "announcement-state"));
+    ? recoveredPka.attempt.command.action === "announcement-state" || recoveredPka.attempt.command.action === "send-announcement"
+    : pkaSchedulePage && (recoveredPka.attempt.command.action === "create-schedule" || recoveredPka.attempt.command.action === "delete-schedule")));
+  const deliveryPending = data?.rows.some(row => row.pkaDelivery === "queued" || row.pkaDelivery === "running" || row.pkaDelivery === "unknown");
   const startPkaLifecycle = (target: PkaLifecycleTarget) => {
     setSuccess("");
     setPkaLifecycle({ actorTransport: transport, target });
@@ -238,7 +243,11 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
     {pkaAnnouncementPage ? <View style={layout.row}>
       <Action selected={filters.status !== "archived"} label="Aktif" onPress={() => filter("status", "")} />
       <Action selected={filters.status === "archived"} label="Arsip" onPress={() => filter("status", "archived")} />
-      {canRecoverPka && recoveredPka ? <Action label="Periksa perubahan pengumuman" onPress={() => startPkaLifecycle(recoveredPka.target)} /> : null}
+      {data && transport.command ? canRecoverPka && recoveredPka
+        ? <Action label="Periksa perubahan pengumuman" onPress={() => startPkaLifecycle(recoveredPka.target)} />
+        : <Action label="Buat pengumuman PKA" variation="default" testID="academic-live-pka-send" disabled={Boolean(recoveredPka)}
+          onPress={() => startPkaLifecycle({ action: "send-announcement" })} /> : null}
+      {deliveryPending ? <Action label="Periksa pengiriman" onPress={retry} /> : null}
     </View> : null}
     {pkaSchedulePage ? <View style={layout.row}>
       <Picker label="Periode" options={[{ id: "", label: "Semua sesi" }, { id: "upcoming", label: "Akan datang" }, { id: "past", label: "Riwayat" }]}
@@ -260,6 +269,7 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
       <Action label="Minggu sebelumnya" onPress={() => filter("week", String(week - 1))} disabled={week <= -520} />
       <Action label="Hari ini" onPress={() => filter("week", "0")} />
       <Action label="Minggu berikutnya" onPress={() => filter("week", String(week + 1))} disabled={week >= 520} />
+      {deliveryPending ? <Action label="Periksa pengiriman" onPress={retry} /> : null}
     </View> : null}
     {state.status === "loading" ? <PendingCourses /> : null}
     {state.status === "denied" && (tokenPage || pkaSchedulePage || ideaReviewPage
@@ -329,7 +339,7 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
       };
       return <View key={row.id} style={{ borderBottomWidth: StyleSheet.hairlineWidth, borderColor: palette.border }}>
         <NativeListRow theme={theme} layout={width >= 768 * fontScale ? "wide" : "compact"} title={row.title}
-          subtitle={[row.subtitle, row.detail].filter(Boolean).join(" · ")}
+          subtitle={[row.subtitle, row.detail, row.pkaDelivery && pkaDeliveryLabels[row.pkaDelivery]].filter(Boolean).join(" · ")}
           primary={row.fields?.length ? { onPress: () => setSelected(row) } : undefined}
           actions={actions} onAction={onAction} />
       </View>;
@@ -349,17 +359,23 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
     {data && pkaSchedule?.pkaScheduleEdit ? <PkaScheduleEditor key={pkaSchedule.id} id={pkaSchedule.id}
       initial={pkaSchedule.pkaScheduleEdit} transport={transport} close={() => { setPkaScheduleDraft(undefined); retry(); }}
       unavailable={invalidate}
-      saved={() => { setPkaScheduleDraft(undefined); setSuccess("Jadwal diperbarui."); retry(); }} /> : null}
+      saved={(delivery) => {
+        setPkaScheduleDraft(undefined);
+        setSuccess(delivery ? "Jadwal diperbarui. Pengiriman dalam antrean." : "Jadwal diperbarui.");
+        retry();
+      }} /> : null}
     {data && pkaLifecycle?.actorTransport === transport ? <PkaLifecycleDialog target={pkaLifecycle.target} transport={transport}
       recovery={recoveredPka?.target === pkaLifecycle.target ? recoveredPka : undefined}
       close={() => setPkaLifecycle(undefined)}
       reload={() => { setPkaLifecycle(undefined); setSelected(undefined); retry(); }}
       denied={() => { clearPkaLifecycle(transport); setPkaLifecycle(undefined); setSelected(undefined); invalidate("denied"); }}
-      saved={(action) => {
+      saved={(action, delivery) => {
         setPkaLifecycle(undefined);
         setSelected(undefined);
-        if (action === "create-schedule" && filters.status === "upcoming") filter("status", "past");
-        setSuccess(action === "delete-schedule" ? "Jadwal dihapus." : action === "create-schedule" ? "Jadwal tersimpan." : "Pengumuman diperbarui.");
+        if (action === "create-schedule" && filters.status === (delivery ? "past" : "upcoming")) filter("status", delivery ? "upcoming" : "past");
+        if (action === "send-announcement" && filters.status === "archived") filter("status", "");
+        setSuccess(delivery ? "Pengiriman dalam antrean." : action === "delete-schedule" ? "Jadwal dihapus."
+          : action === "create-schedule" ? "Jadwal tersimpan." : "Pengumuman diperbarui.");
         retry();
       }} /> : null}
     {data && rolesRow?.userRolesEdit && transport.command ? <UserRolesEditor key={rolesRow.id} id={rolesRow.id} name={rolesRow.title}

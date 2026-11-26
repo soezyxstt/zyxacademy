@@ -114,9 +114,9 @@ try {
   const upcoming = await read(upcomingId, "upcoming");
   const future = { title: "Waktu mendatang diperbarui", sessionAt: upcoming.sessionAt,
     meetLink: draft.meetLink, expectedRevision: upcoming.revision };
-  assert.equal((await responseJson(await patch(upcomingId, future), 422)).error, "WEB_DELIVERY_REQUIRED");
-  assert.deepEqual(await read(upcomingId, "upcoming"), upcoming);
-  await responseJson(await patch(upcomingId, { ...future, meetLink: null }), 200);
+  const queued = await responseJson(await patch(upcomingId, future), 200);
+  assert.equal(queued.delivery, "queued");
+  assert.deepEqual(await read(upcomingId, "upcoming"), queued.schedule);
   assert.equal((await read(upcomingId, "upcoming")).title, future.title);
 
   const audit = await pool.query(`select entity_id,count(*)::int as count from audit_mutasi
@@ -126,11 +126,12 @@ try {
   const deleted = await pool.query("select id from pka_schedules where id = $1", [pastId]);
   assert.equal(deleted.rowCount, 0);
   assert.deepEqual(await responseJson(await patch(pastId, draft, key), 404), { error: "NOT_FOUND" });
-  console.log("PKA schedule live PATCH: Admin and origin checks, title validation, exact WIB instant, durable replay, revision conflict, web delivery boundary and replay after web deletion passed");
+  console.log("PKA schedule live PATCH: Admin and origin checks, title validation, exact WIB instant, durable replay, revision conflict, native delivery queue and replay after web deletion passed");
 } finally {
   try {
     if (seeded) {
       await pool.query("delete from audit_mutasi where entity_type = 'native_pka_schedule' and entity_id = any($1)", [[pastId, upcomingId]]);
+      await pool.query("delete from admin_operation_jobs where required_scope = 'native-product:pka-delivery' and payload->>'entityId' = $1", [upcomingId]);
       await pool.query("delete from pka_schedules where id = any($1)", [[pastId, upcomingId]]);
     }
   } finally {

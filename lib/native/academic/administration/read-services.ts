@@ -16,6 +16,7 @@ import { formatJakartaDatetimeLocal, getJakartaCalendarDate, toIsoTimestamp } fr
 import { listAdminNotificationHistory } from "@/lib/notifications/admin-history";
 import { pkaScheduleRevision } from "@/lib/pka/schedule-update";
 import { pkaAnnouncementState } from "@/lib/pka/lifecycle";
+import { readPkaDeliveryStatuses } from "@/lib/pka/native-delivery-queue";
 import type { ReviewKind } from "@/packages/native-parity/academic/administration/fixtures";
 import type { DiktatEvidenceStatus, LiveField, LivePage, LiveRow } from "@/packages/native-parity/academic/administration/live";
 import { readNativeEnrollmentToken } from "./enrollment-token-service";
@@ -35,6 +36,11 @@ function paginate(rows: LiveRow[], page: number, summary?: LiveField[]) {
   return rowsPage(rows.slice((page - 1) * listPageSize, page * listPageSize), rows.length > page * listPageSize, summary);
 }
 function matches(term: string, values: (string | null | undefined)[]) {
+
+async function withPkaDelivery(page: LivePage, section: "announcements" | "sessions") {
+  const statuses = await readPkaDeliveryStatuses(page.rows.map(row => row.id), section);
+  return { ...page, rows: page.rows.map(row => ({ ...row, pkaDelivery: statuses.get(row.id) })) };
+}
   const query = term.toLocaleLowerCase("id-ID");
   return !query || values.some((value) => value?.toLocaleLowerCase("id-ID").includes(query));
 }
@@ -217,7 +223,7 @@ export const administrationReadServices: AdministrationReadServices = {
       }
       case "announcements": {
         const entries = await getPkaAnnouncementsAction();
-        return paginate(entries.filter((entry) => entry.isArchived === (query.status === "archived")).sort((left, right) => Number(right.isPinned) - Number(left.isPinned))
+        const page = paginate(entries.filter((entry) => entry.isArchived === (query.status === "archived")).sort((left, right) => Number(right.isPinned) - Number(left.isPinned))
           .map((entry) => ({
             id: entry.id, title: entry.title, subtitle: jakDateTime(entry.sentAt),
             detail: entry.isPinned ? "Disematkan" : undefined,
@@ -226,16 +232,18 @@ export const administrationReadServices: AdministrationReadServices = {
             fields: [field("Isi", entry.body), field("Penerima", entry.recipientCount)],
           })), query.page);
       }
+        return withPkaDelivery(page, "announcements");
       case "sessions": {
         const entries = await getPkaSchedulesAction();
         const now = Date.now();
-        return paginate(entries.filter((entry) => query.status === "upcoming" ? entry.sessionAt.getTime() > now
+        const page = paginate(entries.filter((entry) => query.status === "upcoming" ? entry.sessionAt.getTime() > now
           : query.status === "past" ? entry.sessionAt.getTime() <= now : true).map((entry) => ({
           id: entry.id, title: entry.title, subtitle: jakDateTime(entry.sessionAt), detail: entry.sessionAt.getTime() <= now ? "Sesi lampau" : undefined,
           pkaScheduleEdit: pkaScheduleRevision(entry.id, entry),
           fields: [field("Tautan Meet", entry.meetLink), field("Penerima", entry.recipientCount)],
         })), query.page);
       }
+        return withPkaDelivery(page, "sessions");
     }
   },
 };

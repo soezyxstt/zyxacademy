@@ -9,6 +9,7 @@ const childEvent = z.object({
     "vector.sync.dispatch", "discussion/notifications.continue", "discussion/ai.continue",
     "discussion/images.sweep-continue", "gamification/outbox.continue", "gamification/missions.page",
     "admin/operations.continue", "product.verification.requested", "notifications/quiet.flush", "notification-quiet-recovery",
+    "pka/delivery.continue", "pka-native-delivery",
     "admin-operations-outbox", "discussion-notifications", "discussion-ai-cron", "discussion-image-sweep",
     "gamification-outbox-cron", "vector-sync-cron-worker", "course-analytics-snapshot-cron",
     "content-quality-audit-cron", "weekly-reflection-cron", "gamification-missions-cron", "mastery-snapshot-cron",

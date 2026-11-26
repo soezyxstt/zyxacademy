@@ -6,6 +6,10 @@ export function isValidPkaScheduleText(value: string) {
   return value.trim().length > 0 && !value.includes("\u0000");
 }
 
+export function pkaScheduleUpdateNeedsDelivery(beforeMeetLink: string | null, fields: PkaScheduleFields, now = Date.now()) {
+  return Boolean(fields.meetLink && fields.meetLink !== beforeMeetLink && Date.parse(fields.sessionAt) > now);
+}
+
 export function rebasePkaScheduleFields(base: PkaScheduleFields, draft: PkaScheduleFields, latest: PkaScheduleFields): PkaScheduleFields {
   return {
     title: draft.title === base.title.trim() ? latest.title : draft.title,

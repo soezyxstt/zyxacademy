@@ -10,6 +10,7 @@ import { offlineChangeRetentionCron } from "./offline";
 export { offlineChangeRetentionCron } from "./offline";
 import { adminOperationsWorker } from "./admin-operations";
 export { adminOperationsWorker } from "./admin-operations";
+import { pkaDeliveryWorker } from "./pka-delivery";
 export { inngest } from "./client";
 
 export {
@@ -114,6 +115,7 @@ export const computeFunctions = [
   gamificationMissionsCron,
   gamificationMissionsPage,
   adminOperationsWorker,
+  pkaDeliveryWorker,
   sourceReadPageWorker,
   sourceFigureWorker,
   productVerificationWorker,

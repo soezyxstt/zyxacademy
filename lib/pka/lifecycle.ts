@@ -5,8 +5,8 @@ import { revisionOf } from "@/lib/admin-mcp/revision";
 import type { PkaAnnouncementState } from "@/packages/academic/pka-lifecycle";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
-type ScheduleWriter = Pick<typeof db | Transaction, "insert" | "delete">;
-type AnnouncementWriter = Pick<typeof db | Transaction, "update">;
+type ScheduleWriter = Pick<Transaction, "insert" | "delete">;
+type AnnouncementWriter = Pick<Transaction, "insert" | "update">;
 type Announcement = Pick<typeof pkaAnnouncements.$inferSelect, "id" | "title" | "body" | "isArchived" | "isPinned">;
 
 export function pkaAnnouncementState(row: Announcement): PkaAnnouncementState {
@@ -26,4 +26,8 @@ export async function deletePkaScheduleRecord(writer: ScheduleWriter, scheduleId
 export async function updatePkaAnnouncementState(writer: AnnouncementWriter, id: string, field: "archived" | "pinned", value: boolean) {
   await writer.update(pkaAnnouncements).set(field === "archived" ? { isArchived: value } : { isPinned: value })
     .where(eq(pkaAnnouncements.id, id));
+}
+
+export async function createPkaAnnouncementRecord(writer: AnnouncementWriter, record: typeof pkaAnnouncements.$inferInsert) {
+  await writer.insert(pkaAnnouncements).values(record);
 }

@@ -9,6 +9,7 @@ export function isCronJobName(name: string | undefined, environment: QueueEnviro
 const recoveryJobs = [
   "admin-operations-outbox", "discussion-notifications", "discussion-ai-cron",
   "gamification-outbox-cron", "discussion-image-sweep", "vector-sync-cron-worker",
+  "pka-native-delivery",
 ];
 
 const scheduledJobs = [

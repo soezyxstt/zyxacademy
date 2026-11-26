@@ -3,6 +3,7 @@ import { isAdminUserRolesRevision, type AdminUserRolesRevision } from "../../../
 import { isPkaAnnouncementRevision, type PkaAnnouncementRevision } from "../../../academic/pka-announcement-edit";
 import { isPkaAnnouncementState, type PkaAnnouncementState } from "../../../academic/pka-lifecycle";
 import { isPkaScheduleRevision, type PkaScheduleRevision } from "../../../academic/pka-schedule-edit";
+import { isPkaDeliveryStatus, type PkaDeliveryStatus } from "../../../academic/pka-delivery";
 import { isAdminUserStatusRevision, type AdminUserStatusRevision } from "../../../academic/admin-user-status";
 import type { AdministrationPattern } from "./routes";
 
@@ -10,7 +11,7 @@ export type LiveField = { label: string; value: string };
 export type DiktatPdfTarget = { importId: string; productId: string; expectedRevision: string };
 export type DiktatEvidenceStatus = "ready" | "pending" | "failed" | "stale" | "unavailable";
 export type DiktatPdfRequest = DiktatPdfTarget & { requestId: string };
-export type LiveRow = { academicEvent?: AcademicEventView; id: string; title: string; subtitle?: string; detail?: string; fields?: LiveField[]; pdf?: DiktatPdfTarget; ideaReviewId?: string; announcementEdit?: PkaAnnouncementRevision; announcementState?: PkaAnnouncementState; pkaScheduleEdit?: PkaScheduleRevision; dateId?: string; groupEditable?: boolean; tokenActive?: boolean; userRolesEdit?: AdminUserRolesRevision; userStatusEdit?: AdminUserStatusRevision };
+export type LiveRow = { academicEvent?: AcademicEventView; id: string; title: string; subtitle?: string; detail?: string; fields?: LiveField[]; pdf?: DiktatPdfTarget; ideaReviewId?: string; announcementEdit?: PkaAnnouncementRevision; announcementState?: PkaAnnouncementState; pkaDelivery?: PkaDeliveryStatus; pkaScheduleEdit?: PkaScheduleRevision; dateId?: string; groupEditable?: boolean; tokenActive?: boolean; userRolesEdit?: AdminUserRolesRevision; userStatusEdit?: AdminUserStatusRevision };
 export type LiveProductBundle = { id: string; courseId: string; checksum: string };
 export type LivePage = { productBundle?: LiveProductBundle; scheduleCourses?: { id: string; label: string }[]; type: "page"; rows: LiveRow[]; nextPage: boolean; summary?: LiveField[]; week?: { start: string; today: string } };
 export type LiveRedirect = { type: "redirect"; target: string };
@@ -77,6 +78,7 @@ function row(value: unknown): value is LiveRow {
     && (value.announcementEdit === undefined || isPkaAnnouncementRevision(value.announcementEdit))
     && (value.announcementState === undefined || isPkaAnnouncementState(value.announcementState))
     && (value.pkaScheduleEdit === undefined || isPkaScheduleRevision(value.pkaScheduleEdit));
+    && (value.pkaDelivery === undefined || isPkaDeliveryStatus(value.pkaDelivery))
 }
 
 function isDateId(value: unknown): value is string {

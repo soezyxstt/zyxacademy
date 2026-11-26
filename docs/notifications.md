@@ -23,7 +23,8 @@ This document is the source of truth for notification scopes, delivery channels,
 | Tutor moves a scheduled tutorial session | `tutor_reminder` | Yes | Optional | `events_and_schedules` | `/dashboard/schedule` |
 | Tutor approves or declines schedule ticket | `tutor_reminder` | Yes | Optional | `events_and_schedules` | `/dashboard/schedule` |
 | New message on schedule ticket | `tutor_reminder` | Yes | Never | None | `/dashboard/schedule` |
-| Tutorial PKA announcement, schedule, or Meet update | `announcement` | Yes | Optional | `events_and_schedules` | `/courses/tutorial-pka` |
+| Tutorial PKA announcement | `announcement` | Yes | Optional | `course_updates` | `/courses/tutorial-pka` |
+| Tutorial PKA schedule or Meet update | `announcement` | Yes | Optional | `events_and_schedules` | `/courses/tutorial-pka/jadwal` |
 | Admin broadcast | `admin_broadcast` | Yes | Never | None | Custom or `/dashboard` |
 
 ### Tutor

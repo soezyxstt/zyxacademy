@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { PkaLifecycleCommand, PkaLifecycleReceipt } from "@/packages/academic/pka-lifecycle";
 import { isValidPkaScheduleText } from "@/packages/academic/pka-schedule-edit";
+import { pkaAnnouncementTitleLimit, pkaAnnouncementBodyLimit } from "@/packages/academic/pka-announcement-edit";
 import type { NativeAdminViewer } from "./admin-transaction";
 import { nativeAdminIdSchema, readNativeAdminJson } from "./request-validation";
 
@@ -22,6 +23,10 @@ const commandSchema = z.discriminatedUnion("action", [
       }).nullable(),
   }),
   z.strictObject({ action: z.literal("delete-schedule"), id: nativeAdminIdSchema, expectedRevision }),
+  z.strictObject({ action: z.literal("send-announcement"),
+    title: z.string().trim().min(1).max(pkaAnnouncementTitleLimit).refine(isValidPkaScheduleText),
+    body: z.string().trim().min(1).max(pkaAnnouncementBodyLimit).refine(isValidPkaScheduleText),
+  }),
   z.strictObject({
     action: z.literal("announcement-state"), id: nativeAdminIdSchema, expectedRevision,
     field: z.enum(["archived", "pinned"]), value: z.boolean(),
@@ -53,7 +58,6 @@ export async function handleNativePkaLifecycle(request: Request, origin: string,
       case "FORBIDDEN": return reply(403, { error: "FORBIDDEN" });
       case "NOT_FOUND": return reply(404, { error: "NOT_FOUND" });
       case "REQUEST_CONFLICT": return reply(409, { error: "REQUEST_CONFLICT" });
-      case "WEB_DELIVERY_REQUIRED": return reply(422, { error: "WEB_DELIVERY_REQUIRED" });
       default: return reply(500, { error: "SAVE_FAILED" });
     }
   }
