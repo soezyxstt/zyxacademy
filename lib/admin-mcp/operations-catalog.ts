@@ -15,6 +15,13 @@ export const operationsCatalog = [
     "reason": "Public file uploads attach files to a live respondent form under its current upload and authentication policy. Admin MCP preview and simulation do not upload respondent files."
   },
   {
+    "source": "app/api/meet/[slug]/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The public lookup reports the title behind one exact Zyx meeting link. The canonical web route rechecks availability before Google Meet applies its own admission policy. Administrative meeting operations and MCP authorization, scopes, consent and environment bindings are independent."
+  },
+  {
     "source": "app/api/tautan/route.ts",
     "actions": ["GET"],
     "tools": [],
@@ -117,7 +124,14 @@ export const operationsCatalog = [
     "actions": ["open"],
     "tools": [],
     "status": "excluded",
-    "reason": "The app opens the staging Next consent, account connections or meeting URL in the system browser. The browser owns the session. Consent, registration, scopes, redirect validation, revocation and environment binding stay on their existing server paths."
+    "reason": "The app opens the staging Next consent or account connections URL in the system browser. The browser owns the session. Consent, registration, scopes, redirect validation, revocation and environment binding stay on their existing server paths."
+  },
+  {
+    "source": "apps/mobile-native/app/meet/[slug].tsx",
+    "actions": ["open"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The app opens the canonical public meeting link on its configured staging origin. Browser and Google accounts handle admission independently of the Expo session. No MCP or OAuth credential is passed."
   },
   {
     "source": "app/api/notifications/history/route.ts",

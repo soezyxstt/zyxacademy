@@ -1,3 +1,4 @@
+import { publicMeetingUrl } from "../../../../packages/meet/public-destination";
 import { FORM_FILE_MIMES, type FormFileMime } from "../../../../packages/forms/file-types";
 import { formFileSizeLimitMb, isEmptyFormAnswer } from "../../../../packages/forms/presentation";
 import type { FormClosure } from "../../../../packages/forms/response-policy";
@@ -97,16 +98,6 @@ function parseQuestion(input: unknown): PublicQuestion | null {
     maxFileSizeMb: typeof item.maxFileSizeMb === "number" ? item.maxFileSizeMb : undefined,
     allowedFileTypes: item.allowedFileTypes === undefined ? undefined : FORM_FILE_MIMES.filter(mime => allowed?.includes(mime)),
   };
-}
-
-function publicMeetingUrl(raw: unknown) {
-  if (typeof raw !== "string") return null;
-  try {
-    const url = new URL(raw);
-    return url.origin === "https://meet.google.com" && !url.username && !url.password ? url.href : null;
-  } catch {
-    return null;
-  }
 }
 
 function parseClosure(input: unknown): FormClosure | null {

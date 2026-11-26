@@ -14,6 +14,10 @@ Pengaturan Murid memakai preferensi perangkat Expo untuk tema sistem, terang ata
 
 Build produk Expo mengutamakan tujuan dari tautan langsung atau login. Jika tujuan tidak diberikan, aplikasi mencoba membuka rute produk terakhir yang difokuskan dalam 24 jam untuk origin, akun, dan sesi yang sama. Rute harus terpasang dan sesuai peran saat ini. Pemeriksaan akses data tetap dilakukan oleh layar dan API masing-masing. Rute publik, auth, MCP, API, pengelolaan kredensial, fragmen, dan parameter di luar daftar yang didukung tidak disimpan. Keluar atau pencabutan akses akun membersihkan riwayat sesi. Dashboard peran dipakai ketika riwayat tidak bisa dibuka. [Riwayat rute Expo](../apps/mobile-native/routing/route-history.ts).
 
+## Tautan Google Meet
+
+Expo memeriksa slug sesuai huruf aslinya melalui `GET /api/meet/[slug]` tanpa mengirim kredensial. Tautan yang tersedia menampilkan judul dan tombol **Gabung Google Meet**. Tautan yang hilang atau sudah dihapus menampilkan jalan kembali. Jika pemeriksaan gagal, pengguna dapat mencoba lagi atau membuka tautan resmi di browser. Browser mengunjungi `/meet/[slug]` pada origin aplikasi agar server memeriksa ulang tautan sebelum mengarahkan ke Google Meet. Google tetap menentukan akses ruang. [Rute Next](../app/meet/[slug]/page.tsx), [rute Expo](../apps/mobile-native/app/meet/[slug].tsx).
+
 ## Metadata dan paket bacaan offline
 
 Provider Expo menyinkronkan metadata saat ada layar yang meminta kursus. Respons sync dan manifest harus cocok dengan akun, sesi, origin, bahasa dan hak akses saat ini. SQLite menyimpan metadata per akun, origin dan bahasa. Setiap rekonsiliasi menyelesaikan manifest lebih dahulu, kemudian mengakui cursor. Revisi penyimpanan mencegah respons lama menghidupkan kembali entri yang dicabut. [Kontrak sync](operations/offline-data-sync.md), [provider Expo](../apps/mobile-native/offline/lifecycle-provider.tsx).
