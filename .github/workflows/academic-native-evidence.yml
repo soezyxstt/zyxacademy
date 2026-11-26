@@ -36,7 +36,7 @@ jobs:
              changes="$(gh api "repos/$GITHUB_REPOSITORY/compare/$PREVIOUS_HEAD...${ACADEMIC_REVISION}")" &&
              jq -e '
                def report:
-                 test("^tests/visual/native-parallel/academic/(device/[0-9a-f]{40}/.+|pages/(captures/.+\\.png|coverage\\.tsv|coverage-meta\\.json|results\\.json|interactions-results\\.json|first-run-results\\.json|first-interactions-results\\.json|summary\\.md|README\\.md))$");
+                 test("^tests/visual/native-parallel/academic/(device/[0-9a-f]{40}/.+|pages/(captures/.+\\.png|capture\\.mjs|coverage\\.py|coverage\\.tsv|coverage-meta\\.json|denied/.+|results\\.json|interactions-results\\.json|first-run-results\\.json|first-interactions-results\\.json|summary\\.md|README\\.md))$");
                .status == "ahead" and
                (.files | type == "array" and length > 0 and length < 300) and
                all(.files[]; (.filename | report) and ((.previous_filename // .filename) | report))
@@ -61,7 +61,7 @@ jobs:
           - platform: ios
             runner: macos-26
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 100
+    timeout-minutes: ${{ matrix.platform == 'ios' && 155 || 100 }}
     env:
       ACADEMIC_PLATFORM: ${{ matrix.platform }}
       ACADEMIC_OUTPUT: artifacts/native-parity/academic/${{ matrix.platform }}
@@ -124,8 +124,9 @@ jobs:
           disable-animations: true
           script: bash scripts/native-parity/academic/run-device.sh android "$(adb get-serialno)"
       - if: matrix.platform == 'ios'
-        name: Build, install and capture on the iOS simulator
-        timeout-minutes: 85
+        name: Build and install on the iOS simulator
+        id: ios_install
+        timeout-minutes: 75
         shell: bash
         env:
           ACADEMIC_RUNNER: ${{ matrix.runner }}
@@ -149,7 +150,36 @@ jobs:
             cd apps/mobile-native
             npx --no-install expo run:ios --configuration Release --device "$device" --no-bundler
           ) 2>&1 | tee "$root/$ACADEMIC_OUTPUT/build.log"
-          bash scripts/native-parity/academic/run-device.sh ios "$device"
+          printf 'device=%s\n' "$device" >> "$GITHUB_OUTPUT"
+      - if: matrix.platform == 'ios'
+        name: Capture on the iOS simulator
+        id: ios_capture
+        timeout-minutes: 65
+        shell: bash
+        env:
+          ACADEMIC_DEVICE: ${{ steps.ios_install.outputs.device }}
+        run: bash scripts/native-parity/academic/run-device.sh ios "$ACADEMIC_DEVICE"
+      - if: ${{ !cancelled() && matrix.platform == 'ios' && steps.ios_install.outcome == 'success' && (steps.ios_capture.outcome == 'failure' || steps.ios_capture.outcome == 'cancelled') }}
+        name: Preserve the installed simulator fixture
+        id: ios_recovery
+        timeout-minutes: 5
+        shell: bash
+        env:
+          ACADEMIC_DEVICE: ${{ steps.ios_install.outputs.device }}
+          ACADEMIC_CAPTURE_OUTCOME: ${{ steps.ios_capture.outcome }}
+        run: |
+          if bash scripts/native-parity/academic/preserve-ios-fixture.sh \
+            "$ACADEMIC_DEVICE" "$ACADEMIC_OUTPUT" "$RUNNER_TEMP/academic-ios-recovery"; then
+            echo 'recovery-ready=true' >> "$GITHUB_OUTPUT"
+          fi
+      - if: ${{ !cancelled() && matrix.platform == 'ios' && steps.ios_recovery.outputs.recovery-ready == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: academic-ios-recovery-fixture
+          path: ${{ runner.temp }}/academic-ios-recovery
+          retention-days: 3
+          compression-level: 0
+          if-no-files-found: error
       - name: Record collection status
         if: always()
         shell: bash

@@ -35,6 +35,8 @@ python3 scripts/native-parity/academic/accessibility.py android "<serial>" "$(co
 
 Folder `accessibility/` di setiap arsip berisi hierarki perangkat, screenshot, dan hasil pemeriksaan nama yang terbaca di detail peserta Tutor dan daftar kursus Admin. Alur penolakan memeriksa bahwa data kedua halaman tidak muncul dalam hierarki akun murid. Pemeriksaan TalkBack dan VoiceOver memerlukan pengujian tersendiri.
 
+Workflow menjalankan build dan tangkapan iOS dalam dua langkah. Jika pemasangan berhasil dan tangkapan gagal atau mencapai batas waktu langkah, langkah pemulihan dapat menyimpan app simulator dalam artefak `academic-ios-recovery-fixture` selama tiga hari. Verifikasi `fixture.app.zip.sha256` dengan `shasum -a 256 -c`, ekstrak arsip dengan `ditto -x -k`, lalu pasang app hasil ekstrak pada simulator yang kompatibel dengan `xcrun simctl install`. Gunakan revisi dan daftar kasus dari metadata build. Catat ID dan lingkungan sesi pengambilan baru pada manifest tangkapan, beserta ID build asal dari artefak.
+
 `device-manifest.py` menggunakan delapan pasangan nama screenshot Maestro dan kasus Playwright dengan peran, data, state, dan tema yang sama. Kasus yang tidak memiliki padanan semantik, seperti layar detail peserta yang terpisah di native, tidak dipasangkan. Nama screenshot yang tidak ditemukan tercatat dalam manifest perangkat.
 
 Unduh artefak Android dari run yang ingin diuji. Untuk iOS, gunakan nama artefak iOS dan referensi DPR 3.
