@@ -42,3 +42,13 @@ MCP review confirmed that the native adapter uses existing domain services and a
 - The local capture command exited 0 for 24 screenshots using Indonesian and Asia/Jakarta. The 24 synthetic reference images and full manifest are stored in `tests/visual/native-parallel/operations/references/evaluation/`. HTTP, redirect, browser error and horizontal overflow assertions passed. The actual fixture clients render with the browser application’s KaTeX stylesheet.
 - Mount the repository operations fixture route using `node scripts/native-parity/operations/mount.mjs` in an isolated checkout. Open `zyx-native-parity://operations-fixture?path=%2Fadmin%2Fquestions` for the populated Bank Soal. The evaluation Maestro flow under `.maestro/native-parallel/operations/` covers an assessment alias, active and historical data, jobs recovery, distractors empty state and denied AST access.
 - Visual differences awaiting Android and iOS review include the inline native form and selector presentation, rich AST/Markdown rendering, and narrow vs. wide web placement. Device screenshots, pixel diffs and authorized deployment verification are pending. The device flow exercises synthetic records and sends no job to a remote queue.
+
+## Legacy alias verification
+
+Run from the repository root:
+
+```sh
+bun tests/integration/operations-evaluation-aliases.mjs tests/visual/native-parallel/operations/references/evaluation/legacy-redirect-signals.json
+```
+
+The verifier invokes the nine original Next.js page functions with synthetic Admin authorization and course identities. Its manifest records 17 redirect, missing or unknown identity cases paired with the native fixture result, and nine simulated rejections at the page guard. The direct checks use the Next.js redirect and not-found signals. Authentication and database behavior are covered separately by the protected handler tests.
