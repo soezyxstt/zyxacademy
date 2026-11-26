@@ -9,10 +9,6 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: native-student-evidence-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
-
 env:
   CI: '1'
   EXPO_NO_TELEMETRY: '1'
@@ -20,6 +16,9 @@ env:
 
 jobs:
   web:
+    concurrency:
+      group: student-web-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
     if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'native-migration/student'
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -77,6 +76,9 @@ jobs:
             runner: ubuntu-latest
           - platform: ios
             runner: macos-26
+    concurrency:
+      group: student-device-${{ github.event.pull_request.number }}-${{ matrix.platform }}
+      cancel-in-progress: false
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 150
     steps:
