@@ -16,6 +16,9 @@
  */
 
 import { addMinutes, addDays, addMilliseconds, format, getUnixTime, getISODay, subMinutes, subDays, subWeeks, startOfDay as fnsStartOfDay, startOfWeek as fnsStartOfWeek } from "date-fns";
+import { normalizeDate } from "./date-utils/normalization";
+
+export { normalizeDate } from "./date-utils/normalization";
 
 /** Monday is index 0, using the local calendar day. */
 export function localWeekdayIndex(date: Date): number { return getISODay(date) - 1; }
@@ -221,33 +224,6 @@ export function getCalendarMonthLabel(value: CalendarDate, locale = "id-ID"): st
     month: "short",
     timeZone: "UTC",
   }).format(new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0)));
-}
-
-/* ────────────────────────────────────────────────────────────────────────────
- * SQLite integer → Date adapter
- * ──────────────────────────────────────────────────────────────────────────── */
-
-/**
- * Normalizes a value that may be a SQLite epoch-second integer into a JS Date.
- * Preserves Date instances directly so valid far-future dates are not corrupted.
- * Divides by 1000 only for raw integer values whose year exceeds 3000.
- */
-export function normalizeDate(value: Date | string | number): Date {
-  if (value instanceof Date) {
-    if (!isNaN(value.getTime()) && value.getFullYear() > 10000) {
-      return new Date(value.getTime() / 1000);
-    }
-    return value;
-  }
-  if (typeof value === "number" && value >= 100_000_000 && value < 100_000_000_000) {
-    return new Date(value * 1000);
-  }
-  const d = new Date(value);
-  if (isNaN(d.getTime())) return d;
-  if (d.getFullYear() > 10000) {
-    return new Date(d.getTime() / 1000);
-  }
-  return typeof value === "number" && d.getFullYear() > 3000 ? new Date(d.getTime() / 1000) : d;
 }
 
 /* ────────────────────────────────────────────────────────────────────────────

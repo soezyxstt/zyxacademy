@@ -30,6 +30,8 @@ function specimenCapture(item: GalleryCase) {
       return { selector: "[data-parity-beta] > span:last-child", size: null };
     case "progress":
       return { selector: '[data-slot="progress"]', size: getProgressPosition() };
+    case "formatted-date":
+      return { selector: "[data-parity-formatted-date] > span", size: null };
     case "control":
     case "radio":
     case "choice":
@@ -95,7 +97,12 @@ try {
     const specimen = frame.locator(selector);
     await expect(frame).toHaveCSS("width", `${parityFrame.width}px`);
     await expect(frame).toHaveCSS("height", `${parityFrame.height}px`);
-    await expect(specimen).toBeVisible();
+    if (item.family === "formatted-date" && item.expected === null) {
+      await expect(specimen).toHaveCount(0);
+      await expect(frame).toHaveText(item.prefix);
+    } else {
+      await expect(specimen).toBeVisible();
+    }
     if (size) {
       await expect(specimen).toHaveCSS("width", `${size.width}px`);
       await expect(specimen).toHaveCSS("height", `${size.height}px`);
@@ -128,6 +135,9 @@ try {
       await expect(specimen).toHaveCSS("height", "24px");
       await expect(frame.getByRole("button")).toHaveCount(0);
       await expect(frame.getByRole("link")).toHaveCount(0);
+    }
+    if (item.family === "formatted-date" && item.expected !== null) {
+      await expect(specimen).toHaveText(item.expected);
     }
     if (item.family === "beta-badge") {
       const evaluation = frame.getByRole("tab", { name: /^Evaluasi AI Beta$/i });

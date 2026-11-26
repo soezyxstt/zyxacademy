@@ -1,0 +1,16 @@
+appId: com.zyx.academy.nativeparity
+name: Formatted date content and invalid date omission
+---
+- runFlow:
+    file: helpers/open-gallery.yaml
+    env:
+      COMPONENT: formatted-date
+- assertVisible:
+    id: formatted-date-reflection-id-light-value
+    text: 12 Jan 2025
+- assertVisible:
+    id: formatted-date-cache-en-dark-value
+    text: Jan 12, 2025(?:,| at)\s+12:05\s+AM
+- assertVisible: Minggu 2025-unknown
+- assertNotVisible:
+    id: formatted-date-reflection-invalid-light-value

@@ -14,6 +14,10 @@ function marker(width: number) {
 }
 
 function ready(item: GalleryCase, frame: HTMLElement): boolean {
+  if (item.family === "formatted-date") {
+    const date = frame.querySelector("[data-parity-formatted-date] > span");
+    return item.expected === null ? !date : date?.textContent?.replace(/\s+/g, " ") === item.expected;
+  }
   if (item.family !== "avatar") return true;
   if (frame.querySelector("[data-parity-image-status]")?.getAttribute("data-parity-image-status") !== item.status) return false;
   const image = frame.querySelector("img[data-slot='avatar-image']");

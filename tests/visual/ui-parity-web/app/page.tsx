@@ -12,6 +12,7 @@ import { RadioCase } from "./RadioCases";
 import { ProgressCase } from "./ProgressCases";
 import { ChoiceCase } from "./ChoiceCases";
 import { ControlCase } from "./ControlCases";
+import { FormattedDateCase } from "./FormattedDateCases";
 import { MobileReference } from "./MobileReference";
 
 type ParityCaseFrameProps = { id: string; theme: "light" | "dark"; children: ReactNode };
@@ -42,6 +43,8 @@ function Specimen({ item }: { item: GalleryCase }) {
       return <BetaBadgeCase item={item} />;
     case "progress":
       return <ProgressCase item={item} />;
+    case "formatted-date":
+      return <FormattedDateCase item={item} />;
     case "choice":
       return <ChoiceCase id={item.id} />;
     case "skeleton":
