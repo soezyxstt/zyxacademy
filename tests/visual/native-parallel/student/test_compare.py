@@ -98,6 +98,17 @@ class MatchedReferenceTest(unittest.TestCase):
         self.assertEqual(self.compare()['status'], 'pass')
         source.write_text('different fixture bytes')
         self.assertEqual(self.compare()['status'], 'not_comparable')
+        group['webOrigin'] = 'http://student-quiz-gateway-reference.invalid'
+        (scripts / 'matched-reference-groups.json').write_text(json.dumps({'quiz-gateway': group}))
+        # A stale capture still fails. A new render must carry the exact named
+        # sources of this checkout as well as the pinned state assertions.
+        self.assertEqual(self.compare()['status'], 'not_comparable')
+        reference['sourceDigests'][source.name] = hashlib.sha256(source.read_bytes()).hexdigest()
+        (self.web / 'quiz-gateway-reference.json').write_text(json.dumps(reference))
+        self.assertEqual(self.compare()['status'], 'pass')
+        del reference['sourceDigests'][source.name]
+        (self.web / 'quiz-gateway-reference.json').write_text(json.dumps(reference))
+        self.assertEqual(self.compare()['status'], 'not_comparable')
 
     def test_uses_only_the_selected_retry_junit_and_capture(self):
         retry = self.native / 'standalone-retry' / '001'

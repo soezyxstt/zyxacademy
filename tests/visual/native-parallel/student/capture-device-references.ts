@@ -20,8 +20,9 @@ for (const name of ["manifest.json", ...Object.keys(signedReview.states).map(sta
   cpSync(join(root, signedReview.referencePath, filename), join(signedReference, filename));
 }
 for (const [group, config] of Object.entries(groups)) {
-  if (config.sourcePaths) {
-    // Source edits can invalidate an earlier reference even when today's capture succeeds.
+  if (config.productFixture && config.sourcePaths) {
+    // A copied signed capture must still match its original source. Playwright
+    // suites below render the checkout again and record their own source hashes.
     const current = Object.fromEntries(config.sourcePaths.map(path => [path, createHash("sha256").update(readFileSync(path)).digest("hex")]));
     for (const platform of ["android", "ios"]) {
       const file = join(root, group, "web", platform, `${group}-reference.json`);

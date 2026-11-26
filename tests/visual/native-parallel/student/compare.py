@@ -135,11 +135,17 @@ def verify_state(group, state, web, native):
             return f'The committed {group} reference lacks its expected states, locale or theme.'
         # Chromium versions and rasterization can differ between the capture host
         # and CI. All fields describing the input and presentation must agree.
-        inputs = {key: value for key, value in reference.items() if key not in ('browser', 'captures')}
+        generated = bool(config.get('webOrigin') and config.get('sourcePaths') and 'productFixture' not in config)
+        # For a fresh Playwright render compare the fixture states and markers
+        # against the pinned contract, and the recorded source against this build.
+        varying = {'browser', 'captures'}
+        if generated:
+            varying.add('sourceDigests')
+        inputs = {key: value for key, value in reference.items() if key not in varying}
         if not reference['states'][state] or any(manifest.get(key) != value for key, value in inputs.items()):
             return f'The {group} capture inputs differ from those linked to the device fixture.'
         root = Path(__file__).resolve().parents[4]
-        sources = dict(reference.get('sourceDigests', {}))
+        sources = dict((manifest if generated else reference).get('sourceDigests', {}))
         required = config.get('sourcePaths')
         markers = ()
         if required is not None:
