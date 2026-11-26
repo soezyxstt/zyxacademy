@@ -198,7 +198,10 @@ export function QuestionsScreen({ request, presentation, navigate, initialSearch
         {total === 0 && <Copy theme={theme} tone="muted">{isHistorical ? h.empty : t.empty}</Copy>}
         {isHistorical
           ? bank.historicalQuestions.map((question) => <HistoricalRow key={question.id} question={question} course={question.courseId ? bank.courseMap[question.courseId] ?? question.courseId : ""} presentation={presentation} selected={historicalSelected.has(question.id)} busy={updating} toggle={() => setHistoricalSelected((current) => toggleHistoricalQuestionEntries(current, [question]))} review={(next) => updateStatus([question.id], next)} />)
-          : bank.questions.map((question) => <ActiveRow key={question.id} question={question} course={bank.courseMap[question.courseId] ?? question.courseId} presentation={presentation} selected={selected.has(question.id)} busy={updating} toggle={() => setSelected((current) => toggleQuestionIds(current, [question.id]))} edit={() => setEditor({ action: { kind: "edit", question }, courses: bank.authoringCourses })} remove={() => { setError(undefined); setDeleting(question); }} />)}
+          : bank.questions.map((question) => <ActiveRow key={question.id} question={question} course={bank.courseMap[question.courseId] ?? question.courseId} presentation={presentation} selected={selected.has(question.id)} busy={updating} toggle={() => setSelected((current) => toggleQuestionIds(current, [question.id]))} edit={() => setEditor({
+            action: { kind: "edit", question: { ...question, courseId: bank.canonicalCourseMap[question.courseId] ?? question.courseId } },
+            courses: bank.authoringCourses,
+          })} remove={() => { setError(undefined); setDeleting(question); }} />)}
         {total > 0 && <Row>
           <Choice theme={theme} label={t.pageSize} options={QUESTION_PAGE_SIZES.map((value) => ({ value, label: value }))} value={query.pageSize} onChange={(pageSize) => isHistorical ? setHistoricalFilters({ pageSize }) : setActiveFilters({ pageSize })} />
           <Button theme={theme} variant="outline" disabled={query.page === 1 || updating} onPress={() => go(query.page - 1)}>{t.previousPage}</Button>
