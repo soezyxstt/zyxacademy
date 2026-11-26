@@ -7,7 +7,7 @@ from pathlib import Path
 
 from PIL import Image, ImageChops, ImageCms, ImageOps
 
-from case_manifest import load_case_groups
+from case_manifest import load_case_layout
 
 MARKER = (224, 0, 239)
 
@@ -54,7 +54,7 @@ def main():
             parser.error("Mobile WebView comparisons require an Android or iOS native frame")
         output_dir = output_dir / "native-vs-webview"
         output_dir.mkdir(exist_ok=True)
-    groups = load_case_groups(reference_dir / "cases.json")
+    groups, heights = load_case_layout(reference_dir / "cases.json")
     if args.component not in groups:
         parser.error(f"Unknown component {args.component}")
     ordinal = list(groups).index(args.component)
@@ -62,6 +62,9 @@ def main():
     positions = crop_positions(frame, args.scale, (16 + ordinal) * args.scale)
     if len(positions) != len(cases):
         raise SystemExit(f"Expected {len(cases)} marker strips, found {len(positions)}")
+    if any(x + 320 * args.scale > frame.width or y + heights[case] * args.scale > frame.height
+           for case, (x, y) in zip(cases, positions)):
+        raise SystemExit("Expected every fixture to fit within the native capture")
     if args.ready:
         return
     mismatches = []
@@ -70,8 +73,8 @@ def main():
     for case, (x, y) in zip(cases, positions):
         reference = reference_dir / f"{case}.png"
         web = Image.open(reference).convert("RGB")
-        expected = (320 * args.scale, 100 * args.scale)
-        if web.size != expected or y + expected[1] > frame.height:
+        expected = (320 * args.scale, heights[case] * args.scale)
+        if web.size != expected:
             raise ValueError(f"{case}: invalid capture dimensions")
         native = frame.crop((x, y, x + expected[0], y + expected[1]))
         native.save(output_dir / f"{case}.png")

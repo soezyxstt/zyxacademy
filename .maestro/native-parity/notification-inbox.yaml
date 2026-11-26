@@ -1,0 +1,28 @@
+appId: com.zyx.academy.nativeparity
+name: Student inbox content and read actions
+---
+- runFlow:
+    file: helpers/open-gallery.yaml
+    env:
+      COMPONENT: notification-inbox
+- assertVisible: Belum ada notifikasi.
+- assertVisible:
+    id: notification-inbox-unread-light-row-quiz
+    text: ".*5 min ago.*Unread"
+- tapOn:
+    id: notification-inbox-unread-light-mark-all
+- assertNotVisible:
+    id: notification-inbox-unread-light-mark-all
+- assertVisible:
+    id: notification-inbox-unread-light-row-quiz
+    text: ".*5 min ago"
+- assertVisible:
+    id: notification-inbox-mixed-dark-row-grade
+    text: ".*1 h lalu"
+- tapOn:
+    id: notification-inbox-mixed-dark-row-discussion
+- assertNotVisible:
+    id: notification-inbox-mixed-dark-mark-all
+- assertVisible:
+    id: notification-inbox-mixed-dark-destination
+    text: '/dashboard/discussions\?thread=physics'

@@ -5,14 +5,16 @@ import { StatusBar } from "expo-status-bar";
 import { createContext, useContext, useEffect, useLayoutEffect, useState, type ReactNode } from "react";
 import { SafeAreaProvider, initialWindowMetrics } from "react-native-safe-area-context";
 
-import { NativeAccountContextProvider } from "../auth/use-account-context";
+import { NativeAccountContextProvider, useNativeUiLocale } from "../auth/use-account-context";
 import { NativeSessionProvider, useNativeSession } from "../auth/session-provider";
 import { NATIVE_STAGING_ORIGIN } from "../auth/session-api";
 import { startNativeFileCacheLifecycle } from "../device/files";
 import { NotificationsProvider } from "../device/notifications-provider";
 import { LocalReminderResponseLifecycle } from "../device/notification-response";
 import { LocalReminderLifecycle } from "../device/reminder-lifecycle";
+import { DevicePreferencesProvider } from "../device/preferences-provider";
 import { OfflineMetadataProvider } from "../offline/lifecycle-provider";
+import { RouteHistoryLifecycle } from "../routing/route-history-expo";
 import { isSessionRoute, navigationSessionKey, resetSessionStack } from "../routing/session-stack";
 import { AssessmentDraftCleanup } from "../features/student/assessment-drafts";
 import { nativeFontSources } from "../typography";
@@ -49,7 +51,15 @@ function SessionStackEntry({ routeName, children }: { routeName: string; childre
   return retiring && isSessionRoute(routeName) ? null : children;
 }
 
+function AccountNotificationsProvider({ children }: { children: ReactNode }) {
+  return <NotificationsProvider locale={useNativeUiLocale()}>{children}</NotificationsProvider>;
+}
+
 export default function RootLayout() {
+  return <DevicePreferencesProvider><NativeAppLayout /></DevicePreferencesProvider>;
+}
+
+function NativeAppLayout() {
   const [fontsLoaded, fontError] = useFonts(nativeFontSources);
   useEffect(startNativeFileCacheLifecycle, []);
 
@@ -66,13 +76,14 @@ export default function RootLayout() {
         <NativeAccountContextProvider>
           <LocalReminderLifecycle />
           <LocalReminderResponseLifecycle />
-          <NotificationsProvider>
+          <RouteHistoryLifecycle />
+          <AccountNotificationsProvider>
             <OfflineMetadataProvider>
               <Stack screenOptions={{ headerShown: false, animation: "none" }}
                 layout={props => <SessionStackLayout {...props} />}
                 screenLayout={({ route, children }) => <SessionStackEntry routeName={route.name}>{children}</SessionStackEntry>} />
             </OfflineMetadataProvider>
-          </NotificationsProvider>
+          </AccountNotificationsProvider>
         </NativeAccountContextProvider>
       </NativeSessionProvider>
     </SafeAreaProvider>

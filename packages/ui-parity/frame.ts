@@ -5,3 +5,7 @@ export const parityFrame = {
   markerHeight: 1,
   gap: 8,
 } as const;
+
+export function getParityFrameHeight(component: string) {
+  return component === "notification-inbox" ? 200 : parityFrame.height;
+}

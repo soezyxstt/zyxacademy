@@ -66,6 +66,15 @@ for lane in shared-ui student academic operations; do
           git checkout --ours -- "$conflict"
           git add -- "$conflict"
           ;;
+        tests/unit/expo-offline-reading-packages.test.ts:5eab0fc27151af0a5440c336858b113dad4bc9d4|\
+        tests/unit/expo-offline-reading-packages.test.ts:b8c9db1601762a4cb67caeeac5cd5da3018670da)
+          # Both lanes only typed the same example. The host retains the
+          # typed fixture and the newer cross-locale and stale-response cases.
+          if git show ":2:$conflict" | grep -F 'satisfies OfflineReadingData;' >/dev/null; then
+            git checkout --ours -- "$conflict"
+            git add -- "$conflict"
+          fi
+          ;;
         lib/admin-mcp/operations-catalog.ts:*)
           python3 scripts/native-readiness/merge-catalog-preview.py
           git add -- "$conflict"

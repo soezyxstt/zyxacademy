@@ -3,10 +3,12 @@ import { fileURLToPath } from "node:url";
 import { chromium, expect } from "@playwright/test";
 import { avatarPosition } from "../../../packages/ui-parity/avatar-cases";
 import { directoryCases, directoryFrame } from "../../../packages/public-links/fixtures";
-import { parityFrame } from "../../../packages/ui-parity/frame";
+import { getParityFrameHeight, parityFrame } from "../../../packages/ui-parity/frame";
 import { getProgressPosition } from "../../../packages/ui-parity/progress-cases";
 import { getSeparatorPosition } from "../../../packages/ui-parity/separator-cases";
 import { galleryCases, type GalleryCase } from "../../../packages/ui-parity/gallery";
+import { notificationInboxCases, notificationInboxCopy } from "../../../packages/ui-parity/notification-inbox-cases";
+import { formatNotificationTime } from "../../../lib/date-utils/notification-display";
 
 const skeletonSelector = '[data-slot="skeleton"]';
 const avatarSelector = '[data-slot="avatar"]';
@@ -30,6 +32,10 @@ function specimenCapture(item: GalleryCase) {
       return { selector: "[data-parity-beta] > span:last-child", size: null };
     case "progress":
       return { selector: '[data-slot="progress"]', size: getProgressPosition() };
+    case "formatted-date":
+      return { selector: "[data-parity-formatted-date] > span", size: null };
+    case "notification-inbox":
+      return { selector: item.rows.length ? "ul" : "p", size: null };
     case "control":
     case "radio":
     case "choice":
@@ -94,8 +100,13 @@ try {
     const frame = page.locator(`[data-parity-case="${item.id}"]`);
     const specimen = frame.locator(selector);
     await expect(frame).toHaveCSS("width", `${parityFrame.width}px`);
-    await expect(frame).toHaveCSS("height", `${parityFrame.height}px`);
-    await expect(specimen).toBeVisible();
+    await expect(frame).toHaveCSS("height", `${getParityFrameHeight(item.component)}px`);
+    if (item.family === "formatted-date" && item.expected === null) {
+      await expect(specimen).toHaveCount(0);
+      await expect(frame).toHaveText(item.prefix);
+    } else {
+      await expect(specimen).toBeVisible();
+    }
     if (size) {
       await expect(specimen).toHaveCSS("width", `${size.width}px`);
       await expect(specimen).toHaveCSS("height", `${size.height}px`);
@@ -128,6 +139,24 @@ try {
       await expect(specimen).toHaveCSS("height", "24px");
       await expect(frame.getByRole("button")).toHaveCount(0);
       await expect(frame.getByRole("link")).toHaveCount(0);
+    }
+    if (item.family === "formatted-date" && item.expected !== null) {
+      await expect(specimen).toHaveText(item.expected);
+    }
+    if (item.family === "notification-inbox") {
+      const copy = notificationInboxCopy[item.locale];
+      await expect(frame.getByRole("heading", { name: copy.title })).toBeVisible();
+      await expect(frame.getByRole("button", { name: copy.markAllRead, exact: true })).toHaveCount(item.rows.some(row => !row.read) ? 1 : 0);
+      if (!item.rows.length) await expect(specimen).toHaveText(copy.empty);
+      else {
+        await expect(specimen.locator("li")).toHaveCount(item.rows.length);
+        for (const row of item.rows) {
+          const button = specimen.getByRole("button", { name: new RegExp(row.title) });
+          await expect(button).toContainText(row.body);
+          await expect(button).toContainText(formatNotificationTime(row.createdAt, item.locale,
+            (unit, count) => copy.relative[unit].replace("{count}", String(count)), item.now));
+        }
+      }
     }
     if (item.family === "beta-badge") {
       const evaluation = frame.getByRole("tab", { name: /^Evaluasi AI Beta$/i });
@@ -181,6 +210,15 @@ try {
     await expect(control(`${component}-disabled-dark`)).toBeDisabled();
   }
 
+  const [, unreadInbox, mixedInbox] = notificationInboxCases;
+  const unreadFrame = page.locator(`[data-parity-case="${unreadInbox.id}"]`);
+  const markAll = unreadFrame.getByRole("button", { name: notificationInboxCopy.en.markAllRead, exact: true });
+  await markAll.click();
+  await expect(markAll).toHaveCount(0);
+  const mixedFrame = page.locator(`[data-parity-case="${mixedInbox.id}"]`);
+  await mixedFrame.getByRole("button", { name: new RegExp(mixedInbox.rows[0].title) }).click();
+  await expect(mixedFrame.locator("[data-inbox-fixture-destination]")).toHaveText(mixedInbox.rows[0].metadata.url);
+
   const radioGroup = control("radio-group-unchecked-light");
   const standard = radioGroup.getByRole("radio", { name: "Standar" });
   const exam = radioGroup.getByRole("radio", { name: "Ketik jawaban" });
@@ -213,7 +251,7 @@ try {
   }
   if (errors.length > 0) throw new Error(errors.join("\n"));
   await writeFile(directoryManifestPath, JSON.stringify(directoryManifest));
-  const cases = galleryCases.map(({ id, component }) => ({ id, component }));
+  const cases = galleryCases.map(({ id, component }) => ({ id, component, height: getParityFrameHeight(component) }));
   await writeFile(manifest, `${JSON.stringify(cases, null, 2)}\n`);
 } finally {
   await browser.close();
