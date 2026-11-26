@@ -8,7 +8,7 @@ import { resolveNativeStudentReadingAccess } from "./native-reading-access";
 import { nativeMaterialPdfSource } from "./native-material-pdf-source";
 export { readNativeMaterialPdf } from "@/lib/native/material-pdf-bytes";
 
-export async function authorizeNativeMaterialPdf(userId: string, { courseId, materialId }: MaterialPdfTarget, origin: string) {
+export async function authorizeNativeMaterialPdf(userId: string, { courseId, materialId }: MaterialPdfTarget, origin: string, download = false) {
   const access = await resolveNativeStudentReadingAccess(userId, courseId);
   if (access.canonicalCourseId && await findCanonicalDetail(access.canonicalCourseId, materialId)) {
     throw new OfflineHttpError(404, "PDF_NOT_FOUND");
@@ -18,7 +18,9 @@ export async function authorizeNativeMaterialPdf(userId: string, { courseId, mat
   const allowed = record.source === "manual-pdf"
     ? hasChapterScopeWithin(record.chapterIds, access.scopedChapterIds)
     : canAccessCourseContent(access, "diktat", record.chapterIds);
-  if (!allowed) throw new OfflineHttpError(403, "PDF_ACCESS_DENIED");
+  if (!allowed || (download && (record.source !== "manual-pdf" || !access.capabilities.canDownloadDiktat))) {
+    throw new OfflineHttpError(403, "PDF_ACCESS_DENIED");
+  }
   const aliases = [courseId, access.courseId, access.canonicalCourseId, access.legacyCourseId].filter((id): id is string => Boolean(id));
   const source = nativeMaterialPdfSource(record.fileUrl, aliases, record.source, origin);
   if (!source) throw new OfflineHttpError(422, "PDF_SOURCE_UNSUPPORTED");

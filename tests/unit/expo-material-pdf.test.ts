@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { safeMaterialPdfLink } from "../../apps/mobile-native/features/student/courses/pdf-reading";
+import { materialSharePath, safeMaterialPdfLink } from "../../apps/mobile-native/features/student/courses/pdf-reading";
 import { nativeMaterialPdfSource } from "../../lib/student/native-material-pdf-source";
 
 const origin = "https://academy.example.test";
@@ -26,4 +26,12 @@ test("PDF links can navigate to authored public HTTPS destinations without expos
     "https://cdn.example/download?X-Amz-Signature=private", "https://app.ufs.sh/file",
     origin + "/api/storage/file/courses/course/materials/private.pdf", origin + "/f/private.pdf",
   ]) expect(safeMaterialPdfLink(value)).toBeNull();
+});
+
+test("material sharing reconstructs a learner route and ignores a source URL or unrelated query", () => {
+  const target = { courseId: "course", materialId: "lesson", section: "example", page: 2,
+    webPath: "https://private-bucket.example/source?token=signed" };
+  expect(materialSharePath(target)).toBe("/courses/course/material/lesson?section=example&page=2");
+  expect(materialSharePath({ ...target, section: "a/b", page: -1 })).toBe("/courses/course/material/lesson");
+  expect(materialSharePath({ ...target, courseId: "https://private-bucket.example" })).toBeNull();
 });

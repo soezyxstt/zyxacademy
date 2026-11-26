@@ -49,6 +49,8 @@ export interface StudentServices {
   openOfflineMaterial?: (courseId: string, materialId: string) => void;
   pdfReader?: import("./courses/pdf-reading").StudentPdfReader;
   renderMaterial?: (target: StudentMaterialReaderTarget) => ReactNode;
+  saveCourseMaterialPdf?: (courseId: string, materialId: string, title: string, signal: AbortSignal) => Promise<ShareFileResult>;
+  shareMaterialLink?: (target: StudentMaterialReaderTarget, title: string) => Promise<import("../../device/share-links").PublicLinkResult>;
   saveDiktatPdf?: (courseId: string, diktatId: string, signal: AbortSignal) => Promise<ShareFileResult>;
   shareDiscussionImage?: (attachmentId: string, signal: AbortSignal) => Promise<ShareFileResult>;
   renderScheduleResources?: (bookingId: string, theme: "light" | "dark") => ReactNode;

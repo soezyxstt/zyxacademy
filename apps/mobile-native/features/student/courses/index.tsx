@@ -362,11 +362,10 @@ function Documents({ data, route, replace, navigate, request, reload, openOfflin
   </>;
 }
 
-type SaveDiktatPdf = NonNullable<StudentScreenProps["saveDiktatPdf"]>;
 type PdfNotice = "diktatPdfDenied" | "diktatPdfMissing" | "diktatPdfTooLarge" | "diktatPdfUnavailable" | "diktatPdfFailed";
 
-function DiktatPdfDownload({ courseId, diktatId, save, reload }: {
-  courseId: string; diktatId: string; save: SaveDiktatPdf; reload(): void;
+function PdfDownload({ save, reload, testID }: {
+  save(signal: AbortSignal): ReturnType<NonNullable<StudentScreenProps["saveDiktatPdf"]>>; reload(): void; testID: string;
 }) {
   const copy = useContext(CopyContext);
   const theme = useContext(ThemeContext);
@@ -382,7 +381,7 @@ function DiktatPdfDownload({ courseId, diktatId, save, reload }: {
     setBusy(true);
     setNotice(undefined);
     try {
-      const result = await save(courseId, diktatId, controller.signal);
+      const result = await save(controller.signal);
       if (controller.signal.aborted || result.status === "finished" || result.status === "cancelled" || result.status === "stale") return;
       const issue = result.status === "error" ? result.issue : undefined;
       setNotice(issue === "unauthorized" ? "diktatPdfDenied" : issue === "not-found" ? "diktatPdfMissing"
@@ -398,7 +397,7 @@ function DiktatPdfDownload({ courseId, diktatId, save, reload }: {
   const shouldReload = notice === "diktatPdfDenied" || notice === "diktatPdfMissing";
   return <>
     {notice && <Text accessibilityRole="alert" style={[styles.meta, { color: nativeColors[theme].destructive }]}>{copy[notice]}</Text>}
-    <Button theme={theme} variant="outline" testID="student-save-diktat-pdf" isLoading={busy}
+    <Button theme={theme} variant="outline" testID={testID} isLoading={busy}
       disabled={notice === "diktatPdfTooLarge" || notice === "diktatPdfUnavailable"}
       onPress={shouldReload ? reload : () => void download()}>
       {shouldReload ? copy.retry : copy.saveDiktatPdf}
@@ -406,7 +405,41 @@ function DiktatPdfDownload({ courseId, diktatId, save, reload }: {
   </>;
 }
 
-function Document({ data, request, reload, renderMaterial, route, replace, openOfflineLibrary, openExternal, saveDiktatPdf, pdfReader, locale, session }: { data: MaterialDetailData; request: Request; reload: () => void; renderMaterial?: Reader; locale: string } & Pick<StudentScreenProps, "route" | "replace" | "openOfflineLibrary" | "openExternal" | "saveDiktatPdf" | "pdfReader" | "session">) {
+function MaterialShareLink({ target, title, share, locale }: {
+  target: Parameters<NonNullable<StudentScreenProps["shareMaterialLink"]>>[0];
+  title: string; share: NonNullable<StudentScreenProps["shareMaterialLink"]>; locale: string;
+}) {
+  const theme = useContext(ThemeContext);
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const en = locale === "en";
+  async function open() {
+    if (busy) return;
+    setBusy(true);
+    setFailed(false);
+    try {
+      const result = await share(target, title);
+      setFailed(result.status !== "finished" && result.status !== "cancelled");
+    } catch { setFailed(true); }
+    finally { setBusy(false); }
+  }
+  return <>
+    <Button theme={theme} variant="outline" testID="student-share-material-link" isLoading={busy} onPress={() => void open()}>
+      {en ? "Share link" : "Bagikan tautan"}
+    </Button>
+    {failed && <Text accessibilityRole="alert" style={[styles.meta, { color: nativeColors[theme].destructive }]}>
+      {en ? "Could not share the link." : "Tautan belum dapat dibagikan."}
+    </Text>}
+  </>;
+}
+
+function Document({
+  data, request, reload, renderMaterial, route, replace, openOfflineLibrary, openExternal, saveDiktatPdf, saveCourseMaterialPdf,
+  shareMaterialLink, pdfReader, locale, session,
+}: {
+  data: MaterialDetailData; request: Request; reload: () => void; renderMaterial?: Reader; locale: string;
+} & Pick<StudentScreenProps, "route" | "replace" | "openOfflineLibrary" | "openExternal" | "saveDiktatPdf" |
+  "saveCourseMaterialPdf" | "shareMaterialLink" | "pdfReader" | "session">) {
   const copy = useContext(CopyContext);
   const theme = useContext(ThemeContext);
   const { course, material } = data;
@@ -415,6 +448,9 @@ function Document({ data, request, reload, renderMaterial, route, replace, openO
   useEffect(() => { if (canonicalHref) replace(canonicalHref); }, [canonicalHref, replace]);
   const target = studentMaterialReaderTarget(route, data);
   const downloadableDiktat = material.group === "diktat" && material.canDownloadPdf === true;
+  const downloadablePdf = material.group === "pdf" && material.nativePdf && material.canDownloadPdf === true;
+  const save = downloadableDiktat && saveDiktatPdf ? (signal: AbortSignal) => saveDiktatPdf(course.id, material.id, signal)
+    : downloadablePdf && saveCourseMaterialPdf ? (signal: AbortSignal) => saveCourseMaterialPdf(course.id, material.id, material.title, signal) : null;
   const webPath = target?.kind === "pdf" ? target.webPath
     : target ? materialPath(route.params.id, material.id, target.section) : undefined;
   const openWeb = webPath && openExternal ? () => openExternal(webPath) : undefined;
@@ -432,8 +468,10 @@ function Document({ data, request, reload, renderMaterial, route, replace, openO
           {material.completed ? <LearningText role="meta">{copy.completed}</LearningText> : null}
           {openOfflineLibrary && material.kind === "article" ? <Button theme={theme} variant="outline"
             onPress={() => openOfflineLibrary({ courseId: course.id, materialId: material.id })}>{copy.savedCourses}</Button> : null}
-          {saveDiktatPdf && downloadableDiktat ?
-            <DiktatPdfDownload key={JSON.stringify([course.id, material.id])} courseId={course.id} diktatId={material.id} save={saveDiktatPdf} reload={reload} /> : null}
+          {shareMaterialLink && target && !canonicalHref ?
+            <MaterialShareLink key={webPath} target={target} title={material.title} share={shareMaterialLink} locale={locale} /> : null}
+          {save ? <PdfDownload key={JSON.stringify([course.id, material.id])} save={save} reload={reload}
+            testID={downloadableDiktat ? "student-save-diktat-pdf" : "student-save-material-pdf"} /> : null}
           {(target && renderMaterial?.(target)) ?? (target?.kind === "pdf" && material.nativePdf && pdfReader
             ? <MaterialPdf key={JSON.stringify([course.id, material.id, target.page, locale])} reader={pdfReader}
                 courseId={course.id} materialId={material.id} title={material.title} page={target.page} theme={theme}
@@ -611,7 +649,8 @@ function CourseEntry(props: StudentScreenProps & { query: LearningQuery; documen
         onSelectGroup={id => updateListQuery(route, replace, { jurusan: id === "all" ? undefined : id, category: undefined })} />; break;
       case "course": content = <CourseOverview data={resource.data} navigate={navigate} request={request} reload={reload} locale={locale} />; break;
       case "material-list": content = <Documents data={resource.data} route={route} replace={replace} navigate={navigate} request={request} reload={reload} openOfflineLibrary={props.openOfflineLibrary} locale={locale} disclosures={props.documentDisclosures ?? fallbackDisclosures.current} openExternal={openExternal} />; break;
-      case "material-detail": content = <Document data={resource.data} request={request} session={props.session} locale={locale} reload={reload} renderMaterial={renderMaterial} pdfReader={props.pdfReader} route={route} replace={replace} openOfflineLibrary={props.openOfflineLibrary} openExternal={openExternal} saveDiktatPdf={props.saveDiktatPdf} />; break;
+      case "material-detail": content = <Document data={resource.data} request={request} session={props.session} locale={locale} reload={reload} renderMaterial={renderMaterial} pdfReader={props.pdfReader} route={route} replace={replace} openOfflineLibrary={props.openOfflineLibrary} openExternal={openExternal} saveDiktatPdf={props.saveDiktatPdf}
+        saveCourseMaterialPdf={props.saveCourseMaterialPdf} shareMaterialLink={props.shareMaterialLink} />; break;
     }
   }
 

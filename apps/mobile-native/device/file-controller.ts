@@ -34,6 +34,7 @@ export type DraftDocument = Readonly<{
 
 export type NativeDownloadTarget =
   | { kind: "diktat-pdf"; courseId: string; diktatId: string }
+  | ({ kind: "course-material-pdf" } & MaterialPdfTarget)
   | { kind: "quiz-grade-attachment"; courseId: string; attemptId: string; questionId: string }
   | ({ kind: "tryout-grade-attachment" } & TryoutGradeAttachment)
   | { kind: "discussion-image"; attachmentId: string }
@@ -164,6 +165,7 @@ function downloadPath(target: NativeDownloadTarget): string | null {
   if (target.kind === "diktat-pdf" && id(target.courseId) && id(target.diktatId)) {
     return `/api/courses/${encodeURIComponent(target.courseId)}/diktats/${encodeURIComponent(target.diktatId)}/pdf?download=1`;
   }
+  if (target.kind === "course-material-pdf") return materialPdfPath(target, true);
   if (target.kind === "discussion-image" && id(target.attachmentId)) {
     return `/api/discussions/attachments/${encodeURIComponent(target.attachmentId)}?download=1`;
   }
@@ -504,6 +506,7 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
     const before = current();
     if (before) return before;
     const diskImages = request.target.kind === "discussion-image";
+    const materialPdf = request.target.kind === "course-material-pdf";
     const quiz = request.target.kind === "quiz-grade-attachment";
     const tryout = request.target.kind === "tryout-grade-attachment";
     const form = request.target.kind === "form-response-attachment";
@@ -519,7 +522,8 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
       : tryout ? Math.min(request.policy.maxBytes, tryoutGradeAttachmentPolicy.maxBytes)
       : diskImages ? Math.min(request.policy.maxBytes, 8 * 1024 * 1024)
       : form ? Math.min(request.policy.maxBytes, PUBLIC_FORM_MAX_FILE_SIZE_MB * 1024 * 1024)
-      : schedule ? Math.min(request.policy.maxBytes, scheduleFilePolicy.maxBytes) : request.policy.maxBytes;
+      : schedule ? Math.min(request.policy.maxBytes, scheduleFilePolicy.maxBytes)
+      : materialPdf ? Math.min(request.policy.maxBytes, MATERIAL_PDF_MAX_BYTES) : request.policy.maxBytes;
     const assertCurrent = () => { if (current()) throw new FileIssue("fetch"); };
     sharing = true;
     let response: Awaited<ReturnType<NativeSessionTransport["request"]>> | undefined;
@@ -531,15 +535,20 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
       if (!await device.canShare()) return { status: "unavailable" };
       assertCurrent();
       errorStage = "fetch";
-      response = await request.session.request(path, { signal: request.signal, requiredRole: schedule?.role ?? (form ? "admin" : (quiz || tryout) ? "tutor" : undefined),
+      response = await request.session.request(path, { signal: request.signal, requiredRole: schedule?.role ?? (form ? "admin" : (quiz || tryout) ? "tutor" : materialPdf ? "murid" : undefined),
         headers: {
           Accept: permitted.join(", "),
+          ...(materialPdf ? { "x-student-id": request.session.scope.accountId } : {}),
           ...(tryout ? { [TRYOUT_GRADE_ATTACHMENT_ACCOUNT]: request.session.scope.accountId, [TRYOUT_GRADE_ATTACHMENT_SESSION]: request.session.scope.sessionId } : {}),
           ...(form ? { "x-native-operations-user-id": request.session.scope.accountId, "x-native-operations-session-id": request.session.scope.sessionId } : {}),
           ...(schedule ? { [SCHEDULE_ACCOUNT]: request.session.scope.accountId, [SCHEDULE_SESSION]: request.session.scope.sessionId } : {}),
         } });
-      if (response.status === 401 || response.status === 403 || (schedule && response.status === 409)) return { status: "error", issue: "unauthorized" };
+      if (response.status === 401 || response.status === 403 || ((schedule || materialPdf) && response.status === 409)) return { status: "error", issue: "unauthorized" };
       if (response.status === 404) return { status: "error", issue: "not-found" };
+      if (materialPdf && response.status === 413) return { status: "error", issue: "size" };
+      if (materialPdf && !/^attachment(?:;|$)/i.test(response.headers.get("Content-Disposition") ?? "")) {
+        return { status: "error", issue: "unauthorized" };
+      }
       if (response.status !== 200 || !response.body) return { status: "error", issue: "fetch" };
       const mimeType = normalizeMimeType(response.headers.get("Content-Type"));
       if (!permitted.includes(mimeType)) return { status: "error", issue: "type" };

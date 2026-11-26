@@ -17,12 +17,13 @@ async function handle(request: Request) {
   const query = new URL(request.url).searchParams;
   const courseId = query.get("courseId");
   const materialId = query.get("materialId");
-  if (query.size !== 2 || !courseId || !materialId || !materialPdfId(courseId) || !materialPdfId(materialId)) return unavailable(400);
+  const download = query.get("download") === "1";
+  if (query.size !== (download ? 3 : 2) || !courseId || !materialId || !materialPdfId(courseId) || !materialPdfId(materialId)) return unavailable(400);
   const origin = new URL(resolveAuthBaseUrl()).origin;
   const target = { courseId, materialId };
 
   try {
-    const grant = await authorizeNativeMaterialPdf(actor.userId, target, origin);
+    const grant = await authorizeNativeMaterialPdf(actor.userId, target, origin, download);
     const expected = request.headers.get("If-Match");
     if (expected && expected !== `"${grant.revision}"`) return unavailable(409);
     const headers = new Headers({ ...noStore, [MATERIAL_PDF_HEADERS.revision]: grant.revision,
@@ -31,12 +32,12 @@ async function handle(request: Request) {
     const bytes = await readNativeMaterialPdf(grant.source, request.signal);
     const current = await requireNativeStudent(request);
     if (current instanceof Response) return current;
-    const latest = await authorizeNativeMaterialPdf(current.userId, target, origin);
+    const latest = await authorizeNativeMaterialPdf(current.userId, target, origin, download);
     if (latest.revision !== grant.revision) return unavailable(409);
     headers.set(MATERIAL_PDF_HEADERS.expiresAt, String(latest.until));
     headers.set("Content-Type", "application/pdf");
     headers.set("Content-Length", String(bytes.byteLength));
-    headers.set("Content-Disposition", "inline");
+    headers.set("Content-Disposition", download ? "attachment" : "inline");
     return new Response(bytes as unknown as BodyInit, { headers });
   } catch (error) {
     return unavailable(error instanceof OfflineHttpError ? error.status : 503);

@@ -7,6 +7,7 @@ import { authLocale } from "../../auth/auth-copy";
 import { useNativeAccountContext } from "../../auth/use-account-context";
 import { useNativeSession } from "../../auth/session-provider";
 import { Button } from "../../components/Button";
+import { sharePublicLink } from "../../device/share";
 import { scopedFiles } from "../../device/files";
 import { useDeviceNotificationSettings } from "../../device/notifications-provider";
 import { offlineDocumentHref } from "../../offline/library-model";
@@ -20,6 +21,7 @@ import { bindCalendarLink } from "./community/calendar-link";
 import { StudentCelebrations } from "./community/celebrations";
 import { ScheduleResources } from "../schedule/resources";
 import { studentBrowserNotificationsAction } from "./browser-handoff";
+import { materialSharePath } from "./courses/pdf-reading";
 import { matchStudentRoute } from "./routes";
 import { useAssessmentPhotos } from "./assessment/device";
 import { useAssessmentDrafts } from "./assessment-drafts";
@@ -32,7 +34,7 @@ const notBlocked = () => false;
 const diktatPdfPolicy = { mimeTypes: ["application/pdf"], maxBytes: 50 * 1024 * 1024 } as const;
 const discussionImagePolicy = { mimeTypes: ["image/jpeg", "image/png", "image/webp"], maxBytes: 8 * 1024 * 1024 } as const;
 
-export type VerifiedEntryProps = Omit<StudentEntryProps, "session" | "request" | "devicePush" | "openOfflineMaterial" | "saveDiktatPdf" | "shareDiscussionImage" | "renderScheduleResources" | "pdfReader" | "calendarLink" | "focused" | "resultsTimeZone"> & {
+export type VerifiedEntryProps = Omit<StudentEntryProps, "session" | "request" | "devicePush" | "openOfflineMaterial" | "saveDiktatPdf" | "saveCourseMaterialPdf" | "shareMaterialLink" | "shareDiscussionImage" | "renderScheduleResources" | "pdfReader" | "calendarLink" | "focused" | "resultsTimeZone"> & {
   offlineLocale?: NativeOfflineLocale;
   openOfflineMaterial?: (material: VerifiedOfflineMaterial) => void | Promise<void>;
 };
@@ -129,6 +131,15 @@ export function VerifiedStudentEntry({ offlineLocale, openOfflineMaterial, ...pr
   const saveDiktatPdf: StudentEntryProps["saveDiktatPdf"] = (courseId, diktatId, signal) => scopedFiles.shareAuthorizedDownload({
     session: transport, target: { kind: "diktat-pdf", courseId, diktatId }, policy: diktatPdfPolicy, signal, isTargetCurrent,
   });
+  const saveCourseMaterialPdf: StudentEntryProps["saveCourseMaterialPdf"] = (courseId, materialId, title, signal) => scopedFiles.shareAuthorizedDownload({
+    session: transport, target: { kind: "course-material-pdf", courseId, materialId }, policy: diktatPdfPolicy, fileName: title,
+    title, signal, isTargetCurrent,
+  });
+  const shareMaterialLink: StudentEntryProps["shareMaterialLink"] = (target, title) => {
+    const url = materialSharePath(target);
+    if (!url || !isTargetCurrent()) return Promise.resolve({ status: "error", issue: "invalid-url" });
+    return sharePublicLink({ url, origin, title });
+  };
   const shareDiscussionImage: StudentEntryProps["shareDiscussionImage"] = (attachmentId, signal) => scopedFiles.shareAuthorizedDownload({
     session: transport, target: { kind: "discussion-image", attachmentId }, policy: discussionImagePolicy, signal, isTargetCurrent,
   });
@@ -159,6 +170,8 @@ export function VerifiedStudentEntry({ offlineLocale, openOfflineMaterial, ...pr
       ? <StudentCelebrations key={identityKey} transport={transport} locale={context.locale} navigate={props.navigate} /> : null}
     <StudentEntry {...props} focused={focused} openExternal={props.openExternal ?? openExternal} openBrowserNotifications={openBrowserNotifications} openOfflineMaterial={openSaved} openOfflineLibrary={target.kind === "course" || target.kind === "material" || matchStudentRoute(props.path)?.pattern === "/settings" ? openLibrary : undefined} request={transport.request} devicePush={push} assessmentPhotos={props.assessmentPhotos ?? assessmentPhotos} drafts={props.drafts ?? drafts}
     pdfReader={pdfReader} calendarLink={calendarLink}
+    saveCourseMaterialPdf={Platform.OS === "android" || Platform.OS === "ios" ? saveCourseMaterialPdf : undefined}
+    shareMaterialLink={Platform.OS === "android" || Platform.OS === "ios" ? shareMaterialLink : undefined}
     saveDiktatPdf={Platform.OS === "android" || Platform.OS === "ios" ? saveDiktatPdf : undefined}
     shareDiscussionImage={Platform.OS === "android" || Platform.OS === "ios" ? shareDiscussionImage : undefined}
     renderScheduleResources={(bookingId, theme) => <ScheduleResources key={bookingId} bookingId={bookingId} theme={theme} role="murid" />}

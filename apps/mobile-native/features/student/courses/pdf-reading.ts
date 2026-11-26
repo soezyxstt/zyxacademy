@@ -1,5 +1,13 @@
 import type { MaterialPdfRenewal, MaterialPdfResult } from "../../../device/file-controller";
-import type { MaterialPdfTarget } from "../../../../../packages/native-parity/student/courses/pdf";
+import { materialPath } from "../../../../../packages/native-parity/student/courses/contract";
+import { materialPdfId, type MaterialPdfTarget } from "../../../../../packages/native-parity/student/courses/pdf";
+
+export function materialSharePath({ courseId, materialId, section, page }: MaterialPdfTarget & { section?: string; page?: number }) {
+  if (!materialPdfId(courseId) || !materialPdfId(materialId)) return null;
+  const safeSection = section && materialPdfId(section) ? section : null;
+  const path = materialPath(courseId, materialId, safeSection);
+  return page && Number.isSafeInteger(page) && page > 0 ? path + (safeSection ? "&" : "?") + "page=" + page : path;
+}
 
 export interface StudentPdfReader {
   open(target: MaterialPdfTarget, signal: AbortSignal): Promise<MaterialPdfResult>;

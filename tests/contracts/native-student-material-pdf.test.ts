@@ -16,6 +16,7 @@ let enrolledInPka: boolean;
 let legacyCourseId: string;
 let allowedChapters: string[];
 let hasDiktat: boolean;
+let canDownload: boolean;
 let enabled: boolean;
 const expiry = Date.now() + 90_000;
 let downloaded: Array<{ url: string; init?: RequestInit }>;
@@ -32,7 +33,7 @@ mock.module("@/lib/student/course-catalog", () => ({
 }));
 mock.module("@/lib/student/course-access", () => ({
   resolveCourseAccess: async () => ({ isAuthenticated: true, hasCourseAccess: hasCourse, canonicalCourseId: "canonical",
-    legacyCourseId, courseId: "course", tier: "enrolled", scopedChapterIds: allowedChapters, isFreeNow: false, pricing: {} }),
+    legacyCourseId, courseId: "course", tier: "enrolled", scopedChapterIds: allowedChapters, isFreeNow: false, pricing: {}, capabilities: { canDownloadDiktat: canDownload } }),
   canAccessCourseContent: (_access: unknown, kind: string, chapters: string[]) => hasDiktat && kind === "diktat" && chapters.every(id => allowedChapters.includes(id)),
   hasChapterScopeWithin: (refs: string[], allowed: string[]) => refs.length > 0 && refs.every(id => allowed.includes(id)),
 }));
@@ -52,6 +53,7 @@ beforeEach(() => {
   enrolledInPka = true;
   legacyCourseId = "course";
   hasDiktat = false;
+  canDownload = false;
   enabled = true;
   allowedChapters = ["chapter"];
   downloaded = [];
@@ -61,8 +63,8 @@ beforeEach(() => {
 });
 afterAll(() => { globalThis.fetch = previousFetch; });
 
-function request(method = "GET", revision?: string) {
-  return new Request(origin + "/api/native/student/material-pdf?courseId=course&materialId=material", {
+function request(method = "GET", revision?: string, download = false) {
+  return new Request(origin + "/api/native/student/material-pdf?courseId=course&materialId=material" + (download ? "&download=1" : ""), {
     method, headers: { Cookie: "fixture-signed-in=synthetic", ...(revision ? { "If-Match": '"' + revision + '"' } : {}) },
   });
 }
@@ -129,4 +131,25 @@ test("suppresses bytes if a file changes, document disappears, or access is revo
     return new Response(preview);
   });
   expect((await GET(request())).status).toBe(403);
+});
+
+test("manual PDF export requires the web download entitlement and rechecks it after storage reads", async () => {
+  expect((await GET(request("GET", undefined, true))).status).toBe(403);
+  expect(delegated).not.toHaveBeenCalled();
+  canDownload = true;
+  const allowed = await GET(request("GET", undefined, true));
+  expect(allowed.status).toBe(200);
+  expect(allowed.headers.get("content-disposition")).toBe("attachment");
+  expect(allowed.headers.get("location")).toBeNull();
+  expect(new Uint8Array(await allowed.arrayBuffer())).toEqual(preview);
+
+  fetcher.mockImplementationOnce(async () => {
+    canDownload = false;
+    return new Response(preview);
+  });
+  expect((await GET(request("GET", undefined, true))).status).toBe(403);
+  canDownload = true;
+  record = { ...manual, source: "legacy-diktat" };
+  hasDiktat = true;
+  expect((await GET(request("GET", undefined, true))).status).toBe(403);
 });

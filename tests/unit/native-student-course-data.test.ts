@@ -212,3 +212,14 @@ describe("native Student material metadata", () => {
     expect(await detail("course-pdf")).not.toHaveProperty("material.canDownloadPdf");
   });
 });
+
+test("manual download capability requires both a scoped supported PDF and the web download permission", async () => {
+  rows.set(courseMaterials, [{ title: "Course PDF", chapterIds: ["free-chapter"], fileUrl: "courses/legacy-course/materials/notes.pdf" }]);
+  const preview = await detail("course-pdf");
+  expect(preview).toMatchObject({ material: { nativePdf: true, locked: false } });
+  expect(preview).not.toHaveProperty("material.canDownloadPdf");
+  resolveAccess.mockResolvedValueOnce(enrolledAccess);
+  const enrolled = await detail("course-pdf");
+  expect(enrolled).toMatchObject({ material: { nativePdf: true, canDownloadPdf: true } });
+  expect(JSON.stringify(enrolled)).not.toContain("notes.pdf");
+});

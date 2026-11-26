@@ -626,3 +626,18 @@ test("shares generated JSON only while authorized and measures the limit in UTF-
     .resolves.toEqual({ status: "stale" });
   expect(fixture.shares.length).toBe(1);
 });
+
+test("manual PDF export only shares a protected attachment response under the current learner", async () => {
+  let disposition = "inline";
+  const fixture = setup({}, async (url, init) => {
+    expect(url).toBe(origin + "/api/native/student/material-pdf?courseId=course-a&materialId=material-a&download=1");
+    expect(new Headers(init.headers).get("x-student-id")).toBe(fixture.session.scope.accountId);
+    return new Response(fixturePdf, { headers: { "Content-Type": "application/pdf", "Content-Disposition": disposition } });
+  });
+  const request = { session: fixture.session, policy, target: { kind: "course-material-pdf", courseId: "course-a", materialId: "material-a" } as const };
+  expect(await fixture.controller.shareAuthorizedDownload(request)).toEqual({ status: "error", issue: "unauthorized" });
+  expect(fixture.shares).toHaveLength(0);
+  disposition = "attachment";
+  expect(await fixture.controller.shareAuthorizedDownload(request)).toEqual({ status: "finished" });
+  expect(fixture.shares).toHaveLength(1);
+});
