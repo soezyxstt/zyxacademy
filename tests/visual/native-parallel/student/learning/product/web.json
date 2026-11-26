@@ -305,6 +305,82 @@
           "sha256": "d491bdfc1b0f1b480ee5f9d1e21c55d48e4e46166708761c5611b344278127d9"
         }
       ]
+    },
+    {
+      "id": "pka-material-list",
+      "pattern": "/courses/tutorial-pka/material",
+      "path": "/courses/tutorial-pka/material",
+      "text": [
+        "Persiapan limit PKA"
+      ],
+      "actualPath": "/courses/tutorial-pka/material",
+      "preflightStatus": 200,
+      "documents": [
+        {
+          "status": 200,
+          "path": "/courses/tutorial-pka/material"
+        }
+      ],
+      "redirectRequests": [],
+      "visibleHeadings": [
+        "Materi belajar: Tutorial PKA Referensi"
+      ],
+      "error": "Same-origin HTTP or page runtime error",
+      "failedRequests": [],
+      "runtimeErrors": [
+        "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/clien"
+      ]
+    },
+    {
+      "id": "pka-material-detail",
+      "pattern": "/courses/tutorial-pka/material/[materialId]",
+      "path": "/courses/tutorial-pka/material/learning-evidence-pka-material",
+      "text": [
+        "Bandingkan nilai dari kiri dan kanan"
+      ],
+      "terminal": "/courses/tutorial-pka/material/learning-evidence-pka-material",
+      "status": 200,
+      "preflightStatus": 200,
+      "documents": [
+        {
+          "status": 200,
+          "path": "/courses/tutorial-pka/material/learning-evidence-pka-material"
+        }
+      ],
+      "redirectRequests": [],
+      "redirectEvidence": [],
+      "screenshots": [
+        {
+          "file": "pka-material-detail.png",
+          "sha256": "6a02f11f733846d264949b16245bd960c9a6c5c5ae18601b74af2efa9b4f84a6"
+        }
+      ]
+    },
+    {
+      "id": "pka-simulation",
+      "pattern": "/courses/tutorial-pka/simulasi",
+      "path": "/courses/tutorial-pka/simulasi",
+      "text": [
+        "Simulasi Ujian PKA",
+        "Simulasi matematika tahap 1"
+      ],
+      "terminal": "/courses/tutorial-pka/simulasi",
+      "status": 200,
+      "preflightStatus": 200,
+      "documents": [
+        {
+          "status": 200,
+          "path": "/courses/tutorial-pka/simulasi"
+        }
+      ],
+      "redirectRequests": [],
+      "redirectEvidence": [],
+      "screenshots": [
+        {
+          "file": "pka-simulation.png",
+          "sha256": "3200c91ae5c8c9bca3c3986628f019febf40f87add47d5435fd083e7dfde7e0e"
+        }
+      ]
     }
   ]
 }

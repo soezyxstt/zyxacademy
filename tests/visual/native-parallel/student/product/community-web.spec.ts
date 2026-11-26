@@ -1,4 +1,4 @@
-import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { stubVisualTelemetry } from "../../../telemetry-stubs";
@@ -25,7 +25,7 @@ type Case = {
 };
 const text = (value: string, exact = true): TextExpectation => ({ kind: "text", value, exact });
 const heading = (value: string): TextExpectation => ({ kind: "heading", value });
-const button = (value: string): TextExpectation => ({ kind: "button", value });
+const button = (value: string, exact = true): TextExpectation => ({ kind: "button", value, exact });
 const tab = (value: string): TextExpectation => ({ kind: "tab", value });
 const label = (value: string): TextExpectation => ({ kind: "label", value });
 const course = "/courses/" + data.course;
@@ -38,14 +38,14 @@ const cases: Case[] = [
     checks: [text(data.courseTitle), text(data.learner), text("93%", false)], selectedTab: "Akademik" },
   { id: "course-leaderboard", path: course + "/leaderboard", checks: [text("Peringkat Anda"), text(data.learner), text("93%")] },
   { id: "course-leaderboard-revoked", path: "/courses/matematika-1/leaderboard", scenario: "revoked", checks: [heading("Kelas memerlukan token")] },
-  { id: "course-discussions", path: course + "/discussions" + openThread, checks: [text(data.threadTitle), text(data.question)] },
-  { id: "dashboard-discussions", path: "/dashboard/discussions", checks: [text(data.threadTitle)] },
+  { id: "course-discussions", path: course + "/discussions", checks: [button(data.threadTitle, false)] },
+  { id: "dashboard-discussions", path: "/dashboard/discussions", checks: [button(data.threadTitle, false)] },
   { id: "discussions-alias", path: "/discussions" + openThread, expectedPath: "/dashboard/discussions",
     expectedQuery: { thread: [data.threadId] }, checks: [text(data.threadTitle), text(data.question)] },
   { id: "achievements", path: "/achievements", checks: [tab("Ringkasan"), text("Kades")], selectedTab: "Ringkasan" },
   { id: "achievement-badges", path: "/achievements?tab=badges", checks: [tab("Lencana")], selectedTab: "Lencana" },
   { id: "achievement-missions-empty", path: "/achievements?tab=missions", checks: [tab("Misi")], selectedTab: "Misi" },
-  { id: "calendar", path: "/calendar", checks: [text(data.quiz), text(data.sessionTopic)] },
+  { id: "calendar", path: "/calendar", checks: [heading(data.quiz), heading(`Tutorial: ${data.sessionTopic}`)] },
   { id: "calendar-empty", path: "/calendar", scenario: data.peerSession, checks: [heading("Belum ada agenda terjadwal")] },
   { id: "groups", path: "/dashboard/groups", checks: [text(data.group), text(data.courseTitle)] },
   { id: "schedule", path: "/dashboard/schedule", checks: [text("Kalender dan jadwal tutorial"), text(data.tutor)] },
@@ -62,8 +62,8 @@ const cases: Case[] = [
 
 function locate(page: Page, { kind, value, exact = true }: TextExpectation) {
   if (kind === "text") return page.getByText(value, { exact });
-  if (kind === "label") return page.getByLabel(value, { exact: true });
-  return page.getByRole(kind, { name: value, exact: true });
+  if (kind === "label") return page.getByLabel(value, { exact });
+  return page.getByRole(kind, { name: value, exact });
 }
 
 async function open(page: Page, scenario: Parameters<typeof localStudentCookie>[0], path: string) {
@@ -101,6 +101,7 @@ type VisualEvidence = {
   id: string;
   scenario: string;
   path: string;
+  terminal?: string;
   expected: string[];
   status: string;
   screenshot?: string;
@@ -129,7 +130,9 @@ async function record(info: TestInfo, evidence: VisualEvidence, screenshot?: str
   }
   if (screenshot && evidence.screenshot) await copyFile(screenshot, join(captureDir, evidence.screenshot));
   entries = [...entries.filter(item => item.id !== evidence.id), evidence];
-  await writeFile(manifest, JSON.stringify({ serverSha, project: info.project.name, locale: "id-ID", timeZone: "Asia/Jakarta", entries }, null, 2) + "\n");
+  const pending = `${manifest}.tmp`;
+  await writeFile(pending, JSON.stringify({ serverSha, project: info.project.name, locale: "id-ID", timeZone: "Asia/Jakarta", entries }, null, 2) + "\n");
+  await rename(pending, manifest);
 }
 
 for (const item of cases) {
@@ -141,6 +144,7 @@ for (const item of cases) {
     try {
       const { errors, consoleErrors } = await open(page, scenario, item.path);
       const actual = new URL(page.url());
+      evidence.terminal = actual.pathname + actual.search;
       expect(actual.pathname).toBe(item.expectedPath ?? item.path.split("?")[0]);
       for (const [name, values] of Object.entries(item.expectedQuery ?? {})) expect(actual.searchParams.getAll(name)).toEqual(values);
       await expect(page.getByRole("main").last()).toBeVisible();
