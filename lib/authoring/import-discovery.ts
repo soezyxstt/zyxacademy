@@ -18,13 +18,17 @@ const otherCourse = alias(mataKuliah, "other_import_course");
 // The FK is a legacy ID, while a report-only scope is canonical. An OR across
 // both namespaces duplicates imports when an unrelated canonical ID collides
 // with a legacy ID. Do not choose an arbitrary canonical course for bad aliases.
-const scopeJoin = or(
-  and(isNotNull(imporBundle.courseId), eq(mataKuliah.legacyCourseId, imporBundle.courseId),
-    notExists(db.select({ id: otherCourse.id }).from(otherCourse).where(and(
-      eq(otherCourse.legacyCourseId, imporBundle.courseId), ne(otherCourse.id, mataKuliah.id),
-    )))),
-  and(isNull(imporBundle.courseId), eq(mataKuliah.id, reportCourseId)),
-);
+function scopeJoin() {
+  // Loading the MCP catalog or bootstrap must not access the database, even to
+  // construct a query. Only an actual discovery request needs this subquery.
+  return or(
+    and(isNotNull(imporBundle.courseId), eq(mataKuliah.legacyCourseId, imporBundle.courseId),
+      notExists(db.select({ id: otherCourse.id }).from(otherCourse).where(and(
+        eq(otherCourse.legacyCourseId, imporBundle.courseId), ne(otherCourse.id, mataKuliah.id),
+      )))),
+    and(isNull(imporBundle.courseId), eq(mataKuliah.id, reportCourseId)),
+  );
+}
 const metadataSelection = {
   importId: imporBundle.id, bundleId: imporBundle.bundleId, checksum: imporBundle.checksum,
   bundleType: imporBundle.bundleType, version: imporBundle.version, status: imporBundle.status,
@@ -97,7 +101,7 @@ export async function listImportMetadata(raw: ImportDiscoveryInput) {
   const before = readCursor(input.cursor, filters);
   const course = input.courseId ? await resolveCourseIdentity(input.courseId, db) : null;
   const rows = await db.select(metadataSelection).from(imporBundle)
-    .leftJoin(mataKuliah, scopeJoin).leftJoin(bab, eq(bab.id, chapterId))
+    .leftJoin(mataKuliah, scopeJoin()).leftJoin(bab, eq(bab.id, chapterId))
     .where(discoveryConditions(input, before, course)).orderBy(desc(imporBundle.insertionOrder)).limit(input.limit + 1);
   const page = rows.slice(0, input.limit);
   const nextCursor = rows.length > input.limit ? Buffer.from(JSON.stringify({ version: 1, before: page.at(-1)!.insertionOrder, filters })).toString("base64url") : null;
@@ -109,7 +113,7 @@ export async function listImportMetadata(raw: ImportDiscoveryInput) {
 /** Optional inventory is bounded and read from admitted metadata, never from ZIP bytes. */
 export async function getCompactImport(input: { bundleType: "source" | "idea" | "product"; importId: string; projections?: Array<"inventory" | "readiness"> }, readiness: (id: string, snapshot: ProductReadSnapshot) => Promise<unknown>) {
   const [row] = await db.select(metadataSelection).from(imporBundle)
-    .leftJoin(mataKuliah, scopeJoin).leftJoin(bab, eq(bab.id, chapterId))
+    .leftJoin(mataKuliah, scopeJoin()).leftJoin(bab, eq(bab.id, chapterId))
     .where(and(eq(imporBundle.id, input.importId), eq(imporBundle.bundleType, input.bundleType))).limit(1);
   if (!row) throw new Error(input.bundleType === "product" ? "PRODUCT_BUNDLE_NOT_FOUND" : input.bundleType === "idea" ? "IDEA_BUNDLE_NOT_FOUND" : "SOURCE_PACK_NOT_FOUND");
   const wantsReadiness = input.projections?.includes("readiness") === true;

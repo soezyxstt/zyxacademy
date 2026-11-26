@@ -2,17 +2,15 @@ import { afterAll, beforeAll, expect, mock, test } from "bun:test";
 import * as schema from "@/db/schema";
 import { createPostgresTestDb } from "../helpers/postgres";
 import { eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/pglite";
 
-const { client, testDb } = await createPostgresTestDb();
+const { client } = await createPostgresTestDb();
 const originalDb = { ...await import("@/lib/db") };
 const originalStorage = { ...await import("@/lib/storage") };
 let selects = 0, archiveReads = 0, readinessReads = 0;
-const trackedDb = new Proxy(testDb, { get(target, key) {
-  if (key === "select") return (...args: unknown[]) => { selects++; return Reflect.apply(target.select, target, args); };
-  const value = Reflect.get(target, key, target);
-  return typeof value === "function" ? value.bind(target) : value;
-} });
-mock.module("@/lib/db", () => ({ ...originalDb, db: trackedDb }));
+// Count executed SQL, not nested SELECT builders embedded in the same query.
+const testDb = drizzle(client, { schema, logger: { logQuery(query) { if (/^\s*select\b/i.test(query)) selects++; } } });
+mock.module("@/lib/db", () => ({ ...originalDb, db: testDb }));
 mock.module("@/lib/storage", () => ({ ...originalStorage, storage: { ...originalStorage.storage, download: async () => { archiveReads++; throw new Error("DISCOVERY_MUST_NOT_READ_ARCHIVE"); } } }));
 const { listImportMetadata, getCompactImport } = await import("@/lib/authoring/import-discovery");
 afterAll(async () => { mock.module("@/lib/db", () => originalDb); mock.module("@/lib/storage", () => originalStorage); await client.close(); });
@@ -44,6 +42,7 @@ test("compact metadata uses one bounded query, no archives/readiness or private 
   selects = archiveReads = readinessReads = 0;
   const result = await listImportMetadata({ bundleType: "product", responseMode: "compact", limit: 20 });
   expect(selects).toBe(1);
+  const queryCount = selects;
   expect(archiveReads).toBe(0);
   expect(readinessReads).toBe(0);
   expect(result.imports).toHaveLength(20);
@@ -58,7 +57,7 @@ test("compact metadata uses one bounded query, no archives/readiness or private 
   const beforeBytes = Buffer.byteLength(JSON.stringify(stored.filter(row => row.bundleType === "product").slice(-20)));
   expect(bytes).toBeLessThan(25_000);
   expect(bytes).toBeLessThan(beforeBytes / 5);
-  console.info(JSON.stringify({ fixture: "20-import-discovery", storedRowsBytes: beforeBytes, compactBytes: bytes, queryCount: 1, archiveReads }));
+  console.info(JSON.stringify({ fixture: "20-import-discovery", storedRowsBytes: beforeBytes, compactBytes: bytes, queryCount, archiveReads }));
 });
 
 test("head discovery keeps current live and latest editable candidate, excluding historical and superseded drafts", async () => {
