@@ -352,9 +352,10 @@ export async function listProductBundleImports(options?: number | { limit?: numb
   }));
 }
 
-export async function downloadProductBundleArtifact(importId: string): Promise<Uint8Array> {
-  const row = await getProductBundleImport(importId);
+export async function downloadProductBundleArtifact(importId: string, observed?: NonNullable<Awaited<ReturnType<typeof getProductBundleImport>>>): Promise<Uint8Array> {
+  const row = observed ?? await getProductBundleImport(importId);
   if (!row) throw new Error("PRODUCT_BUNDLE_NOT_FOUND");
+  if (row.id !== importId || row.bundleType !== "product") throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
   if (!storage.download) throw new Error("PRODUCT_BUNDLE_STORAGE_DOWNLOAD_UNAVAILABLE");
   return storage.download(row.sourceUriOrKey);
 }
@@ -571,11 +572,12 @@ export async function discardProductBundleDraft(input: { importId: string; actor
   return { importId: row.id, discarded: true };
 }
 
-export async function parseStagedProductBundle(importId: string): Promise<Extract<ProductBundleValidation, { success: true }>["data"]> {
-  const row = await getProductBundleImport(importId);
+export async function parseStagedProductBundle(importId: string, observed?: NonNullable<Awaited<ReturnType<typeof getProductBundleImport>>>): Promise<Extract<ProductBundleValidation, { success: true }>["data"]> {
+  const row = observed ?? await getProductBundleImport(importId);
   if (!row) throw new Error("PRODUCT_BUNDLE_NOT_FOUND");
+  if (row.id !== importId || row.bundleType !== "product") throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
   if (row.validationReport.valid !== true) throw new Error("PRODUCT_BUNDLE_ADMISSION_REQUIRED");
-  const bundle = parseAdmittedProductBundle(await downloadProductBundleArtifact(importId), row);
+  const bundle = parseAdmittedProductBundle(await downloadProductBundleArtifact(importId, row), row);
   const specs = productInteractiveDocuments(bundle.products);
   if (specs.length && bundle.manifest.schemaVersion !== "product-bundle.v4") throw new Error("PRODUCT_VISUAL_REQUIRES_V4");
   await verifyAdmittedInteractiveDocumentArchive(specs, bundle.manifest.visualAssets ?? [], bundle.files);

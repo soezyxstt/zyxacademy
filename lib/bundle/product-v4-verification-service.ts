@@ -85,6 +85,8 @@ export async function createProductV4ApplicationService(execute?: ProductV4Verif
 }
 
 export async function requestProductV4Verification(input: { importId: string; runId: string; expectedPlanHash?: string; retry?: boolean }) {
+  const { assertProductV4ExecutionTarget } = await import("@/lib/compute/product-v4-execution");
+  assertProductV4ExecutionTarget();
   return (await createProductV4ApplicationService()).request(input);
 }
 export async function requestProductV4LocalAttempt(service: Pick<ReturnType<typeof createProductV4VerificationService>, "current" | "readiness" | "request">, input: LocalScope & { retry?: boolean }) {
@@ -111,6 +113,10 @@ export async function getProductV4Verification(input: { importId: string; runId:
 }
 export async function failProductV4VerificationJob(input: { importId: string; runId: string; planHash: string; attemptId: string }) {
   return (await createProductV4ApplicationService()).fail(input);
+}
+/** Private maintenance path, called only after exact queued-delivery cancellation. */
+export async function cancelProductV4VerificationJob(input: { importId: string; runId: string; planHash: string; attemptId: string }) {
+  return (await createProductV4ApplicationService()).cancel(input);
 }
 export async function processProductV4VerificationJob(input: { importId: string; runId: string; planHash: string; attemptId?: string }, checkpoint: ProductV4VerificationCheckpoint | undefined, execute: ProductV4VerificationPorts["execute"], localScope?: LocalScope) {
   if (localScope) {

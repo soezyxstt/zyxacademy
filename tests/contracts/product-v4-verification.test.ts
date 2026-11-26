@@ -182,6 +182,7 @@ test("persisted job only becomes ready after actual execution and intact artifac
   const { service, mutable, objects } = serviceFixture();
   const before = await service.readiness("import", "run");
   expect(before.jobId).toBeNull();
+  expect(before).toMatchObject({ state: { status: "not_started", reason: "no_current_attempt" }, nextAction: { kind: "request_verification", expectedContentHash: before.plan.contentHash, expectedPlanHash: before.plan.planHash } });
   expect(objects.size).toBe(0);
   await expect(service.get({ importId: "import", runId: "run", planHash: before.plan.planHash })).rejects.toThrow("JOB_NOT_FOUND");
   const requested = await service.request({ importId: "import", runId: "run" });
@@ -197,6 +198,52 @@ test("persisted job only becomes ready after actual execution and intact artifac
   const artifact = result.receipt.results[0].artifacts[0];
   objects.set(buildProductVerificationKey(input.planHash, artifact.id), new TextEncoder().encode("changed bytes"));
   expect(await service.get(input)).toMatchObject({ state: { status: "failed", failureCode: "PRODUCT_V4_VERIFICATION_ARTIFACT_MISSING_OR_CHANGED" }, evaluation: { ready: false } });
+});
+
+test("a changed current plan has no active job until an explicit verification request", async () => {
+  const { service, mutable } = serviceFixture();
+  const old = await service.request({ importId: "import", runId: "run" });
+  mutable.snapshot = { ...mutable.snapshot, binding: { ...mutable.snapshot.binding, rendererChecksum: "b".repeat(64) } };
+  const current = await service.readiness("import", "run");
+  expect(current).toMatchObject({ jobId: null, receipt: null, state: { status: "not_started", reason: "plan_changed" } });
+  expect(current.plan.planHash).not.toBe(old.plan.planHash);
+  expect(mutable.enqueueCount).toBe(1);
+  const next = await service.request({ importId: "import", runId: "run", expectedPlanHash: current.plan.planHash });
+  expect(next.state.status).toBe("pending");
+  expect(next.attemptId).not.toBe(old.attemptId);
+  expect(mutable.enqueueCount).toBe(2);
+});
+
+test("cancellation revokes the exact attempt and permits an explicit fresh retry", async () => {
+  const { service, mutable } = serviceFixture();
+  const first = await service.request({ importId: "import", runId: "run" });
+  const input = { importId: "import", runId: "run", planHash: first.plan.planHash, attemptId: first.attemptId };
+  const cancelled = await service.cancel(input);
+  expect(cancelled.state.status).toBe("cancelled");
+  expect(cancelled.attemptId).not.toBe(first.attemptId);
+  expect(cancelled.evaluation.ready).toBe(false);
+  expect(mutable.enqueueCount).toBe(1);
+  await expect(service.process(input)).rejects.toThrow("ATTEMPT_STALE");
+  const next = await service.request({ importId: "import", runId: "run", retry: true });
+  expect(next.attemptId).not.toBe(cancelled.attemptId);
+  expect(mutable.enqueueCount).toBe(2);
+  const complete = await service.process({ ...input, attemptId: next.attemptId });
+  expect(complete.evaluation.ready).toBe(true);
+  await expect(service.cancel({ ...input, attemptId: next.attemptId })).rejects.toThrow("CANCEL_NOT_ALLOWED");
+});
+
+test("a concurrent worker cannot attach its receipt after cancellation revokes its identity", async () => {
+  const { service, ports, mutable } = serviceFixture();
+  const first = await service.request({ importId: "import", runId: "run" });
+  const input = { importId: "import", runId: "run", planHash: first.plan.planHash, attemptId: first.attemptId };
+  ports.execute = async ({ requirement }) => {
+    const cancelled = await service.cancel(input);
+    expect(cancelled.state.status).toBe("cancelled");
+    return observe(requirement);
+  };
+  await expect(service.process(input)).rejects.toThrow("ATTEMPT_STALE");
+  expect((await service.get({ importId: "import", runId: "run", planHash: first.plan.planHash })).state.status).toBe("cancelled");
+  expect(mutable.snapshot.pdfEvidenceAttachment).toBeUndefined();
 });
 
 for (const local of [false, true]) test(`${local ? "local" : "hosted"} artifact damage is retryable within the current run without swallowing storage errors`, async () => {

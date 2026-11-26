@@ -19,8 +19,9 @@ import { sha256Bytes } from "@/lib/bundle/validator";
 import { articlePartSchema, articlePartsSchema, collectArticleVisualIds, materializeArticleParts } from "@/lib/materials/article-parts";
 import { authoredDiktatUnitsSchema, materializeAuthoredDiktat, prepareAuthoredDiktatVisuals } from "@/lib/materials/diktat-v4";
 import { visualSpecSchema } from "@/lib/materials/visual-contract";
+import { solutionCollectionItemSchema } from "@/lib/materials/solution-collection";
 
-export const PRODUCT_DRAFT_LIMITS = { products: 16, requestBytes: 524_288, issues: 40 } as const;
+export const PRODUCT_DRAFT_LIMITS = { products: 256, structuredProducts: 16, requestBytes: 524_288, issues: 40 } as const;
 const identifier = z.string().trim().min(1).max(256).regex(/^[^\u0000-\u001f]+$/);
 const ids = z.array(identifier).min(1).max(256).refine(value => new Set(value).size === value.length, "Duplicate reference");
 const hashSchema = z.string().regex(/^[a-f0-9]{64}$/);
@@ -60,26 +61,58 @@ const authorSection = productArticleV3SectionSchema.omit({ id: true, slug: true,
   id: identifier.optional(), slug: identifier.optional(), sourceRefs: sources.optional(),
   blocks: z.array(authorBlock).min(1).max(100),
 }).strict();
-const commonInput = {
-  id: identifier.optional(), title: z.string().trim().min(1).max(1000),
+const sharedInput = {
+  id: identifier.optional(),
   ideaIds: ids, sourceRefs: sources,
   // Optional teaching priorities. Identity and revision still come from the server.
   ideaLinks: z.array(ideaLinkSelectionSchema).min(1).max(256).optional(),
   ai: z.object({ provider: identifier, model: identifier, promptVersion: identifier }).strict().optional(),
+};
+const commonInput = {
+  ...sharedInput, title: z.string().trim().min(1).max(1000),
   visuals: z.array(visualSpecSchema).max(64).optional(),
 };
 const articleInput = z.object({ ...commonInput, productType: z.literal("article"), slug: identifier.optional(), sections: z.array(authorSection).min(1).max(100) }).strict();
 const diktatInput = z.object({ ...commonInput, productType: z.literal("diktat"), sourceArticleId: identifier.optional(),
   units: z.array(z.object({ id: identifier.optional(), ideaIds: ids, sourceElementRefs: z.array(identifier).max(256).optional(), parts: z.array(printPart).min(1).max(100) }).strict()).min(1).max(100),
 }).strict();
+const flashcardSetInput = z.object({ ...sharedInput, productType: z.literal("flashcard_set"), title: commonInput.title,
+  cards: z.array(identifier).max(PRODUCT_DRAFT_LIMITS.products).optional(),
+}).strict();
+const flashcardInput = z.object({ ...sharedInput, productType: z.literal("flashcard"), ideaIds: ids.length(1),
+  setId: identifier.optional(), front: z.string().trim().min(1).max(20_000), back: z.string().trim().min(1).max(20_000),
+  explanation: z.string().max(20_000).optional(),
+}).strict();
+const solutionId = identifier.max(100);
+const solutionPart = z.discriminatedUnion("kind", [markdown, math, visual, worked,
+  articlePartSchema.options[4].omit({ id: true }).extend({ id: identifier.optional(), runnable: z.literal(false) }),
+]);
+const solutionContent = z.array(solutionPart).min(1).max(100);
+const solutionItemInput = solutionCollectionItemSchema.omit({ id: true, prompt: true, options: true, answer: true,
+  strategy: true, steps: true, verification: true, misconceptions: true }).extend({
+  id: solutionId.optional(), prompt: solutionContent,
+  // Option IDs stay explicit because the authored answer refers to them.
+  options: z.array(z.object({ id: solutionId, parts: solutionContent }).strict()).max(20),
+  answer: z.object({ parts: solutionContent, optionIds: z.array(solutionId).max(20) }).strict(),
+  strategy: solutionContent, verification: solutionContent,
+  steps: solutionCollectionItemSchema.shape.steps.element.omit({ id: true, parts: true }).extend({ id: solutionId.optional(), parts: solutionContent.optional() }).array().min(1).max(50),
+  misconceptions: solutionCollectionItemSchema.shape.misconceptions.unwrap().element.omit({ id: true }).extend({ id: solutionId.optional() }).array().max(20).optional(),
+}).strict();
+const solutionCollectionInput = z.object({ ...sharedInput, id: solutionId.optional(), productType: z.literal("solution_collection"),
+  title: commonInput.title, items: z.array(solutionItemInput).min(1).max(500),
+}).strict();
 
 /** Initial authoring input. Existing publications must use the revision tools. */
-export const productDraftInputSchema = z.object({ products: z.array(z.discriminatedUnion("productType", [articleInput, diktatInput])).min(1).max(PRODUCT_DRAFT_LIMITS.products) }).strict();
+export const productDraftInputSchema = z.object({ products: z.array(z.discriminatedUnion("productType", [articleInput, diktatInput, flashcardSetInput, flashcardInput, solutionCollectionInput])).min(1).max(PRODUCT_DRAFT_LIMITS.products) }).strict().superRefine((draft, ctx) => {
+  if (draft.products.some(product => product.productType === "solution_collection") && draft.products.length !== 1) ctx.addIssue({ code: "custom", path: ["products"], message: "PRODUCT_V5_STANDALONE_REQUIRED: create one solution collection per draft" });
+  if (draft.products.filter(product => product.productType === "article" || product.productType === "diktat").length > PRODUCT_DRAFT_LIMITS.structuredProducts) ctx.addIssue({ code: "custom", path: ["products"], message: "PRODUCT_DRAFT_STRUCTURED_LIMIT: at most 16 Articles and Diktats per request" });
+});
 export type ProductDraftInput = z.input<typeof productDraftInputSchema>;
 
 /** Supplied by the authorized server, never from the author's tool arguments. */
 export const productDraftContextSchema = z.object({
   bundleId: identifier, courseId: identifier, chapterId: identifier.optional(), creatorId: identifier,
+  courseTitle: z.string().trim().min(1).max(20_000).optional(), chapterTitle: z.string().trim().min(1).max(20_000).optional(),
   createdAt: z.string().datetime({ offset: true }),
   // A scoped lookup may return no matches. Report those as bad author references,
   // not a malformed server context; canonical product references remain required.
@@ -96,8 +129,8 @@ export type ProductDraftBuildResult =
 function contentHash(value: unknown): string {
   return createHash("sha256").update(deterministicProductSerialization(value), "utf8").digest("hex");
 }
-function generatedId(path: string): string {
-  return path.length <= 256 ? path : `draft-node:${contentHash(path)}`;
+function generatedId(path: string, maxLength = 256): string {
+  return path.length <= maxLength ? path : `draft-node:${contentHash(path)}`;
 }
 function failed(issues: readonly ProductValidationIssue[]): ProductDraftBuildResult {
   return { success: false, issues: issues.slice(0, PRODUCT_DRAFT_LIMITS.issues), issueCount: issues.length };
@@ -105,12 +138,12 @@ function failed(issues: readonly ProductValidationIssue[]): ProductDraftBuildRes
 function zodIssues(error: z.ZodError, prefix: string): ProductValidationIssue[] {
   return error.issues.map(issue => ({ code: "PRODUCT_DRAFT_INPUT_INVALID", path: [prefix, ...issue.path].join("."), message: issue.message }));
 }
-function assignPartIds(value: unknown, prefix: string): unknown {
+function assignPartIds(value: unknown, prefix: string, maxLength = 256): unknown {
   if (!value || typeof value !== "object" || Array.isArray(value)) return value;
-  const result: Record<string, unknown> = { ...(value as Record<string, unknown>), id: (value as { id?: string }).id ?? generatedId(prefix) };
+  const result: Record<string, unknown> = { ...(value as Record<string, unknown>), id: (value as { id?: string }).id ?? generatedId(prefix, maxLength) };
   for (const key of ["steps", "parts", "relations", "symbolDefinitions"] as const) {
     const children = result[key];
-    if (Array.isArray(children)) result[key] = children.map((child, index) => assignPartIds(child, `${prefix}:${key}:${index + 1}`));
+    if (Array.isArray(children)) result[key] = children.map((child, index) => assignPartIds(child, `${prefix}:${key}:${index + 1}`, maxLength));
   }
   return result;
 }
@@ -145,7 +178,7 @@ export function buildProductDraft(rawInput: unknown, rawContext: ProductDraftCon
       return [{ sourceId: known.sourceId, version: known.version, checksum: known.checksum, excerptIds: selection.excerptIds }];
     });
   }
-  function common(product: z.infer<typeof articleInput> | z.infer<typeof diktatInput>, index: number) {
+  function common(product: z.output<typeof productDraftInputSchema>["products"][number], index: number) {
     const sourceRefs = bindSources(product.sourceRefs, `products.${index}.sourceRefs`);
     const priorities = new Map(product.ideaLinks?.map(link => [link.id, link]));
     if (product.ideaLinks) {
@@ -158,12 +191,14 @@ export function buildProductDraft(rawInput: unknown, rawContext: ProductDraftCon
       const priority = priorities.get(ideaId);
       return [{ ...known, weight: priority?.weight ?? 1 / product.ideaIds.length, role: priority?.role ?? "supporting" as const }];
     });
-    if (product.visuals?.some(item => item.kind === "interactive_document")) issues.push({ code: "PRODUCT_DRAFT_ASSET_ARCHIVE_REQUIRED", path: `products.${index}.visuals`, message: "Interactive documents require their admitted binary assets; use the existing archive workflow" });
+    const visuals = "visuals" in product ? product.visuals : undefined;
+    const selectedVisuals = product.productType === "solution_collection" ? product.items.flatMap(item => item.visuals) : visuals;
+    if (selectedVisuals?.some(item => item.kind === "interactive_document")) issues.push({ code: "PRODUCT_DRAFT_ASSET_ARCHIVE_REQUIRED", path: `products.${index}.visuals`, message: "Interactive documents require their admitted binary assets; use the existing archive workflow" });
     return {
-      id: product.id ?? generatedId(`${context.bundleId}:product:${index + 1}`), courseId: context.courseId, chapterId: context.chapterId,
+      id: product.id ?? generatedId(`${context.bundleId}:product:${index + 1}`, product.productType === "solution_collection" ? 100 : 256), courseId: context.courseId, chapterId: context.chapterId,
       version: 1, status: "draft" as const, creatorId: context.creatorId,
       ideaLinks, sourceRefs, sourceHash: contentHash(sourceRefs), generationHash: "0".repeat(64),
-      title: product.title, ai: product.ai, visuals: product.visuals,
+      ...("title" in product ? { title: product.title } : {}), ai: product.ai, ...(visuals ? { visuals } : {}),
     };
   }
   const commonValues = inputs.map(common);
@@ -202,6 +237,40 @@ export function buildProductDraft(rawInput: unknown, rawContext: ProductDraftCon
     if (value) products.push(value);
   }
   for (const [index, product] of inputs.entries()) {
+    const base = commonValues[index];
+    if (product.productType === "flashcard_set") {
+      const cards = product.cards ?? inputs.flatMap((candidate, cardIndex) => candidate.productType === "flashcard" && candidate.setId === base.id ? [commonValues[cardIndex].id] : []);
+      const value = admit({ ...base, productType: "flashcard_set", schemaVersion: "flashcard_set.v1", cards }, `products.${index}`);
+      if (value) products.push(value);
+    } else if (product.productType === "flashcard") {
+      const value = admit({ ...base, productType: "flashcard", schemaVersion: "flashcard.v1", setId: product.setId,
+        front: product.front, back: product.back, explanation: product.explanation, atomic: true }, `products.${index}`);
+      if (value) products.push(value);
+    } else if (product.productType === "solution_collection") {
+      if (!context.chapterId || !context.courseTitle || !context.chapterTitle) {
+        issues.push({ code: "PRODUCT_DRAFT_COLLECTION_SCOPE_REQUIRED", path: `products.${index}`, message: "The server must bind an active course and chapter with their current titles" });
+        continue;
+      }
+      const items = product.items.map((item, itemIndex) => {
+        const prefix = item.id ?? generatedId(`${base.id}:item:${itemIndex + 1}`, 100);
+        const assignParts = (parts: unknown[], key: string) => parts.map((part, partIndex) => assignPartIds(part, `${prefix}:${key}:${partIndex + 1}`, 100));
+        return { ...item, id: prefix, prompt: assignParts(item.prompt, "prompt"),
+          options: item.options.map(option => ({ ...option, parts: assignParts(option.parts, `option:${option.id}`) })),
+          answer: { ...item.answer, parts: assignParts(item.answer.parts, "answer") },
+          strategy: assignParts(item.strategy, "strategy"), verification: assignParts(item.verification, "verification"),
+          steps: item.steps.map((step, stepIndex) => ({ ...step, id: step.id ?? generatedId(`${prefix}:step:${stepIndex + 1}`, 100),
+            ...(step.parts ? { parts: assignParts(step.parts, `step:${stepIndex + 1}`) } : {}) })),
+          ...(item.misconceptions ? { misconceptions: item.misconceptions.map((entry, entryIndex) => ({ ...entry, id: entry.id ?? generatedId(`${prefix}:misconception:${entryIndex + 1}`, 100) })) } : {}),
+        };
+      });
+      const value = admit({ ...base, productType: "solution_collection", schemaVersion: "solution_collection.v1", collection: {
+        schemaVersion: "solution_collection.v1", productType: "solution_collection", release: "released_learning_content", id: base.id, title: product.title,
+        course: { id: context.courseId, title: context.courseTitle }, chapter: { id: context.chapterId, title: context.chapterTitle }, items,
+      } }, `products.${index}`);
+      if (value) products.push(value);
+    }
+  }
+  for (const [index, product] of inputs.entries()) {
     if (product.productType !== "diktat") continue;
     const base = commonValues[index];
     const article = product.sourceArticleId ? products.find(value => value.id === product.sourceArticleId && value.productType === "article") : undefined;
@@ -236,7 +305,7 @@ export function buildProductDraft(rawInput: unknown, rawContext: ProductDraftCon
   }
   const encode = (value: unknown) => strToU8(`${deterministicProductSerialization(value)}\n`);
   const files = new Map([ ["entities/products.json", encode(products)], ["entities/dependencies.json", encode(dependencies)] ]);
-  const manifestBase = { bundleId: context.bundleId, bundleType: "product" as const, schemaVersion: "product-bundle.v4" as const,
+  const manifestBase = { bundleId: context.bundleId, bundleType: "product" as const, schemaVersion: products[0]?.productType === "solution_collection" ? "product-bundle.v5" as const : "product-bundle.v4" as const,
     courseId: context.courseId, creatorId: context.creatorId, createdAt: context.createdAt, conflicts: [],
     entityFiles: [
       { path: "entities/products.json", entityType: "products" as const, checksum: sha256Bytes(files.get("entities/products.json")!), stableIds: products.map(product => product.id) },

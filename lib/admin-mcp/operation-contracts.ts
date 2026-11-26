@@ -24,7 +24,7 @@ const external = new Set(["media.upload", "media.list", "media.get", "meet.creat
 const destructive = new Set(["users.set_roles", "users.set_status", "tokens.revoke", "notifications.send", "meet.end", "adminjobs.reconcile", "groups.members.remove", "groups.adjust_quota", "groups.set_status", "forms.archive", "forms.set_acceptance", "shortlinks.delete", "links.delete", "courses.archive", "chapters.archive", "videos.delete", "schedules.delete", "forms.presets.delete", "blog.update", "blog.set_publication"]);
 const secondary: Record<string, string[]> = { "forms.responses.export_sheet": ["forms:responses:read"], "forms.responses.export": ["forms:responses:read"], "forms.responses.sheet_state": ["forms:responses:read"] };
 
-export function registerOperationDescriptor(server: McpServer, input: { name: string; scope: string | readonly string[]; description: string; schema: z.ZodObject; write?: boolean; protocol?: AdminOperationDescriptor["protocol"] }) {
+export function registerOperationDescriptor(server: McpServer, input: { name: string; scope: string | readonly string[]; description: string; schema: z.ZodObject; write?: boolean; protocol?: AdminOperationDescriptor["protocol"]; conditionalScopes?: readonly string[] }) {
   const write = input.write === true;
   const protocol = input.protocol ?? "admin-plan";
   const descriptor: AdminOperationDescriptor = {
@@ -33,7 +33,7 @@ export function registerOperationDescriptor(server: McpServer, input: { name: st
     mode: write ? "mutation" : "read", protocol,
     risk: sensitive.has(input.name) ? "sensitive" : !write ? "read" : publicWrites.test(input.name) || protocol === "authoring-revision" && input.name === "authoring.publish_release" ? "public_write" : "reversible_write",
     requiredInputs: Object.entries(input.schema.shape).filter(([, value]) => !(value as z.ZodType).isOptional()).map(([name]) => name).sort(),
-    conditionalScopes: input.name === "users.set_roles" ? ["users:roles:admin"] : input.name === "users.get" || input.name === "users.list" ? ["users:pii:read"] : input.name.startsWith("adminjobs.") ? ["originating job operation scope"] : [],
+    conditionalScopes: input.conditionalScopes ? [...input.conditionalScopes] : input.name === "users.set_roles" ? ["users:roles:admin"] : input.name === "users.get" || input.name === "users.list" ? ["users:pii:read"] : input.name.startsWith("adminjobs.") ? ["originating job operation scope"] : [],
     annotations: { readOnlyHint: !write, destructiveHint: write && (destructive.has(input.name) || input.name === "authoring.publish_release"), idempotentHint: !write || protocol === "admin-plan", openWorldHint: external.has(input.name) },
     confirmation: write && protocol === "admin-plan" ? { required: true, expiresInSeconds: 600, controls: ["dryRun", "requestKey", "confirmationToken"] } : { required: write },
     retry: !write ? { strategy: "read_again" } : protocol === "admin-plan" ? { strategy: "same_request_key", receiptTool: "admin.operation_receipt", ...(external.has(input.name) ? { unknownProvider: "reconcile_without_replay" } : {}) } : { strategy: "exact_revision" },

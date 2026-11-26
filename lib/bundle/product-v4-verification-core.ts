@@ -8,6 +8,7 @@ import { assertProductV4VerificationCurrent, deriveProductV4VerificationPlan, ev
 import type { ProductBundleManifest, ProductDependency, ProductEntity } from "./product-validator";
 import { type ProductV4StagingSnapshot } from "./product-v4-staging-identity";
 import { issueProductV4VerificationCheckpoint, productV4VerificationBatchKey, readProductV4VerificationCheckpoint, type ProductV4VerificationBatchScope } from "./product-v4-verification-checkpoint";
+import { hasCompleteProductV4PrintCapture, issueProductV4ReuseProof, productV4ReuseKey, productV4ReuseScope, readProductV4ReuseProof } from "./product-v4-verification-reuse";
 
 export interface ProductV4VerificationSnapshot extends ProductV4StagingSnapshot {
   verificationAttemptId?: string | null;
@@ -30,7 +31,7 @@ export interface ProductV4VerificationPorts {
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
 const jobSchema = z.object({ importId: z.string().min(1), runId: z.string().min(1), planHash: hash }).strict();
 const attemptSchema = jobSchema.extend({ attemptId: z.string().uuid() });
-const stateSchema = z.object({ attemptId: z.string().uuid(), status: z.enum(["pending", "running", "complete", "failed", "stale"]), receiptKey: z.string().optional(), failureCode: z.string().max(100).optional(), updatedAt: z.number().int().optional(), retryAt: z.number().int().optional(), completedChecks: z.number().int().nonnegative().optional(), totalChecks: z.number().int().positive().optional(), currentCheckId: hash.optional() }).strict();
+const stateSchema = z.object({ attemptId: z.string().uuid(), status: z.enum(["pending", "running", "complete", "failed", "stale", "cancelled"]), receiptKey: z.string().optional(), failureCode: z.string().max(100).optional(), updatedAt: z.number().int().optional(), retryAt: z.number().int().optional(), completedChecks: z.number().int().nonnegative().optional(), totalChecks: z.number().int().positive().optional(), currentCheckId: hash.optional() }).strict();
 export type ProductV4VerificationCheckpoint = <T>(id: string, execute: () => Promise<T>) => Promise<T>;
 const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value));
 
@@ -120,22 +121,41 @@ export function createProductV4VerificationService(ports: ProductV4VerificationP
       state.status = "failed";
       state.failureCode = "PRODUCT_V4_PDF_EVIDENCE_REQUIRED";
     }
-    return { jobId: plan.planHash, attemptId, stagingAuditId: snapshot.stagingAuditId, plan, state, receipt, evaluation: { ...evaluation, ready: state.status === "complete" && evaluation.ready } };
+    return { jobId: plan.planHash, attemptId, stagingAuditId: snapshot.stagingAuditId, plan, state, receipt,
+      ...(state.failureCode === "PRODUCT_V4_PRINT_REUSE_CHANGED" ? { nextAction: { kind: "refresh_verification" as const, tool: "authoring.patch_revision" as const, refreshPrintEvidence: true, operations: [], instruction: "Create a new immutable revision to refresh its print evidence version, then verify and review it. Keep authored text unchanged." } } : {}),
+      evaluation: { ...evaluation, ready: state.status === "complete" && evaluation.ready } };
   };
   return {
     current,
     get,
+    async cancel(input: { importId: string; runId: string; planHash: string; attemptId: string }) {
+      attemptSchema.parse(input);
+      const { snapshot, plan } = await current(input.importId, input.runId);
+      if (plan.planHash !== input.planHash || snapshot.verificationAttemptId !== input.attemptId) throw new Error("PRODUCT_V4_VERIFICATION_ATTEMPT_STALE");
+      const previous = await get({ importId: input.importId, runId: input.runId, planHash: input.planHash });
+      if (!["pending", "running"].includes(previous.state.status)) throw new Error("PRODUCT_V4_VERIFICATION_CANCEL_NOT_ALLOWED");
+      // A new, never-enqueued identity revokes even a concurrently dispatched old
+      // worker at its next attempt guard. It does not claim an instant process kill.
+      const attemptId = randomUUID();
+      const job = { importId: input.importId, runId: input.runId, planHash: plan.planHash, attemptId };
+      await ports.write(buildProductVerificationKey(plan.planHash, `manifest-${attemptId}.json`), encode(job), "application/json");
+      await ports.write(buildProductVerificationKey(plan.planHash, `state-${attemptId}.json`), encode({ attemptId, status: "cancelled", updatedAt: Date.now(), failureCode: "PRODUCT_V4_VERIFICATION_CANCELLED", completedChecks: previous.state.completedChecks ?? 0, totalChecks: plan.requirements.length }), "application/json");
+      if (!await ports.attach(snapshot, plan.planHash, attemptId, input.attemptId)) throw new Error("PRODUCT_V4_VERIFICATION_ATTEMPT_STALE");
+      return get({ importId: input.importId, runId: input.runId, planHash: plan.planHash });
+    },
     async fail(input: { importId: string; runId: string; planHash: string; attemptId: string }) {
       const { snapshot, plan } = await current(input.importId, input.runId);
       if (plan.planHash !== input.planHash || snapshot.verificationAttemptId !== input.attemptId) return;
       const previous = await get({ importId: input.importId, runId: input.runId, planHash: input.planHash });
-      if (previous.state.status === "complete") return;
+      if (previous.state.status === "complete" || previous.state.status === "cancelled") return;
       await ports.write(buildProductVerificationKey(plan.planHash, `state-${input.attemptId}.json`), encode({ ...previous.state, status: "failed", updatedAt: Date.now(), failureCode: previous.state.failureCode ?? "PRODUCT_V4_VERIFICATION_WORKER_FAILED" }), "application/json");
     },
     async readiness(importId: string, runId: string) {
       const { snapshot, plan } = await current(importId, runId);
       if (!snapshot.verificationAttemptId || (snapshot.verificationPlanHash && snapshot.verificationPlanHash !== plan.planHash)) return {
-        jobId: null, stagingAuditId: snapshot.stagingAuditId, plan, state: { status: "pending" as const }, receipt: null,
+        jobId: null, stagingAuditId: snapshot.stagingAuditId, plan,
+        state: { status: "not_started" as const, reason: snapshot.verificationPlanHash && snapshot.verificationPlanHash !== plan.planHash ? "plan_changed" as const : "no_current_attempt" as const }, receipt: null,
+        nextAction: { kind: "request_verification" as const, tool: "authoring.verify_product_bundle" as const, expectedContentHash: plan.contentHash, expectedPlanHash: plan.planHash },
         evaluation: evaluateProductV4Verification(plan, [], ports.authority()),
       };
       return get({ importId, runId, planHash: plan.planHash });
@@ -177,10 +197,23 @@ export function createProductV4VerificationService(ports: ProductV4VerificationP
         if (fresh.snapshot.stagingAuditId !== snapshot.stagingAuditId || fresh.snapshot.stagingRunId !== snapshot.stagingRunId || fresh.snapshot.verificationAttemptId !== attemptId) throw new Error("PRODUCT_V4_VERIFICATION_ATTEMPT_STALE");
       };
       const stateKey = buildProductVerificationKey(plan.planHash, `state-${attemptId}.json`);
-      if (existing.state.status === "complete") return existing;
+      if (existing.state.status === "complete" || existing.state.status === "cancelled") return existing;
       let completedChecks = 0;
       let attachingPdf = false;
       try {
+        const lineage = snapshot.importState.validationReport.revisionLineage as { schema?: unknown; impact?: { printVersionReuse?: { preservedEntityIds?: unknown } } } | undefined;
+        const preserved = lineage?.schema === "authoring-revision.v1" && Array.isArray(lineage.impact?.printVersionReuse?.preservedEntityIds) ? lineage.impact.printVersionReuse.preservedEntityIds : [];
+        const precheckedPrint = new Map<string, ProductV4ObservedCheck>();
+        // A sealed same-version Diktat cannot silently rerender with new PDF bytes.
+        // Detect vanished proof or changed runtime before spending browser time.
+        for (const requirement of plan.requirements.filter(check => check.layer === "print" && check.artifactType === "application/pdf" && preserved.includes(check.target))) {
+          const batchScope: ProductV4VerificationBatchScope = { planHash: plan.planHash, stagingAuditId: snapshot.stagingAuditId, checkId: requirement.id, captureOffset: 0, captureLimit: null };
+          const reuseScope = productV4ReuseScope(snapshot, plan, requirement, 0, null);
+          const proof = await readProductV4VerificationCheckpoint({ scope: batchScope, requirement, authority: ports.authority(), read: key => ports.read(key) })
+            ?? (reuseScope ? await readProductV4ReuseProof({ scope: reuseScope, requirement, authority: ports.authority(), read: key => ports.read(key) }) : null);
+          if (!hasCompleteProductV4PrintCapture(proof)) throw new Error("PRODUCT_V4_PRINT_REUSE_CHANGED");
+          precheckedPrint.set(requirement.id, proof);
+        }
         const receipt = await runProductV4Verification(plan, ports.authority(), async (requirement) => {
           let offset = 0;
           let total = 1;
@@ -190,7 +223,9 @@ export function createProductV4VerificationService(ports: ProductV4VerificationP
               await assertAttempt();
               await ports.write(stateKey, encode({ attemptId, status: "running", updatedAt: Date.now(), completedChecks, totalChecks: plan.requirements.length, currentCheckId: requirement.id }), "application/json");
               const batchScope: ProductV4VerificationBatchScope = { planHash: plan.planHash, stagingAuditId: snapshot.stagingAuditId, checkId: requirement.id, captureOffset: offset, captureLimit: requirement.layer === "web" ? 2 : null };
-              const cached = await readProductV4VerificationCheckpoint({ scope: batchScope, requirement, authority: ports.authority(), read: key => ports.read(key) });
+              const reuseScope = productV4ReuseScope(snapshot, plan, requirement, offset, batchScope.captureLimit);
+              const cached = precheckedPrint.get(requirement.id) ?? await readProductV4VerificationCheckpoint({ scope: batchScope, requirement, authority: ports.authority(), read: key => ports.read(key) })
+                ?? (reuseScope ? await readProductV4ReuseProof({ scope: reuseScope, requirement, authority: ports.authority(), read: key => ports.read(key) }) : null);
               await assertAttempt();
               let result: ProductV4ObservedCheck;
               try {
@@ -220,7 +255,10 @@ export function createProductV4VerificationService(ports: ProductV4VerificationP
               // Uploaded reports and reused descriptors cannot create new execution proof.
               if (!cached) {
                 const proof = issueProductV4VerificationCheckpoint({ scope: batchScope, requirement, sourceAttemptId: attemptId, result: saved }, ports.authority());
-                if (proof) await ports.write(productV4VerificationBatchKey(batchScope), proof, "application/json");
+                if (proof) {
+                  await ports.write(productV4VerificationBatchKey(batchScope), proof, "application/json");
+                  if (reuseScope) await ports.write(productV4ReuseKey(reuseScope), issueProductV4ReuseProof(reuseScope, batchScope, proof, ports.authority()), "application/json");
+                }
               }
               await assertAttempt();
               await ports.write(stateKey, encode({ attemptId, status: "running", updatedAt: Date.now(), completedChecks, totalChecks: plan.requirements.length }), "application/json");
@@ -263,7 +301,7 @@ export function createProductV4VerificationService(ports: ProductV4VerificationP
         if (error instanceof RetryAfterError) throw error;
         const stale = error instanceof Error && ["PRODUCT_V4_VERIFICATION_CONFLICT", "PRODUCT_V4_VERIFICATION_ATTEMPT_STALE"].includes(error.message);
         const browserFailure = verificationBrowserFailureCode(error);
-        await ports.write(stateKey, encode({ attemptId, status: stale ? "stale" : "failed", updatedAt: Date.now(), completedChecks, totalChecks: plan.requirements.length, failureCode: stale ? "PRODUCT_V4_VERIFICATION_CONFLICT" : attachingPdf ? "PRODUCT_V4_PDF_EVIDENCE_PERSIST_FAILED" : browserFailure ?? "PRODUCT_V4_VERIFICATION_EXECUTION_FAILED" }), "application/json");
+        await ports.write(stateKey, encode({ attemptId, status: stale ? "stale" : "failed", updatedAt: Date.now(), completedChecks, totalChecks: plan.requirements.length, failureCode: stale ? "PRODUCT_V4_VERIFICATION_CONFLICT" : error instanceof Error && error.message === "PRODUCT_V4_PRINT_REUSE_CHANGED" ? error.message : attachingPdf ? "PRODUCT_V4_PDF_EVIDENCE_PERSIST_FAILED" : browserFailure ?? "PRODUCT_V4_VERIFICATION_EXECUTION_FAILED" }), "application/json");
         throw error;
       }
     },

@@ -13,7 +13,7 @@ function bootstrap(stage: "idea" | "product", actorId = "admin", sessionId = "se
   return issueMcpBootstrapToken({ actorId, sessionId, stage, bootstrapProtocol: 1, pluginVersion: RECOMMENDED_PLUGIN_VERSION,
     clientCapabilities: { independentSubagents: true, localArtifactFiles: true, pdfRendering: true } });
 }
-function harness(options: { scopes?: string[]; inactive?: boolean; stale?: boolean; wrongKind?: boolean; rejected?: boolean } = {}) {
+function harness(options: { scopes?: string[]; inactive?: boolean; stale?: boolean; wrongKind?: boolean; rejected?: boolean; failure?: Error } = {}) {
   const tools = new Map<string, { config: { annotations: { readOnlyHint: boolean } }; execute: (input: Record<string, unknown>) => Promise<CallToolResult> }>();
   const calls: Array<{ method: RevisionServiceMethod; input: Record<string, unknown> }> = [];
   const context = (input: Record<string, unknown>) => ({ kind: options.wrongKind ? "idea" : input.kind ?? "product", importId: input.importId ?? "draft", revision: options.stale ? nextHash : input.expectedRevision ?? nextHash, version: 4, schemaVersion: "product-bundle.v4", status: "draft", scope: { courseId: "course", artifactCourseId: "artifact-course", chapterId: "chapter" }, stagingRunId: runId, bundle: { products: [{ id: "article", content: "Full content" }] }, reviewContext: { publicationReady: true }, ...(input.target ? { selection: { target: input.target, content: { id: "block", content: "Selected content" } } } : {}) });
@@ -23,6 +23,8 @@ function harness(options: { scopes?: string[]; inactive?: boolean; stale?: boole
     async invoke(method, input) {
       calls.push({ method, input });
       if (method === "getRevisionContext") return context(input);
+      if (options.stale) throw new Error("REVISION_STALE_CONTEXT");
+      if (options.failure) throw options.failure;
       if (options.rejected) return { ok: false, detail: "Must never become successful" };
       if (["createRevisionDraft", "patchRevisionDraft", "restoreRevisionDraft"].includes(method)) return context({ ...input, importId: "draft", expectedRevision: nextHash });
       return { method, publicationReady: false };
@@ -77,7 +79,7 @@ test("bootstrap identity and current exact artifact prevent expired-run and kind
   expect(data(await missing.call("get_edit_context", withoutBootstrap)).error).toBe("REVISION_INPUT_INVALID");
   const stale = harness({ stale: true });
   expect(data(await stale.call("patch_revision", { ...input(), operations: [operation] })).error).toBe("REVISION_STALE_CONTEXT");
-  expect(stale.calls.every(call => call.method === "getRevisionContext")).toBe(true);
+  expect(stale.calls.map(call => call.method)).toEqual(["patchRevisionDraft"]);
   const wrong = harness({ wrongKind: true });
   expect(data(await wrong.call("patch_revision", { ...input(), operations: [operation] })).error).toBe("REVISION_KIND_MISMATCH");
 });
@@ -89,7 +91,7 @@ test("stable nested object patches derive actor and issue current-session verifi
   const patch = h.calls.find(call => call.method === "patchRevisionDraft")!;
   expect(patch.input).toMatchObject({ actorId: "admin", kind: "product", importId: "product", expectedRevision: hash, operations: [operation] });
   expect(patch.input).not.toHaveProperty("bootstrapToken");
-  expect(h.calls[0].input).not.toHaveProperty("operations");
+  expect(h.calls.map(call => call.method)).toEqual(["patchRevisionDraft"]);
   expect(h.calls[0].input).not.toHaveProperty("bootstrapToken");
   expect(data(response)).toMatchObject({ importId: "draft", revision: nextHash });
   const execution = data(response).execution as { runToken: string; runId: string };
@@ -130,6 +132,45 @@ test("Diktat unit selectors pass through MCP and reject mixed parent selectors b
     expect(data(await denied.call("get_edit_context", { ...input(), target: mixed })).error).toBe("REVISION_INPUT_INVALID");
     expect(denied.calls).toHaveLength(0);
   }
+});
+
+test("unchanged derived content needs explicit reviewer scope and exact bounded review input", async () => {
+  const review = { entityId: "diktat", sourceArticleId: "article", expectedArticleHash: nextHash, unitIds: ["summary-unit"], notes: "Rumus, syarat, dan arti ringkasan tetap tepat untuk sumber ini." };
+  const denied = harness({ scopes: ["authoring:read", "authoring:stage"] });
+  expect(data(await denied.call("patch_revision", { ...input(), operations: [], derivedContentReviews: [review] }))).toMatchObject({ ok: false, error: "AUTHORING_MCP_SCOPE_REQUIRED", requiredScope: "authoring:review" });
+  expect(denied.calls).toHaveLength(0);
+  const h = harness();
+  expect((await h.call("patch_revision", { ...input(), operations: [], derivedContentReviews: [review], responseMode: "compact" })).isError).not.toBe(true);
+  expect(h.calls).toEqual([{ method: "patchRevisionDraft", input: { actorId: "admin", kind: "product", importId: "product", expectedRevision: hash, operations: [], derivedContentReviews: [review], responseMode: "compact" } }]);
+  for (const invalid of [{ ...review, notes: "ok" }, { ...review, unitIds: [] }, { ...review, unitIds: ["summary-unit", "summary-unit"] }, { ...review, reviewerId: "other" }]) {
+    const rejected = harness();
+    expect(data(await rejected.call("patch_revision", { ...input(), operations: [], derivedContentReviews: [invalid] })).error).toBe("REVISION_INPUT_INVALID");
+    expect(rejected.calls).toHaveLength(0);
+  }
+  const empty = harness();
+  expect(data(await empty.call("patch_revision", { ...input(), operations: [] })).error).toBe("REVISION_INPUT_INVALID");
+  expect(empty.calls).toHaveLength(0);
+  expect(data(await empty.call("patch_revision", { kind: "idea", bootstrapToken: bootstrap("idea"), importId: "idea", expectedRevision: hash, operations: [], derivedContentReviews: [review] })).error).toBe("REVISION_DERIVED_REVIEW_TARGET_INVALID");
+  expect(empty.calls).toHaveLength(0);
+});
+
+test("print-proof refresh is an explicit stage action without a content patch or caller versions", async () => {
+  const h = harness({ scopes: ["authoring:read", "authoring:stage"] });
+  expect((await h.call("patch_revision", { ...input(), operations: [], refreshPrintEvidence: true, responseMode: "compact" })).isError).not.toBe(true);
+  expect(h.calls).toEqual([{ method: "patchRevisionDraft", input: { actorId: "admin", kind: "product", importId: "product", expectedRevision: hash, operations: [], refreshPrintEvidence: true, responseMode: "compact" } }]);
+  for (const invalid of [
+    { operations: [operation], refreshPrintEvidence: true },
+    { operations: [], refreshPrintEvidence: false },
+    { operations: [], refreshPrintEvidence: true, preserveUnchangedDiktatIds: ["diktat"] },
+    { operations: [], refreshPrintEvidence: true, versionOverrides: { diktat: 99 } },
+  ]) {
+    const denied = harness();
+    expect(data(await denied.call("patch_revision", { ...input(), ...invalid })).error).toBe("REVISION_INPUT_INVALID");
+    expect(denied.calls).toHaveLength(0);
+  }
+  const wrong = harness();
+  expect(data(await wrong.call("patch_revision", { kind: "idea", importId: "idea", expectedRevision: hash, bootstrapToken: bootstrap("idea"), operations: [], refreshPrintEvidence: true })).error).toBe("REVISION_PRINT_REFRESH_V4_REQUIRED");
+  expect(wrong.calls).toHaveLength(0);
 });
 
 test("mixed release verifies both kind bootstraps and forwards only exact manifest entries and plan hash", async () => {
@@ -182,10 +223,22 @@ test("compact edits preserve the actual successor and current execution while de
   expect(response).toHaveProperty("execution.runToken");
   const patch = h.calls.find(call => call.method === "patchRevisionDraft")!;
   expect(patch.input).toMatchObject({ responseMode: "compact", importId: "product", expectedRevision: hash });
-  expect(h.calls.filter(call => call.method === "getRevisionContext").at(-1)?.input.responseMode).toBe("compact");
+  expect(h.calls.filter(call => call.method === "getRevisionContext")).toHaveLength(1);
   const created = data(await h.call("create_revision", { kind: "product", bootstrapToken: bootstrap("product"), baseImportId: "product", expectedRevision: hash, responseMode: "compact" }));
   expect(created.importId).toBe("draft");
   expect(created).not.toHaveProperty("bundle");
+  expect(h.calls.filter(call => call.method === "getRevisionContext")).toHaveLength(1);
+});
+
+test("canonical revision issues survive the transport with a bounded, safe diagnostic", async () => {
+  const h = harness({ failure: Object.assign(new Error("REVISION_ARTIFACT_INVALID"), { issues: [
+    { code: "ARTICLE_PART_ID_DUPLICATE", message: "Article part IDs must be unique.", path: "entities/products.json" },
+  ] }) });
+  const response = data(await h.call("patch_revision", { ...input(), operations: [operation], responseMode: "compact" }));
+  expect(response).toMatchObject({ ok: false, error: "REVISION_ARTIFACT_INVALID", category: "content", diagnosticCount: 1,
+    diagnostics: [{ code: "ARTICLE_PART_ID_DUPLICATE", reason: "Article part IDs must be unique.", path: "entities/products.json" }],
+  });
+  expect(h.calls.map(call => call.method)).toEqual(["patchRevisionDraft"]);
 });
 
 test("target reads forward stable parent IDs and reject invalid selectors before service access", async () => {
