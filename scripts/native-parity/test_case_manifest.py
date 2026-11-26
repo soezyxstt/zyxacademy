@@ -51,9 +51,9 @@ class CaseManifestTests(unittest.TestCase):
 
     def test_rejects_capture_heights_too_tall_for_the_gallery(self):
         with self.assertRaisesRegex(ValueError, "Invalid capture height"):
-            self.load([{"id": "inbox-empty", "component": "inbox", "height": 649}])
+            self.load([{"id": "inbox-empty", "component": "inbox", "height": 669}])
 
     def test_rejects_three_frames_that_overflow_together(self):
         with self.assertRaisesRegex(ValueError, "exceed the gallery viewport"):
-            self.load([{"id": name, "component": "inbox", "height": 217}
+            self.load([{"id": name, "component": "inbox", "height": 223}
                        for name in ("inbox-empty", "inbox-unread", "inbox-mixed")])
