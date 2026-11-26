@@ -20,4 +20,3 @@ export function MonitoringProviders({ children }: { children: ReactNode }) {
     </QueryClientProvider>
   </NextIntlClientProvider>;
 }
-

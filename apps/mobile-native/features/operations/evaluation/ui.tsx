@@ -54,11 +54,12 @@ export function Field({ label, theme, accessibilityLabel, ...props }: React.Comp
   return <View style={styles.field}><Copy theme={theme} tone="strong">{label}</Copy><Input {...props} theme={theme} accessibilityLabel={accessibilityLabel ?? label} /></View>;
 }
 
-export function Choice<T extends string>({ label, accessibilityLabel, options, value, onChange, theme }: {
+export function Choice<T extends string>({ label, accessibilityLabel, options, value, onChange, theme, disabled = false }: {
   label: string;
   accessibilityLabel?: string;
   options: readonly { value: T; label: string }[];
   value: T;
+  disabled?: boolean;
   onChange: (value: T) => void;
   theme: Theme;
 }) {
@@ -67,9 +68,9 @@ export function Choice<T extends string>({ label, accessibilityLabel, options, v
   return (
     <View style={styles.field}>
       <Copy theme={theme} tone="strong">{label}</Copy>
-      <Button theme={theme} variant="outline" disabled={options.length === 0} accessibilityLabel={accessibilityLabel ?? label} accessibilityValue={{ text: name }} accessibilityState={{ expanded: open }} onPress={() => setOpen(!open)}>{name}</Button>
+      <Button theme={theme} variant="outline" disabled={disabled || options.length === 0} accessibilityLabel={accessibilityLabel ?? label} accessibilityValue={{ text: name }} accessibilityState={{ expanded: open }} onPress={() => setOpen(!open)}>{name}</Button>
       {open && <View style={styles.field}>
-        {options.map((option) => <Button key={option.value} theme={theme} variant={value === option.value ? "default" : "ghost"} accessibilityState={{ selected: value === option.value }} onPress={() => { onChange(option.value); setOpen(false); }}>{option.label}</Button>)}
+        {options.map((option) => <Button key={option.value} theme={theme} disabled={disabled} variant={value === option.value ? "default" : "ghost"} accessibilityState={{ selected: value === option.value }} onPress={() => { onChange(option.value); setOpen(false); }}>{option.label}</Button>)}
       </View>}
     </View>
   );

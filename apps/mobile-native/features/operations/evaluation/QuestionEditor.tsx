@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { View } from "react-native";
+import { Keyboard, View } from "react-native";
 import { Button } from "../../../components/Button";
 import type { CognitiveLevel, Difficulty, IdeaRole, QuestionAuthoringInput, QuestionIdeaLink, QuestionType } from "../../../../../lib/question-authoring-contract";
 import {
@@ -85,6 +85,7 @@ export function QuestionEditor({ action, courses, request, presentation, importM
     }
     busy.current = true;
     setSubmitting(true);
+    Keyboard.dismiss();
     const endpoint = importing ? evaluationAction("import-questions") : question ? evaluationAction("question", question.id) : evaluationAction("questions");
     try {
       await request(endpoint, { method: question ? "PUT" : "POST", body });
@@ -101,6 +102,13 @@ export function QuestionEditor({ action, courses, request, presentation, importM
       busy.current = false;
       setSubmitting(false);
     }
+  }
+
+  // Native input events can arrive before React commits the disabled controls.
+  function edit<Args extends unknown[]>(change: (...args: Args) => void) {
+    return (...args: Args) => {
+      if (!busy.current) change(...args);
+    };
   }
 
   const dismissWeightError = () => {
@@ -126,18 +134,18 @@ export function QuestionEditor({ action, courses, request, presentation, importM
 
   return <>
     <Heading theme={theme}>{importing ? t.importMarkdownTitle : question ? t.editQuestionAnswerKey : t.manualQuestionTitle}</Heading>
-    <Choice theme={theme} label={t.courseLabel} options={choices(courses)} value={courseId} onChange={(next) => {
+    <Choice theme={theme} disabled={submitting} label={t.courseLabel} options={choices(courses)} value={courseId} onChange={edit((next: string) => {
       if (next !== courseId) { setCourseId(next); setChapterId(""); clearIdeaLinks(); }
-    }} />
+    })} />
     {courseId && <Load resource={chapters} presentation={presentation}>{(rows) =>
-      <Choice theme={theme} label={t.chapterLabel} options={[{ value: "", label: t.allChaptersLabel }, ...rows.map((row) => ({ value: row.id, label: `${row.code} · ${row.title}` }))]} value={chapterId} onChange={(next) => {
+      <Choice theme={theme} disabled={submitting} label={t.chapterLabel} options={[{ value: "", label: t.allChaptersLabel }, ...rows.map((row) => ({ value: row.id, label: `${row.code} · ${row.title}` }))]} value={chapterId} onChange={edit((next: string) => {
         if (next !== chapterId) { setChapterId(next); clearIdeaLinks(); }
-      }} />}</Load>}
+      })} />}</Load>}
     {courseId && <Section theme={theme}>
       <Row>
         <Copy theme={theme} tone="strong">{t.ideaConnection}</Copy>
         <Copy theme={theme} tone="muted">{t.optional}</Copy>
-        <Button theme={theme} variant="outline" accessibilityState={{ expanded: ideasOpen }} onPress={() => setIdeasOpen(!ideasOpen)}>{ideasOpen ? t.close : t.manageIdeas}</Button>
+        <Button theme={theme} variant="outline" disabled={submitting} accessibilityState={{ expanded: ideasOpen }} onPress={edit(() => setIdeasOpen(!ideasOpen))}>{ideasOpen ? t.close : t.manageIdeas}</Button>
       </Row>
       <Copy theme={theme} tone="muted">{ideaLinks.length ? interpolate(t.ideaConnectedCount, { count: ideaLinks.length }) : t.ideaCanBeUnlinked}</Copy>
       {ideasOpen && ideaLinks.length > 0 && <View accessibilityLiveRegion="polite">
@@ -148,50 +156,50 @@ export function QuestionEditor({ action, courses, request, presentation, importM
       {ideasOpen && <Load resource={ideas} presentation={presentation}>{(rows) => rows.length === 0 ? <Copy theme={theme} tone="muted">{t.noPublishedIdeas}</Copy> : rows.map((idea) => {
         const link = ideaLinks.find((item) => item.ideaId === idea.id);
         return <Section key={idea.id} theme={theme}>
-          <Button theme={theme} variant={link ? "default" : "outline"} accessibilityRole="checkbox" accessibilityState={{ checked: Boolean(link) }} onPress={() => toggleIdea(idea.id)}>{idea.code}</Button>
+          <Button theme={theme} variant={link ? "default" : "outline"} disabled={submitting} accessibilityRole="checkbox" accessibilityState={{ checked: Boolean(link) }} onPress={edit(() => toggleIdea(idea.id))}>{idea.code}</Button>
           <Copy theme={theme}>{idea.statement}</Copy>
           {link && <>
-            <Field theme={theme} label={t.weightLabel} testID={`evaluation-idea-weight-${idea.id}`} accessibilityLabel={`${t.weightLabel} ${idea.code}`} keyboardType="decimal-pad" value={weightDrafts[idea.id] ?? String(link.weight)} onChangeText={(value) => {
+            <Field theme={theme} disabled={submitting} label={t.weightLabel} testID={`evaluation-idea-weight-${idea.id}`} accessibilityLabel={`${t.weightLabel} ${idea.code}`} keyboardType="decimal-pad" value={weightDrafts[idea.id] ?? String(link.weight)} onChangeText={edit((value: string) => {
               setWeightDrafts((draft) => ({ ...draft, [idea.id]: value }));
               updateLink(idea.id, { weight: parseIdeaWeightInput(value) });
               dismissWeightError();
-            }} />
-            <Choice theme={theme} label={t.roleLabel} accessibilityLabel={`${t.roleLabel} ${idea.code}`} value={link.role} options={roles} onChange={(role) => updateLink(idea.id, { role })} />
+            })} />
+            <Choice theme={theme} disabled={submitting} label={t.roleLabel} accessibilityLabel={`${t.roleLabel} ${idea.code}`} value={link.role} options={roles} onChange={edit((role: IdeaRole) => updateLink(idea.id, { role }))} />
           </>}
         </Section>;
       })}</Load>}
     </Section>}
     {importing ? <>
-      {importMarkdown && <Row><Button theme={theme} variant="outline" onPress={() => {
-        void importMarkdown().then((source) => { if (source !== null) setMarkdown(source); }, () => setValidation(t.connectionError));
-      }}>{t.markdownFile}</Button></Row>}
-      <Field theme={theme} label={t.markdownContent} value={markdown} onChangeText={setMarkdown} placeholder={t.markdownImportPlaceholder} multiline autoCapitalize="none" />
+      {importMarkdown && <Row><Button theme={theme} variant="outline" disabled={submitting} onPress={edit(() => {
+        void importMarkdown().then(edit((source: string | null) => { if (source !== null) setMarkdown(source); }), edit(() => setValidation(t.connectionError)));
+      })}>{t.markdownFile}</Button></Row>}
+      <Field theme={theme} disabled={submitting} label={t.markdownContent} value={markdown} onChangeText={edit(setMarkdown)} placeholder={t.markdownImportPlaceholder} multiline autoCapitalize="none" />
       <Copy theme={theme} tone="muted">{t.markdownFormatHelp}</Copy>
     </> : <>
-      <Choice theme={theme} label={t.typeLabel} value={type} options={questionTypes.map((value, index) => ({ value, label: typeLabels[index] }))} onChange={(value) => {
+      <Choice theme={theme} disabled={submitting} label={t.typeLabel} value={type} options={questionTypes.map((value, index) => ({ value, label: typeLabels[index] }))} onChange={edit((value: QuestionType) => {
         setType(value);
         if (value === "multiple_choice" && correct.length > 1) setCorrect(correct.slice(0, 1));
-      }} />
-      <Choice theme={theme} label={t.difficultyLabel} value={difficulty} options={["easy", "medium", "hard"].map((value) => ({ value: value as Difficulty, label: t[value as Difficulty] }))} onChange={setDifficulty} />
-      <Choice theme={theme} label={t.cognitiveLevelLabel} value={level} options={levels.map((value, index) => ({ value, label: levelLabels[index] }))} onChange={setLevel} />
-      <Field theme={theme} label={t.reasoningPatternLabel} value={reasoning} onChangeText={setReasoning} />
-      <Field theme={theme} label={t.questionPrompt} value={prompt} onChangeText={setPrompt} multiline />
+      })} />
+      <Choice theme={theme} disabled={submitting} label={t.difficultyLabel} value={difficulty} options={["easy", "medium", "hard"].map((value) => ({ value: value as Difficulty, label: t[value as Difficulty] }))} onChange={edit(setDifficulty)} />
+      <Choice theme={theme} disabled={submitting} label={t.cognitiveLevelLabel} value={level} options={levels.map((value, index) => ({ value, label: levelLabels[index] }))} onChange={edit(setLevel)} />
+      <Field theme={theme} disabled={submitting} label={t.reasoningPatternLabel} value={reasoning} onChangeText={edit(setReasoning)} />
+      <Field theme={theme} disabled={submitting} label={t.questionPrompt} value={prompt} onChangeText={edit(setPrompt)} multiline />
       {isChoice && <Section theme={theme}>
         <Copy theme={theme} tone="strong">{t.optionsAndAnswerKeyLabel}</Copy>
         {options.map((option, index) => <Section key={index} theme={theme}>
-          <Field theme={theme} label={interpolate(t.optionNumber, { number: String.fromCharCode(65 + index) })} value={option} onChangeText={(text) => setOptions((current) => current.map((item, itemIndex) => itemIndex === index ? text : item))} />
-          <Button theme={theme} variant={correct.includes(index) ? "default" : "outline"} accessibilityRole={type === "multiple_choice" ? "radio" : "checkbox"} accessibilityState={{ checked: correct.includes(index) }} onPress={() => setCorrect((current) => type === "multiple_choice" ? [index] : current.includes(index) ? current.filter((item) => item !== index) : [...current, index])}>{language(locale, "Kunci jawaban", "Correct answer")}</Button>
+          <Field theme={theme} disabled={submitting} label={interpolate(t.optionNumber, { number: String.fromCharCode(65 + index) })} value={option} onChangeText={edit((text: string) => setOptions((current) => current.map((item, itemIndex) => itemIndex === index ? text : item)))} />
+          <Button theme={theme} variant={correct.includes(index) ? "default" : "outline"} disabled={submitting} accessibilityRole={type === "multiple_choice" ? "radio" : "checkbox"} accessibilityState={{ checked: correct.includes(index) }} onPress={edit(() => setCorrect((current) => type === "multiple_choice" ? [index] : current.includes(index) ? current.filter((item) => item !== index) : [...current, index]))}>{language(locale, "Kunci jawaban", "Correct answer")}</Button>
         </Section>)}
       </Section>}
-      {type === "short_answer" && <Field theme={theme} label={t.acceptedAnswersLabel} value={answers} onChangeText={setAnswers} placeholder={t.acceptedAnswersPlaceholder} />}
-      <Field theme={theme} label={t.solutionRubricLabel} value={explanation} onChangeText={setExplanation} multiline />
-      <Field theme={theme} label={t.tagsLabel} value={tags} onChangeText={setTags} placeholder={t.tagsPlaceholder} />
+      {type === "short_answer" && <Field theme={theme} disabled={submitting} label={t.acceptedAnswersLabel} value={answers} onChangeText={edit(setAnswers)} placeholder={t.acceptedAnswersPlaceholder} />}
+      <Field theme={theme} disabled={submitting} label={t.solutionRubricLabel} value={explanation} onChangeText={edit(setExplanation)} multiline />
+      <Field theme={theme} disabled={submitting} label={t.tagsLabel} value={tags} onChangeText={edit(setTags)} placeholder={t.tagsPlaceholder} />
     </>}
     {validation && <Copy theme={theme} tone="error">{validation}</Copy>}
     {error !== undefined && <Failure error={error} presentation={presentation} />}
     {uncertain && <Copy theme={theme} tone="error">{language(locale, "Status penyimpanan belum diketahui. Periksa Bank Soal sebelum mengirim ulang.", "Save status is unknown. Review the question bank before submitting again.")}</Copy>}
     <Row>
-      <Button theme={theme} variant="outline" disabled={submitting} onPress={onClose}>{t.cancel}</Button>
+      <Button theme={theme} variant="outline" disabled={submitting} onPress={edit(onClose)}>{t.cancel}</Button>
       <Button theme={theme} variant="outline" isLoading={submitting} disabled={uncertain} onPress={() => void save("generated")}>{t.saveDraft}</Button>
       <Button theme={theme} isLoading={submitting} disabled={uncertain} onPress={() => void save("published")}>{t.savePublish}</Button>
     </Row>
