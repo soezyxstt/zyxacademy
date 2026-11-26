@@ -194,7 +194,7 @@ export async function writeNativeTryoutContent(slug: string, examId: string, edi
       const snapshot = receipt.afterSnapshot?.snapshot as { requestDigest?: unknown; questionId?: unknown; revision?: unknown } | undefined;
       if (receipt.actorId !== actorId || snapshot?.requestDigest !== digest) throw new Error("REQUEST_CONFLICT");
       if (edit.action === "delete" && snapshot.revision === null) return { legacyCourseId, revision: null };
-      if (edit.action === "save-question" && typeof snapshot.questionId === "string" && typeof snapshot.revision === "string") {
+      if (edit.action !== "delete" && typeof snapshot.questionId === "string" && typeof snapshot.revision === "string") {
         return { legacyCourseId, questionId: snapshot.questionId, revision: snapshot.revision };
       }
       throw new Error("REQUEST_CONFLICT");
@@ -213,6 +213,20 @@ export async function writeNativeTryoutContent(slug: string, examId: string, edi
         id: receiptId,
       });
       return { legacyCourseId, revision: null };
+    }
+
+    if (edit.action === "delete-question") {
+      const [deleted] = await tx.delete(questions).where(and(eq(questions.examId, examId), eq(questions.id, edit.targetId)))
+        .returning({ id: questions.id });
+      if (!deleted) throw new Error("TRYOUT_QUESTION_NOT_FOUND");
+      const revision = tryoutQuestionSetRevision(exam, rows.filter(row => row.id !== deleted.id));
+      await tx.insert(auditMutasi).values({
+        ...buildTutorMutationAuditRow({ ...audit, entityType: "question", entityId: deleted.id, action: "tryout_question:delete",
+          reason: "Tryout question deleted by admin", before: { id: deleted.id },
+          after: { requestDigest: digest, questionId: deleted.id, examId, revision } }),
+        id: receiptId,
+      });
+      return { legacyCourseId, questionId: deleted.id, revision };
     }
 
     rejectQuestionVisualReferences([edit.input]);

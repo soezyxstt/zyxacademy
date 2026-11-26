@@ -10,6 +10,7 @@ import { TRYOUT_GRADE_ATTACHMENT_ACCOUNT, TRYOUT_GRADE_ATTACHMENT_SESSION, tryou
 import { readStoredTryoutGradeAttachment } from "../../../../lib/native/academic/grading-snapshot";
 import { defaultQuiz } from "./model";
 import { initialQuizScheduleMode, quizAuthoringPayload, quizAvailability } from "./quiz-payload";
+import { handleAdminTryoutDraftCommand } from "../../../../lib/native/academic/assessment/tryout-draft-command";
 
 test("Admin quiz overrides preserve the schedule in the canonical template payload", () => {
   const initial = { ...defaultQuiz("admin"), manualStatus: "closed" as const,
@@ -24,6 +25,45 @@ test("Admin quiz overrides preserve the schedule in the canonical template paylo
   }
   assert.deepEqual(quizAvailability(initial, "manual"), { manualStatus: "closed", openAt: null, closeAt: null });
   assert.deepEqual(quizAvailability({ ...initial, manualStatus: "scheduled" }, "manual"), { manualStatus: "open", openAt: null, closeAt: null });
+});
+
+test("Admin direct Tryout question deletion binds the question, exam, revision and receipt", async () => {
+  const origin = "https://example.test";
+  const accountId = "admin";
+  const calls: string[] = [];
+  const expectedRevision = "a".repeat(64);
+  const requestId = "direct-question-delete";
+  const context = { actor: { id: accountId, role: "admin" }, scope: { kind: "admin", slug: "bio" }, scenario: "populated" } as const;
+  const client = createAssessmentReadGateway({
+    accountId, origin, locale: "id", get: async () => Response.json(null, { status: 404 }),
+    command: async (path, init) => {
+      calls.push(path);
+      const req = new Request(origin + path, { method: init.method, headers: {
+        origin, "content-type": "application/json", "idempotency-key": init.requestId,
+      }, body: JSON.stringify(init.body) });
+      const parts = path.split("/").slice(4).map(decodeURIComponent);
+      return handleAdminTryoutDraftCommand(req, parts, origin, {
+        session: async () => ({ user: { id: accountId }, session: { id: "session" } }),
+        hasAdmin: async id => id === accountId,
+        save: async () => assert.fail(),
+        saveMetadata: async () => assert.fail(),
+        changeQuestions: async () => assert.fail(),
+        writeContent: async (slug, examId, edit, key, viewer) => {
+          assert.equal(slug, "bio");
+          assert.equal(examId, "exam");
+          assert.deepEqual(edit, { action: "delete-question", targetId: "direct-question", courseId: "course", expectedRevision });
+          assert.equal(key, requestId);
+          assert.equal(viewer.session.id, "session");
+          return { examId, questionId: calls.length === 1 ? "other-question" : "direct-question", revision: "b".repeat(64) };
+        },
+      });
+    },
+  });
+  const command = { kind: "tryout.question.delete", courseId: "course", examId: "exam",
+    target: { id: "direct-question", expectedRevision: 0 }, authoringRevision: expectedRevision } as const;
+  assert.equal((await client.mutate(context, requestId, command)).ok, false);
+  assert.deepEqual(await client.mutate(context, requestId, command), { ok: true, value: { id: "exam", message: "Soal tryout dihapus." } });
+  assert.deepEqual(calls, Array(2).fill("/api/native/academic-assessment/admin/bio/tryouts/exam/questions/direct-question"));
 });
 
 function services(override: Partial<AssessmentReadServices> = {}): AssessmentReadServices {

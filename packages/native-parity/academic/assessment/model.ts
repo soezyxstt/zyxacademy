@@ -155,7 +155,7 @@ export type AssessmentCommand =
   | (TryoutMetadataCommand & { kind: "tryout.metadata.save" })
   | { kind: "tryout.delete"; target: VersionRef; courseId?: string; authoringRevision?: string }
   | { kind: "tryout.question.save"; examId: string; target: VersionRef | null; input: TryoutQuestionInput; courseId?: string; authoringRevision?: string }
-  | { kind: "tryout.question.delete"; examId: string; target: VersionRef; courseId?: string; questionSetRevision?: string }
+  | { kind: "tryout.question.delete"; examId: string; target: VersionRef; courseId?: string; questionSetRevision?: string; authoringRevision?: string }
   | { kind: "tryout.question.import"; exam: VersionRef; bankIds: string[]; courseId?: string; questionSetRevision?: string }
   | { kind: "grading.save"; attemptId: string; items: GradeItem[]; finalize: boolean };
 

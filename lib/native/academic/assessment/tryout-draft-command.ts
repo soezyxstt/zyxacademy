@@ -64,10 +64,11 @@ export async function handleAdminTryoutDraftCommand(request: Request, parts: str
   const managingQuestions = request.method === "POST" && parts.length === 5 && operation === "questions";
   const creatingQuestion = request.method === "POST" && parts.length === 6 && operation === "questions" && questionId === "direct";
   const editingQuestion = request.method === "PATCH" && parts.length === 6 && operation === "questions";
+  const deletingQuestion = request.method === "DELETE" && parts.length === 6 && operation === "questions";
   const deleting = request.method === "DELETE" && parts.length === 4;
   const reply = courseCommandReply;
-  if (role !== "admin" || section !== "tryouts" || (!creating && !editing && !managingQuestions && !creatingQuestion && !editingQuestion && !deleting)) return reply(404, { error: "NOT_FOUND" });
-  if (!validCourseCommandId(slug) || (!creating && !validCourseCommandId(examId)) || (editingQuestion && !validCourseCommandId(questionId))) return reply(400, { error: "INVALID_PATH" });
+  if (role !== "admin" || section !== "tryouts" || (!creating && !editing && !managingQuestions && !creatingQuestion && !editingQuestion && !deleting && !deletingQuestion)) return reply(404, { error: "NOT_FOUND" });
+  if (!validCourseCommandId(slug) || (!creating && !validCourseCommandId(examId)) || ((editingQuestion || deletingQuestion) && !validCourseCommandId(questionId))) return reply(400, { error: "INVALID_PATH" });
   const site = request.headers.get("sec-fetch-site");
   if (request.headers.get("origin") !== origin || (site && site !== "same-origin")) return reply(403, { error: "INVALID_ORIGIN" });
   if (request.headers.get("content-type")?.split(";")[0].trim() !== "application/json") return reply(415, { error: "INVALID_CONTENT_TYPE" });
@@ -78,10 +79,13 @@ export async function handleAdminTryoutDraftCommand(request: Request, parts: str
     if (!(await services.hasAdmin(viewer.user.id))) return reply(403, { error: "FORBIDDEN" });
     const requestId = request.headers.get("idempotency-key");
     if (!requestId || !/^[\w-]{16,100}$/.test(requestId)) return reply(400, { error: "INVALID_REQUEST_ID" });
-    if (deleting) {
+    if (deleting || deletingQuestion) {
       const body = await readCourseCommandBody(request, deleteSchema);
-      if (!body?.success) return reply(422, { error: "INVALID_TRYOUT_DELETE" });
-      const outcome = await services.writeContent(slug, examId, { ...body.data, action: "delete" }, requestId, viewer);
+      if (!body?.success) return reply(422, { error: deletingQuestion ? "INVALID_TRYOUT_QUESTION" : "INVALID_TRYOUT_DELETE" });
+      const edit: TryoutContentWrite = deletingQuestion
+        ? { ...body.data, action: "delete-question", targetId: questionId }
+        : { ...body.data, action: "delete" };
+      const outcome = await services.writeContent(slug, examId, edit, requestId, viewer);
       return reply(200, { ...outcome, requestId });
     }
     if (creatingQuestion || editingQuestion) {

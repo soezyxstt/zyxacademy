@@ -16,6 +16,7 @@ export type TryoutQuestionSetWrite = { courseId: string; expectedRevision: strin
 );
 export type TryoutContentWrite = { courseId: string; expectedRevision: string } & (
   | { action: "save-question"; targetId: string | null; input: TryoutQuestionInput }
+  | { action: "delete-question"; targetId: string }
   | { action: "delete" }
 );
 export type TryoutContentReceipt = { requestId: string; examId: string; questionId?: string; revision: string | null };

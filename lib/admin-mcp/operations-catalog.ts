@@ -320,7 +320,7 @@ export const operationsCatalog = [
     "actions": ["GET", "POST", "PATCH", "DELETE"],
     "tools": [],
     "status": "excluded",
-    "reason": "Interactive assessment reads and manual grading use the signed-in role, disclosure checks and course access. Tutor attachment downloads resolve the exact submitted answer and use protected storage. Grading retries are bound to the active Tutor session. Tryout drafts, explicit metadata and lifecycle saves, and bank selection require active Admin authority and course-scoped revisions. The status-aware route binds retry receipts to the original Admin session. Direct question edits and unused tryout deletion use course-scoped revisions and retain submitted snapshots. Tutor bank edits require the active Tutor session and an assigned course. Source references remain immutable. Existing MCP authoring tools keep their registered scopes, consent and service contracts."
+    "reason": "Interactive assessment reads and manual grading use the signed-in role, disclosure checks and course access. Tutor attachment downloads resolve the exact submitted answer and use protected storage. Grading retries are bound to the active Tutor session. Tryout drafts, explicit metadata and lifecycle saves, and bank selection require active Admin authority and course-scoped revisions. The status-aware route binds retry receipts to the original Admin session. Direct question edits and deletions bind the exact tryout and question, and unused tryout deletion uses the current course-scoped revision. Submitted snapshots remain available. Tutor bank edits require the active Tutor session and an assigned course. Source references remain immutable. Existing MCP authoring tools keep their registered scopes, consent and service contracts."
   },
   {
     "source": "app/api/native/academic-administration/tutorial-operations/route.ts",
@@ -464,10 +464,17 @@ export const operationsCatalog = [
   },
   {
     "source": "apps/mobile-native/features/site-search/results.ts",
-    "actions": ["readSearchHits"],
+    "actions": ["readSearchHits", "readSearchPeople", "localSearchHits", "searchShortcuts"],
     "tools": [],
     "status": "excluded",
-    "reason": "The authenticated app reads the existing role-filtered site search on its current origin. Result selection opens an installed role route or the public website. Search does not delegate an admin operation or change MCP authorization."
+    "reason": "Verified users search the existing index and eligible navigation links. Student profile lookup uses the existing visibility-filtered social endpoint. These reads and local navigation are personal UI actions."
+  },
+  {
+    "source": "apps/mobile-native/features/site-search/saved-links.ts",
+    "actions": ["updateSavedLinks", "readSavedLinks"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Recent search destinations and favorites are local to the signed account and role on this device."
   },
   {
     "source": "apps/mobile-native/routing/route-history.ts",

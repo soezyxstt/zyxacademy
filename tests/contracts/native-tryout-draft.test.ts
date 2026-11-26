@@ -355,6 +355,21 @@ it("edits direct questions in any tryout status, validates the enclosing course 
   expect(await deniedDelete.json()).toEqual({ error: "TRYOUT_HAS_SUBMISSIONS" });
   expect(await readResult()).toEqual(resultBefore);
   expect(await db.select().from(schema.questions).where(eq(schema.questions.id, question.id))).toEqual([row]);
+
+  const deleteKey = "native-tryout-direct-live-delete";
+  const deleteScope = { ...scope, expectedRevision: receipt.revision };
+  expect((await command("DELETE", deleteKey, deleteScope, { ...path, viewer: tutor, admitAdmin: true })).status).toBe(403);
+  expect((await command("DELETE", deleteKey, deleteScope, { ...path, direct: foreignQuestion.id })).status).toBe(404);
+  expect((await command("DELETE", deleteKey, scope, path)).status).toBe(409);
+  const deleted = await command("DELETE", deleteKey, deleteScope, path);
+  expect(deleted.status).toBe(200);
+  const deletionReceipt = await deleted.json();
+  expect(deletionReceipt).toEqual({ requestId: deleteKey, examId: exam.id, questionId: question.id, revision: tryoutQuestionSetRevision(exam, []) });
+  expect(await (await command("DELETE", deleteKey, deleteScope, path)).json()).toEqual(deletionReceipt);
+  expect(await (await command("DELETE", deleteKey, deleteScope, { ...path, viewer: sameAdminOtherSession })).json()).toEqual({ error: "REQUEST_CONFLICT" });
+  expect(await readResult()).toEqual(resultBefore);
+  expect(await db.select().from(schema.questions).where(eq(schema.questions.examId, exam.id))).toEqual([]);
+  expect(await db.select().from(schema.questions).where(eq(schema.questions.id, foreignQuestion.id))).toEqual([foreignQuestion]);
 });
 
 it("adds questions and deletes an unused tryout with one durable deletion receipt", async () => {

@@ -142,6 +142,7 @@ export function createAssessmentReadGateway(transport: AcademicTransport): Asses
     let method: "PATCH" | "POST" | "DELETE" = "POST";
     let path: string;
     const metadata = command.kind === "tryout.metadata.save";
+    const deletingQuestion = command.kind === "tryout.question.delete" && Boolean(command.authoringRevision);
     if (command.kind === "tryout.save" || metadata) {
       const { input, target } = command;
       if ((!metadata && input.status !== "draft") || (target && !target.metadataRevision)) return forbidden;
@@ -155,13 +156,18 @@ export function createAssessmentReadGateway(transport: AcademicTransport): Asses
         openAt: input.openAt, closeAt: input.closeAt,
       };
       body = metadata ? { ...fields, status: input.status } : fields;
-    } else if (command.kind === "tryout.delete" || command.kind === "tryout.question.save") {
+    } else if (command.kind === "tryout.delete" || command.kind === "tryout.question.save" || deletingQuestion) {
       if (!command.authoringRevision) return forbidden;
       const fields = { courseId, expectedRevision: command.authoringRevision };
       if (command.kind === "tryout.delete") {
         examId = command.target.id;
         method = "DELETE";
         path = `tryouts/${encodeURIComponent(examId)}`;
+        body = fields;
+      } else if (command.kind === "tryout.question.delete") {
+        examId = command.examId;
+        method = "DELETE";
+        path = `tryouts/${encodeURIComponent(examId)}/questions/${encodeURIComponent(command.target.id)}`;
         body = fields;
       } else {
         examId = command.examId;
@@ -238,7 +244,10 @@ export function createAssessmentReadGateway(transport: AcademicTransport): Asses
             imported < 0 || skipped < 0 || imported + skipped !== command.bankIds.length) return uncertain;
           message = skipped ? `${imported} soal diimpor, ${skipped} dilewati.` : `${imported} soal diimpor.`;
         }
-        if (command.kind === "tryout.question.delete") message = "Soal dihapus dari draf.";
+        if (command.kind === "tryout.question.delete") {
+          if (deletingQuestion && receipt.questionId !== command.target.id) return uncertain;
+          message = deletingQuestion ? "Soal tryout dihapus." : "Soal dihapus dari draf.";
+        }
         entry.effect = { id: receipt.examId, message };
         return { ok: true, value: entry.effect };
       } catch {

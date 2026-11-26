@@ -99,7 +99,7 @@ export function Tryouts({ gateway, context, back }: Props) {
             {canEditQuestions || (canManageBank && question.bankQuestionId) ? <View style={layout.row}>
               {canEditQuestions ? <Action label="Edit" disabled={Boolean(recovery)} testID={`academic-tryout-edit-question-${question.id}`}
                 onPress={() => open({ kind: "question", exam: active, question })} /> : null}
-              {gateway.canMutate || (canManageBank && question.bankQuestionId)
+              {canEditQuestions || (canManageBank && question.bankQuestionId)
                 ? <Action label="Hapus" variation="ghost" disabled={Boolean(recovery)} onPress={() => open({ kind: "deleteQuestion", exam: active, question })}
                   testID={`academic-tryout-remove-${question.id}`} /> : null}
             </View> : null}
@@ -180,6 +180,7 @@ export function Tryouts({ gateway, context, back }: Props) {
         confirm={() => mutation.send({
           kind: "tryout.question.delete", examId: modal.exam.id, target: targetVersion(modal.question),
           courseId: data.course.id, questionSetRevision: modal.exam.questionSetRevision,
+          authoringRevision: canAuthorContent ? modal.exam.authoringRevision : undefined,
         }, finished)}>
         {feedback}
       </ConfirmAction> : null}

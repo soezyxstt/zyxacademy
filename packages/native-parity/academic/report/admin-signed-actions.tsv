@@ -62,7 +62,7 @@ route	action_family	source_status	web_entry	native_entry
 /admin/courses/[slug]/settings	Edit course identity, description and access pricing	connected	components/admin/course-detail/settings-tab.tsx	apps/mobile-native/features/academic/courses/live-settings.tsx
 /admin/courses/[slug]/settings	Inspect eligibility and set, replace or clear the public demo course	connected	components/admin/course-detail/settings-tab.tsx	apps/mobile-native/features/academic/courses/live-demo-selection.tsx
 /admin/courses/[slug]/tryouts	Create, edit and delete tryouts	connected	app/(tutor)/tutor/[courseId]/tryouts/tryouts-client.tsx	apps/mobile-native/features/academic/assessment/tryouts.tsx
-/admin/courses/[slug]/tryouts	Create, edit and remove tryout questions	connected	app/(tutor)/tutor/[courseId]/tryouts/tryouts-client.tsx	apps/mobile-native/features/academic/assessment/tryouts.tsx
+/admin/courses/[slug]/tryouts	Create and edit tryout questions, or delete the exact question with its revision	connected	app/(tutor)/tutor/[courseId]/tryouts/tryouts-client.tsx	apps/mobile-native/features/academic/assessment/tryouts.tsx
 /admin/courses/[slug]/tryouts	Import questions from the bank into the selected tryout	connected	app/(tutor)/tutor/[courseId]/tryouts/tryouts-client.tsx	apps/mobile-native/features/academic/assessment/tryouts.tsx
 /admin/courses/[slug]/videos	Create and edit playlists and video details or upload a course video	connected	components/course/video/course-videos-client.tsx	apps/mobile-native/features/academic/courses/live-videos.tsx
 /admin/courses/[slug]/videos	Delete a playlist or individual video	connected	components/course/video/course-videos-client.tsx	apps/mobile-native/features/academic/courses/live-videos.tsx
