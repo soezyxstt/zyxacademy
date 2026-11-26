@@ -32,10 +32,22 @@ export function quietHoursEnd(preferences: QuietHours, now = new Date()): Date |
  }
  throw new Error("QUIET_WINDOW_END_UNRESOLVED");
 }
+// /discussions is a role-aware redirect; the mounted workspaces use these paths.
+function isDiscussionWorkspacePath(pathname: string): boolean {
+ return /^(?:\/discussions|\/dashboard\/discussions|\/admin\/discussions|\/tutor\/discussions|\/courses\/[^/]+\/discussions|\/tutor\/[^/]+\/discussions)\/?$/.test(pathname);
+}
+
 export function notificationMatchesVisibleDiscussion(url: string | undefined, location: { pathname: string; search: string }, visible: boolean): boolean {
- if (!visible || !url || !url.startsWith("/discussions") || location.pathname !== "/discussions") return false;
- const incoming = new URL(url, "https://zyx.invalid");
- if (incoming.pathname !== "/discussions") return false;
- const thread = incoming.searchParams.get("thread");
- return Boolean(thread && new URLSearchParams(location.search).get("thread") === thread);
+ if (!visible || !url?.startsWith("/") || !isDiscussionWorkspacePath(location.pathname)) return false;
+ try {
+  const base = "https://zyx.invalid";
+  const incoming = new URL(url, base);
+  if (incoming.origin !== base || !isDiscussionWorkspacePath(incoming.pathname)) return false;
+  const current = new URLSearchParams(location.search);
+  if (current.get("discussionTab") === "reports" || incoming.searchParams.get("discussionTab") === "reports") return false;
+  const thread = incoming.searchParams.get("thread");
+  return Boolean(thread && current.get("thread") === thread);
+ } catch {
+  return false;
+ }
 }
