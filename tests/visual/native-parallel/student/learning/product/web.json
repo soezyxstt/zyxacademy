@@ -138,6 +138,173 @@
           "sha256": "acf2d0efad0b6dba608d9f0d4f4cf1c512f1fccb18e457ceeb3f7b2d90ce95c6"
         }
       ]
+    },
+    {
+      "id": "video",
+      "pattern": "/courses/[id]/video",
+      "path": "/courses/learning-evidence-math/video",
+      "text": [
+        "Pembahasan limit",
+        "Membaca limit dengan tabel"
+      ],
+      "terminal": "/courses/learning-evidence-math/video",
+      "status": 200,
+      "documents": [
+        {
+          "status": 200,
+          "path": "/courses/learning-evidence-math/video"
+        }
+      ],
+      "screenshots": [
+        {
+          "file": "video.png",
+          "sha256": "632f0f5e0943710cf5022a4966fc09ec6e590896b34b92a5fd9e4c8fdbc7e445"
+        }
+      ]
+    },
+    {
+      "id": "live",
+      "pattern": "/courses/[id]/live",
+      "path": "/courses/learning-evidence-math/live",
+      "text": [
+        "Belum ada sesi kuis langsung"
+      ],
+      "terminal": "/courses/learning-evidence-math/live",
+      "status": 200,
+      "documents": [
+        {
+          "status": 200,
+          "path": "/courses/learning-evidence-math/live"
+        }
+      ],
+      "screenshots": [
+        {
+          "file": "live.png",
+          "sha256": "014988f73c76a31c6ec392dec5cc5963cc1e776f24380707105a3add17c653cf"
+        }
+      ]
+    },
+    {
+      "id": "live-host",
+      "pattern": "/courses/[id]/live/host",
+      "path": "/courses/learning-evidence-math/live/host",
+      "redirects": [
+        "/tutor/learning-evidence-math/live",
+        "/"
+      ],
+      "terminal": "/",
+      "actualPath": "/courses/learning-evidence-math/live/host",
+      "documents": [
+        {
+          "status": 200,
+          "path": "/courses/learning-evidence-math/live/host"
+        }
+      ],
+      "error": "waitForURL: Timeout 30000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation until \"load\"\n  navigated to \"http://127.0.0.1:3140/courses/learning-evidence-math/live/host\"\n============================================================",
+      "failedRequests": [],
+      "runtimeErrors": []
+    },
+    {
+      "id": "pka-home",
+      "pattern": "/courses/tutorial-pka",
+      "path": "/courses/tutorial-pka",
+      "text": [
+        "Persiapan sesi Matematika",
+        "Diskusi limit PKA"
+      ],
+      "terminal": "/courses/tutorial-pka",
+      "status": 200,
+      "documents": [
+        {
+          "status": 200,
+          "path": "/courses/tutorial-pka"
+        }
+      ],
+      "screenshots": [
+        {
+          "file": "pka-home.png",
+          "sha256": "00ced4c0f9ca7348a4a6558dd439ebec5767bc0cd9e9b437e9b70efb60174e64"
+        }
+      ]
+    },
+    {
+      "id": "pka-registration",
+      "pattern": "/courses/tutorial-pka/daftar",
+      "path": "/courses/tutorial-pka/daftar",
+      "text": [
+        "Pendaftaran ditutup"
+      ],
+      "scenario": "visitor",
+      "terminal": "/courses/tutorial-pka/daftar",
+      "status": 200,
+      "preflightStatus": 200,
+      "documents": [
+        {
+          "status": 200,
+          "path": "/courses/tutorial-pka/daftar"
+        }
+      ],
+      "redirectRequests": [],
+      "redirectEvidence": [],
+      "screenshots": [
+        {
+          "file": "pka-registration.png",
+          "sha256": "3e10946e250d55d3665ec46126e44eca232e7af92fd10d574cc72f15b4594eca"
+        }
+      ]
+    },
+    {
+      "id": "pka-schedule",
+      "pattern": "/courses/tutorial-pka/jadwal",
+      "path": "/courses/tutorial-pka/jadwal",
+      "text": [
+        "Diskusi limit PKA",
+        "Gabung Meet"
+      ],
+      "actualPath": "/courses/tutorial-pka/jadwal",
+      "preflightStatus": 200,
+      "documents": [
+        {
+          "status": 200,
+          "path": "/courses/tutorial-pka/jadwal"
+        }
+      ],
+      "redirectRequests": [],
+      "visibleHeadings": [
+        "Jadwal Live Tutorial",
+        "Sesi tutorial"
+      ],
+      "error": "Same-origin HTTP or page runtime error",
+      "failedRequests": [],
+      "runtimeErrors": [
+        "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/clien"
+      ]
+    },
+    {
+      "id": "pka-report",
+      "pattern": "/courses/tutorial-pka/laporan",
+      "path": "/courses/tutorial-pka/laporan",
+      "text": [
+        "Laporan diagnostik",
+        "85%"
+      ],
+      "terminal": "/courses/tutorial-pka/laporan",
+      "status": 200,
+      "preflightStatus": 200,
+      "documents": [
+        {
+          "status": 200,
+          "path": "/courses/tutorial-pka/laporan"
+        }
+      ],
+      "redirectRequests": [],
+      "redirectEvidence": [],
+      "screenshots": [
+        {
+          "file": "pka-report.png",
+          "sha256": "d491bdfc1b0f1b480ee5f9d1e21c55d48e4e46166708761c5611b344278127d9"
+        }
+      ]
     }
   ]
 }

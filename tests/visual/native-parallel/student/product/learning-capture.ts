@@ -1,4 +1,4 @@
-import { chromium, type Page } from "@playwright/test";
+import { chromium, type BrowserContext, type Page } from "@playwright/test";
 import { makeSignature } from "better-auth/crypto";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -53,8 +53,12 @@ const serverSha = process.env.STUDENT_SERVER_SHA;
 if (!serverSha || !/^[a-f0-9]{40}$/.test(serverSha)) throw new Error("Set STUDENT_SERVER_SHA to the running Next checkout commit");
 const out = process.env.STUDENT_CAPTURE_DIR ?? "artifacts/student-evidence/learning-product";
 const ids = process.env.STUDENT_LEARNING_CAPTURE_IDS?.split(",").filter(Boolean);
-const selected = ids ? cases.filter(item => ids.includes(item.id)) : cases;
-if (!selected.length || (ids && selected.length !== ids.length)) throw new Error("Unrecognized learning capture ID");
+const selected = ids ? ids.map(id => {
+  const item = cases.find(value => value.id === id);
+  if (!item) throw new Error(`Unrecognized learning capture ID ${id}`);
+  return item;
+}) : cases;
+if (!selected.length || new Set(selected.map(item => item.id)).size !== selected.length) throw new Error("Select unique learning cases");
 const width = 380, height = 844, dpr = 1;
 const theme = "light", locale = "id-ID", timezone = "Asia/Jakarta";
 
@@ -80,29 +84,48 @@ async function capture(page: Page, filename: string) {
 await mkdir(out, { recursive: true });
 const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH });
 const results: Record<string, unknown>[] = [];
+const contexts = new Map<string, BrowserContext>();
+async function contextFor(id: string) {
+  const existing = contexts.get(id);
+  if (existing) return existing;
+  const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: dpr, isMobile: true, hasTouch: true,
+    locale, timezoneId: timezone, colorScheme: theme, reducedMotion: "reduce", serviceWorkers: "block" });
+  await context.addCookies([{ name: "better-auth.session_token", value: cookie.get(id)!, url: origin, httpOnly: true, sameSite: "Lax" }]);
+  await context.route("**/*", route => {
+    const url = new URL(route.request().url());
+    return url.protocol === "data:" || url.protocol === "blob:" || url.origin === origin ? route.continue() : route.abort();
+  });
+  contexts.set(id, context);
+  return context;
+}
 try {
   for (const item of selected) {
-    const id = item.scenario === "visitor" ? learningEvidence.visitor : learningEvidence.learner;
-    const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: dpr, isMobile: true, hasTouch: true,
-      locale, timezoneId: timezone, colorScheme: theme, reducedMotion: "reduce", serviceWorkers: "block" });
-    await context.addCookies([{ name: "better-auth.session_token", value: cookie.get(id)!, url: origin, httpOnly: true, sameSite: "Lax" }]);
-    await context.route("**/*", route => {
-      const url = new URL(route.request().url());
-      return url.protocol === "data:" || url.protocol === "blob:" || url.origin === origin ? route.continue() : route.abort();
-    });
+    const actor = item.scenario === "visitor" ? learningEvidence.visitor : learningEvidence.learner;
+    const context = await contextFor(actor);
     const page = await context.newPage();
+    let preflightStatus: number | undefined;
     const documents: { status: number; path: string }[] = [], errors: string[] = [], failedRequests: string[] = [];
+    const redirectRequests: { status: number; path: string; type: string }[] = [];
     page.on("pageerror", error => errors.push(error.message.slice(0, 200)));
     page.on("response", response => {
       const url = new URL(response.url());
       if (url.origin !== origin) return;
-      if (response.request().resourceType() === "document") documents.push({ status: response.status(), path: url.pathname });
+      const type = response.request().resourceType();
+      if (type === "document") documents.push({ status: response.status(), path: url.pathname });
+      if (item.redirects?.includes(url.pathname) && (type === "document" || type === "fetch")) {
+        redirectRequests.push({ status: response.status(), path: url.pathname, type });
+      }
       if (response.status() >= 400) failedRequests.push(`${response.status()} ${url.pathname}`);
     });
     try {
-      const response = await page.goto(origin + item.path, { timeout: 150_000, waitUntil: "domcontentloaded" });
+      // Warm the route in the local development server before Chromium loads its assets.
+      const preflight = await fetch(origin + item.path, { redirect: "manual", signal: AbortSignal.timeout(100_000),
+        headers: { cookie: `better-auth.session_token=${cookie.get(actor)}` } }).catch(() => null);
+      preflightStatus = preflight?.status;
+      const initialHtml = await preflight?.text().catch(() => "") ?? "";
+      const response = await page.goto(origin + item.path, { timeout: 125_000, waitUntil: "commit" });
       const expectedPath = item.terminal ?? item.path;
-      await page.waitForURL(url => url.pathname === expectedPath, { timeout: 30_000 });
+      await page.waitForURL(url => url.pathname === expectedPath, { timeout: 100_000, waitUntil: "domcontentloaded" });
       if (!response?.ok()) throw new Error(`Initial navigation HTTP ${response?.status()}`);
       await page.locator("main").last().waitFor({ state: "visible", timeout: 30_000 });
       if (expectedPath.startsWith("/courses/")) {
@@ -110,9 +133,14 @@ try {
       }
       for (const text of item.text ?? []) await page.getByText(text, { exact: false }).filter({ visible: true }).first().waitFor({ state: "visible", timeout: 35_000 });
       if (item.selector) await page.locator(item.selector).first().waitFor({ state: "visible", timeout: 15_000 });
-      for (const expected of item.redirects ?? []) {
-        if (expected !== expectedPath && !documents.some(document => document.path === expected && document.status >= 300 && document.status < 400)) {
-          throw new Error(`Missing redirect document ${expected}`);
+      const redirectEvidence: { path: string; streamed: boolean }[] = [];
+      if (item.redirects?.length) {
+        for (const expected of item.redirects) {
+          const streamed = initialHtml.includes(`NEXT_REDIRECT;replace;${expected};`);
+          if (expected !== expectedPath && !streamed && !redirectRequests.some(request => request.path === expected)) {
+            throw new Error(`Missing redirect to ${expected}`);
+          }
+          redirectEvidence.push({ path: expected, streamed });
         }
       }
       await page.evaluate(() => document.fonts.ready);
@@ -126,15 +154,15 @@ try {
         await page.locator("[data-flashcard-rating-dock]").waitFor({ state: "visible" });
         screenshots.push(await capture(page, `${item.id}-answer.png`));
       }
-      results.push({ ...item, terminal: expectedPath, status: response.status(), documents, screenshots });
+      results.push({ ...item, terminal: expectedPath, status: response.status(), preflightStatus, documents, redirectRequests, redirectEvidence, screenshots });
       console.log(`${item.id}: captured`);
     } catch (error) {
       const headings = await page.locator("main h1:visible, main h2:visible, main h3:visible").allTextContents().catch(() => []);
-      results.push({ ...item, actualPath: new URL(page.url()).pathname, documents, visibleHeadings: headings.slice(0, 5),
+      results.push({ ...item, actualPath: new URL(page.url()).pathname, preflightStatus, documents, redirectRequests, visibleHeadings: headings.slice(0, 5),
         error: error instanceof Error ? error.message.slice(0, 400) : "Unavailable", failedRequests, runtimeErrors: errors });
       console.log(`${item.id}: unavailable`);
     } finally {
-      await context.close();
+      await page.close();
       await writeFile(join(out, "web.json"), JSON.stringify({ serverSha, browser: browser.version(), width, height, dpr, theme, locale, timezone, results }, null, 2) + "\n");
     }
   }

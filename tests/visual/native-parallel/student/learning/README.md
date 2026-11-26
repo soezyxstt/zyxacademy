@@ -1,5 +1,7 @@
 # Referensi web flashcard Student
 
+Referensi untuk halaman produk Learning dengan sesi Student dan PostgreSQL sintetis disimpan bersama manifest dan seed. [Referensi produk](product/README.md)
+
 Tangkapan Playwright menggunakan komponen flashcard web dan data sintetis pada Chromium 154.0.8037.57 dengan Playwright 1.62.1. Project `mobile-380` menetapkan viewport 380 × 844, DPR 1, tema terang, locale `id-ID`, dan zona waktu `Asia/Jakarta`. Fixture membekukan waktu pada 18 November 2026 untuk mengontrol percobaan review. [Spec Playwright](../../../learning-query.spec.ts) · [Fixture UI](../../../fixtures/learning-query.tsx)
 
 | Kasus | Tangkapan asli | SHA-256 |
