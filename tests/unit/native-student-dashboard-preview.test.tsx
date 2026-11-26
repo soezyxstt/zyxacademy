@@ -40,13 +40,13 @@ test("dashboard free previews render and open the allowed first material without
       },
     }],
   });
-  const module: { exports: { DashboardPreviewCourses?: (props: PreviewProps) => ReactNode } } = { exports: {} };
+  const harnessModule: { exports: { DashboardPreviewCourses?: (props: PreviewProps) => ReactNode } } = { exports: {} };
   runInNewContext(bundle.outputFiles[0].text, {
-    module,
+    module: harnessModule,
     require: createRequire(import.meta.url),
     Intl: { NumberFormat: Intl.NumberFormat },
   });
-  const { DashboardPreviewCourses } = module.exports;
+  const { DashboardPreviewCourses } = harnessModule.exports;
   if (!DashboardPreviewCourses) throw new Error("Expected the production dashboard preview component");
   const previews = await Promise.all(["dashboard-parity-unenrolled", "dashboard-parity-revoked"].map(async scenario => {
     const request = createStudentFixtureRequest(scenario);
