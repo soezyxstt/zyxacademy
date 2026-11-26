@@ -3,12 +3,31 @@ import { describe, expect, test } from "bun:test";
 import { getGridColumnCount, getPaginationState } from "../../../apps/mobile-native/features/shared-ui/data-model";
 
 describe("shared native grid sizing", () => {
-  test("switches columns when the container can fit the minimum card width and gap", () => {
-    expect(getGridColumnCount(348, 228, 12, 5)).toBe(1);
-    expect(getGridColumnCount(467, 228, 12, 5)).toBe(1);
-    expect(getGridColumnCount(468, 228, 12, 5)).toBe(2);
-    expect(getGridColumnCount(736, 228, 12, 5)).toBe(3);
-    expect(getGridColumnCount(1536, 228, 12, 5)).toBe(5);
+  test("matches each Student document grid container breakpoint", () => {
+    expect(getGridColumnCount(348, 1)).toBe(1);
+    expect(getGridColumnCount(463, 1)).toBe(1);
+    expect(getGridColumnCount(464, 1)).toBe(2);
+    expect(getGridColumnCount(703, 1)).toBe(2);
+    expect(getGridColumnCount(704, 1)).toBe(3);
+    expect(getGridColumnCount(943, 1)).toBe(3);
+    expect(getGridColumnCount(944, 1)).toBe(4);
+    expect(getGridColumnCount(1183, 1)).toBe(4);
+    expect(getGridColumnCount(1184, 1)).toBe(5);
+    expect(getGridColumnCount(1536, 1)).toBe(5);
+  });
+
+  test("scales the default breakpoints for larger text and honors the column cap", () => {
+    expect(getGridColumnCount(695, 1.5)).toBe(1);
+    expect(getGridColumnCount(696, 1.5)).toBe(2);
+    expect(getGridColumnCount(1536, 1, { maxColumns: 2 })).toBe(2);
+  });
+
+  test("uses the minimum card width and gap when sizing is customized", () => {
+    expect(getGridColumnCount(407, 1, { minItemWidth: 200, gap: 8 })).toBe(1);
+    expect(getGridColumnCount(408, 1, { minItemWidth: 200, gap: 8 })).toBe(2);
+    expect(getGridColumnCount(607, 1.5, { minItemWidth: 200, gap: 8 })).toBe(1);
+    expect(getGridColumnCount(608, 1.5, { minItemWidth: 200, gap: 8 })).toBe(2);
+    expect(getGridColumnCount(464, 1, { gap: 12 })).toBe(1);
   });
 });
 

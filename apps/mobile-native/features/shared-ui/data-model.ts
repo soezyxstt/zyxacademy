@@ -1,5 +1,19 @@
-export function getGridColumnCount(width: number, minItemWidth: number, gap: number, maxColumns: number) {
-  return Math.max(1, Math.min(maxColumns, Math.floor((width + gap) / (minItemWidth + gap))));
+export const defaultGridGap = 12;
+
+// Container queries in the Student document list, in dp at the default text scale.
+const documentGridBreakpoints = [464, 704, 944, 1184];
+
+export function getGridColumnCount(
+  width: number,
+  fontScale: number,
+  { minItemWidth, gap, maxColumns = 5 }: { minItemWidth?: number; gap?: number; maxColumns?: number } = {},
+) {
+  const scale = Math.max(1, fontScale);
+  const itemGap = gap ?? defaultGridGap;
+  const columns = minItemWidth === undefined && gap === undefined
+    ? 1 + documentGridBreakpoints.filter((breakpoint) => width >= breakpoint * scale).length
+    : Math.floor((width + itemGap) / ((minItemWidth ?? 228) * scale + itemGap));
+  return Math.max(1, Math.min(maxColumns, columns));
 }
 
 export function getPaginationState(page: number, pageCount: number, pending: boolean) {

@@ -30,7 +30,7 @@ Toolbar daftar diskusi dapat memberi ruang pencarian saat dibuka, dengan query d
 
 | Ekspor | Props dan callback | ID pengujian |
 | --- | --- | --- |
-| `ResponsiveGrid<Item>` | `items`, `getItemKey(item)`, dan `renderItem(item)`. Lebar kontainer, skala teks, `minItemWidth`, dan `maxColumns` menentukan kolom. | `T` |
+| `ResponsiveGrid<Item>` | `items`, `getItemKey(item)`, dan `renderItem(item)`. Secara bawaan, grid dokumen Student beralih ke 2–5 kolom pada lebar kontainer 464, 704, 944, dan 1184 dp yang disesuaikan dengan skala teks. `minItemWidth` atau `gap` mengaktifkan hitungan berdasarkan lebar kartu minimum. `maxColumns` membatasi jumlah kolom. | `T` |
 | `ResponsiveTable<Row>` | `rows`, `getRowKey(row)`, dan `columns` dengan `id`, label kolom, dan `renderCell(row)`. `empty` memberikan isi saat hasil kosong. Kolom berubah menjadi baris bertumpuk pada kontainer sempit atau skala teks besar. | `T` |
 | `Calendar` | Berikan `periodLabel`, `days`, dan `events` dalam zona waktu layar. `CalendarDay.label` adalah tanggal lengkap untuk pembaca layar. `CalendarEvent.dateId` mengacu ke `CalendarDay.id`. Kelola `selectedDateId` dan `selectedEventId` melalui `onDateChange(id)` dan `onEventPress(id)`. `onPeriodChange` menerima `-1` atau `1`. `labels` memasok nama periode, penanda hari ini, kondisi kosong, dan jumlah acara. | `T-previous`, `T-next`, `T-date-<id>`, `T-event-<id>` |
 | `Pagination` | `page` berbasis 1, `pageCount`, dan `onPageChange(page)`. 0 hasil tampil sebagai 0 / 0 jika memakai formatter berikut. `labels` memberi nama navigasi dan teks sibuk. `pending` mengunci perpindahan selama pemuatan. | `T-previous`, `T-next` |
