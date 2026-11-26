@@ -19,8 +19,9 @@ if (allPatterns.length !== 50 || new Set(allPatterns).size !== 50 || webRoutes.l
 const cases: Case[] = [];
 function add(area: StudentArea, pattern: string, id: string, path: string, scenario: string, theme: string, marker?: Marker, reason?: string, steps?: Step[]) {
   if (!matchStudentRoute(path) || matchStudentRoute(path)?.pattern !== pattern) throw new Error(`Bad route for ${id}: ${path}`);
-  const limitation = pattern === "/courses/[id]/live/host" || pattern === "/settings/notifications/browser" ?
-    "Checks the handoff or unavailable control; does not exercise the external browser." :
+  const limitation = pattern === "/settings/notifications/browser" ?
+    "Checks instructions for opening the link in the subscribed browser profile. External browser cleanup needs device evidence." :
+    pattern === "/courses/[id]/live/host" ? "Checks the handoff control. The browser step needs device evidence." :
     pattern === "/discussions" || pattern === "/leaderboard/academic" ?
       "Checks destination content after alias resolution; does not prove Back or query retention." :
     pattern.endsWith("/material/[materialId]") ? "Checks the current reader dependency status; the renderer is not exercised." :
@@ -82,7 +83,7 @@ const communityReady: Record<string, Partial<Record<string, Marker>>> = {
   "/profile/reflections": { loaded: text(".*23 Nov 2026.*"), empty: text("Belum ada refleksi mingguan.") },
   "/settings": { loaded: text("Bahasa Indonesia"), empty: text("Tampilan"), unavailable: text("English") },
   "/settings/notifications": { loaded: text("Email opsional"), empty: text("Pengingat flashcard") },
-  "/settings/notifications/browser": { loaded: text("Browser perangkat belum tersedia.") },
+  "/settings/notifications/browser": { loaded: text("Salin tautan ke browser tersebut.") },
   "/students/[publicId]": { loaded: text("Nara Putri"), empty: text("Konten tidak tersedia atau akses berubah.") },
 };
 const communityStatic = new Set(["/feedback", "/settings", "/settings/notifications/browser"]);
