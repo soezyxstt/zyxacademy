@@ -1,0 +1,38 @@
+appId: com.zyx.academy.nativeparity
+name: Public full and short form states
+---
+- launchApp
+- extendedWaitUntil:
+    visible: separator
+    timeout: 20000
+- openLink: zyx-native-parity://internal/public-forms/forms-ready
+- assertVisible: Pendaftaran tutorial
+- assertVisible: Nama peserta
+- tapOn:
+    id: public-form-next
+- assertVisible: Wajib
+- tapOn:
+    id: public-form-field-0
+- inputText: Peserta pengujian
+- hideKeyboard
+- tapOn:
+    id: public-form-next
+- assertVisible: Kirim tanggapan\?
+- tapOn: Kirim tanggapan
+- extendedWaitUntil:
+    visible: .*Terima kasih.*
+    timeout: 10000
+- openLink: zyx-native-parity://internal/public-forms/forms-closed
+- assertVisible: .*Formulir ditutup.*
+- assertVisible: .*Pendaftaran sesi ini telah berakhir.*
+- openLink: zyx-native-parity://internal/public-forms/forms-missing
+- assertVisible: .*Formulir tidak ditemukan.*
+- openLink: zyx-native-parity://internal/public-forms/short-collision
+- assertVisible: Pendaftaran tutorial
+- assertVisible: Nama peserta
+- assertNotVisible: Gabung Google Meet
+- openLink: zyx-native-parity://internal/public-forms/short-meeting
+- assertVisible: Google Meet
+- assertVisible: Gabung Google Meet
+- openLink: zyx-native-parity://internal/public-forms/short-missing
+- assertVisible: .*Formulir tidak ditemukan.*
