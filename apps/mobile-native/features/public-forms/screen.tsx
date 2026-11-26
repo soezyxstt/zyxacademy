@@ -24,10 +24,10 @@ export function PublicFormScreen({ state, locale, access, opening, browserFailed
   if (state?.status === "missing" || state?.status === "closed") {
     const common = { theme, home: copy.home, onHome, notice: browserNotice };
     return <PublicFormPageFrame theme={theme} insideSafeArea={insideSafeArea}>
-      {state.status === "missing"
-        ? <PublicFormStatus {...common} kind="missing" title={copy.notFoundTitle} description={copy.notFoundDescription} />
-        : <PublicFormStatus {...common} kind="closed" title={state.title} label={copy.closed} description={formClosureMessage(locale, state.closure)}
-          recheck={state.closure?.kind === "scheduled" ? { label: copy.checkStatus, run: onRetry } : undefined} />}
+      {state.status === "closed"
+        ? <PublicFormStatus {...common} kind="closed" title={state.title} label={copy.closed} description={formClosureMessage(locale, state.closure)}
+          recheck={state.closure?.kind === "scheduled" ? { label: copy.checkStatus, run: onRetry } : undefined} />
+        : <PublicFormStatus {...common} kind="missing" title={copy.notFoundTitle} description={copy.notFoundDescription} />}
     </PublicFormPageFrame>;
   }
   if (ready && children && !(requiresAccount && access === "anonymous")) {

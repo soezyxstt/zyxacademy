@@ -12,7 +12,7 @@ type Element = { type: string; props: Record<string, unknown> };
 const node = (type: string, props: Record<string, unknown>): Element => ({ type, props });
 
 async function testScreen() {
-  const compiled = await Bun.build({ entrypoints: ["./apps/mobile-native/features/public-forms/screen.tsx"], format: "cjs", external: ["*"], write: false });
+  const compiled = await Bun.build({ entrypoints: ["./apps/mobile-native/features/public-forms/screen.tsx"], format: "cjs", external: ["*"] });
   const module = { exports: {} as { PublicFormScreen(props: Props): Element } };
   const dependencies: Record<string, unknown> = {
     "react/jsx-runtime": { jsx: node, jsxs: node },
