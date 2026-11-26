@@ -698,3 +698,21 @@ test("released Student quiz attachments use an exact scope URL and verified rast
   ]);
   expect(shares[0]?.mimeType).toBe("application/pdf");
 });
+
+test("public quiz image follows the active session lifetime without sending the signed transport", async () => {
+  const source = "https://upload.wikimedia.org/plot.png";
+  const data = Uint8Array.of(137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 40, 0, 0, 0, 40);
+  const fixture = setup();
+  const signal = new AbortController().signal;
+  const asset = await fixture.controller.preparePublicAssessmentImage(fixture.session, source, signal, () => true, async (url, init) => {
+    expect(url).toBe(source);
+    expect(init.credentials).toBe("omit");
+    return new Response(data, { headers: { "Content-Type": "image/png", "Content-Length": String(data.byteLength) } });
+  });
+  expect(fixture.files.has(asset.uri)).toBe(true);
+  const oversized = new Response(data, { headers: { "Content-Type": "image/png", "Content-Length": "4194305" } });
+  await expect(fixture.controller.preparePublicAssessmentImage(fixture.session, source, signal, () => true, async () => oversized)).rejects.toThrow();
+  expect(fixture.files.size).toBe(1);
+  fixture.transport.clearSession();
+  expect(fixture.files.has(asset.uri)).toBe(false);
+});

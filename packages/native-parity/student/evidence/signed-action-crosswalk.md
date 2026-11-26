@@ -5,7 +5,7 @@ Pemeriksaan sumber memakai branch integrasi pada `29dd624ce`. Tabel tindakan dip
 | Area | Tujuan Student | Tersambung | Sebagian | Belum tersedia | Alias | Browser |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | Dasbor, kursus, pembaca dan Zyra | 5 | 43 | 3 | 0 | 0 | 2 |
-| Kuis, tryout, hasil dan pembahasan | 9 | 34 | 1 | 0 | 0 | 0 |
+| Kuis, tryout, hasil dan pembahasan | 9 | 35 | 0 | 0 | 0 | 0 |
 | Pembelajaran, video, live dan PKA | 17 | 36 | 0 | 0 | 3 | 1 |
 | Komunitas, jadwal, profil dan pengaturan | 19 | 77 | 1 | 0 | 4 | 2 |
 | Shell masuk, akun, onboarding, MCP dan offline | Bersama | 24 | 0 | 0 | 1 | 1 |

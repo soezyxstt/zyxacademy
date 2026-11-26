@@ -27,12 +27,14 @@ test("moves vetted legacy and V4 visual controls out of assessment answer rows",
   expect(assessmentMarkdownBlocks("````markdown\n" + structured + "\n````")[0]).toMatchObject({ type: "code" });
 });
 
-test("quiz images admit raster, public first-party and trusted course storage sources only", () => {
-  expect(assessmentMedia("data:image/png;base64,iVBORw0KGgo=", origin)).toMatchObject({ kind: "image" });
-  expect(assessmentMedia("/images/worksheet.webp", origin)).toEqual({ kind: "image", uri: origin + "/images/worksheet.webp" });
+test("quiz images admit bounded public raster and separate trusted course storage", () => {
+  expect(assessmentMedia("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAo", origin)).toMatchObject({ kind: "image" });
+  expect(assessmentMedia("/images/worksheet.webp", origin)).toEqual({ kind: "public-image", url: origin + "/images/worksheet.webp" });
   expect(assessmentMedia(fileRoot + "materials/physics/figure.png", origin)).toEqual({ kind: "storage-image", path: fileRoot + "materials/physics/figure.png" });
+  expect(assessmentMedia("https://upload.wikimedia.org/example/figure.png?width=500", origin))
+    .toEqual({ kind: "public-image", url: "https://upload.wikimedia.org/example/figure.png?width=500" });
   for (const candidate of [
-    "https://outside.example/figure.png", "https://staging.zyxacademy.com.evil.example/images/figure.png",
+    "https://outside.example/figure.png", "https://upload.wikimedia.org/example/figure.png?token=secret", "https://staging.zyxacademy.com.evil.example/images/figure.png",
     fileRoot + "forms/private/figure.png", fileRoot + "quizzes/private/attachments/figure.png",
     fileRoot + "materials/%2e%2e/private/figure.png", fileRoot + "materials/figure.png?token=private",
     "data:image/svg+xml;base64,PHN2Zy8+",

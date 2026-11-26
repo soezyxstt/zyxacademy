@@ -1,3 +1,4 @@
+import { assessmentRasterTypes, boundedAssessmentRaster, createAssessmentRasterQueue, fetchPublicAssessmentRaster, publicAssessmentRasterLimit, rasterPrefixLimit, type PublicAssessmentRasterFetch } from "./assessment-raster";
 import type { NativeSessionScope, NativeSessionTransport } from "../network/transport";
 import { MATERIAL_PDF_HEADERS, MATERIAL_PDF_MAX_BYTES, materialPdfPath, type MaterialPdfTarget } from "../../../packages/native-parity/student/courses/pdf";
 import { adminMaterialPdfPath, type AdminPdfBundle, ADMIN_PDF_ACCOUNT, ADMIN_PDF_SESSION } from "../../../packages/native-parity/academic/courses/pdf";
@@ -215,11 +216,12 @@ async function copyBytes(
   expectedSize: number | undefined,
   assertCurrent: () => void,
   signals: readonly (AbortSignal | undefined)[],
+  validateRaster = false,
 ): Promise<number> {
   const reader = stream.getReader();
   let size = 0;
   let eof = false;
-  const prefix = new Uint8Array(1024);
+  const prefix = new Uint8Array(validateRaster ? rasterPrefixLimit : 1024);
   const cancel = () => { void reader.cancel().catch(() => {}); };
   for (const signal of signals) signal?.addEventListener("abort", cancel, { once: true });
   try {
@@ -238,7 +240,8 @@ async function copyBytes(
       await file.write(part.value);
     }
     if (size === 0 || (expectedSize !== undefined && size !== expectedSize)) throw new FileIssue("incomplete");
-    if (!matchesFileHeader(prefix.subarray(0, size), mimeType)) throw new FileIssue("type");
+    const header = prefix.subarray(0, size);
+    if (validateRaster ? !boundedAssessmentRaster(header, mimeType) : !matchesFileHeader(header, mimeType)) throw new FileIssue("type");
     return size;
   } finally {
     for (const signal of signals) signal?.removeEventListener("abort", cancel);
@@ -271,6 +274,7 @@ function removeTemporary(file: TemporaryFile | undefined): void {
 }
 
 export function createNativeFileController(device: NativeFileDevice, clock = deviceClock) {
+  const publicAssessmentImages = createAssessmentRasterQueue();
   const heldDocuments = new WeakMap<DraftDocument, AbortSignal>();
   const exports = new Map<TemporaryFile, { expiresAt: number; release(): void }>();
   let initialized = false;
@@ -622,6 +626,49 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
     current();
     initialize();
     const response = await session.request(path, { signal, requiredRole: role, headers: { Accept: mimeTypes.join(", ") } });
+    try {
+      return await prepareAssetResponse({ session, signal, current, response, name, limit, mimeTypes });
+    } finally {
+      response.dispose();
+    }
+  }
+
+  async function preparePublicAssessmentImage(session: NativeSessionTransport, url: string, signal: AbortSignal, isCurrent: () => boolean,
+    fetcher: PublicAssessmentRasterFetch) {
+    if (!device.available) throw new FileIssue("invalid-target");
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    session.signal.addEventListener("abort", abort, { once: true });
+    signal.addEventListener("abort", abort, { once: true });
+    const timeout = setTimeout(abort, 12_000);
+    const current = () => {
+      session.assertCurrent();
+      if (!isCurrent() || signal.aborted || controller.signal.aborted) throw new FileIssue("fetch");
+    };
+    let response: Awaited<ReturnType<PublicAssessmentRasterFetch>> | undefined;
+    let release: (() => void) | undefined;
+    try {
+      current();
+      release = await publicAssessmentImages.acquire(controller.signal);
+      current();
+      initialize();
+      response = await fetchPublicAssessmentRaster(url, session.scope.origin, fetcher, controller.signal);
+      return await prepareAssetResponse({ session, signal, current, response, name: "question-image",
+        limit: publicAssessmentRasterLimit, mimeTypes: assessmentRasterTypes, rasterSignal: controller.signal });
+    } finally {
+      if (response?.body && !response.body.locked) void response.body.cancel().catch(() => {});
+      release?.();
+      clearTimeout(timeout);
+      session.signal.removeEventListener("abort", abort);
+      signal.removeEventListener("abort", abort);
+    }
+  }
+
+  async function prepareAssetResponse({ session, signal, current, response, name, limit, mimeTypes, rasterSignal }: {
+    session: NativeSessionTransport; signal: AbortSignal; current(): void;
+    response: Pick<Response, "status" | "body"> & { headers: Pick<Headers, "get"> };
+    name: string; limit: number; mimeTypes: readonly string[]; rasterSignal?: AbortSignal;
+  }) {
     const staged = stageExport({ session, signal });
     try {
       current();
@@ -634,14 +681,12 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
       const issue = sizeIssue(size, limit);
       if (issue) throw new FileIssue(issue);
       const file = staged.hold(fileName(name, mime));
-      await copyBytes(response.body, file, mime, limit, size, current, [session.signal, signal]);
+      await copyBytes(response.body, file, mime, limit, size, current, [session.signal, signal, rasterSignal], !!rasterSignal);
       current();
       return { uri: file.uri, release: staged.finish };
     } catch (error) {
       staged.finish();
       throw error;
-    } finally {
-      response.dispose();
     }
   }
 
@@ -770,5 +815,5 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
   }
 
   return { initialize, expireExports, pickDocument, pickDocuments, belongsToDocumentDraft, shareDocument, shareGeneratedJson, shareAuthorizedDownload,
-    prepareFormQuestionImage, prepareAdminMarkdownImage, prepareAssessmentImage, prepareAdminMedia, prepareCourseVideo, prepareMaterialPdf, renewMaterialPdf };
+    prepareFormQuestionImage, prepareAdminMarkdownImage, prepareAssessmentImage, preparePublicAssessmentImage, prepareAdminMedia, prepareCourseVideo, prepareMaterialPdf, renewMaterialPdf };
 }

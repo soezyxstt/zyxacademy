@@ -1,11 +1,16 @@
 import { splitMarkdownPreview } from "../../../../../packages/native-parity/operations/admin-markdown-preview";
 import { previewMedia } from "../../../../../packages/native-parity/operations/admin-markdown-media";
+import { inlineAssessmentRaster, publicAssessmentRasterUrl } from "../../../device/assessment-raster";
 import { parseEmbeddedVisual } from "../../../../../lib/materials/embedded-visuals";
 
 export function assessmentMedia(raw: string, origin: string) {
   const media = previewMedia(raw, origin, "course", true);
   if (media?.kind === "storage-image") return media;
-  if (media?.kind === "image" && (media.uri.startsWith("data:image/") || new URL(media.uri).origin === origin)) return media;
+  if (media?.kind === "image") {
+    if (media.uri.startsWith("data:image/")) return inlineAssessmentRaster(media.uri) ? media : null;
+    const url = publicAssessmentRasterUrl(media.uri, origin);
+    if (url) return { kind: "public-image" as const, url };
+  }
   return null;
 }
 

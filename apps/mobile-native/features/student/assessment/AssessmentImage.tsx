@@ -10,7 +10,7 @@ export function AssessmentImage({ raw, alt }: { raw: string; alt: string }) {
   const { suspended, canInteract } = useProtectedInteraction();
   const colors = useAssessmentColors();
   const media = assessmentMedia(raw, session.origin);
-  const path = media?.kind === "storage-image" ? media.path : undefined;
+  const path = media?.kind === "storage-image" ? media.path : media?.kind === "public-image" ? media.url : undefined;
   const [resolved, setResolved] = useState<{ path: string; uri: string }>();
   const [failed, setFailed] = useState(false);
 

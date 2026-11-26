@@ -41,6 +41,7 @@ on:
       - 'tests/unit/expo-online-reading.test.ts'
       - 'tests/unit/expo-interactive-document.test.ts'
       - 'tests/unit/expo-assessment-visuals.test.ts'
+      - 'tests/unit/expo-public-assessment-raster.test.ts'
       - 'tests/contracts/native-student-assessment.test.ts'
       - 'app/api/native/student/assessment/**'
       - 'lib/student/assessment-read.ts'
@@ -301,7 +302,7 @@ jobs:
       - name: Student assessment visuals and released attachment authorization
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: |
-          bun test tests/unit/expo-assessment-visuals.test.ts tests/unit/expo-student-solution-visuals.test.ts tests/unit/expo-native-files.test.ts
+          bun test tests/unit/expo-assessment-visuals.test.ts tests/unit/expo-public-assessment-raster.test.ts tests/unit/expo-student-solution-visuals.test.ts tests/unit/expo-native-files.test.ts
           bun test tests/contracts/native-student-assessment.test.ts
       - name: Native Student PDF authorization and private file lifecycle
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}

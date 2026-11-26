@@ -2,6 +2,7 @@ import { useCallback, useLayoutEffect, useMemo, useState, useSyncExternalStore }
 import { Redirect, useIsFocused, useNavigation, useRouter } from "expo-router";
 import { Alert, Linking, Platform, Text, View } from "react-native";
 import { randomUUID } from "expo-crypto";
+import { fetch } from "expo/fetch";
 import { openBrowserAsync } from "expo-web-browser";
 import { authLocale } from "../../auth/auth-copy";
 import { useNativeAccountContext } from "../../auth/use-account-context";
@@ -91,8 +92,10 @@ export function VerifiedStudentEntry({ offlineLocale, openOfflineMaterial, ...pr
   });
   const prepareAssessmentImage = useCallback((path: string, signal: AbortSignal) => {
     if (!transport) return Promise.reject(new Error("Assessment image unavailable."));
-    return scopedFiles.prepareAssessmentImage(transport, path, signal,
-      () => navigation.isFocused() && getSnapshot().transport === transport && transport.isCurrent());
+    const current = () => navigation.isFocused() && getSnapshot().transport === transport && transport.isCurrent();
+    return path.startsWith("https://")
+      ? scopedFiles.preparePublicAssessmentImage(transport, path, signal, current, fetch)
+      : scopedFiles.prepareAssessmentImage(transport, path, signal, current);
   }, [transport, navigation, getSnapshot]);
   const assessmentPhotos = useAssessmentPhotos(context?.roles.includes("murid") ? transport : null, context?.locale ?? "id");
   const drafts = useAssessmentDrafts(context?.roles.includes("murid") ? transport : null, context?.locale ?? "id");
