@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   controlPosition,
@@ -39,11 +40,12 @@ function ButtonCase({ id, fixture }: { id: ControlCaseId; fixture: ButtonFixture
 
 function FieldCase({ id, fixture }: { id: ControlCaseId; fixture: FieldFixture }) {
   const inputId = `${id}-input`;
+  const Field = fixture.component === "textarea" ? Textarea : Input;
   const showLabel = fixture.component === "label";
 
   return (
     <div style={{ ...controlPosition, display: "flex", flexDirection: "column-reverse", justifyContent: "center", gap: 8 }}>
-      <Input
+      <Field
         id={inputId}
         className={showLabel ? "peer" : undefined}
         data-parity-control={showLabel ? undefined : id}

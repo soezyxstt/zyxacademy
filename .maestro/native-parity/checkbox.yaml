@@ -1,10 +1,14 @@
 appId: com.zyx.academy.nativeparity
 name: Checkbox transitions and disabled state
 ---
-- launchApp
-- openLink: zyx-native-parity://gallery/checkbox
+- runFlow:
+    file: helpers/open-gallery.yaml
+    env:
+      COMPONENT: checkbox
 - runFlow:
     file: helpers/toggle.yaml
     env:
       CONTROL: checkbox
       CONTROL_NAME: Pilih dokumen
+      IOS_CHECKED_VALUE: checkbox, checked
+      IOS_UNCHECKED_VALUE: checkbox, unchecked

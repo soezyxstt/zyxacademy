@@ -1,8 +1,10 @@
 appId: com.zyx.academy.nativeparity
 name: Input editing and disabled value retention
 ---
-- launchApp
-- openLink: zyx-native-parity://gallery/input
+- runFlow:
+    file: helpers/open-gallery.yaml
+    env:
+      COMPONENT: input
 - assertVisible:
     id: input-long-dark-control
     text: Penilaian praktikum gelombang

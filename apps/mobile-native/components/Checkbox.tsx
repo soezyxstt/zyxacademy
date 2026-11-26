@@ -1,5 +1,5 @@
-import { forwardRef, useState } from "react";
-import { Pressable, StyleSheet, useColorScheme, type PressableProps, type View } from "react-native";
+import { type ComponentRef, forwardRef, useState } from "react";
+import { Pressable, StyleSheet, useColorScheme, type PressableProps } from "react-native";
 import Svg, { Path } from "react-native-svg";
 
 import { nativeColors, nativeRadii } from "../../../packages/design-tokens/native-colors";
@@ -13,7 +13,7 @@ type CheckboxProps = Omit<PressableProps, "children" | "onPress" | "accessibilit
   theme?: keyof typeof nativeColors;
 };
 
-export const Checkbox = forwardRef<View, CheckboxProps>(function Checkbox({
+export const Checkbox = forwardRef<ComponentRef<typeof Pressable>, CheckboxProps>(function Checkbox({
   accessibilityState,
   checked,
   defaultChecked = false,

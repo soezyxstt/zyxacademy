@@ -1,0 +1,5 @@
+appId: com.zyx.academy.nativeparity
+name: Vertical separator accessibility label
+---
+- launchApp
+- assertVisible: Pemisah bagian

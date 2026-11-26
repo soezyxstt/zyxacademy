@@ -1,0 +1,8 @@
+appId: com.zyx.academy.nativeparity
+---
+- launchApp
+# The gallery subscribes to deep links after the app's fonts load.
+- extendedWaitUntil:
+    visible: separator
+    timeout: 20000
+- openLink: zyx-native-parity://gallery/${COMPONENT}

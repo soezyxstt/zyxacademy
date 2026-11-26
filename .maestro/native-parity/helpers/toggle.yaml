@@ -24,7 +24,7 @@ appId: com.zyx.academy.nativeparity
     id: ${CONTROL}-checked-light-control-on
 - assertVisible:
     id: ${CONTROL}-checked-light-control-off
-# Android exposes checked directly. The iOS driver only does so for specific element types.
+# Check the platform's accessibility state separately from the fixture state IDs.
 - runFlow:
     when:
       platform: Android
@@ -38,3 +38,16 @@ appId: com.zyx.academy.nativeparity
       - assertVisible:
           id: ${CONTROL}-disabled-dark-control-on
           checked: true
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - assertVisible:
+          id: ${CONTROL}-unchecked-light-control-on
+          text: ${IOS_CHECKED_VALUE}
+      - assertVisible:
+          id: ${CONTROL}-checked-light-control-off
+          text: ${IOS_UNCHECKED_VALUE}
+      - assertVisible:
+          id: ${CONTROL}-disabled-dark-control-on
+          text: ${IOS_CHECKED_VALUE}

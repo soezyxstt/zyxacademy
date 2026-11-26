@@ -1,4 +1,4 @@
-import { forwardRef, useState } from "react";
+import { type ComponentRef, forwardRef, useState } from "react";
 import { StyleSheet, TextInput, useColorScheme, type TextInputProps } from "react-native";
 
 import { nativeColors, nativeRadii } from "../../../packages/design-tokens/native-colors";
@@ -9,10 +9,11 @@ type InputProps = TextInputProps & {
   theme?: keyof typeof nativeColors;
 };
 
-export const Input = forwardRef<TextInput, InputProps>(function Input({
+export const Input = forwardRef<ComponentRef<typeof TextInput>, InputProps>(function Input({
   accessibilityState,
   disabled = false,
   editable = true,
+  multiline = false,
   onBlur,
   onFocus,
   placeholderTextColor,
@@ -29,6 +30,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input({
       {...props}
       ref={ref}
       editable={!disabled && editable}
+      multiline={multiline}
       accessibilityState={{ ...accessibilityState, disabled }}
       placeholderTextColor={placeholderTextColor ?? colors.mutedForeground}
       underlineColorAndroid="transparent"
@@ -42,9 +44,17 @@ export const Input = forwardRef<TextInput, InputProps>(function Input({
       }}
       style={[
         styles.input,
+        multiline && styles.multiline,
+        multiline && disabled && styles.disabled,
         nativeTypography.bodyRegular,
         { backgroundColor: colors.background, borderColor: colors.input, color: colors.foreground },
-        focused && !disabled && [styles.focused, { outlineColor: colors.accent, borderColor: colors.primary, boxShadow: `0 0 0 2px ${colors.background}, 0 0 0 4px ${colors.primary}80` }],
+        focused && !disabled && {
+          outlineWidth: multiline ? 0 : 2,
+          outlineOffset: 2,
+          outlineColor: colors.accent,
+          borderColor: multiline ? colors.input : colors.primary,
+          boxShadow: `0 0 0 2px ${colors.background}, 0 0 0 4px ${multiline ? colors.ring : colors.primary + "80"}`,
+        },
         style,
       ]}
     />
@@ -64,5 +74,11 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
     textAlignVertical: "center",
   },
-  focused: { outlineWidth: 2, outlineOffset: 2 },
+  multiline: { height: "auto", minHeight: 80, borderRadius: nativeRadii.lg, textAlignVertical: "top" },
+  disabled: { opacity: 0.5 },
+});
+
+
+export const Textarea = forwardRef<ComponentRef<typeof TextInput>, Omit<InputProps, "multiline">>(function Textarea(props, ref) {
+  return <Input {...props} multiline ref={ref} />;
 });

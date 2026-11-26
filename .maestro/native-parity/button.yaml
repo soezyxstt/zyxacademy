@@ -1,8 +1,10 @@
 appId: com.zyx.academy.nativeparity
 name: Button press and disabled state
 ---
-- launchApp
-- openLink: zyx-native-parity://gallery/button
+- runFlow:
+    file: helpers/open-gallery.yaml
+    env:
+      COMPONENT: button
 - assertVisible:
     id: button-disabled-dark-control
     text: Simpan

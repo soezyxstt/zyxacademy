@@ -1,10 +1,14 @@
 appId: com.zyx.academy.nativeparity
 name: Switch transitions and disabled state
 ---
-- launchApp
-- openLink: zyx-native-parity://gallery/switch
+- runFlow:
+    file: helpers/open-gallery.yaml
+    env:
+      COMPONENT: switch
 - runFlow:
     file: helpers/toggle.yaml
     env:
       CONTROL: switch
       CONTROL_NAME: Menerima tanggapan
+      IOS_CHECKED_VALUE: "1"
+      IOS_UNCHECKED_VALUE: "0"

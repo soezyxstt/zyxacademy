@@ -2,27 +2,25 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { chromium, expect } from "@playwright/test";
 import { parityFrame } from "../../../packages/ui-parity/frame";
-import { getSeparatorPosition, separatorCases } from "../../../packages/ui-parity/separator-cases";
-import { skeletonCases } from "../../../packages/ui-parity/skeleton-cases";
-
-import { choiceCases } from "../../../packages/ui-parity/choice-cases";
-import { controlCases } from "../../../packages/ui-parity/control-cases";
-import { galleryCases } from "../../../packages/ui-parity/gallery";
+import { getSeparatorPosition } from "../../../packages/ui-parity/separator-cases";
+import { galleryCases, type GalleryCase } from "../../../packages/ui-parity/gallery";
 
 const skeletonSelector = '[data-slot="skeleton"]';
-const cases = [
-  ...separatorCases.map(({ id, orientation }) => ({
-    id,
-    selector: `[data-orientation="${orientation}"]`,
-    size: getSeparatorPosition(orientation),
-  })),
-  ...skeletonCases.map(({ id, width, height }) => ({
-    id,
-    selector: skeletonSelector,
-    size: { width, height },
-  })),
-  ...[...controlCases, ...choiceCases].map(({ id }) => ({ id, selector: "[data-parity-control]", size: null })),
-];
+
+function specimenCapture(item: GalleryCase) {
+  switch (item.family) {
+    case "separator":
+      return {
+        selector: `[data-orientation="${item.orientation}"]`,
+        size: getSeparatorPosition(item.orientation),
+      };
+    case "skeleton":
+      return { selector: skeletonSelector, size: { width: item.width, height: item.height } };
+    case "control":
+    case "choice":
+      return { selector: "[data-parity-control]", size: null };
+  }
+}
 
 const url = process.env.PARITY_WEB_URL ?? "http://localhost:3210";
 const dpr = Number(process.env.PARITY_DPR ?? "1");
@@ -59,8 +57,9 @@ try {
   await expect(skeleton).toHaveCSS("opacity", "0.65");
 
   await page.evaluate(() => document.fonts.ready);
-  for (const { id, selector, size } of cases) {
-    const frame = page.locator(`[data-parity-case="${id}"]`);
+  for (const item of galleryCases) {
+    const { selector, size } = specimenCapture(item);
+    const frame = page.locator(`[data-parity-case="${item.id}"]`);
     const specimen = frame.locator(selector);
     await expect(frame).toHaveCSS("width", `${parityFrame.width}px`);
     await expect(frame).toHaveCSS("height", `${parityFrame.height}px`);
@@ -70,7 +69,7 @@ try {
       await expect(specimen).toHaveCSS("height", `${size.height}px`);
     }
     await frame.screenshot({
-      path: fileURLToPath(new URL(`${id}.png`, outputDirectory)),
+      path: fileURLToPath(new URL(`${item.id}.png`, outputDirectory)),
       animations: "disabled",
       scale: "device",
     });
@@ -89,6 +88,12 @@ try {
   await control("input-empty-light").fill("Preset baru");
   await expect(control("input-empty-light")).toHaveValue("Preset baru");
   await expect(control("input-disabled-light")).toBeDisabled();
+  const textarea = control("textarea-empty-light");
+  await expect(textarea).toHaveAccessibleName("Catatan sesi");
+  await textarea.fill("Baris pertama\nBaris kedua");
+  await expect(textarea).toHaveValue("Baris pertama\nBaris kedua");
+  await expect(control("textarea-multiline-dark")).toHaveValue("Fungsi kuadrat\nDiskusikan titik puncak dan akar.");
+  await expect(control("textarea-disabled-light")).toBeDisabled();
   for (const component of ["checkbox", "switch"]) {
     const toggle = control(`${component}-unchecked-light`);
     await toggle.click();
@@ -99,8 +104,8 @@ try {
   }
 
   if (errors.length > 0) throw new Error(errors.join("\n"));
-  expect(cases.map(({ id }) => id)).toEqual(galleryCases.map(({ id }) => id));
-  await writeFile(manifest, `${JSON.stringify(cases.map(({ id }) => id), null, 2)}\n`);
+  const cases = galleryCases.map(({ id, component }) => ({ id, component }));
+  await writeFile(manifest, `${JSON.stringify(cases, null, 2)}\n`);
 } finally {
   await browser.close();
 }

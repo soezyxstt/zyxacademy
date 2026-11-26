@@ -1,4 +1,4 @@
-import { forwardRef } from "react";
+import { type ComponentRef, forwardRef } from "react";
 import { StyleSheet, Text, useColorScheme, type TextProps } from "react-native";
 
 import { nativeColors } from "../../../packages/design-tokens/native-colors";
@@ -9,7 +9,7 @@ type LabelProps = TextProps & {
   theme?: keyof typeof nativeColors;
 };
 
-export const Label = forwardRef<Text, LabelProps>(function Label({
+export const Label = forwardRef<ComponentRef<typeof Text>, LabelProps>(function Label({
   disabled = false,
   onPress,
   style,

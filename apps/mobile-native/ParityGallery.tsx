@@ -1,4 +1,4 @@
-import { componentName, componentNames, galleryCases, type GalleryCase } from "../../packages/ui-parity/gallery";
+import { componentNames, galleryCases, type GalleryCase } from "../../packages/ui-parity/gallery";
 import { useEffect, useState, type ReactNode } from "react";
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -50,9 +50,9 @@ export default function ParityGallery() {
   const [component, setComponent] = useState(componentNames[0]);
 
   useEffect(() => {
-    function open(url: string | null) {
-      const name = url?.match(/^zyx-native-parity:\/\/gallery\/([a-z0-9]+)$/)?.[1];
-      if (name && componentNames.includes(name)) setComponent(name);
+    function open(url: string | null | undefined) {
+      const name = componentNames.find((candidate) => url === `zyx-native-parity://gallery/${candidate}`);
+      if (name) setComponent(name);
     }
     let initial = true;
     const subscription = Linking.addEventListener("url", ({ url }) => {
@@ -77,7 +77,7 @@ export default function ParityGallery() {
       </View>
       <ScrollView key={component} contentContainerStyle={styles.gallery} showsVerticalScrollIndicator={false}>
         <View style={[styles.marker, { width: 16 + componentNames.indexOf(component) }]} />
-        {galleryCases.filter(({ id }) => componentName(id) === component).map((item) => (
+        {galleryCases.filter((item) => item.component === component).map((item) => (
           <ParityCaseFrame key={item.id} id={item.id} theme={item.theme}>
             <Specimen item={item} />
           </ParityCaseFrame>

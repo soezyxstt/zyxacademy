@@ -1,16 +1,16 @@
 """Exercise every component independently so gallery coverage can exceed one viewport."""
-import json
 from pathlib import Path
 import subprocess
 import sys
 import time
 
+from case_manifest import load_case_groups
+
 
 def capture(platform, device):
     scale = 3 if platform == "ios" else 1
     directory = Path("artifacts/native-parity")
-    cases = json.loads((directory / "web" / f"dpr{scale}" / "cases.json").read_text())
-    components = dict.fromkeys(case.split("-", 1)[0] for case in cases)
+    components = load_case_groups(directory / "web" / f"dpr{scale}" / "cases.json")
     failures = []
     for component in components:
         url = f"zyx-native-parity://gallery/{component}"

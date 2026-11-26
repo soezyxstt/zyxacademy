@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { type ComponentRef, useRef, useState } from "react";
 import { AccessibilityInfo, Platform, StyleSheet, Text, View, type TextInput } from "react-native";
 import Svg, { Path } from "react-native-svg";
 
@@ -11,7 +11,7 @@ import {
   type FieldFixture,
 } from "../../packages/ui-parity/control-cases";
 import { Button } from "./components/Button";
-import { Input } from "./components/Input";
+import { Input, Textarea } from "./components/Input";
 import { Label } from "./components/Label";
 import { nativeTypography } from "./typography";
 
@@ -57,8 +57,9 @@ function ButtonCase({ id, fixture }: { id: ControlCaseId; fixture: ButtonFixture
 }
 
 function FieldCase({ id, fixture }: { id: ControlCaseId; fixture: FieldFixture }) {
-  const input = useRef<TextInput>(null);
+  const input = useRef<ComponentRef<typeof TextInput>>(null);
   const labelId = `${id}-control`;
+  const Field = fixture.component === "textarea" ? Textarea : Input;
   const showLabel = fixture.component === "label";
   const labelledBy = showLabel && Platform.OS === "android" ? labelId : undefined;
 
@@ -75,7 +76,7 @@ function FieldCase({ id, fixture }: { id: ControlCaseId; fixture: FieldFixture }
           {fixture.label}
         </Label>
       )}
-      <Input
+      <Field
         ref={input}
         testID={showLabel ? `${id}-input` : `${id}-control`}
         theme={fixture.theme}

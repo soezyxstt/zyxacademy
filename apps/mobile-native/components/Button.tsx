@@ -1,4 +1,4 @@
-import { forwardRef, useState, type ReactNode } from "react";
+import { type ComponentRef, forwardRef, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -38,7 +38,7 @@ const buttonSizes = {
 
 const compactSizes: ReadonlySet<ButtonSize> = new Set(["xs", "sm", "icon-xs", "icon-sm"]);
 
-export const Button = forwardRef<View, ButtonProps>(function Button({
+export const Button = forwardRef<ComponentRef<typeof Pressable>, ButtonProps>(function Button({
   accessibilityRole = "button",
   accessibilityLabel,
   accessibilityState,

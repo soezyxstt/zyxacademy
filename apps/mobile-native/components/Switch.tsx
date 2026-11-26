@@ -1,5 +1,5 @@
-import { forwardRef, useEffect, useState } from "react";
-import { Animated, Easing, Pressable, StyleSheet, useColorScheme, type PressableProps, type View } from "react-native";
+import { type ComponentRef, forwardRef, useEffect, useState } from "react";
+import { Animated, Easing, Pressable, StyleSheet, useColorScheme, type PressableProps } from "react-native";
 
 import { nativeColors } from "../../../packages/design-tokens/native-colors";
 import { hapticSelection } from "../device/haptics";
@@ -15,7 +15,7 @@ type SwitchProps = Omit<PressableProps, "children" | "onPress" | "accessibilityR
 const thumbTravel = 20;
 const thumbEasing = Easing.bezier(0.42, 0, 0.58, 1);
 
-export const Switch = forwardRef<View, SwitchProps>(function Switch({
+export const Switch = forwardRef<ComponentRef<typeof Pressable>, SwitchProps>(function Switch({
   accessibilityState,
   checked,
   defaultChecked = false,

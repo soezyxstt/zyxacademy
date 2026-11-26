@@ -26,5 +26,5 @@ export function ChoiceCase({ id }: { id: ChoiceCaseId }) {
 }
 
 const styles = StyleSheet.create({
-  position: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
+  position: { position: "absolute", left: 0, top: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" },
 });

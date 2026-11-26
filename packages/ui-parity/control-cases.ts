@@ -12,7 +12,7 @@ export type ButtonFixture = {
 };
 
 export type FieldFixture = {
-  component: "label" | "input";
+  component: "label" | "input" | "textarea";
   theme: Theme;
   label: string;
   placeholder?: string;
@@ -30,6 +30,9 @@ export const controlCases = [
   { id: "input-empty-light", component: "input", theme: "light", label: "Nama preset", placeholder: "Masukkan nama preset" },
   { id: "input-long-dark", component: "input", theme: "dark", label: "Nama preset", value: "Penilaian praktikum gelombang" },
   { id: "input-disabled-light", component: "input", theme: "light", label: "Nama preset", value: "Preset bawaan", disabled: true },
+  { id: "textarea-empty-light", component: "textarea", theme: "light", label: "Catatan sesi", placeholder: "Tulis catatan sesi" },
+  { id: "textarea-multiline-dark", component: "textarea", theme: "dark", label: "Ringkasan sesi", value: "Fungsi kuadrat\nDiskusikan titik puncak dan akar." },
+  { id: "textarea-disabled-light", component: "textarea", theme: "light", label: "Catatan sesi", value: "Sesi telah selesai.", disabled: true },
 ] as const satisfies readonly ((ButtonFixture | FieldFixture) & { id: string })[];
 
 export type ControlCaseId = (typeof controlCases)[number]["id"];

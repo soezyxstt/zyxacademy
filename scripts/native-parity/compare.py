@@ -1,12 +1,12 @@
 """Compare native fixture crops at device scale with the corresponding browser crops."""
 import argparse
-from collections import Counter
 import io
-import json
 import os
 from pathlib import Path
 
 from PIL import Image, ImageChops, ImageCms, ImageOps
+
+from case_manifest import load_case_groups
 
 MARKER = (224, 0, 239)
 
@@ -41,12 +41,11 @@ def main():
     if profile:
         frame = ImageCms.profileToProfile(frame, io.BytesIO(profile), ImageCms.createProfile("sRGB"))
     reference_dir = Path(f"artifacts/native-parity/web/dpr{args.scale}")
-    cases = json.loads((reference_dir / "cases.json").read_text())
-    counts = Counter(case.split("-", 1)[0] for case in cases)
-    if not cases or len(set(cases)) != len(cases) or set(counts.values()) != {3}:
-        raise ValueError("Expected three unique cases per component")
-    ordinal = list(counts).index(args.component)
-    cases = [case for case in cases if case.split("-", 1)[0] == args.component]
+    groups = load_case_groups(reference_dir / "cases.json")
+    if args.component not in groups:
+        parser.error(f"Unknown component {args.component}")
+    ordinal = list(groups).index(args.component)
+    cases = groups[args.component]
     positions = crop_positions(frame, args.scale, (16 + ordinal) * args.scale)
     if len(positions) != len(cases):
         raise SystemExit(f"Expected {len(cases)} marker strips, found {len(positions)}")

@@ -1,0 +1,18 @@
+appId: com.zyx.academy.nativeparity
+name: Multiline session note editing
+---
+- runFlow:
+    file: helpers/open-gallery.yaml
+    env:
+      COMPONENT: textarea
+- assertVisible:
+    id: textarea-disabled-light-control
+    enabled: false
+- tapOn:
+    id: textarea-empty-light-control
+- inputText: Catatan sesi
+- pressKey: Enter
+- inputText: Baris kedua
+- assertVisible:
+    id: textarea-empty-light-control
+    text: 'Catatan sesi\nBaris kedua'
