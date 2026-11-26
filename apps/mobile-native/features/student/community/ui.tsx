@@ -58,16 +58,19 @@ export function useRemote<T>(path: string | null, init?: RequestInit) {
   const [revision, setRevision] = useState(0);
   const [result, setResult] = useState<{ key: string; data?: T; error?: unknown }>();
   const method = init?.method;
-  const key = JSON.stringify([session.userId, session.origin, session.locale, path, method]);
+  const sessionId = session.sessionId;
+  const key = JSON.stringify([session.userId, sessionId, session.origin, session.locale, path, method]);
   useEffect(() => {
     if (!path) return;
     const abort = new AbortController();
-    void readJson<T>(request, path, { method, signal: abort.signal }).then(
+    const headers = sessionId && path.startsWith("/api/discussions/workspace?")
+      ? { "x-discussion-session-id": sessionId } : undefined;
+    void readJson<T>(request, path, { method, headers, signal: abort.signal }).then(
       data => { if (!abort.signal.aborted) setResult({ key, data }); },
       error => { if (!abort.signal.aborted) setResult({ key, error }); },
     );
     return () => abort.abort();
-  }, [key, method, path, request, revision]);
+  }, [key, method, path, request, revision, sessionId]);
   const reload = useCallback(() => {
     setResult(undefined);
     setRevision(value => value + 1);

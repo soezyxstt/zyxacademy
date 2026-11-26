@@ -1,0 +1,35 @@
+appId: com.zyx.academy.nativeparity
+name: Student opens a discussion alias and posts a scoped answer
+---
+- launchApp:
+    clearState: true
+- openLink: "zyx-native-parity://student-fixture?scenario=loaded&path=%2Fdiscussions%3Fchannel%3Dchannel-math%26thread%3Dthread-limit%26message%3Dmessage-limit"
+- extendedWaitUntil:
+    visible: "Limit kiri dan kanan pada fungsi potongan"
+    timeout: 30000
+- assertVisible: "Pesan yang dibuka"
+- takeScreenshot: student-community-discussion-open
+- scrollUntilVisible:
+    element:
+      text: "Tulis jawaban"
+    direction: DOWN
+- tapOn: "Tulis jawaban"
+- scrollUntilVisible:
+    element:
+      id: student-discussion-answer
+    direction: DOWN
+- tapOn:
+    id: student-discussion-answer
+- inputText: "Periksa nilai dari kedua sisi titik sambung."
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      text: "Kirim jawaban"
+    direction: DOWN
+- takeScreenshot: student-community-discussion-draft
+- tapOn: "Kirim jawaban"
+- scrollUntilVisible:
+    element:
+      text: "Periksa nilai dari kedua sisi titik sambung."
+    direction: DOWN
+- takeScreenshot: student-community-discussion-answer

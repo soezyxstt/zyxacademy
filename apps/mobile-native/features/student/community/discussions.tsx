@@ -51,12 +51,14 @@ function Composer({ context, channelId, skinId, onSent }: {
   const [search, setSearch] = useState("");
   const [mentionOpen, setMentionOpen] = useState(false);
   const [pendingSend, setPendingSend] = useState<DraftSend>();
+  const [replayTarget, setReplayTarget] = useState<{ threadId: string; messageId: string }>();
   const [notice, setNotice] = useState<string>();
   const lock = useRef(false);
   const [sending, setSending] = useState(false);
   const action = useOperation();
   const reset = () => {
     setPendingSend(undefined);
+    setReplayTarget(undefined);
     setBody("");
     setTitle("");
     setAskZyra(false);
@@ -87,8 +89,8 @@ function Composer({ context, channelId, skinId, onSent }: {
         return;
       }
       if (result.error === "replay_unverified") {
-        reset();
-        onSent(result.value);
+        setReplayTarget(result.value);
+        setNotice(tr("Status kiriman belum dapat diperiksa. Buka diskusi untuk memeriksanya.", "The submission could not be verified. Open the discussion to check it."));
         return;
       }
       const labels = {
@@ -129,7 +131,7 @@ function Composer({ context, channelId, skinId, onSent }: {
   const locked = Boolean(pendingSend) || sending;
   return <View style={styles.block}>
     {context.action === "create" && <Field label={tr("Judul pertanyaan (opsional)", "Question title (optional)")} value={title} onChangeText={setTitle} maxLength={160} editable={!locked} />}
-    <Field label={context.action === "create" ? tr("Pertanyaan", "Question") : context.action === "answer" ? tr("Jawaban", "Answer") : tr("Balasan", "Reply")}
+    <Field testID={context.action === "answer" ? "student-discussion-answer" : undefined} label={context.action === "create" ? tr("Pertanyaan", "Question") : context.action === "answer" ? tr("Jawaban", "Answer") : tr("Balasan", "Reply")}
       value={body} onChangeText={value => {
         setBody(value);
         setMentions(items => items.filter(item => value.includes(`@${item.handle}`)));
@@ -154,9 +156,12 @@ function Composer({ context, channelId, skinId, onSent }: {
     </>}
     {notice && <Notice notice={{ message: notice, failed: true }} />}
     <Notice notice={action.notice} />
-    <Actions><Action label={pendingSend ? tr("Coba kirim ulang", "Retry submission") : context.action === "create"
+    <Actions>{replayTarget ? <Action label={tr("Buka kiriman", "Open submission")} mode="default" onPress={() => {
+      reset();
+      onSent(replayTarget);
+    }} /> : <Action label={pendingSend ? tr("Coba kirim ulang", "Retry submission") : context.action === "create"
       ? tr("Kirim pertanyaan", "Send question") : context.action === "answer" ? tr("Kirim jawaban", "Send answer") : tr("Kirim balasan", "Send reply")}
-      mode="default" busy={sending} disabled={(!body.trim() && !attachments.length) || action.pending} onPress={() => void submit()} />
+      mode="default" busy={sending} disabled={(!body.trim() && !attachments.length) || action.pending} onPress={() => void submit()} />}
       {pendingSend && !sending && <Action label={tr("Tinggalkan kiriman", "Discard submission")} onPress={reset} />}</Actions>
   </View>;
 }
@@ -207,6 +212,7 @@ function MessageItem({ message, thread, apply, pending, onReply, channels }: {
   const [channel, setChannel] = useState(thread.channelId);
   const [target, setTarget] = useState<string | null>(null);
   const [forwardDraft, setForwardDraft] = useState<{ threadId: string; requestId: string }>();
+  const [unverifiedForward, setUnverifiedForward] = useState<{ threadId: string; messageId: string }>();
   const [cursor, setCursor] = useState<string>();
   const targets = useRemote<DiscussionPage<DiscussionThread>>(kind === "forward" ? workspace("threads", { channelId: channel, cursor, status: "open" }) : null);
   const close = () => setKind(null);
@@ -222,12 +228,21 @@ function MessageItem({ message, thread, apply, pending, onReply, channels }: {
     if (!draft) return;
     setForwardDraft(draft);
     const result = await post<DiscussionSendResult>(request, "discussion", { action: "forward", ...draft, messageId: message.id });
-    if (result.ok || result.error === "replay_unverified") { setForwardDraft(undefined); close(); }
-    else {
-      if (result.error !== "unknown") setForwardDraft(undefined);
-      throw new Error(result.error);
+    if (result.ok) {
+      setForwardDraft(undefined);
+      close();
+      return;
     }
-  }, tr("Pesan diteruskan.", "Message forwarded."), tr("Pengiriman belum terkonfirmasi. Coba lagi.", "Delivery is unconfirmed. Retry this forward."));
+    if (result.error === "replay_unverified") {
+      setUnverifiedForward(result.value);
+      return;
+    }
+    if (result.error !== "unknown") setForwardDraft(undefined);
+    if (result.error === "resolved") {
+      operationResult({ success: false, error: tr("Diskusi tujuan sudah selesai.", "The destination discussion is resolved.") });
+    }
+    throw new Error(result.error);
+  }, undefined, tr("Pengiriman belum terkonfirmasi. Coba lagi.", "Delivery is unconfirmed. Retry this forward."));
   return <Row title={name} meta={dateLabel(message.createdAt, session.locale, true)} onPress={message.author ? profile : undefined}>
     {author && <Copy kind="muted">{author.name} · {author.role}</Copy>}
     {message.replyTo?.excerpt && <Copy kind="muted">{message.replyTo.authorName} · {message.replyTo.excerpt}</Copy>}
@@ -266,9 +281,14 @@ function MessageItem({ message, thread, apply, pending, onReply, channels }: {
         <Choices value={target} disabled={Boolean(forwardDraft)} options={data.items.filter(item => item.id !== thread.id).map(item => ({ value: item.id, label: item.title }))} onSelect={setTarget} />
         {data.nextCursor && !forwardDraft && <Actions><Action label={tr("Diskusi berikutnya", "More discussions")} onPress={() => setCursor(data.nextCursor ?? undefined)} /></Actions>}
       </>}</Remote>
-      <Actions><Action label={forwardDraft ? tr("Coba teruskan ulang", "Retry forward") : tr("Kirim ke diskusi", "Send to discussion")} busy={op.pending} disabled={!target} onPress={forward} /></Actions>
+      {unverifiedForward && <Copy kind="error">{tr("Status kiriman belum dapat diperiksa.", "The submission could not be verified.")}</Copy>}
+      <Actions>{unverifiedForward ? <Action label={tr("Buka diskusi tujuan", "Open destination")} onPress={() => {
+        const query = new URLSearchParams({ thread: unverifiedForward.threadId, message: unverifiedForward.messageId });
+        navigate(`/dashboard/discussions?${query}`);
+      }} /> : <Action label={forwardDraft ? tr("Coba teruskan ulang", "Retry forward") : tr("Kirim ke diskusi", "Send to discussion")}
+        busy={op.pending} disabled={!target} onPress={forward} />}</Actions>
     </>}
-    {kind && <Actions><Action label={tr("Batal", "Cancel")} disabled={pending || op.pending} onPress={() => { setForwardDraft(undefined); close(); }} /></Actions>}
+    {kind && <Actions><Action label={tr("Batal", "Cancel")} disabled={pending || op.pending} onPress={() => { setForwardDraft(undefined); setUnverifiedForward(undefined); close(); }} /></Actions>}
     <Notice notice={op.notice} />
   </Row>;
 }

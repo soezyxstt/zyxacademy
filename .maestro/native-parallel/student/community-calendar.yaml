@@ -1,0 +1,20 @@
+appId: com.zyx.academy.nativeparity
+name: Student calendar filters assessments and opens tutorial history
+---
+- launchApp:
+    clearState: true
+- openLink: "zyx-native-parity://student-fixture?scenario=loaded&path=%2Fcalendar"
+- extendedWaitUntil:
+    visible: "Kuis limit"
+    timeout: 30000
+- takeScreenshot: student-community-calendar-all
+- tapOn: "Tutorial"
+- assertNotVisible: "Kuis limit"
+- tapOn: "Agenda sebelumnya"
+- assertVisible: "Fungsi komposisi"
+- takeScreenshot: student-community-calendar-history
+- openLink: "zyx-native-parity://student-fixture?scenario=empty&path=%2Fcalendar"
+- extendedWaitUntil:
+    visible: "Belum ada agenda."
+    timeout: 30000
+- takeScreenshot: student-community-calendar-empty

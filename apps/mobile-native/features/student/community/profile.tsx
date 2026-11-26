@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { View } from "react-native";
-import { getMajorsForFaculty, ITB_FACULTIES } from "../../../../../lib/student/itb-academic-data";
+import { getMajorsForFaculty, ITB_FACULTIES } from "../../../../../packages/student-community/itb-academic-data";
 import type { StudentSocialSettingsInput } from "../../../../../lib/gamification/social-contracts";
 import type { Profile, PublicStudentProfile, Reflection, StudentIdentity } from "../../../../../packages/native-parity/student/community/contracts";
 import { BadgeRows, RankSummary, RewardRows } from "./achievements";

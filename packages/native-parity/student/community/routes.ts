@@ -12,8 +12,12 @@ export function studentCommunityAlias(pattern: string, path: string) {
   return null;
 }
 
+function fixturePath(pattern: string) {
+  return pattern.replace("[id]", "matematika-1").replace("[publicId]", "nara-putri");
+}
+
 export const communityCases = communityRoutes.flatMap(pattern => ([
-  { id: `student.community.${pattern.slice(1).replaceAll("/", ".")}.loaded`, component: pattern, fixture: "loaded", theme: "light" },
-  { id: `student.community.${pattern.slice(1).replaceAll("/", ".")}.empty`, component: pattern, fixture: "empty", theme: "dark" },
-  { id: `student.community.${pattern.slice(1).replaceAll("/", ".")}.unavailable`, component: pattern, fixture: "unavailable", theme: "light" },
+  { id: `student.community.${pattern.slice(1).replaceAll("/", ".")}.loaded`, component: pattern, path: fixturePath(pattern), fixture: "loaded", theme: "light" },
+  { id: `student.community.${pattern.slice(1).replaceAll("/", ".")}.empty`, component: pattern, path: fixturePath(pattern), fixture: "empty", theme: "dark" },
+  { id: `student.community.${pattern.slice(1).replaceAll("/", ".")}.unavailable`, component: pattern, path: fixturePath(pattern), fixture: "unavailable", theme: "light" },
 ] as const));

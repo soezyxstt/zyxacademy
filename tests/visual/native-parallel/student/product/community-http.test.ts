@@ -9,7 +9,7 @@ import {
   quizTemplates, session, studentQuizAttempts, user,
 } from "../../../../../db/schema";
 import { membershipIdFor } from "../../../../../lib/auth/peran";
-import type { AcademicRanking, CourseRanking, LeaderboardPage, Profile, PublicStudentProfile } from "../../../../../packages/native-parity/student/community/contracts";
+import type { AcademicRanking, AgendaData, CourseRanking, LeaderboardPage, Profile, PublicStudentProfile } from "../../../../../packages/native-parity/student/community/contracts";
 import { localStudentCookie } from "./session";
 
 const http = process.env.STUDENT_COMMUNITY_HTTP_BASE;
@@ -65,7 +65,7 @@ describe.skipIf(!http)("Next native community against disposable local PostgreSQ
         await tx.insert(courses).values({ id, title, category: "Mathematics" });
         await tx.insert(mataKuliah).values({ id: id + "-canonical", code: id, legacyCourseId: id, title, status: id === ids.active ? "active" : "archived" });
         await tx.insert(enrollments).values({ id, userId: ids.enrolled, courseId: id, expiresAt });
-        await tx.insert(quizTemplates).values({ id, title, courseId: id, category: "chapter", status: "published", selectionRules: {} });
+        await tx.insert(quizTemplates).values({ id, title, courseId: id, category: "chapter", status: "published", selectionRules: {}, closeAt: new Date(Date.now() + 86_400_000) });
         await tx.insert(studentQuizAttempts).values({ id, studentId: ids.peer, templateId: id, score: 93, durationSeconds: 120, status: "completed", questionsSnapshot: [], answersSnapshot: {} });
       }
       await tx.insert(gamificationProfiles).values({
@@ -79,10 +79,11 @@ describe.skipIf(!http)("Next native community against disposable local PostgreSQ
     if (!client) return;
     try {
       await drizzle(client).transaction(async tx => {
+        await tx.delete(enrollments).where(inArray(enrollments.courseId, [ids.active, ids.archived]));
         await tx.delete(mataKuliah).where(inArray(mataKuliah.id, [ids.active + "-canonical", ids.archived + "-canonical"]));
         await tx.delete(courses).where(inArray(courses.id, [ids.active, ids.archived]));
-        await tx.delete(user).where(inArray(user.id, users));
         await tx.delete(pengguna).where(inArray(pengguna.id, users));
+        await tx.delete(user).where(inArray(user.id, users));
       });
     } finally {
       await client.end();
@@ -113,6 +114,11 @@ describe.skipIf(!http)("Next native community against disposable local PostgreSQ
     const simulations = await course.json() as CourseRanking;
     expect(simulations.assessment).toBe("simulation");
     expect(simulations.rows).toHaveLength(0);
+    const calendar = await request("calendar", ids.enrolled);
+    expect(calendar.status).toBe(200);
+    const agenda = await calendar.json() as AgendaData;
+    expect(agenda.events.some(event => event.id === "quiz-" + ids.active)).toBe(true);
+    expect(agenda.events.some(event => event.id === "quiz-" + ids.archived)).toBe(false);
   }, 90_000);
 
   test("global and following participation use opt-in XP, separate from course scores and private profile fields", async () => {

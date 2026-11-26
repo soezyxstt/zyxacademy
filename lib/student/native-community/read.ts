@@ -7,7 +7,7 @@ import { getStudentStudyGroups } from "@/app/(student)/dashboard/groups/actions"
 import { getScheduleData } from "@/app/(student)/dashboard/schedule/actions";
 import { getGoogleCalendarStatus } from "@/app/actions/google-calendar";
 import { getCourse, getCourseLeaderboard } from "@/lib/course-utils";
-import { resolveCourseEntitlementsBatch } from "@/lib/student/course-access";
+import { listCurrentEnrolledCourses } from "@/lib/student/current-enrolled-courses";
 import { listStudentEnrollments } from "@/lib/student/course-catalog";
 import { getStudentCalendarAgenda } from "@/lib/student/calendar-agenda";
 import { getAchievementBadges, getGamificationMissions, getGamificationRewards, getGamificationSummary } from "@/lib/gamification/queries";
@@ -29,13 +29,10 @@ function projectRankings(userId: string, rows: Ranked, identities: Awaited<Retur
 }
 
 export async function getNativeAcademicRanking(userId: string, requestedCourse?: string): Promise<AcademicRanking> {
-  const enrollments = await listStudentEnrollments(userId);
-  const entitlements = await resolveCourseEntitlementsBatch(userId, [...new Set(enrollments.map(course => course.id))]);
-  const courses = enrollments.flatMap(({ id, title }) => {
-    const access = entitlements.get(id);
-    return access?.hasFullContentAccess && !access.reason ? [{ id, title }] : [];
-  });
-  const courseId = courses.find(course => course.id === requestedCourse || (requestedCourse && entitlements.get(course.id)?.canonicalCourseId === requestedCourse))?.id ?? null;
+  const enrollments = await listCurrentEnrolledCourses(userId);
+  const courses = enrollments.map(({ id, title }) => ({ id, title }));
+  const courseId = requestedCourse
+    ? enrollments.find(course => course.id === requestedCourse || course.canonicalId === requestedCourse)?.id ?? null : null;
   const ranked = await Promise.all(courses.filter(course => courseId === null || course.id === courseId).map(async course =>
     ({ course, rows: (await getCourseLeaderboard(course.id).catch(() => [])).slice(0, 10) })));
   const ids = ranked.flatMap(board => board.rows.map(row => row.studentId));
@@ -86,7 +83,7 @@ export async function getNativeGroups(): Promise<Group[]> {
     remainingQuota: group.remainingQuota, weeklyRemainingQuota: group.weeklyRemainingQuota,
     courses: group.courses.map(({ id, title }) => ({ id, title })),
     members: group.members.map(({ id, name, role, isMe, identity }) => ({ id, name, role, isMe, identity })),
-    token: group.token ? { value: group.token.token, capacity: group.token.capacity, expiresAt: group.token.expiresAt?.toISOString() ?? null } : null,
+    token: group.token && group.members.length < group.token.capacity ? { value: group.token.token, capacity: group.token.capacity, expiresAt: group.token.expiresAt?.toISOString() ?? null } : null,
   }));
 }
 

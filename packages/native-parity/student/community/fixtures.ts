@@ -108,6 +108,7 @@ export function createCommunityFixtureRequest(scenario: CommunityFixtureScenario
   let rewards = clone(initialRewards);
   let balance = summary.lpBalance as number;
   let synced = false;
+  let quietHours = { enabled: false, startMinute: 1320, endMinute: 420, timeZone: "Asia/Jakarta" };
   let booked = false;
   const threads = populated ? [clone(sampleThread)] : [];
   const messages = populated ? [clone(sampleMessage)] : [];
@@ -121,6 +122,10 @@ export function createCommunityFixtureRequest(scenario: CommunityFixtureScenario
     if (firstFailure) {
       firstFailure = false;
       throw new TypeError("Network request failed");
+    }
+    if (url.pathname === "/api/notifications/quiet-hours") {
+      if (init?.method === "PUT") quietHours = JSON.parse(String(init.body ?? "{}"));
+      return response(quietHours);
     }
     if (url.pathname === "/api/discussions/workspace") {
       const view = query.get("view");
@@ -253,5 +258,6 @@ export function createCommunityFixtureRequest(scenario: CommunityFixtureScenario
 }
 
 export function isCommunityFixturePath(path: string) {
-  return path.startsWith(endpoint) || path === "/api/discussions/workspace" || path.startsWith("/api/discussions/workspace?");
+  return path.startsWith(endpoint) || path === "/api/notifications/quiet-hours" ||
+    path === "/api/discussions/workspace" || path.startsWith("/api/discussions/workspace?");
 }

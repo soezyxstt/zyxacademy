@@ -9,13 +9,13 @@ import {
   user as userTable,
 } from "@/db/schema";
 import { eq, and, inArray, desc } from "drizzle-orm";
-import { listStudentEnrollments } from "./course-catalog";
+import { listCurrentEnrolledCourses } from "./current-enrolled-courses";
 import { compareAgendaEvents, getAgendaAssessment, getAgendaBookingTime, getAgendaStatus } from "./agenda";
 import type { CalendarEventItem } from "./agenda-contract";
 
 export async function getStudentCalendarAgenda(userId: string, now = new Date()): Promise<CalendarEventItem[]> {
-  const enrollments = await listStudentEnrollments(userId);
-  const enrolledCourseIds = enrollments.map((e) => e.id);
+  const enrollments = await listCurrentEnrolledCourses(userId);
+  const enrolledCourseIds = enrollments.map(enrollment => enrollment.legacyId ?? enrollment.id);
 
   const events: CalendarEventItem[] = [];
 

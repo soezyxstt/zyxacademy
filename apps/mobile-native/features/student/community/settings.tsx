@@ -1,11 +1,67 @@
 import { useState } from "react";
 import { View } from "react-native";
-import { resolveSettingsTab, type SettingsTab } from "../../../../../lib/settings-tabs";
-import { isTutorialEmailSchedule } from "../../../../../lib/notifications/tutorial-email-schedule";
+import { resolveSettingsTab, type SettingsTab } from "../../../../../packages/student-community/settings-tabs";
+import type { QuietHours } from "../../../../../lib/notifications/quiet-hours";
+import { isTutorialEmailSchedule } from "../../../../../packages/student-community/tutorial-email-schedule";
 import { activityPreferenceKeys, emailPreferenceKeys, feedbackCategories } from "../../../../../packages/native-parity/student/community/contracts";
 import type { ActivityPreferenceKey, FeedbackCategory, NotificationPreferences, TutorialEmailSchedule } from "../../../../../packages/native-parity/student/community/contracts";
 import { ProfileEditorPanel } from "./profile";
-import { Action, Actions, Choices, Copy, Field, Notice, Page, Remote, Toggle, communityPath, operationResult, post, styles, useCommunity, useOperation, useRemote } from "./ui";
+import { Action, Actions, Choices, Copy, Field, Notice, Page, Remote, Toggle, communityPath, operationResult, post, readJson, styles, useCommunity, useOperation, useRemote } from "./ui";
+
+const quietHoursEndpoint = "/api/notifications/quiet-hours";
+
+function formatClock(minutes: number) {
+  return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+}
+function parseClock(clock: string) {
+  const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(clock);
+  return match ? Number(match[1]) * 60 + Number(match[2]) : null;
+}
+
+function QuietHoursForm({ initial }: { initial: QuietHours }) {
+  const { tr, request } = useCommunity();
+  const action = useOperation();
+  const [enabled, setEnabled] = useState(initial.enabled);
+  const [start, setStart] = useState(formatClock(initial.startMinute));
+  const [end, setEnd] = useState(formatClock(initial.endMinute));
+  const [timeZone, setTimeZone] = useState(initial.timeZone);
+  const [saved, setSaved] = useState(initial);
+  const zones = new Set(["Asia/Jakarta", "Asia/Makassar", "Asia/Jayapura", Intl.DateTimeFormat().resolvedOptions().timeZone, initial.timeZone]);
+  const startMinute = parseClock(start);
+  const endMinute = parseClock(end);
+  const valid = startMinute !== null && endMinute !== null && startMinute !== endMinute;
+  const dirty = enabled !== saved.enabled || startMinute !== saved.startMinute || endMinute !== saved.endMinute || timeZone !== saved.timeZone;
+  return <View style={styles.block}>
+    <Toggle label={tr("Aktifkan jam tenang", "Enable quiet hours")} value={enabled} onChange={setEnabled} disabled={action.pending} />
+    {enabled && <>
+      <Field label={tr("Mulai (JJ:MM)", "From (HH:MM)")} value={start} onChangeText={setStart} maxLength={5} editable={!action.pending} />
+      <Field label={tr("Sampai (JJ:MM)", "Until (HH:MM)")} value={end} onChangeText={setEnd} maxLength={5} editable={!action.pending} />
+      <Copy kind="strong">{tr("Zona waktu", "Time zone")}</Copy>
+      <Choices value={timeZone} options={[...zones].filter(Boolean).map(value => ({ value, label: value.replaceAll("_", " ") }))}
+        onSelect={setTimeZone} disabled={action.pending} />
+      {!valid && <Copy kind="error">{tr("Pilih jam mulai dan selesai yang berbeda.", "Choose different start and end times.")}</Copy>}
+      {valid && startMinute > endMinute && <Copy kind="muted">{tr("Berakhir keesokan harinya.", "Ends the next morning.")}</Copy>}
+    </>}
+    <Notice notice={action.notice} />
+    <Actions><Action label={tr("Simpan jam tenang", "Save quiet hours")} disabled={!valid || !dirty} busy={action.pending}
+      onPress={() => void action.run(async () => {
+        if (!valid) return;
+        setSaved(await readJson<QuietHours>(request, quietHoursEndpoint, {
+          method: "PUT", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ enabled, startMinute, endMinute, timeZone }),
+        }));
+      }, tr("Jam tenang tersimpan.", "Quiet hours saved."))} /></Actions>
+  </View>;
+}
+function QuietHoursPanel() {
+  const state = useRemote<QuietHours>(quietHoursEndpoint);
+  const { tr } = useCommunity();
+  return <>
+    <Copy kind="heading">{tr("Jam tenang", "Quiet hours")}</Copy>
+    <Copy kind="muted">{tr("Jam tenang berlaku di semua perangkat. Ringkasan notifikasi dikirim setelahnya.", "Quiet hours apply across devices. A notification summary is sent afterwards.")}</Copy>
+    <Remote state={state}>{data => <QuietHoursForm initial={data} />}</Remote>
+  </>;
+}
 
 function NotificationsForm({ data }: { data: NotificationPreferences }) {
   const { tr, request, navigate, devicePush } = useCommunity();
@@ -69,6 +125,7 @@ function NotificationsForm({ data }: { data: NotificationPreferences }) {
     <Actions><Action label={tr("Simpan preferensi email", "Save email preferences")} mode="default" busy={state.pending}
       onPress={() => void state.run(async () => operationResult(await post(request, "notification-email", email)), saved)} /></Actions>
     <Notice notice={state.notice} />
+    <QuietHoursPanel />
     <Actions><Action label={tr("Notifikasi browser", "Browser notifications")} onPress={() => navigate("/settings/notifications/browser")} /></Actions>
   </>;
 }

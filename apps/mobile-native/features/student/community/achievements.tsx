@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Image, View } from "react-native";
-import { cosmeticNameKeys } from "../../../../../lib/gamification/labels";
-import { DEFAULT_PET_ID, petForAction, petSupportsAction } from "../../../../../lib/gamification/pet-studio";
-import { getZyraAvatar } from "../../../../../lib/gamification/zyra-cosmetics";
-import { getZyraGlbMascot } from "../../../../../lib/gamification/zyra-glb-mascots";
+import { cosmeticNameKeys } from "../../../../../packages/student-community/labels";
+import { DEFAULT_PET_ID, petForAction, petSupportsAction } from "../../../../../packages/student-community/pet-studio";
+import { getZyraAvatar } from "../../../../../packages/student-community/zyra-cosmetics";
+import { getZyraGlbMascot } from "../../../../../packages/student-community/zyra-glb-mascots";
 import en from "../../../../../messages/en/student.json";
 import id from "../../../../../messages/id/student.json";
 import type { AchievementData, AchievementTab, Badge, CosmeticSlot, GamificationReward, GamificationSummary, PetData } from "../../../../../packages/native-parity/student/community/contracts";
