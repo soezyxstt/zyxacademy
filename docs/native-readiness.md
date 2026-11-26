@@ -12,7 +12,9 @@ Ketiga ambang berlaku sendiri-sendiri. Persentase komponen terhadap jumlah berka
 
 ## Cakupan pengukuran saat ini
 
-Dari [inventaris awal](../plans/native-parallel/routes.tsv), 151 pola tetap masuk pengukuran Expo. Tiga belas pola marketing dan blog, termasuk demo, serta `/tautan`, `/forms/[id]`, `/f/[slug]`, dan `/meet/[slug]` dilayani di browser. Tiga rute autentikasi di grup marketing tetap masuk cakupan, begitu pula operasi Admin yang mengelola formulir, Meet, dan tautan. Angka pemasangan pada run historis dapat mencakup entri publik. Handoff atau operasi di browser tidak menambah kredit halaman maupun fungsi Expo. Fixture publik historis dikeluarkan dari hasil CI native bawaan.
+Inventaris sumber pada branch integrasi mencakup 168 pola halaman Next.js. Seluruh 145 pola produk memiliki tujuan Expo, terdiri dari 122 layar dan 23 alias. Sebanyak 18 pola publik dibuka di web, termasuk situs publik, formulir dan Meet. Dua halaman khusus browser menangani persetujuan OAuth dan pengaturan token push browser. Dua pola untuk pertukaran autentikasi dan satu alat verifikasi authoring melengkapi inventaris. Pembukaan aplikasi tanpa tautan menggunakan entry Expo. [Audit rute terpasang](../scripts/native-readiness/product/route-coverage.ts)
+
+Target berikutnya adalah menyelesaikan semua tindakan pengguna di rute produk. Audit memisahkan tindakan yang telah tersambung di kode, pengujian terhadap backend, dan alur yang berhasil di Android. Jumlah rute terpasang belum mengukur persentase fungsionalitas. Penyempurnaan UI dilanjutkan setelah cakupan fungsi selesai.
 
 ## Bukti Android setelah baseline
 

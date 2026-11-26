@@ -15,6 +15,7 @@ import { useOfflineReadingPackages } from "../../offline/reading-hooks";
 import { useOfflineReadingSession } from "../../offline/use-reading-session";
 import type { NativeOfflineLocale } from "../../offline/sync-contract";
 import { useOfflineCourseMetadata } from "../../offline/lifecycle-provider";
+import { StudentCelebrations } from "./community/celebrations";
 import { ScheduleResources } from "../schedule/resources";
 import { studentBrowserNotificationsAction } from "./browser-handoff";
 import { matchStudentRoute } from "./routes";
@@ -39,7 +40,7 @@ export function VerifiedStudentEntry({ offlineLocale, openOfflineMaterial, ...pr
   const router = useRouter();
   const navigation = useNavigation();
   const focused = useIsFocused();
-  const { state, transport, getSnapshot, refresh } = useNativeSession();
+  const { state, transport, getSnapshot, refresh, revalidating } = useNativeSession();
   const { context, failed, retry } = useNativeAccountContext();
   const push = useDeviceNotificationSettings();
   const courseIds = useMemo(() => {
@@ -149,12 +150,16 @@ export function VerifiedStudentEntry({ offlineLocale, openOfflineMaterial, ...pr
     openProfile: props.openBrowserNotifications,
     onError: showExternalError,
   });
-  return <StudentEntry {...props} focused={focused} openExternal={props.openExternal ?? openExternal} openBrowserNotifications={openBrowserNotifications} openOfflineMaterial={openSaved} openOfflineLibrary={target.kind === "course" || target.kind === "material" ? openLibrary : undefined} request={transport.request} devicePush={push} assessmentPhotos={props.assessmentPhotos ?? assessmentPhotos} drafts={props.drafts ?? drafts}
+  return <>
+    {focused && !revalidating && context.roles.length === 1 && context.accountId === accountId && context.sessionId === sessionId
+      ? <StudentCelebrations key={identityKey} transport={transport} locale={context.locale} navigate={props.navigate} /> : null}
+    <StudentEntry {...props} focused={focused} openExternal={props.openExternal ?? openExternal} openBrowserNotifications={openBrowserNotifications} openOfflineMaterial={openSaved} openOfflineLibrary={target.kind === "course" || target.kind === "material" ? openLibrary : undefined} request={transport.request} devicePush={push} assessmentPhotos={props.assessmentPhotos ?? assessmentPhotos} drafts={props.drafts ?? drafts}
     pdfReader={pdfReader}
     saveDiktatPdf={Platform.OS === "android" || Platform.OS === "ios" ? saveDiktatPdf : undefined}
     shareDiscussionImage={Platform.OS === "android" || Platform.OS === "ios" ? shareDiscussionImage : undefined}
     renderScheduleResources={(bookingId, theme) => <ScheduleResources key={bookingId} bookingId={bookingId} theme={theme} role="murid" />}
     offlineCourse={{ status: revoked ? "revoked" : metadata.status, course: revoked ? null : metadata.snapshot?.courses.find(course => course.id === courseIds[0]) ?? null, retry: metadata.retry }}
     session={{ role: "student", userId: accountId, origin, sessionId, locale: context.locale }}
-    onLocaleChanged={locale => { props.onLocaleChanged?.(locale); retry(); }} />;
+    onLocaleChanged={locale => { props.onLocaleChanged?.(locale); retry(); }} />
+  </>;
 }
