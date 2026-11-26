@@ -4,6 +4,7 @@ import { Animated, Easing, Pressable, StyleSheet, useColorScheme, type Pressable
 import { nativeColors } from "../../../packages/design-tokens/native-colors";
 import { hapticSelection } from "../device/haptics";
 import { useReducedMotion } from "../device/reduced-motion";
+import { disabledControlStyle } from "./control-opacity";
 
 type SwitchProps = Omit<PressableProps, "children" | "onPress" | "accessibilityRole"> & {
   checked?: boolean;
@@ -81,7 +82,7 @@ export const Switch = forwardRef<ComponentRef<typeof Pressable>, SwitchProps>(fu
         styles.track,
         { backgroundColor: value ? colors.primary : colors.input },
         focused && !blocked && [styles.focused, { outlineColor: colors.ring }],
-        blocked && styles.disabled,
+        blocked && disabledControlStyle,
         typeof style === "function" ? style(state) : style,
       ]}
     >
@@ -111,5 +112,4 @@ const styles = StyleSheet.create({
     boxShadow: "0 4px 6px -1px #0000001a, 0 2px 4px -2px #0000001a",
   },
   focused: { outlineWidth: 2, outlineOffset: 2 },
-  disabled: { opacity: 0.5 },
 });

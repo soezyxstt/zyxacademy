@@ -13,6 +13,7 @@ import {
 
 import { nativeColors, nativeLinkInks, nativeRadii } from "../../../packages/design-tokens/native-colors";
 import { nativeControlLabelPosition, nativeTypography } from "../typography";
+import { disabledControlStyle } from "./control-opacity";
 
 type ButtonVariant = "default" | "outline" | "secondary" | "ghost" | "destructive" | "link" | "marketingPrimary" | "marketingSecondary";
 type ButtonSize = "default" | "xs" | "sm" | "lg" | "icon" | "icon-xs" | "icon-sm" | "icon-lg" | "marketing";
@@ -131,7 +132,7 @@ export const Button = forwardRef<ComponentRef<typeof Pressable>, ButtonProps>(fu
         },
         state.pressed && styles.pressed,
         focused && !blocked && [styles.focused, { outlineColor: colors.accent }],
-        blocked && styles.disabled,
+        blocked && disabledControlStyle,
         typeof style === "function" ? style(state) : style,
       ]}
     >
@@ -185,7 +186,6 @@ const styles = StyleSheet.create({
   base: { flexShrink: 0, alignItems: "center", justifyContent: "center", borderWidth: 1 },
   pressed: { transform: [{ translateY: 1 }] },
   focused: { outlineWidth: 2, outlineOffset: 2 },
-  disabled: { opacity: 0.5 },
   loading: { position: "absolute" },
   hidden: { opacity: 0 },
   content: { flexDirection: "row", alignItems: "center", justifyContent: "center" },

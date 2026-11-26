@@ -4,6 +4,7 @@ import Svg, { Circle } from "react-native-svg";
 
 import { nativeColors } from "../../../packages/design-tokens/native-colors";
 import { hapticSelection } from "../device/haptics";
+import { disabledControlStyle } from "./control-opacity";
 
 type RadioGroupProps = Omit<ViewProps, "accessibilityRole" | "accessible" | "role"> & {
   value?: string;
@@ -111,7 +112,7 @@ export const RadioGroupItem = forwardRef<ComponentRef<typeof Pressable>, RadioGr
           borderColor: checked ? colors.primary : colors.input,
         },
         focused && !blocked && [styles.focused, { outlineColor: colors.accent }],
-        blocked && styles.disabled,
+        blocked && disabledControlStyle,
         typeof style === "function" ? style(state) : style,
       ]}
     >
@@ -137,5 +138,4 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   focused: { outlineWidth: 2, outlineOffset: 2 },
-  disabled: { opacity: 0.5 },
 });
