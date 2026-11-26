@@ -103,7 +103,12 @@ try {
     description: "",
     slug: "formulir-simulasi",
     category: "survey",
-    questions: [{ title: "Tanggapan?", type: "TEXT" }],
+    questions: [
+      { title: "Tanggapan?", type: "TEXT" },
+      { title: "Topik?", type: "CHECKBOX", options: ["Materi"], showDescription: false, description: "Deskripsi contoh", shuffleOptions: true, otherOption: { enabled: true, label: "Topik lain" } },
+      { title: "Penilaian?", type: "SCALE", scaleLow: 0, scaleHigh: 8, scaleLowLabel: "Perlu bantuan", scaleHighLabel: "Mandiri" },
+      { title: "Lampiran?", type: "FILE_UPLOAD", maxFileSizeMb: 25, allowedFileTypes: ["application/pdf"] },
+    ],
     settings: { acceptingResponses: false },
   };
   const form = await apply("create-form-request", {
@@ -114,6 +119,8 @@ try {
     await apply("create-form-request", { type: "form.save", fields }),
     form,
   );
+  const [storedForm] = await testDb.select().from(customForms).where(eq(customForms.id, form.id));
+  assert.deepEqual(storedForm.questions, fields.questions);
   const settings = await apply("set-form-closed-request", {
     type: "form.settings",
     id: form.id,

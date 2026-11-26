@@ -1,3 +1,5 @@
+import type { FormQuestion as ValidatedFormQuestion } from "../../../lib/forms/validation";
+
 export const managementRoutes = [
   "/admin/blog", "/admin/blog/new", "/admin/blog/[id]/edit", "/admin/forms", "/admin/forms/[id]",
   "/admin/media", "/admin/docs", "/admin/docs/[slug]", "/admin/meet", "/admin/meet/[id]",
@@ -54,10 +56,7 @@ export const questionTypes = {
   FILE_UPLOAD: "Unggah file", SCALE: "Skala linear", RATING: "Rating", GRID_RADIO: "Kisi pilihan ganda", GRID_CHECKBOX: "Kisi kotak centang",
   DATE: "Tanggal", TIME: "Waktu", SECTION: "Bagian", STATEMENT: "Pernyataan",
 } as const;
-export type FormQuestion = {
-  type: keyof typeof questionTypes; title: string; required?: boolean; description?: string; imageUrl?: string;
-  options?: string[]; gridRows?: string[]; gridColumns?: string[]; scaleLow?: number; scaleHigh?: number;
-};
+export type FormQuestion = ValidatedFormQuestion;
 export type FormSettings = {
   acceptingResponses?: boolean; displayMode?: "question" | "section"; collectEmail?: "none" | "input" | "verified";
   openAt?: string; closeAt?: string; closedMessage?: string; customSuccessMessage?: string;

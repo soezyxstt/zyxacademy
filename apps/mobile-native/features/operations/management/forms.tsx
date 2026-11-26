@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { View } from "react-native";
 import { createStandardFormQuestions } from "../../../../../lib/forms/standard-template";
-import { buildFormSteps, isEmptyFormAnswer } from "../../../../../lib/forms/presentation";
-import { summarizeFormResponses, type FormQuestion as ValidatedFormQuestion } from "../../../../../lib/forms/validation";
+import { buildFormSteps, formFileSizeLimitMb, isEmptyFormAnswer } from "../../../../../lib/forms/presentation";
+import { summarizeFormResponses } from "../../../../../lib/forms/validation";
 import { ManagementFailure, formCategories, newForm, newQuestion, questionTypes, validateForm, validateFormSettings, type FormDefinition, type FormDetails, type FormFields, type FormQuestion, type FormSettings } from "../../../../../packages/native-parity/operations/management-contract";
 import { formAcceptanceChanged, sameDraftValue } from "../../../../../packages/native-parity/operations/management-revisions";
 import { FormPresets } from "./form-presets";
@@ -15,6 +15,8 @@ const categories = Object.entries(formCategories) as [FormFields["category"], st
 const types = Object.entries(questionTypes) as [FormQuestion["type"], string][];
 const optionTypes: ReadonlySet<FormQuestion["type"]> = new Set(["RADIO", "CHECKBOX", "DROP_DOWN"]);
 const nonAnswers = (q: FormQuestion) => q.type === "SECTION" || q.type === "STATEMENT";
+const fileSizeOptions = [5, 10, 25, 50];
+const otherChoice = "\uE000__other__";
 
 function formFields(form: FormDefinition): FormFields {
   return { title: form.title, description: form.description, slug: form.slug, category: form.category, questions: form.questions, settings: form.settings };
@@ -136,13 +138,11 @@ function FormBuilder({ form, initialTab }: { form?: FormDefinition; initialTab?:
       {value.questions.map((question, index) => <Section key={index} title={`${index + 1}. ${questionTypes[question.type]}`}>
         {responseCount > 0 ? <Copy>{question.title}</Copy> : <>
         <Field label={nonAnswers(question) ? "Judul" : "Teks pertanyaan"} value={question.title} onFocus={() => setActiveQuestion(index)} onChangeText={next => questionEdit(index, { title: next })} />
-        <Field label="Deskripsi" value={question.description ?? ""} onChangeText={next => questionEdit(index, { description: next })} multiline />
         {!nonAnswers(question) && <>
           <Choices current={question.type} values={types.filter(([type]) => type !== "SECTION" && type !== "STATEMENT")} onChange={type => questionEdit(index, { type })} />
           <Toggle label="Wajib diisi" value={question.required ?? false} onChange={next => questionEdit(index, { required: next })} />
         </>}
-        {optionTypes.has(question.type) && <LineField label="Pilihan jawaban" value={question.options} onChange={next => questionEdit(index, { options: next })} />}
-        {question.type.startsWith("GRID_") && <><LineField label="Baris kisi" value={question.gridRows} onChange={next => questionEdit(index, { gridRows: next })} /><LineField label="Kolom kisi" value={question.gridColumns} onChange={next => questionEdit(index, { gridColumns: next })} /></>}
+        <QuestionOptions question={question} edit={next => questionEdit(index, next)} />
         <View style={styles.row}>
           <Action disabled={index === 0} onPress={() => move(index, -1)}>Naik</Action>
           <Action disabled={index === value.questions.length - 1} onPress={() => move(index, 1)}>Turun</Action>
@@ -180,6 +180,40 @@ function FormBuilder({ form, initialTab }: { form?: FormDefinition; initialTab?:
 
 function LineField({ label, value, onChange }: { label: string; value?: string[]; onChange: (value: string[]) => void }) {
   return <Field label={label} value={value?.join("\n") ?? ""} onChangeText={next => onChange(next.split("\n"))} multiline placeholder="Satu pilihan per baris" />;
+}
+
+function QuestionOptions({ question, edit }: { question: FormQuestion; edit: (changes: Partial<FormQuestion>) => void }) {
+  const showDescription = nonAnswers(question) || (question.showDescription ?? Boolean(question.description?.trim()));
+  const canAddOther = question.type === "RADIO" || question.type === "CHECKBOX";
+  const fileSize = formFileSizeLimitMb(question.maxFileSizeMb);
+  const availableFileSizes = fileSizeOptions.includes(fileSize) ? fileSizeOptions : [fileSize, ...fileSizeOptions];
+  return <>
+    {showDescription && <Field label="Deskripsi" value={question.description ?? ""} onChangeText={description => edit({ description })} multiline />}
+    {!nonAnswers(question) && <View style={styles.row}>
+      <Action onPress={() => edit({ showDescription: !showDescription })}>{showDescription ? "Sembunyikan deskripsi" : "Tampilkan deskripsi"}</Action>
+      {optionTypes.has(question.type) && <Action onPress={() => edit({ shuffleOptions: !question.shuffleOptions })}>
+        {question.shuffleOptions ? "Nonaktifkan pengacakan pilihan" : "Acak pilihan jawaban"}
+      </Action>}
+    </View>}
+    {optionTypes.has(question.type) && <>
+      <LineField label="Pilihan jawaban" value={question.options} onChange={options => edit({ options })} />
+      {(canAddOther || question.otherOption?.enabled) && <Action onPress={() => edit({ otherOption: {
+        enabled: !question.otherOption?.enabled, label: question.otherOption?.label || "Lainnya",
+      } })}>{question.otherOption?.enabled ? `Hapus pilihan ${question.otherOption.label}` : "Tambah pilihan Lainnya"}</Action>}
+    </>}
+    {question.type === "SCALE" && <>
+      <Field label={`Label skala ${question.scaleLow ?? 1}`} value={question.scaleLowLabel ?? ""} onChangeText={scaleLowLabel => edit({ scaleLowLabel })} />
+      <Field label={`Label skala ${question.scaleHigh ?? 5}`} value={question.scaleHighLabel ?? ""} onChangeText={scaleHighLabel => edit({ scaleHighLabel })} />
+    </>}
+    {question.type === "FILE_UPLOAD" && <View style={styles.field}>
+      <Copy strong>Maksimal ukuran berkas</Copy>
+      <Choices current={String(fileSize)} values={availableFileSizes.map(size => [String(size), `${size} MB`] as const)} onChange={size => edit({ maxFileSizeMb: Number(size) })} />
+    </View>}
+    {question.type.startsWith("GRID_") && <>
+      <LineField label="Baris kisi" value={question.gridRows} onChange={gridRows => edit({ gridRows })} />
+      <LineField label="Kolom kisi" value={question.gridColumns} onChange={gridColumns => edit({ gridColumns })} />
+    </>}
+  </>;
 }
 
 function Toggle({ label, value, onChange }: { label: string; value: boolean; onChange: (value: boolean) => void }) {
@@ -230,13 +264,17 @@ function FormPreview({ fields }: { fields: FormFields }) {
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((answers.email ?? "").trim())) return setError("Masukkan alamat email yang valid.");
     for (const questionIndex of shownQuestions) {
       const question = fields.questions[questionIndex];
-      if (!question.required || nonAnswers(question)) continue;
+      if (nonAnswers(question)) continue;
       const key = String(questionIndex);
       let value: unknown = answers[key];
+      if (optionTypes.has(question.type) && question.otherOption?.enabled &&
+        (answers[key] ?? "").split("\n").includes(otherChoice) && !answers[`other-${key}`]?.trim()) {
+        return setError(`Isi pilihan ${question.otherOption.label} untuk pertanyaan ${question.title || questionTypes[question.type]}.`);
+      }
       if (question.type.startsWith("GRID_")) {
         value = Object.fromEntries((question.gridRows ?? []).map((row, order) => [row, answers[`${key}-${order}`]]));
       }
-      if (isEmptyFormAnswer(question, value)) return setError(`Isi pertanyaan ${question.title || questionTypes[question.type]}.`);
+      if (question.required && isEmptyFormAnswer(question, value)) return setError(`Isi pertanyaan ${question.title || questionTypes[question.type]}.`);
     }
     setError("");
     if (index + 1 < steps.length) setIndex(index + 1);
@@ -251,16 +289,26 @@ function FormPreview({ fields }: { fields: FormFields }) {
       const question = fields.questions[questionIndex];
       const key = String(questionIndex);
       if (nonAnswers(question)) return <View key={key} style={styles.field}>{question.title && <Heading>{question.title}</Heading>}{question.description && <Copy>{question.description}</Copy>}</View>;
-      if (question.type === "FILE_UPLOAD") return <View key={key} style={styles.field}><Heading>{question.title || questionTypes[question.type]}</Heading><Action onPress={() => answer(key, "berkas-ujicoba.pdf")}>{answers[key] || "Pilih berkas uji"}</Action></View>;
-      if (question.options?.length && optionTypes.has(question.type)) return <View key={key} style={styles.field}><Heading>{question.title || questionTypes[question.type]}</Heading>
-        <View style={styles.row}>{question.options.filter(Boolean).map((option, order) => {
-          const entries = (answers[key] ?? "").split("\n").filter(Boolean);
-          const selected = entries.includes(option);
-          return <Action key={order} selected={selected} variant={selected ? "default" : "outline"} onPress={() => toggleAnswer(key, option, question.type === "CHECKBOX")}>{option}</Action>;
-        })}</View>
+      const description = question.description ? <Copy muted>{question.description}</Copy> : null;
+      if (question.type === "FILE_UPLOAD") return <View key={key} style={styles.field}>
+        <Heading>{question.title || questionTypes[question.type]}</Heading>{description}
+        <Copy muted>{`Maksimal ${formFileSizeLimitMb(question.maxFileSizeMb)} MB per berkas`}</Copy>
+        <Action onPress={() => answer(key, "berkas-ujicoba.pdf")}>{answers[key] || "Pilih berkas uji"}</Action>
       </View>;
+      if (optionTypes.has(question.type)) {
+        const entries = (answers[key] ?? "").split("\n").filter(Boolean);
+        const options = (question.options ?? []).filter(Boolean).map(option => ({ value: option, label: option }));
+        if (question.otherOption?.enabled) options.push({ value: otherChoice, label: question.otherOption.label });
+        return <View key={key} style={styles.field}><Heading>{question.title || questionTypes[question.type]}</Heading>{description}
+          <View style={styles.row}>{options.map(({ value, label }, order) => {
+            const selected = entries.includes(value);
+            return <Action key={order} selected={selected} variant={selected ? "default" : "outline"} onPress={() => toggleAnswer(key, value, question.type === "CHECKBOX")}>{label}</Action>;
+          })}</View>
+          {entries.includes(otherChoice) && question.otherOption?.enabled && <Field label={question.otherOption.label} value={answers[`other-${key}`] ?? ""} onChangeText={next => answer(`other-${key}`, next)} />}
+        </View>;
+      }
       if (question.type.startsWith("GRID_")) return <View key={key} style={styles.field}>
-        <Heading>{question.title || questionTypes[question.type]}</Heading>
+        <Heading>{question.title || questionTypes[question.type]}</Heading>{description}
         {question.gridRows?.filter(Boolean).map((row, order) => {
           const rowKey = `${key}-${order}`;
           const selected = (answers[rowKey] ?? "").split("\n");
@@ -269,8 +317,16 @@ function FormPreview({ fields }: { fields: FormFields }) {
           </View></View>;
         })}
       </View>;
-      if (question.type === "SCALE" || question.type === "RATING") return <View key={key} style={styles.field}><Heading>{question.title || questionTypes[question.type]}</Heading><Choices current={answers[key] ?? ""} values={Array.from({ length: Math.max(0, (question.scaleHigh ?? 5) - (question.scaleLow ?? 1) + 1) }, (_, offset) => String(offset + (question.scaleLow ?? 1))).map(value => [value, value] as const)} onChange={next => answer(key, next)} /></View>;
-      return <Field key={key} label={question.title || questionTypes[question.type]} value={answers[key] ?? ""} onChangeText={next => answer(key, next)} multiline={question.type === "PARAGRAPH"} />;
+      if (question.type === "SCALE" || question.type === "RATING") return <View key={key} style={styles.field}>
+        <Heading>{question.title || questionTypes[question.type]}</Heading>{description}
+        {question.type === "SCALE" && question.scaleLowLabel && <Copy muted>{`${question.scaleLow ?? 1} · ${question.scaleLowLabel}`}</Copy>}
+        <Choices current={answers[key] ?? ""} values={Array.from({ length: Math.max(0, (question.scaleHigh ?? 5) - (question.scaleLow ?? 1) + 1) }, (_, offset) => String(offset + (question.scaleLow ?? 1))).map(value => [value, value] as const)} onChange={next => answer(key, next)} />
+        {question.type === "SCALE" && question.scaleHighLabel && <Copy muted>{`${question.scaleHigh ?? 5} · ${question.scaleHighLabel}`}</Copy>}
+      </View>;
+      return <View key={key} style={styles.field}>
+        {description}
+        <Field label={question.title || questionTypes[question.type]} value={answers[key] ?? ""} onChangeText={next => answer(key, next)} multiline={question.type === "PARAGRAPH"} />
+      </View>;
     })}
     <View style={styles.row}>
       {index > 0 && <Action onPress={() => setIndex(index - 1)}>Kembali</Action>}
@@ -308,7 +364,7 @@ function FormDetail({ details, initialTab }: { details: FormDetails; initialTab?
   const [reading, setReading] = useState(false);
   const mustReview = needsReview || (action.error instanceof ManagementFailure && action.error.code === "conflict");
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
-  const summary = summarizeFormResponses(form.questions as ValidatedFormQuestion[], responses);
+  const summary = summarizeFormResponses(form.questions, responses);
   const respondent = responses[respondentIndex];
   const question = summary.questions[questionIndex];
   async function inspectSettings() {
