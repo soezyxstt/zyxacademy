@@ -92,6 +92,12 @@ def mount(*, with_student=True):
         if not (MOBILE / "features" / feature).is_file():
             raise ValueError(f"Missing external lane entry: {feature}")
     routes = {pattern: owner for pattern, owner in inventory().items() if with_student or owner != "student"}
+    # The two staff lanes can run before personal account screens arrive with Student.
+    account_entry = "routing/personal-account-entry.ts"
+    pending_account = ("export const isPersonalAccountRoute = (_pattern: string): boolean => false;\n"
+                       "export const StaffAccountScreen = (_props: Record<string, unknown>) => null;\n")
+    account_source = (ROOT / "apps/mobile-native" / account_entry).read_text() if with_student else pending_account
+    put(MOBILE / account_entry, account_source, replace=pending_account)
     put(MOBILE / "routing/ProductRoute.tsx", (HERE / "ProductRoute.tsx.in").read_text())
     if with_student:
         put(MOBILE / "routing/StudentProductRoute.tsx", (HERE / "StudentProductRoute.tsx.in").read_text())

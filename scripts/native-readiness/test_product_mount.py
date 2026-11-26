@@ -92,6 +92,7 @@ class ProductMountTests(unittest.TestCase):
                       '    return <Redirect href="/gallery/separator" />;\n  }', index)
         self.assertIn("<AuthSessionStatus", index)
         self.assertNotIn("features/student", self.read("routing/ProductRoute.tsx"))
+        self.assertNotIn("features/student", self.read("routing/personal-account-entry.ts"))
         self.assertNotIn("AssessmentDraftCleanup", self.read("app/_layout.tsx"))
         self.assertFalse((self.mobile / "app/dashboard/discussions.tsx").exists())
         self.assertFalse((self.mobile / "routing/StudentProductRoute.tsx").exists())
@@ -102,12 +103,13 @@ class ProductMountTests(unittest.TestCase):
         self.mount()
         self.assertEqual(self.snapshot(), with_student)
         changed = {str(path) for path, old in without_student.items() if with_student[path] != old}
-        self.assertEqual(changed, {"app/dashboard.tsx", "app/courses.tsx", "app/_layout.tsx"})
+        self.assertEqual(changed, {"app/dashboard.tsx", "app/courses.tsx", "app/_layout.tsx", "routing/personal-account-entry.ts"})
         self.assertIn('productRoute("/courses", "student", StudentProductRoute)', self.read("app/courses.tsx"))
         self.assertIn('productRoute("/dashboard", "student", StudentProductRoute)', self.read("app/dashboard.tsx"))
         self.assertIn('productRoute("/dashboard/discussions", "student", StudentProductRoute)',
                       self.read("app/dashboard/discussions.tsx"))
         self.assertIn("<AssessmentDraftCleanup />", self.read("app/_layout.tsx"))
+        self.assertIn("features/student/community/StaffAccountScreen", self.read("routing/personal-account-entry.ts"))
         self.assertIn("subscribeBeforeLocalLogout", self.read("features/student/assessment-drafts.tsx"))
         self.assertIn('requiredRole: "murid"', self.read("features/student/assessment/client.ts"))
         player = self.read("features/student/assessment/player.tsx")
