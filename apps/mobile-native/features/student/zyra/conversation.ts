@@ -1,4 +1,5 @@
 import type { ZyraWireEvent } from "../../../../../packages/zyra/stream";
+import { CanvasSpecSchema, type CanvasSpec } from "../../../../../lib/zyra/canvas/contracts";
 import { ZyraMessageAttachmentSchema, type ZyraMessageAttachment } from "../../../../../lib/zyra/images/contracts";
 import { NativeZyraStreamError, type NativeZyraRequest } from "../../../network/zyra";
 import { NativeRequestNotDispatched, type NativeSessionTransport } from "../../../network/transport";
@@ -7,7 +8,7 @@ import type { CourseZyraContextInput } from "./context";
 export const studentZyraEndpoint = "/api/native/student/zyra";
 export const maxQuestionLength = 4_000;
 
-export type ZyraMessage = { id: string; role: "student" | "ai"; content: string; attachments?: ZyraMessageAttachment[] };
+export type ZyraMessage = { id: string; role: "student" | "ai"; content: string; attachments?: ZyraMessageAttachment[]; canvasSpec?: CanvasSpec };
 export type ZyraConversation = { sessionId: string; sessionTitle?: string; messages: ZyraMessage[] };
 export type ZyraHistory = {
   tier: "free" | "standard";
@@ -18,6 +19,7 @@ export type ZyraHistory = {
 export type Turn = {
   request: NativeZyraRequest;
   response: string;
+  canvasSpec?: CanvasSpec;
   sessionId: string | null;
   title?: string;
   stage: string;
@@ -36,6 +38,10 @@ export function applyZyraEvent(turn: Turn, event: ZyraWireEvent): Turn {
       return typeof text === "string" ? { ...turn, response: turn.response + text } : turn;
     }
     case "text-replace": return typeof event.text === "string" ? { ...turn, response: event.text } : turn;
+    case "data-canvas": {
+      const canvasSpec = readCanvas(event.canvasSpec);
+      return canvasSpec ? { ...turn, canvasSpec } : turn;
+    }
     case "data-session": return typeof event.sessionId === "string" && event.sessionId ? { ...turn, sessionId: event.sessionId } : turn;
     case "data-session-title": return event.sessionId === turn.sessionId && typeof event.title === "string" ? { ...turn, title: event.title } : turn;
     case "data-history": return typeof event.saved === "boolean" ? { ...turn, receipt: event.saved ? "saved" : "unsaved" } : turn;
@@ -77,7 +83,13 @@ function record(value: unknown): Record<string, unknown> | undefined {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : undefined;
 }
 
-function conversation(value: unknown): ZyraConversation {
+function readCanvas(value: unknown): CanvasSpec | undefined {
+  if (value === undefined || value === null) return undefined;
+  const parsed = CanvasSpecSchema.safeParse(value);
+  return parsed.success ? parsed.data : undefined;
+}
+
+function conversation(value: unknown, allowCanvas: boolean): ZyraConversation {
   const item = record(value);
   if (!item || typeof item.sessionId !== "string" || !Array.isArray(item.messages)) throw new Error("Invalid Zyra conversation");
   const messages = item.messages.map((entry): ZyraMessage => {
@@ -85,7 +97,8 @@ function conversation(value: unknown): ZyraConversation {
     if (!message || typeof message.id !== "string" || typeof message.content !== "string" ||
       (message.role !== "student" && message.role !== "ai")) throw new Error("Invalid Zyra message");
     const row = ZyraMessageAttachmentSchema.array().max(4).safeParse(message.attachments ?? []);
-    return { id: message.id, role: message.role, content: message.content, attachments: row.success ? row.data : [] };
+    const canvasSpec = allowCanvas && message.role === "ai" ? readCanvas(message.canvasSpec) : undefined;
+    return { id: message.id, role: message.role, content: message.content, attachments: row.success ? row.data : [], canvasSpec };
   });
   return { sessionId: item.sessionId, sessionTitle: typeof item.sessionTitle === "string" ? item.sessionTitle : undefined, messages };
 }
@@ -116,12 +129,12 @@ export async function readZyraHistory(session: NativeSessionTransport, courseId:
     return { id: item.id, title: item.title };
   });
   return { tier: value.tier, imageInput: value.imageInput === true && value.tier === "standard", sessions,
-    history: value.history === null ? null : conversation(value.history) };
+    history: value.history === null ? null : conversation(value.history, value.tier === "standard") };
 }
 
-export async function readZyraReceipt(session: NativeSessionTransport, courseId: string, requestId: string, signal: AbortSignal) {
+export async function readZyraReceipt(session: NativeSessionTransport, courseId: string, requestId: string, signal: AbortSignal, allowCanvas: boolean) {
   const value = await read(session, new URLSearchParams({ view: "receipt", courseId, requestId }), signal);
   if (value.saved === false) return null;
   if (value.saved !== true) throw new Error("Invalid Zyra receipt");
-  return conversation(value.history);
+  return conversation(value.history, allowCanvas);
 }

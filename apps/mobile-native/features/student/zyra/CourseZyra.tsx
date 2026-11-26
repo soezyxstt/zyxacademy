@@ -13,6 +13,7 @@ import { NavigationIcon } from "../../shared-ui/navigation-icons";
 import { SharedSheet } from "../../shared-ui/overlays";
 import { CourseMarkdown } from "../CourseMarkdown";
 import type { CourseZyraContextInput, CourseZyraHandoff } from "./context";
+import { LearningCanvas } from "./LearningCanvas";
 import { useZyraPhotos, ZyraDraftPhotos, ZyraSavedPhotos } from "./photo-ui";
 import { applyZyraEvent, maxQuestionLength, newTurn, readZyraHistory, readZyraReceipt, turnCompletion, type Turn, type ZyraHistory, ZyraHistoryError } from "./conversation";
 
@@ -77,7 +78,8 @@ export function CourseZyra({ courseId, pathname, session, locale, theme, current
   const photoOptions = { session, courseId, pathname, locale, current };
   const photos = useZyraPhotos(photoOptions);
   const photoSessionId = photos.items[0]?.uploaded.sessionId;
-  const services = { session: { userId: session.scope.accountId, origin: session.scope.origin, role: "student" as const, locale }, devicePreferences: undefined, openExternal };
+  const { origin } = session.scope;
+  const services = { session: { userId: session.scope.accountId, origin, role: "student" as const, locale }, devicePreferences: undefined, openExternal };
   const body = [styles.text, { color: colors.foreground }];
   const muted = [styles.text, { color: colors.mutedForeground }];
 
@@ -189,7 +191,8 @@ export function CourseZyra({ courseId, pathname, session, locale, theme, current
       sessionId: targetId, sessionTitle: title,
       messages: [...(previous?.messages ?? []),
         { id: request.requestId + ":student", role: "student", content: request.question, attachments },
-        { id: request.requestId + ":ai", role: "ai", content: response.response }],
+        { id: request.requestId + ":ai", role: "ai", content: response.response,
+          canvasSpec: history.tier === "standard" ? response.canvasSpec : undefined }],
     } });
     photos.clear();
     setTurn(null);
@@ -201,7 +204,7 @@ export function CourseZyra({ courseId, pathname, session, locale, theme, current
     read.current = controller;
     setReceiptState("checking");
     try {
-      const result = await readZyraReceipt(session, courseId, turn.data.request.requestId, controller.signal);
+      const result = await readZyraReceipt(session, courseId, turn.data.request.requestId, controller.signal, history.tier === "standard");
       if (read.current !== controller || !current()) return;
       if (!result) { setReceiptState("missing"); return; }
       const title = result.sessionTitle ?? turn.data.request.question.slice(0, 100);
@@ -287,14 +290,22 @@ export function CourseZyra({ courseId, pathname, session, locale, theme, current
           {history.history && history.history.messages.length > visibleCount ? <Button theme={theme} variant="ghost" onPress={() => {
             follow.current = false; prepending.current = true; setVisibleCount(count => count + 20);
           }}>{t.earlier}</Button> : null}
-          {history.history?.messages.slice(-visibleCount).map(message => message.role === "student" ? <View key={message.id} style={styles.savedQuestion}>
+          {[
+            ...(history.history?.messages.slice(-visibleCount) ?? []),
+            ...(turn ? [
+              { id: turn.data.request.requestId + ":student", role: "student" as const, content: turn.data.request.question, attachments: undefined },
+              { id: turn.data.request.requestId + ":ai", role: "ai" as const, content: turn.data.response, canvasSpec: turn.data.canvasSpec },
+            ] : []),
+          ].map((message, index, messages) => message.role === "student" ? <View key={message.id} style={styles.savedQuestion}>
             {message.content ? <Text style={[body, styles.question, { backgroundColor: colors.muted }]}>{message.content}</Text> : null}
             {history.imageInput && message.attachments?.length && history.history ? <ZyraSavedPhotos {...photoOptions} theme={theme}
               sessionId={history.history.sessionId} items={message.attachments} selected={shownImage} select={setShownImage} /> : null}
-          </View> : <CourseMarkdown key={message.id} source={message.content} services={services} theme={theme} />)}
+          </View> : <View key={message.id} style={styles.answer}>
+            {message.content ? <CourseMarkdown source={message.content} services={services} theme={theme} allowLinks={turn?.state !== "streaming" || message.id !== turn.data.request.requestId + ":ai"} /> : null}
+            {history.tier === "standard" && message.canvasSpec ? <LearningCanvas spec={message.canvasSpec} locale={locale} theme={theme} origin={origin}
+              initialExpanded={index === messages.length - 1} /> : null}
+          </View>)}
           {turn ? <>
-            {turn.data.request.question ? <Text style={[body, styles.question, { backgroundColor: colors.muted }]}>{turn.data.request.question}</Text> : null}
-            {turn.data.response ? <CourseMarkdown source={turn.data.response} services={services} theme={theme} allowLinks={turn.state !== "streaming"} /> : null}
             {turn.state === "streaming" ? <Text accessibilityLiveRegion="polite" style={muted}>{turn.data.stage || t.thinking}</Text> : null}
             {notice ? <Text accessibilityRole="alert" style={body}>{notice}</Text> : null}
             {receiptState === "missing" || receiptState === "error" ? <Text accessibilityLiveRegion="polite" style={muted}>{receiptState === "missing" ? t.receiptMissing : t.error}</Text> : null}
@@ -319,6 +330,7 @@ const styles = StyleSheet.create({
   text: { ...nativeTypography.bodyRegular, fontSize: 14, lineHeight: 21, includeFontPadding: false },
   question: { alignSelf: "flex-end", maxWidth: "90%", paddingHorizontal: 12, paddingVertical: 8, borderRadius: nativeRadii.lg },
   savedQuestion: { gap: 6 },
+  answer: { gap: 8 },
   composer: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
   context: { flex: 1, minWidth: 0 },
   input: { flex: 1, width: 0, minWidth: 0, minHeight: 44, maxHeight: 128 },

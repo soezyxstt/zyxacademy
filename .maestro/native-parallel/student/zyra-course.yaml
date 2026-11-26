@@ -1,5 +1,5 @@
 appId: com.zyx.academy.nativeparity
-name: Student Zyra streams and recovers a saved answer without resending
+name: Student Zyra renders and recovers an interactive canvas
 ---
 - launchApp:
     clearState: true
@@ -24,12 +24,28 @@ name: Student Zyra streams and recovers a saved answer without resending
     id: student-zyra-send
 - hideKeyboard
 - extendedWaitUntil:
-    visible:
-      id: student-rich-markdown
+    visible: Parameters
     timeout: 20000
+- tapOn: Parameters
+- scrollUntilVisible:
+    element:
+      id: student-zyra-preset-a--2
+    direction: DOWN
+- tapOn:
+    id: student-zyra-preset-a--2
+- assertVisible:
+    id: student-zyra-parameter-a
+    text: "Coefficient: -2"
+- scrollUntilVisible:
+    element:
+      text: History
+    direction: UP
 - tapOn: History
 - tapOn:
     id: student-zyra-session-fixture-conversation
+- extendedWaitUntil:
+    visible: Parameters
+    timeout: 20000
 - tapOn:
     id: student-zyra-question
 - inputText: Explain continuity
@@ -42,6 +58,10 @@ name: Student Zyra streams and recovers a saved answer without resending
 - assertNotVisible: "A saved reply about continuity."
 - tapOn: Check history
 - extendedWaitUntil:
-    visible: "A saved reply about continuity."
+    visible: Parameters
     timeout: 20000
+- scrollUntilVisible:
+    element:
+      text: "A saved reply about continuity."
+    direction: UP
 - assertNotVisible: "A partial reply."

@@ -1,4 +1,5 @@
 import { beforeEach, expect, mock, test } from "bun:test";
+import { courseZyraPlotFixture } from "../../apps/mobile-native/features/student/zyra/fixture";
 import { tutorHistoryMessageId } from "../../lib/zyra/history-identity";
 
 const origin = "https://staging.zyxacademy.com";
@@ -9,7 +10,7 @@ const resolveAccess = mock(async () => ({ hasCourseAccess: true, capabilities: {
 const save = mock(async () => ({ success: true }));
 const list = mock(async () => [{ id: "empty-draft", title: "Empty", messageCount: 0 }, { id: "owned", title: "Calculus", messageCount: 2 }]);
 const history = mock(async () => ({ sessionId: "owned", messages: [] }));
-const answer = mock(async () => ({ responseLanguage: "en", answer: "The answer is $x^2$.", sessionId: "owned", sources: [] }));
+const answer = mock(async () => ({ responseLanguage: "en", answer: "The answer is $x^2$.", sessionId: "owned", sources: [], canvasSpec: courseZyraPlotFixture }));
 const receiptQuery = mock(async () => [{ sessionId: "owned" }]);
 mock.module("@/app/api/native/student/_session", () => ({ requireNativeStudent: guardian }));
 mock.module("@/lib/student/course-access", () => ({ resolveCourseAccess: resolveAccess }));
@@ -70,11 +71,12 @@ test("normal turns persist in the existing history only for the verified native 
   const response = await chat(true, signed);
   expect(response.status).toBe(200);
   const wire = await response.text();
+  expect(wire).toContain('"type":"data-canvas","canvasSpec":');
   expect(wire).toContain('"type":"data-history","saved":true');
   expect(wire).toContain("data: [DONE]");
   expect(save).toHaveBeenCalledTimes(1);
   expect(save).toHaveBeenCalledWith("calculus", expect.arrayContaining([
     expect.objectContaining({ role: "student", content: "What is x?" }),
-    expect.objectContaining({ role: "ai", content: "The answer is $x^2$." }),
+    expect.objectContaining({ role: "ai", content: "The answer is $x^2$.", canvasSpec: courseZyraPlotFixture }),
   ]), "owned", "zyra:turn-1");
 });

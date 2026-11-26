@@ -1,5 +1,7 @@
 import { expect, test } from "bun:test";
+import { functionValues, plotBounds, plotPath, samplePlot, stepParameter } from "../../apps/mobile-native/features/student/zyra/canvas-plot-model";
 import { applyZyraEvent, courseZyraAvailable, courseZyraContextForPath, newTurn, readZyraHistory, readZyraReceipt, turnCompletion } from "../../apps/mobile-native/features/student/zyra/conversation";
+import { courseZyraPlotFixture } from "../../apps/mobile-native/features/student/zyra/fixture";
 import { deleteZyraImage, readZyraImage, uploadZyraImage } from "../../apps/mobile-native/features/student/zyra/images";
 import { createNativeTransport, NativeRequestNotDispatched } from "../../apps/mobile-native/network/transport";
 import { NativeZyraStreamError, streamNativeZyra } from "../../apps/mobile-native/network/zyra";
@@ -20,7 +22,8 @@ test("a native turn binds the account and settles after a durable receipt even i
     expect(new Headers(init.headers).get("x-student-id")).toBe("signed-student");
     expect(JSON.parse(String(init.body))).toEqual(request);
     const events = [{ type: "text-delta", textDelta: "Partial" }, { type: "text-replace", text: "Complete $x^2$." },
-      { type: "data-session", sessionId: "owned-conversation" }, { type: "data-history", saved: true }];
+      { type: "data-session", sessionId: "owned-conversation" }, { type: "data-canvas", canvasSpec: courseZyraPlotFixture },
+      { type: "data-canvas", canvasSpec: { ...courseZyraPlotFixture, version: "unknown" } }, { type: "data-history", saved: true }];
     return new Response(events.map(event => "data: " + JSON.stringify(event) + "\n\n").join(""), { headers: { "Content-Type": "text/event-stream" } });
   });
   let result = newTurn(request);
@@ -30,13 +33,14 @@ test("a native turn binds the account and settles after a durable receipt even i
   } catch (error) { failure = error; }
   expect(failure).toMatchObject({ code: "incomplete" });
   expect(result.response).toBe("Complete $x^2$.");
+  expect(result.canvasSpec).toEqual(courseZyraPlotFixture);
   expect(turnCompletion(result, false, failure)).toBe("saved");
   expect(writes).toBe(1);
 });
 
 test("history and receipts are bound to the account, course and conversation", async () => {
   const queries: string[] = [];
-  const history = { sessionId: "my-conversation", messages: [{ id: "m", role: "ai", content: "A stored answer." }] };
+  const history = { sessionId: "my-conversation", messages: [{ id: "m", role: "ai", content: "A stored answer.", canvasSpec: courseZyraPlotFixture }] };
   const session = sessionFor(async (path, init) => {
     const query = new URL(path).searchParams;
     expect(query.get("courseId")).toBe("calculus");
@@ -47,10 +51,44 @@ test("history and receipts are bound to the account, course and conversation", a
   });
   const { signal } = new AbortController();
   expect((await readZyraHistory(session, "calculus", signal, "my-conversation")).history).toMatchObject(history);
-  expect(await readZyraReceipt(session, "calculus", "receipt-1", signal)).toMatchObject(history);
-  expect(await readZyraReceipt(session, "calculus", "missing", signal)).toBeNull();
+  expect(await readZyraReceipt(session, "calculus", "receipt-1", signal, true)).toMatchObject(history);
+  expect(await readZyraReceipt(session, "calculus", "missing", signal, true)).toBeNull();
   expect(queries).toEqual(["view=history&courseId=calculus&sessionId=my-conversation",
     "view=receipt&courseId=calculus&requestId=receipt-1", "view=receipt&courseId=calculus&requestId=missing"]);
+});
+
+test("unavailable or unauthorized canvases leave conversation text readable", async () => {
+  const signal = new AbortController().signal;
+  const history = { sessionId: "owned", messages: [
+    { id: "s", role: "student", content: "Question", canvasSpec: courseZyraPlotFixture },
+    { id: "a", role: "ai", content: "Answer", canvasSpec: courseZyraPlotFixture },
+    { id: "b", role: "ai", content: "Older answer", canvasSpec: { ...courseZyraPlotFixture, title: null } },
+  ] };
+  function forTier(tier: "free" | "standard") {
+    return sessionFor(async () => Response.json({ tier, history, sessions: [], saved: true }));
+  }
+  const free = await readZyraHistory(forTier("free"), "calculus", signal);
+  expect(free.history?.messages.map(message => message.canvasSpec)).toEqual([undefined, undefined, undefined]);
+  const standard = await readZyraHistory(forTier("standard"), "calculus", signal);
+  expect(standard.history?.messages.map(message => message.canvasSpec)).toEqual([undefined, courseZyraPlotFixture, undefined]);
+  expect(standard.history?.messages.map(message => message.content)).toEqual(["Question", "Answer", "Older answer"]);
+  const receipt = await readZyraReceipt(forTier("free"), "calculus", request.requestId, signal, false);
+  expect(receipt?.messages.map(message => message.canvasSpec)).toEqual([undefined, undefined, undefined]);
+});
+
+test("the native plot updates sampled values and breaks the line at excluded inputs", () => {
+  const spec = courseZyraPlotFixture;
+  expect(functionValues(spec, { a: 1 }, {}, "").rows.at(0)).toEqual(["-2", "4"]);
+  expect(functionValues(spec, { a: -2 }, {}, "").rows.at(0)).toEqual(["-2", "-8"]);
+  expect(functionValues(spec, { a: -2 }, { parabola: "a*x" }, "").rows.at(0)).toEqual(["-2", "4"]);
+  const excluded = { ...spec, series: [{ ...spec.series[0], excludedX: [0] }] };
+  const series = samplePlot(excluded, {}, {});
+  const bounds = plotBounds(excluded, series, 1);
+  expect(bounds).not.toBeNull();
+  expect(plotPath(series[0].points, bounds!).match(/M/g)).toHaveLength(2);
+  expect(functionValues(excluded, {}, {}, "").rows[2]).toEqual(["0", "N/A"]);
+  expect(stepParameter(2, spec.controls[0], 1)).toBe(2);
+  expect(stepParameter(-1, spec.controls[0], -1)).toBe(-1.5);
 });
 
 test("interruption stays uncertain and rejected writes can retry the same request", () => {
