@@ -72,6 +72,20 @@ function CatalogRow({ course, copy, locale, now, theme, navigate }: {
   );
 }
 
+function CatalogFooterLink({ label, period, theme, onPress }: { label: string; period: boolean; theme: Theme; onPress: () => void }) {
+  const colors = nativeColors[theme];
+  const [focused, setFocused] = useState(false);
+  return <Pressable accessibilityRole="link" accessibilityLabel={label} onPress={onPress}
+    onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} style={({ pressed }) => [
+      styles.helpAction, pressed && { backgroundColor: `${colors.muted}66` },
+      focused && { outlineColor: colors.accent, outlineWidth: 2, outlineOffset: -2 },
+    ]}>
+    <Text style={[styles.meta, { color: colors.mutedForeground }]}>
+      <Text style={styles.helpLink}>{label}</Text>{period ? "." : null}
+    </Text>
+  </Pressable>;
+}
+
 export function Catalog({ data, navigate, query, onSelectGroup, onClearSearch, openExternal, locale, theme }: {
   data: CatalogData; locale: string; theme: Theme; query: StudentScreenProps["route"]["query"];
   onSelectGroup: (id: string) => void; onClearSearch: () => void;
@@ -110,19 +124,14 @@ export function Catalog({ data, navigate, query, onSelectGroup, onClearSearch, o
           {!hasSearch && <Text style={[styles.meta, muted]}>{copy.catalog.emptyDescription}</Text>}
         </View>}
       </View>
-      {openExternal && <Text style={[styles.meta, styles.help, muted]} textBreakStrategy="simple">
-        {copy.catalog.needMoreAccess}{" "}
-        <Text accessibilityRole="link" style={styles.helpLink} onPress={() => openExternal("/plans")}>
-          {copy.catalog.viewPlans}
-        </Text>
+      {openExternal && <View style={styles.help}>
+        <Text style={[styles.meta, muted]}>{copy.catalog.needMoreAccess}</Text>
+        <CatalogFooterLink label={copy.catalog.viewPlans} period={!supportUrl} theme={theme} onPress={() => openExternal("/plans")} />
         {supportUrl && <>
-          {` ${copy.catalog.or} `}
-          <Text accessibilityRole="link" style={styles.helpLink} onPress={() => openExternal(supportUrl)}>
-            {copy.catalog.contactWhatsApp}
-          </Text>
+          <Text style={[styles.meta, muted]}>{copy.catalog.or}</Text>
+          <CatalogFooterLink label={copy.catalog.contactWhatsApp} period theme={theme} onPress={() => openExternal(supportUrl)} />
         </>}
-        {"."}
-      </Text>}
+      </View>}
     </View>
   );
 }
@@ -145,6 +154,7 @@ const styles = StyleSheet.create({
   meta: { ...nativeTypography.bodyRegular, fontSize: 12, lineHeight: 18, letterSpacing: 0.18, includeFontPadding: false },
   lock: { alignSelf: "center" },
   empty: { alignItems: "center", gap: 4, paddingVertical: 48 },
-  help: { marginTop: 24 },
+  help: { marginTop: 12, flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: 2 },
+  helpAction: { minHeight: 44, minWidth: 44, maxWidth: "100%", paddingHorizontal: 2, justifyContent: "center", borderRadius: nativeRadii.sm },
   helpLink: { textDecorationLine: "underline" },
 });

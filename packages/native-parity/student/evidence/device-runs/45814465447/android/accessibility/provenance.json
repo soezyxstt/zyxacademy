@@ -1,0 +1,28 @@
+{
+  "sourceHead": "17c0b80ae892779e72e37701d89629255aec4cfe",
+  "checkoutSha": "15ba8024dbc25385fc54050e439187e1e3f1963b",
+  "workflowRun": "https://github.com/soezyxstt/zyxacademy/actions/runs/45814465447",
+  "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45814465447/artifacts/15117816864",
+  "artifactSha256": "47943eceddc9f8d9832fa4d3f20b0c328b1b046083a6262097e3fa649ced195b",
+  "jobId": 139891824953,
+  "platform": "android",
+  "apiLevel": 35,
+  "densityDpi": 160,
+  "fontScale": 1,
+  "viewport": [
+    380,
+    820
+  ],
+  "captures": [
+    {
+      "file": "catalog-tpb.json",
+      "member": "results/2026-11-26_121622/Catalog comparable fixture all TPB and PKA/screen-hierarchy/step-032-assertCondition-No_courses_found.json",
+      "sha256": "1217b4f1d5a004e5dd33af1b72ab92757f72a4766efc96bcb898d675e5eff64b"
+    },
+    {
+      "file": "discussion-list.json",
+      "member": "results/2026-11-26_121622/Student opens a discussion alias and posts a scoped answer/screen-hierarchy/step-007-assertCondition-Pesan_yang_dibuka.json",
+      "sha256": "c3c53fe17a84e3e845d49863f0ad7406d0241c660752461b391db25e30038914"
+    }
+  ]
+}
