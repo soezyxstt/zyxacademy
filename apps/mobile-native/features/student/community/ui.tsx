@@ -2,7 +2,7 @@ import { usePageTitle } from "../../../routing/visible-navbar-title";
 import { StudentListRow } from "../ListRow";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ComponentRef, type ReactNode } from "react";
 import {
-  ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View, useColorScheme,
+  ActivityIndicator, AppState, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View, useColorScheme,
   type TextInputProps,
 } from "react-native";
 import { nativeColors, nativeRadii } from "../../../../../packages/design-tokens/native-colors";
@@ -54,28 +54,58 @@ export function operationResult(result: { success?: boolean; ok?: boolean; messa
   if (!(result.success ?? result.ok)) throw new OperationError(result.errorCode ?? result.error ?? result.message);
 }
 
-export function useRemote<T>(path: string | null, init?: RequestInit) {
-  const { request, session } = useCommunity();
+export function useRemote<T>(path: string | null, init?: RequestInit, pollAfter?: (data: T) => number) {
+  const { request, session, focused = true } = useCommunity();
   const [revision, setRevision] = useState(0);
   const [result, setResult] = useState<{ key: string; data?: T; error?: unknown }>();
   const method = init?.method;
   const sessionId = session.sessionId;
   const key = JSON.stringify([session.userId, sessionId, session.origin, session.locale, path, method]);
+  const enabled = !pollAfter || focused;
   useEffect(() => {
-    if (!path) return;
-    const abort = new AbortController();
+    if (!path || !enabled) return;
+    const target = path;
     const headers = sessionId && path.startsWith("/api/discussions/workspace?")
       ? { "x-discussion-session-id": sessionId } : undefined;
-    void readJson<T>(request, path, { method, headers, signal: abort.signal }).then(
-      data => { if (!abort.signal.aborted) setResult({ key, data }); },
-      error => { if (!abort.signal.aborted) setResult({ key, error }); },
-    );
-    return () => abort.abort();
-  }, [key, method, path, request, revision, sessionId]);
+    let disposed = false;
+    let inFlight: AbortController | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    function stop() {
+      clearTimeout(timer);
+      inFlight?.abort();
+      inFlight = undefined;
+    }
+    async function read() {
+      if (disposed || inFlight || (pollAfter && AppState.currentState && AppState.currentState !== "active")) return;
+      const attempt = new AbortController();
+      inFlight = attempt;
+      let delay: number | undefined;
+      try {
+        const data = await readJson<T>(request, target, { method, headers, signal: attempt.signal });
+        if (attempt.signal.aborted) return;
+        setResult({ key, data });
+        delay = pollAfter?.(data);
+      } catch (error) {
+        if (attempt.signal.aborted) return;
+        const transient = !(error instanceof CommunityError) || error.status >= 500 || error.status === 429;
+        setResult(previous => ({ key, error, data: pollAfter && transient && previous?.key === key ? previous.data : undefined }));
+        if (pollAfter && transient) delay = 60_000;
+      } finally {
+        if (inFlight === attempt) inFlight = undefined;
+        if (!disposed && !attempt.signal.aborted && delay !== undefined) timer = setTimeout(() => void read(), delay);
+      }
+    }
+    const subscription = pollAfter ? AppState.addEventListener("change", state => {
+      stop();
+      if (state === "active") void read();
+    }) : undefined;
+    void read();
+    return () => { disposed = true; stop(); subscription?.remove(); };
+  }, [enabled, key, method, path, pollAfter, request, revision, sessionId]);
   const reload = useCallback(() => {
-    setResult(undefined);
+    if (!pollAfter) setResult(undefined);
     setRevision(value => value + 1);
-  }, []);
+  }, [pollAfter]);
   return { data: result?.key === key ? result?.data : undefined, error: result?.key === key ? result?.error : undefined, reload };
 }
 
@@ -228,7 +258,11 @@ export function Avatar({ name, uri }: { name: string; uri: string | null }) {
 
 export function Remote<T>({ state, children }: { state: ReturnType<typeof useRemote<T>>; children(data: T): ReactNode }) {
   const { tr, colors } = useCommunity();
-  if (state.data !== undefined) return children(state.data);
+  if (state.data !== undefined) return <>
+    {state.error ? <View accessibilityLiveRegion="polite"><Copy kind="error">{describeError(state.error, tr)}</Copy>
+      <Action label={tr("Coba lagi", "Try again")} onPress={state.reload} /></View> : null}
+    {children(state.data)}
+  </>;
   if (state.error) return <View style={styles.field} accessibilityLiveRegion="polite">
     <Copy kind="error">{describeError(state.error, tr)}</Copy>
     <Actions><Action label={tr("Coba lagi", "Try again")} onPress={state.reload} /></Actions>

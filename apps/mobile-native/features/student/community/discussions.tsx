@@ -1,7 +1,9 @@
+import { DISCUSSION_REACTIONS } from "../../../../../lib/discussions/policy";
 import { randomUUID } from "expo-crypto";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Image, View } from "react-native";
 import { SharedUiComposer, type SharedUiAction } from "../../shared-ui";
+import { discussionAiMessage, listRefreshDelay, threadRefreshDelay } from "./discussion-refresh";
 import { DiscussionMessageBody } from "./discussion-markdown";
 import { DISCUSSION_DRAFT_KEY } from "../assessment-draft-store";
 import {
@@ -380,6 +382,8 @@ function MessageItem({ message, thread, apply, pending, onReply, channels }: {
   const op = useOperation();
   const [kind, setKind] = useState<"edit" | "delete" | "report" | "forward" | null>(null);
   const [body, setBody] = useState(message.body);
+  const [editRevision, setEditRevision] = useState(message.revision);
+  const [reactionsOpen, setReactionsOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [author, setAuthor] = useState<DiscussionAuthorProfile>();
   const [channel, setChannel] = useState(thread.channelId);
@@ -427,18 +431,23 @@ function MessageItem({ message, thread, apply, pending, onReply, channels }: {
       mode={reaction.selected ? "default" : "outline"}
       onPress={() => apply({ action: "reaction", messageId: message.id, emoji: reaction.emoji, selected: !reaction.selected })} />)}</Actions>}
     <Actions>
-      {message.canReact && !message.reactions.some(reaction => reaction.emoji === "👍") &&
-        <Action label="👍" disabled={pending} onPress={() => apply({ action: "reaction", messageId: message.id, emoji: "👍", selected: true })} />}
+      {message.canReact && <Action label={tr("Tambah reaksi", "Add reaction")} disabled={pending}
+        onPress={() => setReactionsOpen(open => !open)} />}
       {message.canReply && <Action label={tr("Balas", "Reply")} disabled={pending} onPress={() => onReply(message.id)} />}
-      {message.canEdit && <Action label={tr("Edit", "Edit")} disabled={pending} onPress={() => { setBody(message.body); setKind("edit"); }} />}
+      {message.canEdit && <Action label={tr("Edit", "Edit")} disabled={pending} onPress={() => { setBody(message.body); setEditRevision(message.revision); setKind("edit"); }} />}
       {message.canForward && <Action label={tr("Teruskan", "Forward")} disabled={pending} onPress={() => setKind("forward")} />}
       {message.canReport && <Action label={tr("Laporkan", "Report")} disabled={pending} onPress={() => setKind("report")} />}
       {message.canDelete && <Action label={tr("Hapus", "Delete")} disabled={pending} onPress={() => setKind("delete")} />}
     </Actions>
+    {message.canReact && reactionsOpen && <Actions>{DISCUSSION_REACTIONS.map(emoji =>
+      <Action key={emoji} label={emoji} disabled={pending} onPress={() => {
+        setReactionsOpen(false);
+        apply({ action: "reaction", messageId: message.id, emoji, selected: !message.reactions.find(item => item.emoji === emoji)?.selected });
+      }} />)}</Actions>}
     {kind === "edit" && <>
       <Field label={tr("Isi pesan", "Message")} value={body} onChangeText={setBody} multiline maxLength={12000} />
       <Actions><Action label={tr("Simpan pesan", "Save message")} mode="default" busy={pending} disabled={!body.trim()}
-        onPress={() => apply({ action: "edit", messageId: message.id, body, revision: message.revision }, close)} /></Actions>
+        onPress={() => apply({ action: "edit", messageId: message.id, body, revision: editRevision }, close)} /></Actions>
     </>}
     {kind === "delete" && <Actions><Action label={tr("Konfirmasi hapus pesan", "Confirm message deletion")} mode="destructive" busy={pending}
       onPress={() => apply({ action: "delete", messageId: message.id }, close)} /></Actions>}
@@ -467,13 +476,13 @@ function MessageItem({ message, thread, apply, pending, onReply, channels }: {
 }
 
 function ThreadView({ scope, channels }: { scope: Scope; channels: DiscussionChannelMetadata[] }) {
-  const { route, request, tr } = useCommunity();
+  const { route, request, tr, session } = useCommunity();
   const navigate = useDiscussionNavigation();
   const threadId = route.query.thread;
   const [cursor, setCursor] = useState<string>();
   const [replyTo, setReplyTo] = useState<string>();
   const [answerOpen, setAnswerOpen] = useState(false);
-  const state = useRemote<ThreadDetail>(workspace("thread", { threadId, messageId: cursor ? undefined : route.query.message, cursor }), { method: "POST" });
+  const state = useRemote<ThreadDetail>(workspace("thread", { threadId, messageId: cursor ? undefined : route.query.message, cursor }), { method: "POST" }, threadRefreshDelay);
   const action = useOperation();
   const apply: Apply = (input, after) => void action.run(async () => {
     operationResult(await post(request, "discussion", input));
@@ -507,7 +516,7 @@ function ThreadView({ scope, channels }: { scope: Scope; channels: DiscussionCha
           {focused === message.id && <Copy kind="muted">{tr("Pesan yang dibuka", "Selected message")}</Copy>}
           <MessageItem key={message.id} message={message} thread={data.thread} apply={apply} pending={action.pending} onReply={id => { setAnswerOpen(false); setReplyTo(id); }} channels={channels} />
         </View>)}</Rows>
-        {data.aiStatuses.map(item => <Copy kind="muted" key={item.messageId}>Zyra · {item.status}</Copy>)}
+        {data.aiStatuses.map(item => <Copy kind="muted" key={item.messageId}>{discussionAiMessage(item, session.locale)}</Copy>)}
         <Actions>
           {data.messages.previousCursor && <Action label={tr("Pesan lebih baru", "Newer messages")} onPress={() => setCursor(data.messages.previousCursor)} />}
           {data.messages.nextCursor && <Action label={tr("Pesan sebelumnya", "Older messages")} onPress={() => setCursor(data.messages.nextCursor ?? undefined)} />}
@@ -549,7 +558,7 @@ function Workspace({ scope }: { scope: Scope }) {
   const channels = [...(catalogPage?.items ?? []), ...(detached.data ?? [])];
   const selected = requested ? channels.find(channel => channel.id === requested) : scope.courseId ? channels[0] : undefined;
   const path = (scope.courseId || requested) && !selected ? null : workspace("threads", { channelId: selected?.id, status, search: applied || undefined, cursor });
-  const threads = useRemote<DiscussionPage<DiscussionThread>>(route.query.thread ? null : path);
+  const threads = useRemote<DiscussionPage<DiscussionThread>>(route.query.thread ? null : path, undefined, listRefreshDelay);
   useEffect(() => { setCursor(undefined); setComposing(false); }, [requested, scope.courseId]);
   if (route.query.thread) return <ThreadView key={route.query.thread} scope={scope} channels={channels} />;
   return <>
