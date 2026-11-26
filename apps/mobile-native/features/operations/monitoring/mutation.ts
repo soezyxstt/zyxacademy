@@ -32,5 +32,5 @@ export function useMonitoringAction() {
     }
   }
 
-  return { busy, error, run };
+  return { busy, error, run, clearError: () => setError(undefined) };
 }

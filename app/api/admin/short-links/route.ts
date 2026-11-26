@@ -23,7 +23,7 @@ export async function GET() {
       orderBy: [desc(shortLink.createdAt)],
     });
     
-    return NextResponse.json(links);
+    return NextResponse.json(links, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     console.error("Error fetching short links:", error);
     return new NextResponse("Internal Server Error", { status: 500 });

@@ -1,9 +1,9 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { AppState, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import Svg, { Circle, Line, Path, Text as SvgText } from "react-native-svg";
+import Svg, { Circle, Line, Path, Rect, Text as SvgText } from "react-native-svg";
 import { nativeColors, nativeRadii } from "../../../../../packages/design-tokens/native-colors";
 import {
-  MonitoringError, monitoringRanges,
+  MonitoringError, monitoringRanges, monitoringResultMatches,
   type MonitoringData, type MonitoringLocale, type MonitoringRange, type MonitoringReader, type MonitoringRequest,
 } from "../../../../../packages/native-parity/operations/monitoring-contract";
 import { Button } from "../../../components/Button";
@@ -72,7 +72,7 @@ export function useMonitoringRead<K extends keyof MonitoringData>(reader: Monito
     return () => abort.abort();
   }, [reader, query, attempt]);
 
-  const current = result?.reader === reader && result.query === query ? result : undefined;
+  const current = monitoringResultMatches(result, reader, query) ? result : undefined;
   return {
     data: current?.data,
     error: current?.error,
@@ -243,6 +243,10 @@ export function Stats({ items }: { items: { label: string; value: number | strin
   </View>;
 }
 
+export function isMonitoringAccessError(error: unknown): boolean {
+  return error instanceof MonitoringError && (error.status === 401 || error.status === 403);
+}
+
 export function ReadState({ loading, error, retry, message }: {
   loading?: boolean; error?: unknown; retry?: () => void; message?: string;
 }) {
@@ -269,22 +273,32 @@ export function ReadState({ loading, error, retry, message }: {
 }
 
 type ChartPoint = { label: string; values: number[] };
-export function TrendChart({ points, series, empty, stacked }: {
-  points: ChartPoint[]; series: string[]; empty: string; stacked?: boolean;
+export function TrendChart({ points, series, empty, stacked, secondary, seriesColors }: {
+  points: ChartPoint[]; series: string[]; empty: string; stacked?: boolean; secondary?: boolean;
+  seriesColors?: string[];
 }) {
   const { colors, n, t } = useMonitoringUi();
   const [selected, setSelected] = useState<number>();
-  const palette = [colors.primary, colors.accent, colors.secondary, colors.ring, colors.destructive, colors.marketingNavy, colors.mutedForeground, colors.primaryHover];
+  const palette = seriesColors ?? [colors.primary, "#33c1a5", colors.secondary];
   if (!points.length || (stacked && points.every(point => point.values.every(value => !value)))) return <Body muted>{empty}</Body>;
   const active = selected === undefined ? undefined : points[selected];
-  const width = 340, left = 36, right = 328, top = 16, baseline = 165;
-  const peak = Math.max(1, ...points.map(point => stacked ? point.values.reduce((total, value) => total + value, 0) : Math.max(...point.values)));
-  const magnitude = Math.pow(10, Math.floor(Math.log10(peak)));
-  const max = Math.ceil(peak / magnitude) * magnitude;
-  const x = (index: number) => points.length === 1 ? (left + right) / 2 : left + (right - left) * index / (points.length - 1);
-  const y = (value: number) => baseline - (baseline - top) * value / max;
-  const seriesValue = (point: ChartPoint, index: number) =>
-    stacked ? point.values.slice(0, index + 1).reduce((sum, value) => sum + value, 0) : point.values[index];
+  const width = 340, left = 36, right = secondary ? 308 : 328, top = 16, baseline = 165;
+  const secondaryIndex = secondary ? series.length - 1 : -1;
+  const primaryTotal = (point: ChartPoint) => stacked
+    ? point.values.reduce((sum, value, index) => index === secondaryIndex ? sum : sum + value, 0)
+    : Math.max(...point.values);
+  const axisMax = (values: number[]) => {
+    const peak = Math.max(1, ...values);
+    const magnitude = Math.pow(10, Math.floor(Math.log10(peak)));
+    return Math.ceil(peak / magnitude) * magnitude;
+  };
+  const max = axisMax(points.map(primaryTotal));
+  const secondMax = secondary ? axisMax(points.map(point => point.values[secondaryIndex])) : 0;
+  const chartWidth = right - left;
+  const barWidth = Math.min(secondary ? 22 : 24, chartWidth / points.length / (secondary ? 2.3 : 1.3));
+  const x = (index: number) => stacked ? left + chartWidth * (index + 0.5) / points.length
+    : points.length === 1 ? (left + right) / 2 : left + chartWidth * index / (points.length - 1);
+  const y = (value: number, scale = max) => baseline - (baseline - top) * value / scale;
   const tickIndices = [...new Set([0, Math.floor((points.length - 1) / 2), points.length - 1])];
   return <View style={styles.section}>
     <View accessible accessibilityLabel={`${series.join(", ")}. ${active?.label ?? `${points[0].label} ${t("sampai", "to")} ${points.at(-1)?.label}`}`}
@@ -309,17 +323,32 @@ export function TrendChart({ points, series, empty, stacked }: {
         })}
         {tickIndices.map(index => <SvgText key={index} x={x(index)} y={188} textAnchor={points.length === 1 ? "middle" : index === 0 ? "start" : index === points.length - 1 ? "end" : "middle"}
           fill={colors.mutedForeground} fontSize="11">{points[index].label}</SvgText>)}
-        {[...series].reverse().map((name, reversedIndex) => {
-          const index = series.length - 1 - reversedIndex;
-          const path = points.map((point, pointIndex) => `${pointIndex ? "L" : "M"} ${x(pointIndex)} ${y(seriesValue(point, index))}`).join(" ");
-          const d = stacked ? `${path} L ${x(points.length - 1)} ${baseline} L ${x(0)} ${baseline} Z` : path;
-          return <Path key={name} d={d} stroke={palette[index]} strokeWidth={2.5} strokeDasharray={!stacked && index === 1 ? "4 4" : undefined}
-            fill={stacked ? palette[index] : "none"} />;
+        {secondary && [0, 1, 2, 3].map(index => {
+          const value = Math.round(secondMax * index / 3);
+          return <SvgText key={index} x={right + 5} y={y(value, secondMax) + 4} fill={colors.mutedForeground} fontSize="10">
+            {n(value)}
+          </SvgText>;
+        })}
+        {stacked ? points.flatMap((point, pointIndex) => {
+          let bottom = 0;
+          return point.values.map((value, index) => {
+            const secondAxis = index === secondaryIndex;
+            const upper = y(secondAxis ? value : bottom + value, secondAxis ? secondMax : max);
+            const lower = secondAxis ? baseline : y(bottom);
+            if (!secondAxis) bottom += value;
+            const center = x(pointIndex) + (secondary ? (secondAxis ? barWidth / 2 + 1 : -barWidth / 2 - 1) : 0);
+            return <Rect key={`${pointIndex}:${index}`} x={center - barWidth / 2} y={upper} width={barWidth}
+              height={Math.max(0, lower - upper)} fill={palette[index]} />;
+          });
+        }) : series.map((name, index) => {
+          const path = points.map((point, pointIndex) => `${pointIndex ? "L" : "M"} ${x(pointIndex)} ${y(point.values[index])}`).join(" ");
+          return <Path key={name} d={path} stroke={palette[index]} strokeWidth={2.5}
+            strokeDasharray={index === 1 ? "4 4" : undefined} fill="none" />;
         })}
         {selected !== undefined && active ? <Line x1={x(selected)} x2={x(selected)} y1={top} y2={baseline} stroke={colors.mutedForeground} strokeDasharray="4 4" /> : null}
-        {(active && selected !== undefined ? active : points.length === 1 ? points[0] : undefined)?.values.map((_, index) => {
+        {!stacked && (active && selected !== undefined ? active : points.length === 1 ? points[0] : undefined)?.values.map((_, index) => {
           const pointIndex = selected ?? 0;
-          return <Circle key={series[index]} cx={x(pointIndex)} cy={y(seriesValue(points[pointIndex], index))}
+          return <Circle key={series[index]} cx={x(pointIndex)} cy={y(points[pointIndex].values[index])}
             r={4} fill={palette[index]} stroke={colors.background} strokeWidth={1.5} />;
         })}
       </Svg>

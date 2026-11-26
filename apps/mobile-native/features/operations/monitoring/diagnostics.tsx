@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { View } from "react-native";
-import type {
-  ModelSetting, MonitoringActions, MonitoringReader, OpsProposals,
+import { Input } from "../../../components/Input";
+import {
+  swapModelPriority, type ModelSetting, type MonitoringActions, type MonitoringReader, type OpsProposals,
 } from "../../../../../packages/native-parity/operations/monitoring-contract";
-import { ActionRow, Body, Control, Dialog, List, Options, ReadState, Section, Stats, styles, useMonitoringRead, useMonitoringUi } from "./ui";
+import { ActionRow, Body, Control, Dialog, List, Options, ReadState, Section, Stats, styles, useMonitoringRead, useMonitoringUi, isMonitoringAccessError } from "./ui";
 import { useMonitoringAction } from "./mutation";
 
 type ActionProps = { reader: MonitoringReader; actions?: MonitoringActions };
@@ -18,6 +19,7 @@ export function OpsMonitorScreen({ reader, actions, navigate }: ActionProps & { 
     { label: t("Penggunaan fitur", "Feature usage"), path: "/admin/ops/feature-usage", icon: "feature-usage" },
     { label: t("Aktivitas tutor", "Tutor activity"), path: "/admin/ops/tutor-activity", icon: "tutor-activity" },
   ];
+  if (isMonitoringAccessError(view.error)) return <ReadState error={view.error} />;
   return <>
     <View style={styles.actions}><Control label={t("Muat ulang", "Reload")} busy={view.refreshing} onPress={view.reload} /></View>
     {view.error || view.loading ? <ReadState {...view} retry={view.reload} /> : data && <>
@@ -151,9 +153,12 @@ export function KeyDiagnosticsScreen({ reader }: { reader: MonitoringReader }) {
 
 export function ModelsScreen({ reader, actions }: ActionProps) {
   const view = useMonitoringRead(reader, { view: "models" });
-  const { t, date } = useMonitoringUi();
+  const { t, date, theme } = useMonitoringUi();
   const mutation = useMonitoringAction();
   const [filter, setFilter] = useState("all");
+  const [query, setQuery] = useState("");
+  const [group, setGroup] = useState("");
+  const [status, setStatus] = useState("");
   const [editing, setEditing] = useState<ModelSetting>();
   const [notice, setNotice] = useState(false);
   const choices = [
@@ -162,8 +167,23 @@ export function ModelsScreen({ reader, actions }: ActionProps) {
     { value: "admin-ops-ai", label: "Ops AI" },
     { value: "embedding", label: "Embedding" },
   ];
-  const models = (view.data ?? []).filter(item => filter === "all"
-    || (filter === "zyra" ? item.feature.startsWith("zyra") : item.feature.includes(filter)));
+  const models = (view.data ?? []).filter(item => {
+    if (filter !== "all") return item.feature === filter;
+    if (group && item.group !== group) return false;
+    if (status && item.isCustom !== (status === "custom")) return false;
+    const needle = query.trim().toLowerCase();
+    return !needle || [
+      item.label, item.feature, item.description,
+      ...item.models.flatMap(model => [model, item.modelLabels?.[model] ?? ""]),
+    ].some(value => value.toLowerCase().includes(needle));
+  });
+  const groups = [
+    { value: "", label: t("Semua kelompok", "All groups") },
+    { value: "interactive", label: t("Interaktif utama", "Core interactive") },
+    { value: "learning", label: t("Pembelajaran dan evaluasi", "Learning and assessments") },
+    { value: "generation", label: t("Generasi materi dan konten", "Material and content generation") },
+    { value: "documents", label: t("Audit diktat dan dokumen", "Diktat and document audits") },
+  ];
   return <>
     {actions?.measureModelLatency && <View style={styles.actions}>
       <Control label={t("Uji latensi", "Measure latency")} busy={mutation.busy} onPress={async () => {
@@ -176,7 +196,16 @@ export function ModelsScreen({ reader, actions }: ActionProps) {
     <View style={styles.actions}>
       {choices.map(item => <Control key={item.value} label={item.label} selected={filter === item.value} onPress={() => setFilter(item.value)} />)}
     </View>
-    {view.loading || view.error ? <ReadState {...view} retry={view.reload} /> : models.length ? <List>
+    {filter === "all" && <Section>
+      <Input theme={theme} value={query} onChangeText={setQuery} autoCapitalize="none"
+        accessibilityLabel={t("Cari fitur atau model", "Search feature or model")} placeholder={t("Cari fitur atau model", "Search feature or model")} />
+      <Options label={t("Kelompok", "Group")} value={group} items={groups} onSelect={setGroup} />
+      <Options label={t("Status", "Status")} value={status}
+        items={[{ value: "", label: t("Semua", "All") }, { value: "custom", label: t("Kustom", "Custom") }, { value: "default", label: t("Bawaan", "Default") }]}
+        onSelect={setStatus} />
+    </Section>}
+    {filter === "embedding" ? <EmbeddingSection reader={reader} /> :
+      view.loading || view.error ? <ReadState {...view} retry={view.reload} /> : models.length ? <List>
       {models.map(model => <ActionRow key={model.feature} label={model.label}
         detail={model.models.map(value => model.modelLabels?.[value] ?? value).join(" · ")}
         value={model.isCustom && model.updatedAt ? date(model.updatedAt, true) : undefined}
@@ -185,6 +214,19 @@ export function ModelsScreen({ reader, actions }: ActionProps) {
     {editing && <ModelEditor key={editing.feature} model={editing} actions={actions}
       onClose={() => setEditing(undefined)} reload={() => { setEditing(undefined); view.reload(); }} />}
   </>;
+}
+
+function EmbeddingSection({ reader }: { reader: MonitoringReader }) {
+  const view = useMonitoringRead(reader, { view: "embedding" });
+  const { t, n } = useMonitoringUi();
+  if (view.loading || view.error) return <ReadState {...view} retry={view.reload} />;
+  return <Section>
+    <List>{view.data?.map(profile =>
+      <ActionRow key={profile.id}
+        label={profile.id === "canonical-content-v2" ? t("Pencarian materi", "Material search") : t("Cache semantik", "Semantic cache")}
+        detail={profile.model} value={t(`${n(profile.dimensions)} dimensi`, `${n(profile.dimensions)} dimensions`)} />)}</List>
+    <Body small muted>{t("Bangun ulang indeks sebelum mengganti model embedding.", "Rebuild the index before switching embedding models.")}</Body>
+  </Section>;
 }
 
 function ModelEditor({ model, actions, onClose, reload }: {
@@ -203,9 +245,9 @@ function ModelEditor({ model, actions, onClose, reload }: {
     <Body muted>{model.description}</Body>
     {([0, 1, 2] as const).map(index => actions?.saveModel
       ? <Options key={index} label={label(index)} value={draft[index]}
-          items={[...new Set([draft[index], ...model.selectableModels])].filter(id => !draft.some((slot, other) => id === slot && other !== index))
+          items={[...new Set([draft[index], ...model.selectableModels])]
             .map(value => ({ value, label: name(value) }))}
-          onSelect={value => setDraft(previous => previous.map((id, position) => position === index ? value : id) as [string, string, string])} />
+          onSelect={value => setDraft(previous => swapModelPriority(previous, index, value))} />
       : <ActionRow key={index} label={label(index)} detail={name(draft[index])} />)}
     <ReadState error={mutation.error}
       message={conflict ? t("Konfigurasi berubah. Muat versi terbaru.", "Settings changed. Reload the latest version.") : undefined}

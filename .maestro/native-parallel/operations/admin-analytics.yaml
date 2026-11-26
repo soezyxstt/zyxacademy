@@ -16,3 +16,14 @@ name: Operations Admin home to Web Analytics and access denial
 - assertVisible: Akses ditolak
 - assertNotVisible: Tampilan halaman
 - takeScreenshot: ${SCREENSHOT_DIR}/web-analytics-denied
+- openLink: "zyx-native-parity://operations-fixture?path=%2Fadmin%2Fops%2Fweb-analytics&mode=recoverable"
+- assertVisible: Coba lagi
+- tapOn: Coba lagi
+- assertVisible: Tampilan halaman
+- openLink: "zyx-native-parity://operations-fixture?path=%2Fadmin%2Fops%2Ffeature-usage"
+- assertVisible: Total aktivitas
+- takeScreenshot: ${SCREENSHOT_DIR}/feature-usage
+- tapOn: 'Rentang waktu: 30 hari terakhir'
+- tapOn: 7 hari terakhir
+- assertVisible: Belum ada aktivitas pada rentang waktu ini.
+- takeScreenshot: ${SCREENSHOT_DIR}/feature-usage-empty-range

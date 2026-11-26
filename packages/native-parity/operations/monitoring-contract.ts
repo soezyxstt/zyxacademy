@@ -147,6 +147,7 @@ export type MonitoringData = {
   tutor: TutorActivity;
   tutorDetail: ActivityRow | null;
   models: ModelSetting[];
+  embedding: { id: string; model: string; dimensions: number }[];
   offline: OfflinePolicy;
   offlineCatalog: OfflineCatalog;
   links: ShortLink[];
@@ -180,6 +181,22 @@ export class MonitoringError extends Error {
 
 export function isMonitoringPath(path: string): path is MonitoringPath {
   return (monitoringPaths as readonly string[]).includes(path);
+}
+
+export function swapModelPriority(
+  models: readonly [string, string, string], index: 0 | 1 | 2, next: string,
+): [string, string, string] {
+  const updated: [string, string, string] = [...models];
+  const duplicate = updated.indexOf(next);
+  if (duplicate !== -1) updated[duplicate] = updated[index];
+  updated[index] = next;
+  return updated;
+}
+
+export function monitoringResultMatches(
+  result: { reader: MonitoringReader; query: string } | undefined, reader: MonitoringReader, query: string,
+): boolean {
+  return result?.reader === reader && result.query === query;
 }
 
 export function aiDateRange(range: MonitoringRange, now: Date): URLSearchParams {

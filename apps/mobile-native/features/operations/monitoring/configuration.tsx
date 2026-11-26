@@ -32,13 +32,13 @@ export function ShortLinksScreen({ reader, actions, links }: ActionProps & { lin
     let destination: URL;
     try {
       destination = new URL(url.trim());
-      if (!["http:", "https:"].includes(destination.protocol)) throw new Error("Invalid URL");
+      if (!["http:", "https:"].includes(destination.protocol) || destination.username || destination.password || destination.href.length > 2048) throw new Error("Invalid URL");
     } catch {
       setFormError(t("Masukkan tautan HTTP atau HTTPS.", "Enter an HTTP or HTTPS destination."));
       return;
     }
-    if (slug.trim() && !/^[a-zA-Z0-9_-]+$/.test(slug.trim())) {
-      setFormError(t("Gunakan huruf, angka, garis bawah atau tanda hubung pada slug.", "Use letters, numbers, underscores or hyphens in the slug."));
+    if (slug.trim() && !/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,99}$/.test(slug.trim())) {
+      setFormError(t("Mulai slug dengan huruf atau angka dan gunakan paling banyak 100 karakter.", "Start the slug with a letter or number and use up to 100 characters."));
       return;
     }
     setFormError(undefined);
@@ -58,9 +58,9 @@ export function ShortLinksScreen({ reader, actions, links }: ActionProps & { lin
       <Input theme={theme} accessibilityLabel={t("URL tujuan", "Destination URL")} value={url} onChangeText={setUrl}
         autoCapitalize="none" keyboardType="url" placeholder="https://..." />
       <Body strong>{t("Judul", "Title")}</Body>
-      <Input theme={theme} accessibilityLabel={t("Judul", "Title")} value={title} onChangeText={setTitle} />
+      <Input theme={theme} accessibilityLabel={t("Judul", "Title")} value={title} onChangeText={setTitle} maxLength={500} />
       <Body strong>{t("Slug khusus", "Custom slug")}</Body>
-      <Input theme={theme} accessibilityLabel={t("Slug khusus", "Custom slug")} value={slug} onChangeText={setSlug} autoCapitalize="none" />
+      <Input theme={theme} accessibilityLabel={t("Slug khusus", "Custom slug")} value={slug} onChangeText={setSlug} autoCapitalize="none" maxLength={100} />
       {formError && <View accessibilityRole="alert"><Body error>{formError}</Body></View>}
       <ReadState error={mutation.error} message={t("Tautan belum terkonfirmasi. Periksa daftar sebelum mencoba lagi.", "Link creation is unconfirmed. Check the list before trying again.")} />
       <View style={styles.actions}>
@@ -176,7 +176,7 @@ function OfflinePolicyEditor({ initial, action, reload }: {
     </Section>
     <ReadState error={mutation.error}
       message={conflict ? t("Kebijakan berubah. Muat versi terbaru.", "The policy changed. Reload the latest revision.") : t("Kebijakan belum terkonfirmasi. Muat ulang sebelum mencoba lagi.", "The policy change is unconfirmed. Reload before trying again.")}
-      retry={reload} />
+      retry={() => { mutation.clearError(); reload(); }} />
     {notice && <View accessibilityLiveRegion="polite"><Body>{t("Kebijakan disimpan.", "Policy saved.")}</Body></View>}
     {!valid && <View accessibilityRole="alert"><Body error>{t("Periksa rentang nilai kebijakan.", "Check the policy value ranges.")}</Body></View>}
     {action && <View style={styles.actions}><Control primary label={t("Simpan kebijakan", "Save policy")}

@@ -10,7 +10,7 @@ import { OfflineCacheScreen, ShortLinksScreen, type LinkCapabilities } from "./c
 import { TutorActivityScreen } from "./tutor-activity";
 import { Heading, MonitoringContext, ReadState, styles, type Theme } from "./ui";
 
-export { createMonitoringReader, type MonitoringFetch } from "./transport";
+export { createMonitoringReader, createSessionMonitoringReader, createSessionMonitoringActions, type MonitoringFetch } from "./transport";
 export { isMonitoringPath, monitoringPaths } from "../../../../../packages/native-parity/operations/monitoring-contract";
 export type { MonitoringReader, MonitoringPath, MonitoringLocale, MonitoringActions, MonitoringRange } from "../../../../../packages/native-parity/operations/monitoring-contract";
 
@@ -31,14 +31,14 @@ export type MonitoringScreenProps = {
 const pageTitles: Record<MonitoringPath, Record<MonitoringLocale, string>> = {
   "/admin": { id: "Admin", en: "Admin" },
   "/admin/ops/web-analytics": { id: "Analitik web, 30 hari", en: "Web analytics, 30 days" },
-  "/admin/ops": { id: "Monitor Ops", en: "Ops monitor" },
+  "/admin/ops": { id: "Operasional", en: "Operations" },
   "/admin/ops/analytics": { id: "Analitik", en: "Analytics" },
   "/admin/ops/feature-usage": { id: "Penggunaan fitur", en: "Feature usage" },
   "/admin/ops/tutor-activity": { id: "Aktivitas tutor", en: "Tutor activity" },
   "/admin/ops/keys": { id: "Kunci API", en: "API keys" },
   "/admin/ops/models": { id: "Model AI", en: "AI models" },
-  "/admin/ops/offline": { id: "Cache offline", en: "Offline cache" },
-  "/admin/ops/short-links": { id: "Tautan singkat", en: "Short links" },
+  "/admin/ops/offline": { id: "Data offline", en: "Offline data" },
+  "/admin/ops/short-links": { id: "Tautan pendek", en: "Short links" },
 };
 
 function ScreenContents({ path, reader, actions, links, range, navigate }: {
@@ -64,7 +64,8 @@ export function MonitoringScreen({
 }: MonitoringScreenProps) {
   const scheme = useColorScheme();
   const theme = themeOverride ?? scheme ?? "light";
-  const [path, query] = href.split(/[?#]/, 2);
+  const [rawPath, query] = href.split(/[?#]/, 2);
+  const path = rawPath.replace(/\/$/, "");
   if (!isMonitoringPath(path)) return null;
   const requestedRange = new URLSearchParams(query).get("range");
   const range = requestedRange === "7" ? 7 : requestedRange === "90" ? 90 : 30;

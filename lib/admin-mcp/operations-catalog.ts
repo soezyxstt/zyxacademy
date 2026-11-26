@@ -1466,10 +1466,10 @@ export const operationsCatalog = [
   },
   {
     "source": "app/api/admin/native-monitoring/route.ts",
-    "actions": ["GET"],
-    "tools": [],
-    "status": "excluded",
-    "reason": "The native Admin UI reuses web monitoring projections behind canonical admin session authorization. The read-only adapter adds no MCP tools or changes to scopes, consent, discovery, playbooks, packaged skills, host prompts or environment bindings."
+    "actions": ["GET", "POST"],
+    "tools": ["shortlinks.create"],
+    "status": "partial",
+    "reason": "The native Admin UI reuses web monitoring behind canonical admin session authorization. Short link creation also checks the native request origin and input. Its MCP equivalent retains its existing scope and request-key contract. This adapter changes no MCP tools, scopes, consent, discovery, playbooks, packaged skills, host prompts or environment bindings."
   },
   {
     "source": "app/(admin)/admin/ops/web-analytics/page.tsx",

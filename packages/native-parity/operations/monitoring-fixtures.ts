@@ -159,6 +159,10 @@ export const monitoringFixtureData: MonitoringData = {
       isCustom: false, models: ["model-b", "model-a", "model-d"], selectableModels: ["model-a", "model-b", "model-c", "model-d"],
       editableDefaultModels: ["model-b", "model-a", "model-d"], updatedAt: null },
   ],
+  embedding: [
+    { id: "canonical-content-v2", model: "gemini-embedding-2", dimensions: 768 },
+    { id: "zyra-semantic-cache-v1", model: "gemini-embedding-2", dimensions: 768 },
+  ],
   offline: {
     revision: 2, status: { cursor: "100", lastChangedAt: Date.parse(date) }, policy: {
       revision: 2, updatedAt: Date.parse(date), metadataMaxAgeMs: 86_400_000, contentMaxAgeMs: 7 * 86_400_000,
@@ -213,24 +217,35 @@ export function createMonitoringFixture(mode: FixtureMode = "populated", path: M
   } else if (mode === "unavailable") data.web = null;
 
   function value<K extends keyof MonitoringData>(input: MonitoringRequest<K>): MonitoringData[K] {
-    if (input.view === "features") return features(mode === "empty" ? 7 : input.range ?? 30) as MonitoringData[K];
-    if (input.view === "usage" && input.range === 7) return { daily: [], users: [] } as MonitoringData[K];
-    if (input.view === "tutorDetail") return (data.tutor.page.items.find(item => item.id === input.id) ?? null) as MonitoringData[K];
-    if (input.view === "offlineCatalog") {
-      const resources = data.offlineCatalog.resources?.filter(item => item.courseId === input.id);
-      return { courses: data.offlineCatalog.courses, resources } as MonitoringData[K];
+    const responses: MonitoringData = { ...data };
+    switch (input.view) {
+      case "features":
+        responses.features = features(mode === "empty" ? 7 : input.range ?? 30);
+        break;
+      case "usage":
+        if (input.range === 7) responses.usage = { daily: [], users: [] };
+        break;
+      case "tutorDetail":
+        responses.tutorDetail = data.tutor.page.items.find(item => item.id === input.id) ?? null;
+        break;
+      case "offlineCatalog":
+        responses.offlineCatalog = {
+          courses: data.offlineCatalog.courses,
+          resources: data.offlineCatalog.resources?.filter(item => item.courseId === input.id),
+        };
+        break;
+      case "tutor": {
+        const candidates = data.tutor.page.items.filter(item => auditMatches(item, input.filters ?? {}));
+        const limit = input.filters?.limit ?? 25;
+        const after = candidates.findIndex(item => item.id === input.cursor?.id) + 1;
+        const items = candidates.slice(after, after + limit);
+        const last = items.at(-1);
+        const hasNextPage = after + items.length < candidates.length;
+        const nextCursor = last && hasNextPage ? { id: last.id, createdAt: last.createdAt } : null;
+        responses.tutor = { ...data.tutor, page: { items, nextCursor, hasNextPage, limit } };
+      }
     }
-    if (input.view === "tutor") {
-      const candidates = data.tutor.page.items.filter(item => auditMatches(item, input.filters ?? {}));
-      const limit = input.filters?.limit ?? 25;
-      const after = candidates.findIndex(item => item.id === input.cursor?.id) + 1;
-      const items = candidates.slice(after, after + limit);
-      const last = items.at(-1);
-      const hasNextPage = after + items.length < candidates.length;
-      const nextCursor = last && hasNextPage ? { id: last.id, createdAt: last.createdAt } : null;
-      return { ...data.tutor, page: { items, nextCursor, hasNextPage, limit } } as MonitoringData[K];
-    }
-    return data[input.view];
+    return responses[input.view];
   }
   const reader: MonitoringReader = {
     async read<K extends keyof MonitoringData>(input: MonitoringRequest<K>, signal: AbortSignal) {

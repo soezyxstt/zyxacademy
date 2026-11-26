@@ -2,9 +2,9 @@ import { useState } from "react";
 import { View } from "react-native";
 import {
   featureKeys, filterAiRequests,
-  type MonitoringActions, type MonitoringRange, type MonitoringReader,
+  type FeatureKey, type MonitoringActions, type MonitoringRange, type MonitoringReader,
 } from "../../../../../packages/native-parity/operations/monitoring-contract";
-import { ActionRow, Body, Control, List, RangeSelect, ReadState, Section, Stats, TrendChart, styles, useMonitoringRead, useMonitoringUi } from "./ui";
+import { ActionRow, Body, Control, List, RangeSelect, ReadState, Section, Stats, TrendChart, styles, useMonitoringRead, useMonitoringUi, isMonitoringAccessError } from "./ui";
 import { useMonitoringAction } from "./mutation";
 
 export function HomeDashboardScreen({ reader, actions, navigate }: {
@@ -41,9 +41,10 @@ export function WebAnalyticsScreen({ reader, actions, navigate }: {
   const { t, date, n } = useMonitoringUi();
   const views = t("Tampilan halaman", "Page views");
   const metrics = view.data;
+  if (isMonitoringAccessError(view.error)) return <ReadState error={view.error} />;
   return <>
     <View style={styles.actions}>
-      <Control label={t("Cache offline", "Offline cache")} link onPress={() => navigate("/admin/ops/offline")} />
+      <Control label={t("Data offline", "Offline data")} link onPress={() => navigate("/admin/ops/offline")} />
       <Control label={t("Muat ulang", "Reload")} busy={view.refreshing || sync.busy} onPress={() => {
         if (actions?.syncAnalytics) void sync.run(actions.syncAnalytics, view.reload);
         else view.reload();
@@ -83,15 +84,35 @@ function featureLabel(key: string, fallback: string, t: (id: string, en: string)
   return labels[key] ? t(...labels[key]) : fallback;
 }
 
+function featureDetail(key: string, count: number, t: (id: string, en: string) => string) {
+  const values: Record<string, [string, string]> = {
+    materi: [`${count} bagian selesai`, `${count} sections completed`],
+    flashcard: ["Ulasan kartu belajar (kanonik & legacy)", "Flashcard reviews (canonical and legacy)"],
+    kuis: [`${count} percobaan selesai`, `${count} attempts completed`],
+    tryout: [`${count} dinilai atau selesai`, `${count} graded or completed`],
+    kuisLive: ["Hasil kuis live yang selesai", "Finished live quiz results"],
+    zyra: [`${count} sesi baru`, `${count} new sessions`],
+    diskusi: [`${count} pertanyaan baru`, `${count} new questions`],
+    tutorial: [`${count} sesi selesai`, `${count} sessions completed`],
+  };
+  return values[key] ? t(...values[key]) : "";
+}
+
 export function FeatureUsageScreen({ reader, navigate, initialRange = 30 }: {
   reader: MonitoringReader; navigate: (href: string) => void; initialRange?: MonitoringRange;
 }) {
   const [range, setRange] = useState(initialRange);
   const view = useMonitoringRead(reader, { view: "features", range });
-  const { t, date, n } = useMonitoringUi();
+  const { t, date, n, colors, theme } = useMonitoringUi();
   const empty = t("Belum ada aktivitas pada rentang waktu ini.", "No activity in this time range yet.");
   const metrics = view.data;
   const labels = (key: string) => featureLabel(key, key, t);
+  const chartKeys = featureKeys.filter(key => metrics?.daily.some(point => point[key] > 0));
+  const chartColors: Record<FeatureKey, string> = {
+    materi: colors.primary, flashcard: "#33c1a5", kuis: "#c34c22", tryout: "#2f80ed",
+    kuisLive: "#e2b93b", zyra: "#27ae60", diskusi: theme === "dark" ? "#c34c22" : "#68bbf3",
+    tutorial: theme === "dark" ? "#bdbdbd" : "#ffc15e",
+  };
   const trend = (value: number | null) => value === null ? "-" : `${value > 0 ? "+" : ""}${n(value)}%`;
   return <>
     <RangeSelect value={range} onChange={setRange} />
@@ -103,8 +124,8 @@ export function FeatureUsageScreen({ reader, navigate, initialRange = 30 }: {
         { label: t("Fitur teratas", "Top feature"), value: metrics.totals.topFeatureKey ? labels(metrics.totals.topFeatureKey) : "-" },
       ]} />
       <Section title={t("Aktivitas harian", "Daily activity")}>
-        <TrendChart key={range} points={metrics.daily.map(point => ({ label: date(point.date, true), values: featureKeys.map(key => point[key]) }))}
-          series={featureKeys.map(labels)} empty={empty} stacked />
+        <TrendChart key={range} points={metrics.daily.map(point => ({ label: date(point.date, true), values: chartKeys.map(key => point[key]) }))}
+          series={chartKeys.map(labels)} seriesColors={chartKeys.map(key => chartColors[key])} empty={empty} stacked />
       </Section>
       {(metrics.insights.fastestGrowing || metrics.insights.highestAdoption || metrics.insights.needsAttention) && (
         <Section title={t("Sorotan penggunaan", "Usage highlights")}>
@@ -121,7 +142,11 @@ export function FeatureUsageScreen({ reader, navigate, initialRange = 30 }: {
       <Section title={t("Rincian fitur", "Feature details")}>
         <List>
           {metrics.rows.map(row => <ActionRow key={row.key} label={featureLabel(row.key, row.label, t)}
-            detail={t(`${n(row.users)} murid · ${row.adoptionPercent}% adopsi · ${n(row.eventsPerUser)} per murid`, `${n(row.users)} learners · ${row.adoptionPercent}% adoption · ${n(row.eventsPerUser)} per learner`)}
+            detail={[
+              featureDetail(row.key, row.detailCount ?? 0, t),
+              t(`${n(row.users)} murid · ${row.adoptionPercent}% adopsi · ${n(row.eventsPerUser)} per murid`, `${n(row.users)} learners · ${row.adoptionPercent}% adoption · ${n(row.eventsPerUser)} per learner`),
+              row.lastUsedAt ? date(row.lastUsedAt, true) : null,
+            ].filter(Boolean).join("\n")}
             value={`${n(row.events)} · ${trend(row.trendPercent)}`} />)}
         </List>
       </Section>
@@ -158,6 +183,7 @@ export function AiAnalyticsScreen({ reader }: { reader: MonitoringReader }) {
     modelCounts.set(name, item);
   }
 
+  if (isMonitoringAccessError(view.error)) return <ReadState error={view.error} />;
   return <>
     <View style={styles.actions}><Control label={t("Muat ulang", "Reload")} busy={view.refreshing}
       onPress={view.reload} /></View>
@@ -205,7 +231,7 @@ function AiUsageSection({ reader }: { reader: MonitoringReader }) {
   const [range, setRange] = useState<MonitoringRange>(30);
   const [page, setPage] = useState(0);
   const usage = useMonitoringRead(reader, { view: "usage", range });
-  const { t, date, n } = useMonitoringUi();
+  const { t, date, n, colors } = useMonitoringUi();
   const view = usage.data;
   const lastPage = Math.max(0, Math.ceil((view?.users.length ?? 0) / pageSize) - 1);
   const visiblePage = Math.min(page, lastPage);
@@ -213,11 +239,10 @@ function AiUsageSection({ reader }: { reader: MonitoringReader }) {
     <RangeSelect value={range} onChange={value => { setRange(value); setPage(0); }} />
     {usage.loading || usage.error ? <ReadState {...usage} retry={usage.reload} /> : view && <>
       <Section title={t("Tren penggunaan harian", "Daily usage trend")}>
-        <TrendChart key={range} points={view.daily.map(point => ({ label: date(point.date, true), values: [point.inputTokens, point.outputTokens] }))}
-          series={[t("Token masukan", "Input tokens"), t("Token keluaran", "Output tokens")]}
-          empty={t("Belum ada data harian.", "No daily data yet.")} stacked />
-        {view.daily.length > 0 && <TrendChart key={`requests-${range}`} points={view.daily.map(point => ({ label: date(point.date, true), values: [point.requests] }))}
-          series={[t("Permintaan", "Requests")]} empty={t("Belum ada data harian.", "No daily data yet.")} />}
+        <TrendChart key={range} points={view.daily.map(point => ({ label: date(point.date, true), values: [point.inputTokens, point.outputTokens, point.requests] }))}
+          series={[t("Token masukan", "Input tokens"), t("Token keluaran", "Output tokens"), t("Total permintaan", "Total requests")]}
+          seriesColors={[colors.primary, "#c34c22", "#2f80ed"]}
+          empty={t("Belum ada data harian.", "No daily data yet.")} stacked secondary />
       </Section>
       <Section title={t("Penggunaan per pengguna", "Usage by user")}>
         {view.users.length ? <>

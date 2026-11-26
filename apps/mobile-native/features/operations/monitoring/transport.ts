@@ -1,20 +1,20 @@
 import {
   aiDateRange, MonitoringError,
-  type MonitoringData, type MonitoringLocale, type MonitoringReader, type MonitoringRequest,
+  type MonitoringActions, type MonitoringData, type MonitoringLocale, type MonitoringReader, type MonitoringRequest,
 } from "../../../../../packages/native-parity/operations/monitoring-contract";
 
-export type MonitoringFetch = (path: string, init: RequestInit) => Promise<Response>;
+import type { NativeRequestInit, NativeSessionTransport } from "../../../network/transport";
+
+type MonitoringResponse = Pick<Response, "ok" | "status"> & {
+  json(): Promise<unknown>;
+  dispose?(): void;
+};
+export type MonitoringFetch = (path: string, init: NativeRequestInit) => Promise<MonitoringResponse>;
 
 function requestPath<K extends keyof MonitoringData>(
   request: MonitoringRequest<K>, locale: MonitoringLocale, now: Date,
 ) {
   switch (request.view) {
-    case "ops": return "/api/admin/ops";
-    case "ai": return "/api/admin/ai-analytics";
-    case "usage": return `/api/admin/ai-analytics/usage?${aiDateRange(request.range ?? 30, now)}`;
-    case "zyra": return "/api/admin/zyra/ops";
-    case "proposals": return "/api/zyra/proposals";
-    case "keys": return "/api/admin/key-diagnostics";
     case "offline": return "/api/admin/offline/policy";
     case "links": return "/api/admin/short-links";
     case "offlineCatalog": {
@@ -24,7 +24,11 @@ function requestPath<K extends keyof MonitoringData>(
     }
     default: {
       const query = new URLSearchParams({ view: request.view });
-      if (request.range) query.set("range", String(request.range));
+      if (request.view === "features" && request.range) query.set("range", String(request.range));
+      if (request.view === "usage") {
+        const range = aiDateRange(request.range ?? 30, now);
+        range.forEach((value, key) => query.set(key, value));
+      }
       if (request.id) query.set("id", request.id);
       for (const [key, value] of Object.entries(request.filters ?? {})) {
         if (value !== undefined && value !== "") query.set(key, String(value));
@@ -40,21 +44,65 @@ function requestPath<K extends keyof MonitoringData>(
 
 /** The integrator supplies an origin-bound authenticated fetch for the active account. */
 export function createMonitoringReader(
-  request: MonitoringFetch, locale: MonitoringLocale, now = () => new Date(),
+  request: MonitoringFetch, locale: MonitoringLocale, now = () => new Date(), checkSession?: () => void,
 ): MonitoringReader {
   return {
     async read<K extends keyof MonitoringData>(input: MonitoringRequest<K>, signal: AbortSignal) {
       const response = await request(requestPath(input, locale, now()), {
         signal, headers: { Accept: "application/json", "Accept-Language": locale },
       });
-      if (!response.ok) throw new MonitoringError(response.status);
-      const body: unknown = await response.json();
-      if (input.view === "usage") {
-        const usage = body as { success?: boolean; data?: MonitoringData["usage"] };
-        if (!usage.success || !usage.data) throw new MonitoringError(502);
-        return usage.data as MonitoringData[K];
+      try {
+        if (!response.ok) throw new MonitoringError(response.status);
+        const body = await response.json();
+        checkSession?.();
+        if (input.view === "usage") {
+          const usage = body as { success?: boolean; data?: MonitoringData["usage"] } | null;
+          if (!usage?.success || !usage.data) throw new MonitoringError(502);
+          return usage.data as MonitoringData[K];
+        }
+        return body as MonitoringData[K];
+      } finally {
+        response.dispose?.();
       }
-      return body as MonitoringData[K];
     },
+  };
+}
+
+function sessionHeaders(path: string, session: NativeSessionTransport, headers?: HeadersInit) {
+  const scoped = new Headers(headers);
+  if (path.startsWith("/api/admin/offline/")) {
+    scoped.set("x-offline-account-id", session.scope.accountId);
+    scoped.set("x-offline-session-id", session.scope.sessionId);
+  }
+  return scoped;
+}
+
+export function createSessionMonitoringReader(session: NativeSessionTransport, locale: MonitoringLocale) {
+  return createMonitoringReader((path, init) => session.request(path, {
+    ...init, headers: sessionHeaders(path, session, init.headers),
+  }), locale, undefined, () => session.assertCurrent());
+}
+
+/** Existing protected web writes, called once and reconciled with a read by the screen. */
+export function createSessionMonitoringActions(session: NativeSessionTransport): MonitoringActions {
+  async function write(path: string, method: "POST" | "PATCH", body: unknown) {
+    const response = await session.request(path, {
+      method,
+      headers: sessionHeaders(path, session, {
+        Accept: "application/json", "Content-Type": "application/json", Origin: session.scope.origin,
+      }),
+      body: JSON.stringify(body),
+    });
+    try {
+      if (!response.ok) throw new MonitoringError(response.status);
+      session.assertCurrent();
+    } finally {
+      response.dispose();
+    }
+  }
+  return {
+    createLink: input => write("/api/admin/native-monitoring?view=links", "POST", input),
+    saveOffline: input => write("/api/admin/offline/policy", "PATCH", input),
+    revalidateOffline: input => write("/api/admin/offline/revalidate", "POST", input),
   };
 }
