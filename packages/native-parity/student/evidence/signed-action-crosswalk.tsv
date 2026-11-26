@@ -96,7 +96,7 @@ learning	/courses/[id]/video	murid	video.transport-controls	Native play, pause a
 learning	/courses/[id]/playground	murid	python.draft-load	Mounts editor and restores scoped local draft plus server record.	connected	contract
 learning	/courses/[id]/playground	murid	python.draft-save	Saves with optimistic revision and conflict action to keep local copy.	connected	contract
 learning	/courses/[id]/playground	murid	python.run-stop	Uses protected remote runtime, streams output and aborts execution scope. Browser-local Pyodide has web-only behavior.	connected	ci-contract
-learning	/courses/[id]/playground	murid	python.stdin	Sends interactive stdin during execution. Native has narrower prefed-input surface than web.	partial	source
+learning	/courses/[id]/playground	murid	python.stdin	Saves multiline program input with the signed learner draft and preloads it into the protected Python terminal. The running program can still receive additional lines.	connected	contract
 learning	/courses/[id]/playground	murid	python.zyra-context	Adds code and runtime context to composer before explicit send.	connected	source
 learning	/courses/[id]/live	murid	live.enrollment-and-join	GET learning live and POST live verify eligible participant and exact course/room.	connected	ci-contract
 learning	/courses/[id]/live	murid	live.socket-reconnect	Rejoins socket with fresh token under same participant session.	connected	contract

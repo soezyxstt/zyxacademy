@@ -9,7 +9,7 @@ const signal = new AbortController().signal;
 test("the native editor reopens the same learner draft, preserves revisions and isolates other owners and handoffs", async () => {
   const request = createLearningFixtureRequest();
   expect(await loadPlaygroundDraft(request, owner, signal)).toEqual(emptyPlayground);
-  const draft = { code: "print(1)", stdin: "", revision: 0 };
+  const draft = { code: "print(input())", stdin: "2\n3", revision: 0 };
   expect(await savePlaygroundDraft(request, owner, draft, signal)).toEqual({ conflict: false, revision: 1 });
   expect(await loadPlaygroundDraft(request, owner, signal)).toEqual({ ...draft, revision: 1 });
   expect(await savePlaygroundDraft(request, owner, draft, signal)).toEqual({ conflict: true });
@@ -76,8 +76,9 @@ test("native terminal starts once, forwards input and bounded output, and closes
     sent.length = 0;
     const practice = createRemotePythonRuntime(owner.courseId, () => {}, { prefillInput: true, input() {}, output() {} },
       async () => Response.json({ url: "wss://zyx-py-runtime.onrender.com/v1/terminal", ticket: "fixture.ticket" }));
-    await practice.execute({ code: "print(input())", stdin: "sample", signal, limits: { timeoutMs: 5000, maxOutputChars: 100 } });
-    expect(sent).toEqual([{ type: "start", code: "print(input())" }, { type: "input", data: "sample\n" }]);
+    const persisted = restoreLocalPlayground(JSON.stringify({ code: "print(input())", stdin: "2\n3", revision: 1 }))!;
+    await practice.execute({ code: persisted.code, stdin: persisted.stdin, signal, limits: { timeoutMs: 5000, maxOutputChars: 100 } });
+    expect(sent).toEqual([{ type: "start", code: persisted.code }, { type: "input", data: "2\n3\n" }]);
   } finally {
     globalThis.WebSocket = original;
   }

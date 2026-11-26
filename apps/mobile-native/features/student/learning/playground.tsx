@@ -43,6 +43,7 @@ function Playground({ props, draftKey }: { props: StudentScreenProps; draftKey: 
   const [output, setOutput] = useState("");
   const [phase, setPhase] = useState<"idle" | "loading" | "running">("idle");
   const [line, setLine] = useState("");
+  const executedInput = useRef("");
   const input = useRef<((value: string) => void) | null>(null);
   const execution = useRef<AbortController | null>(null);
   const screen = useRef<AbortController | null>(null);
@@ -76,6 +77,7 @@ function Playground({ props, draftKey }: { props: StudentScreenProps; draftKey: 
     if (!loaded || write.current || !canInteract()) return;
     const next = { ...draft, ...patch };
     setDraft(next); setLastResult(null); setDirty(true); setNotice("");
+    executedInput.current = "";
     const lifetime = screen.current;
     void drafts?.set(localKey, JSON.stringify(next)).catch(() => {
       if (lifetime && !lifetime.signal.aborted) setNotice(en ? "Save this draft to keep your changes." : "Simpan draf ini agar perubahan tersimpan.");
@@ -115,8 +117,10 @@ function Playground({ props, draftKey }: { props: StudentScreenProps; draftKey: 
     const controller = new AbortController();
     execution.current = controller;
     setOutput(""); setLastResult(null); setNotice(""); setPhase("loading"); setLine("");
+    executedInput.current = draft.stdin;
     const active = () => execution.current === controller && !controller.signal.aborted && canInteract();
     const runtime = createRemotePythonRuntime(owner.courseId, next => { if (active()) setPhase(next); }, {
+      prefillInput: true,
       output: chunk => { if (active()) setOutput(previous => previous + chunk); },
       input: send => { if (active()) input.current = send; },
     }, request);
@@ -143,19 +147,30 @@ function Playground({ props, draftKey }: { props: StudentScreenProps; draftKey: 
     <Copy>{en ? "Python code" : "Kode Python"}</Copy>
     <PythonCodeField label={en ? "Python code" : "Kode Python"} code={draft.code}
       editable={!saving && !running} onChange={code => edit({ code })} />
+    <Copy>{en ? "Program input" : "Masukan program"}</Copy>
+    <Input accessibilityLabel={en ? "Program input" : "Masukan program"}
+      testID="student-python-program-input" value={draft.stdin} maxLength={8000} multiline
+      autoCapitalize="none" autoCorrect={false} spellCheck={false} editable={!saving && !running}
+      onChangeText={stdin => edit({ stdin })} style={local.programInput} />
     {conflictRevision !== null && <Copy>{en ? "Another device saved a different draft. Saving your copy will replace it." : "Perangkat lain menyimpan draf berbeda. Menyimpan salinan ini akan menggantikannya."}</Copy>}
     <View style={styles.wrap}>
       <Button disabled={!running && !draft.code.trim()} onPress={running ? () => execution.current?.abort() : run}>
         {running ? (en ? "Stop" : "Hentikan") : (en ? "Run" : "Jalankan")}</Button>
       <Button variant="outline" disabled={!dirty || saving} onPress={save}>{conflictRevision !== null ? (en ? "Save my copy" : "Simpan salinan saya") : (en ? "Save draft" : "Simpan draf")}</Button>
       {openZyra && <Button variant="ghost" disabled={running || !draft.code.trim()} onPress={() => {
-        if (canInteract()) openZyra({ kind: "playground", code: draft.code, stdin: draft.stdin, execution: lastResult,
+        if (canInteract()) openZyra({ kind: "playground", code: draft.code, stdin: lastResult ? executedInput.current : draft.stdin, execution: lastResult,
           intent: lastResult?.status === "runtime_error" || lastResult?.status === "syntax_error" ? "explain_error" : "review" });
       }}>{en ? "Ask Zyra" : "Tanya Zyra"}</Button>}
     </View>
     {phase === "running" && <View style={styles.wrap}>
       <Input accessibilityLabel="stdin" autoCapitalize="none" value={line} maxLength={8000} onChangeText={setLine} style={local.stdin} />
-      <Button variant="outline" onPress={() => { if (execution.current && canInteract() && input.current) { input.current(line); setLine(""); } }}>{en ? "Send input" : "Kirim masukan"}</Button>
+      <Button variant="outline" onPress={() => {
+        if (!execution.current || !canInteract() || !input.current) return;
+        input.current(line);
+        const prefix = executedInput.current;
+        executedInput.current = (prefix + (prefix && !prefix.endsWith("\n") ? "\n" : "") + line + "\n").slice(0, 8000);
+        setLine("");
+      }}>{en ? "Send input" : "Kirim masukan"}</Button>
     </View>}
     {output ? <PythonOutput content={output} /> : null}
     {notice ? <Copy>{notice}</Copy> : null}
@@ -164,4 +179,5 @@ function Playground({ props, draftKey }: { props: StudentScreenProps; draftKey: 
 
 const local = StyleSheet.create({
   stdin: { flex: 1, minWidth: 100 },
+  programInput: { minHeight: 60, fontFamily: "monospace", textAlignVertical: "top" },
 });
