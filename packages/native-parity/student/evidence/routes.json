@@ -1,8 +1,8 @@
 {
-  "generated_from_head": "0eda4569ad4a1876c761d55d72c67e39c50b08cc",
+  "generated_from_head": "fb14464bdc8e77573df6225f1f3505041ae6e0ef",
   "note": "HEAD identifies the checkout at generation time; an uncommitted working tree may differ. Evidence retains its own provenance. No platform pass or parity is inferred from fixtures.",
   "smoke_manifest": "artifacts/student-evidence/generated/manifest.json",
-  "smoke_generated_from_head": "0eda4569ad4a1876c761d55d72c67e39c50b08cc",
+  "smoke_generated_from_head": "364218b610e9f04be31f8e233282f5b90063c2a7",
   "product_capture_manifest": "tests/visual/native-parallel/student/product/web/web.json",
   "ci_history": "packages/native-parity/student/evidence/ci-history.json",
   "device_evidence_summary": {
@@ -3495,6 +3495,108 @@
       ],
       "http_evidence": null,
       "web_evidence": [
+        {
+          "id": "android-mastery-review",
+          "file": "tests/visual/native-parallel/student/mastery/web/android/mastery-review.png",
+          "sha256": "a4ee05442b52a52e2154668fbf44c86eea94c7fa520a03eaab461bfbbd7d4647",
+          "manifest": "tests/visual/native-parallel/student/mastery/web/android/mastery-reference.json",
+          "referenceCommit": "0a168c30304703ee76e0a6c31dc67c38b7ba9d2c",
+          "comparisonScope": "Mastery review, chapter expansion and empty learning state",
+          "serverSha": null,
+          "evidence": "web component fixture; target label is viewport only",
+          "viewport": {
+            "width": 380,
+            "height": 820
+          },
+          "dpr": 1,
+          "theme": "light",
+          "locale": "id"
+        },
+        {
+          "id": "android-mastery-expanded",
+          "file": "tests/visual/native-parallel/student/mastery/web/android/mastery-expanded.png",
+          "sha256": "ea4f70aa02aa64a7f9faf6718141ff8478001bf5540e12ff7e3a630ca868528b",
+          "manifest": "tests/visual/native-parallel/student/mastery/web/android/mastery-reference.json",
+          "referenceCommit": "0a168c30304703ee76e0a6c31dc67c38b7ba9d2c",
+          "comparisonScope": "Mastery review, chapter expansion and empty learning state",
+          "serverSha": null,
+          "evidence": "web component fixture; target label is viewport only",
+          "viewport": {
+            "width": 380,
+            "height": 820
+          },
+          "dpr": 1,
+          "theme": "light",
+          "locale": "id"
+        },
+        {
+          "id": "android-mastery-empty",
+          "file": "tests/visual/native-parallel/student/mastery/web/android/mastery-empty.png",
+          "sha256": "565a35f72101144c109563a6fb175f159579634e09a2e6c187fabcb0e1a8a351",
+          "manifest": "tests/visual/native-parallel/student/mastery/web/android/mastery-reference.json",
+          "referenceCommit": "0a168c30304703ee76e0a6c31dc67c38b7ba9d2c",
+          "comparisonScope": "Mastery review, chapter expansion and empty learning state",
+          "serverSha": null,
+          "evidence": "web component fixture; target label is viewport only",
+          "viewport": {
+            "width": 380,
+            "height": 820
+          },
+          "dpr": 1,
+          "theme": "light",
+          "locale": "id"
+        },
+        {
+          "id": "ios-mastery-review",
+          "file": "tests/visual/native-parallel/student/mastery/web/ios/mastery-review.png",
+          "sha256": "7d3053a4bd570320ae4485e64bd1e46ee40cce967777ed989fe537dbd78cfd3d",
+          "manifest": "tests/visual/native-parallel/student/mastery/web/ios/mastery-reference.json",
+          "referenceCommit": "0a168c30304703ee76e0a6c31dc67c38b7ba9d2c",
+          "comparisonScope": "Mastery review, chapter expansion and empty learning state",
+          "serverSha": null,
+          "evidence": "web component fixture; target label is viewport only",
+          "viewport": {
+            "width": 402,
+            "height": 874
+          },
+          "dpr": 3,
+          "theme": "light",
+          "locale": "id"
+        },
+        {
+          "id": "ios-mastery-expanded",
+          "file": "tests/visual/native-parallel/student/mastery/web/ios/mastery-expanded.png",
+          "sha256": "a3aed7c6086361c8485c0742e084cfecf8e00bada7d9d0eaad3dc4600c42a332",
+          "manifest": "tests/visual/native-parallel/student/mastery/web/ios/mastery-reference.json",
+          "referenceCommit": "0a168c30304703ee76e0a6c31dc67c38b7ba9d2c",
+          "comparisonScope": "Mastery review, chapter expansion and empty learning state",
+          "serverSha": null,
+          "evidence": "web component fixture; target label is viewport only",
+          "viewport": {
+            "width": 402,
+            "height": 874
+          },
+          "dpr": 3,
+          "theme": "light",
+          "locale": "id"
+        },
+        {
+          "id": "ios-mastery-empty",
+          "file": "tests/visual/native-parallel/student/mastery/web/ios/mastery-empty.png",
+          "sha256": "e154e32d03147127d3b0595f264b6117a785387bfa0c47978b4a7b4e8acaddd4",
+          "manifest": "tests/visual/native-parallel/student/mastery/web/ios/mastery-reference.json",
+          "referenceCommit": "0a168c30304703ee76e0a6c31dc67c38b7ba9d2c",
+          "comparisonScope": "Mastery review, chapter expansion and empty learning state",
+          "serverSha": null,
+          "evidence": "web component fixture; target label is viewport only",
+          "viewport": {
+            "width": 402,
+            "height": 874
+          },
+          "dpr": 3,
+          "theme": "light",
+          "locale": "id"
+        },
         {
           "id": "mastery-mastery.png",
           "file": "tests/visual/native-parallel/student/learning/product/mastery.png",
@@ -8663,6 +8765,108 @@
           "sha256": "ccab6c0d48381fe432f8c84d8a49e60733546fdaa35f0a6e6b9a4d7f39a20461",
           "manifest": "tests/visual/native-parallel/student/quiz-gateway/web/ios/quiz-gateway-reference.json",
           "referenceCommit": "ac393ee7f3809326d1038dee13e66498527f576d",
+          "serverSha": null,
+          "evidence": "web component fixture; target label is viewport only",
+          "viewport": {
+            "width": 402,
+            "height": 874
+          },
+          "dpr": 3,
+          "theme": "light",
+          "locale": "id"
+        },
+        {
+          "id": "android-quiz-player-unanswered",
+          "file": "tests/visual/native-parallel/student/quiz-player/web/android/quiz-player-unanswered.png",
+          "sha256": "3c215d17308aa3fbae58fddee034740caa7c88b160182d17fb74f32e69a4db5c",
+          "manifest": "tests/visual/native-parallel/student/quiz-player/web/android/quiz-player-reference.json",
+          "referenceCommit": "69dfa1947557df50dc9db373f5235a6d6a3e45be",
+          "comparisonScope": "Quiz question, answer selection and flagged draft restoration",
+          "serverSha": null,
+          "evidence": "web component fixture; target label is viewport only",
+          "viewport": {
+            "width": 380,
+            "height": 820
+          },
+          "dpr": 1,
+          "theme": "light",
+          "locale": "id"
+        },
+        {
+          "id": "android-quiz-player-answered",
+          "file": "tests/visual/native-parallel/student/quiz-player/web/android/quiz-player-answered.png",
+          "sha256": "dd3f42d63fb827aab3865f2c12977316e1a2b4c2e8a9faa70aa0d89ff1770bb2",
+          "manifest": "tests/visual/native-parallel/student/quiz-player/web/android/quiz-player-reference.json",
+          "referenceCommit": "69dfa1947557df50dc9db373f5235a6d6a3e45be",
+          "comparisonScope": "Quiz question, answer selection and flagged draft restoration",
+          "serverSha": null,
+          "evidence": "web component fixture; target label is viewport only",
+          "viewport": {
+            "width": 380,
+            "height": 820
+          },
+          "dpr": 1,
+          "theme": "light",
+          "locale": "id"
+        },
+        {
+          "id": "android-quiz-player-flagged-restored",
+          "file": "tests/visual/native-parallel/student/quiz-player/web/android/quiz-player-flagged-restored.png",
+          "sha256": "256023df6cd946b023f98412b89eb726f350df5fe20a9c58463903346485b9db",
+          "manifest": "tests/visual/native-parallel/student/quiz-player/web/android/quiz-player-reference.json",
+          "referenceCommit": "69dfa1947557df50dc9db373f5235a6d6a3e45be",
+          "comparisonScope": "Quiz question, answer selection and flagged draft restoration",
+          "serverSha": null,
+          "evidence": "web component fixture; target label is viewport only",
+          "viewport": {
+            "width": 380,
+            "height": 820
+          },
+          "dpr": 1,
+          "theme": "light",
+          "locale": "id"
+        },
+        {
+          "id": "ios-quiz-player-unanswered",
+          "file": "tests/visual/native-parallel/student/quiz-player/web/ios/quiz-player-unanswered.png",
+          "sha256": "cb809ffc7531e07b0121981e1aeb4a5f9f4bc67bf424ede3ee5dc1a153784270",
+          "manifest": "tests/visual/native-parallel/student/quiz-player/web/ios/quiz-player-reference.json",
+          "referenceCommit": "69dfa1947557df50dc9db373f5235a6d6a3e45be",
+          "comparisonScope": "Quiz question, answer selection and flagged draft restoration",
+          "serverSha": null,
+          "evidence": "web component fixture; target label is viewport only",
+          "viewport": {
+            "width": 402,
+            "height": 874
+          },
+          "dpr": 3,
+          "theme": "light",
+          "locale": "id"
+        },
+        {
+          "id": "ios-quiz-player-answered",
+          "file": "tests/visual/native-parallel/student/quiz-player/web/ios/quiz-player-answered.png",
+          "sha256": "6272c6f83d835aa9183b700c04f5bf6d355b3a7a0b023e9e5bb91f104bb23735",
+          "manifest": "tests/visual/native-parallel/student/quiz-player/web/ios/quiz-player-reference.json",
+          "referenceCommit": "69dfa1947557df50dc9db373f5235a6d6a3e45be",
+          "comparisonScope": "Quiz question, answer selection and flagged draft restoration",
+          "serverSha": null,
+          "evidence": "web component fixture; target label is viewport only",
+          "viewport": {
+            "width": 402,
+            "height": 874
+          },
+          "dpr": 3,
+          "theme": "light",
+          "locale": "id"
+        },
+        {
+          "id": "ios-quiz-player-flagged-restored",
+          "file": "tests/visual/native-parallel/student/quiz-player/web/ios/quiz-player-flagged-restored.png",
+          "sha256": "b8ffd24ada517fd4a36987b4097d110281e8e471e13aaea739136fa66a27a7f7",
+          "manifest": "tests/visual/native-parallel/student/quiz-player/web/ios/quiz-player-reference.json",
+          "referenceCommit": "69dfa1947557df50dc9db373f5235a6d6a3e45be",
+          "comparisonScope": "Quiz question, answer selection and flagged draft restoration",
           "serverSha": null,
           "evidence": "web component fixture; target label is viewport only",
           "viewport": {
@@ -21493,6 +21697,108 @@
       "http_evidence": null,
       "web_evidence": [
         {
+          "id": "android-settings-id-light",
+          "file": "tests/visual/native-parallel/student/settings/web/android/settings-id-light.png",
+          "sha256": "2cda87ba7a2481bb27fdaafbe4829b8892a821a2f69a4f5720ed784dcb9eac19",
+          "manifest": "tests/visual/native-parallel/student/settings/web/android/settings-reference.json",
+          "referenceCommit": "364218b610e9f04be31f8e233282f5b90063c2a7",
+          "comparisonScope": "Settings language selection with contextual full-viewport capture",
+          "serverSha": null,
+          "evidence": "web component fixture; target label is viewport only",
+          "viewport": {
+            "width": 380,
+            "height": 820
+          },
+          "dpr": 1,
+          "theme": "light",
+          "locale": "id"
+        },
+        {
+          "id": "android-settings-en-light",
+          "file": "tests/visual/native-parallel/student/settings/web/android/settings-en-light.png",
+          "sha256": "ffc751221c22dab5ed6686932094d70fe117ee42d56d7e52d6cceaa8a490b6c3",
+          "manifest": "tests/visual/native-parallel/student/settings/web/android/settings-reference.json",
+          "referenceCommit": "364218b610e9f04be31f8e233282f5b90063c2a7",
+          "comparisonScope": "Settings language selection with contextual full-viewport capture",
+          "serverSha": null,
+          "evidence": "web component fixture; target label is viewport only",
+          "viewport": {
+            "width": 380,
+            "height": 820
+          },
+          "dpr": 1,
+          "theme": "light",
+          "locale": "en"
+        },
+        {
+          "id": "android-settings-id-dark",
+          "file": "tests/visual/native-parallel/student/settings/web/android/settings-id-dark.png",
+          "sha256": "5d24a90cdfb5ca207fbebd55e32fd0312d1be5e7a94135ef54a946a9f5200259",
+          "manifest": "tests/visual/native-parallel/student/settings/web/android/settings-reference.json",
+          "referenceCommit": "364218b610e9f04be31f8e233282f5b90063c2a7",
+          "comparisonScope": "Settings language selection with contextual full-viewport capture",
+          "serverSha": null,
+          "evidence": "web component fixture; target label is viewport only",
+          "viewport": {
+            "width": 380,
+            "height": 820
+          },
+          "dpr": 1,
+          "theme": "dark",
+          "locale": "id"
+        },
+        {
+          "id": "ios-settings-id-light",
+          "file": "tests/visual/native-parallel/student/settings/web/ios/settings-id-light.png",
+          "sha256": "c217c896c589b83ef4233965e98546fbaf10a2954a804e00b8385094f9fd6664",
+          "manifest": "tests/visual/native-parallel/student/settings/web/ios/settings-reference.json",
+          "referenceCommit": "364218b610e9f04be31f8e233282f5b90063c2a7",
+          "comparisonScope": "Settings language selection with contextual full-viewport capture",
+          "serverSha": null,
+          "evidence": "web component fixture; target label is viewport only",
+          "viewport": {
+            "width": 402,
+            "height": 874
+          },
+          "dpr": 3,
+          "theme": "light",
+          "locale": "id"
+        },
+        {
+          "id": "ios-settings-en-light",
+          "file": "tests/visual/native-parallel/student/settings/web/ios/settings-en-light.png",
+          "sha256": "f82790ddf92c35e65c8df07f9d87dfd4796a4f7e73415e3177c59c66886bb2fc",
+          "manifest": "tests/visual/native-parallel/student/settings/web/ios/settings-reference.json",
+          "referenceCommit": "364218b610e9f04be31f8e233282f5b90063c2a7",
+          "comparisonScope": "Settings language selection with contextual full-viewport capture",
+          "serverSha": null,
+          "evidence": "web component fixture; target label is viewport only",
+          "viewport": {
+            "width": 402,
+            "height": 874
+          },
+          "dpr": 3,
+          "theme": "light",
+          "locale": "en"
+        },
+        {
+          "id": "ios-settings-id-dark",
+          "file": "tests/visual/native-parallel/student/settings/web/ios/settings-id-dark.png",
+          "sha256": "d51a7745d23f1c17dc4cf905fbc125f15f4197ea1f6de849f7893b04b62719b4",
+          "manifest": "tests/visual/native-parallel/student/settings/web/ios/settings-reference.json",
+          "referenceCommit": "364218b610e9f04be31f8e233282f5b90063c2a7",
+          "comparisonScope": "Settings language selection with contextual full-viewport capture",
+          "serverSha": null,
+          "evidence": "web component fixture; target label is viewport only",
+          "viewport": {
+            "width": 402,
+            "height": 874
+          },
+          "dpr": 3,
+          "theme": "dark",
+          "locale": "id"
+        },
+        {
           "id": "settings-via-profile-mobile-380-settings-via-profile.png",
           "file": "tests/visual/native-parallel/student/references/community/mobile-380-settings-via-profile.png",
           "evidence": "authenticated product web",
@@ -21821,7 +22127,7 @@
       },
       "interaction_status": "Current fixture credit requires a device run with the same path, scenario, theme, marker and ordered steps.",
       "parity_status": "not_established",
-      "known_differences": "Some web display settings are not mapped to native. Device pixel diff is not measured.",
+      "known_differences": "The language controls can be compared within settings. Other web display settings and the surrounding chrome have separate platform behavior.",
       "pending": [
         "Signed-in end-to-end product flow on the integrated host",
         "Remaining Android and iOS captures, interactions, accessibility and matching pixel comparisons"
