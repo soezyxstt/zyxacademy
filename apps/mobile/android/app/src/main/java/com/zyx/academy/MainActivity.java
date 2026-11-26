@@ -178,6 +178,11 @@ public class MainActivity extends BridgeActivity {
             NotificationManager manager = getSystemService(NotificationManager.class);
             if (manager != null) {
                 manager.createNotificationChannel(channel);
+                boolean id = "id".equals(java.util.Locale.getDefault().getLanguage()) || "in".equals(java.util.Locale.getDefault().getLanguage());
+                manager.createNotificationChannel(new NotificationChannel("zyx_discussions", id ? "Diskusi" : "Discussions", NotificationManager.IMPORTANCE_DEFAULT));
+                manager.createNotificationChannel(new NotificationChannel("zyx_schedule", id ? "Jadwal" : "Schedules", NotificationManager.IMPORTANCE_HIGH));
+                manager.createNotificationChannel(new NotificationChannel("zyx_learning", id ? "Pembelajaran" : "Learning", NotificationManager.IMPORTANCE_DEFAULT));
+                manager.createNotificationChannel(new NotificationChannel("zyx_updates", id ? "Pembaruan" : "Updates", NotificationManager.IMPORTANCE_DEFAULT));
             }
         }
     }

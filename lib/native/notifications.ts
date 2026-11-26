@@ -7,6 +7,7 @@
  */
 
 import {
+  canUseBrowserPush,
   getCapacitor,
   getNativeDeviceLabel,
   getNativeRuntime,
@@ -170,7 +171,7 @@ export function isNotificationBridgeSupported(): boolean {
   if (runtime === "tauri") {
     return Boolean(getTauri()?.notification || getTauri()?.core?.invoke || typeof window.Notification === "function");
   }
-  return "Notification" in window && "serviceWorker" in navigator;
+  return canUseBrowserPush() && "Notification" in window && "serviceWorker" in navigator;
 }
 
 export async function getUnifiedNotificationPermission(): Promise<UnifiedNotificationPermission> {
@@ -221,10 +222,11 @@ export async function getUnifiedNotificationPermission(): Promise<UnifiedNotific
     }
   }
 
-  if (!("Notification" in window) || !("serviceWorker" in navigator)) {
+  if (!canUseBrowserPush() || !("Notification" in window) || !("serviceWorker" in navigator)) {
     return "unsupported";
   }
-  return Notification.permission;
+  const { isBrowserPushPaused } = await import("@/lib/firebase/messaging");
+  return isBrowserPushPaused() ? "denied" : Notification.permission;
 }
 
 export async function requestUnifiedNotificationPermission(): Promise<UnifiedNotificationPermission> {
@@ -268,7 +270,7 @@ export async function requestUnifiedNotificationPermission(): Promise<UnifiedNot
     }
   }
 
-  if (!("Notification" in window) || !("serviceWorker" in navigator)) {
+  if (!canUseBrowserPush() || !("Notification" in window) || !("serviceWorker" in navigator)) {
     return "unsupported";
   }
   if (window.Notification.permission !== "default") return window.Notification.permission;
@@ -399,6 +401,7 @@ export async function registerUnifiedPushToken(
     return ok;
   }
 
+  if (!canUseBrowserPush()) return false;
   const { getFCMToken, registerTokenToServer } = await import(
     "@/lib/firebase/messaging"
   );
@@ -535,6 +538,7 @@ export function startDesktopNotificationBridge(
   let disposed = false;
   const sendNative = options?.sendNative ?? ((title: string, body?: string) => sendDesktopNativeNotification(title, body, () => !disposed && isCurrent()));
   let initialized = false;
+  let waitingForQuietEnd = false;
   let inFlight = false;
   let lastCursorIso: string | null = null;
   // Since the server query is inclusive, only IDs at the cursor timestamp
@@ -578,7 +582,7 @@ export function startDesktopNotificationBridge(
     try {
       // Read state belongs to the account, not to a particular device. Reading
       // on Android must not suppress an already queued desktop notification.
-      const query = new URLSearchParams({ limit: String(DESKTOP_PAGE_SIZE) });
+      const query = new URLSearchParams({ limit: String(DESKTOP_PAGE_SIZE), delivery: "desktop" });
       if (initialized && lastCursorIso) query.set("since", lastCursorIso);
 
       const rows: DesktopInboxRow[] = [];
@@ -589,7 +593,7 @@ export function startDesktopNotificationBridge(
         const controller = new AbortController();
         activeRequest = controller;
         const timeout = setTimeout(() => controller.abort(), options?.requestTimeoutMs ?? DESKTOP_REQUEST_TIMEOUT_MS);
-        let data: { notifications?: DesktopInboxRow[] };
+        let data: { notifications?: DesktopInboxRow[]; quietActive?: boolean; serverTime?: string };
         try {
           const res = await fetchFn(`/api/notifications/history?${query.toString()}`, {
             credentials: "include",
@@ -599,12 +603,21 @@ export function startDesktopNotificationBridge(
           // A transient expired session or failed network request must not
           // permanently disable delivery; the account runtime disposes on logout.
           if (disposed || !isCurrent() || !res.ok) return;
-          data = await res.json() as { notifications?: DesktopInboxRow[] };
+          data = await res.json() as { notifications?: DesktopInboxRow[]; quietActive?: boolean; serverTime?: string };
         } finally {
           clearTimeout(timeout);
           if (activeRequest === controller) activeRequest = null;
         }
         if (disposed || !isCurrent()) return;
+        // Keep the cursor unchanged during quiet hours so the backlog is available on release.
+        if (data.quietActive) {
+          waitingForQuietEnd = true;
+          if (!initialized && typeof data.serverTime === "string" && !Number.isNaN(Date.parse(data.serverTime))) {
+            initialized = true;
+            lastCursorIso = data.serverTime;
+          }
+          return;
+        }
         const batch = Array.isArray(data.notifications) ? data.notifications : [];
         // The session cookie can change before the client auth observer settles.
         // Never display a row from another account after a reconnect or switch.
@@ -627,6 +640,20 @@ export function startDesktopNotificationBridge(
         .filter((row) => row.createdAt && (!lastCursorIso || row.createdAt >= lastCursorIso) && !seenIds.has(row.id))
         .sort((a, b) => (a.createdAt ?? "").localeCompare(b.createdAt ?? ""));
 
+      if (waitingForQuietEnd) {
+        waitingForQuietEnd = false;
+        const unread = freshRows.filter(row => !row.read);
+        if (unread.length && isCurrent()) {
+          const en = document.documentElement.lang.startsWith("en");
+          const title = en ? `${unread.length} new notifications` : `${unread.length} notifikasi baru`;
+          const body = en ? "Open Zyx Academy to see your updates." : "Buka Zyx Academy untuk melihat kabar terbaru.";
+          try { await sendNative(title, body); } catch { /* OS can suppress delivery */ }
+          if (disposed || !isCurrent()) return;
+        }
+        for (const row of freshRows) rememberRow(row);
+        if (freshRows.length) handlers.onForeground({});
+        return;
+      }
       for (const row of freshRows) {
         if (disposed || !isCurrent()) break;
         if (!row.createdAt || (lastCursorIso && row.createdAt < lastCursorIso) || seenIds.has(row.id)) continue;
@@ -758,6 +785,7 @@ export async function subscribeNativeNotifications(handlers: {
     return startDesktopNotificationBridge(handlers, { isCurrent, userId: handlers.userId });
   }
 
+  if (!canUseBrowserPush()) return () => {};
   const { onForegroundMessage, showForegroundWebNotification } = await import("@/lib/firebase/messaging");
   return onForegroundMessage((payload) => {
     if (!isCurrent()) return;

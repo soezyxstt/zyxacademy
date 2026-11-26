@@ -35,6 +35,7 @@ export function cronWindow(environment: QueueEnvironment, scheduledAt: Date) {
   const entries = recoveryJobs.map(job => ({ job, scheduledAt: start }));
   for (let scheduledAt = start; scheduledAt < end; scheduledAt += 3_600_000) {
     entries.push({ job: "upcoming-session-reminder-cron", scheduledAt });
+    entries.push({ job: "notification-quiet-recovery", scheduledAt });
   }
   for (const { job, hour, minute, weekday } of scheduledJobs) {
     const due = new Date(start);

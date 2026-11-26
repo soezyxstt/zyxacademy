@@ -134,8 +134,23 @@ export function PushPermissionInit() {
         void syncGrantedTokenForUser(userId, false);
       }
     });
+    let lastRefresh = 0;
+    const refreshRegistration = () => {
+      if (cancelled || document.visibilityState !== "visible" || Date.now() - lastRefresh < 60_000) return;
+      lastRefresh = Date.now();
+      void syncGrantedTokenForUser(userId, false);
+    };
+    const quietChanged = () => { if (!cancelled) void syncGrantedTokenForUser(userId, false); };
+    window.addEventListener("focus", refreshRegistration);
+    window.addEventListener("online", refreshRegistration);
+    document.addEventListener("visibilitychange", refreshRegistration);
+    window.addEventListener("zyx:quiet-hours-changed", quietChanged);
     return () => {
       cancelled = true;
+      window.removeEventListener("focus", refreshRegistration);
+      window.removeEventListener("online", refreshRegistration);
+      document.removeEventListener("visibilitychange", refreshRegistration);
+      window.removeEventListener("zyx:quiet-hours-changed", quietChanged);
     };
   }, [isPending, userId, syncGrantedTokenForUser]);
 

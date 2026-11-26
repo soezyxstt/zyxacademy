@@ -91,7 +91,10 @@ export {
 /**
  * All background functions for Deno/compute Inngest execution.
  */
+import { quietNotificationWorker } from "./notification-quiet";
+
 export const computeFunctions = [
+  quietNotificationWorker,
   aiModelCatalogCron,
   googleCalendarSyncCron,
   googleCalendarSyncWorker,

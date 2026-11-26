@@ -29,6 +29,16 @@ async function openPreferences(page: Page, theme: "light" | "dark", locale = "id
     if (url.origin === origin && url.pathname === "/api/notifications/status") {
       return route.fulfill({ json: { transports: { webpush: { registeredCount: 0, configured: true } } } });
     }
+    if (url.origin === origin && route.request().method() === "GET" && url.pathname === "/api/account/sessions") {
+      return route.fulfill({ json: { sessions: [{
+        id: "fixture-current", label: "Chrome on Windows", current: true,
+        createdAt: "2026-11-25T08:00:00.000Z", updatedAt: "2026-11-25T08:00:00.000Z",
+        expiresAt: "2026-12-25T08:00:00.000Z",
+      }] } });
+    }
+    if (url.origin === origin && route.request().method() === "GET" && url.pathname === "/api/notifications/quiet-hours") {
+      return route.fulfill({ json: { enabled: false, startMinute: 1320, endMinute: 420, timeZone: "Asia/Jakarta" } });
+    }
     failures.push(`Unexpected ${route.request().method()} ${url.href}`);
     return route.abort();
   });
@@ -138,6 +148,8 @@ test("notification activity preferences and permission dialog review", async ({ 
   const flashcards = main.getByRole("switch", { name: "Pengingat flashcard", exact: true });
   await expect(discussions).toBeChecked();
   await expect(flashcards).toBeChecked();
+  await expect(main.getByRole("switch", { name: "Aktifkan jam tenang", exact: true })).not.toBeChecked();
+  await expect(main.getByRole("switch", { name: "Aktifkan jam tenang", exact: true })).toBeVisible();
   await capture(page, info, "notification-preferences", failures, true);
   await capture(page, info, "notification-preferences-viewport", failures, false);
   await discussions.click();

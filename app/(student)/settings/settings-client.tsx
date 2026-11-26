@@ -28,6 +28,7 @@ import { ReplayGuidedTour } from "@/components/onboarding/guided-tour";
 import { useOnboardingTour } from "@/components/onboarding/tour-context";
 import { ArrowRight, ChevronDown, Download, HardDriveDownload, RotateCcw } from "lucide-react";
 import { useHapticsPreference } from "@/hooks/use-haptics-preference";
+import { AccountSessions } from "@/components/settings/account-sessions";
 
 const THEMES = ["light", "dark", "system"] as const;
 const LANGUAGES = ["id", "en"] as const;
@@ -167,6 +168,7 @@ function GeneralPreferences() {
           }}
         />
       </PreferenceGroup>
+      <AccountSessions />
       <PreferenceGroup title={t("preferences.device")} description={t("preferences.deviceScope")}>
         <PreferenceSwitch
           label={t("preferences.haptics")}

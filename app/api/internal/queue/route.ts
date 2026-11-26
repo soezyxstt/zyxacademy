@@ -8,7 +8,7 @@ const childEvent = z.object({
     "google-calendar-sync-cron", "google-calendar/sync.requested",
     "vector.sync.dispatch", "discussion/notifications.continue", "discussion/ai.continue",
     "discussion/images.sweep-continue", "gamification/outbox.continue", "gamification/missions.page",
-    "admin/operations.continue", "product.verification.requested",
+    "admin/operations.continue", "product.verification.requested", "notifications/quiet.flush", "notification-quiet-recovery",
     "admin-operations-outbox", "discussion-notifications", "discussion-ai-cron", "discussion-image-sweep",
     "gamification-outbox-cron", "vector-sync-cron-worker", "course-analytics-snapshot-cron",
     "content-quality-audit-cron", "weekly-reflection-cron", "gamification-missions-cron", "mastery-snapshot-cron",
