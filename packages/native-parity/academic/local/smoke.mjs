@@ -1,13 +1,7 @@
-import { createHmac } from "node:crypto";
+import { fixtureCookie } from "./cookie.mjs";
 import assert from "node:assert/strict";
 
 const origin = "http://127.0.0.1:3314";
-
-export function fixtureCookie(role) {
-  const token = "fixture-academic-" + role;
-  const signature = createHmac("sha256", "academic-local-fixture-secret-for-smoke-only").update(token).digest("base64");
-  return "better-auth.session_token=" + encodeURIComponent(token + "." + signature);
-}
 
 const cases = [
   [null,"tutor/dashboard",401],["student","tutor/dashboard",403],["admin","tutor/dashboard",403],
