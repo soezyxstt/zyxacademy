@@ -1,8 +1,15 @@
 """Merge Android Maestro batches and identify flows interrupted by ADB transport."""
 
+import re
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
+
+
+VIEW_HIERARCHY_DISCONNECTED = re.compile(
+    r"maestro\.android\.DeviceServerDiedException: Device server died during 'viewHierarchy' on "
+    r"[^\n]+: StatusRuntimeException: UNAVAILABLE(?:\s|$)"
+)
 
 
 def test_cases(report):
@@ -16,7 +23,11 @@ def retry(report, results):
         if "device offline" in log.read_text(errors="replace")
     }
     for case in test_cases(report):
-        if case.get("name") in offline and case.find("failure") is not None:
+        failure = case.findtext("failure")
+        if failure is None or failure.startswith("Assertion is false:"):
+            continue
+        # The CLI can report the disconnect in JUnit after the per-flow log ends.
+        if case.get("name") in offline or VIEW_HIERARCHY_DISCONNECTED.match(failure):
             print(case.attrib["file"])
 
 
