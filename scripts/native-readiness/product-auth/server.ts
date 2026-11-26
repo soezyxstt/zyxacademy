@@ -95,6 +95,9 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
     import("@/app/api/native/student/courses/route"),
     import("@/app/api/notifications/history/route"),
     import("@/app/api/notifications/read/route"),
+    import("@/app/api/native/student/community/[operation]/route"),
+    import("@/app/api/notifications/quiet-hours/route"),
+    import("@/app/api/student/upcoming-sessions/route"),
   ]) : null;
   const staffReads = staff ? await (await import("./staff-fixture")).loadStaffReads() : null;
   const opposite = staff ? oppositeStaffRole(staff) : null;
@@ -208,6 +211,15 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
       }
       if (product && route === "GET /api/notifications/history") {
         return requestContext.run(upstream, () => product[1].GET(upstream));
+      }
+      if (product && route === "GET /api/native/student/community/notifications") {
+        return requestContext.run(upstream, () => product[3].GET(upstream, { params: Promise.resolve({ operation: "notifications" }) }));
+      }
+      if (product && route === "GET /api/notifications/quiet-hours") {
+        return requestContext.run(upstream, () => product[4].GET(upstream));
+      }
+      if (product && route === "GET /api/student/upcoming-sessions") {
+        return requestContext.run(upstream, () => product[5].GET());
       }
       if (product && route === "PATCH /api/notifications/read") {
         const selection = await upstream.clone().json().catch(() => null);

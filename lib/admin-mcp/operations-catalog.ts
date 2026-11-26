@@ -243,7 +243,7 @@ export const operationsCatalog = [
     "actions": ["updateSettings", "refreshTutorSessions"],
     "tools": [],
     "status": "excluded",
-    "reason": "Study reminders use local OS permission and an account-bound schedule. Tutor reminder inputs come from existing user-authorized reads. No MCP tool controls local notification delivery."
+    "reason": "The Student notification settings screen schedules local study and tutorial reminders for the verified account on its device. The OS handles permission and delivery. Tutorial schedules and quiet hours use existing authorized reads."
   },
   {
     "source": "apps/mobile-native/device/file-controller.ts",

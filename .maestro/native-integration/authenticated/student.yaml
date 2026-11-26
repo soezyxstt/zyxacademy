@@ -48,6 +48,7 @@ name: Verified Student dashboard, inbox acknowledgement and logout
     id: student-inbox-mark-all
 - tapOn:
     id: student-inbox-close
+- runFlow: student-reminders.yaml
 - openLink: "zyx-native-parity://sign-out?locale=id"
 - extendedWaitUntil:
     visible: '(Kamu sudah keluar\.|You are signed out\.)'

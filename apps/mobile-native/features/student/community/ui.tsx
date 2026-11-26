@@ -208,11 +208,11 @@ export function Field({ label, ...props }: TextInputProps & { label: string }) {
   const { theme } = useCommunity();
   return <View style={styles.field}><Copy kind="strong">{label}</Copy><Input theme={theme} accessibilityLabel={label} {...props} /></View>;
 }
-export function Toggle({ label, value, onChange, disabled }: { label: string; value: boolean; onChange(value: boolean): void; disabled?: boolean }) {
+export function Toggle({ label, value, onChange, disabled, testID }: { label: string; value: boolean; onChange(value: boolean): void; disabled?: boolean; testID?: string }) {
   const { theme, colors } = useCommunity();
   return <View style={[styles.preference, { borderColor: colors.border }]}>
     <View style={styles.rowBody}><Copy>{label}</Copy></View>
-    <Switch theme={theme} checked={value} onCheckedChange={onChange} disabled={disabled} accessibilityLabel={label} />
+    <Switch testID={testID} theme={theme} checked={value} onCheckedChange={onChange} disabled={disabled} accessibilityLabel={label} />
   </View>;
 }
 export function Avatar({ name, uri }: { name: string; uri: string | null }) {

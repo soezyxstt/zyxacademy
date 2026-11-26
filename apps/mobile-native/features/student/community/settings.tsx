@@ -70,7 +70,7 @@ function QuietHoursPanel() {
 }
 
 function NotificationsForm({ data }: { data: NotificationPreferences }) {
-  const { tr, request, navigate, devicePush } = useCommunity();
+  const { tr, request, navigate, devicePush, localReminderSettings } = useCommunity();
   const state = useOperation();
   const [email, setEmail] = useState(data.email);
   const [activity, setActivity] = useState(data.activity);
@@ -111,6 +111,7 @@ function NotificationsForm({ data }: { data: NotificationPreferences }) {
           onPress={() => void state.run(async () => { await devicePush.refresh(); })} />
       </Actions>
     </View>}
+    {localReminderSettings}
     <Copy kind="heading">{tr("Aktivitas", "Activity")}</Copy>
     {activityPreferenceKeys.filter(key => key !== "tutorAvailabilityEnabled" || data.canUseTutorialAvailability).map(key => <Toggle
       key={key} label={activityLabels[key]} value={activity[key]} disabled={state.pending}

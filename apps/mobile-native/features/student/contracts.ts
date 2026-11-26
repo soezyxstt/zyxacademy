@@ -53,6 +53,7 @@ export interface StudentServices {
   openBrowserNotifications?: () => void;
   nativeAuthScheme?: string;
   onLocaleChanged?(locale: "id" | "en"): void;
+  localReminderSettings?: ReactNode;
   devicePush?: {
     status: NativePushStatus | null;
     requestPermission(): Promise<NativePushStatus | null>;
