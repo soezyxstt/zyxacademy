@@ -7,6 +7,7 @@ import { matchAdministrationRoute, type AdministrationPattern } from "../../../.
 import { nativeTypography } from "../../../typography";
 import { NativeListRow, NativeStatusPanel, ResponsiveTable, type SharedUiAction, type SharedUiActionHandler } from "../../shared-ui";
 import { BroadcastComposer } from "./broadcast-composer";
+import { ScheduleEventEditor } from "./schedule-event-editor";
 import { AdministrationCalendar } from "./calendar";
 import { LiveEnrollmentTokenEditor } from "./enrollment-token-editor";
 import type { EnrollmentTokenUnavailable } from "./enrollment-token-client";
@@ -90,6 +91,7 @@ const emptyMessages: Partial<Record<AdministrationPattern, string>> = {
 function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<ReturnType<typeof matchAdministrationRoute>> }) {
   const { pattern, title } = route;
   const { params, query, transport, navigate, replace, back } = props;
+  const [eventDraft, setEventDraft] = useState<{ transport: AcademicTransport; row?: LiveRow }>();
   const tokenPage = pattern === "/admin/tokens";
   const pkaSchedulePage = pattern === "/admin/tutorial-pka/schedules";
   const pkaAnnouncementPage = pattern === "/admin/tutorial-pka/announcements";
@@ -190,6 +192,12 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
   const filtered = Boolean(filters.search || filters.status || filters.role);
   return <AdministrationPage title={title} back={back}>
     {pkaTab ? <Tabs options={pkaTabs} selected={pkaTab} onSelect={(id) => navigate(`/admin/tutorial-pka/${id}`)} /> : null}
+    {pattern === "/admin/schedules" && data?.scheduleCourses && transport.command ? <View style={layout.row}>
+      <Action label="Buat agenda" onPress={() => setEventDraft({ transport })} />
+      {eventDraft?.transport === transport ? <ScheduleEventEditor row={eventDraft.row} courses={data.scheduleCourses}
+        transport={transport} send={transport.command} close={() => setEventDraft(undefined)}
+        reload={() => { setEventDraft(undefined); setSelected(undefined); retry(); }} /> : null}
+    </View> : null}
     {pattern === "/admin/notifications" ? <View style={layout.row}>
       <Ink kind="heading">Riwayat notifikasi</Ink>
       {data && transport.command ? <Action label="Tulis notifikasi" variation="default" onPress={() => setBroadcastTransport(transport)} testID="academic-live-broadcast-open" /> : null}
@@ -378,6 +386,9 @@ function LiveContent({ route, ...props }: LiveProps & { route: NonNullable<Retur
         retry();
       }} /> : null}
     {visibleSelection ? <CourseDialog title={tokenPage ? "Token pendaftaran" : visibleSelection.title} onClose={() => setSelected(undefined)}>
+      {visibleSelection.academicEvent && data?.scheduleCourses && transport.command ? <Action label="Kelola agenda" onPress={() => {
+        setSelected(undefined); setEventDraft({ transport, row: visibleSelection });
+      }} /> : null}
       {tokenPage ? <Text selectable style={{ ...nativeTypography.bodyRegular, color: palette.foreground, fontSize: 16, lineHeight: 24 }}>{visibleSelection.title}</Text> : null}
       {visibleSelection.fields?.map((item) => <View key={item.label} style={layout.compact}>
         <Ink kind="strong">{item.label}</Ink><Ink>{item.value}</Ink>

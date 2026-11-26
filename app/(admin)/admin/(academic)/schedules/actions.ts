@@ -59,6 +59,7 @@ import { recordMutationAudit } from "@/lib/audit/mutasi";
 import { type DbExecutor } from "@/lib/auth/tutor-access";
 const generateRequestId = randomUUID;
 import { dualWriteTutorAssignment, revokeCanonicalTutorCourseAssignments } from "@/lib/migrasi/repository-kompatibilitas";
+import { deleteAcademicEvent, insertAcademicEvent, updateAcademicEvent } from "@/lib/schedule/academic-event";
 import { buildAdminCoverage } from "@/lib/schedule/admin-coverage";
 import {
   normalizeAdminOverrideReason,
@@ -965,23 +966,7 @@ export async function createAcademicSchedule(data: {
   const adminUser = authResult.user;
 
   try {
-    const id = randomUUID();
-    const now = new Date();
-
-    await db.insert(academicSchedules).values({
-      id,
-      type: data.type,
-      title: data.title.trim(),
-      courseId: data.courseId || null,
-      description: data.description?.trim() || null,
-      startDate: data.startDate,
-      endDate: data.endDate || null,
-      location: data.location?.trim() || null,
-      createdById: adminUser.id,
-      status: data.status || "published",
-      createdAt: now,
-      updatedAt: now,
-    });
+    const id = await insertAcademicEvent(db, adminUser.id, data);
 
     revalidatePath("/admin/schedules");
     revalidatePath("/dashboard/schedule");
@@ -1010,20 +995,7 @@ export async function updateAcademicSchedule(
   await assertAdmin();
 
   try {
-    await db
-      .update(academicSchedules)
-      .set({
-        ...(data.type ? { type: data.type } : {}),
-        ...(data.title ? { title: data.title.trim() } : {}),
-        ...(data.courseId !== undefined ? { courseId: data.courseId || null } : {}),
-        ...(data.description !== undefined ? { description: data.description?.trim() || null } : {}),
-        ...(data.startDate ? { startDate: data.startDate } : {}),
-        ...(data.endDate !== undefined ? { endDate: data.endDate || null } : {}),
-        ...(data.location !== undefined ? { location: data.location?.trim() || null } : {}),
-        ...(data.status ? { status: data.status } : {}),
-        updatedAt: new Date(),
-      })
-      .where(eq(academicSchedules.id, id));
+    await updateAcademicEvent(db, id, { ...data, title: data.title || undefined });
 
     revalidatePath("/admin/schedules");
     revalidatePath("/dashboard/schedule");
@@ -1039,7 +1011,7 @@ export async function deleteAcademicSchedule(id: string) {
   await assertAdmin();
 
   try {
-    await db.delete(academicSchedules).where(eq(academicSchedules.id, id));
+    await deleteAcademicEvent(db, id);
     revalidatePath("/admin/schedules");
     revalidatePath("/dashboard/schedule");
     await triggerGoogleCalendarSyncForScheduleChange({ includeCentral: true });

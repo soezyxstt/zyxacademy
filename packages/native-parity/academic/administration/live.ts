@@ -1,3 +1,4 @@
+import { isAcademicEventView, type AcademicEventView } from "../../../academic/admin-schedule-events";
 import { isAdminUserRolesRevision, type AdminUserRolesRevision } from "../../../academic/admin-user-roles";
 import { isPkaAnnouncementRevision, type PkaAnnouncementRevision } from "../../../academic/pka-announcement-edit";
 import { isPkaAnnouncementState, type PkaAnnouncementState } from "../../../academic/pka-lifecycle";
@@ -9,8 +10,8 @@ export type LiveField = { label: string; value: string };
 export type DiktatPdfTarget = { importId: string; productId: string; expectedRevision: string };
 export type DiktatEvidenceStatus = "ready" | "pending" | "failed" | "stale" | "unavailable";
 export type DiktatPdfRequest = DiktatPdfTarget & { requestId: string };
-export type LiveRow = { id: string; title: string; subtitle?: string; detail?: string; fields?: LiveField[]; pdf?: DiktatPdfTarget; ideaReviewId?: string; announcementEdit?: PkaAnnouncementRevision; announcementState?: PkaAnnouncementState; pkaScheduleEdit?: PkaScheduleRevision; dateId?: string; groupEditable?: boolean; tokenActive?: boolean; userRolesEdit?: AdminUserRolesRevision; userStatusEdit?: AdminUserStatusRevision };
-export type LivePage = { type: "page"; rows: LiveRow[]; nextPage: boolean; summary?: LiveField[]; week?: { start: string; today: string } };
+export type LiveRow = { academicEvent?: AcademicEventView; id: string; title: string; subtitle?: string; detail?: string; fields?: LiveField[]; pdf?: DiktatPdfTarget; ideaReviewId?: string; announcementEdit?: PkaAnnouncementRevision; announcementState?: PkaAnnouncementState; pkaScheduleEdit?: PkaScheduleRevision; dateId?: string; groupEditable?: boolean; tokenActive?: boolean; userRolesEdit?: AdminUserRolesRevision; userStatusEdit?: AdminUserStatusRevision };
+export type LivePage = { scheduleCourses?: { id: string; label: string }[]; type: "page"; rows: LiveRow[]; nextPage: boolean; summary?: LiveField[]; week?: { start: string; today: string } };
 export type LiveRedirect = { type: "redirect"; target: string };
 export type LiveAdministrationRead = LivePage | LiveRedirect;
 export type LiveListSection = "users" | "groups" | "tokens" | "notifications" | "schedules" | "registrations" | "announcements" | "sessions";
@@ -61,13 +62,14 @@ function fields(value: unknown): boolean {
 
 function row(value: unknown): value is LiveRow {
   return object(value) && typeof value.id === "string" && typeof value.title === "string"
+    && (value.academicEvent === undefined || isAcademicEventView(value.academicEvent))
     && (value.subtitle === undefined || typeof value.subtitle === "string")
     && (value.detail === undefined || typeof value.detail === "string")
     && (value.fields === undefined || fields(value.fields))
     && (value.tokenActive === undefined || typeof value.tokenActive === "boolean")
     && (value.groupEditable === undefined || typeof value.groupEditable === "boolean")
-    && (value.userStatusEdit === undefined || isAdminUserStatusRevision(value.userStatusEdit))
     && (value.userRolesEdit === undefined || isAdminUserRolesRevision(value.userRolesEdit))
+    && (value.userStatusEdit === undefined || isAdminUserStatusRevision(value.userStatusEdit))
     && (value.dateId === undefined || isDateId(value.dateId))
     && (value.pdf === undefined || isDiktatPdfTarget(value.pdf))
     && (value.ideaReviewId === undefined || typeof value.ideaReviewId === "string")
@@ -86,6 +88,7 @@ export function isLiveAdministrationRead(value: unknown): value is LiveAdministr
   if (!object(value)) return false;
   if (value.type === "redirect") return typeof value.target === "string" && /^\/admin\/[^\\\s]*$/.test(value.target);
   return value.type === "page" && Array.isArray(value.rows) && value.rows.every(row) && typeof value.nextPage === "boolean"
+    && (value.scheduleCourses === undefined || (Array.isArray(value.scheduleCourses) && value.scheduleCourses.every(course => object(course) && typeof course.id === "string" && typeof course.label === "string")))
     && (value.summary === undefined || fields(value.summary))
     && (value.week === undefined || (object(value.week) && isDateId(value.week.start) && isDateId(value.week.today)));
 }

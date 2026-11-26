@@ -169,6 +169,13 @@ export const operationsCatalog = [
     "reason": "Interactive assessment reads and manual grading use the signed-in role, disclosure checks and course access. Tutor attachment downloads resolve the exact submitted answer and use protected storage. Grading retries are bound to the active Tutor session. Tryout drafts, explicit metadata and lifecycle saves, and bank selection require active Admin authority and course-scoped revisions. The status-aware route binds retry receipts to the original Admin session. Direct question edits and unused tryout deletion use course-scoped revisions and retain submitted snapshots. Tutor bank edits require the active Tutor session and an assigned course. Source references remain immutable. Existing MCP authoring tools keep their registered scopes, consent and service contracts."
   },
   {
+    "source": "app/api/native/academic-administration/schedule-events/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Native Admin calendar edits use the active human session, current event revision and session-bound retry. MCP schedules.create, schedules.update and schedules.delete retain their existing scoped confirmation."
+  },
+  {
     "source": "app/api/native/academic-administration/[...resource]/route.ts",
     "actions": ["GET", "POST", "PATCH"],
     "tools": [],

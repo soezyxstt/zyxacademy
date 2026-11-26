@@ -11,6 +11,7 @@ import { hasPeran } from "@/lib/auth/request-cache";
 import { getDiktatPdfContext } from "@/lib/bundle/product-diktat-evidence";
 import { getProductBundleImport } from "@/lib/bundle/product-staging";
 import { getIdeaBundleImport } from "@/lib/bundle/staging";
+import { academicEventView } from "@/lib/schedule/academic-event";
 import { formatJakartaDatetimeLocal, getJakartaCalendarDate, toIsoTimestamp } from "@/lib/date-utils";
 import { listAdminNotificationHistory } from "@/lib/notifications/admin-history";
 import { pkaScheduleRevision } from "@/lib/pka/schedule-update";
@@ -77,8 +78,9 @@ async function schedules(query: AdministrationQuery) {
       detail: jakDateTime(entry.createdAt), fields: [field("Pelaku", entry.actor?.name)],
     })), query.page, span);
   }
+  const scheduleCourses = schedule.courses.map(course => ({ id: course.id, label: course.title }));
   const events = schedule.academicSchedules.map((entry) => ({
-    id: entry.id, title: entry.title, subtitle: entry.course?.title ?? "Semua mata kuliah",
+    id: entry.id, title: entry.title, subtitle: entry.course?.title ?? "Semua mata kuliah", academicEvent: academicEventView(entry),
     detail: jakDateTime(entry.startDate), dateId: getJakartaCalendarDate(entry.startDate), sort: formatJakartaDatetimeLocal(entry.startDate),
     fields: [field("Jenis", eventType[entry.type]), field("Lokasi", entry.location), field("Keterangan", entry.description)],
   }));
@@ -91,10 +93,10 @@ async function schedules(query: AdministrationQuery) {
   }));
   const rows = query.tab === "academic" ? events : [...events, ...slots];
   const chronological = rows.sort((left, right) => left.sort.localeCompare(right.sort)).map(({ sort: _sort, ...row }) => row);
-  if (query.tab === "academic") return paginate(chronological, query.page, span);
+  if (query.tab === "academic") return { ...paginate(chronological, query.page, span), scheduleCourses };
   const size = 100;
   return { ...rowsPage(chronological.slice((query.page - 1) * size, query.page * size), chronological.length > query.page * size),
-    week: { start: schedule.weekRange.startIso, today: getJakartaCalendarDate() } };
+    scheduleCourses, week: { start: schedule.weekRange.startIso, today: getJakartaCalendarDate() } };
 }
 
 async function readBundle(kind: ReviewKind, slug: string, bundleId: string, page: number) {
@@ -169,8 +171,8 @@ export const administrationReadServices: AdministrationReadServices = {
         return rowsPage(users.map((entry) => ({
           id: entry.id, title: entry.name, subtitle: entry.email,
           detail: [entry.id === currentUserId ? "Anda" : "", entry.status === "suspended" ? "Ditangguhkan" : ""].filter(Boolean).join(" · "),
-          userStatusEdit: entry.id !== currentUserId && entry.statusRevision ? { status: entry.status, revision: entry.statusRevision } : undefined,
           userRolesEdit: entry.roleSelection,
+          userStatusEdit: entry.id !== currentUserId && entry.statusRevision ? { status: entry.status, revision: entry.statusRevision } : undefined,
           fields: [field("Peran", (entry.roleSelection?.roles ?? entry.roles).map((role) => roleLabels[role]).join(", ") || "Belum ada peran"),
             field("Status", entry.status === "suspended" ? "Ditangguhkan" : "Aktif"), field("Terdaftar", jakDateTime(entry.createdAt))],
         })), total > page * 30, [field("Total", stats.totalUsers), field("Tutor", stats.tutorCount), field("Ditangguhkan", stats.suspendedCount)]);
