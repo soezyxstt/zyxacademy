@@ -1,0 +1,127 @@
+{
+  "platform": "android",
+  "viewport": {
+    "width": 380,
+    "height": 820
+  },
+  "deviceScaleFactor": 1,
+  "route": "/feedback",
+  "locale": "id",
+  "theme": "light",
+  "timeZone": "Asia/Jakarta",
+  "motion": "reduced",
+  "fonts": "fixture Inter and Lexend",
+  "browser": "154.0.8037.57",
+  "scope": "Shared feedback category, rating, message and success confirmation",
+  "scopeLimit": "Synthetic submission with email absent. Web-only optional email, validation, success decoration and shell remain visible where present.",
+  "sourceDigests": {
+    ".maestro/native-parallel/student/feedback-parity.yaml": "49b49e4070e547b4daed72865f2782ad0b6f36f04b7d9445a7a38fb3abe0ea8c",
+    "tests/visual/native-parallel/student/feedback-reference.spec.ts": "0455b613c7442f0961503976fbcd8a17ec0b09f9ea183b49b13a34818e6918f3",
+    "tests/visual/fixtures/student-feedback-build.ts": "4ba538f5e846bf6d87565b324c8691d83b3e28e3d21128a42a6c844a0a308b88",
+    "tests/visual/fixtures/student-feedback.tsx": "5ff7a994314a1ee50115932094a92a7872853fa504ad70f3b71f8cae8df424cf",
+    "tests/visual/fixtures/interactive-document-build.ts": "dc51a2f41b0a567504d40004f1ec44e9469601c8e74eb6fd71b6da23ebd45053",
+    "tests/visual/fixtures/fonts.ts": "c88c5e755a3eb946eadad19a4e50e091181660cf4d59948fa48911789a8f3215",
+    "tests/visual/fixtures/fonts/inter-latin.woff2": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62",
+    "tests/visual/fixtures/fonts/lexend-latin.woff2": "52dcdaa127bac4a5ea4c39ee17a3f454ceacc18d9f2a45cc453eeab68d378588",
+    "app/(student)/feedback/feedback-form.tsx": "66936b8b5e398f41c366a60dc92e9b8ab0020c4c0d60797e5a6dc783c0c109e1",
+    "app/globals.css": "be812b64b005159daf0c3db873b0a8571952834222d9c8906019650388becf83",
+    "messages/id/student.json": "582002f50eee76f376329746908fcaddbbc2601d82abee7997d3785c20dc4eb4",
+    "apps/mobile-native/features/student/StudentFixtureRoute.tsx": "9d137376881ead4134ec428c5957ed21afa3fdf9f7d094e431a186ca123984bd",
+    "apps/mobile-native/features/student/community/settings.tsx": "71331d6fabcd17766bda6968606bd69fde464df4c36d8891155fd81a8ac6e8cd",
+    "apps/mobile-native/features/student/community/ui.tsx": "4a63a9b1a4173a4dd931e2d629b3c60fdd0f065796be28f1ba0cdac12a0d9f99",
+    "packages/native-parity/student/community/fixtures.ts": "27a7e52a38ac47fb1960b983d65a3fcfb231673d7f876b9959b168bc6520c305",
+    "packages/native-parity/student/fixture-request.ts": "0d3cb6ff191a057fbdf73f638a3c6af054f13ee99c089ea6aaa6ae0743c16c7b"
+  },
+  "states": {
+    "idle": {
+      "native": {
+        "scenario": "loaded",
+        "theme": "light",
+        "locale": "id",
+        "path": "/feedback"
+      },
+      "nativeMarkers": [
+        {
+          "id": "student-fixture-id-light"
+        },
+        {
+          "text": "^Masukan$"
+        },
+        {
+          "text": "^Materi$",
+          "selected": true
+        },
+        {
+          "text": "^5$",
+          "selected": true
+        },
+        {
+          "id": "student-feedback-message"
+        }
+      ],
+      "form": {
+        "category": "materi",
+        "rating": 5,
+        "message": "",
+        "optionalEmail": null
+      }
+    },
+    "filled": {
+      "native": {
+        "scenario": "loaded",
+        "theme": "light",
+        "locale": "id",
+        "path": "/feedback"
+      },
+      "nativeMarkers": [
+        {
+          "id": "student-fixture-id-light"
+        },
+        {
+          "text": "^Fitur$",
+          "selected": true
+        },
+        {
+          "text": "^4$",
+          "selected": true
+        },
+        {
+          "id": "student-feedback-message",
+          "text": "^Tambahkan contoh pada pembahasan limit\\.$"
+        }
+      ],
+      "form": {
+        "category": "fitur",
+        "rating": 4,
+        "message": "Tambahkan contoh pada pembahasan limit.",
+        "optionalEmail": null
+      }
+    },
+    "sent": {
+      "native": {
+        "scenario": "loaded",
+        "theme": "light",
+        "locale": "id",
+        "path": "/feedback"
+      },
+      "nativeMarkers": [
+        {
+          "id": "student-fixture-id-light"
+        },
+        {
+          "text": "^Masukan terkirim\\.$"
+        }
+      ],
+      "submission": {
+        "category": "fitur",
+        "rating": 4,
+        "message": "Tambahkan contoh pada pembahasan limit."
+      }
+    }
+  },
+  "captures": {
+    "feedback-idle.png": "53e64cadc2aa2a2df67e0759ab145d956af9ab03d6d3e60b226661308c3d3cf1",
+    "feedback-filled.png": "ac1fc69f07b746eed7d05e066937876f5aa43c7a58c2d2ac7fd08a6309be83bb",
+    "feedback-sent.png": "ea915d23258d9da8e34d35f7032d2caf2ae9ea985a4eb30b665f10f0cf50c259"
+  }
+}

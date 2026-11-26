@@ -1,0 +1,62 @@
+appId: com.zyx.academy.nativeparity
+name: Student shared feedback form states
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: separator
+    timeout: 30000
+- openLink: "zyx-native-parity://student-fixture?scenario=loaded&theme=light&locale=id&path=%2Ffeedback"
+- extendedWaitUntil:
+    visible:
+      id: student-fixture-id-light
+    timeout: 30000
+- assertVisible:
+    id: student-fixture-id-light
+- assertVisible: '^Masukan$'
+- assertVisible:
+    text: '^Materi$'
+    selected: true
+- assertVisible:
+    text: '^5$'
+    selected: true
+- assertVisible:
+    id: student-feedback-message
+- assertNotVisible: '^Tambahkan contoh pada pembahasan limit\.$'
+- assertVisible:
+    text: '^Kirim masukan$'
+    enabled: false
+- takeScreenshot: student-feedback-idle
+
+- tapOn: '^Fitur$'
+- tapOn: '^4$'
+- tapOn:
+    id: student-feedback-message
+- inputText: "Tambahkan contoh pada pembahasan limit."
+- hideKeyboard
+- assertVisible:
+    id: student-fixture-id-light
+- assertVisible:
+    text: '^Fitur$'
+    selected: true
+- assertVisible:
+    text: '^4$'
+    selected: true
+- assertVisible:
+    id: student-feedback-message
+    text: '^Tambahkan contoh pada pembahasan limit\.$'
+- assertVisible:
+    text: '^Kirim masukan$'
+    enabled: true
+- takeScreenshot: student-feedback-filled
+
+- tapOn: '^Kirim masukan$'
+- extendedWaitUntil:
+    visible: '^Masukan terkirim\.$'
+    timeout: 30000
+- assertVisible:
+    id: student-fixture-id-light
+- assertVisible: '^Masukan terkirim\.$'
+- assertNotVisible:
+    id: student-feedback-message
+- takeScreenshot: student-feedback-sent
