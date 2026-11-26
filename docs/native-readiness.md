@@ -14,7 +14,7 @@ Ketiga ambang berlaku sendiri-sendiri. Persentase komponen terhadap jumlah berka
 
 Inventaris sumber pada branch integrasi mencakup 168 pola halaman Next.js. Seluruh 145 pola produk memiliki tujuan Expo, terdiri dari 122 layar dan 23 alias. Sebanyak 18 pola publik dibuka di web, termasuk situs publik, formulir dan Meet. Dua halaman khusus browser menangani persetujuan OAuth dan pengaturan token push browser. Dua pola untuk pertukaran autentikasi dan satu alat verifikasi authoring melengkapi inventaris. Pembukaan aplikasi tanpa tautan menggunakan entry Expo. [Audit rute terpasang](../scripts/native-readiness/product/route-coverage.ts)
 
-Target berikutnya adalah menyelesaikan semua tindakan pengguna di rute produk. Audit memisahkan tindakan yang telah tersambung di kode, pengujian terhadap backend, dan alur yang berhasil di Android. Jumlah rute terpasang belum mengukur persentase fungsionalitas. Penyempurnaan UI dilanjutkan setelah cakupan fungsi selesai.
+Target berikutnya adalah menyelesaikan semua tindakan pengguna di rute produk. Audit memisahkan tindakan yang telah tersambung di kode, pengujian terhadap backend, dan alur yang berhasil di Android. Jumlah rute terpasang belum mengukur persentase fungsionalitas. Penyempurnaan UI dilanjutkan setelah cakupan fungsi selesai. [Pemetaan tindakan Student bersesi](../packages/native-parity/student/evidence/signed-action-crosswalk.md) mencakup 50 pola Student dan tindakan yang dipakai bersama oleh shell.
 
 ## Bukti Android setelah baseline
 

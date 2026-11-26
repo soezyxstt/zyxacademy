@@ -1,0 +1,222 @@
+area	route	role	operation	actual native path and scope	implementation state	evidence class
+courses	/dashboard	murid	dashboard.summary	Reads active account course and enrolled or preview dashboard from courses GET dashboard.	connected	signed-http
+courses	/dashboard	murid	dashboard.activity	Dashboard extras supplies recent activity, achievements and ranking from the authorized projection.	connected	local-http
+courses	/dashboard	murid	dashboard.inbox	Shared inbox reads paginated and unread-only notifications for the active recipient.	connected	signed-http
+courses	/dashboard	murid	dashboard.inbox.read-one	Acknowledges owned notification under the same authenticated recipient.	connected	signed-http
+courses	/dashboard	murid	dashboard.inbox.read-all	Shared inbox marks all notifications for the active recipient.	connected	ci-contract
+courses	/dashboard	murid	dashboard.navigation	Opens enrolled course, group, and schedule destinations from the account dashboard.	connected	fixture
+courses	/dashboard	murid	enrollment.redeem-token	Activation calls native courses POST, which delegates to the signed group-token operation.	connected	contract
+courses	/courses	murid	catalog.read	Reads current enrollment, pricing, access tiers and catalog from courses GET catalog.	connected	local-http
+courses	/courses	murid	catalog.search	Native query and category filters render catalog results and retain selected query.	connected	fixture
+courses	/courses	murid	catalog.open	Opens actual course overview or PKA destination.	connected	fixture
+courses	/courses	murid	catalog.plans	Public plans handoff opens the HTTPS website.	browser	source
+courses	/courses/[id]	murid	course.overview	Reads courses GET course with enrollment, access and title.	connected	local-http
+courses	/courses/[id]	murid	course.switch	StudentChrome selects from verified enrollments and opens an available matching section.	connected	fixture
+courses	/courses/[id]	murid	course.section-navigation	Overview opens mounted section routes and enrolled or locked destinations.	connected	fixture
+courses	/courses/[id]/material	murid	materials.list	Reads authorized chapters and materials from courses GET material-list.	connected	local-http
+courses	/courses/[id]/material	murid	materials.search	Search and document category controls retain the route query.	connected	fixture
+courses	/courses/[id]/material	murid	materials.chapters	Expands grouped chapters and opens authorized preview or locked detail.	connected	fixture
+courses	/courses/[id]/material	murid	materials.scroll-restore	Stores scoped list offset when opening detail and restores it on Back.	connected	fixture
+courses	/courses/[id]/material/[materialId]	murid	materials.detail	Material detail read and locked activation. Canonical article aliases resolve before reader open.	connected	local-http
+courses	/courses/[id]/material/[materialId]	murid	article.open	OnlineReading loads canonical structured and compatible published legacy or generated Articles under current material access.	connected	signed-http
+courses	/courses/[id]/material/[materialId]	murid	article.assets	Fetches admitted assets using account, revision and same-origin policy.	connected	signed-http
+courses	/courses/[id]/material/[materialId]	murid	article.section-navigation	ReadingStudy and ReadingDocument select sections and restore progress. Complete web search and outline controls need parity.	partial	fixture
+courses	/courses/[id]/material/[materialId]	murid	article.mark-complete	Writes section progress and completion against exact revision.	connected	signed-http
+courses	/courses/[id]/material/[materialId]	murid	article.formative-evaluate	Evaluates an authorized revision, section and block via reading/learning.	connected	signed-http
+courses	/courses/[id]/material/[materialId]	murid	article.formative-reveal	Requests explicit answer reveal under same content scope.	connected	signed-http
+courses	/courses/[id]/material/[materialId]	murid	article.zyra-selection	Copied text can be attached as structured composer context. Direct selection semantics and concept popover are incomplete.	partial	source
+courses	/courses/[id]/material/[materialId]	murid	article.coding-blocks	Authored body rendering does not expose native web-equivalent inline coding controls for unsupported snapshot blocks.	partial	source
+courses	/courses/[id]/material/[materialId]	murid	article.interactive-visuals	Native reader uses semantic rendering with explicit fallback. Typed visual controls and sandbox widget variants require verification.	partial	source
+courses	/courses/[id]/material/[materialId]	murid	material.share-link	Web reader renders ShareLinkButton. Native reader has no equivalent document link action.	absent	source
+courses	/courses/[id]/material/[materialId]	murid	diktat.open	OnlineReading opens admitted canonical Diktat through revision-bound handler.	connected	signed-http
+courses	/courses/[id]/material/[materialId]	murid	diktat.complete	Writes completion for canonical Diktat with course rights and exact revision.	connected	signed-http
+courses	/courses/[id]/material/[materialId]	murid	diktat.download	VerifiedStudentEntry exposes a scoped PDF file action when Diktat full download is allowed.	connected	contract
+courses	/courses/[id]/material/[materialId]	murid	pdf.open	Protected material-pdf issues bytes and a renewable viewing lease. Native renderer supports page deep link.	connected	signed-http
+courses	/courses/[id]/material/[materialId]	murid	pdf.navigate	Viewer supports page and pinch interaction. Native controls lack web outline, thumbnails and search.	partial	source
+courses	/courses/[id]/material/[materialId]	murid	pdf.bookmarks	Web MaterialViewer maintains scoped bookmarks and local notes. Native has no editor or list for either.	absent	source
+courses	/courses/[id]/material/[materialId]	murid	pdf.non-diktat-download	Web MaterialViewer can download eligible manual PDFs. Native download callback is restricted to eligible Diktat PDFs.	absent	source
+courses	/courses/[id]/material/[materialId]	murid	materials.saved-access	Offers access to relevant authorized saved reading and library.	connected	ci-contract
+courses	/courses	murid	catalog.support	Eligible support link opens website or external contact through guarded HTTPS handoff.	browser	source
+courses	/courses/[id]	murid	zyra.availability	Chrome mounts course Zyra after verifying current Student/session/course scope and applicable access.	connected	contract
+courses	/courses/[id]	murid	zyra.history	Reads browser-equivalent history and messages under course/account policy.	connected	contract
+courses	/courses/[id]	murid	zyra.send	Streams user-initiated turn through shared chat API, with Free eligibility and quota enforced server side.	connected	contract
+courses	/courses/[id]	murid	zyra.cancel-receipt	Cancels presentation and can check original turn receipt without sending again.	connected	contract
+courses	/courses/[id]	murid	zyra.image-pick	Camera/gallery selects image from gated premium account and supports removing draft photo.	connected	contract
+courses	/courses/[id]	murid	zyra.image-upload	Uploads private admissible image to active owned conversation; server verifies type, limit and allowed access.	connected	contract
+courses	/courses/[id]	murid	zyra.image-history	Opens private image for active owned history, with same-origin byte access.	connected	contract
+courses	/courses/[id]	murid	zyra.canvas	CourseZyra opens supported Standard-tier CanvasSpec in LearningCanvas. Native plots and semantic fallback exist; verify browser-equivalent actions and visuals by CanvasSpec variant.	partial	source
+assessment	/courses/[id]/quiz	murid	quiz.catalog	GET assessment quiz lists allowed free or enrolled quizzes and per-template attempt state.	connected	contract
+assessment	/courses/[id]/quiz	murid	quiz.filter	Native All, Free and Premium filters use URL and authorized projection.	connected	fixture
+assessment	/courses/[id]/quiz/[quizId]	murid	quiz.instructions	Shows availability window, mode, attempt and ownership from scoped QuizGateway view.	connected	fixture
+assessment	/courses/[id]/quiz/[quizId]	murid	quiz.start	POST reserves a participant attempt with stable request ID. Repeating returns same reservation.	connected	local-http
+assessment	/courses/[id]/quiz/[quizId]	murid	quiz.resume	Opens stored active attempt and scopes recovery to participant, attempt and course.	connected	fixture
+assessment	/courses/[id]/quiz/[quizId]	murid	quiz.answer	Native player supports selection, essay response, question navigation and flags.	connected	fixture
+assessment	/courses/[id]/quiz/[quizId]	murid	quiz.local-draft	Restores scoped local answers and marks after leaving the player.	connected	fixture
+assessment	/courses/[id]/quiz/[quizId]	murid	quiz.question-image	Native renderer admits supported images and on-device question content. Interactive typed visuals need per-type proof.	partial	source
+assessment	/courses/[id]/quiz/[quizId]	murid	quiz.attachment-pick-upload	Android/iOS host injects scoped photo/file bridges. Server checks current attempt, question and bytes.	connected	contract
+assessment	/courses/[id]/quiz/[quizId]	murid	quiz.attachment-delete	Authorized attachment delete checks exact active attempt and linked key.	connected	contract
+assessment	/courses/[id]/quiz/[quizId]	murid	quiz.timer-submit	Uses active deadline and explicit confirmation. Shared grading and stable submission retry apply.	connected	local-http
+assessment	/courses/[id]/quiz/[quizId]	murid	quiz.review-release	Published review opens only after existing release and grading rules allow it.	connected	local-http
+assessment	/courses/[id]/quiz/[quizId]/summary/[attemptId]	murid	quiz.diagnosis-read	Reads own eligible summary and indicates proof or asynchronous analysis state.	connected	contract
+assessment	/courses/[id]/quiz/[quizId]/summary/[attemptId]	murid	quiz.diagnosis-run	POST starts or regenerates diagnosis under owned resolved attempt and release checks. Native UI refreshes job status.	connected	contract
+assessment	/courses/[id]/quiz/[quizId]/summary/[attemptId]	murid	quiz.diagnosis-open-resource	Opens native course resource links returned for admitted diagnosis.	connected	fixture
+assessment	/courses/[id]/tryout	murid	tryout.catalog	Lists only released tryouts with schedule and access state.	connected	contract
+assessment	/courses/[id]/tryout/[tryoutId]	murid	tryout.read	Reads active full-access tryout with grading policy and remaining submission quota.	connected	local-http
+assessment	/courses/[id]/tryout/[tryoutId]	murid	tryout.answer-draft	Restores selected responses and scoped attempt draft. Size and answer validation remain server owned.	connected	fixture
+assessment	/courses/[id]/tryout/[tryoutId]	murid	tryout.attachment-upload	Uploads authorized attachment and retains evidence bound to learner, question, draft and bytes.	connected	contract
+assessment	/courses/[id]/tryout/[tryoutId]	murid	tryout.attachment-remove	Detaches file from draft using web answer semantics.	connected	fixture
+assessment	/courses/[id]/tryout/[tryoutId]	murid	tryout.submit	Shared commit checks release, quota and ownership; stable identity returns same result after interrupted response.	connected	local-http
+assessment	/courses/[id]/my-results	murid	results.list	Filters or opens owned quiz and tryout history under course access.	connected	fixture
+assessment	/courses/[id]/my-results/[submissionId]	murid	results.review	Retrieves owned result with released explanations and pending/manual-grading distinctions.	connected	local-http
+assessment	/courses/[id]/my-results/[submissionId]/summary	murid	results.diagnosis-read	Reads diagnosis and job status for eligible own result via shared summary adapter.	connected	contract
+assessment	/courses/[id]/my-results/[submissionId]/summary	murid	results.diagnosis-run	Regenerates eligible own diagnosis and refreshes result.	connected	contract
+assessment	/courses/[id]/solutions/[collectionId]	murid	solutions.read	Retrieves published collection with course, chapter access and exact collection version checks.	connected	contract
+assessment	/courses/[id]/solutions/[collectionId]	murid	solutions.filter	Filters and jumps to solution entries scoped to published collection.	connected	fixture
+assessment	/courses/[id]/solutions/[collectionId]	murid	solutions.hint-reveal	Native reveals per-item hint, strategy, worked steps and verification.	connected	fixture
+assessment	/courses/[id]/solutions/[collectionId]	murid	solutions.provenance	Offers source details and HTTPS source handoff for a published item.	connected	source
+assessment	/courses/[id]/solutions/[collectionId]	murid	solutions.visuals	SolutionVisualPreview renders structured learning canvases, geometry and authored fallback. Interactive document runtime uses its static fallback; compare per visual kind and controls.	partial	contract
+assessment	/courses/[id]/solutions/[collectionId]	murid	solutions.complete	Posts collection version and completed item IDs through shared achievement completion under full access.	connected	contract
+learning	/courses/[id]/concept/[slug]	murid	concept.read	GET learning concept requires full course access and shows concept and mastery.	connected	local-http
+learning	/courses/[id]/concept/[slug]	murid	concept.related-links	Opens authorized prerequisites and practice destinations for the course.	connected	fixture
+learning	/courses/[id]/flashcard	murid	flashcards.queue	GET learning flashcard checks full-access and preview chapters separately.	connected	local-http
+learning	/courses/[id]/flashcard	murid	flashcards.filter-mode	Selects chapter and standard or typed-answer mode.	connected	fixture
+learning	/courses/[id]/flashcard	murid	flashcards.flip-skip	Flips or skips card, and advances to another batch.	connected	fixture
+learning	/courses/[id]/flashcard	murid	flashcards.check-typed	Checks typed answer and shows outcome before grade.	connected	fixture
+learning	/courses/[id]/flashcard	murid	flashcards.grade	POST flashcard-review records one SM-2 review for an allowed card and active Student account.	connected	local-http
+learning	/courses/[id]/flashcard	murid	flashcards.recover-uncertain	Loads current queue after uncertain grade without automatically writing again.	connected	fixture
+learning	/courses/[id]/mastery	murid	mastery.read	GET learning mastery requires full course rights for the student's own projection.	connected	local-http
+learning	/courses/[id]/mastery	murid	mastery.chapters-and-practice	Expands chapter mastery and opens suggested practice.	connected	fixture
+learning	/courses/[id]/path	murid	study-path.build	GET study-path takes bounded days, bound to authorized course with same rights as web.	connected	local-http
+learning	/courses/[id]/path	murid	study-path.open-step	Opens calculated course destination with actual target.	connected	fixture
+learning	/courses/[id]/progress	murid	course.progress	GET learning progress shows owned course scores, material and mastery with full-access check.	connected	fixture
+learning	/courses/[id]/video	murid	video.list	GET learning video returns authorized list without private playback source.	connected	signed-http
+learning	/courses/[id]/video	murid	video.search	Expands playlist and filters by query or chapter.	connected	fixture
+learning	/courses/[id]/video	murid	video.play	Gets authorized playback source. Configured private source uses Expo player and external providers can use handoff.	connected	signed-http
+learning	/courses/[id]/video	murid	video.transport-controls	Native play, pause and close use shared Expo player. Device script exists, confirm completed job by SHA.	connected	source
+learning	/courses/[id]/playground	murid	python.draft-load	Mounts editor and restores scoped local draft plus server record.	connected	contract
+learning	/courses/[id]/playground	murid	python.draft-save	Saves with optimistic revision and conflict action to keep local copy.	connected	contract
+learning	/courses/[id]/playground	murid	python.run-stop	Uses protected remote runtime, streams output and aborts execution scope. Browser-local Pyodide has web-only behavior.	connected	ci-contract
+learning	/courses/[id]/playground	murid	python.stdin	Sends interactive stdin during execution. Native has narrower prefed-input surface than web.	partial	source
+learning	/courses/[id]/playground	murid	python.zyra-context	Adds code and runtime context to composer before explicit send.	connected	source
+learning	/courses/[id]/live	murid	live.enrollment-and-join	GET learning live and POST live verify eligible participant and exact course/room.	connected	ci-contract
+learning	/courses/[id]/live	murid	live.socket-reconnect	Rejoins socket with fresh token under same participant session.	connected	contract
+learning	/courses/[id]/live	murid	live.quiz-answer	Submits during active synchronized phase, renders outcome and leaves room.	connected	contract
+learning	/courses/[id]/live	murid	live.coding-read	Loads current question scoped to room, course and index.	connected	contract
+learning	/courses/[id]/live	murid	live.coding-run	Executes in protected runtime with question and deadline guards.	connected	contract
+learning	/courses/[id]/live	murid	live.coding-submit	Submits to protected grader and handles history, receipt, verdict and lost synchronization.	connected	ci-contract
+learning	/courses/[id]/live	murid	live.coding-zyra	Opens Zyra with allowed context from active question.	connected	source
+learning	/courses/[id]/live/host	tutor	live.host-alias	Compatibility alias opens native Tutor live gated to Tutor. Student role cannot host.	alias	source
+learning	/courses/tutorial-pka	murid	pka.home	Reads agenda and announcements under registration policy.	connected	local-http
+learning	/courses/tutorial-pka	murid	pka.announcement-read	POST pka-announcement-read delegates to owned announcement mutation.	connected	fixture
+learning	/courses/tutorial-pka	murid	pka.open-session	Opens allowed participant Meet URL in system browser.	browser	source
+learning	/courses/tutorial-pka/daftar	murid	pka.registration-status	Web and Expo show closed state or redirect registered participants. Dormant web registration form has no current route action.	connected	local-http
+learning	/courses/tutorial-pka/jadwal	murid	pka.schedule	Reads authorized PKA schedule. Meet URLs use the shared external operation.	connected	local-http
+learning	/courses/tutorial-pka/laporan	murid	pka.report	Renders diagnostic and scores under registration and report checks.	connected	local-http
+learning	/courses/tutorial-pka/material	murid	pka.materials-alias	Checks registration and renders shared CourseScreen for PKA course ID.	alias	fixture
+learning	/courses/tutorial-pka/material/[materialId]	murid	pka.material-detail-alias	Checks registration and mounts shared protected Reader. Signed HTTP covers PKA Diktat and revoked access.	alias	signed-http
+learning	/courses/tutorial-pka/simulasi	murid	pka.simulation-list	Lists eligible stages and shows known prerequisites.	connected	fixture
+learning	/courses/tutorial-pka/simulasi/[subject]/[stage]	murid	pka.simulation-attempt	Uses authorized historical/current stage and shared quiz start, resume, submit and result. HTTP probe covers stage access, not all writes.	connected	local-http
+community	/achievements	murid	achievements.read	Reads achievements and reward catalog for enabled Student gamification.	connected	fixture
+community	/achievements	murid	achievements.buy	Posts item and slot to licensed balance and compatibility checks.	connected	fixture
+community	/achievements	murid	achievements.equip	Equip/remove mutation uses owned catalog item and verified session.	connected	fixture
+community	/calendar	murid	calendar.agenda	GET calendar combines own bookings and assessed events for active courses.	connected	local-http
+community	/calendar	murid	calendar.filter	Native agenda filters by type and opens course or schedule destination.	connected	fixture
+community	/calendar	murid	calendar.meet	Opens approved Meet URL from agenda in system browser.	browser	source
+community	/calendar	murid	calendar.sync-status	Displays connected, pending, retry and last synchronization state from existing calendar service.	connected	fixture
+community	/calendar	murid	calendar.sync-request	POST queues deduplicated sync for active account; Google event delivery needs provider proof.	connected	fixture
+community	/calendar	murid	calendar.google-connect	CalendarSync needs nativeAuthScheme to show Connect or Reconnect. The signed host supplies openExternal and omits the scheme. Endpoint and fixture alone do not make the button reachable.	absent	source
+community	/courses/[id]/discussions	murid	discussion.course-scope	Loads only available course channels under matching identity alias and active rights; loopback evidence for role denial is recorded on the dashboard role guard.	connected	fixture
+community	/dashboard/discussions	murid	discussion.channel-scope	Loads authorized public/course channels and requester context from signed actor.	connected	local-http
+community	/dashboard/discussions	murid	discussion.thread-read	GET workspace lists active threads and pages resolved history, supports search and opens messages.	connected	fixture
+community	/dashboard/discussions	murid	discussion.create-question	POST creates question with stable request identity and optional authorized mentions and attachments.	connected	fixture
+community	/dashboard/discussions	murid	discussion.answer	Creates an answer using canonical reward and permissions in shared action.	connected	fixture
+community	/dashboard/discussions	murid	discussion.reply	Creates contextual reply with exact parent and stable request ID.	connected	fixture
+community	/dashboard/discussions	murid	discussion.forward	Forwards an eligible message within authorized thread scope, retaining request ID.	connected	fixture
+community	/dashboard/discussions	murid	discussion.edit	Edits own message with source revision check.	connected	fixture
+community	/dashboard/discussions	murid	discussion.delete	Deletes eligible message through shared ownership and policy.	connected	fixture
+community	/dashboard/discussions	murid	discussion.reaction	Adds or removes reaction under current viewer thread access.	connected	fixture
+community	/dashboard/discussions	murid	discussion.mark-read	Uses server observation receipt and observed messages to acknowledge.	connected	contract
+community	/dashboard/discussions	murid	discussion.mute	Changes mute flag for a permitted channel.	connected	fixture
+community	/dashboard/discussions	murid	discussion.resolve	Resolves or reopens via the same thread authority as web.	connected	fixture
+community	/dashboard/discussions	murid	discussion.mention	Searches permitted channel or thread actors; selecting uses source-backed composer.	connected	fixture
+community	/dashboard/discussions	murid	discussion.author-profile	Reads purpose-limited author detail for a currently visible thread.	connected	fixture
+community	/dashboard/discussions	murid	discussion.report	Reports permitted message using reason and shared validation.	connected	fixture
+community	/dashboard/discussions	murid	discussion.attachment-upload	Scoped picker uploads private image with returned expiry; draft retains assigned identifier.	connected	contract
+community	/dashboard/discussions	murid	discussion.attachment-remove	Removes a draft attachment and guards stale and expired selections.	connected	contract
+community	/dashboard/discussions	murid	discussion.attachment-open-share	Uses protected attachment bytes, signed session and temporary device loader/share.	connected	contract
+community	/dashboard/discussions	murid	discussion.draft-recovery	Restores account/session/channel/reply-scoped draft and original request identity when delivery is uncertain.	connected	contract
+community	/dashboard/discussions	murid	discussion.zyra	Explicit mention uses same discussion request, authorized context and queue. Provider completion is unproven in signed device flow.	connected	contract
+community	/discussions	murid	discussion.alias	Replaces route with dashboard discussions preserving query.	alias	fixture
+community	/courses/[id]/leaderboard	murid	ranking.course	Reads course quiz or simulation ranking after full access check; profile links only for visible identities.	connected	local-http
+community	/leaderboard	murid	ranking.academic	Reads course-separated results for active enrolled classes; native selects course or all.	connected	local-http
+community	/leaderboard	murid	ranking.participation	Uses opted-in XP ranking with range, following scope and cursor; excludes blocked or hidden users.	connected	local-http
+community	/leaderboard/academic	murid	ranking.alias	Redirects into academic tab of shared leaderboard, preserving query.	alias	fixture
+community	/dashboard/groups	murid	groups.read	Lists current account memberships and permitted group detail.	connected	fixture
+community	/dashboard/groups	murid	groups.join	Redeems group token under shared capacity and ownership rules.	connected	fixture
+community	/dashboard/groups	murid	groups.rename-status	Reads member eligibility, cooldown and quota.	connected	fixture
+community	/dashboard/groups	murid	groups.rename	Posts group ID and label under canonical membership, quota and validation.	connected	fixture
+community	/dashboard/schedule	murid	schedule.read	Reads current course selection and bounded week/booking/ticket results for participant.	connected	local-http
+community	/dashboard/schedule	murid	schedule.book	Books group slot after matching time, course, capacity and membership.	connected	fixture
+community	/dashboard/schedule	murid	schedule.move	Moves eligible booking using shared schedule conflict checks.	connected	fixture
+community	/dashboard/schedule	murid	schedule.cancel	Cancels eligible own-group booking under shared confirmation policy.	connected	fixture
+community	/dashboard/schedule	murid	schedule.context	Updates pre-session topic and notes on permitted booking.	connected	fixture
+community	/dashboard/schedule	murid	schedule.ticket-open	Submits reschedule/cancel ticket in allowed state and captures scope fields.	connected	fixture
+community	/dashboard/schedule	murid	schedule.ticket-message	Replies to an allowed ticket within recipient scope and refreshes.	connected	fixture
+community	/dashboard/schedule	murid	schedule.resource-link	Adds an authorized pre-session link through shared resource panel.	connected	contract
+community	/dashboard/schedule	murid	schedule.resource-upload	Adds eligible pre-session attachment through scoped picker and protected controller.	connected	contract
+community	/dashboard/schedule	murid	schedule.resource-remove	Confirms removal of allowed booking resource.	connected	contract
+community	/dashboard/schedule	murid	schedule.resource-open	Opens authorized file/share or approved URL with attached booking verification.	connected	contract
+community	/dashboard/schedule	murid	schedule.sync-surface	Shares calendar connection/status/sync with agenda route under same account.	alias	fixture
+community	/feedback	murid	feedback.submit	Posts validated rating, category and message. Preserves draft and uncertainty on network failure.	connected	fixture
+community	/pet	murid	pet.read	Loads reward balance, items and currently equipped pet.	connected	fixture
+community	/pet	murid	pet.buy	Checks exact item, slot, balance and ownership when buying.	connected	fixture
+community	/pet	murid	pet.equip	Equips or removes compatible owned item with refresh after receipt.	connected	fixture
+community	/pet	murid	pet.preview	Web Try opens animated GLB preview with equipped suit/actions. Native Mascot poster omits the live preview.	absent	source
+community	/pet	murid	pet.practice	Native exercise modal supports answers; web gear/action/animated practice presentation remains incomplete.	partial	source
+community	/profile	murid	profile.read	Projects own account info, enrollments, progress and gamification within current session.	connected	local-http
+community	/profile	murid	profile.follow-lists	Reads followers and following with cursor and privacy rules.	connected	fixture
+community	/profile	murid	profile.people-search	Finds eligible public member previews with query and privacy boundaries.	connected	fixture
+community	/profile	murid	profile.remove-follower	POST social removes eligible own follower relationship.	connected	fixture
+community	/profile/edit	murid	profile.edit-dimensions	Saves validated faculty, major and entry year for session identity.	connected	fixture
+community	/profile/edit	murid	profile.social-settings	Updates visibility, leaderboard consent and chosen badge under signed gamification policy.	connected	fixture
+community	/profile/reflections	murid	profile.reflections	Shows user's dated reflections with disclosure and older pages.	connected	local-http
+community	/students/[publicId]	murid	social.profile	Reads one eligible public profile under active viewer and blocked/privacy rules.	connected	local-http
+community	/students/[publicId]	murid	social.follow	Follows or unfollows eligible visible user.	connected	fixture
+community	/students/[publicId]	murid	social.block	Confirms blocking an eligible member, then removes profile access following shared policy.	connected	local-http
+community	/students/[publicId]	murid	social.report	Confirms reasoned report under actor and duplicate/rate limit policy.	connected	fixture
+community	/settings	murid	settings.locale	Sets account locale via protected native endpoint, then refreshes verified context.	connected	fixture
+community	/settings	murid	settings.theme	Persists device theme with system, light and dark variants.	connected	contract
+community	/settings	murid	settings.haptics	Persists device haptic setting and applies supported feedback.	connected	contract
+community	/settings	murid	settings.display	Theme, density, font, ornaments, animation and reset are wired to native preferences. Cross-page consumption and equivalent web scope need per-surface verification.	partial	contract
+community	/settings	murid	settings.session-panel	Displays active session inventory through own account panel and shared session controls.	connected	source
+community	/settings	murid	settings.profile-alias	Settings Profile tab mounts shared profile editor.	alias	fixture
+community	/settings	murid	settings.offline-link	Opens authorized device offline reading library.	connected	contract
+community	/settings/notifications	murid	notifications.email	Saves approved email toggles under session identity.	connected	fixture
+community	/settings/notifications	murid	notifications.activity	Saves approved activity preference under session identity.	connected	fixture
+community	/settings/notifications	murid	notifications.email-timing	Saves tutorial email frequency and time. Local signed HTTP verifies participant ownership and peer isolation.	connected	local-http
+community	/settings/notifications	murid	notifications.quiet-hours	GET/PUT scoped quiet hours through protected existing endpoint.	connected	contract
+community	/settings/notifications	murid	notifications.device-push	Requests explicit OS permission and controls registration or renewal for active account/device. Signed provider evidence is separate.	connected	ci-contract
+community	/settings/notifications	murid	notifications.local-reminders	Device schedule value and permission state are managed via the mounted Expo reminder panel.	connected	source
+community	/settings/notifications	murid	notifications.toast-position	Persists native toast/alert position for supported UI.	connected	contract
+community	/settings/notifications/browser	murid	notifications.browser-profile	Opens the receiving browser profile, whose push-token permission is browser-scoped by design.	browser	source
+community	/settings	murid	settings.session-revoke	Confirms sign-out of another owned device with protected DELETE, then reloads the session list.	connected	contract
+shared	/sign-in	murid	host.sign-in	Starts browser PKCE and consumes callback bound to origin, app scheme, intended route and account.	connected	signed-http
+shared	/sign-up	murid	host.sign-up	Opens permitted browser registration flow and retains destination across native callback.	connected	contract
+shared	/sign-out	murid	host.sign-out	Revokes active binding, purges scoped caches, and requires authentication on subsequent protected open.	connected	signed-http
+shared	/murid	murid	host.student-alias	Redirects compatibility entry to Student dashboard with signed route policy.	alias	source
+shared	/dashboard	murid	host.account-switch	Switches verified saved account from shell and invalidates previous transport and scoped memory.	connected	contract
+shared	/dashboard	murid	host.account-add	Starts native Google account selection when supported and uses existing browser system fallback.	connected	contract
+shared	/dashboard	murid	host.account-remove	Removes local saved/native account binding with explicitly authorized session cleanup.	connected	contract
+shared	/dashboard	murid	host.site-search	Runs permission-filtered search from the shell and opens supported destination for active account.	connected	contract
+shared	/mcp/connections	murid	host.mcp-connections	Displays and revokes own existing MCP client grants with current verified interactive account.	connected	ci-contract
+shared	/mcp/authorize	murid	host.mcp-consent	Routes browser-started consent through browser account session and existing client-scoped permissions.	browser	contract
+shared	/offline	murid	offline.sync	Reconciles metadata and cursor after bounded manifests for exact session and course entitlement.	connected	ci-contract
+shared	/offline	murid	offline.library-list	Lists owned packages with scoped filter, storage and access status.	connected	contract
+shared	/offline	murid	offline.package-save	Pins authorized Article/Diktat document and admitted assets to device package with byte cap and current lease.	connected	ci-contract
+shared	/offline	murid	offline.package-open	Opens saved revision for allowed session offline and respects revocation and signed lease.	connected	ci-contract
+shared	/offline	murid	offline.package-update	Refreshes or replaces package from scoped latest manifest with restore after transient failure.	connected	contract
+shared	/offline	murid	offline.package-remove	Confirms removal and releases package bytes.	connected	contract
+shared	/dashboard	murid	tour.start-resume	Root NativeGuidedTour loads own role state and starts or resumes Student walkthrough via onboarding API.	connected	contract
+shared	/dashboard	murid	tour.progress	Records observed steps, optional skip-step and final completion under active account, role and generation.	connected	contract
+shared	/dashboard	murid	tour.dismiss	Ends or skips current tour with server state and closes device overlay.	connected	contract
+shared	/settings	murid	tour.replay	Settings action requests restart of eligible Student tour with shared onboarding generation guard.	connected	contract

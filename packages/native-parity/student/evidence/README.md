@@ -2,6 +2,8 @@
 
 `routes.json` dan [routes.md](routes.md) mencatat 50 pola sumber dari `plans/native-parallel/routes.tsv`, screen native, ID operasi, kasus fixture, referensi web, bukti HTTP dan hasil tiap perangkat. `runnable` berarti fixture dapat dijalankan. Kolom Android dan iOS mencantumkan hasil dari run yang ditautkan. Alias tetap memerlukan verifikasi tujuan dan Back. Rute dinamis memerlukan parameter valid, hilang atau ditolak sesuai relevansinya.
 
+[Buku tindakan Student bersesi](signed-action-crosswalk.md) mencocokkan kontrol web dengan mount produk, backend dan izin per operasi. [Tabel tindakan](signed-action-crosswalk.tsv) mencatat status implementasi dan kelas bukti.
+
 `tests/visual/native-parallel/student/web-reference.spec.ts` mengambil referensi dari fixture web yang memakai komponen produksi dan data sintetis untuk katalog, kalender, dan quiz player. Hasil ini hanya memeriksa komponen di fixture pada viewport dan tema yang dijalankan. Fixture tidak membuktikan halaman server, data nyata, otorisasi, atau kesetaraan aplikasi native.
 
 Contoh menjalankan satu proyek pada server lokal terpisah:
