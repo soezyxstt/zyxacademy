@@ -18,7 +18,7 @@ module.exports = function withParityLoopback(config) {
 <network-security-config>
   <base-config cleartextTrafficPermitted="false" />
   <domain-config cleartextTrafficPermitted="true">
-    <domain>${HOST}</domain>
+    <domain includeSubdomains="false">${HOST}</domain>
   </domain-config>
 </network-security-config>
 `);

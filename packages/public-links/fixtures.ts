@@ -1,5 +1,7 @@
 import type { PublicLink } from "./directory";
 
+export const directoryFrame = { width: 380, height: 640 } as const;
+
 const community: PublicLink = {
   id: "community", category: null, icon: null, color: null,
   title: "Komunitas mahasiswa", description: null, url: "https://example.org/community",

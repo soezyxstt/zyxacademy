@@ -1,9 +1,0 @@
-import Svg, { Path } from "react-native-svg";
-
-// Paths and fills match the two public/brand/zyx-logo-symbol SVG assets.
-export function BrandSymbol({ dark }: { dark: boolean }) {
-  return <Svg accessibilityLabel="Zyx Academy" accessibilityRole="image" width={32 * 370 / 216} height={32} viewBox="0 0 370 216">
-    <Path d="M262.25 66.0576L309.5 0H369.5L292.25 108L369.5 216H309.5L268.486 158.661C275.133 144.348 279 126.43 279 104C279 56 293.001 32 302.001 26C274.001 37 270.21 75.5 263.5 92.5C259.39 102.914 253.201 114.236 244.281 124.821L155 0H215L262.25 66.0576Z" fill="#CC542B" />
-    <Path d="M139 0L176.75 52.7764L95.0488 167H133C206.5 167 239.65 125.559 252.5 93C259.21 76 273.5 37 301.5 26C292.5 32 278.786 43 270.5 105C256.067 213 172.5 216 114.5 216H0L119.451 49H0V0H139Z" fill={dark ? "#F3F4F5" : "#2A3C6A"} />
-  </Svg>;
-}

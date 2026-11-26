@@ -1,6 +1,20 @@
 /** Source-level coverage index. Tool registration is authoritative; partial does not imply every action is exposed. */
 export const operationsCatalog = [
   {
+    "source": "app/api/forms/[idOrSlug]/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Public form links resolve published respondent content. Live submissions use the respondent session or the form's anonymous policy. Admin MCP forms preview and simulation use separate read scopes and never submit live responses."
+  },
+  {
+    "source": "app/api/forms/upload/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Public file uploads attach files to a live respondent form under its current upload and authentication policy. Admin MCP preview and simulation do not upload respondent files."
+  },
+  {
     "source": "app/api/tautan/route.ts",
     "actions": ["GET"],
     "tools": [],
@@ -20,6 +34,13 @@ export const operationsCatalog = [
     "tools": [],
     "status": "excluded",
     "reason": "Offline cache policy and manual invalidation currently use the authenticated admin UI with origin checks and revision conflicts. Existing publication, revision, withdrawal, enrollment, course and video services record durable offline changes for their existing Admin and MCP callers. This adds no MCP tools or changes to scopes, consent, discovery, skills, host prompts or staging/production bindings. Device download and storage choices remain local to the signed-in user."
+  },
+  {
+    "source": "apps/mobile-native/app/offline.tsx",
+    "actions": ["download", "forget", "revalidateSaved", "purgeUnavailable"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Expo manages the signed-in learner's local downloads. Refresh reads existing authenticated offline endpoints on the configured app origin. MCP tools, scopes, consent, discovery, playbooks, packaged skills, host prompts and environment bindings are unchanged."
   },
   {
     "source": "app/(student)/feedback/feedback-form.tsx",

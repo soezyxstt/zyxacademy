@@ -61,9 +61,11 @@ function responseHeaders({ asset = false, version = revision, cursor = "4", vali
   };
 }
 
-function resource({ withImage = false, version = revision, cursor = "4", expires = lease, validatedAt = now, url = assetPath, locale = scope.locale } = {}) {
+function resource({ withImage = false, version = revision, cursor = "4", expires = lease, validatedAt = now, url = assetPath,
+  locale = scope.locale, selection = target } = {}) {
+  const reading = { ...data, id: selection.id, courseId: selection.courseId };
   return Response.json({
-    ...identity, locale, resource: descriptor(target, version), data: withImage ? { ...data, body: `![Sample](${url})` } : data,
+    ...identity, locale, resource: descriptor(selection, version), data: withImage ? { ...reading, body: `![Sample](${url})` } : reading,
     cursor, validatedAt, leaseExpiresAt: expires, assets: withImage ? [{ url, required: true }] : [],
   }, { headers: responseHeaders({ version, cursor, expires, validatedAt }) });
 }
@@ -146,7 +148,7 @@ async function setup(...responses: Array<Response | ((url: URL) => Response | Pr
   }
 
   await commit();
-  return { controller, commit, metadata, readingStore, guard, db, options, observed, transport, revocations: () => revocations,
+  return { controller, commit, connection, metadata, readingStore, guard, db, options, observed, transport, revocations: () => revocations,
     time(value: number) { clock = value; } };
 }
 
@@ -185,7 +187,7 @@ test("a bad image or malformed same-origin asset never replaces the existing com
   expect((await controller.download(target)).status).toBe("unsupported");
   expect(observed).toHaveLength(6);
   expect(await controller.read(target)).toMatchObject({ data, assets: [] });
-  expect(db.query("SELECT COUNT(*) AS count FROM expo_reading_packages_v1").get()).toEqual({ count: 1 });
+  expect(db.query("SELECT COUNT(*) AS count FROM expo_reading_packages_v2").get()).toEqual({ count: 1 });
 });
 
 test("a required asset reporting the material changed invalidates the old package", async () => {
@@ -196,6 +198,41 @@ test("a required asset reporting the material changed invalidates the old packag
   expect((await controller.download(target)).status).toBe("changed");
   expect(await controller.read(target)).toBeNull();
 });
+
+test("a stale response cursor keeps an existing verified package", async () => {
+  const { controller } = await setup(resource(), resource({ cursor: "3" }));
+  expect((await controller.download(target)).status).toBe("saved");
+  expect((await controller.download(target)).status).toBe("changed");
+  expect(await controller.read(target)).not.toBeNull();
+});
+
+for (const mode of ["newer download", "manifest renewal", "cursor reset"] as const) {
+  test(`a delayed 409 cannot delete package proof after ${mode}`, async () => {
+    let respond!: (value: Response) => void;
+    let observed!: () => void;
+    const requested = new Promise<void>(start => { observed = start; });
+    const delayed = new Promise<Response>(finish => { respond = finish; });
+    const cursor = mode === "cursor reset" ? "1" : "4";
+    const { controller, options, commit, readingStore, guard, time } = await setup(
+      resource(), () => { observed(); return delayed; }, resource({ cursor, validatedAt: now + 1 }),
+    );
+    expect((await controller.download(target)).status).toBe("saved");
+    const pending = controller.download(target);
+    await requested;
+    time(now + 1);
+    if (mode !== "newer download") {
+      await commit(page(cursor, { reset: mode === "cursor reset", serverTime: now + 1 }), [descriptor()], "4");
+      await readingStore.reconcile(scope, guard.assertCurrent);
+    }
+    if (mode !== "manifest renewal") {
+      const next = createOfflineReadingController(options);
+      expect((await next.download(target)).status).toBe("saved");
+    }
+    respond(Response.json({ code: "OFFLINE_MATERIAL_CHANGED" }, { status: 409 }));
+    expect((await pending).status).toBe("changed");
+    expect(await controller.read(target)).not.toBeNull();
+  });
+}
 
 test("preserves the public structured article body and rejects private progress fields", async () => {
   const article = { ...target, kind: "article" as const };
@@ -253,7 +290,7 @@ test("a current matching manifest renews healthy proof and chapter withdrawal pu
   await commit(narrowed, [], "4");
   expect(await controller.read(target)).toBeNull();
   await readingStore.reconcile(scope, guard.assertCurrent);
-  expect(db.query("SELECT COUNT(*) AS count FROM expo_reading_parts_v1").get()).toEqual({ count: 0 });
+  expect(db.query("SELECT COUNT(*) AS count FROM expo_reading_parts_v2").get()).toEqual({ count: 0 });
   await metadata.clearSession(scope);
   await readingStore.clearSession(scope);
   expect(await controller.list()).toEqual([]);
@@ -356,19 +393,50 @@ test("a newer manifest behind a saved resource cursor cannot validate that packa
   expect((await controller.download(target)).status).toBe("saved");
 });
 
-test("a legacy package without verification metadata requires a fresh resource response", async () => {
-  const { controller, readingStore, commit, db, guard, time } = await setup(resource(), resource({ validatedAt: now + 1 }));
-  expect((await controller.download(target)).status).toBe("saved");
-  db.exec("DELETE FROM expo_reading_verification_v1");
-  time(now + 1);
-  await commit(page("4", { reset: false, serverTime: now + 1 }), [descriptor()], "4");
-  await readingStore.reconcile(scope, guard.assertCurrent);
+const legacySchema = `
+  CREATE TABLE expo_reading_packages_v1 (entry INTEGER PRIMARY KEY, title TEXT);
+  CREATE TABLE expo_reading_parts_v1 (entry INTEGER, data BLOB);
+  CREATE TABLE expo_reading_verification_v1 (entry INTEGER PRIMARY KEY);
+`;
+
+test("upgrades atomically and keeps new downloads invisible to a downgraded reader", async () => {
+  const { controller, connection, db, guard } = await setup(resource());
+  db.exec(legacySchema + `
+    INSERT INTO expo_reading_packages_v1 VALUES (1, 'legacy reading');
+    INSERT INTO expo_reading_parts_v1 VALUES (1, X'74657874');
+    INSERT INTO expo_reading_verification_v1 VALUES (1);
+  `);
+  const failing = createOfflineReadingStore({
+    ...connection,
+    withExclusiveTransactionAsync(work) {
+      return connection.withExclusiveTransactionAsync(tx => work({
+        ...tx,
+        async execAsync(sql) {
+          await tx.execAsync(sql);
+          if (sql.includes("DROP TABLE")) throw new Error("migration interrupted");
+        },
+      }));
+    },
+  }, () => now);
+  await expect(failing.list(scope, guard)).rejects.toThrow("migration interrupted");
+  expect(db.query("SELECT title FROM expo_reading_packages_v1").get()).toEqual({ title: "legacy reading" });
+  expect(db.query("SELECT length(data) AS bytes FROM expo_reading_parts_v1").get()).toEqual({ bytes: 4 });
+  expect(db.query("SELECT name FROM sqlite_master WHERE name = 'expo_reading_packages_v2'").get()).toBeNull();
+
   expect(await controller.list()).toEqual([]);
+  expect(db.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'expo_reading_%_v1'").all()).toEqual([]);
   expect((await controller.download(target)).status).toBe("saved");
+  // An older build recreates and queries its own tables, which stay empty.
+  db.exec(legacySchema);
+  expect(db.query("SELECT title FROM expo_reading_packages_v1").all()).toEqual([]);
+  expect(db.query("SELECT data FROM expo_reading_parts_v1").all()).toEqual([]);
+  const reopened = createOfflineReadingStore(connection, () => now);
+  expect((await reopened.read(scope, target, guard))?.data).toEqual(data);
+  expect(db.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'expo_reading_%_v1'").all()).toEqual([]);
 });
 
-test("pins complete packages within storage policy and splits large payloads into bounded SQLite rows", async () => {
-  const { readingStore, commit, guard, db } = await setup();
+test("pins complete packages and releases quota by forgetting unavailable bytes", async () => {
+  const { controller, readingStore, commit, guard, db, time } = await setup();
   const materials = Array.from({ length: 26 }, (_, index) => descriptor({ ...target, id: `reading-${index}` }));
   await commit(page("5"), materials, "4");
   const authority = await readingStore.authorize(scope, { ...target, id: materials[0].id }, guard);
@@ -377,13 +445,106 @@ test("pins complete packages within storage policy and splits large payloads int
   for (const item of materials.slice(0, 25)) {
     const selection = { ...target, id: item.id };
     const body = new TextEncoder().encode(JSON.stringify({ ...data, id: selection.id, body: selection.id === "reading-0" ? "x".repeat(600_000) : "" }));
-    await readingStore.store(scope, { target: selection, body, assets: [], ...verification }, guard);
+    await readingStore.store(scope, { target: selection, body, assets: [], ...verification,
+      leaseExpiresAt: item.id === "reading-0" ? now + 5 : lease }, guard);
   }
-  await expect(readingStore.store(scope, { target: { ...target, id: materials[25].id }, body: new Uint8Array([42]),
-    assets: [], ...verification }, guard)).rejects.toMatchObject({ code: "storage-full" });
+  const next = { target: { ...target, id: materials[25].id }, body: new TextEncoder().encode(JSON.stringify(data)), assets: [], ...verification };
+  await expect(readingStore.store(scope, next, guard)).rejects.toMatchObject({ code: "storage-full" });
   expect(await readingStore.list(scope, guard)).toHaveLength(25);
-  expect(db.query("SELECT MAX(length(data)) AS size FROM expo_reading_parts_v1").get()).toEqual({ size: 256 * 1024 });
+  expect(db.query("SELECT MAX(length(data)) AS size FROM expo_reading_parts_v2").get()).toEqual({ size: 256 * 1024 });
   expect((await readingStore.read(scope, { ...target, id: "reading-0" }, guard))?.data).toMatchObject({ body: "x".repeat(600_000) });
+  time(now + 5);
+  expect(await controller.storage()).toEqual({ unavailableCount: 1 });
+  expect(await controller.purgeUnavailable()).toBe(1);
+  expect(await controller.storage()).toEqual({ unavailableCount: 0 });
+  await readingStore.store(scope, next, guard);
+  expect(await readingStore.list(scope, guard)).toHaveLength(25);
+  expect(db.query("SELECT MAX(length(data)) AS size FROM expo_reading_parts_v2").get()).not.toEqual({ size: 256 * 1024 });
+});
+
+test("prunes past-retention bytes even when a different download still exceeds quota", async () => {
+  const { controller, readingStore, commit, guard, db, time } = await setup(resource());
+  const next = { ...target, id: "reading-next" };
+  expect(await controller.download(target)).toEqual({ status: "saved" });
+  time(now + 1_000);
+  const maxBytes = 8 * 1024;
+  const policy = { ...page().policy, retentionMs: 500, maxBytes };
+  await commit(page("5", { reset: false, policy, serverTime: now + 1_000 }), [descriptor(), descriptor(next)], "4");
+  const permit = await readingStore.authorize(scope, next, guard);
+  const candidate = {
+    target: next, assets: [], revision, cursor: "5", resetGeneration: permit!.resetGeneration,
+    assetLeaseExpiresAt: null, leaseExpiresAt: lease, validatedAt: now + 1_000,
+    body: new TextEncoder().encode(JSON.stringify({ ...data, id: next.id, body: "x".repeat(maxBytes) })),
+  };
+  await expect(readingStore.store(scope, candidate, guard)).rejects.toMatchObject({ code: "storage-full" });
+  expect(await controller.storage()).toEqual({ unavailableCount: 0 });
+  expect(db.query("SELECT COUNT(*) AS count FROM expo_reading_parts_v2").get()).toEqual({ count: 0 });
+  await readingStore.store(scope, { ...candidate, body: new TextEncoder().encode(JSON.stringify({ ...data, id: next.id })) }, guard);
+  expect((await controller.list()).map(item => item.id)).toEqual([next.id]);
+});
+
+test("a refresh revalidates only three saved candidates and verifies their existing authorization", async () => {
+  const selections = Array.from({ length: 4 }, (_, index) => ({ ...target, id: `saved-${index}` }));
+  const responses = [new Response(null, { status: 500 }),
+    ...[2, 1, 0, 3].map(index => resource({ selection: selections[index], validatedAt: now + 1 }))];
+  const { controller, readingStore, commit, guard, observed, time } = await setup(...responses);
+  await commit(page("4", { reset: false }), selections.map(selection => descriptor(selection)), "4");
+  for (const selection of selections) {
+    const permit = await readingStore.authorize(scope, selection, guard);
+    const body = new TextEncoder().encode(JSON.stringify({ ...data, id: selection.id }));
+    await readingStore.store(scope, { target: selection, body, assets: [], revision, cursor: "4", resetGeneration: permit!.resetGeneration,
+      assetLeaseExpiresAt: null, leaseExpiresAt: now + 1, validatedAt: now }, guard);
+  }
+  time(now + 1);
+  expect(await controller.storage()).toEqual({ unavailableCount: 4 });
+  expect(await controller.revalidateSaved()).toEqual({ attempted: 3, restored: 2 });
+  expect(observed).toHaveLength(3);
+  expect(await controller.list()).toHaveLength(2);
+  expect(await controller.storage()).toEqual({ unavailableCount: 2 });
+  expect(await controller.revalidateSaved()).toEqual({ attempted: 2, restored: 2 });
+  expect(observed).toHaveLength(5);
+  expect(await controller.storage()).toEqual({ unavailableCount: 0 });
+});
+
+test("concurrent refresh calls share one budget and elapsed time stops later requests", async () => {
+  let respond!: (value: Response) => void;
+  let observedRequest!: () => void;
+  const requested = new Promise<void>(start => { observedRequest = start; });
+  const delayed = new Promise<Response>(finish => { respond = finish; });
+  const next = { ...target, id: "reading-next" };
+  const { controller, commit, time, observed } = await setup(
+    resource({ expires: now + 1 }), resource({ expires: now + 1, selection: next }),
+    () => { observedRequest(); return delayed; },
+  );
+  await commit(page("4", { reset: false }), [descriptor(), descriptor(next)], "4");
+  expect(await controller.download(target)).toEqual({ status: "saved" });
+  expect(await controller.download(next)).toEqual({ status: "saved" });
+  time(now + 1);
+  const refreshing = controller.revalidateSaved();
+  expect(controller.revalidateSaved()).toBe(refreshing);
+  await requested;
+  time(now + 25_001);
+  respond(new Response(null, { status: 500 }));
+  expect(await refreshing).toEqual({ attempted: 1, restored: 0 });
+  expect(observed).toHaveLength(3);
+  expect(await controller.storage()).toEqual({ unavailableCount: 2 });
+});
+
+test("a saved package purged during refresh does not reappear when its response arrives", async () => {
+  let respond!: (value: Response) => void;
+  let observed!: () => void;
+  const requested = new Promise<void>(start => { observed = start; });
+  const delayed = new Promise<Response>(finish => { respond = finish; });
+  const { controller, time } = await setup(resource({ expires: now + 1 }), () => { observed(); return delayed; });
+  expect((await controller.download(target)).status).toBe("saved");
+  time(now + 1);
+  const renewing = controller.revalidateSaved();
+  await requested;
+  expect(await controller.purgeUnavailable()).toBe(1);
+  respond(resource({ validatedAt: now + 1 }));
+  expect(await renewing).toEqual({ attempted: 1, restored: 0 });
+  expect(await controller.list()).toEqual([]);
+  expect(await controller.storage()).toEqual({ unavailableCount: 0 });
 });
 
 test("forget and logout reject late network completions without resurrecting a saved reading", async () => {

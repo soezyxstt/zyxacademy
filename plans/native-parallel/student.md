@@ -12,7 +12,7 @@ git fetch origin
 git status --short --branch
 ```
 
-Baca **[aturan integrasi dan bukti](README.md)** dan **[daftar rute dengan pemilik](routes.tsv)** di `plans/native-parallel/`, lalu AGENTS.md, docs/mobile-native.md dan docs/native-readiness.md. Gunakan model Sol 6.2 high sebagai eksekutor, Terra 6.1 xhigh untuk inventaris bila tersedia, dan Astra 6.2 high untuk review. Penilaian akhir lintas jalur milik integrator.
+Baca **[aturan integrasi dan bukti](README.md)** dan **[daftar rute dengan pemilik](routes.tsv)** di `plans/native-parallel/`, lalu AGENTS.md, docs/mobile-native.md dan docs/native-readiness.md. Gunakan GPT-6.2 Sol Medium untuk eksekusi dan GPT-6.2 Sol High untuk review independen. Penilaian akhir lintas jalur milik integrator.
 
 Kamu memiliki **seluruh 50 halaman Student** dalam `app/(student)/`. Implementasi ada di `apps/mobile-native/features/student/`. Mulai dari dashboard, daftar kursus, detail kursus dan materi; lanjutkan progress/mastery, video, flashcard, kuis/tryout, hasil, jalur belajar, diskusi, jadwal, tutorial PKA, profil, leaderboard, pengaturan dan notifikasi. Gunakan routes.tsv untuk cakupan lengkap.
 

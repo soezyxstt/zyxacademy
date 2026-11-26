@@ -19,7 +19,7 @@ jobs:
       group: native-combined-preview
       cancel-in-progress: true
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
         with:
@@ -27,6 +27,14 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - run: bash scripts/native-readiness/preview-lanes.sh
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.14'
+      - run: |
+          python3 scripts/native-readiness/test_merge_reviewed_preview.py
+          bun test tests/unit/expo-academic-intent.test.ts tests/gamification/question-disclosure-calls.test.ts
+      - name: Mount canonical Expo product routes
+        run: python3 scripts/native-readiness/product/mount.py
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
@@ -34,3 +42,22 @@ jobs:
         working-directory: apps/mobile-native
       - run: npx --no-install tsc --noEmit
         working-directory: apps/mobile-native
+      - name: Bundle mounted Android and iOS product entry points
+        working-directory: apps/mobile-native
+        env:
+          EXPO_NO_TELEMETRY: '1'
+        run: npx --no-install expo export --platform all --max-workers 2 --output-dir "$RUNNER_TEMP/native-product"
+      - name: Verify both native bundles were produced
+        run: |
+          python3 - <<'CHECK'
+          import json, os
+          from pathlib import Path
+          out = Path(os.environ["RUNNER_TEMP"]) / "native-product"
+          metadata = json.loads((out / "metadata.json").read_text())["fileMetadata"]
+          for platform in ["android", "ios"]:
+              bundle = out / metadata[platform]["bundle"]
+              size = bundle.stat().st_size
+              if not size:
+                  raise SystemExit(f"Empty {platform} bundle")
+              print(f"{platform}: {size:,} bytes")
+          CHECK

@@ -55,6 +55,7 @@ export function useNativeSession() {
   if (!controller) throw new Error("Provider sesi Expo belum dipasang.");
   return {
     ...snapshot,
+    getSnapshot: controller.getSnapshot,
     acceptLogin: controller.acceptLogin,
     clearLoginIntent: controller.clearLoginIntent,
     rememberAccountAccess: controller.rememberAccountAccess,
