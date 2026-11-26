@@ -25,6 +25,7 @@ export function MobileReference() {
     const requested = new URL(window.location.href).searchParams.get("mobile-reference");
     const component = componentNames.find(name => name === requested);
     if (!component) return;
+    const identityWidth = 96 + componentNames.indexOf(component);
 
     const main = document.querySelector("main");
     if (!main) return;
@@ -61,7 +62,7 @@ export function MobileReference() {
         markers.push(strip);
       }
       // Use a separate marker range so a stale native screen cannot count as a WebView frame.
-      const identity = marker(96 + componentNames.indexOf(component));
+      const identity = marker(identityWidth);
       main!.prepend(identity);
       markers.push(identity);
     }
