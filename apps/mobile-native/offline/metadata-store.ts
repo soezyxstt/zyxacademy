@@ -43,7 +43,8 @@ type StoredManifest = {
   leaseExpiresAt: number;
   materials: NativeOfflineResourceDescriptor[];
 };
-type StoredCourse = NativeOfflineCourseAccess & { title: string; manifest?: StoredManifest };
+type StoredCourse = NativeOfflineCourseAccess & { title: string; grantRevision?: number; manifest?: StoredManifest };
+export type OfflineReadingCourseVersion = { grantRevision?: number; generation: number };
 type ReadingValidation = { generation: number; invalidations: Record<string, string> };
 type StoredSnapshot = {
   sessionId: string;
@@ -92,13 +93,39 @@ function readSnapshot(row: RawRow | null): StoredSnapshot | null {
   return null;
 }
 
-export async function readOfflineReadingAuthority(db: Pick<OfflineMetadataDatabase, "getFirstAsync">, scope: NativeOfflineScope) {
-  const row = await db.getFirstAsync<RawRow>(
+function readAuthorityRow(db: Pick<OfflineMetadataDatabase, "getFirstAsync">, scope: NativeOfflineScope) {
+  return db.getFirstAsync<RawRow>(
     "SELECT revision, session_id, snapshot FROM offline_reading_metadata_v1 WHERE origin = ? AND account_id = ? AND locale = ?",
     scope.origin, scope.accountId, scope.locale,
   );
+}
+
+export async function readOfflineReadingAuthority(db: Pick<OfflineMetadataDatabase, "getFirstAsync">, scope: NativeOfflineScope) {
+  const row = await readAuthorityRow(db, scope);
   const snapshot = readSnapshot(row);
   return snapshot && snapshot.sessionId === scope.sessionId ? snapshot : null;
+}
+
+export async function withdrawOfflineReadingCourse(
+  tx: Pick<OfflineMetadataDatabase, "getFirstAsync" | "runAsync">,
+  scope: NativeOfflineScope,
+  courseId: string,
+  version: OfflineReadingCourseVersion,
+  assertCurrent: WriterGuard,
+): Promise<boolean> {
+  const row = await readAuthorityRow(tx, scope);
+  const snapshot = readSnapshot(row);
+  const course = snapshot?.courses.find(item => item.courseId === courseId);
+  if (!row || snapshot?.sessionId !== scope.sessionId || snapshot.readingValidation?.generation !== version.generation
+    || !course?.allowed || course.grantRevision !== version.grantRevision) return false;
+  const withdrawn = { ...snapshot, courses: snapshot.courses.filter(item => item.courseId !== courseId) };
+  assertCurrent();
+  // Advancing the row revision also prevents a pending manifest from restoring this grant.
+  const { changes } = await tx.runAsync(`
+    UPDATE offline_reading_metadata_v1 SET revision = revision + 1, snapshot = ?
+    WHERE origin = ? AND account_id = ? AND locale = ? AND session_id = ? AND revision = ?
+  `, JSON.stringify(withdrawn), scope.origin, scope.accountId, scope.locale, scope.sessionId, row.revision);
+  return changes === 1;
 }
 
 function allowedChapters(grant: NativeOfflineCourseAccess, resource: NativeOfflineResourceDescriptor) {
@@ -176,7 +203,7 @@ function applyPageAccess(previous: StoredSnapshot | null, response: NativeOfflin
       materials: old.manifest.materials.filter(resource => allowedChapters(grant, resource)),
     };
     courses.set(id, { courseId: id, allowed: true, fullContent: grant.fullContent, chapterIds: [...grant.chapterIds],
-      leaseExpiresAt, title: enrollment?.title ?? old?.title ?? id, manifest });
+      leaseExpiresAt, title: enrollment?.title ?? old?.title ?? id, grantRevision: nextRevision, manifest });
   }
 
   const authorized = [...courses.values()];
@@ -319,7 +346,7 @@ export function createOfflineMetadataStore(db: OfflineMetadataDatabase) {
         const id = manifest.resource.courseId;
         if (reconciled.has(id)) throw new Error("Duplicate offline manifest.");
         reconciled.add(id);
-        courses.set(id, reconcileManifest(scope, response, courses.get(id), manifest));
+        courses.set(id, { ...reconcileManifest(scope, response, courses.get(id), manifest), grantRevision: accessRevision + 1 });
       }
       const complete = { ...current, cursor: response.cursor, pending: undefined, courses: [...courses.values()] };
       const encoded = encodeSnapshot(complete, Math.min(maxMetadataBytes, Math.floor(response.policy.maxBytes / 4)));

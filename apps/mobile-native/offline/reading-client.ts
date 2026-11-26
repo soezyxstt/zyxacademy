@@ -1,4 +1,5 @@
 import type { NativeResponse, NativeSessionTransport } from "../network/transport";
+import type { OfflineReadingCourseVersion } from "./metadata-store";
 import {
   OfflineReadingError,
   READING_ASSET_LIMIT,
@@ -68,7 +69,8 @@ async function failure(response: NativeResponse, asset: boolean): Promise<Offlin
     const data = await json(response, 4096).catch(() => null);
     const code = data && typeof data === "object" && "code" in data ? data.code : null;
     if (code === "OFFLINE_ACCESS_REVOKED" || code === "OFFLINE_ACCOUNT_CHANGED") return new OfflineReadingError("revoked");
-    if (response.status === 404 || code === "OFFLINE_COURSE_ACCESS_DENIED" || code === "OFFLINE_ACCESS_CHANGED"
+    if (response.status === 403 && code === "OFFLINE_COURSE_ACCESS_DENIED") return new OfflineReadingError("course-denied");
+    if (response.status === 404 || code === "OFFLINE_ACCESS_CHANGED"
       || code === "OFFLINE_MATERIAL_CHANGED") return new OfflineReadingError("changed", true);
     if (asset && code === "OFFLINE_ASSET_NOT_ADMITTED") return new OfflineReadingError("unsupported");
   }
@@ -138,12 +140,14 @@ export function createOfflineReadingController({ scope, verifiedUntil, repositor
     const activeGuard = { verifiedUntil, assertCurrent: () => assertCurrent(operation.signal) };
     const timeout = setTimeout(() => operation.abort(), timeoutMs);
     let requestVersion: OfflineReadingRequestVersion | null = null;
+    let courseVersion: OfflineReadingCourseVersion | undefined;
     try {
       const store = await repository();
       const authority = await store.authorize(scope, target, activeGuard, requiredEntry);
       if (!authority) return { status: "unavailable" };
       const verify = { revision: authority.descriptor.revision, minCursor: authority.cursor };
       requestVersion = authority.requestVersion;
+      courseVersion = { grantRevision: authority.grantRevision, generation: authority.resetGeneration };
       const payload = await request(readingResourcePath(target, scope.locale), operation.signal, false, async response => {
         const metadata = readOfflineReadingHeaders(response, scope, { ...verify, now: now() });
         if (response.headers.get("etag") !== `"${metadata.revision}"`) throw new NativeOfflineProtocolError();
@@ -182,6 +186,15 @@ export function createOfflineReadingController({ scope, verifiedUntil, repositor
         for (const { operation } of flights.values()) operation.abort();
         await onRevoked().catch(() => {});
         return { status: "unavailable" };
+      }
+      if (error.code === "course-denied") {
+        try {
+          if (courseVersion) await (await repository()).withdrawCourse(scope, target.courseId, courseVersion, activeGuard);
+        } catch {
+          try { assertCurrent(operation.signal); } catch { return { status: "cancelled" }; }
+          return { status: "retry" };
+        }
+        return { status: "changed" };
       }
       if (error.invalidatesSaved && requestVersion) {
         // A server invalidation can affect only the saved proof that preceded this request.
