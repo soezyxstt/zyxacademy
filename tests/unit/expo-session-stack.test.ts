@@ -1,10 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import type { NavigationState } from "expo-router";
 import { isSessionRoute, navigationSessionKey, resetSessionStack } from "../../apps/mobile-native/routing/session-stack";
 
 const identity = { accountId: "student-a", sessionId: "session-1", expiresAt: 1234 };
-const stack = (...routes: NavigationState["routes"]): NavigationState => ({
+const stack = (...routes: { name: string; key: string; params?: object; isPreloaded?: true }[]) => ({
   key: "root", index: routes.length - 1, routeKeySeq: routes.length, routes, stale: false, type: "stack",
   routeNames: ["index", "sign-in", "sign-out", "auth/native-finish", "courses/[id]", "offline", "mcp/authorize", "forms/[id]"],
 });
