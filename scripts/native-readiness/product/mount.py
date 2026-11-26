@@ -1,4 +1,5 @@
 """Install the reviewed lane entry points into the combined checkout for CI or integration."""
+import argparse
 import csv
 import os
 from pathlib import Path
@@ -23,9 +24,13 @@ def inventory():
     return result
 
 
-def put(path, content):
-    if path.exists() and path.read_text() != content:
-        raise ValueError(f"Existing route or integration file requires review: {path}")
+def put(path, content, *, replace=None):
+    if path.exists():
+        current = path.read_text()
+        if current == content:
+            return
+        if current != replace:
+            raise ValueError(f"Existing route or integration file requires review: {path}")
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content)
 
@@ -46,21 +51,41 @@ def insert_hook(path, hook_import, anchor, hook):
     rewrite_once(path, anchor, f"{anchor}\n  {hook}")
 
 
-def mount():
-    for feature in ["student/VerifiedStudentEntry.tsx", "operations/index.ts", "academic/index.ts"]:
+def route_source(file, pattern, owner, *, student=False):
+    routing = MOBILE / "routing"
+    product = os.path.relpath(routing / "ProductRoute", file.parent)
+    imports = f'import {{ productRoute }} from "{product}";\n'
+    entry = ""
+    if student:
+        module = os.path.relpath(routing / "StudentProductRoute", file.parent)
+        imports += f'import {{ StudentProductRoute }} from "{module}";\n'
+        entry = ", StudentProductRoute"
+    return f'{imports}\nexport default productRoute("{pattern}", "{owner}"{entry});\n'
+
+
+def mount(*, with_student=True):
+    features = ["operations/index.ts", "academic/index.ts"]
+    if with_student:
+        features.append("student/VerifiedStudentEntry.tsx")
+    for feature in features:
         if not (MOBILE / "features" / feature).is_file():
             raise ValueError(f"Missing external lane entry: {feature}")
-    routes = inventory()
-    destination = MOBILE / "routing/ProductRoute.tsx"
-    put(destination, (HERE / "ProductRoute.tsx.in").read_text())
+    routes = {pattern: owner for pattern, owner in inventory().items() if with_student or owner != "student"}
+    put(MOBILE / "routing/ProductRoute.tsx", (HERE / "ProductRoute.tsx.in").read_text())
+    if with_student:
+        put(MOBILE / "routing/StudentProductRoute.tsx", (HERE / "StudentProductRoute.tsx.in").read_text())
     # Use a real file per canonical URL. Expo's sitemap can then validate login
     # continuation without admitting unknown dynamic or internal fixture routes.
     for pattern, owner in routes.items():
         if pattern == "/":
             continue
         file = MOBILE / "app" / (pattern[1:] + ".tsx")
-        module = os.path.relpath(destination.with_suffix(""), file.parent)
-        put(file, f'import {{ productRoute }} from "{module}";\n\nexport default productRoute("{pattern}", "{owner}");\n')
+        fallback = route_source(file, pattern, owner) if pattern == "/dashboard" else None
+        put(file, route_source(file, pattern, owner, student=owner == "student"), replace=fallback)
+
+    if not with_student:
+        dashboard = MOBILE / "app/dashboard.tsx"
+        put(dashboard, route_source(dashboard, "/dashboard", "student"))
 
     root = MOBILE / "app/index.tsx"
     rewrite_once(root, 'import { Redirect } from "expo-router";',
@@ -68,7 +93,17 @@ def mount():
     rewrite_once(root, 'if (state.status === "signed-in" && loginIntent)', 'if (state.status === "signed-in")')
     rewrite_once(root, 'const { state, loginIntent } = useNativeSession();', 'const { state } = useNativeSession();')
     rewrite_once(root, 'return <Redirect href="/gallery/separator" />;', 'return <PublicLanding />;')
-    put(MOBILE / "app/murid.tsx", 'import { Redirect } from "expo-router";\n\nexport default function MuridHome() {\n  return <Redirect href="/dashboard" />;\n}\n')
+    put(MOBILE / "app/murid.tsx", (HERE / "MuridRoute.tsx.in").read_text())
+
+    mount_staff_chrome()
+    if with_student:
+        mount_student_integration()
+
+    print(f"Mounted {len(routes)} canonical product routes and the Murid alias."
+          + (" Student dashboard opens in the browser." if not with_student else ""))
+
+
+def mount_student_integration():
     # The lane's draft repository runs on a credential-free logout, including
     # cold restarts following expired or revoked sessions.
     drafts = MOBILE / "features/student/assessment-drafts.tsx"
@@ -88,6 +123,14 @@ def mount():
     for name, (anchor, hook) in chrome_hooks.items():
         insert_hook(MOBILE / "features/student" / name,
                     'import { useStudentChromeVisibility } from "../../../routing/student-chrome";', anchor, hook)
+
+    layout = MOBILE / "app/_layout.tsx"
+    cleanup_import = 'import { AssessmentDraftCleanup } from "../features/student/assessment-drafts";'
+    rewrite_once(layout, 'import { nativeFontSources }', f'{cleanup_import}\nimport {{ nativeFontSources }}')
+    rewrite_once(layout, '<NativeAccountContextProvider>', '<NativeAccountContextProvider>\n          <AssessmentDraftCleanup />')
+
+
+def mount_staff_chrome():
     staff_hooks = {
         "academic/assessment/grading.tsx": (
             'const [attemptId, setAttemptId] = useState(query.attemptId || "");',
@@ -105,14 +148,10 @@ def mount():
     for name, (anchor, hook) in staff_hooks.items():
         insert_hook(MOBILE / "features" / name,
                     'import { useStaffChromeVisibility } from "../../../routing/staff-chrome-visibility";', anchor, hook)
-    layout = MOBILE / "app/_layout.tsx"
-    cleanup_import = 'import { AssessmentDraftCleanup } from "../features/student/assessment-drafts";'
-    if cleanup_import not in layout.read_text():
-        rewrite_once(layout, 'import { nativeFontSources }', f'{cleanup_import}\nimport {{ nativeFontSources }}')
-    if '<AssessmentDraftCleanup />' not in layout.read_text():
-        rewrite_once(layout, '<NativeAccountContextProvider>', '<NativeAccountContextProvider>\n          <AssessmentDraftCleanup />')
-    print(f"Mounted {len(routes)} canonical external routes and the Murid redirect.")
 
 
 if __name__ == "__main__":
-    mount()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--without-student", action="store_true",
+                        help="Mount Academic, Operations and public pages, plus the Student dashboard browser handoff.")
+    mount(with_student=not parser.parse_args().without_student)

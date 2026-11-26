@@ -1,31 +1,38 @@
 import { Redirect, useFocusEffect, useIsFocused, useLocalSearchParams, useNavigation, useRoute, useRouter, type Href } from "expo-router";
 import { CommonActions } from "expo-router/react-navigation";
-import { useCallback, useMemo, useRef, useState, type ComponentProps, type ReactNode } from "react";
+import { openBrowserAsync } from "expo-web-browser";
+import { useCallback, useMemo, useRef, useState, type ComponentProps, type ComponentType, type ReactNode } from "react";
 import { ActivityIndicator, Text, View, useColorScheme } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { getSafeRedirectPath } from "../../../packages/native-session/auth-redirect";
 import type { NativeAccountContext } from "../../../packages/native-session/context";
 import { AuthSessionStatus } from "../auth/auth-continuation";
-import { authLocale } from "../auth/auth-copy";
+import { authCopy, authLocale } from "../auth/auth-copy";
+import { AuthPage, AuthStatus } from "../auth/auth-page";
 import { authEntryHref } from "../auth/login-intent";
 import { NATIVE_STAGING_ORIGIN } from "../auth/session-api";
-import { NativeRouteAccountContext, useNativeRouteAccountContext } from "../auth/use-account-context";
+import { useNativeRouteAccountContext } from "../auth/use-account-context";
 import { useNativeSession } from "../auth/session-provider";
 import { nativeUiLocale } from "../auth/ui-locale";
 import { Button } from "../components/Button";
 import { useDevicePreferences } from "../device/preferences-provider";
 import { AcademicLiveScreen, bindAcademicSession, createAcademicClient } from "../features/academic";
 import { AdminOperationsScreen, PublicOperationsScreen } from "../features/operations";
-import { VerifiedStudentEntry } from "../features/student/VerifiedStudentEntry";
 import { academicRouteCanRead, productLocation, productQueryUpdate } from "./product-location";
 import { expoRouteHistory } from "./route-history-expo";
 import { createDeferredSessionNavigation, nativeSessionNavigationStatus } from "./session-stack";
-import { StudentChrome } from "./student-chrome";
 import { StaffChrome } from "./staff-chrome";
 
 type Owner = "public" | "student" | "academic" | "operations";
 
-export function productRoute(pattern: string, owner: Owner) {
+export type StudentRouteProps = {
+  href: string; pattern: string; locale: "id" | "en"; theme: "light" | "dark"; showChrome: boolean;
+  context: NativeAccountContext | null;
+  devicePreferences: ReturnType<typeof useDevicePreferences>;
+  navigate(path: string): void; replace(path: string): void; visit(path: string): void; back(fallback?: string): void;
+};
+
+export function productRoute(pattern: string, owner: Owner, StudentScreen?: ComponentType<StudentRouteProps>) {
   return function InstalledProductRoute() {
     const params = useLocalSearchParams();
     const route = useRoute();
@@ -34,11 +41,13 @@ export function productRoute(pattern: string, owner: Owner) {
     const local = owner === "public" ? params : { ...params, ...route.params, "#": params["#"] };
     const href = productLocation(pattern, local);
     if (!href) return <Redirect href="/" />;
-    return <ProductRoute href={href} pattern={pattern} owner={owner} />;
+    return <ProductRoute href={href} pattern={pattern} owner={owner} StudentScreen={StudentScreen} />;
   };
 }
 
-function ProductRoute({ href, pattern, owner }: { href: string; pattern: string; owner: Owner }) {
+function ProductRoute({ href, pattern, owner, StudentScreen }: {
+  href: string; pattern: string; owner: Owner; StudentScreen?: ComponentType<StudentRouteProps>;
+}) {
   const router = useRouter();
   const screenNavigation = useNavigation();
   const isFocused = useIsFocused();
@@ -110,10 +119,10 @@ function ProductRoute({ href, pattern, owner }: { href: string; pattern: string;
   if (state.status === "signed-out") {
     return isFocused ? <Redirect href={authEntryHref({ entry: "sign-in", locale, next: href })} /> : null;
   }
-  if (owner === "student" && (state.status === "signed-in" || (state.status === "unavailable" && state.offlineIdentity))) {
+  if (owner === "student" && StudentScreen && (state.status === "signed-in" || (state.status === "unavailable" && state.offlineIdentity))) {
     const identity = state.status === "signed-in" ? state : state.offlineIdentity;
     return <RecheckingRoute enabled={studentAssessment} checking={access.retaining}>
-      <StudentRoute key={JSON.stringify([identity?.accountId, identity?.sessionId])} href={href} pattern={pattern}
+      <StudentScreen key={JSON.stringify([identity?.accountId, identity?.sessionId])} href={href} pattern={pattern}
         locale={locale} theme={theme} showChrome={!access.retaining && context?.roles.includes("murid") === true}
         context={context} devicePreferences={devicePreferences}
         navigate={navigate} replace={replaceInScreen} visit={visit} back={back} />
@@ -126,12 +135,14 @@ function ProductRoute({ href, pattern, owner }: { href: string; pattern: string;
   </Text><Button onPress={access.retry}>{locale === "en" ? "Try again" : "Coba lagi"}</Button>
     <Button onPress={() => back()}>{locale === "en" ? "Back" : "Kembali"}</Button></SafeAreaView>;
   if (!context || !transport?.isCurrent()) return <ActivityIndicator />;
-  const role = href.startsWith("/tutor") ? "tutor" : "admin";
+  const role = owner === "student" ? "murid" : tutor ? "tutor" : "admin";
   if (context.accountId !== transport.scope.accountId || context.sessionId !== transport.scope.sessionId ||
     !context.roles.includes(role)) return <SafeAreaView><Text accessibilityRole="alert">
     {locale === "en" ? "Access denied." : "Akses ditolak."}
   </Text><Button onPress={() => back()}>{locale === "en" ? "Back" : "Kembali"}</Button></SafeAreaView>;
   const accountKey = JSON.stringify([context.accountId, context.sessionId, locale]);
+  if (role === "murid") return isFocused ? <BrowserDashboard key={accountKey} locale={locale}
+    canNavigate={() => navigationStatus() === "ready"} signOut={() => navigate("/sign-out")} /> : null;
   return <RecheckingRoute enabled={tutor} checking={access.retaining}>
     <StaffChrome key={accountKey} role={role} href={href} theme={theme} focused={isFocused} context={context}
       checkingAccess={access.retaining} session={transport} visit={visit} back={back} loadTutorCourses={loadTutorCourses}>
@@ -170,20 +181,32 @@ function AcademicRoute({ session, locale, accountId, role, ...props }: {
   return <AcademicLiveScreen {...props} transport={transport} actor={{ id: accountId, role }} refresh={refresh} />;
 }
 
-function StudentRoute({ href, pattern, locale, theme, showChrome, context, devicePreferences, navigate, replace, visit, back }: {
-  href: string; pattern: string; locale: "id" | "en"; theme: "light" | "dark"; showChrome: boolean;
-  context: NativeAccountContext | null;
-  devicePreferences: ReturnType<typeof useDevicePreferences>;
-  navigate(path: string): void; replace(path: string): void; visit(path: string): void; back(fallback?: string): void;
+function BrowserDashboard({ locale, canNavigate, signOut }: {
+  locale: "id" | "en"; canNavigate(): boolean; signOut(): void;
 }) {
-  const scroll = useRef(0);
-  const entry = useRef(href.split(/[?#]/, 1)[0]);
+  const copy = authCopy[locale];
+  const opening = useRef(false);
+  const [status, setStatus] = useState<"idle" | "opening" | "failed">("idle");
+  const open = async () => {
+    if (opening.current || !canNavigate()) return;
+    opening.current = true;
+    setStatus("opening");
+    try {
+      await openBrowserAsync(new URL("/dashboard", NATIVE_STAGING_ORIGIN).href);
+      setStatus("idle");
+    } catch {
+      setStatus("failed");
+    } finally {
+      opening.current = false;
+    }
+  };
 
-  return <StudentChrome href={href} pattern={pattern} locale={locale} theme={theme} enabled={showChrome} visit={visit} back={back}>
-    <NativeRouteAccountContext context={context}>
-      <VerifiedStudentEntry path={href} entryKey={entry.current} offlineLocale={locale} devicePreferences={devicePreferences}
-        initialScrollY={scroll.current} onScrollY={value => { scroll.current = value; }}
-        navigate={navigate} replace={replace} back={() => back("/dashboard")} />
-    </NativeRouteAccountContext>
-  </StudentChrome>;
+  return <AuthPage title={copy.native.signedIn}>
+    <AuthStatus>{copy.native.destinationUnavailable}</AuthStatus>
+    {status === "failed" && <AuthStatus error>{copy.native.dashboardFailed}</AuthStatus>}
+    <Button isLoading={status === "opening"} onPress={() => void open()}>
+      {locale === "en" ? "Open dashboard in browser" : "Buka dashboard di browser"}
+    </Button>
+    <Button variant="outline" disabled={status === "opening"} onPress={signOut}>{copy.signOut.title}</Button>
+  </AuthPage>;
 }
