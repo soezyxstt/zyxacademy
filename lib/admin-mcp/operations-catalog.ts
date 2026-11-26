@@ -225,6 +225,13 @@ export const operationsCatalog = [
     "reason": "Private tryout essay files require the verified Tutor session, active course assignment and exact stored answer in a reviewable submission. The web storage proxy verifies upload ownership and immutable delivery. MCP credentials grant no access to these learner files."
   },
   {
+    "source": "app/api/native/academic/tutor-support/courses/[courseId]/materials/legacy/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The legacy Tutor materials editor uses the interactive Admin override with active Tutor membership. Its exact course, revision and session-bound receipt protect material, section and chunk writes. The registered materials tools retain their existing scopes and contracts."
+  },
+  {
     "source": "app/api/native/academic/tutor-support/courses/[courseId]/live/host/route.ts",
     "actions": ["GET", "POST"],
     "tools": [],

@@ -150,7 +150,11 @@ export const tutorSupportServices = {
       .from(aiMaterialInstances)
       .where(inArray(aiMaterialInstances.courseId, course.allIds))
       .orderBy(desc(aiMaterialInstances.createdAt));
-    return { title: course.title, items: items.map(({ id, title, summary }) => ({ id, title, summary: cleanSummary(summary) })) };
+    return {
+      title: course.title,
+      ...(access.source === "admin_override" && access.legacyCourseId ? { legacyAdminCourseId: access.legacyCourseId } : {}),
+      items: items.map(({ id, title, summary }) => ({ id, title, summary: cleanSummary(summary) })),
+    };
   },
   async videos(userId, courseId) {
     const access = await readCourse(userId, courseId);

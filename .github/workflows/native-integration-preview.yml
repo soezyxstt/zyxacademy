@@ -312,6 +312,11 @@ jobs:
       - name: Account connection management and OAuth consent
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: bun tests/integration/authoring-oauth-consent.ts
+      - name: Native Tutor legacy material Admin override
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          bun test tests/unit/expo-tutor-legacy-materials.test.ts
+          bun scripts/test-contracts.ts tests/contracts/native-tutor-legacy-materials.test.ts
       - name: Tutor question bank writes and web policy
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: bun scripts/test-contracts.ts tests/contracts/native-tutor-question-bank.test.ts tests/contracts/tutor-capability-boundary.test.ts

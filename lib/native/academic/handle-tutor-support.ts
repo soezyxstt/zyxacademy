@@ -18,6 +18,7 @@ export type TutorSupportServices = {
   session(): Promise<{ user: { id: string } } | null>;
   hasTutor(userId: string): Promise<boolean>;
   authorizeCourse(userId: string, courseId: string): Promise<void>;
+  authorizeMaterialsCourse?(userId: string, courseId: string): Promise<void>;
   discussions(userId: string, courseId: string | undefined, search: string, cursor: string | undefined, filter?: TutorDiscussionListFilter): Promise<TutorDiscussionList>;
   discussion(userId: string, courseId: string | undefined, threadId: string, cursor: string | undefined, targetMessageId?: string): Promise<TutorDiscussionDetail>;
   answer(userId: string, courseId: string | undefined, threadId: string, draft: TutorDiscussionDraft): Promise<TutorDiscussionSendResult>;
@@ -93,7 +94,8 @@ export async function handleTutorSupport(url: URL, parts: string[], services: Tu
         : await services.discussions(userId, undefined, search, cursor, filter));
     }
     if (section === "courses" && id && parts.length === 3) {
-      await services.authorizeCourse(userId, id);
+      if (operation === "materials" && services.authorizeMaterialsCourse) await services.authorizeMaterialsCourse(userId, id);
+      else await services.authorizeCourse(userId, id);
       switch (operation) {
         case "materials": return reply(200, await services.materials(userId, id));
         case "videos": return reply(200, await services.videos(userId, id));

@@ -14,6 +14,8 @@ import { Empty, TutorPage, tutorLayout } from "./ui";
 
 export type { TutorDataSource } from "../../../../../packages/native-parity/academic/tutor/model";
 
+import { EditableTutorMaterials } from "./legacy-materials";
+
 type TutorScreenProps = AcademicScreenProps & { dataSource?: TutorDataSource };
 
 export function TutorScreen({ dataSource, ...props }: TutorScreenProps) {
@@ -71,7 +73,9 @@ export function TutorScreen({ dataSource, ...props }: TutorScreenProps) {
     const service = source.support;
     if (nested === "discussions") return <ConnectedDiscussions key={key} {...props} courseId={courseId} service={service} />;
     if (nested === "materials") return <DataView key={key} theme={theme} back={back} title="Dokumen" load={(signal) => service.materials(courseId, signal)}>
-      {(data) => <ConnectedMaterials {...props} data={data} />}
+      {(data, refresh) => data.legacyAdminCourseId && service.legacyMaterials
+        ? <EditableTutorMaterials {...{ data, courseId, theme, back, refresh }} legacyCourseId={data.legacyAdminCourseId} editor={service.legacyMaterials} />
+        : <ConnectedMaterials {...props} data={data} />}
     </DataView>;
     if (nested === "videos") return <DataView key={key} theme={theme} back={back} title="Video" load={(signal) => service.videos(courseId, signal)}>
       {(data, refresh) => <ConnectedVideos {...props} data={data} courseId={courseId} refresh={refresh} playback={service.playback} videoPlayer={service.videoPlayer} />}

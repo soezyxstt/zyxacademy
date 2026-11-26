@@ -6,6 +6,7 @@ import { tutorPlaybackUrl } from "../../../../../packages/academic/tutor-support
 import { TutorDataError } from "../../../../../packages/native-parity/academic/tutor/model";
 import { NativeRequestNotDispatched } from "../../../network/transport";
 import type { AcademicTransport } from "../client";
+import { createTutorLegacyMaterials } from "./legacy-materials-client";
 import { createTutorDiscussionWorkspace } from "./discussion-workspace-client";
 import { createTutorLiveHost } from "./live-client";
 import { createTryoutGradeEditor } from "./tryout-grade-client";
@@ -51,6 +52,7 @@ export function createTutorSupportClient(transport: AcademicTransport): TutorSup
   return {
     videoPlayer: { origin: transport.origin, locale: transport.locale, load: loadVideo },
     liveHost: createTutorLiveHost(transport),
+    legacyMaterials: createTutorLegacyMaterials(transport),
     discussionWorkspace: createTutorDiscussionWorkspace(transport),
     slotEditor: createTutorSlotEditor(transport),
     ticketEditor: createTutorTicketEditor(transport),

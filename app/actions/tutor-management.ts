@@ -5,9 +5,6 @@ import { submitStudentTryout } from "@/lib/student/tryout-submit";
 
 import { db } from "@/db";
 import {
-  aiMaterialInstances,
-  aiMaterialInstanceSections,
-  aiMaterialInstanceChunks,
   quizTemplates,
   aiQuestionBank,
   exams,
@@ -20,7 +17,8 @@ import { headers } from "next/headers";
 import { randomUUID } from "crypto";
 import { z } from "zod";
 import { rejectQuestionVisualReferences } from "@/lib/authoring/question-visual-references";
-import { parseMaterialIntoSections } from "@/lib/ingestion-parser";
+import { lockLegacyMaterialCourse, writeLegacyMaterial } from "@/lib/tutor/legacy-materials";
+import { assertAuthoringActor } from "@/lib/auth/authoring-actor";
 import { revalidatePath } from "next/cache";
 import { revisionOf } from "@/lib/admin-mcp/revision";
 import { notifyQuizPublishedBestEffort } from "@/lib/notifications/send";
@@ -109,6 +107,7 @@ export async function saveTutorMaterialAction(
   title: string,
   summary: string,
   rawText: string,
+  expectedRevision?: string,
 ) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) {
@@ -135,71 +134,11 @@ export async function saveTutorMaterialAction(
     throw new Error(TUTOR_CAPABILITY_ERRORS.MATERIALS_AUTHORING_DISABLED);
   }
 
-  const parsedSections = parseMaterialIntoSections(rawText);
-  const identity = await resolveCourseIdentity(courseId);
-  const legacyCourseId = identity?.legacyId;
-  if (!legacyCourseId) throw new Error("COURSE_LEGACY_MAPPING_REQUIRED");
-  const targetId = materialId || `mat-tutor-${randomUUID()}`;
-
-  await db.transaction(async (tx) => {
-    if (materialId) {
-      await tx
-        .update(aiMaterialInstances)
-        .set({
-          title,
-          summary,
-          updatedAt: new Date(),
-        })
-        .where(eq(aiMaterialInstances.id, materialId));
-
-      const oldSections = await tx
-        .select({ id: aiMaterialInstanceSections.id })
-        .from(aiMaterialInstanceSections)
-        .where(eq(aiMaterialInstanceSections.materialInstanceId, materialId));
-
-      if (oldSections.length > 0) {
-        const sectionIds = oldSections.map((s) => s.id);
-        await tx
-          .delete(aiMaterialInstanceChunks)
-          .where(inArray(aiMaterialInstanceChunks.sectionId, sectionIds));
-        await tx
-          .delete(aiMaterialInstanceSections)
-          .where(eq(aiMaterialInstanceSections.materialInstanceId, materialId));
-      }
-    } else {
-      await tx.insert(aiMaterialInstances).values({
-        id: targetId,
-        courseId: legacyCourseId,
-        title,
-        sourceType: "markdown",
-        summary,
-        learningObjectives: [],
-        keywords: [],
-        pineconeSyncStatus: "pending",
-      });
-    }
-
-    for (const section of parsedSections) {
-      const sectionId = `sec-tutor-${randomUUID()}`;
-      await tx.insert(aiMaterialInstanceSections).values({
-        id: sectionId,
-        materialInstanceId: targetId,
-        title: section.title,
-        orderIndex: section.orderIndex,
-      });
-
-      for (const chunk of section.chunks) {
-        const chunkId = `chk-tutor-${randomUUID()}`;
-        await tx.insert(aiMaterialInstanceChunks).values({
-          id: chunkId,
-          sectionId,
-          chunkText: chunk.chunkText,
-          orderIndex: chunk.orderIndex,
-          pineconeVectorId: `vec-tutor-${chunkId}`,
-          isSynced: false,
-        });
-      }
-    }
+  const targetId = await db.transaction(async tx => {
+    await assertAuthoringActor(tx, session.user.id, { roles: ["admin"], error: "FORBIDDEN", lock: true });
+    const legacyId = await lockLegacyMaterialCourse(tx, session.user.id, courseId);
+    return writeLegacyMaterial(tx, legacyId, { action: materialId ? "edit" : "create", id: materialId ?? undefined,
+      expectedRevision, title, summary, markdown: rawText });
   });
 
   revalidatePath(`/tutor/${courseId}/materials`);
@@ -207,7 +146,7 @@ export async function saveTutorMaterialAction(
   return { success: true, id: targetId };
 }
 
-export async function deleteTutorMaterialAction(courseId: string, materialId: string) {
+export async function deleteTutorMaterialAction(courseId: string, materialId: string, expectedRevision?: string) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) {
     throw new Error("Unauthorized: Silakan masuk terlebih dahulu.");
@@ -233,23 +172,10 @@ export async function deleteTutorMaterialAction(courseId: string, materialId: st
     throw new Error(TUTOR_CAPABILITY_ERRORS.MATERIALS_AUTHORING_DISABLED);
   }
 
-  await db.transaction(async (tx) => {
-    const sections = await tx
-      .select({ id: aiMaterialInstanceSections.id })
-      .from(aiMaterialInstanceSections)
-      .where(eq(aiMaterialInstanceSections.materialInstanceId, materialId));
-
-    if (sections.length > 0) {
-      const sectionIds = sections.map((s) => s.id);
-      await tx
-        .delete(aiMaterialInstanceChunks)
-        .where(inArray(aiMaterialInstanceChunks.sectionId, sectionIds));
-      await tx
-        .delete(aiMaterialInstanceSections)
-        .where(eq(aiMaterialInstanceSections.materialInstanceId, materialId));
-    }
-
-    await tx.delete(aiMaterialInstances).where(eq(aiMaterialInstances.id, materialId));
+  await db.transaction(async tx => {
+    await assertAuthoringActor(tx, session.user.id, { roles: ["admin"], error: "FORBIDDEN", lock: true });
+    const legacyId = await lockLegacyMaterialCourse(tx, session.user.id, courseId);
+    await writeLegacyMaterial(tx, legacyId, { action: "delete", id: materialId, expectedRevision });
   });
 
   revalidatePath(`/tutor/${courseId}/materials`);
