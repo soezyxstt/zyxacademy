@@ -94,8 +94,9 @@ test("native Tutor edit, delete, report and forward share the web permission che
   expect((await write(edit, "edit-new")).status).toBe(200);
   expect((await write(edit, "edit-stale")).status).toBe(409);
   expect((await write({ action: "report", ...editable, reason: "Laporan diri" }, "own-report")).status).toBe(404);
-  expect((await write({ action: "report", threadId: "private-destination", messageId: "private-message", reason: "Alasan laporan" }, "valid-report", global)).status).toBe(200);
-  expect((await testDb.select().from(schema.discussionReports)).map(row => row.messageId)).toEqual(["private-message"]);
+  expect((await write({ action: "report", threadId: "private-destination", messageId: "private-message", reason: "Alasan laporan" }, "private-report", global)).status).toBe(404);
+  expect((await write({ action: "report", threadId, messageId: "first-message", reason: "Alasan laporan" }, "valid-report")).status).toBe(200);
+  expect((await testDb.select().from(schema.discussionReports)).map(row => row.messageId)).toEqual(["first-message"]);
   const forward = { action: "forward", threadId, messageId: "first-message", destinationId: "public-destination" };
   expect(await (await write({ ...forward, destinationId: "private-destination" }, "public-private")).json())
     .toMatchObject({ ok: false, error: "unavailable" });
