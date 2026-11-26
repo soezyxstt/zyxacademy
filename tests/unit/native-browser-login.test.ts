@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { describe, expect, test } from "bun:test";
-import { redirectSystemPath } from "../../apps/mobile-native/app/+native-intent";
+import { createNativeIntentRedirect } from "../../apps/mobile-native/routing/consent-intent";
 import { createNativeBrowserLogin } from "../../apps/mobile-native/auth/browser-flow";
 import {
   NATIVE_BROWSER_FINISH_PATH,
@@ -17,6 +17,9 @@ const verifier = "01".repeat(32);
 const code = "ab".repeat(64);
 const callback = { code, state };
 const callbackUrl = `${NATIVE_BROWSER_REDIRECT}#code=${code}&state=${state}`;
+const redirectSystemPath = createNativeIntentRedirect(async () => {
+  throw new Error("Browser login paths do not request consent entropy");
+});
 
 function deferred<T>() {
   let resolve!: (value: T) => void;

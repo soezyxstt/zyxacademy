@@ -47,3 +47,17 @@ test("raw native consent intent bypasses router decoding and expires on the devi
   now = 300_000;
   expect(intake.resolve("ref")).toBeNull();
 });
+
+test("native consent requests device entropy after validation and redacts a failed handoff", async () => {
+  const { consentIntake, createNativeIntentRedirect } = await import("../../apps/mobile-native/routing/consent-intent");
+  let allocations = 0;
+  const redirect = createNativeIntentRedirect(async () => `fixture-${++allocations}`);
+  const path = "/mcp/authorize?client_id=fixture&state=state%2Bprivate";
+  expect(redirect({ path: "/mcp/authorize?state=private", initial: true })).toBe("/mcp/authorize");
+  expect(redirect({ path: "/dashboard", initial: false })).toBe("/dashboard");
+  expect(allocations).toBe(0);
+  expect(await redirect({ path, initial: true })).toBe("/mcp/authorize?handoff=fixture-1");
+  expect(new URL(consentIntake.resolve("fixture-1")!).searchParams.get("state")).toBe("state+private");
+  const unavailable = createNativeIntentRedirect(async () => { throw new Error("Device entropy unavailable"); });
+  expect(await unavailable({ path, initial: true })).toBe("/mcp/authorize");
+});
