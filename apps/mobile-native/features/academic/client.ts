@@ -1,5 +1,5 @@
 import {
-  type AdminFlashcardDraft, type AdminFlashcardEditor, type AdminFlashcardSetDraft, type AdminEntityDeleteDraft, type AdminCourseQuestionRemover, type AdminVideoRemover, validAdminMaterialTitle, type AdminChapterDraft, type AdminChapterEditor, type AdminCourseEditDraft, type AdminCourseEditor,
+  type AdminDemoSelection, type AdminFlashcardDraft, type AdminFlashcardEditor, type AdminFlashcardSetDraft, type AdminEntityDeleteDraft, type AdminCourseQuestionRemover, type AdminVideoRemover, validAdminMaterialTitle, type AdminChapterDraft, type AdminChapterEditor, type AdminCourseEditDraft, type AdminCourseEditor,
   type AdminMaterialEditor, type AdminMaterialTitleDraft, type AdminCourseCreateDraft, type AdminCourseArchiver, type AdminCourseArchiveDraft,
   type AdminChapterArchiveDraft, type AdminChapterArchiver, type AdminChapterOrderDraft, type AdminChapterReorder,
 } from "../../../../packages/native-parity/academic/courses/edit-contract";
@@ -61,6 +61,7 @@ function buildAcademicClient(transport: AcademicTransport) {
     participants: (id, signal) => read(`/api/native/academic/tutor/courses/${encodeURIComponent(id)}/participants`, signal),
     grading: (id, signal) => read(`/api/native/academic/tutor/courses/${encodeURIComponent(id)}/grading`, signal),
   };
+  const demoTarget = command ? createCourseCommandTarget<AdminDemoSelection>(command) : undefined;
   const settingsTarget = command ? createCourseCommandTarget<AdminCourseEditDraft>(command) : undefined;
   const chapterTarget = command ? createCourseCommandTarget<AdminChapterDraft>(command) : undefined;
   const setTarget = command ? createCourseCommandTarget<AdminFlashcardSetDraft>(command) : undefined;
@@ -99,6 +100,7 @@ function buildAcademicClient(transport: AcademicTransport) {
   return {
     tutor,
     updateCourseSettings,
+    updateDemo: demoTarget ? (courseId: string) => demoTarget(encodeURIComponent(courseId) + "/demo", "PATCH") : undefined,
     createCourse,
     archiveCourse,
     saveChapter,

@@ -67,7 +67,7 @@ function LiveCourseDetail(props: AcademicScreenProps & Pick<AdminCourseLiveRead,
     reorderChapters: props.reorderChapters }} />;
 }
 
-function LiveCourseSectionScreen(props: AcademicScreenProps & Pick<AdminCourseLiveRead, "archiveCourse" | "updateSettings" | "removeVideo" | "removeQuestion" | "videoPlayer" | "flashcardEditor"> & {
+function LiveCourseSectionScreen(props: AcademicScreenProps & Pick<AdminCourseLiveRead, "updateDemo" | "archiveCourse" | "updateSettings" | "removeVideo" | "removeQuestion" | "videoPlayer" | "flashcardEditor"> & {
   section: string;
   refresh?: number;
   updateMaterial?: AdminMaterialEditor;
@@ -77,7 +77,7 @@ function LiveCourseSectionScreen(props: AcademicScreenProps & Pick<AdminCourseLi
   const { read, section, itemId, params: { slug } } = props;
   const load = useCallback((signal: AbortSignal) => read(slug, section, itemId, signal), [read, slug, section, itemId]);
   const [readSection, retry] = useCourseRead(load, props.refresh);
-  return <CourseScreen {...props} live={{ section: readSection, retry, updateSettings: props.updateSettings,
+  return <CourseScreen {...props} live={{ section: readSection, retry, updateSettings: props.updateSettings, updateDemo: props.updateDemo,
     updateMaterial: props.updateMaterial, removeVideo: props.removeVideo, removeQuestion: props.removeQuestion, flashcardEditor: props.flashcardEditor, videoPlayer: props.videoPlayer, archiveCourse: props.archiveCourse }} />;
 }
 
@@ -104,7 +104,7 @@ export function AcademicLiveScreen({ href, transport, refresh, ...host }: LivePr
     if (isAdminCourseLiveSection(section, itemId)) {
       return <TextDocumentTransport.Provider value={transport}>
         <LiveCourseSectionScreen key={key} {...props} read={client.courseSection} section={section} itemId={itemId}
-          refresh={refresh} updateSettings={client.updateCourseSettings} updateMaterial={client.updateMaterial} removeVideo={client.removeVideo}
+          refresh={refresh} updateDemo={client.updateDemo} updateSettings={client.updateCourseSettings} updateMaterial={client.updateMaterial} removeVideo={client.removeVideo}
           removeQuestion={client.removeQuestion} flashcardEditor={client.flashcardEditor}
           videoPlayer={client.tutor.support?.videoPlayer} archiveCourse={client.archiveCourse} />
       </TextDocumentTransport.Provider>;

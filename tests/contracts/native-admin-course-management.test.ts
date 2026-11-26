@@ -2,6 +2,7 @@ import { afterAll, beforeAll, expect, mock, test } from "bun:test";
 import { eq } from "drizzle-orm";
 import * as tables from "@/db/schema";
 import { createPostgresTestDb } from "../helpers/postgres";
+import { handleAdminDemoSelection, handleAdminCourseSettingsCommand } from "@/lib/native/academic/course-settings-command";
 import { handleAdminCourseManagementCommand } from "@/lib/native/academic/course-management-command";
 import { handleAdminCourseChapterCommand } from "@/lib/native/academic/course-chapter-command";
 import { handleAdminCourseQuestionCommand } from "@/lib/native/academic/course-question-command";
@@ -29,7 +30,7 @@ const { deleteAdminCourseQuestion } = await import("@/lib/native/academic/course
 const { saveAdminCourseFlashcard } = await import("@/lib/native/academic/course-flashcard-service");
 const { deleteAdminCourseVideoEntry } = await import("@/lib/native/academic/course-video-service");
 const { createCourseFromNative, archiveCourseFromNative } = await import("@/lib/native/academic/course-management-service");
-const { readCourseSettingsEditView } = await import("@/lib/native/academic/course-settings-service");
+const { readCourseSettingsEditView, updateNativeDemoSelection, updateCourseSettingsFromNative } = await import("@/lib/native/academic/course-settings-service");
 const { archiveCourseChapterFromNative, reorderCourseChaptersFromNative, saveCourseChapterFromNative } = await import("@/lib/native/academic/course-chapter-service");
 const { saveChapterWithCanonicalProjection } = await import("@/lib/academic/course-canonical-sync");
 const origin = "https://example.test";
@@ -86,6 +87,40 @@ test("creates and archives an empty course with durable same-session retries", a
   expect(row?.status).toBe("archived");
   const changes = await db.select().from(tables.offlineContentChanges).where(eq(tables.offlineContentChanges.courseId, id));
   expect(changes.filter(change => change.kind === "access" && change.action === "delete")).toHaveLength(1);
+});
+
+test("signed course settings preserve timed access and bind demo selection to the observed course and active session", async () => {
+  const { testDb: db } = database;
+  const id = "native-course-demo-edit";
+  expect((await command("contract-create-demo-course", create(id))).status).toBe(200);
+  const request = (key: string, body: unknown) => new Request(origin, { method: "PATCH",
+    headers: { Origin: origin, "Content-Type": "application/json", "Idempotency-Key": key }, body: JSON.stringify(body) });
+  const auth = (account = admin, sessionId = "admin-first") => ({
+    session: async () => ({ user: { id: account }, session: { id: sessionId } }), hasAdmin: async () => true,
+  });
+  const initial = await readCourseSettingsEditView(id);
+  const pricing = { category: "limited_time_free", startsAt: "2027-01-02T03:04:12.000Z", endsAt: "2027-01-05T03:04:48.000Z" };
+  const fields = { title: "Kalkulus", category: "Matematika", description: null, expectedRevision: initial!.revision, pricing };
+  expect((await handleAdminCourseSettingsCommand(request("contract-edit-demo-pricing", fields), ["admin", "courses", id, "settings"],
+    origin, { ...auth(), update: updateCourseSettingsFromNative })).status).toBe(200);
+  expect((await readCourseSettingsEditView(id))?.pricing).toEqual(pricing);
+  await db.update(tables.mataKuliah).set({ isDemo: true }).where(eq(tables.mataKuliah.id, id));
+  const view = await readCourseSettingsEditView(id);
+  const draft = { expectedRevision: view!.revision, previousCourseId: id, enabled: false };
+  const send = (body: typeof draft, key: string, account = admin, sessionId = "admin-first") => handleAdminDemoSelection(request(key, body),
+    ["admin", "courses", id, "demo"], origin, { ...auth(account, sessionId), save: updateNativeDemoSelection });
+  expect((await send(draft, "contract-denied-demo-edit", student, "student-first")).status).toBe(403);
+  expect((await send({ ...draft, previousCourseId: "superseded" }, "contract-outdated-demo-edit")).status).toBe(409);
+  const key = "contract-remove-demo-selection";
+  expect((await send(draft, key)).status).toBe(200);
+  expect((await send(draft, key)).status).toBe(200);
+  expect((await send(draft, key, admin, "admin-second")).status).toBe(409);
+  const updated = await readCourseSettingsEditView(id);
+  expect(updated?.isDemo).toBe(false);
+  const ineligible = { ...draft, enabled: true, previousCourseId: null, expectedRevision: updated!.revision };
+  expect((await handleAdminDemoSelection(request("contract-ineligible-demo", ineligible), ["admin", "courses", id, "demo"],
+    origin, { ...auth(), save: updateNativeDemoSelection })).status).toBe(422);
+  expect(await db.select().from(tables.auditMutasi).where(eq(tables.auditMutasi.correlationId, key))).toHaveLength(1);
 });
 
 test("a canonical chapter blocks archive even when the legacy course has no child rows", async () => {

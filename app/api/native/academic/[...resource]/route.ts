@@ -10,10 +10,10 @@ import { handleAdminCourseChapterCommand } from "@/lib/native/academic/course-ch
 import { handleAdminCourseManagementCommand } from "@/lib/native/academic/course-management-command";
 import { archiveCourseFromNative, createCourseFromNative } from "@/lib/native/academic/course-management-service";
 import { archiveCourseChapterFromNative, reorderCourseChaptersFromNative, saveCourseChapterFromNative } from "@/lib/native/academic/course-chapter-service";
-import { handleAdminCourseSettingsCommand } from "@/lib/native/academic/course-settings-command";
+import { handleAdminCourseSettingsCommand, handleAdminDemoSelection } from "@/lib/native/academic/course-settings-command";
 import { handleAdminCourseMaterialCommand, handleAdminCoursePdfDelete } from "@/lib/native/academic/course-material-command";
 import { updateCoursePdfTitleFromNative, deleteCoursePdfFromNative } from "@/lib/native/academic/course-material-service";
-import { updateCourseSettingsFromNative } from "@/lib/native/academic/course-settings-service";
+import { updateCourseSettingsFromNative, updateNativeDemoSelection } from "@/lib/native/academic/course-settings-service";
 import { handleAcademicRead } from "@/lib/native/academic/handle-read";
 import { academicReadServices } from "@/lib/native/academic/read-services";
 
@@ -58,6 +58,7 @@ export async function DELETE(request: Request, { params }: Context) {
 export async function PATCH(request: Request, { params }: Context) {
   const { resource } = await params;
   const origin = new URL(resolveAuthBaseUrl()).origin;
+  if (resource[3] === "demo") return handleAdminDemoSelection(request, resource, origin, { ...auth, save: updateNativeDemoSelection });
   if (resource[3] === "flashcards") {
     return handleAdminCourseFlashcardCommand(request, resource, origin, { ...auth, save: saveAdminCourseFlashcard });
   }

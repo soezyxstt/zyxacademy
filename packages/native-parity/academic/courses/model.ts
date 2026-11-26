@@ -39,6 +39,7 @@ export type AdminCourseLiveRead = {
   detail?: LiveCourseRead<AdminCourseOverview>;
   section?: LiveCourseRead<AdminCourseSectionResult>;
   updateSettings?: AdminCourseEditor;
+  updateDemo?: import("./edit-contract").AdminDemoEditor;
   createCourse?: CourseWriteTarget<AdminCourseCreateDraft>;
   archiveCourse?: AdminCourseArchiver;
   saveChapter?: AdminChapterEditor;

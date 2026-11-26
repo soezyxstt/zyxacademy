@@ -64,6 +64,7 @@ export type CourseSectionPayload =
         cards: { id: string; front: string; back: string; explanation: string | null; status?: AdminFlashcardStatus; revision?: string; mirrored?: boolean }[] }[] }
   | { type: "settings"; description: string | null; isDemo: boolean; revision: string; canonicalOnly: boolean;
       pricing: { category: string; startsAt: string | null; endsAt: string | null };
+      demoSelection?: { current: { id: string; title: string } | null; eligible: boolean };
       demoChecks: { label: string; ready: boolean; count: number }[] }
   | { type: "questions"; chapters: CourseChapterLabel[]; questions: {
       id: string; prompt: string; explanation: string | null; options: string[]; correctIndices: number[];

@@ -1,4 +1,6 @@
 import "server-only";
+import { currentDemoCourse, inspectDemoSelection, revalidateDemoSelection, writeDemoSelection } from "@/lib/demo/course-selection";
+import type { AdminDemoSelection } from "@/packages/native-parity/academic/courses/edit-contract";
 import { parseCoursePricingInput } from "@/packages/academic/course-pricing";
 import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
@@ -72,4 +74,25 @@ export function revalidateNativeCoursePaths(ids: readonly string[]) {
   revalidatePath("/admin/courses");
   revalidatePath("/courses");
   revalidatePath("/dashboard");
+}
+
+export async function updateNativeDemoSelection(slug: string, draft: AdminDemoSelection, requestId: string, viewer: CourseCommandViewer) {
+  const checked = await inspectDemoSelection(slug, draft.enabled);
+  const saved = await courseWrite({
+    slug, draft, requestId, viewer, entityType: "native_course_demo", action: "update",
+    async write(tx) {
+      const current = await readCourseSettingsInTransaction(slug, tx);
+      if (!current?.canonicalId) throw new Error("COURSE_NOT_FOUND");
+      if (current.revision !== draft.expectedRevision || ((await currentDemoCourse(tx))?.id ?? null) !== draft.previousCourseId) {
+        throw new Error("REVISION_CONFLICT");
+      }
+      if (!checked.success || checked.canonicalId !== current.canonicalId) throw new Error("COURSE_PROJECTION_UNAVAILABLE");
+      if (current.isDemo !== draft.enabled) await writeDemoSelection(tx, current.canonicalId, draft.enabled);
+      return { id: current.canonicalId, canonicalCourseId: current.canonicalId };
+    },
+    async validateReplay(tx, previous) {
+      if ((await readCourseSettingsInTransaction(slug, tx))?.canonicalId !== previous.canonicalCourseId) throw new Error("COURSE_NOT_FOUND");
+    },
+  });
+  revalidateDemoSelection(saved.canonicalCourseId);
 }

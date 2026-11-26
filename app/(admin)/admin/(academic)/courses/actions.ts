@@ -19,7 +19,7 @@ import { assertAdmin } from "@/lib/auth/admin-guards";
 import { z } from "zod";
 import { eq, asc, desc, inArray, and, or, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
-import { recordOfflineChange } from "@/lib/offline/server-events";
+import { inspectDemoSelection, writeDemoSelection, revalidateDemoSelection } from "@/lib/demo/course-selection";
 import { storage } from "@/lib/storage";
 import { isSafeKey, joinKey, slugifySegment } from "@/lib/storage/keys";
 import { generateAndSavePdfThumbnail } from "@/lib/thumbnail";
@@ -250,86 +250,11 @@ export async function deleteCourse(id: string) {
 export async function setDemoCourse(courseId: string, enabled: boolean) {
   await assertAdmin();
 
-  const cleanCourseId = courseId.trim().toLowerCase();
-  if (!cleanCourseId) {
-    return { success: false, error: "Mata kuliah tidak ditemukan." };
-  }
-
-  const matchingCanonicalCourses = await db
-    .select({ id: mataKuliah.id, status: mataKuliah.status, legacyCourseId: mataKuliah.legacyCourseId })
-    .from(mataKuliah)
-    .where(or(eq(mataKuliah.id, cleanCourseId), eq(mataKuliah.legacyCourseId, cleanCourseId)))
-    .orderBy(asc(mataKuliah.id));
-
-  if (matchingCanonicalCourses.length === 0) {
-    return { success: false, error: "Mata kuliah tidak ditemukan." };
-  }
-  if (matchingCanonicalCourses.length !== 1) {
-    return { success: false, error: "Pemetaan mata kuliah tidak jelas." };
-  }
-
-  const canonicalCourse = matchingCanonicalCourses[0];
-  if (canonicalCourse.legacyCourseId) {
-    const mappedCourses = await db
-      .select({ id: mataKuliah.id })
-      .from(mataKuliah)
-      .where(eq(mataKuliah.legacyCourseId, canonicalCourse.legacyCourseId));
-    if (mappedCourses.length !== 1 || mappedCourses[0]?.id !== canonicalCourse.id) {
-      return { success: false, error: "Pemetaan mata kuliah tidak jelas." };
-    }
-
-    const legacyCourses = await db
-      .select({ id: courses.id })
-      .from(courses)
-      .where(eq(courses.id, canonicalCourse.legacyCourseId));
-    if (legacyCourses.length !== 1) {
-      return { success: false, error: "Pemetaan mata kuliah tidak jelas." };
-    }
-  }
-
-  if (enabled) {
-    if (canonicalCourse.status !== "active") {
-      return { success: false, error: "Hanya mata kuliah aktif yang dapat dipilih sebagai demo." };
-    }
-
-    const eligibility = await getDemoCourseEligibility(canonicalCourse.id);
-    if (!eligibility.eligible) {
-      return {
-        success: false,
-        error: `Belum siap untuk demo: ${eligibility.issues.join("; ")}`,
-        eligibility,
-      };
-    }
-  }
-
+  const selection = await inspectDemoSelection(courseId, enabled);
+  if (!selection.success) return selection;
   try {
-    const now = new Date();
-    await db.transaction(async (tx) => {
-      const previous = enabled
-        ? await tx.update(mataKuliah)
-          .set({ isDemo: false, updatedAt: now })
-          .where(eq(mataKuliah.isDemo, true))
-          .returning({ id: mataKuliah.id })
-        : [];
-
-      await tx
-        .update(mataKuliah)
-        .set({ isDemo: enabled, updatedAt: now })
-        .where(eq(mataKuliah.id, canonicalCourse.id));
-      for (const courseId of new Set([canonicalCourse.id, ...previous.map(course => course.id)])) {
-        await recordOfflineChange(tx, { kind: "access", courseId, action: "invalidate" });
-      }
-    });
-
-    revalidatePath("/demo");
-    revalidatePath(`/demo/article`);
-    revalidatePath(`/demo/diktat`);
-    revalidatePath(`/demo/flashcards`);
-    revalidatePath(`/demo/quiz`);
-    revalidatePath(`/demo/zyra`);
-    revalidatePath("/admin/courses");
-    revalidatePath(`/admin/courses/${canonicalCourse.id}`);
-    revalidatePath(`/admin/courses/${canonicalCourse.id}/settings`);
+    await db.transaction(tx => writeDemoSelection(tx, selection.canonicalId, enabled));
+    revalidateDemoSelection(selection.canonicalId);
     return { success: true, isDemo: enabled };
   } catch (error) {
     console.error("Failed to update demo course selection:", error);

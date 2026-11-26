@@ -21,6 +21,9 @@ export type CourseWriteTarget<Draft> = {
   acknowledge(requestId: string): void;
 };
 
+export type AdminDemoSelection = { enabled: boolean; expectedRevision: string; previousCourseId: string | null };
+export type AdminDemoEditor = (courseId: string) => CourseWriteTarget<AdminDemoSelection>;
+
 export type AdminCourseEditor = (courseId: string) => CourseWriteTarget<AdminCourseEditDraft>;
 
 export type AdminCourseCreateDraft = {

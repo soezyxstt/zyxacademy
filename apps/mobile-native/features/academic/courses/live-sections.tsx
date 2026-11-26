@@ -12,6 +12,7 @@ import { LiveFlashcards } from "./live-flashcards";
 import { LiveVideos } from "./live-videos";
 import { AdminCoursePdfPreview } from "./admin-pdf-preview";
 import { LivePdfTitleEdit } from "./live-material";
+import { LiveDemoSelection } from "./live-demo-selection";
 import { LiveCourseEdit } from "./live-settings";
 import { LivePdfIntake } from "./live-pdf-intake";
 import { LiveBundleIntake } from "./live-bundle-intake";
@@ -42,7 +43,7 @@ function match(text: string, query: string) {
   return text.toLocaleLowerCase("id").includes(query.trim().toLocaleLowerCase("id"));
 }
 
-export function LiveCourseSection({ data, query, navigate, updateSettings, updateMaterial, removeVideo, removeQuestion, flashcardEditor, videoPlayer, archiveCourse, onArchived, refresh }: Pick<AdminCourseLiveRead, "removeVideo" | "removeQuestion" | "videoPlayer" | "flashcardEditor"> & {
+export function LiveCourseSection({ data, query, navigate, updateSettings, updateDemo, updateMaterial, removeVideo, removeQuestion, flashcardEditor, videoPlayer, archiveCourse, onArchived, refresh }: Pick<AdminCourseLiveRead, "updateDemo" | "removeVideo" | "removeQuestion" | "videoPlayer" | "flashcardEditor"> & {
   data: AdminCourseSectionResult; query: Query; navigate: Navigate; updateSettings?: AdminCourseEditor; updateMaterial?: AdminMaterialEditor; refresh(): void;
   archiveCourse?: AdminCourseArchiver; onArchived(): void;
 }) {
@@ -93,6 +94,8 @@ export function LiveCourseSection({ data, query, navigate, updateSettings, updat
             ) : null}
           </Panel>
           <Panel title="Demo publik">
+            {updateDemo && data.demoSelection && <LiveDemoSelection course={data.course} revision={data.revision} active={data.isDemo}
+              selection={data.demoSelection} target={updateDemo(data.course.id)} refresh={refresh} />}
             <Ink>{data.isDemo ? "Aktif untuk demo publik" : "Belum dipilih untuk demo publik"}</Ink>
             {data.demoChecks.map((check) => <DataRow key={check.label} title={check.label} description={`${check.count} tersedia`} detail={check.ready ? "Siap" : "Belum siap"} />)}
           </Panel>

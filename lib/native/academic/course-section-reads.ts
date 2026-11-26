@@ -18,6 +18,7 @@ import { isAdminCourseLiveSection, type AdminCourseSectionResult, type CourseDoc
 
 import { flashcardRevision, flashcardSetRevision } from "@/lib/academic/flashcard-admin-revisions";
 import { videoEntryRevision, videoPlaylistRevision } from "@/lib/video/catalog-revisions";
+import { currentDemoCourse } from "@/lib/demo/course-selection";
 import { findAdminCoursePdf } from "./course-pdf";
 import { readCoursePdfTitleEdit } from "./course-material-service";
 import { readCourseSettingsEditView } from "./course-settings-service";
@@ -74,12 +75,13 @@ export async function readAdminCourseSection(slug: string, section: string, item
   }
 
   if (section === "settings") {
-    const [view, data] = await Promise.all([readCourseSettingsEditView(slug), getCourseSettingsData(slug)]);
+    const [view, data, selected] = await Promise.all([readCourseSettingsEditView(slug), getCourseSettingsData(slug), currentDemoCourse()]);
     if (!view || !data) return null;
     return {
       type: "settings", course: { ...course, title: view.title, category: view.category },
       description: view.description, isDemo: view.isDemo, pricing: view.pricing,
       revision: view.revision, canonicalOnly: view.canonicalOnly,
+      demoSelection: view.canonicalId ? { current: selected, eligible: data.demoEligibility?.eligible === true } : undefined,
       demoChecks: (data.demoEligibility?.checks ?? []).map(({ label, ready, count }) => ({ label, ready, count })),
     };
   }
