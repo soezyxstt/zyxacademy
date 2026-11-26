@@ -3,6 +3,7 @@ import { getStringAsync, setStringAsync } from "expo-clipboard";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Modal, Platform, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { coursePath } from "../../../../../packages/native-parity/student/courses/contract";
 import { nativeColors } from "../../../../../packages/design-tokens/native-colors";
 import { Button } from "../../../components/Button";
 import { normalizeReadingSelection, readingSelectionKeys, type ReadingSelectionKey } from "../../../offline/reading-selection";
@@ -11,6 +12,8 @@ import { useProtectedInteraction } from "../../../routing/protected-interaction"
 import type { StudentRequest, StudentServices, StudentSession } from "../contracts";
 import { useOpenCourseZyra, type CourseZyraContextInput } from "../zyra/context";
 import { OnlineReadingError, readOnlineMaterial, type OnlineReadingContent } from "./online-reading";
+import { ReadingTermSheet } from "./ReadingTermSheet";
+import { lookupReadingTerm, readingTermReviewPath, type ReadingTerm } from "./reading-term";
 import { ReadingStudy } from "./ReadingStudy";
 
 type ReaderProps = {
@@ -26,6 +29,7 @@ type ReaderProps = {
   title: string;
   theme: keyof typeof nativeColors;
   openWeb?: () => void;
+  navigate?: (href: string) => void;
   reloadDetail(): void;
 };
 
@@ -60,7 +64,7 @@ export function OnlineReading(props: ReaderProps) {
   </>;
 }
 
-function OnlineReadingPage({ request, session, kind, courseId, materialId, locale, section, title, theme, close, openWeb, drafts, ask, onCompleted, recordOfflineReadingVisit }: ReaderProps & {
+function OnlineReadingPage({ request, session, kind, courseId, materialId, locale, section, title, theme, close, openWeb, drafts, ask, navigate, onCompleted, recordOfflineReadingVisit }: ReaderProps & {
   close(): void; onCompleted(): void; ask?: (snippet: string, sectionTitle?: string) => void;
 }) {
   const { canInteract } = useProtectedInteraction();
@@ -69,6 +73,8 @@ function OnlineReadingPage({ request, session, kind, courseId, materialId, local
   const [copyFailed, setCopyFailed] = useState(false);
   const [emptyClipboard, setEmptyClipboard] = useState(false);
   const alive = useRef(true);
+  const termRequest = useRef<AbortController | null>(null);
+  const [term, setTerm] = useState<{ selection: string; sectionTitle?: string; result: ReadingTerm | "loading" | "failed" | "revoked" }>();
   const [visitId] = useState(randomUUID);
   const recordedVisit = useRef(false);
   const hasContent = Boolean(state && "content" in state);
@@ -83,18 +89,50 @@ function OnlineReadingPage({ request, session, kind, courseId, materialId, local
     });
     return () => ctrl.abort();
   }, [attempt, canInteract, courseId, kind, locale, materialId, request, section]);
-  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  useEffect(() => {
+    alive.current = true;
+    return () => { alive.current = false; termRequest.current?.abort(); };
+  }, []);
   useEffect(() => {
     if (!hasContent || !recordOfflineReadingVisit || recordedVisit.current || !canInteract()) return;
     recordedVisit.current = true;
     void recordOfflineReadingVisit({ kind, courseId, id: materialId }, visitId).catch(() => {});
   }, [canInteract, courseId, hasContent, kind, materialId, recordOfflineReadingVisit, visitId]);
 
+  function cancelTerm() {
+    termRequest.current?.abort();
+    termRequest.current = null;
+    setTerm(undefined);
+  }
+  async function explore(selection: string, sectionTitle?: string) {
+    if (!state || !("content" in state) || !canInteract() || !alive.current) return;
+    if (state.content.structured) { ask?.(selection, sectionTitle); return; }
+    if (selection.length < 3) { setEmptyClipboard(true); return; }
+    termRequest.current?.abort();
+    const controller = new AbortController();
+    termRequest.current = controller;
+    setTerm({ selection, sectionTitle, result: "loading" });
+    try {
+      const result = await lookupReadingTerm(request, {
+        selection, courseId, materialId, revision: state.content.revision,
+      }, session.origin, controller.signal);
+      if (controller.signal.aborted || !alive.current || !canInteract()) return;
+      if (result) setTerm({ selection, sectionTitle, result });
+      else { setTerm(undefined); ask?.(selection, sectionTitle); }
+    } catch (error) {
+      if (!controller.signal.aborted && alive.current && canInteract()) {
+        const revoked = error instanceof OnlineReadingError && [401, 403, 404, 409].includes(error.status);
+        setTerm({ selection, sectionTitle, result: revoked ? "revoked" : "failed" });
+      }
+    } finally {
+      if (termRequest.current === controller) termRequest.current = null;
+    }
+  }
   function onSelection(key: ReadingSelectionKey, selected: unknown, sectionTitle?: string) {
     if (!canInteract() || !alive.current) return;
     const snippet = normalizeReadingSelection(selected, key === readingSelectionKeys.copy ? "clipboard" : "quote");
     if (!snippet || (key === readingSelectionKeys.ask && snippet.length < 2)) { setEmptyClipboard(true); return; }
-    if (key === readingSelectionKeys.ask) ask?.(snippet, sectionTitle);
+    if (key === readingSelectionKeys.ask) void explore(snippet, sectionTitle);
     else {
       setCopyFailed(false);
       void setStringAsync(snippet).catch(() => false).then(copied => {
@@ -121,7 +159,7 @@ function OnlineReadingPage({ request, session, kind, courseId, materialId, local
         void getStringAsync().then(value => {
           if (!alive.current || !canInteract()) return;
           const snippet = normalizeReadingSelection(value);
-          if (snippet.length >= 2) ask(snippet);
+          if (snippet.length >= 2) void explore(snippet);
           else setEmptyClipboard(true);
         }).catch(() => { if (alive.current && canInteract()) setEmptyClipboard(true); });
       }}>{id ? "Tanya Zyra tentang teks yang disalin" : "Ask Zyra about copied text"}</Button>
@@ -129,6 +167,20 @@ function OnlineReadingPage({ request, session, kind, courseId, materialId, local
         {id ? "Salin teks bacaan terlebih dahulu." : "Copy text from the reading first."}
       </Text> : null}
     </View> : null}
+    {term ? <ReadingTermSheet state={term.result} theme={theme} locale={locale} session={session} canNavigate={Boolean(navigate)}
+      close={cancelTerm} retry={() => void explore(term.selection, term.sectionTitle)}
+      ask={() => {
+        if (!canInteract()) return;
+        const selection = typeof term.result === "string" ? term.selection : term.result.conceptName;
+        cancelTerm();
+        ask?.(selection, term.sectionTitle);
+      }}
+      quiz={() => { if (canInteract() && navigate) { cancelTerm(); close(); navigate(coursePath(courseId) + "/quiz"); } }}
+      review={() => {
+        if (!canInteract() || !navigate || typeof term.result === "string") return;
+        const href = readingTermReviewPath(courseId, term.result.reviewHref);
+        cancelTerm(); close(); navigate(href);
+      }} /> : null}
     {state && "content" in state ? <ReadingStudy key={state.content.revision} content={state.content} courseId={courseId} request={request}
       session={session} theme={theme} drafts={drafts} openWeb={openWeb} onSelection={ask ? onSelection : undefined} onCompleted={onCompleted} reload={reload} />
       : !state ? <ActivityIndicator style={{ margin: 20 }} accessibilityLabel={id ? "Memuat bacaan" : "Loading reading"} />

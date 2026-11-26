@@ -3,6 +3,7 @@ import { resolveAuthBaseUrl } from "@/lib/auth-site-url";
 import { OfflineHttpError } from "@/lib/offline/server-auth";
 import { offlineAssetFetchTarget, readBoundedOfflineAsset } from "@/lib/offline/server-assets";
 import { loadNativePublishedReading } from "@/lib/student/native-published-reading";
+import { readCourseCommandBody } from "@/lib/native/academic/course-command";
 import { requireNativeStudent } from "../_session";
 
 export const runtime = "nodejs";
@@ -13,6 +14,12 @@ const query = z.object({
   asset: z.string().min(1).max(4096).optional(),
   revision: z.string().regex(/^[a-f0-9]{64}$/).optional(),
 }).strict().refine(value => Boolean(value.asset) === Boolean(value.revision));
+const termSelection = z.object({
+  courseId: resource,
+  materialId: resource,
+  revision: z.string().regex(/^[a-f0-9]{64}$/),
+  selection: z.string().trim().min(3).max(1200),
+}).strict();
 const privateHeaders = { "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" };
 
 function failure(status: number) {
@@ -59,5 +66,35 @@ export async function GET(request: Request) {
   } catch (error) {
     if (error instanceof OfflineHttpError) return failure(target.asset && error.status === 404 ? 409 : error.status);
     return failure(503);
+  }
+}
+
+
+/** Deterministic term lookup for the compatibility reader, shared with the web popover. */
+export async function POST(request: Request) {
+  const origin = new URL(resolveAuthBaseUrl()).origin;
+  if (request.headers.get("origin") !== origin) return failure(403);
+  if (request.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase() !== "application/json") return failure(415);
+  const actor = await requireNativeStudent(request);
+  if (actor instanceof Response) return actor;
+  const parsed = await readCourseCommandBody(request, termSelection, 8192);
+  if (!parsed?.success) return failure(400);
+  const target = parsed.data;
+  try {
+    const reading = await loadNativePublishedReading(actor.userId, target, origin);
+    if (reading.revision !== target.revision) return failure(409);
+    if (reading.structured) return failure(404);
+    const [{ buildCourseTermIndex }, { matchTerm }, { loadConceptPopover }] = await Promise.all([
+      import("@/lib/term-index"), import("@/lib/term-match"), import("@/lib/student/learning-concept-popover"),
+    ]);
+    const match = matchTerm(await buildCourseTermIndex(target.courseId), target.selection);
+    const concept = match ? await loadConceptPopover(actor.userId, target.courseId, match.conceptName) : null;
+    const current = await requireNativeStudent(request);
+    if (current instanceof Response) return current;
+    const verified = await loadNativePublishedReading(current.userId, target, origin);
+    if (current.userId !== actor.userId || verified.revision !== target.revision || verified.structured) return failure(409);
+    return Response.json({ concept }, { headers: privateHeaders });
+  } catch (error) {
+    return failure(error instanceof OfflineHttpError ? error.status : 503);
   }
 }

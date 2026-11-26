@@ -46,7 +46,15 @@ mock.module("@/lib/student/canonical-material-detail", () => ({ findCanonicalDet
 mock.module("@/lib/student/legacy-material-body", () => ({ readLegacyMaterialBody: legacyBody }));
 mock.module("@/lib/pka-enrollment", () => ({ isPkaEnrolled: async () => enrolled }));
 mock.module("@/app/api/native/student/_session", () => ({ requireNativeStudent: async () => mockResponse }));
-const { GET } = await import("@/app/api/native/student/reading/route");
+const termIndex = mock(async (_courseId: string) => [
+  { courseId: "course", conceptName: "Flux", conceptId: "flux", term: "magnetic flux" },
+  { courseId: "course", conceptName: "Flux", conceptId: "flux", term: "fluks" },
+]);
+const concept = { conceptName: "Flux", mastery: { score: 45, trend: "improving" }, quickExplain: { title: "Definition", content: "A signed definition." } };
+const popover = mock(async (..._fields: string[]) => concept);
+mock.module("@/lib/term-index", () => ({ buildCourseTermIndex: termIndex }));
+mock.module("@/lib/student/learning-concept-popover", () => ({ loadConceptPopover: popover }));
+const { GET, POST } = await import("@/app/api/native/student/reading/route");
 
 beforeEach(() => {
   enrolled = mayRead = true;
@@ -61,6 +69,8 @@ beforeEach(() => {
   canonical.mockClear();
   text.mockClear();
   fetchAsset.mockClear();
+  termIndex.mockClear();
+  popover.mockClear();
   globalThis.fetch = Object.assign(fetchAsset, { preconnect: () => {} }) as typeof fetch;
 });
 afterAll(() => { globalThis.fetch = upstream; });
@@ -149,4 +159,37 @@ test("published compatibility articles and generated sections use the same chapt
   expect(legacyBody).not.toHaveBeenCalled();
   legacyRecord = undefined;
   expect((await get()).status).toBe(404);
+});
+
+function postTerm(revision: string, selection: string, requestOrigin = origin) {
+  return POST(new Request(origin + "/api/native/student/reading", {
+    method: "POST", headers: { Origin: requestOrigin, "Content-Type": "application/json" },
+    body: JSON.stringify({ courseId: "course", materialId: "material", revision, selection }),
+  }));
+}
+
+test("compatibility term matching reuses signed course concept details and denies stale or unauthorized lookups", async () => {
+  const articleRevision = (await (await get()).json()).revision;
+  expect((await postTerm(articleRevision, "Magnetic flux")).status).toBe(404);
+  expect(termIndex).not.toHaveBeenCalled();
+  currentRecord = { ...record, policyKind: "diktat" };
+  policyKind = "diktat";
+  const { revision } = await (await get()).json();
+  expect((await postTerm(revision, "Magnetic flux", "https://other.test")).status).toBe(403);
+  expect((await postTerm(revision, "x".repeat(1201))).status).toBe(400);
+  expect((await postTerm("b".repeat(64), "Magnetic flux")).status).toBe(409);
+  expect(termIndex).not.toHaveBeenCalled();
+  expect(await (await postTerm(revision, "unknown phrase")).json()).toEqual({ concept: null });
+  expect(popover).not.toHaveBeenCalled();
+  const response = await postTerm(revision, "Arus dan fluks");
+  expect(response.headers.get("cache-control")).toBe("private, no-store");
+  expect(await response.json()).toEqual({ concept });
+  expect(termIndex).toHaveBeenCalledWith("course");
+  expect(popover).toHaveBeenCalledWith("learner", "course", "Flux");
+
+  popover.mockImplementationOnce(async () => {
+    mayRead = false;
+    return concept;
+  });
+  expect((await postTerm(revision, "magnetic flux")).status).toBe(403);
 });

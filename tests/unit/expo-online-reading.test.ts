@@ -1,3 +1,4 @@
+import { lookupReadingTerm, readingTermReviewPath } from "../../apps/mobile-native/features/student/courses/reading-term";
 import { expect, test } from "bun:test";
 import { bindStudentRequest } from "../../apps/mobile-native/features/student/transport";
 import type { StudentRequest } from "../../apps/mobile-native/features/student/contracts";
@@ -128,4 +129,23 @@ test("the normal document and PKA routes retain the protected modal gate", async
   expect(reader).toContain("visible={open && !suspended}");
   expect(reader).toContain("return () => ctrl.abort()");
   expect(reader).not.toContain("reading-store");
+});
+
+test("reader term lookup sends only the selected text with its course and reading revision", async () => {
+  const target = { courseId: "course", materialId: "diktat", revision: "b".repeat(64), selection: "Magnetic flux" };
+  const origin = "https://academy.test";
+  const { signal } = new AbortController();
+  const request = async (path: string, init?: RequestInit) => {
+    expect(path).toBe("/api/native/student/reading");
+    expect(init?.method).toBe("POST");
+    expect(new Headers(init?.headers).get("origin")).toBe(origin);
+    expect(init?.signal).toBe(signal);
+    expect(JSON.parse(String(init?.body))).toEqual(target);
+    return Response.json({ concept: null });
+  };
+  expect(await lookupReadingTerm(request, target, origin, signal)).toBeNull();
+  expect(readingTermReviewPath("course", "/courses/course/material/reading")).toBe("/courses/course/material/reading");
+  for (const path of ["/courses/other/material/private", "//external.test", "/courses/course/material/%2fexternal", "/courses/course/material/.."]) {
+    expect(readingTermReviewPath("course", path)).toBe("/courses/course");
+  }
 });

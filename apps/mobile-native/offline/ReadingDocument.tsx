@@ -26,9 +26,10 @@ export function ReadingDocument(props: ReadingDocumentProps) {
   return <ReadingContentDocument key={JSON.stringify([saved.summary.key, saved.summary.revision, section])} content={content} />;
 }
 
-export function ReadingContentDocument({ content, testID = "offline-reading-document", onProgress, codingActions, onCodingAction, onVisualAction, onSelectedText, focus }: {
+export function ReadingContentDocument({ content, testID = "offline-reading-document", onProgress, codingActions, onCodingAction, onVisualAction, onSelectedText, focus, selectionLabel }: {
   content: ReadingContent; testID?: string; onProgress?: (percent: number) => void;
   codingActions?: ReadonlyMap<string, string>; onCodingAction?: (id: string) => void;
+  selectionLabel?: string;
   onSelectedText?: (key: ReadingSelectionKey, text: unknown) => void;
   onVisualAction?: (action: VisualAction) => void; focus?: ReaderFocus;
 }) {
@@ -39,7 +40,7 @@ export function ReadingContentDocument({ content, testID = "offline-reading-docu
   const webView = useRef<ComponentRef<typeof WebView>>(null);
   const nativeSelection = Boolean(onSelectedText) && (Platform.OS === "ios" || Platform.OS === "android");
   const menuItems = nativeSelection ? [
-    { label: locale === "en" ? "Ask Zyra" : "Tanya Zyra", key: readingSelectionKeys.ask },
+    { label: selectionLabel ?? (locale === "en" ? "Ask Zyra" : "Tanya Zyra"), key: readingSelectionKeys.ask },
     { label: locale === "en" ? "Copy" : "Salin", key: readingSelectionKeys.copy },
   ] : undefined;
   const document = useMemo(() => {

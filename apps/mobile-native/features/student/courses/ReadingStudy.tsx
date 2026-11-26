@@ -210,6 +210,7 @@ export function ReadingStudy({ content, courseId, request, session, theme, draft
       content={selectedContent} focus={searchTarget}
       testID="student-online-reading-document" onProgress={active ? scroll : undefined}
       codingActions={codingActions} onCodingAction={openCoding}
+      selectionLabel={!content.structured ? id ? "Tinjau pilihan" : "Explore selection" : undefined}
       onSelectedText={onSelection ? (key, text) => {
         if (!canInteract() || showCoding || selectedVisual || check) return;
         onSelection(key, text, typeof codingSection?.title === "string" ? codingSection.title : diktatSection?.title);

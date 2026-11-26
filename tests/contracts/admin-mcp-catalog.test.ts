@@ -85,6 +85,13 @@ test("article reading presentation remains browser-only", () => {
   expect(entry.actions).toContain("toggleReadingFocus");
 });
 
+test("reader term lookup stays in the signed Student experience", () => {
+  const entry = operationsCatalog.find(item => item.source === "app/api/native/student/reading/route.ts");
+  expect(entry?.status).toBe("excluded");
+  expect(entry?.actions).toEqual(["GET", "POST"]);
+  expect(entry?.tools).toEqual([]);
+});
+
 test("Student assessment operations are limited to learner app sessions", () => {
   const entry = operationsCatalog.find(item => item.source === "app/api/native/student/assessment/[courseId]/[...segments]/route.ts")!;
   expect(entry.status).toBe("excluded");
