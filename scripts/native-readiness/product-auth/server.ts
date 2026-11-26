@@ -163,7 +163,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
       headers.set("Host", new URL(EXPO_STAGING_ORIGIN).host);
       const browserOrigin = headers.get("origin");
       if (browserOrigin === fixtureOrigin) headers.set("Origin", EXPO_STAGING_ORIGIN);
-      const body = (request.method === "POST" || request.method === "PATCH") && request.body ? await request.arrayBuffer() : undefined;
+      const body = request.body ? await request.arrayBuffer() : undefined;
       const upstream = new NextRequest(EXPO_STAGING_ORIGIN + url.pathname + url.search, {
         method: request.method, headers, body: body?.byteLength ? body : undefined,
       });

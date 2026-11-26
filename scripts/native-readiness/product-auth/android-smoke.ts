@@ -92,7 +92,7 @@ async function reportDeviceState() {
     try { return await new Response(child.stdout).text(); }
     finally { clearTimeout(timeout); }
   };
-  const logs = await shellOutput("logcat", "-d", "-t", "400", "ReactNativeJS:I", "ActivityTaskManager:I", "*:S");
+  const logs = await shellOutput("logcat", "-d", "-t", "400", "ReactNativeJS:I", "ReactNative:E", "AndroidRuntime:E", "ActivityTaskManager:I", "*:S");
   const focus = await shellOutput("shell", "dumpsys", "activity", "activities");
   const focused = focus.split("\n").find(line => /(?:m|top)ResumedActivity/.test(line));
   const screen = focused?.includes("com.android.chrome") ? "Chrome"
@@ -121,8 +121,18 @@ async function reportDeviceState() {
       ["Hapus Diktat", "offline saved state"], ["Periksa pembaruan", "online refresh action"],
       ["Belum ada bacaan", "offline empty state"], ["Pembaruan belum berhasil", "offline sync error"],
       ["Hubungkan ke internet", "offline verification message"], ["Masuk", "sign-in control"],
+      ["Memuat bacaan", "library loading"], ["Loading readings", "library loading"],
+      ["belum dapat dimuat", "library storage or access failure"], ["Could not load the reading list", "library storage or access failure"],
+      ["murid.", "Student access gate"], ["available to students", "Student access gate"],
+      ["native-auth-google", "signed-out entry"], ["student-dashboard", "Student dashboard"],
+      ["native-tour", "guided tour"], ["Sign in", "sign-in control"], ["Dashboard", "dashboard navigation"],
+      ["offline-library-list", "library collection"], ["Coba lagi", "retry action"], ["Try again", "retry action"],
     ].filter(([needle]) => hierarchy.includes(needle)).map(([, label]) => label);
-    console.error("Expo accessibility snapshot: " + ([...new Set(visible)].join(", ") || "no recognized controls"));
+    const snapshot = hierarchy.includes("<hierarchy") ? "loaded" : "unavailable";
+    const faults = ["ReactNativeJS: TypeError", "TypeError:", "RangeError:", "Maximum update depth", "SQLiteException",
+      "FATAL EXCEPTION", "JavascriptException", "ReferenceError:", "Invariant Violation"].filter(kind => logs.includes(kind));
+    console.error("Expo accessibility snapshot (" + snapshot + "): " + ([...new Set(visible)].join(", ") || "no recognized controls"));
+    if (faults.length) console.error("Android error categories: " + faults.join(", "));
   }
 }
 
