@@ -122,7 +122,50 @@
       "ios": {
         "jobId": 139865143324,
         "status": "in_progress_at_observation"
-      }
+      },
+      "laterObservations": [
+        {
+          "observedAt": "2026-11-26T13:50:15Z",
+          "ios": {
+            "jobId": 139865143324,
+            "status": "device_flows_cancelled_with_failures",
+            "reason": "Maestro produced failure diagnostics on iPhone 17 Pro. An iOS system dialog requesting permission to open Zyx Academy Native appeared on the route-entry screen. All 18 standalone scenarios failed, and all 20 generated cases with a JUnit result failed while waiting for separator. The combined step was cancelled 150 minutes after the job started, and the upload published partial evidence.",
+            "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45806783256/artifacts/15121444766",
+            "summaryCounts": {
+              "not_run": 180,
+              "blocked": 3,
+              "failed": 20
+            },
+            "standaloneCounts": {
+              "failed": 18
+            },
+            "diagnosticCounts": {
+              "rawPngs": 113,
+              "namedProductCaptures": 0,
+              "retainedFailurePngs": 4,
+              "standalonePromptHierarchies": 18,
+              "generatedPromptHierarchies": 95
+            },
+            "comparison": [
+              {
+                "id": "catalog-all",
+                "status": "missing",
+                "reason": "One or both capture files are absent or ambiguous."
+              },
+              {
+                "id": "catalog-tpb",
+                "status": "missing",
+                "reason": "One or both capture files are absent or ambiguous."
+              },
+              {
+                "id": "catalog-pka",
+                "status": "missing",
+                "reason": "One or both capture files are absent or ambiguous."
+              }
+            ]
+          }
+        }
+      ]
     },
     {
       "runId": 45808632131,
@@ -493,6 +536,46 @@
           }
         }
       ]
+    },
+    {
+      "runId": 45829658265,
+      "sourceHead": "14295fc2494a4fca8da6e82b40f9ab3d3fb15abc",
+      "url": "https://github.com/soezyxstt/zyxacademy/actions/runs/45829658265",
+      "observedAt": "2026-11-26T13:50:15Z",
+      "web": {
+        "jobId": 139942812305,
+        "status": "passed",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45829658265/artifacts/15122146944",
+        "details": "Workflow completed the source web references, all device-sized reference groups, and assessment refocus checks."
+      },
+      "android": {
+        "jobId": 139944816133,
+        "status": "in_progress_at_observation"
+      },
+      "ios": {
+        "jobId": 139944816671,
+        "status": "cancelled_before_device_flows"
+      }
+    },
+    {
+      "runId": 45831047938,
+      "sourceHead": "95a5b9731847ad902e08a1cfbe8ea489f5972bb6",
+      "url": "https://github.com/soezyxstt/zyxacademy/actions/runs/45831047938",
+      "observedAt": "2026-11-26T13:50:15Z",
+      "web": {
+        "jobId": 139947580011,
+        "status": "passed",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45831047938/artifacts/15121869073",
+        "details": "Workflow completed the source web references, all device-sized reference groups, and assessment refocus checks."
+      },
+      "ios": {
+        "jobId": 139949544377,
+        "status": "queued_at_observation"
+      },
+      "android": {
+        "jobId": 139949544809,
+        "status": "pending_at_observation"
+      }
     }
   ]
 }
