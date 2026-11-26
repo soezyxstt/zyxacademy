@@ -16,7 +16,7 @@ import {
   type OfflineReadingTarget,
 } from "./reading-contract";
 import { notifyOfflineReadingChanges } from "./reading-events";
-import { compareNativeOfflineCursors, type NativeOfflineScope } from "./sync-contract";
+import { compareNativeOfflineCursors, isNativeOfflineCursor, type NativeOfflineScope } from "./sync-contract";
 
 const CHUNK_BYTES = 256 * 1024;
 const INFO_BYTES = 384 * 1024;
@@ -46,9 +46,21 @@ const schema = `
     data BLOB NOT NULL,
     PRIMARY KEY (entry, part, chunk)
   );
+  CREATE TABLE IF NOT EXISTS expo_reading_verification_v1 (
+    entry INTEGER PRIMARY KEY,
+    verified_at INTEGER NOT NULL,
+    verified_until INTEGER NOT NULL,
+    verified_cursor TEXT NOT NULL,
+    reset_generation INTEGER NOT NULL,
+    asset_lease_expires_at INTEGER
+  );
   CREATE TRIGGER IF NOT EXISTS expo_reading_package_delete_v1 AFTER DELETE ON expo_reading_packages_v1
     BEGIN
       DELETE FROM expo_reading_parts_v1 WHERE entry = OLD.entry;
+    END;
+  CREATE TRIGGER IF NOT EXISTS expo_reading_verification_delete_v1 AFTER DELETE ON expo_reading_packages_v1
+    BEGIN
+      DELETE FROM expo_reading_verification_v1 WHERE entry = OLD.entry;
     END;
 `;
 
@@ -67,7 +79,9 @@ type Authority = NonNullable<Awaited<ReturnType<typeof readOfflineReadingAuthori
 type Guard = { verifiedUntil: number; assertCurrent(): void };
 type EntryRow = {
   entry: number; resource_key: string; course_id: string; revision: string; chapter_ids: string;
-  validated_at: number; lease_expires_at: number; bytes: number; saved_at: number;
+  validated_at: number; bytes: number; saved_at: number;
+  verified_at: number | null; verified_until: number | null; verified_cursor: string | null;
+  reset_generation: number | null; asset_lease_expires_at: number | null;
 };
 type EntryInfo = {
   bodyBytes: number;
@@ -78,7 +92,9 @@ export type ReadingCandidate = {
   target: OfflineReadingTarget;
   revision: string;
   cursor: string;
+  resetGeneration: number;
   leaseExpiresAt: number;
+  assetLeaseExpiresAt: number | null;
   validatedAt: number;
   body: Uint8Array;
   assets: OfflineReadingAsset[];
@@ -86,7 +102,9 @@ export type ReadingCandidate = {
 
 const keys = (scope: NativeOfflineScope) => [scope.origin, scope.accountId, scope.sessionId, scope.locale] as const;
 const scopeFilter = "origin = ? AND account_id = ? AND session_id = ? AND locale = ?";
-const entryColumns = "entry, resource_key, course_id, revision, chapter_ids, validated_at, lease_expires_at, bytes, saved_at";
+const entryColumns = `entry, resource_key, course_id, revision, chapter_ids, validated_at, bytes, saved_at,
+  verified_at, verified_until, verified_cursor, reset_generation, asset_lease_expires_at`;
+const readingsFrom = "expo_reading_packages_v1 LEFT JOIN expo_reading_verification_v1 USING (entry)";
 
 function entryTarget(key: string): OfflineReadingTarget | null {
   try {
@@ -121,24 +139,38 @@ function activeCourse(authority: Authority, courseId: string, cutoff: number) {
 }
 
 function proof(authority: Authority, target: OfflineReadingTarget, cutoff: number) {
+  const validation = authority.readingValidation;
+  if (!validation || authority.pending?.reset || !authority.readingPolicy?.contentMaxAgeMs) return null;
   const course = activeCourse(authority, target.courseId, cutoff);
   if (!course?.manifest || course.manifest.leaseExpiresAt <= cutoff) return null;
   const { manifest } = course;
   const descriptor = manifest.materials.find(item => item.key === readingKey(target));
   if (!descriptor || !descriptor.chapterIds.length || !descriptor.chapterIds.every(chapter => course.chapterIds.includes(chapter))) return null;
   const leaseExpiresAt = Math.min(authority.leaseExpiresAt, course.leaseExpiresAt, manifest.leaseExpiresAt);
-  return { descriptor, cursor: manifest.cursor, checkedAt: manifest.checkedAt, leaseExpiresAt };
+  const invalidation = validation.invalidations[descriptor.key];
+  const cursor = invalidation && compareNativeOfflineCursors(invalidation, manifest.cursor) > 0 ? invalidation : manifest.cursor;
+  return { descriptor, cursor, manifestCursor: manifest.cursor, checkedAt: manifest.checkedAt, leaseExpiresAt,
+    resetGeneration: validation.generation, invalidation };
+}
+
+function verifiedEntry(authority: Authority, entry: EntryRow, access: NonNullable<ReturnType<typeof proof>>, verifiedUntil: number, now: number) {
+  const policy = authority.readingPolicy;
+  const { verified_at: verifiedAt, verified_until: packageLease, verified_cursor: cursor } = entry;
+  if (!policy || access.descriptor.revision !== entry.revision || entry.reset_generation !== access.resetGeneration
+    || !isNativeOfflineCursor(cursor) || verifiedAt === null || packageLease === null
+    || (access.invalidation && compareNativeOfflineCursors(cursor, access.invalidation) < 0)
+    || (access.checkedAt !== null && access.checkedAt > verifiedAt && compareNativeOfflineCursors(access.manifestCursor, cursor) < 0)) return null;
+  const lease = Math.min(verifiedUntil, access.leaseExpiresAt, entry.saved_at + policy.retentionMs,
+    verifiedAt + policy.contentMaxAgeMs, packageLease, entry.asset_lease_expires_at ?? Infinity);
+  return Number.isFinite(lease) && lease > now ? lease : null;
 }
 
 function readyEntry(authority: Authority, entry: EntryRow, verifiedUntil: number, now: number): OfflineReadingSummary | null {
   const target = entryTarget(entry.resource_key);
   if (!target || entry.bytes < 1 || entry.bytes > READING_PACKAGE_LIMIT) return null;
   const access = proof(authority, target, now);
-  if (!access || access.descriptor.revision !== entry.revision) return null;
-  const renewed = access.checkedAt !== null && access.checkedAt > entry.validated_at;
-  const retainedUntil = authority.readingPolicy ? entry.saved_at + authority.readingPolicy.retentionMs : 0;
-  const leaseExpiresAt = Math.min(verifiedUntil, access.leaseExpiresAt, retainedUntil, renewed ? access.leaseExpiresAt : entry.lease_expires_at);
-  if (!Number.isFinite(leaseExpiresAt) || leaseExpiresAt <= now) return null;
+  const leaseExpiresAt = access && verifiedEntry(authority, entry, access, verifiedUntil, now);
+  if (!leaseExpiresAt) return null;
   return { ...target, key: entry.resource_key, title: access.descriptor.title,
     revision: entry.revision, bytes: entry.bytes, savedAt: entry.saved_at, leaseExpiresAt };
 }
@@ -175,10 +207,10 @@ export function createOfflineReadingStore(db: OfflineReadingDatabase, now = Date
   }
 
   const rows = (tx: Connection, scope: NativeOfflineScope) => tx.getAllAsync<EntryRow>(
-    `SELECT ${entryColumns} FROM expo_reading_packages_v1 WHERE ${scopeFilter} ORDER BY saved_at DESC`, ...keys(scope),
+    `SELECT ${entryColumns} FROM ${readingsFrom} WHERE ${scopeFilter} ORDER BY saved_at DESC`, ...keys(scope),
   );
   const entry = (tx: Connection, scope: NativeOfflineScope, target: OfflineReadingTarget) => tx.getFirstAsync<EntryRow & { info: string }>(
-    `SELECT ${entryColumns}, info FROM expo_reading_packages_v1 WHERE ${scopeFilter} AND resource_key = ?`,
+    `SELECT ${entryColumns}, info FROM ${readingsFrom} WHERE ${scopeFilter} AND resource_key = ?`,
     ...keys(scope), readingKey(target),
   );
 
@@ -195,7 +227,20 @@ export function createOfflineReadingStore(db: OfflineReadingDatabase, now = Date
       const expired = authority.readingPolicy && now() - row.saved_at >= authority.readingPolicy.retentionMs;
       if (!chapters.length || !course || !chapters.every(chapter => course.chapterIds.includes(chapter)) || withdrawn || expired) {
         changes += await remove(row.entry, tx);
+        continue;
       }
+      const target = entryTarget(row.resource_key);
+      const access = target && proof(authority, target, now());
+      if (!access || access.checkedAt === null || row.verified_at === null || access.checkedAt <= row.verified_at
+        || !verifiedEntry(authority, row, access, Infinity, Math.max(now(), access.checkedAt))) continue;
+      // Advance only a live verification. Keep the hard lease from the actual required image responses.
+      const lease = Math.min(access.leaseExpiresAt, row.asset_lease_expires_at ?? Infinity);
+      const result = await tx.runAsync(`
+        UPDATE expo_reading_verification_v1
+        SET verified_at = ?, verified_until = ?, verified_cursor = ?
+        WHERE entry = ?
+      `, access.checkedAt, lease, access.manifestCursor, row.entry);
+      changes += result.changes;
     }
     return changes;
   }
@@ -247,6 +292,8 @@ export function createOfflineReadingStore(db: OfflineReadingDatabase, now = Date
     const key = readingKey(candidate.target);
     const infoBytes = candidate.body.byteLength + candidate.assets.reduce((sum, asset) => sum + asset.bytes.byteLength, 0);
     if (infoBytes > READING_PACKAGE_LIMIT) throw new OfflineReadingError("too-large");
+    if ((candidate.assets.length > 0 && !Number.isSafeInteger(candidate.assetLeaseExpiresAt))
+      || (candidate.assets.length === 0 && candidate.assetLeaseExpiresAt !== null)) throw new OfflineReadingError("changed");
     let committedEntry: number | undefined;
     try {
       committedEntry = await transaction(async tx => {
@@ -254,11 +301,15 @@ export function createOfflineReadingStore(db: OfflineReadingDatabase, now = Date
         const authority = await readOfflineReadingAuthority(tx, scope);
         const access = authority && proof(authority, candidate.target, now());
         if (!authority?.readingPolicy || !access || access.descriptor.revision !== candidate.revision
+          || access.resetGeneration !== candidate.resetGeneration || !isNativeOfflineCursor(candidate.cursor)
           || compareNativeOfflineCursors(candidate.cursor, access.cursor) < 0
-          || Math.min(candidate.leaseExpiresAt, access.leaseExpiresAt) <= now()) throw new OfflineReadingError("changed");
+          || Math.min(candidate.leaseExpiresAt, candidate.assetLeaseExpiresAt ?? Infinity, access.leaseExpiresAt) <= now()
+          || candidate.validatedAt + authority.readingPolicy.contentMaxAgeMs <= now()) throw new OfflineReadingError("changed");
         await reconcileScope(tx, scope, authority);
         const previous = await entry(tx, scope, candidate.target);
-        if (previous && previous.validated_at > candidate.validatedAt) throw new OfflineReadingError("changed");
+        if (previous?.reset_generation === candidate.resetGeneration
+          && (Math.max(previous.validated_at, previous.verified_at ?? 0) > candidate.validatedAt || (previous.verified_cursor
+            && compareNativeOfflineCursors(candidate.cursor, previous.verified_cursor) < 0))) throw new OfflineReadingError("changed");
         const info = JSON.stringify({
           bodyBytes: candidate.body.byteLength, assets: candidate.assets.map(({ url, mime, bytes }) => ({ url, mime, size: bytes.byteLength })),
         } satisfies EntryInfo);
@@ -283,6 +334,11 @@ export function createOfflineReadingStore(db: OfflineReadingDatabase, now = Date
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, ...keys(scope), key, candidate.target.courseId, candidate.revision, chapters, candidate.validatedAt,
         Math.min(candidate.leaseExpiresAt, access.leaseExpiresAt), info, size, now());
+        await tx.runAsync(`
+          INSERT INTO expo_reading_verification_v1 (entry, verified_at, verified_until, verified_cursor, reset_generation, asset_lease_expires_at)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `, lastInsertRowId, candidate.validatedAt, Math.min(candidate.leaseExpiresAt, access.leaseExpiresAt),
+        candidate.cursor, candidate.resetGeneration, candidate.assetLeaseExpiresAt);
         const parts = [candidate.body, ...candidate.assets.map(asset => asset.bytes)];
         for (const [part, bytes] of parts.entries()) {
           for (let offset = 0; offset < bytes.length; offset += CHUNK_BYTES) {

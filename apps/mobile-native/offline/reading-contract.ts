@@ -1,4 +1,3 @@
-import type { OfflineResourceData } from "../../../lib/offline/sync-contract";
 import type { NativeResponse } from "../network/transport";
 import {
   compareNativeOfflineCursors,
@@ -18,7 +17,25 @@ export const READING_ENTRY_LIMIT = 250;
 export const READING_ASSET_COUNT_LIMIT = 80;
 
 export type OfflineReadingTarget = { kind: "article" | "diktat"; id: string; courseId: string };
-export type OfflineReadingData = OfflineResourceData[OfflineReadingTarget["kind"]];
+// Stable fields validated at the Expo boundary. Authored payloads are preserved
+// for their future renderer without importing the server's parser graph.
+type RawReadingIdentity = { id: string; courseId: string; title: string };
+export type OfflineReadingArticle = RawReadingIdentity & {
+  chapterId: string | null;
+  version: number;
+  sections: Array<{
+    id: string;
+    slug: string;
+    blocks: Array<{ id: string; blockType: string; content: string } & Record<string, unknown>>;
+  } & Record<string, unknown>>;
+} & Record<string, unknown>;
+export type OfflineReadingDiktat = RawReadingIdentity & {
+  kind: "article";
+  docCategory: "diktat";
+  contentVersion: number;
+  body: string;
+};
+export type OfflineReadingData = OfflineReadingArticle | OfflineReadingDiktat;
 export type OfflineReadingSummary = OfflineReadingTarget & {
   key: string;
   title: string;
