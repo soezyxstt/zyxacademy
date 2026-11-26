@@ -1,0 +1,96 @@
+appId: com.zyx.academy.nativeparity
+name: Student quiz player answer and draft states
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: separator
+    timeout: 30000
+- openLink: "zyx-native-parity://student-fixture?scenario=quiz-player-parity&theme=light&locale=id&store=disk&path=%2Fcourses%2Fnative-assessment-course%2Fquiz%2Fnative-quiz&query_attemptId=native-player-attempt"
+- extendedWaitUntil:
+    visible: 'Bilangan manakah yang termasuk bilangan genap\?'
+    timeout: 30000
+- assertVisible: Kuis bilangan dasar
+- assertVisible: Soal 1 dari 3
+- assertVisible: 0/3 Sudah diisi
+- assertVisible: Tandai ragu-ragu
+- assertVisible:
+    id: student-assessment-option-1
+    text: 'B\. 4.*'
+    enabled: true
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertVisible:
+          id: student-assessment-option-1
+          checked: false
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - assertVisible:
+          id: student-assessment-option-1
+          text: radio button, unchecked
+- assertVisible: 0/3 Sudah diisi
+- assertVisible:
+    id: student-fixture-id-light
+- takeScreenshot: student-quiz-player-unanswered
+- tapOn:
+    id: student-assessment-option-1
+- assertVisible: 1/3 Sudah diisi
+- assertVisible: Tandai ragu-ragu
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertVisible:
+          id: student-assessment-option-1
+          checked: true
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - assertVisible:
+          id: student-assessment-option-1
+          text: radio button, checked
+- assertVisible: 1/3 Sudah diisi
+- assertVisible:
+    id: student-fixture-id-light
+- takeScreenshot: student-quiz-player-answered
+- tapOn: Tandai ragu-ragu
+- assertVisible: Hapus tanda ragu-ragu
+- tapOn: Lanjut
+- assertVisible: 'Berapa hasil penjumlahan 7 dan 5\?'
+- tapOn: Sebelumnya
+- assertVisible: Hapus tanda ragu-ragu
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: separator
+    timeout: 30000
+- openLink: "zyx-native-parity://student-fixture?scenario=quiz-player-parity&theme=light&locale=id&store=disk&path=%2Fcourses%2Fnative-assessment-course%2Fquiz%2Fnative-quiz&query_attemptId=native-player-attempt"
+- extendedWaitUntil:
+    visible: Hapus tanda ragu-ragu
+    timeout: 30000
+- assertVisible: 'Bilangan manakah yang termasuk bilangan genap\?'
+- assertVisible: Soal 1 dari 3
+- assertVisible: 1/3 Sudah diisi
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertVisible:
+          id: student-assessment-option-1
+          checked: true
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - assertVisible:
+          id: student-assessment-option-1
+          text: radio button, checked
+- assertVisible: Hapus tanda ragu-ragu
+- assertVisible:
+    id: student-fixture-id-light
+- takeScreenshot: student-quiz-player-flagged-restored

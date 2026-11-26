@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+  <testsuite name="Test Suite" device="test" tests="2" failures="0" time="24.561" timestamp="2026-11-26T16:48:31">
+    <testcase id="Student course revoked fixture" name="Student course revoked fixture" classname="Student course revoked fixture" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/revoked.yaml" time="12.957" timestamp="2026-11-26T16:48:31" status="SUCCESS"/>
+    <testcase id="Student course unenrolled fixture" name="Student course unenrolled fixture" classname="Student course unenrolled fixture" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/unenrolled.yaml" time="11.577" timestamp="2026-11-26T16:48:44" status="SUCCESS"/>
+  </testsuite>
+</testsuites>

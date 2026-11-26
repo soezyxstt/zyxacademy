@@ -12,6 +12,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { pkaSimulationStages, pkaStageProgress, studentQuizAttempts } from "@/db/schema";
 import { PKA_STAGES, type PkaStage, type PkaSubject } from "@/lib/pka-config";
+import { isPkaEnrolled } from "@/lib/pka-enrollment";
 import { dualWritePkaStageProgress } from "@/lib/migrasi/repository-kompatibilitas";
 
 export type PkaStageStatus = "locked" | "unlocked" | "completed" | "skipped";
@@ -82,6 +83,17 @@ export async function getSubjectStageState(studentId: string, subject: PkaSubjec
       attemptId: p?.attemptId ?? null,
     };
   });
+}
+
+/** Guards the generic quiz gateway when the template belongs to a staged PKA simulation. */
+export async function isPkaStageAttemptAllowed(studentId: string, templateId: string): Promise<boolean> {
+  const [mapping] = await db.select({ subject: pkaSimulationStages.subject, stage: pkaSimulationStages.stage })
+    .from(pkaSimulationStages).where(eq(pkaSimulationStages.quizTemplateId, templateId)).limit(1);
+  if (!mapping) return true;
+  if (!await isPkaEnrolled(studentId)) return false;
+  const stages = await getSubjectStageState(studentId, mapping.subject);
+  const status = stages.find((item) => item.stage === mapping.stage)?.status;
+  return status === "unlocked" || status === "completed";
 }
 
 async function upsertStageStatusIfLowerTx(

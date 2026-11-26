@@ -1,0 +1,210 @@
+[
+  {
+    "name": "Student restores a saved answer after process restart",
+    "status": "failed",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "results/2026-11-26_143232/Student restores a saved answer after process restart/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+  },
+  {
+    "name": "Student quiz saves and restores its draft",
+    "status": "passed"
+  },
+  {
+    "name": "Student tryout retries the same submission after response loss",
+    "status": "failed",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "results/2026-11-26_143232/Student tryout retries the same submission after response loss/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+  },
+  {
+    "name": "Student reads and completes a solution collection",
+    "status": "failed",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "results/2026-11-26_143232/Student reads and completes a solution collection/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+  },
+  {
+    "name": "Catalog comparable fixture all TPB and PKA",
+    "status": "failed",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "results/2026-11-26_143232/Catalog comparable fixture all TPB and PKA/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+  },
+  {
+    "name": "Community calendar category and history",
+    "status": "failed",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "results/2026-11-26_143232/Community calendar category and history/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+  },
+  {
+    "name": "Student calendar reference inputs and category states",
+    "status": "failed",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "results/2026-11-26_143232/Student calendar reference inputs and category states/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+  },
+  {
+    "name": "Student calendar filters assessments and opens tutorial history",
+    "status": "failed",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "results/2026-11-26_143232/Student calendar filters assessments and opens tutorial history/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+  },
+  {
+    "name": "Student opens a discussion alias and posts a scoped answer",
+    "status": "failed",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "results/2026-11-26_143232/Student opens a discussion alias and posts a scoped answer/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+  },
+  {
+    "name": "Community ranking scope and academic class",
+    "status": "failed",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "results/2026-11-26_143232/Community ranking scope and academic class/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+  },
+  {
+    "name": "Student separates participation from academic scores and recovers a failed load",
+    "status": "failed",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "results/2026-11-26_143232/Student separates participation from academic scores and recovers a failed load/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+  },
+  {
+    "name": "Student weekly calendar selects tutor slots and another day",
+    "status": "failed",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "results/2026-11-26_143232/Student weekly calendar selects tutor slots and another day/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+  },
+  {
+    "name": "Student course and material reference enrolled",
+    "status": "failed",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "results/2026-11-26_143232/Student course and material reference enrolled/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+  },
+  {
+    "name": "Student course and material reference revoked",
+    "status": "failed",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "results/2026-11-26_143232/Student course and material reference revoked/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+  },
+  {
+    "name": "Student course and material reference unenrolled",
+    "status": "failed",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "results/2026-11-26_143232/Student course and material reference unenrolled/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+  },
+  {
+    "name": "Student course ranking podium and own rank",
+    "status": "passed"
+  },
+  {
+    "name": "Student dashboard enrollment states",
+    "status": "failed",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "results/2026-11-26_143232/Student dashboard enrollment states/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+  },
+  {
+    "name": "Student course enrolled fixture",
+    "status": "failed",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "results/2026-11-26_143232/Student course enrolled fixture/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+  },
+  {
+    "name": "Learning flashcard flip and grade",
+    "status": "failed",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "results/2026-11-26_143232/Learning flashcard flip and grade/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+  },
+  {
+    "name": "PKA enrollment gate redirects to registration",
+    "status": "failed",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "results/2026-11-26_143232/PKA enrollment gate redirects to registration/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+  },
+  {
+    "name": "Student course long material list fixture",
+    "status": "failed",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "results/2026-11-26_143232/Student course long material list fixture/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+  },
+  {
+    "name": "Student course offline recovery fixture",
+    "status": "failed",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "results/2026-11-26_143232/Student course offline recovery fixture/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+  },
+  {
+    "name": "Student participation ranking global and following filters",
+    "status": "failed",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "results/2026-11-26_143232/Student participation ranking global and following filters/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+  },
+  {
+    "name": "Student quiz gateway attempt states",
+    "status": "failed",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "results/2026-11-26_143232/Student quiz gateway attempt states/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+  },
+  {
+    "name": "Student course results history states",
+    "status": "failed",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "results/2026-11-26_143232/Student course results history states/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+  },
+  {
+    "name": "Student course revoked fixture",
+    "status": "failed",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "results/2026-11-26_143232/Student course revoked fixture/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+  },
+  {
+    "name": "Student course unenrolled fixture",
+    "status": "failed",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "results/2026-11-26_143232/Student course unenrolled fixture/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+  }
+]

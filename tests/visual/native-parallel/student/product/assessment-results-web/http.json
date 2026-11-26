@@ -1,0 +1,203 @@
+{
+  "serverSha": "2f0ba3a75fed6e6d25463baeeeb3fceed0780508",
+  "http": [
+    {
+      "method": "GET",
+      "path": "/api/native/student/assessment/assessment-evidence-mathematics/my-results",
+      "account": "enrolled-peer",
+      "status": 200,
+      "cacheControl": "private, no-store"
+    },
+    {
+      "method": "GET",
+      "path": "/api/native/student/assessment/assessment-evidence-mathematics/my-results/assessment-evidence-quiz-finished",
+      "account": "owner",
+      "status": 200,
+      "cacheControl": "private, no-store"
+    },
+    {
+      "method": "GET",
+      "path": "/api/native/student/assessment/assessment-evidence-mathematics/my-results/assessment-evidence-tryout-submitted",
+      "account": "owner",
+      "status": 200,
+      "cacheControl": "private, no-store"
+    },
+    {
+      "method": "GET",
+      "path": "/api/native/student/assessment/assessment-evidence-mathematics/my-results/assessment-evidence-tryout-graded",
+      "account": "owner",
+      "status": 200,
+      "cacheControl": "private, no-store"
+    },
+    {
+      "method": "GET",
+      "path": "/api/native/student/assessment/assessment-evidence-mathematics/my-results/assessment-evidence-quiz-discussion-held",
+      "account": "owner",
+      "status": 200,
+      "cacheControl": "private, no-store"
+    },
+    {
+      "method": "GET",
+      "path": "/api/native/student/assessment/assessment-evidence-mathematics/my-results/assessment-evidence-quiz-finished/summary",
+      "account": "owner",
+      "status": 200,
+      "cacheControl": "private, no-store"
+    },
+    {
+      "method": "GET",
+      "path": "/api/native/student/assessment/assessment-evidence-mathematics/my-results/assessment-evidence-quiz-grading-pending/summary",
+      "account": "owner",
+      "status": 200,
+      "cacheControl": "private, no-store"
+    },
+    {
+      "method": "POST",
+      "path": "/api/native/student/assessment/assessment-evidence-mathematics/my-results/assessment-evidence-quiz-grading-pending/summary",
+      "account": "owner",
+      "status": 409,
+      "cacheControl": "private, no-store"
+    },
+    {
+      "method": "GET",
+      "path": "/api/native/student/assessment/assessment-evidence-mathematics/my-results/assessment-evidence-quiz-diagnosis-unavailable/summary",
+      "account": "owner",
+      "status": 200,
+      "cacheControl": "private, no-store"
+    },
+    {
+      "method": "GET",
+      "path": "/api/native/student/assessment/assessment-evidence-mathematics/my-results/assessment-evidence-quiz-finished/summary",
+      "account": "enrolled-peer",
+      "status": 404,
+      "cacheControl": "private, no-store"
+    },
+    {
+      "method": "GET",
+      "path": "/api/native/student/assessment/assessment-evidence-mathematics/quiz/assessment-evidence-limit-quiz/summary/assessment-evidence-quiz-finished",
+      "account": "owner",
+      "status": 200,
+      "cacheControl": "private, no-store"
+    },
+    {
+      "method": "GET",
+      "path": "/api/native/student/assessment/assessment-evidence-mathematics/quiz/assessment-evidence-limit-quiz/summary/assessment-evidence-quiz-grading-pending",
+      "account": "owner",
+      "status": 200,
+      "cacheControl": "private, no-store"
+    },
+    {
+      "method": "POST",
+      "path": "/api/native/student/assessment/assessment-evidence-mathematics/quiz/assessment-evidence-limit-quiz/summary/assessment-evidence-quiz-grading-pending",
+      "account": "owner",
+      "status": 409,
+      "cacheControl": "private, no-store"
+    },
+    {
+      "method": "GET",
+      "path": "/api/native/student/assessment/assessment-evidence-mathematics/quiz/assessment-evidence-limit-quiz/summary/assessment-evidence-quiz-diagnosis-unavailable",
+      "account": "owner",
+      "status": 200,
+      "cacheControl": "private, no-store"
+    },
+    {
+      "method": "GET",
+      "path": "/api/native/student/assessment/assessment-evidence-mathematics/quiz/assessment-evidence-limit-quiz/summary/assessment-evidence-quiz-finished",
+      "account": "enrolled-peer",
+      "status": 404,
+      "cacheControl": "private, no-store"
+    },
+    {
+      "method": "POST",
+      "path": "/api/native/student/assessment/assessment-evidence-mathematics/my-results/assessment-evidence-quiz-discussion-held/summary",
+      "account": "owner",
+      "status": 403,
+      "cacheControl": "private, no-store"
+    },
+    {
+      "method": "GET",
+      "path": "/api/native/student/assessment/assessment-evidence-mathematics/my-results/assessment-evidence-quiz-discussion-held/summary",
+      "account": "owner",
+      "status": 200,
+      "cacheControl": "private, no-store"
+    },
+    {
+      "method": "POST",
+      "path": "/api/native/student/assessment/assessment-evidence-mathematics/quiz/assessment-evidence-limit-quiz-unreleased/summary/assessment-evidence-quiz-discussion-held",
+      "account": "owner",
+      "status": 403,
+      "cacheControl": "private, no-store"
+    },
+    {
+      "method": "GET",
+      "path": "/api/native/student/assessment/assessment-evidence-mathematics/quiz/assessment-evidence-limit-quiz-unreleased/summary/assessment-evidence-quiz-discussion-held",
+      "account": "owner",
+      "status": 200,
+      "cacheControl": "private, no-store"
+    },
+    {
+      "method": "GET",
+      "path": "/api/native/student/assessment/assessment-evidence-mathematics/my-results/assessment-evidence-quiz-finished",
+      "account": "enrolled-peer",
+      "status": 404,
+      "cacheControl": "private, no-store"
+    },
+    {
+      "method": "GET",
+      "path": "/api/native/student/assessment/assessment-evidence-mathematics/my-results/assessment-evidence-tryout-submitted",
+      "account": "enrolled-peer",
+      "status": 404,
+      "cacheControl": "private, no-store"
+    },
+    {
+      "method": "GET",
+      "path": "/api/native/student/assessment/assessment-evidence-mathematics/my-results/assessment-evidence-tryout-graded",
+      "account": "enrolled-peer",
+      "status": 404,
+      "cacheControl": "private, no-store"
+    },
+    {
+      "method": "GET",
+      "path": "/api/native/student/assessment/assessment-evidence-mathematics/my-results/assessment-evidence-quiz-discussion-held",
+      "account": "enrolled-peer",
+      "status": 404,
+      "cacheControl": "private, no-store"
+    },
+    {
+      "method": "GET",
+      "path": "/api/native/student/assessment/assessment-evidence-mathematics/my-results/assessment-evidence-quiz-finished",
+      "account": "anonymous",
+      "status": 401,
+      "cacheControl": "private, no-store"
+    },
+    {
+      "method": "GET",
+      "path": "/api/quiz/attempts/assessment-evidence-quiz-discussion-held",
+      "account": "owner",
+      "status": 200,
+      "cacheControl": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/quiz/attempts/assessment-evidence-quiz-discussion-held/analytics",
+      "account": "owner",
+      "status": 403,
+      "cacheControl": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/quiz/attempts/assessment-evidence-quiz-discussion-held",
+      "account": "enrolled-peer",
+      "status": 404,
+      "cacheControl": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/quiz/attempts/assessment-evidence-quiz-finished/analytics",
+      "account": "enrolled-peer",
+      "status": 403,
+      "cacheControl": null
+    }
+  ],
+  "browser": [],
+  "captures": {}
+}

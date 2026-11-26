@@ -1,0 +1,140 @@
+{
+  "platform": "android",
+  "viewport": {
+    "width": 380,
+    "height": 820
+  },
+  "deviceScaleFactor": 1,
+  "locale": "id",
+  "theme": "light",
+  "timeZone": "Asia/Jakarta",
+  "path": "/courses/native-assessment-course/quiz",
+  "motion": "reduced",
+  "composition": "Production list view and list client with the exact native Student fixture response projected into production props",
+  "sourceDigests": {
+    "tests/visual/fixtures/student-assessment-lists.tsx": "9d6bce8ffd6cdda7dce079fcb12709f18f7405ec32d3062c503ca5df711f614b",
+    "tests/visual/native-parallel/student/assessment-lists-reference.spec.ts": "39c7f31581ae8903ec38dcd3cef2c3950158df0cf934ccfe0195b00101d4c163",
+    "tests/visual/fixtures/interactive-document-build.ts": "dc51a2f41b0a567504d40004f1ec44e9469601c8e74eb6fd71b6da23ebd45053",
+    "components/course/course-page-shell.tsx": "e4171dee451d6ca3e9049e0fafb61061392cfa23d3d2fb8c1451dd7f75f05aa6",
+    "app/globals.css": "be812b64b005159daf0c3db873b0a8571952834222d9c8906019650388becf83",
+    "components/enrollment-form.tsx": "2c8f4e1edfeb086ab7c16138e2bf4fd03b828a7a5420a06a2815c9c471ef3c77",
+    "components/ui/reveal.tsx": "8d095c462ab16029d852b4b7917881501eeaa03604ca2438ccdf824c4fd267a8",
+    "messages/id/learning.json": "e5376bea4a130042fea063ca931aca3c135994777ee3ebe4300ae107877ecc54",
+    "messages/id/schedule.json": "0d467e173762de1e8e2e4cff175aba846d08055b2d566a7990f04f07ac7978d8",
+    "packages/native-parity/student/assessment/fixtures.ts": "7ea0db777454110f3e132736cbd879fcab0cfd806bad7f9470d0b952ba1ce366",
+    "packages/native-parity/student/assessment/contract.ts": "e09a63cd362ba9b62a854312da7a471000f9d5b682c7ee2f2eaf41df79ac55f9",
+    "packages/native-parity/student/fixture-request.ts": "dd4c36db26586b294cac067e5d062c8e5d7e2ac0b78fac09eafa1ee406192ae9",
+    "apps/mobile-native/features/student/StudentFixtureRoute.tsx": "9d137376881ead4134ec428c5957ed21afa3fdf9f7d094e431a186ca123984bd",
+    "apps/mobile-native/features/student/assessment/pages.tsx": "6c23884d378a82ba9d024f955cf22a9a9fc7d7f6ffdb4b6d3a1b5cc3c4abe6a2",
+    "apps/mobile-native/features/student/assessment/ui.tsx": "4950d23f0887689af416eae54aeeb6a96428737d4b5ca7b8f325103687b6fbfd",
+    "apps/mobile-native/features/student/ListRow.tsx": "619948236a0ce20d9ef453508d8a7531489c992338495cef836394e7184a5cc8",
+    "apps/mobile-native/features/shared-ui/layout.tsx": "79795ee3b29700de71443b7a1507469e07de79b2cab0282247c19a1ced48e01e",
+    "components/course/student-quiz-list-view.tsx": "3110d991eb75b22ebc01272b464bb05dc95ba3b0509fb267481ea0c47c582dc3",
+    "app/(student)/courses/[id]/quiz/page.tsx": "3ae1810bb9bc5c4fec92eb59bddba1e51bbb40d5fba2ed4f5af65b1225800f3f",
+    "app/(student)/courses/[id]/quiz/quiz-list-client.tsx": "316beee8db4e4f8c5e893a92faa9eb08fe82db6a96b1096cfd1d354ba8ca14e8",
+    ".maestro/native-parallel/student/quiz-list.yaml": "4135e62ef79f1ea320e0c8ae183889fbe935ba02d2dd27b0a35a9b3f9a1e22e4"
+  },
+  "fontDigests": {
+    "Inter-Regular": "19b2e364a739f0a493415b5185f1323f4994fcf451d24ab314cb7ff0504ccd39",
+    "Inter-Medium": "5bd11bf34ec26309bf6fa65f8d7e23c4738356f8219e643ce9f376be6dce0295",
+    "Inter-SemiBold": "bec5d982df3acdc7edbd7d99458e397285dd2d206058a1cfcdf77f55c7ac6c44",
+    "Lexend-SemiBold": "f8afa7919bba1f2b2536477e68359857d3f10e6bf8d93f21242fcc359437323f",
+    "Lexend-Bold": "231fd4c77e990af738beb90c090e7bb92a960b24e64efebf419761aa516b0fcf"
+  },
+  "states": {
+    "published": {
+      "scenario": "populated",
+      "request": "/api/native/student/assessment/native-assessment-course/quiz",
+      "data": {
+        "kind": "quiz-list",
+        "courseTitle": "Kalkulus dasar",
+        "fullAccess": true,
+        "rows": [
+          {
+            "id": "native-quiz",
+            "title": "Fungsi, limit, dan turunan",
+            "availability": "open",
+            "durationSeconds": 900,
+            "questionCount": 3,
+            "openAt": null,
+            "closeAt": null,
+            "maxAttempts": 3,
+            "attempts": 1,
+            "bestScore": 80,
+            "visibility": "free",
+            "discussionAvailable": true
+          }
+        ]
+      },
+      "nativeMarkers": [
+        {
+          "id": "student-assessment-native-quiz",
+          "text": "Fungsi, limit, dan turunan, 3 soal · 15 menit · Gratis · Nilai 80%, Mulai"
+        },
+        {
+          "id": "student-fixture-id-light"
+        }
+      ]
+    },
+    "locked": {
+      "scenario": "locked",
+      "request": "/api/native/student/assessment/native-assessment-course/quiz",
+      "data": {
+        "kind": "quiz-list",
+        "courseTitle": "Kalkulus dasar",
+        "fullAccess": false,
+        "rows": [
+          {
+            "id": "native-quiz",
+            "title": "Fungsi, limit, dan turunan",
+            "availability": "locked",
+            "durationSeconds": 900,
+            "questionCount": 3,
+            "openAt": null,
+            "closeAt": null,
+            "maxAttempts": 3,
+            "attempts": 1,
+            "bestScore": 80,
+            "visibility": "free",
+            "discussionAvailable": false
+          }
+        ]
+      },
+      "nativeMarkers": [
+        {
+          "id": "student-assessment-native-quiz",
+          "text": "Fungsi, limit, dan turunan, 3 soal · 15 menit · Nilai 80%, Terkunci"
+        },
+        {
+          "text": "Aktivasi token kelas"
+        },
+        {
+          "id": "student-fixture-id-light"
+        }
+      ]
+    },
+    "empty": {
+      "scenario": "empty",
+      "request": "/api/native/student/assessment/native-assessment-course/quiz",
+      "data": {
+        "kind": "quiz-list",
+        "courseTitle": "Kalkulus dasar",
+        "fullAccess": true,
+        "rows": []
+      },
+      "nativeMarkers": [
+        {
+          "text": "Belum ada kuis"
+        },
+        {
+          "id": "student-fixture-id-light"
+        }
+      ]
+    }
+  },
+  "captures": {
+    "quiz-list-published.png": "22072bdff62c5885aa96fb53768bfd3b02bc654d7eeaa3749e75278938ba3c07",
+    "quiz-list-locked.png": "4894703cb990e531755152804cee1cbc84e8721773963edca96989e29ca4abec",
+    "quiz-list-empty.png": "d87e208eb48380f6c07f55b0cb4f5e4134452cb6773b0392a9ac7879d3e699da"
+  }
+}

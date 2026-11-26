@@ -1,0 +1,4 @@
+Artifact member: ios-bootstrap/results/2026-11-26_160723/confirm-ios-gallery/logs/device-simulator.log
+
+2026-11-26 16:08:05.172225+0000  localhost backboardd[1698]: [com.apple.BackBoard:TouchEvents] didn't see a previous touch down or range-in event for pathIndex:2; skipping event
+2026-11-26 16:08:05.394669+0000  localhost backboardd[1698]: [com.apple.BackBoard:TouchEvents] cancel -- digitizer did disappear:<BKDirectTouchState: 0x600003b02840; touchScreen; builtin; senderID: 0x100A1F0F00000; contacts: contacts: []; destinations: []; latentSystemGestureDestinations: ()>

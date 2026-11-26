@@ -17,6 +17,7 @@ import { DevicePreferencesProvider } from "../device/preferences-provider";
 import { OfflineMetadataProvider } from "../offline/lifecycle-provider";
 import { RouteHistoryLifecycle } from "../routing/route-history-expo";
 import { isSessionRoute, navigationSessionKey, resetSessionStack } from "../routing/session-stack";
+import { AssessmentDraftCleanup } from "../features/student/assessment-drafts";
 import { nativeFontSources } from "../typography";
 
 const RetiringStack = createContext(false);
@@ -74,6 +75,7 @@ function NativeAppLayout() {
       <NativeSessionProvider origin={NATIVE_STAGING_ORIGIN}>
         <FormPhotoLifecycle />
         <NativeAccountContextProvider>
+          <AssessmentDraftCleanup />
           <LocalReminderLifecycle />
           <LocalReminderResponseLifecycle />
           <RouteHistoryLifecycle />

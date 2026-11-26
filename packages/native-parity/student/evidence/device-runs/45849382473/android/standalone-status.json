@@ -1,0 +1,806 @@
+[
+  {
+    "name": "Catalog comparable fixture all TPB and PKA",
+    "status": "failed",
+    "rawStatus": "ERROR",
+    "initial": "transport_failure",
+    "effective": "standalone-retry/001",
+    "initialFailure": {
+      "category": "ADB transport",
+      "message": "Unknown error",
+      "logMember": "results/2026-11-26_160523/Catalog comparable fixture all TPB and PKA/logs/maestro.log",
+      "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+    },
+    "retry": {
+      "directory": "standalone-retry/001",
+      "result": "transport_failure"
+    },
+    "reportMember": "standalone-retry/001/report.xml",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "standalone-retry/001/results/2026-11-26_160617/Catalog comparable fixture all TPB and PKA/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline",
+    "artifacts": [
+      {
+        "file": "standalone-originals/standalone-retry/001/results/2026-11-26_160617/Catalog comparable fixture all TPB and PKA/commands.json",
+        "member": "standalone-retry/001/results/2026-11-26_160617/Catalog comparable fixture all TPB and PKA/commands.json",
+        "sha256": "e2e51e4c9620869d0eda3553121f4c68cc2acc1e48c3e346f9d5a8bda09be2b6"
+      }
+    ]
+  },
+  {
+    "name": "Community calendar category and history",
+    "status": "failed",
+    "rawStatus": "ERROR",
+    "initial": "transport_failure",
+    "effective": "standalone-retry/001",
+    "initialFailure": {
+      "category": "ADB transport",
+      "message": "Unknown error",
+      "logMember": "results/2026-11-26_160523/Community calendar category and history/logs/maestro.log",
+      "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+    },
+    "retry": {
+      "directory": "standalone-retry/001",
+      "result": "transport_failure"
+    },
+    "reportMember": "standalone-retry/001/report.xml",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "standalone-retry/001/results/2026-11-26_160617/Community calendar category and history/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline",
+    "artifacts": [
+      {
+        "file": "standalone-originals/standalone-retry/001/results/2026-11-26_160617/Community calendar category and history/commands.json",
+        "member": "standalone-retry/001/results/2026-11-26_160617/Community calendar category and history/commands.json",
+        "sha256": "b532e335c518f61b6d286b37c94428394a347fc9e9e8cd64fe98930e622fa498"
+      }
+    ]
+  },
+  {
+    "name": "Community ranking scope and academic class",
+    "status": "passed",
+    "rawStatus": "SUCCESS",
+    "initial": "transport_failure",
+    "effective": "standalone-retry/002",
+    "initialFailure": {
+      "category": "ADB transport",
+      "message": "Unknown error",
+      "logMember": "results/2026-11-26_160523/Community ranking scope and academic class/logs/maestro.log",
+      "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+    },
+    "retry": {
+      "directory": "standalone-retry/002",
+      "result": "passed"
+    },
+    "reportMember": "standalone-retry/002/report.xml",
+    "artifacts": [
+      {
+        "file": "standalone-originals/standalone-retry/002/results/2026-11-26_160645/Community ranking scope and academic class/commands.json",
+        "member": "standalone-retry/002/results/2026-11-26_160645/Community ranking scope and academic class/commands.json",
+        "sha256": "3930baa227331c24561a4b16471ec701a88792f35fc7507e69cf6c206ff365b3"
+      },
+      {
+        "file": "standalone-originals/standalone-retry/002/results/2026-11-26_160645/Community ranking scope and academic class/takeScreenshot/student-ranking-academic.png",
+        "member": "standalone-retry/002/results/2026-11-26_160645/Community ranking scope and academic class/takeScreenshot/student-ranking-academic.png",
+        "sha256": "898e5787e9589534d05a5f4ce4f0fafe4ad28253446a64e58cc6a4544c404a8e"
+      }
+    ]
+  },
+  {
+    "name": "Learning flashcard flip and grade",
+    "status": "failed",
+    "rawStatus": "ERROR",
+    "initial": "transport_failure",
+    "effective": "standalone-retry/003",
+    "initialFailure": {
+      "category": "ADB transport",
+      "message": "Unknown error",
+      "logMember": "results/2026-11-26_160523/Learning flashcard flip and grade/logs/maestro.log",
+      "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+    },
+    "retry": {
+      "directory": "standalone-retry/003",
+      "result": "transport_failure"
+    },
+    "reportMember": "standalone-retry/003/report.xml",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "standalone-retry/003/results/2026-11-26_160712/Learning flashcard flip and grade/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline",
+    "artifacts": [
+      {
+        "file": "standalone-originals/standalone-retry/003/results/2026-11-26_160712/Learning flashcard flip and grade/commands.json",
+        "member": "standalone-retry/003/results/2026-11-26_160712/Learning flashcard flip and grade/commands.json",
+        "sha256": "376057e36efef15d1e8ca020efe6b0e1b293b37d2722c31ea15d070293aa048e"
+      }
+    ]
+  },
+  {
+    "name": "PKA enrollment gate redirects to registration",
+    "status": "failed",
+    "rawStatus": "ERROR",
+    "initial": "transport_failure",
+    "effective": "standalone-retry/003",
+    "initialFailure": {
+      "category": "ADB transport",
+      "message": "Unknown error",
+      "logMember": "results/2026-11-26_160523/PKA enrollment gate redirects to registration/logs/maestro.log",
+      "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+    },
+    "retry": {
+      "directory": "standalone-retry/003",
+      "result": "transport_failure"
+    },
+    "reportMember": "standalone-retry/003/report.xml",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "standalone-retry/003/results/2026-11-26_160712/PKA enrollment gate redirects to registration/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline",
+    "artifacts": [
+      {
+        "file": "standalone-originals/standalone-retry/003/results/2026-11-26_160712/PKA enrollment gate redirects to registration/commands.json",
+        "member": "standalone-retry/003/results/2026-11-26_160712/PKA enrollment gate redirects to registration/commands.json",
+        "sha256": "3eb977f6033ce40a1f6a8adc2db6512c77a4246158afbdb6c7e40d25d14c6b30"
+      }
+    ]
+  },
+  {
+    "name": "Student calendar filters assessments and opens tutorial history",
+    "status": "failed",
+    "rawStatus": "ERROR",
+    "initial": "transport_failure",
+    "effective": "standalone-retry/001",
+    "initialFailure": {
+      "category": "ADB transport",
+      "message": "Unknown error",
+      "logMember": "results/2026-11-26_160523/Student calendar filters assessments and opens tutorial history/logs/maestro.log",
+      "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+    },
+    "retry": {
+      "directory": "standalone-retry/001",
+      "result": "transport_failure"
+    },
+    "reportMember": "standalone-retry/001/report.xml",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "standalone-retry/001/results/2026-11-26_160617/Student calendar filters assessments and opens tutorial history/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline",
+    "artifacts": [
+      {
+        "file": "standalone-originals/standalone-retry/001/results/2026-11-26_160617/Student calendar filters assessments and opens tutorial history/commands.json",
+        "member": "standalone-retry/001/results/2026-11-26_160617/Student calendar filters assessments and opens tutorial history/commands.json",
+        "sha256": "baaed38318d1b7a6fec332fe62dc493836ff1ff4879d09011b15b6c23836a30d"
+      }
+    ]
+  },
+  {
+    "name": "Student calendar reference inputs and category states",
+    "status": "failed",
+    "rawStatus": "ERROR",
+    "initial": "transport_failure",
+    "effective": "standalone-retry/001",
+    "initialFailure": {
+      "category": "ADB transport",
+      "message": "Unknown error",
+      "logMember": "results/2026-11-26_160523/Student calendar reference inputs and category states/logs/maestro.log",
+      "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+    },
+    "retry": {
+      "directory": "standalone-retry/001",
+      "result": "transport_failure"
+    },
+    "reportMember": "standalone-retry/001/report.xml",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "standalone-retry/001/results/2026-11-26_160617/Student calendar reference inputs and category states/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline",
+    "artifacts": [
+      {
+        "file": "standalone-originals/standalone-retry/001/results/2026-11-26_160617/Student calendar reference inputs and category states/commands.json",
+        "member": "standalone-retry/001/results/2026-11-26_160617/Student calendar reference inputs and category states/commands.json",
+        "sha256": "82803b9a02be1aeae745d0dec2d3bdfce98a42079111d75d2ca2808e219fe26d"
+      }
+    ]
+  },
+  {
+    "name": "Student course and material reference enrolled",
+    "status": "failed",
+    "rawStatus": "ERROR",
+    "initial": "transport_failure",
+    "effective": "standalone-retry/002",
+    "initialFailure": {
+      "category": "ADB transport",
+      "message": "Unknown error",
+      "logMember": "results/2026-11-26_160523/Student course and material reference enrolled/logs/maestro.log",
+      "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+    },
+    "retry": {
+      "directory": "standalone-retry/002",
+      "result": "transport_failure"
+    },
+    "reportMember": "standalone-retry/002/report.xml",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "standalone-retry/002/results/2026-11-26_160645/Student course and material reference enrolled/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline",
+    "artifacts": [
+      {
+        "file": "standalone-originals/standalone-retry/002/results/2026-11-26_160645/Student course and material reference enrolled/commands.json",
+        "member": "standalone-retry/002/results/2026-11-26_160645/Student course and material reference enrolled/commands.json",
+        "sha256": "984e8aa5c1195947288a8715a8d1c6bd1c9dc1fbb95f02d25de00de80b8af11e"
+      }
+    ]
+  },
+  {
+    "name": "Student course and material reference revoked",
+    "status": "failed",
+    "rawStatus": "ERROR",
+    "initial": "transport_failure",
+    "effective": "standalone-retry/002",
+    "initialFailure": {
+      "category": "ADB transport",
+      "message": "Unknown error",
+      "logMember": "results/2026-11-26_160523/Student course and material reference revoked/logs/maestro.log",
+      "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+    },
+    "retry": {
+      "directory": "standalone-retry/002",
+      "result": "transport_failure"
+    },
+    "reportMember": "standalone-retry/002/report.xml",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "standalone-retry/002/results/2026-11-26_160645/Student course and material reference revoked/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline",
+    "artifacts": [
+      {
+        "file": "standalone-originals/standalone-retry/002/results/2026-11-26_160645/Student course and material reference revoked/commands.json",
+        "member": "standalone-retry/002/results/2026-11-26_160645/Student course and material reference revoked/commands.json",
+        "sha256": "9945fc295318404f17375202e78650e5f80190015076c724ec8896ecf4a3b70a"
+      }
+    ]
+  },
+  {
+    "name": "Student course and material reference unenrolled",
+    "status": "failed",
+    "rawStatus": "ERROR",
+    "initial": "transport_failure",
+    "effective": "standalone-retry/002",
+    "initialFailure": {
+      "category": "ADB transport",
+      "message": "Unknown error",
+      "logMember": "results/2026-11-26_160523/Student course and material reference unenrolled/logs/maestro.log",
+      "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+    },
+    "retry": {
+      "directory": "standalone-retry/002",
+      "result": "transport_failure"
+    },
+    "reportMember": "standalone-retry/002/report.xml",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "standalone-retry/002/results/2026-11-26_160645/Student course and material reference unenrolled/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline",
+    "artifacts": [
+      {
+        "file": "standalone-originals/standalone-retry/002/results/2026-11-26_160645/Student course and material reference unenrolled/commands.json",
+        "member": "standalone-retry/002/results/2026-11-26_160645/Student course and material reference unenrolled/commands.json",
+        "sha256": "c44ba3b9933f8383ddab9e8e5fe91dc47b0994c18902a3ddb440ca8fef2f620c"
+      }
+    ]
+  },
+  {
+    "name": "Student course enrolled fixture",
+    "status": "failed",
+    "rawStatus": "ERROR",
+    "initial": "transport_failure",
+    "effective": "standalone-retry/003",
+    "initialFailure": {
+      "category": "ADB transport",
+      "message": "Unknown error",
+      "logMember": "results/2026-11-26_160523/Student course enrolled fixture/logs/maestro.log",
+      "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+    },
+    "retry": {
+      "directory": "standalone-retry/003",
+      "result": "transport_failure"
+    },
+    "reportMember": "standalone-retry/003/report.xml",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "standalone-retry/003/results/2026-11-26_160712/Student course enrolled fixture/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline",
+    "artifacts": [
+      {
+        "file": "standalone-originals/standalone-retry/003/results/2026-11-26_160712/Student course enrolled fixture/commands.json",
+        "member": "standalone-retry/003/results/2026-11-26_160712/Student course enrolled fixture/commands.json",
+        "sha256": "793be616e090e892f469f827be98a4c5cf9af1f552802c95f70158258c154123"
+      }
+    ]
+  },
+  {
+    "name": "Student course long material list fixture",
+    "status": "failed",
+    "rawStatus": "ERROR",
+    "initial": "transport_failure",
+    "effective": "standalone-retry/003",
+    "initialFailure": {
+      "category": "ADB transport",
+      "message": "Unknown error",
+      "logMember": "results/2026-11-26_160523/Student course long material list fixture/logs/maestro.log",
+      "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+    },
+    "retry": {
+      "directory": "standalone-retry/003",
+      "result": "transport_failure"
+    },
+    "reportMember": "standalone-retry/003/report.xml",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "standalone-retry/003/results/2026-11-26_160712/Student course long material list fixture/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline",
+    "artifacts": [
+      {
+        "file": "standalone-originals/standalone-retry/003/results/2026-11-26_160712/Student course long material list fixture/commands.json",
+        "member": "standalone-retry/003/results/2026-11-26_160712/Student course long material list fixture/commands.json",
+        "sha256": "2a881de3fdd178479740a36613419e902b7aa76b8f095a210e963cb18618bb81"
+      }
+    ]
+  },
+  {
+    "name": "Student course offline recovery fixture",
+    "status": "failed",
+    "rawStatus": "ERROR",
+    "initial": "transport_failure",
+    "effective": "standalone-retry/003",
+    "initialFailure": {
+      "category": "ADB transport",
+      "message": "Unknown error",
+      "logMember": "results/2026-11-26_160523/Student course offline recovery fixture/logs/maestro.log",
+      "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+    },
+    "retry": {
+      "directory": "standalone-retry/003",
+      "result": "transport_failure"
+    },
+    "reportMember": "standalone-retry/003/report.xml",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "standalone-retry/003/results/2026-11-26_160712/Student course offline recovery fixture/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline",
+    "artifacts": [
+      {
+        "file": "standalone-originals/standalone-retry/003/results/2026-11-26_160712/Student course offline recovery fixture/commands.json",
+        "member": "standalone-retry/003/results/2026-11-26_160712/Student course offline recovery fixture/commands.json",
+        "sha256": "3419088530060ebdfe973a11376b8ced81d1c2df68c10ee8eadc90983e6d9e5c"
+      }
+    ]
+  },
+  {
+    "name": "Student course ranking podium and own rank",
+    "status": "failed",
+    "rawStatus": "ERROR",
+    "initial": "transport_failure",
+    "effective": "standalone-retry/002",
+    "initialFailure": {
+      "category": "ADB transport",
+      "message": "Unknown error",
+      "logMember": "results/2026-11-26_160523/Student course ranking podium and own rank/logs/maestro.log",
+      "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+    },
+    "retry": {
+      "directory": "standalone-retry/002",
+      "result": "transport_failure"
+    },
+    "reportMember": "standalone-retry/002/report.xml",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "standalone-retry/002/results/2026-11-26_160645/Student course ranking podium and own rank/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline",
+    "artifacts": [
+      {
+        "file": "standalone-originals/standalone-retry/002/results/2026-11-26_160645/Student course ranking podium and own rank/commands.json",
+        "member": "standalone-retry/002/results/2026-11-26_160645/Student course ranking podium and own rank/commands.json",
+        "sha256": "49aaeff9b74327d51bddb2846f468724663edbcb97316e57ff95ee3f35b406d7"
+      }
+    ]
+  },
+  {
+    "name": "Student course results history states",
+    "status": "failed",
+    "rawStatus": "ERROR",
+    "initial": "transport_failure",
+    "effective": "standalone-retry/003",
+    "initialFailure": {
+      "category": "ADB transport",
+      "message": "Unknown error",
+      "logMember": "results/2026-11-26_160523/Student course results history states/logs/maestro.log",
+      "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+    },
+    "retry": {
+      "directory": "standalone-retry/003",
+      "result": "transport_failure"
+    },
+    "reportMember": "standalone-retry/003/report.xml",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "standalone-retry/003/results/2026-11-26_160712/Student course results history states/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline",
+    "artifacts": [
+      {
+        "file": "standalone-originals/standalone-retry/003/results/2026-11-26_160712/Student course results history states/commands.json",
+        "member": "standalone-retry/003/results/2026-11-26_160712/Student course results history states/commands.json",
+        "sha256": "54ecbeb5dd9b28e11007a0e8300260cfce4cec1192a3fe349c3d823ea6cf483d"
+      }
+    ]
+  },
+  {
+    "name": "Student course revoked fixture",
+    "status": "passed",
+    "rawStatus": "SUCCESS",
+    "initial": "transport_failure",
+    "effective": "standalone-retry/004",
+    "initialFailure": {
+      "category": "ADB transport",
+      "message": "Unknown error",
+      "logMember": "results/2026-11-26_160523/Student course revoked fixture/logs/maestro.log",
+      "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+    },
+    "retry": {
+      "directory": "standalone-retry/004",
+      "result": "passed"
+    },
+    "reportMember": "standalone-retry/004/report.xml",
+    "artifacts": [
+      {
+        "file": "standalone-originals/standalone-retry/004/results/2026-11-26_160720/Student course revoked fixture/commands.json",
+        "member": "standalone-retry/004/results/2026-11-26_160720/Student course revoked fixture/commands.json",
+        "sha256": "31b1ab279cdcaa31ff2d1f0920a86b7bc5db5335693f41f9b832acddf2a65448"
+      },
+      {
+        "file": "standalone-originals/standalone-retry/004/results/2026-11-26_160720/Student course revoked fixture/takeScreenshot/student-revoked-locked.png",
+        "member": "standalone-retry/004/results/2026-11-26_160720/Student course revoked fixture/takeScreenshot/student-revoked-locked.png",
+        "sha256": "587e93c34176ea191c5400e3ba57824bcde78064161660d3150a20eabee246bb"
+      }
+    ]
+  },
+  {
+    "name": "Student course unenrolled fixture",
+    "status": "passed",
+    "rawStatus": "SUCCESS",
+    "initial": "transport_failure",
+    "effective": "standalone-retry/004",
+    "initialFailure": {
+      "category": "ADB transport",
+      "message": "Unknown error",
+      "logMember": "results/2026-11-26_160523/Student course unenrolled fixture/logs/maestro.log",
+      "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+    },
+    "retry": {
+      "directory": "standalone-retry/004",
+      "result": "passed"
+    },
+    "reportMember": "standalone-retry/004/report.xml",
+    "artifacts": [
+      {
+        "file": "standalone-originals/standalone-retry/004/results/2026-11-26_160720/Student course unenrolled fixture/commands.json",
+        "member": "standalone-retry/004/results/2026-11-26_160720/Student course unenrolled fixture/commands.json",
+        "sha256": "2e6392c969b79427623e8618234724b831f25b3ff58efe3de212f02fdeb9f2f1"
+      },
+      {
+        "file": "standalone-originals/standalone-retry/004/results/2026-11-26_160720/Student course unenrolled fixture/takeScreenshot/student-unenrolled-dashboard.png",
+        "member": "standalone-retry/004/results/2026-11-26_160720/Student course unenrolled fixture/takeScreenshot/student-unenrolled-dashboard.png",
+        "sha256": "cb037ab2ba902cfdb380f68d911f204b661c1897de1107849d2d3e5569ca7114"
+      },
+      {
+        "file": "standalone-originals/standalone-retry/004/results/2026-11-26_160720/Student course unenrolled fixture/takeScreenshot/student-unenrolled-locked.png",
+        "member": "standalone-retry/004/results/2026-11-26_160720/Student course unenrolled fixture/takeScreenshot/student-unenrolled-locked.png",
+        "sha256": "587e93c34176ea191c5400e3ba57824bcde78064161660d3150a20eabee246bb"
+      }
+    ]
+  },
+  {
+    "name": "Student dashboard enrollment states",
+    "status": "failed",
+    "rawStatus": "ERROR",
+    "initial": "transport_failure",
+    "effective": "standalone-retry/002",
+    "initialFailure": {
+      "category": "ADB transport",
+      "message": "Unknown error",
+      "logMember": "results/2026-11-26_160523/Student dashboard enrollment states/logs/maestro.log",
+      "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+    },
+    "retry": {
+      "directory": "standalone-retry/002",
+      "result": "transport_failure"
+    },
+    "reportMember": "standalone-retry/002/report.xml",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "standalone-retry/002/results/2026-11-26_160645/Student dashboard enrollment states/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline",
+    "artifacts": [
+      {
+        "file": "standalone-originals/standalone-retry/002/results/2026-11-26_160645/Student dashboard enrollment states/commands.json",
+        "member": "standalone-retry/002/results/2026-11-26_160645/Student dashboard enrollment states/commands.json",
+        "sha256": "51fb6f8d34129e5cf21bbf4022fa36910cd2f91368d9ae59a114a602d0931f50"
+      }
+    ]
+  },
+  {
+    "name": "Student opens a discussion alias and posts a scoped answer",
+    "status": "passed",
+    "rawStatus": "SUCCESS",
+    "initial": "passed",
+    "effective": ".",
+    "reportMember": "report.xml",
+    "artifacts": [
+      {
+        "file": "standalone-originals/initial/results/2026-11-26_160523/Student opens a discussion alias and posts a scoped answer/commands.json",
+        "member": "results/2026-11-26_160523/Student opens a discussion alias and posts a scoped answer/commands.json",
+        "sha256": "6207004b325be6781ff3923ed6ceaf6f799dd0a9ec8da859dea42a9235a26ed5"
+      },
+      {
+        "file": "standalone-originals/initial/results/2026-11-26_160523/Student opens a discussion alias and posts a scoped answer/takeScreenshot/student-community-discussion-answer.png",
+        "member": "results/2026-11-26_160523/Student opens a discussion alias and posts a scoped answer/takeScreenshot/student-community-discussion-answer.png",
+        "sha256": "dd0ca6b5fe347cca13444a407f6658f74316fa73671d30bdff2ec44abbc32f5c"
+      },
+      {
+        "file": "standalone-originals/initial/results/2026-11-26_160523/Student opens a discussion alias and posts a scoped answer/takeScreenshot/student-community-discussion-draft.png",
+        "member": "results/2026-11-26_160523/Student opens a discussion alias and posts a scoped answer/takeScreenshot/student-community-discussion-draft.png",
+        "sha256": "03f72a5aaa14079375683167775ab5bfd07af90f3e430e4d3b714ff16d922ce0"
+      },
+      {
+        "file": "standalone-originals/initial/results/2026-11-26_160523/Student opens a discussion alias and posts a scoped answer/takeScreenshot/student-community-discussion-open.png",
+        "member": "results/2026-11-26_160523/Student opens a discussion alias and posts a scoped answer/takeScreenshot/student-community-discussion-open.png",
+        "sha256": "70992548663ab3886ac7359618cae3263b176f18af017551cd77f26d8733d2cf"
+      }
+    ]
+  },
+  {
+    "name": "Student participation ranking global and following filters",
+    "status": "failed",
+    "rawStatus": "ERROR",
+    "initial": "transport_failure",
+    "effective": "standalone-retry/003",
+    "initialFailure": {
+      "category": "ADB transport",
+      "message": "Unknown error",
+      "logMember": "results/2026-11-26_160523/Student participation ranking global and following filters/logs/maestro.log",
+      "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+    },
+    "retry": {
+      "directory": "standalone-retry/003",
+      "result": "transport_failure"
+    },
+    "reportMember": "standalone-retry/003/report.xml",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "standalone-retry/003/results/2026-11-26_160712/Student participation ranking global and following filters/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline",
+    "artifacts": [
+      {
+        "file": "standalone-originals/standalone-retry/003/results/2026-11-26_160712/Student participation ranking global and following filters/commands.json",
+        "member": "standalone-retry/003/results/2026-11-26_160712/Student participation ranking global and following filters/commands.json",
+        "sha256": "b180fd4cb3ecaf0b527e305c6fee3bed314872f90e9ef85cf1ba849188872eb1"
+      }
+    ]
+  },
+  {
+    "name": "Student quiz gateway attempt states",
+    "status": "failed",
+    "rawStatus": "ERROR",
+    "initial": "transport_failure",
+    "effective": "standalone-retry/003",
+    "initialFailure": {
+      "category": "ADB transport",
+      "message": "Unknown error",
+      "logMember": "results/2026-11-26_160523/Student quiz gateway attempt states/logs/maestro.log",
+      "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+    },
+    "retry": {
+      "directory": "standalone-retry/003",
+      "result": "transport_failure"
+    },
+    "reportMember": "standalone-retry/003/report.xml",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "standalone-retry/003/results/2026-11-26_160712/Student quiz gateway attempt states/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline",
+    "artifacts": [
+      {
+        "file": "standalone-originals/standalone-retry/003/results/2026-11-26_160712/Student quiz gateway attempt states/commands.json",
+        "member": "standalone-retry/003/results/2026-11-26_160712/Student quiz gateway attempt states/commands.json",
+        "sha256": "d780ae42929586da7b8b438e18b3b4acb6359fdb2656b8ea60feceef05ee16a5"
+      }
+    ]
+  },
+  {
+    "name": "Student quiz saves and restores its draft",
+    "status": "passed",
+    "rawStatus": "SUCCESS",
+    "initial": "transport_failure",
+    "effective": "standalone-retry/001",
+    "initialFailure": {
+      "category": "ADB transport",
+      "message": "Unknown error",
+      "logMember": "results/2026-11-26_160523/Student quiz saves and restores its draft/logs/maestro.log",
+      "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+    },
+    "retry": {
+      "directory": "standalone-retry/001",
+      "result": "passed"
+    },
+    "reportMember": "standalone-retry/001/report.xml",
+    "artifacts": [
+      {
+        "file": "standalone-originals/standalone-retry/001/results/2026-11-26_160617/Student quiz saves and restores its draft/commands.json",
+        "member": "standalone-retry/001/results/2026-11-26_160617/Student quiz saves and restores its draft/commands.json",
+        "sha256": "cb9d8f6e0a79585b0cda9e228a55aa132d3f4298f19ce2487a04802865ac8326"
+      },
+      {
+        "file": "standalone-originals/standalone-retry/001/results/2026-11-26_160617/Student quiz saves and restores its draft/takeScreenshot/student-assessment-quiz-player.png",
+        "member": "standalone-retry/001/results/2026-11-26_160617/Student quiz saves and restores its draft/takeScreenshot/student-assessment-quiz-player.png",
+        "sha256": "e600eddedc9b8a60dfc257e10f348b9d819b6c03fbcc1994df118fb65196b3ae"
+      }
+    ]
+  },
+  {
+    "name": "Student reads and completes a solution collection",
+    "status": "failed",
+    "rawStatus": "ERROR",
+    "initial": "transport_failure",
+    "effective": "standalone-retry/001",
+    "initialFailure": {
+      "category": "ADB transport",
+      "message": "Unknown error",
+      "logMember": "results/2026-11-26_160523/Student reads and completes a solution collection/logs/maestro.log",
+      "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+    },
+    "retry": {
+      "directory": "standalone-retry/001",
+      "result": "transport_failure"
+    },
+    "reportMember": "standalone-retry/001/report.xml",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "standalone-retry/001/results/2026-11-26_160617/Student reads and completes a solution collection/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline",
+    "artifacts": [
+      {
+        "file": "standalone-originals/standalone-retry/001/results/2026-11-26_160617/Student reads and completes a solution collection/commands.json",
+        "member": "standalone-retry/001/results/2026-11-26_160617/Student reads and completes a solution collection/commands.json",
+        "sha256": "059258ab5a3f910d7134f226ef2e4e23d4aa1b44690aa0f07ea0e9c0412984c2"
+      }
+    ]
+  },
+  {
+    "name": "Student restores a saved answer after process restart",
+    "status": "failed",
+    "rawStatus": "ERROR",
+    "initial": "transport_failure",
+    "effective": "standalone-retry/001",
+    "initialFailure": {
+      "category": "ADB transport",
+      "message": "Unknown error",
+      "logMember": "results/2026-11-26_160523/Student restores a saved answer after process restart/logs/maestro.log",
+      "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+    },
+    "retry": {
+      "directory": "standalone-retry/001",
+      "result": "transport_failure"
+    },
+    "reportMember": "standalone-retry/001/report.xml",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "standalone-retry/001/results/2026-11-26_160617/Student restores a saved answer after process restart/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline",
+    "artifacts": [
+      {
+        "file": "standalone-originals/standalone-retry/001/results/2026-11-26_160617/Student restores a saved answer after process restart/commands.json",
+        "member": "standalone-retry/001/results/2026-11-26_160617/Student restores a saved answer after process restart/commands.json",
+        "sha256": "65a3c21b25ce1051ef9abc662cad7d5084436b085b7e14088958d878087d4010"
+      }
+    ]
+  },
+  {
+    "name": "Student separates participation from academic scores and recovers a failed load",
+    "status": "passed",
+    "rawStatus": "SUCCESS",
+    "initial": "transport_failure",
+    "effective": "standalone-retry/002",
+    "initialFailure": {
+      "category": "ADB transport",
+      "message": "Unknown error",
+      "logMember": "results/2026-11-26_160523/Student separates participation from academic scores and recovers a failed load/logs/maestro.log",
+      "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+    },
+    "retry": {
+      "directory": "standalone-retry/002",
+      "result": "passed"
+    },
+    "reportMember": "standalone-retry/002/report.xml",
+    "artifacts": [
+      {
+        "file": "standalone-originals/standalone-retry/002/results/2026-11-26_160645/Student separates participation from academic scores and recovers a failed load/commands.json",
+        "member": "standalone-retry/002/results/2026-11-26_160645/Student separates participation from academic scores and recovers a failed load/commands.json",
+        "sha256": "38054aa6efc0bb0f922d28149f635b8e3f73795c14e7755c0bf622c55243f65a"
+      },
+      {
+        "file": "standalone-originals/standalone-retry/002/results/2026-11-26_160645/Student separates participation from academic scores and recovers a failed load/takeScreenshot/student-community-academic.png",
+        "member": "standalone-retry/002/results/2026-11-26_160645/Student separates participation from academic scores and recovers a failed load/takeScreenshot/student-community-academic.png",
+        "sha256": "898e5787e9589534d05a5f4ce4f0fafe4ad28253446a64e58cc6a4544c404a8e"
+      },
+      {
+        "file": "standalone-originals/standalone-retry/002/results/2026-11-26_160645/Student separates participation from academic scores and recovers a failed load/takeScreenshot/student-community-participation.png",
+        "member": "standalone-retry/002/results/2026-11-26_160645/Student separates participation from academic scores and recovers a failed load/takeScreenshot/student-community-participation.png",
+        "sha256": "22c659eb01c896652c0eb81e1ca1a7ffb06736ab3bae9d8d4cd8545eab03f5c3"
+      },
+      {
+        "file": "standalone-originals/standalone-retry/002/results/2026-11-26_160645/Student separates participation from academic scores and recovers a failed load/takeScreenshot/student-community-ranking-recovery.png",
+        "member": "standalone-retry/002/results/2026-11-26_160645/Student separates participation from academic scores and recovers a failed load/takeScreenshot/student-community-ranking-recovery.png",
+        "sha256": "498a8abfeb4876e5e71242a7e878bc3771578637582e0d3391acdae6d40502b6"
+      }
+    ]
+  },
+  {
+    "name": "Student tryout retries the same submission after response loss",
+    "status": "failed",
+    "rawStatus": "ERROR",
+    "initial": "transport_failure",
+    "effective": "standalone-retry/001",
+    "initialFailure": {
+      "category": "ADB transport",
+      "message": "Unknown error",
+      "logMember": "results/2026-11-26_160523/Student tryout retries the same submission after response loss/logs/maestro.log",
+      "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+    },
+    "retry": {
+      "directory": "standalone-retry/001",
+      "result": "transport_failure"
+    },
+    "reportMember": "standalone-retry/001/report.xml",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "standalone-retry/001/results/2026-11-26_160617/Student tryout retries the same submission after response loss/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline",
+    "artifacts": [
+      {
+        "file": "standalone-originals/standalone-retry/001/results/2026-11-26_160617/Student tryout retries the same submission after response loss/commands.json",
+        "member": "standalone-retry/001/results/2026-11-26_160617/Student tryout retries the same submission after response loss/commands.json",
+        "sha256": "b49791fedcfead1a84e9a23afcdaefa7e7a2f6325296a06fdf368cac47d56fac"
+      }
+    ]
+  },
+  {
+    "name": "Student weekly calendar selects tutor slots and another day",
+    "status": "failed",
+    "rawStatus": "ERROR",
+    "initial": "transport_failure",
+    "effective": "standalone-retry/002",
+    "initialFailure": {
+      "category": "ADB transport",
+      "message": "Unknown error",
+      "logMember": "results/2026-11-26_160523/Student weekly calendar selects tutor slots and another day/logs/maestro.log",
+      "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+    },
+    "retry": {
+      "directory": "standalone-retry/002",
+      "result": "transport_failure"
+    },
+    "reportMember": "standalone-retry/002/report.xml",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "standalone-retry/002/results/2026-11-26_160645/Student weekly calendar selects tutor slots and another day/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline",
+    "artifacts": [
+      {
+        "file": "standalone-originals/standalone-retry/002/results/2026-11-26_160645/Student weekly calendar selects tutor slots and another day/commands.json",
+        "member": "standalone-retry/002/results/2026-11-26_160645/Student weekly calendar selects tutor slots and another day/commands.json",
+        "sha256": "c2d7712abb6711190c0b7ad50cee3e41df573cc1ac584c285e154a717a9397f6"
+      }
+    ]
+  }
+]

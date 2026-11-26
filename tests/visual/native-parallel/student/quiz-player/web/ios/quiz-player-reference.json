@@ -1,0 +1,164 @@
+{
+  "platform": "ios",
+  "viewport": {
+    "width": 402,
+    "height": 874
+  },
+  "deviceScaleFactor": 3,
+  "scenario": "quiz-player-parity",
+  "path": "/courses/native-assessment-course/quiz/native-quiz?attemptId=native-player-attempt",
+  "locale": "id",
+  "theme": "light",
+  "nativeStore": "disk",
+  "webStore": "production browser localStorage",
+  "motion": "reduced",
+  "timeZone": "Asia/Jakarta",
+  "composition": "Production mobile QuizPlayer plus CoursePageShell, isolated component fixture transport",
+  "data": {
+    "kind": "quiz-detail",
+    "courseTitle": "Kalkulus dasar",
+    "player": {
+      "questions": [
+        {
+          "id": "even-number",
+          "type": "multiple_choice",
+          "prompt": "Bilangan manakah yang termasuk bilangan genap?",
+          "options": [
+            "3",
+            "4",
+            "5"
+          ]
+        },
+        {
+          "id": "addition",
+          "type": "multiple_choice",
+          "prompt": "Berapa hasil penjumlahan 7 dan 5?",
+          "options": [
+            "12",
+            "13",
+            "14"
+          ]
+        },
+        {
+          "id": "product",
+          "type": "multiple_choice",
+          "prompt": "Berapa hasil perkalian 3 dan 6?",
+          "options": [
+            "9",
+            "12",
+            "18"
+          ]
+        }
+      ],
+      "answers": {},
+      "startAt": "2026-10-05T12:00:00.000Z",
+      "durationSeconds": null,
+      "closeAt": null,
+      "canGoBack": true,
+      "requireAllAnswered": false,
+      "perQuestionSeconds": null
+    },
+    "history": [],
+    "review": null,
+    "assessment": {
+      "id": "native-quiz",
+      "title": "Kuis bilangan dasar",
+      "availability": "open",
+      "durationSeconds": null,
+      "questionCount": 3,
+      "openAt": null,
+      "closeAt": null,
+      "maxAttempts": 1,
+      "attempts": 1,
+      "visibility": "free",
+      "activeAttemptId": "native-player-attempt",
+      "discussionAvailable": false
+    }
+  },
+  "sourceDigests": {
+    "tests/visual/fixtures/student-quiz-player.tsx": "1d282e7982a3a3246c25e57a6310acd967d52c8a24add877544fb27506f72b8e",
+    "components/course/quiz-player.tsx": "67490be64b05848cacbe0e6f9af43f6ec52df62abc10b21b4b6da4bb8e63cb06",
+    "components/course/course-page-shell.tsx": "e4171dee451d6ca3e9049e0fafb61061392cfa23d3d2fb8c1451dd7f75f05aa6",
+    "features/student-assessment/ui/mobile/quiz-player-mobile.tsx": "c347e4d19ee6d52cef3af78a28bb3b5371bd93311926e7a9a9b1e87195850da6",
+    "features/student-assessment/ui/shared/quiz-player-parts.tsx": "c9483d6985e100db45de7c956738b24db777a36f9341451b5ab3f4030ee22991",
+    "app/(student)/courses/[id]/quiz/[quizId]/page.tsx": "608181a37fd65a725378c39c0ec58686833a44280a3a5d1b1399a34584737ecb",
+    "app/globals.css": "be812b64b005159daf0c3db873b0a8571952834222d9c8906019650388becf83",
+    "messages/id/learning.json": "e5376bea4a130042fea063ca931aca3c135994777ee3ebe4300ae107877ecc54",
+    "messages/id/studentCourse.json": "03a30324db79eaa188e609e12b9f1b9c84b67c8a50641f54a74d7280f865a6d1",
+    "tests/visual/native-parallel/student/quiz-player-reference.spec.ts": "c49674d60703b8aa3c84d156aac398587c21f539f8a90362039ba0e226daeca4",
+    "tests/visual/fixtures/interactive-document-build.ts": "dc51a2f41b0a567504d40004f1ec44e9469601c8e74eb6fd71b6da23ebd45053",
+    "hooks/use-quiz-player.ts": "60b533d2d2323ef29b2ef0d74169b798bcb95ebcb18b3c035ea6039a3a6534cc",
+    "lib/quiz/player-state.ts": "15f314d9a9dce3a0aa695938b4dac357f1cc334a208f6dc1e48c99138a5022ff",
+    "packages/native-parity/student/assessment/quiz-player-fixture.ts": "972d8b53788a22cc6338c74ead25a10ba00643223d1d209c7cc3e05bdf265743",
+    "packages/native-parity/student/fixture-request.ts": "dd4c36db26586b294cac067e5d062c8e5d7e2ac0b78fac09eafa1ee406192ae9",
+    "apps/mobile-native/features/student/assessment/player.tsx": "ed526d5cff6fdadf712f4e173e0d8ed269b674a5d7719f64594c91abdbc3c45c",
+    "apps/mobile-native/features/student/assessment-draft-store.ts": "9bb77a412fb9ed6b7527d0c9592c51ee0c4b03ddb323280722d600c5fe2af438",
+    "apps/mobile-native/features/student/StudentFixtureRoute.tsx": "9d137376881ead4134ec428c5957ed21afa3fdf9f7d094e431a186ca123984bd",
+    ".maestro/native-parallel/student/quiz-player.yaml": "674d2723a22f05ab00d10c13dcef0e4af5e0a3d36e818eea483b2a891b519ff9"
+  },
+  "fontDigests": {
+    "Inter-Regular": "19b2e364a739f0a493415b5185f1323f4994fcf451d24ab314cb7ff0504ccd39",
+    "Inter-Medium": "5bd11bf34ec26309bf6fa65f8d7e23c4738356f8219e643ce9f376be6dce0295",
+    "Inter-SemiBold": "bec5d982df3acdc7edbd7d99458e397285dd2d206058a1cfcdf77f55c7ac6c44",
+    "Lexend-Bold": "231fd4c77e990af738beb90c090e7bb92a960b24e64efebf419761aa516b0fcf"
+  },
+  "states": {
+    "unanswered": {
+      "answers": {},
+      "flags": {},
+      "index": 0,
+      "nativeMarkers": [
+        {
+          "text": "0/3 Sudah diisi"
+        },
+        {
+          "id": "student-fixture-id-light"
+        }
+      ]
+    },
+    "answered": {
+      "answers": {
+        "even-number": 1
+      },
+      "flags": {},
+      "index": 0,
+      "nativeMarkers": [
+        {
+          "text": "1/3 Sudah diisi"
+        },
+        {
+          "id": "student-fixture-id-light"
+        }
+      ]
+    },
+    "flagged-restored": {
+      "answers": {
+        "even-number": 1
+      },
+      "flags": {
+        "even-number": true
+      },
+      "index": 0,
+      "nativeMarkers": [
+        {
+          "text": "1/3 Sudah diisi"
+        },
+        {
+          "id": "student-assessment-option-1",
+          "text": "radio button, checked"
+        },
+        {
+          "text": "Hapus tanda ragu-ragu"
+        },
+        {
+          "id": "student-fixture-id-light"
+        }
+      ]
+    }
+  },
+  "captures": {
+    "quiz-player-unanswered.png": "cb809ffc7531e07b0121981e1aeb4a5f9f4bc67bf424ede3ee5dc1a153784270",
+    "quiz-player-answered.png": "6272c6f83d835aa9183b700c04f5bf6d355b3a7a0b023e9e5bb91f104bb23735",
+    "quiz-player-flagged-restored.png": "b8ffd24ada517fd4a36987b4097d110281e8e471e13aaea739136fa66a27a7f7"
+  }
+}

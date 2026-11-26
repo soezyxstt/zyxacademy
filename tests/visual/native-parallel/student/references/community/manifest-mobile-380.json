@@ -1,0 +1,541 @@
+{
+  "serverSha": "7d93b3a5984814ee382ccd36d9ceff8cb34abbcd",
+  "project": "mobile-380",
+  "locale": "id-ID",
+  "timeZone": "Asia/Jakarta",
+  "entries": [
+    {
+      "id": "leaderboard-participation",
+      "scenario": "community-enrolled",
+      "path": "/leaderboard",
+      "expected": [
+        "Akademik",
+        "Alya Komunitas"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-leaderboard-participation.png"
+    },
+    {
+      "id": "leaderboard-academic-alias",
+      "scenario": "community-enrolled",
+      "path": "/leaderboard/academic?course=community-reference-matematika&custom=first&custom=second",
+      "expected": [
+        "Matematika komunitas",
+        "Alya Komunitas",
+        "93%"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-leaderboard-academic-alias.png"
+    },
+    {
+      "id": "course-leaderboard-revoked",
+      "scenario": "revoked",
+      "path": "/courses/matematika-1/leaderboard",
+      "expected": [
+        "Kelas memerlukan token"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-course-leaderboard-revoked.png"
+    },
+    {
+      "id": "course-leaderboard",
+      "scenario": "community-enrolled",
+      "path": "/courses/community-reference-matematika/leaderboard",
+      "expected": [
+        "Peringkat Anda",
+        "Alya Komunitas",
+        "93%"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": true,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-course-leaderboard.png"
+    },
+    {
+      "id": "course-discussions",
+      "scenario": "community-enrolled",
+      "path": "/courses/community-reference-matematika/discussions",
+      "expected": [
+        "Strategi menentukan limit kiri dan kanan"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "terminal": "/courses/community-reference-matematika/discussions",
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": false,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-course-discussions.png"
+    },
+    {
+      "id": "dashboard-discussions",
+      "scenario": "community-enrolled",
+      "path": "/dashboard/discussions",
+      "expected": [
+        "Strategi menentukan limit kiri dan kanan"
+      ],
+      "status": "failed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "terminal": "/dashboard/discussions",
+      "error": "Error: expect(received).toEqual(expected) // deep equality\n\n- Expected  -  1\n+ Received  + 77\n\n- Array []\n+ Array [\n+   \"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n+\n+ - A server/client branch `if (typeof window !== 'undefined')`.\n+ - Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n+ - Date formatting in a user's locale which doesn't match the server.\n+ - External changing data without sending a snapshot of it al"
+    },
+    {
+      "id": "discussions-alias",
+      "scenario": "community-enrolled",
+      "path": "/discussions?thread=community-reference-thread",
+      "expected": [
+        "Strategi menentukan limit kiri dan kanan",
+        "Bagaimana membandingkan limit kiri dan kanan pada fungsi potongan?"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": false,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-discussions-alias.png"
+    },
+    {
+      "id": "achievements",
+      "scenario": "community-enrolled",
+      "path": "/achievements",
+      "expected": [
+        "Ringkasan",
+        "Kades"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": false,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-achievements.png"
+    },
+    {
+      "id": "achievement-badges",
+      "scenario": "community-enrolled",
+      "path": "/achievements?tab=badges",
+      "expected": [
+        "Lencana"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": false,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-achievement-badges.png"
+    },
+    {
+      "id": "achievement-missions-empty",
+      "scenario": "community-enrolled",
+      "path": "/achievements?tab=missions",
+      "expected": [
+        "Misi"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": false,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-achievement-missions-empty.png"
+    },
+    {
+      "id": "calendar",
+      "scenario": "community-enrolled",
+      "path": "/calendar",
+      "expected": [
+        "Latihan limit komunitas",
+        "Tutorial: Klinik integral"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "terminal": "/calendar",
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": false,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-calendar.png"
+    },
+    {
+      "id": "calendar-empty",
+      "scenario": "community-peer",
+      "path": "/calendar",
+      "expected": [
+        "Belum ada agenda terjadwal"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "terminal": "/calendar",
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": false,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-calendar-empty.png"
+    },
+    {
+      "id": "groups",
+      "scenario": "community-enrolled",
+      "path": "/dashboard/groups",
+      "expected": [
+        "Kelompok Integral",
+        "Matematika komunitas"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "terminal": "/dashboard/groups",
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": false,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-groups.png"
+    },
+    {
+      "id": "schedule",
+      "scenario": "community-enrolled",
+      "path": "/dashboard/schedule",
+      "expected": [
+        "Kalender dan jadwal tutorial",
+        "Raisa Komunitas",
+        "Klinik integral"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "terminal": "/dashboard/schedule",
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": false,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-schedule.png"
+    },
+    {
+      "id": "feedback",
+      "scenario": "community-enrolled",
+      "path": "/feedback",
+      "expected": [
+        "Pesan dan saran",
+        "Kirim masukan"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "terminal": "/feedback",
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": false,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-feedback.png"
+    },
+    {
+      "id": "pet",
+      "scenario": "community-enrolled",
+      "path": "/pet",
+      "expected": [
+        "Koleksi pet",
+        "Zyra"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "terminal": "/pet",
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": false,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-pet.png"
+    },
+    {
+      "id": "profile",
+      "scenario": "community-enrolled",
+      "path": "/profile",
+      "expected": [
+        "Alya Komunitas"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "terminal": "/profile",
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": false,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-profile.png"
+    },
+    {
+      "id": "profile-edit",
+      "scenario": "community-enrolled",
+      "path": "/profile/edit",
+      "expected": [
+        "Edit profil",
+        "Tahun masuk ITB (angkatan)"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "terminal": "/profile/edit",
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": false,
+      "consoleErrors": [
+        "Encountered a script tag while rendering React component. Scripts inside React components are never executed when rendering on the client. Consider using templa"
+      ],
+      "screenshot": "mobile-380-profile-edit.png"
+    },
+    {
+      "id": "reflections",
+      "scenario": "community-enrolled",
+      "path": "/profile/reflections",
+      "expected": [
+        "2 kuis",
+        "21 flashcard"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "terminal": "/profile/reflections",
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": false,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-reflections.png"
+    },
+    {
+      "id": "settings",
+      "scenario": "community-enrolled",
+      "path": "/settings",
+      "expected": [
+        "Preferensi",
+        "Bahasa Indonesia",
+        "English"
+      ],
+      "status": "failed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "terminal": "/settings",
+      "error": "Error: expect(received).toEqual(expected) // deep equality\n\n- Expected  -  1\n+ Received  + 51\n\n- Array []\n+ Array [\n+   \"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n+\n+ - A server/client branch `if (typeof window !== 'undefined')`.\n+ - Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n+ - Date formatting in a user's locale which doesn't match the server.\n+ - External changing data without sending a snapshot of it al"
+    },
+    {
+      "id": "notification-preferences",
+      "scenario": "community-enrolled",
+      "path": "/settings/notifications",
+      "expected": [
+        "Aktivitas belajar",
+        "Jam tenang"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "terminal": "/settings/notifications",
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": false,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-notification-preferences.png"
+    },
+    {
+      "id": "notification-browser",
+      "scenario": "community-enrolled",
+      "path": "/settings/notifications/browser",
+      "expected": [
+        "Hentikan notifikasi browser",
+        "Hentikan notifikasi browser"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "terminal": "/settings/notifications/browser",
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": false,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-notification-browser.png"
+    },
+    {
+      "id": "public-student-profile",
+      "scenario": "community-enrolled",
+      "path": "/students/bima-komunitas-fixture",
+      "expected": [
+        "Bima Komunitas",
+        "FMIPA",
+        "Follow"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "terminal": "/students/bima-komunitas-fixture",
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": false,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-public-student-profile.png"
+    },
+    {
+      "id": "dashboard-discussions-via-profile",
+      "scenario": "community-enrolled",
+      "path": "/dashboard/discussions",
+      "expected": [
+        "Strategi menentukan limit kiri dan kanan"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "entryPath": "/profile",
+      "entryErrors": [],
+      "terminal": "/dashboard/discussions",
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": false,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-dashboard-discussions-via-profile.png"
+    },
+    {
+      "id": "settings-via-profile",
+      "scenario": "community-enrolled",
+      "path": "/settings",
+      "expected": [
+        "Preferensi",
+        "Bahasa Indonesia",
+        "English"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "entryPath": "/profile",
+      "entryErrors": [],
+      "terminal": "/settings",
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": false,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-settings-via-profile.png"
+    }
+  ]
+}

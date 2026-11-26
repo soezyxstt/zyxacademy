@@ -1,0 +1,17 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+  <testsuite name="Test Suite" device="test" tests="8" failures="2" time="25.415" timestamp="2026-11-26T14:34:55">
+    <testcase id="smoke-009" name="smoke-009" classname="smoke-009" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/courses/smoke-009.yaml" time="4.549" timestamp="2026-11-26T14:34:55" status="SUCCESS"/>
+    <testcase id="smoke-012" name="smoke-012" classname="smoke-012" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/courses/smoke-012.yaml" time="0.074" timestamp="2026-11-26T14:34:59" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="smoke-013" name="smoke-013" classname="smoke-013" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/courses/smoke-013.yaml" time="0.019" timestamp="2026-11-26T14:34:59" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="smoke-014" name="smoke-014" classname="smoke-014" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/courses/smoke-014.yaml" time="5.256" timestamp="2026-11-26T14:34:59" status="SUCCESS"/>
+    <testcase id="smoke-015" name="smoke-015" classname="smoke-015" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/courses/smoke-015.yaml" time="5.082" timestamp="2026-11-26T14:35:05" status="SUCCESS"/>
+    <testcase id="smoke-016" name="smoke-016" classname="smoke-016" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/courses/smoke-016.yaml" time="4.976" timestamp="2026-11-26T14:35:10" status="SUCCESS"/>
+    <testcase id="smoke-018" name="smoke-018" classname="smoke-018" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/courses/smoke-018.yaml" time="2.744" timestamp="2026-11-26T14:35:15" status="SUCCESS"/>
+    <testcase id="smoke-019" name="smoke-019" classname="smoke-019" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/courses/smoke-019.yaml" time="2.681" timestamp="2026-11-26T14:35:17" status="SUCCESS"/>
+  </testsuite>
+</testsuites>

@@ -581,6 +581,7 @@
   },
   "catalog": {
     "pageTitle": "Katalog mata kuliah",
+    "clearSearch": "Hapus pencarian",
     "contactAdmin": "Hubungi admin",
     "viewPlans": "Lihat paket",
     "emptyTitle": "Belum ada mata kuliah yang tersedia",

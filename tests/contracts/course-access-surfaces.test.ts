@@ -29,8 +29,10 @@ describe("student course access surface contract", () => {
     expect(utils).toContain('eq(diktats.status, "ready")');
     expect(utils).toContain("/api/courses/${encodeURIComponent(courseId)}/diktats/${encodeURIComponent(d.id)}/pdf");
     expect(utils).not.toContain("storage.getUrl(d.fileUrl)");
-    expect(list).toContain('eq(diktats.status, "ready")');
-    expect(list).toContain("/api/courses/${encodeURIComponent(id)}/diktats/${encodeURIComponent(d.id)}/pdf");
+    const listReadModel = source("lib/student/course-material-list.ts");
+    expect(list).toContain('import { loadCourseMaterialData } from "@/lib/student/course-material-list"');
+    expect(listReadModel).toContain('eq(diktats.status, "ready")');
+    expect(listReadModel).toContain("/api/courses/${encodeURIComponent(id)}/diktats/${encodeURIComponent(d.id)}/pdf");
     expect(detail).toContain('eq(diktats.status, "ready")');
     expect(route).toContain('eq(diktats.status, "ready")');
     expect(route).toContain('eq(diktats.courseId, compatibilityCourseId)');

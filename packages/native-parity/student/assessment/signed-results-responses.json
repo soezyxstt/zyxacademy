@@ -1,0 +1,408 @@
+{
+  "/api/native/student/assessment/assessment-evidence-mathematics/my-results/assessment-evidence-quiz-finished": {
+    "kind": "review",
+    "courseTitle": "Kalkulus dasar",
+    "review": {
+      "result": {
+        "id": "assessment-evidence-quiz-finished",
+        "assessmentId": "assessment-evidence-limit-quiz",
+        "assessmentTitle": "Latihan limit fungsi",
+        "kind": "quiz",
+        "status": "completed",
+        "score": 85,
+        "submittedAt": "2026-11-26T02:00:00.000Z",
+        "durationSeconds": 78
+      },
+      "discussionAvailable": true,
+      "items": [
+        {
+          "id": "assessment-evidence-limit-quiz-1",
+          "type": "multiple_choice",
+          "prompt": "Pilih nilai limit dari $2x + 1$ saat $x$ mendekati $2$.",
+          "options": [
+            "Tiga",
+            "Empat",
+            "Lima",
+            "Enam"
+          ],
+          "acceptsImage": false,
+          "acceptsFile": false,
+          "selected": "C. Lima",
+          "expected": "C. Lima",
+          "correct": true,
+          "explanation": "Substitusikan $x=2$ karena fungsi linear kontinu."
+        },
+        {
+          "id": "assessment-evidence-limit-quiz-2",
+          "type": "essay",
+          "prompt": "Jelaskan cara menentukan nilai limit tersebut.",
+          "options": [],
+          "acceptsImage": false,
+          "acceptsFile": false,
+          "selected": "Substitusi pada fungsi linear.",
+          "expected": null,
+          "correct": null,
+          "explanation": "Gunakan sifat kekontinuan untuk mengevaluasi nilai limit."
+        }
+      ],
+      "additionalItems": []
+    }
+  },
+  "/api/native/student/assessment/assessment-evidence-mathematics/my-results/assessment-evidence-tryout-submitted": {
+    "kind": "review",
+    "courseTitle": "Kalkulus dasar",
+    "review": {
+      "result": {
+        "id": "assessment-evidence-tryout-submitted",
+        "assessmentId": "assessment-evidence-tryout",
+        "assessmentTitle": "Tryout turunan dan penerapannya untuk sains dan rekayasa",
+        "kind": "tryout",
+        "status": "pending_review",
+        "score": null,
+        "submittedAt": "2026-11-26T02:00:00.000Z"
+      },
+      "discussionAvailable": true,
+      "items": [
+        {
+          "id": "assessment-evidence-tryout-1",
+          "type": "multiple_choice",
+          "prompt": "Pilih bilangan genap.",
+          "options": [
+            "Satu",
+            "Dua",
+            "Tiga"
+          ],
+          "acceptsImage": false,
+          "acceptsFile": false,
+          "selected": "B. Dua",
+          "expected": "B. Dua",
+          "correct": true,
+          "explanation": "Dua habis dibagi dua."
+        },
+        {
+          "id": "assessment-evidence-tryout-2",
+          "type": "essay",
+          "prompt": "Jelaskan alasan jawaban Anda.",
+          "options": [],
+          "acceptsImage": false,
+          "acceptsFile": false,
+          "selected": "Dua habis dibagi dua.",
+          "expected": null,
+          "correct": null,
+          "explanation": ""
+        }
+      ]
+    }
+  },
+  "/api/native/student/assessment/assessment-evidence-mathematics/my-results/assessment-evidence-tryout-graded": {
+    "kind": "review",
+    "courseTitle": "Kalkulus dasar",
+    "review": {
+      "result": {
+        "id": "assessment-evidence-tryout-graded",
+        "assessmentId": "assessment-evidence-tryout",
+        "assessmentTitle": "Tryout turunan dan penerapannya untuk sains dan rekayasa",
+        "kind": "tryout",
+        "status": "graded",
+        "score": 95,
+        "submittedAt": "2026-11-26T02:00:00.000Z"
+      },
+      "discussionAvailable": true,
+      "items": [
+        {
+          "id": "assessment-evidence-tryout-1",
+          "type": "multiple_choice",
+          "prompt": "Pilih bilangan genap.",
+          "options": [
+            "Satu",
+            "Dua",
+            "Tiga"
+          ],
+          "acceptsImage": false,
+          "acceptsFile": false,
+          "selected": "B. Dua",
+          "expected": "B. Dua",
+          "correct": true,
+          "explanation": "Dua habis dibagi dua."
+        },
+        {
+          "id": "assessment-evidence-tryout-2",
+          "type": "essay",
+          "prompt": "Jelaskan alasan jawaban Anda.",
+          "options": [],
+          "acceptsImage": false,
+          "acceptsFile": false,
+          "selected": "Dua habis dibagi dua.",
+          "expected": null,
+          "correct": null,
+          "explanation": ""
+        }
+      ],
+      "teacherNotes": "Uraikan alasan pilihan jawaban sebelum menulis kesimpulan."
+    }
+  },
+  "/api/native/student/assessment/assessment-evidence-mathematics/my-results/assessment-evidence-quiz-discussion-held": {
+    "kind": "review",
+    "courseTitle": "Kalkulus dasar",
+    "review": {
+      "result": {
+        "id": "assessment-evidence-quiz-discussion-held",
+        "assessmentId": "assessment-evidence-limit-quiz-unreleased",
+        "assessmentTitle": "Latihan limit dengan pembahasan tertunda",
+        "kind": "quiz",
+        "status": "completed",
+        "score": 60,
+        "submittedAt": "2026-11-26T02:00:00.000Z",
+        "durationSeconds": 78
+      },
+      "discussionAvailable": false,
+      "items": []
+    }
+  },
+  "/api/native/student/assessment/assessment-evidence-mathematics/my-results/assessment-evidence-quiz-finished/summary": {
+    "kind": "summary",
+    "courseTitle": "Kalkulus dasar",
+    "result": {
+      "id": "assessment-evidence-quiz-finished",
+      "assessmentId": "assessment-evidence-limit-quiz",
+      "assessmentTitle": "Latihan limit fungsi",
+      "kind": "quiz",
+      "status": "completed",
+      "score": 85,
+      "submittedAt": "2026-11-26T02:00:00.000Z",
+      "durationSeconds": 78
+    },
+    "discussionAvailable": true,
+    "analytics": {
+      "status": "completed",
+      "attemptId": "assessment-evidence-quiz-finished",
+      "computedMetrics": {
+        "quizTitle": "Latihan limit fungsi",
+        "courseId": "assessment-evidence-mathematics",
+        "templateId": "assessment-evidence-limit-quiz",
+        "attemptId": "assessment-evidence-quiz-finished",
+        "score": 85,
+        "correctCount": 1,
+        "incorrectCount": 1,
+        "unansweredCount": 0,
+        "totalQuestions": 2,
+        "durationSeconds": 78,
+        "conceptMastery": [
+          {
+            "concept": "Limit fungsi",
+            "totalQuestions": 2,
+            "correctCount": 1,
+            "accuracyPercent": 50,
+            "incorrectCount": 1,
+            "status": "developing"
+          }
+        ],
+        "cognitiveSkills": [],
+        "difficultyBreakdown": [],
+        "timeAnalysis": {
+          "totalDurationSeconds": 78,
+          "avgTimePerQuestionSeconds": 39,
+          "fastAnswerCount": 0,
+          "fastIncorrectCount": 0,
+          "slowAnswerCount": 0
+        },
+        "historicalComparison": {
+          "totalAttemptsAnalyzed": 1,
+          "scoreTrend": [
+            85
+          ],
+          "overallImprovementDelta": 0,
+          "consistentlyWeakConcepts": [],
+          "improvedConcepts": []
+        }
+      },
+      "aiDiagnosis": null,
+      "errorMessage": null
+    }
+  },
+  "/api/native/student/assessment/assessment-evidence-mathematics/my-results/assessment-evidence-quiz-grading-pending/summary": {
+    "kind": "summary",
+    "courseTitle": "Kalkulus dasar",
+    "result": {
+      "id": "assessment-evidence-quiz-grading-pending",
+      "assessmentId": "assessment-evidence-limit-quiz",
+      "assessmentTitle": "Latihan limit fungsi",
+      "kind": "quiz",
+      "status": "pending_review",
+      "score": null,
+      "submittedAt": "2026-11-26T02:00:00.000Z",
+      "durationSeconds": 78
+    },
+    "discussionAvailable": true,
+    "analytics": {
+      "status": "not_available",
+      "aiDiagnosis": null,
+      "computedMetrics": null
+    }
+  },
+  "/api/native/student/assessment/assessment-evidence-mathematics/my-results/assessment-evidence-quiz-diagnosis-unavailable/summary": {
+    "kind": "summary",
+    "courseTitle": "Kalkulus dasar",
+    "result": {
+      "id": "assessment-evidence-quiz-diagnosis-unavailable",
+      "assessmentId": "assessment-evidence-limit-quiz",
+      "assessmentTitle": "Latihan limit fungsi",
+      "kind": "quiz",
+      "status": "completed",
+      "score": 70,
+      "submittedAt": "2026-11-26T02:00:00.000Z",
+      "durationSeconds": 78
+    },
+    "discussionAvailable": true,
+    "analytics": {
+      "status": "failed",
+      "attemptId": "assessment-evidence-quiz-diagnosis-unavailable",
+      "computedMetrics": null,
+      "aiDiagnosis": null,
+      "errorMessage": null
+    }
+  },
+  "/api/native/student/assessment/assessment-evidence-mathematics/quiz/assessment-evidence-limit-quiz/summary/assessment-evidence-quiz-finished": {
+    "kind": "summary",
+    "courseTitle": "Kalkulus dasar",
+    "result": {
+      "id": "assessment-evidence-quiz-finished",
+      "assessmentId": "assessment-evidence-limit-quiz",
+      "assessmentTitle": "Latihan limit fungsi",
+      "kind": "quiz",
+      "status": "completed",
+      "score": 85,
+      "submittedAt": "2026-11-26T02:00:00.000Z",
+      "durationSeconds": 78
+    },
+    "discussionAvailable": true,
+    "analytics": {
+      "status": "completed",
+      "attemptId": "assessment-evidence-quiz-finished",
+      "computedMetrics": {
+        "quizTitle": "Latihan limit fungsi",
+        "courseId": "assessment-evidence-mathematics",
+        "templateId": "assessment-evidence-limit-quiz",
+        "attemptId": "assessment-evidence-quiz-finished",
+        "score": 85,
+        "correctCount": 1,
+        "incorrectCount": 1,
+        "unansweredCount": 0,
+        "totalQuestions": 2,
+        "durationSeconds": 78,
+        "conceptMastery": [
+          {
+            "concept": "Limit fungsi",
+            "totalQuestions": 2,
+            "correctCount": 1,
+            "accuracyPercent": 50,
+            "incorrectCount": 1,
+            "status": "developing"
+          }
+        ],
+        "cognitiveSkills": [],
+        "difficultyBreakdown": [],
+        "timeAnalysis": {
+          "totalDurationSeconds": 78,
+          "avgTimePerQuestionSeconds": 39,
+          "fastAnswerCount": 0,
+          "fastIncorrectCount": 0,
+          "slowAnswerCount": 0
+        },
+        "historicalComparison": {
+          "totalAttemptsAnalyzed": 1,
+          "scoreTrend": [
+            85
+          ],
+          "overallImprovementDelta": 0,
+          "consistentlyWeakConcepts": [],
+          "improvedConcepts": []
+        }
+      },
+      "aiDiagnosis": null,
+      "errorMessage": null
+    }
+  },
+  "/api/native/student/assessment/assessment-evidence-mathematics/quiz/assessment-evidence-limit-quiz/summary/assessment-evidence-quiz-grading-pending": {
+    "kind": "summary",
+    "courseTitle": "Kalkulus dasar",
+    "result": {
+      "id": "assessment-evidence-quiz-grading-pending",
+      "assessmentId": "assessment-evidence-limit-quiz",
+      "assessmentTitle": "Latihan limit fungsi",
+      "kind": "quiz",
+      "status": "pending_review",
+      "score": null,
+      "submittedAt": "2026-11-26T02:00:00.000Z",
+      "durationSeconds": 78
+    },
+    "discussionAvailable": true,
+    "analytics": {
+      "status": "not_available",
+      "aiDiagnosis": null,
+      "computedMetrics": null
+    }
+  },
+  "/api/native/student/assessment/assessment-evidence-mathematics/quiz/assessment-evidence-limit-quiz/summary/assessment-evidence-quiz-diagnosis-unavailable": {
+    "kind": "summary",
+    "courseTitle": "Kalkulus dasar",
+    "result": {
+      "id": "assessment-evidence-quiz-diagnosis-unavailable",
+      "assessmentId": "assessment-evidence-limit-quiz",
+      "assessmentTitle": "Latihan limit fungsi",
+      "kind": "quiz",
+      "status": "completed",
+      "score": 70,
+      "submittedAt": "2026-11-26T02:00:00.000Z",
+      "durationSeconds": 78
+    },
+    "discussionAvailable": true,
+    "analytics": {
+      "status": "failed",
+      "attemptId": "assessment-evidence-quiz-diagnosis-unavailable",
+      "computedMetrics": null,
+      "aiDiagnosis": null,
+      "errorMessage": null
+    }
+  },
+  "/api/native/student/assessment/assessment-evidence-mathematics/my-results/assessment-evidence-quiz-discussion-held/summary": {
+    "kind": "summary",
+    "courseTitle": "Kalkulus dasar",
+    "result": {
+      "id": "assessment-evidence-quiz-discussion-held",
+      "assessmentId": "assessment-evidence-limit-quiz-unreleased",
+      "assessmentTitle": "Latihan limit dengan pembahasan tertunda",
+      "kind": "quiz",
+      "status": "completed",
+      "score": 60,
+      "submittedAt": "2026-11-26T02:00:00.000Z",
+      "durationSeconds": 78
+    },
+    "discussionAvailable": false,
+    "analytics": {
+      "status": "not_available",
+      "aiDiagnosis": null,
+      "computedMetrics": null
+    }
+  },
+  "/api/native/student/assessment/assessment-evidence-mathematics/quiz/assessment-evidence-limit-quiz-unreleased/summary/assessment-evidence-quiz-discussion-held": {
+    "kind": "summary",
+    "courseTitle": "Kalkulus dasar",
+    "result": {
+      "id": "assessment-evidence-quiz-discussion-held",
+      "assessmentId": "assessment-evidence-limit-quiz-unreleased",
+      "assessmentTitle": "Latihan limit dengan pembahasan tertunda",
+      "kind": "quiz",
+      "status": "completed",
+      "score": 60,
+      "submittedAt": "2026-11-26T02:00:00.000Z",
+      "durationSeconds": 78
+    },
+    "discussionAvailable": false,
+    "analytics": {
+      "status": "not_available",
+      "aiDiagnosis": null,
+      "computedMetrics": null
+    }
+  }
+}

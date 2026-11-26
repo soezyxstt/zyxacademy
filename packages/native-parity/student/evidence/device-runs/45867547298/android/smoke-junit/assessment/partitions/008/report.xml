@@ -1,0 +1,15 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+  <testsuite name="Test Suite" device="test" tests="8" failures="1" time="26.337" timestamp="2026-11-26T18:09:42">
+    <testcase id="smoke-185" name="smoke-185" classname="smoke-185" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/assessment/smoke-185.yaml" time="1.056" timestamp="2026-11-26T18:09:42" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="smoke-186" name="smoke-186" classname="smoke-186" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/assessment/smoke-186.yaml" time="3.508" timestamp="2026-11-26T18:09:43" status="SUCCESS"/>
+    <testcase id="smoke-187" name="smoke-187" classname="smoke-187" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/assessment/smoke-187.yaml" time="5.233" timestamp="2026-11-26T18:09:46" status="SUCCESS"/>
+    <testcase id="smoke-188" name="smoke-188" classname="smoke-188" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/assessment/smoke-188.yaml" time="5.78" timestamp="2026-11-26T18:09:52" status="SUCCESS"/>
+    <testcase id="smoke-189" name="smoke-189" classname="smoke-189" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/assessment/smoke-189.yaml" time="2.604" timestamp="2026-11-26T18:09:57" status="SUCCESS"/>
+    <testcase id="smoke-190" name="smoke-190" classname="smoke-190" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/assessment/smoke-190.yaml" time="2.698" timestamp="2026-11-26T18:10:00" status="SUCCESS"/>
+    <testcase id="smoke-191" name="smoke-191" classname="smoke-191" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/assessment/smoke-191.yaml" time="2.58" timestamp="2026-11-26T18:10:03" status="SUCCESS"/>
+    <testcase id="smoke-192" name="smoke-192" classname="smoke-192" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/assessment/smoke-192.yaml" time="2.849" timestamp="2026-11-26T18:10:05" status="SUCCESS"/>
+  </testsuite>
+</testsuites>

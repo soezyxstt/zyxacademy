@@ -1,0 +1,42 @@
+appId: com.zyx.academy.nativeparity
+name: Student concept definition and enrollment gate
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: separator
+    timeout: 30000
+- openLink: "zyx-native-parity://student-fixture?scenario=enrolled&theme=light&locale=id&path=%2Fcourses%2Fmatematika-1%2Fconcept%2Flimit"
+- extendedWaitUntil:
+    visible: Definisi
+    timeout: 30000
+- assertVisible: '.*Skor penguasaan 56/100.*'
+- assertVisible: '.*Fungsi real.*'
+- assertVisible: '.*Limit menjelaskan nilai yang didekati fungsi.*'
+- assertVisible:
+    id: student-fixture-id-light
+- takeScreenshot: student-concept-populated
+
+- openLink: "zyx-native-parity://student-fixture?scenario=long&theme=light&locale=id&path=%2Fcourses%2Fmatematika-1%2Fconcept%2Flimit"
+- extendedWaitUntil:
+    visible: '.*pembuktian hubungan antara pembilang dan penyebut.*'
+    timeout: 30000
+- assertVisible: '.*pembuktian hubungan antara pembilang dan penyebut.*'
+- assertVisible: Definisi
+- assertVisible: '.*Limit menjelaskan nilai yang didekati fungsi.*'
+- assertVisible:
+    id: student-fixture-id-light
+- takeScreenshot: student-concept-long
+
+- openLink: "zyx-native-parity://student-fixture?scenario=unenrolled&theme=light&locale=id&path=%2Fcourses%2Fmatematika-1%2Fconcept%2Flimit"
+- extendedWaitUntil:
+    visible: Akses terbatas
+    timeout: 30000
+- assertVisible: Kelas memerlukan token
+- assertVisible: 'Aktifkan kelas untuk menjelajahi konsep\.'
+- assertVisible: Aktifkan kelas
+- assertNotVisible: Definisi
+- assertNotVisible: '.*Skor penguasaan 56/100.*'
+- assertVisible:
+    id: student-fixture-id-light
+- takeScreenshot: student-concept-locked

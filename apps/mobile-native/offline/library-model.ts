@@ -12,6 +12,21 @@ export type OfflineLibraryRow = {
   savedUntil: number | null;
 };
 
+export type OfflineLibraryTarget = { courseId: string; materialId?: string };
+
+export function offlineLibraryTarget(courseId: unknown, materialId: unknown): OfflineLibraryTarget | null {
+  const validId = (value: unknown): value is string => typeof value === "string"
+    && value.length > 0 && value.length <= 256 && !/[/?#\\\u0000-\u001f]/u.test(value);
+  if (!validId(courseId) || (materialId !== undefined && !validId(materialId))) return null;
+  return { courseId, materialId: validId(materialId) ? materialId : undefined };
+}
+
+export function focusOfflineLibrary(rows: OfflineLibraryRow[], target: OfflineLibraryTarget | null) {
+  if (!target) return rows;
+  return rows.filter(row => row.target.courseId === target.courseId
+    && (target.materialId === undefined || row.target.id === target.materialId));
+}
+
 export type OfflineLibraryData = {
   metadata: NativeOfflineMetadataSnapshot | null;
   saved: readonly OfflineReadingSummary[];
@@ -75,7 +90,7 @@ export const offlineLibraryCopy = {
     revalidationFailed: "Ada unduhan yang belum dapat diperbarui.",
     retryOperation: "Tindakan belum berhasil. Coba lagi.", tooLarge: "Bacaan ini melampaui batas ukuran unduhan.",
     unsupportedReading: "Bacaan ini belum dapat diunduh.", changed: "Bacaan berubah. Perbarui daftar lalu coba lagi.",
-    back: "Kembali",
+    back: "Kembali", allReadings: "Semua bacaan",
   },
   en: {
     loading: "Loading readings…", retry: "Try again", failure: "Could not load the reading list.",
@@ -91,7 +106,7 @@ export const offlineLibraryCopy = {
     revalidationFailed: "Some downloads could not be updated.",
     retryOperation: "Something went wrong. Try again.", tooLarge: "This reading exceeds the download size limit.",
     unsupportedReading: "This reading cannot be downloaded yet.", changed: "The reading has changed. Refresh the list and try again.",
-    back: "Back",
+    back: "Back", allReadings: "All readings",
   },
 } as const;
 

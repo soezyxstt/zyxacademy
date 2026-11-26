@@ -1,0 +1,13 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+  <testsuite name="Test Suite" device="test" tests="8" failures="0" time="39.536" timestamp="2026-11-26T14:39:05">
+    <testcase id="smoke-193" name="smoke-193" classname="smoke-193" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/assessment/smoke-193.yaml" time="4.625" timestamp="2026-11-26T14:39:05" status="SUCCESS"/>
+    <testcase id="smoke-194" name="smoke-194" classname="smoke-194" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/assessment/smoke-194.yaml" time="3.616" timestamp="2026-11-26T14:39:10" status="SUCCESS"/>
+    <testcase id="smoke-195" name="smoke-195" classname="smoke-195" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/assessment/smoke-195.yaml" time="5.478" timestamp="2026-11-26T14:39:13" status="SUCCESS"/>
+    <testcase id="smoke-196" name="smoke-196" classname="smoke-196" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/assessment/smoke-196.yaml" time="4.942" timestamp="2026-11-26T14:39:19" status="SUCCESS"/>
+    <testcase id="smoke-197" name="smoke-197" classname="smoke-197" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/assessment/smoke-197.yaml" time="5.578" timestamp="2026-11-26T14:39:24" status="SUCCESS"/>
+    <testcase id="smoke-198" name="smoke-198" classname="smoke-198" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/assessment/smoke-198.yaml" time="4.779" timestamp="2026-11-26T14:39:29" status="SUCCESS"/>
+    <testcase id="smoke-199" name="smoke-199" classname="smoke-199" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/assessment/smoke-199.yaml" time="5.396" timestamp="2026-11-26T14:39:34" status="SUCCESS"/>
+    <testcase id="smoke-200" name="smoke-200" classname="smoke-200" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/assessment/smoke-200.yaml" time="5.092" timestamp="2026-11-26T14:39:39" status="SUCCESS"/>
+  </testsuite>
+</testsuites>

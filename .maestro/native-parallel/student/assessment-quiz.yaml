@@ -1,0 +1,66 @@
+appId: com.zyx.academy.nativeparity
+name: Student quiz saves and restores its draft
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: separator
+    timeout: 30000
+- openLink: "zyx-native-parity://student-fixture?scenario=populated&path=%2Fcourses%2Fnative-assessment-course%2Fquiz"
+- extendedWaitUntil:
+    visible:
+      id: student-assessment-native-quiz
+    timeout: 30000
+- tapOn:
+    id: student-assessment-native-quiz
+- assertNotVisible:
+    id: student-assessment-option-1
+- tapOn:
+    id: student-assessment-start
+- extendedWaitUntil:
+    visible:
+      id: student-assessment-option-1
+    timeout: 30000
+- assertVisible:
+    id: student-assessment-option-1
+    text: 'B\. 2'
+    enabled: true
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertVisible:
+          id: student-assessment-option-1
+          checked: false
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - assertVisible:
+          id: student-assessment-option-1
+          text: radio button, unchecked
+- tapOn:
+    id: student-assessment-option-1
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertVisible:
+          id: student-assessment-option-1
+          checked: true
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - assertVisible:
+          id: student-assessment-option-1
+          text: radio button, checked
+- assertVisible: "1/3 Sudah diisi"
+- tapOn:
+    id: student.back
+- tapOn:
+    id: student-assessment-native-quiz
+- tapOn:
+    id: student-assessment-resume
+- assertVisible: "1/3 Sudah diisi"
+- takeScreenshot: student-assessment-quiz-player

@@ -25,10 +25,6 @@ on:
       - '.github/workflows/native-authenticated-preview.yml'
   workflow_dispatch:
     inputs:
-      include_pending_student:
-        description: Include the current head of Student PR 515 in the preview
-        type: boolean
-        default: true
       include_ios:
         description: Also run the guest product entry on an iOS simulator
         type: boolean
@@ -41,15 +37,19 @@ jobs:
   authenticated-session:
     if: github.head_ref == 'soezyxst/react-native-monorepo' || (github.event_name == 'workflow_dispatch' && github.ref_name == 'soezyxst/react-native-monorepo')
     needs: combined-native
+    strategy:
+      fail-fast: false
+      matrix:
+        group: ${{ fromJSON(github.event_name == 'workflow_dispatch' && '["student","staff"]' || '["student"]') }}
     uses: ./.github/workflows/native-authenticated-preview.yml
     with:
-      android: ${{ github.event_name == 'workflow_dispatch' && inputs.include_pending_student }}
-      staff: ${{ github.event_name == 'workflow_dispatch' && !inputs.include_pending_student }}
+      android: ${{ github.event_name == 'workflow_dispatch' && matrix.group == 'student' }}
+      staff: ${{ github.event_name == 'workflow_dispatch' && matrix.group == 'staff' }}
 
   combined-native:
     if: github.head_ref == 'soezyxst/react-native-monorepo' || (github.event_name == 'workflow_dispatch' && github.ref_name == 'soezyxst/react-native-monorepo')
     concurrency:
-      group: native-combined-preview-${{ github.event_name == 'workflow_dispatch' && !inputs.include_pending_student && 'merged' || 'student' }}
+      group: native-combined-preview-committed
       cancel-in-progress: true
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -59,8 +59,6 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
-      - run: bash scripts/native-readiness/preview-lanes.sh
-        if: github.event_name != 'workflow_dispatch' || inputs.include_pending_student
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: '1.3.14'
@@ -68,13 +66,9 @@ jobs:
           python3 scripts/native-readiness/test_merge_reviewed_preview.py
           python3 scripts/native-readiness/test_product_mount.py
           bun test tests/unit/expo-academic-intent.test.ts tests/gamification/question-disclosure-calls.test.ts
-      - name: Mount canonical Expo product routes
-        if: github.event_name != 'workflow_dispatch' || inputs.include_pending_student
-        run: python3 scripts/native-readiness/product/mount.py
-      - name: Verify canonical product routes are committed on the merged parent
-        if: github.event_name == 'workflow_dispatch' && !inputs.include_pending_student
+      - name: Verify all native product routes are committed on the integration branch
         run: |
-          python3 scripts/native-readiness/product/mount.py --without-student
+          python3 scripts/native-readiness/product/mount.py
           test -z "$(git status --porcelain -- apps/mobile-native)"
       - name: Record the mounted product sources for the device jobs
         env:
@@ -122,7 +116,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     concurrency:
-      group: native-combined-backend-${{ github.event_name == 'workflow_dispatch' && !inputs.include_pending_student && 'merged' || 'student' }}
+      group: native-combined-backend-committed
       cancel-in-progress: true
     env:
       DATABASE_URL: postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder
@@ -156,7 +150,7 @@ jobs:
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: bun scripts/test-contracts.ts tests/contracts/offline-server-sync.test.ts
       - name: Student learning and live-session operations
-        if: ${{ !cancelled() && steps.install.outcome == 'success' && (github.event_name != 'workflow_dispatch' || inputs.include_pending_student) }}
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: bun scripts/test-contracts.ts tests/contracts/native-student-learning-postgres.test.ts
       - name: Academic scheduling and tryout operations
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
@@ -187,7 +181,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 65
     concurrency:
-      group: native-combined-entry-${{ matrix.platform }}-${{ github.event_name == 'workflow_dispatch' && !inputs.include_pending_student && 'merged' || 'student' }}
+      group: native-combined-entry-${{ matrix.platform }}-committed
       cancel-in-progress: false
     env:
       EXPO_NO_TELEMETRY: '1'
