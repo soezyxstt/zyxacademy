@@ -1,5 +1,5 @@
 import { createTutorFixtureRepository } from "./fixture-interactions";
-import { matchesCourse, TutorDataError, type TutorCourse, type TutorDashboard, type TutorDataSource, type TutorGroup, type TutorParticipant, type TutorSubmission } from "./model";
+import { matchesCourse, TutorDataError, type TutorAnalytics, type TutorCourse, type TutorDashboard, type TutorDataSource, type TutorGroup, type TutorParticipant, type TutorSubmission } from "./model";
 
 export const tutorFixtureCourses: TutorCourse[] = [
   { courseId: "academic-course-1", legacyCourseId: "biologi-dasar", code: "BIO101", title: "Biologi Dasar", groupCount: 1 },
@@ -124,7 +124,7 @@ export function createTutorFixtureData(
       checkRead(signal);
       return { course, submissions: !empty && course.courseId === tutorFixtureCourses[0].courseId ? submissions : [] };
     },
-    async analytics(courseId, signal) {
+    async analytics(courseId, signal): Promise<TutorAnalytics> {
       const course = getCourse(courseId);
       checkRead(signal);
       const populated = !empty && course.courseId === tutorFixtureCourses[0].courseId;
