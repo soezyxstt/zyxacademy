@@ -21,6 +21,7 @@ const paths = {
   "chevron-right": "m9 18 6-6-6-6",
   "arrow-right": "M5 12h14m-7-7 7 7-7 7",
   "arrow-up-right": "M7 17 17 7M7 7h10v10",
+  sliders: "M3 6h10m4 0h4M13 3v6M3 12h4m4 0h10M7 9v6M3 18h12m4 0h2M15 15v6",
   flame: "M12 22c4.42 0 8-3.58 8-8 0-4-2.5-7-5.5-9 .5 3-1 5-2.5 6C12 7 10 4 7 2c1 4-1 7-2 9-1 2-1 3-1 4a8 8 0 0 0 8 7Z",
   layers: "m12 3 10 5-10 5L2 8zM2 12l10 5 10-5M2 16l10 5 10-5",
   clipboard: "M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3M10 2h4a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1zM8 11h.01M12 11h4M8 16h.01M12 16h4",
@@ -28,6 +29,15 @@ const paths = {
   "circle-check": "M22 12a10 10 0 1 1-20 0 10 10 0 1 1 20 0ZM8 12l3 3 5-6",
   key: "M15 7h.01M21 8a5 5 0 0 1-6.8 4.67L7 20H3v-4l7.3-7.2A5 5 0 1 1 21 8Z",
   check: "m5 12 4 4L19 6",
+  file: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Zm0 0v6h6M8 13h8m-8 4h8",
+  video: "M16 10l4.5-3a1 1 0 0 1 1.5.8v8.4a1 1 0 0 1-1.5.8L16 14M4 6h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z",
+  "list-checks": "m3 6 2 2 4-4m2 3h10M3 15l2 2 4-4m2 3h10",
+  terminal: "m4 17 6-5-6-5m8 12h8",
+  compass: "M22 12a10 10 0 1 1-20 0 10 10 0 1 1 20 0Zm-6-4-2 6-6 2 2-6Z",
+  "trending-up": "m3 17 6-6 4 4 8-8m-6 0h6v6",
+  trophy: "M8 21h8m-4-5v5M7 4h10v6a5 5 0 0 1-10 0V4Zm0 3H3v2a4 4 0 0 0 4 4m10-6h4v2a4 4 0 0 1-4 4",
+  award: "M19 9a7 7 0 1 1-14 0 7 7 0 0 1 14 0ZM8 15l-2 7 6-3 6 3-2-7",
+  radio: "M5 5a10 10 0 0 0 0 14m14 0a10 10 0 0 0 0-14M8 8a6 6 0 0 0 0 8m8 0a6 6 0 0 0 0-8m-2 4a2 2 0 1 1-4 0 2 2 0 0 1 4 0Z",
 } as const;
 
 // LayoutDashboard and LayoutGrid, used in the Admin web navigation.

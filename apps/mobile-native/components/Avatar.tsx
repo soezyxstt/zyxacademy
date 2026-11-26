@@ -9,6 +9,7 @@ export type AvatarImageStatus = "idle" | "loading" | "loaded" | "error";
 type AvatarPictureProps = {
   source?: number | string;
   initials: string;
+  variant?: "default" | "profile";
   theme?: keyof typeof nativeColors;
   onLoadingStatusChange?(status: AvatarImageStatus): void;
 };
@@ -22,7 +23,7 @@ type AvatarProps = AvatarPictureProps & {
   | { decorative: true; accessibilityLabel?: never }
 );
 
-function AvatarPicture({ source, initials, theme, onLoadingStatusChange }: AvatarPictureProps) {
+function AvatarPicture({ source, initials, variant, theme, onLoadingStatusChange }: AvatarPictureProps) {
   const systemTheme = useColorScheme();
   const colors = nativeColors[theme ?? systemTheme ?? "light"];
   const [status, setStatus] = useState<AvatarImageStatus>(source === undefined ? "idle" : "loading");
@@ -34,8 +35,8 @@ function AvatarPicture({ source, initials, theme, onLoadingStatusChange }: Avata
   return (
     <View style={styles.content} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       {status !== "loaded" && (
-        <View style={[styles.fallback, { backgroundColor: colors.muted }]}>
-          <Text style={[styles.initials, { color: colors.foreground }]}>{initials}</Text>
+        <View style={[styles.fallback, { backgroundColor: variant === "profile" ? colors.primary : colors.muted }]}>
+          <Text style={[styles.initials, variant === "profile" && styles.profileInitial, { color: variant === "profile" ? colors.primaryForeground : colors.foreground }]}>{initials}</Text>
         </View>
       )}
       {source !== undefined && status !== "error" && (
@@ -82,6 +83,7 @@ const styles = StyleSheet.create({
   content: { flex: 1 },
   fallback: { flex: 1, alignItems: "center", justifyContent: "center" },
   initials: { ...nativeTypography.bodySemibold, fontSize: 12, lineHeight: 18, includeFontPadding: false },
+  profileInitial: { ...nativeTypography.headingBold, fontSize: 24, lineHeight: 31 },
   image: { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" },
   hiddenImage: { opacity: 0 },
 });

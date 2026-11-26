@@ -1,5 +1,8 @@
 import { useRef, useState, type ComponentRef } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { nativeTypography } from "../../../typography";
+import { NavigationIcon } from "../../shared-ui/navigation-icons";
+import { RankingRowView } from "./ranking-row";
 import { Button } from "../../../components/Button";
 import { NavigationTabs, SharedPopover } from "../../shared-ui";
 import { PKA_COURSE_ID } from "../../../../../lib/pka-config";
@@ -35,7 +38,7 @@ function AcademicBoard() {
 }
 
 function ParticipationBoard() {
-  const { tr, route, session, navigate, replace } = useCommunity();
+  const { tr, route, session, navigate, replace, colors } = useCommunity();
   const period = route.query.period ?? "all";
   const scope = route.query.scope ?? "global";
   const cursor = route.query.cursor;
@@ -52,13 +55,14 @@ function ParticipationBoard() {
       <Copy kind="error">{tr("Filter tidak valid.", "Invalid filter.")}</Copy>
       <Action label={tr("Atur ulang filter", "Reset filters")} onPress={() => replace("/leaderboard")} />
     </> : <Remote state={state}>{data => <>
-      <Copy kind="muted">{tr("Peringkat berdasarkan XP dasar. XP sama mendapat posisi yang sama.", "Ranked by base XP. Equal XP shares a position.")}</Copy>
+      <Text style={[rankingStyles.muted, { color: colors.mutedForeground }]}>{tr("Peringkat berdasarkan XP dasar. XP sama mendapat posisi yang sama.", "Ranked by base XP. Equal XP shares a position.")}</Text>
       {data.ownEntry && <Copy>{tr("Posisi Anda", "Your position")}: {data.ownEntry.position} · {format.format(data.ownEntry.baseXpMicro / 1e6)} XP</Copy>}
       {!data.entries.length && <View style={rankingStyles.empty}>
+        <NavigationIcon name="trophy" size={24} color={colors.mutedForeground} />
         <Copy kind="heading">{tr("Belum ada peringkat", "No rankings yet")}</Copy>
       </View>}
-      <Rows>{data.entries.map(row => <Row key={row.publicId} title={`#${row.position} ${row.displayName}`}
-        meta={row.rankKey} aside={`${format.format(row.baseXpMicro / 1e6)} XP`} onPress={() => navigate(identityPath(row.publicId))} />)}</Rows>
+      <View>{data.entries.map((row, index) => <RankingRowView key={row.publicId} first={index === 0}
+        name={row.displayName} identity={row} position={format.format(row.position)} metric={`${format.format(row.baseXpMicro / 1e6)} XP`} />)}</View>
       <Actions>
         {cursor && <Action label={tr("Halaman pertama", "First page")} onPress={() => navigate(href())} />}
         {data.nextCursor && <Action label={tr("Halaman berikutnya", "Next page")} onPress={() => navigate(href(data.nextCursor!))} />}
@@ -68,7 +72,7 @@ function ParticipationBoard() {
 }
 
 export function LeaderboardScreen() {
-  const { tr, theme, route, navigate } = useCommunity();
+  const { tr, theme, colors, route, navigate } = useCommunity();
   const active = route.query.tab === "academic" ? "academic" : "rank";
   const period = route.query.period ?? "all";
   const scope = route.query.scope ?? "global";
@@ -87,9 +91,12 @@ export function LeaderboardScreen() {
       activeId={active} onTabPress={tab => select("tab", tab === "rank" ? undefined : "academic")}
       accessibilityLabel={tr("Jenis peringkat", "Leaderboard type")} moreLabel={tr("Lainnya", "More")} closeLabel={closeLabel}
       theme={theme} testID="student-ranking-tab" trailing={active === "rank" ? <Button
-        ref={filterAnchor} testID="student-ranking-filter" variant={filtersActive ? "secondary" : "outline"} size="sm" theme={theme}
+        ref={filterAnchor} testID="student-ranking-filter" variant="outline" size="icon-sm" theme={theme}
+        renderIcon={(color, size) => <View><NavigationIcon name="sliders" size={size} color={color} />
+          {filtersActive && <View style={[rankingStyles.filterDot, { backgroundColor: colors.primary, borderColor: colors.background }]} />}
+        </View>}
         accessibilityLabel={filtersActive ? tr("Filter, aktif", "Filters, active") : filterLabel}
-        accessibilityState={{ expanded: filterOpen }} onPress={() => setFilterOpen(true)}>{filterLabel}</Button> : undefined} />
+        accessibilityState={{ expanded: filterOpen }} onPress={() => setFilterOpen(true)} /> : undefined} />
     {active === "academic" ? <AcademicBoard /> : <>
       <SharedPopover anchorRef={filterAnchor} align="end" open={filterOpen} onDismiss={() => setFilterOpen(false)}
         title={filterLabel} closeLabel={closeLabel} theme={theme}>
@@ -118,6 +125,7 @@ export function CourseLeaderboardScreen() {
 function FocusedCourseLeaderboard() {
   const { route, navigate, session, theme, colors, tr } = useCommunity();
   const id = route.params.id;
+  const { height } = useWindowDimensions();
   const type = route.query.type === "simulation" ? "simulation" : "quiz";
   const quizLabel = tr("Kuis", "Quiz");
   const simulationLabel = id === PKA_COURSE_ID ? tr("Simulasi", "Simulation") : "Tryout";
@@ -143,30 +151,32 @@ function FocusedCourseLeaderboard() {
       return <>
         <View style={styles.block}>
           <View style={[rankingStyles.sectionTitle, { borderBottomColor: colors.border }]}>
-            <Copy kind="heading">{tr("Peringkat Anda", "Your rank")}</Copy>
+            <Text accessibilityRole="header" accessibilityLabel={tr("Peringkat Anda", "Your rank")} style={[rankingStyles.sectionLabel, { color: colors.mutedForeground }]}>{tr("Peringkat Anda", "Your rank")}</Text>
           </View>
           <Copy kind="muted">{tr(`Berdasarkan rata-rata skor ${assessmentLabel} dan kriteria pemecah seri.`, `Based on average ${assessmentLabel} score and tie-break criteria.`)}</Copy>
-          <Copy kind="strong">{board.ownRank === null
+          <View style={rankingStyles.ownRank}><NavigationIcon name="trophy" color={colors.secondary} size={16} />
+            <Text style={[rankingStyles.rankValue, { color: colors.foreground }]}>{board.ownRank === null
             ? tr(`- dari ${total} (Belum ada skor ${assessmentLabel})`, `- of ${total} (No ${assessmentLabel} scores yet)`)
-            : tr(`${rank} dari ${total}`, `${rank} of ${total}`)}</Copy>
+            : tr(`${rank} dari ${total}`, `${rank} of ${total}`)}</Text>
+          </View>
         </View>
         {board.rows.length > 0 ? <View style={styles.block}>
           <View style={[rankingStyles.sectionTitle, { borderBottomColor: colors.border }]}>
-            <Copy kind="heading">{tr("3 teratas", "Top 3")}</Copy>
+            <Text accessibilityRole="header" accessibilityLabel={tr("3 teratas", "Top 3")} style={[rankingStyles.sectionLabel, { color: colors.mutedForeground }]}>{tr("3 teratas", "Top 3")}</Text>
           </View>
-          <Rows>{board.rows.map(row => {
+          <View>{board.rows.map((row, index) => {
             const attempts = number.format(row.attempts);
             const duration = formatCourseLeaderboardDuration(row.averageDurationSeconds);
             const hard = number.format(row.correctHardCount);
             const medium = number.format(row.attemptedMediumCount);
             const attemptStats = tr(`${attempts} percobaan ${assessmentLabel} · ${duration}`, `${attempts} ${assessmentLabel} ${row.attempts === 1 ? "attempt" : "attempts"} · ${duration}`);
             const questionStats = tr(`${hard} soal sulit benar · ${medium} soal sedang dikerjakan`, `${hard} difficult questions correct · ${medium} medium questions attempted`);
-            return <Row key={row.rank} title={`#${number.format(row.rank)} ${row.name}${row.isSelf ? tr(" (Anda)", " (You)") : ""}`}
-              meta={`${attemptStats}\n${questionStats}`}
-              aside={percent.format(row.average / 100)}
-              onPress={row.identity ? () => navigate(identityPath(row.identity!.publicId)) : undefined} />;
-          })}</Rows>
-        </View> : <View style={rankingStyles.empty}>
+            return <RankingRowView key={row.identity?.publicId ?? `${row.rank}-${index}`} first={index === 0}
+              position={number.format(row.rank)} name={row.name} identity={row.identity} own={row.isSelf}
+              details={[attemptStats, questionStats]} metric={percent.format(row.average / 100)} />;
+          })}</View>
+        </View> : <View style={[rankingStyles.empty, { minHeight: height * 0.45 }]}>
+          <NavigationIcon name="trophy" size={40} color={`${colors.mutedForeground}66`} />
           <Copy kind="heading">{tr(`Belum ada peringkat ${assessmentLabel}`, `No ${assessmentLabel} rankings yet`)}</Copy>
           <Copy kind="muted">{type === "simulation" ? tr("Selesaikan tryout untuk masuk peringkat.", "Complete a tryout to appear in the rankings.")
             : tr("Selesaikan kuis untuk masuk peringkat.", "Complete a quiz to appear in the rankings.")}</Copy>
@@ -178,5 +188,10 @@ function FocusedCourseLeaderboard() {
 
 const rankingStyles = StyleSheet.create({
   sectionTitle: { paddingBottom: 6, borderBottomWidth: StyleSheet.hairlineWidth },
-  empty: { alignItems: "center", gap: 6, paddingHorizontal: 8, paddingVertical: 36 },
+  sectionLabel: { ...nativeTypography.headingSemibold, fontSize: 12, lineHeight: 18, letterSpacing: 0.6, textTransform: "uppercase" },
+  ownRank: { flexDirection: "row", alignItems: "center", gap: 8 },
+  rankValue: { ...nativeTypography.bodySemibold, fontSize: 16, lineHeight: 24, flexShrink: 1, fontVariant: ["tabular-nums"] },
+  muted: { ...nativeTypography.bodyRegular, fontSize: 12, lineHeight: 18 },
+  filterDot: { position: "absolute", top: -3, right: -3, height: 8, width: 8, borderRadius: 4, borderWidth: 1 },
+  empty: { justifyContent: "center", alignItems: "center", gap: 6, paddingHorizontal: 8, paddingVertical: 36 },
 });
