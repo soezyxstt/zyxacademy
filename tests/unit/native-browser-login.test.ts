@@ -100,19 +100,19 @@ describe("native browser login", () => {
     });
   });
 
-  test("scrubs callbacks from the route and accepts a matching fragment only", () => {
-    expect(redirectSystemPath({ path: callbackUrl, initial: true })).toBe(NATIVE_BROWSER_FINISH_PATH);
+  test("scrubs callbacks from the route and accepts a matching fragment only", async () => {
+    expect(await redirectSystemPath({ path: callbackUrl, initial: true })).toBe(NATIVE_BROWSER_FINISH_PATH);
     expect(takeNativeBrowserCallback()).toEqual(callback);
     expect(takeNativeBrowserCallback()).toBeNull();
 
     const queryCallback = `${NATIVE_BROWSER_REDIRECT}?code=${code}&state=${state}`;
-    expect(redirectSystemPath({ path: queryCallback, initial: false })).toBe(NATIVE_BROWSER_FINISH_PATH);
+    expect(await redirectSystemPath({ path: queryCallback, initial: false })).toBe(NATIVE_BROWSER_FINISH_PATH);
     expect(takeNativeBrowserCallback()).toBeNull();
 
     expect(parseNativeBrowserCallback(`${callbackUrl}&code=another`)).toBeNull();
     expect(parseNativeBrowserCallback(callbackUrl.replace("://auth/", "://elsewhere/"))).toBeNull();
     expect(parseNativeBrowserCallback(callbackUrl.replace("zyx-native-parity:", "https:"))).toBeNull();
-    expect(redirectSystemPath({ path: "zyx-native-parity://gallery/separator", initial: false })).toBe("zyx-native-parity://gallery/separator");
+    expect(await redirectSystemPath({ path: "zyx-native-parity://gallery/separator", initial: false })).toBe("zyx-native-parity://gallery/separator");
   });
 
   test("waits for the same single exchange when the browser result and native route race", async () => {
@@ -303,7 +303,7 @@ describe("native login destination", () => {
   });
   const sitemap = (...children: RouteNode[]) => leaf("/", { contextKey: "./_layout.tsx", children });
 
-  test("captures the raw sign-in destination before Expo Router can decode it", () => {
+  test("captures the raw sign-in destination before Expo Router can decode it", async () => {
     const params = new URLSearchParams({ next: nestedNext, locale: "en", error: "access_denied" });
     const links = [
       ["/sign-in", "/sign-in"],
@@ -313,7 +313,7 @@ describe("native login destination", () => {
       ["zyx-native-parity:///sign-in", "/sign-in"],
     ];
     for (const [input, screen] of links) {
-      const rewritten = redirectSystemPath({ path: `${input}?${params}#outer`, initial: true });
+      const rewritten = await redirectSystemPath({ path: `${input}?${params}#outer`, initial: true });
       const [pathname, query] = decodeURIComponent(rewritten).split("?");
       const routerParams = new URLSearchParams(query);
       const returnTo = routerParams.get("returnTo") ?? "";
