@@ -226,6 +226,88 @@
       "coursePickerLoading": false,
       "consoleErrors": [],
       "screenshot": "mobile-380-calendar.png"
+    },
+    {
+      "id": "calendar-empty",
+      "scenario": "community-peer",
+      "path": "/calendar",
+      "expected": [
+        "Belum ada agenda terjadwal"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "terminal": "/calendar",
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": false,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-calendar-empty.png"
+    },
+    {
+      "id": "groups",
+      "scenario": "community-enrolled",
+      "path": "/dashboard/groups",
+      "expected": [
+        "Kelompok Integral",
+        "Matematika komunitas"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "terminal": "/dashboard/groups",
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": false,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-groups.png"
+    },
+    {
+      "id": "schedule",
+      "scenario": "community-enrolled",
+      "path": "/dashboard/schedule",
+      "expected": [
+        "Kalender dan jadwal tutorial",
+        "Raisa Komunitas"
+      ],
+      "status": "failed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "terminal": "/dashboard/schedule",
+      "error": "Error: expect(locator).toBeVisible() failed\n\nLocator: getByText('Raisa Komunitas', { exact: true }).filter({ visible: true }).first()\nExpected: visible\nTimeout: 25000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"toBeVisible\" with timeout 25000ms\n  - waiting for getByText('Raisa Komunitas', { exact: true }).filter({ visible: true }).first()\n"
+    },
+    {
+      "id": "feedback",
+      "scenario": "community-enrolled",
+      "path": "/feedback",
+      "expected": [
+        "Pesan dan saran",
+        "Kirim masukan"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "terminal": "/feedback",
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": false,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-feedback.png"
     }
   ]
 }
