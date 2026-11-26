@@ -55,7 +55,16 @@ name: Operations public demo completion, study planning and tryout list
 - tapOn:
     id: public-demo-path-days
 - inputText: "2"
-- hideKeyboard
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn: "Done"
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
 - tapOn:
     id: public-demo-path-create-plan
 - assertVisible: "Day 1 · 12 min"

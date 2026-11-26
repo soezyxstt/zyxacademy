@@ -72,6 +72,7 @@ export function DemoPathView({ data, search }: { data: Content<"path">; search: 
         testID="public-demo-path-days"
         accessibilityLabel={`${labels.targetDuration} (1-60 ${labels.days})`}
         keyboardType="number-pad"
+        returnKeyType="done"
         maxLength={2}
         placeholder="7"
         placeholderTextColor={colors.mutedForeground}

@@ -132,6 +132,7 @@ export function FormsPlayground() {
           <Input
             theme={theme} testID={`public-form-${key}`} accessibilityLabel={label} accessibilityHint={error}
             value={values[key]} onChangeText={(text) => change(key, text)} keyboardType={keyboardType}
+            returnKeyType={keyboardType === "number-pad" ? "done" : undefined}
             autoCapitalize={autoCapitalize} placeholder={placeholder} disabled={busy} secureTextEntry={key === "password" && !showPassword}
             style={{ flex: 1, minHeight: 44, borderColor: error ? colors.destructive : colors.input }}
           />

@@ -32,7 +32,10 @@ export function caseInteractions(caseId: string): unknown[] {
       return [
         ...fill("fullName", "Pengguna Fixture"),
         ...fill("email", "learner@example.test"),
-        ...fill("age", "21"),
+        ...tap({ id: "public-form-age" }),
+        { inputText: "21" },
+        { runFlow: { when: { platform: "iOS" }, commands: [{ tapOn: "Done" }] } },
+        { runFlow: { when: { platform: "Android" }, commands: ["hideKeyboard"] } },
         ...fill("password", "Practice2026"),
         ...tap({ text: "Select subject" }),
         ...tap({ text: "TPB Kalkulus I" }),
