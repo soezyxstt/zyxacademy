@@ -52,6 +52,10 @@ on:
       - 'tests/unit/expo-native-pka-lifecycle.test.ts'
       - 'lib/pka/**'
       - 'jobs/pka-delivery.ts'
+      - 'tests/unit/expo-native-solution-review.test.ts'
+      - 'tests/contracts/solution-review-ui.test.ts'
+      - 'packages/academic/solution-review-*.ts'
+      - 'app/api/admin/bundles/product/*/solution-review/**'
       - 'app/api/native/academic-administration/tutorial-operations/**'
       - 'tests/contracts/native-admin-text-document.test.ts'
       - 'tests/unit/expo-native-text-document.test.ts'
@@ -261,6 +265,9 @@ jobs:
         run: |
           bun test packages/native-parity/academic/administration/administration.test.ts
           bun scripts/test-contracts.ts tests/contracts/native-admin-study-groups.test.ts
+      - name: Admin V5 solution collection review
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: bun test tests/unit/expo-native-solution-review.test.ts tests/contracts/solution-review-ui.test.ts
       - name: Admin native text document edits and publication
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: |

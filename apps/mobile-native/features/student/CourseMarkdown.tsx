@@ -9,7 +9,9 @@ import { prepareCourseMarkdown, safeCourseMarkdownLink, safeInlineCourseImage } 
 
 type Props = {
   source: string;
-  services: Pick<StudentServices, "session" | "openExternal" | "devicePreferences">;
+  services: Pick<StudentServices, "openExternal" | "devicePreferences"> & {
+    session: Pick<StudentServices["session"], "origin" | "locale">;
+  };
   centered?: boolean;
   muted?: boolean;
   paragraphStyle?: TextStyle;

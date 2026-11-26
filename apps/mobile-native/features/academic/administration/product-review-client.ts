@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { solutionCollectionSchema, type SolutionCollection } from "../../../../../lib/materials/solution-collection";
 import type { AcademicTransport } from "../client";
 import type { LiveProductBundle } from "../../../../../packages/native-parity/academic/administration/live";
 
@@ -28,7 +29,7 @@ const schema = z.object({
 });
 const contextSchema = z.object({ expectedRevision: z.string(), policyVersion: z.string(), contentFingerprint: z.string(),
   sections: z.array(z.object({ productId: z.string(), sectionId: z.string(), title: z.string(), semanticHash: z.string() })) });
-export type ProductReviewData = z.infer<typeof schema> & { context: z.infer<typeof contextSchema> | null };
+export type ProductReviewData = z.infer<typeof schema> & { context: z.infer<typeof contextSchema> | null; solutionCollection?: SolutionCollection };
 export type ReviewTarget = { targetType: "article_section" | "article_block"; targetId: string; productId: string; label: string; content: string };
 
 export function reviewTargets(p: z.infer<typeof product>): ReviewTarget[] {
@@ -58,6 +59,13 @@ export async function readProductReview(transport: AcademicTransport, scope: Liv
   const data = schema.parse(await response.json());
   if (data.bundle.id !== scope.id || data.bundle.courseId !== scope.courseId) throw new ProductReviewError(404);
   if (data.bundle.checksum !== scope.checksum) throw new ProductReviewError(409);
+  if (data.manifest.schemaVersion === "product-bundle.v5") {
+    const [product] = data.draft.products;
+    const collection = solutionCollectionSchema.safeParse(product?.collection);
+    if (data.draft.products.length !== 1 || product?.productType !== "solution_collection" || !collection.success ||
+      !collection.data.items.length || collection.data.id !== product.id) throw new ProductReviewError(422);
+    return { ...data, context: null, solutionCollection: collection.data };
+  }
   const pedagogic = data.manifest.schemaVersion === "product-bundle.v4" || data.draft.products.some(p => p.productType === "article");
   if (!pedagogic) return { ...data, context: null };
   const extra = await transport.get(path + "/review", signal);

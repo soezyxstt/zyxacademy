@@ -8,6 +8,7 @@ import { Action, AdministrationPage, CourseDialog, Field, Ink, layout, Picker } 
 import { canPublishProduct, productPath, ProductReviewError, readProductReview, reviewTargets, type ProductReviewData, type ReviewTarget } from "./product-review-client";
 import { ProductDraftEditor } from "./product-draft-editor";
 import { ProductReviewRubric } from "./product-review-rubric";
+import { SolutionReviewPanel, type SolutionReviewGate } from "./solution-review-panel";
 
 type Confirmation = { label: string; suffix: string; method: AcademicCommand["method"]; body: object; success: "refresh" | "exit" | "list" };
 const itemChoices = [{ id: "pending", label: "Menunggu" }, { id: "changes_requested", label: "Perlu revisi" }, { id: "approved", label: "Disetujui" }] as const;
@@ -43,21 +44,23 @@ export function ProductReviewWorkspace({ scope, transport, back, exit, listing }
   const [confirm, setConfirm] = useState<Confirmation>();
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [solutionGate, setSolutionGate] = useState<SolutionReviewGate>();
+  const currentSolutionGate = solutionGate?.revision === scope.checksum && solutionGate.transport === transport ? solutionGate : undefined;
   const [leave, setLeave] = useState<{ next: () => void }>();
   function navigate(next: () => void) {
-    if (active.current) return;
+    if (active.current || currentSolutionGate?.busy) return;
     if (dirty) setLeave({ next });
     else next();
   }
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => { navigate(back); return true; });
     return () => sub.remove();
-  }, [back, dirty]);
+  }, [back, dirty, currentSolutionGate?.busy]);
   const active = useRef<AbortController | null>(null);
   const path = productPath(scope.id);
   useEffect(() => {
     const controller = new AbortController();
-    setData(undefined); setConfirm(undefined); setIssue(""); setBlocked(false);
+    setData(undefined); setConfirm(undefined); setIssue(""); setBlocked(false); setSolutionGate(undefined);
     readProductReview(transport, scope, controller.signal).then(value => { if (!controller.signal.aborted) setData(value); }).catch(error => {
       if (controller.signal.aborted) return;
       setIssue(error instanceof ProductReviewError && error.status === 409 ? "Revisi bundle berubah. Buka kembali dari daftar."
@@ -68,6 +71,8 @@ export function ProductReviewWorkspace({ scope, transport, back, exit, listing }
 
   async function submit(command: Confirmation) {
     if (!transport.command || active.current || blocked) return;
+    if (data?.solutionCollection && (command.suffix === "/publish" && !currentSolutionGate?.publish ||
+      command.method === "DELETE" && currentSolutionGate?.unsaved)) return;
     const controller = new AbortController();
     active.current = controller; setBusy(true); setConfirm(undefined); setIssue("");
     try {
@@ -103,6 +108,9 @@ export function ProductReviewWorkspace({ scope, transport, back, exit, listing }
     success: method === "DELETE" ? "list" : "exit", body: { expectedRevision: scope.checksum } });
   const draft = data?.bundle.status === "draft";
   const v5 = data?.manifest.schemaVersion === "product-bundle.v5";
+  const solution = v5 ? data?.solutionCollection : undefined;
+  const solutionBusy = Boolean(currentSolutionGate?.busy);
+  const english = transport.locale === "en";
   return <AdministrationPage title="Review produk" back={() => navigate(back)}>
     {issue ? <><Ink tone="error">{issue}</Ink><Action label="Periksa kembali" onPress={() => navigate(exit)} /></> : null}
     {leave ? <CourseDialog title="Buang perubahan yang belum disimpan?" onClose={() => setLeave(undefined)}>
@@ -114,8 +122,12 @@ export function ProductReviewWorkspace({ scope, transport, back, exit, listing }
       <Ink kind="heading">{data.bundle.bundleId}</Ink>
       <Picker label="Tindakan" selected={panel} options={[{ id: "read", label: "Isi produk" },
         ...(draft && !pendingPdf && !v5 ? [{ id: "edit", label: "Edit produk" }, { id: "review", label: "Keputusan bundle" }] : []),
-        { id: "release", label: "Publikasi" }]} onSelect={id => { if (id !== panel) navigate(() => setPanel(id)); }} disabled={busy} />
-      {panel === "read" || panel === "edit" ? <>
+        ...(draft && solution ? [{ id: "review", label: english ? "Review every question" : "Review setiap soal" }] : []),
+        { id: "release", label: "Publikasi" }]} onSelect={id => { if (id !== panel) navigate(() => setPanel(id)); }} disabled={busy || solutionBusy} />
+      {solution ? <SolutionReviewPanel key={data.bundle.checksum} importId={scope.id} revision={scope.checksum} collection={solution}
+        transport={transport} draft={Boolean(draft)} display={panel === "read" || panel === "review" ? panel : null}
+        disabled={busy} onGate={setSolutionGate} onSaved={() => setVersion(version => version + 1)} onRefreshBundle={exit} /> : null}
+      {!solution && (panel === "read" || panel === "edit") ? <>
         <Picker label="Produk" selected={selected?.id ?? ""} options={data.previews.map(p => ({ id: p.id, label: p.title }))}
           onSelect={id => { if (id !== selected?.id) navigate(() => { setSelect(id); setTargetId(""); }); }} disabled={busy} />
         {panel === "read" && target ? <>
@@ -130,9 +142,15 @@ export function ProductReviewWorkspace({ scope, transport, back, exit, listing }
         decide={(label, body) => setConfirm({ label, body, method: "POST", suffix: "/review", success: "refresh" })} />
         : panel === "release" ? <>
           {data.blockingIssues?.map((reason,i) => <Ink key={i}>{reason.remediation || reason.reason}</Ink>)}
+          {solution && draft && currentSolutionGate?.unsaved ? <Ink tone="error">{
+            english ? "Save or restore the review before publication." : "Simpan atau pulihkan review sebelum publikasi."}</Ink> : null}
+          {solution && draft && !currentSolutionGate?.publish ? <Action label={english ? "Open review decisions" : "Buka keputusan review"} onPress={() => setPanel("review")}
+            disabled={busy || solutionBusy} /> : null}
           <View style={layout.row}>
-            {draft ? <Action label="Terbitkan" disabled={busy || !canPublishProduct(data)} onPress={() => lifecycle("Terbitkan bundle", "/publish", "POST")} /> : null}
-            {draft ? <Action label="Hapus draf" disabled={busy || pendingPdf} onPress={() => lifecycle("Hapus draf", "", "DELETE")} /> : null}
+            {draft ? <Action label="Terbitkan" disabled={busy || !canPublishProduct(data) || Boolean(solution && !currentSolutionGate?.publish)}
+              onPress={() => lifecycle("Terbitkan bundle", "/publish", "POST")} /> : null}
+            {draft ? <Action label="Hapus draf" disabled={busy || pendingPdf || Boolean(solution && currentSolutionGate?.unsaved)}
+              onPress={() => lifecycle("Hapus draf", "", "DELETE")} /> : null}
             {data.bundle.status === "published" ? <Action label="Tarik publikasi" disabled={busy} onPress={() => lifecycle("Tarik publikasi", "/withdraw", "POST")} /> : null}
           </View>
         </> : null}

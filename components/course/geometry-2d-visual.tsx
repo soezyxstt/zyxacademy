@@ -5,24 +5,8 @@ import { MathText } from "@/components/course/math-text";
 import type { PublicGeometry2dVisualSpec } from "@/lib/articles/structured-read-model";
 import { scientificValueToMathText } from "@/lib/math/scientific-format";
 
-const WIDTH = 600;
-const HEIGHT = 400;
-const PAD = 45;
-
-/** Wide, shallow bounds need less vertical space while retaining label padding. */
-export function geometryHeight(bounds: PublicGeometry2dVisualSpec["bounds"]) {
-  const width = bounds.xMax - bounds.xMin;
-  const height = bounds.yMax - bounds.yMin;
-  return Math.max(140, Math.min(HEIGHT, 2 * PAD + (WIDTH - 2 * PAD) * height / width));
-}
-
-/** One physical scale for both axes preserves circles and angles. */
-export function geometryProjection(bounds: PublicGeometry2dVisualSpec["bounds"], height = HEIGHT) {
-  const scale = Math.min((WIDTH - 2 * PAD) / (bounds.xMax - bounds.xMin), (height - 2 * PAD) / (bounds.yMax - bounds.yMin));
-  const xMid = (bounds.xMin + bounds.xMax) / 2;
-  const yMid = (bounds.yMin + bounds.yMax) / 2;
-  return { scale, x: (value: number) => WIDTH / 2 + (value - xMid) * scale, y: (value: number) => height / 2 - (value - yMid) * scale };
-}
+import { geometryHeight, geometryProjection, geometryWidth as WIDTH } from "@/lib/materials/geometry-projection";
+export { geometryHeight, geometryProjection } from "@/lib/materials/geometry-projection";
 
 export function Geometry2dVisual({ spec, className }: { spec: PublicGeometry2dVisualSpec; className?: string }) {
   const descriptionId = useId();

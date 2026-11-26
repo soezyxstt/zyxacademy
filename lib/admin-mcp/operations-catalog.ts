@@ -211,6 +211,13 @@ export const operationsCatalog = [
     "reason": "Admin hard deletion checks the live session, exact group or token association, observed revision and confirmed impact. Enrollment access keeps its existing independent lifecycle. MCP tokens.revoke retains expiry semantics and group or token hard deletion remains an administrative app operation."
   },
   {
+    "source": "app/api/admin/bundles/product/[id]/solution-review/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Web and Expo interactive V5 review use the current Admin session, bundle checksum, review version and exact item hashes. The registered solution collection review and publication tools keep their existing authorization and contracts."
+  },
+  {
     "source": "app/api/admin/bundles/product/[id]/pdf/route.ts",
     "actions": ["GET", "POST"],
     "tools": [],
