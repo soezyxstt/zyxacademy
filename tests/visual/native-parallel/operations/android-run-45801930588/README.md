@@ -32,3 +32,5 @@ The native list wraps “Artikel terbaru” onto two lines, uses wider page gutt
 These results establish two nonzero differences at this SHA. Android journey completion, subsequent commits, iOS rendering and cross-platform visual parity require independent evidence.
 
 [Permanent archive of all 151 original diagnostic PNGs](diagnostic-screens.tar.xz). Extract with `tar -xf diagnostic-screens.tar.xz` in an empty directory. The 147 named cases use `cases/<caseId>.png`. The four unsuccessful interaction flows use `journeys/<flow>.png`. Each extracted image has the SHA-256 listed in [the flow index](flows.json).
+
+[Supplemental comparisons](supplemental/README.md) add matched browser viewports for the English dark empty blog, populated Web Analytics and completed question-generation jobs.

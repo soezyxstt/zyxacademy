@@ -10,6 +10,7 @@ case "$platform" in
     adb shell wm density 160
     adb shell wm size 380x844
     adb shell settings put system font_scale 1
+    adb shell getprop persist.sys.timezone | tr -d '\r' > "$output_dir/timezone.txt"
     adb shell input keyevent KEYCODE_WAKEUP
     adb shell wm dismiss-keyguard
     adb install "$app/android/app/build/outputs/apk/release/app-release.apk"

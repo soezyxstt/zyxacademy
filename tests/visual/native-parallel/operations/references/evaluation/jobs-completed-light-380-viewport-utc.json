@@ -1,0 +1,23 @@
+{
+  "id": "jobs-completed-utc",
+  "path": "/evaluation?screen=jobs&mode=populated&theme=light",
+  "ready": "[data-fixture-ready=\"true\"]",
+  "labels": [
+    "Selesai",
+    "Bab 3: Usaha dan energi",
+    "04.30",
+    "1/1 soal"
+  ],
+  "sha": "254aaa475cda14705da0f775739e0dab6df16ddf",
+  "dimensions": {
+    "width": 380,
+    "height": 844,
+    "documentWidth": 380,
+    "scrollY": 0,
+    "devicePixelRatio": 1,
+    "text": "Generasi Soal\n\n1 job terbaru\n\nBuat job\nBab 3: Usaha dan energi\n·\nTeorema usaha dan energi\n·\nMekanika Dasar\nSELESAI\n\n1/1 soal · 12 Mei 2026, 04.30\n\nPROGRES DETAIL:\n\nObjek pengetahuan diproses.\nBank soal diperbarui."
+  },
+  "browser": "154.0.8037.57",
+  "date": "2026-11-26T11:20:51.592Z",
+  "issues": []
+}

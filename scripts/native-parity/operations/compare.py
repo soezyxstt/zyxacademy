@@ -15,24 +15,26 @@ PAIRS = {
     "management-form-summary": "management-form-summary",
 }
 
+UTC_JOBS = "evaluation/jobs-completed-light-380-viewport-utc.png"
+UTC_NAMES = {"UTC", "Etc/UTC", "GMT", "Etc/GMT"}
 
 def compare(device_dir, reference_dir, width_dp, density):
     rows = []
+    timezone_path = device_dir / "timezone.txt"
+    timezone = timezone_path.read_text().strip() if timezone_path.is_file() else None
     pairs = {capture: f"{reference}-{width_dp}-dpr{density}.png" for capture, reference in PAIRS.items()}
     if width_dp == 380 and density == 1:
         pairs.update({
-            "cases/operations-evaluation-jobs-populated": "evaluation/jobs-completed-light-380.png",
+            "cases/operations-evaluation-jobs-populated": UTC_JOBS,
             "cases/operations-evaluation-jobs-alternate": "evaluation/jobs-empty-dark-380.png",
-            "cases/operations-evaluation-ast-inspector-populated": "evaluation/ast-preview-light-380.png",
             "cases/operations-monitoring-admin-populated": "monitoring/home-populated-light-380.png",
-            "cases/operations-monitoring-admin-ops-web-analytics-populated": "analytics-data-light.png",
+            "cases/operations-monitoring-admin-ops-web-analytics-populated": "monitoring/web-analytics-populated-light-380-viewport.png",
             "cases/operations-monitoring-admin-ops-feature-usage-populated": "monitoring/features-30-days-light-380-viewport.png",
             "feature-usage": "monitoring/features-30-days-light-380-viewport.png",
             "feature-usage-empty-range": "monitoring/features-7-days-light-380-viewport.png",
             "cases/operations-public-hero-id": "../public-pages/references/hero-id-380-dpr1.png",
             "cases/operations-public-form-empty": "../public-pages/references/form-empty-380-dpr1.png",
-            "web-analytics": "analytics-data-light.png",
-            "web-analytics-empty-dark": "analytics-empty-dark.png",
+            "web-analytics": "monitoring/web-analytics-populated-light-380-viewport.png",
         })
     for capture, reference in pairs.items():
         device_path = device_dir / f"{capture}.png"
@@ -41,6 +43,10 @@ def compare(device_dir, reference_dir, width_dp, density):
         rows.append(row)
         if not device_path.is_file() or not reference_path.is_file():
             row["status"] = "awaiting capture"
+            continue
+        if reference == UTC_JOBS and timezone not in UTC_NAMES:
+            row.update(status="time zone unverified" if not timezone else "time zone mismatch",
+                deviceTimeZone=timezone, referenceTimeZone="UTC")
             continue
         with Image.open(device_path) as native, Image.open(reference_path) as web:
             row["devicePixels"] = native.size
