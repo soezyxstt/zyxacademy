@@ -6,6 +6,7 @@ import type { TutorCourseSummary } from "../../../components/navigation/tutor/tu
 import { nativeColors } from "../../../packages/design-tokens/native-colors";
 import type { NativeAccountContext } from "../../../packages/native-session/context";
 import { resolveNativeProtectedDestination } from "../auth/login-intent";
+import { NativeInboxBell } from "../features/notification-inbox/bell";
 import { NativeListRow, NativeStatusPanel } from "../features/shared-ui/layout";
 import { MobileNavbar, RoleBottomNavigation } from "../features/shared-ui/navigation";
 import { NavigationIcon } from "../features/shared-ui/navigation-icons";
@@ -97,6 +98,7 @@ export function StaffChrome({ role, href, theme, focused, context, session, visi
     <SafeAreaView style={[styles.frame, { backgroundColor: colors.background }]}>
       <MobileNavbar role={role} theme={theme} title={navigation.title} includeSafeArea={false} testID={`${role}-navbar`}
         hidden={visibility.hideTop}
+        pageActions={focused && !visibility.hideTop ? <NativeInboxBell role={role} locale={locale} theme={theme} visit={visit} /> : null}
         home={navigation.backTo === null ? { label: navigation.homeLabel } : undefined}
         back={navigation.backTo ? { label: navigation.labels.back } : undefined}
         onAction={action => {
