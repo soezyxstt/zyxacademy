@@ -13,6 +13,7 @@ export function createStudentFixtureRequest(scenario: string) {
   const community = createCommunityFixtureRequest(
     ["offline", "revoked", "unavailable"].includes(scenario) ? "unavailable" : ["empty", "unenrolled"].includes(scenario) ? "empty" : "loaded",
     calendarFixtureForScenario(scenario),
+    scenario,
   );
   const learningScenarios: readonly LearningFixtureScenario[] = ["enrolled", "empty", "no-enrollment", "revoked", "offline", "long", flashcardEvidence.scenario];
   const learning = createLearningFixtureRequest(scenario === "unenrolled" ? "no-enrollment" : scenario === "long-content" ? "long" :

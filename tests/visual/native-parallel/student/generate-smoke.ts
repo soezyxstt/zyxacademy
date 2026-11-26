@@ -74,7 +74,7 @@ const communityReady: Record<string, Partial<Record<string, Marker>>> = {
   "/dashboard/schedule": { loaded: id("student-tutorial-calendar-event-slot-slot-integral"), empty: text("Belum ada jadwal pada tanggal ini.") },
   "/discussions": { loaded: text("Limit kiri dan kanan pada fungsi potongan"), empty: text("Belum ada diskusi.") },
   "/feedback": { loaded: text("Masukan"), empty: text("Masukan"), unavailable: text("Masukan") },
-  "/leaderboard": { loaded: text("#1 Nara Putri"), empty: text("Belum ada siswa dalam peringkat ini.") },
+  "/leaderboard": { loaded: text("#1 Nara Putri"), empty: text("Belum ada peringkat") },
   "/leaderboard/academic": { loaded: text("Semua kelas"), empty: text("Belum ada kursus yang diikuti.") },
   "/pet": { loaded: text("Koleksi"), empty: text("Pakaian") },
   "/profile": { loaded: text("Aruni Rasyid"), empty: text("Aruni Rasyid") },

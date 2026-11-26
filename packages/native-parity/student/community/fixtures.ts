@@ -1,17 +1,14 @@
 import type { DiscussionChannelMetadata, DiscussionMessage, DiscussionThread } from "../../../../lib/discussions/contracts";
 import { canForwardDiscussion, deriveInitialDiscussionTitle, validDiscussionReplyType } from "../../../../lib/discussions/policy";
 import type {
-  AchievementData, AgendaData, CourseRanking, Group, LeaderboardPage, NotificationPreferences, Profile,
-  PublicStudentProfile, Reflection, Schedule, StudentIdentity,
+  AchievementData, AgendaData, Group, LeaderboardPage, NotificationPreferences, Profile,
+  PublicStudentProfile, Reflection, Schedule,
 } from "./contracts";
+import { courseRankingFixture, globalPeer, participationRankingFixture, rankedStudent, rankingCourse as subject, rankingEvidence, rankingIdentity as identity } from "./ranking-fixture";
 
 export type CommunityFixtureScenario = "loaded" | "empty" | "unavailable";
 const origin = "https://student.fixture.invalid";
 const endpoint = "/api/native/student/community/";
-const subject = { id: "matematika-1", title: "Matematika I" };
-const identity = {
-  publicId: "nara-putri", displayName: "Nara Putri", avatarUrl: null, rankKey: "kades", equippedFrameId: null, equippedThemeId: null,
-} satisfies StudentIdentity;
 const summary = { baseXpMicro: 165_000_000, bonusXpMicro: 6_000_000, courseCreditsMicro: 1_000_000, lpBalance: 875, rankKey: "kades" } as const;
 const badges: AchievementData["badges"] = [
   { family: "warrior_reader", tier: 1, count: 7, nextThreshold: 12 },
@@ -28,15 +25,6 @@ const initialRewards: AchievementData["rewards"] = [
   { id: "frame-classic", name: "Bingkai klasik", slot: "frame", priceLp: 200, owned: true, equipped: true },
 ];
 const ranking = { rank: 1, name: identity.displayName, average: 94.5, attempts: 4, identity, isSelf: false };
-const courseRanking = {
-  course: subject, ownRank: 5, totalStudents: 5,
-  rows: [
-    { ...ranking, averageDurationSeconds: 132, correctHardCount: 3, attemptedMediumCount: 6 },
-    { rank: 2, name: "Raisa Dewi", average: 92, attempts: 4, identity: null, isSelf: false, averageDurationSeconds: 147, correctHardCount: 2, attemptedMediumCount: 6 },
-    { rank: 3, name: "Gilang Pratama", average: 90, attempts: 3, identity: null, isSelf: false, averageDurationSeconds: 156, correctHardCount: 1, attemptedMediumCount: 5 },
-  ],
-} satisfies Omit<CourseRanking, "assessment">;
-const rankedStudent = { ...identity, position: 1, baseXpMicro: 165_000_000, avatarMode: "photo", avatarBadgeId: null, badgeTier: null } as const;
 const initialPublic: PublicStudentProfile = {
   ...identity, avatarBadgeId: null, avatarMode: "photo", baseXpMicro: null, avatarBadgeTier: null,
   earnedBadges: [{ family: "warrior_reader", tier: 1 }], featuredBadgeIds: ["warrior_reader"], equippedTitleId: null,
@@ -132,7 +120,7 @@ function response(data: unknown, status = 200) {
 }
 
 /** State is private to each fixture transport. No operation falls through to a live origin. */
-export function createCommunityFixtureRequest(scenario: CommunityFixtureScenario = "loaded", calendar?: AgendaData["events"]) {
+export function createCommunityFixtureRequest(scenario: CommunityFixtureScenario = "loaded", calendar?: AgendaData["events"], evidenceScenario?: string) {
   const populated = scenario !== "empty";
   let firstFailure = scenario === "unavailable";
   let member = populated;
@@ -140,6 +128,11 @@ export function createCommunityFixtureRequest(scenario: CommunityFixtureScenario
   let preferences = clone(initialPreferences);
   let profile = clone(initialProfile);
   let publicProfile = clone(initialPublic);
+  const rankingScenario = evidenceScenario === rankingEvidence.scenario || evidenceScenario === rankingEvidence.unrankedScenario;
+  if (rankingScenario && profile.customization) {
+    profile.customization.settings.leaderboardOptIn = false;
+    publicProfile.isFollowing = true;
+  }
   let blocked = false;
   let rewards = clone(initialRewards);
   let balance = summary.lpBalance as number;
@@ -300,12 +293,14 @@ export function createCommunityFixtureRequest(scenario: CommunityFixtureScenario
       case "course-ranking": {
         if (query.get("id") !== subject.id) return response({ code: "unavailable" }, 404);
         if (!member) return response({ code: "forbidden" }, 403);
-        const board: CourseRanking = query.get("type") === "simulation"
-          ? { course: subject, assessment: "simulation", rows: [], ownRank: null, totalStudents: 0 }
-          : { ...courseRanking, assessment: "quiz" };
-        return response(board);
+        const type = query.get("type") === "simulation" ? "simulation" : "quiz";
+        return response(courseRankingFixture(type, evidenceScenario === rankingEvidence.unrankedScenario));
       }
-      case "participation-ranking": return response({ entries: populated ? [rankedStudent] : [], ownEntry: null, nextCursor: null } satisfies LeaderboardPage);
+      case "participation-ranking":
+        if (rankingScenario) return response(participationRankingFixture({
+          period: query.get("period"), scope: query.get("scope"), followsNara: publicProfile.isFollowing, blocked,
+        }));
+        return response({ entries: populated ? [rankedStudent] : [], ownEntry: null, nextCursor: null } satisfies LeaderboardPage);
       case "groups": return response(member ? [group] : []);
       case "group-rename": return response({ success: member, canRename: member, nextRenameAt: null });
       case "calendar-status":
@@ -323,7 +318,11 @@ export function createCommunityFixtureRequest(scenario: CommunityFixtureScenario
       } : { ...schedule, groups: [], slots: [], academic: [], courses: [] });
       case "profile": return response({ ...profile, customization: profile.customization && { ...profile.customization, rewards, badges: populated ? badges : [] },
         summary: currentSummary, courses: member ? [subject] : [] });
-      case "public-profile": return populated && !blocked && query.get("id") === identity.publicId ? response(publicProfile) : response({ code: "unavailable" }, 404);
+      case "public-profile":
+        if (rankingScenario && query.get("id") === globalPeer.publicId) {
+          return response({ ...initialPublic, publicId: globalPeer.publicId, displayName: globalPeer.displayName, isFollowing: false });
+        }
+        return populated && !blocked && query.get("id") === identity.publicId ? response(publicProfile) : response({ code: "unavailable" }, 404);
       case "people": return response(populated && !blocked ? [identity] : []);
       case "following": return response({ entries: populated && !blocked ? [identity] : [], nextCursor: null });
       case "reflections": return response({ entries: populated ? reflections : [], nextCursor: null });

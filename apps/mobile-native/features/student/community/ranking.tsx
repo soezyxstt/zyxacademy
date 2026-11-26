@@ -1,6 +1,11 @@
-import { View } from "react-native";
+import { useRef, useState, type ComponentRef } from "react";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Button } from "../../../components/Button";
+import { NavigationTabs, SharedPopover } from "../../shared-ui";
+import { PKA_COURSE_ID } from "../../../../../lib/pka-config";
 import { formatCourseLeaderboardDuration } from "../../../../../lib/student/course-leaderboard";
 import type { AcademicRanking, CourseRanking, LeaderboardPage, RankingRow } from "../../../../../packages/native-parity/student/community/contracts";
+import { studentPathWithQuery } from "../routes";
 import { Action, Actions, Choices, Copy, Page, Remote, Row, Rows, communityPath, styles, useCommunity, useRemote } from "./ui";
 
 function identityPath(publicId: string) { return `/students/${encodeURIComponent(publicId)}`; }
@@ -33,73 +38,109 @@ function ParticipationBoard() {
   const scope = route.query.scope ?? "global";
   const cursor = route.query.cursor;
   const state = useRemote<LeaderboardPage>(communityPath("participation-ranking", { period, scope, cursor }));
-  const format = new Intl.NumberFormat(session.locale, { maximumFractionDigits: 1 });
-  const href = (nextPeriod: string, nextScope: string, next?: string) => {
-    const query = new URLSearchParams({ period: nextPeriod, scope: nextScope });
+  const format = new Intl.NumberFormat(session.locale);
+  const href = (next?: string) => {
+    const query = new URLSearchParams({ period, scope });
     if (next) query.set("cursor", next);
     return `/leaderboard?${query}`;
   };
   const validFilters = ["all", "week", "month"].includes(period) && ["global", "following"].includes(scope);
   return <>
-    <Choices<string> value={period} options={[
-      { value: "all", label: tr("Sepanjang waktu", "All time") }, { value: "week", label: tr("Minggu ini", "This week") },
-      { value: "month", label: tr("Bulan ini", "This month") },
-    ]} onSelect={value => navigate(href(value, scope))} />
-    <Choices<string> value={scope} options={[
-      { value: "global", label: tr("Global", "Global") }, { value: "following", label: tr("Mengikuti", "Following") },
-    ]} onSelect={value => navigate(href(period, value))} />
     {!validFilters ? <>
       <Copy kind="error">{tr("Filter tidak valid.", "Invalid filter.")}</Copy>
       <Action label={tr("Atur ulang filter", "Reset filters")} onPress={() => replace("/leaderboard")} />
     </> : <Remote state={state}>{data => <>
-      {data.ownEntry && <Row title={tr("Peringkat Anda", "Your ranking")} aside={`#${data.ownEntry.position}`}
-        meta={`${format.format(data.ownEntry.baseXpMicro / 1e6)} XP`} />}
-      {!data.entries.length && <Copy kind="muted">{tr("Belum ada siswa dalam peringkat ini.", "No students in this ranking yet.")}</Copy>}
+      <Copy kind="muted">{tr("Peringkat berdasarkan XP dasar. XP sama mendapat posisi yang sama.", "Ranked by base XP. Equal XP shares a position.")}</Copy>
+      {data.ownEntry && <Copy>{tr("Posisi Anda", "Your position")}: {data.ownEntry.position} · {format.format(data.ownEntry.baseXpMicro / 1e6)} XP</Copy>}
+      {!data.entries.length && <View style={rankingStyles.empty}>
+        <Copy kind="heading">{tr("Belum ada peringkat", "No rankings yet")}</Copy>
+      </View>}
       <Rows>{data.entries.map(row => <Row key={row.publicId} title={`#${row.position} ${row.displayName}`}
         meta={row.rankKey} aside={`${format.format(row.baseXpMicro / 1e6)} XP`} onPress={() => navigate(identityPath(row.publicId))} />)}</Rows>
       <Actions>
-        {cursor && <Action label={tr("Halaman pertama", "First page")} onPress={() => navigate(href(period, scope))} />}
-        {data.nextCursor && <Action label={tr("Berikutnya", "Next")} onPress={() => navigate(href(period, scope, data.nextCursor!))} />}
+        {cursor && <Action label={tr("Halaman pertama", "First page")} onPress={() => navigate(href())} />}
+        {data.nextCursor && <Action label={tr("Halaman berikutnya", "Next page")} onPress={() => navigate(href(data.nextCursor!))} />}
       </Actions>
     </>}</Remote>}
   </>;
 }
 
 export function LeaderboardScreen() {
-  const { tr, route, navigate } = useCommunity();
+  const { tr, theme, route, navigate } = useCommunity();
   const active = route.query.tab === "academic" ? "academic" : "rank";
+  const period = route.query.period ?? "all";
+  const scope = route.query.scope ?? "global";
+  const filtersActive = period !== "all" || scope !== "global";
+  const [filterOpen, setFilterOpen] = useState(false);
+  const filterAnchor = useRef<ComponentRef<typeof Pressable>>(null);
+  const filterLabel = tr("Filter", "Filters");
+  const closeLabel = tr("Tutup", "Close");
+
+  function select(key: "tab" | "period" | "scope", value: string | undefined) {
+    navigate(studentPathWithQuery(route.path, { [key]: value, cursor: undefined }));
+  }
+
   return <Page title={tr("Papan peringkat", "Leaderboard")}>
-    <Choices value={active} options={[{ value: "rank", label: tr("Partisipasi", "Participation") }, { value: "academic", label: tr("Akademik", "Academic") }]}
-      onSelect={tab => navigate(tab === "academic" ? "/leaderboard?tab=academic" : "/leaderboard")} />
-    {active === "academic" ? <AcademicBoard /> : <ParticipationBoard />}
+    <NavigationTabs tabs={[{ id: "rank", label: "Rank" }, { id: "academic", label: tr("Akademik", "Academic") }]}
+      activeId={active} onTabPress={tab => select("tab", tab === "rank" ? undefined : "academic")}
+      accessibilityLabel={tr("Jenis peringkat", "Leaderboard type")} moreLabel={tr("Lainnya", "More")} closeLabel={closeLabel}
+      theme={theme} testID="student-ranking-tab" trailing={active === "rank" ? <Button
+        ref={filterAnchor} testID="student-ranking-filter" variant={filtersActive ? "secondary" : "outline"} size="sm" theme={theme}
+        accessibilityLabel={filtersActive ? tr("Filter, aktif", "Filters, active") : filterLabel}
+        accessibilityState={{ expanded: filterOpen }} onPress={() => setFilterOpen(true)}>{filterLabel}</Button> : undefined} />
+    {active === "academic" ? <AcademicBoard /> : <>
+      <SharedPopover anchorRef={filterAnchor} align="end" open={filterOpen} onDismiss={() => setFilterOpen(false)}
+        title={filterLabel} closeLabel={closeLabel} theme={theme}>
+        <View style={styles.block}>
+          <Copy kind="heading">{tr("Periode", "Period")}</Copy>
+          <Choices<string> value={period} options={[
+            { value: "all", label: tr("Semua waktu", "All time") }, { value: "week", label: tr("Minggu", "Week") },
+            { value: "month", label: tr("Bulan", "Month") },
+          ]} onSelect={value => { setFilterOpen(false); select("period", value === "all" ? undefined : value); }} />
+          <Copy kind="heading">{tr("Cakupan", "Scope")}</Copy>
+          <Choices<string> value={scope} options={[
+            { value: "global", label: "Global" }, { value: "following", label: tr("Diikuti", "Following") },
+          ]} onSelect={value => { setFilterOpen(false); select("scope", value === "global" ? undefined : value); }} />
+        </View>
+      </SharedPopover>
+      <ParticipationBoard />
+    </>}
   </Page>;
 }
 
 export function CourseLeaderboardScreen() {
-  const { route, navigate, session, tr } = useCommunity();
+  const { route, navigate, session, theme, colors, tr } = useCommunity();
   const id = route.params.id;
   const type = route.query.type === "simulation" ? "simulation" : "quiz";
   const quizLabel = tr("Kuis", "Quiz");
-  const simulationLabel = id === "tutorial-pka" ? tr("Simulasi", "Simulation") : "Tryout";
+  const simulationLabel = id === PKA_COURSE_ID ? tr("Simulasi", "Simulation") : "Tryout";
   const assessmentLabel = (type === "quiz" ? quizLabel : simulationLabel).toLowerCase();
   const data = useRemote<CourseRanking>(communityPath("course-ranking", { id, type }));
   const base = `/courses/${encodeURIComponent(id)}/leaderboard`;
   const number = new Intl.NumberFormat(session.locale);
   const percent = new Intl.NumberFormat(session.locale, { style: "percent", maximumFractionDigits: 1 });
-  return <Page title={data.data ? `${tr("Papan peringkat", "Leaderboard")} · ${data.data.course.title}` : tr("Papan peringkat kursus", "Course leaderboard")}>
-    <Choices value={type} options={[{ value: "quiz", label: quizLabel }, { value: "simulation", label: simulationLabel }]}
-      onSelect={value => navigate(`${base}?type=${value}`)} />
+  return <Page title={data.data ? `${tr("Peringkat kelas", "Course leaderboard")}: ${data.data.course.title}` : tr("Peringkat kelas", "Course leaderboard")}>
+    <NavigationTabs tabs={[{ id: "quiz", label: quizLabel }, { id: "simulation", label: simulationLabel }]}
+      activeId={type} onTabPress={value => navigate(`${base}?type=${value}`)}
+      accessibilityLabel={tr("Jenis peringkat", "Ranking type")} moreLabel={tr("Lainnya", "More")} closeLabel={tr("Tutup", "Close")}
+      theme={theme} testID="student-course-ranking-tab" />
     <Remote state={data}>{board => {
       const rank = board.ownRank === null ? "-" : number.format(board.ownRank);
       const total = number.format(board.totalStudents);
       return <>
         <View style={styles.block}>
-          <Copy kind="heading">{tr("Peringkat Anda", "Your rank")}</Copy>
-          <Copy kind="strong">{tr(`${rank} dari ${total}`, `${rank} of ${total}`)}</Copy>
-          {board.ownRank === null && <Copy kind="muted">{tr(`Belum ada skor ${assessmentLabel}.`, `No ${assessmentLabel} scores yet.`)}</Copy>}
+          <View style={[rankingStyles.sectionTitle, { borderBottomColor: colors.border }]}>
+            <Copy kind="heading">{tr("Peringkat Anda", "Your rank")}</Copy>
+          </View>
+          <Copy kind="muted">{tr(`Berdasarkan rata-rata skor ${assessmentLabel} dan kriteria pemecah seri.`, `Based on average ${assessmentLabel} score and tie-break criteria.`)}</Copy>
+          <Copy kind="strong">{board.ownRank === null
+            ? tr(`- dari ${total} (Belum ada skor ${assessmentLabel})`, `- of ${total} (No ${assessmentLabel} scores yet)`)
+            : tr(`${rank} dari ${total}`, `${rank} of ${total}`)}</Copy>
         </View>
         {board.rows.length > 0 ? <View style={styles.block}>
-          <Copy kind="heading">{tr("3 teratas", "Top 3")}</Copy>
+          <View style={[rankingStyles.sectionTitle, { borderBottomColor: colors.border }]}>
+            <Copy kind="heading">{tr("3 teratas", "Top 3")}</Copy>
+          </View>
           <Rows>{board.rows.map(row => {
             const attempts = number.format(row.attempts);
             const duration = formatCourseLeaderboardDuration(row.averageDurationSeconds);
@@ -112,8 +153,17 @@ export function CourseLeaderboardScreen() {
               aside={percent.format(row.average / 100)}
               onPress={row.identity ? () => navigate(identityPath(row.identity!.publicId)) : undefined} />;
           })}</Rows>
-        </View> : <Copy kind="muted">{tr(`Selesaikan ${assessmentLabel} untuk masuk peringkat.`, `Complete a ${assessmentLabel} to appear in the rankings.`)}</Copy>}
+        </View> : <View style={rankingStyles.empty}>
+          <Copy kind="heading">{tr(`Belum ada peringkat ${assessmentLabel}`, `No ${assessmentLabel} rankings yet`)}</Copy>
+          <Copy kind="muted">{type === "simulation" ? tr("Selesaikan tryout untuk masuk peringkat.", "Complete a tryout to appear in the rankings.")
+            : tr("Selesaikan kuis untuk masuk peringkat.", "Complete a quiz to appear in the rankings.")}</Copy>
+        </View>}
       </>;
     }}</Remote>
   </Page>;
 }
+
+const rankingStyles = StyleSheet.create({
+  sectionTitle: { paddingBottom: 6, borderBottomWidth: StyleSheet.hairlineWidth },
+  empty: { alignItems: "center", gap: 6, paddingHorizontal: 8, paddingVertical: 36 },
+});

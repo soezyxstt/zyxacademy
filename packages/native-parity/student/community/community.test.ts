@@ -3,8 +3,9 @@ import { operationsCatalog } from "../../../../lib/admin-mcp/operations-catalog"
 import { describeAgendaEvent, groupCalendarEvents } from "../../../../lib/student/agenda-presentation";
 import { createStudentFixtureRequest } from "../fixture-request";
 import { calendarEvidence } from "./calendar-fixture";
+import { rankingEvidence } from "./ranking-fixture";
 import { summarizeCourseLeaderboard } from "../../../../lib/student/course-leaderboard";
-import { communityRoutes, type AgendaData, type CourseRanking } from "./contracts";
+import { communityRoutes, type AgendaData, type CourseRanking, type LeaderboardPage } from "./contracts";
 import { createCommunityFixtureRequest, isCommunityFixturePath } from "./fixtures";
 import { communityCases, studentCommunityAlias } from "./routes";
 
@@ -57,6 +58,29 @@ test("course ranking uses only podium rows and a rank summary, with empty and lo
   const locked = await createCommunityFixtureRequest("empty")(path);
   expect(locked.status).toBe(403);
   expect(await locked.json()).toEqual({ code: "forbidden" });
+});
+
+test("rank references separate participation filters and unnamed course summary", async () => {
+  const request = createStudentFixtureRequest(rankingEvidence.scenario);
+  const participation = async (params: string): Promise<LeaderboardPage> =>
+    (await request(base + `participation-ranking?${params}`)).json();
+  const global = await participation("period=all&scope=global");
+  const following = await participation("period=all&scope=following");
+  expect(global.entries.map(row => row.publicId)).toEqual(["nara-putri", "satrio-wibowo"]);
+  expect(following.entries.map(row => row.publicId)).toEqual(["nara-putri"]);
+  expect(global.ownEntry).toBeNull();
+  expect(await participation("period=month&scope=following")).toEqual({ entries: [], ownEntry: null, nextCursor: null });
+  const profile = await (await request(base + "profile")).json();
+  expect(profile.customization.settings.leaderboardOptIn).toBe(false);
+
+  const course = base + "course-ranking?id=matematika-1&type=quiz";
+  const ranked = await (await request(course)).json() as CourseRanking;
+  const unranked = await (await createStudentFixtureRequest(rankingEvidence.unrankedScenario)(course)).json() as CourseRanking;
+  expect(ranked.ownRank).toBe(5);
+  expect(unranked).toEqual({ ...ranked, ownRank: null });
+  expect(unranked.rows.map(row => row.name)).toEqual(["Nara Putri", "Raisa Dewi", "Gilang Pratama"]);
+  expect(unranked.rows.map(row => row.identity?.publicId ?? null)).toEqual(["nara-putri", null, null]);
+  expect(JSON.stringify(unranked)).not.toMatch(/Bagas Ilham|Aruni Rasyid|studentId/);
 });
 
 test("community fixture recovery is scoped to its own transport and retry keeps discussion IDs", async () => {

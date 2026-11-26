@@ -8,10 +8,15 @@ name: Community ranking scope and academic class
     timeout: 30000
 - openLink: "zyx-native-parity://student-fixture?scenario=loaded&path=%2Fleaderboard"
 - extendedWaitUntil:
-    visible: "Partisipasi"
+    visible:
+      id: student-ranking-tab-rank
     timeout: 30000
+- tapOn:
+    id: student-ranking-filter
 - assertVisible: "Global"
-- tapOn: "Akademik"
+- tapOn: "Tutup"
+- tapOn:
+    id: student-ranking-tab-academic
 - assertVisible: "Semua kelas"
 - assertVisible: "Matematika I"
 - takeScreenshot: student-ranking-academic

@@ -1,0 +1,147 @@
+{
+  "platform": "ios",
+  "viewport": {
+    "width": 402,
+    "height": 874
+  },
+  "deviceScaleFactor": 3,
+  "locale": "id",
+  "theme": "light",
+  "timeZone": "Asia/Jakarta",
+  "motion": "reduced",
+  "fonts": "Inter and Lexend from native assets",
+  "states": {
+    "quiz": {
+      "scenario": "ranking-parity",
+      "path": "/courses/matematika-1/leaderboard",
+      "data": {
+        "course": {
+          "id": "matematika-1",
+          "title": "Matematika I"
+        },
+        "assessment": "quiz",
+        "ownRank": 5,
+        "totalStudents": 5,
+        "rows": [
+          {
+            "rank": 1,
+            "name": "Nara Putri",
+            "average": 94.5,
+            "attempts": 4,
+            "identity": {
+              "publicId": "nara-putri",
+              "displayName": "Nara Putri",
+              "avatarUrl": null,
+              "rankKey": "kades",
+              "equippedFrameId": null,
+              "equippedThemeId": null
+            },
+            "isSelf": false,
+            "averageDurationSeconds": 132,
+            "correctHardCount": 3,
+            "attemptedMediumCount": 6
+          },
+          {
+            "rank": 2,
+            "name": "Raisa Dewi",
+            "average": 92,
+            "attempts": 4,
+            "identity": null,
+            "isSelf": false,
+            "averageDurationSeconds": 147,
+            "correctHardCount": 2,
+            "attemptedMediumCount": 6
+          },
+          {
+            "rank": 3,
+            "name": "Gilang Pratama",
+            "average": 90,
+            "attempts": 3,
+            "identity": null,
+            "isSelf": false,
+            "averageDurationSeconds": 156,
+            "correctHardCount": 1,
+            "attemptedMediumCount": 5
+          }
+        ]
+      },
+      "summary": "5 dari 5"
+    },
+    "simulation": {
+      "scenario": "ranking-parity",
+      "path": "/courses/matematika-1/leaderboard?type=simulation",
+      "data": {
+        "course": {
+          "id": "matematika-1",
+          "title": "Matematika I"
+        },
+        "assessment": "simulation",
+        "ownRank": null,
+        "totalStudents": 0,
+        "rows": []
+      },
+      "summary": "- dari 0 (Belum ada skor tryout)"
+    },
+    "unranked": {
+      "scenario": "ranking-parity-unranked",
+      "path": "/courses/matematika-1/leaderboard",
+      "data": {
+        "course": {
+          "id": "matematika-1",
+          "title": "Matematika I"
+        },
+        "assessment": "quiz",
+        "ownRank": null,
+        "totalStudents": 5,
+        "rows": [
+          {
+            "rank": 1,
+            "name": "Nara Putri",
+            "average": 94.5,
+            "attempts": 4,
+            "identity": {
+              "publicId": "nara-putri",
+              "displayName": "Nara Putri",
+              "avatarUrl": null,
+              "rankKey": "kades",
+              "equippedFrameId": null,
+              "equippedThemeId": null
+            },
+            "isSelf": false,
+            "averageDurationSeconds": 132,
+            "correctHardCount": 3,
+            "attemptedMediumCount": 6
+          },
+          {
+            "rank": 2,
+            "name": "Raisa Dewi",
+            "average": 92,
+            "attempts": 4,
+            "identity": null,
+            "isSelf": false,
+            "averageDurationSeconds": 147,
+            "correctHardCount": 2,
+            "attemptedMediumCount": 6
+          },
+          {
+            "rank": 3,
+            "name": "Gilang Pratama",
+            "average": 90,
+            "attempts": 3,
+            "identity": null,
+            "isSelf": false,
+            "averageDurationSeconds": 156,
+            "correctHardCount": 1,
+            "attemptedMediumCount": 5
+          }
+        ]
+      },
+      "summary": "- dari 5 (Belum ada skor kuis)"
+    }
+  },
+  "captures": {
+    "course-ranking-quiz.png": "27200e8a77c415effd279cc7a0094e2c395fd9dc812523fb95a94cf2ad0a0566",
+    "course-ranking-simulation.png": "e26e19a787bcb989a0738d2b525765519f809429cdf4502a5f6935989cc19e94",
+    "course-ranking-unranked.png": "c6e5f05af8f42b0fcbb1311a3b503a2594d12b7c61fd682a01034aaaec4f2ac9"
+  }
+}
