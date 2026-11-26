@@ -269,7 +269,7 @@ export function ScheduleResources({ bookingId, role, theme, onUpdated }: {
                 {button(tr("Batal", "Cancel"), () => setRemove(undefined), busy)}
               </> : button(tr("Hapus materi", "Remove resource"), () => setRemove(resource.id), !canEdit)}
             </View> : null}
-          </View>;
+          </View>)}
         </View>;
       })}
       {data.canWrite ? <View style={styles.line}>
