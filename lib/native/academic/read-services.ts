@@ -47,8 +47,13 @@ export const academicReadServices = {
   async analytics(userId, courseId): Promise<TutorAnalytics | null> {
     const result = await getTutorCourseOverview(userId, courseId);
     if (!result) return null;
-    const { courseTitle, enrolledCount, activeCount, weakConcepts, allConcepts, interventionCounts } = result.analytics;
-    return { courseTitle, enrolledCount, activeCount, weakConcepts, allConcepts, interventionCounts };
+    const { courseTitle, enrolledCount, activeCount, weakConcepts, allConcepts, interventionCounts,
+      watchlist, topMisconceptions, conceptTrends, mostMissed, engagement } = result.analytics;
+    return {
+      courseTitle, enrolledCount, activeCount, weakConcepts, allConcepts, interventionCounts,
+      updatedAt: result.updatedAt, quizParticipationPct: engagement?.quizParticipationPct ?? 0,
+      watchlist, topMisconceptions, conceptTrends, mostMissed,
+    };
   },
   async participants(userId, courseId): Promise<TutorParticipants> {
     const { course, participants, groups } = await getTutorCourseParticipants(userId, courseId, { allowAdmin: false }, undefined, requireTutorCourseAccess);

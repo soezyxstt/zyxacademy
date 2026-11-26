@@ -86,15 +86,22 @@ export type TutorAnalytics = {
   weakConcepts: TutorConcept[];
   allConcepts: TutorConcept[];
   interventionCounts: { conceptName: string; count: number }[];
+  updatedAt?: string | null;
+  quizParticipationPct?: number;
+  watchlist?: { studentId: string; name: string; decliningConcepts: string[]; activeInterventionCount: number; lastActiveAt: string | null }[];
+  topMisconceptions?: { misconceptionKoId: string; label: string; conceptName: string; pctSelected: number; sampleSize: number }[];
+  conceptTrends?: Record<string, { week: string; avgMastery: number }[]>;
+  mostMissed?: Record<string, { id: string; prompt: string; correctRate: number; attemptCount: number }[]>;
 };
 
 export type TutorDataSource = {
+  locale?: "id" | "en";
   support?: TutorSupportClient;
   dashboard(signal: AbortSignal): Promise<TutorDashboard>;
   participants(courseId: string, signal: AbortSignal): Promise<TutorParticipants>;
   grading(courseId: string, signal: AbortSignal): Promise<TutorGrading>;
   analytics?(courseId: string, signal: AbortSignal): Promise<TutorAnalytics>;
-  refreshAnalytics?(courseId: string, signal: AbortSignal): Promise<void>;
+  refreshAnalytics?(courseId: string, requestId: string, signal: AbortSignal): Promise<void>;
   saveGrade?(courseId: string, submissionId: string, grade: TutorGrade): Promise<void>;
 } & ({ fixture: true; repository: TutorFixtureRepository } | { fixture?: false });
 

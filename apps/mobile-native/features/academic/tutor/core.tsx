@@ -7,8 +7,6 @@ import {
   parseGrade,
   readAnswers,
   TutorDataError,
-  type TutorAnalytics,
-  type TutorConcept,
   type TutorCourse,
   type TutorDashboard as DashboardData,
   type TutorDataSource,
@@ -18,6 +16,7 @@ import {
 } from "../../../../../packages/native-parity/academic/tutor/model";
 import { Button } from "../../../components/Button";
 import { GradeAttachment } from "../assessment/grade-attachment";
+import { CourseAnalytics } from "./analytics";
 import { Input } from "../../../components/Input";
 import type { AcademicScreenProps } from "../contracts";
 import { Choices, DashboardEmpty, DashboardRow, DashboardSection, Empty, Heading, Label, Row, TutorDetail, TutorPage, tutorLayout } from "./ui";
@@ -101,84 +100,9 @@ export function TutorCourseOverview({ course, theme, back, navigate, source }: N
         <Row key={path} testID={`tutor-course-action-${path.replaceAll("/", "-")}`} theme={theme} title={label} onPress={() => navigate(`${courseRoute(course)}/${path}`)} />
       ))}
     </View>
-    {source.analytics ? <CourseAnalytics theme={theme} courseId={course.courseId} analytics={source.analytics} refresh={source.refreshAnalytics} /> : null}
+    {source.analytics ? <CourseAnalytics theme={theme} courseId={course.courseId} analytics={source.analytics} refresh={source.refreshAnalytics}
+      locale={source.locale ?? "id"} navigate={navigate} /> : null}
   </TutorPage>;
-}
-
-function CourseAnalytics({ theme, courseId, analytics, refresh }: {
-  theme: Navigation["theme"];
-  courseId: string;
-  analytics: NonNullable<TutorDataSource["analytics"]>;
-  refresh?: TutorDataSource["refreshAnalytics"];
-}) {
-  const [data, setData] = useState<TutorAnalytics>();
-  const [concept, setConcept] = useState<TutorConcept>();
-  const [busy, setBusy] = useState(true);
-  const [error, setError] = useState("");
-  const [revision, setRevision] = useState(0);
-  const [showOther, setShowOther] = useState(false);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    const { signal } = controller;
-    async function load() {
-      try {
-        if (revision && refresh) await refresh(courseId, signal);
-        const result = await analytics(courseId, signal);
-        if (!signal.aborted) setData(result);
-      } catch (error) {
-        if (signal.aborted) return;
-        if (error instanceof TutorDataError && [401, 403, 404].includes(error.status)) {
-          setData(undefined);
-          setError("Akses analitik ditolak.");
-        } else {
-          setError("Analitik gagal dimuat.");
-        }
-      } finally {
-        if (!signal.aborted) setBusy(false);
-      }
-    }
-    void load();
-    return () => controller.abort();
-  }, [analytics, courseId, refresh, revision]);
-
-  const other = data?.allConcepts.filter((entry) =>
-    !data.weakConcepts.some((priority) => priority.conceptName === entry.conceptName),
-  ) ?? [];
-  const concepts = [...(data?.weakConcepts ?? []), ...(showOther ? other : [])];
-  return <View style={tutorLayout.group}>
-    <Heading theme={theme} title="Analitik" />
-    <Button theme={theme} variant="outline" isLoading={busy} style={tutorLayout.action} onPress={() => {
-      setBusy(true);
-      setError("");
-      setRevision((current) => current + 1);
-    }}>{error ? "Coba lagi" : "Muat ulang analitik"}</Button>
-    {error ? <Label theme={theme} tone="error">{error}</Label> : null}
-    {!data && busy ? <ActivityIndicator accessibilityLabel="Memuat analitik" /> : null}
-    {data ? <>
-      <Row theme={theme} title="Peserta terdaftar" meta={String(data.enrolledCount)} />
-      <Row theme={theme} title="Aktif pekan ini" meta={String(data.activeCount)} />
-      <Heading theme={theme} title="Konsep prioritas" />
-      {concepts.length > 0 ? concepts.map((entry) => <Row key={entry.conceptName} theme={theme}
-        title={entry.conceptName} subtitle={`${entry.studentCount} siswa`}
-        meta={String(entry.avgMastery)} onPress={() => setConcept(entry)}
-      />) : <Empty theme={theme} title="Data konsep belum mencukupi" />}
-      {other.length > 0 ? <Button theme={theme} variant="ghost" style={tutorLayout.action}
-        accessibilityState={{ expanded: showOther }} onPress={() => setShowOther((current) => !current)}
-      >{showOther ? "Sembunyikan konsep lain" : `${other.length} konsep lain`}</Button> : null}
-      <Heading theme={theme} title="Intervensi aktif" />
-      {data.interventionCounts.length ? data.interventionCounts.map((entry) =>
-        <Row key={entry.conceptName} theme={theme} title={entry.conceptName} meta={String(entry.count)} />,
-      ) : <Empty theme={theme} title="Belum ada intervensi aktif" />}
-    </> : null}
-    {concept ? <TutorDetail theme={theme} title={concept.conceptName} onBack={() => setConcept(undefined)}>
-      <Row theme={theme} title="Rata-rata penguasaan" meta={String(concept.avgMastery)} />
-      <Heading theme={theme} title="Distribusi penguasaan" count={`${concept.studentCount} siswa`} />
-      <Row theme={theme} title="Rendah" meta={String(concept.bucketLow)} />
-      <Row theme={theme} title="Sedang" meta={String(concept.bucketMid)} />
-      <Row theme={theme} title="Tinggi" meta={String(concept.bucketHigh)} />
-    </TutorDetail> : null}
-  </View>;
 }
 
 const dateFormat = new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Jakarta" });

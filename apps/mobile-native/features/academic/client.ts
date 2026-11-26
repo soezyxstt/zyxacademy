@@ -47,14 +47,20 @@ function buildAcademicClient(transport: AcademicTransport) {
     if (!response.ok) throw new TutorDataError(response.status);
     return response.json() as Promise<T>;
   }
+  const command = transport.command?.bind(transport);
   const tutor: TutorDataSource = {
+    locale: transport.locale === "en" ? "en" : "id",
     support: createTutorSupportClient(transport),
     dashboard: signal => read("/api/native/academic/tutor/dashboard", signal),
     analytics: (id, signal) => read(`/api/native/academic/tutor/courses/${encodeURIComponent(id)}/analytics`, signal),
+    refreshAnalytics: command ? async (id, requestId, signal) => {
+      const path = `/api/tutor/analytics/refresh?${new URLSearchParams({ courseId: id })}`;
+      const response = await command(path, { method: "POST", body: {}, requestId }, signal);
+      if (!response.ok) throw new TutorDataError(response.status);
+    } : undefined,
     participants: (id, signal) => read(`/api/native/academic/tutor/courses/${encodeURIComponent(id)}/participants`, signal),
     grading: (id, signal) => read(`/api/native/academic/tutor/courses/${encodeURIComponent(id)}/grading`, signal),
   };
-  const command = transport.command?.bind(transport);
   const settingsTarget = command ? createCourseCommandTarget<AdminCourseEditDraft>(command) : undefined;
   const chapterTarget = command ? createCourseCommandTarget<AdminChapterDraft>(command) : undefined;
   const setTarget = command ? createCourseCommandTarget<AdminFlashcardSetDraft>(command) : undefined;

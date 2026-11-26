@@ -204,6 +204,13 @@ export const operationsCatalog = [
     "reason": "Learner assessment requires the native Student session, course eligibility and attempt ownership. Tryout submission checks publication under the same exam lock as Admin lifecycle writes. The learner API uses existing academic services through app HTTPS and does not accept MCP credentials."
   },
   {
+    "source": "app/api/tutor/analytics/refresh/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Web and Expo refresh the same course-scoped Tutor analytics snapshot after checking the signed role and course access. Snapshot refresh, roster analytics and concept drilldown are interactive academic operations without an MCP tool."
+  },
+  {
     "source": "app/api/native/academic/[...resource]/route.ts",
     "actions": ["GET", "POST", "PATCH", "DELETE"],
     "tools": [],

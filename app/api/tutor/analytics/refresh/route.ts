@@ -4,9 +4,12 @@ import { headers } from "next/headers";
 import { resolveTutorCourseAccess } from "@/lib/auth/tutor-access";
 import { resolveActorRoles } from "@/lib/tutor/assessment-policy";
 import { computeSnapshotPayload } from "@/lib/cohort-analytics";
+import { isSameOriginAdminRequest } from "@/lib/admin-ops-ai/request-origin";
 
 export async function POST(req: NextRequest) {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const requestHeaders = await headers();
+  if (!isSameOriginAdminRequest(req, requestHeaders)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const session = await auth.api.getSession({ headers: requestHeaders });
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { isTutor, isAdmin } = await resolveActorRoles(
@@ -33,5 +36,5 @@ export async function POST(req: NextRequest) {
 
   const targetCourseId = access.legacyCourseId ?? courseId;
   await computeSnapshotPayload(targetCourseId);
-  return NextResponse.json({ updatedAt: new Date().toISOString() });
+  return NextResponse.json({ updatedAt: new Date().toISOString() }, { headers: { "Cache-Control": "private, no-store" } });
 }

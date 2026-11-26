@@ -136,6 +136,15 @@ export function createTutorFixtureData(
         weakConcepts: concepts,
         allConcepts: concepts,
         interventionCounts: populated ? [{ conceptName: "Perpindahan zat melalui membran", count: 1 }] : [],
+        updatedAt: populated ? "2026-06-19T04:00:00.000Z" : null,
+        quizParticipationPct: populated ? 67 : 0,
+        watchlist: populated ? [{ studentId: participants[0].userId, name: participants[0].name,
+          decliningConcepts: ["Perpindahan zat melalui membran"], activeInterventionCount: 1, lastActiveAt: "2026-06-18T10:00:00.000Z" }] : [],
+        topMisconceptions: populated ? [{ misconceptionKoId: "fixture-osmosis", label: "Arah perpindahan pelarut",
+          conceptName: "Perpindahan zat melalui membran", pctSelected: 40, sampleSize: 10 }] : [],
+        conceptTrends: populated ? { "Perpindahan zat melalui membran": [{ week: "W1", avgMastery: 68 }, { week: "W2", avgMastery: 62 }] } : {},
+        mostMissed: populated ? { "Perpindahan zat melalui membran": [{ id: "fixture-missed", prompt: "Bagaimana air berpindah melalui membran?",
+          correctRate: 0.4, attemptCount: 10 }] } : {},
       };
     },
     async saveGrade(courseId, submissionId, grade) {
