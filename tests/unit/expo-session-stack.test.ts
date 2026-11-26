@@ -42,8 +42,8 @@ describe("Expo private back stack", () => {
 
   test("replaces a private current route without forwarding its path or parameters", () => {
     const before = stack({ name: "offline", key: "old-offline" }, course);
-    expect(resetSessionStack(before, false)?.routes).toEqual([{ name: "index" }]);
-    expect(resetSessionStack(before, true)?.routes).toEqual([{ name: "sign-out" }]);
+    expect<{ name: string }[] | undefined>(resetSessionStack(before, false)?.routes).toEqual([{ name: "index" }]);
+    expect<{ name: string }[] | undefined>(resetSessionStack(before, true)?.routes).toEqual([{ name: "sign-out" }]);
   });
 
   test("classifies every canonical lane route by its session requirement", () => {
