@@ -12,15 +12,24 @@ const { act, create } = testRequire("react-test-renderer");
 
 global.IS_REACT_ACT_ENVIRONMENT = true;
 
-const platform = { OS: "web" };
+const platform = {
+  OS: "web",
+  select(options) { return options[this.OS] ?? options.default; },
+};
 const focusEvents = [];
 const nativeHost = {
   AccessibilityInfo: { sendAccessibilityEvent: (target, event) => focusEvents.push([target.testID, event]) },
   ActivityIndicator: "ActivityIndicator",
   I18nManager: { isRTL: false },
   Platform: platform,
-  Pressable: "Pressable",
-  StyleSheet: { create: (styles) => styles },
+  Pressable: React.forwardRef(function Pressable({ children, ...props }, ref) {
+    const content = typeof children === "function" ? children({ pressed: false }) : children;
+    return React.createElement("Pressable", { ...props, ref }, content);
+  }),
+  StyleSheet: {
+    create: (styles) => styles,
+    flatten: (styles) => Object.assign({}, ...[styles].flat(Infinity).filter(Boolean)),
+  },
   Text: "Text",
   TextInput: "TextInput",
   View: "View",

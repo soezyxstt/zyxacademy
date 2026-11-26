@@ -1,6 +1,6 @@
 # Bukti visual perangkat shared UI
 
-Gunakan build galeri dari commit yang diperiksa, Python 3.10+ dengan Pillow, Maestro, dan target yang menjalankan React Native. Sebelum membuat build uji dari checkout terpisah, jalankan `node packages/native-parity/shared-ui/install-local-route.mjs` jika host belum memasang rute `shared-ui/[id]`. Android memakai `adb` untuk emulator atau perangkat. iOS memakai `xcrun simctl` untuk simulator yang sedang boot. Simpan artefak gambar dan laporan lokal dalam `artifacts/native-parity/shared-ui/`.
+Gunakan build galeri dari commit yang diperiksa, Python 3.10+ dengan Pillow, Maestro, dan target yang menjalankan React Native. Host memvalidasi semua kasus pada rute internal `/internal/shared-ui/[caseId]`. Alur Maestro memakai alias `/shared-ui/[id]` yang tersedia sejak commit integrator `68931f55`. Android memakai `adb` untuk emulator atau perangkat. iOS memakai `xcrun simctl` untuk simulator yang sedang boot. Simpan artefak gambar dan laporan lokal dalam `artifacts/native-parity/shared-ui/`.
 
 ## Cocokkan geometri dengan referensi
 

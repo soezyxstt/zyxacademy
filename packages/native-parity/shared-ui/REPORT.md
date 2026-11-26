@@ -4,14 +4,13 @@ Entry `SharedUiCase({ id })` menjalankan 52 fixture deterministik dalam 17 kelom
 
 ## Entry integrasi dan reproduksi
 
-Basis integrasi memasang sepuluh kasus awal pada `zyx-native-parity://internal/shared-ui/<caseId>`. Untuk mengikat semua kasus pada rute itu, integrator dapat mencari ID di `sharedUiCases` dari `packages/native-parity/shared-ui/cases.ts` lalu merender `<SharedUiCase id={fixture.id} />`. Pertahankan perilaku redirect untuk ID yang tidak terdaftar. Halaman produk mengikat callback ke router serta adapter domain masing-masing.
+Sejak commit integrator `68931f55`, kedua entry host dapat membuka semua 52 kasus. Deep link utama adalah `zyx-native-parity://internal/shared-ui/<caseId>`; alias `zyx-native-parity://shared-ui/<caseId>` dipakai oleh Maestro. Contoh untuk menguji retry adalah `zyx-native-parity://internal/shared-ui/shared-ui-list-error-light`. Host memvalidasi ID terhadap `sharedUiCases`, mengembalikan ID asing ke galeri, dan memuat `SharedUiCase` setelah font dan SafeAreaProvider siap. Halaman produk mengikat callback ke router serta adapter domain masing-masing.
 
-Untuk menguji seluruh galeri sekarang, gunakan checkout uji bersih. Skrip berikut membuat rute lokal `/shared-ui/[id]` dan menolak menimpa berkas yang sudah ada. Jalankan Maestro terhadap binary yang dibangun dari checkout tersebut. [Perintah capture, pemeriksaan geometri, serta diff perangkat](../../../tests/visual/native-parallel/shared-ui/device/README.md)
+Dari checkout bersih, pasang dependensi dan jalankan host. Pada emulator/simulator, gunakan binary yang dibangun dari SHA uji yang sama untuk menjalankan Maestro. [Perintah capture, pemeriksaan geometri, serta diff perangkat](../../../tests/visual/native-parallel/shared-ui/device/README.md)
 
 ```sh
 bun install --frozen-lockfile
 npm ci --prefix apps/mobile-native
-node packages/native-parity/shared-ui/install-local-route.mjs
 npm --prefix apps/mobile-native run typecheck
 npm --prefix apps/mobile-native start
 ```
@@ -57,3 +56,19 @@ Manifest menyimpan ID kasus, komponen, tema, dan viewport. Laporan capture menau
 Jalur ini menambah **0 operasi backend**. Fixture tidak memerlukan sesi, akses kursus, kamera, filesystem perangkat, atau scope MCP. Permintaan halaman berikut yang dipicu UsersDashboard pada kasus pending ditahan di Playwright sebelum mencapai server. Penggantian akun, pengiriman diskusi, moderasi, unggah, pencarian server dan pemesanan jadwal tetap menggunakan otorisasi masing-masing adapter. Repo tidak mengubah tool, scope, consent, katalog operasi atau deployment MCP dalam diff jalur ini.
 
 Status Android dan iOS untuk seluruh baris adalah **menunggu pengujian perangkat**. Build/bundle dan tes host menguji kompilasi serta callback. Bukti orientasi sentuhan, IME, TalkBack/VoiceOver, perpindahan fokus keyboard pada Pressable, font scale sistem dan pixel diff native membutuhkan emulator/simulator atau perangkat nyata. React Native versi ini membatasi fokus imperatif pada view non-input melalui flag internal. Host dapat memakai `onAfterDismiss` untuk fokus native. Alur Maestro berada di [.maestro/native-parallel/shared-ui](../../../.maestro/native-parallel/shared-ui/), termasuk jalur tablet terpisah. Checkout Linux yang menjalankan capture web tidak menyediakan adb, /dev/kvm, xcrun atau Maestro. CI native pusat memiliki galeri sendiri. Belum ada item yang mendapat kredit paritas piksel Android+iOS.
+
+## Hasil verifikasi lokal
+
+Pengujian menggunakan host dari base `840d3f303da55e4b93048c58eb3faea6b8b0a3c0`. Integrator dapat menjalankan fixture melalui galeri atau melalui deep link tanpa memasang launcher sementara.
+
+| Pemeriksaan | Hasil pada checkout tugas |
+| --- | --- |
+| Referensi web dari komponen aplikasi | Chromium 154.0.8037.57 menghasilkan 52 PNG pada DPR 1 dan 52 pada DPR 3. Semua ID muncul sekali per density. Seluruh PNG berisi render dan ukurannya sesuai viewport × DPR. Seluruh capture lulus pemeriksaan overflow horizontal. [Manifest DPR 1](../../../tests/visual/native-parallel/shared-ui/references/dpr1/results.json) · [Manifest DPR 3](../../../tests/visual/native-parallel/shared-ui/references/dpr3/results.json) |
+| Interaksi Playwright | 11 lulus. Meliputi validasi dialog dan pemulihan fokus lewat Escape, fokus sheet, judul aksesibel, edit dan hapus pencarian, retry dan reset daftar, pilihan tanggal/tab, nama panjang pada 380 px, pembesaran teks dan input sentuh. [Skenario](../../../tests/visual/native-parallel/shared-ui/interactions.ts) |
+| Kontrak native | 9 tes model Bun dan 4 tes komponen dengan React test renderer lulus. TypeScript untuk seluruh ekspor shared-ui dan TypeScript serta ESLint harness referensi lulus. [Tes](../../../tests/native-parity/shared-ui/) |
+| Collector perangkat | 10 tes Python lulus, mencakup penolakan frame kosong, identitas kasus keliru, metadata build yang hilang dan perbedaan geometri. [Tes collector](../../../tests/visual/native-parallel/shared-ui/device/) |
+| Typecheck host penuh | `npm --prefix apps/mobile-native run typecheck` gagal pada dua pemanggilan `useSyncExternalStore` di `auth/session-provider.tsx`. Snapshot server awal belum memasok boolean `revalidating` yang diminta controller. Integrator perlu menyelaraskan snapshot dan menjalankan ulang typecheck host. |
+
+Ekspor Hermes untuk kedua platform berhasil pada host tersebut setelah pengujian lokal memakai `config.transformer.assetRegistryPath = require.resolve("react-native/asset-registry")` di konfigurasi Metro aplikasi. Pada instalasi npm terisolasi, Metro mencoba menyelesaikan modul itu dari luar root aplikasi ketika membundel `public/founders/adi.jpeg`. Integrator dapat mereproduksi dengan `npx --no-install expo export --platform all --clear` dari `apps/mobile-native` dan menetapkan resolusi registry dari root aplikasi. Penyesuaian Metro hanya digunakan saat eksperimen lokal. SHA-256 bundle Android adalah `c49812f4b07ca619b2b8c8c29564a9f2d2f2eaa759f328f9c91d82f746b96ca9`, dan iOS `16e6a6427fad9faf9f1208c9fd13966dfa066c150f1b89d4a18bd10d86b8b927`.
+
+Untuk menutup verifikasi, bangun host yang mencakup SHA PR, jalankan 12 alur Maestro sesuai target ponsel/tablet, lalu kumpulkan 52 screenshot per OS beserta bukti TalkBack/VoiceOver, Back, fokus, ukuran teks dan sentuhan. Collector memerlukan identitas kasus, geometri konten, density dan identitas build sebelum membuat diff. [Langkah dan format bukti perangkat](../../../tests/visual/native-parallel/shared-ui/device/README.md)
