@@ -16,7 +16,7 @@ export function BlogShareCard({ title, url, onShare }: { title: string; url: str
     }
   }
 
-  return <View style={[layout.panel, { padding: 24, backgroundColor: colors.card, borderColor: colors.border }]}>
+  return <View style={[layout.panel, { padding: 24, backgroundColor: colors.background, borderColor: colors.border }]}>
     <View style={layout.item}>
       <Label style={{ fontWeight: "700" }}>{blog.shareArticleTitle}</Label>
       <Label tone="muted">{blog.shareArticleDescription}</Label>
