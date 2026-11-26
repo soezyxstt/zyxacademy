@@ -341,8 +341,8 @@ const rows = manifest.routes.map(route => {
       limitation: "The integration preview mounts the verified entry. A signed-in product run and fixture device results have separate provenance." },
     operations: operations[pattern], contract_doc: info.doc, checks: [...info.checks, "tests/unit/native-student-expanded-fixtures.test.ts"],
     http_evidence: httpCourses.has(pattern) ? { source: "tests/visual/native-parallel/student/product/README.md", scope: "Local synthetic HTTP reads for dashboard, extras, catalog, course and material; see per-view assertions." } :
-      ["/courses/[id]/quiz/[quizId]", "/courses/[id]/tryout/[tryoutId]", "/courses/[id]/my-results", "/courses/[id]/my-results/[submissionId]"].includes(pattern) ?
-      { source: "tests/visual/native-parallel/student/product/assessment-http.ts", scope: "Signed HTTP with a local PostgreSQL database. Checks retries, attempt ownership, release and score for quiz and tryout." } :
+      ["/courses/[id]/quiz/[quizId]", "/courses/[id]/tryout/[tryoutId]", "/courses/[id]/my-results", "/courses/[id]/my-results/[submissionId]", "/courses/[id]/my-results/[submissionId]/summary", "/courses/[id]/quiz/[quizId]/summary/[attemptId]"].includes(pattern) ?
+      { source: "tests/visual/native-parallel/student/product/assessment-http.ts", scope: "Signed HTTP with a local PostgreSQL database. Checks retries, attempt ownership, release and score for quiz and tryout, plus analytics redaction and owner-only regeneration on both summary paths." } :
       httpLearning.has(pattern) ? { source: "tests/visual/native-parallel/student/product/learning-http.ts", scope: "Signed HTTP to local Next and PostgreSQL. See per-view assertions for entitlement, previews, and flashcard review persistence." } :
       httpCommunity.has(pattern) ? { source: "packages/native-parity/student/community/README.md", scope: "Local synthetic HTTP tests cover selected guard and community operations; inspect linked test for exact scope." } : null,
     web_evidence: [...productCaptures, ...componentCaptures, ...optionalCaptures], web_attempts: attempts,
