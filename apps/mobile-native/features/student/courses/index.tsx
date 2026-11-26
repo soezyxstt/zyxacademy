@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState, type ComponentRef, type ReactNode } from "react";
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, useColorScheme, type TextStyle } from "react-native";
+import { PixelRatio, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, useColorScheme, type TextStyle } from "react-native";
 import { nativeColors, nativeRadii } from "../../../../../packages/design-tokens/native-colors";
 import {
   canShowOfflineCourse, coursePath, coursesEndpoint, learningEndpoint, materialPath, materialRowPath, materialTabs, normalizeMaterialTab,
@@ -17,6 +17,7 @@ import { canonicalStudentArticleHref, offlineMaterialRecovery, type OfflineCours
 import { DashboardBottom, DashboardTop, useDashboardExtras } from "./dashboard-extra";
 import { Catalog } from "./catalog";
 import { courseCopy, type CourseCopy } from "./copy";
+import { courseScrollOffsetForMount } from "./scroll-offset";
 
 type Theme = keyof typeof nativeColors;
 type Reader = StudentScreenProps["renderMaterial"];
@@ -523,11 +524,12 @@ function CourseEntry(props: StudentScreenProps & { query: LearningQuery }) {
   const { resource, reload: loadAgain } = useLearningData(request, learningEndpoint(query), query.view, !revoked);
   const cached = offline?.course;
   const useOfflineMetadata = canShowOfflineCourse(query.view, "courseId" in query ? query.courseId : undefined, cached?.id, offline?.status, resource);
-  const restoreOffset = useRef({ x: 0, y: initialScrollY });
+  const androidDensity = Platform.OS === "android" ? PixelRatio.get() : undefined;
+  const restoreOffset = useRef({ x: 0, y: courseScrollOffsetForMount(initialScrollY, androidDensity) });
   const lastOffset = useRef(initialScrollY);
   const isReady = !revoked && (resource.kind === "ready" || Boolean(useOfflineMetadata));
   const reload = () => {
-    restoreOffset.current = { x: 0, y: lastOffset.current };
+    restoreOffset.current = { x: 0, y: courseScrollOffsetForMount(lastOffset.current, androidDensity) };
     loadAgain();
   };
 
