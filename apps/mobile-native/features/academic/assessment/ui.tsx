@@ -1,3 +1,4 @@
+import { usePageTitle } from "../../../routing/visible-navbar-title";
 import { randomUUID } from "expo-crypto";
 import { useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
@@ -15,14 +16,15 @@ export function AssessmentPage({ title, subtitle, back, backLabel = "Kembali", c
   children: ReactNode;
 }) {
   const colors = useCourseColors();
+  const pageTitle = usePageTitle(title);
   return (
     <ScrollView testID="academic-assessment" keyboardShouldPersistTaps="handled" style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={layout.page}>
       <View style={[layout.group, styles.header, { borderColor: colors.border }]}>
         <View style={layout.row}><Action label={backLabel} onPress={back} variation="ghost" testID="academic-assessment-back" /></View>
-        <View style={layout.compact}>
-          <Ink kind="title">{title}</Ink>
+        {(pageTitle || subtitle) && <View style={layout.compact}>
+          {pageTitle && <Ink kind="title">{pageTitle}</Ink>}
           {subtitle ? <Ink kind="meta" tone="muted">{subtitle}</Ink> : null}
-        </View>
+        </View>}
       </View>
       {children}
     </ScrollView>

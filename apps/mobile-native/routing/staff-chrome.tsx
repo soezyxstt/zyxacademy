@@ -8,6 +8,7 @@ import type { NativeAccountContext } from "../../../packages/native-session/cont
 import { resolveNativeProtectedDestination } from "../auth/login-intent";
 import { NativeInboxBell } from "../features/notification-inbox/bell";
 import { NativeListRow, NativeStatusPanel } from "../features/shared-ui/layout";
+import { VisibleNavbarTitle } from "./visible-navbar-title";
 import { MobileNavbar, RoleBottomNavigation } from "../features/shared-ui/navigation";
 import { NavigationIcon } from "../features/shared-ui/navigation-icons";
 import { SharedSheet } from "../features/shared-ui/overlays";
@@ -114,7 +115,9 @@ export function StaffChrome({ role, href, theme, focused, context, checkingAcces
           if (action === "back" && navigation.backTo && screenNavigation.isFocused() && session.isCurrent()) back(navigation.backTo);
         }} />
       <View style={styles.frame}>
-        <StaffNavVisibility.Provider value={setVisibility}>{children}</StaffNavVisibility.Provider>
+        <StaffNavVisibility.Provider value={setVisibility}>
+          <VisibleNavbarTitle.Provider value={visibility.hideTop ? undefined : navigation.title}>{children}</VisibleNavbarTitle.Provider>
+        </StaffNavVisibility.Provider>
       </View>
       {navigation.role === "admin" ?
         <RoleBottomNavigation role="admin" theme={theme} labels={navigation.labels} activeId={navigation.active}

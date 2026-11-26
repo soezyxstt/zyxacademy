@@ -1,3 +1,4 @@
+import { usePageTitle } from "../../../routing/visible-navbar-title";
 import { useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { ScrollView, View } from "react-native";
 import { type CourseFixture, courseFixtures } from "../../../../../packages/native-parity/academic/courses/fixtures";
@@ -64,6 +65,7 @@ function CourseRoute(props: CourseScreenProps) {
 function CoursePage({ title, subtitle, back, children, scroll = true }: {
   title: string; subtitle?: string; back(): void; children: ReactNode; scroll?: boolean;
 }) {
+  const pageTitle = usePageTitle(title);
   const theme = useContext(CourseTheme);
   const content = (
     <>
@@ -75,7 +77,7 @@ function CoursePage({ title, subtitle, back, children, scroll = true }: {
     <NativeCompactShell
       theme={theme}
       edges={[]}
-      navigationTitle={title}
+      navigationTitle={pageTitle}
       back={{ label: "Kembali", onPress: back }}
     >
       {scroll ? (

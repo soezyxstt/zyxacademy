@@ -1,3 +1,4 @@
+import { usePageTitle } from "../../../routing/visible-navbar-title";
 import { StudentListRow } from "../ListRow";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ComponentRef, type ReactNode } from "react";
 import {
@@ -126,6 +127,7 @@ export function useOperation() {
 
 export function Page({ title, headerAction, compactTitle, children }: { title: string; headerAction?: ReactNode; compactTitle?: boolean; children: ReactNode }) {
   const { colors, initialScrollY, onScrollY } = useCommunity();
+  const pageTitle = usePageTitle(title);
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
   const start = useRef(initialScrollY);
   const restored = useRef(false);
@@ -145,9 +147,9 @@ export function Page({ title, headerAction, compactTitle, children }: { title: s
     scrollEventThrottle={16}
   >
     {headerAction ? <View style={styles.compactHeader}>
-      <Text accessibilityRole="header" style={[styles.compactTitle, { color: colors.foreground }]}>{title}</Text>
+      {pageTitle && <Text accessibilityRole="header" style={[styles.compactTitle, { color: colors.foreground }]}>{pageTitle}</Text>}
       {headerAction}
-    </View> : <Text accessibilityRole="header" style={[compactTitle ? styles.compactPageTitle : styles.title, { color: colors.foreground }]}>{title}</Text>}
+    </View> : pageTitle && <Text accessibilityRole="header" style={[compactTitle ? styles.compactPageTitle : styles.title, { color: colors.foreground }]}>{pageTitle}</Text>}
     {children}
   </ScrollView>;
 }

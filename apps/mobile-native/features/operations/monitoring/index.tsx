@@ -1,3 +1,4 @@
+import { usePageTitle } from "../../../routing/visible-navbar-title";
 import { ScrollView, useColorScheme } from "react-native";
 import { nativeColors } from "../../../../../packages/design-tokens/native-colors";
 import {
@@ -66,6 +67,7 @@ export function MonitoringScreen({
   const theme = themeOverride ?? scheme ?? "light";
   const [rawPath, query] = href.split(/[?#]/, 2);
   const path = rawPath.replace(/\/$/, "");
+  const title = usePageTitle(isMonitoringPath(path) ? pageTitles[path][locale] : "");
   if (!isMonitoringPath(path)) return null;
   const requestedRange = new URLSearchParams(query).get("range");
   const range = requestedRange === "7" ? 7 : requestedRange === "90" ? 90 : 30;
@@ -73,7 +75,7 @@ export function MonitoringScreen({
     <ScrollView key={JSON.stringify([sessionKey, href, locale, access])}
       testID="operations-monitoring-screen" keyboardShouldPersistTaps="handled"
       style={[styles.screen, { backgroundColor: nativeColors[theme].background }]} contentContainerStyle={styles.container}>
-      <Heading>{pageTitles[path][locale]}</Heading>
+      {title && <Heading>{title}</Heading>}
       {access === "allowed"
         ? <ScreenContents path={path} reader={reader} actions={actions} links={links} range={range} navigate={onNavigate} />
         : <ReadState error={new MonitoringError(access === "signed-out" ? 401 : 403)} />}

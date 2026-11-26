@@ -1,3 +1,4 @@
+import { usePageTitle } from "../../../routing/visible-navbar-title";
 import { useContext, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { NativeCompactShell, NativeStatusPanel } from "../../shared-ui";
@@ -47,8 +48,9 @@ export function TimeFields({ label, date, time, setDate, setTime }: {
 export function AdministrationPage({ title, back, backLabel = "Kembali", children }: {
   title: string; back(): void; backLabel?: string; children: ReactNode;
 }) {
+  const pageTitle = usePageTitle(title);
   const theme = useContext(CourseTheme);
-  return <NativeCompactShell navigationTitle={title} back={{ label: backLabel, onPress: back }} theme={theme} edges={[]}>
+  return <NativeCompactShell navigationTitle={pageTitle} back={{ label: backLabel, onPress: back }} theme={theme} edges={[]}>
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap: 16, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
       {children}
     </ScrollView>

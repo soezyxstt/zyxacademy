@@ -1,3 +1,4 @@
+import { usePageTitle } from "../../../routing/visible-navbar-title";
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View, type TextInputProps } from "react-native";
 
@@ -139,15 +140,16 @@ export function useDraft<T>(key: string, initialValue: T, initialRevision?: stri
 
 export function Screen({ title, description, back, actions, children }: { title: string; description?: string; back?: { label: string; run: () => void }; actions?: ReactNode; children: ReactNode }) {
   const { colors } = useManagement();
+  const pageTitle = usePageTitle(title);
   return <ScrollView keyboardShouldPersistTaps="handled" style={{ backgroundColor: colors.background }} contentContainerStyle={styles.page}>
-    <View style={styles.header}>
+    {(back || pageTitle || actions || description) && <View style={styles.header}>
       {back && <Action variant="ghost" onPress={back.run}>{back.label}</Action>}
-      <View style={styles.row}>
-        <Text accessibilityRole="header" style={[styles.title, { color: colors.foreground }]}>{title}</Text>
+      {(pageTitle || actions) && <View style={styles.row}>
+        {pageTitle && <Text accessibilityRole="header" style={[styles.title, { color: colors.foreground }]}>{pageTitle}</Text>}
         {actions}
-      </View>
+      </View>}
       {description && <Copy muted>{description}</Copy>}
-    </View>
+    </View>}
     {children}
   </ScrollView>;
 }

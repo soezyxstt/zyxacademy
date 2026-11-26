@@ -4,6 +4,7 @@ import { View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { nativeColors } from "../../../packages/design-tokens/native-colors";
 import { useNativeSession } from "../auth/session-provider";
+import { VisibleNavbarTitle } from "./visible-navbar-title";
 import { MobileNavbar, RoleBottomNavigation } from "../features/shared-ui/navigation";
 import { NativeInboxBell } from "../features/notification-inbox/bell";
 import { useSiteSearch } from "../features/site-search/search";
@@ -86,7 +87,11 @@ export function StudentNavigationFrame({ href, pattern, locale, theme, enabled, 
       {course?.tabs}
       <View style={{ flex: 1 }}>
         <StudentChromeVisibilityContext.Provider value={setVisibility}>
-          <StudentCourseNavbarContext.Provider value={Boolean(course)}>{children}</StudentCourseNavbarContext.Provider>
+          <StudentCourseNavbarContext.Provider value={Boolean(course)}>
+            <VisibleNavbarTitle.Provider value={enabled && !hideTop && !course?.descriptor ? title : undefined}>
+              {children}
+            </VisibleNavbarTitle.Provider>
+          </StudentCourseNavbarContext.Provider>
         </StudentChromeVisibilityContext.Provider>
       </View>
       <RoleBottomNavigation role="student" theme={theme} labels={labels} activeId={active}
