@@ -45,7 +45,8 @@ export function articleCodingApi(request: StudentRequest, courseId: string, arti
     try {
       if (response.ok) return await response.json();
       const issue = await response.json().catch(() => null);
-      throw new ArticleCodingError(response.status, typeof issue?.code === "string" ? issue.code : undefined);
+      const code = issue && typeof issue === "object" && "code" in issue ? issue.code : undefined;
+      throw new ArticleCodingError(response.status, typeof code === "string" ? code : undefined);
     } finally { response.dispose?.(); }
   }
   return {
