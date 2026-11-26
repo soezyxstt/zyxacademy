@@ -10,8 +10,12 @@ from pathlib import Path
 
 def compare_platform(platform, artifact, output):
     manifest = artifact / "interaction-manifest.json"
-    if not manifest.is_file():
-        return {"platform": platform, "status": "unverified", "reason": "no verified device interaction manifest"}
+    verification = artifact / "comparison-status.json"
+    if not manifest.is_file() or not verification.is_file():
+        return {"platform": platform, "status": "unverified", "reason": "no final verified device interaction manifest"}
+    geometry = json.loads(verification.read_text())
+    if geometry.get("status") != "ready" or geometry.get("manifestExitCode") != 0:
+        return {"platform": platform, "status": "unverified", "reason": "final device geometry verification failed"}
     device = json.loads(manifest.read_text())
     ids = [row["id"] for row in device["captures"]]
     missing = device.get("missingDeviceCases", [])

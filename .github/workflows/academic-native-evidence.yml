@@ -8,10 +8,6 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: academic-native-evidence-${{ github.event.pull_request.number }}
-  cancel-in-progress: false
-
 env:
   CI: '1'
   EXPO_NO_TELEMETRY: '1'
@@ -22,6 +18,9 @@ env:
 jobs:
   device:
     if: github.head_ref == 'native-migration/academic' && github.event.pull_request.head.repo.full_name == github.repository
+    concurrency:
+      group: academic-native-evidence-${{ github.event.pull_request.number }}-${{ matrix.platform }}
+      cancel-in-progress: false
     strategy:
       fail-fast: false
       matrix:
@@ -68,6 +67,7 @@ jobs:
         run: |
           bun scripts/native-parity/academic/export-cases.ts > "$ACADEMIC_OUTPUT/cases.json"
           python -m pip install Pillow==12.2.0
+          python -m unittest discover -s scripts/native-parity/academic -p test_evidence_geometry.py
       - run: npm ci
         working-directory: apps/mobile-native
       - if: matrix.platform == 'android'

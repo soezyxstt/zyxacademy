@@ -8,6 +8,7 @@ cd "$root"
 scripts="$root/scripts/native-parity/academic"
 output="$root/${ACADEMIC_OUTPUT:-artifacts/native-parity/academic/$platform}"
 mkdir -p "$output"
+rm -f "$output/interaction-manifest.json" "$output/comparison-status.json"
 app_id=com.zyx.academy.nativeparity
 stage=setup
 priority_status=null
@@ -84,10 +85,9 @@ else
   accessibility_status=1
 fi
 
-stage=interaction-manifest
+stage=priority-interaction-manifest
 write_status
-manifest_status=0
-python "$scripts/evaluate.py" "$output" || manifest_status=$?
+python "$scripts/evaluate.py" "$output" --provisional || true
 
 stage=remaining-routes
 write_status

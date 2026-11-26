@@ -64,7 +64,7 @@ python3 tests/visual/native-parallel/academic/compare.py \
 
 Pembanding menggunakan piksel asli dan memotong hanya sesuai batas konten yang dicatat. Status lulus mensyaratkan viewport, DPR, tema, dimensi konten, gambar referensi yang berisi, dan selisih nol piksel. Perbedaan ukuran menghasilkan PNG area tumpang tindih dan PNG area yang tidak berpasangan sebagai diagnostik. Run standar memeriksa semua pasangan semantik, dan `--case` membatasi pemeriksaan ke kasus tertentu. Hasil JSON mencatat dimensi PNG mentah, batas konten, dan alasan kasus gagal.
 
-Untuk pembandingan yang sesuai ukuran perangkat, ambil nilai `contentViewport` dari `comparison-status.json` hasil run. Gunakan dimensi tersebut, DPR perangkat, dan kasus yang sudah dipasangkan saat menangkap ulang referensi Playwright. Simpan referensi baru di folder ukuran perangkat agar baseline 380 × 844 tetap tersedia.
+Untuk pembandingan yang sesuai ukuran perangkat, gunakan `contentViewport` dari `comparison-status.json` dengan status `ready`. File bersufiks `-provisional` menyimpan geometri dari kasus prioritas untuk diagnosis. Gunakan dimensi yang sudah diverifikasi di akhir run, DPR perangkat, dan kasus yang sudah dipasangkan saat menangkap ulang referensi Playwright. Simpan referensi baru di folder ukuran perangkat agar baseline 380 × 844 tetap tersedia.
 
 ```sh
 PARITY_WIDTH=<lebar-dp> PARITY_HEIGHT=<tinggi-dp> PARITY_DPR=1 \
