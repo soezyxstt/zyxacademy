@@ -1,20 +1,25 @@
 import type { DocumentDraftRequest, DocumentResult } from "../../../device/file-controller";
 import type { NativeSessionTransport } from "../../../network/transport";
-import { blogThumbnailMimeTypes, blogUploadMaxBytes } from "../../../../../lib/blog/upload-policy";
+import { blogBodyMimeTypes, blogThumbnailMimeTypes, blogUploadMaxBytes, isBlogUploadPath } from "../../../../../lib/blog/upload-policy";
 
 type UploadResult = { status: "uploaded"; url: string } | { status: "cancelled" | "unavailable" | "type" | "size" | "forbidden" | "uncertain" };
-export type PickBlogThumbnail = (target: DocumentDraftRequest["target"], signal: AbortSignal) => Promise<UploadResult>;
+export type BlogUploadPurpose = "thumbnail" | "body";
+export type PickBlogMedia = (target: DocumentDraftRequest["target"], signal: AbortSignal, purpose?: BlogUploadPurpose) => Promise<UploadResult>;
 
-export function createBlogThumbnailPicker(session: NativeSessionTransport, device: {
+export function createBlogMediaPicker(session: NativeSessionTransport, device: {
   pick(draft: DocumentDraftRequest): Promise<DocumentResult>;
   multipart(uri: string): FormData;
-}): PickBlogThumbnail {
-  return async (target, signal) => {
+}): PickBlogMedia {
+  return async (target, signal, purpose = "thumbnail") => {
     const current = () => !signal.aborted && session.isCurrent();
     if (!current()) return { status: "cancelled" };
+    const edit = /^\/admin\/blog\/([A-Za-z0-9_-]{1,180})\/edit$/.exec(target.route);
+    const articleId = edit?.[1];
+    const draft = articleId ? `article:${articleId}` : "new";
+    if ((!articleId && target.route !== "/admin/blog/new") || target.draftId !== `blog:${articleId ?? "new"}`) return { status: "unavailable" };
     const selected = await device.pick({
       session, target, signal, isDraftCurrent: current,
-      policy: { mimeTypes: blogThumbnailMimeTypes, maxBytes: blogUploadMaxBytes },
+      policy: { mimeTypes: purpose === "body" ? blogBodyMimeTypes : blogThumbnailMimeTypes, maxBytes: blogUploadMaxBytes },
     });
     if (selected.status !== "ready") {
       if (!current() || selected.status === "cancelled" || selected.status === "stale") return { status: "cancelled" };
@@ -34,9 +39,11 @@ export function createBlogThumbnailPicker(session: NativeSessionTransport, devic
         headers: {
           "x-native-operations-user-id": session.scope.accountId,
           "x-native-operations-session-id": session.scope.sessionId,
+          "x-native-blog-upload-purpose": purpose,
+          "x-native-blog-draft": draft,
         },
       });
-      if (response.status === 401 || response.status === 403) return { status: "forbidden" };
+      if (response.status === 401 || response.status === 403 || response.status === 404) return { status: "forbidden" };
       if (response.status === 413) return { status: "size" };
       if (response.status === 400) return { status: "type" };
       if (!response.ok) return { status: "uncertain" };
@@ -44,7 +51,7 @@ export function createBlogThumbnailPicker(session: NativeSessionTransport, devic
       if (!current()) return { status: "cancelled" };
       if (typeof data?.url !== "string") return { status: "uncertain" };
       const url = data.url.startsWith("blog/") ? `/api/storage/file/${data.url}` : data.url;
-      if (!/^\/api\/storage\/file\/blog\/[A-Za-z0-9_-]+\.(?:jpe?g|png|webp|gif)$/.test(url)) return { status: "uncertain" };
+      if (!isBlogUploadPath(url, purpose === "body")) return { status: "uncertain" };
       return { status: "uploaded", url };
     } catch {
       return { status: !current() ? "cancelled" : sent ? "uncertain" : "unavailable" };

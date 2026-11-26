@@ -11,7 +11,7 @@ import { NavigationTabs } from "../../shared-ui/navigation";
 import { nativeTypography } from "../../../typography";
 import type { PickFormImage } from "./form-image-upload";
 import type { OpenFormAttachment } from "./form-media";
-import type { PickBlogThumbnail } from "./blog-upload";
+import type { PickBlogMedia } from "./blog-upload";
 import type { PickMediaFile } from "./media-upload";
 
 export type ManagementTheme = keyof typeof nativeColors;
@@ -24,7 +24,7 @@ export type ManagementRuntime = {
   navigate: (path: string) => void;
   openExternal?: (url: string) => void | Promise<void>;
   share?: (url: string, title?: string) => void | Promise<void>;
-  pickBlogThumbnail?: PickBlogThumbnail;
+  pickBlogMedia?: PickBlogMedia;
   openFormAttachment?: OpenFormAttachment;
   pickFormImage?: PickFormImage;
   pickMediaFile?: PickMediaFile;

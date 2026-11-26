@@ -5,6 +5,8 @@ import {
   type Article, type ArticleFields,
 } from "../../../../../packages/native-parity/operations/management-contract";
 import { articlePublicationIntent } from "../../../../../packages/native-parity/operations/management-revisions";
+import { isBlogUploadPath } from "../../../../../lib/blog/upload-policy";
+import type { BlogUploadPurpose } from "./blog-upload";
 import { RevisionReview } from "./revisions";
 import { Action, Choices, Confirm, Copy, Feedback, Field, Heading, Item, LoadState, Screen, Section, Sections, styles, useAction, useDraft, useManagement, useRead, type Confirmation } from "./ui";
 
@@ -42,7 +44,7 @@ export function BlogEditorRoute({ id, tab }: { id?: string; tab?: string }) {
 }
 
 function BlogEditor({ article, initialTab }: { article?: Article; initialTab?: string }) {
-  const { client, navigate, renderMarkdown, pickBlogThumbnail, locale } = useManagement();
+  const { client, navigate, renderMarkdown, pickBlogMedia, locale } = useManagement();
   const id = article?.id;
   const draft = useDraft<ArticleFields>(`blog:${id ?? "new"}`, article ? articleFields(article) : emptyArticle, article?.revision);
   const value = draft.value;
@@ -58,21 +60,22 @@ function BlogEditor({ article, initialTab }: { article?: Article; initialTab?: s
   const [needsReview, setNeedsReview] = useState(Boolean(article && article.revision !== draft.revision));
   const [latest, setLatest] = useState<Article | null>(() => needsReview ? article ?? null : null);
   const [checking, setChecking] = useState(false);
-  const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
-  const [thumbnailError, setThumbnailError] = useState<string>();
-  const thumbnailRequest = useRef<AbortController | null>(null);
-  useEffect(() => () => thumbnailRequest.current?.abort(), []);
+  const [uploading, setUploading] = useState<BlogUploadPurpose | null>(null);
+  const [uploadError, setUploadError] = useState<{ purpose: BlogUploadPurpose; message: string }>();
+  const uploadRequest = useRef<AbortController | null>(null);
+  const selection = useRef<{ start: number; end: number } | null>(null);
+  useEffect(() => () => uploadRequest.current?.abort(), []);
   const mustReview = needsReview || (action.error instanceof ManagementFailure && action.error.code === "conflict");
   const edit = <K extends keyof ArticleFields>(key: K, next: ArticleFields[K]) => { if (!action.busy) draft.update(fields => ({ ...fields, [key]: next })); };
   const leave = () => {
-    thumbnailRequest.current?.abort();
-    thumbnailRequest.current = null;
-    setUploadingThumbnail(false);
+    uploadRequest.current?.abort();
+    uploadRequest.current = null;
+    setUploading(null);
     navigate("/admin/blog");
   };
 
   function submit() {
-    if (mustReview || thumbnailRequest.current) return;
+    if (mustReview || uploadRequest.current) return;
     const error = validateArticle(value);
     if (error) return action.setError(new ManagementFailure("invalid", error));
     const save = () => action.run({ type: "article.save", id, revision: draft.revision, fields: value }, () => { draft.clear(); leave(); });
@@ -83,15 +86,25 @@ function BlogEditor({ article, initialTab }: { article?: Article; initialTab?: s
   }
 
   function insertMedia() {
-    if (!/^https:\/\/[^\s"<>]+$/.test(mediaUrl) || (mediaSourceUrl && !/^https:\/\/[^\s"<>]+$/.test(mediaSourceUrl))) return action.setError(new ManagementFailure("invalid", "Gunakan tautan media HTTPS yang valid."));
+    if (action.busy || uploadRequest.current) return;
+    const url = mediaUrl.trim();
+    const source = mediaSourceUrl.trim();
+    if ((!isBlogUploadPath(url, true) && !/^https:\/\/[^\s"<>]+$/.test(url)) || (source && !/^https:\/\/[^\s"<>]+$/.test(source))) {
+      setUploadError({ purpose: "body", message: "Gunakan tautan media HTTPS yang valid atau unggah berkas." });
+      return;
+    }
     const attribute = (name: string, data: string) => data ? ` ${name}="${data.replace(/["\n\r]/g, "")}"` : "";
-    edit("content", `${value.content}\n\n:::media {src="${mediaUrl}"${attribute("caption", mediaCaption)}${attribute("sourceLabel", mediaSource)}${attribute("sourceUrl", mediaSourceUrl)}}\n:::\n`);
+    const block = `\n\n:::media {src="${url}"${attribute("caption", mediaCaption)}${attribute("sourceLabel", mediaSource)}${attribute("sourceUrl", source)}}\n:::\n`;
+    const { start, end } = selection.current ?? { start: value.content.length, end: value.content.length };
+    edit("content", value.content.slice(0, start) + block + value.content.slice(end));
+    const next = start + block.length;
+    selection.current = { start: next, end: next };
     setMedia(false);
     setMediaUrl("");
     setMediaCaption("");
     setMediaSource("");
     setMediaSourceUrl("");
-    action.setError(undefined);
+    setUploadError(undefined);
   }
 
   async function inspectLatest() {
@@ -103,36 +116,37 @@ function BlogEditor({ article, initialTab }: { article?: Article; initialTab?: s
     finally { setChecking(false); }
   }
 
-  async function uploadThumbnail() {
-    if (!pickBlogThumbnail || thumbnailRequest.current || action.busy || mustReview) return;
+  async function uploadMedia(purpose: BlogUploadPurpose) {
+    if (!pickBlogMedia || uploadRequest.current || action.busy || mustReview) return;
     const controller = new AbortController();
-    thumbnailRequest.current = controller;
-    setUploadingThumbnail(true);
-    setThumbnailError(undefined);
+    uploadRequest.current = controller;
+    setUploading(purpose);
+    setUploadError(undefined);
     try {
-      const result = await pickBlogThumbnail({
+      const result = await pickBlogMedia({
         route: id ? `/admin/blog/${encodeURIComponent(id)}/edit` : "/admin/blog/new",
         draftId: `blog:${id ?? "new"}`,
         locale,
-      }, controller.signal);
-      if (controller.signal.aborted || result.status === "cancelled") return;
+      }, controller.signal, purpose);
+      if (uploadRequest.current !== controller || controller.signal.aborted || result.status === "cancelled") return;
       if (result.status === "uploaded") {
-        draft.update(fields => ({ ...fields, thumbnailUrl: result.url }));
+        if (purpose === "thumbnail") draft.update(fields => ({ ...fields, thumbnailUrl: result.url }));
+        else setMediaUrl(result.url);
       } else {
-        setThumbnailError({
-          unavailable: "Gambar belum dapat dipilih.",
-          type: "Pilih gambar JPEG, PNG, WebP, atau GIF.",
-          size: "Ukuran gambar maksimal 20 MB.",
-          forbidden: "Sesi Admin diperlukan untuk mengunggah gambar.",
-          uncertain: "Hasil unggahan belum dapat dipastikan. Periksa pustaka media.",
-        }[result.status]);
+        setUploadError({ purpose, message: {
+          unavailable: "Berkas belum dapat dipilih.",
+          type: purpose === "body" ? "Pilih JPEG, PNG, WebP, GIF, MP4, atau WebM." : "Pilih gambar JPEG, PNG, WebP, atau GIF.",
+          size: "Ukuran berkas maksimal 20 MB.",
+          forbidden: "Sesi Admin aktif dan draf yang valid diperlukan.",
+          uncertain: purpose === "body" ? "Unggahan belum dapat dipastikan. Pilih berkas yang sama untuk memeriksa kembali." : "Hasil unggahan belum dapat dipastikan. Periksa pustaka media.",
+        }[result.status] });
       }
     } catch {
-      if (!controller.signal.aborted) setThumbnailError("Gambar belum dapat dipilih.");
+      if (!controller.signal.aborted) setUploadError({ purpose, message: "Berkas belum dapat dipilih." });
     } finally {
-      if (thumbnailRequest.current === controller) {
-        thumbnailRequest.current = null;
-        if (!controller.signal.aborted) setUploadingThumbnail(false);
+      if (uploadRequest.current === controller) {
+        uploadRequest.current = null;
+        if (!controller.signal.aborted) setUploading(null);
       }
     }
   }
@@ -140,30 +154,36 @@ function BlogEditor({ article, initialTab }: { article?: Article; initialTab?: s
   return <Screen title={article ? "Sunting" : "Tulis artikel"} description={article?.title} back={{ label: "Blog", run: leave }}>
     <View style={styles.row}>
       <Action onPress={leave} disabled={action.busy}>Batal</Action>
-      <Action variant="default" onPress={submit} busy={action.busy} disabled={mustReview || uploadingThumbnail}>Simpan artikel</Action>
+      <Action variant="default" onPress={submit} busy={action.busy} disabled={mustReview || Boolean(uploading)}>Simpan artikel</Action>
     </View>
     <Feedback {...action} />
     {mustReview && !latest && <Action onPress={inspectLatest} busy={checking}>Muat revisi terbaru</Action>}
     {latest && <RevisionReview key={latest.revision} baseline={draft.baseline} local={value} saved={articleFields(latest)}
       onClose={() => setLatest(null)} onResolve={fields => {
+        selection.current = null;
         draft.resolve(fields, articleFields(latest), latest.revision);
         setNeedsReview(false);
         setLatest(null);
         action.setError(undefined);
       }} />}
     <Field label="Judul artikel (opsional)" value={value.title} placeholder="Judul dapat diambil dari heading pertama" onChangeText={next => edit("title", next)} />
-    <Field label="Ringkasan / Summary (opsional)" value={value.summary} multiline onChangeText={next => edit("summary", next)} />
+    <Field label="Ringkasan (opsional)" value={value.summary} multiline onChangeText={next => edit("summary", next)} />
+    {!value.summary.trim() && <Copy muted>Jika kosong, AI akan merangkum isi artikel saat disimpan.</Copy>}
     <Heading>Konten (Markdown)</Heading>
     <Sections variant="inline" current={mode} values={[["write", "Tulis"], ["preview", "Pratinjau"]]} onChange={setMode} />
     {mode === "write" ? <>
-      <Field label="Konten (Markdown)" value={value.content} multiline style={{ minHeight: 180 }} onChangeText={next => edit("content", next)} />
-      <View style={styles.row}><Action onPress={() => setMedia(!media)}>{media ? "Tutup media" : "Sisipkan media"}</Action></View>
+      <Field label="Konten (Markdown)" value={value.content} multiline style={{ minHeight: 180 }}
+        onSelectionChange={event => { selection.current = event.nativeEvent.selection; }} onChangeText={next => edit("content", next)} />
+      <View style={styles.row}><Action disabled={uploading === "body"} onPress={() => setMedia(!media)}>{media ? "Tutup media" : "Sisipkan media"}</Action></View>
       {media && <Section title="Sisipkan media">
-        <Field label="URL media" value={mediaUrl} onChangeText={setMediaUrl} autoCapitalize="none" keyboardType="url" />
+        <Field label="URL media" value={mediaUrl} editable={uploading !== "body"} onChangeText={next => { setUploadError(undefined); setMediaUrl(next); }} autoCapitalize="none" keyboardType="url" />
+        {pickBlogMedia && <Action testID="native-blog-body-upload" onPress={() => void uploadMedia("body")} busy={uploading === "body"}
+          disabled={Boolean(uploading) || action.busy || mustReview}>Unggah gambar atau video</Action>}
+        {uploadError?.purpose === "body" && <Copy status="error">{uploadError.message}</Copy>}
         <Field label="Keterangan media" value={mediaCaption} onChangeText={setMediaCaption} />
         <Field label="Nama sumber" value={mediaSource} onChangeText={setMediaSource} />
         <Field label="URL sumber" value={mediaSourceUrl} onChangeText={setMediaSourceUrl} autoCapitalize="none" keyboardType="url" />
-        <Action onPress={insertMedia}>Sisipkan media</Action>
+        <Action disabled={Boolean(uploading) || action.busy} onPress={insertMedia}>Sisipkan media</Action>
       </Section>}
     </> : <Section>
       <Heading>{articleTitle(value) || "Judul artikel"}</Heading>
@@ -173,9 +193,9 @@ function BlogEditor({ article, initialTab }: { article?: Article; initialTab?: s
     <Section title="Pengaturan publikasi">
       <Copy strong>Status</Copy><Choices values={articleStatuses} current={value.status} onChange={next => edit("status", next)} />
       <Copy strong>Kategori</Copy><Choices values={categories} current={value.category} onChange={next => edit("category", next)} />
-      <Field label="Thumbnail utama" value={value.thumbnailUrl} autoCapitalize="none" keyboardType="url" editable={!uploadingThumbnail} onChangeText={next => { setThumbnailError(undefined); edit("thumbnailUrl", next); }} />
-      {pickBlogThumbnail && <Action onPress={uploadThumbnail} busy={uploadingThumbnail} disabled={action.busy || mustReview}>Unggah thumbnail</Action>}
-      {thumbnailError && <Copy status="error">{thumbnailError}</Copy>}
+      <Field label="Thumbnail utama" value={value.thumbnailUrl} autoCapitalize="none" keyboardType="url" editable={uploading !== "thumbnail"} onChangeText={next => { setUploadError(undefined); edit("thumbnailUrl", next); }} />
+      {pickBlogMedia && <Action onPress={() => void uploadMedia("thumbnail")} busy={uploading === "thumbnail"} disabled={Boolean(uploading) || action.busy || mustReview}>Unggah thumbnail</Action>}
+      {uploadError?.purpose === "thumbnail" && <Copy status="error">{uploadError.message}</Copy>}
       <Field label="Tag (tekan Enter)" value={tag} onChangeText={setTag} onSubmitEditing={() => {
         const next = tag.trim();
         if (next && !value.tags.includes(next)) edit("tags", [...value.tags, next]);

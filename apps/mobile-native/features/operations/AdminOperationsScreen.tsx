@@ -5,7 +5,7 @@ import type { NativeSessionTransport } from "../../network/transport";
 import { EvaluationScreen, type EvaluationScreenProps } from "./evaluation";
 import { createManagementClient, ManagementScreen, type ManagementScreenProps } from "./management";
 import { connectFormAttachment, connectFormImagePicker } from "./management/form-media";
-import { connectBlogThumbnailPicker } from "./management/expo-blog-upload";
+import { connectBlogMediaPicker } from "./management/expo-blog-upload";
 import { connectMediaFilePicker } from "./management/expo-media-upload";
 import { useManagementLinkActions } from "./management/link-actions";
 import { createSessionMonitoringActions, createSessionMonitoringReader, MonitoringScreen, type MonitoringScreenProps } from "./monitoring";
@@ -28,7 +28,7 @@ export function AdminOperationsScreen(props: AdminOperationsScreenProps) {
   const { context, session, href, navigate, theme } = props;
   const clients = useMemo(() => ({
     management: createManagementClient(session),
-    pickBlogThumbnail: connectBlogThumbnailPicker(session),
+    pickBlogMedia: connectBlogMediaPicker(session),
     openFormAttachment: connectFormAttachment(session),
     pickFormImage: connectFormImagePicker(session),
     pickMediaFile: connectMediaFilePicker(session),
@@ -44,7 +44,7 @@ export function AdminOperationsScreen(props: AdminOperationsScreenProps) {
   const key = operationsAccountKey(session, context);
   switch (resolveOperationsArea(href)) {
     case "management":
-      return <AdminManagement key={key} {...props} accountKey={key} client={clients.management} pickBlogThumbnail={clients.pickBlogThumbnail} pickMediaFile={clients.pickMediaFile} openFormAttachment={clients.openFormAttachment} pickFormImage={clients.pickFormImage} />;
+      return <AdminManagement key={key} {...props} accountKey={key} client={clients.management} pickBlogMedia={clients.pickBlogMedia} pickMediaFile={clients.pickMediaFile} openFormAttachment={clients.openFormAttachment} pickFormImage={clients.pickFormImage} />;
     case "evaluation":
       return <EvaluationScreen {...props.evaluation} href={href} navigate={navigate} accountKey={key}
         request={clients.evaluation} locale={context.locale} theme={theme} />;
@@ -57,11 +57,11 @@ export function AdminOperationsScreen(props: AdminOperationsScreenProps) {
   }
 }
 
-function AdminManagement({ session, href, context, management, navigate, theme, accountKey, client, pickBlogThumbnail, pickMediaFile, openFormAttachment, pickFormImage }: AdminOperationsScreenProps &
-  Pick<ManagementScreenProps, "accountKey" | "client" | "pickBlogThumbnail" | "pickMediaFile" | "openFormAttachment" | "pickFormImage">) {
+function AdminManagement({ session, href, context, management, navigate, theme, accountKey, client, pickBlogMedia, pickMediaFile, openFormAttachment, pickFormImage }: AdminOperationsScreenProps &
+  Pick<ManagementScreenProps, "accountKey" | "client" | "pickBlogMedia" | "pickMediaFile" | "openFormAttachment" | "pickFormImage">) {
   const links = useManagementLinkActions(session, href, context.locale, management);
   return <ManagementScreen
     {...management} {...links} path={href} navigate={navigate} accountKey={accountKey} client={client}
-    pickBlogThumbnail={pickBlogThumbnail} pickMediaFile={pickMediaFile} openFormAttachment={openFormAttachment} pickFormImage={pickFormImage} access="admin" locale={context.locale} theme={theme}
+    pickBlogMedia={pickBlogMedia} pickMediaFile={pickMediaFile} openFormAttachment={openFormAttachment} pickFormImage={pickFormImage} access="admin" locale={context.locale} theme={theme}
   />;
 }

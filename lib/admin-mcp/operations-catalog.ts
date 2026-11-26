@@ -1720,7 +1720,7 @@ export const operationsCatalog = [
     "actions": ["POST"],
     "tools": [],
     "status": "excluded",
-    "reason": "Interactive blog media upload uses the authenticated web tutor or Admin session, or the bound native Admin session for thumbnails. Blog MCP article tools can reference accepted media URLs under their existing scopes and consent."
+    "reason": "Interactive blog uploads use an authenticated web tutor or Admin session, or a bound native Admin session for thumbnails and article images or videos. Blog MCP article tools can reference accepted media URLs under their existing scopes and consent."
   },
   {
     "source": "app/(admin)/admin/forms/[id]/page.tsx",

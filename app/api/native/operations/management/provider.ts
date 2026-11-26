@@ -12,6 +12,7 @@ const name = z.string().trim().min(1).max(240).refine(value => isSafeKey(value) 
 const mediaKey = path.refine(value => value.startsWith("media/"));
 const mediaFolder = z.union([mediaKey, z.literal("")]);
 const providerOperations = z.discriminatedUnion("type", [
+  z.strictObject({ type: z.literal("article.save-with-summary"), articleHash: z.string().regex(/^[a-f0-9]{64}$/) }),
   z.strictObject({ type: z.literal("form.export"), id: z.string().regex(/^[A-Za-z0-9:_-][A-Za-z0-9._:-]{0,255}$/),
     confirmedRevision: z.string().regex(/^[a-f0-9]{64}$/).optional() }),
   z.strictObject({ type: z.literal("media.folder"), folder: mediaFolder, name }),
@@ -27,7 +28,7 @@ const providerOperations = z.discriminatedUnion("type", [
 ]);
 
 type ProviderAction = z.infer<typeof providerOperations>;
-type InvokeProvider = (action: ProviderAction) => Promise<ManagementReceipt>;
+type InvokeProvider<T extends ManagementReceipt = ManagementReceipt> = (action: ProviderAction) => Promise<T>;
 type AuditEntry = typeof auditMutasi.$inferSelect;
 const providerEntity = "native_operations_provider";
 const unknownAfterMs = 15 * 60 * 1000;
@@ -36,9 +37,9 @@ export function isProviderOperation(value: unknown) {
   return value !== null && typeof value === "object" && "type" in value && typeof value.type === "string" && (value.type === "form.export" || /^(media|meet)\./.test(value.type));
 }
 
-function readOutcome(row: AuditEntry): ManagementReceipt {
+function readOutcome<T extends ManagementReceipt>(row: AuditEntry): T {
   switch (row.afterSnapshot?.state) {
-    case "succeeded": return row.afterSnapshot.receipt as ManagementReceipt;
+    case "succeeded": return row.afterSnapshot.receipt as T;
     case "invalid": throw new ManagementFailure("invalid");
     case "forbidden": throw new ManagementFailure("forbidden");
     case "not-found": throw new ManagementFailure("not-found");
@@ -50,7 +51,7 @@ function readOutcome(row: AuditEntry): ManagementReceipt {
   }
 }
 
-export async function nativeProviderMutation(actor: { id: string; sessionId: string }, origin: string, key: string | null, raw: unknown, invoke: InvokeProvider): Promise<ManagementReceipt> {
+export async function nativeProviderMutation<T extends ManagementReceipt>(actor: { id: string; sessionId: string }, origin: string, key: string | null, raw: unknown, invoke: InvokeProvider<T>): Promise<T> {
   const requestKey = z.string().regex(/^[A-Za-z0-9_-]{16,100}$/).parse(key);
   const action = providerOperations.parse(raw);
   const sessionHash = revisionOf(actor.sessionId);
@@ -74,7 +75,7 @@ export async function nativeProviderMutation(actor: { id: string; sessionId: str
     await tx.insert(auditMutasi).values({ id: receiptId, actorId: actor.id, entityType: providerEntity, entityId: intentId, action: action.type, correlationId: requestKey, afterSnapshot: { inputHash, sessionHash, state: "running" } });
     return null;
   });
-  if (prior) return readOutcome(prior);
+  if (prior) return readOutcome<T>(prior);
 
   async function finish(state: string, receipt?: ManagementReceipt) {
     await db.update(auditMutasi).set({ outcome: state === "succeeded" ? "success" : state === "uncertain" ? "failed" : "rejected", afterSnapshot: { inputHash, sessionHash, state, ...(receipt ? { receipt } : {}) } }).where(eq(auditMutasi.id, receiptId));
@@ -126,6 +127,7 @@ export function invokeOperationsProvider(origin: string, headers: Headers): Invo
       }
       case "media.upload":
       case "media.replace":
+      case "article.save-with-summary":
         throw new ManagementFailure("invalid");
       case "media.copy": {
         const inLibrary = action.key.startsWith("media/");

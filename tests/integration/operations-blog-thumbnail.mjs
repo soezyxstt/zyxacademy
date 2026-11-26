@@ -5,7 +5,7 @@ import { penggunaPeran, peran, session, user } from "../../db/schema";
 import { PERAN_SEEDS } from "../../lib/auth/peran";
 import { createPostgresTestDb } from "../helpers/postgres";
 import { createNativeTransport } from "../../apps/mobile-native/network/transport";
-import { createBlogThumbnailPicker } from "../../apps/mobile-native/features/operations/management/blog-upload";
+import { createBlogMediaPicker } from "../../apps/mobile-native/features/operations/management/blog-upload";
 
 const { client, testDb } = await createPostgresTestDb();
 let current;
@@ -20,6 +20,7 @@ mock.module("@/lib/storage", () => ({
       uploads.push({ key, type, bytes: new Uint8Array(await file.arrayBuffer()) });
       return { key };
     },
+    exists: async key => uploads.some(upload => upload.key === key),
     getUrl: key => `/api/storage/file/${key}`,
   },
 }));
@@ -93,7 +94,7 @@ try {
   const nativeSession = transport.setSession({ origin, accountId: admin.user.id, sessionId: admin.session.id, readCookie: () => "session=local-only" });
   const target = { route: "/admin/blog/new", draftId: "blog:new", locale: "id" };
   let release = 0;
-  const picker = createBlogThumbnailPicker(nativeSession, {
+  const picker = createBlogMediaPicker(nativeSession, {
     async pick(draft) {
       assert.deepEqual(draft.target, target);
       assert.equal(draft.policy.maxBytes, 20 * 1024 * 1024);
@@ -121,6 +122,33 @@ try {
   assert.equal(uploads[1].type, "video/mp4");
   current = admin;
   await testDb.update(session).set({ expiresAt: new Date("2099-01-01T00:00:00Z") }).where(eq(session.id, admin.session.id));
+  const bodyHeaders = tag => ({ ...bound(admin), "x-native-blog-upload-purpose": "body", "x-native-blog-draft": tag });
+  const mp4 = Uint8Array.of(0, 0, 0, 20, 102, 116, 121, 112, 105, 115, 111, 109);
+  assert.equal((await call(bodyHeaders("new"), multipart("video/mp4", pngBytes, "wrong.mp4"))).status, 400);
+  assert.equal((await call(bodyHeaders("article:unknown"), multipart("video/mp4", mp4, "video.mp4"))).status, 404);
+  assert.equal((await call(bodyHeaders("../elsewhere"), multipart("video/mp4", mp4, "video.mp4"))).status, 400);
+  const bodyTransport = createNativeTransport({ origin, fetcher: async (url, init) => {
+    assert.equal(init.headers.get("x-native-blog-upload-purpose"), "body");
+    assert.equal(init.headers.get("x-native-blog-draft"), "new");
+    return POST(new Request(url, init));
+  } });
+  const bodySession = bodyTransport.setSession({ origin, accountId: admin.user.id, sessionId: admin.session.id, readCookie: () => "session=local-only" });
+  const bodyPicker = createBlogMediaPicker(bodySession, {
+    async pick(draft) {
+      assert.deepEqual(draft.target, target);
+      assert.deepEqual(draft.policy.mimeTypes, ["image/jpeg", "image/png", "image/webp", "image/gif", "video/mp4", "video/webm"]);
+      return { status: "ready", document: { uri: "file:///video.mp4", release: () => release++ } };
+    },
+    multipart: () => multipart("video/mp4", mp4, "video.mp4"),
+  });
+  const cancellation = new AbortController();
+  const video = await bodyPicker(target, cancellation.signal, "body");
+  assert.equal(video.status, "uploaded");
+  assert.match(video.url, /^\/api\/storage\/file\/blog\/[a-f0-9]{64}\.mp4$/);
+  assert.deepEqual(uploads[2].bytes, mp4);
+  assert.deepEqual(await bodyPicker(target, cancellation.signal, "body"), video);
+  assert.equal(release, 4);
+  assert.equal(uploads.length, 3);
   const encodedBody = Buffer.concat([
     Buffer.from('--fixture\r\nContent-Disposition: form-data; name="file"; filename="fixture.png"\r\nContent-Type: image/png\r\n\r\n'),
     pngBytes,
@@ -134,8 +162,8 @@ try {
     },
   }, { highWaterMark: 0 });
   assert.equal((await streamingPost(revokedDuringRead)).status, 403);
-  assert.equal(uploads.length, 2);
-  console.log("Scoped Blog thumbnail and Web upload compatibility checks passed");
+  assert.equal(uploads.length, 3);
+  console.log("Scoped Blog thumbnail, article media and Web upload compatibility checks passed");
 } finally {
   await client.close();
 }

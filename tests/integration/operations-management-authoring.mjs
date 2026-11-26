@@ -21,6 +21,14 @@ mock.module("server-only", () => ({}));
 mock.module("@/db", () => ({ db: testDb }));
 mock.module("@/lib/db", () => ({ db: testDb }));
 mock.module("next/cache", () => ({ revalidatePath() {} }));
+const summaries = [];
+mock.module("@/lib/gemini", () => ({
+  async generateContentWithFallback(input) {
+    summaries.push(input);
+    if (input.contents.includes("Cadangan ringkasan")) throw new Error("provider unavailable");
+    return { response: { text: "Ringkasan dari ZYX!" } };
+  },
+}));
 
 try {
   const { ensureLegacyIdentity } = await import(
@@ -78,6 +86,7 @@ try {
     },
   };
   await failure(403, "denied-draft-request", article, other);
+  assert.equal(summaries.length, 0);
   const created = await apply("create-draft-request", article);
   assert.deepEqual(await apply("create-draft-request", article), created);
   await failure(409, "create-draft-request", {
@@ -85,11 +94,16 @@ try {
     fields: { ...article.fields, content: "Isi berbeda." },
   });
   assert.equal((await testDb.select().from(blogArticles)).length, 1);
+  assert.equal((await testDb.select().from(blogArticles))[0].summary, "Ringkasan dari Zyx.");
+  assert.equal(summaries.length, 1);
+  assert.match(summaries[0].requestId, /^native-blog:[a-f0-9]{64}$/);
+  assert.equal(summaries[0].feature, "blog-summary");
+  assert.equal(summaries[0].userId, admin.id);
   const updated = await apply("edit-draft-request", {
     ...article,
     id: created.id,
     revision: created.revision,
-    fields: { ...article.fields, content: "Isi revisi." },
+    fields: { ...article.fields, content: "Isi revisi.", summary: "Ringkasan tulisan Admin." },
   });
   assert.notEqual(updated.revision, created.revision);
   await failure(409, "stale-draft-request", {
@@ -98,6 +112,8 @@ try {
     revision: created.revision,
   });
   assert.equal((await testDb.select().from(blogArticles))[0].status, "draft");
+  assert.equal((await testDb.select().from(blogArticles))[0].summary, "Ringkasan tulisan Admin.");
+  assert.equal(summaries.length, 1);
 
   const fields = {
     title: "Formulir simulasi",
@@ -156,7 +172,15 @@ try {
     .where(eq(customForms.id, form.id));
   assert.equal(row.settings.closedMessage, "Ditutup.");
   assert.equal(row.questions[0].title, "Tanggapan?");
-  assert.equal((await testDb.select().from(auditMutasi)).length, 4);
+  assert.equal((await testDb.select().from(auditMutasi).where(eq(auditMutasi.entityType, "native_operations"))).length, 4);
+  const fallbackAction = { ...article, id: updated.id, revision: updated.revision,
+    fields: { ...article.fields, content: "Cadangan ringkasan jika penyedia tidak tersedia." } };
+  const fallback = await apply("fallback-summary-request", fallbackAction);
+  assert.deepEqual(await apply("fallback-summary-request", fallbackAction), fallback);
+  assert.equal((await testDb.select().from(blogArticles))[0].summary, fallbackAction.fields.content);
+  assert.equal(summaries.length, 2);
+  const [summaryReceipt] = await testDb.select().from(auditMutasi).where(eq(auditMutasi.entityType, "native_operations_provider"));
+  assert.doesNotMatch(JSON.stringify(summaryReceipt.afterSnapshot), /Ringkasan|Isi draf/);
   const presetFields = { name: "Preset latihan", description: "Susun ulang nanti", category: "survey", questions: [{ title: "", type: "RADIO", options: [""] }], settings: { displayMode: "section" } };
   const createPreset = { type: "form.preset.create", fields: presetFields };
   const preset = await apply("create-preset-request", createPreset);

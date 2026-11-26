@@ -6,11 +6,13 @@ import { auditMutasi, customForms, customFormResponses, session } from "@/db/sch
 import { assertFormSlugAvailable } from "@/lib/admin-mcp/forms-service";
 import { revisionOf } from "@/lib/admin-mcp/revision";
 import { assertAuthoringActor } from "@/lib/auth/authoring-actor";
-import { blogFieldsSchema, createBlogArticle, updateBlogArticle } from "@/lib/blog/service";
+import { blogFieldsSchema, createBlogArticle, getBlogArticle, normalizeBlogFields, updateBlogArticle } from "@/lib/blog/service";
+import { generateBlogSummary } from "@/lib/blog/summary";
 import { nextMonotonicTimestamp } from "@/lib/date-utils";
 import { formDefinitionSchema, formQuestionSchema, formSettingsSchema } from "@/lib/forms/validation";
 import { applyPreset, presetOperations } from "./presets";
 import { applyConfiguration, configurationOperations } from "./configuration";
+import { nativeProviderMutation } from "./provider";
 import { ManagementFailure } from "@/packages/native-parity/operations/management-contract";
 
 const id = z.string().regex(/^[A-Za-z0-9_-]{1,180}$/);
@@ -41,6 +43,7 @@ const nativeAuthoring = z.discriminatedUnion("type", [
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type FormRow = typeof customForms.$inferSelect;
 type Receipt = { id: string; revision?: string; slug?: string; previousSlug?: string };
+type WriteResult = { receipt: Receipt } | { content: string; fallback: string };
 const authorityFailure = "NATIVE_OPERATIONS_ADMIN_REQUIRED";
 
 async function getFormForWrite(tx: Transaction, formId: string, expectedRevision?: string): Promise<FormRow> {
@@ -55,7 +58,7 @@ export async function nativeAuthoringMutation(actor: { id: string; sessionId: st
   const action = nativeAuthoring.parse(actionValue);
   const receiptId = `native_ops_${revisionOf({ actor: actor.id, origin, requestKey })}`;
   const inputHash = revisionOf(action);
-  const result = await db.transaction(async (tx): Promise<Receipt> => {
+  const write = (summary?: string, prepareSummary = false) => db.transaction(async (tx): Promise<WriteResult> => {
     await assertAuthoringActor(tx, actor.id, { roles: ["admin"], error: authorityFailure, lock: true });
     const [active] = await tx.select({ expiresAt: session.expiresAt }).from(session).where(and(eq(session.id, actor.sessionId), eq(session.userId, actor.id))).limit(1).for("share");
     if (!active || active.expiresAt.getTime() <= Date.now()) throw new ManagementFailure("forbidden");
@@ -64,7 +67,7 @@ export async function nativeAuthoringMutation(actor: { id: string; sessionId: st
     const [previous] = await tx.select().from(auditMutasi).where(eq(auditMutasi.id, receiptId)).limit(1);
     if (previous) {
       if (previous.actorId !== actor.id || previous.entityType !== "native_operations" || previous.action !== action.type || previous.afterSnapshot?.sessionHash !== revisionOf(actor.sessionId) || previous.afterSnapshot?.inputHash !== inputHash) throw new ManagementFailure("conflict");
-      return previous.afterSnapshot.result as Receipt;
+      return { receipt: previous.afterSnapshot.result as Receipt };
     }
 
     let receipt: Receipt;
@@ -72,6 +75,13 @@ export async function nativeAuthoringMutation(actor: { id: string; sessionId: st
       case "article.save": {
         const { status, ...fields } = action.fields;
         if (action.id && !action.revision) throw new ManagementFailure("conflict");
+        if (prepareSummary) {
+          const original = action.id ? await getBlogArticle(actor.id, action.id, tx) : undefined;
+          if (original && original.revision !== action.revision) throw new ManagementFailure("conflict");
+          const prepared = normalizeBlogFields({ ...fields, summary: "" }, original);
+          return { content: prepared.content, fallback: prepared.summary };
+        }
+        if (summary) fields.summary = summary;
         const article = action.id
           ? await updateBlogArticle(tx, { actorId: actor.id, id: action.id, expectedRevision: action.revision!, changes: fields, status })
           : await createBlogArticle(tx, { actorId: actor.id, article: fields, status });
@@ -110,8 +120,26 @@ export async function nativeAuthoringMutation(actor: { id: string; sessionId: st
       default: receipt = await applyConfiguration(tx, actor.id, action);
     }
     await tx.insert(auditMutasi).values({ id: receiptId, actorId: actor.id, entityType: "native_operations", entityId: receipt.id, action: action.type, correlationId: requestKey, outcome: "success", afterSnapshot: { inputHash, sessionHash: revisionOf(actor.sessionId), result: receipt } });
-    return receipt;
+    return { receipt };
   });
+
+  const needsSummary = action.type === "article.save" && !action.fields.summary?.trim();
+  const first = await write(undefined, needsSummary);
+  let result: Receipt;
+  if ("receipt" in first) {
+    result = first.receipt;
+  } else {
+    // Reserve the effect before sending draft text to the provider. A replay
+    // can settle from the committed article receipt even if the provider
+    // receipt could not be finalized. Audit data contains hashes and IDs.
+    result = await nativeProviderMutation(actor, origin, requestKey, { type: "article.save-with-summary", articleHash: inputHash }, async () => {
+      const requestId = `native-blog:${revisionOf({ receiptId, sessionId: actor.sessionId })}`;
+      const generated = await generateBlogSummary(actor.id, first.content, requestId);
+      const committed = await write(generated ?? first.fallback);
+      if (!("receipt" in committed)) throw new ManagementFailure("uncertain");
+      return committed.receipt;
+    });
+  }
 
   if (action.type === "article.save") {
     revalidatePath("/admin/blog");
