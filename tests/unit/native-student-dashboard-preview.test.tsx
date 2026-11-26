@@ -1,17 +1,29 @@
 import { expect, test } from "bun:test";
 import { build } from "esbuild";
+import { createRequire } from "node:module";
+import { runInNewContext } from "node:vm";
 import { Children, isValidElement, type ReactNode } from "react";
-import { learningEndpoint, type DashboardData } from "../../packages/native-parity/student/courses/contract";
+import { learningEndpoint, type DashboardData, type DashboardPreview } from "../../packages/native-parity/student/courses/contract";
 import { createStudentFixtureRequest } from "../../packages/native-parity/student/fixture-request";
+
+type PreviewProps = {
+  preview: DashboardPreview;
+  locale: "id" | "en";
+  theme: "light";
+  navigate(path: string): void;
+  offerLabel(): undefined;
+};
 
 test("dashboard free previews render and open the allowed first material without Intl.PluralRules", async () => {
   const bundle = await build({
     entryPoints: ["apps/mobile-native/features/student/courses/dashboard-overview.tsx"],
     bundle: true,
     write: false,
-    platform: "browser",
-    format: "esm",
+    platform: "node",
+    format: "cjs",
+    external: ["react"],
     jsx: "automatic",
+    tsconfigRaw: {},
     loader: { ".ttf": "empty" },
     plugins: [{
       name: "native-dashboard-primitives",
@@ -28,8 +40,14 @@ test("dashboard free previews render and open the allowed first material without
       },
     }],
   });
-  const moduleUrl = `data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].contents).toString("base64")}`;
-  const { DashboardPreviewCourses }: typeof import("../../apps/mobile-native/features/student/courses/dashboard-overview") = await import(moduleUrl);
+  const module: { exports: { DashboardPreviewCourses?: (props: PreviewProps) => ReactNode } } = { exports: {} };
+  runInNewContext(bundle.outputFiles[0].text, {
+    module,
+    require: createRequire(import.meta.url),
+    Intl: { NumberFormat: Intl.NumberFormat },
+  });
+  const { DashboardPreviewCourses } = module.exports;
+  if (!DashboardPreviewCourses) throw new Error("Expected the production dashboard preview component");
   const previews = await Promise.all(["dashboard-parity-unenrolled", "dashboard-parity-revoked"].map(async scenario => {
     const request = createStudentFixtureRequest(scenario);
     const response = await request(learningEndpoint({ view: "dashboard" }));
@@ -38,34 +56,27 @@ test("dashboard free previews render and open the allowed first material without
     if (!data.preview) throw new Error("Expected a free dashboard preview");
     return { ...data.preview, courses: data.preview.courses.map(course => ({ ...course, freeMaterialCount: 2 })) };
   }));
-  const pluralRules = Object.getOwnPropertyDescriptor(Intl, "PluralRules");
-  try {
-    Object.defineProperty(Intl, "PluralRules", { configurable: true, value: undefined });
-    for (const preview of previews) {
-      for (const [locale, labels, cta] of [
-        ["id", ["1 bab gratis", "2 materi", "0 kuis"], "Mulai bab 1"],
-        ["en", ["1 free chapter", "2 materials", "0 quizzes"], "Start chapter 1"],
-      ] as const) {
-        const destinations: string[] = [];
-        const labelsRendered: string[] = [];
-        const actions = new Map<string, () => void>();
-        const collect = (node: ReactNode) => Children.forEach(node, child => {
-          if (typeof child === "string") labelsRendered.push(child);
-          if (!isValidElement<{ children?: ReactNode; testID?: string; onPress?: () => void }>(child)) return;
-          const { children, testID, onPress } = child.props;
-          if (testID && onPress) actions.set(testID, onPress);
-          collect(children);
-        });
-        collect(DashboardPreviewCourses({ preview, locale, theme: "light", navigate: path => destinations.push(path), offerLabel: () => undefined }));
-        expect(labelsRendered).toEqual(expect.arrayContaining([...labels, cta]));
-        const start = actions.get("student-dashboard-first-chapter-matematika-1");
-        if (!start) throw new Error("Expected a first-chapter action");
-        start();
-        expect(destinations).toEqual(["/courses/matematika-1/material/dokumen-1"]);
-      }
+  for (const preview of previews) {
+    for (const [locale, labels, cta] of [
+      ["id", ["1 bab gratis", "2 materi", "0 kuis"], "Mulai bab 1"],
+      ["en", ["1 free chapter", "2 materials", "0 quizzes"], "Start chapter 1"],
+    ] as const) {
+      const destinations: string[] = [];
+      const labelsRendered: string[] = [];
+      const actions = new Map<string, () => void>();
+      const collect = (node: ReactNode) => Children.forEach(node, child => {
+        if (typeof child === "string") labelsRendered.push(child);
+        if (!isValidElement<{ children?: ReactNode; testID?: string; onPress?: () => void }>(child)) return;
+        const { children, testID, onPress } = child.props;
+        if (testID && onPress) actions.set(testID, onPress);
+        collect(children);
+      });
+      collect(DashboardPreviewCourses({ preview, locale, theme: "light", navigate: path => destinations.push(path), offerLabel: () => undefined }));
+      expect(labelsRendered).toEqual(expect.arrayContaining([...labels, cta]));
+      const start = actions.get("student-dashboard-first-chapter-matematika-1");
+      if (!start) throw new Error("Expected a first-chapter action");
+      start();
+      expect(destinations).toEqual(["/courses/matematika-1/material/dokumen-1"]);
     }
-  } finally {
-    if (pluralRules) Object.defineProperty(Intl, "PluralRules", pluralRules);
-    else Reflect.deleteProperty(Intl, "PluralRules");
   }
 });
