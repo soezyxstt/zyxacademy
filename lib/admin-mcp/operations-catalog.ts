@@ -120,6 +120,13 @@ export const operationsCatalog = [
     "reason": "An OS push tap resolves one visible inbox notification owned by the active app session. This personal device interaction cannot query another account. Administrative notification history has a separate authorized operation."
   },
   {
+    "source": "apps/mobile-native/device/remote-response.ts",
+    "actions": ["consume"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Expo handles an interactive device tap within its verified origin, account and session. Session revalidation can retry the personal visibility lookup once. The read acknowledgement has no automatic replay. Administrative MCP tools, scopes, consent and environment bindings are unchanged."
+  },
+  {
     "source": "apps/mobile-native/features/notification-inbox/client.ts",
     "actions": ["loadInbox", "markInboxRead"],
     "tools": [],

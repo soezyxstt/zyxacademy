@@ -1,14 +1,23 @@
-import type { NativeSessionTransport } from "../network/transport";
+import type { NativeSessionScope, NativeSessionTransport } from "../network/transport";
 import { markInboxRead } from "../features/notification-inbox/client";
 import type { ReminderResponse } from "./notification-response-controller";
 
 const uuid = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
-type Tap = { kind: "row"; id: string; path: string | null } | { kind: "digest" };
+type Tap = { kind: "row"; id: string } | { kind: "digest" };
 export type PushHost = {
   session: NativeSessionTransport;
+  navigationReady: boolean;
+  isCurrent(): boolean;
+  revalidate(): Promise<"verified" | "checking" | "unavailable">;
   resolve(path?: string): string | null;
   navigate(path: string): void;
 };
+
+export type PushHostState = PushHost | { status: "checking"; scope?: NativeSessionScope } | null;
+
+function sameScope(left: NativeSessionScope, right: NativeSessionScope) {
+  return left.origin === right.origin && left.accountId === right.accountId && left.sessionId === right.sessionId;
+}
 
 function record(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
@@ -25,58 +34,115 @@ export function remotePushData(content: unknown, trigger: unknown) {
 function parseTap(value: unknown): Tap | null {
   const data = record(value);
   if (typeof data?.notificationId === "string" && uuid.test(data.notificationId)) {
-    return { kind: "row", id: data.notificationId, path: typeof data.url === "string" ? data.url : null };
+    return { kind: "row", id: data.notificationId };
   }
   return data?.quietDigest === "true" && data.groupKey === "quiet-digest" ? { kind: "digest" } : null;
 }
 
-export async function resolvePushRow(session: NativeSessionTransport, id: string, signal: AbortSignal) {
-  const response = await session.request("/api/notifications/history?tapId=" + encodeURIComponent(id), { signal, retry: "transient-read" });
+async function resolvePushRow(session: NativeSessionTransport, id: string, signal: AbortSignal) {
+  const response = await session.request("/api/notifications/history?tapId=" + encodeURIComponent(id), { signal });
   try {
+    if (response.status === 401) return { status: "unauthorized" } as const;
     if (!response.ok) return null;
     const row = record(await response.json());
     session.assertCurrent();
-    return row?.id === id && (row.url === null || typeof row.url === "string") ? { url: row.url } : null;
+    return row?.id === id && (row.url === null || typeof row.url === "string")
+      ? { status: "visible", url: row.url } as const : null;
   } finally {
     response.dispose();
   }
 }
 
+type PendingTap = {
+  key: string;
+  tap: Tap;
+  scope?: NativeSessionScope;
+  deadline: number;
+  timer: ReturnType<typeof setTimeout>;
+  retried: boolean;
+  verifying: boolean;
+};
+
 export function createPushResponseController(defaultAction: string, now = Date.now) {
-  let host: PushHost | "checking" | null = "checking";
-  let pending: { tap: Tap; received: number; session?: NativeSessionTransport } | null = null;
-  let active: { session: NativeSessionTransport; controller: AbortController } | null = null;
+  let host: PushHostState = { status: "checking" };
+  let pending: PendingTap | null = null;
+  let active: { host: PushHost; controller: AbortController } | null = null;
   const seen = new Set<string>();
 
-  async function deliver() {
-    if (!pending || host === "checking") return;
-    const next = pending;
+  function remember(key: string) {
+    seen.add(key);
+    if (seen.size > 128) seen.delete(seen.values().next().value!);
+  }
+
+  function finish(tap: PendingTap) {
+    if (pending !== tap) return;
+    clearTimeout(tap.timer);
     pending = null;
-    if (!host || !host.session.isCurrent() || now() - next.received > 60_000 ||
-      (next.session && next.session !== host.session)) return;
-    const { session } = host;
+    remember(tap.key);
+  }
+
+  function abortActive() {
+    const attempt = active;
+    active = null;
+    attempt?.controller.abort();
+  }
+
+  function verifiedHost() {
+    return host && "session" in host && host.isCurrent() && host.session.isCurrent() ? host : null;
+  }
+
+  async function deliver() {
+    const next = pending;
+    const current = verifiedHost();
+    if (!next || !current?.navigationReady || active || next.verifying) return;
+    if (now() >= next.deadline || (next.scope && !sameScope(next.scope, current.session.scope))) {
+      finish(next);
+      return;
+    }
+    next.scope = current.session.scope;
     const controller = new AbortController();
-    active?.controller.abort();
-    active = { session, controller };
+    const attempt = { host: current, controller };
+    active = attempt;
     const timer = setTimeout(() => controller.abort(), 12_000);
+    const latestHost = () => {
+      const latest = verifiedHost();
+      return active === attempt && pending === next && latest?.navigationReady && latest.session === current.session && current.isCurrent()
+        ? latest : null;
+    };
+    const { tap } = next;
     try {
-      let path: string | undefined;
-      const { tap } = next;
-      if (tap.kind === "row") {
-        const row = await resolvePushRow(session, tap.id, controller.signal);
-        if (!row) return;
-        path = row.url ?? tap.path ?? undefined;
+      const row = tap.kind === "row" ? await resolvePushRow(current.session, tap.id, controller.signal) : null;
+      const latest = latestHost();
+      if (!latest) return;
+      if (now() >= next.deadline) {
+        finish(next);
+        return;
       }
-      if (controller.signal.aborted || !session.isCurrent() || !host || host.session !== session) return;
-      const destination = host.resolve(path);
+      if (row?.status === "unauthorized" && !next.retried && !controller.signal.aborted) {
+        next.retried = true;
+        next.verifying = true;
+        active = null;
+        clearTimeout(timer);
+        const result = await latest.revalidate();
+        if (pending !== next) return;
+        next.verifying = false;
+        if (result === "unavailable") finish(next);
+        else if (result === "verified" || verifiedHost() !== latest) void deliver();
+        return;
+      }
+      finish(next);
+      if (controller.signal.aborted || (tap.kind === "row" && row?.status !== "visible")) return;
+      const destination = latest.resolve(row?.status === "visible" ? row.url ?? undefined : undefined);
       if (!destination) return;
-      host.navigate(destination);
-      if (tap.kind === "row") await markInboxRead(session, { id: tap.id }, controller.signal);
+      latest.navigate(destination);
+      if (tap.kind === "row" && current.isCurrent() && current.session.isCurrent()) {
+        await markInboxRead(current.session, { id: tap.id }, controller.signal);
+      }
     } catch {
-      // The inbox continues to show the server's read state after a failed acknowledgement.
+      if (latestHost() || (pending === next && next.verifying)) finish(next);
     } finally {
       clearTimeout(timer);
-      if (active?.controller === controller) active = null;
+      if (active === attempt) active = null;
     }
   }
 
@@ -86,22 +152,38 @@ export function createPushResponseController(defaultAction: string, now = Date.n
       const tap = parseTap(response.data);
       const age = now() - response.deliveredAt;
       if (!tap || response.actionIdentifier !== defaultAction || !Number.isFinite(age) || age < -60_000 || age > 86_400_000) return true;
-      const identity = JSON.stringify([response.identifier, response.deliveredAt, tap.kind === "row" ? tap.id : null]);
-      if (seen.has(identity)) return true;
-      seen.add(identity);
-      if (seen.size > 128) seen.delete(seen.values().next().value!);
-      pending = { tap, received: now(), session: host && host !== "checking" ? host.session : undefined };
+      const key = JSON.stringify([response.identifier, response.deliveredAt, tap.kind === "row" ? tap.id : null]);
+      if (seen.has(key) || pending?.key === key) return true;
+      if (!host || (tap.kind === "digest" && !verifiedHost())) {
+        remember(key);
+        return true;
+      }
+      if (pending) finish(pending);
+      abortActive();
+      // Bind a queued tap before leaving the current session. A cold row tap
+      // can bind when the first verified host proves ownership on the server.
+      const scope = "session" in host ? host.session.scope : host.scope;
+      const deadline = now() + 60_000;
+      const next: PendingTap = { key, tap, scope, deadline, retried: false, verifying: false, timer: setTimeout(() => {
+        if (pending !== next) return;
+        finish(next);
+        abortActive();
+      }, 60_000) };
+      pending = next;
       void deliver();
       return true;
     },
-    update(next: PushHost | "checking" | null) {
-      if (active && (next === null || next === "checking" || next.session !== active.session)) active.controller.abort();
+    update(next: PushHostState) {
       host = next;
+      const scope = next && ("session" in next ? next.session.scope : next.scope);
+      if (pending && (!next || (pending.scope && scope && !sameScope(pending.scope, scope)))) finish(pending);
+      const verified = verifiedHost();
+      if (active && (!verified?.navigationReady || active.host.session !== verified.session || !active.host.isCurrent())) abortActive();
       void deliver();
     },
     close() {
-      active?.controller.abort();
-      pending = null;
+      if (pending) finish(pending);
+      abortActive();
       host = null;
     },
   };
