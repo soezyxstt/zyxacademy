@@ -6,6 +6,8 @@ import { handleEnrollmentTokenWrite } from "@/lib/native/academic/administration
 import { writeNativeEnrollmentToken } from "@/lib/native/academic/administration/enrollment-token-service";
 import { handleStudyGroupWrite } from "@/lib/native/academic/administration/study-group-handler";
 import { saveNativeStudyGroup } from "@/lib/native/academic/administration/study-group-service";
+import { handleNativeUserStatus } from "@/lib/native/academic/administration/user-status-handler";
+import { saveNativeUserStatus } from "@/lib/native/academic/administration/user-status-service";
 import { handleAdministrationRead } from "@/lib/native/academic/administration/handle-read";
 import { administrationReadServices } from "@/lib/native/academic/administration/read-services";
 
@@ -17,6 +19,11 @@ export async function PATCH(request: Request, context: { params: Promise<{ resou
   const { resource } = await context.params;
   if (resource[0] === "tokens") return enrollmentTokenWrite(request, resource);
   if (resource[0] === "groups") return studyGroupWrite(request, resource);
+  if (resource[0] === "users") return handleNativeUserStatus(request, resource, new URL(resolveAuthBaseUrl()).origin, {
+    session: getAuthSession,
+    hasAdmin: administrationReadServices.hasAdmin,
+    save: saveNativeUserStatus,
+  });
   return handlePkaAnnouncementEdit(request, resource, new URL(resolveAuthBaseUrl()).origin, {
     session: getAuthSession,
     hasAdmin: administrationReadServices.hasAdmin,

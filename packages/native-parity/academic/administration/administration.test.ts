@@ -7,6 +7,7 @@ import { saveStudyGroup } from "../../../../apps/mobile-native/features/academic
 import { handleStudyGroupWrite } from "../../../../lib/native/academic/administration/study-group-handler";
 import { rebaseStudyGroupFields, type StudyGroupCreate, type StudyGroupFields } from "../../../academic/study-group-edit";
 import { savePkaAnnouncement } from "../../../../apps/mobile-native/features/academic/administration/pka-edit-client";
+import { saveUserStatus } from "../../../../apps/mobile-native/features/academic/administration/user-status-client";
 import { readAdministration } from "../../../../apps/mobile-native/features/academic/administration/live-client";
 import { checkDiktatPdfEvidence, checkDiktatPdfRequest, requestDiktatPdf } from "../../../../apps/mobile-native/features/academic/administration/diktat-client";
 import { handlePkaAnnouncementEdit } from "../../../../lib/native/academic/administration/announcement-edit-handler";
@@ -165,6 +166,28 @@ test("authenticated handler dispatches only allowed reads and validates redirect
   assert.equal((await handleAdministrationRead(["bundle", "idea", "a/b", "one"], query, scope)).status, 400);
   assert.equal(isLiveAdministrationRead({ type: "redirect", target: "//foreign.invalid" }), false);
   await assert.rejects(readAdministration({ ...transport, get: async () => Response.json({ invalid: true }) }, uri, signal), { status: 502 });
+});
+
+test("user status retry retains the target, account, revision and request identity", async () => {
+  const id = "synthetic-tutor";
+  const requestId = "00000000-0000-4000-8000-000000000001";
+  const body = { accountId: "synthetic-admin", status: "suspended" as const, expectedRevision: "a".repeat(64) };
+  const result = { id, requestId, status: "saved", userStatus: { status: body.status, revision: "b".repeat(64) } };
+  const calls: [string, AcademicCommand][] = [];
+  let response = Response.json(result, { status: 503 });
+  const transport = {
+    accountId: body.accountId, locale: "id", origin: "https://academic.invalid",
+    get: async () => Response.json({}),
+    command: async (path: string, command: AcademicCommand) => { calls.push([path, command]); return response; },
+  };
+  const signal = new AbortController().signal;
+  assert.equal(await saveUserStatus(transport, id, body, requestId, signal), "uncertain");
+  response = Response.json({ ...result, id: "another-user" });
+  assert.equal(await saveUserStatus(transport, id, body, requestId, signal), "uncertain");
+  response = Response.json(result);
+  assert.equal(await saveUserStatus(transport, id, body, requestId, signal), "saved");
+  assert.equal(await saveUserStatus({ ...transport, accountId: "another-admin" }, id, body, requestId, signal), "denied");
+  assert.deepEqual(calls, Array(3).fill([`/api/native/academic-administration/users/${id}/status`, { method: "PATCH", body, requestId }]));
 });
 
 test("PDF retries re-submit the same actor-bound identity and evidence is matched to the accepted attempt", async () => {

@@ -23,6 +23,7 @@ node packages/native-parity/academic/local/course-settings-smoke.mjs
 node packages/native-parity/academic/local/pka-announcement-smoke.mjs
 node packages/native-parity/academic/local/study-group-smoke.mjs
 node packages/native-parity/academic/local/enrollment-token-smoke.mjs
+node packages/native-parity/academic/local/admin-user-status-smoke.mjs
 PARITY_CHROMIUM_EXECUTABLE=/usr/bin/chromium node tests/visual/native-parallel/academic/route-smoke.mjs
 ```
 

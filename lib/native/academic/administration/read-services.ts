@@ -164,6 +164,7 @@ export const administrationReadServices: AdministrationReadServices = {
         return rowsPage(users.map((entry) => ({
           id: entry.id, title: entry.name, subtitle: entry.email,
           detail: [entry.id === currentUserId ? "Anda" : "", entry.status === "suspended" ? "Ditangguhkan" : ""].filter(Boolean).join(" · "),
+          userStatusEdit: entry.id !== currentUserId && entry.statusRevision ? { status: entry.status, revision: entry.statusRevision } : undefined,
           fields: [field("Peran", entry.roles.map((role) => roleLabels[role]).join(", ")),
             field("Status", entry.status === "suspended" ? "Ditangguhkan" : "Aktif"), field("Terdaftar", jakDateTime(entry.createdAt))],
         })), total > page * 30, [field("Total", stats.totalUsers), field("Tutor", stats.tutorCount), field("Ditangguhkan", stats.suspendedCount)]);
