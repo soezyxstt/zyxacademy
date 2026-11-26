@@ -7,6 +7,10 @@ Source snapshot: `native-migration/academic` at `f4ed84dc`. The merge base with 
 - `http-contracts.tsv` connects selected HTTP calls to the actual handler and marks specifically verified guards and side effects. This list does not yet cover every nested review, discussion, live or indirect request. Those gaps, and all action-level ownership checks and retry identities, prevent an exhaustive backend parity inventory.
 - `routes.tsv` retains direct imports, candidate renderers and related MCP catalog entries. Catalog tools are related tools, not a guarantee of action coverage. `no exact source entry` is not proof that no MCP capability exists. Paths are repository-relative. None of these files claim runtime, device, retry, MCP deployment or parity evidence.
 
+## Integrated private workflows
+
+`admin-signed-actions.tsv` traces the 36 Admin academic routes in the integrated Expo app. Each row identifies a user action or a redirect, its web entry and its native entry. Related controls sharing a lifecycle appear together. A connected row records source wiring through the authenticated route. Device runs, external delivery and visual comparison require separate evidence. The Tutor action inventory is in `../tutor/signed-action-crosswalk.tsv`.
+
 ## Verified first traces
 
 | ID and route | Web operation and server boundary | UI and migration dependency |
