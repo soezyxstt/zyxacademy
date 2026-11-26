@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { type ComponentRef, useCallback, useEffect, useRef, useState } from "react";
 import { Image, Pressable, View } from "react-native";
-import { courseHref, externalVideoPath, learningLiveJoinApi, type CourseVideo, type LearningData } from "../../../../../packages/native-parity/student/learning/contracts";
+import { courseHref, learningLiveJoinApi, type LearningData } from "../../../../../packages/native-parity/student/learning/contracts";
 import { createLiveQuizSocketHook, type LeaderboardEntry } from "../../../../../packages/native-parity/student/learning/live-socket";
+import { CourseVideoDialog } from "../../course-video/CourseVideoDialog";
 import { Button } from "../../../components/Button";
 import { Input } from "../../../components/Input";
 import { studentLiveBrowserPath } from "../browser-handoff";
@@ -29,10 +30,13 @@ export function VideoContent({ data, props, t }: { data: Ready<"video">; props: 
   const [search, setSearch] = useState("");
   const [chapterId, setChapterId] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set());
-  const [pending, setPending] = useState<string | null>(null);
-  const [failed, setFailed] = useState<string | null>(null);
-  const activePlayback = useRef<AbortController | null>(null);
-  useEffect(() => () => activePlayback.current?.abort(), []);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selected = data.playlists.flatMap(p => p.videos).find(v => v.id === selectedId && !v.locked);
+  const { request } = props;
+  const buttons = useRef(new Map<string, ComponentRef<typeof View>>());
+  const trigger = useRef<ComponentRef<typeof View> | null>(null);
+  const load = useCallback((signal: AbortSignal) => readJson<{ url: string; fallbackUrl?: string }>(request,
+    `/api/videos/${encodeURIComponent(selectedId ?? "")}/playback-url`, { signal }), [request, selectedId]);
   const isEnglish = english(props.session.locale);
   const colors = useLearningColors();
   const term = search.trim().toLocaleLowerCase();
@@ -41,26 +45,6 @@ export function VideoContent({ data, props, t }: { data: Ready<"video">; props: 
       .some((text) => text?.toLocaleLowerCase().includes(term))),
   ) })).filter((playlist) => (!term && !chapterId) || playlist.videos.length > 0);
   const videoLabel = (key: string) => t(`studentCourse.courseVideos.${key}`);
-  async function play(video: CourseVideo) {
-    if (video.locked || activePlayback.current) return;
-    const controller = new AbortController();
-    activePlayback.current = controller;
-    setPending(video.id);
-    setFailed(null);
-    try {
-      const { url, fallbackUrl } = await readJson<{ url: string; fallbackUrl: string | null }>(props.request,
-        `/api/videos/${encodeURIComponent(video.id)}/playback-url`, { signal: controller.signal });
-      if (controller.signal.aborted) return;
-      const primary = externalVideoPath(url);
-      const fallback = externalVideoPath(fallbackUrl);
-      if ((!primary || !launchWeb(props, primary)) && (!fallback || !launchWeb(props, fallback))) setFailed(video.id);
-    } catch {
-      if (!controller.signal.aborted) setFailed(video.id);
-    } finally {
-      activePlayback.current = null;
-      if (!controller.signal.aborted) setPending(null);
-    }
-  }
   return <>
     {!data.hasFullContentAccess ? <Message action={isEnglish ? "Activate course" : "Aktifkan kelas"} onAction={() => props.navigate(courseHref(props.route.params.id))}>
       {t("learning.videoPage.activationDescription")}
@@ -94,12 +78,15 @@ export function VideoContent({ data, props, t }: { data: Ready<"video">; props: 
             {video.thumbnailUrl?.startsWith("https://") ? <Image source={{ uri: video.thumbnailUrl }} style={{ width: 120, height: 68, borderRadius: 6 }} /> : null}
             {video.description ? <Copy muted>{video.description}</Copy> : null}
             {video.locked ? <Copy muted>{t("learning.courseAccess.limited")}</Copy> : <Button variant={props.route.query.video === video.id ? "default" : "outline"} style={styles.action}
-              isLoading={pending === video.id} disabled={pending !== null} onPress={() => void play(video)}>{videoLabel("play")}</Button>}
-            {failed === video.id ? <Message>{isEnglish ? "Could not play the video. Try opening it again." : "Video tidak dapat diputar. Coba buka lagi."}</Message> : null}
+              ref={node => { if (node) buttons.current.set(video.id, node); else buttons.current.delete(video.id); }}
+              accessibilityLabel={`${videoLabel("play")}: ${video.title}`}
+              onPress={() => { trigger.current = buttons.current.get(video.id) ?? null; setSelectedId(video.id); }}>{videoLabel("play")}</Button>}
           </Row>)}
         </> : null}
       </Section>;
     })}
+    {selected && <CourseVideoDialog key={selected.id} title={selected.title} locale={props.session.locale}
+      origin={props.session.origin} load={load} close={() => setSelectedId(null)} returnFocusRef={trigger} />}
   </>;
 }
 

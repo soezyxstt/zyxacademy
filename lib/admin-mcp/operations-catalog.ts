@@ -15,6 +15,13 @@ export const operationsCatalog = [
     "reason": "Expo learning reads, recall grades and PKA announcement acknowledgements are bound to the current Student account and use existing course or campaign authorization. PKA remains outside Admin MCP. Existing tools, OAuth consent and scopes, discovery, playbooks, packaged skills, host prompts and environment bindings are unchanged."
   },
   {
+    "source": "app/api/videos/[videoId]/playback-url/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Interactive playback mints a temporary source after the existing course and chapter access checks. Expo plays the source within the signed-in session. Administrative video tools continue to manage course content under their own scopes and consent."
+  },
+  {
     "source": "app/api/native/student/learning/live/route.ts",
     "actions": ["POST"],
     "tools": [],
@@ -48,6 +55,13 @@ export const operationsCatalog = [
     "tools": [],
     "status": "excluded",
     "reason": "Schedule, live class, materials and discussions use the current Tutor session. Availability edits apply the web schedule rules and verify slot ownership and revision. Replies reuse the signed-in discussion service. Tryout grades use the web grading operation and the stored answer revision. The writes use durable receipts scoped to the active Tutor session."
+  },
+  {
+    "source": "app/api/native/academic/tutor-support/courses/[courseId]/live/host/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Live quiz hosting requires a verified Tutor session, active course assignment and current room ownership. HTTPS commands use the web live room service and host state uses its signed realtime socket. MCP credentials cannot open or control a room."
   },
   {
     "source": "app/api/native/academic-assessment/[...resource]/route.ts",

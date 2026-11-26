@@ -1,4 +1,5 @@
 import type { NativeSessionScope, NativeSessionTransport } from "../network/transport";
+import { courseVideoSource } from "../../../packages/course-video/source";
 import type { PhotoDraftTarget } from "./photo-controller";
 
 export type NativeFilePolicy = Readonly<{ mimeTypes: readonly string[]; maxBytes: number }>;
@@ -40,6 +41,8 @@ export type DocumentResult = { status: "ready"; document: DraftDocument } | File
 export type ShareFileResult = { status: "finished" } | FileRejection;
 
 export type PickerDocument = { uri: string; name: string; mimeType?: string; size?: number };
+const videoExtensions = new Map([["video/mp4", "mp4"], ["video/webm", "webm"], ["video/quicktime", "mov"]]);
+
 type TemporaryFile = {
   uri: string;
   write(bytes: Uint8Array): Promise<void>;
@@ -193,6 +196,8 @@ function matchesFileHeader(prefix: Uint8Array, mimeType: string): boolean {
   const ascii = (start: number, end: number) => String.fromCharCode(...prefix.subarray(start, end));
   if (mimeType === "image/gif") return ["GIF87a", "GIF89a"].includes(ascii(0, 6));
   if (mimeType === "image/webp") return ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP";
+  if (mimeType === "video/mp4" || mimeType === "video/quicktime") return ascii(4, 8) === "ftyp" || (mimeType === "video/quicktime" && ascii(4, 8) === "moov");
+  if (mimeType === "video/webm") return [0x1a, 0x45, 0xdf, 0xa3].every((byte, i) => prefix[i] === byte);
   if (mimeType === "application/pdf") return /%PDF-\d\.\d/.test(ascii(0, prefix.length));
   return true;
 }
@@ -430,5 +435,40 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
     }
   }
 
-  return { initialize, expireExports, pickDocument, belongsToDocumentDraft, shareDocument, shareAuthorizedDownload };
+  async function prepareCourseVideo(session: NativeSessionTransport, path: string, signal: AbortSignal) {
+    const source = courseVideoSource(path, session.scope.origin);
+    if (!device.available || source?.kind !== "storage" || source.path !== path) throw new FileIssue("invalid-target");
+    const current = () => {
+      session.assertCurrent();
+      if (signal.aborted) throw new FileIssue("fetch");
+    };
+    current();
+    initialize();
+    const response = await session.request(path, { signal });
+    const staged = stageExport({ session, signal });
+    try {
+      current();
+      const mime = normalizeMimeType(response.headers.get("Content-Type"));
+      const extension = videoExtensions.get(mime);
+      if (response.status !== 200 || !response.body || !extension) throw new FileIssue("type");
+      const size = response.headers.get("Content-Length");
+      const limit = 100 * 1024 * 1024; // The course video upload limit.
+      const encoding = response.headers.get("Content-Encoding");
+      if (size !== null && !/^\d+$/.test(size)) throw new FileIssue("size");
+      const declaredSize = size !== null && (!encoding || encoding === "identity") ? Number(size) : undefined;
+      if (sizeIssue(declaredSize, limit)) throw new FileIssue("size");
+      const file = staged.hold("course-video." + extension);
+      await copyBytes(response.body, file, mime, limit, declaredSize, current, [session.signal, signal]);
+      current();
+      // On success the screen and session signals own the file until playback closes.
+      return file.uri;
+    } catch (error) {
+      staged.finish();
+      throw error;
+    } finally {
+      response.dispose();
+    }
+  }
+
+  return { initialize, expireExports, pickDocument, belongsToDocumentDraft, shareDocument, shareAuthorizedDownload, prepareCourseVideo };
 }

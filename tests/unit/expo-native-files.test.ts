@@ -365,3 +365,40 @@ describe("Expo public link sharing", () => {
     }
   });
 });
+
+describe("private course video playback", () => {
+  const path = "/api/storage/file/course/lecture.mp4";
+  const bytes = Uint8Array.of(0, 0, 0, 16, 102, 116, 121, 112, 105, 115, 111, 109, 0, 0, 0, 0);
+
+  for (const end of ["close", "logout"]) test("removes the playback file on " + end, async () => {
+    const fixture = setup({}, async (url, init) => {
+      expect(url).toBe(origin + path);
+      expect(new Headers(init.headers).get("cookie")).toBe("session=fixture");
+      return new Response(stream(bytes), { headers: { "Content-Type": "video/mp4", "Content-Length": String(bytes.length) } });
+    });
+    const playback = new AbortController();
+    const file = await fixture.controller.prepareCourseVideo(fixture.session, path, playback.signal);
+    expect(fixture.files.get(file)).toEqual([bytes]);
+    expect(fixture.shares).toHaveLength(0);
+    if (end === "close") playback.abort();
+    else fixture.transport.clearSession();
+    expect(fixture.files.size).toBe(0);
+  });
+
+  test("removes failed and truncated downloads and rejects unrelated request targets", async () => {
+    for (const response of [
+      new Response(null, { status: 403 }),
+      new Response(stream(fixturePdf), { headers: { "Content-Type": "video/mp4" } }),
+      new Response(stream(bytes), { headers: { "Content-Type": "video/mp4", "Content-Length": "128" } }),
+    ]) {
+      let calls = 0;
+      const fixture = setup({}, async () => { calls++; return response; });
+      const signal = new AbortController().signal;
+      await expect(fixture.controller.prepareCourseVideo(fixture.session, "/api/auth/session", signal)).rejects.toThrow();
+      expect(calls).toBe(0);
+      await expect(fixture.controller.prepareCourseVideo(fixture.session, path, signal)).rejects.toThrow();
+      expect(fixture.files.size).toBe(0);
+      expect(fixture.shares).toHaveLength(0);
+    }
+  });
+});
