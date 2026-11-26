@@ -24,6 +24,7 @@ export type OfflineLibraryViewProps = {
   blocked?: ReactNode;
   loading?: boolean;
   onQuery: (query: string) => void;
+  onOpen?: (row: OfflineLibraryRow) => void;
   onClearTarget?: () => void;
   onRefresh?: () => void;
   onPurgeUnavailable?: () => void;
@@ -33,7 +34,7 @@ export type OfflineLibraryViewProps = {
 
 export function OfflineLibraryView({
   locale, offline, rows, query, canDownload, syncing, purging, unavailableCount = 0, pending, notices = [], blocked, loading,
-  onQuery, onClearTarget, onRefresh, onPurgeUnavailable, onAction, onBack,
+  onQuery, onOpen, onClearTarget, onRefresh, onPurgeUnavailable, onAction, onBack,
 }: OfflineLibraryViewProps) {
   const colors = nativeColors[useColorScheme() ?? "light"];
   const shared = OFFLINE_LIBRARY_COPY[locale];
@@ -95,6 +96,11 @@ export function OfflineLibraryView({
                 </Text>
               )}
             </View>
+            {savedUntil && onOpen ? <SharedUiActionButton
+              action={{ id: "open", label: shared.open, accessibilityLabel: `${shared.open} ${title}`, variant: "outline",
+                disabled: Boolean(working || purging) }}
+              onAction={() => onOpen(item)}
+            /> : null}
             {(savedUntil || canDownload || working) ? (
               <SharedUiActionButton
                 action={{ id: action, label: working ? pendingLabel : label, accessibilityLabel: `${working ? pendingLabel : label} ${title}`,

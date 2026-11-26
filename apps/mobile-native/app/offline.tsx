@@ -1,17 +1,18 @@
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useIsFocused, useLocalSearchParams, useRouter } from "expo-router";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Platform } from "react-native";
+import { ActivityIndicator, Platform } from "react-native";
 import { OFFLINE_LIBRARY_COPY } from "../../../packages/offline/library-copy";
 import { authLocale } from "../auth/auth-copy";
 import { authEntryHref } from "../auth/login-intent";
 import { useNativeSession } from "../auth/session-provider";
 import { useNativeAccountContext } from "../auth/use-account-context";
-import { NativeStatusPanel } from "../features/shared-ui/layout";
+import { NativeCompactShell, NativeStatusPanel } from "../features/shared-ui/layout";
 import { useOfflineLibraryData } from "../offline/library-data";
-import { filterOfflineLibrary, focusOfflineLibrary, offlineLibraryCopy, offlineLibraryFeedback, offlineLibraryTarget, type OfflineLibraryRow } from "../offline/library-model";
+import { offlineDocumentHref, filterOfflineLibrary, focusOfflineLibrary, offlineLibraryCopy, offlineLibraryFeedback, offlineLibraryTarget, type OfflineLibraryRow } from "../offline/library-model";
 import { OfflineLibraryView, type OfflineLibraryAction, type OfflineLibraryNotice } from "../offline/library-view";
 import { useOfflineCourseMetadata } from "../offline/lifecycle-provider";
 import type { OfflineReadingDownloadStatus } from "../offline/reading-contract";
+import { SavedReading } from "../offline/SavedReading";
 import { useOfflineReadingPackages } from "../offline/reading-hooks";
 import { useOfflineReadingSession } from "../offline/use-reading-session";
 
@@ -19,7 +20,8 @@ const supported = Platform.OS === "ios" || Platform.OS === "android";
 const noCourses: readonly string[] = [];
 
 export default function OfflineRoute() {
-  const params = useLocalSearchParams<{ locale?: string; courseId?: string; materialId?: string }>();
+  const params = useLocalSearchParams<{ locale?: string; courseId?: string; materialId?: string; read?: string; section?: string }>();
+  const focused = useIsFocused();
   const router = useRouter();
   const { state, revalidating, refresh: refreshSession } = useNativeSession();
   const account = useNativeAccountContext();
@@ -147,13 +149,29 @@ export default function OfflineRoute() {
     if (feedback?.observation === observation && feedback.revision === revision) notices.push(feedback.notice);
     if (metadata.status === "error" && !library.failed) notices.push({ message: copy.syncFailed, error: true });
     if (library.expired) notices.push({ message: shared.expired });
-    if (library.rows.some(row => row.savedUntil)) notices.push({ message: copy.readerPending });
+  }
+
+  if (params.read !== undefined) {
+    if (!focused) return null;
+    const row = target?.materialId && !blocked && scope ? library.rows.find(item =>
+      item.target.id === target.materialId && item.target.courseId === target.courseId && item.target.kind === params.read &&
+      item.savedUntil && item.savedUntil > Date.now()) : undefined;
+    return <NativeCompactShell navigationTitle={row?.title ?? shared.title} back={{ label: copy.back,
+      onPress: () => router.canGoBack() ? router.back() : router.replace({ pathname: "/offline", params: { locale } }) }}>
+      {blocked ?? (row ? <SavedReading key={row.key} row={row} observation={observation} revision={revision}
+        read={packages.read} locale={locale} section={typeof params.section === "string" ? params.section : undefined} />
+        : loading ? <ActivityIndicator accessibilityLabel={copy.loading} /> : <NativeStatusPanel title={shared.unavailable} />)}
+    </NativeCompactShell>;
   }
 
   return <OfflineLibraryView
     locale={locale} offline={supported && offline} loading={loading} blocked={blocked}
     rows={scope ? rows : []} query={query} onQuery={value => setSearch({ observation, query: value })}
     onClearTarget={target ? () => { setSearch(null); router.replace({ pathname: "/offline", params: { locale } }); } : undefined}
+    onOpen={row => {
+      if (focused && activeObservation.current === observation && revision === observation.getRevision() &&
+        row.savedUntil && row.savedUntil > Date.now()) router.push(offlineDocumentHref(locale, row.target));
+    }}
     canDownload={Boolean(scope && packages.canDownload)} notices={notices}
     syncing={metadata.status === "syncing" || currentMaintenance === "sync"}
     purging={currentMaintenance === "purge"}

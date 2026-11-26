@@ -6,6 +6,7 @@ import type { NativeOfflineLocale, NativeOfflineScope } from "./sync-contract";
 export type OfflineLibraryRow = {
   key: string;
   target: OfflineReadingTarget;
+  revision: string;
   title: string;
   courseTitle: string;
   availableUntil: number;
@@ -59,7 +60,7 @@ export function projectOfflineLibrary({ metadata, saved }: OfflineLibraryData, n
         && entry.kind === item.kind && entry.id === item.id;
       const savedUntil = matchingPackage ? Math.min(entry.leaseExpiresAt, expiresAt) : 0;
       if (savedUntil > now) expires = Math.min(expires, savedUntil);
-      rows.push({ key: item.key, target: { kind: item.kind, courseId: course.id, id: item.id },
+      rows.push({ key: item.key, revision: item.revision, target: { kind: item.kind, courseId: course.id, id: item.id },
         title: item.title, courseTitle: course.title, availableUntil: expiresAt, savedUntil: savedUntil > now ? savedUntil : null });
     }
   }
@@ -81,7 +82,6 @@ export const offlineLibraryCopy = {
     signIn: "Masuk", signInTitle: "Masuk untuk melihat bacaan Anda", denied: "Bacaan offline tersedia untuk murid.",
     unsupported: "Unduhan bacaan tersedia di Android dan iOS.", noReadings: "Belum ada bacaan tersedia",
     connectToDownload: "Hubungkan ke internet untuk mengunduh bacaan.",
-    readerPending: "Bacaan yang disimpan belum dapat dibuka di aplikasi ini.",
     syncFailed: "Daftar bacaan belum berhasil diperbarui.",
     removeTitle: "Hapus unduhan?", removing: "Menghapus…", removed: "Unduhan dihapus.",
     removeUnavailable: "Hapus unduhan yang tidak tersedia",
@@ -97,7 +97,6 @@ export const offlineLibraryCopy = {
     signIn: "Sign in", signInTitle: "Sign in to see your readings", denied: "Offline readings are available to students.",
     unsupported: "Reading downloads are available on Android and iOS.", noReadings: "No readings available yet",
     connectToDownload: "Connect to the internet to download readings.",
-    readerPending: "Saved readings cannot be opened in this app yet.",
     syncFailed: "Could not update the reading list.",
     removeTitle: "Remove download?", removing: "Removing…", removed: "Download removed.",
     removeUnavailable: "Remove unavailable downloads",
@@ -124,4 +123,17 @@ export function offlineLibraryFeedback(locale: NativeOfflineLocale, status: Offl
     case "changed": return { message: copy.changed, error: true };
     case "retry": return { message: copy.retryOperation, error: true };
   }
+}
+
+export function offlineDocumentHref(locale: NativeOfflineLocale, { kind, id, courseId }: OfflineReadingTarget, section?: string) {
+  return { pathname: "/offline" as const, params: {
+    locale, courseId, materialId: id, read: kind, ...(section ? { section } : {}),
+  } };
+}
+
+/** The store verifies the current account, session and course grants before returning bytes. */
+export function readableLibraryPackage(row: OfflineLibraryRow, saved: OfflineReadingSummary, now: number) {
+  return !!row.savedUntil && Math.min(row.savedUntil, row.availableUntil, saved.leaseExpiresAt) > now &&
+    row.key === saved.key && row.revision === saved.revision && row.target.id === saved.id &&
+    row.target.courseId === saved.courseId && row.target.kind === saved.kind;
 }

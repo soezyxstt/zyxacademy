@@ -9,3 +9,8 @@ name: A later disconnected cold start cannot restore the withdrawn reading
     timeout: 30000
 - assertVisible: Offline
 - assertNotVisible: ".*Diktat verifikasi offline.*"
+- openLink: "zyx-native-parity://offline?courseId=native-preview-offline-canonical&materialId=native-preview-offline-guide&read=diktat"
+- extendedWaitUntil:
+    visible: ".*(Materi ini tidak lagi tersedia|This material is no longer available).*"
+    timeout: 30000
+- assertNotVisible: ".*Materi sintetis untuk verifikasi penyimpanan lokal.*"

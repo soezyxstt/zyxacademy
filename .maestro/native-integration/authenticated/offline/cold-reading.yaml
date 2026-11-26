@@ -9,3 +9,7 @@ name: Cold start shows the saved reading while disconnected
     timeout: 30000
 - assertVisible: Offline
 - assertVisible: "(Hapus|Remove) Diktat verifikasi offline"
+- tapOn: "(Buka|Open) Diktat verifikasi offline"
+- extendedWaitUntil:
+    visible: ".*Materi sintetis untuk verifikasi penyimpanan lokal.*"
+    timeout: 30000

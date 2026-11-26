@@ -1,6 +1,5 @@
 import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
-import { OFFLINE_LIBRARY_COPY } from "../../../../../packages/offline/library-copy";
 import { NativeStatusPanel } from "../../../features/shared-ui/layout";
 import { isOfflineLibraryFixtureCase, offlineLibraryFixtureRows, type OfflineLibraryFixtureCase } from "../../../offline/library-fixtures";
 import { filterOfflineLibrary, offlineLibraryCopy } from "../../../offline/library-model";
@@ -16,7 +15,6 @@ function OfflineLibraryFixture({ id }: { id: OfflineLibraryFixtureCase }) {
   const router = useRouter();
   const locale = id === "failure" ? "en" : "id";
   const copy = offlineLibraryCopy[locale];
-  const shared = OFFLINE_LIBRARY_COPY[locale];
   const [query, setQuery] = useState("");
   const [retried, setRetried] = useState(false);
   const [unavailableCount, setUnavailableCount] = useState(id === "cleanup" ? 2 : id === "refresh" ? 1 : 0);
@@ -25,7 +23,6 @@ function OfflineLibraryFixture({ id }: { id: OfflineLibraryFixtureCase }) {
   return <OfflineLibraryView
     locale={locale} offline={id === "empty" || id === "cleanup"} rows={rows} query={query} onQuery={setQuery}
     canDownload={id === "populated" || id === "refresh"}
-    notices={fixtureRows.some(row => row.savedUntil) ? [{ message: copy.readerPending }] : []}
     blocked={id === "failure" && !retried ? <NativeStatusPanel tone="error" title={copy.failure}
       action={{ id: "retry", label: copy.retry }} onAction={() => setRetried(true)} /> : undefined}
     onAction={(item, action) => setFixtureRows(current => current.map(row => row.key === item.key

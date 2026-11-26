@@ -7,6 +7,8 @@ import {
   offlineLibraryFeedback,
   offlineLibraryScopeKey,
   projectOfflineLibrary,
+  readableLibraryPackage,
+  offlineDocumentHref,
 } from "../../apps/mobile-native/offline/library-model";
 import type { NativeOfflineScope } from "../../apps/mobile-native/offline/sync-contract";
 
@@ -55,6 +57,19 @@ describe("Expo offline library presentation", () => {
       expect(projectOfflineLibrary(data, now + 500, future).expired).toBe(true);
     }
     expect(projectOfflineLibrary(offlineLibraryFixtureData, future, future).rows).toEqual([]);
+  });
+
+  test("opens only the saved material named by its verified course, kind, revision and current lease", () => {
+    const [row] = offlineLibraryFixtureRows("populated");
+    const [saved] = offlineLibraryFixtureData.saved;
+    expect(readableLibraryPackage(row, saved, now)).toBe(true);
+    for (const changed of [{ id: "other" }, { kind: "diktat" as const }, { key: "other" }, { courseId: "other" },
+      { revision: "old" }, { leaseExpiresAt: now }]) expect(readableLibraryPackage(row, { ...saved, ...changed }, now)).toBe(false);
+    expect(readableLibraryPackage({ ...row, savedUntil: null }, saved, now)).toBe(false);
+    expect(readableLibraryPackage({ ...row, availableUntil: now }, saved, now)).toBe(false);
+    expect(offlineDocumentHref("en", row.target, "limits")).toEqual({ pathname: "/offline", params: {
+      locale: "en", courseId: row.target.courseId, materialId: row.target.id, read: row.target.kind, section: "limits",
+    } });
   });
 
   test("expires saved status while keeping a currently authorized descriptor", () => {

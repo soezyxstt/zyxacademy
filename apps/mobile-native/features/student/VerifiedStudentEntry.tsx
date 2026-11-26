@@ -8,6 +8,7 @@ import { useNativeSession } from "../../auth/session-provider";
 import { Button } from "../../components/Button";
 import { scopedFiles } from "../../device/files";
 import { useDeviceNotificationSettings } from "../../device/notifications-provider";
+import { offlineDocumentHref } from "../../offline/library-model";
 import { subscribeOfflineReadingChanges } from "../../offline/reading-events";
 import { offlineReadingSessionBlocked } from "../../offline/reading-session-storage";
 import { useOfflineReadingPackages } from "../../offline/reading-hooks";
@@ -72,7 +73,9 @@ export function VerifiedStudentEntry({ offlineLocale, openOfflineMaterial, ...pr
     verifiedUntil: reading.verifiedUntil,
     target,
     readPackage: packages.read,
-    open: openOfflineMaterial,
+    open: openOfflineMaterial ?? (material => {
+      if (navigation.isFocused()) router.push(offlineDocumentHref(locale, material.resource, material.section));
+    }),
     onUnavailable: () => {
       Alert.alert(locale === "en" ? "The saved material is unavailable." : "Materi tersimpan tidak tersedia.");
       if (reading.offline) void saved.retry();

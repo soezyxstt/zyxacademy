@@ -135,7 +135,7 @@ export const operationsCatalog = [
   },
   {
     "source": "apps/mobile-native/app/offline.tsx",
-    "actions": ["download", "forget", "revalidateSaved", "purgeUnavailable"],
+    "actions": ["download", "read", "forget", "revalidateSaved", "purgeUnavailable"],
     "tools": [],
     "status": "excluded",
     "reason": "Expo manages the signed-in learner's local downloads. Refresh reads existing authenticated offline endpoints on the configured app origin. MCP tools, scopes, consent, discovery, playbooks, packaged skills, host prompts and environment bindings are unchanged."

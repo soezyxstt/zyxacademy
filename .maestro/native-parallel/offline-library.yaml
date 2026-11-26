@@ -8,7 +8,6 @@ name: Offline library presentation states
 - openLink: zyx-native-parity://internal/offline-library/populated
 - assertVisible: Bacaan offline
 - assertVisible: Cara menafsirkan data dari tabel, grafik, dan kasus penalaran kuantitatif dalam soal cerita
-- assertVisible: Bacaan yang disimpan belum dapat dibuka di aplikasi ini\.
 - assertVisible: Hapus Cara menafsirkan data dari tabel, grafik, dan kasus penalaran kuantitatif dalam soal cerita
 - tapOn: Hapus Cara menafsirkan data dari tabel, grafik, dan kasus penalaran kuantitatif dalam soal cerita
 - assertVisible: Hapus unduhan\?

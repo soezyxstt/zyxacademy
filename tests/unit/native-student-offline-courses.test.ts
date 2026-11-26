@@ -87,9 +87,9 @@ test("the handoff requires a unique matching leased descriptor and caps the read
 test("focuses the integrated library by course and material identity", () => {
   const target = { courseId: "math", materialId: "limits" };
   const rows: OfflineLibraryRow[] = [
-    { key: "a", target: { courseId: "math", id: "limits", kind: "article" }, title: "Limits", courseTitle: "Math", availableUntil: 400, savedUntil: null },
-    { key: "b", target: { courseId: "other", id: "limits", kind: "article" }, title: "Limits", courseTitle: "Other", availableUntil: 400, savedUntil: null },
-    { key: "c", target: { courseId: "math", id: "integration", kind: "diktat" }, title: "Integration", courseTitle: "Math", availableUntil: 400, savedUntil: null },
+    { key: "a", revision: "r1", target: { courseId: "math", id: "limits", kind: "article" }, title: "Limits", courseTitle: "Math", availableUntil: 400, savedUntil: null },
+    { key: "b", revision: "r1", target: { courseId: "other", id: "limits", kind: "article" }, title: "Limits", courseTitle: "Other", availableUntil: 400, savedUntil: null },
+    { key: "c", revision: "r1", target: { courseId: "math", id: "integration", kind: "diktat" }, title: "Integration", courseTitle: "Math", availableUntil: 400, savedUntil: null },
   ];
   expect(offlineLibraryHref("en", target)).toEqual({ pathname: "/offline", params: { locale: "en", ...target } });
   expect(focusOfflineLibrary(rows, offlineLibraryTarget(target.courseId, target.materialId)).map(row => row.key)).toEqual(["a"]);
