@@ -3,6 +3,7 @@ const { getDefaultConfig } = require("expo/metro-config");
 const { prepareReadingKatex } = require("./offline/prepare-reading-katex.cjs");
 
 prepareReadingKatex();
+require("./features/student/pet/prepare-scene.cjs")();
 
 const config = getDefaultConfig(__dirname);
 const sharedPaths = ["packages", "public/founders", "messages", "lib", "components/navigation"];

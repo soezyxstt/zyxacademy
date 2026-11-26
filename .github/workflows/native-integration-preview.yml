@@ -11,6 +11,8 @@ on:
       - 'app/api/native/student/community/**'
       - 'tests/contracts/native-student-session.test.ts'
       - 'tests/unit/expo-personal-account.test.ts'
+      - 'components/gamification/zyra-*'
+      - 'tests/unit/expo-pet-preview.test.ts'
       - 'app/api/native/academic/tutor-support/**'
       - 'app/api/tutor/analytics/refresh/**'
       - 'tests/contracts/tutor-downstream-bridge.test.ts'
@@ -278,7 +280,7 @@ jobs:
       - name: Personal profile and settings across signed roles
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: |
-          bun test tests/unit/expo-personal-account.test.ts tests/unit/native-account-context.test.ts tests/unit/expo-staff-navigation.test.ts
+          bun test tests/unit/expo-pet-preview.test.ts tests/unit/expo-personal-account.test.ts tests/unit/native-account-context.test.ts tests/unit/expo-staff-navigation.test.ts
           bun scripts/test-contracts.ts tests/contracts/native-student-session.test.ts
       - name: Student learning and live-session operations
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}

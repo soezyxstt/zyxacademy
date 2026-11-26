@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Image, View } from "react-native";
+import { View } from "react-native";
 import { cosmeticNameKeys } from "../../../../../packages/student-community/labels";
 import { DEFAULT_PET_ID, petForAction, petSupportsAction } from "../../../../../packages/student-community/pet-studio";
 import { getZyraAvatar } from "../../../../../packages/student-community/zyra-cosmetics";
@@ -9,6 +9,8 @@ import id from "../../../../../messages/id/student.json";
 import type { AchievementData, AchievementTab, Badge, CosmeticSlot, GamificationReward, GamificationSummary, PetData } from "../../../../../packages/native-parity/student/community/contracts";
 import { Action, Actions, Choices, Copy, Notice, Page, Remote, Row, Rows, communityPath, dateLabel, operationResult, post, styles, useCommunity, useOperation, useRemote } from "./ui";
 
+import { PetViewer } from "../pet/PetViewer";
+import { SharedDialog } from "../../shared-ui/overlays";
 import { PetPractice } from "./pet-practice";
 
 const tabs = ["overview", "badges", "missions", "rewards"] as const;
@@ -42,22 +44,27 @@ export function RankSummary({ summary }: { summary: GamificationSummary }) {
   </Rows>;
 }
 
-function Mascot({ id: mascotId }: { id: string }) {
-  const { session } = useCommunity();
-  const item = getZyraAvatar(mascotId);
-  const [failed, setFailed] = useState<string>();
-  if (!item) return null;
-  const artwork = getZyraGlbMascot(item.glbCharacter)?.poster ?? item.src;
-  if (failed === artwork) return <Copy kind="strong">{session.locale === "en" ? item.name.en : item.name.id}</Copy>;
-  return <Image style={{ width: 186, height: 186, alignSelf: "center" }} source={{ uri: new URL(artwork, session.origin).href }}
-    onError={() => setFailed(artwork)} resizeMode="contain" accessibilityLabel={session.locale === "en" ? item.name.en : item.name.id} accessible />;
+function PetItemPreview({ item, pet, suit, close }: {
+  item: GamificationReward; pet: string; suit?: string; close(): void;
+}) {
+  const { session, tr } = useCommunity();
+  const [pose, setPose] = useState("idle");
+  const previewPet = item.slot === "zyra_avatar" ? item.id : item.slot === "pet_action" ? petForAction(item.id) ?? pet : pet;
+  const animations = item.slot === "zyra_avatar" ? getZyraGlbMascot(getZyraAvatar(previewPet)?.glbCharacter)?.previewAnimations : undefined;
+  const copy = (session.locale === "en" ? en : id).cosmeticsStudio.actions;
+  return <SharedDialog open title={localizedReward(item, session.locale)} closeLabel={tr("Tutup", "Close")} onDismiss={close}>
+    <PetViewer pet={previewPet} suit={item.slot === "pet_suit" ? item.id : item.slot === "pet_action" ? suit : undefined}
+      action={item.slot === "pet_action" ? item.id : undefined} pose={item.slot === "zyra_avatar" ? pose : undefined} />
+    {animations && <Choices value={pose} options={animations.map(value => ({ value, label: copy[value] }))} onSelect={setPose} />}
+  </SharedDialog>;
 }
 
-export function RewardRows({ rewards, balance, refresh, pet }: { rewards: GamificationReward[]; balance: number; refresh(): void; pet?: string }) {
+export function RewardRows({ rewards, balance, refresh, pet, previewItem }: {
+  rewards: GamificationReward[]; balance: number; refresh(): void; pet?: string; previewItem?(reward: GamificationReward): void;
+}) {
   const { request, session, tr } = useCommunity();
   const operation = useOperation();
   const [purchase, setPurchase] = useState<string | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
   const run = (item: GamificationReward, action: "buy" | "equip" | "remove") => void operation.run(async () => {
     operationResult(await post(request, "reward", { id: item.id, operation: action, slot: item.slot }));
     setPurchase(null);
@@ -74,15 +81,13 @@ export function RewardRows({ rewards, balance, refresh, pet }: { rewards: Gamifi
       const meta = item.equipped ? tr("Dipakai", "Equipped") : item.owned ? tr("Dimiliki", "Owned") : `${item.priceLp} LP`;
       return <Row key={item.id} title={name} meta={meta}>
         {requiredPet && <Copy kind="muted">{tr("Untuk", "For")} {session.locale === "en" ? requiredPet.name.en : requiredPet.name.id}</Copy>}
-        {preview === item.id && <Mascot id={item.id} />}
         {purchase === item.id
           ? <><Copy>{tr("Beli", "Buy")} {name} · {item.priceLp} LP</Copy><Actions>
               <Action label={tr("Konfirmasi pembelian", "Confirm purchase")} mode="default" busy={operation.pending} onPress={() => run(item, "buy")} />
               <Action label={tr("Batal", "Cancel")} disabled={operation.pending} onPress={() => setPurchase(null)} />
             </Actions></>
           : <Actions>
-            {pet && item.slot === "zyra_avatar" && <Action label={preview === item.id ? tr("Tutup pratinjau", "Close preview") : tr("Pratinjau", "Preview")}
-              onPress={() => setPreview(preview === item.id ? null : item.id)} />}
+            {previewItem && <Action label={tr("Coba", "Try")} onPress={() => previewItem(item)} />}
             {!item.owned && <Action label={balance < item.priceLp ? tr("LP belum cukup", "Insufficient LP") : tr("Beli", "Buy")}
               mode="default" disabled={operation.pending || balance < item.priceLp} onPress={() => setPurchase(item.id)} />}
             {item.owned && !item.equipped && <Action label={tr("Pakai", "Equip")} disabled={operation.pending || Boolean(incompatible)} onPress={() => run(item, "equip")} />}
@@ -112,6 +117,7 @@ export function AchievementsScreen() {
           aside={`${mission.rewardLp} LP`} />;
       })}</Rows> : <Copy kind="muted">{labels.noMissions}</Copy>)}
       {tab === "rewards" && data.summary && <><Copy>{labels.balance} {data.summary.lpBalance} LP</Copy>
+        <PetPractice rewards={data.rewards} />
         <RewardRows rewards={data.rewards} balance={data.summary.lpBalance} refresh={state.reload} /></>}
     </>}</Remote>
   </Page>;
@@ -120,19 +126,24 @@ export function AchievementsScreen() {
 export function PetScreen() {
   const { tr } = useCommunity();
   const [slot, setSlot] = useState<CosmeticSlot>("zyra_avatar");
+  const [preview, setPreview] = useState<GamificationReward | null>(null);
+  const [playing, setPlaying] = useState(false);
   const state = useRemote<PetData>(communityPath("pet"));
   return <Page title={tr("Studio peliharaan", "Pet studio")}>
     <Remote state={state}>{data => {
       const active = data.items.find(item => item.slot === "zyra_avatar" && item.equipped)?.id ?? DEFAULT_PET_ID;
       const collection = data.items.some(item => item.id === DEFAULT_PET_ID) ? data.items : [freePet, ...data.items];
+      const equipped = (slot: CosmeticSlot) => data.items.find(item => item.owned && item.equipped && item.slot === slot)?.id;
       const labels = { zyra_avatar: tr("Peliharaan", "Pets"), pet_suit: tr("Pakaian", "Outfits"), pet_action: tr("Aksi", "Actions") };
       return <>
-        <View style={styles.block}><Mascot id={active} /><PetPractice /></View>
+        <View style={styles.block}><PetViewer pet={active} suit={equipped("pet_suit")} action={equipped("pet_action")} posterOnly={playing || Boolean(preview)} />
+          <PetPractice rewards={collection} onOpenChange={setPlaying} /></View>
+        {preview && <PetItemPreview key={preview.id} item={preview} pet={active} suit={equipped("pet_suit")} close={() => setPreview(null)} />}
         <Copy kind="heading">{tr("Koleksi", "Collection")}</Copy>
         <Copy>{tr("Saldo", "Balance")} {data.summary.lpBalance} LP</Copy>
         <Choices value={slot as typeof petSlots[number]} options={petSlots.map(value => ({ value, label: labels[value] }))} onSelect={setSlot} />
         <RewardRows key={slot} balance={data.summary.lpBalance} rewards={collection.filter(item => item.slot === slot).map(item =>
-          slot === "zyra_avatar" ? { ...item, equipped: item.id === active } : item)} refresh={state.reload} pet={active} />
+          slot === "zyra_avatar" ? { ...item, equipped: item.id === active } : item)} refresh={state.reload} pet={active} previewItem={setPreview} />
       </>;
     }}</Remote>
   </Page>;

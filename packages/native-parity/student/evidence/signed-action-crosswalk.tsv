@@ -171,8 +171,8 @@ community	/feedback	murid	feedback.submit	Posts validated rating, category and m
 community	/pet	murid	pet.read	Loads reward balance, items and currently equipped pet.	connected	fixture
 community	/pet	murid	pet.buy	Checks exact item, slot, balance and ownership when buying.	connected	fixture
 community	/pet	murid	pet.equip	Equips or removes compatible owned item with refresh after receipt.	connected	fixture
-community	/pet	murid	pet.preview	Web Try opens animated GLB preview with equipped suit/actions. Native Mascot poster omits the live preview.	absent	source
-community	/pet	murid	pet.practice	Native exercise modal supports answers; web gear/action/animated practice presentation remains incomplete.	partial	source
+community	/pet	murid	pet.preview	Try an avatar, suit or action in the shared 3D viewer with outfit, compatible props, motion preference and poster recovery.	connected	contract
+community	/pet	murid	pet.practice	Choose owned pets, compatible actions and outfits in the practice dialog; correct answers replay a happy animation and advance the round.	connected	source
 community	/profile	murid	profile.read	Projects own account info, enrollments, progress and gamification within current session.	connected	local-http
 community	/profile	murid	profile.follow-lists	Reads followers and following with cursor and privacy rules.	connected	fixture
 community	/profile	murid	profile.people-search	Finds eligible public member previews with query and privacy boundaries.	connected	fixture
