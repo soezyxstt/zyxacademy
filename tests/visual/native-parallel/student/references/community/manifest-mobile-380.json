@@ -308,6 +308,49 @@
       "coursePickerLoading": false,
       "consoleErrors": [],
       "screenshot": "mobile-380-feedback.png"
+    },
+    {
+      "id": "pet",
+      "scenario": "community-enrolled",
+      "path": "/pet",
+      "expected": [
+        "Koleksi pet",
+        "Zyra"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "terminal": "/pet",
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": false,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-pet.png"
+    },
+    {
+      "id": "profile",
+      "scenario": "community-enrolled",
+      "path": "/profile",
+      "expected": [
+        "Alya Komunitas"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "terminal": "/profile",
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": false,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-profile.png"
     }
   ]
 }
