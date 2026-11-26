@@ -89,13 +89,13 @@ docs/
 
 | Document | Category | Status | Purpose and Scope |
 | --- | --- | --- | --- |
-| [bundle/authoring-agent-workflow.md](bundle/authoring-agent-workflow.md) | Bundle Contract | `ACTIVE` | Server-built Idea/Product draft helpers, local `authoring:preview`, compact response mode, and structured validation diagnostics. |
+| [bundle/authoring-agent-workflow.md](bundle/authoring-agent-workflow.md) | Bundle Contract | `ACTIVE` | Typed V4/V5 creation, paged compact discovery, checksum-cached contracts, bounded diagnostics and exact target proof reuse. |
 | [bundle/authoring-context-pack-v1.md](bundle/authoring-context-pack-v1.md) | Bundle Contract | `ACTIVE` | Export format, determinism, and security boundaries for Authoring Context Packs. |
 | [bundle/authoring-job-pack-v1.md](bundle/authoring-job-pack-v1.md) | Bundle Contract | `ACTIVE` | Authoring Job Pack V1 structure, Source Pack provenance, and skill integration. |
-| [bundle/authoring-revisions.md](bundle/authoring-revisions.md) | Bundle Contract | `ACTIVE` | Stable-ID MCP editing, immutable draft lineage, selective review reuse, atomic releases, and restoration for V3+ bundles. |
+| [bundle/authoring-revisions.md](bundle/authoring-revisions.md) | Bundle Contract | `ACTIVE` | Stable-ID edits, explicit derived-content review, immutable lineage, bounded release planning, proof reuse and atomic V3+ releases. |
 | [bundle/idea-bundle-v3.md](bundle/idea-bundle-v3.md) | Bundle Contract | `ACTIVE` | Atomic Idea extraction, learning sections, provenance, and revision-bound MCP lifecycle. |
 | [bundle/product-bundle-v3.md](bundle/product-bundle-v3.md) | Bundle Contract | `TRANSITIONAL / LEGACY` | Read compatibility and legacy revision lifecycle for Product Bundle V3. |
-| [bundle/product-bundle-v4.md](bundle/product-bundle-v4.md) | Bundle Contract | `ACTIVE` | Default authoring contract for scientific Articles, typed `zyx-visual` / `interactive_document` embeds, authored Diktats, flashcards, and trusted verification. |
+| [bundle/product-bundle-v4.md](bundle/product-bundle-v4.md) | Bundle Contract | `ACTIVE` | Default V4 contract for Articles, Diktats, flashcards and trusted verification with current-target proofs and cold-proof fallback. |
 | [bundle/product-bundle-v5.md](bundle/product-bundle-v5.md) | Bundle Contract | `ACTIVE` | Standalone reviewed solution collections, scoped headless review/publication, and learner access boundaries. |
 
 ### Operational Runbooks

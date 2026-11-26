@@ -11,6 +11,7 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from cloud_run_runtime import AI_PROVIDER_SETTINGS, REQUIRED, RUNTIME_KEYS, validate_database
 from prepare_worker_runtime import TARGETS
+from staging_authoring_browser import staging_browser_settings
 
 PROJECT = "zyx-academy"
 REGION = "asia-southeast3"
@@ -97,7 +98,7 @@ def describe_service():
     return service
 
 
-def validate_template(spec, config):
+def validate_template(spec, config, *, allow_browser_transition=False):
     require(spec.get("serviceAccountName") == RUNTIME_ACCOUNT and len(spec["containers"]) == 1,
             "Cloud Run staging runtime identity or container count mismatch.")
     container = spec["containers"][0]
@@ -138,7 +139,19 @@ def validate_template(spec, config):
     }
     for key, value in expected.items():
         require(plain.get(key) == value, "Cloud Run staging runtime does not match the expected " + key + ".")
-    require({key: value for key, value in plain.items() if is_build_key(key)} == config,
+    actual_build = {key: value for key, value in plain.items() if is_build_key(key)}
+    if allow_browser_transition:
+        # Only the two reviewed browser settings may differ during candidate preparation
+        # or rollback. All other existing runtime/build and secret checks still apply.
+        browser_keys = staging_browser_settings().keys()
+        previous_provider = actual_build.get("AUTHORING_VERIFICATION_BROWSER_PROVIDER", "cloudflare")
+        require(previous_provider in ("cloudflare", "steel")
+                and (previous_provider != "steel" or re.fullmatch(r"\d+\.\d+\.\d+\.\d+$",
+                     actual_build.get("AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION", ""))),
+                "Cloud Run previous browser identity is invalid.")
+        actual_build = {key: value for key, value in actual_build.items() if key not in browser_keys}
+        config = {key: value for key, value in config.items() if key not in browser_keys}
+    require(actual_build == config,
             "Cloud Run staging runtime public settings do not match the image build configuration.")
     return refs
 
@@ -184,6 +197,8 @@ def prepare():
     require(VERSION.fullmatch(os.environ["CLOUD_RUN_PREFLIGHT_DATABASE_VERSION"]),
             "Configure CLOUD_RUN_STAGING_PREFLIGHT_DATABASE_VERSION in the staging-cloud-run GitHub environment.")
     config = public_config(os.environ["CLOUD_RUN_PUBLIC_CONFIG"])
+    if operation != "rollback":
+        config.update(staging_browser_settings())
     (Path(os.environ["RUNNER_TEMP"]) / "cloud-run-public.json").write_text(json.dumps(config), encoding="utf-8")
     return config
 
@@ -287,7 +302,11 @@ def candidate(config, before):
     image = pushed_image(tagged_image, push_output)
     provider = os.environ.get("QUEUE_PROVIDER", "inngest")
     require(provider in ("inngest", "cloud-tasks"), "Invalid candidate queue provider.")
-    run("deploy", SERVICE, "--image", image, "--update-env-vars", f"QUEUE_PROVIDER={provider}", "--no-traffic", "--tag", tag, "--revision-suffix", f"r{run_id}a{attempt}",
+    browser_settings = staging_browser_settings()
+    require(all(config.get(key) == value for key, value in browser_settings.items()),
+            "Cloud Run candidate browser configuration is not the reviewed staging identity.")
+    updates = ",".join(f"{key}={value}" for key, value in {"QUEUE_PROVIDER": provider, **browser_settings}.items())
+    run("deploy", SERVICE, "--image", image, "--update-env-vars", updates, "--no-traffic", "--tag", tag, "--revision-suffix", f"r{run_id}a{attempt}",
         "--labels", f"{SOURCE_LABEL}={sha},environment=staging",
         "--execution-environment=gen2", "--cpu=1", "--memory=1Gi", "--min=0", "--max=1",
         "--min-instances=0", "--max-instances=1", "--concurrency=8", "--cpu-throttling",
@@ -323,7 +342,7 @@ def change_traffic(config, before, operation):
     if operation == "promote":
         require(data["metadata"]["labels"][SOURCE_LABEL] == os.environ["GITHUB_SHA"],
                 "Promotion requires a candidate built from the dispatched SHA.")
-    refs = validate_template(data["spec"], config)
+    refs = validate_template(data["spec"], config, allow_browser_transition=(operation == "rollback"))
     verify_database(refs)
     smoke(read_tag(before, tag, revision), refs)
     previous = traffic(before)
@@ -355,7 +374,7 @@ def release():
     require(is_ready(before), "Pre-provisioned Cloud Run staging service is not ready.")
     operation = os.environ["CLOUD_RUN_OPERATION"]
     if operation == "candidate":
-        refs = validate_template(before["spec"]["template"]["spec"], config)
+        refs = validate_template(before["spec"]["template"]["spec"], config, allow_browser_transition=True)
         verify_database(refs)
         candidate(config, before)
     else:

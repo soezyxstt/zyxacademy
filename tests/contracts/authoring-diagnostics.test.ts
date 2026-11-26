@@ -9,6 +9,23 @@ test("authoring recovery separates stale content, access and transient runtime w
   expect(authoringFailureDiagnostics(new Error("AUTHORING_MCP_LEGACY_RUN_RESTART_REQUIRED"))).toMatchObject({ category: "permission", retryable: false, nextAction: { kind: "refresh_bootstrap" } });
   expect(authoringFailureDiagnostics(new Error("PRODUCT_V4_BROWSER_TIMEOUT"))).toMatchObject({ category: "runtime", retryable: true, nextAction: { kind: "check_status" } });
   expect(authoringFailureDiagnostics(new Error("PRODUCT_V4_RUNTIME_ASSET_UNAVAILABLE"))).toMatchObject({ category: "runtime", retryable: false, nextAction: { kind: "inspect_runtime" } });
+  expect(authoringFailureDiagnostics(new Error("PRODUCT_V4_VERIFICATION_JOB_NOT_FOUND"))).toMatchObject({ category: "runtime", retryable: false, nextAction: { kind: "request_verification", tool: "authoring.verify_product_bundle" }, diagnostics: [] });
+});
+
+test("already bounded validation errors retain the original issue count", () => {
+  const error = Object.assign(new Error("REVISION_ARTIFACT_INVALID"), { issues: [{ code: "ARTICLE_INVALID", path: "parts", message: "Invalid part." }], issueCount: 120 });
+  expect(authoringFailureDiagnostics(error)).toMatchObject({ diagnosticCount: 120, diagnosticsTruncated: true });
+  expect(authoringFailureDiagnostics({ ...error, issueCount: -1 })).toMatchObject({ diagnosticCount: 1, diagnosticsTruncated: false });
+});
+
+test("current verification context exposes only validated hashes and recovery avoids content edits", () => {
+  const currentVerification = { contentHash: "a".repeat(64), planHash: "b".repeat(64), status: "not_started", secret: "must-not-leak" };
+  const result = authoringFailureDiagnostics(Object.assign(new Error("PRODUCT_V4_VERIFICATION_CONFLICT"), { currentVerification }));
+  expect(result).toMatchObject({ currentVerification: { contentHash: currentVerification.contentHash, planHash: currentVerification.planHash, status: "not_started" }, nextAction: { kind: "read_context", tool: "authoring.get_import" } });
+  expect(JSON.stringify(result)).not.toContain("must-not-leak");
+  expect(authoringFailureDiagnostics(Object.assign(new Error("PRODUCT_V4_VERIFICATION_CONFLICT"), { currentVerification: { ...currentVerification, planHash: "https://private.example/secret" } }))).not.toHaveProperty("currentVerification");
+  expect(authoringFailureDiagnostics(new Error("PRODUCT_V4_PRINT_REUSE_CHANGED"))).toMatchObject({ category: "conflict", nextAction: { kind: "refresh_verification", tool: "authoring.patch_revision" } });
+  expect(authoringFailureDiagnostics(new Error("PRODUCT_V4_VERIFICATION_CANCELLED"))).toMatchObject({ category: "runtime", nextAction: { kind: "request_verification" } });
 });
 
 test("all bounded deterministic findings keep their field paths and quality targets", () => {

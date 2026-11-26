@@ -39,7 +39,18 @@ const allowed = new Set([...Object.keys(WorkerEnvSchema.shape), "AWS_ACCESS_KEY_
 const environment = Object.fromEntries(Object.entries(raw).filter(([name]) => allowed.has(name) || name.startsWith("FEATURE_") || name === "VECTOR_SYNC_BATCH_SIZE"));
 environment.ZYX_COMPUTE_RUNTIME = "neon";
 environment.ZYX_COMPUTE_BUILD_RUNTIME = await readFile("artifacts/authoring-verification/web-runtime.json", "utf8");
-environment.AUTHORING_VERIFICATION_BROWSER_PROVIDER = "cloudflare";
+if (target.name === "staging") {
+  const expected = JSON.parse(await readFile(".github/config/staging-authoring-browser.json", "utf8"));
+  if (expected.AUTHORING_VERIFICATION_BROWSER_PROVIDER !== "steel" ||
+      !/^\d+\.\d+\.\d+\.\d+$/.test(expected.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION ?? "") ||
+      environment.AUTHORING_VERIFICATION_BROWSER_PROVIDER !== expected.AUTHORING_VERIFICATION_BROWSER_PROVIDER ||
+      environment.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION !== expected.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION ||
+      !environment.STEEL_API_KEY?.trim() || environment.STEEL_API_KEY === "[SENSITIVE]") {
+    throw new Error("COMPUTE_STAGING_STEEL_CONFIGURATION_REQUIRED");
+  }
+} else {
+  environment.AUTHORING_VERIFICATION_BROWSER_PROVIDER = "cloudflare";
+}
 // No scheduler is registered until the returned URL is independently read back and tested.
 environment.INNGEST_SERVE_ORIGIN = target.origin;
 environment.INNGEST_SERVE_PATH = "/api/inngest";

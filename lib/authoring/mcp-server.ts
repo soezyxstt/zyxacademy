@@ -29,6 +29,9 @@ import { MCP_SERVER_IDS } from "./mcp-tool-names";
 import { registerAuthoringSkills } from "./mcp-skills";
 import { registerProductV4Tools } from "./mcp-v4-tools";
 import { registerRevisionTools } from "./revision-mcp";
+import { getCompactImport, listImportMetadata } from "./import-discovery";
+import { compactImportProjectionsSchema, importDiscoveryInputSchema } from "./import-discovery-contract";
+import { contractResponseOptionsSchema } from "./contract-response";
 import { createProductDraft, createProductDraftToolSchema } from "./product-draft-service";
 import { loadProductDraftContext } from "./product-draft-context";
 import { createIdeaDraft, createIdeaDraftToolSchema } from "./idea-draft-service";
@@ -137,6 +140,7 @@ import {
   authoringPlaybookModuleKeySchema,
   authoringPlaybookStageSchema,
   clientCapabilitiesSchema,
+  playbookResponseOptionsSchema,
   resolveAuthoringMcpEnvironment,
 } from "@/lib/authoring/mcp-playbook";
 import { requireMcpScope, resolveMcpAdmin, type McpPrincipal } from "@/lib/authoring/mcp-auth";
@@ -1626,7 +1630,7 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal, trace
 
   (server as any).registerTool("workflow.get_playbook", {
     title: "Get authoring playbook and bootstrap token",
-    description: "Mengambil playbook tahap authoring dari server, memeriksa kompatibilitas versi plugin dan protokol bootstrap, serta menerbitkan bootstrapToken bertanda tangan untuk mengikat operasi authoring.",
+    description: "Read stage playbooks, check plugin/bootstrap compatibility and issue a fresh bound bootstrapToken. Default full preserves module markdown and combined instructions. responseMode compact sends each module once; knownModuleChecksums omits only exact cached module content. Always use the returned bootstrap identity, including on unchanged documents.",
     inputSchema: {
       skill: authoringMcpSkillSchema.optional(),
       bootstrapProtocol: z.number().int().positive().default(1),
@@ -1636,6 +1640,7 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal, trace
       expectedPlaybookRevision: z.string().trim().min(1).optional(),
       runToken: z.string().trim().min(1).optional(),
       clientCapabilities: clientCapabilitiesSchema.optional(),
+      ...playbookResponseOptionsSchema.shape,
     },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
   }, async (input: any) => {
@@ -1652,6 +1657,8 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal, trace
         expectedPlaybookRevision: input.expectedPlaybookRevision,
         runToken: input.runToken,
         clientCapabilities: input.clientCapabilities,
+        responseMode: input.responseMode,
+        knownModuleChecksums: input.knownModuleChecksums,
       });
       return toolResult(result, !result.ok);
     } catch (error) {
@@ -2042,7 +2049,7 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal, trace
 
   (server as any).registerTool("workflow.get_contract", {
     title: "Get workflow contract",
-    description: "Mengembalikan aturan output dan compatibility gate untuk workflow yang dipilih.",
+    description: "Read active workflow rules and compatibility. Default full preserves the complete contract. Compact returns only the bound stage, optionally productProfile v4/v5/all, without compatibility aliases. Reuse an exact viewChecksum via knownViewChecksum to omit unchanged documents; bootstrap and run identity are still checked and refreshed.",
     inputSchema: {
       runToken: z.string().min(1),
       bootstrapToken: z.string().min(1).optional(),
@@ -2050,9 +2057,10 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal, trace
       bootstrapProtocol: z.number().int().positive().optional(),
       pluginVersion: z.string().trim().min(1).max(64).optional(),
       clientCapabilities: clientCapabilitiesSchema.optional(),
+      ...contractResponseOptionsSchema.shape,
     },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
-  }, async ({ runToken, bootstrapToken, skill, bootstrapProtocol, pluginVersion, clientCapabilities }: any) => safeTool(() => {
+  }, async ({ runToken, bootstrapToken, skill, bootstrapProtocol, pluginVersion, clientCapabilities, responseMode, productProfile, knownViewChecksum }: any) => safeTool(() => {
     requireMcpScope(principal, "authoring:read");
     return {
       ok: true,
@@ -2064,6 +2072,7 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal, trace
         bootstrapProtocol,
         pluginVersion,
         clientCapabilities,
+        responseMode, productProfile, knownViewChecksum,
       }),
     };
   }));
@@ -2258,8 +2267,8 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
   }));
 
   (server as any).registerTool("authoring.create_product_draft", {
-    title: "Create Article or Diktat draft",
-    description: "Create initial V4 Article/Diktat drafts from typed content and published Idea/source IDs. Fetch the pinned productDraftInput schema from workflow.get_contract on demand; this small catalog envelope does not replace strict validation. The server binds versions, IDs, projections, dependencies and ZIP, then applies existing admission and staging gates. Reuse draftKey only for an unchanged request/run token; use revisions for edits. No review or publication.",
+    title: "Create learning Product draft",
+    description: "Create initial V4 Article/Diktat/flashcard/set drafts or one standalone V5 solution collection from typed content and published Idea/source IDs. Fetch the current pinned productDraftInput schema on demand; this small catalog envelope does not replace strict validation. The server binds versions, IDs, projections, dependencies and ZIP, then applies existing admission and staging gates. Reuse draftKey only for an unchanged request/run token; use revisions for edits. No review or publication.",
     inputSchema: createProductDraftToolSchema.shape,
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
   }, async (input: z.infer<typeof createProductDraftToolSchema>) => safeTool(() => createProductDraft(input, principal, {
@@ -2780,14 +2789,15 @@ function registerReferenceQuestionTools(server: McpServer, principal: McpPrincip
 function registerLifecycleTools(server: McpServer, principal: McpPrincipal): void {
   (server as any).registerTool("authoring.list_imports", {
     title: "List staged bundle imports",
-    description: "Mengembalikan inventory Source Pack, Idea, atau Product Bundle untuk inspeksi lifecycle sebelum edit, review, atau withdrawal.",
-    inputSchema: {
-      bundleType: z.enum(["source", "idea", "product"]),
-      limit: z.number().int().min(1).max(100).default(50),
-    },
+    description: "List Source Pack, Idea, or Product imports. Default full preserves current lifecycle inspection. Use responseMode compact for metadata-only search, courseId/chapterId/query/statuses filters, headsOnly live and editable lineage heads, and cursor paging. Compact does not download archives or evaluate release readiness.",
+    inputSchema: importDiscoveryInputSchema.shape,
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
-  }, async ({ bundleType, limit }: any) => safeTool(async () => {
+  }, async (raw: z.input<typeof importDiscoveryInputSchema>) => safeTool(async () => {
     requireMcpScope(principal, "authoring:read");
+    const input = importDiscoveryInputSchema.parse(raw);
+    const { bundleType, limit } = input;
+    if (input.responseMode === "compact") return listImportMetadata(input);
+    if ([input.courseId, input.chapterId, input.query, input.statuses, input.headsOnly, input.cursor].some(value => value !== undefined)) throw new Error("AUTHORING_MCP_IMPORT_SEARCH_REQUIRES_COMPACT");
     const rows = bundleType === "source"
       ? await listSourcePackImports({ limit })
       : bundleType === "idea"
@@ -2857,14 +2867,18 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
 
   (server as any).registerTool("authoring.get_import", {
     title: "Get staged bundle import",
-    description: "Mengembalikan detail import, inventory entity, laporan validasi, dan keputusan review tanpa mengekspos storage key atau identity internal reviewer.",
+    description: "Read a bundle import without private storage or reviewer identities. Default full preserves lifecycle details and current readiness. responseMode compact returns metadata without archive I/O; optional projections inventory adds up to 256 non-dependency entities, readiness explicitly evaluates current Product release checks. Validation snapshots never imply current readiness.",
     inputSchema: {
       bundleType: z.enum(["source", "idea", "product"]),
       importId: z.string().trim().min(1),
+      responseMode: z.enum(["full", "compact"]).optional(),
+      projections: compactImportProjectionsSchema,
     },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
-  }, async ({ bundleType, importId }: any) => safeTool(async () => {
+  }, async ({ bundleType, importId, responseMode, projections }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:read");
+    if (responseMode === "compact") return getCompactImport({ bundleType, importId, projections }, (id, expectedSnapshot) => currentPublisherProductReadiness(id, principal.actorId, { expectedSnapshot }));
+    if (projections !== undefined) throw new Error("AUTHORING_MCP_IMPORT_PROJECTIONS_REQUIRE_COMPACT");
     if (bundleType === "source") {
       const row = await getSourcePackImport(importId);
       if (!row) throw new Error("SOURCE_PACK_NOT_FOUND");
@@ -2887,7 +2901,7 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
     if (bundleType === "product") {
       if (row.version === 5) {
         const { parseStagedProductBundle } = await import("@/lib/bundle/product-staging");
-        const bundle = await parseStagedProductBundle(importId);
+        const bundle = await parseStagedProductBundle(importId, row);
         const quality = await evaluateProductBundleQualityPolicy({ bundle }, { imporBundleId: importId, publisherId: principal.actorId });
         const safeImport = publicBundleImport(row);
         return { ok: true, import: {
@@ -2919,15 +2933,14 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
         .orderBy(desc(buktiPdfBundle.createdAt), desc(buktiPdfBundle.id));
       if (row.version === 4) {
         const { parseStagedProductBundle } = await import("@/lib/bundle/product-staging");
-        const bundle = await parseStagedProductBundle(importId);
+        const bundle = await parseStagedProductBundle(importId, row);
         const ref = row.validationReport.productV4Verification as { runId?: unknown; planHash?: unknown } | undefined;
         const verification = typeof ref?.runId === "string" ? await (await import("@/lib/bundle/product-v4-verification-service")).getProductV4VerificationReadiness(importId, ref.runId) : null;
         const validVerification = verification && ref?.planHash === verification.plan.planHash ? verification : null;
-        const quality = await evaluateProductBundleQualityPolicy({ bundle }, { imporBundleId: importId, publisherId: principal.actorId, v4Verification: validVerification });
-        const currentReadiness = await currentPublisherProductReadiness(importId, principal.actorId);
+        const currentReadiness = await currentPublisherProductReadiness(importId, principal.actorId, { v4Verification: validVerification, admittedContext: { row, bundle } });
         return { ok: true, import: { ...publicBundleImport(row, pedReviews, pdfEvidenceRows), publicationReady: currentReadiness.publicationReady, currentReadiness, quality: currentReadiness,
           verificationContentHash: computeProductV4VerificationContentHash(bundle),
-          reviewContext: { expectedRevision: row.checksum, policyVersion: quality.policyVersion, contentFingerprint: quality.contentFingerprint,
+          reviewContext: { expectedRevision: row.checksum, policyVersion: currentReadiness.policyVersion, contentFingerprint: currentReadiness.contentFingerprint,
             verificationPlanHash: validVerification?.plan.planHash ?? null, verificationReceiptSignature: getProductV4VerificationReceiptSignature(validVerification?.receipt),
             sections: bundle.products.flatMap(product => product.productType === "article" ? product.sections.map(section => ({ productId: product.id, sectionId: section.id, semanticHash: computeProductV4SectionSemanticHash(product, section.id) })) : []),
           }, verification,
