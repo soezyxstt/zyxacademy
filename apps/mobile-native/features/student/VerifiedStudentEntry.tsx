@@ -1,6 +1,6 @@
 import { useCallback, useLayoutEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { Redirect, useIsFocused, useRouter } from "expo-router";
-import { Alert, Text, View } from "react-native";
+import { Alert, Linking, Platform, Text, View } from "react-native";
 import { openBrowserAsync } from "expo-web-browser";
 import { authLocale } from "../../auth/auth-copy";
 import { useNativeAccountContext } from "../../auth/use-account-context";
@@ -13,6 +13,7 @@ import { useOfflineReadingPackages } from "../../offline/reading-hooks";
 import { useOfflineReadingSession } from "../../offline/use-reading-session";
 import type { NativeOfflineLocale } from "../../offline/sync-contract";
 import { useOfflineCourseMetadata } from "../../offline/lifecycle-provider";
+import { studentBrowserNotificationsAction } from "./browser-handoff";
 import { matchStudentRoute } from "./routes";
 import { useAssessmentPhotos } from "./assessment/device";
 import { useAssessmentDrafts } from "./assessment-drafts";
@@ -106,17 +107,26 @@ export function VerifiedStudentEntry({ offlineLocale, openOfflineMaterial, ...pr
     {context.locale === "en" ? "Sign in with a student account." : "Masuk dengan akun peserta."}
   </Text>;
   const { origin, accountId, sessionId } = transport.scope;
+  const showExternalError = () => {
+    if (transport?.isCurrent()) Alert.alert(context.locale === "en" ? "Unable to open this link." : "Tautan belum dapat dibuka.");
+  };
   function openExternal(path: string) {
-    const showError = () => {
-      if (transport?.isCurrent()) Alert.alert(context?.locale === "en" ? "Unable to open this link." : "Tautan belum dapat dibuka.");
-    };
     try {
       const url = new URL(path, origin);
-      if (url.protocol !== "https:" || url.username || url.password) { showError(); return; }
-      if (transport?.isCurrent()) void openBrowserAsync(url.href).catch(showError);
-    } catch { showError(); }
+      if (url.protocol !== "https:" || url.username || url.password) { showExternalError(); return; }
+      if (transport?.isCurrent()) void openBrowserAsync(url.href).catch(showExternalError);
+    } catch { showExternalError(); }
   }
-  return <StudentEntry {...props} focused={focused} openExternal={props.openExternal ?? openExternal} openOfflineMaterial={openSaved} openOfflineLibrary={target.kind === "course" || target.kind === "material" ? openLibrary : undefined} request={transport.request} devicePush={push} assessmentPhotos={props.assessmentPhotos ?? assessmentPhotos} drafts={props.drafts ?? drafts}
+  const openBrowserNotifications = studentBrowserNotificationsAction({
+    origin,
+    platform: Platform.OS,
+    isCurrent: () => transport.isCurrent(),
+    openDefault: url => Linking.openURL(url),
+    openExternal: props.openExternal,
+    openProfile: props.openBrowserNotifications,
+    onError: showExternalError,
+  });
+  return <StudentEntry {...props} focused={focused} openExternal={props.openExternal ?? openExternal} openBrowserNotifications={openBrowserNotifications} openOfflineMaterial={openSaved} openOfflineLibrary={target.kind === "course" || target.kind === "material" ? openLibrary : undefined} request={transport.request} devicePush={push} assessmentPhotos={props.assessmentPhotos ?? assessmentPhotos} drafts={props.drafts ?? drafts}
     offlineCourse={{ status: revoked ? "revoked" : metadata.status, course: revoked ? null : metadata.snapshot?.courses.find(course => course.id === courseIds[0]) ?? null, retry: metadata.retry }}
     session={{ role: "student", userId: accountId, origin, sessionId, locale: context.locale }}
     onLocaleChanged={locale => { props.onLocaleChanged?.(locale); retry(); }} />;

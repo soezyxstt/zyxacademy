@@ -47,6 +47,8 @@ export interface StudentServices {
   openOfflineMaterial?: (courseId: string, materialId: string) => void;
   renderMaterial?: (target: StudentMaterialReaderTarget) => ReactNode;
   openExternal?: (path: string) => void;
+  /** Opens the browser notification settings in an existing browser profile. */
+  openBrowserNotifications?: () => void;
   nativeAuthScheme?: string;
   onLocaleChanged?(locale: "id" | "en"): void;
   devicePush?: {

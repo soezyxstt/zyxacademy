@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { View } from "react-native";
+import { Text, View } from "react-native";
 import { resolveSettingsTab, type SettingsTab } from "../../../../../packages/student-community/settings-tabs";
 import { parseQuietHours, type QuietHours } from "../../../../../packages/student-community/quiet-hours";
 import { isTutorialEmailSchedule } from "../../../../../packages/student-community/tutorial-email-schedule";
 import { activityPreferenceKeys, emailPreferenceKeys, feedbackCategories } from "../../../../../packages/native-parity/student/community/contracts";
 import type { ActivityPreferenceKey, FeedbackCategory, NotificationPreferences, TutorialEmailSchedule } from "../../../../../packages/native-parity/student/community/contracts";
+import { studentBrowserNotificationsUrl } from "../browser-handoff";
 import { ProfileEditorPanel } from "./profile";
 import { Action, Actions, Choices, Copy, Field, Notice, Page, Remote, Toggle, communityPath, operationResult, post, readJson, styles, useCommunity, useOperation, useRemote } from "./ui";
 
@@ -145,13 +146,19 @@ export function NotificationsScreen() {
 }
 
 export function BrowserNotificationsScreen() {
-  const { tr, openExternal } = useCommunity();
+  const { tr, session, colors, openBrowserNotifications } = useCommunity();
+  const url = studentBrowserNotificationsUrl(session.origin);
   return <Page title={tr("Notifikasi browser", "Browser notifications")}>
-    <Copy>{tr("Buka browser yang ingin Anda jeda notifikasinya.", "Open the browser whose notifications you want to pause.")}</Copy>
-    {openExternal
-      ? <Actions><Action label={tr("Buka di browser", "Open in browser")} mode="default"
-        onPress={() => openExternal("/settings/notifications/browser")} /></Actions>
-      : <Copy kind="muted">{tr("Browser perangkat belum tersedia.", "The device browser is unavailable.")}</Copy>}
+    <Copy>{tr(
+      "Untuk menghentikan notifikasi, buka tautan ini di profil browser atau aplikasi web yang menerima notifikasi dan masuk dengan akun yang sama.",
+      "To stop notifications, open this link in the browser profile or installed web app that receives them, and sign in with the same account.",
+    )}</Copy>
+    {url ? <>
+      {openBrowserNotifications && <Actions><Action label={tr("Buka di browser", "Open in browser")} mode="default"
+        onPress={openBrowserNotifications} /></Actions>}
+      <Copy kind="muted">{tr("Salin tautan ke browser tersebut.", "Copy this link into that browser.")}</Copy>
+      <Text selectable style={[styles.body, { color: colors.foreground }]}>{url}</Text>
+    </> : <Copy kind="error">{tr("Tautan pengaturan belum tersedia.", "The settings link is unavailable.")}</Copy>}
   </Page>;
 }
 

@@ -4,6 +4,7 @@ import { courseHref, externalVideoPath, learningLiveJoinApi, type CourseVideo, t
 import { createLiveQuizSocketHook, type LeaderboardEntry } from "../../../../../packages/native-parity/student/learning/live-socket";
 import { Button } from "../../../components/Button";
 import { Input } from "../../../components/Input";
+import { studentLiveBrowserPath } from "../browser-handoff";
 import type { StudentScreenProps } from "../contracts";
 import { Body, Copy, Message, Row, Section, english, launchWeb, postJson, readJson, RequestError, styles, useLearningColors, type Translate } from "./ui";
 
@@ -123,6 +124,23 @@ function LiveBoard({ title, rows, rank, score, t }: { title: string; rows: Leade
   </Section>;
 }
 
+function LiveCodingHandoff({ props }: { props: StudentScreenProps }) {
+  const [failed, setFailed] = useState(false);
+  const en = english(props.session.locale);
+  return <View style={styles.section}>
+    <Copy>{en
+      ? "Sign in with the same account in your browser, then rejoin the live quiz with the room code to open the coding exercise."
+      : "Masuk dengan akun yang sama di browser, lalu gabung kembali ke kuis langsung dengan kode ruang untuk membuka latihan kode."}</Copy>
+    {props.openExternal ? <Button variant="outline" style={styles.action}
+      onPress={() => setFailed(!launchWeb(props, studentLiveBrowserPath(props.route.params.id)))}>
+      {en ? "Open live quiz in browser" : "Buka kuis langsung di browser"}
+    </Button> : null}
+    {failed || !props.openExternal ? <Message>{en
+      ? "Open the live quiz from the course page in your browser."
+      : "Buka kuis langsung dari halaman kelas di browser."}</Message> : null}
+  </View>;
+}
+
 function ConnectedLive({ data, props, t, code, initialEndpoint, leave }: {
   data: Ready<"live">; props: StudentScreenProps; t: Translate; code: string; initialEndpoint: string; leave: () => void;
 }) {
@@ -138,7 +156,6 @@ function ConnectedLive({ data, props, t, code, initialEndpoint, leave }: {
   const colors = useLearningColors();
   const question = state.currentQuestion;
   const phase = state.sessionState;
-  const isEnglish = english(props.session.locale);
   const render = (source: string) => props.renderAssessmentMarkdown?.(source, props.route.params.id) ?? <Body source={source} />;
   return <>
     <Copy muted>{t(`live.${state.connectionStatus}`)}</Copy>
@@ -149,9 +166,7 @@ function ConnectedLive({ data, props, t, code, initialEndpoint, leave }: {
       : t("live.question", { number: question.questionIndex + 1 })}>
       {phase === "question" ? <Copy>{t("live.timeRemaining", { seconds: state.countdown })}</Copy> : null}
       {render(question.prompt)}
-      {question.coding ? <Button variant="outline" style={styles.action} onPress={() => launchWeb(props, props.route.path)}>
-        {isEnglish ? "Open coding exercise in browser" : "Buka latihan kode di browser"}
-      </Button> : null}
+      {question.coding ? <LiveCodingHandoff props={props} /> : null}
       <View accessibilityRole="radiogroup" style={{ gap: 8 }}>
         {question.options.map((option, index) => {
           const correct = phase === "reveal" && index === state.revealCorrectIndex;
