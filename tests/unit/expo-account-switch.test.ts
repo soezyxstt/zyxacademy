@@ -208,6 +208,10 @@ test("same-role Expo account replacement retires the old stack, offline reading 
     const stateA = controller.getSnapshot().state;
     const canNavigateA = () => canNavigateNativeSession(stateA, sessionA, controller.getSnapshot(), now);
     expect(canNavigateA()).toBe(true);
+    await controller.refresh();
+    expect(controller.getSnapshot().state).not.toBe(stateA);
+    expect(controller.getSnapshot().transport).toBe(sessionA);
+    expect(canNavigateA()).toBe(true);
     expect(canNavigateNativeSession(stateA, sessionA, { ...controller.getSnapshot(), revalidating: true }, now)).toBe(false);
     expect(canNavigateNativeSession(stateA, sessionA, controller.getSnapshot(), expiresAt)).toBe(false);
     expect((await loadInbox(sessionA, true, signal)).rows[0]?.id).toBe(a.row.id);

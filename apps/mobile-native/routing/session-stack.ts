@@ -7,10 +7,14 @@ export function canNavigateNativeSession(
   current: { state: NativeSessionState; transport: NativeSessionTransport | null; revalidating: boolean },
   now = Date.now(),
 ) {
-  // A retained callback must match the session snapshot that rendered it.
-  if (current.state !== state || current.transport !== transport || current.revalidating) return false;
-  if (state.status === "signed-in") return state.expiresAt > now && transport?.isCurrent() === true;
-  return state.status === "unavailable" && !!state.offlineIdentity && state.offlineIdentity.expiresAt > now;
+  if (current.transport !== transport || current.revalidating) return false;
+  if (state.status === "signed-in") {
+    // A successful refresh may renew expiry while an assessment submission is in flight.
+    const live = current.state;
+    return live.status === "signed-in" && live.accountId === state.accountId && live.sessionId === state.sessionId
+      && live.expiresAt > now && transport?.isCurrent() === true;
+  }
+  return current.state === state && state.status === "unavailable" && !!state.offlineIdentity && state.offlineIdentity.expiresAt > now;
 }
 
 export function navigationSessionKey(state: NativeSessionState): string | null | undefined {
