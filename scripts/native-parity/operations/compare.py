@@ -15,6 +15,12 @@ PAIRS = {
     "management-form-summary": "management-form-summary",
 }
 
+FULL_SHELL_BLOG_PAIRS = {
+    "cases/operations-public-blog-list-open-back": "blog-shell-list-id-light",
+    "cases/operations-public-blog-detail-content": "blog-shell-detail-id-light",
+    "cases/operations-public-blog-list-empty": "blog-shell-empty-en-dark",
+}
+
 UTC_JOBS = "evaluation/jobs-completed-light-380-viewport-utc.png"
 UTC_NAMES = {"UTC", "Etc/UTC", "GMT", "Etc/GMT"}
 
@@ -36,10 +42,18 @@ def compare(device_dir, reference_dir, width_dp, density):
             "cases/operations-public-form-empty": "../public-pages/references/form-empty-380-dpr1.png",
             "web-analytics": "monitoring/web-analytics-populated-light-380-viewport.png",
         })
-    for capture, reference in pairs.items():
+    comparisons = [(capture, reference, False) for capture, reference in pairs.items()]
+    comparisons.extend(
+        (capture, f"{reference}-{width_dp}-dpr{density}.png", True)
+        for capture, reference in FULL_SHELL_BLOG_PAIRS.items()
+    )
+    for capture, reference, full_shell in comparisons:
         device_path = device_dir / f"{capture}.png"
         reference_path = reference_dir / reference
         row = {"device": str(device_path.relative_to(device_dir)), "reference": reference}
+        diff_path = f"{capture}-full-shell-diff.png" if full_shell else f"{capture}-diff.png"
+        if full_shell:
+            row["variant"] = "full-shell"
         rows.append(row)
         if not device_path.is_file() or not reference_path.is_file():
             row["status"] = "awaiting capture"
@@ -64,7 +78,11 @@ def compare(device_dir, reference_dir, width_dp, density):
             different = native.width * native.height - maximum.histogram()[0]
             row.update(differentPixels=different, maxChannelDelta=maximum.getextrema()[1])
             row["status"] = "different" if different else "identical"
-            ImageOps.autocontrast(difference).save(device_dir / f"{capture}-diff.png")
+            if full_shell:
+                row["diff"] = diff_path
+                difference.save(device_dir / diff_path)
+            else:
+                ImageOps.autocontrast(difference).save(device_dir / diff_path)
     return rows
 
 

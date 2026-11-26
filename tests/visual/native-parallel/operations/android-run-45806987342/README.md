@@ -30,3 +30,5 @@ Four rows below come from the original workflow output, which counts any nonzero
 | Populated Web Analytics page | 47,756 | [PNG](matched-viewport/web-analytics.png) | [PNG](matched-viewport/web-analytics-diff.png) |
 
 The original report also includes a completed jobs comparison with a different display time, two component-only Web Analytics references, and two viewport mismatches. The matched rows above use the UTC jobs and full Web Analytics page references. The AST comparison remains unpaired because the web viewport and initial panel differ. These measurements describe this Android revision. Later chart, forms and demo changes need captures from the later build.
+
+Three additional blog comparisons use the original Next.js marketing header and footer. The matching named Android states are the populated list, article detail and English dark empty category. [Full-shell measurements and diffs](full-shell-blog/README.md)
