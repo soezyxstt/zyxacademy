@@ -1,7 +1,7 @@
 const { access, rm, writeFile } = require('node:fs/promises');
 const { join } = require('node:path');
 const { AndroidConfig, withAndroidManifest, withAppBuildGradle, withDangerousMod, withProjectBuildGradle } = require('expo/config-plugins');
-const { CAPABILITY } = require('./staging-firebase-config');
+const { CAPABILITY, GOOGLE_OAUTH_CLIENT, GOOGLE_OAUTH_SIGNERS } = require('./staging-firebase-config');
 
 const GRADLE_CONFIG = { android: { googleServicesFile: 'google-services.json' } };
 const MANAGED = '// @zyx-staging-firebase';
@@ -23,7 +23,8 @@ function configureGradle(mod, enabled, apply, pattern) {
 
 module.exports = function withStagingFirebase(config, readClient) {
   let client;
-  const getClient = () => client === undefined ? (client = readClient()) : client;
+  let googleIdentity = null;
+  const getClient = () => client === undefined ? (client = readClient(value => { googleIdentity = value; })) : client;
   const google = AndroidConfig.GoogleServices;
   config = withProjectBuildGradle(config, mod => configureGradle(mod, Boolean(getClient()), google.setClassPath,
     /classpath ['"]com\.google\.gms:google-services:[^'"\r\n]+['"]/));
@@ -34,6 +35,13 @@ module.exports = function withStagingFirebase(config, readClient) {
     const validated = getClient();
     if (validated) AndroidConfig.Manifest.addMetaDataItemToMainApplication(application, CAPABILITY, validated.client[0].client_info.mobilesdk_app_id);
     else AndroidConfig.Manifest.removeMetaDataItemFromMainApplication(application, CAPABILITY);
+    if (googleIdentity) {
+      AndroidConfig.Manifest.addMetaDataItemToMainApplication(application, GOOGLE_OAUTH_CLIENT, googleIdentity.clientId);
+      AndroidConfig.Manifest.addMetaDataItemToMainApplication(application, GOOGLE_OAUTH_SIGNERS, googleIdentity.signers.join(","));
+    } else {
+      AndroidConfig.Manifest.removeMetaDataItemFromMainApplication(application, GOOGLE_OAUTH_CLIENT);
+      AndroidConfig.Manifest.removeMetaDataItemFromMainApplication(application, GOOGLE_OAUTH_SIGNERS);
+    }
     return mod;
   });
   return withDangerousMod(config, ['android', async mod => {

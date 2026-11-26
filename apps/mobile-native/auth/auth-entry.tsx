@@ -41,6 +41,7 @@ function GoogleEntryForm({ intent, incomingError }: {
   const run = useRef(0);
   const [attempted, setAttempted] = useState(false);
   const [cancelled, setCancelled] = useState(false);
+  const [nativeUnavailable, setNativeUnavailable] = useState(false);
   const busy = login.status === "opening" || login.status === "exchanging";
   const isSignUp = intent.entry === "sign-up";
   const copy = authCopy[intent.locale];
@@ -49,16 +50,20 @@ function GoogleEntryForm({ intent, incomingError }: {
     ? copy.native.buildRequired
     : busy ? null
     : !attempted && incomingError ? copy.oauthErrors[incomingError]
-    : cancelled ? copy.oauthErrors.accessDenied
+    : cancelled ? copy.native.pickerCancelled
+    : nativeUnavailable ? copy.native.credentialUnavailable
     : attempted && login.status === "error" ? copy.oauthErrors.generic
     : null;
 
-  const start = async () => {
+  const start = async (preferBrowser = false) => {
     const current = ++run.current;
     setAttempted(true);
     setCancelled(false);
-    const outcome = await login.signIn(intent);
-    if (current === run.current && outcome === "cancelled") setCancelled(true);
+    setNativeUnavailable(false);
+    const outcome = await login.signIn(intent, preferBrowser);
+    if (current !== run.current) return;
+    if (outcome === "cancelled") setCancelled(true);
+    if (outcome === "unavailable") setNativeUnavailable(true);
   };
 
   return <AuthPage title={isSignUp ? copy.signUpTitle : copy.signIn}>
@@ -72,9 +77,11 @@ function GoogleEntryForm({ intent, incomingError }: {
         renderIcon={() => <GoogleMark />}
         style={styles.primary}
       >{isSignUp ? copy.signUpWithGoogle : copy.signInWithGoogle}</Button>
+      {!busy && login.isCredentialAvailable && (nativeUnavailable || cancelled || login.status === "error") &&
+        <Button variant="outline" onPress={() => void start(true)}>{copy.native.continueInBrowser}</Button>}
       {busy && <>
         <AuthStatus center>{login.status === "exchanging" ? copy.native.finishing : copy.native.connecting}</AuthStatus>
-        <Button variant="ghost" onPress={() => { login.cancel(); setCancelled(true); }}>{copy.native.cancel}</Button>
+        <Button variant="ghost" onPress={() => { ++run.current; login.cancel(); setCancelled(true); }}>{copy.native.cancel}</Button>
       </>}
     </View>
     {!busy && <View style={styles.footer}>

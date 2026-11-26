@@ -3,11 +3,12 @@ import * as Crypto from "expo-crypto";
 import { fetch } from "expo/fetch";
 import * as SecureStore from "expo-secure-store";
 import * as WebBrowser from "expo-web-browser";
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
 import { Platform } from "react-native";
 import { createNativeBrowserLogin } from "./browser-flow";
 import { takeNativeBrowserCallback } from "./browser-intent";
 import type { NativeLoginIntent } from "./login-intent";
+import { googleCredentialLogin } from "./google-credential-login";
 import { useNativeSession } from "./session-provider";
 
 const attemptKey = "zyx-native.staging.browser-login.v1";
@@ -35,16 +36,30 @@ const browserLogin = createNativeBrowserLogin({
 
 export function useNativeBrowserLogin() {
   const { state: { status: sessionStatus }, acceptLogin } = useNativeSession();
-  const status = useSyncExternalStore(browserLogin.subscribe, browserLogin.getStatus, browserLogin.getStatus);
-  const signIn = useCallback(async (intent?: NativeLoginIntent) => {
-    if (isNativeBuild && sessionStatus === "signed-out") return browserLogin.signIn(acceptLogin, intent);
+  const browserStatus = useSyncExternalStore(browserLogin.subscribe, browserLogin.getStatus, browserLogin.getStatus);
+  const credentialStatus = useSyncExternalStore(googleCredentialLogin.subscribe, googleCredentialLogin.getStatus, googleCredentialLogin.getStatus);
+  const isCredentialAvailable = isNativeBuild && googleCredentialLogin.isConfigured();
+  const [useBrowserStatus, setUseBrowserStatus] = useState(false);
+  const signIn = useCallback(async (intent?: NativeLoginIntent, preferBrowser = false) => {
+    if (!isNativeBuild || sessionStatus !== "signed-out" || googleCredentialLogin.isRunning()) return;
+    if (preferBrowser || !googleCredentialLogin.isConfigured()) {
+      setUseBrowserStatus(true);
+      return browserLogin.signIn(acceptLogin, intent);
+    }
+    setUseBrowserStatus(false);
+    return googleCredentialLogin.signIn(acceptLogin, intent, browserLogin.retirePending);
   }, [acceptLogin, sessionStatus]);
   const completePending = useCallback(async () => {
-    if (!isNativeBuild || sessionStatus !== "signed-out") return false;
+    if (!isNativeBuild || sessionStatus !== "signed-out" || googleCredentialLogin.isRunning()) return false;
     return browserLogin.completePending(acceptLogin);
   }, [acceptLogin, sessionStatus]);
+  const cancel = useCallback(() => {
+    if (googleCredentialLogin.isRunning()) googleCredentialLogin.cancel();
+    else browserLogin.cancel();
+  }, []);
   return {
-    status, signIn, cancel: browserLogin.cancel, completePending, isAvailable: isNativeBuild,
+    status: useBrowserStatus || !isCredentialAvailable ? browserStatus : credentialStatus,
+    signIn, cancel, completePending, isAvailable: isNativeBuild, isCredentialAvailable,
     getRecoveryIntent: browserLogin.getRecoveryIntent,
   };
 }

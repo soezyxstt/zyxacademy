@@ -18,7 +18,8 @@ function reply(body: Record<string, unknown>, status = 200) {
 
 export async function POST(request: NextRequest) {
   const { origin, isHttps } = resolveNativeRequestOrigin(request);
-  // A WebView running the Zyx origin posts here. Native code never holds session cookies.
+  // The Zyx-origin WebView or isolated Expo HTTPS transport supplies the challenge proof.
+  // Session cookies are accepted by Expo only after independent identity verification.
   if (request.headers.get("origin") !== origin || !request.headers.get("content-type")?.startsWith("application/json")) {
     return reply({ code: "INVALID_REQUEST" }, 403);
   }

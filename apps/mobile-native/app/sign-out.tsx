@@ -6,6 +6,7 @@ import { nativeColors } from "../../../packages/design-tokens/native-colors";
 import { authCopy, authLocale } from "../auth/auth-copy";
 import { AuthPage, AuthStatus } from "../auth/auth-page";
 import { useNativeBrowserLogin } from "../auth/browser-login";
+import { clearAndroidGoogleCredentialState } from "../auth/google-credential-login";
 import { authEntryHref } from "../auth/login-intent";
 import { useNativeSession } from "../auth/session-provider";
 import { useNativeAccountContext } from "../auth/use-account-context";
@@ -28,6 +29,7 @@ export default function SignOutRoute() {
     if (started.current || state.status === "loading") return;
     started.current = true;
     cancel();
+    clearAndroidGoogleCredentialState();
     if (state.status !== "signed-out" && (state.status !== "logout-pending" || state.retry)) void logout();
   }, [cancel, logout, state]);
 

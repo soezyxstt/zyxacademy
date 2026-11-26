@@ -71,6 +71,17 @@ function storedAttempt(overrides: Record<string, unknown> = {}): string {
 }
 
 describe("native browser login", () => {
+  test("retires a pre-existing browser attempt before an alternate native login", async () => {
+    const fixture = setup();
+    fixture.stored = storedAttempt();
+    fixture.queued = callback;
+    expect(await fixture.controller.retirePending()).toBe(true);
+    fixture.queued = callback;
+    expect(await fixture.controller.completePending(fixture.acceptLogin)).toBe(false);
+    expect(fixture.stored).toBeNull();
+    expect(fixture.requests).toEqual([]);
+  });
+
   test("starts only on request and sends S256 to staging without the verifier", async () => {
     const fixture = setup({
       openBrowser: async (url, redirect) => {

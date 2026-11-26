@@ -204,6 +204,13 @@ export const operationsCatalog = [
     "reason": "Web and Expo show personal achievement notifications for the active learner and acknowledge only that account's displayed events. These participant actions use the existing learner session."
   },
   {
+    "source": "app/api/auth/native/google/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Explicit Android account selection uses the existing staged Google challenge and single-use nonce proof. Expo requires a supported application package and signer, and accepts the result only through its verified session controller. The system browser remains available for recovery. The operation creates the person's app session and has no tools or MCP authorization."
+  },
+  {
     "source": "app/api/auth/native/google-link/start/route.ts",
     "actions": ["GET"],
     "tools": [],

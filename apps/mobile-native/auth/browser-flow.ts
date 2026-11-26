@@ -178,6 +178,22 @@ export function createNativeBrowserLogin(deps: BrowserLoginDeps) {
         void finish(run, false);
       }
     },
+    async retirePending(): Promise<boolean> {
+      if (active) return false;
+      const run = begin();
+      run.state = dismissedState;
+      run.ownsAttempt = true;
+      deps.takeCallback();
+      try {
+        await deps.deleteAttempt();
+        run.ownsAttempt = false;
+        return true;
+      } catch {
+        return false;
+      } finally {
+        await finish(run, run.ownsAttempt);
+      }
+    },
     async signIn(acceptLogin: AcceptNativeBrowserLogin, intent?: NativeLoginIntent): Promise<"cancelled" | undefined> {
       if (active) return;
       const run = begin();

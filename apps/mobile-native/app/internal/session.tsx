@@ -17,7 +17,7 @@ export default function InternalSessionRoute() {
   return (
     <SafeAreaView style={{ flex: 1, justifyContent: "center", gap: 12, paddingHorizontal: 20, backgroundColor: colors.background }}>
       <Text accessibilityRole="header" style={{ color: colors.foreground, fontFamily: "Lexend-Bold", fontSize: 24 }}>Akun staging</Text>
-      {state.status === "signed-out" && login.isAvailable && <Button isLoading={busy} onPress={() => void login.signIn()}>Masuk dengan Google</Button>}
+      {state.status === "signed-out" && login.isAvailable && <Button isLoading={busy} onPress={() => void login.signIn(undefined, true)}>Masuk dengan Google</Button>}
       {state.status === "signed-out" && !login.isAvailable &&
         <Text style={{ color: colors.foreground }}>Untuk masuk, buka build internal Zyx Academy.</Text>}
       {busy && <Button variant="ghost" onPress={login.cancel}>Batalkan</Button>}

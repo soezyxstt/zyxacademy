@@ -125,7 +125,11 @@ The workflow produces:
 - Android verifies reconstructed APKs byte-for-byte before in-place install; Desktop verifies Tauri signatures or release SHA-256 checksums.
 - To disable patches for a release, remove its `.zyxdelta`, `.zyxdelta-apk.gz`, and `.zyxdesktop.gz` assets while retaining full installers and checksums.
 
-### Google Account Switching in Native Apps
+### Google sign-in in Expo Android
+
+Expo staging can use Android Credential Manager on `com.zyx.academy.nativeparity`. Register the installed APK's signing certificate SHA-1 as an Android OAuth client in the staging Google project, then provide the refreshed Android Firebase client file to the existing Expo prebuild plugin. The selected app row must contain its package and certificate hash and one Web OAuth audience matching the staging server's `GOOGLE_CLIENT_ID`. Confirm the APK's actual signer, especially for an installed Play-signed build. The plugin writes only the public audience and allowed certificate fingerprints into the Android manifest. Builds without matching configuration use the verified system browser. After an unavailable picker or cancellation, the sign-in screen offers an explicit browser action. The account picker hands its ID token only to the existing single-use server verification flow. Expo independently validates the signed session and stores it in SecureStore. Device setup and a real Google account selection still require signed APK verification. This account operation does not change MCP tools, scope, consent, discovery, playbooks, skills, host prompts, or environment bindings.
+
+### Saved account switching
 
 Saved account switching (up to 5 Zyx accounts in the sidebar account menu) requires matching web deployment; Android native Credential Manager selection (`ZyxGoogleAuth`) additionally requires an APK containing the plugin. Older APKs, iOS, and Tauri use the system browser sign-in flow with session `login_hint`.
 

@@ -5,6 +5,8 @@ const PROJECT_ID = 'zyx-academy-staging';
 const ANDROID_PACKAGE = 'com.zyx.academy.nativeparity';
 const DEFAULT_FILE = 'google-services.json';
 const CAPABILITY = `${ANDROID_PACKAGE}.STAGING_FCM`;
+const GOOGLE_OAUTH_CLIENT = `${ANDROID_PACKAGE}.STAGING_GOOGLE_OAUTH_CLIENT`;
+const GOOGLE_OAUTH_SIGNERS = `${ANDROID_PACKAGE}.STAGING_GOOGLE_OAUTH_SIGNERS`;
 
 function containsServerCredentials(value) {
   if (!value || typeof value !== 'object') return false;
@@ -17,7 +19,7 @@ function serviceStatus(service) {
   return status === 1 || status === 2 || status === '1' || status === '2' ? status : undefined;
 }
 
-function validateStagingFirebase(raw, androidPackage) {
+function validateStagingFirebase(raw, androidPackage, onGoogleIdentity) {
   let config;
   try {
     config = JSON.parse(raw);
@@ -58,6 +60,15 @@ function validateStagingFirebase(raw, androidPackage) {
     (entry?.client_type === 3 || entry?.client_type === '3') && typeof entry.client_id === 'string');
   if (webOAuth) selected.oauth_client = [{ client_type: webOAuth.client_type, client_id: webOAuth.client_id }];
 
+  const oauth = Array.isArray(client.oauth_client) ? client.oauth_client : [];
+  const webAudiences = [...new Set(oauth.filter(entry => Number(entry?.client_type) === 3)
+    .map(entry => entry.client_id).filter(id => typeof id === 'string' && /^[A-Za-z0-9_-]{1,228}\.apps\.googleusercontent\.com$/.test(id)))];
+  const signers = [...new Set(oauth.filter(entry => Number(entry?.client_type) === 1 && entry.android_info?.package_name === androidPackage)
+    .map(entry => entry.android_info.certificate_hash)
+    .filter(hash => typeof hash === 'string' && /^(?:[a-f0-9]{40}|(?:[a-f0-9]{2}:){19}[a-f0-9]{2})$/i.test(hash))
+    .map(hash => hash.replaceAll(':', '').toLowerCase()))].sort();
+  onGoogleIdentity?.(webAudiences.length === 1 && signers.length ? { clientId: webAudiences[0], signers } : null);
+
   const mapsStatus = serviceStatus(client.services?.maps_service);
   const analytics = client.services?.analytics_service;
   const analyticsStatus = serviceStatus(analytics);
@@ -75,7 +86,7 @@ function validateStagingFirebase(raw, androidPackage) {
   return { project_info: projectInfo, client: [selected] };
 }
 
-function readStagingFirebase(projectRoot, android) {
+function readStagingFirebase(projectRoot, android, onGoogleIdentity) {
   const explicit = android?.googleServicesFile;
   if (explicit !== undefined && (typeof explicit !== 'string' || !explicit.trim())) {
     throw new Error('Expo Android Firebase client file could not be read.');
@@ -87,7 +98,7 @@ function readStagingFirebase(projectRoot, android) {
     if (!explicit && error.code === 'ENOENT') return null;
     throw new Error('Expo Android Firebase client file could not be read.');
   }
-  return validateStagingFirebase(raw, android?.package);
+  return validateStagingFirebase(raw, android?.package, onGoogleIdentity);
 }
 
-module.exports = { ANDROID_PACKAGE, CAPABILITY, readStagingFirebase, validateStagingFirebase };
+module.exports = { ANDROID_PACKAGE, CAPABILITY, GOOGLE_OAUTH_CLIENT, GOOGLE_OAUTH_SIGNERS, readStagingFirebase, validateStagingFirebase };

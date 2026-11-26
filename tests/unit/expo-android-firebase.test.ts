@@ -8,7 +8,7 @@ import type { NativePushDevice } from "../../apps/mobile-native/device/notificat
 
 const require = createRequire(import.meta.url);
 const project = resolve("apps/mobile-native");
-const { ANDROID_PACKAGE, CAPABILITY, readStagingFirebase, validateStagingFirebase } = require(
+const { ANDROID_PACKAGE, CAPABILITY, GOOGLE_OAUTH_CLIENT, GOOGLE_OAUTH_SIGNERS, readStagingFirebase, validateStagingFirebase } = require(
   "../../apps/mobile-native/plugins/staging-firebase-config.js",
 );
 const releasePackage = "com.zyx.academy";
@@ -22,6 +22,8 @@ function client(packageName = ANDROID_PACKAGE) {
 const firebase = { project_info: { project_id: "zyx-academy-staging", project_number: "12345" }, client: [client(releasePackage), client()] };
 
 const publicProject = { ...firebase.project_info, storage_bucket: "fixture.appspot.com", firebase_url: "https://fixture.firebaseio.com" };
+const fingerprint = "ab".repeat(20);
+const signedAndroidOAuth = { client_type: 1, android_info: { package_name: ANDROID_PACKAGE, certificate_hash: fingerprint } };
 const webOAuth = { client_type: 3, client_id: "fixture.apps.googleusercontent.com" };
 const publicServices = {
   maps_service: { status: 2 },
@@ -83,6 +85,21 @@ test("the staging config keeps only allowlisted public Gradle inputs at every ne
   }), ANDROID_PACKAGE)).toEqual({ ...firebase, client: [client()] });
 });
 
+test("native Credential Manager capability requires the Expo package, signer and a single web audience", () => {
+  const config = (...oauth_client: Record<string, unknown>[]) => {
+    let identity: unknown;
+    validateStagingFirebase(JSON.stringify({ ...firebase, client: [{ ...client(), oauth_client }] }),
+      ANDROID_PACKAGE, (value: unknown) => { identity = value; });
+    return identity;
+  };
+  expect(config(webOAuth, signedAndroidOAuth)).toEqual({ clientId: webOAuth.client_id, signers: [fingerprint] });
+  expect(config(webOAuth, { ...signedAndroidOAuth, android_info: { package_name: releasePackage, certificate_hash: fingerprint } })).toBeNull();
+  expect(config(webOAuth, { ...signedAndroidOAuth, android_info: { package_name: ANDROID_PACKAGE, certificate_hash: "not-a-signer" } })).toBeNull();
+  expect(config(webOAuth)).toBeNull();
+  expect(config(signedAndroidOAuth)).toBeNull();
+  expect(config(webOAuth, signedAndroidOAuth, { ...webOAuth, client_id: "wrong.apps.googleusercontent.com" })).toBeNull();
+});
+
 type Gradle = { language: "groovy"; contents: string };
 type AppManifest = { metadata: Record<string, string> };
 type Mod = { modRequest: { platformProjectRoot: string }; modResults: Gradle | AppManifest };
@@ -129,7 +146,9 @@ test("the native mods enable the installed capability and can remove it on a cre
     const platformProjectRoot = join(root, "android");
     mkdirSync(join(platformProjectRoot, "app"), { recursive: true });
     const explicit = join(root, "local-client.json");
-    writeFileSync(explicit, JSON.stringify(taintedFirebase));
+    const [other, matching] = taintedFirebase.client;
+    const signed = { ...matching, oauth_client: [...(matching.oauth_client ?? []), signedAndroidOAuth] };
+    writeFileSync(explicit, JSON.stringify({ ...taintedFirebase, client: [other, signed] }));
     const disabled = { package: ANDROID_PACKAGE };
     expect(readStagingFirebase(root, disabled)).toBeNull();
     expect(() => readStagingFirebase(root, { ...disabled, googleServicesFile: "missing-client.json" })).toThrow(
@@ -155,7 +174,8 @@ test("the native mods enable the installed capability and can remove it on a cre
     const target = join(platformProjectRoot, "app/google-services.json");
     expect(applied.project).toContain("classpath 'com.google.gms:google-services:");
     expect(applied.app).toContain("apply plugin: 'com.google.gms.google-services'");
-    expect(manifest.metadata).toEqual({ unrelated: "preserved", [CAPABILITY]: client().client_info.mobilesdk_app_id });
+    expect(manifest.metadata).toEqual({ unrelated: "preserved", [CAPABILITY]: client().client_info.mobilesdk_app_id,
+      [GOOGLE_OAUTH_CLIENT]: webOAuth.client_id, [GOOGLE_OAUTH_SIGNERS]: fingerprint });
     expect(JSON.parse(readFileSync(target, "utf8"))).toEqual(publicFirebase);
     await apply(buildConfig(root, { ...disabled, googleServicesFile: explicit }));
     expect(gradle.project.contents).toBe(applied.project);
