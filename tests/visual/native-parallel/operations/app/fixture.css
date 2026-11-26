@@ -26,3 +26,12 @@
 @source "../../../../../app/(admin)/admin/ops/**/*.tsx";
 @source "../../../../../features/admin-home/**/*.tsx";
 @source "../../../../../components/zyra/zyra-proposal-panel.tsx";
+@source "../../../../../components/navbar.tsx";
+@source "../../../../../components/footer.tsx";
+@source "../../../../../components/logo.tsx";
+@source "../../../../../components/site-main.tsx";
+@source "../../../../../components/demo/demo-marketing-layout.tsx";
+@source "../../../../../components/nav-profile-or-sign-in.tsx";
+@source "../../../../../components/auth/google-sign-in-button.tsx";
+@source "../../../../../components/language-menu.tsx";
+@source "../../../../../components/theme-toggle.tsx";
