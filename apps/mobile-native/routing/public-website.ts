@@ -5,7 +5,7 @@ import { NATIVE_STAGING_ORIGIN } from "../auth/session-api";
 // A bare native root launches the app. An explicit HTTPS home or language root opens the website.
 const websitePaths = new Set([
   "/about", "/blog", "/demo", "/download", "/forms-playground", "/plans",
-  "/privacy", "/tautan", "/terms", "/testimonial", "/unsubscribe",
+  "/privacy", "/tautan", "/terms", "/testimonial", "/unsubscribe", "/v4",
 ]);
 
 export function publicWebsiteUrl(input: string): string | null {

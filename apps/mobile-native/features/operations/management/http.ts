@@ -68,6 +68,7 @@ export function createManagementHttpClient({ request, userId, sessionId, assertC
       meetingDirectory: () => get<MeetingDirectory>("/api/admin/meet/users", signal),
       discussions: parameters => nativeRead("discussions", parameters, signal),
       discussion: parameters => nativeRead("discussion", parameters, signal),
+      discussionReports: parameters => nativeRead("discussion-reports", parameters, signal),
       pricing: () => get(`/api/native/operations/management?view=pricing`, signal),
       links: async () => (await get<{ links: RawLink[] }>("/api/admin/links", signal)).links.map(link => ({ ...link, category: link.category ?? "", description: link.description ?? "", icon: link.icon ?? "🔗", color: link.color ?? "neutral" })),
     };

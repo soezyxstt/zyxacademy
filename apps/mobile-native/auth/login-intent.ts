@@ -1,3 +1,4 @@
+import { resolveRoleDashboardPath } from "../../../lib/auth/dashboard-entry";
 import { getOAuthCallbackErrorKey, getSafeRedirectPath } from "../../../packages/native-session/auth-redirect";
 import type { NativeAccountContext } from "../../../packages/native-session/context";
 import { legacyLiveHostPattern, tutorLiveDestination } from "../routing/live-host-alias";
@@ -130,6 +131,14 @@ export function parseNativeLoginIntent(data: unknown): NativeLoginIntent | undef
   return next ? { entry, locale, next } : { entry, locale };
 }
 
+function destinationForAccount(destination: Destination | null, account: Pick<NativeAccountContext, "roles">): Destination | null {
+  if (destination?.pattern !== "/discussions") return destination;
+  const dashboard = resolveRoleDashboardPath(account.roles);
+  const pattern = `${dashboard}/discussions`;
+  const area = dashboard === "/admin" ? "admin" : dashboard === "/tutor" ? "tutor" : "student";
+  return { href: pattern + destination.href.slice("/discussions".length), pattern, area };
+}
+
 function canOpen(area: Area, roles: NativeAccountContext["roles"]): boolean {
   switch (area) {
     case "public": return true;
@@ -151,7 +160,7 @@ export function resolveNativeProtectedDestination(
   account: Pick<NativeAccountContext, "roles">,
   sitemap?: NativeRouteNode | null,
 ) {
-  const destination = resolveDestination(href);
+  const destination = destinationForAccount(resolveDestination(href), account);
   return destination && destination.area !== "public" && canOpen(destination.area, account.roles) &&
     (sitemap === undefined || hasNativeRoute(sitemap, destination.pattern)) ? destination : null;
 }
@@ -162,7 +171,7 @@ export function resolveNativeLoginReturn(
   sitemap: NativeRouteNode | null,
 ) {
   const home = resolveDestination(account.dashboard);
-  const destination = next ? resolveDestination(next) : home;
+  const destination = next ? destinationForAccount(resolveDestination(next), account) : home;
   const dashboard = home && canOpen(home.area, account.roles) && hasNativeRoute(sitemap, home.pattern) ? home.href : null;
   if (!destination) return { status: "unavailable", dashboard } as const;
   if (!canOpen(destination.area, account.roles)) return { status: "denied", dashboard } as const;

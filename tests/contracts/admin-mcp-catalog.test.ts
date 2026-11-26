@@ -3,6 +3,13 @@ import { readFileSync, readdirSync } from "node:fs";
 import { ADMIN_MCP_SCOPES } from "@/lib/admin-mcp/registry";
 import { operationsCatalog } from "@/lib/admin-mcp/operations-catalog";
 
+test("native Admin discussion targets and report reads stay in the interactive workspace", () => {
+  const entry = operationsCatalog.find(item => item.source === "app/api/native/operations/management/route.ts")!;
+  expect(entry.status).toBe("excluded");
+  expect(entry.tools).toEqual([]);
+  expect(entry.actions).toEqual(["GET", "POST"]);
+});
+
 test("model configuration and billed latency refresh remain explicitly UI-only", () => {
   const entry = operationsCatalog.find(item => item.source === "app/(admin)/admin/ops/models/page.tsx")!;
   expect(entry.status).toBe("excluded");

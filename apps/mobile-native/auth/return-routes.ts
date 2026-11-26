@@ -164,5 +164,6 @@ export const returnRoutes = {
     "/tautan",
     "/terms",
     "/testimonial",
+    "/v4",
   ],
 } as const;

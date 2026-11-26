@@ -10,7 +10,8 @@ import { invokeOperationsProvider, isProviderOperation, nativeProviderMutation }
 import { isDiscussionOperation, nativeDiscussionMutation } from "./discussions";
 import { getNativeOperationsAdmin } from "@/lib/auth/native-operations-admin";
 import { BlogServiceError, getBlogArticle } from "@/lib/blog/service";
-import { listThreadsAcrossChannels, getThread, listChannelMetadata } from "@/lib/discussions/service";
+import { validDiscussionId } from "@/lib/discussions/policy";
+import { listThreadsAcrossChannels, getThread, listChannelMetadata, listReports } from "@/lib/discussions/service";
 import { getCompleteMeetingAnalytics, listConferenceRecords } from "@/lib/google-meet";
 import { getPricingDiscounts } from "@/lib/pricing-settings";
 import { ManagementFailure, type Article, type ManagementPage, type MeetingDetails, type MeetingRecord, type PricingData } from "@/packages/native-parity/operations/management-contract";
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest) {
     const id = params.get("id");
     const cursor = params.get("cursor") ?? undefined;
     if (cursor && cursor.length > 4096) return reply({ error: "invalid" }, 400);
-    if (id !== null && !/^[A-Za-z0-9_-]{1,180}$/.test(id)) return reply({ error: "invalid" }, 400);
+    if (id !== null && !(view === "discussion" ? validDiscussionId(id) : /^[A-Za-z0-9_-]{1,180}$/.test(id))) return reply({ error: "invalid" }, 400);
     switch (view) {
       case "form-presets": return reply(await readFormPresets(cursor, params.get("settingsOnly") === "true"));
       case "form-preset": return id ? reply(await readFormPreset(id)) : reply({ error: "invalid" }, 400);
@@ -91,9 +92,25 @@ export async function GET(request: NextRequest) {
         return reply({ items: items.map(thread => ({ id: thread.id, title: thread.title, channel: titles.get(thread.channelId) ?? "", status: thread.status, messageCount: thread.answerCount, canReply: thread.canReply, canResolve: thread.canResolve })), nextCursor: nextCursor ?? undefined });
       }
       case "discussion": {
-        if (!id) return reply({ error: "invalid" }, 400);
-        const { messages, readThroughSeq } = await getThread(admin.user.id, id, cursor);
-        return reply({ items: messages.items.map(message => ({ id: message.id, author: message.author?.name ?? "Anonim", body: message.body, seq: message.seq })), observationReceipt: messages.observationReceipt, nextCursor: messages.nextCursor ?? undefined, throughSeq: readThroughSeq });
+        const message = params.get("message") ?? undefined;
+        if (!id || (message !== undefined && (!validDiscussionId(message) || cursor))) return reply({ error: "invalid" }, 400);
+        const { thread, messages, readThroughSeq } = await getThread(admin.user.id, id, cursor, message);
+        const [channel] = await listChannelMetadata(admin.user.id, [thread.channelId]);
+        return reply({
+          thread: { id: thread.id, title: thread.title, channel: channel?.title ?? "", status: thread.status,
+            messageCount: thread.answerCount, canReply: thread.canReply, canResolve: thread.canResolve },
+          items: messages.items.map(item => ({ id: item.id, author: item.author?.name ?? "Anonim", body: item.body, seq: item.seq })),
+          observationReceipt: messages.observationReceipt, nextCursor: messages.nextCursor ?? undefined,
+          previousCursor: messages.previousCursor, throughSeq: readThroughSeq,
+        });
+      }
+      case "discussion-reports": {
+        const { items, nextCursor } = await listReports(admin.user.id, cursor);
+        return reply({
+          items: items.map(report => ({ id: report.id, threadId: report.threadId, messageId: report.messageId,
+            title: report.threadTitle, reason: report.reason, status: report.status })),
+          nextCursor: nextCursor ?? undefined,
+        });
       }
       case "meetings": return reply(await readMeetRecords(cursor));
       case "meeting": return id ? reply(await readMeetDetails(id)) : reply({ error: "invalid" }, 400);
@@ -103,6 +120,7 @@ export async function GET(request: NextRequest) {
     if (error instanceof ManagementFailure && error.code === "invalid") return reply({ error: error.code }, 400);
     if (error instanceof ManagementFailure && error.code === "not-found") return reply({ error: error.code }, 404);
     if (error instanceof BlogServiceError && error.code === "NOT_FOUND") return reply({ error: "not-found" }, 404);
+    if (error instanceof Error && error.message === "DISCUSSION_INVALID") return reply({ error: "invalid" }, 400);
     if (error instanceof Error && error.message === "DISCUSSION_UNAVAILABLE") return reply({ error: "not-found" }, 404);
     return reply({ error: "unavailable" }, 503);
   }

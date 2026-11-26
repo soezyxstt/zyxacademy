@@ -11,7 +11,7 @@ import { createWebsiteHandoff, type WebsiteHandoffStatus } from "../../apps/mobi
 test("public website paths preserve form, meeting, locale, slug and query semantics", () => {
   for (const path of [
     "/f/collision?locale=id&tag=a&tag=b", "/forms/aljabar?next=%2Fcourses%3Fx%3D1",
-    "/meet/office-hours", "/tautan", "/en", "/id/blog/catatan%20mingguan#bagian-2",
+    "/meet/office-hours", "/tautan", "/v4?lang=id#contoh", "/en", "/id/blog/catatan%20mingguan#bagian-2",
     "/blog/50%2525", "/en/demo/flashcards?course=satu", "/privacy", "/unsubscribe?token=a%2Bb%3D",
   ]) {
     const url = NATIVE_STAGING_ORIGIN + path;
@@ -21,7 +21,7 @@ test("public website paths preserve form, meeting, locale, slug and query semant
   }
   expect(publicWebsiteUrl(NATIVE_STAGING_ORIGIN + "/")).toBe(NATIVE_STAGING_ORIGIN + "/");
   for (const path of ["/", "/admin/forms", "/admin/meet", "/courses/x/material/42", "/mcp/authorize",
-    "/auth/native-finish", "/sign-in", "/en/admin", "/f/a%2Fb", "/blog/%2e%2e", "/f/%E0%A4",
+    "/auth/native-finish", "/authoring-verification", "/sign-in", "/en/admin", "/v4/other", "/v4/diktat.pdf", "/f/a%2Fb", "/blog/%2e%2e", "/f/%E0%A4",
     "//other.example/forms/1", "https://other.example/en/blog", NATIVE_STAGING_ORIGIN + ".example/f/test",
     "zyx-native-parity:////other.example/f/test"]) expect(publicWebsiteUrl(path)).toBeNull();
 });

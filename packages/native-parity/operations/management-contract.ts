@@ -90,7 +90,12 @@ export type MeetingDirectory = { users: MeetingUser[]; courses: { id: string; ti
 export type DiscussionThread = { id: string; title: string; channel: string; status: "open" | "resolved"; messageCount: number; canReply?: boolean; canResolve?: boolean };
 export type ManagementPage<T> = { items: T[]; nextCursor?: string };
 export type DiscussionMessage = { id: string; author: string; body: string; seq: number };
-export type DiscussionPage = ManagementPage<DiscussionMessage> & { observationReceipt?: string; throughSeq?: number };
+export type DiscussionPage = ManagementPage<DiscussionMessage> & {
+  thread?: DiscussionThread; observationReceipt?: string; throughSeq?: number; previousCursor?: string;
+};
+export type DiscussionReportSummary = {
+  id: string; threadId: string; messageId: string; title: string; reason: string; status: "pending" | "resolved" | "dismissed";
+};
 export type LinkFields = { title: string; url: string; description: string; category: string; icon: string; color: string; isActive: boolean };
 export type PublicLink = LinkFields & { id: string; sortOrder: number };
 export type Voucher = { id: string; code: string; discountPercent: number; maxQuota: number; usedCount: number; expiresAt: string; description: string; isActive: boolean };
@@ -101,7 +106,8 @@ export type ManagementReads = {
   articles: [undefined, ArticleSummary[]]; article: [string, Article]; forms: [undefined, FormDefinition[]]; form: [string, FormDetails];
   presets: [{ cursor?: string; settingsOnly?: boolean }, FormPresetPage]; preset: [string, FormPreset];
   media: [MediaLocation, MediaLibrary]; meetings: [string | undefined, ManagementPage<MeetingRecord>]; meeting: [string, MeetingDetails]; meetingDirectory: [undefined, MeetingDirectory];
-  discussions: [{ cursor?: string; search?: string; status?: DiscussionThread["status"] }, ManagementPage<DiscussionThread>]; discussion: [{ id: string; cursor?: string }, DiscussionPage]; pricing: [undefined, PricingData]; links: [undefined, PublicLink[]];
+  discussions: [{ cursor?: string; search?: string; status?: DiscussionThread["status"] }, ManagementPage<DiscussionThread>]; discussion: [{ id: string; cursor?: string; message?: string }, DiscussionPage];
+  discussionReports: [{ cursor?: string }, ManagementPage<DiscussionReportSummary>]; pricing: [undefined, PricingData]; links: [undefined, PublicLink[]];
 };
 
 export type ManagementAction =

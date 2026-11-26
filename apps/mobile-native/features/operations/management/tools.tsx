@@ -4,6 +4,7 @@ import { View } from "react-native";
 import { DEFAULT_ICON, EMOJI_OPTIONS, LINK_COLORS, LINK_CATEGORY_SUGGESTIONS, isValidHttpUrl } from "../../../../../lib/links";
 import { ManagementFailure, managementSlug, type DiscussionThread, type LinkFields, type MediaLocation, type MeetingSpace, type PublicLink } from "../../../../../packages/native-parity/operations/management-contract";
 import { meetingLinks } from "./links";
+import { discussionDestination, discussionWorkspaceHref } from "../../../../../packages/native-parity/discussion-destination";
 import { Action, Choices, Confirm, Copy, Feedback, Field, Heading, Item, LoadState, Screen, Section, Sections, formatTimestamp, styles, useAction, useDraft, useManagement, useRead, type Confirmation } from "./ui";
 
 export function MediaLibrary({ initialSpace }: { initialSpace?: string }) {
@@ -147,26 +148,64 @@ export function MeetDetails({ id }: { id: string }) {
   </Screen>;
 }
 
-export function Discussions() {
+export function Discussions({ searchParams }: { searchParams: URLSearchParams }) {
+  const { navigate, locale } = useManagement();
+  const en = locale === "en";
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "open" | "resolved">("all");
-  const [active, setActive] = useState<string>();
+  const [selected, setSelected] = useState<{ thread: string; message?: string }>();
+  const reportsOpen = searchParams.get("discussionTab") === "reports";
+  const target = reportsOpen ? null : discussionDestination(searchParams);
+  const active = target ?? selected;
   const pages = usePagination();
-  const threads = useRead("discussions", { cursor: pages.cursor, search: search.trim(), status: filter === "all" ? undefined : filter });
+  const reportPages = usePagination();
+  const threads = useRead("discussions", { cursor: pages.cursor, search: search.trim(), status: filter === "all" ? undefined : filter }, !reportsOpen);
   const matching = threads.data?.items;
-  const thread = matching?.find(item => item.id === active);
-  useStaffChromeVisibility({ hideTop: Boolean(thread), hideBottom: Boolean(thread) });
-  if (thread) return <DiscussionDetail key={thread.id} thread={thread} onBack={() => setActive(undefined)} reload={threads.reload} />;
-  return <Screen title="Diskusi">
-    <Field label="Cari diskusi" value={search} onChangeText={next => { setSearch(next); pages.reset(); }} />
-    <Choices current={filter} values={[["all", "Semua"], ["open", "Terbuka"], ["resolved", "Selesai"]]} onChange={next => { setFilter(next); pages.reset(); }} />
-    <LoadState {...threads} retry={threads.reload} />
-    {matching && <Section>
-      {!matching.length && <Copy muted>Belum ada diskusi yang sesuai.</Copy>}
-      {matching.map(item => <Item key={item.id} title={item.title} meta={`${item.channel} · ${item.messageCount} jawaban`} onPress={() => setActive(item.id)} />)}
-      <Pagination {...pages} next={threads.data?.nextCursor} />
-    </Section>}
+  useStaffChromeVisibility({ hideTop: Boolean(active), hideBottom: Boolean(active) });
+
+  const href = () => discussionWorkspaceHref("/admin/discussions", searchParams);
+  if (active) return <DiscussionDetail key={active.thread} threadId={active.thread} targetMessage={active.message}
+    summary={matching?.find(item => item.id === active.thread)} reload={threads.reload}
+    onBack={() => { if (target) navigate(href()); else setSelected(undefined); }} />;
+  const changeTab = (tab: "questions" | "reports") => {
+    const next = new URL(href(), "https://zyx.invalid");
+    if (tab === "reports") next.searchParams.set("discussionTab", "reports");
+    else next.searchParams.delete("discussionTab");
+    navigate(next.pathname + next.search);
+  };
+  return <Screen title={en ? "Discussions" : "Diskusi"}>
+    <Sections values={[["questions", en ? "Questions" : "Pertanyaan"], ["reports", en ? "Reports" : "Laporan"]]}
+      current={reportsOpen ? "reports" : "questions"} onChange={changeTab} />
+    {reportsOpen ? <DiscussionReports open={setSelected} pages={reportPages} /> : <>
+      {(searchParams.has("thread") || searchParams.has("message")) && !target && <Copy status="error">{en ? "Invalid discussion link." : "Tautan diskusi tidak valid."}</Copy>}
+      <Field label="Cari diskusi" value={search} onChangeText={next => { setSearch(next); pages.reset(); }} />
+      <Choices current={filter} values={[["all", "Semua"], ["open", "Terbuka"], ["resolved", "Selesai"]]} onChange={next => { setFilter(next); pages.reset(); }} />
+      <LoadState {...threads} retry={threads.reload} />
+      {matching && <Section>
+        {!matching.length && <Copy muted>Belum ada diskusi yang sesuai.</Copy>}
+        {matching.map(item => <Item key={item.id} title={item.title} meta={`${item.channel} · ${item.messageCount} jawaban`} onPress={() => setSelected({ thread: item.id })} />)}
+        <Pagination {...pages} next={threads.data?.nextCursor} />
+      </Section>}
+    </>}
   </Screen>;
+}
+
+function DiscussionReports({ open, pages }: {
+  open(target: { thread: string; message: string }): void; pages: ReturnType<typeof usePagination>;
+}) {
+  const { locale } = useManagement();
+  const en = locale === "en";
+  const reports = useRead("discussionReports", { cursor: pages.cursor });
+  const status = { pending: en ? "Pending" : "Menunggu", resolved: en ? "Resolved" : "Selesai", dismissed: en ? "Dismissed" : "Ditolak" };
+  return <>
+    <LoadState {...reports} retry={reports.reload} />
+    {reports.data && <Section>
+      {!reports.data.items.length && <Copy muted>{en ? "No reports yet." : "Belum ada laporan."}</Copy>}
+      {reports.data.items.map(report => <Item key={report.id} title={report.title}
+        meta={`${status[report.status]} · ${report.reason}`} onPress={() => open({ thread: report.threadId, message: report.messageId })} />)}
+      <Pagination {...pages} next={reports.data.nextCursor} />
+    </Section>}
+  </>;
 }
 
 function usePagination() {
@@ -187,33 +226,47 @@ function Pagination({ cursor, back, advance, next }: Pick<ReturnType<typeof useP
   </View>;
 }
 
-function DiscussionDetail({ thread, onBack, reload }: { thread: DiscussionThread; onBack: () => void; reload: () => void }) {
+function DiscussionDetail({ threadId, targetMessage, summary, onBack, reload }: {
+  threadId: string; targetMessage?: string; summary?: DiscussionThread; onBack(): void; reload(): void;
+}) {
   const pages = usePagination();
-  const messages = useRead("discussion", { id: thread.id, cursor: pages.cursor });
+  const messages = useRead("discussion", { id: threadId, cursor: pages.cursor, message: pages.cursor ? undefined : targetMessage });
+  const thread = messages.data?.thread ?? summary;
   const action = useAction();
-  const draft = useDraft(`discussion:${thread.id}`, "");
+  const draft = useDraft(`discussion:${threadId}`, "");
   const [confirm, setConfirm] = useState<Confirmation | null>(null);
-  const [resolved, setResolved] = useState(thread.status === "resolved");
-  return <Screen title={thread.title} description={thread.channel} back={{ label: "Diskusi", run: () => { reload(); onBack(); } }}>
-    {thread.canResolve !== false && <View style={styles.row}><Action busy={action.busy} onPress={() => action.run({ type: "discussion.resolve", id: thread.id, resolved: !resolved }, () => setResolved(!resolved))}>{resolved ? "Buka kembali" : "Tandai selesai"}</Action></View>}
+  const [resolvedOverride, setResolved] = useState<boolean>();
+  const resolved = resolvedOverride ?? thread?.status === "resolved";
+  const { locale } = useManagement();
+  const en = locale === "en";
+  const close = () => { reload(); onBack(); };
+  const previousCursor = messages.data?.previousCursor;
+  return <Screen title={thread?.title ?? (en ? "Discussion" : "Diskusi")} description={thread?.channel}
+    back={{ label: en ? "Discussions" : "Diskusi", run: close }}>
     <LoadState {...messages} retry={messages.reload} />
-    {messages.data && <Section>{messages.data.items.map(message => <Item key={message.id} title={message.author} meta={message.body} />)}
-      <Pagination {...pages} next={messages.data.nextCursor} />
-      {messages.data.observationReceipt && messages.data.items.some(message => message.seq > (messages.data?.throughSeq ?? 0)) && <Action disabled={action.busy} onPress={() => {
-        const page = messages.data;
-        if (!page?.observationReceipt) return;
-        const previous = page.throughSeq ?? 0;
-        const first = page.items.reduce((minimum, message) => Math.min(minimum, message.seq), Number.POSITIVE_INFINITY);
-        const throughSeq = first <= previous + 1 ? Math.max(previous, ...page.items.map(message => message.seq)) : previous;
-        void action.run({ type: "discussion.read", id: thread.id, throughSeq, observationReceipt: page.observationReceipt, messageIds: page.items.map(message => message.id) }, messages.reload, "Pesan ditandai sudah dibaca.");
-      }}>Tandai halaman dibaca</Action>}
-    </Section>}
     <Feedback {...action} />
-    {!resolved && thread.canReply !== false && <Section title="Balasan">
-      <Field label="Tulis balasan" value={draft.value} onChangeText={draft.change} multiline />
-      <Action variant="default" busy={action.busy} disabled={!draft.value.trim()} onPress={() => setConfirm({ title: "Kirim balasan?", description: "Balasan akan tampil di diskusi.", label: "Kirim", run: () => action.run({ type: "discussion.reply", id: thread.id, body: draft.value }, () => { draft.change(""); draft.clear(); messages.reload(); }, "Balasan terkirim.") })}>Kirim balasan</Action>
-    </Section>}
-    <Confirm value={confirm} onClose={() => setConfirm(null)} />
+    {messages.data && thread && <>
+      {thread.canResolve !== false && <View style={styles.row}><Action busy={action.busy} onPress={() => action.run({ type: "discussion.resolve", id: thread.id, resolved: !resolved }, () => setResolved(!resolved))}>{resolved ? "Buka kembali" : "Tandai selesai"}</Action></View>}
+      <Section>{messages.data.items.map(message => <Item key={message.id} title={message.author}
+        meta={message.body} actions={message.id === targetMessage ? <Copy muted>{en ? "Selected message" : "Pesan yang dibuka"}</Copy> : undefined} />)}
+        {!pages.cursor && previousCursor && <Action onPress={() => pages.advance(previousCursor)}>
+          {en ? "Earlier messages" : "Pesan sebelumnya"}</Action>}
+        <Pagination {...pages} next={messages.data.nextCursor} />
+        {messages.data.observationReceipt && messages.data.items.some(message => message.seq > (messages.data?.throughSeq ?? 0)) && <Action disabled={action.busy} onPress={() => {
+          const page = messages.data;
+          if (!page?.observationReceipt) return;
+          const previous = page.throughSeq ?? 0;
+          const first = page.items.reduce((minimum, message) => Math.min(minimum, message.seq), Number.POSITIVE_INFINITY);
+          const throughSeq = first <= previous + 1 ? Math.max(previous, ...page.items.map(message => message.seq)) : previous;
+          void action.run({ type: "discussion.read", id: thread.id, throughSeq, observationReceipt: page.observationReceipt, messageIds: page.items.map(message => message.id) }, messages.reload, "Pesan ditandai sudah dibaca.");
+        }}>Tandai halaman dibaca</Action>}
+      </Section>
+      {!resolved && thread.canReply !== false && <Section title="Balasan">
+        <Field label="Tulis balasan" value={draft.value} onChangeText={draft.change} multiline />
+        <Action variant="default" busy={action.busy} disabled={!draft.value.trim()} onPress={() => setConfirm({ title: "Kirim balasan?", description: "Balasan akan tampil di diskusi.", label: "Kirim", run: () => action.run({ type: "discussion.reply", id: thread.id, body: draft.value }, () => { draft.change(""); draft.clear(); messages.reload(); }, "Balasan terkirim.") })}>Kirim balasan</Action>
+      </Section>}
+      <Confirm value={confirm} onClose={() => setConfirm(null)} />
+    </>}
   </Screen>;
 }
 

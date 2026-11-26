@@ -1,3 +1,4 @@
+import { discussionDestination, discussionWorkspaceHref } from "../../../../../packages/native-parity/discussion-destination";
 import { useStaffChromeVisibility } from "../../../routing/staff-chrome-visibility";
 import { useCallback, useEffect, useRef, useState, type ComponentRef } from "react";
 import { randomUUID } from "expo-crypto";
@@ -263,7 +264,7 @@ function accessEnded(error: unknown) {
   return error instanceof TutorDataError && [401, 403, 404].includes(error.status);
 }
 
-export function ConnectedDiscussions({ theme, back, query, courseId, service }: Navigation & {
+export function ConnectedDiscussions({ theme, back, replace, query, courseId, service }: Navigation & {
   courseId?: string;
   service: TutorSupportClient;
 }) {
@@ -275,7 +276,8 @@ export function ConnectedDiscussions({ theme, back, query, courseId, service }: 
   const [listUnavailable, setListUnavailable] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const pageRequest = useRef<AbortController | null>(null);
-  const [active, setActive] = useState<string | null>(query.thread ?? null);
+  const target = discussionDestination(new URLSearchParams(query));
+  const [active, setActive] = useState<string | null>(target?.thread ?? null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -325,6 +327,7 @@ export function ConnectedDiscussions({ theme, back, query, courseId, service }: 
       <Input theme={theme} accessibilityLabel="Cari diskusi" placeholder="Cari diskusi"
         maxLength={160} returnKeyType="search" value={search}
         onChangeText={setSearch} onSubmitEditing={() => setTerm(search.trim())} style={tutorLayout.input} />
+      {(query.thread || query.message) && !target ? <Empty theme={theme} title="Tautan diskusi tidak valid." /> : null}
       {search.trim() !== term ? <Button theme={theme} variant="outline" style={tutorLayout.action} onPress={() => setTerm(search.trim())}>Cari</Button> : null}
       {listError ? <LoadFailure theme={theme} error={listError} retry={page ? more : () => setAttempt((value) => value + 1)} /> : null}
       {listUnavailable ? <Empty theme={theme} title="Diskusi tidak tersedia" /> : null}
@@ -338,8 +341,15 @@ export function ConnectedDiscussions({ theme, back, query, courseId, service }: 
           isLoading={loadingMore} onPress={more}>Tampilkan lebih banyak</Button> : null}
       </View> : null}
     </TutorPage>
-    {active ? <ConnectedDiscussionDetail key={active} theme={theme} courseId={courseId} threadId={active} service={service}
-      close={() => setActive(null)} onThread={(thread) => setPage((previous) => previous && ({
+    {active ? <ConnectedDiscussionDetail key={active} theme={theme} courseId={courseId} threadId={active}
+      targetMessage={active === target?.thread ? target.message : undefined} service={service}
+      close={() => {
+        setActive(null);
+        if (active === target?.thread) {
+          const path = courseId ? `/tutor/${encodeURIComponent(courseId)}/discussions` : "/tutor/discussions";
+          replace(discussionWorkspaceHref(path, new URLSearchParams(query)));
+        }
+      }} onThread={(thread) => setPage((previous) => previous && ({
         ...previous, items: previous.items.map((item) => item.id === thread.id ? thread : item),
       }))} /> : null}
   </>;
@@ -356,10 +366,11 @@ function mergeDiscussionMessages(previous: TutorDiscussionDetail | undefined, ne
   };
 }
 
-function ConnectedDiscussionDetail({ theme, courseId, threadId, service, close, onThread }: {
+function ConnectedDiscussionDetail({ theme, courseId, threadId, targetMessage, service, close, onThread }: {
   theme: Navigation["theme"];
   courseId?: string;
   threadId: string;
+  targetMessage?: string;
   service: TutorSupportClient;
   close: () => void;
   onThread(thread: TutorDiscussThread): void;
@@ -385,7 +396,7 @@ function ConnectedDiscussionDetail({ theme, courseId, threadId, service, close, 
     const { signal } = controller;
     setError("");
     setUnavailable(false);
-    service.discussion(courseId, threadId, undefined, signal)
+    service.discussion(courseId, threadId, undefined, signal, targetMessage)
       .then((result) => { if (!signal.aborted) setData(result); })
       .catch((failure: unknown) => {
         if (signal.aborted) return;
@@ -396,7 +407,7 @@ function ConnectedDiscussionDetail({ theme, courseId, threadId, service, close, 
       controller.abort();
       pageRequest.current?.abort();
     };
-  }, [service, courseId, threadId, attempt]);
+  }, [service, courseId, threadId, targetMessage, attempt]);
 
   async function more() {
     if (!data?.messages.nextCursor || loadingMore) return;
@@ -504,7 +515,9 @@ function ConnectedDiscussionDetail({ theme, courseId, threadId, service, close, 
     {unavailable ? <Empty theme={theme} title="Diskusi tidak tersedia" /> : null}
     {!data && !error && !unavailable ? <ActivityIndicator accessibilityLabel="Memuat pesan" /> : null}
     {!unavailable && data?.messages.items.map((message) => <Row key={message.id} theme={theme} title={message.author ?? "Pengguna"}
-      subtitle={message.body} meta={message.attachmentCount ? `${message.attachmentCount} lampiran` : undefined} />)}
+      subtitle={message.body} meta={message.attachmentCount ? `${message.attachmentCount} lampiran` : undefined}>
+      {message.id === targetMessage ? <Label theme={theme}>Pesan yang dibuka</Label> : null}
+    </Row>)}
     {error ? <LoadFailure theme={theme} error={error} retry={data ? more : () => setAttempt((value) => value + 1)} /> : null}
     {data?.messages.nextCursor && !error && !unavailable ? <Button theme={theme} variant="outline" style={tutorLayout.action}
       isLoading={loadingMore} onPress={more}>Tampilkan lebih banyak</Button> : null}

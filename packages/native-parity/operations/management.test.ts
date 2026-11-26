@@ -84,3 +84,18 @@ test("native HTTP adapter carries account and session binding and safely encodes
   expect(requests).toHaveLength(3);
   expect(requests[2].init.retry).toBeUndefined();
 });
+
+test("Admin discussion deep links bind the exact thread and message to the existing authenticated GET", async () => {
+  const calls: { url: URL; account?: string; method?: string }[] = [];
+  const client = createManagementHttpClient({ userId: "ops-account", sessionId: "ops-session", request: async (path, init) => {
+    calls.push({ url: new URL(path, "https://example.invalid"), account: new Headers(init.headers).get("x-native-operations-user-id") ?? undefined, method: init.method });
+    return { status: 200, ok: true, json: async () => ({ items: [{ id: "older/reply" }] }), dispose() {} };
+  } });
+  await client.read("discussion", { id: "thread?key", message: "older/reply" });
+  await client.read("discussionReports", { cursor: "page+2" });
+  expect(calls.map(item => Object.fromEntries(item.url.searchParams))).toEqual([
+    { view: "discussion", id: "thread?key", message: "older/reply" },
+    { view: "discussion-reports", cursor: "page+2" },
+  ]);
+  expect(calls.map(({ method, account }) => [method, account])).toEqual([["GET", "ops-account"], ["GET", "ops-account"]]);
+});

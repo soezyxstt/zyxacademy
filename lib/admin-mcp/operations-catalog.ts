@@ -1799,6 +1799,13 @@ export const operationsCatalog = [
     "reason": "Documentation reading is available in the Admin UI."
   },
   {
+    "source": "app/api/native/operations/management/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The native Admin workspace uses the verified Admin account. Discussion links, targeted message reads and paginated report reads use the existing role and channel authorization. Management writes retain their interactive authorization and retry rules. No new MCP capability or scope is granted."
+  },
+  {
     "source": "app/(admin)/admin/discussions/page.tsx",
     "actions": [],
     "tools": [],

@@ -4,7 +4,7 @@ import { NextRequest } from "next/server";
 import { eq } from "drizzle-orm";
 import { createPostgresTestDb } from "../helpers/postgres";
 import { PERAN_SEEDS } from "../../lib/auth/peran";
-import { blogArticles, customFormPresets, penggunaPeran, peran, user } from "../../db/schema";
+import { blogArticles, customFormPresets, discussionChannels, discussionMessages, discussionReports, discussionThreads, penggunaPeran, peran, user } from "../../db/schema";
 const { client, testDb } = await createPostgresTestDb();
 let current = null,
   googleCalls = 0;
@@ -29,10 +29,10 @@ try {
   const { GET } = await import(
     "../../app/api/native/operations/management/route"
   );
-  const check = async (view, expected, id, account = current?.id) => {
+  const check = async (view, expected, id, account = current?.id, details = {}) => {
     const url =
       "http://example.invalid/api/native/operations/management?" +
-      new URLSearchParams({ view, ...(id ? { id } : {}) });
+      new URLSearchParams({ view, ...(id ? { id } : {}), ...details });
     const r = await GET(
       new NextRequest(url, {
         headers: account ? { "x-native-operations-user-id": account } : {},
@@ -53,6 +53,7 @@ try {
       "pricing",
       "discussions",
       "discussion",
+      "discussion-reports",
       "meetings",
       "meeting",
     ])
@@ -115,6 +116,28 @@ try {
   assert.deepEqual(p.vouchers, []);
   await check("discussions", 200);
   await check("discussion", 404, "absent");
+  await check("discussion", 404, "absent", current.id, { message: "older-message" });
+  await check("discussion", 400, "absent", current.id, { message: "older-message", cursor: "another-page" });
+  assert.deepEqual(await check("discussion-reports", 200), { items: [] });
+  await testDb.insert(discussionChannels).values({ id: "ops-target-global", kind: "global", title: "Forum" }).onConflictDoNothing();
+  const [discussionChannel] = await testDb.select({ id: discussionChannels.id }).from(discussionChannels).where(eq(discussionChannels.kind, "global"));
+  const thread = { id: "ops-target-thread", channelId: discussionChannel.id, authorId: current.id, title: "Targeted discussion", nextSeq: 3, answerCount: 1 };
+  await testDb.insert(discussionThreads).values(thread);
+  const messages = [
+    { id: "first-message", threadId: thread.id, authorId: current.id, kind: "human", messageType: "question", body: "A question", seq: 1, requestId: "first-request" },
+    { id: "older/reply", threadId: thread.id, authorId: current.id, kind: "human", messageType: "answer", body: "The linked answer", seq: 2, requestId: "second-request" },
+  ];
+  await testDb.insert(discussionMessages).values(messages);
+  await testDb.insert(discussionReports).values({ id: "ops-link-report", messageId: messages[1].id, reporterId: "manage-student", reason: "Review this" });
+  const page = await check("discussion", 200, thread.id, current.id, { message: messages[1].id });
+  assert.equal(page.thread.title, thread.title);
+  assert.deepEqual(page.items.map(item => item.id), [messages[1].id]);
+  assert.ok(page.observationReceipt);
+  assert.deepEqual((await check("discussion-reports", 200)).items, [
+    { id: "ops-link-report", messageId: messages[1].id, threadId: thread.id, title: thread.title, reason: "Review this", status: "pending" },
+  ]);
+  await check("discussion", 404, thread.id, current.id, { message: "other-thread-message" });
+
   await check("meetings", 200);
   await check("unknown", 404);
   assert.equal(googleCalls, 1);

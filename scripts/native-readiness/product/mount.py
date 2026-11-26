@@ -52,6 +52,8 @@ def insert_hook(path, hook_import, anchor, hook):
 
 
 def route_source(file, pattern, owner, *, student=False):
+    if pattern == "/discussions":
+        return (HERE / "DiscussionsRoute.tsx.in").read_text()
     routing = MOBILE / "routing"
     if owner == "public":
         module = os.path.relpath(routing / "PublicWebsiteRoute", file.parent)
@@ -100,6 +102,11 @@ def mount(*, with_student=True):
             continue
         file = MOBILE / "app" / (pattern[1:] + ".tsx")
         fallback = route_source(file, pattern, owner) if pattern in ("/dashboard", "/courses") else None
+        if pattern == "/discussions":
+            # Upgrade a previous mount that assigned the shared alias only to Student.
+            fallback = ('import { productRoute } from "../routing/ProductRoute";\n'
+                        'import { StudentProductRoute } from "../routing/StudentProductRoute";\n\n'
+                        'export default productRoute("/discussions", "student", StudentProductRoute);\n')
         put(file, route_source(file, pattern, owner, student=owner == "student"), replace=fallback)
 
     if not with_student:

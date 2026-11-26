@@ -118,7 +118,14 @@ export function createManagementFixture({ mode = "populated", admin = true }: Ma
     meeting: id => required(meetings.find(record => record.id === id)),
     meetingDirectory: () => data ? initialDirectory : { users: [], courses: [] },
     discussions: ({ search, status }) => ({ items: threads.filter(thread => (!status || thread.status === status) && (!search || `${thread.title} ${thread.channel}`.toLowerCase().includes(search.toLowerCase()))) }),
-    discussion: ({ id }) => ({ items: required(messages[id]), observationReceipt: `discussion-fixture-${id}`, throughSeq: discussionsReadThrough.get(id) ?? 0 }),
+    discussion: ({ id, message }) => {
+      const thread = required(threads.find(item => item.id === id));
+      const items = required(messages[id]);
+      const start = message ? items.findIndex(item => item.id === message) : 0;
+      if (start < 0) throw new ManagementFailure("not-found");
+      return { items: items.slice(start), thread, observationReceipt: `discussion-fixture-${id}`, throughSeq: discussionsReadThrough.get(id) ?? 0 };
+    },
+    discussionReports: () => ({ items: [] }),
     pricing: () => pricing,
     links: () => links.slice().sort((a, b) => a.sortOrder - b.sortOrder),
   };

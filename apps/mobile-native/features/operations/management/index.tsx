@@ -62,7 +62,7 @@ function AccountManagement({ path, navigate, client, access, theme, locale = "id
       case "/admin/docs/[slug]": screen = <Documentation slug={id} />; break;
       case "/admin/meet": screen = <MeetList />; break;
       case "/admin/meet/[id]": screen = <MeetDetails id={id!} />; break;
-      case "/admin/discussions": screen = <Discussions />; break;
+      case "/admin/discussions": screen = <Discussions searchParams={query} />; break;
       case "/admin/pricing": screen = <Pricing initialTab={tab} />; break;
       case "/admin/tautan": screen = <ImportantLinks />; break;
     }
