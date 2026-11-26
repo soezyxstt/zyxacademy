@@ -45,7 +45,7 @@ function browserFixturePage(query: URLSearchParams, staff?: StaffRole) {
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Native Preview Sign-in</title><main><h1>Native Preview Sign-in</h1>
     <form method="post" action="${action}">
-    <label>Runner code <input type="password" name="claim" required autocomplete="off"></label>
+    <input aria-label="Runner code" placeholder="Runner code" type="password" name="claim" inputmode="none" required autocomplete="off" autofocus>
     <button>Continue as preview ${staff ?? "student"}</button></form></main></html>`, {
     headers: { ...noStore, "Content-Type": "text/html; charset=utf-8",
       "Content-Security-Policy": "default-src 'none'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'" },
@@ -118,6 +118,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
   let signedOut = false;
   let loadedDashboard = false;
   let acknowledgedInbox = false;
+  let browserStep: "browser page served" | "browser page rejected" | "browser claim submitted" | undefined;
   let verifiedStaffRead = false;
   let deniedOppositeRole = false;
   let unauthorizedRead = false;
@@ -162,8 +163,12 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
       }
       if (route === "GET " + browserPage) {
         const query = handoffQuery(url);
-        return query && confirmedState === query.get("state") && !claimed && Date.now() < claimExpiresAt
-          ? browserFixturePage(query, staff) : result(403);
+        if (query && confirmedState === query.get("state") && !claimed && Date.now() < claimExpiresAt) {
+          browserStep = "browser page served";
+          return browserFixturePage(query, staff);
+        }
+        browserStep = "browser page rejected";
+        return result(403);
       }
       if (route === "POST " + browserSubmit) {
         const query = handoffQuery(url);
@@ -177,6 +182,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
         if (studentProduct) await seedStudentInbox(browserIdentity.accountId);
         await offline?.seed(browserIdentity.accountId);
         return new Response(null, { status: 303, headers: {
+        browserStep = "browser claim submitted";
           ...noStore, Location: fixtureOrigin + nativeComplete + "?" + query, "Set-Cookie": browserIdentity.cookie,
         } });
       }
@@ -295,3 +301,4 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
     },
   };
 }
+      if (browserStep) return browserStep;

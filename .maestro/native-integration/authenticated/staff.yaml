@@ -16,7 +16,6 @@ name: Verified staff role, protected read, wrong-role denial and logout
     timeout: 30000
 - tapOn: Runner code
 - inputText: ${PREVIEW_CLAIM}
-- hideKeyboard
 - tapOn: "${PREVIEW_BROWSER_BUTTON}"
 - extendedWaitUntil:
     visible: ".*${PREVIEW_RECORD}.*"

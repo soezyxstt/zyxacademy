@@ -16,7 +16,6 @@ name: Download an authorized Student reading
     timeout: 30000
 - tapOn: Runner code
 - inputText: ${PREVIEW_CLAIM}
-- hideKeyboard
 - tapOn: Continue as preview student
 - extendedWaitUntil:
     visible: "(Simpan|Save) Diktat verifikasi offline"

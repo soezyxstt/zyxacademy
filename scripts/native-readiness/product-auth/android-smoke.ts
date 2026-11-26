@@ -45,11 +45,14 @@ async function runFlow(name: string, inputs: string[] = [], label = name) {
   try {
     const [exit, output] = await Promise.all([child.exited, new Response(child.stdout).text()]);
     if (exit === 0) return;
-    // Only emit fixed labels, never Maestro output or the browser form argument.
+    // Only emit a fixed label for a failed command, never a secret or future command.
+    const failedCommand = output.split(/\r?\n/).findLast(line => /❌|\bFAILED\b/.test(line)) ?? "";
     for (const [needle, label] of [
       ["Preview HTTPS ready", "Chrome health page"],
       ["native-auth-google", "native sign-in button"],
       ["Native Preview Sign-in", "browser sign-in form"],
+      ["Runner code", "browser claim input"],
+      ["Continue as preview", "browser form submission"],
       ["student-dashboard-preview", "Student dashboard"],
       ["student-inbox", "Student inbox"],
       ["PREVIEW_RECORD", "protected staff read"],
@@ -58,7 +61,7 @@ async function runFlow(name: string, inputs: string[] = [], label = name) {
       ["Akses ditolak", "wrong-role screen"],
       ["Kamu sudah keluar", "sign-out"],
     ] as const) {
-      if (output.includes(needle)) lastDeviceCheck = label;
+      if (failedCommand.includes(needle)) lastDeviceCheck = label;
     }
     throw new Error();
   } finally {
@@ -75,8 +78,8 @@ async function reportDeviceState() {
     finally { clearTimeout(timeout); }
   };
   const logs = await shellOutput("logcat", "-d", "-t", "400", "ReactNativeJS:I", "ActivityTaskManager:I", "*:S");
-  const focus = await shellOutput("shell", "dumpsys", "window", "windows");
-  const focused = focus.split("\n").find(line => line.includes("mCurrentFocus"));
+  const focus = await shellOutput("shell", "dumpsys", "activity", "activities");
+  const focused = focus.split("\n").find(line => /(?:m|top)ResumedActivity/.test(line));
   const screen = focused?.includes("com.android.chrome") ? "Chrome"
     : focused?.includes("com.zyx.academy.nativeparity") ? "Expo" : "other";
   const opened = logs.includes("ZYX_AUTH_PREVIEW_BROWSER_OPEN");
