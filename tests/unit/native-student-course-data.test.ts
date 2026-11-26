@@ -49,7 +49,13 @@ const enrolledAccess: StudentCourseAccess = {
 
 const resolveAccess = mock(async (): Promise<StudentCourseAccess | null> => previewAccess);
 const readSummary = mock(async () => [{ completed: true }]);
-const readList = mock(async () => ({ courseChapters: [], materialsWithLockState: [] }));
+const readList = mock(async () => ({
+  courseChapters: [] as Array<{ id: string; title: string; orderIndex: number; canonicalId: string; legacyChapterId: string }>,
+  materialsWithLockState: [] as Array<{
+    id: string; title: string; docCategory: "materi"; tabGroup: "materi"; kind: "article";
+    completed: boolean; chapterIds: string[]; thumbnailUrl: string;
+  }>,
+}));
 
 mock.module("@/db", () => ({
   db: {
@@ -100,6 +106,37 @@ beforeEach(() => {
 });
 
 describe("native Student material metadata", () => {
+  test("projects chapter numbers and canonical cover eligibility within the existing access grant", async () => {
+    resolveAccess.mockResolvedValueOnce(previewAccess);
+    const cover = (id: string) => `/api/courses/${course.id}/material/${id}/cover.svg`;
+    const article = (id: string, chapter: string, thumbnailUrl: string) => ({
+      id, title: id, docCategory: "materi" as const, tabGroup: "materi" as const,
+      kind: "article" as const, completed: true, chapterIds: [chapter], thumbnailUrl,
+    });
+    readList.mockResolvedValueOnce({
+      courseChapters: [{ id: "legacy", title: "Unit", orderIndex: 4, canonicalId: "free-chapter", legacyChapterId: "legacy" }],
+      materialsWithLockState: [
+        article("open", "free-chapter", cover("open")),
+        article("locked", "premium-chapter", cover("locked")),
+        article("legacy-url", "free-chapter", "https://storage.invalid/preview.svg"),
+      ],
+    });
+    const result = await loadNativeCourseData(student, { view: "material-list", courseId: course.id });
+    expect(result).toMatchObject({
+      view: "material-list",
+      course: { hasFreeChapter: true },
+      chapters: [{ id: "legacy", orderIndex: 4, aliases: ["legacy", "free-chapter"] }],
+      materials: [
+        { id: "open", locked: false, preview: "cover" },
+        { id: "locked", locked: true, completed: false },
+        { id: "legacy-url", locked: false },
+      ],
+    });
+    if (!("view" in result) || result.view !== "material-list") throw new Error("Missing material list");
+    expect(result.materials.map(row => row.preview)).toEqual(["cover", undefined, undefined]);
+    expect(JSON.stringify(result)).not.toContain("storage.invalid");
+  });
+
   test("denies an inactive learner before reading any material or progress data", async () => {
     resolveAccess.mockResolvedValueOnce(null);
     expect(await detail("paid")).toEqual({ status: 403 });

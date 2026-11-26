@@ -45,7 +45,10 @@ jobs:
         with:
           bun-version: '1.3.14'
       - run: bun install --frozen-lockfile
-      - run: bun test tests/unit/native-student-ios-evidence-menu.test.ts
+      - name: Verify Student list state and fixture launcher
+        run: |
+          bun test tests/unit/native-student-ios-evidence-menu.test.ts tests/unit/expo-course-content.test.ts
+          bun test tests/unit/native-student-course-data.test.ts
       - run: bunx playwright install --with-deps chromium
       - name: Capture web reference cases
         run: |

@@ -1,11 +1,11 @@
-import { useStudentChromeVisibility } from "../../../routing/student-chrome";
-import { createContext, useContext, useEffect, useRef, useState, type ComponentRef, type ReactNode } from "react";
+import { useHasStudentCourseNavbar, useStudentChromeVisibility } from "../../../routing/student-course-chrome-context";
+import { createContext, useContext, useEffect, useRef, useState, type ComponentRef, type ReactNode, type RefObject } from "react";
 import { Dimensions, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, useColorScheme, type TextStyle } from "react-native";
 import { nativeColors, nativeRadii } from "../../../../../packages/design-tokens/native-colors";
 import {
-  canShowOfflineCourse, coursePath, coursesEndpoint, learningEndpoint, materialPath, materialRowPath, materialTabs, normalizeMaterialTab,
+  canShowOfflineCourse, coursePath, coursesEndpoint, learningEndpoint, materialPath, materialTabs, normalizeMaterialTab,
   type CourseCard, type CourseData, type DashboardData, type EnrollmentFailureCode, type EnrollmentResponse,
-  type LearningData, type LearningQuery, type MaterialDetailData, type MaterialListData, type MaterialRow,
+  type LearningData, type LearningQuery, type MaterialDetailData, type MaterialListData,
 } from "../../../../../packages/native-parity/student/courses/contract";
 import { Button } from "../../../components/Button";
 import { Input } from "../../../components/Input";
@@ -21,6 +21,9 @@ import { Catalog } from "./catalog";
 import { courseCopy, type CourseCopy } from "./copy";
 import { MaterialPdf } from "./MaterialPdf";
 import { OnlineReading } from "./OnlineReading";
+import { CourseContent, DocumentContent, type DocumentDisclosures } from "./course-content";
+import learningEn from "../../../../../messages/en/learning.json";
+import learningId from "../../../../../messages/id/learning.json";
 import { courseScrollOffsetForMount } from "./scroll-offset";
 
 type Theme = keyof typeof nativeColors;
@@ -136,20 +139,24 @@ function Row({ title, meta, onPress, testID }: { title: string; meta?: string; o
   );
 }
 
-function Notice({ title, detail, testID, children }: { title: string; detail?: string; testID?: string; children?: ReactNode }) {
+function Notice({ title, detail, testID, children, activation }: { title: string; detail?: string; testID?: string; children?: ReactNode; activation?: "card" | "stripe" }) {
   const colors = nativeColors[useContext(ThemeContext)];
   return (
-    <View testID={testID} style={[styles.notice, { borderStartColor: colors.accent }]}>
+    <View testID={testID} style={[styles.notice, { borderStartColor: colors.accent },
+      activation === "card" && [styles.activationCard, { borderColor: `${colors.secondary}55`, backgroundColor: `${colors.secondary}0a` }]]}>
       <View accessibilityLiveRegion="polite" style={styles.rowText}>
-        <LearningText role="heading">{title}</LearningText>
-        {detail ? <LearningText>{detail}</LearningText> : null}
+        <LearningText role="heading" style={activation ? { color: colors.secondary } : undefined}>{title}</LearningText>
+        {detail ? <LearningText style={activation ? { color: colors.mutedForeground } : undefined}>{detail}</LearningText> : null}
       </View>
       {children}
     </View>
   );
 }
 
-function Enrollment({ request, reload, title }: { request: Request; reload: () => void; title?: string }) {
+function Enrollment({ request, reload, title, detail, inputRef, activation }: {
+  request: Request; reload: () => void; title?: string; detail?: string;
+  inputRef?: RefObject<ComponentRef<typeof Input> | null>; activation?: "card" | "stripe";
+}) {
   const copy = useContext(CopyContext);
   const theme = useContext(ThemeContext);
   const submitting = useRef(false);
@@ -205,9 +212,10 @@ function Enrollment({ request, reload, title }: { request: Request; reload: () =
   }
 
   return (
-    <Notice title={title ?? copy.activation} detail={copy.activationHint}>
+    <Notice title={title ?? copy.activation} detail={detail ?? copy.activationHint} activation={activation}>
       <Input
         theme={theme}
+        ref={inputRef}
         accessibilityLabel={copy.token}
         placeholder={copy.token}
         autoCapitalize="none"
@@ -311,92 +319,47 @@ function Toggle({ label, selected, onPress, testID }: { label: string; selected:
   );
 }
 
-const courseLinks = [
-  ["video", "video"], ["flashcard", "flashcard"], ["quiz", "quiz"], ["tryout", "tryout"], ["path", "studyPath"],
-  ["mastery", "mastery"], ["progress", "progress"], ["leaderboard", "ranking"], ["my-results", "results"],
-  ["discussions", "discussions"], ["playground", "playground"],
-] as const;
+function activationContent(locale: string, hasFreeChapter: boolean, copy: CourseCopy) {
+  const { quizPage, courseOverview } = locale.startsWith("en") ? learningEn : learningId;
+  return { title: quizPage.activationTitle, detail: hasFreeChapter ? courseOverview.activationDescription : copy.activationHint };
+}
 
 function CourseOverview({ data, navigate, request, reload, locale }: { data: CourseData; locale: string } & Pick<StudentScreenProps, "navigate" | "request"> & { reload: () => void }) {
   const copy = useContext(CopyContext);
   const theme = useContext(ThemeContext);
-  const { course, chapters, attention } = data;
+  const hasNavbar = useHasStudentCourseNavbar();
+  const { course, chapters } = data;
   const pricing = course.pricing ? getOffer(course, locale, copy) ?? (course.pricing.category === "free" ? copy.free : copy.premium) : undefined;
-  return (
-    <>
+  return <>
+    {!hasNavbar ? <>
       <LearningText role="title">{course.title}</LearningText>
-      {course.description ? <LearningText>{course.description}</LearningText> : null}
-      {pricing ? <LearningText role="meta">{pricing}</LearningText> : null}
-      {!course.hasFullContentAccess ? <Enrollment request={request} reload={reload} /> : null}
-      {data.actions.length > 0 ? <Section>{data.actions.map(({ key, title, meta, path }) => <Row key={key} title={title} meta={meta} onPress={matchStudentRoute(path) ? () => navigate(path) : undefined} />)}</Section> : null}
-      {attention?.length ? <Section title={copy.attention}>
-        {attention.map(({ kind, title, path, count, masteryScore }) => <Row key={kind}
-          title={kind === "flashcard" && count !== undefined ? `${count} ${copy.reviewDue}` : title}
-          meta={masteryScore !== undefined ? `${masteryScore}%` : undefined}
-          onPress={matchStudentRoute(path) ? () => navigate(path) : undefined} />)}
-      </Section> : null}
       <Button theme={theme} size="lg" testID="student-course-open-materials" onPress={() => navigate(materialPath(course.id))}>{copy.openDocuments}</Button>
-      <Section title={copy.chapters}>
-        {chapters.length > 0 ? chapters.map(({ id, title, completed, completionPercent, materialId }) => (
-          <Row key={id} title={title} meta={completed ? copy.completed : completionPercent > 0 ? `${completionPercent}%` : undefined} onPress={materialId ? () => navigate(materialPath(course.id, materialId)) : undefined} />
-        )) : <LearningText>{copy.noChapters}</LearningText>}
-      </Section>
-      {course.hasFullContentAccess && (
-        <Section>
-          {courseLinks.map(([segment, label]) => <Row key={segment} title={copy[label]} onPress={() => navigate(`${coursePath(course.id)}/${segment}`)} />)}
-          {data.liveEnabled ? <Row title={copy.live} onPress={() => navigate(`${coursePath(course.id)}/live`)} /> : null}
-        </Section>
-      )}
-    </>
-  );
+    </> : null}
+    <CourseContent data={data} navigate={navigate} theme={theme} copy={copy} locale={locale} pricing={pricing}
+      activation={!course.hasFullContentAccess ? <Enrollment request={request} reload={reload} activation="card"
+        {...activationContent(locale, course.hasFreeChapter ?? (chapters.length > 0), copy)} /> : undefined} />
+  </>;
 }
 
-function DocumentRows({ materials, courseId, navigate }: { materials: MaterialRow[]; courseId: string; navigate: Navigate }) {
-  const copy = useContext(CopyContext);
-  return materials.map((row) => {
-    const path = materialRowPath(courseId, row);
-    return (
-      <Row
-        key={`${row.kind}/${row.id}`}
-        title={row.title}
-        meta={[row.meta, row.locked ? copy.locked : row.completed ? copy.completed : null].filter(Boolean).join(" · ")}
-        testID={`student-material-${row.id}`}
-        onPress={() => navigate(path)}
-      />
-    );
-  });
-}
-
-function Documents({ data, route, replace, navigate, request, reload, openOfflineLibrary }: { data: MaterialListData } & Pick<StudentScreenProps, "navigate" | "request" | "route" | "replace" | "openOfflineLibrary"> & { reload: () => void }) {
+function Documents({ data, route, replace, navigate, request, reload, openOfflineLibrary, locale, disclosures, openExternal }: {
+  data: MaterialListData; locale: string; disclosures: DocumentDisclosures; reload: () => void;
+} & Pick<StudentScreenProps, "navigate" | "request" | "route" | "replace" | "openOfflineLibrary" | "openExternal">) {
   const copy = useContext(CopyContext);
   const theme = useContext(ThemeContext);
-  const tab = normalizeMaterialTab(route.query.tab);
-  const { course, chapters, materials } = data;
-  const matching = tab === "all" ? materials : materials.filter((row) => row.group === tab);
-  const groups = new Map(chapters.map((chapter) => [chapter.id, [] as MaterialRow[]]));
-  const chapterByAlias = new Map(chapters.flatMap((chapter) => chapter.aliases.map((alias) => [alias, chapter.id] as const)));
-  const ungrouped: MaterialRow[] = [];
-  for (const row of matching) {
-    const chapterId = row.chapterIds.map((alias) => chapterByAlias.get(alias)).find(Boolean);
-    const entries = chapterId ? groups.get(chapterId) : undefined;
-    (entries ?? ungrouped).push(row);
-  }
-  return (
-    <>
-      <LearningText role="title">{course.title}</LearningText>
-      <View style={styles.toggles} accessibilityRole="tablist">
-        {materialTabs.map((key) => <Toggle key={key} label={copy[key]} selected={key === tab} onPress={() => updateListQuery(route, replace, { tab: key === "all" ? undefined : key })} />)}
-      </View>
-      {!course.hasFullContentAccess ? <Enrollment request={request} reload={reload} /> : null}
-      {openOfflineLibrary ? <Button theme={theme} variant="outline" onPress={() => openOfflineLibrary({ courseId: course.id })}>{copy.savedCourses}</Button> : null}
-      {matching.length === 0 ? <LearningText>{copy.noDocuments}</LearningText> : null}
-      {chapters.map(({ id, title }) => {
-        const rows = groups.get(id);
-        return rows?.length ? <Section key={id} title={title}><DocumentRows materials={rows} courseId={course.id} navigate={navigate} /></Section> : null;
-      })}
-      {ungrouped.length > 0 ? <Section title={ungrouped.length < matching.length ? copy.otherDocuments : undefined}><DocumentRows materials={ungrouped} courseId={course.id} navigate={navigate} /></Section> : null}
-    </>
-  );
+  const hasNavbar = useHasStudentCourseNavbar();
+  const tokenInput = useRef<ComponentRef<typeof Input>>(null);
+  const { course, materials } = data;
+  return <>
+    {!hasNavbar ? <LearningText role="title">{course.title}</LearningText> : null}
+    <DocumentContent data={data} tab={normalizeMaterialTab(route.query.tab)} disclosures={disclosures}
+      onTab={key => updateListQuery(route, replace, { tab: key === "all" ? undefined : key })}
+      activation={!course.hasFullContentAccess ? <Enrollment request={request} reload={reload} inputRef={tokenInput} activation="stripe"
+        {...activationContent(locale, course.hasFreeChapter ?? materials.some(row => !row.locked), copy)} /> : undefined}
+      recover={() => openExternal ? openExternal("/plans") : tokenInput.current?.focus()}
+      saved={openOfflineLibrary ? <Button theme={theme} variant="outline"
+        onPress={() => openOfflineLibrary({ courseId: course.id })}>{copy.savedCourses}</Button> : undefined}
+      theme={theme} copy={copy} locale={locale} navigate={navigate} request={request} />
+  </>;
 }
 
 type SaveDiktatPdf = NonNullable<StudentScreenProps["saveDiktatPdf"]>;
@@ -447,7 +410,7 @@ function Document({ data, request, reload, renderMaterial, route, replace, openO
   const copy = useContext(CopyContext);
   const theme = useContext(ThemeContext);
   const { course, material } = data;
-  useStudentChromeVisibility({ hideTop: !material.locked && material.kind === "article" });
+  useStudentChromeVisibility({ hideTop: !material.locked, hideBottom: !material.locked });
   const canonicalHref = canonicalStudentArticleHref(route, data);
   useEffect(() => { if (canonicalHref) replace(canonicalHref); }, [canonicalHref, replace]);
   const target = studentMaterialReaderTarget(route, data);
@@ -587,7 +550,9 @@ export function OfflineCourseScreen({
   </ThemeContext.Provider>;
 }
 
-function CourseEntry(props: StudentScreenProps & { query: LearningQuery }) {
+function CourseEntry(props: StudentScreenProps & { query: LearningQuery; documentDisclosures?: DocumentDisclosures }) {
+  const hasNavbar = useHasStudentCourseNavbar();
+  const fallbackDisclosures = useRef<DocumentDisclosures>({});
   const { route, query, request, navigate, replace, back, initialScrollY, onScrollY, renderMaterial, openExternal, devicePreferences, session } = props;
   const systemTheme = useColorScheme() === "dark" ? "dark" : "light";
   const preference = devicePreferences?.theme;
@@ -605,6 +570,7 @@ function CourseEntry(props: StudentScreenProps & { query: LearningQuery }) {
   const restoreOffset = useRef({ x: 0, y: courseScrollOffsetForMount(initialScrollY, androidDensity) });
   const lastOffset = useRef(initialScrollY);
   const isReady = !revoked && (resource.kind === "ready" || Boolean(useOfflineMetadata));
+  const flushTabs = hasNavbar && resource.kind === "ready" && resource.data.view === "material-list" && resource.data.course.hasFullContentAccess;
   const reload = () => {
     restoreOffset.current = { x: 0, y: courseScrollOffsetForMount(lastOffset.current, androidDensity) };
     loadAgain();
@@ -644,7 +610,7 @@ function CourseEntry(props: StudentScreenProps & { query: LearningQuery }) {
         onClearSearch={() => updateListQuery(route, replace, { q: undefined })}
         onSelectGroup={id => updateListQuery(route, replace, { jurusan: id === "all" ? undefined : id, category: undefined })} />; break;
       case "course": content = <CourseOverview data={resource.data} navigate={navigate} request={request} reload={reload} locale={locale} />; break;
-      case "material-list": content = <Documents data={resource.data} route={route} replace={replace} navigate={navigate} request={request} reload={reload} openOfflineLibrary={props.openOfflineLibrary} />; break;
+      case "material-list": content = <Documents data={resource.data} route={route} replace={replace} navigate={navigate} request={request} reload={reload} openOfflineLibrary={props.openOfflineLibrary} locale={locale} disclosures={props.documentDisclosures ?? fallbackDisclosures.current} openExternal={openExternal} />; break;
       case "material-detail": content = <Document data={resource.data} request={request} locale={locale} reload={reload} renderMaterial={renderMaterial} pdfReader={props.pdfReader} route={route} replace={replace} openOfflineLibrary={props.openOfflineLibrary} openExternal={openExternal} saveDiktatPdf={props.saveDiktatPdf} />; break;
     }
   }
@@ -658,7 +624,7 @@ function CourseEntry(props: StudentScreenProps & { query: LearningQuery }) {
           contentOffset={isReady ? restoreOffset.current : undefined}
           testID={query.view === "catalog" ? "student-courses-list" : query.view === "material-list" ? "student-materials-list" : `student-learning-${query.view}`}
           style={{ backgroundColor: colors.background }}
-          contentContainerStyle={[styles.content, isReady && query.view === "catalog" && styles.catalogContent]}
+          contentContainerStyle={[styles.content, isReady && (query.view === "catalog" || flushTabs) && styles.catalogContent]}
           keyboardShouldPersistTaps="handled"
           refreshControl={<RefreshControl refreshing={resource.kind === "loading" && lastOffset.current > 0} onRefresh={reload} tintColor={colors.primary} colors={[colors.primary]} />}
           scrollEventThrottle={16}
@@ -669,7 +635,7 @@ function CourseEntry(props: StudentScreenProps & { query: LearningQuery }) {
             }
           }}
         >
-          {query.view === "course" || query.view === "material-list" || query.view === "material-detail" ? (
+          {(!hasNavbar && (query.view === "course" || query.view === "material-list")) || query.view === "material-detail" ? (
             <Button theme={theme} variant="ghost" testID="student-learning-back" style={styles.back} onPress={back}>{copy.back}</Button>
           ) : null}
           {isReady ? <View style={styles.readyContent}>{content}</View> : content}
@@ -681,10 +647,11 @@ function CourseEntry(props: StudentScreenProps & { query: LearningQuery }) {
 
 function CourseRoute(props: StudentScreenProps & { query: LearningQuery }) {
   const scrollY = useRef(props.initialScrollY);
+  const documentDisclosures = useRef<DocumentDisclosures>({});
   // Unmount the protected read while covered. Back starts a new authorization
   // check while this stack entry keeps its last reported scroll position.
   if (props.focused === false) return null;
-  return <CourseEntry {...props} initialScrollY={scrollY.current} onScrollY={value => {
+  return <CourseEntry {...props} documentDisclosures={documentDisclosures.current} initialScrollY={scrollY.current} onScrollY={value => {
     scrollY.current = value;
     props.onScrollY(value);
   }} />;
@@ -710,6 +677,7 @@ const styles = StyleSheet.create({
   rowText: { flexShrink: 1, gap: 2 },
   toggles: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   toggle: { borderWidth: 1, borderRadius: nativeRadii.md, minHeight: 44, justifyContent: "center", paddingHorizontal: 10, paddingVertical: 5 },
+  activationCard: { borderWidth: StyleSheet.hairlineWidth, borderStartWidth: StyleSheet.hairlineWidth, borderRadius: nativeRadii.lg, padding: 16, gap: 12 },
   notice: { borderStartWidth: 2, paddingStart: 12, gap: 8, paddingVertical: 3 },
   skeletonTitle: { width: "55%", height: 22, marginBottom: 10 },
   skeletonRow: { height: 40, marginBottom: 7 },

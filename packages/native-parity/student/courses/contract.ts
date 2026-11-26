@@ -30,6 +30,7 @@ export type CourseCard = {
   category: string;
   description: string;
   hasFullContentAccess: boolean;
+  hasFreeChapter?: boolean;
   materialsCount?: number;
   quizzesCount?: number;
   tryoutsCount?: number;
@@ -98,6 +99,7 @@ export type CatalogData = {
 
 export type CourseChapter = {
   id: string;
+  orderIndex?: number;
   title: string;
   materialId: string | null;
   completionPercent: number;
@@ -124,13 +126,14 @@ export type MaterialRow = {
   locked: boolean;
   chapterIds: string[];
   meta?: string;
+  preview?: "cover";
 };
 
 export type MaterialListData = {
   view: "material-list";
   course: CourseCard;
   materials: MaterialRow[];
-  chapters: Array<{ id: string; title: string; aliases: string[] }>;
+  chapters: Array<{ id: string; title: string; orderIndex?: number; aliases: string[] }>;
 };
 
 export type MaterialDetailData = {

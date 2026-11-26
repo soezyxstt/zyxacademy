@@ -217,6 +217,7 @@ export async function loadNativeCourseData(studentId: string, query: LearningQue
   const courseCard = {
     ...projectCourse({ ...course, description: course.description.split(" - ")[0] ?? "" }, access.hasFullContentAccess),
     pricing: serializePricing(access.policy.pricing),
+    hasFreeChapter: access.policy.freeChapterIds.length > 0,
   };
 
   if (query.view === "course") {
@@ -225,7 +226,7 @@ export async function loadNativeCourseData(studentId: string, query: LearningQue
     return {
       view: "course",
       course: courseCard,
-      chapters: chapters.map(({ id, title, materialId, completionPercent, completed }) => ({ id, title, materialId, completionPercent, completed })),
+      chapters: chapters.map(({ id, title, orderIndex, materialId, completionPercent, completed }) => ({ id, title, orderIndex, materialId, completionPercent, completed })),
       actions: overview ? (["reading", "quiz", "schedule"] as const).map((key) => ({
         key, title: overview[key].title, meta: overview[key].meta, path: overview[key].href,
       })) : [],
@@ -273,14 +274,18 @@ export async function loadNativeCourseData(studentId: string, query: LearningQue
   return {
     view: "material-list",
     course: courseCard,
-    chapters: data.courseChapters.map(({ id, title, canonicalId, legacyChapterId }) => ({
+    chapters: data.courseChapters.map(({ id, title, orderIndex, canonicalId, legacyChapterId }) => ({
       id,
       title,
+      orderIndex,
       aliases: [...new Set([id, canonicalId, legacyChapterId].filter((value): value is string => Boolean(value)))],
     })),
     materials: data.materialsWithLockState.map((row): MaterialRow => {
       const locked = !canOpenDocument(access, row);
-      return { id: row.id, title: row.title, group: row.tabGroup, kind: row.kind, locked, completed: !locked && row.completed, chapterIds: documentChapterIds(row), meta: "fileSize" in row ? row.fileSize : undefined };
+      const coverPath = `/api/courses/${encodeURIComponent(id)}/material/${encodeURIComponent(row.id)}/cover.svg`;
+      const preview = !locked && "thumbnailUrl" in row && row.thumbnailUrl === coverPath ? "cover" : undefined;
+      return { id: row.id, title: row.title, group: row.tabGroup, kind: row.kind, locked, completed: !locked && row.completed,
+        chapterIds: documentChapterIds(row), meta: "fileSize" in row ? row.fileSize : undefined, preview };
     }),
   };
 }

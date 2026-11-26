@@ -14,9 +14,23 @@ name: Student course revoked fixture
 - tapOn:
     id: student-course-matematika-1
 - tapOn:
-    id: student-course-open-materials
-- assertVisible:
-    id: student-material-pengantar
+    id: student-course-tabs-documents
+- extendedWaitUntil:
+    visible:
+      id: student-material-pengantar
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: student-documents-chapter-bab-2
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: student-documents-chapter-bab-2
+- scrollUntilVisible:
+    element:
+      id: student-material-catatan-fungsi
+    direction: DOWN
+    timeout: 30000
 - tapOn:
     id: student-material-catatan-fungsi
 - assertVisible:

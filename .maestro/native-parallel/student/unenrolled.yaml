@@ -15,7 +15,19 @@ name: Student course unenrolled fixture
 - tapOn:
     id: student-course-matematika-1
 - tapOn:
-    id: student-course-open-materials
+    id: student-course-tabs-documents
+- scrollUntilVisible:
+    element:
+      id: student-documents-chapter-bab-2
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: student-documents-chapter-bab-2
+- scrollUntilVisible:
+    element:
+      id: student-material-catatan-fungsi
+    direction: DOWN
+    timeout: 30000
 - tapOn:
     id: student-material-catatan-fungsi
 - assertVisible:

@@ -14,7 +14,14 @@ name: Student course long material list fixture
 - tapOn:
     id: student-course-matematika-1
 - tapOn:
-    id: student-course-open-materials
+    id: student-course-tabs-documents
+- scrollUntilVisible:
+    element:
+      id: student-documents-chapter-bab-24
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: student-documents-chapter-bab-24
 - scrollUntilVisible:
     element:
       id: student-material-bab-24
@@ -26,6 +33,8 @@ name: Student course long material list fixture
 - assertVisible: "24. Menentukan domain fungsi komposisi dan menjelaskan syarat pada setiap tahap perhitungan"
 - tapOn:
     id: student-learning-back
-- assertVisible:
-    id: student-material-bab-24
+- extendedWaitUntil:
+    visible:
+      id: student-material-bab-24
+    timeout: 30000
 - takeScreenshot: student-long-content-restored

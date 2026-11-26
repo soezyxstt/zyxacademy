@@ -1,6 +1,6 @@
 # Dashboard, kursus, dan materi Student
 
-Pemilik kontrak adalah jalur `native-migration/student`. Expo memasang `CourseScreen` melalui `StudentEntry`. `VerifiedStudentEntry` memakai transport yang terikat origin, akun, dan sesi. Layar daftar mengingat query dan posisi gulir pada entri navigasi. Perubahan hak akses diperiksa ulang saat permintaan berikutnya, termasuk saat membuka dokumen setelah daftar ditampilkan.
+Pemilik kontrak adalah jalur `native-migration/student`. Expo memasang `CourseScreen` melalui `StudentEntry`. `VerifiedStudentEntry` memakai transport yang terikat origin, akun, dan sesi. Layar daftar mengingat query, bab terbuka, dan posisi gulir pada entri navigasi. Perubahan hak akses diperiksa ulang saat permintaan berikutnya, termasuk saat membuka dokumen setelah daftar ditampilkan.
 
 ## Operasi
 
@@ -12,7 +12,7 @@ Pemilik kontrak adalah jalur `native-migration/student`. Expo memasang `CourseSc
 | `POST /api/student/interventions/[id]/dismiss` | `/dashboard` | Handler intervensi Student | Mengubah status intervensi hanya untuk pemilik sesi yang sedang aktif. Pengulangan operasi mempertahankan status yang sama. |
 | `GET ?view=catalog` | `/courses` | `loadStudentCourseCatalog`, `getWhatsAppAdminChatHref` | Metadata katalog dan metrik dari helper web yang sama. Hasil personal mengikuti jurusan dan hak akses akun. Bantuan WhatsApp mengikuti konfigurasi server. |
 | `GET ?view=course&courseId=…` | `/courses/[id]` | `getCourse`, `getStudentCourseAccess`, `getCourseChapterOutline`, `getCourseOverviewData` | Kebijakan pusat memeriksa identitas kursus dan cakupan kelas. Bab dan aksi lanjutan mengikuti akses peserta. |
-| `GET ?view=material-list&courseId=…` | `/courses/[id]/material` | `loadCourseMaterialData`, kebijakan akses konten dan kuis | Metadata materi, diktat, PDF, bank soal dan status kunci. Setiap jenis memakai kebijakan kelas atau cakupan bab sesuai kontrak detailnya. |
+| `GET ?view=material-list&courseId=…` | `/courses/[id]/material` | `loadCourseMaterialData`, kebijakan akses konten dan kuis | Metadata materi, diktat, PDF, bank soal dan status kunci. Setiap jenis memakai kebijakan kelas atau cakupan bab sesuai kontrak detailnya. Pratinjau kanonis memakai endpoint sampul yang sudah ada untuk dokumen yang dapat dibuka. |
 | `GET ?view=material-detail&courseId=…&materialId=…` | `/courses/[id]/material/[materialId]` | Kebijakan `canAccessCourseContent`, sumber terbit kanonis dan sumber kompatibilitas pembaca web | Mengikat identitas dokumen ke kursus. Status terkunci membatasi descriptor dan progres pribadi. Konten yang diizinkan diteruskan ke adapter renderer dengan ID kanonis atau legacy yang sudah diperiksa. |
 | Simpan atau bagikan PDF Diktat | `/courses/[id]/material/[materialId]` | `GET /api/courses/[id]/diktats/[diktatId]/pdf?download=1` | Detail memberi penanda kelayakan untuk Diktat yang memiliki PDF. Endpoint memeriksa izin baca dan unduh kembali. Expo menyerahkan berkas maksimal 50 MiB ke panel berbagi OS saat layar dan sesi masih aktif. |
 | `POST { token }` | Dashboard, detail kursus, serta materi terkunci | `enrollWithToken` dan `redeemGroupToken` menggunakan konteks `dashboard` | Akun berasal dari sesi yang diperiksa ulang. Token lama tetap diproses oleh transaksi group, kapasitas dan masa akses yang sudah ada. Retry setelah respons hilang memakai token yang sama dan memeriksa ulang akses kelas. |
@@ -28,6 +28,7 @@ Alur ini memakai kontrak belajar dan penukaran token UI yang ada. Katalog operas
 ```sh
 bun test tests/contracts/native-student-courses.test.ts
 bun test tests/unit/native-student-course-data.test.ts
+bun test tests/unit/expo-course-content.test.ts
 bun test tests/unit/native-student-catalog.test.ts
 bun test tests/unit/native-student-dashboard-extras.test.ts
 bun test tests/unit/native-student-offline-courses.test.ts

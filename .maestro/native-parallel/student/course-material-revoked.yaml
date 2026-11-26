@@ -8,26 +8,33 @@ name: Student course and material reference revoked
     timeout: 30000
 - openLink: "zyx-native-parity://student-fixture?scenario=course-material-revoked&theme=light&locale=id&path=%2Fcourses%2Fmatematika-1"
 - extendedWaitUntil:
-    visible: "Matematika I"
+    visible: "(?i)silabus kelas"
     timeout: 30000
-- assertVisible: "Daftar bab"
+- assertVisible: "Matematika I"
 - assertVisible: "Token kelas"
 - assertNotVisible: "4 dokumen tersedia"
 - takeScreenshot: student-course-detail-revoked
 - tapOn:
-    id: student-course-open-materials
+    id: student-course-tabs-documents
 - extendedWaitUntil:
     visible: "Semua"
     timeout: 30000
 - assertVisible: "Matematika I"
-- assertVisible:
-    id: student-learning-back
 - assertNotVisible:
-    id: 'student\.back'
-- assertVisible:
-    id: student-material-dokumen-1
+    id: student-learning-back
+- scrollUntilVisible:
+    element:
+      id: student-material-dokumen-1
+    direction: DOWN
+    timeout: 30000
 - assertVisible: "Token kelas"
 - takeScreenshot: student-material-list-revoked
+- scrollUntilVisible:
+    element:
+      id: student-documents-chapter-bab-4
+    direction: DOWN
+- tapOn:
+    id: student-documents-chapter-bab-4
 - scrollUntilVisible:
     element:
       id: student-material-dokumen-4
@@ -38,8 +45,6 @@ name: Student course and material reference revoked
     visible: "Turunan"
     timeout: 30000
 - assertVisible: "Matematika I"
-- assertNotVisible:
-    id: 'student\.back'
 - assertVisible:
     id: student-material-locked
 - assertVisible: "Token kelas"
@@ -54,8 +59,10 @@ name: Student course and material reference revoked
     timeout: 30000
 - scrollUntilVisible:
     element:
-      id: student-material-dokumen-1
+      id: student-documents-chapter-bab-1
     direction: UP
+- tapOn:
+    id: student-documents-chapter-bab-1
 - tapOn:
     id: student-material-dokumen-1
 - extendedWaitUntil:

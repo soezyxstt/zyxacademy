@@ -45,8 +45,8 @@ for (const item of studentCourseCases) {
   add("courses", pattern, item.id, item.initialPath, item.scenario, item.theme, marker, undefined, steps);
 }
 for (const [pattern, path, marker] of [
-  ["/courses/[id]", "/courses/matematika-1", id("student-course-open-materials")],
-  ["/courses/[id]/material", "/courses/matematika-1/material", id("student-material-pengantar")],
+  ["/courses/[id]", "/courses/matematika-1", id("student-course-tabs-documents")],
+  ["/courses/[id]/material", "/courses/matematika-1/material", id("student-documents-tabs-all")],
   ["/courses/[id]/material/[materialId]", "/courses/matematika-1/material/pengantar", text("Pembaca materi belum tersedia di aplikasi ini.")],
 ] as const) {
   for (const scenario of ["enrolled", "unenrolled", "revoked"] as const) {
@@ -54,10 +54,14 @@ for (const [pattern, path, marker] of [
     const detail = pattern.endsWith("/material/[materialId]");
     const target = detail && scenario !== "enrolled" ? path.replace("pengantar", "catatan-fungsi") : path;
     const actualMarker = detail && scenario !== "enrolled" ? id("student-material-locked") : marker;
+    const openLockedDocument: Step[] = [
+      { scroll: id("student-documents-chapter-bab-2") }, { tap: id("student-documents-chapter-bab-2") },
+      { scroll: id("student-material-catatan-fungsi") }, { tap: id("student-material-catatan-fungsi") },
+      { assert: id("student-material-locked") },
+    ];
     const restrictedSteps: Step[] | undefined = scenario === "enrolled" || detail ? undefined : pattern === "/courses/[id]" ?
-      scenario === "unenrolled" ? [{ assert: text("Masukkan token untuk mengakses seluruh materi.") }] :
-        [{ tap: id("student-course-open-materials") }, { assert: id("student-material-catatan-fungsi") }, { tap: id("student-material-catatan-fungsi") }, { assert: id("student-material-locked") }] :
-      [{ assert: id("student-material-catatan-fungsi") }, { tap: id("student-material-catatan-fungsi") }, { assert: id("student-material-locked") }];
+      scenario === "unenrolled" ? [{ assert: text("Aktivasi token kelas") }] :
+        [{ tap: id("student-course-tabs-documents") }, ...openLockedDocument] : openLockedDocument;
     add("courses", pattern, `course.${pattern}.${scenario}`, target, scenario, "light", actualMarker, undefined, restrictedSteps);
   }
   const recovered = marker;

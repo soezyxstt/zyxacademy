@@ -24,9 +24,9 @@ name: Student course ranking denied access recovers through course activation
 - tapOn: Aktifkan kelas
 - extendedWaitUntil:
     visible:
-      id: student-course-open-materials
+      id: student-course-tabs-documents
     timeout: 30000
-- assertVisible: Masukkan token untuk mengakses seluruh materi\.
+- assertVisible: Materi artikel, diktat, dan kuis bab pertama terbuka gratis\. Masukkan token kelas untuk membuka seluruh materi, tryout ujian, dan flashcard\.
 - openLink: "zyx-native-parity://student-fixture?scenario=unavailable&theme=light&locale=id&path=%2Fcourses%2Fmatematika-1%2Fleaderboard"
 - extendedWaitUntil:
     visible: 'Koneksi bermasalah\. Coba lagi\.'

@@ -15,7 +15,52 @@ name: Student course enrolled fixture
 - tapOn:
     id: student-course-matematika-1
 - tapOn:
-    id: student-course-open-materials
+    id: student-course-tabs-documents
+- extendedWaitUntil:
+    visible:
+      id: student-material-pengantar
+    timeout: 30000
+- takeScreenshot: student-enrolled-materials
+- assertNotVisible:
+    id: student-material-catatan-fungsi
+- runFlow:
+    when:
+      notVisible:
+        id: student-documents-tabs-diktat
+    commands:
+      - tapOn:
+          id: student-documents-tabs-more
+      - tapOn:
+          id: student-documents-tabs-overflow-diktat
+- runFlow:
+    when:
+      visible:
+        id: student-documents-tabs-diktat
+    commands:
+      - tapOn:
+          id: student-documents-tabs-diktat
+- assertVisible:
+    id: student-material-diktat-fungsi
+- assertNotVisible:
+    id: student-material-pengantar
+- runFlow:
+    when:
+      notVisible:
+        id: student-documents-tabs-pdf
+    commands:
+      - tapOn:
+          id: student-documents-tabs-more
+      - tapOn:
+          id: student-documents-tabs-overflow-pdf
+- runFlow:
+    when:
+      visible:
+        id: student-documents-tabs-pdf
+    commands:
+      - tapOn:
+          id: student-documents-tabs-pdf
+- assertVisible: 'Dokumen tidak ditemukan'
+- tapOn:
+    id: student-documents-tabs-all
 - assertVisible:
     id: student-material-pengantar
-- takeScreenshot: student-enrolled-materials
