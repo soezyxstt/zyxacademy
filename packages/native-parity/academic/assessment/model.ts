@@ -71,6 +71,7 @@ export type BankQuestion = BankQuestionInput & Versioned & {
   origin: "zyx_original" | "itb_example" | "historical_reference";
   sourceEventName?: string;
   quizSelectable?: boolean;
+  reviewStatus?: "generated" | "reviewed" | "published" | "flagged" | "retired";
   bankRevision?: string;
 };
 
@@ -237,7 +238,8 @@ export function quizValidationError(input: QuizInput, bank: readonly BankQuestio
   if (selection.mode === "specific") {
     const { questionIds } = selection;
     if (!questionIds.length) return "Pilih minimal satu soal.";
-    if (new Set(questionIds).size !== questionIds.length || questionIds.some((id) => !bank.some((question) => question.id === id))) {
+    const bankIds = new Set(bank.map(({ id }) => id));
+    if (new Set(questionIds).size !== questionIds.length || questionIds.some(id => !bankIds.has(id))) {
       return "Periksa pilihan soal dari bank soal kursus ini.";
     }
     timerTotal = questionIds.reduce((total, id) => total + (settings.perQuestionTimers[id] ?? settings.defaultQuestionTimerSeconds), 0);

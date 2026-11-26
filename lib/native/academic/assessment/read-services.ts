@@ -70,7 +70,7 @@ function bankQuestion(row: typeof aiQuestionBank.$inferSelect, canWrite: boolean
       return typeof option === "string" ? option : typeof text === "string" ? text : "";
     }),
     correctIndices: integers(correctIndices), acceptableAnswers: strings(acceptableAnswers),
-    tags: strings(tags), explanation, sourceEventName: sourceEventName ?? undefined,
+    tags: strings(tags), explanation, reviewStatus, sourceEventName: sourceEventName ?? undefined,
     quizSelectable: reviewStatus === "published" && (origin !== "historical_reference" || quizEligible),
     ...(canWrite && origin === "zyx_original" ? { bankRevision: questionBankRevision(row) } : {}),
   };

@@ -4,7 +4,10 @@ import {
   commaList, difficulties, questionTypes, quizCategories, quizValidationError,
   type BankQuestion, type QuizInput, type QuizSelection, type QuizStatus,
 } from "../../../../../packages/native-parity/academic/assessment";
-import { Action, Field, Ink, SearchBox, Tabs, layout } from "../courses/ui";
+import { addVisibleQuizQuestions, emptyQuizQuestionFilters, filterQuizQuestions, removeVisibleQuizQuestions, unchangedOrEligibleSelection,
+  type PickerQuestion, type QuizQuestionFilters,
+} from "../../../../../packages/native-parity/academic/assessment/quiz-picker";
+import { Action, CourseDialog, Field, Ink, Picker, SearchBox, Tabs, layout } from "../courses/ui";
 import { AssessmentNotice, ChoiceCheck, ConfirmAction, FlagField, Pagination, SectionRow, SelectField } from "./ui";
 
 const tabs = [
@@ -67,7 +70,8 @@ export function QuizEditor({ initialValue, role, bank, courseControl, isSaving, 
 
   function submit(status: QuizStatus) {
     const next = serialise(status);
-    const issue = quizValidationError(next, bank);
+    const eligible = next.selection.mode !== "specific" || unchangedOrEligibleSelection(next.selection.questionIds, existingIds, bank);
+    const issue = quizValidationError(next, bank) ?? (eligible ? undefined : "Lepas soal yang sudah tidak dapat dipilih sebelum mengubah susunan kuis.");
     setValidation(issue ?? "");
     if (!issue) onSave(next);
   }
@@ -124,7 +128,7 @@ export function QuizEditor({ initialValue, role, bank, courseControl, isSaving, 
           ) : null}
           {input.selection.mode === "specific" ? (
             <QuestionPicker
-              bank={bank} ids={input.selection.questionIds} disabledIds={disabledIds}
+              bank={bank} ids={input.selection.questionIds} disabledIds={disabledIds} quizAuthoring={role === "admin"} disabled={isSaving}
               change={(questionIds) => update("selection", { mode: "specific", questionIds })}
               timers={role === "admin" && input.settings.perQuestionTimerEnabled ? input.settings.perQuestionTimers : undefined}
               setTimer={(id, seconds) => {
@@ -185,54 +189,114 @@ function DistributionEditor({ selection, change, tags, setTags }: {
   </View>;
 }
 
-export function QuestionPicker({ bank, ids, change, timers, setTimer, disabledIds = [] }: {
-  bank: readonly Pick<BankQuestion, "id" | "prompt" | "type" | "tags" | "difficulty">[];
+export function QuestionPicker({ bank, ids, change, timers, setTimer, disabledIds = [], quizAuthoring = false, disabled = false }: {
+  bank: readonly PickerQuestion[];
   ids: readonly string[];
   change(ids: string[]): void;
   timers?: Readonly<Record<string, number>>;
   setTimer?(id: string, seconds: string): void;
   disabledIds?: readonly string[];
+  quizAuthoring?: boolean;
+  disabled?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
-  const results = bank.filter((question) => !disabledIds.includes(question.id) &&
-    [question.prompt, questionTypes[question.type], ...question.tags].join(" ").toLowerCase().includes(query.toLowerCase().trim()));
+  const [orderPage, setOrderPage] = useState(0);
+  const [filters, setFilters] = useState(emptyQuizQuestionFilters);
+  const [menu, setMenu] = useState<"filters" | "bulk" | null>(null);
+  const filterCount = Object.values(filters).filter(Boolean).length;
+  const results = filterQuizQuestions({ bank, ids, disabledIds, search: query, filters });
   const size = 10;
   const shown = Math.min(page, Math.max(0, Math.ceil(results.length / size) - 1));
-  const selected = ids.flatMap((id) => bank.filter((question) => question.id === id));
+  const shownOrder = Math.min(orderPage, Math.max(0, Math.ceil(ids.length / size) - 1));
+  const byId = new Map(bank.map(question => [question.id, question]));
+  const selected = new Set(ids);
 
   function move(index: number, target: number) {
     const updated = [...ids];
     [updated[index], updated[target]] = [updated[target], updated[index]];
     change(updated);
+    setOrderPage(Math.floor(target / size));
+  }
+
+  function applyFilters(next: QuizQuestionFilters) {
+    setFilters(next);
+    setPage(0);
+  }
+
+  function bulk(next: string[]) {
+    change(next);
+    setMenu(null);
   }
 
   return (
     <View style={layout.group}>
       <SearchBox label="Cari soal" value={query} onChange={(value) => { setQuery(value); setPage(0); }} />
+      {quizAuthoring ? <View style={layout.row}>
+        <Action label={filterCount ? `Filter soal (${filterCount})` : "Filter soal"} onPress={() => setMenu("filters")}
+          disabled={disabled} testID="academic-quiz-picker-filter" />
+        <Action label="Pilihan massal" onPress={() => setMenu("bulk")} disabled={disabled} testID="academic-quiz-picker-bulk" />
+      </View> : null}
       <Ink kind="meta" tone="muted">{ids.length} soal dipilih</Ink>
-      {results.slice(shown * size, (shown + 1) * size).map((question) => (
-        <SectionRow key={question.id}>
-          <ChoiceCheck label={question.prompt} checked={ids.includes(question.id)}
+      {results.slice(shown * size, (shown + 1) * size).map((question) => {
+        const checked = selected.has(question.id);
+        return <SectionRow key={question.id}>
+          <ChoiceCheck label={question.prompt} checked={checked} disabled={disabled || (quizAuthoring && question.quizSelectable === false && !checked)}
             testID={`academic-picker-${question.id}`}
-            change={() => change(ids.includes(question.id) ? ids.filter((id) => id !== question.id) : [...ids, question.id])} />
+            change={() => change(checked ? ids.filter((id) => id !== question.id) : [...ids, question.id])} />
           <Ink kind="meta" tone="muted">{questionTypes[question.type]} · {difficulties[question.difficulty]}</Ink>
-        </SectionRow>
-      ))}
-      {!results.length ? <AssessmentNotice message={query ? "Soal yang cocok tidak ditemukan." : "Tidak ada soal yang dapat dipilih."} /> : null}
+        </SectionRow>;
+      })}
+      {!results.length ? <AssessmentNotice message={query || filterCount ? "Soal yang cocok tidak ditemukan." : "Tidak ada soal yang dapat dipilih."} /> : null}
       <Pagination page={shown} count={results.length} size={size} change={setPage} />
-      {selected.length ? <Ink kind="heading">Urutan soal</Ink> : null}
-      {selected.map((question, index) => (
-        <SectionRow key={question.id}>
-          <Ink>{index + 1}. {question.prompt}</Ink>
+      {ids.length ? <Ink kind="heading">Urutan soal</Ink> : null}
+      {ids.slice(shownOrder * size, (shownOrder + 1) * size).map((id, offset) => {
+        const index = shownOrder * size + offset;
+        return <SectionRow key={id}>
+          <Ink>{index + 1}. {byId.get(id)?.prompt ?? "Soal tidak tersedia"}</Ink>
           <View style={layout.row}>
-            <Action label="Naik" onPress={() => move(index, index - 1)} disabled={index === 0} />
-            <Action label="Turun" onPress={() => move(index, index + 1)} disabled={index + 1 === selected.length} />
+            <Action label="Naik" onPress={() => move(index, index - 1)} disabled={disabled || index === 0} />
+            <Action label="Turun" onPress={() => move(index, index + 1)} disabled={disabled || index + 1 === ids.length} />
+            {!byId.has(id) ? <Action label="Lepas soal" disabled={disabled} onPress={() => change(ids.filter(value => value !== id))} /> : null}
           </View>
-          {timers && setTimer ? <Field label={`Timer soal ${index + 1} dalam detik`} value={timers[question.id]?.toString() ?? ""}
-            placeholder="Pakai timer bawaan" keyboardType="number-pad" onChangeText={(value) => setTimer(question.id, value)} /> : null}
-        </SectionRow>
-      ))}
+          {timers && setTimer ? <Field label={`Timer soal ${index + 1} dalam detik`} value={timers[id]?.toString() ?? ""} disabled={disabled}
+            placeholder="Pakai timer bawaan" keyboardType="number-pad" onChangeText={(value) => setTimer(id, value)} /> : null}
+        </SectionRow>;
+      })}
+      <Pagination page={shownOrder} count={ids.length} size={size} change={setOrderPage} />
+      {menu === "filters" ? <QuizPickerFilters filters={filters} bank={bank} close={() => setMenu(null)} change={applyFilters} /> : null}
+      {menu === "bulk" ? <CourseDialog title="Pilihan massal" onClose={() => setMenu(null)}>
+        <Action label="Pilih semua hasil filter" variation="default" testID="academic-quiz-picker-select-all"
+          disabled={!results.some(question => question.quizSelectable !== false && !selected.has(question.id))}
+          onPress={() => bulk(addVisibleQuizQuestions(ids, results))} />
+        <Action label="Lepas pilihan hasil filter" disabled={!results.some(question => selected.has(question.id))}
+          onPress={() => bulk(removeVisibleQuizQuestions(ids, results))} />
+        <Action label="Kosongkan semua pilihan" disabled={!ids.length} onPress={() => bulk([])} />
+      </CourseDialog> : null}
     </View>
   );
+}
+
+function QuizPickerFilters({ filters, bank, change, close }: {
+  filters: QuizQuestionFilters; bank: readonly PickerQuestion[]; change(next: QuizQuestionFilters): void; close(): void;
+}) {
+  const [draft, setDraft] = useState(filters);
+  const tags = [...new Set(bank.flatMap(question => question.tags).filter(Boolean))].sort((a, b) => a.localeCompare(b, "id"));
+  return <CourseDialog title="Filter soal" onClose={close}>
+    <SelectField label="Kesulitan" options={{ "": "Semua tingkat", ...difficulties }}
+      value={draft.difficulty} change={difficulty => setDraft({ ...draft, difficulty })} />
+    <SelectField label="Jenis soal" options={{ "": "Semua jenis", ...questionTypes }}
+      value={draft.type} change={type => setDraft({ ...draft, type })} />
+    <SelectField label="Asal soal" options={{ "": "Semua asal", zyx_original: "Zyx asli", itb_example: "Contoh ITB", historical_reference: "Referensi historis" }}
+      value={draft.origin} change={origin => setDraft({ ...draft, origin })} />
+    <Picker label="Topik soal" selected={draft.tag} options={[{ id: "", label: "Semua topik" }, ...tags.map(tag => ({ id: tag, label: tag }))]}
+      onSelect={tag => setDraft({ ...draft, tag })} />
+    <SelectField label="Status soal" options={{ "": "Semua status", published: "Terbit", generated: "Draf", flagged: "Ditandai" }}
+      value={draft.status} change={status => setDraft({ ...draft, status })} />
+    <ChoiceCheck label="Hanya soal yang dipilih" checked={draft.selectedOnly} change={() => setDraft({ ...draft, selectedOnly: !draft.selectedOnly })} />
+    <View style={layout.row}>
+      <Action label="Atur ulang" variation="ghost" onPress={() => setDraft(emptyQuizQuestionFilters)} />
+      <Action label="Terapkan" variation="default" onPress={() => { change(draft); close(); }} />
+    </View>
+  </CourseDialog>;
 }
