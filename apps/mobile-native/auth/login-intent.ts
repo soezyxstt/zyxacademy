@@ -74,12 +74,12 @@ export function rewriteNativeAuthEntry(path: string): string | null {
 
 type Area = keyof typeof returnRoutes;
 type Destination = { href: string; pattern: string; area: Area };
-type RouteNode = {
+export type NativeRouteNode = {
   href: unknown;
   contextKey: string;
   isGenerated: boolean;
   isInternal: boolean;
-  children: readonly RouteNode[];
+  children: readonly NativeRouteNode[];
 };
 
 const routePatterns = (Object.keys(returnRoutes) as Area[]).flatMap(area =>
@@ -132,17 +132,27 @@ function canOpen(area: Area, roles: NativeAccountContext["roles"]): boolean {
   }
 }
 
-function hasNativeRoute(node: RouteNode | null, pattern: string): boolean {
+function hasNativeRoute(node: NativeRouteNode | null, pattern: string): boolean {
   if (!node) return false;
   if (node.children.length) return node.children.some(child => hasNativeRoute(child, pattern));
   return !node.isGenerated && !node.isInternal && !/(?:^|\/)_layout\.[jt]sx?$/.test(node.contextKey) &&
     typeof node.href === "string" && node.href.replace(/\/\([^/]+\)(?=\/|$)/g, "") === pattern;
 }
 
+export function resolveNativeProtectedDestination(
+  href: string,
+  account: Pick<NativeAccountContext, "roles">,
+  sitemap?: NativeRouteNode | null,
+) {
+  const destination = resolveDestination(href);
+  return destination && destination.area !== "public" && canOpen(destination.area, account.roles) &&
+    (sitemap === undefined || hasNativeRoute(sitemap, destination.pattern)) ? destination : null;
+}
+
 export function resolveNativeLoginReturn(
   next: string | undefined,
   account: Pick<NativeAccountContext, "dashboard" | "roles">,
-  sitemap: RouteNode | null,
+  sitemap: NativeRouteNode | null,
 ) {
   const home = resolveDestination(account.dashboard);
   const destination = next ? resolveDestination(next) : home;

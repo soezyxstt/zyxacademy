@@ -14,6 +14,7 @@ import { LocalReminderResponseLifecycle } from "../device/notification-response"
 import { LocalReminderLifecycle } from "../device/reminder-lifecycle";
 import { DevicePreferencesProvider } from "../device/preferences-provider";
 import { OfflineMetadataProvider } from "../offline/lifecycle-provider";
+import { RouteHistoryLifecycle } from "../routing/route-history-expo";
 import { isSessionRoute, navigationSessionKey, resetSessionStack } from "../routing/session-stack";
 import { nativeFontSources } from "../typography";
 
@@ -73,6 +74,7 @@ function NativeAppLayout() {
         <NativeAccountContextProvider>
           <LocalReminderLifecycle />
           <LocalReminderResponseLifecycle />
+          <RouteHistoryLifecycle />
           <AccountNotificationsProvider>
             <OfflineMetadataProvider>
               <Stack screenOptions={{ headerShown: false, animation: "none" }}

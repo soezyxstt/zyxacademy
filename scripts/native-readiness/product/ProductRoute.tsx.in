@@ -17,6 +17,7 @@ import { AcademicLiveScreen, bindAcademicSession } from "../features/academic";
 import { AdminOperationsScreen, PublicOperationsScreen } from "../features/operations";
 import { VerifiedStudentEntry } from "../features/student/VerifiedStudentEntry";
 import { academicRouteCanRead, productLocation, productQueryUpdate } from "./product-location";
+import { expoRouteHistory } from "./route-history-expo";
 import { StudentChrome } from "./student-chrome";
 
 type Owner = "public" | "student" | "academic" | "operations";
@@ -37,7 +38,7 @@ export function productRoute(pattern: string, owner: Owner) {
 function ProductRoute({ href, pattern, owner }: { href: string; pattern: string; owner: Owner }) {
   const router = useRouter();
   const isFocused = useIsFocused();
-  const { state, transport } = useNativeSession();
+  const { state, transport, getSnapshot } = useNativeSession();
   const access = useNativeAccountContext();
   const devicePreferences = useDevicePreferences();
   const scheme = useColorScheme();
@@ -50,6 +51,16 @@ function ProductRoute({ href, pattern, owner }: { href: string; pattern: string;
   }, [router]);
   const replace = useCallback((path: string) => navigate(path, { replace: true }), [navigate]);
   const back = useCallback((fallback = "/") => router.canGoBack() ? router.back() : replace(fallback), [replace, router]);
+  const context = access.context;
+
+  useFocusEffect(useCallback(() => {
+    if (owner === "public" || state.status !== "signed-in" || !transport || !context) return;
+    expoRouteHistory.remember(transport.scope, context, href, () => {
+      const snapshot = getSnapshot();
+      return snapshot.state === state && snapshot.transport === transport && !snapshot.revalidating
+        && transport.isCurrent() && state.expiresAt > Date.now();
+    });
+  }, [context, getSnapshot, href, owner, state, transport]));
 
   if (owner === "public") return <SafeAreaView style={{ flex: 1 }}>
     <PublicOperationsScreen href={href} origin={NATIVE_STAGING_ORIGIN} locale={locale} theme={theme} onNavigate={navigate} onBack={back} />
@@ -70,7 +81,6 @@ function ProductRoute({ href, pattern, owner }: { href: string; pattern: string;
       (locale === "en" ? "Could not check account access." : "Akses akun belum dapat diperiksa.")}
   </Text><Button onPress={access.retry}>{locale === "en" ? "Try again" : "Coba lagi"}</Button>
     <Button onPress={() => back()}>{locale === "en" ? "Back" : "Kembali"}</Button></SafeAreaView>;
-  const context = access.context;
   if (!context || !transport?.isCurrent()) return <ActivityIndicator />;
   const role = href.startsWith("/tutor") ? "tutor" : "admin";
   if (context.accountId !== transport.scope.accountId || context.sessionId !== transport.scope.sessionId ||
