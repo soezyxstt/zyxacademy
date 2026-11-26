@@ -46,7 +46,8 @@ export async function handleAssessmentRead(parts: string[], services: Assessment
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     if (message.startsWith("TUTOR_ACCESS_DENIED") || message === "TUTOR_INACTIVE" ||
-        message === "USER_NOT_FOUND" || message === "Forbidden, admin role required.") {
+        message === "USER_NOT_FOUND" || message === "QUESTION_EXPOSURE_COURSE_ACCESS_DENIED" ||
+        message === "Forbidden, admin role required.") {
       return reply(403, { error: "FORBIDDEN" });
     }
     return reply(500, { error: "READ_FAILED" });

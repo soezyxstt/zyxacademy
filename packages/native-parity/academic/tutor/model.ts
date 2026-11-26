@@ -170,8 +170,9 @@ export function readAnswers(submission: TutorSubmission) {
   return (Array.isArray(questions) ? questions.filter(isQuestion) : []).map((question) => {
     const value = Object.hasOwn(choices, question.id) ? choices[question.id] : undefined;
     const answer: TryoutAnswer = value && typeof value === "object" ? value as TryoutAnswer : {};
-    const chosen = Array.isArray(answer.indices) ? answer.indices : [answer.index];
-    const correct = Array.isArray(question.correctIndices) ? question.correctIndices : [question.correctIndex];
+    const multiple = question.type === "multiple_choices";
+    const chosen = multiple ? (Array.isArray(answer.indices) ? answer.indices : []) : [answer.index];
+    const correct = multiple ? (Array.isArray(question.correctIndices) ? question.correctIndices : []) : [question.correctIndex];
     return {
       id: question.id,
       type: question.type,

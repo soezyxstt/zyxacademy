@@ -1,0 +1,214 @@
+import { useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { ScrollView, View } from "react-native";
+import { type CourseFixture, courseFixtures } from "../../../../../packages/native-parity/academic/courses/fixtures";
+import {
+  adminCoursePath, resolveAdminCourseAlias, type AdminCourseLiveRead, type LiveCourseRead,
+} from "../../../../../packages/native-parity/academic/courses/model";
+import { useAdministrationSnapshot } from "../administration/provider";
+import type { AcademicScreenProps } from "../contracts";
+import { CourseAnalytics, CourseLeaderboard, QuizAnalyticsDetail } from "./analytics";
+import { CourseDocumentDetail, CourseDocuments, CourseQuestions } from "./content";
+import { CourseFlashcards, CourseVideos } from "./media";
+import { CourseList, CourseOverview, CourseSettings } from "./overview";
+import { AdminCourseFixtureContext } from "./scope";
+import { Action, CourseStatus, DataRow, Ink, Panel, PendingCourses, Tabs, CourseTheme, layout, useCourseColors } from "./ui";
+
+export { AdminCourseFixtureProvider } from "./scope";
+export type { AdminCourse, AdminChapter, AdminCourseOverview, AdminCourseLiveRead, LiveCourseRead } from "../../../../../packages/native-parity/academic/courses/model";
+export type CourseScreenProps = AcademicScreenProps & { live?: AdminCourseLiveRead };
+
+const sections = [
+  { id: "documents", label: "Dokumen" },
+  { id: "videos", label: "Video" },
+  { id: "questions", label: "Bank soal" },
+  { id: "flashcards", label: "Kartu belajar" },
+  { id: "quizzes", label: "Kuis" },
+  { id: "tryouts", label: "Tryout" },
+  { id: "results", label: "Hasil kuis" },
+  { id: "analytics", label: "Analitik kuis" },
+  { id: "leaderboard", label: "Peringkat" },
+  { id: "review", label: "Tinjau materi" },
+  { id: "settings", label: "Pengaturan" },
+] as const;
+const fixtureCourseIds = new Set(courseFixtures.map(({ course }) => course.id));
+
+export function CourseScreen(props: CourseScreenProps) {
+  return (
+    <CourseTheme.Provider value={props.theme}>
+      {props.actor.role !== "admin" ? (
+        <CoursePage title="Mata kuliah" back={props.back}><CourseStatus label="Akses ditolak." error /></CoursePage>
+      ) : <CourseRoute {...props} />}
+    </CourseTheme.Provider>
+  );
+}
+
+function CourseRoute(props: CourseScreenProps) {
+  const { path, params, query, replace } = props;
+  const segments = path.split(/[?#]/, 1)[0].split("/").filter(Boolean);
+  const section = segments[3];
+  const isList = segments.length === 2;
+  const slug = params.slug;
+  const alias = !isList && !section && slug ? resolveAdminCourseAlias(slug, query.tab) : null;
+  useEffect(() => {
+    if (alias) replace(alias);
+  }, [alias, replace]);
+  if (alias) return <CoursePage title="Mata kuliah" back={props.back}><PendingCourses /></CoursePage>;
+  if (props.live) return <LiveCourseRoute {...props} live={props.live} isList={isList} section={section} />;
+  return <FixtureCourseRoute {...props} isList={isList} section={section} />;
+}
+
+function CoursePage({ title, subtitle, back, children }: {
+  title: string; subtitle?: string; back(): void; children: ReactNode;
+}) {
+  const palette = useCourseColors();
+  return (
+    <ScrollView keyboardShouldPersistTaps="handled" style={{ flex: 1, backgroundColor: palette.background }}
+      contentContainerStyle={layout.page}>
+      <View style={{ alignSelf: "flex-start" }}>
+        <Action label="Kembali" onPress={back} variation="ghost" testID="course-back" />
+      </View>
+      <View style={layout.compact}>
+        <Ink kind="title">{title}</Ink>
+        {subtitle ? <Ink kind="meta" tone="muted">{subtitle}</Ink> : null}
+      </View>
+      {children}
+    </ScrollView>
+  );
+}
+
+function LiveStatus<T>({ read, retry, children }: {
+  read: LiveCourseRead<T> | undefined; retry(): void; children(data: T): ReactNode;
+}) {
+  if (read?.status === "ready") return children(read.data);
+  if (!read || read.status === "loading") return <PendingCourses />;
+  if (read.status === "missing") return <CourseStatus label="Mata kuliah tidak ditemukan." error />;
+  if (read.status === "denied") return <CourseStatus label="Akses ditolak." error />;
+  return <CourseStatus label="Data mata kuliah gagal dimuat." retry={retry} error />;
+}
+
+function LiveCourseRoute({ live, isList, section, actor, navigate, query, back }: CourseScreenProps & {
+  live: AdminCourseLiveRead; isList: boolean; section?: string;
+}) {
+  if (section) {
+    return <CoursePage title="Mata kuliah" back={back}><CourseStatus label="Bagian ini tersedia di Zyx web." /></CoursePage>;
+  }
+  if (isList) {
+    return (
+      <CoursePage title="Mata kuliah" back={back}>
+        <LiveStatus read={live.list} retry={live.retry}>
+          {(data) => <CourseList courses={data} actor={actor} navigate={navigate} allowCreate={false}
+            initialSearch={query.search ?? ""} initialCategory={query.category ?? ""} />}
+        </LiveStatus>
+      </CoursePage>
+    );
+  }
+  const detail = live.detail?.status === "ready" ? live.detail.data : null;
+  return (
+    <CoursePage title={detail?.course.title ?? "Mata kuliah"} back={back}
+      subtitle={detail ? `${detail.course.category} · ${detail.course.id}` : undefined}>
+      <LiveStatus read={live.detail} retry={live.retry}>
+        {(data) => <CourseOverview data={data} actor={actor} navigate={navigate} />}
+      </LiveStatus>
+    </CoursePage>
+  );
+}
+
+const emptySnapshot: readonly CourseFixture[] = [];
+const getEmptySnapshot = () => emptySnapshot;
+const ignoreSubscription = () => () => undefined;
+
+function FixtureCourseRoute({ isList, section, ...props }: AcademicScreenProps & { isList: boolean; section?: string }) {
+  const { actor, scenario, params, query, navigate, back } = props;
+  const store = useContext(AdminCourseFixtureContext);
+  const snapshot = useSyncExternalStore(store?.subscribe ?? ignoreSubscription, store?.getSnapshot ?? getEmptySnapshot, store?.getSnapshot ?? getEmptySnapshot);
+  const [failed, setFailed] = useState(scenario === "error");
+  if (!store) return <CoursePage title="Mata kuliah" back={back}><CourseStatus label="Sesi data lokal belum tersedia." error /></CoursePage>;
+  if (failed) return (
+    <CoursePage title="Mata kuliah" back={back}>
+      <CourseStatus label="Data mata kuliah gagal dimuat." retry={() => setFailed(false)} error />
+    </CoursePage>
+  );
+  if (isList) {
+    const courses = snapshot.filter(({ course }) => scenario !== "empty" || !fixtureCourseIds.has(course.id)).map(({ course }) => course);
+    return (
+      <CoursePage title="Mata kuliah" back={back}>
+        <CourseList courses={courses} actor={actor} navigate={navigate} allowCreate
+          initialSearch={query.search ?? ""} initialCategory={query.category ?? ""} />
+      </CoursePage>
+    );
+  }
+  const data = snapshot.find((entry) => entry.course.slug === params.slug);
+  if (!data) return <CoursePage title="Mata kuliah" back={back}><CourseStatus label="Mata kuliah tidak ditemukan." error /></CoursePage>;
+
+  const routeTitle = sections.find((item) => item.id === section)?.label;
+  const view = (() => {
+    if (!section) return <CourseOverview data={data} fixture={data} actor={actor} navigate={navigate} />;
+    switch (section) {
+      case "documents": {
+        if (!params.materialId) return <CourseDocuments data={data} actor={actor} initialTab={query.tab} initialChapter={query.chapter} navigate={navigate} />;
+        const document = data.documents.find((item) => item.id === params.materialId);
+        return document ? <CourseDocumentDetail actor={actor} data={data} document={document} initialMode={query.mode} />
+          : <CourseStatus label="Dokumen tidak ditemukan." error />;
+      }
+      case "videos": return <CourseVideos data={data} actor={actor} />;
+      case "questions": return <CourseQuestions data={data} actor={actor} initialChapter={query.chapter} />;
+      case "flashcards": return <CourseFlashcards data={data} actor={actor} />;
+      case "results": return <CourseAnalytics data={data} navigate={navigate} results />;
+      case "analytics": {
+        if (!params.quizId) return <CourseAnalytics data={data} navigate={navigate} />;
+        const quiz = data.quizzes.find((item) => item.id === params.quizId);
+        return quiz ? <QuizAnalyticsDetail data={data} actor={actor} quiz={quiz} initialTab={query.tab} />
+          : <CourseStatus label="Kuis tidak ditemukan pada mata kuliah ini." error />;
+      }
+      case "leaderboard": return <CourseLeaderboard data={data} />;
+      case "review": return <CourseReview data={data} initialTab={query.tab ?? query.section} navigate={navigate} />;
+      case "settings": return <CourseSettings data={data} actor={actor} back={back} navigate={navigate} />;
+      default: return <CourseStatus label="Bagian mata kuliah tidak ditemukan." error />;
+    }
+  })();
+
+  return (
+    <CoursePage title={data.course.title} subtitle={`${data.course.category} · ${data.course.id}`} back={back}>
+      {routeTitle ? <Ink kind="heading">{routeTitle}</Ink> : null}
+      {view}
+      {!section ? <CourseMenu slug={data.course.slug} navigate={navigate} /> : null}
+    </CoursePage>
+  );
+}
+
+function CourseMenu({ slug, navigate }: { slug: string; navigate(path: string): void }) {
+  return (
+    <Panel title="Kelola mata kuliah">
+      {sections.map((section) => (
+        <DataRow key={section.id} title={section.label} testID={`course-link-${section.id}`}
+          onPress={() => navigate(adminCoursePath(slug, section.id))} />
+      ))}
+    </Panel>
+  );
+}
+
+const reviewStatuses = {
+  validated: "Menunggu tinjauan",
+  approved: "Disetujui",
+  rejected: "Ditolak",
+  changes_requested: "Perlu revisi",
+  published: "Terbit",
+  withdrawn: "Publikasi ditarik",
+};
+
+function CourseReview({ data, initialTab, navigate }: {
+  data: CourseFixture; initialTab?: string; navigate(path: string): void;
+}) {
+  const snapshot = useAdministrationSnapshot();
+  const [tab, setTab] = useState<"idea" | "product">(initialTab === "product" ? "product" : "idea");
+  const records = snapshot.records.bundles.filter((bundle) => bundle.courseId === data.course.id && bundle.kind === tab);
+  return (
+    <>
+      <Tabs<"idea" | "product"> options={[{ id: "idea", label: "Idea Bundle" }, { id: "product", label: "Product Bundle" }]} selected={tab} onSelect={setTab} />
+      {records.length ? records.map((bundle) => (
+        <DataRow key={bundle.id} title={bundle.title} description={bundle.source} detail={reviewStatuses[bundle.status]}
+          testID={`course-review-${bundle.id}`} onPress={() => navigate(adminCoursePath(data.course.slug, `review/${tab}`, bundle.id))} />
+      )) : <CourseStatus label="Belum ada bundle untuk ditinjau." />}
+    </>
+  );
+}

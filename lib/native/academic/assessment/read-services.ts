@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { exams, questions, studentQuizAttempts, user } from "@/db/schema";
 import { getQuizTemplatePreviewAction } from "@/app/actions/tutor-management";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
+import { ensureLegacyIdentity } from "@/lib/auth/legacy-identity";
 import { getAuthSession } from "@/lib/auth-session";
 import { hasPeran, requireTutorCourseAccess } from "@/lib/auth/request-cache";
 import { normalizeDate } from "@/lib/date-utils";
@@ -13,6 +14,7 @@ import { getCoursePendingQuizAttempts, getQuizAttemptDetailsForGrading } from "@
 import { getTutorQuestionBank, getTutorQuizzesWithAttribution, getTutorQuizWithAttribution, type TutorQuizWithAttribution } from "@/lib/tutor/quiz-read-model";
 import { parseSelectionRulesInput, resolveEffectiveAssessmentType } from "@/lib/tutor/assessment-policy";
 import { defaultQuiz, questionTypes, type AssessmentQuiz, type AssessmentTryout, type BankQuestion, type QuestionType } from "@/packages/native-parity/academic/assessment/model";
+import { tryoutCorrectIndices } from "./tryout-answer";
 import type { AssessmentReadScope, AssessmentReadServices } from "./handle-read";
 
 function json(value: unknown): unknown {
@@ -122,8 +124,14 @@ function snapshotAnswer(value: unknown, options: string[]): string {
 
 export const assessmentReadServices: AssessmentReadServices = {
   session: getAuthSession,
-  isAdmin: (id) => hasPeran(id, "admin"),
-  isTutor: (id) => hasPeran(id, "tutor", { allowAdmin: false }),
+  async isAdmin(id) {
+    await ensureLegacyIdentity(id);
+    return hasPeran(id, "admin");
+  },
+  async isTutor(id) {
+    await ensureLegacyIdentity(id);
+    return hasPeran(id, "tutor", { allowAdmin: false });
+  },
 
   async quizzes(scope) {
     const resolved = await authorizedCourse(scope);
@@ -244,11 +252,11 @@ export const assessmentReadServices: AssessmentReadServices = {
       if (bankQuestionId) disclosures.push({ questionId: bankQuestionId, courseId });
       else if (!Object.keys(fields).length) disclosures.push(...authorizedSnapshotDisclosures(courseId, [null]));
       const items = questionsByExam.get(row.examId) ?? [];
-      const correctIndex = fields.correctIndex;
+      const questionType = type(row.type);
       items.push({
-        id: row.id, revision: 0, type: type(row.type), order: row.order,
+        id: row.id, revision: 0, type: questionType, order: row.order,
         prompt: typeof fields.prompt === "string" ? fields.prompt : "", options: strings(fields.options),
-        correctIndices: fields.correctIndices === undefined && typeof correctIndex === "number" ? [correctIndex] : integers(fields.correctIndices),
+        correctIndices: tryoutCorrectIndices(questionType, fields),
         acceptableAnswers: strings(fields.acceptableAnswers), acceptsFile: fields.acceptsFile === true, bankQuestionId,
       });
       questionsByExam.set(row.examId, items);

@@ -1,0 +1,16 @@
+appId: com.zyx.academy.nativeparity
+name: Tutor empty assignment and denied course
+---
+- launchApp
+- openLink: zyx-native-parity://academic?role=tutor&path=%2Ftutor%2Facademic-course-2%2Fparticipants&theme=dark
+- extendedWaitUntil:
+    visible: Belum ada peserta aktif
+    timeout: 20000
+- assertVisible: Fisika Dasar
+- takeScreenshot: academic-tutor-participants-empty-dark
+- openLink: zyx-native-parity://academic?role=tutor&path=%2Ftutor%2Facademic-course-3%2Fparticipants&theme=dark
+- extendedWaitUntil:
+    visible: Akses ditolak
+    timeout: 10000
+- assertNotVisible: Nadia Lestari
+- takeScreenshot: academic-tutor-participants-denied-dark

@@ -1,0 +1,49 @@
+appId: com.zyx.academy.nativeparity
+name: Admin course filter, overview and analytics
+---
+- launchApp
+- openLink: zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fcourses&theme=light
+- extendedWaitUntil:
+    visible:
+      id: course-row-biologi-dasar
+    timeout: 20000
+- takeScreenshot: academic-admin-courses-list-populated-light
+- tapOn:
+    id: course-category
+- tapOn:
+    id: course-category-Biologi
+- tapOn:
+    id: course-search
+- inputText: biologi
+- hideKeyboard
+- assertNotVisible:
+    id: course-row-fisika-dasar
+- tapOn:
+    id: course-row-biologi-dasar
+- assertVisible:
+    id: course-chapter-academic-chapter-1
+- takeScreenshot: academic-admin-courses-overview-populated-light
+- tapOn:
+    id: course-back
+- assertVisible: biologi
+- assertVisible: Biologi
+- assertVisible:
+    id: course-row-biologi-dasar
+- assertNotVisible:
+    id: course-row-fisika-dasar
+- takeScreenshot: academic-admin-courses-filter-restored-light
+- tapOn:
+    id: course-row-biologi-dasar
+- scrollUntilVisible:
+    element:
+      id: course-link-analytics
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: course-link-analytics
+- tapOn:
+    id: course-analytics-quiz-academic-quiz-1
+- tapOn:
+    id: course-analytics-tab-score-dist
+- assertVisible: 0 sampai 20
+- takeScreenshot: academic-admin-courses-analytics-distribution-light
