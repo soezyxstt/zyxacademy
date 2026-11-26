@@ -105,6 +105,7 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
   const staffReads = staff ? await (await import("./staff-fixture")).loadStaffReads() : null;
   const offline = offlineProduct ? await (await import("./offline-fixture")).createOfflinePreview() : null;
   const opposite = staff ? oppositeStaffRole(staff) : null;
+  const previewVideo = studentProduct ? await (await import("./video-fixture")).createVideoPreview() : null;
 
   const claim = randomBytes(32).toString("hex");
   let claimExpiresAt = 0;
@@ -248,6 +249,11 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
         if (route === "POST /api/auth/sign-out" && staffReads && opposite && browserIdentity && verifiedStaffRead) {
           const session = await auth.api.getSession({ headers: upstream.headers, query: { disableCookieCache: true, disableRefresh: true } });
           if (session?.user.id === browserIdentity.accountId && session.session.id === browserIdentity.sessionId) {
+      if (previewVideo && browserIdentity && request.method === "GET") {
+        const identity = browserIdentity;
+        const response = await requestContext.run(upstream, () => previewVideo(upstream, identity));
+        if (response) return response;
+      }
             // The UI should reject navigation without dispatching a read. Probe
             // the canonical handler separately with the same still-active cookie.
             const unauthorized = new NextRequest(EXPO_STAGING_ORIGIN + staffRoles[opposite].apiPath, { headers: upstream.headers });

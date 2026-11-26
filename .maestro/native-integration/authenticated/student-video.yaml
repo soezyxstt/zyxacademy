@@ -1,0 +1,16 @@
+appId: com.zyx.academy.nativeparity
+name: Play an enrolled student's private course video
+---
+- openLink: "zyx-native-parity://courses/native-preview-video-course/video"
+- scrollUntilVisible:
+    element:
+      text: '.*Gerak benda.*'
+- tapOn: '(Putar|Play).*Gerak benda'
+- extendedWaitUntil:
+    visible:
+      id: course-video-frame
+    timeout: 30000
+- tapOn:
+    id: course-video-player-close
+- assertNotVisible:
+    id: course-video-frame

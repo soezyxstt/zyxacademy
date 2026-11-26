@@ -60,6 +60,14 @@ case ${NATIVE_PRODUCT_AUTH_OFFLINE:-} in
   only) roles=(offline) ;;
   also) roles+=(offline) ;;
 esac
+if [[ " ${roles[*]} " == *" student "* ]]; then
+  if ! command -v ffmpeg >/dev/null; then
+    sudo apt-get update -qq
+    sudo apt-get install -y -qq ffmpeg
+  fi
+  ffmpeg -nostdin -hide_banner -loglevel error -f lavfi -i testsrc2=size=160x90:rate=12 -t 2 \
+    -an -c:v libx264 -pix_fmt yuv420p -movflags +faststart "$private/preview.mp4"
+fi
 status=0
 for role in "${roles[@]}"; do
   NATIVE_PRODUCT_AUTH_ROLE="$role" bun --no-env-file "$root/scripts/native-readiness/product-auth/android-smoke.ts" \

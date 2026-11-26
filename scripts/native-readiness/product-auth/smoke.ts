@@ -5,6 +5,7 @@ import { loadNativeAccountContext } from "../../../apps/mobile-native/network/ac
 import { createNativeTransport } from "../../../apps/mobile-native/network/transport";
 import { NATIVE_AUTH_HANDOFF_COOKIE } from "@/lib/native/auth-handoff";
 import { EXPO_STAGING_ORIGIN, EXPO_STAGING_SCHEME } from "@/lib/native/expo-auth-config";
+import { course, video, privateVideoPath } from "./video-fixture";
 import { notificationId } from "./inbox-fixture";
 import { fixtureOrigin, fixtureSessionSeconds } from "./scope";
 import { startAuthFixture } from "./server";
@@ -130,6 +131,18 @@ try {
     check(inbox.unread === 1 && inbox.rows.length === 1 && inbox.rows[0]?.id === notificationId, "Unexpected inbox scope");
     await markInboxRead(binding, { id: notificationId }, signal);
     check((await loadInbox(binding, false, signal)).unread === 0, "The read notification remained unread");
+    stage = "verify the enrolled course video through the learner endpoints";
+    const videos = await binding.request(`/api/native/student/learning?view=video&courseId=${course}`, { headers: { "x-student-id": session.accountId } });
+    try {
+      const data = await videos.json() as { playlists?: { videos: { id: string; locked: boolean }[] }[] };
+      check(videos.ok && data.playlists?.some(p => p.videos.some(v => v.id === video && !v.locked)), "Authorized video missing");
+    } finally { videos.dispose(); }
+    const playbackPath = `/api/videos/${video}/playback-url`;
+    check((await local(playbackPath)).status === 401, "Guest read a course video");
+    const playback = await binding.request(playbackPath);
+    try {
+      check(playback.ok && (await playback.json() as { url?: string }).url === privateVideoPath, "Private video playback source missing");
+    } finally { playback.dispose(); }
   }
 
   if (offlineProduct) {
