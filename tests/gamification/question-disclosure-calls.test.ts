@@ -26,10 +26,16 @@ test('staff analytics, grading and bank responses record the viewer before relea
  expect(analytics.indexOf('recordAuthorizedStaffAttemptDisclosures(tx')).toBeLessThan(analytics.indexOf('return NextResponse.json(analytics)'));
  const grading = source('lib/tutor/quiz-grading.ts');
  expect(grading.match(/recordAuthorizedStaffAttemptDisclosures\(tx/g)).toHaveLength(2);
- for (const path of ['app/(tutor)/tutor/[courseId]/quizzes/page.tsx', 'app/(tutor)/tutor/[courseId]/quizzes/new/page.tsx', 'app/(tutor)/tutor/[courseId]/quizzes/[templateId]/edit/page.tsx', 'app/(tutor)/tutor/[courseId]/grading/page.tsx', 'app/actions/tutor-management.ts']) {
+ for (const path of ['app/(tutor)/tutor/[courseId]/quizzes/page.tsx', 'app/(tutor)/tutor/[courseId]/quizzes/new/page.tsx', 'app/(tutor)/tutor/[courseId]/quizzes/[templateId]/edit/page.tsx', 'lib/tutor/tryout-grading-read-model.ts', 'app/actions/tutor-management.ts']) {
   expect(source(path)).toContain('recordStaffCourseDisclosures(tx');
  }
- for (const path of ['app/(admin)/admin/(eval)/questions/page.tsx', 'app/(admin)/admin/(eval)/distractors/page.tsx', 'app/(admin)/admin/(academic)/courses/actions.ts', 'app/(admin)/admin/(academic)/courses/[slug]/tryouts/page.tsx', 'app/api/admin/questions/route.ts', 'app/api/admin/products/route.ts', 'app/api/admin/quiz-insights/[id]/route.ts', 'app/api/admin/quiz-insights/[id]/attempts/route.ts', 'app/api/admin/quiz-insights/[id]/analyze/route.ts']) {
+ for (const path of ['app/(tutor)/tutor/[courseId]/grading/page.tsx', 'lib/native/academic/read-services.ts']) {
+  expect(source(path)).toContain('await readAuthorizedTryoutGrading(');
+ }
+ const tryouts = source('lib/tutor/tryout-grading-read-model.ts');
+ expect(tryouts.indexOf('await db.transaction(tx => recordStaffCourseDisclosures(tx')).toBeGreaterThan(0);
+ expect(tryouts.indexOf('await db.transaction(tx => recordStaffCourseDisclosures(tx')).toBeLessThan(tryouts.indexOf('return { access, courseTitle, submissionsList }'));
+ for (const path of ['app/(admin)/admin/(eval)/questions/page.tsx', 'app/(admin)/admin/(eval)/distractors/page.tsx', 'app/(admin)/admin/(academic)/courses/actions.ts', 'app/(admin)/admin/(academic)/courses/[slug]/tryouts/page.tsx', 'app/api/admin/questions/route.ts', 'app/api/admin/products/route.ts', 'lib/admin/quiz-insight-read-model.ts', 'app/api/admin/quiz-insights/[id]/attempts/route.ts', 'app/api/admin/quiz-insights/[id]/analyze/route.ts']) {
   expect(source(path)).toContain('recordAuthorizedGlobalDisclosures(tx');
  }
 });
