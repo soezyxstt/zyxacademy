@@ -30,9 +30,19 @@ The source documents and excerpt archives themselves remain immutable in this ed
 
 The release plan reports the exact revision manifest, changed and preserved units, review requirements, affected dependencies, stale evidence, blockers and next actions. Metadata and semantic no-ops must not cause every entity to receive a new version. A changed Article can invalidate its derived Diktat and PDF. The server does not invent replacement Diktat content or a verification receipt.
 
-A Diktat's published PDF key is immutable for its canonical version. A meaningful bundle change requiring fresh PDF evidence therefore advances the Diktat evidence revision even when its authored text is unchanged. The impact distinguishes a print-context change from changed print content. Unrelated Article and flashcard content keeps its own version unless its content or dependency context changes.
+A Diktat's published PDF key is immutable for its canonical version. Before preserving an unchanged Diktat version, the server verifies a signed proof for its full current print context and complete page captures, reads every artifact, and compares the published canonical PDF bytes. A cold, old-format, missing or failed proof check advances the print version instead. A warm proof preserves the Diktat while a new verification attempt copies authenticated artifacts and issues a receipt for the exact new plan. Publication checks the full canonical projection and actual PDF bytes before retaining the original key. An unrelated edit never grants a receipt or bypasses review.
+
+If proof disappears or runtime changes after a draft was sealed, use `patch_revision` with `refreshPrintEvidence: true` and `operations: []` on the exact draft. The server reevaluates reuse and creates a successor print version where necessary, without a fake content edit. When the proof still applies, it remains a no-op. Continue with the returned identity and complete current verification and review.
+
+Derived Diktat impact follows each unit's `sourceElementRefs`, containing block/section, related Ideas, sources and visuals. Missing or ambiguous references remain conservative. A changed unit only clears its own requirement. A reviewer can confirm still-correct unchanged units through `derivedContentReviews: [{ entityId, sourceArticleId, expectedArticleHash, unitIds, notes }]`. The hash must match the current Article; unknown units, stale hashes and partial reviews cannot clear other units. The operation requires `authoring:review` in addition to stage scope and records actor, old/new source hashes, unit IDs and substantive notes. Up to 100 review records with 1 to 100 unique unit IDs and 20 to 2000 note characters fit within the existing 512 KiB patch limit. Final review and verification remain required.
 
 Existing review evidence can be reused only when the reviewed unit, applicable parent and source context, reviewer and decision still match. A release decision remains explicit. Changes to structure, prerequisites or provenance can require broader review than a single text field. Reuse is auditable and never amounts to automatic mathematical approval.
+
+Review ancestry uses one bounded recursive lookup plus the selected predecessor's review queries. Section fingerprints include their referenced visuals; an unrelated registry entry no longer invalidates every section. Product source and Idea dependency guards remain conservative.
+
+## Release capacity
+
+The atomic coordinator retains its 16-import resource bound. Plans expose `capacity` with selected/required entry counts, missing dependent owners and `fits`. `REVISION_RELEASE_CAPACITY_EXCEEDED` identifies a dependency closure beyond that bound and does not suggest partial publication. Larger atomic releases still require a separate persisted release-job design with frozen manifests, byte budgets and controlled promotion; this change does not claim to support them.
 
 ## MCP lifecycle
 
@@ -56,6 +66,6 @@ History retains immutable admitted artifacts and audit lineage. Restoration crea
 
 ## Verification boundary
 
-Root runs focused checks sequentially with a process-group memory and time guard. Workers perform source edits without heavy validation processes. No full local lint, typecheck or build is requested. Local mocks and PGlite do not establish deployed MCP availability, OAuth, storage behavior or real multi-session PostgreSQL contention. Remote migration, deployment and publication require their own verified authorized target.
+Focused local contracts, application and test type checks, lint and build checks are recorded in the implementation PR. Local mocks and PGlite do not establish deployed MCP availability, OAuth, storage behavior or real multi-session PostgreSQL contention. Deployment and live content publication require their own verified target and evidence.
 
 Local integration covers consecutive Idea releases, CAS and rollback, provenance replacement, historical reactivation, V5 item review reuse, dependency-only edits, mixed Idea/V5 release, fresh V4 Diktat evidence and mixed Idea/V4 verification before promotion. V4 integration uses the actual receipt, persistence, review and publication services with explicitly synthetic renderer observations and memory storage. It does not establish a complete trusted operator run. The reconciled generated migration `0017_quiet_the_hand.sql` remains a prerequisite before rollout.

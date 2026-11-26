@@ -492,5 +492,10 @@ export function buildProductVerificationCheckpointKey(planHash: string, checkpoi
   return joinKey("overhaul", "product-verification", planHash, `checkpoint-${checkpointHash}.json`);
 }
 
+export function buildProductVerificationReuseKey(scopeHash: string): string {
+  if (!/^[a-f0-9]{64}$/.test(scopeHash)) throw new Error("INVALID_VERIFICATION_CHECKPOINT_KEY");
+  return joinKey("overhaul", "product-verification-reuse", `${scopeHash}.json`);
+}
+
 
 

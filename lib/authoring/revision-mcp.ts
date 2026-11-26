@@ -30,6 +30,10 @@ export const revisionPatchOperationSchema = z.object({
   target: revisionReadTargetSchema,
   field: field.optional(), value: z.unknown().optional(), beforeId: identifier.nullable().optional(),
 }).strict();
+const derivedContentReviewSchema = z.object({ entityId: identifier, sourceArticleId: identifier, expectedArticleHash: revision,
+  unitIds: z.array(identifier).min(1).max(100).refine(ids => new Set(ids).size === ids.length, "Duplicate Diktat unit"),
+  notes: z.string().trim().min(20).max(2000),
+}).strict();
 const entry = z.object({ kind, importId: identifier, expectedRevision: revision }).strict();
 const release = {
   entries: z.array(entry).min(1).max(REVISION_MCP_LIMITS.releaseEntries).refine(entries => new Set(entries.map(item => item.importId)).size === entries.length, "Duplicate release import"),
@@ -120,7 +124,9 @@ export function registerRevisionTools(server: McpServer, principal: McpPrincipal
     throw new Error("REVISION_CONTEXT_INVALID");
   }
   function register<T extends z.ZodObject>(name: string, schema: T, scope: "read" | "stage" | "review" | "publish", description: string, execute: (input: z.infer<T>) => Promise<unknown>) {
-    const descriptor = registerOperationDescriptor(server, { name, scope: scope === "read" ? ["authoring:read"] : ["authoring:read", `authoring:${scope}`], schema, description, write: scope !== "read", protocol: "authoring-revision" });
+    const descriptor = registerOperationDescriptor(server, { name, scope: scope === "read" ? ["authoring:read"] : ["authoring:read", `authoring:${scope}`], schema, description, write: scope !== "read", protocol: "authoring-revision",
+      ...(name === "authoring.patch_revision" ? { conditionalScopes: ["authoring:review"] } : {}),
+    });
     registrar.registerTool(name, { description, inputSchema: schema.shape, annotations: descriptor.annotations }, async raw => {
       try {
         requireMcpScope(principal, "authoring:read");
@@ -140,12 +146,20 @@ export function registerRevisionTools(server: McpServer, principal: McpPrincipal
   });
   register("authoring.create_revision", z.object({ kind, bootstrapToken: bootstrap, baseImportId: identifier, expectedRevision: revision, entityIds: z.array(identifier).min(1).max(REVISION_MCP_LIMITS.entityIds).optional(), responseMode }), "stage", "Create a durable editable revision from the observed live artifact or editable V3+ draft. Use restore_revision for withdrawn historical content. For a single-product edit, pass entityIds containing its stable product ID. Direct patches outside this selection are rejected. Optional responseMode compact returns identity/impact without a full bundle or readiness computation; read full context before review.", async ({ bootstrapToken, ...input }) => {
     verify(input.kind, bootstrapToken);
-    await readContext({ kind: input.kind, importId: input.baseImportId, expectedRevision: input.expectedRevision, responseMode: "compact" });
+    // The service validates actor, kind, scope and exact revision before writing,
+    // then repeats its snapshot check under lock. A transport pre-read would
+    // download the same archive twice without strengthening those guards.
     return draftResult("createRevisionDraft", { actorId, ...input }, input.kind, bootstrapToken);
   });
-  register("authoring.patch_revision", z.object({ ...identity, operations: z.array(revisionPatchOperationSchema).min(1).max(REVISION_MCP_LIMITS.operations), responseMode }), "stage", "Patch a draft by stable entity, section, block, Diktat unit or item IDs. Supports set/add/remove/move. Exact revision protects other edits; the server rebuilds hashes and returns a successor importId/revision plus impact. Use the returned identity on every next call. Optional responseMode compact omits the full bundle and defers review/readiness.", async ({ bootstrapToken, ...input }) => {
+  register("authoring.patch_revision", z.object({ ...identity, operations: z.array(revisionPatchOperationSchema).max(REVISION_MCP_LIMITS.operations), derivedContentReviews: z.array(derivedContentReviewSchema).min(1).max(100).optional(), refreshPrintEvidence: z.boolean().optional(), responseMode })
+    .refine(input => input.operations.length > 0 || !!input.derivedContentReviews?.length || input.refreshPrintEvidence === true, "Provide a content patch, an explicit derived-content review, or print evidence refresh")
+    .refine(input => !input.refreshPrintEvidence || !input.operations.length && !input.derivedContentReviews?.length, "Print evidence refresh must not include content patches or derived reviews"), "stage", "Patch a draft by stable entity, section, block, Diktat unit or item IDs. Supports set/add/remove/move. Exact revision protects other edits; the server rebuilds hashes and returns a successor importId/revision plus impact. Use the returned identity on every next call. responseMode compact omits the full bundle and defers review/readiness. derivedContentReviews needs authoring:review and confirms unchanged Diktat units against the exact current source Article hash. For V4 print-proof recovery, use operations:[] with refreshPrintEvidence:true alone; the server retains proven versions or creates new evidence versions without editing prose. Release review and verification still apply.", async ({ bootstrapToken, ...input }) => {
     verify(input.kind, bootstrapToken);
-    await readContext({ ...input, responseMode: "compact" });
+    if (input.derivedContentReviews?.length) {
+      requireMcpScope(principal, "authoring:review");
+      if (input.kind !== "product") throw new Error("REVISION_DERIVED_REVIEW_TARGET_INVALID");
+    }
+    if (input.refreshPrintEvidence && input.kind !== "product") throw new Error("REVISION_PRINT_REFRESH_V4_REQUIRED");
     return draftResult("patchRevisionDraft", { actorId, ...input }, input.kind, bootstrapToken);
   });
   register("authoring.plan_release", z.object(release), "read", "Plan an atomic release manifest across Idea and Product V3+ draft revisions, including mixed V3/V4/V5 references. Returns exact blockers, affected evidence and a planHash; never publishes.", async ({ entries, bootstrapTokens }) => {

@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { acquireProductV4LocalLock, assertProductV4LocalSource, isProductV4LocalArtifactId, productV4LocalFailure, productV4LocalInput, loadProductV4LocalSettings, validateProductV4LocalInput } from "../../scripts/authoring/verify-product-v4-local";
 import { assertProductV4LocalTarget, assertProductV4LocalDraft } from "@/lib/compute/product-v4-local-operator";
+import { isProductImportId, PRODUCT_V4_IMPORT_ID_PATTERN } from "@/lib/bundle/product-import-id.mjs";
 
 const target = { DATABASE_URL: "postgresql://synthetic:synthetic@ep-quiet-math-azyey0mb-pooler.c-3.ap-southeast-1.aws.neon.tech/neondb?sslmode=verify-full", STORAGE_PROVIDER_MODE: "neon", AWS_REGION: "ap-southeast-1", NEON_STORAGE_BUCKET: "zyx-production", AWS_ENDPOINT_URL_S3: "https://br-wandering-butterfly-azi11h8r.storage.c-3.ap-southeast-1.aws.neon.tech", AWS_ACCESS_KEY_ID: "synthetic", AWS_SECRET_ACCESS_KEY: "synthetic", ZYX_ENVIRONMENT: "production", ZYX_MCP_ENVIRONMENT: "production", NODE_ENV: "production", NEXT_PUBLIC_APP_URL: "https://www.zyxacademy.com", BETTER_AUTH_URL: "https://www.zyxacademy.com", AUTHORING_VERIFICATION_BROWSER_PROVIDER: "local_playwright" };
 
@@ -48,6 +49,23 @@ test("local lock serializes a draft on this machine and can be reacquired after 
     await release();
     await (await acquireProductV4LocalLock(importId, root))();
     await expect(acquireProductV4LocalLock("../other", root)).rejects.toThrow("EXACT_INPUT_REQUIRED");
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test("revision IDs work through input, import locking and stopped-child cleanup", async () => {
+  const id = "impor-product-revision-891f11a3-cd51-4e09-b89b-cbe737e2e2f3";
+  const input = { privateFile: "/tmp/private-settings.json", sourceRevision: "a".repeat(40), importId: id, runId: "mcp-run-00000000-0000-4000-8000-000000000000", expectedChecksum: "b".repeat(64) };
+  expect(validateProductV4LocalInput(input)).toEqual(input);
+  expect(new RegExp(PRODUCT_V4_IMPORT_ID_PATTERN).test(id)).toBe(true);
+  for (const bad of [id + "/../other", "../" + id, id.replace("891f11a3", "invalid"), id.replace("product", "idea"), id + "\n"]) expect(isProductImportId(bad)).toBe(false);
+  const root = await mkdtemp(path.join(tmpdir(), "v4-revision-lock-"));
+  try {
+    const release = await acquireProductV4LocalLock(id, root);
+    await expect(acquireProductV4LocalLock(id, root)).rejects.toThrow("ATTEMPT_LOCKED");
+    await release();
+    await acquireProductV4LocalLock(id, root);
+    await cleanupOwnedV4ImportLock(["--import-id", id], process.pid, root);
+    await expect(stat(path.join(root, id, ".lock"))).rejects.toMatchObject({ code: "ENOENT" });
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
