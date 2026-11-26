@@ -1,0 +1,117 @@
+{
+  "origin": "http://127.0.0.1:3314",
+  "observedAt": "2026-11-26T10:56:32.130Z",
+  "entries": [
+    {
+      "id": "admin-tokens-create",
+      "role": "admin",
+      "path": "/admin/tokens",
+      "button": "Buat token",
+      "expectedDialogLabel": "Buat token",
+      "status": 200,
+      "landed": "/admin/tokens",
+      "labelVisible": true,
+      "screenshot": "captures/admin-tokens-create-interaction-dark.png",
+      "offOriginBlocked": [],
+      "pass": true
+    },
+    {
+      "id": "admin-pka-draft",
+      "role": "admin",
+      "path": "/admin/tutorial-pka/announcements",
+      "button": "__fill_title__",
+      "expectedDialogLabel": "Judul",
+      "status": 200,
+      "landed": "/admin/tutorial-pka/announcements",
+      "labelVisible": true,
+      "screenshot": "captures/admin-pka-draft-interaction-dark.png",
+      "offOriginBlocked": [],
+      "pass": true
+    },
+    {
+      "id": "admin-pka-schedule-create",
+      "role": "admin",
+      "path": "/admin/tutorial-pka/schedules",
+      "button": "Tambah jadwal",
+      "expectedDialogLabel": "Tambah jadwal baru",
+      "status": 200,
+      "landed": "/admin/tutorial-pka/schedules",
+      "labelVisible": true,
+      "screenshot": "captures/admin-pka-schedule-create-interaction-dark.png",
+      "offOriginBlocked": [],
+      "pass": true
+    },
+    {
+      "id": "admin-groups-create",
+      "role": "admin",
+      "path": "/admin/groups",
+      "button": "Buat kelompok",
+      "expectedStateLabel": "Buat kelompok belajar baru",
+      "previousAttempt": {
+        "id": "admin-groups-create",
+        "role": "admin",
+        "path": "/admin/groups",
+        "button": "Buat kelompok",
+        "expectedDialogLabel": "Buat kelompok belajar baru",
+        "status": 200,
+        "landed": "/admin/groups",
+        "pass": false,
+        "error": "TimeoutError: locator.waitFor: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('dialog') to be visible\u001b[22m\n"
+      },
+      "status": 200,
+      "landed": "/admin/groups",
+      "labelVisible": true,
+      "screenshot": "captures/admin-groups-create-interaction-dark.png",
+      "offOriginBlocked": [],
+      "pass": true
+    },
+    {
+      "id": "tutor-schedule-create",
+      "role": "tutor",
+      "path": "/tutor/schedule",
+      "button": "Tambah slot",
+      "expectedStateLabel": "Tambah slot",
+      "previousAttempt": {
+        "id": "tutor-schedule-create",
+        "role": "tutor",
+        "path": "/tutor/schedule",
+        "button": "Tambah slot",
+        "expectedDialogLabel": "Tambah slot",
+        "status": 200,
+        "landed": "/tutor/schedule",
+        "pass": false,
+        "error": "TimeoutError: locator.waitFor: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('dialog') to be visible\u001b[22m\n"
+      },
+      "status": 200,
+      "landed": "/tutor/schedule",
+      "labelVisible": true,
+      "screenshot": "captures/tutor-schedule-create-interaction-dark.png",
+      "offOriginBlocked": [],
+      "pass": true
+    },
+    {
+      "id": "tutor-quiz-bank",
+      "role": "tutor",
+      "path": "/tutor/academic-course-1/quizzes",
+      "button": "__quiz_bank__",
+      "expectedStateLabel": "Bank Soal Kosong",
+      "previousAttempt": {
+        "id": "tutor-quiz-bank",
+        "role": "tutor",
+        "path": "/tutor/academic-course-1/quizzes",
+        "button": "__quiz_bank__",
+        "expectedDialogLabel": "Bank Soal Kosong",
+        "status": 200,
+        "landed": "/tutor/academic-course-1/quizzes",
+        "pass": false,
+        "error": "TimeoutError: locator.click: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('tab', { name: 'Bank Soal', exact: true })\u001b[22m\n\u001b[2m    - locator resolved to <button role=\"tab\" type=\"button\" tabindex=\"-1\" aria-selected=\"false\" data-state=\"inactive\" data-slot=\"tabs-trigger\" data-orientation=\"horizontal\" data-radix-collection-item=\"\" id=\"radix-_R_1klritpet5rla6iqr9alb_-trigger-questionbank\" aria-controls=\"radix-_R_1klritpet5rla6iqr9alb_-content-questionbank\" class=\"interactive relat"
+      },
+      "status": 200,
+      "landed": "/tutor/academic-course-1/quizzes",
+      "labelVisible": true,
+      "screenshot": "captures/tutor-quiz-bank-interaction-dark.png",
+      "offOriginBlocked": [],
+      "pass": true
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+appId: com.zyx.academy.nativeparity
+name: Academic Admin tryout question import
+---
+- launchApp
+- openLink: zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fcourses%2Fbiologi-dasar%2Ftryouts&theme=light
+- extendedWaitUntil:
+    visible:
+      id: academic-tryout-questions-academic-tryout-1
+    timeout: 20000
+- tapOn:
+    id: academic-tryout-questions-academic-tryout-1
+- tapOn:
+    id: academic-tryout-import
+- assertNotVisible:
+    id: academic-picker-academic-question-1
+- tapOn:
+    id: academic-picker-academic-question-2
+- scrollUntilVisible:
+    element:
+      id: academic-tryout-import-confirm
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: academic-tryout-import-confirm
+- assertVisible: 1 soal diimpor, 0 dilewati.
+- assertVisible: Jelaskan hubungan struktur membran sel dengan fungsinya.
+- takeScreenshot: academic-admin-tryout-import-saved-light

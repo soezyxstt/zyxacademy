@@ -21,12 +21,13 @@ import { headers } from "next/headers";
 import { randomUUID } from "crypto";
 import { z } from "zod";
 import { rejectQuestionVisualReferences } from "@/lib/authoring/question-visual-references";
-import { parseInteractiveDocumentsInMarkdown } from "@/lib/materials/interactive-document-markdown";
-import { verifyQuestionVisualBinding } from "@/lib/materials/question-visual-binding";
 import { parseMaterialIntoSections } from "@/lib/ingestion-parser";
 import { revalidatePath } from "next/cache";
+import { revisionOf } from "@/lib/admin-mcp/revision";
 import { notifyQuizPublishedBestEffort } from "@/lib/notifications/send";
-import { normalizeQuestionProvenance, questionProvenanceSnapshot } from "@/lib/asesmen/question-provenance";
+import { lockTryoutExam, saveTryoutRecord, tryoutBankQuestionId } from "@/lib/tutor/tryout-authoring";
+import { buildTryoutBankSnapshot } from "@/lib/tutor/tryout-bank-snapshot";
+import { normalizeQuestionProvenance } from "@/lib/asesmen/question-provenance";
 import {
   createAssessmentWithLegacyProjection,
   updateAssessmentWithLegacyProjection,
@@ -40,14 +41,13 @@ import {
   resolveEffectiveAssessmentType,
   assertTutorQuizCapability,
   checkCourseMatch,
-  buildGradingSnapshots,
-  isReviewableSubmissionStatus,
   isSqliteBusyError,
   isUniqueConstraintError,
   recordTutorFailureAudit,
   recordTutorMutationAuditSafe,
 } from "@/lib/tutor/assessment-policy";
 import { recordTutorMutationAudit } from "@/lib/audit/mutasi";
+import { gradeTryoutSubmission } from "@/lib/tutor/tryout-grading";
 
 function publishedQuizQuestionCondition() {
   return and(
@@ -1326,19 +1326,6 @@ export async function saveTryoutAction(
   const identity = await resolveCourseIdentity(courseId);
   const legacyCourseId = identity?.legacyId;
   if (!legacyCourseId) throw new Error("COURSE_LEGACY_MAPPING_REQUIRED");
-  const settings = {
-    timeLimitMinutes: data.timeLimitMinutes,
-    maxAttempts: data.maxAttempts,
-  };
-
-  const dbData = {
-    title: data.title,
-    status: data.status,
-    settings: settings,
-    openAt: data.openAt ? new Date(data.openAt) : null,
-    closeAt: data.closeAt ? new Date(data.closeAt) : null,
-  };
-
   const requestId = newAuditRequestId();
   const auditBase = {
     actorId: session.user.id,
@@ -1352,19 +1339,9 @@ export async function saveTryoutAction(
 
   try {
     await db.transaction(async (tx) => {
-      if (examId) {
-        await tx
-          .update(exams)
-          .set(dbData)
-          .where(eq(exams.id, examId));
-      } else {
-        await tx.insert(exams).values({
-          id: targetId,
-          courseId: legacyCourseId,
-          type: "tryout",
-          ...dbData,
-        });
-      }
+      const previous = examId ? await lockTryoutExam(tx, legacyCourseId, examId) : null;
+      if (examId && !previous) throw new Error("TRYOUT_NOT_FOUND");
+      await saveTryoutRecord(tx, { id: targetId, legacyCourseId, previous }, data);
 
       await recordTutorMutationAudit({
         ...auditBase,
@@ -1427,7 +1404,7 @@ export async function deleteTryoutAction(courseId: string, examId: string) {
         .select()
         .from(exams)
         .where(eq(exams.id, examId))
-        .limit(1);
+        .limit(1).for("update");
 
       await tx.delete(questions).where(eq(questions.examId, examId));
       await tx.delete(exams).where(eq(exams.id, examId));
@@ -1690,22 +1667,12 @@ export async function importQuestionBankToTryoutAction(
     throw new Error(reason);
   }
 
-  const [bankRows, existingQuestions] = await Promise.all([
-    db
-      .select()
-      .from(aiQuestionBank)
-      .where(
-        and(
-          inArray(aiQuestionBank.courseId, candidateCourseIds),
-          publishedQuizQuestionCondition(),
-          inArray(aiQuestionBank.id, uniqueIds),
-        ),
-      ),
-    db
-      .select({ content: questions.content, order: questions.order })
-      .from(questions)
-      .where(eq(questions.examId, examId)),
-  ]);
+  const bankScope = and(
+    inArray(aiQuestionBank.courseId, candidateCourseIds),
+    publishedQuizQuestionCondition(),
+    inArray(aiQuestionBank.id, uniqueIds),
+  );
+  const bankRows = await db.select().from(aiQuestionBank).where(bankScope);
   if (bankRows.length !== uniqueIds.length) {
     const reason = "Sebagian soal bank tidak tersedia atau belum dipublikasi.";
     await recordTutorFailureAudit({
@@ -1723,50 +1690,49 @@ export async function importQuestionBankToTryoutAction(
     throw new Error(reason);
   }
 
-  const importedIds = new Set(
-    existingQuestions.flatMap((question) => {
-      const content = typeof question.content === "string" ? JSON.parse(question.content) : question.content;
-      return typeof content?.bankQuestionId === "string" ? [content.bankQuestionId] : [];
-    }),
-  );
-  const rowsToImport = uniqueIds
-    .map((qId) => bankRows.find((row) => row.id === qId)!)
-    .filter((row) => !importedIds.has(row.id));
-  for (const row of rowsToImport) {
-    const copied = { prompt: row.prompt, options: Array.isArray(row.options) ? row.options.map(String) : [], explanation: row.explanation };
-    const documents = [copied.prompt, ...copied.options, copied.explanation].flatMap(parseInteractiveDocumentsInMarkdown);
-    if (documents.length && !await verifyQuestionVisualBinding(exam.courseId, copied)) {
-      throw new Error("Aset visual soal belum terverifikasi untuk mata kuliah tryout.");
+  const existingQuestions = await db.select({ content: questions.content }).from(questions).where(eq(questions.examId, examId));
+  const importedIds = new Set(existingQuestions.map((question) => tryoutBankQuestionId(question.content)));
+  const rowsById = new Map(bankRows.map((row) => [row.id, row]));
+  const candidates = uniqueIds.map((id) => rowsById.get(id)!);
+  const snapshots = new Map<string, { bankRevision: string; content: Awaited<ReturnType<typeof buildTryoutBankSnapshot>> }>();
+  async function buildSnapshot(row: typeof aiQuestionBank.$inferSelect) {
+    try {
+      return await buildTryoutBankSnapshot(exam.courseId, row);
+    } catch (error) {
+      if (error instanceof Error && error.message === "TRYOUT_BANK_VISUAL_UNVERIFIED") {
+        throw new Error("Aset visual soal belum terverifikasi untuk mata kuliah tryout.");
+      }
+      throw error;
     }
   }
-  const firstOrder =
-    existingQuestions.reduce((highest, question) => Math.max(highest, question.order), 0) + 1;
+  for (const row of candidates) {
+    if (!importedIds.has(row.id)) snapshots.set(row.id, { bankRevision: revisionOf(row), content: await buildSnapshot(row) });
+  }
 
   const requestId = newAuditRequestId();
+  let imported = 0;
   try {
     await db.transaction(async (tx) => {
-      if (rowsToImport.length > 0) {
-        await tx.insert(questions).values(
-          rowsToImport.map((row, index) => ({
-            id: `que-bank-${randomUUID()}`,
-            examId,
-            type: row.questionType,
-            order: firstOrder + index,
-            content: {
-              bankQuestionId: row.id,
-              prompt: row.prompt,
-              options: Array.isArray(row.options) ? row.options.map(String) : [],
-              correctIndex: Array.isArray(row.correctIndices) ? row.correctIndices[0] : undefined,
-              correctIndices: Array.isArray(row.correctIndices) ? row.correctIndices : [],
-              acceptsImage: false,
-              acceptsFile: row.questionType === "essay",
-              acceptableAnswers: Array.isArray(row.acceptableAnswers) ? row.acceptableAnswers : [],
-              explanation: row.explanation,
-              ...questionProvenanceSnapshot(row),
-            },
-          })),
-        );
+      if (!await lockTryoutExam(tx, exam.courseId, examId)) throw new Error("TRYOUT_NOT_FOUND");
+      const lockedBank = await tx.select().from(aiQuestionBank).where(bankScope).for("share");
+      if (lockedBank.length !== uniqueIds.length) throw new Error("Sebagian soal bank tidak tersedia atau belum dipublikasi.");
+      const lockedBankById = new Map(lockedBank.map((row) => [row.id, row]));
+      const current = await tx.select({ content: questions.content, order: questions.order })
+        .from(questions).where(eq(questions.examId, examId));
+      const currentIds = new Set(current.map((question) => tryoutBankQuestionId(question.content)));
+      const firstOrder = current.reduce((highest, question) => Math.max(highest, question.order), 0) + 1;
+      const rowsToImport = uniqueIds.filter((id) => !currentIds.has(id)).map((id) => lockedBankById.get(id)!);
+      if (rowsToImport.length) {
+        const values = await Promise.all(rowsToImport.map(async (row, index) => {
+          const preflight = snapshots.get(row.id);
+          return {
+            id: `que-bank-${randomUUID()}`, examId, type: row.questionType, order: firstOrder + index,
+            content: preflight?.bankRevision === revisionOf(row) ? preflight.content : await buildSnapshot(row),
+          };
+        }));
+        await tx.insert(questions).values(values);
       }
+      imported = rowsToImport.length;
 
       await recordTutorMutationAudit(
         {
@@ -1782,8 +1748,8 @@ export async function importQuestionBankToTryoutAction(
           reason: "Question bank items imported to tryout by admin",
           after: {
             examId,
-            importedCount: rowsToImport.length,
-            skippedCount: uniqueIds.length - rowsToImport.length,
+            importedCount: imported,
+            skippedCount: uniqueIds.length - imported,
           },
         },
         tx,
@@ -1809,8 +1775,8 @@ export async function importQuestionBankToTryoutAction(
   revalidatePath(`/courses/${courseId}/tryout/${examId}`);
   return {
     success: true,
-    imported: rowsToImport.length,
-    skipped: uniqueIds.length - rowsToImport.length,
+    imported,
+    skipped: uniqueIds.length - imported,
   };
 }
 
@@ -2048,199 +2014,17 @@ export async function gradeSubmissionAction(
   submissionId: string,
   score: number,
   teacherNotes: string,
+  expectedRevision?: string,
 ) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) {
     throw new Error("Unauthorized: Silakan masuk terlebih dahulu.");
   }
 
-  const { roles, isAdmin } = await resolveActorRoles(
-    session.user.id,
-    (session.user as { role?: string | null }).role,
+  await gradeTryoutSubmission(
+    { id: session.user.id, role: (session.user as { role?: string | null }).role },
+    { courseId, submissionId, score, notes: teacherNotes ?? "", expectedRevision },
   );
-
-  let access;
-  try {
-    access = await requireTutorCourseAccess(session.user.id, courseId, { allowAdmin: isAdmin });
-  } catch (err: any) {
-    await recordTutorMutationAuditSafe({
-      actorId: session.user.id,
-      actorRoles: roles,
-      courseId,
-      entityType: "submission",
-      entityId: submissionId,
-      entityVersion: 1,
-      action: "submission:grade",
-      outcome: "rejected",
-      reason: err?.message || TUTOR_CAPABILITY_ERRORS.ACCESS_DENIED,
-    });
-    throw err;
-  }
-
-  const gradingInput = z
-    .object({
-      score: z.number().min(0).max(100),
-      teacherNotes: z.string().max(4000).optional(),
-    })
-    .safeParse({ score, teacherNotes });
-  if (!gradingInput.success) {
-    const validationError = `Validasi gagal: ${formatValidationIssues(gradingInput.error)}`;
-    await recordTutorFailureAudit({
-      actorId: session.user.id,
-      actorRoles: roles,
-      courseId: access.courseId ?? courseId,
-      entityType: "submission",
-      entityId: submissionId,
-      entityVersion: 1,
-      action: "submission:grade",
-      outcome: "rejected",
-      requestId: newAuditRequestId(),
-      reason: validationError,
-    });
-    throw new Error(validationError);
-  }
-
-  const [submissionWithExam] = await db
-    .select({
-      id: submissions.id,
-      status: submissions.status,
-      score: submissions.score,
-      examId: submissions.examId,
-      examCourseId: exams.courseId,
-      examType: exams.type,
-    })
-    .from(submissions)
-    .innerJoin(exams, eq(submissions.examId, exams.id))
-    .where(eq(submissions.id, submissionId))
-    .limit(1);
-
-  if (!submissionWithExam) {
-    await recordTutorMutationAuditSafe({
-      actorId: session.user.id,
-      actorRoles: roles,
-      courseId: access.courseId ?? courseId,
-      entityType: "submission",
-      entityId: submissionId,
-      entityVersion: 1,
-      action: "submission:grade",
-      outcome: "rejected",
-      reason: TUTOR_CAPABILITY_ERRORS.SUBMISSION_NOT_FOUND,
-    });
-    throw new Error(TUTOR_CAPABILITY_ERRORS.SUBMISSION_NOT_FOUND);
-  }
-
-  const isCourseMatch = checkCourseMatch(
-    submissionWithExam.examCourseId,
-    access.courseId!,
-    access.legacyCourseId,
-  );
-
-  if (!isCourseMatch) {
-    await recordTutorMutationAuditSafe({
-      actorId: session.user.id,
-      actorRoles: roles,
-      courseId: access.courseId ?? courseId,
-      entityType: "submission",
-      entityId: submissionId,
-      entityVersion: 1,
-      action: "submission:grade",
-      outcome: "rejected",
-      reason: TUTOR_CAPABILITY_ERRORS.GRADING_COURSE_MISMATCH,
-    });
-    throw new Error(TUTOR_CAPABILITY_ERRORS.GRADING_COURSE_MISMATCH);
-  }
-
-  if (submissionWithExam.examType !== "tryout") {
-    await recordTutorMutationAuditSafe({
-      actorId: session.user.id,
-      actorRoles: roles,
-      courseId: access.courseId ?? courseId,
-      entityType: "submission",
-      entityId: submissionId,
-      entityVersion: 1,
-      action: "submission:grade",
-      outcome: "rejected",
-      reason: TUTOR_CAPABILITY_ERRORS.GRADING_NON_TRYOUT_FORBIDDEN,
-    });
-    throw new Error(TUTOR_CAPABILITY_ERRORS.GRADING_NON_TRYOUT_FORBIDDEN);
-  }
-
-  if (!isReviewableSubmissionStatus(submissionWithExam.status)) {
-    await recordTutorMutationAuditSafe({
-      actorId: session.user.id,
-      actorRoles: roles,
-      courseId: access.courseId ?? courseId,
-      entityType: "submission",
-      entityId: submissionId,
-      entityVersion: 1,
-      action: "submission:grade",
-      outcome: "rejected",
-      reason: TUTOR_CAPABILITY_ERRORS.GRADING_NOT_REVIEWABLE,
-    });
-    throw new Error(TUTOR_CAPABILITY_ERRORS.GRADING_NOT_REVIEWABLE);
-  }
-
-  const { beforeSnapshot, afterSnapshot } = buildGradingSnapshots(
-    submissionWithExam,
-    score,
-    teacherNotes,
-  );
-
-  const requestId = newAuditRequestId();
-  try {
-    await db.transaction(async (tx) => {
-      const updatedRows = await tx
-        .update(submissions)
-        .set({
-          score,
-          teacherNotes: teacherNotes || "",
-          status: "graded",
-        })
-        .where(
-          and(
-            eq(submissions.id, submissionId),
-            eq(submissions.status, submissionWithExam.status),
-          ),
-        )
-        .returning({ id: submissions.id });
-
-      if (updatedRows.length === 0) {
-        throw new Error(TUTOR_CAPABILITY_ERRORS.GRADING_CONCURRENT_CONFLICT);
-      }
-
-      await recordTutorMutationAudit({
-        actorId: session.user.id,
-        actorRoles: roles,
-        courseId: access.courseId ?? courseId,
-        entityType: "submission",
-        entityId: submissionId,
-        entityVersion: 1,
-        requestId,
-        action: "submission:grade",
-        outcome: "success",
-        reason: "Tryout submission graded",
-        before: beforeSnapshot,
-        after: afterSnapshot,
-      }, tx);
-    });
-  } catch (err: any) {
-    await recordTutorMutationAuditSafe({
-      actorId: session.user.id,
-      actorRoles: roles,
-      courseId: access.courseId ?? courseId,
-      entityType: "submission",
-      entityId: submissionId,
-      entityVersion: 1,
-      requestId,
-      action: "submission:grade",
-      outcome: "failed",
-      reason: err?.message || "Failed to update submission",
-      before: beforeSnapshot,
-      after: afterSnapshot,
-    });
-    throw err;
-  }
-
   revalidatePath(`/tutor/${courseId}/grading`);
   return { success: true };
 }

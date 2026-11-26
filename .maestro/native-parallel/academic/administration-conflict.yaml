@@ -1,0 +1,38 @@
+appId: com.zyx.academy.nativeparity
+name: Admin users, retry and revision conflict
+---
+- launchApp
+- openLink: zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fusers&scenario=error&theme=dark
+- extendedWaitUntil:
+    visible: Data administrasi gagal dimuat.
+    timeout: 20000
+- takeScreenshot: academic-administration-users-error-dark
+- tapOn:
+    id: course-retry
+- tapOn:
+    id: academic-users-row-academic-student-1
+- tapOn:
+    id: academic-users-edit-role
+- tapOn:
+    id: academic-admin-choice-tutor
+- tapOn:
+    id: academic-admin-save
+- assertVisible: Konflik revisi
+- tapOn:
+    id: academic-admin-conflict-refresh
+- assertVisible: Revisi saat ini 2
+- takeScreenshot: academic-administration-users-conflict-dark
+- tapOn:
+    id: academic-admin-conflict-retry
+- assertVisible:
+    id: academic-admin-saved
+- tapOn:
+    id: academic-users-row-academic-student-1
+- tapOn:
+    id: academic-users-edit-role
+- tapOn:
+    id: academic-admin-choice-tutor
+- tapOn: Batal
+- tapOn:
+    id: academic-users-row-academic-student-1
+- assertVisible: Peserta, Tutor · Aktif

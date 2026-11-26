@@ -1,0 +1,106 @@
+{
+  "pr": 514,
+  "revision": "06ac6f8f84b740a5fae96f2cfaf2b272f9982659",
+  "runId": "45804599913",
+  "runAttempt": "1",
+  "runUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45804599913",
+  "matchedViewportJobUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45804599913/job/139870314428",
+  "matchedViewportArtifactUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45804599913/artifacts/15110428558",
+  "matchedViewportWorkflowConclusion": "failure",
+  "parityCredit": false,
+  "platforms": {
+    "android": {
+      "jobUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45804599913/job/139856557602",
+      "artifactUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45804599913/artifacts/15110024055",
+      "jobConclusion": "failure",
+      "routeCaptureScope": "Stamped fixture route captures",
+      "diagnosticScope": "Approved populated and empty fixture routes compared offline. Maestro validated zero flows.",
+      "outsideDiagnosticScope": {
+        "tutor-participants-empty-dark": "Stamped empty route exists; the approved mapping excludes this case and Maestro supplied no validated screenshot."
+      },
+      "interactionCounts": {
+        "failed": 11
+      },
+      "interactions": [
+        {
+          "flow": "administration-bundle",
+          "exitCode": 1,
+          "status": "failed"
+        },
+        {
+          "flow": "administration-conflict",
+          "exitCode": 1,
+          "status": "failed"
+        },
+        {
+          "flow": "assessment-grading-retry",
+          "exitCode": 1,
+          "status": "failed"
+        },
+        {
+          "flow": "assessment-quiz",
+          "exitCode": 1,
+          "status": "failed"
+        },
+        {
+          "flow": "assessment-tryout",
+          "exitCode": 1,
+          "status": "failed"
+        },
+        {
+          "flow": "courses-states",
+          "exitCode": 1,
+          "status": "failed"
+        },
+        {
+          "flow": "courses",
+          "exitCode": 1,
+          "status": "failed"
+        },
+        {
+          "flow": "tutor-assigned",
+          "exitCode": 1,
+          "status": "failed"
+        },
+        {
+          "flow": "tutor-empty-denied",
+          "exitCode": 1,
+          "status": "failed"
+        },
+        {
+          "flow": "tutor-retry",
+          "exitCode": 1,
+          "status": "failed"
+        },
+        {
+          "flow": "tutor-schedule",
+          "exitCode": 1,
+          "status": "failed"
+        }
+      ],
+      "device": "sdk_gphone64_x86_64 | 15 | Physical size: 320x640 | Override size: 380x900 | Physical density: 160 | 1",
+      "dpr": 1,
+      "routeCaptureCounts": {
+        "captured": 159,
+        "unverified": 3
+      },
+      "routeEvidence": "android/routes.json",
+      "diagnosticComparison": "android/comparison.json",
+      "referenceManifest": "android/web-manifest.json",
+      "comparisonCount": 7,
+      "exactMatchCount": 0
+    },
+    "ios": {
+      "jobUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45804599913/job/139856558241",
+      "artifactUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45804599913/artifacts/15110856315",
+      "jobConclusion": "failure",
+      "observedBlocker": "Expo CLI failed before iOS build while opening the missing ~/.expo/devicectl-exists file.",
+      "routeCaptureCounts": {
+        "captured": 0
+      },
+      "fixtureCasesExported": 162,
+      "interactionCounts": {},
+      "interactions": []
+    }
+  }
+}

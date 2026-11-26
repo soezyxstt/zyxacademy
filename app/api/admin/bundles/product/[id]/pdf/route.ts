@@ -1,3 +1,4 @@
+import { isSameOriginAdminRequest } from "@/lib/admin-ops-ai/request-origin";
 import { hasAuthoringActor } from "@/lib/auth/authoring-actor";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
@@ -31,6 +32,9 @@ function resolvedResponse(result: LegacyPdfRequestOutcome, scope: LegacyPdfReque
 }
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+  if (!isSameOriginAdminRequest(request)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const mediaType = request.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase();
+  if (mediaType !== "application/json") return NextResponse.json({ error: "PRODUCT_DIKTAT_REQUEST_INVALID" }, { status: 400 });
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!(await hasAuthoringActor(session.user.id, ["admin"]))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });

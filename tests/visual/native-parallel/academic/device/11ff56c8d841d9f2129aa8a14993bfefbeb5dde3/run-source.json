@@ -1,0 +1,42 @@
+{
+  "pr": 514,
+  "revision": "11ff56c8d841d9f2129aa8a14993bfefbeb5dde3",
+  "runId": "45819670493",
+  "runAttempt": "1",
+  "runUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45819670493",
+  "parityCredit": false,
+  "platforms": {
+    "android": {
+      "jobUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45819670493/job/139908443844",
+      "artifactUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45819670493/artifacts/15119049594",
+      "jobConclusion": "success",
+      "collectionStatus": {
+        "stage": "finished",
+        "priorityExitCode": 0,
+        "accessibilityExitCode": 0,
+        "interactionExitCode": 0,
+        "captureExitCode": 0,
+        "interactionManifestExitCode": 0
+      },
+      "routeCaptureScope": "Stamped fixture route captures",
+      "reviewedInteractionOutcomes": "android/interaction-outcomes.json",
+      "reviewedInteractionCounts": {
+        "passed": 11
+      },
+      "namedMaestroScreenshots": 32,
+      "namedMaestroScreenshotsBySuite": {
+        "interactions": 28,
+        "accessibility": 4
+      },
+      "namedMaestroScreenshotDigests": "android/named-screenshots.json",
+      "diagnosticComparison": "android/comparison.json",
+      "comparisonSource": "Locally generated Playwright references checked out at the exact Android revision",
+      "deviceComparisonManifest": "android/device-comparison-manifest.json",
+      "referenceManifest": "android/web-manifest.json",
+      "comparisonCount": 8,
+      "expectedComparisonCount": 8,
+      "missingComparisonCases": [],
+      "exactMatchCount": 0
+    }
+  }
+}

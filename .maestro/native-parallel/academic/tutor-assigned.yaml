@@ -1,0 +1,61 @@
+appId: com.zyx.academy.nativeparity
+name: Tutor assigned course, participant and tryout review
+---
+- launchApp
+- openLink: zyx-native-parity://academic?role=tutor&path=%2Ftutor&theme=light
+- extendedWaitUntil:
+    visible:
+      id: tutor-course-academic-course-1
+    timeout: 20000
+- assertVisible: Dashboard pengajar
+- takeScreenshot: academic-tutor-dashboard-populated-light
+- tapOn:
+    id: tutor-course-academic-course-1
+- assertVisible:
+    id: tutor-course-action-participants
+- tapOn:
+    id: tutor-course-action-participants
+- extendedWaitUntil:
+    visible:
+      id: tutor-participant-academic-student-1
+    timeout: 10000
+- takeScreenshot: academic-tutor-participants-populated-light
+- tapOn:
+    id: tutor-participant-academic-student-1
+- assertVisible:
+    id: tutor-detail
+- assertVisible: Terdaftar sejak
+- takeScreenshot: academic-tutor-participant-detail-light
+- tapOn:
+    id: tutor-back
+- assertVisible:
+    id: tutor-participant-academic-student-1
+- tapOn:
+    id: tutor-back
+- scrollUntilVisible:
+    element:
+      id: tutor-course-action-grading
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: tutor-course-action-grading
+- extendedWaitUntil:
+    visible:
+      id: tutor-submission-academic-submission-1
+    timeout: 10000
+- takeScreenshot: academic-tutor-grading-queue-light
+- tapOn:
+    id: tutor-submission-academic-submission-1
+- assertVisible: "Jelaskan bagaimana struktur membran sel mendukung perpindahan zat."
+- takeScreenshot: academic-tutor-grading-detail-light
+- tapOn:
+    id: tutor-back
+- assertVisible:
+    id: tutor-submission-academic-submission-1
+- tapOn:
+    id: tutor-back
+- scrollUntilVisible:
+    element:
+      id: tutor-course-action-participants
+    direction: UP
+    timeout: 10000

@@ -28,6 +28,7 @@ export type ChapterCanonicalSyncInput = {
   orderIndex: number;
   actorId?: string | null;
   append?: boolean;
+  preserveOrder?: boolean;
 };
 
 function canonicalCourseCode(legacyCourseId: string): string {
@@ -337,9 +338,11 @@ export async function saveChapterWithCanonicalProjection(
       ? await tx.select({ orderIndex: chapters.orderIndex }).from(chapters)
         .where(eq(chapters.courseId, course.legacyCourseId)).orderBy(desc(chapters.orderIndex)).limit(1)
       : [];
-    let orderIndex = !input.id && input.append ? Math.max(latest?.orderIndex ?? 0, latestLegacy?.orderIndex ?? 0) + 1 : input.orderIndex;
-    if (!Number.isSafeInteger(orderIndex) || orderIndex < 0) throw new Error("CHAPTER_ORDER_INVALID");
     const currentOrder = existing?.canonical?.orderIndex ?? existing?.legacy?.orderIndex;
+    let orderIndex = !input.id && input.append
+      ? Math.max(latest?.orderIndex ?? 0, latestLegacy?.orderIndex ?? 0) + 1
+      : input.preserveOrder && currentOrder !== undefined ? currentOrder : input.orderIndex;
+    if (!Number.isSafeInteger(orderIndex) || orderIndex < 0) throw new Error("CHAPTER_ORDER_INVALID");
     if (existing && currentOrder !== orderIndex) {
       const all = await tx.select({ id: bab.id, legacyChapterId: bab.legacyChapterId, status: bab.status, orderIndex: bab.orderIndex }).from(bab)
         .where(eq(bab.mataKuliahId, course.id)).orderBy(bab.orderIndex);

@@ -1,0 +1,4055 @@
+{
+  "artifactUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45819670493/artifacts/15119049594",
+  "cases": [
+    {
+      "id": "academic-admin-courses-slug-quizzes-id-edit-populated",
+      "pattern": "/admin/courses/[slug]/quizzes/[id]/edit",
+      "path": "/admin/courses/biologi-dasar/quizzes/academic-quiz-1/edit",
+      "role": "admin",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-quizzes-id-edit-populated.png",
+      "sha256": "7aec0187074c205ea03035ab3bfde1b88135e742e8c0763d63864b1490abc8dd",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-quizzes-id-edit-empty",
+      "pattern": "/admin/courses/[slug]/quizzes/[id]/edit",
+      "path": "/admin/courses/biologi-dasar/quizzes/academic-quiz-1/edit",
+      "role": "admin",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-quizzes-id-edit-empty.png",
+      "sha256": "81c0c1ec47cf70e6ad76d639a79e025627bcb0f9d80680d3aaf74cfa71d1c815",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-quizzes-id-edit-denied",
+      "pattern": "/admin/courses/[slug]/quizzes/[id]/edit",
+      "path": "/admin/courses/biologi-dasar/quizzes/academic-quiz-1/edit",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-quizzes-id-edit-denied.png",
+      "sha256": "6f1a022a020fd23bb5a1816bc395d08b3e891970e403695568cdfa1a502fce3b",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-quizzes-new-populated",
+      "pattern": "/admin/courses/[slug]/quizzes/new",
+      "path": "/admin/courses/biologi-dasar/quizzes/new",
+      "role": "admin",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-quizzes-new-populated.png",
+      "sha256": "67636bd48ca70218d4282569ccab9bb410ed9d567d4dde8b5f8411f1bf0dd2e6",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-quizzes-new-empty",
+      "pattern": "/admin/courses/[slug]/quizzes/new",
+      "path": "/admin/courses/biologi-dasar/quizzes/new",
+      "role": "admin",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-quizzes-new-empty.png",
+      "sha256": "3afa1ad9b333f700be7f5b2b314e769643290b7d942630df0e9aac6427341a0a",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-quizzes-new-denied",
+      "pattern": "/admin/courses/[slug]/quizzes/new",
+      "path": "/admin/courses/biologi-dasar/quizzes/new",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-quizzes-new-denied.png",
+      "sha256": "d3ab687737c7f64c642c7b18df1c5c78e9005bceb94702fc8e20561ddd446118",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-review-idea-bundleId-populated",
+      "pattern": "/admin/courses/[slug]/review/idea/[bundleId]",
+      "path": "/admin/courses/biologi-dasar/review/idea/academic-idea-1",
+      "role": "admin",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-review-idea-bundleId-populated.png",
+      "sha256": "1fa17b6bc162252e344f9b8b4d1404c7e8a39bc6e6bcb57ed06ab73aa7c08103",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-review-idea-bundleId-empty",
+      "pattern": "/admin/courses/[slug]/review/idea/[bundleId]",
+      "path": "/admin/courses/biologi-dasar/review/idea/academic-idea-1",
+      "role": "admin",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-review-idea-bundleId-empty.png",
+      "sha256": "822b634b79959f9a7fcc8d80e748068364e0c8ae73e90277cf02b561da905755",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-review-idea-bundleId-denied",
+      "pattern": "/admin/courses/[slug]/review/idea/[bundleId]",
+      "path": "/admin/courses/biologi-dasar/review/idea/academic-idea-1",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-review-idea-bundleId-denied.png",
+      "sha256": "f5ace3f7e3f304455d77c9eeba15d7d1555f2da45a79f91769d8b85ac9d38a52",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-review-product-bundleId-populated",
+      "pattern": "/admin/courses/[slug]/review/product/[bundleId]",
+      "path": "/admin/courses/biologi-dasar/review/product/academic-product-1",
+      "role": "admin",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-review-product-bundleId-populated.png",
+      "sha256": "1d0a32fdc3e9524926b43cbb4d4adcad722f5a146ba2531177c10351a9ceb62a",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-review-product-bundleId-empty",
+      "pattern": "/admin/courses/[slug]/review/product/[bundleId]",
+      "path": "/admin/courses/biologi-dasar/review/product/academic-product-1",
+      "role": "admin",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-review-product-bundleId-empty.png",
+      "sha256": "142d17d8fb35ee6395648e55793b4a3e86c1136666e9622560163c9ce0ddb998",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-review-product-bundleId-denied",
+      "pattern": "/admin/courses/[slug]/review/product/[bundleId]",
+      "path": "/admin/courses/biologi-dasar/review/product/academic-product-1",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-review-product-bundleId-denied.png",
+      "sha256": "f5ace3f7e3f304455d77c9eeba15d7d1555f2da45a79f91769d8b85ac9d38a52",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-materials-review-idea-slug-populated",
+      "pattern": "/admin/materials/review/idea/[slug]",
+      "path": "/admin/materials/review/idea/academic-idea-1",
+      "role": "admin",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-materials-review-idea-slug-populated.png",
+      "sha256": "819983323e8ed3f11c16410eb02c4f4a4e6680f5eac81b6304b85ebc67e12afc",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-materials-review-idea-slug-empty",
+      "pattern": "/admin/materials/review/idea/[slug]",
+      "path": "/admin/materials/review/idea/academic-idea-1",
+      "role": "admin",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-admin-materials-review-idea-slug-empty.png",
+      "sha256": "6908e00721966e94a72c1967b4f6fc3114a1dfb8fdf06f98629a7397b839d03f",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-materials-review-idea-slug-denied",
+      "pattern": "/admin/materials/review/idea/[slug]",
+      "path": "/admin/materials/review/idea/academic-idea-1",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-materials-review-idea-slug-denied.png",
+      "sha256": "f5ace3f7e3f304455d77c9eeba15d7d1555f2da45a79f91769d8b85ac9d38a52",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-materials-review-product-slug-populated",
+      "pattern": "/admin/materials/review/product/[slug]",
+      "path": "/admin/materials/review/product/academic-product-1",
+      "role": "admin",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-materials-review-product-slug-populated.png",
+      "sha256": "1d0a32fdc3e9524926b43cbb4d4adcad722f5a146ba2531177c10351a9ceb62a",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-materials-review-product-slug-empty",
+      "pattern": "/admin/materials/review/product/[slug]",
+      "path": "/admin/materials/review/product/academic-product-1",
+      "role": "admin",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-admin-materials-review-product-slug-empty.png",
+      "sha256": "cc297509451605c77d1df09be4ecd274656f0f058a15e3e214238ea98903af1f",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-materials-review-product-slug-denied",
+      "pattern": "/admin/materials/review/product/[slug]",
+      "path": "/admin/materials/review/product/academic-product-1",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-materials-review-product-slug-denied.png",
+      "sha256": "f5ace3f7e3f304455d77c9eeba15d7d1555f2da45a79f91769d8b85ac9d38a52",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-bundles-idea-populated",
+      "pattern": "/admin/bundles/idea",
+      "path": "/admin/bundles/idea",
+      "role": "admin",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-bundles-idea-populated.png",
+      "sha256": "8751c3a70db7eb1b9a8a1318688c354d78465c77d5501417e0872887cf2037ec",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-bundles-idea-empty",
+      "pattern": "/admin/bundles/idea",
+      "path": "/admin/bundles/idea",
+      "role": "admin",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-admin-bundles-idea-empty.png",
+      "sha256": "044a1ef0c0feae7636650feda11b5a656c0cc25cf0ff7185cfb2cccf59e80934",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-bundles-idea-denied",
+      "pattern": "/admin/bundles/idea",
+      "path": "/admin/bundles/idea",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-bundles-idea-denied.png",
+      "sha256": "f5ace3f7e3f304455d77c9eeba15d7d1555f2da45a79f91769d8b85ac9d38a52",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-bundles-product-populated",
+      "pattern": "/admin/bundles/product",
+      "path": "/admin/bundles/product",
+      "role": "admin",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-bundles-product-populated.png",
+      "sha256": "8751c3a70db7eb1b9a8a1318688c354d78465c77d5501417e0872887cf2037ec",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-bundles-product-empty",
+      "pattern": "/admin/bundles/product",
+      "path": "/admin/bundles/product",
+      "role": "admin",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-admin-bundles-product-empty.png",
+      "sha256": "044a1ef0c0feae7636650feda11b5a656c0cc25cf0ff7185cfb2cccf59e80934",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-bundles-product-denied",
+      "pattern": "/admin/bundles/product",
+      "path": "/admin/bundles/product",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-bundles-product-denied.png",
+      "sha256": "f5ace3f7e3f304455d77c9eeba15d7d1555f2da45a79f91769d8b85ac9d38a52",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-analytics-populated",
+      "pattern": "/admin/courses/[slug]/analytics",
+      "path": "/admin/courses/biologi-dasar/analytics",
+      "role": "admin",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-analytics-populated.png",
+      "sha256": "59ff84cea98fe44d1c7a5d57a5885899af866dcbbb16cf7bf28b7ae0fdcd94d3",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-analytics-empty",
+      "pattern": "/admin/courses/[slug]/analytics",
+      "path": "/admin/courses/biologi-dasar/analytics",
+      "role": "admin",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-analytics-empty.png",
+      "sha256": "61c2352cb67658e17e359977faaf7d362cd9b6461ce703415ffb6648e63a748e",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-analytics-denied",
+      "pattern": "/admin/courses/[slug]/analytics",
+      "path": "/admin/courses/biologi-dasar/analytics",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-analytics-denied.png",
+      "sha256": "095e218ce54ba1ef6d7d112d5a981a58d749cfbf3deb0f2b13b86e7d542ead7d",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-analytics-quizId-populated",
+      "pattern": "/admin/courses/[slug]/analytics/[quizId]",
+      "path": "/admin/courses/biologi-dasar/analytics/academic-quiz-1",
+      "role": "admin",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-analytics-quizId-populated.png",
+      "sha256": "4370bdf6234c6ee5515a1e046cf88dcf70433efbb8636ec93aeb993ab0244675",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-analytics-quizId-empty",
+      "pattern": "/admin/courses/[slug]/analytics/[quizId]",
+      "path": "/admin/courses/biologi-dasar/analytics/academic-quiz-1",
+      "role": "admin",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-analytics-quizId-empty.png",
+      "sha256": "46b456343cda7fbd627828604094e16b5eebc77824283c11ae762cfac21538b0",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-analytics-quizId-denied",
+      "pattern": "/admin/courses/[slug]/analytics/[quizId]",
+      "path": "/admin/courses/biologi-dasar/analytics/academic-quiz-1",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-analytics-quizId-denied.png",
+      "sha256": "095e218ce54ba1ef6d7d112d5a981a58d749cfbf3deb0f2b13b86e7d542ead7d",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-documents-populated",
+      "pattern": "/admin/courses/[slug]/documents",
+      "path": "/admin/courses/biologi-dasar/documents",
+      "role": "admin",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-documents-populated.png",
+      "sha256": "2d6e46003c1b772f5f01b96e6910eaed453f676f3fe235924cbd19fd5f938d5a",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-documents-empty",
+      "pattern": "/admin/courses/[slug]/documents",
+      "path": "/admin/courses/biologi-dasar/documents",
+      "role": "admin",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-documents-empty.png",
+      "sha256": "11f13f07ef35bc4b612ba58a1a789c1fcd9c30c87891161fc5c5e2314c99587c",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-documents-denied",
+      "pattern": "/admin/courses/[slug]/documents",
+      "path": "/admin/courses/biologi-dasar/documents",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-documents-denied.png",
+      "sha256": "095e218ce54ba1ef6d7d112d5a981a58d749cfbf3deb0f2b13b86e7d542ead7d",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-documents-materialId-populated",
+      "pattern": "/admin/courses/[slug]/documents/[materialId]",
+      "path": "/admin/courses/biologi-dasar/documents/academic-document-1",
+      "role": "admin",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-documents-materialId-populated.png",
+      "sha256": "e957384de94ec646a28dfd83c0b0c83b350c1079cb0ccb6f4e87face387b20df",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-documents-materialId-empty",
+      "pattern": "/admin/courses/[slug]/documents/[materialId]",
+      "path": "/admin/courses/biologi-dasar/documents/academic-document-1",
+      "role": "admin",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-documents-materialId-empty.png",
+      "sha256": "d4cec81247877cd7ebee83504ed0eaa730a7e5b03e3f89aaa0617c789b705c7c",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-documents-materialId-denied",
+      "pattern": "/admin/courses/[slug]/documents/[materialId]",
+      "path": "/admin/courses/biologi-dasar/documents/academic-document-1",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-documents-materialId-denied.png",
+      "sha256": "095e218ce54ba1ef6d7d112d5a981a58d749cfbf3deb0f2b13b86e7d542ead7d",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-flashcards-populated",
+      "pattern": "/admin/courses/[slug]/flashcards",
+      "path": "/admin/courses/biologi-dasar/flashcards",
+      "role": "admin",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-flashcards-populated.png",
+      "sha256": "048b0cddc78f5593d2a09dbb3ffafa20c4c74b6199c80a27b1115f5a339250f1",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-flashcards-empty",
+      "pattern": "/admin/courses/[slug]/flashcards",
+      "path": "/admin/courses/biologi-dasar/flashcards",
+      "role": "admin",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-flashcards-empty.png",
+      "sha256": "a27c90e9dcf666260d989abe0fc6df49dbcad562acb2dc1fe0719ac478ee8bde",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-flashcards-denied",
+      "pattern": "/admin/courses/[slug]/flashcards",
+      "path": "/admin/courses/biologi-dasar/flashcards",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-flashcards-denied.png",
+      "sha256": "095e218ce54ba1ef6d7d112d5a981a58d749cfbf3deb0f2b13b86e7d542ead7d",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-leaderboard-populated",
+      "pattern": "/admin/courses/[slug]/leaderboard",
+      "path": "/admin/courses/biologi-dasar/leaderboard",
+      "role": "admin",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-leaderboard-populated.png",
+      "sha256": "b3dede2afbb49f6ade2839aac4053f199b39baa4840dc2afc46244e86d7cf667",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-leaderboard-empty",
+      "pattern": "/admin/courses/[slug]/leaderboard",
+      "path": "/admin/courses/biologi-dasar/leaderboard",
+      "role": "admin",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-leaderboard-empty.png",
+      "sha256": "a8a2e4dcac2ed65a292ce6ace98e51a467eb04911e679d20aaa6dfb6c12d17f4",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-leaderboard-denied",
+      "pattern": "/admin/courses/[slug]/leaderboard",
+      "path": "/admin/courses/biologi-dasar/leaderboard",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-leaderboard-denied.png",
+      "sha256": "14c37ffc30fac142e9620de82a60a7f3413879483a11f4a529feff713dc35c26",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-questions-populated",
+      "pattern": "/admin/courses/[slug]/questions",
+      "path": "/admin/courses/biologi-dasar/questions",
+      "role": "admin",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-questions-populated.png",
+      "sha256": "9c4d4a5101b3d6cf76c18444a964d9f4321623f2481ab58386658c1f1f3bbfa4",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-questions-empty",
+      "pattern": "/admin/courses/[slug]/questions",
+      "path": "/admin/courses/biologi-dasar/questions",
+      "role": "admin",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-questions-empty.png",
+      "sha256": "7ab980ae600b311f8520331042c70c2b93ad77be73b690c792ae7e3b88004843",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-questions-denied",
+      "pattern": "/admin/courses/[slug]/questions",
+      "path": "/admin/courses/biologi-dasar/questions",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-questions-denied.png",
+      "sha256": "14c37ffc30fac142e9620de82a60a7f3413879483a11f4a529feff713dc35c26",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-quizzes-populated",
+      "pattern": "/admin/courses/[slug]/quizzes",
+      "path": "/admin/courses/biologi-dasar/quizzes",
+      "role": "admin",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-quizzes-populated.png",
+      "sha256": "f8c0d14ff78fc68e169c1e846445805f0069f87c91f52df1084a71f44f952d93",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-quizzes-empty",
+      "pattern": "/admin/courses/[slug]/quizzes",
+      "path": "/admin/courses/biologi-dasar/quizzes",
+      "role": "admin",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-quizzes-empty.png",
+      "sha256": "f78a67f78ee9dc40b9515cc538b2fe4e9edf5f69211f9aa644160572cbc5685a",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-quizzes-denied",
+      "pattern": "/admin/courses/[slug]/quizzes",
+      "path": "/admin/courses/biologi-dasar/quizzes",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-quizzes-denied.png",
+      "sha256": "f5ae860fd465d3c8608c5b25388af640057b8cae5d90b1d78e87afb984cbd89b",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-results-populated",
+      "pattern": "/admin/courses/[slug]/results",
+      "path": "/admin/courses/biologi-dasar/results",
+      "role": "admin",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-results-populated.png",
+      "sha256": "d5632f1cc89568266a2b40679d2f1613733bb2a7dabd358e7af58fa0ed7efa4f",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-results-empty",
+      "pattern": "/admin/courses/[slug]/results",
+      "path": "/admin/courses/biologi-dasar/results",
+      "role": "admin",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-results-empty.png",
+      "sha256": "1cd01fbd04a2ddb4e994b759e160740e39b3c1207038affa439cf4dbc701eadd",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-results-denied",
+      "pattern": "/admin/courses/[slug]/results",
+      "path": "/admin/courses/biologi-dasar/results",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-results-denied.png",
+      "sha256": "f5ae860fd465d3c8608c5b25388af640057b8cae5d90b1d78e87afb984cbd89b",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-review-populated",
+      "pattern": "/admin/courses/[slug]/review",
+      "path": "/admin/courses/biologi-dasar/review",
+      "role": "admin",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-review-populated.png",
+      "sha256": "59104fa8d76caeb1c202966cffe6a70194202cbfe836ed26e1e23d3c9d0121a5",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-review-empty",
+      "pattern": "/admin/courses/[slug]/review",
+      "path": "/admin/courses/biologi-dasar/review",
+      "role": "admin",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-review-empty.png",
+      "sha256": "448298a8037385784853c2334ead9fd3d80a9a147ec0d7485acaf62c86a08cc2",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-review-denied",
+      "pattern": "/admin/courses/[slug]/review",
+      "path": "/admin/courses/biologi-dasar/review",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-review-denied.png",
+      "sha256": "c779a7a200e5cd1bb28effd853e5287347374916f56729e328c8ba443a78ff21",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-settings-populated",
+      "pattern": "/admin/courses/[slug]/settings",
+      "path": "/admin/courses/biologi-dasar/settings",
+      "role": "admin",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-settings-populated.png",
+      "sha256": "7bcea12610ae28a8f8e2b046cd18da4c892f5b105e3175d18f5b1d0fea1b20fa",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-settings-empty",
+      "pattern": "/admin/courses/[slug]/settings",
+      "path": "/admin/courses/biologi-dasar/settings",
+      "role": "admin",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-settings-empty.png",
+      "sha256": "ec567c1ea9e3131f0a5f46635d1891707b0140134af524c2eceabf9f035ce10a",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-settings-denied",
+      "pattern": "/admin/courses/[slug]/settings",
+      "path": "/admin/courses/biologi-dasar/settings",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-settings-denied.png",
+      "sha256": "c779a7a200e5cd1bb28effd853e5287347374916f56729e328c8ba443a78ff21",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-tryouts-populated",
+      "pattern": "/admin/courses/[slug]/tryouts",
+      "path": "/admin/courses/biologi-dasar/tryouts",
+      "role": "admin",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-tryouts-populated.png",
+      "sha256": "ca54da31710655a516d9a158a2bfc590bc10cd6b462c14fd6917f599fbbe3ade",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-tryouts-empty",
+      "pattern": "/admin/courses/[slug]/tryouts",
+      "path": "/admin/courses/biologi-dasar/tryouts",
+      "role": "admin",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-tryouts-empty.png",
+      "sha256": "b73cf196c8ee286b0d106c98602cdb955abbdb7114db408c0a7dd89ea9c917bc",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-tryouts-denied",
+      "pattern": "/admin/courses/[slug]/tryouts",
+      "path": "/admin/courses/biologi-dasar/tryouts",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-tryouts-denied.png",
+      "sha256": "c779a7a200e5cd1bb28effd853e5287347374916f56729e328c8ba443a78ff21",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-videos-populated",
+      "pattern": "/admin/courses/[slug]/videos",
+      "path": "/admin/courses/biologi-dasar/videos",
+      "role": "admin",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-videos-populated.png",
+      "sha256": "c8e0bf17213057aa9513a126e4cd37823d62c62167ab4d0d4343f2088b8aead1",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-videos-empty",
+      "pattern": "/admin/courses/[slug]/videos",
+      "path": "/admin/courses/biologi-dasar/videos",
+      "role": "admin",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-videos-empty.png",
+      "sha256": "249bf840311ecc6f5a492b2d2a65f077167d6a86c6260cc88a960a90d9380217",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-videos-denied",
+      "pattern": "/admin/courses/[slug]/videos",
+      "path": "/admin/courses/biologi-dasar/videos",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-videos-denied.png",
+      "sha256": "c779a7a200e5cd1bb28effd853e5287347374916f56729e328c8ba443a78ff21",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-materials-manual-populated",
+      "pattern": "/admin/materials/manual",
+      "path": "/admin/materials/manual",
+      "role": "admin",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-materials-manual-populated.png",
+      "sha256": "21a24fe935d0c1920b7d7bff47ea464b51bd49b8f1484cf0cfdca0c5e6303dbf",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-materials-manual-empty",
+      "pattern": "/admin/materials/manual",
+      "path": "/admin/materials/manual",
+      "role": "admin",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-admin-materials-manual-empty.png",
+      "sha256": "f8ad74bf81d6fa4502c8d0ffcc017fd3d7c566b141e801ad8389cf29a8ee403c",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-materials-manual-denied",
+      "pattern": "/admin/materials/manual",
+      "path": "/admin/materials/manual",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-materials-manual-denied.png",
+      "sha256": "c779a7a200e5cd1bb28effd853e5287347374916f56729e328c8ba443a78ff21",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-materials-review-populated",
+      "pattern": "/admin/materials/review",
+      "path": "/admin/materials/review?courseId=academic-course-1&section=idea",
+      "role": "admin",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-materials-review-populated.png",
+      "sha256": "e728d7dcc2887a06be8fd0c482336ee713886c1e184cb960a8bafc08e707f243",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-materials-review-empty",
+      "pattern": "/admin/materials/review",
+      "path": "/admin/materials/review?courseId=academic-course-1&section=idea",
+      "role": "admin",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-admin-materials-review-empty.png",
+      "sha256": "44a141885170f7fae081e9f5b0d8371b408a146414739636cf15264239654d55",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-materials-review-denied",
+      "pattern": "/admin/materials/review",
+      "path": "/admin/materials/review?courseId=academic-course-1&section=idea",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-materials-review-denied.png",
+      "sha256": "0344534f42552d3d051bbbf659c7db6eaa94d6bf5cd8732c631ecf2c28a2fff5",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-tutorial-pka-announcements-populated",
+      "pattern": "/admin/tutorial-pka/announcements",
+      "path": "/admin/tutorial-pka/announcements",
+      "role": "admin",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-tutorial-pka-announcements-populated.png",
+      "sha256": "fd6a4ef7a7149a6a7c3d61cc0b0a01a01ee471119545ab8d07d27413cef22b88",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-tutorial-pka-announcements-empty",
+      "pattern": "/admin/tutorial-pka/announcements",
+      "path": "/admin/tutorial-pka/announcements",
+      "role": "admin",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-admin-tutorial-pka-announcements-empty.png",
+      "sha256": "6518158e2ca281fd57f7d6e6cf5464afb236fa701b2ce712aa02d32700c34114",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-tutorial-pka-announcements-denied",
+      "pattern": "/admin/tutorial-pka/announcements",
+      "path": "/admin/tutorial-pka/announcements",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-tutorial-pka-announcements-denied.png",
+      "sha256": "0344534f42552d3d051bbbf659c7db6eaa94d6bf5cd8732c631ecf2c28a2fff5",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-tutorial-pka-registrations-populated",
+      "pattern": "/admin/tutorial-pka/registrations",
+      "path": "/admin/tutorial-pka/registrations",
+      "role": "admin",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-tutorial-pka-registrations-populated.png",
+      "sha256": "5a6ae06c2839bebc5bead0184780f7e3a80c696559e5893e5a22aa1bdbfd2654",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-tutorial-pka-registrations-empty",
+      "pattern": "/admin/tutorial-pka/registrations",
+      "path": "/admin/tutorial-pka/registrations",
+      "role": "admin",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-admin-tutorial-pka-registrations-empty.png",
+      "sha256": "6de591a52fc0275050a483928797e019211aef71749fe2803bb138d81980145d",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-tutorial-pka-registrations-denied",
+      "pattern": "/admin/tutorial-pka/registrations",
+      "path": "/admin/tutorial-pka/registrations",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-tutorial-pka-registrations-denied.png",
+      "sha256": "0344534f42552d3d051bbbf659c7db6eaa94d6bf5cd8732c631ecf2c28a2fff5",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-tutorial-pka-schedules-populated",
+      "pattern": "/admin/tutorial-pka/schedules",
+      "path": "/admin/tutorial-pka/schedules",
+      "role": "admin",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-tutorial-pka-schedules-populated.png",
+      "sha256": "b70047e896dc377897f4216efa8f7b44b46d628d7584dc2992aee405419ae2f7",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-tutorial-pka-schedules-empty",
+      "pattern": "/admin/tutorial-pka/schedules",
+      "path": "/admin/tutorial-pka/schedules",
+      "role": "admin",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-admin-tutorial-pka-schedules-empty.png",
+      "sha256": "977bd40cdafa34dce22f173d73461e1517b49c008756edba12167d23f6fe0b37",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-tutorial-pka-schedules-denied",
+      "pattern": "/admin/tutorial-pka/schedules",
+      "path": "/admin/tutorial-pka/schedules",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-tutorial-pka-schedules-denied.png",
+      "sha256": "0344534f42552d3d051bbbf659c7db6eaa94d6bf5cd8732c631ecf2c28a2fff5",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-quizzes-templateId-attempts-populated",
+      "pattern": "/tutor/[courseId]/quizzes/[templateId]/attempts",
+      "path": "/tutor/academic-course-1/quizzes/academic-quiz-1/attempts",
+      "role": "tutor",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-tutor-courseId-quizzes-templateId-attempts-populated.png",
+      "sha256": "266b9d5f1f917364d1fd7669ac769829d7eb24dac93285a8e1be6dc31b2240fd",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-quizzes-templateId-attempts-empty",
+      "pattern": "/tutor/[courseId]/quizzes/[templateId]/attempts",
+      "path": "/tutor/academic-course-1/quizzes/academic-quiz-1/attempts",
+      "role": "tutor",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-tutor-courseId-quizzes-templateId-attempts-empty.png",
+      "sha256": "5ea443fa84d233c1c4698883c4fce43a3aa5b01dcaa40084b7eb333d57f44abc",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-quizzes-templateId-attempts-denied",
+      "pattern": "/tutor/[courseId]/quizzes/[templateId]/attempts",
+      "path": "/tutor/academic-course-1/quizzes/academic-quiz-1/attempts",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-tutor-courseId-quizzes-templateId-attempts-denied.png",
+      "sha256": "0344534f42552d3d051bbbf659c7db6eaa94d6bf5cd8732c631ecf2c28a2fff5",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-quizzes-templateId-edit-populated",
+      "pattern": "/tutor/[courseId]/quizzes/[templateId]/edit",
+      "path": "/tutor/academic-course-1/quizzes/academic-quiz-1/edit",
+      "role": "tutor",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-tutor-courseId-quizzes-templateId-edit-populated.png",
+      "sha256": "640e047b5d8bb45c64b09b1d2a782cac10a357350e0ef1ac4785abd34c01c0f9",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-quizzes-templateId-edit-empty",
+      "pattern": "/tutor/[courseId]/quizzes/[templateId]/edit",
+      "path": "/tutor/academic-course-1/quizzes/academic-quiz-1/edit",
+      "role": "tutor",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-tutor-courseId-quizzes-templateId-edit-empty.png",
+      "sha256": "28343ee73cab6caa0b23724f214dcdffb7a37cd0f728d205da633a2ca53484a0",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-quizzes-templateId-edit-denied",
+      "pattern": "/tutor/[courseId]/quizzes/[templateId]/edit",
+      "path": "/tutor/academic-course-1/quizzes/academic-quiz-1/edit",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-tutor-courseId-quizzes-templateId-edit-denied.png",
+      "sha256": "0344534f42552d3d051bbbf659c7db6eaa94d6bf5cd8732c631ecf2c28a2fff5",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-quizzes-grading-populated",
+      "pattern": "/tutor/[courseId]/quizzes/grading",
+      "path": "/tutor/academic-course-1/quizzes/grading",
+      "role": "tutor",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-tutor-courseId-quizzes-grading-populated.png",
+      "sha256": "c44a70c0ce90c936c66804ca0f0df646d4f8311d68268741d71d75f0b791cf46",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-quizzes-grading-empty",
+      "pattern": "/tutor/[courseId]/quizzes/grading",
+      "path": "/tutor/academic-course-1/quizzes/grading",
+      "role": "tutor",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-tutor-courseId-quizzes-grading-empty.png",
+      "sha256": "48fa402a9380829eb628197e26f2ff63a54f63e845e5477f2d8b74e5713b2763",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-quizzes-grading-denied",
+      "pattern": "/tutor/[courseId]/quizzes/grading",
+      "path": "/tutor/academic-course-1/quizzes/grading",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-tutor-courseId-quizzes-grading-denied.png",
+      "sha256": "0344534f42552d3d051bbbf659c7db6eaa94d6bf5cd8732c631ecf2c28a2fff5",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-quizzes-new-populated",
+      "pattern": "/tutor/[courseId]/quizzes/new",
+      "path": "/tutor/academic-course-1/quizzes/new",
+      "role": "tutor",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-tutor-courseId-quizzes-new-populated.png",
+      "sha256": "204425f56ef67da51b60c57fff2a9000935891cf6ed18aa1b38e54e5d106952a",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-quizzes-new-empty",
+      "pattern": "/tutor/[courseId]/quizzes/new",
+      "path": "/tutor/academic-course-1/quizzes/new",
+      "role": "tutor",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-tutor-courseId-quizzes-new-empty.png",
+      "sha256": "870445f094513d92475a43ce7d6988d0b717e3ea3c33809629464cdd1005c7c6",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-quizzes-new-denied",
+      "pattern": "/tutor/[courseId]/quizzes/new",
+      "path": "/tutor/academic-course-1/quizzes/new",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-tutor-courseId-quizzes-new-denied.png",
+      "sha256": "a1f21970740a1dcb78b942d12f0a540e277caa56205388dfe85e31faeb2a426c",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-authoring-context-populated",
+      "pattern": "/admin/authoring-context",
+      "path": "/admin/authoring-context",
+      "role": "admin",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-authoring-context-populated.png",
+      "sha256": "c13f62cd87574a1a44091eb2e8234ecf623d540b5ed4a61eff6cbaa65fd8479f",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-authoring-context-empty",
+      "pattern": "/admin/authoring-context",
+      "path": "/admin/authoring-context",
+      "role": "admin",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-admin-authoring-context-empty.png",
+      "sha256": "9511ff40f6ead34f4f5be3e2bf27e691c5fce63ba6b282a27f4ba32a6d36c096",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-authoring-context-denied",
+      "pattern": "/admin/authoring-context",
+      "path": "/admin/authoring-context",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-authoring-context-denied.png",
+      "sha256": "a1f21970740a1dcb78b942d12f0a540e277caa56205388dfe85e31faeb2a426c",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-populated",
+      "pattern": "/admin/courses",
+      "path": "/admin/courses",
+      "role": "admin",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-populated.png",
+      "sha256": "59a41b5a7d4524a0330c787c8b392e0d95df2751a57613e862c95ca2dd40967e",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-empty",
+      "pattern": "/admin/courses",
+      "path": "/admin/courses",
+      "role": "admin",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-empty.png",
+      "sha256": "715ae119afc40bfbf4ba68abee3d13260ecd55c45e702e89ee8bc4aa088a57d5",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-denied",
+      "pattern": "/admin/courses",
+      "path": "/admin/courses",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-denied.png",
+      "sha256": "a1f21970740a1dcb78b942d12f0a540e277caa56205388dfe85e31faeb2a426c",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-populated",
+      "pattern": "/admin/courses/[slug]",
+      "path": "/admin/courses/biologi-dasar",
+      "role": "admin",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-populated.png",
+      "sha256": "07e4afbb3f1796f8f80c0702be2f8879fb7906f621c7a98ba2f2ff1dd73a25be",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-empty",
+      "pattern": "/admin/courses/[slug]",
+      "path": "/admin/courses/biologi-dasar",
+      "role": "admin",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-empty.png",
+      "sha256": "888ce34110feb8c149a50e8b396a97c270a184cde2bcb60bdf2cacc26cb4e676",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-denied",
+      "pattern": "/admin/courses/[slug]",
+      "path": "/admin/courses/biologi-dasar",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-courses-slug-denied.png",
+      "sha256": "a1f21970740a1dcb78b942d12f0a540e277caa56205388dfe85e31faeb2a426c",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-groups-populated",
+      "pattern": "/admin/groups",
+      "path": "/admin/groups",
+      "role": "admin",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-groups-populated.png",
+      "sha256": "68f1803391e1cf35fcbe17b7a58081f2a93ed8e42359c34cba43843b5627e69e",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-groups-empty",
+      "pattern": "/admin/groups",
+      "path": "/admin/groups",
+      "role": "admin",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-admin-groups-empty.png",
+      "sha256": "a632d758f6c882b8d6db5b57d3e112a64e1443852aaf3ad4331d211beb24be61",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-groups-denied",
+      "pattern": "/admin/groups",
+      "path": "/admin/groups",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-groups-denied.png",
+      "sha256": "a121b9b2e28fd4327e2e59a1ca6a2e09386771ef9b6850e518650d416226b4e9",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-materials-populated",
+      "pattern": "/admin/materials",
+      "path": "/admin/materials",
+      "role": "admin",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-materials-populated.png",
+      "sha256": "78394a31e54fc54063348657700f23df67e2b25d5fea23ae5748d5b2d8f2cce6",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-materials-empty",
+      "pattern": "/admin/materials",
+      "path": "/admin/materials",
+      "role": "admin",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-admin-materials-empty.png",
+      "sha256": "ba6c3fd9511d51a64d8f43505980398439c2c8154689c5005d653de0bc60f9d1",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-materials-denied",
+      "pattern": "/admin/materials",
+      "path": "/admin/materials",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-materials-denied.png",
+      "sha256": "a121b9b2e28fd4327e2e59a1ca6a2e09386771ef9b6850e518650d416226b4e9",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-notifications-populated",
+      "pattern": "/admin/notifications",
+      "path": "/admin/notifications",
+      "role": "admin",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-notifications-populated.png",
+      "sha256": "7da3236a0d9cc1254c295a15d0efd1d1563d2be0c68205f8f4b7469b1894d0cd",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-notifications-empty",
+      "pattern": "/admin/notifications",
+      "path": "/admin/notifications",
+      "role": "admin",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-admin-notifications-empty.png",
+      "sha256": "92c4bbe3cdf0db57434e2ccd4a401b3ef2bb848b86598a701dab0c0c02911cd3",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-notifications-denied",
+      "pattern": "/admin/notifications",
+      "path": "/admin/notifications",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-notifications-denied.png",
+      "sha256": "a121b9b2e28fd4327e2e59a1ca6a2e09386771ef9b6850e518650d416226b4e9",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-schedules-populated",
+      "pattern": "/admin/schedules",
+      "path": "/admin/schedules",
+      "role": "admin",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-schedules-populated.png",
+      "sha256": "5ec0af3d699d449bc3dcb2ccdb2742ec2ffa06c1cd972e9a87c6075b00e27075",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-schedules-empty",
+      "pattern": "/admin/schedules",
+      "path": "/admin/schedules",
+      "role": "admin",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-admin-schedules-empty.png",
+      "sha256": "868af23ae70bcb2fa21b859d0dfc6b130e1a7b9d345c71ee2e5e320764d0af06",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-schedules-denied",
+      "pattern": "/admin/schedules",
+      "path": "/admin/schedules",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-schedules-denied.png",
+      "sha256": "a121b9b2e28fd4327e2e59a1ca6a2e09386771ef9b6850e518650d416226b4e9",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-tokens-populated",
+      "pattern": "/admin/tokens",
+      "path": "/admin/tokens",
+      "role": "admin",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-tokens-populated.png",
+      "sha256": "cebdbbd30457b61b50904876f033900349f7a12894d30dbf9538b9061eab5c2c",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-tokens-empty",
+      "pattern": "/admin/tokens",
+      "path": "/admin/tokens",
+      "role": "admin",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-admin-tokens-empty.png",
+      "sha256": "62f2496d2049443109d029b7907bc5f580bb7bc1b94b62efe1d4429105c2f398",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-tokens-denied",
+      "pattern": "/admin/tokens",
+      "path": "/admin/tokens",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-tokens-denied.png",
+      "sha256": "daeb791cce163670216becacbc918d3e3e82de19d3d6283960da4624dbe908f6",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-tutorial-pka-populated",
+      "pattern": "/admin/tutorial-pka",
+      "path": "/admin/tutorial-pka",
+      "role": "admin",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-tutorial-pka-populated.png",
+      "sha256": "8948a66c0316a92838d36b74ed66d1ca886a1ec32f6a121f04170c9ecd19be3d",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-tutorial-pka-empty",
+      "pattern": "/admin/tutorial-pka",
+      "path": "/admin/tutorial-pka",
+      "role": "admin",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-admin-tutorial-pka-empty.png",
+      "sha256": "052998aea153a8b804d730efef5e9e1ecea8ec3dfdc1adba829deaa35aa0c0b4",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-tutorial-pka-denied",
+      "pattern": "/admin/tutorial-pka",
+      "path": "/admin/tutorial-pka",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-tutorial-pka-denied.png",
+      "sha256": "daeb791cce163670216becacbc918d3e3e82de19d3d6283960da4624dbe908f6",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-users-populated",
+      "pattern": "/admin/users",
+      "path": "/admin/users",
+      "role": "admin",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-users-populated.png",
+      "sha256": "02ac16eb9abb4057030a8291190a7e8ef178b1cfdbca3a8b8f52d59cced29664",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-users-empty",
+      "pattern": "/admin/users",
+      "path": "/admin/users",
+      "role": "admin",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-admin-users-empty.png",
+      "sha256": "975b544b5d3c41df7923277fbbfdea8bc7af0862efea4338a359a31fab6cac86",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-admin-users-denied",
+      "pattern": "/admin/users",
+      "path": "/admin/users",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-admin-users-denied.png",
+      "sha256": "daeb791cce163670216becacbc918d3e3e82de19d3d6283960da4624dbe908f6",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-discussions-populated",
+      "pattern": "/tutor/[courseId]/discussions",
+      "path": "/tutor/academic-course-1/discussions",
+      "role": "tutor",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-tutor-courseId-discussions-populated.png",
+      "sha256": "eed45b153986cefa0795b8c44d2975765ca10307f03670acfb84dd31365e5d0a",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-discussions-empty",
+      "pattern": "/tutor/[courseId]/discussions",
+      "path": "/tutor/academic-course-1/discussions",
+      "role": "tutor",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-tutor-courseId-discussions-empty.png",
+      "sha256": "a21f48e884867fd2e68034ef01607fa8e05e38ed137453a2fd75b11f42192784",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-discussions-denied",
+      "pattern": "/tutor/[courseId]/discussions",
+      "path": "/tutor/academic-course-1/discussions",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-tutor-courseId-discussions-denied.png",
+      "sha256": "daeb791cce163670216becacbc918d3e3e82de19d3d6283960da4624dbe908f6",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-grading-populated",
+      "pattern": "/tutor/[courseId]/grading",
+      "path": "/tutor/academic-course-1/grading",
+      "role": "tutor",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-tutor-courseId-grading-populated.png",
+      "sha256": "7f468b11a0c3255d4455ab62f9d4e2d98414b4ee26857604ae19e080f2004b33",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-grading-empty",
+      "pattern": "/tutor/[courseId]/grading",
+      "path": "/tutor/academic-course-1/grading",
+      "role": "tutor",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-tutor-courseId-grading-empty.png",
+      "sha256": "0c03d58574c7d75b6fff062ffc81a8f1d3aa546185a578be10a098f420ea9384",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-grading-denied",
+      "pattern": "/tutor/[courseId]/grading",
+      "path": "/tutor/academic-course-1/grading",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-tutor-courseId-grading-denied.png",
+      "sha256": "daeb791cce163670216becacbc918d3e3e82de19d3d6283960da4624dbe908f6",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-live-populated",
+      "pattern": "/tutor/[courseId]/live",
+      "path": "/tutor/academic-course-1/live",
+      "role": "tutor",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-tutor-courseId-live-populated.png",
+      "sha256": "8cffec90663a1799ddf7bd79fba4a94ce375ef1fc70c35f1bc3ff1e146b23df1",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-live-empty",
+      "pattern": "/tutor/[courseId]/live",
+      "path": "/tutor/academic-course-1/live",
+      "role": "tutor",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-tutor-courseId-live-empty.png",
+      "sha256": "c2981c320b8471f4b83c64a9d0e9fbd5c25326d086be9fa86efc1fe11b145d3d",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-live-denied",
+      "pattern": "/tutor/[courseId]/live",
+      "path": "/tutor/academic-course-1/live",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-tutor-courseId-live-denied.png",
+      "sha256": "daeb791cce163670216becacbc918d3e3e82de19d3d6283960da4624dbe908f6",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-materials-populated",
+      "pattern": "/tutor/[courseId]/materials",
+      "path": "/tutor/academic-course-1/materials",
+      "role": "tutor",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-tutor-courseId-materials-populated.png",
+      "sha256": "8dd1beccecb420778d4f341489b7ca0976885e87bbf2ee1ca1c7037cd4fa7f1d",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-materials-empty",
+      "pattern": "/tutor/[courseId]/materials",
+      "path": "/tutor/academic-course-1/materials",
+      "role": "tutor",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-tutor-courseId-materials-empty.png",
+      "sha256": "0f466bf288277459cb4aea6a85020fa083e42ef51a8db98412bef9393a06cf13",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-materials-denied",
+      "pattern": "/tutor/[courseId]/materials",
+      "path": "/tutor/academic-course-1/materials",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-tutor-courseId-materials-denied.png",
+      "sha256": "daeb791cce163670216becacbc918d3e3e82de19d3d6283960da4624dbe908f6",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-participants-populated",
+      "pattern": "/tutor/[courseId]/participants",
+      "path": "/tutor/academic-course-1/participants",
+      "role": "tutor",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-tutor-courseId-participants-populated.png",
+      "sha256": "dc7b3c79681af07d7972bd17cf2ead9b4abfb411e31362c2813d012a0843fd29",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-participants-empty",
+      "pattern": "/tutor/[courseId]/participants",
+      "path": "/tutor/academic-course-1/participants",
+      "role": "tutor",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-tutor-courseId-participants-empty.png",
+      "sha256": "80b895ee3186b9dfec17213c78ac255e6910627d491456e0dd53720da197b296",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-participants-denied",
+      "pattern": "/tutor/[courseId]/participants",
+      "path": "/tutor/academic-course-1/participants",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-tutor-courseId-participants-denied.png",
+      "sha256": "daeb791cce163670216becacbc918d3e3e82de19d3d6283960da4624dbe908f6",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-quizzes-populated",
+      "pattern": "/tutor/[courseId]/quizzes",
+      "path": "/tutor/academic-course-1/quizzes",
+      "role": "tutor",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-tutor-courseId-quizzes-populated.png",
+      "sha256": "0967847f52df72c37883b48f8032aaa4442bf88e8c23160aecf58de262e6d0d2",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-quizzes-empty",
+      "pattern": "/tutor/[courseId]/quizzes",
+      "path": "/tutor/academic-course-1/quizzes",
+      "role": "tutor",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-tutor-courseId-quizzes-empty.png",
+      "sha256": "889ec971394c6ef81eff6baf0a36f001054f9aef1da857f49527dfae5d7aaa41",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-quizzes-denied",
+      "pattern": "/tutor/[courseId]/quizzes",
+      "path": "/tutor/academic-course-1/quizzes",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-tutor-courseId-quizzes-denied.png",
+      "sha256": "6b0f6cb3e32a47f2c11816ab8f14379df5575c8a8d88acc10aefeb51f51fc5e9",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-tryouts-populated",
+      "pattern": "/tutor/[courseId]/tryouts",
+      "path": "/tutor/academic-course-1/tryouts",
+      "role": "tutor",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-tutor-courseId-tryouts-populated.png",
+      "sha256": "665b89aca59530a4c86025d71ad1b411425e461190a1f18bcb5258e29ef70a75",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-tryouts-empty",
+      "pattern": "/tutor/[courseId]/tryouts",
+      "path": "/tutor/academic-course-1/tryouts",
+      "role": "tutor",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-tutor-courseId-tryouts-empty.png",
+      "sha256": "aec46a0245e361f8da442ad1868356daeb37abee72ab6faf635ab9c7d3256f45",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-tryouts-denied",
+      "pattern": "/tutor/[courseId]/tryouts",
+      "path": "/tutor/academic-course-1/tryouts",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-tutor-courseId-tryouts-denied.png",
+      "sha256": "fcbbf1070b9f166eac81862eef364f20ec01e6d0193397d6fc488d82ba040d35",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-videos-populated",
+      "pattern": "/tutor/[courseId]/videos",
+      "path": "/tutor/academic-course-1/videos",
+      "role": "tutor",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-tutor-courseId-videos-populated.png",
+      "sha256": "02e59ec6303b02c457c2ee445fde4d79613819fc732de5d90cd8998107dbcbca",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-videos-empty",
+      "pattern": "/tutor/[courseId]/videos",
+      "path": "/tutor/academic-course-1/videos",
+      "role": "tutor",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-tutor-courseId-videos-empty.png",
+      "sha256": "77bc2c84d6c94190d0266484190b5542c7a377c035136dc5f4062ed1443884c5",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-videos-denied",
+      "pattern": "/tutor/[courseId]/videos",
+      "path": "/tutor/academic-course-1/videos",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-tutor-courseId-videos-denied.png",
+      "sha256": "fcbbf1070b9f166eac81862eef364f20ec01e6d0193397d6fc488d82ba040d35",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-discussions-populated",
+      "pattern": "/tutor/discussions",
+      "path": "/tutor/discussions",
+      "role": "tutor",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-tutor-discussions-populated.png",
+      "sha256": "d119f7d4a12b39068473839d67a6f2b8c23b25fd28c268e23cd6e8c1b8d46a21",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-discussions-empty",
+      "pattern": "/tutor/discussions",
+      "path": "/tutor/discussions",
+      "role": "tutor",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-tutor-discussions-empty.png",
+      "sha256": "bee6d871c83d1f7e2a99c873f3c6fbab9032b9c4e58cf32fca8d01eb06d0b1de",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-discussions-denied",
+      "pattern": "/tutor/discussions",
+      "path": "/tutor/discussions",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-tutor-discussions-denied.png",
+      "sha256": "fcbbf1070b9f166eac81862eef364f20ec01e6d0193397d6fc488d82ba040d35",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-docs-populated",
+      "pattern": "/tutor/docs",
+      "path": "/tutor/docs",
+      "role": "tutor",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-tutor-docs-populated.png",
+      "sha256": "d522374d2a2a35281c3c3878ed3803cd2acd057f24b56ffdbd0306797df1f853",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-docs-empty",
+      "pattern": "/tutor/docs",
+      "path": "/tutor/docs",
+      "role": "tutor",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-tutor-docs-empty.png",
+      "sha256": "8654125d06ac0d0f0f5a285b4aba89f2cce85d50658a210420c11ab7860b4d25",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-docs-denied",
+      "pattern": "/tutor/docs",
+      "path": "/tutor/docs",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-tutor-docs-denied.png",
+      "sha256": "fcbbf1070b9f166eac81862eef364f20ec01e6d0193397d6fc488d82ba040d35",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-docs-slug-populated",
+      "pattern": "/tutor/docs/[slug]",
+      "path": "/tutor/docs/ruang-kerja-tutor",
+      "role": "tutor",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-tutor-docs-slug-populated.png",
+      "sha256": "351d31cc3508ed7cbf37cfe985a367d6e864ae61a1bfbca9809434c95fa9272b",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-docs-slug-empty",
+      "pattern": "/tutor/docs/[slug]",
+      "path": "/tutor/docs/ruang-kerja-tutor",
+      "role": "tutor",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-tutor-docs-slug-empty.png",
+      "sha256": "3c195b641ad1933ce46e4ee4e3e356c9c5dfecf9b799f0ea8b1f4daffd521c2d",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-docs-slug-denied",
+      "pattern": "/tutor/docs/[slug]",
+      "path": "/tutor/docs/ruang-kerja-tutor",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-tutor-docs-slug-denied.png",
+      "sha256": "6b0f6cb3e32a47f2c11816ab8f14379df5575c8a8d88acc10aefeb51f51fc5e9",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-schedule-populated",
+      "pattern": "/tutor/schedule",
+      "path": "/tutor/schedule",
+      "role": "tutor",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-tutor-schedule-populated.png",
+      "sha256": "ee02642bffa3c119d2ec1df16d6d2c9d5184b95032ce831524ab2166f6fa4892",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-schedule-empty",
+      "pattern": "/tutor/schedule",
+      "path": "/tutor/schedule",
+      "role": "tutor",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-tutor-schedule-empty.png",
+      "sha256": "d4b8093a0da48b9112e758ab6470273ffc4d01f844798f72260405f0f3575a1f",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-schedule-denied",
+      "pattern": "/tutor/schedule",
+      "path": "/tutor/schedule",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-tutor-schedule-denied.png",
+      "sha256": "6b0f6cb3e32a47f2c11816ab8f14379df5575c8a8d88acc10aefeb51f51fc5e9",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-populated",
+      "pattern": "/tutor",
+      "path": "/tutor",
+      "role": "tutor",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-tutor-populated.png",
+      "sha256": "6fb6c3ab2cf6d8a1b9a2d7f30917ebd360d6e8472f432d74171e3f4a3798def6",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-empty",
+      "pattern": "/tutor",
+      "path": "/tutor",
+      "role": "tutor",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-tutor-empty.png",
+      "sha256": "9e7d5fd258b976ea712268caa0e65669c09a3022ddb5d34711833b69a04c3f73",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-denied",
+      "pattern": "/tutor",
+      "path": "/tutor",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-tutor-denied.png",
+      "sha256": "866c71af675ab099962917aed694b38216795546f7083c94bd00fa2d415a12e2",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-populated",
+      "pattern": "/tutor/[courseId]",
+      "path": "/tutor/academic-course-1",
+      "role": "tutor",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-tutor-courseId-populated.png",
+      "sha256": "66588da22b997795cafc4d3c8b249fffd0543d3db7d030d2ed7c236406fb3469",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-empty",
+      "pattern": "/tutor/[courseId]",
+      "path": "/tutor/academic-course-1",
+      "role": "tutor",
+      "scenario": "empty",
+      "theme": "dark",
+      "status": "captured",
+      "image": "raw/academic-tutor-courseId-empty.png",
+      "sha256": "9d541f7db3b868f5de51551b7e2e175aa0b2eebf84c2f87f168005ed7384f741",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-denied",
+      "pattern": "/tutor/[courseId]",
+      "path": "/tutor/academic-course-1",
+      "role": "student",
+      "scenario": "populated",
+      "theme": "light",
+      "status": "captured",
+      "image": "raw/academic-tutor-courseId-denied.png",
+      "sha256": "224df50d9181acdfa286ab5eb27552cc1bbdfd50245c5b3d846c42794de723fe",
+      "frame": {
+        "width": 380,
+        "height": 900
+      },
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      },
+      "viewport": {
+        "width": 380.0,
+        "height": 852.0
+      }
+    }
+  ]
+}

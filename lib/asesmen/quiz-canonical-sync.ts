@@ -442,13 +442,14 @@ export async function updateAssessmentWithLegacyProjection(
       .select()
       .from(quizTemplates)
       .where(eq(quizTemplates.id, id))
-      .limit(1);
+      .limit(1)
+      .for("update");
 
     if (!existingTemplate) {
       throw new Error(`Quiz template not found: ${id}`);
     }
 
-    const now = new Date();
+    const now = new Date(Math.max(Date.now(), new Date(existingTemplate.updatedAt).getTime() + 1));
     const updatedTitle = input.title ?? existingTemplate.title;
     const updatedCategory = input.category ?? existingTemplate.category;
     const updatedStatus = input.status ?? existingTemplate.status;

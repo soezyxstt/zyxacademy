@@ -2,15 +2,27 @@ import { afterAll, beforeAll, describe, expect, it, mock, beforeEach } from "bun
 import { createPostgresTestDb } from "../helpers/postgres";
 import * as schema from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { NextRequest } from "next/server";
+import { POST as createQuizTemplate } from "@/app/api/quiz/templates/route";
+import { DELETE as deleteQuizTemplate, PATCH as updateQuizTemplate } from "@/app/api/quiz/templates/[id]/route";
 import { TUTOR_CAPABILITY_ERRORS } from "@/lib/tutor/assessment-policy";
 
 let mockSession: any = null;
 
 let client: Awaited<ReturnType<typeof createPostgresTestDb>>["client"];
 let testDb: Awaited<ReturnType<typeof createPostgresTestDb>>["testDb"];
+let beforeNextWrite: (() => Promise<void>) | undefined;
 const dbProxy = new Proxy({} as typeof testDb, {
   get(_target, key) {
     const value = Reflect.get(testDb, key);
+    if (key === "transaction" && beforeNextWrite) {
+      return async (...args: Parameters<typeof testDb.transaction>) => {
+        const beforeWrite = beforeNextWrite;
+        beforeNextWrite = undefined;
+        await beforeWrite?.();
+        return Reflect.apply(value, testDb, args);
+      };
+    }
     return typeof value === "function" ? value.bind(testDb) : value;
   },
 });
@@ -43,8 +55,9 @@ mock.module("next/cache", () => ({
   revalidateTag: () => {},
 }));
 
+const publishedNotifications: unknown[] = [];
 mock.module("@/lib/notifications/send", () => ({
-  notifyQuizPublishedBestEffort: async () => {},
+  notifyQuizPublishedBestEffort: async (event: unknown) => { publishedNotifications.push(event); },
 }));
 
 import {
@@ -171,6 +184,196 @@ describe("Native Tutor Quiz Authoring Workflow Contracts", () => {
   beforeEach(async () => {
     await clearTestData();
     await seedBaseData();
+    publishedNotifications.length = 0;
+    beforeNextWrite = undefined;
+  });
+
+  it("replays guarded native quiz creates and edits with locked revision and course scope", async () => {
+    const origin = "http://localhost:3000";
+    function request(method: "POST" | "PATCH" | "DELETE", resource: string, requestId: string, body: unknown) {
+      return new NextRequest(`${origin}/api/quiz/templates${resource}`, {
+        method, body: JSON.stringify({ actingRole: "tutor", ...body as object }), headers: {
+          "content-type": "application/json", origin, "idempotency-key": requestId,
+        },
+      });
+    }
+    const liveSession = "session-native-quiz";
+    await testDb.insert(schema.session).values({
+      id: liveSession, userId: "usr-tutor-1", token: liveSession, expiresAt: new Date(Date.now() + 60_000),
+    });
+    mockSession = { user: { id: "usr-tutor-1", role: "teacher" }, session: { id: liveSession } };
+    const createKey = "academic-create-quiz-1";
+    const createBody = {
+      courseId: "mk-calc", title: "Kuis native", category: "weekly", status: "draft",
+      openAt: "2026-11-20T08:00:00.000Z", closeAt: "2026-11-20T09:00:00.000Z",
+      selectionRules: { count: 1, difficulty_proportions: { easy: 1, medium: 0, hard: 0 }, tags: ["turunan"], seed: 7 },
+    };
+    const created = await createQuizTemplate(request("POST", "", createKey, createBody));
+    expect(created.status).toBe(201);
+    const createdBody = await created.json();
+    expect(createdBody.requestId).toBe(createKey);
+    expect(createdBody.actingRole).toBe("tutor");
+    expect((await createQuizTemplate(request("POST", "", "missing-acting-role", { ...createBody, actingRole: undefined }))).status).toBe(400);
+    expect((await createQuizTemplate(request("POST", "", "acting-admin-denied", { ...createBody, actingRole: "admin" }))).status).toBe(403);
+    const { templateId } = createdBody;
+    expect(await (await createQuizTemplate(request("POST", "", createKey, createBody))).json()).toEqual(createdBody);
+    expect((await createQuizTemplate(request("POST", "", createKey, { ...createBody, title: "Isi berbeda" }))).status).toBe(409);
+    expect((await createQuizTemplate(request("POST", "", "academic-create-tag-conflict", createBody))).status).toBe(409);
+    expect((await createQuizTemplate(request("POST", "", "academic-create-wrong-course", { ...createBody, courseId: "mk-physics" }))).status).toBe(403);
+    expect((await createQuizTemplate(request("POST", "", "academic-create-simulation", { ...createBody, category: "simulation" }))).status).toBe(403);
+    expect((await createQuizTemplate(request("POST", "", "academic-create-invalid", { ...createBody, maxAttempts: -1 }))).status).toBe(400);
+    expect((await createQuizTemplate(request("POST", "", "academic-create-foreign-question", {
+      ...createBody, selectionRules: { count: 1, fixedQuestionIds: ["missing-question"] },
+    }))).status).toBe(400);
+
+    const [original] = await testDb.select().from(schema.quizTemplates).where(eq(schema.quizTemplates.id, templateId));
+    expect(original?.title).toBe("Kuis native");
+    const context = { params: Promise.resolve({ id: templateId }) };
+    const patchKey = "academic-edit-quiz-1";
+    const patchBody = {
+      expectedRevision: original.updatedAt.getTime(), expectedCourseId: "mk-calc",
+      title: "Kuis native revisi", status: "published",
+      selectionRules: { count: 1, difficulty_proportions: { easy: 1, medium: 0, hard: 0 }, tags: ["turunan"] },
+    };
+    const patch = (key: string, body: unknown) => updateQuizTemplate(request("PATCH", `/${templateId}`, key, body), context);
+    expect((await patch("academic-edit-invalid-date", {
+      expectedRevision: patchBody.expectedRevision, expectedCourseId: "mk-calc", openAt: "2026-11-20T10:00:00.000Z",
+    })).status).toBe(400);
+    expect((await patch("academic-edit-missing-revision", { title: "Lama" })).status).toBe(400);
+    expect((await patch("academic-edit-outside-course", { ...patchBody, expectedCourseId: "mk-physics" })).status).toBe(404);
+    expect((await patch(patchKey, patchBody)).status).toBe(200);
+    expect(await (await patch(patchKey, patchBody)).json()).toEqual({ requestId: patchKey, templateId, success: true, actingRole: "tutor" });
+    expect((await patch(patchKey, { ...patchBody, title: "Isi berbeda" })).status).toBe(409);
+    expect((await patch("academic-edit-stale-revision", patchBody)).status).toBe(409);
+    const [saved] = await testDb.select().from(schema.quizTemplates).where(eq(schema.quizTemplates.id, templateId));
+    expect(saved.title).toBe("Kuis native revisi");
+    expect(saved.status).toBe("published");
+    expect(saved.updatedAt.getTime()).toBeGreaterThan(original.updatedAt.getTime());
+    expect(saved.selectionRules).toMatchObject({ seed: 7, tags: ["turunan"] });
+    const demote = { expectedRevision: saved.updatedAt.getTime(), expectedCourseId: "mk-calc", status: "draft" };
+    expect((await patch("academic-quiz-to-draft", demote)).status).toBe(200);
+    expect((await patch("academic-quiz-to-draft", demote)).status).toBe(200);
+    const [draft] = await testDb.select().from(schema.quizTemplates).where(eq(schema.quizTemplates.id, templateId));
+    expect(draft.status).toBe("draft");
+    expect(draft.selectionRules).toMatchObject({ seed: 7 });
+    expect(draft.openAt).toEqual(saved.openAt);
+    expect(publishedNotifications.length).toBe(1);
+
+    await testDb.update(schema.session).set({ expiresAt: new Date(0) }).where(eq(schema.session.id, liveSession));
+    expect((await patch(patchKey, patchBody)).status).toBe(401);
+    await testDb.update(schema.session).set({ expiresAt: new Date(Date.now() + 60_000) }).where(eq(schema.session.id, liveSession));
+    beforeNextWrite = async () => {
+      await testDb.update(schema.penugasanTutor).set({ status: "revoked" }).where(eq(schema.penugasanTutor.id, "pt-tutor-1"));
+    };
+    expect((await createQuizTemplate(request("POST", "", createKey, createBody))).status).toBe(403);
+    expect((await patch(patchKey, patchBody)).status).toBe(403);
+
+    await testDb.update(schema.penugasanTutor).set({ status: "active" }).where(eq(schema.penugasanTutor.id, "pt-tutor-1"));
+    await testDb.insert(schema.studentQuizAttempts).values({
+      id: "native-quiz-delete-cascade", studentId: "usr-tutor-2", templateId, status: "completed",
+      questionsSnapshot: [], answersSnapshot: {}, submittedAt: new Date(),
+    });
+    const remove = (key: string, body: unknown) => deleteQuizTemplate(request("DELETE", `/${templateId}`, key, body), context);
+    const deleteKey = "academic-delete-quiz-1";
+    const target = { expectedRevision: draft.updatedAt.getTime(), expectedCourseId: "mk-calc" };
+    expect((await remove(deleteKey, { ...target, expectedRevision: saved.updatedAt.getTime() })).status).toBe(409);
+    expect((await remove(deleteKey, { ...target, expectedCourseId: "mk-physics" })).status).toBe(403);
+    const deleted = await remove(deleteKey, target);
+    expect(deleted.status).toBe(200);
+    expect(await deleted.json()).toEqual({ success: true, requestId: deleteKey, templateId, actingRole: "tutor" });
+    expect((await remove(deleteKey, target)).status).toBe(200);
+    expect((await remove(deleteKey, { ...target, expectedRevision: target.expectedRevision + 1 })).status).toBe(409);
+    expect(await testDb.select().from(schema.quizTemplates).where(eq(schema.quizTemplates.id, templateId))).toHaveLength(0);
+    expect(await testDb.select().from(schema.studentQuizAttempts).where(eq(schema.studentQuizAttempts.templateId, templateId))).toHaveLength(0);
+    await testDb.update(schema.penugasanTutor).set({ status: "revoked" }).where(eq(schema.penugasanTutor.id, "pt-tutor-1"));
+    expect((await remove(deleteKey, target)).status).toBe(403);
+  });
+
+  it("allows a locked Admin session to create a simulation and rejects foreign-origin retry", async () => {
+    const id = "admin-native-quiz";
+    const sessionId = "admin-native-quiz-session";
+    const at = new Date();
+    await testDb.insert(schema.user).values({ id, name: "Admin", email: "admin@quiz.test", role: "admin", createdAt: at, updatedAt: at });
+    await testDb.insert(schema.pengguna).values({ id, status: "active", createdAt: at, updatedAt: at });
+    await testDb.insert(schema.penggunaPeran).values({ id: "pp-admin-native", penggunaId: id, peranId: "peran-admin", source: "seed", createdAt: at });
+    await testDb.insert(schema.session).values({ id: sessionId, userId: id, token: sessionId, expiresAt: new Date(Date.now() + 60_000) });
+    mockSession = { user: { id, role: "admin" }, session: { id: sessionId } };
+    const body = {
+      actingRole: "admin", courseId: "mk-physics", title: "Simulasi fisika", category: "simulation",
+      selectionRules: { count: 1, difficulty_proportions: { easy: 1, medium: 0, hard: 0 } },
+    };
+    const request = (origin: string) => new NextRequest("http://localhost:3000/api/quiz/templates", {
+      method: "POST", body: JSON.stringify(body), headers: {
+        "content-type": "application/json", origin, "idempotency-key": "academic-admin-simulation",
+      },
+    });
+    expect((await createQuizTemplate(request("https://example.test"))).status).toBe(403);
+    const created = await createQuizTemplate(request("http://localhost:3000"));
+    expect(created.status).toBe(201);
+    const { templateId } = await created.json();
+    const [canonical] = await testDb.select().from(schema.asesmen).where(eq(schema.asesmen.id, templateId));
+    expect(canonical.assessmentType).toBe("tryout");
+    expect(canonical.creatorId).toBe(id);
+  });
+
+  it("keeps the Tutor scope on a dual-role account and forbids changing scope while replaying a receipt", async () => {
+    const actorId = "usr-tutor-1";
+    const sessionId = "dual-role-quiz-session";
+    await testDb.insert(schema.penggunaPeran).values({
+      id: "pp-dual-role-admin", penggunaId: actorId, peranId: "peran-admin", source: "seed",
+    });
+    await testDb.insert(schema.session).values({ id: sessionId, token: sessionId, userId: actorId, expiresAt: new Date(Date.now() + 60_000) });
+    mockSession = { user: { id: actorId, role: "teacher" }, session: { id: sessionId } };
+    const origin = "http://localhost:3000";
+    const request = (method: "POST" | "PATCH" | "DELETE", key: string, body: unknown, id?: string) =>
+      new NextRequest(`${origin}/api/quiz/templates${id ? `/${id}` : ""}`, {
+        method, body: JSON.stringify(body), headers: {
+          "content-type": "application/json", origin, "idempotency-key": key,
+        },
+      });
+    const payload = {
+      actingRole: "tutor", courseId: "mk-calc", title: "Kuis tutor", category: "weekly",
+      selectionRules: { count: 1, difficulty_proportions: { easy: 1, medium: 0, hard: 0 } },
+    };
+    const createKey = "dual-role-create";
+    const created = await createQuizTemplate(request("POST", createKey, payload));
+    expect(created.status).toBe(201);
+    const { templateId } = await created.json();
+    expect((await createQuizTemplate(request("POST", createKey, { ...payload, actingRole: "admin" }))).status).toBe(409);
+    expect((await createQuizTemplate(request("POST", "dual-role-unassigned", { ...payload, courseId: "mk-physics" }))).status).toBe(403);
+    expect((await createQuizTemplate(request("POST", "dual-role-simulation", { ...payload, category: "simulation" }))).status).toBe(403);
+    const simulation = await createQuizTemplate(request("POST", "dual-role-admin-simulation", { ...payload, actingRole: "admin", category: "simulation" }));
+    expect(simulation.status).toBe(201);
+
+    const [original] = await testDb.select().from(schema.quizTemplates).where(eq(schema.quizTemplates.id, templateId));
+    const target = { actingRole: "tutor", expectedCourseId: "mk-calc", expectedRevision: original.updatedAt.getTime() };
+    const context = { params: Promise.resolve({ id: templateId }) };
+    const edit = (key: string, body: unknown) => updateQuizTemplate(request("PATCH", key, body, templateId), context);
+    const remove = (key: string, body: unknown) => deleteQuizTemplate(request("DELETE", key, body, templateId), context);
+
+    expect((await edit("dual-role-edit", { ...target, title: "Edit oleh Tutor" })).status).toBe(200);
+    expect((await edit("dual-role-edit", { ...target, actingRole: "admin", title: "Edit oleh Tutor" })).status).toBe(409);
+    const [edited] = await testDb.select().from(schema.quizTemplates).where(eq(schema.quizTemplates.id, templateId));
+    const freshTutor = { ...target, expectedRevision: edited.updatedAt.getTime() };
+    beforeNextWrite = async () => {
+      await testDb.update(schema.penugasanTutor).set({ status: "revoked" }).where(eq(schema.penugasanTutor.id, "pt-tutor-1"));
+    };
+    expect((await edit("dual-role-status", { ...freshTutor, status: "published" })).status).toBe(403);
+    expect((await edit("dual-role-edit", { ...target, title: "Edit oleh Tutor" })).status).toBe(403);
+    expect((await edit("dual-role-new-edit", { ...freshTutor, title: "Tidak tersimpan" })).status).toBe(403);
+    expect((await createQuizTemplate(request("POST", createKey, payload))).status).toBe(403);
+    expect((await remove("dual-role-delete-quiz", freshTutor)).status).toBe(403);
+    const [unchanged] = await testDb.select().from(schema.quizTemplates).where(eq(schema.quizTemplates.id, templateId));
+    expect(unchanged.title).toBe("Edit oleh Tutor");
+    expect(unchanged.status).toBe("draft");
+
+    const adminTarget = { ...freshTutor, actingRole: "admin" };
+    const deleteKey = "dual-role-admin-delete";
+    expect((await remove(deleteKey, adminTarget)).status).toBe(200);
+    expect((await remove(deleteKey, adminTarget)).status).toBe(200);
+    expect((await remove(deleteKey, freshTutor)).status).toBe(403);
+    await testDb.update(schema.penugasanTutor).set({ status: "active" }).where(eq(schema.penugasanTutor.id, "pt-tutor-1"));
+    expect((await remove(deleteKey, freshTutor)).status).toBe(409);
   });
 
   /* ────────────────────────────────────────────────────────────────────────

@@ -12,6 +12,9 @@ import { sendToMany } from "@/lib/notifications/send";
 import { pkaAnnouncementPayload, pkaSchedulePayload, pkaScheduleUpdatePayload } from "@/lib/notifications/templates";
 import { pkaAnnouncementEmailHtml, pkaAnnouncementEmailSubject, pkaScheduleEmailSubject, pkaScheduleUpdateEmailSubject, scheduleEmailHtml } from "@/lib/pka-email-template";
 import { sendOptionalEmail } from "@/lib/email-preferences/send";
+import { updatePkaAnnouncementText } from "@/lib/pka/announcement-text";
+import { lockPkaSchedule, pkaScheduleDeliveryRequired, updatePkaSchedule } from "@/lib/pka/schedule-update";
+import { isValidPkaScheduleText } from "@/packages/academic/pka-schedule-edit";
 
 export interface PkaActionState {
   success?: boolean;
@@ -199,10 +202,7 @@ export async function editPkaAnnouncementAction(
   try {
     await requireAdmin();
 
-    await db
-      .update(pkaAnnouncements)
-      .set({ title, body })
-      .where(eq(pkaAnnouncements.id, announcementId));
+    await updatePkaAnnouncementText(announcementId, { title, body });
 
     return { success: true };
   } catch (err) {
@@ -226,13 +226,16 @@ function parseScheduleForm(formData: FormData): { title: string; meetLink: strin
   if (!title || !sessionAtRaw) {
     return { error: "Judul dan jadwal wajib diisi." };
   }
+  if (!isValidPkaScheduleText(title)) {
+    return { error: "Periksa karakter pada judul sesi." };
+  }
 
   const sessionAt = new Date(sessionAtRaw);
   if (Number.isNaN(sessionAt.getTime())) {
     return { error: "Jadwal sesi tidak valid." };
   }
 
-  if (meetLink && !/^https:\/\//.test(meetLink)) {
+  if (meetLink && (!isValidPkaScheduleText(meetLink) || !/^https:\/\//.test(meetLink))) {
     return { error: "Link Meet harus diawali https://." };
   }
 
@@ -324,15 +327,16 @@ export async function updatePkaScheduleAction(
     if ("error" in parsed) return { success: false, error: parsed.error };
     const { title, meetLink, sessionAt } = parsed;
 
-    const [existing] = await db.select().from(pkaSchedules).where(eq(pkaSchedules.id, scheduleId));
+    const fields = { title, meetLink, sessionAt };
+    const existing = await db.transaction(async (tx) => {
+      const schedule = await lockPkaSchedule(tx, scheduleId);
+      if (!schedule) return null;
+      await updatePkaSchedule(tx, schedule, fields);
+      return schedule;
+    });
     if (!existing) return { success: false, error: "Jadwal tidak ditemukan." };
 
-    await db
-      .update(pkaSchedules)
-      .set({ title, meetLink, sessionAt })
-      .where(eq(pkaSchedules.id, scheduleId));
-
-    if (meetLink && existing.meetLink !== meetLink && sessionAt.getTime() > Date.now()) {
+    if (pkaScheduleDeliveryRequired(existing, fields)) {
       const [enrolled, pushRecipients] = await Promise.all([
         getAllEnrolledStudents(),
         getLegacyPkaNotificationRecipients(),

@@ -184,8 +184,11 @@ describe("admin course workspace metrics contract (CP3A)", () => {
 
     test("quiz insights detail API joins mataKuliah for canonical course resolution", () => {
       const api = source("app/api/admin/quiz-insights/[id]/route.ts");
-      expect(api).toContain("mataKuliah");
-      expect(api).toContain("canonicalCourseName");
+      const readModel = source("lib/admin/quiz-insight-read-model.ts");
+      expect(api).toContain("readAdminQuizInsight(id, session.user.id)");
+      expect(readModel).toContain("mataKuliah");
+      expect(readModel).toContain("canonicalCourseName");
+      expect(readModel).toContain("inArray(quizTemplates.courseId, courseIds)");
     });
   });
 });

@@ -2,11 +2,9 @@ import type { Metadata } from "next";
 import { redirect, notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { requireTutorCourseAccess } from "@/lib/auth/request-cache";
+import { getTutorCourseOverview } from "@/lib/tutor/course-overview-read-model";
 import {
   readCourseSnapshot,
-  getCohortAnalytics,
-  type SnapshotPayload,
 } from "@/lib/cohort-analytics";
 import { AnalyticsClient } from "@/components/tutor/analytics-client";
 import { PageHeader } from "@/components/page-header";
@@ -41,53 +39,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-function emptySnapshot(base: Awaited<ReturnType<typeof getCohortAnalytics>>): SnapshotPayload {
-  return {
-    ...base,
-    conceptTrends: {},
-    mostMissed: {},
-    topMisconceptions: [],
-    watchlist: [],
-    engagement: { quizParticipationPct: 0, flashcardAdherencePct: 0 },
-  };
-}
-
 export default async function TutorCoursePage({ params }: Props) {
   const { courseId } = await params;
 
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) redirect("/tutor");
 
-  let access;
+  let overview;
   try {
-    access = await requireTutorCourseAccess(session.user.id, courseId, { allowAdmin: false });
+    overview = await getTutorCourseOverview(session.user.id, courseId);
   } catch (error) {
-    if (error instanceof Error && error.message.startsWith("TUTOR_ACCESS_DENIED")) {
-      redirect("/tutor");
-    }
+    if (error instanceof Error && error.message.startsWith("TUTOR_ACCESS_DENIED")) redirect("/tutor");
     throw error;
   }
-
-  const legacyCourseId = access.legacyCourseId ?? courseId;
-  const snapshotRow = await readCourseSnapshot(legacyCourseId);
-  const analytics: SnapshotPayload = snapshotRow
-    ? snapshotRow.payload
-    : emptySnapshot(await getCohortAnalytics(legacyCourseId));
-
-  if (!analytics.courseTitle) {
-    const mkRows = await db
-      .select({ title: mataKuliah.title })
-      .from(mataKuliah)
-      .where(eq(mataKuliah.id, access.courseId ?? courseId))
-      .limit(1);
-    if (mkRows[0]?.title) {
-      analytics.courseTitle = mkRows[0].title;
-    }
-  }
-
-  if (!analytics.courseTitle) notFound();
-
-  const updatedAt = snapshotRow?.updatedAt.toISOString() ?? null;
+  if (!overview) notFound();
+  const { analytics, updatedAt, legacyCourseId } = overview;
 
   return (
     <ApplicationPage spacing="space-y-(--section-gap)">

@@ -1,0 +1,74 @@
+appId: com.zyx.academy.nativeparity
+name: Admin course empty, recovery and access denial
+---
+- launchApp
+- openLink: zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fcourses&theme=dark&scenario=empty
+- extendedWaitUntil:
+    visible: Belum ada mata kuliah.
+    timeout: 20000
+- takeScreenshot: academic-admin-courses-list-empty-dark
+- openLink: zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fcourses%2Fbiologi-dasar&theme=dark&scenario=error
+- extendedWaitUntil:
+    visible:
+      id: course-retry
+    timeout: 10000
+- takeScreenshot: academic-admin-courses-overview-error-dark
+- tapOn:
+    id: course-retry
+- assertVisible:
+    id: course-chapter-academic-chapter-1
+- tapOn:
+    id: course-chapter-create
+- assertVisible:
+    id: course-chapter-dialog
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - pressKey: BACK
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          id: course-chapter-dialog-close
+- assertNotVisible:
+    id: course-chapter-dialog
+- assertVisible:
+    id: course-chapter-academic-chapter-1
+- tapOn:
+    id: course-chapter-create
+- tapOn:
+    id: course-chapter-save
+- assertVisible: Judul bab wajib diisi.
+- tapOn:
+    id: course-chapter-title
+- inputText: Biologi molekuler
+- hideKeyboard
+- tapOn:
+    id: course-chapter-save
+- assertVisible: Penyimpanan terputus. Perubahan masih tersedia.
+- tapOn:
+    id: course-retry
+- assertVisible: .*Biologi molekuler.*
+- takeScreenshot: academic-admin-courses-overview-recovered-dark
+- tapOn:
+    id: course-chapter-academic-chapter-1
+- tapOn:
+    id: course-chapter-edit-academic-chapter-1
+- assertVisible:
+    id: course-chapter-dialog
+- tapOn:
+    id: course-chapter-title
+- inputText: " (perubahan batal)"
+- hideKeyboard
+- tapOn:
+    id: course-chapter-cancel
+- assertNotVisible:
+    id: course-chapter-dialog
+- assertVisible:
+    id: course-chapter-academic-chapter-1
+- openLink: zyx-native-parity://academic?role=tutor&path=%2Fadmin%2Fcourses&theme=dark
+- extendedWaitUntil:
+    visible: Akses ditolak.
+    timeout: 20000

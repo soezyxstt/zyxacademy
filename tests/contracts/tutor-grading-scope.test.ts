@@ -48,6 +48,9 @@ mock.module("next/cache", () => ({
 }));
 
 import { gradeSubmissionAction, submitTryoutAction } from "@/app/actions/tutor-management";
+import { handleTryoutGrade } from "@/lib/native/academic/handle-tryout-grade";
+import { gradeTryoutSubmission } from "@/lib/tutor/tryout-grading";
+import { readAuthorizedTryoutGrading } from "@/lib/tutor/tryout-grading-read-model";
 
 async function seedGradingData() {
   const now = new Date();
@@ -229,6 +232,127 @@ describe("Tutor Grading Scope and Policy", () => {
   beforeEach(async () => {
     await clearTestData();
     await seedGradingData();
+  });
+
+  describe("native tryout command on PostgreSQL", () => {
+    const tutor = "usr-tutor-1";
+    const course = "mk-calc";
+    const submission = "sub-valid-tryout";
+    const origin = "https://academic.example.test";
+    const requestId = "request-grade-001";
+
+    async function addSession(id: string, userId = tutor, expiresAt = new Date(Date.now() + 60_000)) {
+      await testDb.insert(schema.session).values({ id, userId, token: `synthetic-${id}`, expiresAt });
+    }
+
+    async function revision() {
+      const data = await readAuthorizedTryoutGrading(tutor, course, false);
+      return data.submissionsList.find((row) => row.id === submission)!.reviewRevision;
+    }
+
+    async function write(body: Record<string, unknown>, options: {
+      sessionId?: string; userId?: string; requestId?: string; courseId?: string; submissionId?: string; origin?: string;
+    } = {}) {
+      const { sessionId = "tutor-native-session", userId = tutor } = options;
+      return handleTryoutGrade(new Request(origin, {
+        method: "POST",
+        headers: {
+          origin: options.origin ?? origin, "content-type": "application/json",
+          "idempotency-key": options.requestId ?? requestId,
+        },
+        body: JSON.stringify(body),
+      }), ["courses", options.courseId ?? course, "grading", options.submissionId ?? submission], origin, {
+        async session() { return { user: { id: userId }, session: { id: sessionId } }; },
+        // The transactional role check must still reject a forged preflight.
+        async hasTutor() { return true; },
+        grade: (input, actor) => gradeTryoutSubmission(actor, input),
+      });
+    }
+
+    it("publishes once, provides an authoritative revision and replays through the canonical or legacy alias", async () => {
+      await addSession("tutor-native-session");
+      const expectedRevision = await revision();
+      const body = { score: 88, notes: "Penjelasan yang baik.", expectedRevision };
+      const response = await write(body);
+      expect(response.status).toBe(200);
+      expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+      const result = await response.json();
+      expect(result).toMatchObject({ requestId, submissionId: submission });
+      expect(result.reviewRevision).toBe(await revision());
+      expect(result.reviewRevision).not.toBe(expectedRevision);
+      const replay = await write(body, { courseId: "crs-calc" });
+      expect(replay.status).toBe(200);
+      expect(await replay.json()).toEqual(result);
+      expect((await write({ ...body, notes: "Isi berbeda" })).status).toBe(409);
+      const successful = (await testDb.select().from(schema.auditMutasi)).filter((audit) =>
+        audit.entityId === submission && audit.outcome === "success");
+      expect(successful).toHaveLength(1);
+      expect(JSON.stringify(successful)).not.toContain(body.notes);
+      expect(JSON.stringify(successful)).not.toContain("Jawaban esai murid rahasia");
+      expect(JSON.stringify(successful)).not.toContain("tutor-native-session");
+    });
+
+    it("rejects a foreign or expired session, revoked assignment, cross-course grade, and quiz attempt", async () => {
+      const body = { score: 75, notes: "", expectedRevision: await revision() };
+      await addSession("tutor-native-session");
+      await addSession("expired", tutor, new Date(Date.now() - 60_000));
+      await addSession("other-actor", "usr-admin-1");
+      expect((await write(body, { origin: "https://evil.example.test" })).status).toBe(403);
+      expect((await write(body, { sessionId: "expired" })).status).toBe(401);
+      expect((await write(body, { sessionId: "other-actor" })).status).toBe(401);
+      expect((await write(body, { userId: "usr-admin-1", sessionId: "other-actor" })).status).toBe(403);
+      expect((await write(body, { submissionId: "sub-physics-tryout" })).status).toBe(403);
+      expect((await write(body, { submissionId: "sub-quiz-calc" })).status).toBe(404);
+      expect((await write(body)).status).toBe(200);
+      await testDb.delete(schema.penugasanTutor).where(eq(schema.penugasanTutor.id, "pt-tutor-1"));
+      expect((await write(body)).status).toBe(403);
+    });
+
+    it("isolates receipts by session and refuses a stale grade after another write or a changed answer", async () => {
+      await addSession("tutor-native-session");
+      await addSession("new-session");
+      const expectedRevision = await revision();
+      const body = { score: 90, notes: "", expectedRevision };
+      expect((await write(body)).status).toBe(200);
+      expect((await write(body, { sessionId: "new-session" })).status).toBe(409);
+      expect((await write({ ...body, expectedRevision: await revision() }, { sessionId: "new-session" })).status).toBe(200);
+
+      const previous = await revision();
+      mockSession = { user: { id: tutor, role: "teacher" } };
+      expect((await gradeSubmissionAction(course, submission, 90, "", previous)).success).toBe(true);
+      await expect(gradeSubmissionAction(course, submission, 91, "", previous)).rejects.toThrow(TUTOR_CAPABILITY_ERRORS.GRADING_CONCURRENT_CONFLICT);
+      const beforeAnswerUpdate = await revision();
+      await testDb.update(schema.submissions).set({ answersSnapshot: { "q-1": { text: "Jawaban berubah" } } })
+        .where(eq(schema.submissions.id, submission));
+      expect((await write({ ...body, expectedRevision: beforeAnswerUpdate }, { requestId: "request-grade-002" })).status).toBe(409);
+      const [row] = await testDb.select().from(schema.submissions).where(eq(schema.submissions.id, submission));
+      expect(row.score).toBe(90);
+    });
+
+    it("commits at most one competing revision and rolls back if the grade receipt cannot be written", async () => {
+      await addSession("tutor-native-session");
+      const expectedRevision = await revision();
+      const body = { score: 93, notes: "", expectedRevision };
+      await client.exec(`
+        create function deny_tryout_receipt() returns trigger language plpgsql as $$
+        begin
+          if NEW.action = 'submission:grade' and NEW.outcome = 'success' then
+            raise exception 'synthetic audit failure';
+          end if;
+          return NEW;
+        end $$;
+        create trigger deny_tryout_receipt before insert on audit_mutasi
+          for each row execute function deny_tryout_receipt();
+      `);
+      try {
+        expect((await write(body)).status).toBe(500);
+        expect(await revision()).toBe(expectedRevision);
+      } finally {
+        await client.exec("drop trigger deny_tryout_receipt on audit_mutasi; drop function deny_tryout_receipt()");
+      }
+      const results = await Promise.all([write(body), write({ ...body, score: 94 }, { requestId: "request-grade-003" })]);
+      expect(results.map((item) => item.status).sort()).toEqual([200, 409]);
+    });
   });
 
   it("rejects grading by unassigned tutor and records rejected audit", async () => {

@@ -1,6 +1,41 @@
 /** Source-level coverage index. Tool registration is authoritative; partial does not imply every action is exposed. */
 export const operationsCatalog = [
   {
+    "source": "app/api/native/academic/[...resource]/route.ts",
+    "actions": ["GET", "POST", "PATCH"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Course and roster reads use the signed-in role and course assignment. Settings, chapters and uploaded PDF titles use shared projections, revision checks and session-authorized retry receipts. MCP courses.update, chapters.create, chapters.update and materials.update_metadata retain their registered authorization and input contracts."
+  },
+  {
+    "source": "app/api/native/academic/tutor-support/[...resource]/route.ts",
+    "actions": ["GET", "POST", "PATCH"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Schedule, live class, materials and discussions use the current Tutor session. Availability edits apply the web schedule rules and verify slot ownership and revision. Replies reuse the signed-in discussion service. Tryout grades use the web grading operation and the stored answer revision. The writes use durable receipts scoped to the active Tutor session."
+  },
+  {
+    "source": "app/api/native/academic-assessment/[...resource]/route.ts",
+    "actions": ["GET", "POST", "PATCH"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Interactive assessment reads and manual grading require the signed-in academic role, disclosure checks and course scope. Tryout draft metadata and bank selection require an active Admin session and course-scoped revision and retry checks. Existing MCP authoring tools use their registered scopes, consent and service contracts."
+  },
+  {
+    "source": "app/api/native/academic-administration/[...resource]/route.ts",
+    "actions": ["GET", "POST", "PATCH"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The Expo adapter reads administrative data and uses active Admin sessions for study groups, enrollment tokens, user status, PKA and Idea item review. Idea item review uses the staged artifact and the canonical reviewer decision operation with a session-scoped receipt. MCP operations retain their registered scopes and consent."
+  },
+  {
+    "source": "app/api/admin/bundles/product/[id]/pdf/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The V2/V3 draft PDF queue uses the signed-in Admin UI and an exact Diktat, revision and request identity. V4 uses its separate trusted verification workflow and scoped authoring tools."
+  },
+  {
     "source": "app/api/forms/[idOrSlug]/route.ts",
     "actions": ["GET", "POST"],
     "tools": [],
