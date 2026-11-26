@@ -4,6 +4,7 @@ import { useProtectedInteraction } from "../../../routing/protected-interaction"
 import { View } from "react-native";
 import { formAttachmentUrl } from "../../../../../lib/forms/attachment";
 import { FormSheets } from "./form-sheets";
+import { FormImagePreview } from "./form-image-preview";
 import { FormAttachment } from "./form-attachment";
 import { createStandardFormQuestions } from "../../../../../lib/forms/standard-template";
 import { buildFormSteps, formFileSizeLimitMb, isEmptyFormAnswer } from "../../../../../lib/forms/presentation";
@@ -189,6 +190,7 @@ function FormBuilder({ form, initialTab }: { form?: FormDefinition; initialTab?:
       {!responseCount && <View style={styles.row}><Action disabled={action.busy || mustReview} onPress={applyStandardPreset}>Preset 12 jenis soal</Action></View>}
       {responseCount > 0 && <Copy muted>Pertanyaan dengan respons tersimpan dipertahankan.</Copy>}
       {value.questions.map((question, index) => <Section key={index} title={`${index + 1}. ${questionTypes[question.type]}`}>
+        {pickFormImage && question.imageUrl ? <FormImagePreview url={question.imageUrl} label={question.title} /> : null}
         {responseCount > 0 ? <Copy>{question.title}</Copy> : <>
         <Field label={nonAnswers(question) ? "Judul" : "Teks pertanyaan"} value={question.title} onFocus={() => setActiveQuestion(index)} onChangeText={next => questionEdit(index, { title: next })} />
         {!nonAnswers(question) && <>
@@ -307,6 +309,7 @@ function Settings({ settings, update }: { settings: FormSettings; update: (setti
 }
 
 function FormPreview({ fields }: { fields: FormFields }) {
+  const { pickFormImage } = useManagement();
   const steps = buildFormSteps(fields.questions, fields.settings.displayMode, fields.settings.collectEmail === "input");
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -352,10 +355,11 @@ function FormPreview({ fields }: { fields: FormFields }) {
     {shownQuestions.map(questionIndex => {
       const question = fields.questions[questionIndex];
       const key = String(questionIndex);
-      if (nonAnswers(question)) return <View key={key} style={styles.field}>{question.title && <Heading>{question.title}</Heading>}{question.description && <Copy>{question.description}</Copy>}</View>;
+      const picture = pickFormImage && question.imageUrl ? <FormImagePreview url={question.imageUrl} label={question.title} /> : null;
+      if (nonAnswers(question)) return <View key={key} style={styles.field}>{question.title && <Heading>{question.title}</Heading>}{question.description && <Copy>{question.description}</Copy>}{picture}</View>;
       const description = question.description ? <Copy muted>{question.description}</Copy> : null;
       if (question.type === "FILE_UPLOAD") return <View key={key} style={styles.field}>
-        <Heading>{question.title || questionTypes[question.type]}</Heading>{description}
+        <Heading>{question.title || questionTypes[question.type]}</Heading>{description}{picture}
         <Copy muted>{`Maksimal ${formFileSizeLimitMb(question.maxFileSizeMb)} MB per berkas`}</Copy>
         <Action onPress={() => answer(key, "berkas-ujicoba.pdf")}>{answers[key] || "Pilih berkas uji"}</Action>
       </View>;
@@ -363,7 +367,7 @@ function FormPreview({ fields }: { fields: FormFields }) {
         const entries = (answers[key] ?? "").split("\n").filter(Boolean);
         const options = (question.options ?? []).filter(Boolean).map(option => ({ value: option, label: option }));
         if (question.otherOption?.enabled) options.push({ value: otherChoice, label: question.otherOption.label });
-        return <View key={key} style={styles.field}><Heading>{question.title || questionTypes[question.type]}</Heading>{description}
+        return <View key={key} style={styles.field}><Heading>{question.title || questionTypes[question.type]}</Heading>{description}{picture}
           <View style={styles.row}>{options.map(({ value, label }, order) => {
             const selected = entries.includes(value);
             return <Action key={order} selected={selected} variant={selected ? "default" : "outline"} onPress={() => toggleAnswer(key, value, question.type === "CHECKBOX")}>{label}</Action>;
@@ -372,7 +376,7 @@ function FormPreview({ fields }: { fields: FormFields }) {
         </View>;
       }
       if (question.type.startsWith("GRID_")) return <View key={key} style={styles.field}>
-        <Heading>{question.title || questionTypes[question.type]}</Heading>{description}
+        <Heading>{question.title || questionTypes[question.type]}</Heading>{description}{picture}
         {question.gridRows?.filter(Boolean).map((row, order) => {
           const rowKey = `${key}-${order}`;
           const selected = (answers[rowKey] ?? "").split("\n");
@@ -382,13 +386,13 @@ function FormPreview({ fields }: { fields: FormFields }) {
         })}
       </View>;
       if (question.type === "SCALE" || question.type === "RATING") return <View key={key} style={styles.field}>
-        <Heading>{question.title || questionTypes[question.type]}</Heading>{description}
+        <Heading>{question.title || questionTypes[question.type]}</Heading>{description}{picture}
         {question.type === "SCALE" && question.scaleLowLabel && <Copy muted>{`${question.scaleLow ?? 1} · ${question.scaleLowLabel}`}</Copy>}
         <Choices current={answers[key] ?? ""} values={Array.from({ length: Math.max(0, (question.scaleHigh ?? 5) - (question.scaleLow ?? 1) + 1) }, (_, offset) => String(offset + (question.scaleLow ?? 1))).map(value => [value, value] as const)} onChange={next => answer(key, next)} />
         {question.type === "SCALE" && question.scaleHighLabel && <Copy muted>{`${question.scaleHigh ?? 5} · ${question.scaleHighLabel}`}</Copy>}
       </View>;
       return <View key={key} style={styles.field}>
-        {description}
+        {description}{picture}
         <Field label={question.title || questionTypes[question.type]} value={answers[key] ?? ""} onChangeText={next => answer(key, next)} multiline={question.type === "PARAGRAPH"} />
       </View>;
     })}

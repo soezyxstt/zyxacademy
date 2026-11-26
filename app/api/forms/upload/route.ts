@@ -7,6 +7,7 @@ import { detectFormFileMime } from "@/lib/forms/file-types";
 import { formFileSizeLimitMb } from "@/lib/forms/presentation";
 import { expectsFormWriteSession, formWriteSessionError, getFormClosedReason, getFormRespondentError, matchesFormWriteSession } from "@/lib/forms/response-policy";
 import { storage } from "@/lib/storage";
+import { formResponseAttachmentFolder } from "@/lib/forms/response-attachment-key";
 import { buildFormStorageKey } from "@/lib/forms/storage-utils";
 
 export async function POST(req: Request) {
@@ -36,8 +37,8 @@ export async function POST(req: Request) {
     const exactId = new URL(req.url).searchParams.get("target") === "id";
     const [form] = await db
       .select({
+        id: customForms.id,
         slug: customForms.slug,
-        title: customForms.title,
         questions: customForms.questions,
         settings: customForms.settings,
       })
@@ -81,7 +82,7 @@ export async function POST(req: Request) {
     }
 
     const key = buildFormStorageKey({
-      formTitle: form.title,
+      formTitle: formResponseAttachmentFolder(form.id),
       formSlug: form.slug,
       questionNumber,
       filename: file.name,

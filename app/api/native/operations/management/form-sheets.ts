@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { customFormResponses, customForms } from "@/db/schema";
+import { formResponseAttachmentFolder } from "@/lib/forms/response-attachment-key";
 import { protectedFormAttachmentKey } from "@/lib/forms/attachment";
 import { buildFormSpreadsheetPayload } from "@/lib/forms/spreadsheet-payload";
 import { syncGoogleSpreadsheet } from "@/lib/google-sheets";
@@ -21,7 +22,8 @@ export async function exportNativeFormResults(formId: string, origin: string, co
 
   const payload = buildFormSpreadsheetPayload(form, responses, origin, (value, index) => {
     const key = protectedFormAttachmentKey(value, {
-      origin, legacyBase: process.env.R2_PUBLIC_URL, folders: [slugifyFormTitle(form.title), slugifyFormTitle(form.slug)], questionIndex: index,
+      origin, legacyBase: process.env.R2_PUBLIC_URL, folders: [slugifyFormTitle(form.title), slugifyFormTitle(form.slug)],
+      responseFolder: formResponseAttachmentFolder(form.id), questionIndex: index,
     });
     return key ? new URL(`/api/storage/file/${key.map(encodeURIComponent).join("/")}`, origin).href : null;
   });

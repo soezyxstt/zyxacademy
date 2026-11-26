@@ -4,6 +4,7 @@ import { customForms, customFormResponses } from "@/db/schema";
 import { resolveAuthBaseUrl } from "@/lib/auth-site-url";
 import { getAuthSession } from "@/lib/auth-session";
 import { getNativeOperationsAdmin } from "@/lib/auth/native-operations-admin";
+import { formResponseAttachmentFolder } from "@/lib/forms/response-attachment-key";
 import { protectedFormAttachmentKey } from "@/lib/forms/attachment";
 import { slugifyFormTitle } from "@/lib/storage/keys";
 
@@ -30,7 +31,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ form
   if (!record || question?.type !== "FILE_UPLOAD" || typeof question.title !== "string") return notFound();
   const origin = new URL(resolveAuthBaseUrl()).origin;
   const key = protectedFormAttachmentKey(record.answers[index] ?? record.answers[question.title], {
-    origin, legacyBase: process.env.R2_PUBLIC_URL, folders: [slugifyFormTitle(record.title), slugifyFormTitle(record.slug)], questionIndex: Number(index),
+    origin, legacyBase: process.env.R2_PUBLIC_URL, folders: [slugifyFormTitle(record.title), slugifyFormTitle(record.slug)],
+    responseFolder: formResponseAttachmentFolder(formId), questionIndex: Number(index),
   });
   if (!key) return notFound();
   const proxy = new URL(`/api/storage/file/${key.map(encodeURIComponent).join("/")}?download=1`, origin);

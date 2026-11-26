@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { formAttachmentExportUrl, formAttachmentUrl, protectedFormAttachmentKey } from "./attachment";
+import { formAttachmentExportUrl, formAttachmentUrl, formQuestionImageProxyPath, protectedFormAttachmentKey } from "./attachment";
 
 describe("formAttachmentUrl", () => {
   test("preserves existing form URLs without creating proxy paths and rejects unsafe answers", () => {
@@ -30,6 +30,8 @@ describe("formAttachmentExportUrl", () => {
   });
 });
 
+import { formResponseAttachmentFolder } from "./response-attachment-key";
+
 describe("protectedFormAttachmentKey", () => {
   const options = { origin: "https://zyx.example", legacyBase: "https://legacy.example", folders: ["survey"], questionIndex: 2 };
   test("accepts the trusted proxy and configured legacy origin for the saved question slot", () => {
@@ -49,4 +51,17 @@ describe("protectedFormAttachmentKey", () => {
       "https://user:passwd@zyx.example/api/storage/file/forms/survey/question-3/a.pdf",
     ]) expect(protectedFormAttachmentKey(href, options)).toBeNull();
   });
+});
+
+test("form ID attachment namespaces survive rename and cannot match another form's current slug", () => {
+  const responseFolder = formResponseAttachmentFolder("form-a");
+  const foreign = formResponseAttachmentFolder("form-b");
+  const options = { origin: "https://zyx.example", responseFolder, folders: ["new-title", foreign], questionIndex: 0 };
+  expect(protectedFormAttachmentKey(`/api/storage/file/forms/${responseFolder}/question-1/upload.pdf`, options))
+    .toEqual(["forms", responseFolder, "question-1", "upload.pdf"]);
+  expect(protectedFormAttachmentKey(`/api/storage/file/forms/${foreign}/question-1/answer.pdf`, options)).toBeNull();
+  expect(protectedFormAttachmentKey("/api/storage/file/forms/old-title/question-1/unknown.pdf", options)).toBeNull();
+  expect(formQuestionImageProxyPath(`/api/storage/file/forms/${responseFolder}/question-1/answer.gif`, options.origin)).toBeNull();
+  expect(formQuestionImageProxyPath("/api/storage/file/forms/new-title/question-1/draft.gif", options.origin))
+    .toBe("/api/storage/file/forms/new-title/question-1/draft.gif");
 });

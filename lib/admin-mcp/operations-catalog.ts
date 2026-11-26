@@ -194,7 +194,7 @@ export const operationsCatalog = [
     "actions": ["POST"],
     "tools": [],
     "status": "excluded",
-    "reason": "Public file uploads attach files to a live respondent form under its current upload and authentication policy. Respondents opening an Expo link choose and submit files on the website under their browser session. Admin MCP preview and simulation do not upload respondent files."
+    "reason": "Public file uploads attach files to a live respondent form under its current upload and authentication policy. Respondents opening an Expo link choose and submit files on the website under their browser session. Admin MCP preview and simulation do not upload respondent files. New object keys use the immutable form ID and stay private even when referenced in a public question."
   },
   {
     "source": "app/api/meet/[slug]/route.ts",
@@ -1880,7 +1880,7 @@ export const operationsCatalog = [
     "actions": ["GET"],
     "tools": [],
     "status": "excluded",
-    "reason": "An interactive Admin attachment download binds the verified account to one stored file-upload response slot and reuses protected storage delivery. MCP response read and export tools retain their existing disclosure scopes."
+    "reason": "An interactive Admin attachment download binds the verified account to one stored file-upload response slot and reuses protected storage delivery. New uploads use an immutable form namespace. Legacy attachments require a matching stored form folder. MCP response read and export tools retain their existing disclosure scopes."
   },
   {
     "source": "app/api/admin/custom-forms/image/route.ts",

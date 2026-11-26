@@ -3,6 +3,9 @@ import { MATERIAL_PDF_HEADERS, MATERIAL_PDF_MAX_BYTES, materialPdfPath, type Mat
 import { adminMaterialPdfPath, ADMIN_PDF_ACCOUNT, ADMIN_PDF_SESSION } from "../../../packages/native-parity/academic/courses/pdf";
 import { courseVideoSource } from "../../../packages/course-video/source";
 import { SCHEDULE_ACCOUNT, SCHEDULE_SESSION, scheduleFilePolicy, scheduleResourcePath, type ScheduleRole } from "../../../packages/native-parity/schedule/resources";
+import { formQuestionImageProxyPath } from "../../../lib/forms/attachment";
+import { FORM_FILE_MIMES, FORM_IMAGE_MIMES } from "../../../packages/forms/file-types";
+import { PUBLIC_FORM_MAX_FILE_SIZE_MB } from "../../../packages/forms/presentation";
 import type { PhotoDraftTarget } from "./photo-controller";
 
 export type NativeFilePolicy = Readonly<{ mimeTypes: readonly string[]; maxBytes: number }>;
@@ -419,13 +422,13 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
     const schedule = request.target.kind === "schedule-resource" ? request.target : null;
     // The existing discussion API authorizes only these three image types and caps each at 8 MiB.
     const imageTypes = ["image/jpeg", "image/png", "image/webp"];
-    const domainTypes = schedule ? scheduleFilePolicy.mimeTypes : form ? [...imageTypes, "image/gif", "application/pdf"] :
+    const domainTypes: readonly string[] = schedule ? scheduleFilePolicy.mimeTypes : form ? FORM_FILE_MIMES :
       quiz ? [...imageTypes, "application/pdf"] : diskImages ? imageTypes : ["application/pdf"];
     const permitted = request.policy.mimeTypes.filter(mimeType => domainTypes.includes(mimeType));
     if (!permitted.length) return { status: "error", issue: "policy" };
     const maxBytes = quiz ? Math.min(request.policy.maxBytes, 4 * 1024 * 1024)
       : diskImages ? Math.min(request.policy.maxBytes, 8 * 1024 * 1024)
-      : form ? Math.min(request.policy.maxBytes, 50 * 1024 * 1024)
+      : form ? Math.min(request.policy.maxBytes, PUBLIC_FORM_MAX_FILE_SIZE_MB * 1024 * 1024)
       : schedule ? Math.min(request.policy.maxBytes, scheduleFilePolicy.maxBytes) : request.policy.maxBytes;
     const assertCurrent = () => { if (current()) throw new FileIssue("fetch"); };
     sharing = true;
@@ -472,6 +475,40 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
       response?.dispose();
       staged.finish();
       sharing = false;
+    }
+  }
+
+  async function prepareFormQuestionImage(session: NativeSessionTransport, url: string, signal: AbortSignal, isCurrent?: () => boolean) {
+    const path = formQuestionImageProxyPath(url, session.scope.origin);
+    if (!device.available || !path) throw new FileIssue("invalid-target");
+    const current = () => {
+      session.assertCurrent();
+      if (signal.aborted || isCurrent?.() === false) throw new FileIssue("fetch");
+    };
+    current();
+    initialize();
+    const response = await session.request(path, { signal, requiredRole: "admin", headers: { Accept: FORM_IMAGE_MIMES.join(", ") } });
+    const staged = stageExport({ session, signal });
+    try {
+      current();
+      const mime = normalizeMimeType(response.headers.get("Content-Type"));
+      if (response.status !== 200 || !response.body || !FORM_IMAGE_MIMES.some(allowed => allowed === mime)) throw new FileIssue("type");
+      const length = response.headers.get("Content-Length");
+      const encoding = response.headers.get("Content-Encoding");
+      if (length !== null && !/^\d+$/.test(length)) throw new FileIssue("incomplete");
+      const size = length !== null && (!encoding || encoding === "identity") ? Number(length) : undefined;
+      const limit = PUBLIC_FORM_MAX_FILE_SIZE_MB * 1024 * 1024;
+      const issue = sizeIssue(size, limit);
+      if (issue) throw new FileIssue(issue);
+      const file = staged.hold(fileName("form-question-image", mime));
+      await copyBytes(response.body, file, mime, limit, size, current, [session.signal, signal]);
+      current();
+      return { uri: file.uri, release: staged.finish };
+    } catch (error) {
+      staged.finish();
+      throw error;
+    } finally {
+      response.dispose();
     }
   }
 
@@ -599,5 +636,5 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
   }
 
   return { initialize, expireExports, pickDocument, belongsToDocumentDraft, shareDocument, shareAuthorizedDownload,
-    prepareCourseVideo, prepareMaterialPdf, renewMaterialPdf };
+    prepareFormQuestionImage, prepareCourseVideo, prepareMaterialPdf, renewMaterialPdf };
 }

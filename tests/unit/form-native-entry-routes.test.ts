@@ -5,6 +5,7 @@ import { runInNewContext } from "node:vm";
 import * as destinations from "../../packages/meet/public-destination";
 import * as fileTypes from "../../lib/forms/file-types";
 import * as presentation from "../../lib/forms/presentation";
+import * as responseAttachment from "../../lib/forms/response-attachment-key";
 import * as responsePolicy from "../../lib/forms/response-policy";
 
 const require = createRequire(import.meta.url);
@@ -60,7 +61,8 @@ function fixture() {
     "@/lib/forms/file-types": fileTypes,
     "@/lib/forms/presentation": presentation,
     "@/lib/forms/response-policy": responsePolicy,
-    "@/lib/forms/storage-utils": { buildFormStorageKey: ({ formSlug }: { formSlug: string }) => `forms/${formSlug}/question-1/answer.pdf` },
+    "@/lib/forms/response-attachment-key": responseAttachment,
+    "@/lib/forms/storage-utils": { buildFormStorageKey: ({ formTitle }: { formTitle: string }) => `forms/${formTitle}/question-1/answer.pdf` },
     "@/lib/storage": { storage: {
       upload: async (_file: File, _name: string, _mime: string, { key }: { key: string }) => {
         uploadKeys.push(key);
@@ -146,7 +148,7 @@ test("native POST and upload bind to the canonical form ID even when another for
   };
   expect((await send(form.slug)).status).toBe(404);
   expect((await send(form.id)).status).toBe(200);
-  expect(uploadKeys).toEqual([`forms/${form.slug}/question-1/answer.pdf`]);
+  expect(uploadKeys).toEqual([`forms/${responseAttachment.formResponseAttachmentFolder(form.id)}/question-1/answer.pdf`]);
 });
 
 test("native signed writes require the current authenticated account and session even on anonymous forms", async () => {

@@ -506,3 +506,26 @@ test("Admin PDF staging and metadata renewal use the fixed Admin route and never
   screen.abort();
   expect(fixture.files.size).toBe(0);
 });
+
+test("Admin form drafts preview only authorized image bytes and release them when leaving", async () => {
+  const pattern = "/api/storage/file/forms/survey/question-1/form-image.png";
+  const calls: string[] = [];
+  let bytes = fixtureImage;
+  const { controller, session, files } = setup({}, async (url, init) => {
+    calls.push(url);
+    expect(new Headers(init.headers).get("cookie")).toBe("session=fixture");
+    return new Response(stream(bytes), { headers: { "Content-Type": "image/png", "Content-Length": String(bytes.byteLength) } });
+  });
+  const abort = new AbortController();
+  await expect(controller.prepareFormQuestionImage(session, "https://other.test" + pattern, abort.signal)).rejects.toThrow("invalid-target");
+  await expect(controller.prepareFormQuestionImage(session, "/api/storage/file/media/file.png", abort.signal)).rejects.toThrow("invalid-target");
+  expect(calls).toEqual([]);
+  const result = await controller.prepareFormQuestionImage(session, pattern, abort.signal);
+  expect(calls).toEqual([origin + pattern]);
+  expect(files.has(result.uri)).toBe(true);
+  abort.abort();
+  expect(files.size).toBe(0);
+  bytes = fixturePdf;
+  await expect(controller.prepareFormQuestionImage(session, pattern, new AbortController().signal)).rejects.toThrow("type");
+  expect(files.size).toBe(0);
+});
