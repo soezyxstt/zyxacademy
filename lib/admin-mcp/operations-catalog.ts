@@ -29,6 +29,13 @@ export const operationsCatalog = [
     "reason": "First-use student and tutor tours guide the user's real browser or native app controls. Progress belongs to the signed-in account and role. Notification permission requires the user's direct browser or device action and does not change email preferences. Admin MCP tools, scopes, consent, discovery, playbooks, packaged skills, host prompts and environment bindings are unchanged; agents must not complete a user's tour for them."
   },
   {
+    "source": "app/(student)/settings/notifications/actions.ts",
+    "actions": ["updateNotificationPreferencesAction", "updateActivityNotificationPreferenceAction"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Personal notification choices are account-owned, signed-in UI preferences. No administrative MCP scope or tool changes."
+  },
+  {
     "source": "components/native/app-update-control.tsx",
     "actions": ["checkForUpdates", "triggerInstall"],
     "tools": [],

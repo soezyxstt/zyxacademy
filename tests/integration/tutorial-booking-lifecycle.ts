@@ -64,6 +64,13 @@ try {
 
   const first = await collaborativeBookSlot("slot", "course", "first", sessionDate);
   expect(first.success).toBe(true);
+  // The booking must finish without borrowing a second connection inside its transaction.
+  // The notification must use the canonical course title, not the compatibility ID.
+  const bookingNotifications = await db.select().from(schema.notifications)
+    .where(eq(schema.notifications.userId, "tutor"));
+  expect(bookingNotifications.some((notification) =>
+    notification.type === "tutor_booking" && `${notification.title} ${notification.body}`.includes("Math")
+  )).toBe(true);
   await expectUsage(1);
   const scheduled = await db.query.bookings.findFirst({
     where: eq(schema.bookings.id, first.bookingId!), with: { slot: true },

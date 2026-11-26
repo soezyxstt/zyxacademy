@@ -55,6 +55,7 @@ import {
   validateSlotWeekdayDate,
 } from "@/lib/schedule/tutor-policy";
 import { sendToMany } from "@/lib/notifications/send";
+import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import {
   tutorScheduleMovedPayload,
   tutorTicketDecisionPayload,
@@ -2047,6 +2048,7 @@ export async function executeMoveTutorSession(
       const memberUserIds = memberRows.map((m: { userId: string }) => m.userId);
       if (memberUserIds.length > 0) {
         await sendToMany(memberUserIds, tutorScheduleMovedPayload({
+          courseTitle: (await resolveCourseIdentity(booking.courseId).catch(() => null))?.title,
           dayOfWeek: targetSlot.dayOfWeek,
           sessionDate: targetSessionDateIso,
           startTime: targetSlot.startTime,
@@ -2852,6 +2854,7 @@ export async function executeDecideTutorRescheduleTicket(
           ticketType: ticket.type,
           decision,
           notes: notes || null,
+          courseTitle: (await resolveCourseIdentity(booking.courseId).catch(() => null))?.title,
         }));
         if (process.env.RESEND_API_KEY) {
           await Promise.allSettled(
@@ -3149,7 +3152,9 @@ export async function executeReplyTutorTicketMessage(
       const memberUserIds = memberRows.map((m: { userId: string }) => m.userId);
       if (memberUserIds.length > 0) {
         await sendToMany(memberUserIds, tutorTicketMessagePayload(
-          messageText.length > 120 ? `${messageText.slice(0, 117)}...` : messageText,
+          messageText,
+          "/dashboard/schedule",
+          { courseTitle: (await resolveCourseIdentity(booking.courseId).catch(() => null))?.title, senderName: authContext.name ?? undefined },
         ));
       }
     } catch (notifErr) {

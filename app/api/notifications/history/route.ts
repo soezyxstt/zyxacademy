@@ -107,7 +107,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(
       {
         notifications: rows.map(row => row.type === "discussion" && typeof row.metadata?.threadId === "string"
-          ? { ...row, metadata: { ...row.metadata, url: discussionNotificationLink(row.metadata.threadId, row.metadata.eventKind === "report", typeof row.metadata.messageId === "string" ? row.metadata.messageId : undefined) } }
+          ? { ...row, ...(targetUserId !== session.user.id ? { title: "Discussion update", body: "Discussion activity" } : {}), metadata: { ...row.metadata, url: discussionNotificationLink(row.metadata.threadId, row.metadata.eventKind === "report", typeof row.metadata.messageId === "string" ? row.metadata.messageId : undefined) } }
           : row),
         unreadCount: Number(unreadResult[0]?.count ?? 0),
         page,

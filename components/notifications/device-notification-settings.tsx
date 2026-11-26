@@ -240,6 +240,7 @@ export function DeviceNotificationSettings() {
               {permissionText}
             </span>
           </div>
+          {status?.osPermission === "denied" ? <p className="px-3 py-3 text-body-xs text-muted-foreground">{t("notificationPreferences.permissionDeniedHelp")}</p> : null}
 
           <div className="flex flex-wrap items-center justify-between gap-3 px-3 py-(--row-padding)">
             <div className="flex min-w-0 items-center gap-3">

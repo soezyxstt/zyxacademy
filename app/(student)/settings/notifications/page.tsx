@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { NotificationPreferencesForm } from "./notification-preferences-form";
 import { auth } from "@/lib/auth";
 import { getEmailNotificationPreferences } from "@/lib/email-preferences/repository";
+import { getActivityNotificationPreferences } from "@/lib/notifications/activity-preferences";
 import { pageTitle } from "@/lib/site";
 import { PageHeader } from "@/components/page-header";
 import { ApplicationPage } from "@/components/application-page";
@@ -22,14 +23,16 @@ export default async function NotificationPreferencesPage() {
     redirect(`/sign-in?next=${encodeURIComponent("/settings/notifications")}`);
   }
 
-  const preferences = await getEmailNotificationPreferences(session.user.id);
+  const [preferences, activityPreferences] = await Promise.all([
+    getEmailNotificationPreferences(session.user.id), getActivityNotificationPreferences(session.user.id),
+  ]);
   return (
     <ApplicationPage spacing="space-y-(--compact-gap)">
       <PageHeader
         title={<TranslatedText namespace="student" messageKey="notificationPreferences.title" />}
       />
       <Reveal>
-        <NotificationPreferencesForm accountEmail={session.user.email} initialPreferences={preferences} />
+        <NotificationPreferencesForm accountEmail={session.user.email} initialPreferences={preferences} initialActivityPreferences={activityPreferences} />
       </Reveal>
     </ApplicationPage>
   );

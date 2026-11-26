@@ -1,4 +1,6 @@
 import { createRoot } from "react-dom/client";
+import { useState } from "react";
+import { NotificationPermissionDialog } from "@/components/notifications/notification-permission-dialog";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
 import { SettingsClient } from "@/app/(student)/settings/settings-client";
@@ -10,6 +12,12 @@ import { AppearancePreferencesRuntime } from "@/components/appearance-preference
 import { AppToaster } from "@/components/app-toaster";
 import { DEFAULT_EMAIL_NOTIFICATION_PREFERENCES } from "@/lib/email-preferences/contracts";
 import { loadMessages } from "@/lib/i18n/catalogs";
+
+function PermissionPreview({ blocked }: { blocked: boolean }) {
+  const [open, setOpen] = useState(true);
+  const close = () => setOpen(false);
+  return open ? <NotificationPermissionDialog blocked={blocked} onEnable={close} onLater={close} onNever={close} /> : null;
+}
 
 async function mount() {
   const params = new URLSearchParams(location.search);
@@ -37,6 +45,7 @@ async function mount() {
               </StudentExperienceProvider>
             </StudentApplicationShell>
           </StudentExperienceProvider>
+          {params.has("permissionPrompt") ? <PermissionPreview blocked={params.get("permissionPrompt") === "blocked"} /> : null}
           <AppToaster />
         </QueryClientProvider>
       </LocaleProvider>

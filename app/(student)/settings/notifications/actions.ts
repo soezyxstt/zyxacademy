@@ -4,6 +4,8 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { saveEmailNotificationPreferences } from "@/lib/email-preferences/repository";
+import { setActivityNotificationPreference } from "@/lib/notifications/activity-preferences";
+import type { ActivityNotificationPreferenceKey } from "@/lib/notifications/types";
 
 export interface NotificationPreferencesActionState {
   success: boolean;
@@ -42,5 +44,20 @@ export async function updateNotificationPreferencesAction(
   } catch (error) {
     console.error("[updateNotificationPreferencesAction]", error);
     return { success: false, message: "Could not save notification preferences.", submittedAt: Date.now() };
+  }
+}
+
+export async function updateActivityNotificationPreferenceAction(key: ActivityNotificationPreferenceKey, enabled: boolean): Promise<{ success: boolean }> {
+  if ((key !== "discussionsEnabled" && key !== "flashcardsEnabled") || typeof enabled !== "boolean") return { success: false };
+  try {
+    const session = await auth.api.getSession({ headers: await headers() });
+    if (!session?.user?.id) return { success: false };
+    await setActivityNotificationPreference(session.user.id, key, enabled);
+    revalidatePath("/settings");
+    revalidatePath("/settings/notifications");
+    return { success: true };
+  } catch (error) {
+    console.error("[updateActivityNotificationPreferenceAction]", error);
+    return { success: false };
   }
 }

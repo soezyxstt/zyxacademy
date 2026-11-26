@@ -42,7 +42,7 @@ export const NOTIFICATION_EVENT_CATALOG: readonly NotificationCatalogEntry[] = [
     emailCategory: null,
     schedule: null,
     defaultLink: "/discussions",
-    summary: "New question, reply, mention, or thread resolution in a subscribed discussion channel.",
+    summary: "New activity in a discussion thread the recipient authored or participated in, subject to account and channel preferences.",
   },
   {
     key: "quiz_published",

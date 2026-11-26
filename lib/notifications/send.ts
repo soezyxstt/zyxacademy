@@ -16,6 +16,7 @@
 import { db } from "@/db";
 import {
  userPushTokens,
+ activityNotificationPreferences,
  notifications,
  enrollments,
  courses,
@@ -180,6 +181,11 @@ export async function sendToUser(
  payload: NotificationPayload,
  deliveryLocale?: Locale,
 ): Promise<SendResult> {
+ if (payload.type === "flashcard_reminder") {
+  const [preference] = await db.select({ enabled: activityNotificationPreferences.flashcardsEnabled })
+   .from(activityNotificationPreferences).where(eq(activityNotificationPreferences.userId, userId));
+  if (preference?.enabled === false) return { attempted: 0, succeeded: 0, failedTokens: [], errors: [] };
+ }
  const locale = deliveryLocale ?? (payload.systemTemplate ? (await getUserLocalePreference(userId)) ?? DEFAULT_LOCALE : undefined);
  const renderedPayload = locale ? renderNotificationPayload(payload, locale) : payload;
  const notificationId = renderedPayload.notificationId ?? randomUUID();
