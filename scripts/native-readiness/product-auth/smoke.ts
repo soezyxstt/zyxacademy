@@ -7,7 +7,7 @@ import { NATIVE_AUTH_HANDOFF_COOKIE } from "@/lib/native/auth-handoff";
 import { EXPO_ANDROID_BROWSER_RETURN, EXPO_ANDROID_BROWSER_RETURN_HEADER, EXPO_STAGING_ORIGIN, EXPO_STAGING_SCHEME } from "@/lib/native/expo-auth-config";
 import { course, video, privateVideoPath } from "./video-fixture";
 import { notificationId } from "./inbox-fixture";
-import { articleId, imagePath, pdfId, pkaCourseId, pkaDiktatId, readingCourseId } from "./reading-fixture";
+import { articleId, articleSectionId, formativeBlockId, imagePath, pdfId, pkaCourseId, pkaDiktatId, readingCourseId } from "./reading-fixture";
 import { fixtureOrigin, fixtureSessionSeconds } from "./scope";
 import { startAuthFixture } from "./server";
 
@@ -166,10 +166,33 @@ try {
     check(image.ok && image.headers.get("content-type") === "image/png" && (await image.arrayBuffer()).byteLength > 0,
       "Admitted image bytes absent");
     const diktat = await reading(pkaCourseId, pkaDiktatId);
-    check(diktat.ok && (await diktat.json() as { kind?: string }).kind === "diktat", "Registered PKA Diktat absent");
+    const pka = await diktat.json() as { kind?: string; revision?: string };
+    check(diktat.ok && pka.kind === "diktat" && typeof pka.revision === "string", "Registered PKA Diktat absent");
     const pdf = await binding.request("/api/native/student/material-pdf?" + new URLSearchParams({ courseId: readingCourseId, materialId: pdfId }),
       { headers: readingHeaders });
     check(pdf.ok && pdf.headers.get("Content-Type") === "application/pdf" && (await pdf.arrayBuffer()).byteLength > 0, "Authorized PDF bytes absent");
+    stage = "save and resume Article or Diktat progress and submit a formative response";
+    const studyPath = "/api/native/student/reading/learning";
+    const art = { courseId: readingCourseId, materialId: articleId, revision: document.revision };
+    const pkaScope = { courseId: pkaCourseId, materialId: pkaDiktatId, revision: pka.revision };
+    const learn = (body: object) => binding.request(studyPath, {
+      method: "POST", headers: { ...readingHeaders, "Content-Type": "application/json", Origin: EXPO_STAGING_ORIGIN }, body: JSON.stringify(body),
+    });
+    const articleWrite = await learn({ ...art, action: "article-progress",
+      progress: { sectionId: articleSectionId, percent: 100, completed: true, timeSpentSeconds: 0 } });
+    check(articleWrite.ok && (await articleWrite.json() as { completed?: boolean }).completed, "Article completion was not recorded");
+    const resume = await binding.request(studyPath + "?" + new URLSearchParams(art), { headers: readingHeaders });
+    const resumed = await resume.json() as { sectionProgress?: Record<string, { completed?: boolean }> };
+    check(resume.ok && resumed.sectionProgress?.[articleSectionId]?.completed, "Article resume did not include the completed section");
+    const evaluation = await learn({ ...art, action: "evaluate", sectionId: articleSectionId, blockId: formativeBlockId,
+      response: { kind: "choice", optionId: "area" } });
+    check(evaluation.ok && (await evaluation.json() as { result?: { verdict?: string } }).result?.verdict === "correct", "Formative evaluation failed");
+    const show = await learn({ ...art, action: "reveal", sectionId: articleSectionId, blockId: formativeBlockId });
+    check(show.ok && (await show.json() as { answer?: string }).answer === "Luas", "Explicit reveal did not return the answer");
+    const done = await learn({ ...pkaScope, action: "status", status: "completed" });
+    check(done.ok && (await done.json() as { success?: boolean }).success, "Canonical Diktat completion failed");
+    const doneRead = await binding.request(studyPath + "?" + new URLSearchParams(pkaScope), { headers: readingHeaders });
+    check(doneRead.ok && (await doneRead.json() as { status?: string }).status === "completed", "Canonical Diktat completion did not persist");
     stage = "withdraw test enrollments and verify native Article, image, PKA Diktat and PDF are denied";
     await fixture.revokeOnlineReading();
     const denied = await binding.request("/api/native/student/courses?" + new URLSearchParams({
@@ -177,6 +200,9 @@ try {
     }), { headers: readingHeaders });
     denied.dispose();
     check(fixture.verifiedOnlineReading(), "Withdrawn reading did not lock in the same session");
+    const deniedStudy = await learn({ ...pkaScope, action: "status", status: "completed" });
+    check(deniedStudy.status === 403, "Withdrawn PKA registration could still mutate Diktat progress");
+    deniedStudy.dispose();
   }
 
   if (offlineProduct) {

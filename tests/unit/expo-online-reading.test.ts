@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { bindStudentRequest } from "../../apps/mobile-native/features/student/transport";
 import type { StudentRequest } from "../../apps/mobile-native/features/student/contracts";
 import { OnlineReadingError, readOnlineMaterial } from "../../apps/mobile-native/features/student/courses/online-reading";
+import { readingLearning, resumeReadingSection } from "../../apps/mobile-native/features/student/courses/reading-learning";
 import { buildReadingContentHtml } from "../../apps/mobile-native/offline/reading-document";
 
 const target = { courseId: "course", materialId: "material", kind: "article" as const, section: "one" };
@@ -49,6 +50,35 @@ test("canonical Diktat markdown is read without using the PDF download capabilit
     data: { ...article, kind: "article", docCategory: "diktat", contentVersion: 2, body: "Diktat teorema" } };
   const content = await readOnlineMaterial(async () => Response.json(response), { ...target, kind: "diktat" }, "id", controller().signal);
   expect(buildReadingContentHtml(content, "", "light")).toContain("Diktat teorema");
+});
+
+test("Article progress resumes its newest section and sends formative responses only to the bound revision", async () => {
+  const requested: unknown[] = [];
+  const visits = [
+    { id: "first", slug: "awal" },
+    { id: "recent", slug: "akhir" },
+  ];
+  const recent = { maxReadPercent: 55, completed: false, timeSpentSeconds: 20, lastReadAt: "2026-11-26T09:00:00.000Z" };
+  const request: StudentRequest = async (url, init) => {
+    const body = typeof init?.body === "string" ? JSON.parse(init.body) : null;
+    requested.push(body ?? url);
+    if (!body) return Response.json({ articleId: target.materialId, articleVersion: 4, sectionProgress: { recent } });
+    if (body.action === "evaluate") return Response.json({ ok: true, result: { verdict: "correct", canRetry: true, revealAllowed: true, feedback: "Tepat." } });
+    if (body.action === "reveal") return new Response(null, { status: 409 });
+    return Response.json({ success: true, articleId: target.materialId, articleVersion: 4, sectionId: "wrong-section", ...recent, completedAt: null });
+  };
+  const content = { kind: "article" as const, locale: "id" as const, data: article, title: article.title,
+    structured: true, revision, resolveImage: () => undefined };
+  const study = readingLearning(request, target.courseId, content);
+  const signal = controller().signal;
+  const progress = await study.progress(signal);
+  expect(resumeReadingSection(progress, visits)).toEqual(visits[1]);
+  expect(resumeReadingSection(progress, visits, "awal")).toEqual(visits[0]);
+  await expect(study.save({ sectionId: "recent", timeSpentSeconds: 0, percent: 100 }, signal)).rejects.toMatchObject({ status: 502 });
+  expect((await study.evaluate("recent", "block", { kind: "numeric", value: "2,4" }, signal)).result.feedback).toBe("Tepat.");
+  await expect(study.reveal("recent", "block", signal)).rejects.toMatchObject({ status: 409 });
+  expect(requested[2]).toMatchObject({ courseId: target.courseId, materialId: target.materialId, revision, action: "evaluate", sectionId: "recent",
+    blockId: "block", response: { kind: "numeric", value: "2,4" } });
 });
 
 test("resource mismatch and authorization errors never expose a partially loaded document", async () => {

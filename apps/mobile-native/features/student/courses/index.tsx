@@ -406,7 +406,7 @@ function DiktatPdfDownload({ courseId, diktatId, save, reload }: {
   </>;
 }
 
-function Document({ data, request, reload, renderMaterial, route, replace, openOfflineLibrary, openExternal, saveDiktatPdf, pdfReader, locale }: { data: MaterialDetailData; request: Request; reload: () => void; renderMaterial?: Reader; locale: string } & Pick<StudentScreenProps, "route" | "replace" | "openOfflineLibrary" | "openExternal" | "saveDiktatPdf" | "pdfReader">) {
+function Document({ data, request, reload, renderMaterial, route, replace, openOfflineLibrary, openExternal, saveDiktatPdf, pdfReader, locale, session }: { data: MaterialDetailData; request: Request; reload: () => void; renderMaterial?: Reader; locale: string } & Pick<StudentScreenProps, "route" | "replace" | "openOfflineLibrary" | "openExternal" | "saveDiktatPdf" | "pdfReader" | "session">) {
   const copy = useContext(CopyContext);
   const theme = useContext(ThemeContext);
   const { course, material } = data;
@@ -440,7 +440,7 @@ function Document({ data, request, reload, renderMaterial, route, replace, openO
                 locale={locale} openWeb={openWeb} openExternal={openExternal} />
             : target && material.nativeReading && !canonicalHref
             ? <OnlineReading key={JSON.stringify([course.id, material.id, target.section, locale])}
-                request={request} kind={material.nativeReading} courseId={course.id} materialId={material.id}
+                request={request} session={session} reloadDetail={reload} kind={material.nativeReading} courseId={course.id} materialId={material.id}
                 title={material.title} section={target.section} theme={theme} locale={locale === "en" ? "en" : "id"} openWeb={openWeb} />
             : openWeb ? <Button theme={theme} variant="outline" testID="student-open-pdf-on-web" onPress={openWeb}>
                 {target?.kind === "pdf" ? copy.openPdfOnWeb : downloadableDiktat ? copy.openDiktatOnWeb : copy.openDocumentOnWeb}
@@ -611,7 +611,7 @@ function CourseEntry(props: StudentScreenProps & { query: LearningQuery; documen
         onSelectGroup={id => updateListQuery(route, replace, { jurusan: id === "all" ? undefined : id, category: undefined })} />; break;
       case "course": content = <CourseOverview data={resource.data} navigate={navigate} request={request} reload={reload} locale={locale} />; break;
       case "material-list": content = <Documents data={resource.data} route={route} replace={replace} navigate={navigate} request={request} reload={reload} openOfflineLibrary={props.openOfflineLibrary} locale={locale} disclosures={props.documentDisclosures ?? fallbackDisclosures.current} openExternal={openExternal} />; break;
-      case "material-detail": content = <Document data={resource.data} request={request} locale={locale} reload={reload} renderMaterial={renderMaterial} pdfReader={props.pdfReader} route={route} replace={replace} openOfflineLibrary={props.openOfflineLibrary} openExternal={openExternal} saveDiktatPdf={props.saveDiktatPdf} />; break;
+      case "material-detail": content = <Document data={resource.data} request={request} session={props.session} locale={locale} reload={reload} renderMaterial={renderMaterial} pdfReader={props.pdfReader} route={route} replace={replace} openOfflineLibrary={props.openOfflineLibrary} openExternal={openExternal} saveDiktatPdf={props.saveDiktatPdf} />; break;
     }
   }
 

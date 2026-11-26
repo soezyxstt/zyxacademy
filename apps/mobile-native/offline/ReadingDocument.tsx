@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, type ComponentProps } from "react";
 import { Text, View, useColorScheme } from "react-native";
 import { WebView } from "react-native-webview";
 import { nativeColors } from "../../../packages/design-tokens/native-colors";
@@ -13,7 +13,9 @@ export function ReadingDocument(props: ReadingDocumentProps) {
   return <ReadingContentDocument key={JSON.stringify([saved.summary.key, saved.summary.revision, section])} content={content} />;
 }
 
-export function ReadingContentDocument({ content, testID = "offline-reading-document" }: { content: ReadingContent; testID?: string }) {
+export function ReadingContentDocument({ content, testID = "offline-reading-document", onProgress }: {
+  content: ReadingContent; testID?: string; onProgress?: (percent: number) => void;
+}) {
   const { title, locale } = content;
   const theme = useColorScheme() === "dark" ? "dark" : "light";
   const html = useMemo(() => {
@@ -27,6 +29,11 @@ export function ReadingContentDocument({ content, testID = "offline-reading-docu
     </Text>
   </View>;
   if (!source) return unavailable();
+  const scroll: ComponentProps<typeof WebView>["onScroll"] = onProgress ? ({ nativeEvent }) => {
+    const visible = nativeEvent.layoutMeasurement?.height ?? 0;
+    const total = nativeEvent.contentSize?.height ?? 0;
+    if (visible > 0 && total > 0) onProgress(Math.min(100, Math.round((Math.max(0, nativeEvent.contentOffset.y) + visible) * 100 / total)));
+  } : undefined;
 
   return <WebView
     testID={testID}
@@ -35,6 +42,7 @@ export function ReadingContentDocument({ content, testID = "offline-reading-docu
     source={source}
     originWhitelist={["*"]}
     onShouldStartLoadWithRequest={request => request.url === initialPage}
+    onScroll={scroll}
     javaScriptEnabled={false}
     domStorageEnabled={false}
     incognito

@@ -4,15 +4,16 @@ import { ActivityIndicator, Modal, Platform, ScrollView, Text, View } from "reac
 import { SafeAreaView } from "react-native-safe-area-context";
 import { nativeColors } from "../../../../../packages/design-tokens/native-colors";
 import { Button } from "../../../components/Button";
-import { ReadingContentDocument } from "../../../offline/ReadingDocument";
 import type { ReadingContent } from "../../../offline/reading-document";
 import { useProtectedInteraction } from "../../../routing/protected-interaction";
-import type { StudentRequest } from "../contracts";
+import type { StudentRequest, StudentSession } from "../contracts";
 import { useOpenCourseZyra, type CourseZyraContextInput } from "../zyra/context";
-import { OnlineReadingError, readOnlineMaterial } from "./online-reading";
+import { OnlineReadingError, readOnlineMaterial, type OnlineReadingContent } from "./online-reading";
+import { ReadingStudy } from "./ReadingStudy";
 
 type ReaderProps = {
   request: StudentRequest;
+  session: StudentSession;
   kind: ReadingContent["kind"];
   courseId: string;
   materialId: string;
@@ -21,6 +22,7 @@ type ReaderProps = {
   title: string;
   theme: keyof typeof nativeColors;
   openWeb?: () => void;
+  reloadDetail(): void;
 };
 
 export function OnlineReading(props: ReaderProps) {
@@ -28,8 +30,12 @@ export function OnlineReading(props: ReaderProps) {
   const [open, setOpen] = useState(false);
   const openZyra = useOpenCourseZyra();
   const quote = useRef<CourseZyraContextInput | null>(null);
+  const changed = useRef(false);
   const id = props.locale === "id";
-  const close = () => setOpen(false);
+  const close = () => {
+    setOpen(false);
+    if (changed.current) { changed.current = false; props.reloadDetail(); }
+  };
   const sendQuote = () => {
     const selection = quote.current;
     quote.current = null;
@@ -45,16 +51,16 @@ export function OnlineReading(props: ReaderProps) {
       {id ? "Baca materi" : "Read material"}
     </Button>
     <Modal visible={open && !suspended} animationType="none" presentationStyle="fullScreen" onRequestClose={close} onDismiss={sendQuote}>
-      {open && !suspended ? <OnlineReadingPage {...props} close={close} ask={ask} /> : null}
+      {open && !suspended ? <OnlineReadingPage {...props} close={close} ask={ask} onCompleted={() => { changed.current = true; }} /> : null}
     </Modal>
   </>;
 }
 
-function OnlineReadingPage({ request, kind, courseId, materialId, locale, section, title, theme, close, openWeb, ask }: ReaderProps & {
-  close(): void; ask?: (snippet: string, sectionTitle?: string) => void;
+function OnlineReadingPage({ request, session, kind, courseId, materialId, locale, section, title, theme, close, openWeb, ask, onCompleted }: ReaderProps & {
+  close(): void; onCompleted(): void; ask?: (snippet: string, sectionTitle?: string) => void;
 }) {
   const { canInteract } = useProtectedInteraction();
-  const [state, setState] = useState<{ content: ReadingContent } | { status: number } | null>(null);
+  const [state, setState] = useState<{ content: OnlineReadingContent } | { status: number } | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [emptyClipboard, setEmptyClipboard] = useState(false);
   const alive = useRef(true);
@@ -74,6 +80,7 @@ function OnlineReadingPage({ request, kind, courseId, materialId, locale, sectio
   const status = state && "status" in state ? state.status : null;
   const forbidden = status === 401 || status === 403;
   const web = !forbidden && (status === 404 || status === 413);
+  function reload() { if (canInteract()) { setState(null); setAttempt(value => value + 1); } }
   return <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} testID="student-native-reading-screen">
     <View style={{ flexDirection: "row", alignItems: "center", gap: 12, padding: 12, borderBottomWidth: 1, borderColor: colors.border }}>
       <Button theme={theme} variant="outline" onPress={close}>{id ? "Kembali" : "Back"}</Button>
@@ -93,7 +100,8 @@ function OnlineReadingPage({ request, kind, courseId, materialId, locale, sectio
         {id ? "Salin teks bacaan terlebih dahulu." : "Copy text from the reading first."}
       </Text> : null}
     </View> : null}
-    {state && "content" in state ? <ReadingContentDocument content={state.content} testID="student-online-reading-document" />
+    {state && "content" in state ? <ReadingStudy key={state.content.revision} content={state.content} courseId={courseId} request={request}
+      session={session} theme={theme} onCompleted={onCompleted} reload={reload} />
       : !state ? <ActivityIndicator style={{ margin: 20 }} accessibilityLabel={id ? "Memuat bacaan" : "Loading reading"} />
       : <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
         <Text accessibilityRole="alert" style={{ color: colors.foreground }}>
@@ -102,9 +110,7 @@ function OnlineReadingPage({ request, kind, courseId, materialId, locale, sectio
         </Text>
         {web && openWeb ? <Button theme={theme} onPress={() => { if (canInteract()) openWeb(); }}>
           {id ? "Buka di web" : "Open on the web"}
-        </Button> : !forbidden ? <Button theme={theme} onPress={() => {
-          if (canInteract()) { setState(null); setAttempt(value => value + 1); }
-        }}>{id ? "Coba lagi" : "Try again"}</Button> : null}
+        </Button> : !forbidden ? <Button theme={theme} onPress={reload}>{id ? "Coba lagi" : "Try again"}</Button> : null}
       </ScrollView>}
   </SafeAreaView>;
 }

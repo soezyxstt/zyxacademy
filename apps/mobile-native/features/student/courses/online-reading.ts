@@ -26,7 +26,9 @@ async function bytes(response: StudentResponse, limit: number) {
   return data;
 }
 
-export async function readOnlineMaterial(request: StudentRequest, target: Target, locale: ReadingContent["locale"], signal: AbortSignal): Promise<ReadingContent> {
+export type OnlineReadingContent = ReadingContent & { revision: string; structured: boolean };
+
+export async function readOnlineMaterial(request: StudentRequest, target: Target, locale: ReadingContent["locale"], signal: AbortSignal): Promise<OnlineReadingContent> {
   const { courseId, materialId, kind, section } = target;
   const query = { courseId, materialId };
   assertActive(signal);
@@ -63,5 +65,6 @@ export async function readOnlineMaterial(request: StudentRequest, target: Target
     } finally { assetResponse.dispose?.(); }
   }
   assertActive(signal);
-  return { kind, title: row.title, data, locale, section, resolveImage: source => sources.get(source) };
+  return { kind, title: row.title, data, locale, section, revision: row.revision, structured: row.structured === true,
+    resolveImage: source => sources.get(source) };
 }

@@ -189,3 +189,12 @@ test("native text material preview and manual publication require a course-scope
   expect(entry.reason).toContain("course and source ownership");
   expect(entry.reason).toContain("same-session receipts");
 });
+
+test("native reading progress and formative feedback remain scoped learner interactions", () => {
+  const entry = operationsCatalog.find(item => item.source === "app/api/native/student/reading/learning/route.ts")!;
+  expect(entry.actions).toEqual(["GET", "POST"]);
+  expect(entry.status).toBe("excluded");
+  expect(entry.tools).toEqual([]);
+  expect(entry.reason).toContain("current published revision");
+  expect(entry.reason).toContain("Tutorial PKA still checks registration");
+});

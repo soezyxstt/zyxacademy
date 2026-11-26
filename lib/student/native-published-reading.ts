@@ -46,5 +46,5 @@ export async function loadNativePublishedReading(studentId: string, target: Targ
     catch { return false; }
   });
   const revision = createHash("sha256").update(JSON.stringify([kind, version, data, assets])).digest("hex");
-  return { kind, courseId: target.courseId, id, title, revision, data, assets };
+  return { kind, courseId: target.courseId, id, title, revision, data, assets, structured: article !== null };
 }

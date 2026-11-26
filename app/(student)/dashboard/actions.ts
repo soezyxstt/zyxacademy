@@ -14,7 +14,7 @@ import {
   websiteMaterials,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { eq, and, or } from "drizzle-orm";
+import { eq, and, or, sql } from "drizzle-orm";
 import { recordLearningEvent } from "@/lib/learning-events";
 import { inngest } from "@/lib/inngest";
 import { redeemGroupToken } from "@/lib/groups/redeem-token";
@@ -81,15 +81,7 @@ export async function updateMaterialProgress(materialId: string, status: "in_pro
   if (expectedUserId && expectedUserId !== user.id) throw new Error("Account changed");
   const now = new Date();
 
-  const [materialAccess, existing] = await Promise.all([
-    getStudentMaterialAccess(user.id, materialId),
-    db.query.progress.findFirst({
-      where: and(
-        eq(progress.userId, user.id),
-        eq(progress.materialId, materialId)
-      ),
-    }),
-  ]);
+  const materialAccess = await getStudentMaterialAccess(user.id, materialId);
   if (!materialAccess) {
     throw new Error("MATERIAL_ACCESS_DENIED");
   }
@@ -106,28 +98,17 @@ export async function updateMaterialProgress(materialId: string, status: "in_pro
     throw new Error("MATERIAL_UPGRADE_REQUIRED");
   }
 
-  if (existing) {
-    // If it is already completed, do not revert to in_progress
-    if (existing.status === "completed" && status === "in_progress") {
-      return { success: true };
-    }
-
-    await db
-      .update(progress)
-      .set({
-        status,
-        completedAt: status === "completed" ? now : existing.completedAt,
-      })
-      .where(eq(progress.id, existing.id));
-  } else {
-    await db.insert(progress).values({
-      id: randomUUID(),
-      userId: user.id,
-      materialId,
-      status,
-      completedAt: status === "completed" ? now : null,
-    });
-  }
+  const changed = await db.transaction(async tx => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`material:${user.id}:${materialId}`}, 0))`);
+    const [existing] = await tx.select({ id: progress.id, status: progress.status, completedAt: progress.completedAt })
+      .from(progress).where(and(eq(progress.userId, user.id), eq(progress.materialId, materialId))).limit(1);
+    if (existing?.status === status || existing?.status === "completed") return false;
+    const completedAt = status === "completed" ? now : existing?.completedAt ?? null;
+    if (existing) await tx.update(progress).set({ status, completedAt }).where(eq(progress.id, existing.id));
+    else await tx.insert(progress).values({ id: randomUUID(), userId: user.id, materialId, status, completedAt });
+    return true;
+  });
+  if (!changed) return { success: true };
 
   // Fire learning event on completion
   if (status === "completed") {

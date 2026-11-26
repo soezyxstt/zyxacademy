@@ -113,6 +113,13 @@ export const operationsCatalog = [
     "reason": "Published learner reading uses the current Student session, course and chapter authorization, and Tutorial PKA registration where applicable. Admitted image bytes are bound to the same authorized revision. Native reading does not accept MCP credentials or change authoring permissions."
   },
   {
+    "source": "app/api/native/student/reading/learning/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Learner Article and Diktat progress, completion and formative responses require an active Student session, exact course and current published revision. Tutorial PKA still checks registration. These operations reuse learner web evidence and feedback rules. MCP authoring grants do not expose learner progress, answers or formative submissions."
+  },
+  {
     "source": "app/api/native/student/community/[operation]/route.ts",
     "actions": ["GET", "POST"],
     "tools": [],

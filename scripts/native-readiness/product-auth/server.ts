@@ -280,7 +280,8 @@ export async function startAuthFixture(certPath: string, keyPath: string, option
         if (response.ok) loadedDashboard = true;
         return response;
       }
-      if (previewReading && browserIdentity && (request.method === "GET" || request.method === "HEAD")) {
+      if (previewReading && browserIdentity && (request.method === "GET" || request.method === "HEAD" ||
+        route === "POST /api/native/student/reading/learning")) {
         const identity = browserIdentity;
         const response = await requestContext.run(upstream, () => previewReading.handle(upstream, identity));
         if (response) return response;

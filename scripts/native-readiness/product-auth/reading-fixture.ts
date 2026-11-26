@@ -8,6 +8,8 @@ const courseId = readingCourseId;
 const canonicalCourse = "native-preview-reading-canonical";
 const enrollmentId = "native-preview-reading-enrollment";
 export const articleId = "native-preview-reading-article";
+export const articleSectionId = articleId + "-section";
+export const formativeBlockId = articleId + "-check";
 export const pdfId = "native-preview-reading-pdf";
 const pdfUrl = "https://native-reading-fixture.ufs.sh/lesson.pdf";
 export const pkaCourseId = "tutorial-pka";
@@ -46,10 +48,11 @@ type Identity = { accountId: string; sessionId: string; cookie: string };
 
 export async function createReadingPreview(runHandler: (request: Request, handler: (request: Request) => Promise<Response>) => Promise<Response>) {
   assertFixtureRunner();
-  const [{ db }, schema, courses, learning, reading, pdf, { auth }, navigation] = await Promise.all([
+  const [{ db }, schema, courses, learning, reading, pdf, { auth }, navigation, study] = await Promise.all([
     import("@/db"), import("@/db/schema"), import("@/app/api/native/student/courses/route"),
     import("@/app/api/native/student/learning/route"), import("@/app/api/native/student/reading/route"),
     import("@/app/api/native/student/material-pdf/route"), import("@/lib/auth"), import("@/app/api/student/navigation/route"),
+    import("@/app/api/native/student/reading/learning/route"),
   ]);
   let seeded: Promise<void> | undefined;
   let articleRevision: string | undefined;
@@ -113,7 +116,7 @@ export async function createReadingPreview(runHandler: (request: Request, handle
         ...details, id: articleId, slug: articleId, mataKuliahId: canonicalCourse, babId: chapter, title: "Artikel verifikasi kanonis",
         contentMarkdown: "Isi terstruktur berada di bagian bacaan.", structureStatus: "structured",
       });
-      const id = articleId + "-section";
+      const id = articleSectionId;
       await tx.insert(schema.bagianArtikel).values({
         id, artikelId: articleId, sectionKey: "intro", sectionKind: "topic", slug: "pembahasan", title: "Pembahasan utama",
         learningObjective: "Memahami hubungan luas dan panjang.", orderIndex: 1, estimatedReadingMinutes: 1, version: 3,
@@ -123,6 +126,16 @@ export async function createReadingPreview(runHandler: (request: Request, handle
       await tx.insert(schema.blokArtikel).values({
         id: articleId + "-body", artikelId: articleId, bagianArtikelId: id, blockKey: "body", blockType: "explanation", orderIndex: 1,
         content: `${markdown}\n<!--__ZYX_V4_BLOCK_PAYLOAD__:${authored}-->`, version: 3, generationHash: details.generationHash, status: "published",
+      });
+      const check = Buffer.from(JSON.stringify({
+        formativeCheckPayload: { checkKind: "multiple_choice", answer: "Luas", explanation: "Luas berdimensi panjang kuadrat.",
+          options: [{ id: "area", text: "Luas", isCorrect: true }, { id: "length", text: "Panjang", isCorrect: false }],
+          evaluation: { mode: "choice" } },
+      })).toString("base64url");
+      await tx.insert(schema.blokArtikel).values({
+        id: formativeBlockId, artikelId: articleId, bagianArtikelId: id, blockKey: "check", blockType: "retrieval_close", orderIndex: 2,
+        content: `Apa yang diukur dalam satuan persegi?\n<!--__ZYX_V4_BLOCK_PAYLOAD__:${check}-->`,
+        version: 3, generationHash: details.generationHash, status: "published",
       });
       await tx.insert(schema.courseMaterials).values({
         id: pdfId, courseId, title: "PDF verifikasi kelas", type: "materi", fileUrl: pdfUrl, chapterIds: [chapter],
@@ -136,6 +149,7 @@ export async function createReadingPreview(runHandler: (request: Request, handle
 
   async function handle(request: Request, identity: Identity) {
     const url = new URL(request.url);
+    const studyPath = url.pathname === "/api/native/student/reading/learning";
     const course = url.searchParams.get("courseId");
     const material = url.searchParams.get("materialId");
     const view = url.searchParams.get("view");
@@ -147,10 +161,11 @@ export async function createReadingPreview(runHandler: (request: Request, handle
     const detail = url.pathname === "/api/native/student/courses" && view === "material-detail" && (ordinary || pka || manualPdf);
     const read = url.pathname === "/api/native/student/reading" && (ordinary || pka);
     const courseNavigation = request.method === "GET" && url.pathname === studentNavigationEndpoint && course === courseId;
-    if (!read && !detail && !pkaGate && !pdfRead && !courseNavigation) return null;
+    if (!read && !detail && !pkaGate && !pdfRead && !courseNavigation && !studyPath) return null;
     owner = identity;
     seeded ??= seed(identity.accountId);
     await seeded;
+    if (studyPath) return request.method === "POST" ? study.POST(request) : study.GET(request);
     if (courseNavigation) return navigation.GET(request);
     if (pkaGate) return learning.GET(request);
     if (pdfRead) {
