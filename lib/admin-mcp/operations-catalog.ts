@@ -1,6 +1,13 @@
 /** Source-level coverage index. Tool registration is authoritative; partial does not imply every action is exposed. */
 export const operationsCatalog = [
   {
+    "source": "app/api/native/student/courses/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The Expo course views return metadata for the signed-in learner under the existing course policy. Activation is the learner's existing group token redemption flow, with live Student authorization and a bound account. Admin MCP tools retain their own enrollment and group permissions."
+  },
+  {
     "source": "components/admin/offline-cache-settings.tsx",
     "actions": ["save", "refresh"],
     "tools": [],

@@ -26,7 +26,7 @@ export interface StudentServices {
     set(key: string, value: string): Promise<void>;
     remove(key: string): Promise<void>;
   };
-  renderMaterial?: (props: { courseId: string; materialId: string }) => ReactNode;
+  renderMaterial?: (props: { courseId: string; materialId: string; section?: string; page?: number }) => ReactNode;
   openExternal?: (path: string) => void;
   nativeAuthScheme?: string;
   devicePreferences?: {
