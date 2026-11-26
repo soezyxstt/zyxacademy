@@ -39,8 +39,8 @@ const features = (rangeDays: MonitoringRange): MonitoringData["features"] => {
   const events = rows.reduce((sum, row) => sum + row.events, 0);
   return {
     rangeDays, rows, daily,
-    totals: { events, activeUsers: populated ? 12 : 0, trendPercent: populated ? 100 : null,
-      topFeatureKey: populated ? "materi" : null, topFeatureSharePercent: populated ? Math.round(rows[0].events / events * 100) : null },
+    totals: { events, previousEvents: rows.reduce((sum, row) => sum + row.previousEvents, 0), activeUsers: populated ? 12 : 0, trendPercent: populated ? 100 : null,
+      topFeatureKey: populated ? "materi" : null, topFeatureLabel: populated ? labels[0] : null, topFeatureSharePercent: populated ? Math.round(rows[0].events / events * 100) : null },
     insights: {
       fastestGrowing: populated ? { key: "materi", trendPercent: 100 } : null,
       highestAdoption: populated ? { key: "materi", adoptionPercent: 100 } : null,
@@ -153,11 +153,11 @@ export const monitoringFixtureData: MonitoringData = {
   tutorDetail: sampleAudit[0],
   models: [
     { feature: "global-default", label: "Model global", group: "interactive", description: "Prioritas model bawaan untuk layanan AI.",
-      isCustom: true, models: ["model-a", "model-b", "model-c"], selectableModels: ["model-a", "model-b", "model-c", "model-d"],
-      editableDefaultModels: ["model-b", "model-a", "model-c"], updatedAt: date },
+      isCustom: true, models: ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-2.5-flash"], selectableModels: ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-2.5-flash", "gemma-4-31b-it"],
+      editableDefaultModels: ["gemini-3.1-flash-lite", "gemini-3.5-flash-lite", "gemini-2.5-flash"], updatedAt: date },
     { feature: "zyra", label: "Zyra", group: "interactive", description: "Prioritas model percakapan.",
-      isCustom: false, models: ["model-b", "model-a", "model-d"], selectableModels: ["model-a", "model-b", "model-c", "model-d"],
-      editableDefaultModels: ["model-b", "model-a", "model-d"], updatedAt: null },
+      isCustom: false, models: ["gemini-3.1-flash-lite", "gemini-3.5-flash-lite", "gemma-4-31b-it"], selectableModels: ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-2.5-flash", "gemma-4-31b-it"],
+      editableDefaultModels: ["gemini-3.1-flash-lite", "gemini-3.5-flash-lite", "gemma-4-31b-it"], updatedAt: null },
   ],
   embedding: [
     { id: "canonical-content-v2", model: "gemini-embedding-2", dimensions: 768 },

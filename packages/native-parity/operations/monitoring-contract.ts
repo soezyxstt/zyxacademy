@@ -28,15 +28,15 @@ export type WebAnalytics = {
 export type FeatureUsage = {
   rangeDays: MonitoringRange;
   rows: {
-    key: string; label: string; events: number; previousEvents: number; trendPercent: number | null;
+    key: FeatureKey; label: string; events: number; previousEvents: number; trendPercent: number | null;
     users: number; adoptionPercent: number; eventsPerUser: number; lastUsedAt: string | null; detailCount?: number;
   }[];
   daily: ({ date: string } & Record<FeatureKey, number>)[];
-  totals: { events: number; activeUsers: number; trendPercent: number | null; topFeatureKey: string | null; topFeatureSharePercent: number | null };
+  totals: { events: number; activeUsers: number; trendPercent: number | null; previousEvents: number; topFeatureKey: FeatureKey | null; topFeatureLabel: string | null; topFeatureSharePercent: number | null };
   insights: {
-    fastestGrowing: { key: string; trendPercent: number } | null;
-    highestAdoption: { key: string; adoptionPercent: number } | null;
-    needsAttention: { key: string; adoptionPercent: number; events: number } | null;
+    fastestGrowing: { key: FeatureKey; trendPercent: number } | null;
+    highestAdoption: { key: FeatureKey; adoptionPercent: number } | null;
+    needsAttention: { key: FeatureKey; adoptionPercent: number; events: number } | null;
   };
 };
 export const featureKeys = ["materi", "flashcard", "kuis", "tryout", "kuisLive", "zyra", "diskusi", "tutorial"] as const;

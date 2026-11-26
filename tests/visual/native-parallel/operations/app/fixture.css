@@ -23,3 +23,6 @@
 @source "../../../../../app/(marketing)/blog/*.tsx";
 @source "../../../../../components/marketing-page-hero.tsx";
 @source "../../../../../components/course/markdown-renderer.tsx";
+@source "../../../../../app/(admin)/admin/ops/**/*.tsx";
+@source "../../../../../features/admin-home/**/*.tsx";
+@source "../../../../../components/zyra/zyra-proposal-panel.tsx";

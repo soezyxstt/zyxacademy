@@ -107,7 +107,7 @@ test("fixture writes preserve identities, conflicts and proposal sequencing", as
   assert.equal((await isolated.reader.read({ view: "offline" }, signal())).policy.wifiOnly, false);
   const [model] = await reader.read({ view: "models" }, signal());
   const models = swapModelPriority(model.models, 0, model.models[1]);
-  assert.deepEqual(models, ["model-b", "model-a", "model-c"]);
+  assert.deepEqual(models, [model.models[1], model.models[0], model.models[2]]);
   await actions.saveModel({ feature: model.feature, expectedUpdatedAt: model.updatedAt, models });
   await assert.rejects(actions.resetModel({ feature: model.feature, expectedUpdatedAt: model.updatedAt }), { status: 409 });
   const [proposal] = (await reader.read({ view: "proposals" }, signal())).proposals;
