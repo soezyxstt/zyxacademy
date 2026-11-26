@@ -15,13 +15,6 @@ export const operationsCatalog = [
     "reason": "Public file uploads attach files to a live respondent form under its current upload and authentication policy. Admin MCP preview and simulation do not upload respondent files."
   },
   {
-    "source": "app/api/blog/upload/route.ts",
-    "actions": ["POST"],
-    "tools": [],
-    "status": "excluded",
-    "reason": "Interactive blog media upload uses the authenticated web tutor or Admin session, or the bound native Admin session for thumbnails. Blog MCP article tools can reference accepted media URLs under their existing scopes and consent."
-  },
-  {
     "source": "app/api/tautan/route.ts",
     "actions": ["GET"],
     "tools": [],
@@ -1392,6 +1385,13 @@ export const operationsCatalog = [
     ],
     "status": "partial",
     "reason": "Related MCP operations are implemented; this source may contain additional UI actions. See docs/operations/admin-mcp.md for exact supported boundaries."
+  },
+  {
+    "source": "app/api/blog/upload/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Interactive blog media upload uses the authenticated web tutor or Admin session, or the bound native Admin session for thumbnails. Blog MCP article tools can reference accepted media URLs under their existing scopes and consent."
   },
   {
     "source": "app/(admin)/admin/forms/[id]/page.tsx",
