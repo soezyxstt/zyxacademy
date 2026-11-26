@@ -1,10 +1,20 @@
 route	action_family	source_status	web_entry	native_entry
+/admin	Open failed generation work from the dashboard	connected	app/(admin)/admin/page.tsx	apps/mobile-native/features/operations/monitoring/analytics.tsx
+/admin	Read current operational counts and navigate to the selected workspace	connected	app/(admin)/admin/page.tsx	apps/mobile-native/features/operations/monitoring/analytics.tsx
 /admin/*	Open Ops AI, stream Ask or Action chat, review proposals, explicitly approve and revoke same-chat grants	connected	components/admin/ops-ai/ops-ai-panel.tsx	apps/mobile-native/features/operations/ops-ai/OpsAiWorkspace.tsx
 /admin/assessments	Replace retired assessment list with the Question Bank	alias	app/(admin)/admin/(content)/assessments/page.tsx	apps/mobile-native/features/operations/evaluation/index.tsx
 /admin/assessments/[id]	Replace retired assessment detail with the Question Bank	alias	app/(admin)/admin/(content)/assessments/[id]/page.tsx	apps/mobile-native/features/operations/evaluation/index.tsx
 /admin/ast-inspector	Compile, inspect, import, export and copy scoped JSON	connected	app/(admin)/admin/(content)/ast-inspector/ast-inspector-client.tsx	apps/mobile-native/features/operations/evaluation/AstInspectorScreen.tsx
 /admin/ast-inspector	Read compiled prose, math, tables, media and bounded visuals	connected	app/(admin)/admin/(content)/ast-inspector/ast-inspector-client.tsx	apps/mobile-native/features/operations/evaluation/AstPreview.tsx
 /admin/authoring-context	Resolve the authorized destination and replace the old route	alias	app/(admin)/admin/(academic)/authoring-context/page.tsx	packages/native-parity/academic/administration/live.ts
+/admin/blog	Browse or open a draft and share its published article address	connected	app/(admin)/admin/blog/page.tsx	apps/mobile-native/features/operations/management/blog.tsx
+/admin/blog/[id]/edit	Edit and save or publish with revision handling	connected	components/admin/markdown-editor.tsx	apps/mobile-native/features/operations/management/blog.tsx
+/admin/blog/[id]/edit	Inspect the draft Markdown preview, including embedded visuals	partial	components/admin/markdown-editor.tsx	apps/mobile-native/features/operations/management/blog.tsx
+/admin/blog/[id]/edit	Upload cover and body images, insert YouTube and generate an empty summary	connected	components/admin/markdown-editor.tsx	apps/mobile-native/features/operations/management/blog.tsx
+/admin/blog/[id]/edit	Withdraw a published revision	connected	app/(admin)/admin/blog/[id]/edit/page.tsx	apps/mobile-native/features/operations/management/blog.tsx
+/admin/blog/new	Edit and save or publish with revision handling	connected	components/admin/markdown-editor.tsx	apps/mobile-native/features/operations/management/blog.tsx
+/admin/blog/new	Inspect the draft Markdown preview, including embedded visuals	partial	components/admin/markdown-editor.tsx	apps/mobile-native/features/operations/management/blog.tsx
+/admin/blog/new	Upload cover and body images, insert YouTube and generate an empty summary	connected	components/admin/markdown-editor.tsx	apps/mobile-native/features/operations/management/blog.tsx
 /admin/bundles/idea	Resolve the authorized destination and replace the old route	alias	app/(admin)/admin/(academic)/bundles/idea/page.tsx	packages/native-parity/academic/administration/live.ts
 /admin/bundles/product	Resolve the authorized destination and replace the old route	alias	app/(admin)/admin/(academic)/bundles/product/page.tsx	packages/native-parity/academic/administration/live.ts
 /admin/courses	Browse and find courses; enter a course workspace	connected	components/admin/courses-dashboard.tsx	apps/mobile-native/features/academic/courses/index.tsx
@@ -58,7 +68,24 @@ route	action_family	source_status	web_entry	native_entry
 /admin/courses/[slug]/videos	Delete a playlist or individual video	connected	components/course/video/course-videos-client.tsx	apps/mobile-native/features/academic/courses/live-videos.tsx
 /admin/courses/[slug]/videos	Search playlists and play their videos	connected	components/course/video/course-videos-client.tsx	apps/mobile-native/features/academic/courses/live-videos.tsx
 /admin/diktats	Replace with the product review tab	alias	app/(admin)/admin/(content)/diktats/page.tsx	apps/mobile-native/features/operations/evaluation/index.tsx
+/admin/discussions	Create, answer or reply with scoped mentions and attachments	connected	app/(admin)/admin/discussions/page.tsx	apps/mobile-native/features/operations/management/tools.tsx
+/admin/discussions	Observe read state, react, edit, delete, forward or resolve	connected	app/(admin)/admin/discussions/page.tsx	apps/mobile-native/features/operations/management/tools.tsx
+/admin/discussions	Report a message and review the moderation queue	connected	app/(admin)/admin/discussions/page.tsx	apps/mobile-native/features/operations/management/tools.tsx
+/admin/discussions	Select or mute a channel, filter and search threads	connected	app/(admin)/admin/discussions/page.tsx	apps/mobile-native/features/operations/management/tools.tsx
 /admin/distractors	Read disclosures, formatted question and choice content, response ratios and misconception notes	connected	app/(admin)/admin/(eval)/distractors/page.tsx	apps/mobile-native/features/operations/evaluation/DistractorsScreen.tsx
+/admin/docs	Browse and search the documentation catalog by locale	connected	app/(admin)/admin/docs/page.tsx	apps/mobile-native/features/operations/management/docs.tsx
+/admin/docs	Open a document or follow its quick links	connected	app/(admin)/admin/docs/page.tsx	apps/mobile-native/features/operations/management/docs.tsx
+/admin/docs/[slug]	Open related documentation	connected	app/(admin)/admin/docs/[slug]/page.tsx	apps/mobile-native/features/operations/management/docs.tsx
+/admin/docs/[slug]	Read the selected document, diagrams and inline links	connected	app/(admin)/admin/docs/[slug]/page.tsx	apps/mobile-native/features/operations/management/docs.tsx
+/admin/forms	Apply and save templates, presets and form settings	connected	app/(admin)/admin/forms/page.tsx	apps/mobile-native/features/operations/management/forms.tsx
+/admin/forms	Compose and arrange questions, sections and file fields	connected	app/(admin)/admin/forms/page.tsx	apps/mobile-native/features/operations/management/forms.tsx
+/admin/forms	Copy or open the published form URL	connected	app/(admin)/admin/forms/page.tsx	apps/mobile-native/features/operations/management/forms.tsx
+/admin/forms	List, search, open and delete forms	connected	app/(admin)/admin/forms/page.tsx	apps/mobile-native/features/operations/management/forms.tsx
+/admin/forms	Preview the respondent flow with local attachments	connected	app/(admin)/admin/forms/page.tsx	apps/mobile-native/features/operations/management/forms.tsx
+/admin/forms/[id]	Browse submissions and individual answers with authorized attachments	connected	app/(admin)/admin/forms/[id]/page.tsx	apps/mobile-native/features/operations/management/forms.tsx
+/admin/forms/[id]	Export the confirmed response snapshot to Sheets and handle overwrite	connected	app/(admin)/admin/forms/[id]/page.tsx	apps/mobile-native/features/operations/management/forms.tsx
+/admin/forms/[id]	Inspect choice and grid results and copy the chart data	connected	app/(admin)/admin/forms/[id]/page.tsx	apps/mobile-native/features/operations/management/forms.tsx
+/admin/forms/[id]	Set the form attachment storage limit and save the authorized form revision	connected	components/forms/admin-forms-builder.tsx	apps/mobile-native/features/operations/management/forms.tsx
 /admin/groups	Inspect affected members and confirm group deletion	connected	components/admin/groups-dashboard.tsx	apps/mobile-native/features/academic/administration/group-deletion.tsx
 /admin/groups	Inspect memberships, search eligible students and add or remove members	connected	components/admin/groups-dashboard.tsx	apps/mobile-native/features/academic/administration/study-group-members-editor.tsx
 /admin/groups	Search groups and edit or create a group and its quotas	connected	components/admin/groups-dashboard.tsx	apps/mobile-native/features/academic/administration/study-group-editor.tsx
@@ -69,11 +96,44 @@ route	action_family	source_status	web_entry	native_entry
 /admin/materials/review	Resolve the authorized destination and replace the old route	alias	app/(admin)/admin/(academic)/materials/review/page.tsx	packages/native-parity/academic/administration/live.ts
 /admin/materials/review/idea/[slug]	Resolve the authorized destination and replace the old route	alias	app/(admin)/admin/(academic)/materials/review/idea/[slug]/page.tsx	packages/native-parity/academic/administration/live.ts
 /admin/materials/review/product/[slug]	Resolve the authorized destination and replace the old route	alias	app/(admin)/admin/(academic)/materials/review/product/[slug]/page.tsx	packages/native-parity/academic/administration/live.ts
+/admin/media	Create folders and rename, move or delete library items	connected	app/(admin)/admin/media/page.tsx	apps/mobile-native/features/operations/management/media.tsx
+/admin/media	Open file preview and download an accessible asset	connected	app/(admin)/admin/media/page.tsx	apps/mobile-native/features/operations/management/media.tsx
+/admin/media	Search library or storage and copy an object into the library	connected	app/(admin)/admin/media/page.tsx	apps/mobile-native/features/operations/management/media.tsx
+/admin/media	Select multiple items to copy, move or remove	connected	app/(admin)/admin/media/page.tsx	apps/mobile-native/features/operations/management/media.tsx
+/admin/media	Upload and replace files	connected	app/(admin)/admin/media/page.tsx	apps/mobile-native/features/operations/management/media.tsx
+/admin/meet	Create a meeting with its access policy and individual invitees	connected	app/(admin)/admin/meet/page.tsx	apps/mobile-native/features/operations/management/tools.tsx
+/admin/meet	End or delete a conference with confirmation	connected	app/(admin)/admin/meet/page.tsx	apps/mobile-native/features/operations/management/tools.tsx
+/admin/meet	Invite the filtered Admin or Tutor group, or all matching members of the selected course	connected	app/(admin)/admin/meet/page.tsx	apps/mobile-native/features/operations/management/tools.tsx
+/admin/meet	List conferences and linked records	connected	app/(admin)/admin/meet/page.tsx	apps/mobile-native/features/operations/management/tools.tsx
+/admin/meet	Open the provider setup instructions or its external configuration	connected	app/(admin)/admin/meet/page.tsx	apps/mobile-native/features/operations/management/tools.tsx
+/admin/meet/[id]	Confirm Drive permission synchronization for this conference	connected	app/(admin)/admin/meet/[id]/page.tsx	apps/mobile-native/features/operations/management/tools.tsx
+/admin/meet/[id]	Inspect participants, sessions, statistics and recordings	connected	app/(admin)/admin/meet/[id]/page.tsx	apps/mobile-native/features/operations/management/tools.tsx
+/admin/meet/[id]	Read transcript entries and open their documents	connected	app/(admin)/admin/meet/[id]/page.tsx	apps/mobile-native/features/operations/management/tools.tsx
 /admin/notifications	Inspect recipient notification history, read state and delivery results	connected	app/(admin)/admin/(academic)/notifications/_components/broadcast-form.tsx; app/(admin)/admin/(academic)/notifications/_components/history-table.tsx	apps/mobile-native/features/academic/administration/live-screen.tsx
 /admin/notifications	Select the audience and confirm delivery of a broadcast	connected	app/(admin)/admin/(academic)/notifications/_components/broadcast-form.tsx; app/(admin)/admin/(academic)/notifications/_components/history-table.tsx	apps/mobile-native/features/academic/administration/broadcast-composer.tsx
+/admin/ops	Create and review report proposals and confirm an allowed proposal	connected	app/(admin)/admin/ops/page.tsx	apps/mobile-native/features/operations/monitoring/diagnostics.tsx
+/admin/ops	Read and refresh operational diagnostics and Zyra telemetry	connected	app/(admin)/admin/ops/page.tsx	apps/mobile-native/features/operations/monitoring/diagnostics.tsx
+/admin/ops/analytics	Filter AI usage and per-user aggregates by date	connected	app/(admin)/admin/ops/analytics/page.tsx	apps/mobile-native/features/operations/monitoring/analytics.tsx
+/admin/ops/analytics	Inspect, filter and paginate AI requests	connected	app/(admin)/admin/ops/analytics/page.tsx	apps/mobile-native/features/operations/monitoring/analytics.tsx
+/admin/ops/feature-usage	Change the usage window and open linked analytics	connected	app/(admin)/admin/ops/feature-usage/page.tsx	apps/mobile-native/features/operations/monitoring/analytics.tsx
+/admin/ops/keys	Inspect masked provider key diagnostics	connected	app/(admin)/admin/ops/keys/page.tsx	apps/mobile-native/features/operations/monitoring/diagnostics.tsx
+/admin/ops/models	Filter model assignments and save or reset the current revision	connected	app/(admin)/admin/ops/models/page.tsx	apps/mobile-native/features/operations/monitoring/diagnostics.tsx
+/admin/ops/models	Refresh billed latency subject to cooldown	connected	app/(admin)/admin/ops/models/page.tsx	apps/mobile-native/features/operations/monitoring/diagnostics.tsx
+/admin/ops/offline	Save the revised policy or revalidate the authorized scope	connected	app/(admin)/admin/ops/offline/page.tsx	apps/mobile-native/features/operations/monitoring/configuration.tsx
+/admin/ops/offline	View the offline policy and its authorized catalog	connected	app/(admin)/admin/ops/offline/page.tsx	apps/mobile-native/features/operations/monitoring/configuration.tsx
+/admin/ops/short-links	Browse and copy short links	connected	app/(admin)/admin/ops/short-links/page.tsx	apps/mobile-native/features/operations/monitoring/configuration.tsx
+/admin/ops/short-links	Create a slug with collision handling	connected	app/(admin)/admin/ops/short-links/page.tsx	apps/mobile-native/features/operations/monitoring/configuration.tsx
+/admin/ops/short-links	View and share the generated QR image	connected	app/(admin)/admin/ops/short-links/page.tsx	apps/mobile-native/features/operations/monitoring/configuration.tsx
+/admin/ops/tutor-activity	Filter and paginate Tutor audit activity	connected	app/(admin)/admin/ops/tutor-activity/page.tsx	apps/mobile-native/features/operations/monitoring/tutor-activity.tsx
+/admin/ops/tutor-activity	Inspect sanitized event details	connected	app/(admin)/admin/ops/tutor-activity/page.tsx	apps/mobile-native/features/operations/monitoring/tutor-activity.tsx
+/admin/ops/web-analytics	Refresh web metrics and open offline policy	connected	app/(admin)/admin/ops/web-analytics/page.tsx	apps/mobile-native/features/operations/monitoring/analytics.tsx
+/admin/ops/web-analytics	View GA4 metrics and top pages	connected	app/(admin)/admin/ops/web-analytics/page.tsx	apps/mobile-native/features/operations/monitoring/analytics.tsx
+/admin/pricing	Calculate Student pricing and Tutor fees	connected	app/(admin)/admin/pricing/page.tsx	apps/mobile-native/features/operations/management/pricing.tsx
+/admin/pricing	Create, enable and remove vouchers	connected	app/(admin)/admin/pricing/page.tsx	apps/mobile-native/features/operations/management/pricing.tsx
+/admin/pricing	Edit pricing discounts and save checked changes	connected	app/(admin)/admin/pricing/page.tsx	apps/mobile-native/features/operations/management/pricing.tsx
+/admin/questions	Create, edit or delete a question; import Markdown; validate Idea assignments	connected	app/(admin)/admin/(eval)/questions/questions-client.tsx	apps/mobile-native/features/operations/evaluation/QuestionEditor.tsx
 /admin/questions	Filter and page active and historical questions; read formatted prompts, answer choices and explanations	connected	app/(admin)/admin/(eval)/questions/questions-client.tsx	apps/mobile-native/features/operations/evaluation/QuestionsScreen.tsx
 /admin/questions	Select items and apply an eligible historical review transition	connected	app/(admin)/admin/(eval)/questions/historical-questions-client.tsx	apps/mobile-native/features/operations/evaluation/QuestionsScreen.tsx
-/admin/questions	Create, edit or delete a question; import Markdown; validate Idea assignments	connected	app/(admin)/admin/(eval)/questions/questions-client.tsx	apps/mobile-native/features/operations/evaluation/QuestionEditor.tsx
 /admin/quiz-insights	Resolve an eligible course and replace with its quiz analytics or the course catalog	alias	app/(admin)/admin/(eval)/quiz-insights/page.tsx	apps/mobile-native/features/operations/evaluation/index.tsx
 /admin/quiz-insights/[id]	Resolve the owning course and replace with quiz analytics or show not found	alias	app/(admin)/admin/(eval)/quiz-insights/[id]/page.tsx	apps/mobile-native/features/operations/evaluation/index.tsx
 /admin/quizzes	Resolve an eligible course and replace with its quiz listing or the course catalog	alias	app/(admin)/admin/(eval)/quizzes/page.tsx	apps/mobile-native/features/operations/evaluation/index.tsx
@@ -85,6 +145,8 @@ route	action_family	source_status	web_entry	native_entry
 /admin/schedules	Generate missing Meet links for eligible bookings and inspect delivery outcomes	connected	components/admin/academic-schedules-dashboard.tsx	apps/mobile-native/features/academic/administration/schedule-meet.tsx
 /admin/schedules	Inspect scheduled events by date	connected	components/admin/academic-schedules-dashboard.tsx	apps/mobile-native/features/academic/administration/calendar.tsx
 /admin/schedules	Set tutor qualifications	connected	components/admin/academic-schedules-dashboard.tsx	apps/mobile-native/features/academic/administration/tutorial-operations-editor.tsx
+/admin/tautan	Create, update, enable, reorder or remove public links	connected	app/(admin)/admin/tautan/page.tsx	apps/mobile-native/features/operations/management/tools.tsx
+/admin/tautan	List links and categories and open the selected link	connected	app/(admin)/admin/tautan/page.tsx	apps/mobile-native/features/operations/management/tools.tsx
 /admin/tokens	Copy the selected activation token	connected	components/admin/tokens-dashboard.tsx	apps/mobile-native/features/academic/administration/group-deletion.tsx
 /admin/tokens	Issue tokens for eligible groups and courses	connected	components/admin/tokens-dashboard.tsx	apps/mobile-native/features/academic/administration/enrollment-token-editor.tsx
 /admin/tokens	Revoke a selected token	connected	components/admin/tokens-dashboard.tsx	apps/mobile-native/features/academic/administration/enrollment-token-editor.tsx
@@ -101,5 +163,3 @@ route	action_family	source_status	web_entry	native_entry
 /admin/users	Activate or deactivate an account	connected	components/admin/users-dashboard.tsx	apps/mobile-native/features/academic/administration/user-status-editor.tsx
 /admin/users	Change validated role memberships	connected	components/admin/users-dashboard.tsx	apps/mobile-native/features/academic/administration/user-roles-editor.tsx
 /admin/users	Filter and paginate users and inspect their account details	connected	components/admin/users-dashboard.tsx	apps/mobile-native/features/academic/administration/live-screen.tsx
-/admin/meet	Invite the filtered Admin or Tutor group, or all matching members of the selected course	connected	app/(admin)/admin/meet/page.tsx	apps/mobile-native/features/operations/management/tools.tsx
-/admin/forms/[id]	Set the form attachment storage limit and save the authorized form revision	connected	components/forms/admin-forms-builder.tsx	apps/mobile-native/features/operations/management/forms.tsx

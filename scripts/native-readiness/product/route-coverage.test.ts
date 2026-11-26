@@ -1,8 +1,9 @@
 import { expect, test } from "bun:test";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { resolveNativeLoginReturn, resolveNativeProtectedDestination, type NativeRouteNode } from "../../../apps/mobile-native/auth/login-intent";
 import { discussionDestination, discussionWorkspaceHref } from "../../../packages/native-parity/discussion-destination";
-import { auditProductRoutes, pagePattern } from "./route-coverage";
+import { auditProductRoutes, pagePattern, readRouteInventory } from "./route-coverage";
 
 test("every inventoried Next page has a verified source-level Expo disposition", async () => {
   const report = await auditProductRoutes(resolve(import.meta.dir, "../../.."));
@@ -50,4 +51,24 @@ test("a multi-role discussion link keeps the decoded message and never falls to 
   expect(discussionWorkspaceHref("/admin/discussions", params)).toBe("/admin/discussions?filter=one&filter=two");
   expect(discussionDestination(new URLSearchParams("message=reply"))).toBeNull();
   expect(discussionDestination(new URLSearchParams("thread=thread-1&message=%00"))).toBeNull();
+});
+
+test("every signed Admin page maps to an action or a canonical alias with existing web and Expo entry points", () => {
+  const root = resolve(import.meta.dir, "../../..");
+  const pages = readRouteInventory(root).map(page => page.pattern).filter(route => route === "/admin" || route.startsWith("/admin/"));
+  const inventory = readFileSync(resolve(root, "packages/native-parity/academic/report/admin-signed-actions.tsv"), "utf8");
+  const actions = new Set<string>();
+  const routes = new Set<string>();
+  for (const row of inventory.trimEnd().split("\n").slice(1)) {
+    const [route, action, status, web, native] = row.split("\t");
+    expect(["connected", "partial", "absent", "alias"]).toContain(status);
+    expect(action.trim()).toBeTruthy();
+    expect(actions.has(route + "\t" + action)).toBe(false);
+    actions.add(route + "\t" + action);
+    if (route !== "/admin/*") routes.add(route);
+    for (const file of [web, ...(status === "absent" ? [] : [native])].flatMap(entry => entry.split("; "))) {
+      expect(file.length > 0 && existsSync(resolve(root, file)), file).toBe(true);
+    }
+  }
+  expect([...routes].sort()).toEqual(pages.sort());
 });
