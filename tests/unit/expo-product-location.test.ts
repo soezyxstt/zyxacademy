@@ -1,5 +1,13 @@
 import { expect, test } from "bun:test";
-import { productLocation } from "../../apps/mobile-native/routing/product-location";
+import { academicRouteCanRead, productLocation } from "../../apps/mobile-native/routing/product-location";
+
+test("only an already-visited Academic course list stays mounted offscreen", () => {
+  expect(academicRouteCanRead("/admin/courses", false, false)).toBe(false);
+  expect(academicRouteCanRead("/admin/courses?query=Physics", false, true)).toBe(true);
+  expect(academicRouteCanRead("/admin/courses/calculus", false, true)).toBe(false);
+  expect(academicRouteCanRead("/tutor/calculus/students", false, true)).toBe(false);
+  expect(academicRouteCanRead("/tutor/calculus/students", true, true)).toBe(true);
+});
 
 test("canonical paths use the local entry's dynamic parameters and preserve query repetitions", () => {
   expect(productLocation("/courses/[id]/quiz/[quizId]", {
