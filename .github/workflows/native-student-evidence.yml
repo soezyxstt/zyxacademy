@@ -1,6 +1,12 @@
 name: Native Student evidence
 
 on:
+  workflow_dispatch:
+    inputs:
+      include_ios:
+        description: Also capture iOS fixtures
+        type: boolean
+        default: false
   pull_request:
     branches:
       - soezyxst/react-native-monorepo
@@ -17,10 +23,10 @@ env:
 jobs:
   web:
     concurrency:
-      group: student-web-${{ github.event.pull_request.number }}
+      group: student-web-${{ github.event.pull_request.number || github.ref }}
       cancel-in-progress: true
-    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'native-migration/student'
-    runs-on: ubuntu-latest
+    if: (github.head_ref == 'native-migration/student' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name == 'workflow_dispatch' && github.ref_name == 'soezyxst/react-native-monorepo')
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
       SKIP_ENV_VALIDATION: '1'
@@ -83,23 +89,17 @@ jobs:
           retention-days: 7
 
   device:
-    if: always() && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'native-migration/student'
+    if: ${{ !cancelled() && needs.web.result != 'skipped' }}
     needs: web
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - platform: android
-            runner: ubuntu-latest
-            timeout: 150
-          - platform: ios
-            runner: macos-26
-            timeout: 240
+        platform: ${{ fromJSON((github.event_name == 'pull_request' || inputs.include_ios) && '["android","ios"]' || '["android"]') }}
     concurrency:
-      group: student-device-${{ github.event.pull_request.number }}-${{ matrix.platform }}
+      group: student-device-${{ github.event.pull_request.number || github.ref }}-${{ matrix.platform }}
       cancel-in-progress: false
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: ${{ matrix.timeout }}
+    runs-on: ${{ matrix.platform == 'ios' && 'macos-26' || 'ubuntu-latest' }}
+    timeout-minutes: ${{ matrix.platform == 'ios' && 240 || 150 }}
     steps:
       - uses: actions/checkout@v4
         with:

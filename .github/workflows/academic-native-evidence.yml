@@ -1,6 +1,12 @@
 name: Academic native evidence
 
 on:
+  workflow_dispatch:
+    inputs:
+      include_ios:
+        description: Also capture iOS fixtures
+        type: boolean
+        default: false
   pull_request:
     branches:
       - 'soezyxst/react-native-monorepo'
@@ -13,11 +19,11 @@ env:
   EXPO_NO_TELEMETRY: '1'
   MAESTRO_CLI_NO_ANALYTICS: 'true'
   MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: 'true'
-  ACADEMIC_REVISION: ${{ github.event.pull_request.head.sha }}
+  ACADEMIC_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
   classify-change:
-    if: github.head_ref == 'native-migration/academic' && github.event.pull_request.head.repo.full_name == github.repository
+    if: (github.head_ref == 'native-migration/academic' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name == 'workflow_dispatch' && github.ref_name == 'soezyxst/react-native-monorepo')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -48,19 +54,15 @@ jobs:
 
   device:
     needs: classify-change
-    if: ${{ !cancelled() && github.head_ref == 'native-migration/academic' && github.event.pull_request.head.repo.full_name == github.repository && needs.classify-change.outputs.reports-only != 'true' }}
+    if: ${{ !cancelled() && needs.classify-change.result == 'success' && needs.classify-change.outputs.reports-only != 'true' }}
     concurrency:
-      group: academic-native-evidence-${{ github.event.pull_request.number }}-${{ matrix.platform == 'ios' && format('ios-{0}', matrix.runner) || matrix.platform }}
+      group: academic-native-evidence-${{ github.event.pull_request.number || github.ref }}-${{ matrix.platform }}
       cancel-in-progress: false
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - platform: android
-            runner: ubuntu-latest
-          - platform: ios
-            runner: macos-26
-    runs-on: ${{ matrix.runner }}
+        platform: ${{ fromJSON((github.event_name == 'pull_request' || inputs.include_ios) && '["android","ios"]' || '["android"]') }}
+    runs-on: ${{ matrix.platform == 'ios' && 'macos-26' || 'ubuntu-latest' }}
     timeout-minutes: ${{ matrix.platform == 'ios' && 155 || 100 }}
     env:
       ACADEMIC_PLATFORM: ${{ matrix.platform }}
@@ -68,7 +70,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - name: Initialize the evidence directory
         if: always()
@@ -129,7 +131,7 @@ jobs:
         timeout-minutes: 75
         shell: bash
         env:
-          ACADEMIC_RUNNER: ${{ matrix.runner }}
+          ACADEMIC_RUNNER: macos-26
         run: |
           root="$PWD"
           mkdir -p "$HOME/.expo"
@@ -198,8 +200,8 @@ jobs:
 
   compare-matched-viewport:
     needs: [classify-change, device]
-    if: ${{ !cancelled() && github.head_ref == 'native-migration/academic' && github.event.pull_request.head.repo.full_name == github.repository && needs.classify-change.outputs.reports-only != 'true' }}
-    runs-on: ubuntu-latest
+    if: ${{ !cancelled() && needs.classify-change.result == 'success' && needs.classify-change.outputs.reports-only != 'true' }}
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     env:
       DEVICE_ARTIFACTS: artifacts/native-parity/academic/device-artifacts
@@ -207,7 +209,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - uses: actions/download-artifact@v4
         continue-on-error: true
