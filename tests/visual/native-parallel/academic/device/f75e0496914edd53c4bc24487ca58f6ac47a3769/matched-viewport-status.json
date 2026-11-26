@@ -1,0 +1,40 @@
+[
+  {
+    "platform": "android",
+    "status": "differences",
+    "viewport": {
+      "width": 380,
+      "height": 852
+    },
+    "deviceScaleFactor": 1,
+    "deviceRevision": "f75e0496914edd53c4bc24487ca58f6ac47a3769",
+    "cases": [
+      "tutor-dashboard-assigned-light",
+      "tutor-participants-enrolled-light",
+      "tutor-participants-empty-dark",
+      "tutor-tryout-grading-pending-light",
+      "tutor-quizzes-list-light",
+      "admin-courses-list-light",
+      "admin-courses-empty-dark",
+      "admin-course-chapters-light"
+    ],
+    "expectedCases": [
+      "tutor-dashboard-assigned-light",
+      "tutor-participants-enrolled-light",
+      "tutor-participants-empty-dark",
+      "tutor-tryout-grading-pending-light",
+      "tutor-quizzes-list-light",
+      "admin-courses-list-light",
+      "admin-courses-empty-dark",
+      "admin-course-chapters-light"
+    ],
+    "missingDeviceCases": [],
+    "referenceExitCode": 0,
+    "comparisonExitCode": 1
+  },
+  {
+    "platform": "ios",
+    "status": "unverified",
+    "reason": "no final verified device interaction manifest"
+  }
+]

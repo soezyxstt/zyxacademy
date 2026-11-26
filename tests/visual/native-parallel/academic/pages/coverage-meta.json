@@ -1,13 +1,13 @@
 {
-  "generated_utc": "2026-11-26T12:25:29.609491+00:00",
-  "head": "f75e0496914edd53c4bc24487ca58f6ac47a3769",
+  "generated_utc": "2026-11-26T12:50:29.663176+00:00",
+  "head": "11ff56c8d841d9f2129aa8a14993bfefbeb5dde3",
   "scope": "Web and implementation observations are from a changing local worktree. Device observations refer to the latest archived run for each platform.",
   "route_count": 54,
   "capture_manifest": "tests/visual/native-parallel/academic/pages/results.json",
   "device_evidence_by_platform": {
     "android": {
-      "index": "tests/visual/native-parallel/academic/device/3866ea158c427b73696b8c467dd1e90815122e5b/index.json",
-      "revision": "3866ea158c427b73696b8c467dd1e90815122e5b"
+      "index": "tests/visual/native-parallel/academic/device/f75e0496914edd53c4bc24487ca58f6ac47a3769/index.json",
+      "revision": "f75e0496914edd53c4bc24487ca58f6ac47a3769"
     },
     "ios": {
       "index": "tests/visual/native-parallel/academic/device/f75e0496914edd53c4bc24487ca58f6ac47a3769/index.json",

@@ -43,6 +43,33 @@
         "build.log": "0b9032367888c947cc76020e3b1d2d44b949f5c37af485d4ce63924fd44fb2d0",
         "cases.json": "53e0e79870a1863ae67db02ef19fc35a32b7c3a6f52a6807e3b06df39e4b8495"
       }
+    },
+    "android": {
+      "jobUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45816738991/job/139898364934",
+      "artifactUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45816738991/artifacts/15117839065",
+      "jobConclusion": "success",
+      "routeCaptureScope": "Stamped fixture route captures",
+      "reviewedInteractionOutcomes": "android/interaction-outcomes.json",
+      "reviewedInteractionCounts": {
+        "passed": 11
+      },
+      "namedMaestroScreenshots": 32,
+      "namedMaestroScreenshotsBySuite": {
+        "interactions": 28,
+        "accessibility": 4
+      },
+      "diagnosticComparison": "android/comparison.json",
+      "comparisonSource": "same-run GitHub Actions matched-viewport artifact",
+      "deviceComparisonManifest": "android/device-comparison-manifest.json",
+      "referenceManifest": "android/web-manifest.json",
+      "comparisonCount": 8,
+      "expectedComparisonCount": 8,
+      "missingComparisonCases": [],
+      "exactMatchCount": 0
     }
-  }
+  },
+  "matchedViewportJobUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45816738991/job/139919469671",
+  "matchedViewportWorkflowConclusion": "failure",
+  "matchedViewportArtifactUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45816738991/artifacts/15118831466",
+  "matchedViewportStatus": "matched-viewport-status.json"
 }

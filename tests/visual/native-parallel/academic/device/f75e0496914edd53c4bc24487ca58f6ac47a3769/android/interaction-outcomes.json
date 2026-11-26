@@ -1,0 +1,304 @@
+[
+  {
+    "flow": "administration-bundle",
+    "runnerStatus": "passed",
+    "outcome": "passed",
+    "segments": [
+      {
+        "segment": 1,
+        "fixture": "zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fmaterials%2Freview%2Fproduct%2Facademic-product-1&theme=light",
+        "exitCode": 0,
+        "status": "passed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "exitCode": 0,
+            "status": "passed"
+          }
+        ],
+        "outcome": "passed",
+        "artifactLog": "interactions/administration-bundle/segment-01/report.xml"
+      },
+      {
+        "segment": 2,
+        "fixture": "zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fcourses%2Fbiologi-dasar%2Freview%2Fproduct%2Facademic-product-1&scenario=empty&theme=light",
+        "exitCode": 0,
+        "status": "passed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "exitCode": 0,
+            "status": "passed"
+          }
+        ],
+        "outcome": "passed",
+        "artifactLog": "interactions/administration-bundle/segment-02/report.xml"
+      }
+    ]
+  },
+  {
+    "flow": "administration-conflict",
+    "runnerStatus": "passed",
+    "outcome": "passed",
+    "segments": [
+      {
+        "segment": 1,
+        "fixture": "zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fusers&scenario=error&theme=dark",
+        "exitCode": 0,
+        "status": "passed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "exitCode": 0,
+            "status": "passed"
+          }
+        ],
+        "outcome": "passed",
+        "artifactLog": "interactions/administration-conflict/report.xml"
+      }
+    ]
+  },
+  {
+    "flow": "assessment-grading-retry",
+    "runnerStatus": "passed",
+    "outcome": "passed",
+    "segments": [
+      {
+        "segment": 1,
+        "fixture": "zyx-native-parity://academic?role=tutor&path=%2Ftutor%2Facademic-course-1%2Fquizzes%2Fgrading&scenario=error&theme=dark",
+        "exitCode": 0,
+        "status": "passed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "exitCode": 0,
+            "status": "passed"
+          }
+        ],
+        "outcome": "passed",
+        "artifactLog": "interactions/assessment-grading-retry/report.xml"
+      }
+    ]
+  },
+  {
+    "flow": "assessment-quiz",
+    "runnerStatus": "passed",
+    "outcome": "passed",
+    "segments": [
+      {
+        "segment": 1,
+        "fixture": "zyx-native-parity://academic?role=tutor&path=%2Ftutor%2Facademic-course-1%2Fquizzes&theme=light",
+        "exitCode": 0,
+        "status": "passed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "exitCode": 0,
+            "status": "passed"
+          }
+        ],
+        "outcome": "passed",
+        "artifactLog": "interactions/assessment-quiz/report.xml"
+      }
+    ]
+  },
+  {
+    "flow": "assessment-tryout",
+    "runnerStatus": "passed",
+    "outcome": "passed",
+    "segments": [
+      {
+        "segment": 1,
+        "fixture": "zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fcourses%2Fbiologi-dasar%2Ftryouts&theme=light",
+        "exitCode": 0,
+        "status": "passed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "exitCode": 0,
+            "status": "passed"
+          }
+        ],
+        "outcome": "passed",
+        "artifactLog": "interactions/assessment-tryout/report.xml"
+      }
+    ]
+  },
+  {
+    "flow": "courses-states",
+    "runnerStatus": "passed",
+    "outcome": "passed",
+    "segments": [
+      {
+        "segment": 1,
+        "fixture": "zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fcourses&theme=dark&scenario=empty",
+        "exitCode": 0,
+        "status": "passed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "exitCode": 0,
+            "status": "passed"
+          }
+        ],
+        "outcome": "passed",
+        "artifactLog": "interactions/courses-states/segment-01/report.xml"
+      },
+      {
+        "segment": 2,
+        "fixture": "zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fcourses%2Fbiologi-dasar&theme=dark&scenario=error",
+        "exitCode": 0,
+        "status": "passed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "exitCode": 0,
+            "status": "passed"
+          }
+        ],
+        "outcome": "passed",
+        "artifactLog": "interactions/courses-states/segment-02/report.xml"
+      },
+      {
+        "segment": 3,
+        "fixture": "zyx-native-parity://academic?role=tutor&path=%2Fadmin%2Fcourses&theme=dark",
+        "exitCode": 0,
+        "status": "passed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "exitCode": 0,
+            "status": "passed"
+          }
+        ],
+        "outcome": "passed",
+        "artifactLog": "interactions/courses-states/segment-03/report.xml"
+      }
+    ]
+  },
+  {
+    "flow": "courses",
+    "runnerStatus": "passed",
+    "outcome": "passed",
+    "segments": [
+      {
+        "segment": 1,
+        "fixture": "zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fcourses&theme=light",
+        "exitCode": 0,
+        "status": "passed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "exitCode": 0,
+            "status": "passed"
+          }
+        ],
+        "outcome": "passed",
+        "artifactLog": "interactions/courses/report.xml"
+      }
+    ]
+  },
+  {
+    "flow": "tutor-assigned",
+    "runnerStatus": "passed",
+    "outcome": "passed",
+    "segments": [
+      {
+        "segment": 1,
+        "fixture": "zyx-native-parity://academic?role=tutor&path=%2Ftutor&theme=light",
+        "exitCode": 0,
+        "status": "passed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "exitCode": 0,
+            "status": "passed"
+          }
+        ],
+        "outcome": "passed",
+        "artifactLog": "interactions/tutor-assigned/report.xml"
+      }
+    ]
+  },
+  {
+    "flow": "tutor-empty-denied",
+    "runnerStatus": "passed",
+    "outcome": "passed",
+    "segments": [
+      {
+        "segment": 1,
+        "fixture": "zyx-native-parity://academic?role=tutor&path=%2Ftutor%2Facademic-course-2%2Fparticipants&theme=dark",
+        "exitCode": 0,
+        "status": "passed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "exitCode": 0,
+            "status": "passed"
+          }
+        ],
+        "outcome": "passed",
+        "artifactLog": "interactions/tutor-empty-denied/segment-01/report.xml"
+      },
+      {
+        "segment": 2,
+        "fixture": "zyx-native-parity://academic?role=tutor&path=%2Ftutor%2Facademic-course-3%2Fparticipants&theme=dark",
+        "exitCode": 0,
+        "status": "passed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "exitCode": 0,
+            "status": "passed"
+          }
+        ],
+        "outcome": "passed",
+        "artifactLog": "interactions/tutor-empty-denied/segment-02/report.xml"
+      }
+    ]
+  },
+  {
+    "flow": "tutor-retry",
+    "runnerStatus": "passed",
+    "outcome": "passed",
+    "segments": [
+      {
+        "segment": 1,
+        "fixture": "zyx-native-parity://academic?role=tutor&path=%2Ftutor%2Facademic-course-1%2Fgrading&scenario=error&theme=dark",
+        "exitCode": 0,
+        "status": "passed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "exitCode": 0,
+            "status": "passed"
+          }
+        ],
+        "outcome": "passed",
+        "artifactLog": "interactions/tutor-retry/report.xml"
+      }
+    ]
+  },
+  {
+    "flow": "tutor-schedule",
+    "runnerStatus": "passed",
+    "outcome": "passed",
+    "segments": [
+      {
+        "segment": 1,
+        "fixture": "zyx-native-parity://academic?role=tutor&path=%2Ftutor%2Fschedule&theme=dark",
+        "exitCode": 0,
+        "status": "passed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "exitCode": 0,
+            "status": "passed"
+          }
+        ],
+        "outcome": "passed",
+        "artifactLog": "interactions/tutor-schedule/report.xml"
+      }
+    ]
+  }
+]

@@ -1,0 +1,501 @@
+{
+  "platform": "android",
+  "device": "sdk_gphone64_x86_64 | 15 | Physical size: 320x640 | Override size: 380x900 | Physical density: 160 | 1",
+  "deviceRevision": "f75e0496914edd53c4bc24487ca58f6ac47a3769",
+  "sourceRevision": "f75e0496914edd53c4bc24487ca58f6ac47a3769",
+  "referenceViewport": {
+    "width": 380,
+    "height": 852
+  },
+  "referenceDeviceScaleFactor": 1,
+  "deviceViewport": {
+    "width": 380,
+    "height": 852
+  },
+  "deviceScaleFactor": 1,
+  "unpairedReferenceCases": [],
+  "cases": [
+    {
+      "id": "tutor-dashboard-assigned-light",
+      "passed": false,
+      "reference": {
+        "frame": {
+          "width": 380,
+          "height": 852
+        },
+        "bounds": {
+          "x": 0,
+          "y": 0,
+          "width": 380,
+          "height": 852
+        },
+        "viewport": {
+          "width": 380,
+          "height": 852
+        },
+        "deviceScaleFactor": 1,
+        "theme": "light"
+      },
+      "device": {
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "viewport": {
+          "width": 380,
+          "height": 852
+        },
+        "deviceScaleFactor": 1,
+        "theme": "light"
+      },
+      "comparison": "full-frame",
+      "mismatches": [],
+      "overlap": {
+        "width": 380,
+        "height": 852
+      },
+      "differentOverlapPixels": 28192,
+      "maxRgbDelta": 204,
+      "differenceBoundsInOverlap": [
+        0,
+        8,
+        380,
+        670
+      ],
+      "blankReference": false,
+      "nativePngSha256": "17755d1a711796618c601ae0b842cc1330d3955e93f31f7783bbc6d911a46a08",
+      "maestroScreenshot": "academic-tutor-dashboard-populated-light",
+      "nativeArtifactPath": "interactions/tutor-assigned/results/2026-11-26_123827/Tutor assigned course, participant and tryout review/takeScreenshot/academic-tutor-dashboard-populated-light.png",
+      "differentPixelPercent": 8.7077
+    },
+    {
+      "id": "tutor-participants-enrolled-light",
+      "passed": false,
+      "reference": {
+        "frame": {
+          "width": 380,
+          "height": 852
+        },
+        "bounds": {
+          "x": 0,
+          "y": 0,
+          "width": 380,
+          "height": 852
+        },
+        "viewport": {
+          "width": 380,
+          "height": 852
+        },
+        "deviceScaleFactor": 1,
+        "theme": "light"
+      },
+      "device": {
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "viewport": {
+          "width": 380,
+          "height": 852
+        },
+        "deviceScaleFactor": 1,
+        "theme": "light"
+      },
+      "comparison": "full-frame",
+      "mismatches": [],
+      "overlap": {
+        "width": 380,
+        "height": 852
+      },
+      "differentOverlapPixels": 55224,
+      "maxRgbDelta": 213,
+      "differenceBoundsInOverlap": [
+        0,
+        8,
+        380,
+        731
+      ],
+      "blankReference": false,
+      "nativePngSha256": "10221ef13da5ec21f825b42e974dd207a4b2c823aba1488b994b0075013d74b9",
+      "maestroScreenshot": "academic-tutor-participants-populated-light",
+      "nativeArtifactPath": "interactions/tutor-assigned/results/2026-11-26_123827/Tutor assigned course, participant and tryout review/takeScreenshot/academic-tutor-participants-populated-light.png",
+      "differentPixelPercent": 17.0571
+    },
+    {
+      "id": "tutor-participants-empty-dark",
+      "passed": false,
+      "reference": {
+        "frame": {
+          "width": 380,
+          "height": 852
+        },
+        "bounds": {
+          "x": 0,
+          "y": 0,
+          "width": 380,
+          "height": 852
+        },
+        "viewport": {
+          "width": 380,
+          "height": 852
+        },
+        "deviceScaleFactor": 1,
+        "theme": "dark"
+      },
+      "device": {
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "viewport": {
+          "width": 380,
+          "height": 852
+        },
+        "deviceScaleFactor": 1,
+        "theme": "dark"
+      },
+      "comparison": "full-frame",
+      "mismatches": [],
+      "overlap": {
+        "width": 380,
+        "height": 852
+      },
+      "differentOverlapPixels": 25898,
+      "maxRgbDelta": 227,
+      "differenceBoundsInOverlap": [
+        0,
+        0,
+        380,
+        298
+      ],
+      "blankReference": false,
+      "nativePngSha256": "25d97f57999da91dfd57d4bf924397066f10145758692e0cf3027dd3218adba7",
+      "maestroScreenshot": "academic-tutor-participants-empty-dark",
+      "nativeArtifactPath": "interactions/tutor-empty-denied/segment-01/results/2026-11-26_123856/Tutor empty assignment and denied course/takeScreenshot/academic-tutor-participants-empty-dark.png",
+      "differentPixelPercent": 7.9991,
+      "files": {
+        "nativeFrame": "examples/tutor-participants-empty-dark-nativeFrame.png",
+        "web": "examples/tutor-participants-empty-dark-web.png",
+        "difference": "examples/tutor-participants-empty-dark-difference.png"
+      }
+    },
+    {
+      "id": "tutor-tryout-grading-pending-light",
+      "passed": false,
+      "reference": {
+        "frame": {
+          "width": 380,
+          "height": 852
+        },
+        "bounds": {
+          "x": 0,
+          "y": 0,
+          "width": 380,
+          "height": 852
+        },
+        "viewport": {
+          "width": 380,
+          "height": 852
+        },
+        "deviceScaleFactor": 1,
+        "theme": "light"
+      },
+      "device": {
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "viewport": {
+          "width": 380,
+          "height": 852
+        },
+        "deviceScaleFactor": 1,
+        "theme": "light"
+      },
+      "comparison": "full-frame",
+      "mismatches": [],
+      "overlap": {
+        "width": 380,
+        "height": 852
+      },
+      "differentOverlapPixels": 14906,
+      "maxRgbDelta": 213,
+      "differenceBoundsInOverlap": [
+        0,
+        8,
+        380,
+        231
+      ],
+      "blankReference": false,
+      "nativePngSha256": "501b202ef7053929b6bece0935e88e67dc4ee02708fd706c1fe48ddde00e38d8",
+      "maestroScreenshot": "academic-tutor-grading-queue-light",
+      "nativeArtifactPath": "interactions/tutor-assigned/results/2026-11-26_123827/Tutor assigned course, participant and tryout review/takeScreenshot/academic-tutor-grading-queue-light.png",
+      "differentPixelPercent": 4.604
+    },
+    {
+      "id": "tutor-quizzes-list-light",
+      "passed": false,
+      "reference": {
+        "frame": {
+          "width": 380,
+          "height": 852
+        },
+        "bounds": {
+          "x": 0,
+          "y": 0,
+          "width": 380,
+          "height": 852
+        },
+        "viewport": {
+          "width": 380,
+          "height": 852
+        },
+        "deviceScaleFactor": 1,
+        "theme": "light"
+      },
+      "device": {
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "viewport": {
+          "width": 380,
+          "height": 852
+        },
+        "deviceScaleFactor": 1,
+        "theme": "light"
+      },
+      "comparison": "full-frame",
+      "mismatches": [],
+      "overlap": {
+        "width": 380,
+        "height": 852
+      },
+      "differentOverlapPixels": 57508,
+      "maxRgbDelta": 216,
+      "differenceBoundsInOverlap": [
+        0,
+        8,
+        380,
+        848
+      ],
+      "blankReference": false,
+      "nativePngSha256": "a9e5376e9b536afd99a091c651c3d7c50c41ef89662e5e0be6d774bff175ec05",
+      "maestroScreenshot": "academic-tutor-quiz-list-populated-light",
+      "nativeArtifactPath": "interactions/assessment-quiz/results/2026-11-26_123550/Academic quiz edits, validation, cancellation and save/takeScreenshot/academic-tutor-quiz-list-populated-light.png",
+      "differentPixelPercent": 17.7625
+    },
+    {
+      "id": "admin-courses-list-light",
+      "passed": false,
+      "reference": {
+        "frame": {
+          "width": 380,
+          "height": 852
+        },
+        "bounds": {
+          "x": 0,
+          "y": 0,
+          "width": 380,
+          "height": 852
+        },
+        "viewport": {
+          "width": 380,
+          "height": 852
+        },
+        "deviceScaleFactor": 1,
+        "theme": "light"
+      },
+      "device": {
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "viewport": {
+          "width": 380,
+          "height": 852
+        },
+        "deviceScaleFactor": 1,
+        "theme": "light"
+      },
+      "comparison": "full-frame",
+      "mismatches": [],
+      "overlap": {
+        "width": 380,
+        "height": 852
+      },
+      "differentOverlapPixels": 32624,
+      "maxRgbDelta": 221,
+      "differenceBoundsInOverlap": [
+        0,
+        8,
+        380,
+        394
+      ],
+      "blankReference": false,
+      "nativePngSha256": "7dd257aae0489ba5a9e1d3343d44d320b5e168b926167bed0788d281441d1631",
+      "maestroScreenshot": "academic-admin-courses-list-populated-light",
+      "nativeArtifactPath": "interactions/courses/results/2026-11-26_123751/Admin course filter, overview and analytics/takeScreenshot/academic-admin-courses-list-populated-light.png",
+      "differentPixelPercent": 10.0766,
+      "files": {
+        "nativeFrame": "examples/admin-courses-list-light-nativeFrame.png",
+        "web": "examples/admin-courses-list-light-web.png",
+        "difference": "examples/admin-courses-list-light-difference.png"
+      }
+    },
+    {
+      "id": "admin-courses-empty-dark",
+      "passed": false,
+      "reference": {
+        "frame": {
+          "width": 380,
+          "height": 852
+        },
+        "bounds": {
+          "x": 0,
+          "y": 0,
+          "width": 380,
+          "height": 852
+        },
+        "viewport": {
+          "width": 380,
+          "height": 852
+        },
+        "deviceScaleFactor": 1,
+        "theme": "dark"
+      },
+      "device": {
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "viewport": {
+          "width": 380,
+          "height": 852
+        },
+        "deviceScaleFactor": 1,
+        "theme": "dark"
+      },
+      "comparison": "full-frame",
+      "mismatches": [],
+      "overlap": {
+        "width": 380,
+        "height": 852
+      },
+      "differentOverlapPixels": 30254,
+      "maxRgbDelta": 227,
+      "differenceBoundsInOverlap": [
+        0,
+        0,
+        380,
+        237
+      ],
+      "blankReference": false,
+      "nativePngSha256": "13d3f0af3d88ddfd5295d7625da5ce6f6ac9e40957f241a628b6e70919ac13c1",
+      "maestroScreenshot": "academic-admin-courses-list-empty-dark",
+      "nativeArtifactPath": "interactions/courses-states/segment-01/results/2026-11-26_123653/Admin course empty, recovery and access denial/takeScreenshot/academic-admin-courses-list-empty-dark.png",
+      "differentPixelPercent": 9.3446
+    },
+    {
+      "id": "admin-course-chapters-light",
+      "passed": false,
+      "reference": {
+        "frame": {
+          "width": 380,
+          "height": 852
+        },
+        "bounds": {
+          "x": 0,
+          "y": 0,
+          "width": 380,
+          "height": 852
+        },
+        "viewport": {
+          "width": 380,
+          "height": 852
+        },
+        "deviceScaleFactor": 1,
+        "theme": "light"
+      },
+      "device": {
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "viewport": {
+          "width": 380,
+          "height": 852
+        },
+        "deviceScaleFactor": 1,
+        "theme": "light"
+      },
+      "comparison": "full-frame",
+      "mismatches": [],
+      "overlap": {
+        "width": 380,
+        "height": 852
+      },
+      "differentOverlapPixels": 41449,
+      "maxRgbDelta": 241,
+      "differenceBoundsInOverlap": [
+        0,
+        8,
+        380,
+        838
+      ],
+      "blankReference": false,
+      "nativePngSha256": "2230b37ac4d7fc90eadce14b5cc591019d60c86d772e20a45c4a3e49aacb7cd2",
+      "maestroScreenshot": "academic-admin-courses-overview-populated-light",
+      "nativeArtifactPath": "interactions/courses/results/2026-11-26_123751/Admin course filter, overview and analytics/takeScreenshot/academic-admin-courses-overview-populated-light.png",
+      "differentPixelPercent": 12.8024
+    }
+  ]
+}
