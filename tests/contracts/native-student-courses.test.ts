@@ -5,6 +5,8 @@ import {
 } from "@/packages/native-parity/student/courses/contract";
 import { createCourseFixtureRequest } from "@/packages/native-parity/student/courses/fixtures";
 import { materialReferenceScenarios } from "@/packages/native-parity/student/courses/material-reference";
+import { dashboardStates } from "@/packages/native-parity/student/dashboard/fixtures";
+import dashboardResponses from "@/packages/native-parity/student/dashboard/responses.json";
 import { createStudentFixtureRequest } from "@/packages/native-parity/student/fixture-request";
 import { matchStudentRoute, studentMaterialReaderTarget } from "@/apps/mobile-native/features/student/routes";
 
@@ -68,6 +70,38 @@ describe("native Student course fixtures", () => {
   const dashboard = learningEndpoint({ view: "dashboard" });
   const materialList = learningEndpoint({ view: "material-list", courseId });
   const materialDetail = (materialId: string) => learningEndpoint({ view: "material-detail", courseId, materialId });
+
+  test("serves all dashboard fixture projections without a static Response.json method", async () => {
+    const originalResponse = globalThis.Response;
+    const NativeResponse = class extends originalResponse {};
+    Object.defineProperty(NativeResponse, "json", { value: undefined });
+    const views = ["dashboard", "dashboard-extras", "catalog"] as const;
+    const reads: { state: typeof dashboardStates[number]; view: typeof views[number]; reply: Promise<Response> }[] = [];
+    try {
+      // The dashboard fixture constructs its responses synchronously. Restore
+      // the global before yielding so other tests keep their normal constructor.
+      globalThis.Response = NativeResponse;
+      for (const state of dashboardStates) {
+        const request = createStudentFixtureRequest(`dashboard-parity-${state}`);
+        for (const view of views) reads.push({ state, view, reply: request(learningEndpoint({ view })) });
+      }
+    } finally {
+      globalThis.Response = originalResponse;
+    }
+
+    for (const { state, view, reply } of reads) {
+      const response = await reply;
+      expect(response).toBeInstanceOf(NativeResponse);
+      expect(response.status).toBe(200);
+      expect(response.headers.get("content-type")).toBe("application/json");
+      const { dashboard, extras } = dashboardResponses[state];
+      const expected = view === "dashboard" ? dashboard : view === "dashboard-extras" ? extras : {
+        view: "catalog", targetCategory: "preview" in dashboard ? dashboard.preview.targetCategory : null,
+        courses: [...dashboard.enrolled, ...dashboard.recommended],
+      };
+      expect(await response.json()).toEqual(expected);
+    }
+  });
 
   test.each([["unenrolled", "Bima"], ["revoked", "Citra"]] as const)(
     "replays the signed dashboard chapter action for %s and keeps premium content locked",
