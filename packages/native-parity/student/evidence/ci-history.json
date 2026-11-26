@@ -622,6 +622,91 @@
       "android": {
         "jobId": 139949544809,
         "status": "pending_at_observation"
+      },
+      "laterObservations": [
+        {
+          "observedAt": "2026-11-26T14:47:00Z",
+          "ios": {
+            "jobId": 139949544377,
+            "status": "cancelled_before_device_flows",
+            "details": "Superseded by the current Student run while awaiting a hosted Mac. No runner had been assigned and no steps had executed."
+          },
+          "android": {
+            "jobId": 139949544809,
+            "status": "cancelled_before_device_flows"
+          }
+        }
+      ]
+    },
+    {
+      "runId": 45834308919,
+      "sourceHead": "e2b8f44a7885a87e20eb2ff71f937ed66aae7218",
+      "url": "https://github.com/soezyxstt/zyxacademy/actions/runs/45834308919",
+      "observedAt": "2026-11-26T14:55:00Z",
+      "web": {
+        "jobId": 139958989193,
+        "status": "passed",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45834308919/artifacts/15125130452",
+        "details": "Web reference job passed, including both refocus suites."
+      },
+      "ios": {
+        "jobId": 139960846388,
+        "status": "cancelled_before_device_flows"
+      },
+      "android": {
+        "jobId": 139960846941,
+        "status": "device_flows_completed_with_failures",
+        "reason": "Generated smoke: {'passed': 175, 'blocked': 3, 'failed': 25}. Standalone flows: {'failed': 25, 'passed': 2}. Matched comparison: {'missing': 30, 'different': 3}.",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45834308919/artifacts/15130185657",
+        "summaryCounts": {
+          "passed": 175,
+          "blocked": 3,
+          "failed": 25
+        },
+        "standaloneCounts": {
+          "failed": 25,
+          "passed": 2
+        },
+        "matchedComparisonCounts": {
+          "missing": 30,
+          "different": 3
+        },
+        "initialFailureCategories": {
+          "ADB transport": 76
+        },
+        "finalFailureCategories": {
+          "ADB transport": 25
+        },
+        "retryOutcomes": {
+          "passed": 51,
+          "failed": 25
+        },
+        "scrollRestoration": {
+          "status": "missing",
+          "capture": "student-long-content",
+          "matches": 0
+        }
+      },
+      "checkoutSha": "00d7045041fc83d87e82dc6f671a724e7555298a"
+    },
+    {
+      "runId": 45839001628,
+      "sourceHead": "0cc3c835251cead65ff838cde0c3e9c9ad3ccc0b",
+      "url": "https://github.com/soezyxstt/zyxacademy/actions/runs/45839001628",
+      "observedAt": "2026-11-26T14:55:00Z",
+      "web": {
+        "jobId": 139975352849,
+        "status": "passed",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45839001628/artifacts/15127855450",
+        "details": "Web reference job passed, including both refocus suites."
+      },
+      "ios": {
+        "jobId": 139977461611,
+        "status": "queued_at_observation"
+      },
+      "android": {
+        "jobId": 139977462101,
+        "status": "in_progress_at_observation"
       }
     }
   ]
