@@ -7,6 +7,7 @@ import {
   type CourseCard, type CourseData, type DashboardData, type EnrollmentFailureCode, type EnrollmentResponse,
   type LearningData, type LearningQuery, type MaterialDetailData, type MaterialListData,
 } from "../../../../../packages/native-parity/student/courses/contract";
+import { useNativeAppearance, readingDensityScales, readingFontScales, scaleReadingText } from "../../../device/appearance";
 import { Button } from "../../../components/Button";
 import { Input } from "../../../components/Input";
 import { Skeleton } from "../../../components/Skeleton";
@@ -111,11 +112,12 @@ function useLearningData(request: Request, url: string, view: LearningQuery["vie
 
 function LearningText({ children, role = "body", style }: { children: ReactNode; role?: "title" | "heading" | "body" | "meta"; style?: TextStyle }) {
   const colors = nativeColors[useContext(ThemeContext)];
+  const scale = readingFontScales[useNativeAppearance().fontSize];
   const isHeading = role === "title" || role === "heading";
   return (
     <Text
       accessibilityRole={isHeading ? "header" : undefined}
-      style={[isHeading ? nativeTypography.headingBold : nativeTypography.bodyRegular, styles[role], { color: role === "meta" ? colors.mutedForeground : colors.foreground }, style]}
+      style={[isHeading ? nativeTypography.headingBold : nativeTypography.bodyRegular, styles[role], { color: role === "meta" ? colors.mutedForeground : colors.foreground }, style, scaleReadingText(scale, styles[role], style)]}
     >
       {children}
     </Text>
@@ -123,8 +125,9 @@ function LearningText({ children, role = "body", style }: { children: ReactNode;
 }
 
 function Section({ title, children }: { title?: string; children: ReactNode }) {
+  const spacing = readingDensityScales[useNativeAppearance().density];
   return (
-    <View style={styles.section}>
+    <View style={{ gap: styles.section.gap * spacing }}>
       {title ? <LearningText role="heading">{title}</LearningText> : null}
       {children}
     </View>
@@ -597,6 +600,7 @@ function CourseEntry(props: StudentScreenProps & { query: LearningQuery; documen
   const preference = devicePreferences?.theme;
   const theme = preference && preference !== "system" ? preference : systemTheme;
   const colors = nativeColors[theme];
+  const spacing = readingDensityScales[useNativeAppearance().density];
   const copy = courseCopy(session.locale);
   const locale = session.locale.startsWith("en") ? "en-GB" : "id-ID";
   const offline = props.offlineCourse;
@@ -665,7 +669,7 @@ function CourseEntry(props: StudentScreenProps & { query: LearningQuery; documen
           contentOffset={isReady ? restoreOffset.current : undefined}
           testID={query.view === "catalog" ? "student-courses-list" : query.view === "material-list" ? "student-materials-list" : `student-learning-${query.view}`}
           style={{ backgroundColor: colors.background }}
-          contentContainerStyle={[styles.content, isReady && (query.view === "catalog" || flushTabs) && styles.catalogContent]}
+          contentContainerStyle={[styles.content, { gap: styles.content.gap * spacing }, isReady && (query.view === "catalog" || flushTabs) && styles.catalogContent]}
           keyboardShouldPersistTaps="handled"
           refreshControl={<RefreshControl refreshing={resource.kind === "loading" && lastOffset.current > 0} onRefresh={reload} tintColor={colors.primary} colors={[colors.primary]} />}
           scrollEventThrottle={16}
@@ -679,7 +683,7 @@ function CourseEntry(props: StudentScreenProps & { query: LearningQuery; documen
           {(!hasNavbar && (query.view === "course" || query.view === "material-list")) || query.view === "material-detail" ? (
             <Button theme={theme} variant="ghost" testID="student-learning-back" style={styles.back} onPress={back}>{copy.back}</Button>
           ) : null}
-          {isReady ? <View style={styles.readyContent}>{content}</View> : content}
+          {isReady ? <View style={{ gap: styles.readyContent.gap * spacing }}>{content}</View> : content}
         </ScrollView>
       </CopyContext.Provider>
     </ThemeContext.Provider>

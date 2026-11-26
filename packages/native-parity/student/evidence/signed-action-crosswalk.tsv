@@ -190,7 +190,7 @@ community	/students/[publicId]	murid	social.report	Confirms reasoned report unde
 community	/settings	murid	settings.locale	Sets account locale via protected native endpoint, then refreshes verified context.	connected	fixture
 community	/settings	murid	settings.theme	Persists device theme with system, light and dark variants.	connected	contract
 community	/settings	murid	settings.haptics	Persists device haptic setting and applies supported feedback.	connected	contract
-community	/settings	murid	settings.display	Theme, density, font, ornaments, animation and reset are wired to native preferences. Cross-page consumption and equivalent web scope need per-surface verification.	partial	contract
+community	/settings	murid	settings.display	Theme and display reset use device preferences. Web-equivalent scales affect Student dashboard, catalog, current course modules, shared rows, learning, assessment, community and online/offline reading. Existing ornaments respect the background setting. Flashcard, Pet and shared motion controls honor app and OS preferences. Native chrome and individual controls can still differ from the web CSS scope.	partial	contract
 community	/settings	murid	settings.session-panel	Displays active session inventory through own account panel and shared session controls.	connected	source
 community	/settings	murid	settings.profile-alias	Settings Profile tab mounts shared profile editor.	alias	fixture
 community	/settings	murid	settings.offline-link	Opens authorized device offline reading library.	connected	contract

@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Text, View, useColorScheme, type TextStyle } fr
 import idMessages from "../../../../../packages/native-parity/student/learning/messages-id.json";
 import enMessages from "../../../../../packages/native-parity/student/learning/messages-en.json";
 import { nativeColors } from "../../../../../packages/design-tokens/native-colors";
+import { useNativeAppearance, readingDensityScales, readingFontScales, scaleReadingText } from "../../../device/appearance";
 import { Button } from "../../../components/Button";
 import { nativeTypography } from "../../../typography";
 import { useHasStudentCourseNavbar } from "../../../routing/student-course-chrome-context";
@@ -42,6 +43,7 @@ export function LearningPage({ props, title, children, footer, ready = true }: {
   const initialY = useRef(props.initialScrollY);
   const restored = useRef(initialY.current === 0);
   const colors = useLearningColors();
+  const spacing = readingDensityScales[useNativeAppearance().density];
   const back = english(props.session.locale) ? "Back" : "Kembali";
   const courseNavbar = useHasStudentCourseNavbar();
   return (
@@ -49,7 +51,7 @@ export function LearningPage({ props, title, children, footer, ready = true }: {
       <ScrollView
         ref={scroll}
         style={styles.frame}
-        contentContainerStyle={styles.page}
+        contentContainerStyle={[styles.page, { gap: styles.page.gap * spacing }]}
         keyboardShouldPersistTaps="handled"
         onContentSizeChange={() => {
           if (!ready || restored.current) return;
@@ -59,7 +61,7 @@ export function LearningPage({ props, title, children, footer, ready = true }: {
         onScroll={(event) => { if (restored.current) props.onScrollY(event.nativeEvent.contentOffset.y); }}
         scrollEventThrottle={100}
       >
-        <View style={styles.header}>
+        <View style={{ gap: styles.header.gap * spacing }}>
           {!courseNavbar && <Button onPress={props.back} variant="ghost" size="sm" style={{ alignSelf: "flex-start" }}>{back}</Button>}
           <Copy heading level={courseNavbar ? undefined : "title"}>{title}</Copy>
         </View>
@@ -74,16 +76,19 @@ export function Copy({ children, heading = false, muted = false, level, style }:
   children: ReactNode; heading?: boolean; muted?: boolean; level?: "title"; style?: TextStyle;
 }) {
   const colors = useLearningColors();
+  const scale = readingFontScales[useNativeAppearance().fontSize];
+  const typography = level === "title" ? styles.title : heading ? styles.heading : styles.copy;
   return (
     <Text accessibilityRole={heading ? "header" : undefined} style={[
       styles.copy, nativeTypography.bodyRegular, { color: muted ? colors.mutedForeground : colors.foreground },
-      heading && [nativeTypography.headingBold, styles.heading], level === "title" && styles.title, style,
+      heading && nativeTypography.headingBold, style, scaleReadingText(scale, typography, style),
     ]}>{children}</Text>
   );
 }
 
 export function Section({ title, children }: { title?: string; children: ReactNode }) {
-  return <View style={styles.section}>{title ? <Copy heading>{title}</Copy> : null}{children}</View>;
+  const spacing = readingDensityScales[useNativeAppearance().density];
+  return <View style={{ gap: styles.section.gap * spacing }}>{title ? <Copy heading>{title}</Copy> : null}{children}</View>;
 }
 
 export function Row({ title, detail, value, onPress, children }: {

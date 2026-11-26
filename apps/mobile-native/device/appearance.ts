@@ -4,4 +4,4 @@ import { DEFAULT_APPEARANCE_PREFERENCES } from "../../../lib/appearance-preferen
 export const NativeAppearance = createContext(DEFAULT_APPEARANCE_PREFERENCES);
 export function useNativeAppearance() { return useContext(NativeAppearance); }
 
-export { readingFontScales, readingDensityScales } from "./reading-scales";
+export { readingFontScales, readingDensityScales, scaleReadingText } from "./reading-scales";

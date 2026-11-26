@@ -4,6 +4,7 @@ import { nativeColors, nativeLinkInks, nativeRadii } from "../../../../../packag
 import { coursePath, dashboardPreviewPath, type CourseCard, type DashboardPreview } from "../../../../../packages/native-parity/student/courses/contract";
 import studentEn from "../../../../../messages/en/student.json";
 import studentId from "../../../../../messages/id/student.json";
+import { useNativeAppearance, readingDensityScales, readingFontScales, scaleReadingText } from "../../../device/appearance";
 import { Button } from "../../../components/Button";
 import { nativeTypography } from "../../../typography";
 import { NavigationIcon, type NavigationIconName } from "../../shared-ui/navigation-icons";
@@ -28,10 +29,11 @@ export function countLabel(pattern: string, count: number, locale: string) {
 
 export function DashboardSectionHeading({ title, icon, theme, tone = "muted", meta }: { title: string; icon?: NavigationIconName; theme: Theme; tone?: "muted" | "primary"; meta?: ReactNode }) {
   const colors = nativeColors[theme];
+  const scale = readingFontScales[useNativeAppearance().fontSize];
   return <View style={styles.inline}>
     <View style={styles.headingGroup}>
       {icon && <NavigationIcon name={icon} color={tone === "primary" ? colors.primary : colors.mutedForeground} size={16} />}
-      <Text accessibilityRole="header" style={[styles.heading, { color: colors.foreground }]}>{title}</Text>
+      <Text accessibilityRole="header" style={[styles.heading, scaleReadingText(scale, styles.heading), { color: colors.foreground }]}>{title}</Text>
     </View>
     {meta}
   </View>;
@@ -45,13 +47,14 @@ function dashboardProgress(done: number, total: number, message: string) {
 
 function Progress({ percent, label, title, theme }: ReturnType<typeof dashboardProgress> & { title: string; theme: Theme }) {
   const colors = nativeColors[theme];
+  const scale = readingFontScales[useNativeAppearance().fontSize];
   return <View style={styles.progress}>
     <View accessibilityRole="progressbar" accessibilityLabel={title} accessibilityValue={{ min: 0, now: percent, max: 100 }}
       style={[styles.track, { backgroundColor: colors.muted }]}>
       <View style={[styles.trackFill, { width: `${percent}%`, backgroundColor: percent === 100 ? nativeLinkInks.success : colors.primary }]} />
     </View>
-    <Text style={[styles.progressNumber, { color: colors.foreground }]}>{percent}%</Text>
-    <Text style={[styles.meta, { color: colors.mutedForeground }]}>{label}</Text>
+    <Text style={[styles.progressNumber, scaleReadingText(scale, styles.progressNumber), { color: colors.foreground }]}>{percent}%</Text>
+    <Text style={[styles.meta, scaleReadingText(scale, styles.meta), { color: colors.mutedForeground }]}>{label}</Text>
   </View>;
 }
 
@@ -60,26 +63,28 @@ export function ActiveDashboardCourses({ courses, completed, locale, theme, navi
 }) {
   const t = dashboardMessages(locale);
   const colors = nativeColors[theme];
+  const scale = readingFontScales[useNativeAppearance().fontSize];
+  const spacing = readingDensityScales[useNativeAppearance().density];
   return <View testID="student-dashboard-active">
     <View style={styles.spread}>
       <DashboardSectionHeading title={t.classesActive} icon="classes" theme={theme} />
       <View style={styles.activeActions}>
         <Button theme={theme} variant="outline" size="sm" renderIcon={(color, size) => <NavigationIcon name="key" color={color} size={size} />} accessibilityState={{ expanded: activationOpen }} onPress={activate}>{t.activateClass}</Button>
         <DashboardLink theme={theme} testID="student-dashboard-all-courses" label={t.viewAll} onPress={() => navigate("/courses")} style={styles.compactLink}>
-          <Text style={[styles.actionLabel, { color: colors.mutedForeground }]}>{t.viewAll}</Text>
+          <Text style={[styles.actionLabel, scaleReadingText(scale, styles.actionLabel), { color: colors.mutedForeground }]}>{t.viewAll}</Text>
           <NavigationIcon name="arrow-up-right" size={14} color={colors.mutedForeground} />
         </DashboardLink>
       </View>
     </View>
     {courses.map(course => {
       const progress = dashboardProgress(completed[course.id] ?? 0, course.materialsCount ?? 0, t.materialProgressShort);
-      return <DashboardLink key={course.id} testID={`student-course-${course.id}`} theme={theme} style={styles.activeCourse}
+      return <DashboardLink key={course.id} testID={`student-course-${course.id}`} theme={theme} style={[styles.activeCourse, { paddingVertical: styles.activeCourse.paddingVertical * spacing }]}
         label={[course.title, course.category, `${progress.percent}%`, progress.label].filter(Boolean).join(", ")}
         onPress={() => navigate(coursePath(course.id))}>
         <View style={styles.courseProgress}>
           <View style={styles.inline}>
-            <Text style={[styles.heading, { color: colors.foreground }]}>{course.title}</Text>
-            <Text style={[styles.meta, styles.category, { color: colors.mutedForeground }]}>{course.category}</Text>
+            <Text style={[styles.heading, scaleReadingText(scale, styles.heading), { color: colors.foreground }]}>{course.title}</Text>
+            <Text style={[styles.meta, styles.category, scaleReadingText(scale, styles.meta), { color: colors.mutedForeground }]}>{course.category}</Text>
           </View>
           <Progress {...progress} title={course.title} theme={theme} />
         </View>
@@ -101,7 +106,9 @@ export function DashboardPreviewCourses({ preview, locale, theme, navigate, open
 }) {
   const t = dashboardMessages(locale);
   const colors = nativeColors[theme];
-  return <View style={styles.preview} testID="student-dashboard-preview">
+  const scale = readingFontScales[useNativeAppearance().fontSize];
+  const spacing = readingDensityScales[useNativeAppearance().density];
+  return <View style={{ gap: styles.preview.gap * spacing }} testID="student-dashboard-preview">
     <View style={styles.sectionIntro}>
       <View style={styles.spread}>
         <DashboardSectionHeading title={t.coursesForYou} icon="book" theme={theme} tone="primary" />
@@ -109,10 +116,10 @@ export function DashboardPreviewCourses({ preview, locale, theme, navigate, open
           <Text accessibilityLabel={t.freePackage} style={[styles.planBadgeText, { color: colors.primary }]}>{t.freePackage.replace(/ /g, "\u00a0")}</Text>
         </View>
       </View>
-      {preview.targetCategory && <Text style={[styles.meta, { color: colors.primary }]}>
+      {preview.targetCategory && <Text style={[styles.meta, scaleReadingText(scale, styles.meta), { color: colors.primary }]}>
         {preview.targetCategory === "TPB" ? t.recommendedTpb : t.recommendedFor.replace("{category}", preview.targetCategory)}
       </Text>}
-      <Text style={[styles.meta, { color: colors.mutedForeground }]}>{t.firstChapterFree}</Text>
+      <Text style={[styles.meta, scaleReadingText(scale, styles.meta), { color: colors.mutedForeground }]}>{t.firstChapterFree}</Text>
     </View>
     {preview.courses.map(course => {
       const next = course.completedFreeMaterialCount > 0 && course.completedFreeMaterialCount < course.freeMaterialCount
@@ -127,18 +134,18 @@ export function DashboardPreviewCourses({ preview, locale, theme, navigate, open
         <View style={styles.spread}>
           <View style={styles.inline}>
             <Text style={[styles.pill, styles.category, { color: colors.primary, backgroundColor: `${colors.primary}1a` }]}>{course.category}</Text>
-            <Text style={[styles.courseTitle, { color: colors.foreground }]}>{course.title}</Text>
+            <Text style={[styles.courseTitle, scaleReadingText(scale, styles.courseTitle), { color: colors.foreground }]}>{course.title}</Text>
           </View>
           <Button theme={theme} size="sm" iconPosition="end" renderIcon={(color, size) => <NavigationIcon name="arrow-right" color={color} size={size} />} accessibilityRole="link" testID={`student-dashboard-first-chapter-${course.id}`}
             onPress={() => navigate(dashboardPreviewPath(course))}>{next}</Button>
         </View>
-        {offer ? <Text style={[styles.meta, { color: colors.mutedForeground }]}>{offer}</Text> :
+        {offer ? <Text style={[styles.meta, scaleReadingText(scale, styles.meta), { color: colors.mutedForeground }]}>{offer}</Text> :
           <Text style={[styles.pill, styles.pricing, { color: colors.foreground, backgroundColor: colors.muted }]}>
             {course.pricing?.category === "free" ? "Free" : "Premium"}
           </Text>}
         <View style={styles.inline}>
           {availableCounts.map(([message, count]) =>
-            <Text key={message} style={[styles.meta, { color: colors.mutedForeground }]}>
+            <Text key={message} style={[styles.meta, scaleReadingText(scale, styles.meta), { color: colors.mutedForeground }]}>
               {countLabel(message, count, locale)}
             </Text>)}
         </View>
@@ -148,27 +155,27 @@ export function DashboardPreviewCourses({ preview, locale, theme, navigate, open
           <View style={styles.inline}>
             {chapter.completed ? <NavigationIcon name="check" color={nativeLinkInks.success} size={16} /> :
               <Text style={[styles.ordinal, { color: colors.primary, borderColor: `${colors.primary}66` }]}>{index + 1}</Text>}
-            <Text style={[styles.meta, { color: colors.foreground }]}>{chapter.title}</Text>
+            <Text style={[styles.meta, scaleReadingText(scale, styles.meta), { color: colors.foreground }]}>{chapter.title}</Text>
           </View>
           <Text style={[styles.pill, { color: theme === "light" ? "#0c773b" : nativeLinkInks.success, backgroundColor: `${nativeLinkInks.success}1a` }]}>{t.free}</Text>
-        </View>) : <Text style={[styles.meta, { color: colors.mutedForeground }]}>{t.preparingFreeMaterials}</Text>}
+        </View>) : <Text style={[styles.meta, scaleReadingText(scale, styles.meta), { color: colors.mutedForeground }]}>{t.preparingFreeMaterials}</Text>}
       </View>;
     })}
     {!preview.courses.length && <View style={styles.previewCourse}>
-      <Text style={[styles.courseTitle, { color: colors.foreground }]}>{preview.targetCategory
+      <Text style={[styles.courseTitle, scaleReadingText(scale, styles.courseTitle), { color: colors.foreground }]}>{preview.targetCategory
         ? t.noCoursesForCategory.replace("{category}", preview.targetCategory) : t.noCoursesAvailable}</Text>
-      <Text style={[styles.meta, { color: colors.mutedForeground }]}>{preview.targetCategory ? t.exploreOtherCourses : t.returnAfterPublish}</Text>
+      <Text style={[styles.meta, scaleReadingText(scale, styles.meta), { color: colors.mutedForeground }]}>{preview.targetCategory ? t.exploreOtherCourses : t.returnAfterPublish}</Text>
       <Button theme={theme} variant="outline" size="sm" onPress={() => navigate("/courses")}>{t.courseCatalog}</Button>
     </View>}
     <View style={styles.featureSection}>
       <View style={styles.featureHeading}>
         <NavigationIcon name="flame" size={18} color={colors.primary} />
-        <Text accessibilityRole="header" style={[styles.heading, styles.featureHeadingText, { color: colors.foreground }]}>{t.availableInFree}</Text>
+        <Text accessibilityRole="header" style={[styles.heading, styles.featureHeadingText, scaleReadingText(scale, styles.heading), { color: colors.foreground }]}>{t.availableInFree}</Text>
       </View>
       {features.map(({ icon, title, description }) => <View style={styles.feature} key={title}>
         <View style={[styles.featureIcon, { backgroundColor: `${colors.primary}1a` }]}><NavigationIcon name={icon} color={colors.primary} size={16} /></View>
-        <Text style={[styles.featureTitle, { color: colors.foreground }]}>{t[title]}</Text>
-        <Text style={[styles.meta, { color: colors.mutedForeground }]}>{t[description]}</Text>
+        <Text style={[styles.featureTitle, scaleReadingText(scale, styles.featureTitle), { color: colors.foreground }]}>{t[title]}</Text>
+        <Text style={[styles.meta, scaleReadingText(scale, styles.meta), { color: colors.mutedForeground }]}>{t[description]}</Text>
       </View>)}
     </View>
     {openExternal && <View style={[styles.plans, { borderTopColor: colors.border }]}>

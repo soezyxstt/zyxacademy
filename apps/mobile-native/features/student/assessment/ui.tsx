@@ -3,6 +3,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, useColorScheme, View, 
 import { nativeColors, nativeRadii } from "../../../../../packages/design-tokens/native-colors";
 import { nativeTypography } from "../../../typography";
 import { useHasStudentCourseNavbar } from "../../../routing/student-course-chrome-context";
+import { useNativeAppearance, readingDensityScales, readingFontScales, scaleReadingText } from "../../../device/appearance";
 import { Button } from "../../../components/Button";
 import { CourseMarkdown } from "../CourseMarkdown";
 import type { StudentScreenProps } from "../contracts";
@@ -38,13 +39,16 @@ export function fill(template: string, fields: Record<string, string | number>) 
 
 export function Body({ children, tone = "normal", style }: { children: ReactNode; tone?: "normal" | "muted" | "error" | "primary"; style?: TextStyle }) {
   const colors = useAssessmentColors();
+  const scale = readingFontScales[useNativeAppearance().fontSize];
   const color = { normal: colors.foreground, muted: colors.mutedForeground, error: colors.destructive, primary: colors.primary }[tone];
-  return <Text style={[styles.body, { color }, style]}>{children}</Text>;
+  return <Text style={[styles.body, { color }, style, scaleReadingText(scale, styles.body, style)]}>{children}</Text>;
 }
 
 export function Heading({ children, level = 2 }: { children: ReactNode; level?: 1 | 2 | 3 }) {
   const colors = useAssessmentColors();
-  return <Text accessibilityRole="header" style={[styles.heading, { color: colors.foreground }, level === 1 ? styles.pageHeading : level === 3 ? styles.smallHeading : undefined]}>{children}</Text>;
+  const scale = readingFontScales[useNativeAppearance().fontSize];
+  const typography = level === 1 ? styles.pageHeading : level === 3 ? styles.smallHeading : styles.heading;
+  return <Text accessibilityRole="header" style={[styles.heading, { color: colors.foreground }, scaleReadingText(scale, typography)]}>{children}</Text>;
 }
 
 export function Frame({ title, subtitle, children, onBack, compactCourseHeader }: { title: string; subtitle?: string; children: ReactNode; onBack?: () => void; compactCourseHeader?: boolean }) {
@@ -52,10 +56,11 @@ export function Frame({ title, subtitle, children, onBack, compactCourseHeader }
   const colors = useAssessmentColors();
   const { tx } = useAssessmentCopy();
   const courseNavbar = useHasStudentCourseNavbar();
+  const { density, fontSize } = useNativeAppearance();
   return <ScrollView keyboardShouldPersistTaps="handled" contentOffset={{ x: 0, y: props.initialScrollY }}
     onScroll={(event) => props.onScrollY(event.nativeEvent.contentOffset.y)} scrollEventThrottle={32}
-    style={{ backgroundColor: colors.background }} contentContainerStyle={styles.page}>
-    {compactCourseHeader && courseNavbar ? <Text accessibilityRole="header" style={[styles.compactTitle, { color: colors.foreground }]}>{title}</Text> : <>
+    style={{ backgroundColor: colors.background }} contentContainerStyle={[styles.page, { gap: styles.page.gap * readingDensityScales[density] }]}>
+    {compactCourseHeader && courseNavbar ? <Text accessibilityRole="header" style={[styles.compactTitle, { color: colors.foreground }, scaleReadingText(readingFontScales[fontSize], styles.compactTitle)]}>{title}</Text> : <>
       <Button variant="ghost" size="sm" style={styles.back} accessibilityLabel={tx("Kembali", "Back")} onPress={onBack ?? props.back}>{tx("‹ Kembali", "‹ Back")}</Button>
       <View style={styles.title}><Heading level={1}>{title}</Heading>{subtitle ? <Body tone="muted">{subtitle}</Body> : null}</View>
     </>}
@@ -65,7 +70,8 @@ export function Frame({ title, subtitle, children, onBack, compactCourseHeader }
 
 export function Section({ children, border = false }: { children: ReactNode; border?: boolean }) {
   const { border: color } = useAssessmentColors();
-  return <View style={[styles.section, border && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: color, paddingTop: 12 }]}>{children}</View>;
+  const spacing = readingDensityScales[useNativeAppearance().density];
+  return <View style={[{ gap: styles.section.gap * spacing }, border && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: color, paddingTop: 12 }]}>{children}</View>;
 }
 
 export function ButtonRow({ children }: { children: ReactNode }) { return <View style={styles.buttonRow}>{children}</View>; }

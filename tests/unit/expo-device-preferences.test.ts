@@ -1,3 +1,4 @@
+import { readingDensityScales, readingFontScales, scaleReadingText } from "../../apps/mobile-native/device/reading-scales";
 import { DEFAULT_APPEARANCE_PREFERENCES } from "../../lib/appearance-preferences";
 import { expect, test } from "bun:test";
 
@@ -84,4 +85,28 @@ test("device appearance survives a remount and display reset preserves alerts an
   expect(restored.getSnapshot().appearance).toEqual(initial.getSnapshot().appearance);
   restored.restoreDisplay();
   expect(restored.getSnapshot()).toEqual({ theme: "system", haptics: false, appearance: { ...DEFAULT_APPEARANCE_PREFERENCES, toastPosition: "bottom-left" } });
+});
+
+test("native reading type and spacing use the exact web preference scales and reset semantics", async () => {
+  const css = await Bun.file("app/appearance-preferences.css").text();
+  for (const [attribute, token, scales, defaultName] of [
+    ["font-size", "font", readingFontScales, DEFAULT_APPEARANCE_PREFERENCES.fontSize],
+    ["density", "spacing", readingDensityScales, DEFAULT_APPEARANCE_PREFERENCES.density],
+  ] as const) {
+    for (const [name, scale] of Object.entries(scales)) {
+      if (name === defaultName) expect(scale).toBe(1);
+      else expect(css).toContain(`:root[data-preference-${attribute}="${name}"]:has([data-personalized-surface]) {\n  --user-${token}-scale: ${scale};`);
+    }
+  }
+  const ordinary = { fontSize: 14, lineHeight: 20 };
+  const base = { readTheme: () => "system", saveTheme() {}, applyAppearance() {}, readHaptics: () => true, saveHaptics() {} };
+  const prefs = createDevicePreferences(base);
+  prefs.setAppearance("fontSize", "large");
+  prefs.setAppearance("density", "tightest");
+  expect(scaleReadingText(readingFontScales[prefs.getSnapshot().appearance.fontSize], ordinary)).toEqual({ fontSize: 17.5, lineHeight: 25 });
+  expect(scaleReadingText(1.25, ordinary, { fontSize: 12, lineHeight: 16 })).toEqual({ fontSize: 15, lineHeight: 20 });
+  expect(16 * readingDensityScales[prefs.getSnapshot().appearance.density]).toBe(12);
+  prefs.restoreDisplay();
+  expect(scaleReadingText(readingFontScales[prefs.getSnapshot().appearance.fontSize], ordinary)).toEqual(ordinary);
+  expect(16 * readingDensityScales[prefs.getSnapshot().appearance.density]).toBe(16);
 });

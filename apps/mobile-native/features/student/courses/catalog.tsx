@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { nativeColors, nativeLinkInks, nativeRadii } from "../../../../../packages/design-tokens/native-colors";
 import { coursePath, type CatalogData, type CourseCard } from "../../../../../packages/native-parity/student/courses/contract";
+import { useNativeAppearance, readingDensityScales, readingFontScales, scaleReadingText } from "../../../device/appearance";
 import { Button } from "../../../components/Button";
 import { nativeTypography } from "../../../typography";
 import { NavigationTabs } from "../../shared-ui/navigation";
@@ -40,6 +41,9 @@ function CatalogRow({ course, copy, locale, now, theme, navigate }: {
   course: CourseCard; copy: Copy; locale: string; now: Date; theme: Theme; navigate: StudentScreenProps["navigate"];
 }) {
   const colors = nativeColors[theme];
+  const { density, fontSize } = useNativeAppearance();
+  const spacing = readingDensityScales[density];
+  const scale = readingFontScales[fontSize];
   const { badge, hasContent, summary, lockedLabel } = getCatalogRow(course, copy);
   const badgeColor = badge.tone === "default" ? colors.brandPrimary : badgeColors[badge.tone][theme];
   const badgeAccent = badge.tone === "default" ? colors.brandPrimary : badgeColors[badge.tone].accent;
@@ -52,16 +56,16 @@ function CatalogRow({ course, copy, locale, now, theme, navigate }: {
     <Pressable accessibilityRole="link" accessibilityLabel={[course.title, summary, offerText, lockedLabel].filter(Boolean).join(", ")}
       testID={`student-course-${course.id}`} onPress={() => navigate(coursePath(course.id))}
       onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} style={({ pressed }) => [
-        styles.row, pressed && { backgroundColor: `${colors.muted}66` },
+        styles.row, { paddingVertical: styles.row.paddingVertical * spacing }, pressed && { backgroundColor: `${colors.muted}66` },
         focused && { outlineColor: colors.accent, outlineWidth: 2, outlineOffset: -2 },
       ]}>
       <View aria-hidden style={[styles.badge, { opacity: hasContent ? 1 : 0.75, borderColor: `${badgeAccent}40`, backgroundColor: `${badgeAccent}1a` }]}>
         <Text maxFontSizeMultiplier={1.5} style={[styles.badgeText, { color: badgeColor }]}>{badge.initials}</Text>
       </View>
       <View style={styles.rowText}>
-        <Text style={[styles.rowTitle, { color: hasContent ? colors.foreground : colors.mutedForeground }]}>{course.title}</Text>
-        <Text style={[styles.meta, muted]} textBreakStrategy="simple">{summary}</Text>
-        {offer && <Text style={[styles.meta, muted]}>
+        <Text style={[styles.rowTitle, scaleReadingText(scale, styles.rowTitle), { color: hasContent ? colors.foreground : colors.mutedForeground }]}>{course.title}</Text>
+        <Text style={[styles.meta, scaleReadingText(scale, styles.meta), muted]} textBreakStrategy="simple">{summary}</Text>
+        {offer && <Text style={[styles.meta, scaleReadingText(scale, styles.meta), muted]}>
           <Text style={[nativeTypography.bodyMedium, { color: offer.state === "offerEnded" ? colors.mutedForeground : theme === "dark" ? nativeLinkInks.success : colors.foreground }]}>
             {copy.row[offer.state]}
           </Text>{` · ${offer.schedule}`}
@@ -75,12 +79,13 @@ function CatalogRow({ course, copy, locale, now, theme, navigate }: {
 function CatalogFooterLink({ label, conjunction, period, theme, onPress }: { label: string; conjunction?: string; period: boolean; theme: Theme; onPress: () => void }) {
   const colors = nativeColors[theme];
   const [focused, setFocused] = useState(false);
+  const scale = readingFontScales[useNativeAppearance().fontSize];
   return <Pressable accessibilityRole="link" accessibilityLabel={label} onPress={onPress}
     onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} style={({ pressed }) => [
       styles.helpAction, pressed && { backgroundColor: `${colors.muted}66` },
       focused && { outlineColor: colors.accent, outlineWidth: 2, outlineOffset: -2 },
     ]}>
-    <Text style={[styles.meta, styles.helpText, { color: colors.mutedForeground }]} textBreakStrategy="simple">
+    <Text style={[styles.meta, styles.helpText, scaleReadingText(scale, styles.meta), { color: colors.mutedForeground }]} textBreakStrategy="simple">
       {conjunction ? `${conjunction} ` : null}
       <Text style={styles.helpLink}>{label}</Text>{period ? "." : null}
     </Text>
@@ -92,13 +97,16 @@ export function Catalog({ data, navigate, query, onSelectGroup, onClearSearch, o
   onSelectGroup: (id: string) => void; onClearSearch: () => void;
 } & Pick<StudentScreenProps, "navigate" | "openExternal">) {
   const copy = catalogCopy(locale);
+  const { density, fontSize } = useNativeAppearance();
+  const spacing = readingDensityScales[density];
+  const scale = readingFontScales[fontSize];
   const colors = nativeColors[theme];
   const now = useCatalogTime(data);
   const { groups, active, visible, hasSearch } = getCatalogGroups(data.courses, query);
   const { supportUrl } = data;
   const muted = { color: colors.mutedForeground };
   return (
-    <View style={styles.catalog}>
+    <View style={{ gap: styles.catalog.gap * spacing }}>
       {groups.length > 1 && <View style={styles.tabs}>
         <NavigationTabs tabs={[{ id: "all", label: copy.all(data.courses.length) }, ...groups.map(group => ({ id: group.id, label: group.name }))]}
           activeId={active} onTabPress={onSelectGroup} accessibilityLabel={copy.row.filterLabel} theme={theme}
@@ -107,26 +115,26 @@ export function Catalog({ data, navigate, query, onSelectGroup, onClearSearch, o
       </View>}
       {hasSearch && <Button variant="outline" theme={theme} testID="student-catalog-clear-search"
         style={styles.clearSearch} onPress={onClearSearch}>{copy.catalog.clearSearch}</Button>}
-      <View style={styles.sections}>
+      <View style={{ gap: styles.sections.gap * spacing }}>
         {visible.map(group => <View key={group.id} style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTitle}>
-              <Text accessibilityRole="header" style={[styles.heading, { color: colors.foreground }]}>{group.name}</Text>
-              {group.isMajor && <Text style={[styles.meta, muted]}>{copy.row.yourMajor}</Text>}
+              <Text accessibilityRole="header" style={[styles.heading, scaleReadingText(scale, styles.heading), { color: colors.foreground }]}>{group.name}</Text>
+              {group.isMajor && <Text style={[styles.meta, scaleReadingText(scale, styles.meta), muted]}>{copy.row.yourMajor}</Text>}
             </View>
-            <Text style={[styles.meta, muted]}>{copy.count(group.courses.length, "course")}</Text>
+            <Text style={[styles.meta, scaleReadingText(scale, styles.meta), muted]}>{copy.count(group.courses.length, "course")}</Text>
           </View>
           <View>{group.courses.map(course => <CatalogRow key={course.id} course={course} copy={copy} locale={locale} now={now} theme={theme} navigate={navigate} />)}</View>
         </View>)}
         {visible.length === 0 && <View style={styles.empty}>
-          <Text accessibilityRole="header" style={[styles.heading, { color: colors.foreground }]}>
+          <Text accessibilityRole="header" style={[styles.heading, scaleReadingText(scale, styles.heading), { color: colors.foreground }]}>
             {hasSearch ? courseCopy(locale).noCourses : copy.catalog.emptyTitle}
           </Text>
-          {!hasSearch && <Text style={[styles.meta, muted]}>{copy.catalog.emptyDescription}</Text>}
+          {!hasSearch && <Text style={[styles.meta, scaleReadingText(scale, styles.meta), muted]}>{copy.catalog.emptyDescription}</Text>}
         </View>}
       </View>
       {openExternal && <View style={styles.help}>
-        <Text style={[styles.meta, styles.helpText, muted]} textBreakStrategy="simple">{copy.catalog.needMoreAccess}</Text>
+        <Text style={[styles.meta, styles.helpText, scaleReadingText(scale, styles.meta), muted]} textBreakStrategy="simple">{copy.catalog.needMoreAccess}</Text>
         <CatalogFooterLink label={copy.catalog.viewPlans} period={!supportUrl} theme={theme} onPress={() => openExternal("/plans")} />
         {supportUrl && <CatalogFooterLink label={copy.catalog.contactWhatsApp} conjunction={copy.catalog.or} period
           theme={theme} onPress={() => openExternal(supportUrl)} />}

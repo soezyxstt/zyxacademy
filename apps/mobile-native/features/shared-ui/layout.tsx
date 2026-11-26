@@ -1,3 +1,4 @@
+import { scaleReadingText } from "../../device/reading-scales";
 import { type ComponentRef, type ReactNode, type Ref, useState } from "react";
 import {
   ActivityIndicator,
@@ -268,6 +269,8 @@ export type NativeListRowProps<Id extends string = string> = SharedUiActionGroup
   leadingAccessibilityLabel?: string;
   trailing?: ReactNode;
   density?: "default" | "dense";
+  textScale?: number;
+  spacingScale?: number;
   metadata?: readonly { id: string; label: string; value: string }[];
   primary?: { onPress: () => void; label?: string; role?: "button" | "link"; disabled?: boolean; selected?: boolean; testID?: string };
   primaryRef?: Ref<ComponentRef<typeof Pressable>>;
@@ -285,6 +288,8 @@ export function NativeListRow<Id extends string>({
   leadingAccessibilityLabel,
   trailing,
   density = "default",
+  textScale = 1,
+  spacingScale = 1,
   primary,
   primaryRef,
   metadata,
@@ -297,6 +302,8 @@ export function NativeListRow<Id extends string>({
   const resolvedTheme = theme ?? systemTheme ?? "light";
   const colors = nativeColors[resolvedTheme];
   const [focused, setFocused] = useState(false);
+  const identitySpacing = { gap: styles.identity.gap * spacingScale };
+  const secondaryType = scaleReadingText(textScale, styles.supportingText);
   const identity = (
     <>
       {leading && <View accessible={Boolean(leadingAccessibilityLabel)} accessibilityLabel={leadingAccessibilityLabel}
@@ -304,15 +311,17 @@ export function NativeListRow<Id extends string>({
         {leading}
       </View>}
       <View style={styles.rowText}>
-        <Text accessibilityRole={titleRole} style={[styles.rowTitle, density === "dense" && nativeTypography.bodySemibold, { color: colors.foreground }]}>{title}</Text>
-        {subtitle && <Text style={[styles.supportingText, { color: colors.mutedForeground }]}>{subtitle}</Text>}
+        <Text accessibilityRole={titleRole} style={[styles.rowTitle, density === "dense" && nativeTypography.bodySemibold, scaleReadingText(textScale, styles.rowTitle), { color: colors.foreground }]}>{title}</Text>
+        {subtitle && <Text style={[styles.supportingText, secondaryType, { color: colors.mutedForeground }]}>{subtitle}</Text>}
       </View>
       {trailing}
     </>
   );
 
   return (
-    <View style={[styles.row, density === "dense" && styles.denseRow, layout === "wide" && styles.wideRow]} testID={primary && primary.testID === undefined ? undefined : testID}>
+    <View style={[styles.row, density === "dense" && styles.denseRow, layout === "wide" && styles.wideRow,
+      { gap: (layout === "wide" ? styles.wideRow.gap : styles.row.gap) * spacingScale,
+        paddingVertical: density === "dense" ? 0 : styles.row.paddingVertical * spacingScale }]} testID={primary && primary.testID === undefined ? undefined : testID}>
       {primary ? (
         <Pressable
           ref={primaryRef}
@@ -326,21 +335,22 @@ export function NativeListRow<Id extends string>({
           testID={primary.testID ?? testID}
           style={({ pressed }) => [
             styles.identity,
+            identitySpacing,
             styles.rowPress,
-            density === "dense" && styles.denseIdentity,
+            density === "dense" && { paddingVertical: styles.denseIdentity.paddingVertical * spacingScale },
             pressed && { backgroundColor: `${colors.primary}14` },
             focused && { outlineColor: colors.accent, outlineWidth: 2, outlineOffset: 2 },
           ]}
         >
           {identity}
         </Pressable>
-      ) : <View style={[styles.identity, density === "dense" && [styles.denseIdentity, styles.staticIdentity]]}>{identity}</View>}
+      ) : <View style={[styles.identity, identitySpacing, density === "dense" && [{ paddingVertical: styles.denseIdentity.paddingVertical * spacingScale }, styles.staticIdentity]]}>{identity}</View>}
       {!!metadata?.length && (
         <View style={styles.metadata}>
           {metadata.map((field) => (
             <View key={field.id} style={styles.metadataField}>
-              <Text style={[styles.metadataLabel, { color: colors.mutedForeground }]}>{field.label}</Text>
-              <Text style={[styles.supportingText, { color: colors.foreground }]}>{field.value}</Text>
+              <Text style={[styles.metadataLabel, secondaryType, { color: colors.mutedForeground }]}>{field.label}</Text>
+              <Text style={[styles.supportingText, secondaryType, { color: colors.foreground }]}>{field.value}</Text>
             </View>
           ))}
         </View>
