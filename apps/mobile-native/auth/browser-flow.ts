@@ -11,9 +11,11 @@ const ATTEMPT_TTL_MS = 5 * 60_000;
 const EXCHANGE_URL = `${NATIVE_STAGING_ORIGIN}/api/auth/native/expo/exchange`;
 
 export type NativeBrowserLoginStatus = "idle" | "opening" | "exchanging" | "error";
+export type AdditionalLoginScope = Readonly<{ kind: "additional"; fromSessionId: string }>;
 export type AcceptNativeBrowserLogin = (
-  headers: SessionHeaders, userId: string, signal: AbortSignal, intent?: NativeLoginIntent,
+  headers: SessionHeaders, userId: string, signal: AbortSignal, intent?: NativeLoginIntent, scope?: AdditionalLoginScope,
 ) => Promise<void>;
+type AuthorizeAttempt = (scope: AdditionalLoginScope | undefined, signal: AbortSignal) => boolean | Promise<boolean>;
 
 type BrowserLoginDeps = {
   randomBytes(count: number): Promise<Uint8Array>;
@@ -29,7 +31,7 @@ type BrowserLoginDeps = {
   now?: () => number;
 };
 
-type StoredAttempt = { origin: string; state: string; verifier: string; expiresAt: number; intent?: NativeLoginIntent };
+type StoredAttempt = { origin: string; state: string; verifier: string; expiresAt: number; intent?: NativeLoginIntent; scope?: AdditionalLoginScope };
 type LoginRun = {
   controller: AbortController;
   state?: string;
@@ -52,8 +54,11 @@ function parseStoredAttempt(raw: string | null): StoredAttempt | null {
       || typeof value.state !== "string" || !/^[a-f0-9]{48}$/.test(value.state)
       || typeof value.verifier !== "string" || !/^[a-f0-9]{64}$/.test(value.verifier)
       || typeof value.expiresAt !== "number" || !Number.isSafeInteger(value.expiresAt)) return null;
+    const scope = value.scope;
+    if (Object.hasOwn(value, "scope") && (!scope || scope.kind !== "additional" ||
+      typeof scope.fromSessionId !== "string" || !/^[^\s\u0000-\u001f\u007f]{1,256}$/.test(scope.fromSessionId))) return null;
     return { origin: value.origin, state: value.state, verifier: value.verifier, expiresAt: value.expiresAt,
-      intent: parseNativeLoginIntent(value.intent) };
+      ...(scope ? { scope } : { intent: parseNativeLoginIntent(value.intent) }) };
   } catch {
     return null;
   }
@@ -75,6 +80,8 @@ export function createNativeBrowserLogin(deps: BrowserLoginDeps) {
   let retiredState: string | undefined;
   let dismissedState: string | undefined;
   let recoveryIntent: NativeLoginIntent | undefined;
+  let recoveryScope: AdditionalLoginScope | undefined;
+  let failure: string | undefined;
 
   function setStatus(next: NativeBrowserLoginStatus): void {
     if (status === next) return;
@@ -115,12 +122,16 @@ export function createNativeBrowserLogin(deps: BrowserLoginDeps) {
       if (dismissedState === run.state) dismissedState = undefined;
       retiredState = run.state;
     }
-    if (!failed && !run.expired) recoveryIntent = undefined;
+    if (!failed && !run.expired) {
+      recoveryIntent = undefined;
+      recoveryScope = undefined;
+      failure = undefined;
+    }
     active = null;
     setStatus(run.expired || failed ? "error" : "idle");
   }
 
-  function complete(run: LoginRun, callback: NativeBrowserCallback, acceptLogin: AcceptNativeBrowserLogin): Promise<boolean> {
+  function complete(run: LoginRun, callback: NativeBrowserCallback, acceptLogin: AcceptNativeBrowserLogin, authorize?: AuthorizeAttempt): Promise<boolean> {
     if (run.state && run.state !== callback.state) return Promise.resolve(false);
     return run.completion ??= (async () => {
       const attempt = parseStoredAttempt(await deps.readAttempt());
@@ -130,7 +141,15 @@ export function createNativeBrowserLogin(deps: BrowserLoginDeps) {
       const { signal } = run.controller;
       if (signal.aborted) return false;
       recoveryIntent = attempt.intent;
-      if (attempt.expiresAt <= now() || attempt.expiresAt > now() + ATTEMPT_TTL_MS) return false;
+      recoveryScope = attempt.scope;
+      if (attempt.expiresAt <= now() || attempt.expiresAt > now() + ATTEMPT_TTL_MS) {
+        if (attempt.scope) failure = "SESSION_EXPIRED";
+        return false;
+      }
+      if (authorize ? !await authorize(attempt.scope, signal) : attempt.scope) {
+        failure = "SESSION_EXPIRED";
+        return false;
+      }
       armExpiry(run, attempt.expiresAt);
       setStatus("exchanging");
       // Consume the local verifier before contacting the single-use exchange.
@@ -138,35 +157,49 @@ export function createNativeBrowserLogin(deps: BrowserLoginDeps) {
       run.ownsAttempt = false;
       if (signal.aborted || attempt.expiresAt <= now()) return false;
 
+      // An additional exchange can issue a new credential after local cancellation.
+      // Pass a completed response back to the account controller for owned cleanup.
+      const exchange = attempt.scope ? new AbortController() : undefined;
+      const timeout = exchange ? setTimeout(() => exchange.abort(), 15_000) : undefined;
       const response = await deps.fetcher(EXCHANGE_URL, {
         method: "POST",
         credentials: "omit",
         redirect: "manual",
-        signal,
+        signal: exchange?.signal ?? signal,
         headers: { "Content-Type": "application/json", "Cache-Control": "no-store", Origin: NATIVE_STAGING_ORIGIN },
         body: JSON.stringify({ code: callback.code, verifier: attempt.verifier }),
-      });
-      if (signal.aborted || attempt.expiresAt <= now() || !response.ok || response.redirected
+      }).finally(() => clearTimeout(timeout));
+      if ((!attempt.scope && (signal.aborted || attempt.expiresAt <= now())) || !response.ok || response.redirected
         || response.type === "opaqueredirect" || (response.url && response.url !== EXCHANGE_URL)) {
         void response.body?.cancel().catch(() => {});
         return false;
       }
-      const accountId = acceptAccountId(await response.json());
-      if (!accountId || signal.aborted || attempt.expiresAt <= now()) return false;
-      await acceptLogin(response.headers, accountId, signal, attempt.intent);
-      return !signal.aborted;
+      try {
+        const accountId = acceptAccountId(await response.json());
+        if (!accountId || (!attempt.scope && (signal.aborted || attempt.expiresAt <= now()))) throw new Error("SESSION_EXPIRED");
+        if (attempt.scope && attempt.expiresAt <= now()) run.controller.abort();
+        await acceptLogin(response.headers, accountId, signal, attempt.intent, attempt.scope);
+        return true;
+      } catch (error) {
+        failure = error instanceof Error ? error.message : undefined;
+        return false;
+      }
     })().catch(() => false);
   }
 
   return {
     getStatus: () => status,
     getRecoveryIntent: () => recoveryIntent,
+    getRecoveryScope: () => recoveryScope,
+    getFailure: () => failure,
     subscribe(listener: () => void): () => void {
       listeners.add(listener);
       return () => { listeners.delete(listener); };
     },
     cancel() {
       recoveryIntent = undefined;
+      recoveryScope = undefined;
+      failure = undefined;
       if (active) {
         cancelRun(active);
       } else {
@@ -194,7 +227,8 @@ export function createNativeBrowserLogin(deps: BrowserLoginDeps) {
         await finish(run, run.ownsAttempt);
       }
     },
-    async signIn(acceptLogin: AcceptNativeBrowserLogin, intent?: NativeLoginIntent): Promise<"cancelled" | undefined> {
+    async signIn(acceptLogin: AcceptNativeBrowserLogin, intent?: NativeLoginIntent,
+      options?: { scope?: AdditionalLoginScope; authorize?: AuthorizeAttempt }): Promise<"accepted" | "cancelled" | undefined> {
       if (active) return;
       const run = begin();
       const { signal } = run.controller;
@@ -203,6 +237,8 @@ export function createNativeBrowserLogin(deps: BrowserLoginDeps) {
       let preserveUntil = 0;
       try {
         recoveryIntent = undefined;
+        recoveryScope = options?.scope;
+        failure = undefined;
         // Starting another login retires a verifier left by an earlier browser.
         retiredState = dismissedState ?? retiredState;
         dismissedState = undefined;
@@ -216,12 +252,17 @@ export function createNativeBrowserLogin(deps: BrowserLoginDeps) {
         const challenge = (await deps.sha256Base64(verifier)).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
         if (signal.aborted) return;
         if (!/^[A-Za-z0-9_-]{43}$/.test(challenge)) throw new Error("Invalid login challenge");
+        if (options?.authorize && !await options.authorize(options.scope, signal)) {
+          failure = "SESSION_EXPIRED";
+          failed = true;
+          return;
+        }
 
         const expiresAt = now() + ATTEMPT_TTL_MS;
         run.state = state;
         run.ownsAttempt = true;
         await deps.saveAttempt(JSON.stringify({ origin: NATIVE_STAGING_ORIGIN, state, verifier, expiresAt,
-          intent: parseNativeLoginIntent(intent) }));
+          ...(options?.scope ? { scope: options.scope } : { intent: parseNativeLoginIntent(intent) }) }));
         if (signal.aborted) return;
         armExpiry(run, expiresAt);
         const url = new URL("/api/auth/native/start", NATIVE_STAGING_ORIGIN);
@@ -233,9 +274,11 @@ export function createNativeBrowserLogin(deps: BrowserLoginDeps) {
         if (signal.aborted) return;
 
         const matching = queued?.state === state ? queued : null;
-        const callback = browser.type === "success" && browser.url ? parseNativeBrowserCallback(browser.url) : matching;
-        const result = run.completion ?? (callback ? complete(run, callback, acceptLogin) : null);
-        failed = result ? !await result && !signal.aborted : browser.type === "success";
+        const callback = (browser.type === "success" && browser.url ? parseNativeBrowserCallback(browser.url) : null) ?? matching;
+        const result = run.completion ?? (callback ? complete(run, callback, acceptLogin, options?.authorize) : null);
+        const accepted = result ? await result : false;
+        failed = result ? !accepted && !signal.aborted : browser.type === "success";
+        if (accepted && options?.scope) return "accepted";
         // Android can report the app's foreground return before Linking has
         // delivered the callback. The matching verifier is still single-use.
         if (!result && browser.type === "dismiss" && deps.preserveAttemptOnDismiss) preserveUntil = expiresAt;
@@ -247,16 +290,20 @@ export function createNativeBrowserLogin(deps: BrowserLoginDeps) {
         await finish(run, failed, !signal.aborted && !run.completion && preserveUntil > now());
       }
     },
-    async completePending(acceptLogin: AcceptNativeBrowserLogin): Promise<boolean> {
+    async completePending(acceptLogin: AcceptNativeBrowserLogin, authorize?: AuthorizeAttempt): Promise<boolean> {
       const callback = deps.takeCallback();
-      if (!active) recoveryIntent = undefined;
+      if (!active && callback) {
+        recoveryIntent = undefined;
+        recoveryScope = undefined;
+        failure = undefined;
+      }
       if (!callback) return active?.completion ?? false;
       if (callback.state === retiredState) return false;
       if (active) {
-        return active.state === callback.state ? complete(active, callback, acceptLogin) : false;
+        return active.state === callback.state ? complete(active, callback, acceptLogin, authorize) : false;
       }
       const run = begin();
-      const accepted = await complete(run, callback, acceptLogin);
+      const accepted = await complete(run, callback, acceptLogin, authorize);
       await finish(run, !accepted && !run.controller.signal.aborted);
       return accepted;
     },

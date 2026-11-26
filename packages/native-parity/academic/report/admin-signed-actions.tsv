@@ -1,6 +1,7 @@
 route	action_family	source_status	web_entry	native_entry
 /admin	Open failed generation work from the dashboard	connected	app/(admin)/admin/page.tsx	apps/mobile-native/features/operations/monitoring/analytics.tsx
 /admin	Read current operational counts and navigate to the selected workspace	connected	app/(admin)/admin/page.tsx	apps/mobile-native/features/operations/monitoring/analytics.tsx
+/admin/*	List, add, switch and remove saved native accounts with explicit Google sign-in and confirmation	connected	components/auth/sidebar-account-menu.tsx	apps/mobile-native/auth/SavedAccounts.tsx
 /admin/*	Open Ops AI, stream Ask or Action chat, review proposals, explicitly approve and revoke same-chat grants	connected	components/admin/ops-ai/ops-ai-panel.tsx	apps/mobile-native/features/operations/ops-ai/OpsAiWorkspace.tsx
 /admin/assessments	Replace retired assessment list with the Question Bank	alias	app/(admin)/admin/(content)/assessments/page.tsx	apps/mobile-native/features/operations/evaluation/index.tsx
 /admin/assessments/[id]	Replace retired assessment detail with the Question Bank	alias	app/(admin)/admin/(content)/assessments/[id]/page.tsx	apps/mobile-native/features/operations/evaluation/index.tsx

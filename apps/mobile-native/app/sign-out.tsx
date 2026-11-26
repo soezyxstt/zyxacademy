@@ -5,6 +5,7 @@ import { StyleSheet, View, useColorScheme } from "react-native";
 import { nativeColors } from "../../../packages/design-tokens/native-colors";
 import { authCopy, authLocale } from "../auth/auth-copy";
 import { AuthPage, AuthStatus } from "../auth/auth-page";
+import { SavedAccounts } from "../auth/SavedAccounts";
 import { useNativeBrowserLogin } from "../auth/browser-login";
 import { clearAndroidGoogleCredentialState } from "../auth/google-credential-login";
 import { authEntryHref } from "../auth/login-intent";
@@ -19,9 +20,11 @@ export default function SignOutRoute() {
   const { context } = useNativeAccountContext();
   const { cancel } = useNativeBrowserLogin();
   const started = useRef(false);
+  const [savedBusy, setSavedBusy] = useState(false);
   const [locale] = useState(() => authLocale(params.locale ?? context?.locale));
   const copy = authCopy[locale].signOut;
-  const colors = nativeColors[useColorScheme() === "dark" ? "dark" : "light"];
+  const theme = useColorScheme() === "dark" ? "dark" : "light";
+  const colors = nativeColors[theme];
   const done = state.status === "signed-out";
   const error = state.status === "logout-pending" && state.retry;
 
@@ -35,13 +38,14 @@ export default function SignOutRoute() {
 
   return <AuthPage title={copy.title} compact>
     <AuthStatus error={error} body>{done ? copy.done : error ? copy.error : copy.pending}</AuthStatus>
+    {done ? <SavedAccounts fromSessionId={null} enabled locale={locale} theme={theme} onBusyChange={setSavedBusy} /> : null}
     {error && <Button style={styles.retry} onPress={() => void logout()}>{copy.retry}</Button>}
     <View style={[styles.actions, { borderTopColor: colors.border }]}>
-      <Button accessibilityRole="link" variant="ghost" style={styles.link} onPress={() => router.replace("/")}>{copy.home}</Button>
+      <Button accessibilityRole="link" variant="ghost" disabled={savedBusy} style={styles.link} onPress={() => router.replace("/")}>{copy.home}</Button>
       <Button
         accessibilityRole="link"
         variant="outline"
-        disabled={!done}
+        disabled={!done || savedBusy}
         style={styles.link}
         onPress={() => router.replace(authEntryHref({ entry: "sign-in", locale }))}
       >{copy.signIn}</Button>

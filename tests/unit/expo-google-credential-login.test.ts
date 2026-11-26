@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { createGoogleCredentialLogin } from "../../apps/mobile-native/auth/google-credential-flow";
+import { NativeAdditionalLoginError } from "../../apps/mobile-native/auth/additional-login-error";
 import { NATIVE_STAGING_ORIGIN, type SessionHeaders } from "../../apps/mobile-native/auth/session-api";
 
 const audience = "fixture.apps.googleusercontent.com";
@@ -90,6 +91,20 @@ test("unconfigured browser fallback requires no challenge and a picker cancellat
   expect(cancelled.requests.map(request => request.action)).toEqual(["challenge", "cancel"]);
   expect(cancelled.acceptances).toEqual([]);
   expect(cancelled.flow.getStatus()).toBe("idle");
+});
+
+test("a saved-account credential keeps the origin session binding and leaves cleanup to its controller", async () => {
+  const { flow, retired } = fixture();
+  const scope = { kind: "additional", fromSessionId: "source" } as const;
+  const outcome = await flow.signIn(async (_headers, accountId, _signal, intent, acceptedScope) => {
+    expect(accountId).toBe(identity);
+    expect(acceptedScope).toEqual(scope);
+    expect(intent).toBeUndefined();
+    throw new NativeAdditionalLoginError("ACTIVE_ACCOUNT");
+  }, undefined, async () => true, scope);
+  expect(outcome).toBe("error");
+  expect(flow.getFailure()).toBe("ACTIVE_ACCOUNT");
+  expect(retired).toEqual([]);
 });
 
 test("unconfirmed browser retirement, missing cookie attributes and redirect prevent picker or token exchange", async () => {

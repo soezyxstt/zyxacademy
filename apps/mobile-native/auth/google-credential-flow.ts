@@ -1,4 +1,5 @@
-import type { AcceptNativeBrowserLogin, NativeBrowserLoginStatus } from "./browser-flow";
+import type { AcceptNativeBrowserLogin, AdditionalLoginScope, NativeBrowserLoginStatus } from "./browser-flow";
+import { NativeAdditionalLoginError } from "./additional-login-error";
 import { NATIVE_STAGING_ORIGIN, readSignedSessionCookie, type SessionHeaders } from "./session-api";
 import type { NativeLoginIntent } from "./login-intent";
 
@@ -40,6 +41,7 @@ function readProof(headers: SessionHeaders) {
 
 export function createGoogleCredentialLogin(deps: CredentialDependencies) {
   let status: NativeBrowserLoginStatus = "idle";
+  let failure: string | undefined;
   let active: GoogleRun | undefined;
   const listeners = new Set<() => void>();
   function setStatus(value: NativeBrowserLoginStatus) {
@@ -82,17 +84,20 @@ export function createGoogleCredentialLogin(deps: CredentialDependencies) {
     isConfigured: () => deps.isConfigured(),
     isRunning: () => Boolean(active),
     getStatus: () => status,
+    getFailure: () => failure,
     subscribe(listener: () => void) {
       listeners.add(listener);
       return () => { listeners.delete(listener); };
     },
     cancel: () => cancel(),
-    async signIn(accept: AcceptNativeBrowserLogin, intent?: NativeLoginIntent, retireBrowserAttempt?: () => Promise<boolean>): Promise<GoogleCredentialOutcome> {
+    async signIn(accept: AcceptNativeBrowserLogin, intent?: NativeLoginIntent, retireBrowserAttempt?: () => Promise<boolean>,
+      additionalScope?: AdditionalLoginScope): Promise<GoogleCredentialOutcome> {
       if (active) return "error";
       if (!deps.isConfigured()) return "unavailable";
       const run: GoogleRun = { controller: new AbortController(), picking: false, expired: false };
       const { signal } = run.controller;
       active = run;
+      failure = undefined;
       setStatus("opening");
       const timer = setTimeout(() => {
         run.expired = true;
@@ -130,11 +135,12 @@ export function createGoogleCredentialLogin(deps: CredentialDependencies) {
         if (!cookie) return outcome;
         try {
           const userId = result.value?.userId;
-          if (signal.aborted || typeof userId !== "string" || !userId.trim()) throw new Error("Google sign-in not accepted.");
-          await accept(result.headers, userId, signal, intent);
+          if ((!additionalScope && signal.aborted) || typeof userId !== "string" || !userId.trim()) throw new Error("Google sign-in not accepted.");
+          await accept(result.headers, userId, signal, intent, additionalScope);
           return outcome = "accepted";
-        } catch {
-          await deps.revoke(cookie).catch(() => {});
+        } catch (error) {
+          failure = error instanceof Error ? error.message : undefined;
+          if (!additionalScope && !(error instanceof NativeAdditionalLoginError)) await deps.revoke(cookie).catch(() => {});
           return outcome = signal.aborted && !run.expired ? "cancelled" : "error";
         }
       } catch {

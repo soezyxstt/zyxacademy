@@ -1,7 +1,9 @@
 import { createHash } from "node:crypto";
 import { describe, expect, test } from "bun:test";
 import { createNativeIntentRedirect } from "../../apps/mobile-native/routing/consent-intent";
-import { createNativeBrowserLogin } from "../../apps/mobile-native/auth/browser-flow";
+import { createNativeBrowserLogin, type AdditionalLoginScope } from "../../apps/mobile-native/auth/browser-flow";
+import { operationsCatalog } from "../../lib/admin-mcp/operations-catalog";
+import { allowsSavedAccountLogin, describeSavedAccount, savedAccountError } from "../../apps/mobile-native/auth/saved-account-model";
 import {
   NATIVE_BROWSER_FINISH_PATH,
   NATIVE_BROWSER_REDIRECT,
@@ -34,7 +36,7 @@ function setup(overrides: Partial<Parameters<typeof createNativeBrowserLogin>[0]
   let stored: string | null = null;
   let queued: NativeBrowserCallback | null = null;
   const requests: Array<{ url: string; init: RequestInit }> = [];
-  const accepted: Array<{ accountId: string; signal: AbortSignal; setCookie: string | null; intent?: NativeLoginIntent }> = [];
+  const accepted: Array<{ accountId: string; signal: AbortSignal; setCookie: string | null; intent?: NativeLoginIntent; scope?: AdditionalLoginScope }> = [];
   const response = () => Response.json({ user: { id: "account" } }, { headers: { "Set-Cookie": "fixture=value" } });
   const controller = createNativeBrowserLogin({
     randomBytes: async count => new Uint8Array(count).fill(1),
@@ -60,8 +62,8 @@ function setup(overrides: Partial<Parameters<typeof createNativeBrowserLogin>[0]
     set queued(value: NativeBrowserCallback | null) { queued = value; },
     requests,
     accepted,
-    acceptLogin: async (...[headers, accountId, signal, intent]: Parameters<Parameters<typeof controller.signIn>[0]>) => {
-      accepted.push({ accountId, signal, setCookie: headers.get("Set-Cookie"), intent });
+    acceptLogin: async (...[headers, accountId, signal, intent, scope]: Parameters<Parameters<typeof controller.signIn>[0]>) => {
+      accepted.push({ accountId, signal, setCookie: headers.get("Set-Cookie"), intent, scope });
     },
   };
 }
@@ -69,6 +71,75 @@ function setup(overrides: Partial<Parameters<typeof createNativeBrowserLogin>[0]
 function storedAttempt(overrides: Record<string, unknown> = {}): string {
   return JSON.stringify({ origin: NATIVE_STAGING_ORIGIN, state, verifier, expiresAt: 301_000, ...overrides });
 }
+
+describe("native saved-account browser login", () => {
+  const scope = { kind: "additional", fromSessionId: "source-session" } as const;
+  const signedIn = { state: { status: "signed-in", accountId: "first", sessionId: scope.fromSessionId, expiresAt: 30_000 } as const,
+    transport: { isCurrent: () => true }, revalidating: false };
+  const authorize = (expected: AdditionalLoginScope | undefined) => allowsSavedAccountLogin(signedIn, expected, 1000);
+
+  test("an Android dismissal preserves the active account and scopes a matching cold callback", async () => {
+    const original = setup({
+      preserveAttemptOnDismiss: true,
+      openBrowser: async url => {
+        expect(url).not.toContain(scope.fromSessionId);
+        expect(url).not.toContain("additional");
+        return { type: "dismiss" };
+      },
+    });
+    await original.controller.signIn(original.acceptLogin, undefined, { scope, authorize });
+    expect(original.stored).toBe(storedAttempt({ scope }));
+    expect(original.requests).toHaveLength(0);
+    expect(original.accepted).toHaveLength(0);
+
+    const cold = setup();
+    cold.stored = original.stored;
+    cold.queued = callback;
+    expect(await cold.controller.completePending(cold.acceptLogin, authorize)).toBe(true);
+    expect(cold.accepted[0]).toMatchObject({ accountId: "account", scope });
+    expect(cold.accepted[0].intent).toBeUndefined();
+    cold.queued = callback;
+    expect(await cold.controller.completePending(cold.acceptLogin, authorize)).toBe(false);
+    expect(cold.requests).toHaveLength(1);
+  });
+
+  test("cold callbacks cannot cross ordinary login, changed sessions or expired attempts", async () => {
+    const signedOut = { state: { status: "signed-out" } as const, transport: null, revalidating: false };
+    for (const [attempt, snapshot] of [
+      [storedAttempt(), signedIn],
+      [storedAttempt({ scope: null }), signedOut],
+      [storedAttempt({ scope }), signedOut],
+      [storedAttempt({ scope }), { ...signedIn, state: { ...signedIn.state, sessionId: "new-session" } }],
+      [storedAttempt({ scope, expiresAt: 999 }), signedIn],
+      [storedAttempt({ scope }), { ...signedIn, state: { ...signedIn.state, expiresAt: 1000 } }],
+      [storedAttempt({ scope }), { ...signedIn, revalidating: true }],
+    ] as const) {
+      const cold = setup();
+      cold.stored = attempt;
+      cold.queued = callback;
+      expect(await cold.controller.completePending(cold.acceptLogin, expected => allowsSavedAccountLogin(snapshot, expected, 1000))).toBe(false);
+      expect(cold.requests).toHaveLength(0);
+      expect(cold.accepted).toHaveLength(0);
+    }
+  });
+
+  test("localizes stable account errors and labels a saved account without exposing its internal ID", () => {
+    expect(describeSavedAccount({ accountId: "hidden" }, 1, "id").title).toBe("Akun 2");
+    expect(describeSavedAccount({ accountId: "hidden", name: "  Nia  ", email: "nia@example.test" }, 0, "en"))
+      .toMatchObject({ title: "Nia", subtitle: "nia@example.test", switchLabel: "Switch to nia@example.test" });
+    expect(savedAccountError("id", "ACTIVE_ACCOUNT", "add")).toContain("Pilih akun lain");
+    expect(savedAccountError("en", "SESSION_EXPIRED", "switch")).toContain("Add the account again");
+    expect(savedAccountError("en", "SESSION_LIMIT", "add")).toContain("5");
+    expect(savedAccountError("en", "CANCELLED", "add")).toBeNull();
+  });
+
+  test("saved-account controls remain interactive UI outside MCP", () => {
+    const entry = operationsCatalog.find(row => row.source === "apps/mobile-native/auth/SavedAccounts.tsx");
+    expect(entry?.status).toBe("excluded");
+    expect(entry?.tools).toEqual([]);
+    expect(entry?.actions).toEqual(["listSavedAccounts", "switchSavedAccount", "removeSavedAccount", "acceptAdditionalLogin"]);
+  });
+});
 
 describe("native browser login", () => {
   test("retires a pre-existing browser attempt before an alternate native login", async () => {

@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useRef, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, View, useColorScheme } from "react-native";
 import Svg, { Path } from "react-native-svg";
 
 import { getOAuthCallbackErrorKey } from "../../../packages/native-session/auth-redirect";
@@ -11,6 +11,7 @@ import { AuthPage, AuthStatus } from "./auth-page";
 import { useNativeBrowserLogin } from "./browser-login";
 import { authEntryHref, readAuthReturnTo, type NativeAuthEntry, type NativeLoginIntent } from "./login-intent";
 import { useNativeSession } from "./session-provider";
+import { SavedAccounts } from "./SavedAccounts";
 
 function GoogleMark() {
   return <Svg accessible={false} width={18} height={18} viewBox="0 0 24 24">
@@ -38,10 +39,12 @@ function GoogleEntryForm({ intent, incomingError }: {
 }) {
   const router = useRouter();
   const login = useNativeBrowserLogin();
+  const theme = useColorScheme() === "dark" ? "dark" : "light";
   const run = useRef(0);
   const [attempted, setAttempted] = useState(false);
   const [cancelled, setCancelled] = useState(false);
   const [nativeUnavailable, setNativeUnavailable] = useState(false);
+  const [savedBusy, setSavedBusy] = useState(false);
   const busy = login.status === "opening" || login.status === "exchanging";
   const isSignUp = intent.entry === "sign-up";
   const copy = authCopy[intent.locale];
@@ -68,23 +71,24 @@ function GoogleEntryForm({ intent, incomingError }: {
 
   return <AuthPage title={isSignUp ? copy.signUpTitle : copy.signIn}>
     <AuthStatus center reference>{isSignUp ? copy.signUpDescription : copy.signInDescription}</AuthStatus>
+    <SavedAccounts fromSessionId={null} enabled={!busy} locale={intent.locale} theme={theme} onBusyChange={setSavedBusy} />
     {error && <AuthStatus error>{error}</AuthStatus>}
     <View style={styles.actions}>
       <Button
-        disabled={!login.isAvailable}
+        disabled={!login.isAvailable || savedBusy}
         isLoading={busy}
         onPress={() => void start()}
         renderIcon={() => <GoogleMark />}
         style={styles.primary}
       >{isSignUp ? copy.signUpWithGoogle : copy.signInWithGoogle}</Button>
       {!busy && login.isCredentialAvailable && (nativeUnavailable || cancelled || login.status === "error") &&
-        <Button variant="outline" onPress={() => void start(true)}>{copy.native.continueInBrowser}</Button>}
+        <Button variant="outline" disabled={savedBusy} onPress={() => void start(true)}>{copy.native.continueInBrowser}</Button>}
       {busy && <>
         <AuthStatus center>{login.status === "exchanging" ? copy.native.finishing : copy.native.connecting}</AuthStatus>
         <Button variant="ghost" onPress={() => { ++run.current; login.cancel(); setCancelled(true); }}>{copy.native.cancel}</Button>
       </>}
     </View>
-    {!busy && <View style={styles.footer}>
+    {!busy && !savedBusy && <View style={styles.footer}>
       <AuthStatus reference>{isSignUp ? copy.alreadyHaveAccount : copy.noAccount}</AuthStatus>
       <Button accessibilityRole="link" variant="link" style={styles.link} onPress={() => router.replace(otherEntry)}>
         {isSignUp ? copy.signIn : copy.signUp}

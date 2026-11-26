@@ -2161,5 +2161,12 @@ export const operationsCatalog = [
     "tools": [],
     "status": "excluded",
     "reason": "Saved-account selection, Google sign-in and device session removal require the user's browser or native app. MCP bearer tokens retain their authorized user, session, scopes and environment; account switching cannot retarget them."
+  },
+  {
+    "source": "apps/mobile-native/auth/SavedAccounts.tsx",
+    "actions": ["listSavedAccounts", "switchSavedAccount", "removeSavedAccount", "acceptAdditionalLogin"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The signed native account menu and signed-out chooser act on this device's saved accounts. Additional Google sign-in binds to the original active session. MCP bearer tokens retain their authorized account, session, scopes, consent and environment."
   }
 ] as const;

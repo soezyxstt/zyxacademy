@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type ComponentRef } from "react";
 import { Pressable } from "react-native";
 import { useNativeAccountContext } from "../auth/use-account-context";
 import { useNativeSession } from "../auth/session-provider";
+import { SavedAccounts } from "../auth/SavedAccounts";
 import { Avatar } from "../components/Avatar";
 import { Button } from "../components/Button";
 import { useTourEvent } from "../features/onboarding/tour-events";
@@ -51,6 +52,7 @@ export function useRoleAccountMenu({ enabled, theme, visit }: {
           subtitle={name && email ? email : undefined} leading={<Avatar decorative initials={Array.from(name || email || "?")[0].toUpperCase()} theme={theme} />} />}
       {entries.map(entry => <NativeListRow key={entry.id} layout="compact" theme={theme} title={entry.label}
           testID={`role-account-${entry.id}`} primary={{ role: "link", onPress: () => choose(entry.href) }} />)}
+      {open ? <SavedAccounts key={state.sessionId} fromSessionId={state.sessionId} enabled locale={context.locale} theme={theme} /> : null}
       <Button variant="destructive" testID="role-account-sign-out" theme={theme}
           onPress={() => choose(`/sign-out?locale=${context.locale}`)}>{copy.logOut}</Button>
     </SharedSheet>,
