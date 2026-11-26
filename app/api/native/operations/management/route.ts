@@ -42,7 +42,7 @@ async function readMeetDetails(id: string): Promise<MeetingDetails> {
   const [record] = await db.select({ title: googleMeetSessions.title }).from(googleMeetSessions)
     .where(eq(googleMeetSessions.spaceName, analytics.spaceName)).limit(1);
   return {
-    id, title: record?.title || `Meeting ${id.slice(0, 8)}`, startTime: analytics.startTime, endTime: analytics.endTime,
+    id, driveSyncEnabled: process.env.FEATURE_DRIVE_EDITOR_SYNC === "1", title: record?.title || `Meeting ${id.slice(0, 8)}`, startTime: analytics.startTime, endTime: analytics.endTime,
     totalDurationSeconds: analytics.totalDurationSeconds ?? 0, participantCount: analytics.participantCount, peakConcurrentParticipants: analytics.peakConcurrentParticipants,
     participants: analytics.participants.map(person => ({ id: person.participantId, name: person.displayName, userType: person.userType, totalDurationSeconds: person.totalDurationSeconds, sessions: person.sessions })),
     recordings: analytics.recordings.map(rec => ({ id: rec.recordingId, url: rec.driveExportUri, startTime: rec.startTime })),

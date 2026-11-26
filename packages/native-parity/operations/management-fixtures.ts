@@ -267,6 +267,10 @@ export function createManagementFixture({ mode = "populated", admin = true }: Ma
         meetingSpace = undefined;
         return { id };
       }
+      case "meet.sync-drive": {
+        const meeting = reads.meeting(action.id);
+        return { id: action.id, meetDriveSync: { status: "complete", synchronized: meeting.recordings.length + meeting.transcripts.length, pending: 0 } };
+      }
       case "meet.delete": {
         meetings.splice(meetings.indexOf(reads.meeting(action.id)), 1);
         return { id: action.id };

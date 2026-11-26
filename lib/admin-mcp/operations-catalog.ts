@@ -138,7 +138,7 @@ export const operationsCatalog = [
     "actions": ["GET", "HEAD"],
     "tools": [],
     "status": "excluded",
-    "reason": "The authenticated Student PDF reader checks assigned chapter scope, current file revision and PKA registration before serving inline bytes or renewing access. It uses app-private temporary files and never exposes storage links or an MCP reader credential."
+    "reason": "The authenticated Student PDF reader checks chapter, file revision and PKA registration before viewing. Manual PDF export additionally checks the web download capability. Both use app-private files. Link sharing sends the learner page URL and grants no storage link or MCP authority."
   },
   {
     "source": "app/api/native/student/reading/route.ts",
@@ -2034,7 +2034,7 @@ export const operationsCatalog = [
     "actions": ["GET", "POST"],
     "tools": [],
     "status": "excluded",
-    "reason": "The native Admin workspace uses the verified Admin account. Conference transcript entries and existing Google Docs links use the authorized interactive Meet history read. Discussion targets, report reads and moderation use the existing role and channel authorization. Moderators resolve or dismiss a pending report through the same locked transition as the website. Native Forms Sheets export builds rows from authorized stored responses and confirms conflicts against the observed sheet revision. Its provider receipt is scoped to the Admin session. MCP forms.responses.* scopes, consent, job workflow and environment bindings retain their existing contracts. Management writes retain their interactive authorization and retry rules."
+    "reason": "The native Admin workspace uses the verified Admin account. Conference transcript entries and existing Google Docs links use the authorized interactive Meet history read. Admins may explicitly reconcile the active Admin editor grants for one conference under FEATURE_DRIVE_EDITOR_SYNC. This uses the signed provider receipt, while MCP meet.get and meet.list remain read-only. Discussion targets, report reads and moderation use the existing role and channel authorization. Moderators resolve or dismiss a pending report through the same locked transition as the website. Native Forms Sheets export builds rows from authorized stored responses and confirms conflicts against the observed sheet revision. Its provider receipt is scoped to the Admin session. MCP forms.responses.* scopes, consent, job workflow and environment bindings retain their existing contracts. Management writes retain their interactive authorization and retry rules."
   },
   {
     "source": "app/api/native/operations/forms/[formId]/responses/[responseId]/attachment/[index]/route.ts",

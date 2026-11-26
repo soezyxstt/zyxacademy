@@ -1,4 +1,5 @@
 import { useStaffChromeVisibility } from "../../../routing/staff-chrome-visibility";
+import { useProtectedInteraction } from "../../../routing/protected-interaction";
 import { useContext, useState } from "react";
 import { View } from "react-native";
 import { DEFAULT_ICON, EMOJI_OPTIONS, LINK_COLORS, LINK_CATEGORY_SUGGESTIONS, isValidHttpUrl } from "../../../../../lib/links";
@@ -81,8 +82,34 @@ export function MeetList() {
 
 export function MeetDetails({ id }: { id: string }) {
   const { navigate, locale, openExternal } = useManagement();
+  const { canInteract } = useProtectedInteraction();
   const read = useRead("meeting", id);
+  const action = useAction();
+  const [driveConsent, setDriveConsent] = useState<Confirmation | null>(null);
   const meeting = read.data;
+  const en = locale === "en";
+  const syncLabel = en ? "Sync Drive access" : "Sinkronkan akses Drive";
+
+  function syncDrive() {
+    if (!meeting?.driveSyncEnabled || action.busy || !canInteract()) return;
+    setDriveConsent({
+      title: en ? "Sync this meeting’s Drive access?" : "Sinkronkan akses Drive meeting ini?",
+      description: en ? "Active Admins will receive editor access to this meeting’s recordings and transcripts."
+        : "Admin aktif akan mendapat akses editor ke rekaman dan transkrip meeting ini.",
+      label: syncLabel,
+      run: () => {
+        if (!canInteract()) return;
+        void action.run({ type: "meet.sync-drive", id }, undefined, ({ meetDriveSync }) => {
+          if (!meetDriveSync || meetDriveSync.status === "incomplete") {
+            return en ? "Drive access is partly synchronized. Retry to check and finish remaining files."
+              : "Sinkronisasi akses Drive belum selesai. Coba lagi untuk memeriksa dan menyelesaikannya.";
+          }
+          if (!meetDriveSync.synchronized) return en ? "No Drive files are available yet." : "Berkas Drive belum tersedia.";
+          return en ? `Drive access verified for ${meetDriveSync.synchronized} files.` : `Akses Drive terverifikasi untuk ${meetDriveSync.synchronized} berkas.`;
+        });
+      },
+    });
+  }
   return <Screen title="Detail log meeting" back={{ label: "Meet", run: () => navigate("/admin/meet") }} actions={<Action onPress={read.reload}>Muat ulang</Action>}>
     <LoadState {...read} retry={read.reload} />
     {meeting && <>
@@ -96,6 +123,11 @@ export function MeetDetails({ id }: { id: string }) {
         {meeting.participants.map(person => <Item key={person.id} title={person.name} meta={`${person.userType} · ${Math.round(person.totalDurationSeconds / 60)} menit`} actions={<View style={styles.field}>{person.sessions.map((session, index) => <Copy key={index}>{`Masuk ${formatTimestamp(session.startTime, locale)} · Keluar ${formatTimestamp(session.endTime, locale)}`}</Copy>)}</View>} />)}
       </Section>
       <Section title="Rekaman">
+        {meeting.driveSyncEnabled && <View style={styles.field}>
+          <View style={styles.row}><Action onPress={syncDrive} busy={action.busy} testID="admin-meet-sync-drive">{syncLabel}</Action></View>
+          <Feedback {...action} />
+          <Confirm value={driveConsent} onClose={() => setDriveConsent(null)} />
+        </View>}
         {!meeting.recordings.length && <Copy muted>Belum ada rekaman.</Copy>}
         {meeting.recordings.map(recording => <Item key={recording.id} title="Rekaman" meta={formatTimestamp(recording.startTime, locale)} onPress={recording.url && openExternal ? () => openExternal(recording.url!) : undefined} />)}
       </Section>

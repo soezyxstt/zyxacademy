@@ -85,7 +85,8 @@ export type MeetingRecord = { id: string; title: string; startTime: string; endT
 export type MeetingParticipant = { id: string; name: string; userType: string; totalDurationSeconds: number; sessions: { startTime?: string; endTime?: string }[] };
 export type MeetingSpeech = { id: string; speakerId: string; startTime: string; text: string };
 export type MeetingTranscript = { id: string; lines: number; startTime?: string; endTime?: string; documentUrl?: string; firstPage?: ManagementPage<MeetingSpeech> };
-export type MeetingDetails = MeetingRecord & { totalDurationSeconds: number; participants: MeetingParticipant[]; recordings: { id: string; url?: string; startTime?: string }[]; transcripts: MeetingTranscript[] };
+export type MeetDriveSyncReceipt = { status: "complete" | "incomplete"; synchronized: number; pending: number };
+export type MeetingDetails = MeetingRecord & { driveSyncEnabled?: boolean; totalDurationSeconds: number; participants: MeetingParticipant[]; recordings: { id: string; url?: string; startTime?: string }[]; transcripts: MeetingTranscript[] };
 export type MeetingSpace = { name: string; title: string; meetingCode: string; meetingUri?: string; slug?: string; hostEmail?: string; invitedEmails: string[] };
 export type MeetingUser = { id: string; name: string; email: string; roles: string[]; courseIds: string[] };
 export type MeetingDirectory = { users: MeetingUser[]; courses: { id: string; title: string }[] };
@@ -129,6 +130,7 @@ export type ManagementAction =
   | { type: "meet.create"; title: string; slug: string; accessType: "OPEN" | "TRUSTED" | "RESTRICTED"; invitedEmails: string[] }
   | { type: "meet.end"; spaceName: string }
   | { type: "meet.delete"; id: string }
+  | { type: "meet.sync-drive"; id: string }
   | { type: "discussion.moderate-report"; id: string; status: "resolved" | "dismissed" }
   | { type: "discussion.resolve"; id: string; resolved: boolean }
   | { type: "discussion.reply"; id: string; body: string }
@@ -146,7 +148,7 @@ export type FormSheetConflict = "block_modified" | "manual_rows" | "manual_colum
 export type FormSheetReceipt =
   | { kind: "confirm"; revision: string; conflicts: FormSheetConflict[] }
   | { kind: "saved"; url: string; created: boolean; sharingIncomplete: boolean };
-export type ManagementReceipt = { id?: string; revision?: string; space?: MeetingSpace; warningCount?: number; formSheet?: FormSheetReceipt };
+export type ManagementReceipt = { id?: string; revision?: string; space?: MeetingSpace; warningCount?: number; formSheet?: FormSheetReceipt; meetDriveSync?: MeetDriveSyncReceipt };
 export interface ManagementClient {
   read<K extends keyof ManagementReads>(view: K, input: ManagementReads[K][0], signal?: AbortSignal): Promise<ManagementReads[K][1]>;
   mutate(action: ManagementAction, requestKey: string): Promise<ManagementReceipt>;

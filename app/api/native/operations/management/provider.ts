@@ -25,6 +25,7 @@ const providerOperations = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("meet.create"), title: z.string().trim().max(500), slug: z.string().trim().max(100).regex(/^[a-z0-9_-]*$/), accessType: z.enum(["OPEN", "TRUSTED", "RESTRICTED"]), invitedEmails: z.array(z.email().max(254)).max(100).transform(items => [...new Set(items.map(value => value.toLowerCase()))].sort()) }),
   z.strictObject({ type: z.literal("meet.end"), spaceName: z.string().regex(/^spaces\/[A-Za-z0-9_-]{1,180}$/) }),
   z.strictObject({ type: z.literal("meet.delete"), id: z.string().regex(/^[A-Za-z0-9_-]{1,180}$/) }),
+  z.strictObject({ type: z.literal("meet.sync-drive"), id: z.string().regex(/^[A-Za-z0-9_-]{1,180}$/) }),
 ]);
 
 type ProviderAction = z.infer<typeof providerOperations>;
@@ -32,6 +33,11 @@ type InvokeProvider<T extends ManagementReceipt = ManagementReceipt> = (action: 
 type AuditEntry = typeof auditMutasi.$inferSelect;
 const providerEntity = "native_operations_provider";
 const unknownAfterMs = 15 * 60 * 1000;
+
+function startedAt(entry: AuditEntry) {
+  const runAt = entry.afterSnapshot?.runAt;
+  return typeof runAt === "number" ? runAt : entry.createdAt.getTime();
+}
 
 export function isProviderOperation(value: unknown) {
   return value !== null && typeof value === "object" && "type" in value && typeof value.type === "string" && (value.type === "form.export" || /^(media|meet)\./.test(value.type));
@@ -45,7 +51,7 @@ function readOutcome<T extends ManagementReceipt>(row: AuditEntry): T {
     case "not-found": throw new ManagementFailure("not-found");
     case "conflict": throw new ManagementFailure("conflict");
     case "running":
-      if (Date.now() - row.createdAt.getTime() < unknownAfterMs) throw new ManagementFailure("pending");
+      if (Date.now() - startedAt(row) < unknownAfterMs) throw new ManagementFailure("pending");
       throw new ManagementFailure("uncertain");
     default: throw new ManagementFailure("uncertain");
   }
@@ -57,28 +63,46 @@ export async function nativeProviderMutation<T extends ManagementReceipt>(actor:
   const sessionHash = revisionOf(actor.sessionId);
   const inputHash = revisionOf(action);
   const receiptId = `native_ops_provider_${revisionOf({ actor: actor.id, origin, requestKey })}`;
+  const sharedEffect = action.type === "form.export" || action.type === "meet.sync-drive";
   const intentId = action.type === "form.export" ? revisionOf({ origin, formId: action.id, type: action.type }) :
-    revisionOf({ actor: actor.id, origin, action });
+    revisionOf({ actor: sharedEffect ? undefined : actor.id, origin, action });
+  const recoverableDriveSync = action.type === "meet.sync-drive";
+  let runAt: number | undefined;
   const prior = await db.transaction(async tx => {
     await assertAuthoringActor(tx, actor.id, { roles: ["admin"], error: "NATIVE_OPERATIONS_ADMIN_REQUIRED", lock: true });
     const [active] = await tx.select({ id: session.id }).from(session).where(and(eq(session.id, actor.sessionId), eq(session.userId, actor.id), gt(session.expiresAt, new Date()))).for("share").limit(1);
     if (!active) throw new ManagementFailure("forbidden");
     for (const lock of [receiptId, intentId].sort()) await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${lock}, 0))`);
     const [previous] = await tx.select().from(auditMutasi).where(eq(auditMutasi.id, receiptId)).limit(1);
+    const recheckAt = Date.now() - unknownAfterMs;
     if (previous) {
       if (previous.actorId !== actor.id || previous.entityType !== providerEntity || previous.action !== action.type || previous.afterSnapshot?.inputHash !== inputHash || previous.afterSnapshot?.sessionHash !== sessionHash) throw new ManagementFailure("conflict");
-      return previous;
+      const state = previous.afterSnapshot?.state;
+      if (!recoverableDriveSync || (state !== "uncertain" && !(state === "running" && startedAt(previous) <= recheckAt))) return previous;
     }
-    // A restarted application also cannot replay an unresolved provider effect with a fresh key.
-    const [unresolved] = await tx.select().from(auditMutasi).where(and(action.type === "form.export" ? undefined : eq(auditMutasi.actorId, actor.id), eq(auditMutasi.entityType, providerEntity), eq(auditMutasi.entityId, intentId), sql`${auditMutasi.afterSnapshot}->>'state' in ('running', 'uncertain')`)).limit(1);
+    // Drive retries reconcile current permissions before applying any change.
+    const unresolvedState = recoverableDriveSync ? sql`${auditMutasi.afterSnapshot}->>'state' = 'running'`
+      : sql`${auditMutasi.afterSnapshot}->>'state' in ('running', 'uncertain')`;
+    const [unresolved] = await tx.select().from(auditMutasi).where(and(sharedEffect ? undefined : eq(auditMutasi.actorId, actor.id),
+      eq(auditMutasi.entityType, providerEntity), eq(auditMutasi.entityId, intentId), unresolvedState,
+      recoverableDriveSync ? sql`coalesce((${auditMutasi.afterSnapshot}->>'runAt')::bigint, extract(epoch from ${auditMutasi.createdAt}) * 1000) > ${recheckAt}` : undefined)).limit(1);
     if (unresolved) return unresolved;
-    await tx.insert(auditMutasi).values({ id: receiptId, actorId: actor.id, entityType: providerEntity, entityId: intentId, action: action.type, correlationId: requestKey, afterSnapshot: { inputHash, sessionHash, state: "running" } });
+    if (recoverableDriveSync) runAt = Date.now();
+    const reservation = { inputHash, sessionHash, state: "running", ...(runAt === undefined ? {} : { runAt }) };
+    if (previous) {
+      await tx.update(auditMutasi).set({ outcome: null, afterSnapshot: reservation })
+        .where(eq(auditMutasi.id, receiptId));
+    } else {
+      await tx.insert(auditMutasi).values({ id: receiptId, actorId: actor.id, entityType: providerEntity, entityId: intentId, action: action.type, correlationId: requestKey, afterSnapshot: reservation });
+    }
     return null;
   });
   if (prior) return readOutcome<T>(prior);
 
   async function finish(state: string, receipt?: ManagementReceipt) {
-    await db.update(auditMutasi).set({ outcome: state === "succeeded" ? "success" : state === "uncertain" ? "failed" : "rejected", afterSnapshot: { inputHash, sessionHash, state, ...(receipt ? { receipt } : {}) } }).where(eq(auditMutasi.id, receiptId));
+    await db.update(auditMutasi).set({ outcome: state === "succeeded" ? "success" : state === "uncertain" ? "failed" : "rejected",
+      afterSnapshot: { inputHash, sessionHash, state, ...(runAt === undefined ? {} : { runAt }), ...(receipt ? { receipt } : {}) } })
+      .where(and(eq(auditMutasi.id, receiptId), runAt === undefined ? undefined : sql`(${auditMutasi.afterSnapshot}->>'runAt')::bigint = ${runAt}`));
   }
   try {
     const result = await invoke(action);
@@ -158,6 +182,10 @@ export function invokeOperationsProvider(origin: string, headers: Headers): Invo
         const { POST } = await import("@/app/api/admin/meet/end/route");
         await decoded(await POST(request({ spaceName: action.spaceName })));
         return { id: action.spaceName };
+      }
+      case "meet.sync-drive": {
+        const { syncMeetDriveEditors } = await import("@/lib/meet/drive-sync");
+        return { id: action.id, meetDriveSync: await syncMeetDriveEditors(action.id) };
       }
       case "meet.delete": {
         const { DELETE } = await import("@/app/api/admin/meet/records/[id]/delete/route");

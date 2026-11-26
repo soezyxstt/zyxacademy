@@ -123,7 +123,13 @@ try {
   const record = await apply("placeholder-deleted-meet", { type: "meet.delete", id: "gone" });
   assert.deepEqual(record, { id: "gone" });
   await assert.rejects(apply("placeholder-remaining-meet", { type: "meet.delete", id: "still" }), { code: "uncertain" });
-  assert.equal((await testDb.select().from(auditMutasi)).length, 9);
+  const drive = { type: "meet.sync-drive", id: "conference-local" };
+  const driveResult = { id: drive.id, meetDriveSync: { status: "complete", synchronized: 2, pending: 0 } };
+  await assert.rejects(apply("placeholder-drive-sync", drive, async () => { throw new Error("receipt interrupted"); }), { code: "uncertain" });
+  assert.deepEqual(await apply("placeholder-drive-sync", drive, async () => driveResult), driveResult);
+  assert.deepEqual(await apply("placeholder-drive-sync", drive, async () => assert.fail("completed Drive replay")), driveResult);
+  await assert.rejects(apply("placeholder-drive-invalid", { ...drive, emails: ["untrusted@example.invalid"] }, () => assert.fail("invalid input invoked")));
+  assert.equal((await testDb.select().from(auditMutasi)).length, 10);
   await testDb.delete(session).where(eq(session.id, actor.sessionId));
   await assert.rejects(apply("placeholder-meet-create", meet, () => assert.fail("expired session")), { code: "forbidden" });
   console.log("Mocked provider dispatch, partial warning, pending, uncertain, replay and session revocation checks passed");
