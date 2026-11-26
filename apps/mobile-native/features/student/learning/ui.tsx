@@ -91,7 +91,7 @@ export function Row({ title, detail, value, onPress, children }: {
 }) {
   return (
     <StudentListRow title={title} subtitle={detail}
-      metadata={value ? [{ id: "value", label: "", value }] : undefined}
+      trailingValue={value}
       primary={onPress ? { onPress, role: "link" } : undefined}>
       {children}
     </StudentListRow>

@@ -73,7 +73,7 @@ export function ButtonRow({ children }: { children: ReactNode }) { return <View 
 export function Row({ title, description, trailing, onPress, testID }: { title: string; description?: string; trailing?: string; onPress: () => void; testID?: string }) {
   return (
     <StudentListRow title={title} subtitle={description} testID={testID} titleRole="header"
-      metadata={trailing ? [{ id: "status", label: "", value: trailing }] : undefined}
+      trailingValue={trailing}
       primary={{ onPress, role: "link" }} />
   );
 }

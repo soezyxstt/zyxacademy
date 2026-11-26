@@ -173,7 +173,7 @@ export function Row({ title, meta, aside, onPress, children }: { title: string; 
   const { theme } = useCommunity();
   return (
     <StudentListRow title={title} subtitle={meta} theme={theme}
-      metadata={aside ? [{ id: "detail", label: "", value: aside }] : undefined}
+      trailingValue={aside}
       primary={onPress ? { onPress, role: "button" } : undefined}>
       {children}
     </StudentListRow>
