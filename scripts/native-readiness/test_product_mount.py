@@ -67,6 +67,7 @@ export default function App() {
         without_student = self.snapshot()
         self.mount(with_student=False)
         self.assertEqual(self.snapshot(), without_student)
+        self.assertIn('productRoute("/courses", "student")', self.read("app/courses.tsx"))
         self.assertIn('productRoute("/dashboard", "student")', self.read("app/dashboard.tsx"))
         self.assertIn('productLocation("/dashboard"', self.read("app/murid.tsx"))
         index = self.read("app/index.tsx")
@@ -86,7 +87,8 @@ export default function App() {
         self.mount()
         self.assertEqual(self.snapshot(), with_student)
         changed = {str(path) for path, old in without_student.items() if with_student[path] != old}
-        self.assertEqual(changed, {"app/dashboard.tsx", "app/_layout.tsx"})
+        self.assertEqual(changed, {"app/dashboard.tsx", "app/courses.tsx", "app/_layout.tsx"})
+        self.assertIn('productRoute("/courses", "student", StudentProductRoute)', self.read("app/courses.tsx"))
         self.assertIn('productRoute("/dashboard", "student", StudentProductRoute)', self.read("app/dashboard.tsx"))
         self.assertIn('productRoute("/dashboard/discussions", "student", StudentProductRoute)',
                       self.read("app/dashboard/discussions.tsx"))

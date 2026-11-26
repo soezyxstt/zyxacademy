@@ -80,12 +80,13 @@ def mount(*, with_student=True):
         if pattern == "/":
             continue
         file = MOBILE / "app" / (pattern[1:] + ".tsx")
-        fallback = route_source(file, pattern, owner) if pattern == "/dashboard" else None
+        fallback = route_source(file, pattern, owner) if pattern in ("/dashboard", "/courses") else None
         put(file, route_source(file, pattern, owner, student=owner == "student"), replace=fallback)
 
     if not with_student:
-        dashboard = MOBILE / "app/dashboard.tsx"
-        put(dashboard, route_source(dashboard, "/dashboard", "student"))
+        for path in ("/dashboard", "/courses"):
+            file = MOBILE / "app" / (path[1:] + ".tsx")
+            put(file, route_source(file, path, "student"))
 
     root = MOBILE / "app/index.tsx"
     rewrite_once(root, 'import { Redirect } from "expo-router";',

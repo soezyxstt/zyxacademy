@@ -141,7 +141,7 @@ function ProductRoute({ href, pattern, owner, StudentScreen }: {
     {locale === "en" ? "Access denied." : "Akses ditolak."}
   </Text><Button onPress={() => back()}>{locale === "en" ? "Back" : "Kembali"}</Button></SafeAreaView>;
   const accountKey = JSON.stringify([context.accountId, context.sessionId, locale]);
-  if (role === "murid") return isFocused ? <BrowserDashboard key={accountKey} locale={locale}
+  if (role === "murid") return isFocused ? <StudentBrowserPage key={accountKey} locale={locale} href={href}
     canNavigate={() => navigationStatus() === "ready"} signOut={() => navigate("/sign-out")} /> : null;
   return <RecheckingRoute enabled={tutor} checking={access.retaining}>
     <StaffChrome key={accountKey} role={role} href={href} theme={theme} focused={isFocused} context={context}
@@ -181,10 +181,11 @@ function AcademicRoute({ session, locale, accountId, role, ...props }: {
   return <AcademicLiveScreen {...props} transport={transport} actor={{ id: accountId, role }} refresh={refresh} />;
 }
 
-function BrowserDashboard({ locale, canNavigate, signOut }: {
-  locale: "id" | "en"; canNavigate(): boolean; signOut(): void;
+function StudentBrowserPage({ locale, href, canNavigate, signOut }: {
+  locale: "id" | "en"; href: string; canNavigate(): boolean; signOut(): void;
 }) {
   const copy = authCopy[locale];
+  const catalog = href.split(/[?#]/, 1)[0] === "/courses";
   const opening = useRef(false);
   const [status, setStatus] = useState<"idle" | "opening" | "failed">("idle");
   const open = async () => {
@@ -192,7 +193,7 @@ function BrowserDashboard({ locale, canNavigate, signOut }: {
     opening.current = true;
     setStatus("opening");
     try {
-      await openBrowserAsync(new URL("/dashboard", NATIVE_STAGING_ORIGIN).href);
+      await openBrowserAsync(new URL(href, NATIVE_STAGING_ORIGIN).href);
       setStatus("idle");
     } catch {
       setStatus("failed");
@@ -203,9 +204,9 @@ function BrowserDashboard({ locale, canNavigate, signOut }: {
 
   return <AuthPage title={copy.native.signedIn}>
     <AuthStatus>{copy.native.destinationUnavailable}</AuthStatus>
-    {status === "failed" && <AuthStatus error>{copy.native.dashboardFailed}</AuthStatus>}
+    {status === "failed" && <AuthStatus error>{catalog ? copy.native.catalogFailed : copy.native.dashboardFailed}</AuthStatus>}
     <Button isLoading={status === "opening"} onPress={() => void open()}>
-      {locale === "en" ? "Open dashboard in browser" : "Buka dashboard di browser"}
+      {catalog ? copy.native.openCatalog : copy.native.openDashboard}
     </Button>
     <Button variant="outline" disabled={status === "opening"} onPress={signOut}>{copy.signOut.title}</Button>
   </AuthPage>;
