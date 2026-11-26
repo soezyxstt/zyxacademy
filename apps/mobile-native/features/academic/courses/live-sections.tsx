@@ -5,6 +5,7 @@ import type { AdminCourseArchiver, AdminCourseEditor, AdminMaterialEditor } from
 import type { AdminCourseLiveRead } from "../../../../../packages/native-parity/academic/courses/model";
 import type { AdminCourseSectionResult } from "../../../../../packages/native-parity/academic/courses/sections";
 import { CourseLeaderboard } from "./leaderboard";
+import { LiveFlashcards } from "./live-flashcards";
 import { LiveVideos } from "./live-videos";
 import { LivePdfTitleEdit } from "./live-material";
 import { LiveCourseEdit } from "./live-settings";
@@ -34,7 +35,7 @@ function match(text: string, query: string) {
   return text.toLocaleLowerCase("id").includes(query.trim().toLocaleLowerCase("id"));
 }
 
-export function LiveCourseSection({ data, query, navigate, updateSettings, updateMaterial, removeVideo, videoPlayer, archiveCourse, onArchived, refresh }: Pick<AdminCourseLiveRead, "removeVideo" | "videoPlayer"> & {
+export function LiveCourseSection({ data, query, navigate, updateSettings, updateMaterial, removeVideo, flashcardEditor, videoPlayer, archiveCourse, onArchived, refresh }: Pick<AdminCourseLiveRead, "removeVideo" | "videoPlayer" | "flashcardEditor"> & {
   data: AdminCourseSectionResult; query: Query; navigate: Navigate; updateSettings?: AdminCourseEditor; updateMaterial?: AdminMaterialEditor; refresh(): void;
   archiveCourse?: AdminCourseArchiver; onArchived(): void;
 }) {
@@ -67,7 +68,7 @@ export function LiveCourseSection({ data, query, navigate, updateSettings, updat
     case "videos":
       return <LiveVideos data={data} player={videoPlayer} remove={removeVideo} refresh={refresh} />;
     case "flashcards":
-      return <LiveFlashcards data={data} />;
+      return <LiveFlashcards data={data} editor={flashcardEditor} refresh={refresh} />;
     case "settings":
       return (
         <>
@@ -259,33 +260,6 @@ type ChapterFilterProps = {
 function ChapterPicker({ chapters, chapter, onSelect }: ChapterFilterProps) {
   return <Picker label="Filter bab" options={[{ id: "", label: "Semua bab" }, ...chapters.map(({ id, title }) => ({ id, label: title }))]}
     selected={chapter} onSelect={onSelect} />;
-}
-
-function LiveFlashcards({ data }: { data: SectionOf<"flashcards"> }) {
-  const [search, setSearch] = useState("");
-  const [chapter, setChapter] = useState("");
-  const [open, setOpen] = useState<string | null>(null);
-  const [cardId, setCardId] = useState<string | null>(null);
-  const sets = data.sets.filter((set) => (!chapter || set.chapterId === chapter) && match(set.title, search));
-  return (
-    <>
-      <SearchBox label="Cari set kartu" value={search} onChange={setSearch} />
-      {data.chapters.length ? <ChapterPicker chapters={data.chapters} chapter={chapter} onSelect={setChapter} /> : null}
-      {sets.length ? sets.map((set) => (
-        <View key={set.id}>
-          <DataRow title={set.title} description={localLabel(set.status)} detail={`${set.cards.length} kartu`} expanded={open === set.id}
-            onPress={() => setOpen(open === set.id ? null : set.id)} />
-          {open === set.id ? set.cards.map((card) => (
-            <View key={card.id}>
-              <DataRow title={card.front} description={cardId === card.id ? card.back : undefined} expanded={cardId === card.id}
-                onPress={() => setCardId(cardId === card.id ? null : card.id)} />
-              {cardId === card.id && card.explanation ? <Ink>{card.explanation}</Ink> : null}
-            </View>
-          )) : null}
-        </View>
-      )) : <CourseStatus label="Tidak ada set pada pilihan ini." />}
-    </>
-  );
 }
 
 function LiveQuestions({ data, query }: { data: SectionOf<"questions">; query: Query }) {

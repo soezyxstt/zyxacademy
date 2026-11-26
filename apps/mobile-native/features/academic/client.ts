@@ -1,5 +1,5 @@
 import {
-  type AdminEntityDeleteDraft, type AdminVideoRemover, validAdminMaterialTitle, type AdminChapterDraft, type AdminChapterEditor, type AdminCourseEditDraft, type AdminCourseEditor,
+  type AdminFlashcardDraft, type AdminFlashcardEditor, type AdminFlashcardSetDraft, type AdminEntityDeleteDraft, type AdminVideoRemover, validAdminMaterialTitle, type AdminChapterDraft, type AdminChapterEditor, type AdminCourseEditDraft, type AdminCourseEditor,
   type AdminMaterialEditor, type AdminMaterialTitleDraft, type AdminCourseCreateDraft, type AdminCourseArchiver, type AdminCourseArchiveDraft,
   type AdminChapterArchiveDraft, type AdminChapterArchiver, type AdminChapterOrderDraft, type AdminChapterReorder,
 } from "../../../../packages/native-parity/academic/courses/edit-contract";
@@ -57,6 +57,14 @@ function buildAcademicClient(transport: AcademicTransport) {
   const command = transport.command?.bind(transport);
   const settingsTarget = command ? createCourseCommandTarget<AdminCourseEditDraft>(command) : undefined;
   const chapterTarget = command ? createCourseCommandTarget<AdminChapterDraft>(command) : undefined;
+  const setTarget = command ? createCourseCommandTarget<AdminFlashcardSetDraft>(command) : undefined;
+  const cardTarget = command ? createCourseCommandTarget<AdminFlashcardDraft>(command) : undefined;
+  const flashcardDeleteTarget = command ? createCourseCommandTarget<AdminEntityDeleteDraft>(command) : undefined;
+  const flashcardEditor: AdminFlashcardEditor | undefined = setTarget && cardTarget && flashcardDeleteTarget ? {
+    saveSet: (courseId, setId) => setTarget(flashcardPath(courseId, setId), setId ? "PATCH" : "POST"),
+    saveCard: (courseId, setId, cardId) => cardTarget(flashcardPath(courseId, setId, true, cardId), cardId ? "PATCH" : "POST"),
+    remove: (courseId, setId, cardId) => flashcardDeleteTarget(flashcardPath(courseId, setId, Boolean(cardId), cardId), "DELETE"),
+  } : undefined;
   const videoDeleteTarget = command ? createCourseCommandTarget<AdminEntityDeleteDraft>(command) : undefined;
   const removeVideo: AdminVideoRemover | undefined = videoDeleteTarget ? (courseId, playlistId, videoId) =>
     videoDeleteTarget(`${encodeURIComponent(courseId)}/videos/playlists/${encodeURIComponent(playlistId)}${videoId ? `/videos/${encodeURIComponent(videoId)}` : ""}`, "DELETE") : undefined;
@@ -88,6 +96,7 @@ function buildAcademicClient(transport: AcademicTransport) {
     reorderChapters,
     updateMaterial,
     removeVideo,
+    flashcardEditor,
     courses: (signal: AbortSignal) => read<AdminCourse[]>("/api/native/academic/admin/courses", signal),
     course: (slug: string, signal: AbortSignal) => read<AdminCourseOverview>(`/api/native/academic/admin/courses/${encodeURIComponent(slug)}`, signal),
     courseSection: (slug: string, section: string, itemId: string | undefined, signal: AbortSignal) => {
@@ -95,4 +104,8 @@ function buildAcademicClient(transport: AcademicTransport) {
       return read<AdminCourseSectionResult>(`/api/native/academic/admin/courses/${parts.join("/")}`, signal);
     },
   };
+}
+
+function flashcardPath(courseId: string, setId?: string, cards = false, cardId?: string) {
+  return [courseId, "flashcards", "sets", setId, cards ? "cards" : undefined, cardId].flatMap(value => value ? [encodeURIComponent(value)] : []).join("/");
 }

@@ -14,6 +14,7 @@ import { assertAdmin } from "@/lib/auth/admin-guards-server";
 import type { CourseMaterial } from "@/lib/student-course-fixtures";
 import { isAdminCourseLiveSection, type AdminCourseSectionResult, type CourseDocumentRow } from "@/packages/native-parity/academic/courses/sections";
 
+import { flashcardRevision, flashcardSetRevision } from "@/lib/academic/flashcard-admin-revisions";
 import { videoEntryRevision, videoPlaylistRevision } from "@/lib/video/catalog-revisions";
 import { readCoursePdfTitleEdit } from "./course-material-service";
 import { readCourseSettingsEditView } from "./course-settings-service";
@@ -100,9 +101,16 @@ export async function readAdminCourseSection(slug: string, section: string, item
     if (!data) return null;
     return {
       type: "flashcards", course,
-      chapters: data.chapters.map(({ id, title }) => ({ id, title })),
-      sets: data.sets.map(({ id, title, status, chapterId, cards }) => ({
-        id, title, status, chapterId, cards: cards.map(({ id, front, back, explanation }) => ({ id, front, back, explanation })),
+      writable: identity.status === "active", canCreateSet: identity.status === "active" && Boolean(identity.canonicalId),
+      chapters: data.chapters.map(({ id, title, legacyId }) => ({ id, title, legacyId })),
+      legacyChapters: data.legacyChapters.map(({ id, title }) => ({ id, title })),
+      sets: data.sets.map(set => ({
+        id: set.id, title: set.title, status: set.status, chapterId: set.chapterId, projection: set.projection,
+        revision: flashcardSetRevision(set), deleteRevision: flashcardSetRevision(set, set.cards),
+        cards: set.cards.map(card => ({
+          id: card.id, front: card.front, back: card.back, explanation: card.explanation, status: card.status,
+          mirrored: card.mirrored, revision: flashcardRevision(card),
+        })),
       })),
     };
   }
@@ -147,7 +155,7 @@ export async function readAdminCourseSection(slug: string, section: string, item
       const matches = materials.filter((material) => material.id === itemId);
       if (matches.length !== 1) return null;
       const material = matches[0];
-      const titleEdit = material.source === "legacy-pdf" ? await readCoursePdfTitleEdit(identity, itemId) : null;
+      const titleEdit = material.source === "legacy-pdf" ? await readCoursePdfTitleEdit(identity, itemId, data.chapters) : null;
       return { type: "document", course, chapters, document: documentRow(material), titleEdit };
     }
     return { type: "documents", course, chapters, documents: materials.map(documentRow) };

@@ -1,5 +1,5 @@
 import type { TutorSupportClient } from "../../../academic/tutor-support";
-import type { AdminVideoRemover, AdminChapterArchiver, AdminChapterEditor, AdminChapterReorder, AdminCourseArchiver, AdminCourseCreateDraft,
+import type { AdminFlashcardEditor, AdminVideoRemover, AdminChapterArchiver, AdminChapterEditor, AdminChapterReorder, AdminCourseArchiver, AdminCourseCreateDraft,
   AdminCourseEditor, AdminMaterialEditor, CourseWriteTarget } from "./edit-contract";
 import type { AdminCourseSectionResult } from "./sections";
 
@@ -46,6 +46,7 @@ export type AdminCourseLiveRead = {
   reorderChapters?: AdminChapterReorder;
   updateMaterial?: AdminMaterialEditor;
   removeVideo?: AdminVideoRemover;
+  flashcardEditor?: AdminFlashcardEditor;
   videoPlayer?: TutorSupportClient["videoPlayer"];
   retry(): void;
 };

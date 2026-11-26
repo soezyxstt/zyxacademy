@@ -1,4 +1,4 @@
-import type { AdminMaterialTitleEdit } from "./edit-contract";
+import type { AdminFlashcardStatus, AdminMaterialTitleEdit } from "./edit-contract";
 import type { AdminCourse } from "./model";
 
 export type CourseSectionHeader = Pick<AdminCourse, "id" | "slug" | "title" | "category">;
@@ -57,8 +57,10 @@ export type CourseSectionPayload =
   | { type: "leaderboard"; attempts: CourseLeaderboardAttempt[] }
   | { type: "videos"; playlists: { id: string; title: string; description: string | null; revision?: string | null; videos:
       { id: string; title: string; description: string | null; playable: boolean; revision?: string | null }[] }[] }
-  | { type: "flashcards"; chapters: CourseChapterLabel[]; sets: { id: string; title: string; status: string; chapterId: string | null;
-      cards: { id: string; front: string; back: string; explanation: string | null }[] }[] }
+  | { type: "flashcards"; chapters: (CourseChapterLabel & { legacyId?: string | null })[]; legacyChapters?: CourseChapterLabel[]; writable?: boolean; canCreateSet?: boolean;
+      sets: { id: string; title: string; status: AdminFlashcardStatus | "in_review"; chapterId: string | null;
+        revision?: string; deleteRevision?: string; projection?: "canonical" | "legacy" | "mirrored";
+        cards: { id: string; front: string; back: string; explanation: string | null; status?: AdminFlashcardStatus; revision?: string; mirrored?: boolean }[] }[] }
   | { type: "settings"; description: string | null; isDemo: boolean; revision: string; canonicalOnly: boolean;
       pricing: { category: string; startsAt: string | null; endsAt: string | null };
       demoChecks: { label: string; ready: boolean; count: number }[] }

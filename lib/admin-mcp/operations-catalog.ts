@@ -117,7 +117,7 @@ export const operationsCatalog = [
     "actions": ["GET", "POST", "PATCH", "DELETE"],
     "tools": [],
     "status": "excluded",
-    "reason": "Course and roster reads use the signed-in role and course assignment. Course and chapter management, settings and PDF titles use shared projections and authorized retry receipts. Confirmed course and chapter archives check revisions and connected records. Chapter reorder checks the whole course chapter set and revision. The app uses authorized shared video playback and confirms course-scoped catalog removal using actor-bound receipts. Mobile removal retains media objects. MCP videos.delete retains its existing consent and revision contract, and playlist removal and interactive playback remain app operations. MCP courses.*, chapters.* and materials.update_metadata retain their registered authorization and input contracts."
+    "reason": "Course and roster reads use the signed-in role and course assignment. Course and chapter management, settings and PDF titles use shared projections and authorized retry receipts. Confirmed course and chapter archives check revisions and connected records. Chapter reorder checks the whole course chapter set and revision. The app uses authorized shared video playback and confirms course-scoped catalog removal using actor-bound receipts. Mobile removal retains media objects. MCP videos.delete retains its existing consent and revision contract, and playlist removal and interactive playback remain app operations. Admin flashcard set and card changes use the same scoped transaction as web, with session-bound receipts and revision checks. Manual flashcard management is interactive; MCP generation and bundle operations retain their registered authorization and input contracts. MCP courses.*, chapters.* and materials.update_metadata retain their registered authorization and input contracts."
   },
   {
     "source": "app/api/native/academic/tutor-support/[...resource]/route.ts",
@@ -1083,7 +1083,7 @@ export const operationsCatalog = [
       "videos.update"
     ],
     "status": "partial",
-    "reason": "Related MCP operations are implemented; this source may contain additional UI actions. See docs/operations/admin-mcp.md for exact supported boundaries."
+    "reason": "Manual flashcard CRUD uses the Admin session and shared course-scoped web and native service. Published bundle and generation tools retain their registered MCP contracts. There is no manual flashcard MCP mutation."
   },
   {
     "source": "app/(admin)/admin/(academic)/courses/import-actions.ts",

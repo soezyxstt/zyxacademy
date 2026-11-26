@@ -1,3 +1,5 @@
+import { handleAdminCourseFlashcardCommand } from "@/lib/native/academic/course-flashcard-command";
+import { saveAdminCourseFlashcard } from "@/lib/native/academic/course-flashcard-service";
 import { handleAdminCourseVideoCommand } from "@/lib/native/academic/course-video-command";
 import { deleteAdminCourseVideoEntry } from "@/lib/native/academic/course-video-service";
 import { resolveAuthBaseUrl } from "@/lib/auth-site-url";
@@ -24,6 +26,9 @@ const chapter = { ...auth, save: saveCourseChapterFromNative, archive: archiveCo
 export async function POST(request: Request, { params }: Context) {
   const { resource } = await params;
   const origin = new URL(resolveAuthBaseUrl()).origin;
+  if (resource[3] === "flashcards") {
+    return handleAdminCourseFlashcardCommand(request, resource, origin, { ...auth, save: saveAdminCourseFlashcard });
+  }
   if (resource.length === 2 || resource[3] === "archive") {
     return handleAdminCourseManagementCommand(request, resource, origin, { ...auth, create: createCourseFromNative, archive: archiveCourseFromNative });
   }
@@ -33,6 +38,9 @@ export async function POST(request: Request, { params }: Context) {
 export async function DELETE(request: Request, { params }: Context) {
   const { resource } = await params;
   const origin = new URL(resolveAuthBaseUrl()).origin;
+  if (resource[3] === "flashcards") {
+    return handleAdminCourseFlashcardCommand(request, resource, origin, { ...auth, save: saveAdminCourseFlashcard });
+  }
   if (resource[3] === "videos") {
     return handleAdminCourseVideoCommand(request, resource, origin, { ...auth, remove: deleteAdminCourseVideoEntry });
   }
@@ -42,6 +50,9 @@ export async function DELETE(request: Request, { params }: Context) {
 export async function PATCH(request: Request, { params }: Context) {
   const { resource } = await params;
   const origin = new URL(resolveAuthBaseUrl()).origin;
+  if (resource[3] === "flashcards") {
+    return handleAdminCourseFlashcardCommand(request, resource, origin, { ...auth, save: saveAdminCourseFlashcard });
+  }
   if (resource[3] === "chapters") {
     return handleAdminCourseChapterCommand(request, resource, origin, chapter);
   }

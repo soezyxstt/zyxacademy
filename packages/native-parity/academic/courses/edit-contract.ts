@@ -1,3 +1,4 @@
+import type { CourseMaterialSubcategory, MaterialLevel1Category } from "../../../../lib/course-materials";
 import type { CoursePricingCategory } from "../../../academic/course-pricing";
 
 export type AdminCourseEditDraft = {
@@ -43,8 +44,11 @@ export type AdminChapterArchiver = (courseId: string, chapterId: string) => Cour
 export type AdminChapterOrderDraft = { chapterIds: string[]; expectedRevision: string };
 export type AdminChapterReorder = (courseId: string) => CourseWriteTarget<AdminChapterOrderDraft>;
 
-export type AdminMaterialTitleDraft = { title: string; expectedRevision: string };
-export type AdminMaterialTitleEdit = { title: string; revision: string };
+export type CoursePdfMetadata = {
+  type: MaterialLevel1Category; subcategory: CourseMaterialSubcategory | null; year: number | null; chapterIds: string[];
+};
+export type AdminMaterialTitleDraft = { title: string; expectedRevision: string; metadata?: CoursePdfMetadata };
+export type AdminMaterialTitleEdit = { title: string; revision: string; metadata?: CoursePdfMetadata; chapters?: { id: string; title: string }[] };
 export type AdminMaterialEditor = (courseId: string, materialId: string) => CourseWriteTarget<AdminMaterialTitleDraft>;
 
 export function validAdminMaterialTitle(title: string) {
@@ -54,3 +58,24 @@ export function validAdminMaterialTitle(title: string) {
 
 export type AdminEntityDeleteDraft = { expectedRevision: string; confirmed: true };
 export type AdminVideoRemover = (courseId: string, playlistId: string, videoId?: string) => CourseWriteTarget<AdminEntityDeleteDraft>;
+
+export type AdminFlashcardStatus = "draft" | "published" | "retired";
+export type AdminFlashcardSetDraft = {
+  title: string;
+  chapterId: string | null;
+  status: AdminFlashcardStatus;
+  expectedRevision: string | null;
+};
+export type AdminFlashcardDraft = {
+  front: string;
+  back: string;
+  explanation: string | null;
+  status: AdminFlashcardStatus;
+  targetSetId: string;
+  expectedRevision: string | null;
+};
+export type AdminFlashcardEditor = {
+  saveSet(courseId: string, setId?: string): CourseWriteTarget<AdminFlashcardSetDraft>;
+  saveCard(courseId: string, setId: string, cardId?: string): CourseWriteTarget<AdminFlashcardDraft>;
+  remove(courseId: string, setId: string, cardId?: string): CourseWriteTarget<AdminEntityDeleteDraft>;
+};

@@ -7,6 +7,7 @@ import { Action, CourseDialog, CourseStatus, Ink, layout } from "./ui";
 type Props = {
   label: string;
   name: string;
+  dependencyError?: string;
   detail?: string;
   revision: string;
   refresh(): void;
@@ -30,11 +31,11 @@ const errors = {
   retry: "Status penghapusan belum diketahui. Periksa hasil sebelum melanjutkan.",
 };
 
-function DeleteDialog({ label, name, detail, revision, refresh, target, close }: Props & { close(): void }) {
+function DeleteDialog({ label, name, detail, dependencyError, revision, refresh, target, close }: Props & { close(): void }) {
   const reload = () => { close(); refresh(); };
   const mutation = useCourseWrite(target, reload);
   const { status } = mutation;
-  const error = status && status in errors ? errors[status as keyof typeof errors] : null;
+  const error = status === "dependencies" && dependencyError ? dependencyError : status && status in errors ? errors[status as keyof typeof errors] : null;
   return <CourseDialog title={label} onClose={close} dismissDisabled={mutation.busy}>
     <Ink kind="heading">{name}</Ink>
     {detail ? <Ink>{detail}</Ink> : null}
