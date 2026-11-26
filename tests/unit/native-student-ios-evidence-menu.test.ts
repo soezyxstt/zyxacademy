@@ -2,7 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { transformSync } from "esbuild";
 
-const { code } = transformSync(readFileSync(new URL("./ios-evidence-menu.tsx.in", import.meta.url), "utf8"), {
+const template = new URL("../visual/native-parallel/student/ios-evidence-menu.tsx.in", import.meta.url);
+const { code } = transformSync(readFileSync(template, "utf8"), {
   loader: "tsx", format: "cjs", jsx: "automatic",
 });
 
