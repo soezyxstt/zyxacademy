@@ -371,12 +371,12 @@ describe("native login destination", () => {
       expect(parseNativeLoginIntent({ ...intent, next })).toEqual(intent);
     }
     expect(parseNativeLoginIntent({ ...intent, next: "/murid?tab=today" })?.next).toBe("/dashboard?tab=today");
-    expect(parseNativeLoginIntent({ ...intent, next: "/meet/bahasa-%c3%a9" })?.next).toBe("/meet/bahasa-%C3%A9");
+    expect(parseNativeLoginIntent({ ...intent, next: "/meet/bahasa-%c3%a9" })?.next).toBe("/meet/bahasa-%c3%a9");
   });
 
   test("requires the canonical role and matching concrete route pattern to continue", () => {
     const app = sitemap(leaf("/(student)/dashboard"), leaf("/(admin)/admin"), leaf("/(tutor)/tutor"),
-      leaf("/(student)/courses/[id]/material/[materialId]"), leaf("/meet/[slug]"));
+      leaf("/(student)/courses/[id]/material/[materialId]"), leaf("/website"));
     const next = "/courses/c1/material/m1?tab=notes#examples";
     expect(resolveNativeLoginReturn(next, account, app)).toEqual({ status: "ready", href: next });
     expect(resolveNativeLoginReturn("/admin", account, app)).toEqual({ status: "denied", dashboard: "/dashboard" });
@@ -388,6 +388,9 @@ describe("native login destination", () => {
       .toEqual({ status: "ready", href: "/tutor" });
     expect(resolveNativeLoginReturn(undefined, { dashboard: "/tutor", roles: ["tutor"] }, app))
       .toEqual({ status: "ready", href: "/tutor" });
+    const legacy = sitemap(leaf("/(student)/dashboard"), leaf("/meet/[slug]"));
+    expect(resolveNativeLoginReturn("/meet/session-name?from=schedule", account, legacy))
+      .toEqual({ status: "unavailable", dashboard: "/dashboard" });
     expect(resolveNativeLoginReturn("/meet/session-name?from=schedule", account, app))
       .toEqual({ status: "ready", href: "/meet/session-name?from=schedule" });
   });
