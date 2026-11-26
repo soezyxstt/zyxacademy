@@ -3,6 +3,7 @@ import { View } from "react-native";
 import { allowedCategories } from "../../../../../packages/academic/course-categories";
 import type { AdminCourseEditDraft, AdminCourseEditor, CourseWriteTarget } from "../../../../../packages/native-parity/academic/courses/edit-contract";
 import type { AdminCourseSectionResult } from "../../../../../packages/native-parity/academic/courses/sections";
+import { CoursePricingFields, useCoursePricingFields } from "./live-pricing";
 import { useCourseWrite } from "./live-write";
 import { Action, CourseDialog, CourseStatus, Field, Picker, layout } from "./ui";
 
@@ -26,6 +27,7 @@ function EditForm({ data, target, close, refresh }: { data: Settings; target: Co
   const [title, setTitle] = useState(existing?.draft.title ?? data.course.title);
   const [category, setCategory] = useState(existing?.draft.category ?? data.course.category);
   const [description, setDescription] = useState(existing ? existing.draft.description ?? "" : data.description ?? "");
+  const pricing = useCoursePricingFields(existing?.draft.pricing ?? data.pricing);
   function reload() {
     close();
     refresh();
@@ -39,11 +41,16 @@ function EditForm({ data, target, close, refresh }: { data: Settings; target: Co
       setStatus("invalid");
       return;
     }
-    mutation.submit({ title: title.trim(), category, description: description.trim() || null, expectedRevision: revision });
+    try {
+      mutation.submit({ title: title.trim(), category, description: description.trim() || null, expectedRevision: revision,
+        pricing: pricing.serialize() });
+    } catch {
+      setStatus("invalid");
+    }
   }
 
   const errors = {
-    invalid: "Periksa nama, kategori, dan deskripsi mata kuliah.",
+    invalid: "Periksa nama, kategori, dan rentang waktu akses gratis.",
     denied: "Akses ditolak.",
     missing: "Mata kuliah tidak ditemukan.",
     conflict: "Data sudah berubah. Muat versi terbaru sebelum mengedit lagi.",
@@ -64,6 +71,7 @@ function EditForm({ data, target, close, refresh }: { data: Settings; target: Co
             onChangeText={(value) => { setDescription(value); setStatus(null); }} />
         </>
       ) : null}
+      <CoursePricingFields pricing={pricing} disabled={!canEdit} onChange={() => setStatus(null)} />
       {status === "retry" && mutation.confirmed ? (
         <View style={layout.group}>
           <CourseStatus label="Informasi mata kuliah sudah tersimpan." />

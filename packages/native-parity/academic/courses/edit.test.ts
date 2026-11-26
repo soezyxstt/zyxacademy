@@ -84,3 +84,12 @@ test("course command rejects cross-origin, unprivileged, malformed and incompati
   assert.equal((await harness(null).dispatch(path, form, requestId)).status, 401);
   assert.deepEqual(observed, []);
 });
+
+test("Admin updates a timed access window and rejects reversed dates before saving", async () => {
+  const { native, dispatch, observed } = harness("admin");
+  const pricing = { category: "limited_time_free", startsAt: "2027-01-02T01:00:12.000Z", endsAt: "2027-01-03T01:00:49.000Z" } as const;
+  assert.equal((await dispatch(path, { ...form, pricing: { ...pricing, endsAt: pricing.startsAt } }, requestId)).status, 422);
+  assert.equal(observed.length, 0);
+  assert.deepEqual(await native.updateCourseSettings!("biologi-dasar").submit({ ...form, pricing }, requestId, signal), { status: "saved" });
+  assert.deepEqual(observed[0].draft.pricing, pricing);
+});

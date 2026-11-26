@@ -1,17 +1,12 @@
 import { useState } from "react";
 import { View } from "react-native";
 import { allowedCategories } from "../../../../../packages/academic/course-categories";
-import { parseCoursePricingInput, type CoursePricingCategory } from "../../../../../packages/academic/course-pricing";
 import type { AdminCourseArchiveDraft, AdminCourseCreateDraft, CourseWriteTarget } from "../../../../../packages/native-parity/academic/courses/edit-contract";
-import { displayWib, formatWib } from "./course-pricing-fields";
+import { CoursePricingFields, useCoursePricingFields } from "./live-pricing";
 import { useCourseWrite } from "./live-write";
 import { Action, CourseDialog, CourseStatus, Field, Ink, Picker, layout } from "./ui";
 
 const categories = allowedCategories.map(id => ({ id, label: id }));
-const pricingOptions = [
-  { id: "premium", label: "Premium" }, { id: "free", label: "Gratis" }, { id: "limited_time_free", label: "Gratis sementara" },
-] as const;
-
 export function LiveCourseCreateForm({ target, close, saved, reload }: {
   target: CourseWriteTarget<AdminCourseCreateDraft>; close(): void; saved(): void; reload(): void;
 }) {
@@ -20,9 +15,7 @@ export function LiveCourseCreateForm({ target, close, saved, reload }: {
   const [title, setTitle] = useState(existing?.title ?? "");
   const [category, setCategory] = useState(existing?.category ?? "");
   const [description, setDescription] = useState(existing?.description ?? "");
-  const [access, setAccess] = useState<CoursePricingCategory>(existing?.pricing.category ?? "premium");
-  const [start, setStart] = useState(displayWib(existing?.pricing.startsAt ? new Date(existing.pricing.startsAt) : null));
-  const [end, setEnd] = useState(displayWib(existing?.pricing.endsAt ? new Date(existing.pricing.endsAt) : null));
+  const pricing = useCoursePricingFields(existing?.pricing);
   const [validation, setValidation] = useState<string | null>(null);
   const mutation = useCourseWrite(target, saved);
   const { busy, editable, status } = mutation;
@@ -34,13 +27,10 @@ export function LiveCourseCreateForm({ target, close, saved, reload }: {
     if (!name) return setValidation("Nama mata kuliah wajib diisi.");
     if (!categories.some(option => option.id === category)) return setValidation("Pilih kategori mata kuliah.");
     try {
-      const pricing = parseCoursePricingInput({ category: access, startsAt: formatWib(start), endsAt: formatWib(end) });
-      if (access === "limited_time_free" && (displayWib(pricing.startsAt) !== start || displayWib(pricing.endsAt) !== end)) {
-        throw new Error("Invalid WIB date");
-      }
+      const values = pricing.serialize();
       setValidation(null);
       mutation.submit({ id: code, title: name, category, description: description.trim() || null,
-        pricing: { category: pricing.category, startsAt: pricing.startsAt?.toISOString() ?? null, endsAt: pricing.endsAt?.toISOString() ?? null } });
+        pricing: values });
     } catch {
       setValidation("Masukkan tanggal dan waktu WIB yang valid. Waktu akhir harus setelah waktu mulai.");
     }
@@ -58,16 +48,7 @@ export function LiveCourseCreateForm({ target, close, saved, reload }: {
     <Field label="Nama mata kuliah" value={title} onChangeText={change(setTitle)} disabled={!editable} maxLength={500} testID="course-field-title" />
     <Picker label="Kategori" selected={category} disabled={!editable} onSelect={change(setCategory)} options={categories} testID="course-field-category" />
     <Field label="Deskripsi" value={description} multiline onChangeText={change(setDescription)} disabled={!editable} maxLength={20_000} />
-    <Picker label="Akses mata kuliah" selected={access} disabled={!editable} onSelect={(value) => {
-      const option = pricingOptions.find(option => option.id === value);
-      if (option) change(() => setAccess(option.id))(value);
-    }}
-      options={pricingOptions} testID="course-field-access" />
-    {access === "limited_time_free" && <>
-      <Ink kind="meta" tone="muted">Gunakan format YYYY-MM-DD JJ:MM dalam WIB.</Ink>
-      <Field label="Mulai gratis" value={start} onChangeText={change(setStart)} disabled={!editable} />
-      <Field label="Akhir gratis" value={end} onChangeText={change(setEnd)} disabled={!editable} />
-    </>}
+    <CoursePricingFields pricing={pricing} disabled={!editable} onChange={() => { setValidation(null); mutation.setStatus(null); }} />
     {validation ? <CourseStatus label={validation} error /> : null}
     {status && status in errors ? <CourseStatus label={errors[status as keyof typeof errors]} error retry={status === "retry" ? mutation.retry : undefined} /> : null}
     {mutation.stale ? <Action label="Muat daftar terbaru" onPress={reload} /> : null}

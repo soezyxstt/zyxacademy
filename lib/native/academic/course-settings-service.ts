@@ -1,4 +1,5 @@
 import "server-only";
+import { parseCoursePricingInput } from "@/packages/academic/course-pricing";
 import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
@@ -49,7 +50,7 @@ export async function updateCourseSettingsFromNative(slug: string, draft: AdminC
 
       return saveCourseWithCanonicalProjection({
         id: current.primaryId, title: draft.title, category: draft.category as Parameters<typeof saveCourseWithCanonicalProjection>[0]["category"],
-        description: draft.description, isNew: false, actorId: viewer.user.id,
+        description: draft.description, pricing: draft.pricing && parseCoursePricingInput(draft.pricing), isNew: false, actorId: viewer.user.id,
       }, tx);
     },
     async validateReplay(tx, saved) {

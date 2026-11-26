@@ -1,3 +1,4 @@
+import { coursePricingSchema } from "./course-pricing-schema";
 import { z } from "zod";
 import { allowedCategories } from "../../../packages/academic/course-categories";
 import type { AdminCourseEditDraft } from "../../../packages/native-parity/academic/courses/edit-contract";
@@ -8,6 +9,7 @@ type Services = CourseCommandAuth & {
 };
 
 const bodySchema = z.object({
+  pricing: coursePricingSchema.optional(),
   title: z.string().trim().min(1).max(500),
   category: z.enum([...allowedCategories, "Umum"]),
   description: z.string().trim().max(20_000).nullable(),

@@ -5,6 +5,7 @@ export type AdminCourseEditDraft = {
   title: string;
   category: string;
   description: string | null;
+  pricing?: AdminCourseCreateDraft["pricing"];
   expectedRevision: string;
 };
 

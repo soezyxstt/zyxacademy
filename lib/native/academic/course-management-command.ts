@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { allowedCategories } from "../../../packages/academic/course-categories";
-import { parseCoursePricingInput } from "../../../packages/academic/course-pricing";
+import { coursePricingSchema } from "./course-pricing-schema";
 import type { AdminCourseArchiveDraft, AdminCourseCreateDraft } from "../../../packages/native-parity/academic/courses/edit-contract";
 import { courseCommandReply, handleCourseCommand, validCourseCommandId, type CourseCommandAuth, type CourseCommandViewer } from "./course-command";
 
@@ -14,15 +14,8 @@ const createDraft = z.object({
   title: z.string().trim().min(1).max(500),
   category: z.enum(allowedCategories),
   description: z.string().trim().max(20_000).nullable(),
-  pricing: z.object({
-    category: z.enum(["premium", "free", "limited_time_free"]),
-    startsAt: z.iso.datetime().nullable(),
-    endsAt: z.iso.datetime().nullable(),
-  }).strict(),
-}).strict().refine(draft => {
-  try { return Boolean(parseCoursePricingInput(draft.pricing)); }
-  catch { return false; }
-});
+  pricing: coursePricingSchema,
+}).strict();
 
 const archiveDraft = z.object({ expectedRevision: z.string().regex(/^[a-f0-9]{64}$/), confirmed: z.literal(true) }).strict();
 

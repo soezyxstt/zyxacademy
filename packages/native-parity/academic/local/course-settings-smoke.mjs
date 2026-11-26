@@ -155,7 +155,7 @@ try {
   assert.equal(initial.course.title, "Biologi transaksi");
 
   const requestId = randomUUID();
-  const draft = { title: "Biologi transaksi tersimpan", category: "Biologi", description: null, expectedRevision: initial.revision };
+  const draft = { title: "Biologi transaksi tersimpan", category: "Biologi", description: null, pricing: { category: "limited_time_free", startsAt: "2027-04-01T01:00:00.000Z", endsAt: "2027-04-10T09:00:00.000Z" }, expectedRevision: initial.revision };
   assert.equal((await patch(draft, requestId, { cookie: fixtureCookie("tutor") })).status, 403);
   assert.equal((await patch(draft, requestId, {})).status, 401);
   const duplicates = await Promise.all([patch(draft, requestId), patch(draft, requestId)]);
@@ -165,6 +165,7 @@ try {
   }
   const afterSave = await readSettings();
   assert.equal(afterSave.course.title, draft.title);
+  assert.deepEqual(afterSave.pricing, draft.pricing);
   assert.notEqual(afterSave.revision, initial.revision);
   assert.equal((await patch({ ...draft, title: "Isi berbeda" }, requestId)).status, 409);
   const receipts = await pool.query("select id from audit_mutasi where entity_type = 'native_course_settings' and course_id = $1", [canonicalId]);
