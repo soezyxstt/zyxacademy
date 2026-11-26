@@ -1,11 +1,11 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { customFormPresets } from "@/db/schema";
 import { revisionOf } from "@/lib/admin-mcp/revision";
 import { parseJakartaDatetimeLocal } from "@/lib/date-utils";
 import { formDefinitionSchema, formQuestionSchema, formSettingsSchema } from "@/lib/forms/validation";
-import { ManagementFailure, type FormPreset } from "@/packages/native-parity/operations/management-contract";
+import { formPresetPageSize, ManagementFailure, type FormPreset, type FormPresetPage } from "@/packages/native-parity/operations/management-contract";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 const id = z.string().regex(/^[A-Za-z0-9_-]{1,180}$/);
@@ -33,19 +33,44 @@ function normalizePresetSchedule(value: unknown): unknown {
   return value;
 }
 
-export async function readFormPresets(): Promise<FormPreset[]> {
-  const rows = await db.select().from(customFormPresets).orderBy(desc(customFormPresets.createdAt));
-  return rows.map(row => {
-    const questions = presetQuestions.safeParse(row.questions);
-    const settings = row.settings && formSettingsSchema.safeParse({
-      ...row.settings, openAt: normalizePresetSchedule(row.settings.openAt), closeAt: normalizePresetSchedule(row.settings.closeAt),
-    });
-    return {
-      id: row.id, name: row.name, description: row.description ?? "", category: row.category,
-      questions: questions.success ? questions.data : [], canApplyQuestions: questions.success,
-      settings: settings?.success ? settings.data : undefined, invalidSettings: settings?.success === false, revision: revisionOf(row),
-    };
+const presetCursor = z.tuple([z.iso.datetime(), id]);
+
+export async function readFormPresets(cursor?: string, settingsOnly = false): Promise<FormPresetPage> {
+  let position: z.infer<typeof presetCursor> | undefined;
+  if (cursor) {
+    try { position = presetCursor.parse(JSON.parse(cursor)); }
+    catch { throw new ManagementFailure("invalid"); }
+  }
+  const table = customFormPresets;
+  const hasSettings = sql<boolean>`coalesce(${table.settings} <> '{}'::jsonb and ${table.settings} <> 'null'::jsonb, false)`;
+  // Preserve PostgreSQL's microsecond precision across pages.
+  const createdAt = sql<string>`to_char(${table.createdAt} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`;
+  const rows = await db.select({
+    id: table.id, name: sql<string>`left(${table.name}, 500)`, category: table.category, hasSettings, createdAt,
+  }).from(table).where(and(
+    settingsOnly ? hasSettings : undefined,
+    position ? sql`(${table.createdAt}, ${table.id}) < (${position[0]}::timestamptz, ${position[1]})` : undefined,
+  )).orderBy(desc(table.createdAt), desc(table.id)).limit(formPresetPageSize + 1);
+  const visible = rows.slice(0, formPresetPageSize);
+  const last = visible.at(-1);
+  return {
+    items: visible.map(({ id, name, category, hasSettings }) => ({ id, name, category, hasSettings })),
+    nextCursor: rows.length > formPresetPageSize && last ? JSON.stringify([last.createdAt, last.id]) : undefined,
+  };
+}
+
+export async function readFormPreset(presetId: string): Promise<FormPreset> {
+  const [row] = await db.select().from(customFormPresets).where(eq(customFormPresets.id, presetId)).limit(1);
+  if (!row) throw new ManagementFailure("not-found");
+  const questions = presetQuestions.safeParse(row.questions);
+  const settings = row.settings && formSettingsSchema.safeParse({
+    ...row.settings, openAt: normalizePresetSchedule(row.settings.openAt), closeAt: normalizePresetSchedule(row.settings.closeAt),
   });
+  return {
+    id: row.id, name: row.name, description: row.description ?? "", category: row.category,
+    questions: questions.success ? questions.data : [], canApplyQuestions: questions.success,
+    settings: settings?.success ? settings.data : undefined, invalidSettings: settings?.success === false, revision: revisionOf(row),
+  };
 }
 
 export async function applyPreset(tx: Transaction, actorId: string, action: PresetAction) {

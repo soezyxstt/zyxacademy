@@ -1,5 +1,5 @@
 import {
-  ManagementFailure, articleTitle, managementRoutes, managementSlug, validateArticle, validateForm, validateFormSettings,
+  ManagementFailure, articleTitle, formPresetPageSize, managementRoutes, managementSlug, validateArticle, validateForm, validateFormSettings,
   type Article, type FormPreset, type DiscussionMessage, type DiscussionThread, type FormDetails, type ManagementAction, type ManagementClient,
   type ManagementMode, type ManagementReads, type ManagementReceipt, type MediaFile, type MeetingDetails,
   type MeetingDirectory, type MeetingSpace, type PricingData, type PublicLink, type Voucher,
@@ -101,7 +101,15 @@ export function createManagementFixture({ mode = "populated", admin = true }: Ma
     article: id => required(articles.find(article => article.id === id)),
     forms: () => forms.map(detail => detail.form),
     form: id => required(forms.find(detail => detail.form.id === id)),
-    presets: () => presets,
+    presets: ({ cursor, settingsOnly }) => {
+      const matching = presets.filter(preset => !settingsOnly || Boolean(preset.settings && Object.keys(preset.settings).length));
+      const start = cursor ? matching.findIndex(preset => preset.id === cursor) + 1 : 0;
+      const items = matching.slice(start, start + formPresetPageSize).map(({ id, name, category, settings }) => ({
+        id, name, category, hasSettings: Boolean(settings && Object.keys(settings).length),
+      }));
+      return { items, nextCursor: start + items.length < matching.length ? items.at(-1)?.id : undefined };
+    },
+    preset: id => required(presets.find(item => item.id === id)),
     media: ({ space, folder }) => {
       const prefix = folder || (space === "media" ? "media" : "");
       return { folders: (space === "media" ? folders : storageFolders).filter(key => directChild(key, prefix)), files: (space === "media" ? files : storage).filter(file => directChild(file.key, prefix)) };

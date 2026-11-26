@@ -14,6 +14,7 @@ import {
 } from "../../db/schema";
 import { PERAN_SEEDS } from "../../lib/auth/peran";
 import { createPostgresTestDb } from "../helpers/postgres";
+import { formPresetPageSize } from "../../packages/native-parity/operations/management-contract";
 
 const { client, testDb } = await createPostgresTestDb();
 mock.module("server-only", () => ({}));
@@ -25,7 +26,7 @@ try {
   const { ensureLegacyIdentity } = await import(
     "../../lib/auth/legacy-identity"
   );
-  const { readFormPresets } = await import("../../app/api/native/operations/management/presets");
+  const { readFormPreset, readFormPresets } = await import("../../app/api/native/operations/management/presets");
   const { nativeAuthoringMutation, nativeAuthoringStatus } = await import(
     "../../app/api/native/operations/management/authoring"
   );
@@ -161,14 +162,30 @@ try {
   const preset = await apply("create-preset-request", createPreset);
   assert.deepEqual(await apply("create-preset-request", createPreset), preset);
   assert.equal((await testDb.select().from(customFormPresets)).length, 1);
-  assert.deepEqual((await readFormPresets())[0].questions, presetFields.questions);
+  assert.deepEqual((await readFormPresets()).items, [{ id: preset.id, name: presetFields.name, category: presetFields.category, hasSettings: true }]);
+  assert.deepEqual((await readFormPreset(preset.id)).questions, presetFields.questions);
   const renamed = await apply("rename-preset-request", { type: "form.preset.update", id: preset.id, revision: preset.revision, name: "Preset baru", description: "" });
   await failure(409, "stale-preset-delete-request", { type: "form.preset.delete", id: preset.id, revision: preset.revision });
   await apply("delete-preset-request", { type: "form.preset.delete", id: preset.id, revision: renamed.revision });
-  assert.deepEqual(await readFormPresets(), []);
+  assert.deepEqual((await readFormPresets()).items, []);
+  await assert.rejects(readFormPreset(preset.id), { code: "not-found" });
   assert.equal((await testDb.select().from(customForms)).length, 1);
   await testDb.insert(customFormPresets).values({ id: "legacy-preset", name: "Legacy", questions: [], settings: { openAt: "2026-12-01T09:00", closeAt: "2026-12-02T09:00" } });
-  assert.equal((await readFormPresets())[0].settings.openAt, "2026-12-01T02:00:00.000Z");
+  assert.equal((await readFormPreset("legacy-preset")).settings.openAt, "2026-12-01T02:00:00.000Z");
+  const createdAt = new Date("2090-01-01T00:00:00Z");
+  await testDb.insert(customFormPresets).values(Array.from({ length: formPresetPageSize + 1 }, (_, index) => ({
+    id: `page-preset-${index.toString().padStart(2, "0")}`, name: "a".repeat(700), questions: [{ title: "Isi lengkap", type: "TEXT" }], settings: {}, createdAt,
+  })));
+  const first = await readFormPresets();
+  assert.equal(first.items.length, formPresetPageSize);
+  assert.equal(first.items[0].name.length, 500);
+  assert.ok(first.nextCursor);
+  await testDb.delete(customFormPresets).where(eq(customFormPresets.id, first.items.at(-1).id));
+  const older = await readFormPresets(first.nextCursor);
+  assert.deepEqual(older.items.map(item => item.id), ["page-preset-00", "legacy-preset"]);
+  assert.equal(older.nextCursor, undefined);
+  assert.deepEqual((await readFormPresets(undefined, true)).items.map(item => item.id), ["legacy-preset"]);
+  await assert.rejects(readFormPresets("invalid-cursor"), { code: "invalid" });
   await testDb
     .delete(penggunaPeran)
     .where(eq(penggunaPeran.penggunaId, admin.id));

@@ -72,6 +72,9 @@ export type FormPresetFields = {
   name: string; description: string; category: FormFields["category"]; questions: FormQuestion[]; settings?: FormSettings;
 };
 export type FormPreset = FormPresetFields & { id: string; revision: string; canApplyQuestions?: boolean; invalidSettings?: boolean };
+export type FormPresetSummary = Pick<FormPreset, "id" | "name" | "category"> & { hasSettings: boolean };
+export type FormPresetPage = { items: FormPresetSummary[]; nextCursor?: string };
+export const formPresetPageSize = 20;
 export const newQuestion = (): FormQuestion => ({ title: "", type: "TEXT", required: true });
 export const newForm = (): FormFields => ({ title: "", description: "", category: "survey", slug: "", questions: [newQuestion()], settings: { acceptingResponses: true } });
 
@@ -95,7 +98,8 @@ export type PricingDiscounts = Record<"platform" | "tutorial", { percent: number
 export type PricingData = { vouchers: Voucher[]; discounts: PricingDiscounts; now: string };
 
 export type ManagementReads = {
-  articles: [undefined, ArticleSummary[]]; article: [string, Article]; forms: [undefined, FormDefinition[]]; form: [string, FormDetails]; presets: [undefined, FormPreset[]];
+  articles: [undefined, ArticleSummary[]]; article: [string, Article]; forms: [undefined, FormDefinition[]]; form: [string, FormDetails];
+  presets: [{ cursor?: string; settingsOnly?: boolean }, FormPresetPage]; preset: [string, FormPreset];
   media: [MediaLocation, MediaLibrary]; meetings: [string | undefined, ManagementPage<MeetingRecord>]; meeting: [string, MeetingDetails]; meetingDirectory: [undefined, MeetingDirectory];
   discussions: [{ cursor?: string; search?: string; status?: DiscussionThread["status"] }, ManagementPage<DiscussionThread>]; discussion: [{ id: string; cursor?: string }, DiscussionPage]; pricing: [undefined, PricingData]; links: [undefined, PublicLink[]];
 };

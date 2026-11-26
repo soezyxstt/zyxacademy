@@ -55,7 +55,8 @@ export function createManagementHttpClient({ request, userId, sessionId, assertC
         if (result.form.deletedAt) throw new ManagementFailure("not-found");
         return { form: formDefinition(result.form, result.totalSubmissions ?? result.responses.length), responses: result.responses };
       },
-      presets: () => nativeRead("form-presets", {}, signal),
+      presets: ({ cursor, settingsOnly }) => nativeRead("form-presets", { cursor, settingsOnly: settingsOnly ? "true" : undefined }, signal),
+      preset: id => nativeRead("form-preset", { id }, signal),
       media: async ({ folder, space }) => {
         const basePath = space === "media" ? "/api/admin/media" : "/api/admin/media/storage";
         const relative = space === "media" ? folder.replace(/^media\/?/, "") : folder;
