@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, useColorScheme, useWindowDimensions, type Layou
 
 import { nativeColors } from "../../../../packages/design-tokens/native-colors";
 import { nativeTypography } from "../../typography";
-import { getGridColumnCount } from "./data-model";
+import { defaultGridGap, getGridColumnCount } from "./data-model";
 
 export type ResponsiveGridProps<Item> = {
   items: readonly Item[];
@@ -19,17 +19,18 @@ export function ResponsiveGrid<Item>({
   items,
   getItemKey,
   renderItem,
-  minItemWidth = 228,
-  maxColumns = 5,
-  gap = 12,
+  minItemWidth,
+  maxColumns,
+  gap,
   testID,
 }: ResponsiveGridProps<Item>) {
   const { width, fontScale, onLayout } = useContainerWidth();
-  const columns = getGridColumnCount(width, minItemWidth * fontScale, gap, maxColumns);
-  const itemWidth = columns === 1 ? "100%" : (width - gap * (columns - 1)) / columns;
+  const columns = getGridColumnCount(width, fontScale, { minItemWidth, gap, maxColumns });
+  const itemGap = gap ?? defaultGridGap;
+  const itemWidth = columns === 1 ? "100%" : (width - itemGap * (columns - 1)) / columns;
 
   return (
-    <View testID={testID} style={[styles.grid, { gap }]} onLayout={onLayout}>
+    <View testID={testID} style={[styles.grid, { gap: itemGap }]} onLayout={onLayout}>
       {items.map((item, index) => {
         const key = getItemKey(item);
         return (

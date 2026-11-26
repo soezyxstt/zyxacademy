@@ -1,11 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { and, eq, isNull } from "drizzle-orm";
 import { Video } from "lucide-react";
-import { db } from "@/db";
-import { googleMeetSessions } from "@/db/schema";
 import { Button } from "@/components/ui/button";
+import { findPublicMeeting } from "@/lib/meet/public-meeting";
 import { createMetadata } from "@/lib/site";
 import { getAppLocale, getTranslations } from "@/lib/i18n/server";
 
@@ -18,11 +16,7 @@ export async function generateMetadata({
   const locale = await getAppLocale();
   const t = await getTranslations("marketing");
 
-  const [session] = await db
-    .select({ title: googleMeetSessions.title })
-    .from(googleMeetSessions)
-    .where(and(eq(googleMeetSessions.slug, slug), isNull(googleMeetSessions.deletedAt)))
-    .limit(1);
+  const session = await findPublicMeeting(slug);
 
   if (session) {
     return createMetadata({
@@ -50,11 +44,7 @@ export default async function MeetSlugPage({
   const t = await getTranslations("marketing");
   const { slug } = await params;
 
-  const [session] = await db
-    .select()
-    .from(googleMeetSessions)
-    .where(and(eq(googleMeetSessions.slug, slug), isNull(googleMeetSessions.deletedAt)))
-    .limit(1);
+  const session = await findPublicMeeting(slug);
 
   if (session?.meetingUri) {
     redirect(session.meetingUri);

@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 
-import { NATIVE_BROWSER_REDIRECT } from "../../apps/mobile-native/auth/browser-intent";
+import { NATIVE_BROWSER_FINISH_PATH, NATIVE_BROWSER_REDIRECT, takeNativeBrowserCallback } from "../../apps/mobile-native/auth/browser-intent";
 import { readAuthReturnTo } from "../../apps/mobile-native/auth/login-intent";
 import { createNativeIntentRedirect } from "../../apps/mobile-native/routing/consent-intent";
 
@@ -19,13 +19,24 @@ test("the host router preserves both exact Academic aliases and their encoded pa
   }
 });
 
-test("Expo's native intent entry delegates Academic aliases to the host router", async () => {
-  const { redirectSystemPath } = await import("../../apps/mobile-native/app/+native-intent");
+test("Expo's native intent entry delegates Academic aliases and auth paths to the host router", async () => {
+  // Load the device entry at runtime. Root tests have no Expo install, and the
+  // native contracts job typechecks this entry with the Expo SDK installed.
+  const entry = new URL("../../apps/mobile-native/app/+native-intent.tsx", import.meta.url);
+  const { redirectSystemPath }: { redirectSystemPath: ReturnType<typeof createNativeIntentRedirect> } = await import(entry.href);
   const query = new URLSearchParams({ path: "/admin/users?search=Adi%20%26%20Dewi", role: "admin" });
   for (const alias of ["academic", "internal/academic"]) {
     expect(await redirectSystemPath({ path: `zyx-native-parity://${alias}?${query}`, initial: true }))
       .toBe(`/${alias}?${query}`);
   }
+
+  const next = "/tutor/schedule?slot=a%26b";
+  const signIn = await redirectSystemPath({ path: `/sign-in?${new URLSearchParams({ next })}`, initial: false });
+  expect(readAuthReturnTo(new URL(signIn, "https://fixture.invalid").searchParams.get("returnTo"))).toBe(next);
+  const callback = { code: "ab".repeat(64), state: "cd".repeat(24) };
+  expect(await redirectSystemPath({ path: `${NATIVE_BROWSER_REDIRECT}#${new URLSearchParams(callback)}`, initial: true }))
+    .toBe(NATIVE_BROWSER_FINISH_PATH);
+  expect(takeNativeBrowserCallback()).toEqual(callback);
 });
 
 test("Academic aliases share dispatch with existing consent and auth across unrecognized paths", async () => {

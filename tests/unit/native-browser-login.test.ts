@@ -100,19 +100,19 @@ describe("native browser login", () => {
     });
   });
 
-  test("scrubs callbacks from the route and accepts a matching fragment only", () => {
-    expect(redirectSystemPath({ path: callbackUrl, initial: true })).toBe(NATIVE_BROWSER_FINISH_PATH);
+  test("scrubs callbacks from the route and accepts a matching fragment only", async () => {
+    expect(await redirectSystemPath({ path: callbackUrl, initial: true })).toBe(NATIVE_BROWSER_FINISH_PATH);
     expect(takeNativeBrowserCallback()).toEqual(callback);
     expect(takeNativeBrowserCallback()).toBeNull();
 
     const queryCallback = `${NATIVE_BROWSER_REDIRECT}?code=${code}&state=${state}`;
-    expect(redirectSystemPath({ path: queryCallback, initial: false })).toBe(NATIVE_BROWSER_FINISH_PATH);
+    expect(await redirectSystemPath({ path: queryCallback, initial: false })).toBe(NATIVE_BROWSER_FINISH_PATH);
     expect(takeNativeBrowserCallback()).toBeNull();
 
     expect(parseNativeBrowserCallback(`${callbackUrl}&code=another`)).toBeNull();
     expect(parseNativeBrowserCallback(callbackUrl.replace("://auth/", "://elsewhere/"))).toBeNull();
     expect(parseNativeBrowserCallback(callbackUrl.replace("zyx-native-parity:", "https:"))).toBeNull();
-    expect(redirectSystemPath({ path: "zyx-native-parity://gallery/separator", initial: false })).toBe("zyx-native-parity://gallery/separator");
+    expect(await redirectSystemPath({ path: "zyx-native-parity://gallery/separator", initial: false })).toBe("zyx-native-parity://gallery/separator");
   });
 
   test("waits for the same single exchange when the browser result and native route race", async () => {

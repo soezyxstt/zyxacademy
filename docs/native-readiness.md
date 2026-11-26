@@ -34,6 +34,14 @@ Reviewer GPT-6.2 Sol High memeriksa artefak Android dan iOS pada `f4ed84dc`. And
 
 Reviewer juga memeriksa transport kotak masuk Student, pembatasan akun dan peran, serta pencabutan bacaan offline. Pada `ed469032`, penolakan eksplisit dari manifest, resource, dan aset mengunci kedua bahasa. Saat itu respons sukses sinkronisasi yang memuat `allowed: false` masih dapat menyisakan akses dalam bahasa lain. Verifikasi berikutnya perlu menguji respons ini pada dua bahasa dan dua kursus, serta menguji pergantian akun saat kotak masuk sedang dibuka. [Revisi offline yang diperiksa](https://github.com/soezyxstt/zyxacademy/commit/ed469032).
 
+### Verifikasi integrasi rute dan sesi
+
+Pada `14e95ce3`, empat jalur kembali dapat digabung dengan pemasangan 153 entry fisik. Typecheck dan bundling Expo Android serta iOS lulus. Pada build yang lebih awal, Android lulus pembukaan dingin `/admin` dan pengalihan ketiga peran ke login saat belum ada sesi. Pada iOS, pembukaan hangat ketiga rute telah lulus di build sebelumnya. Uji ini berakhir di layar login. [Build gabungan](https://github.com/soezyxstt/zyxacademy/actions/runs/45843783636/job/139992039618), [uji masuk Android](https://github.com/soezyxstt/zyxacademy/actions/runs/45814669718/job/139892061323), [uji masuk iOS](https://github.com/soezyxstt/zyxacademy/actions/runs/45812142193).
+
+Review lanjutan pada `aa006de8` memeriksa pencabutan lintas bahasa untuk respons `allowed: false`, hilangnya materi dari manifest lengkap, dan pengurangan hak sebagian bab. Pada `1e5f85ed`, tautan dari notifikasi push diperoleh dari baris kotak masuk pengguna yang terverifikasi. Hasil lama dibuang saat sesi berubah. Pengiriman push pada perangkat fisik dan sinkronisasi offline setelah aplikasi dibuka kembali masih memerlukan pengujian. [Pencabutan akses](https://github.com/soezyxstt/zyxacademy/commit/aa006de8), [pengalihan push](https://github.com/soezyxstt/zyxacademy/commit/1e5f85ed).
+
+Pada jalur Shared UI `4805e7d1`, reviewer memeriksa 52 tangkapan Android dengan geometri yang valid. Seluruh 52 masih memiliki selisih piksel. Sebelas dari 12 alur interaksi lulus setelah retry, dan uji teks besar lulus. Percobaan tersisa kehilangan koneksi ADB sebelum memeriksa daftar pada layar lebar. Bukti ini belum menambah komponen yang lulus tiga keadaan di kedua platform. [Artefak Shared UI Android](https://github.com/soezyxstt/zyxacademy/actions/runs/45837732023/artifacts/15129611377).
+
 ## Inventaris per permukaan
 
 | Permukaan web | Jumlah | Bukti yang diperlukan untuk lulus |
