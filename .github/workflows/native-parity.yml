@@ -7,7 +7,7 @@ on:
       - 'apps/mobile-native/**'
       - 'packages/**'
       - 'app/globals.css'
-      - 'components/ui/separator.tsx'
+      - 'components/ui/**'
       - 'tests/visual/ui-parity-web/**'
       - 'scripts/native-parity/**'
       - '.github/workflows/native-parity.yml'

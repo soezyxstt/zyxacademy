@@ -19,6 +19,71 @@ Status: **prototipe lokal dan rencana, belum menjadi kontrak runtime atau rilis*
 
 Untuk setiap tahap simpan sumber referensi, versi/commit, perangkat atau emulator, dimensi dalam piksel dan density, tema, tiga kasus, screenshot, hasil perbandingan, selisih yang diketahui, dan keputusan lulus/gagal. Jalankan juga pada Android dan iOS nyata sebelum rilis. Paritas gambar tidak menggantikan pengujian perilaku, aksesibilitas, keamanan, atau data.
 
+## Checklist inventaris dan urutan migrasi
+
+Urutan ini adalah backlog, bukan bukti implementasi atau paritas. Setiap kotak mencakup **masing-masing** komponen yang disebut, dengan tiga kasus pada barisnya sebagai titik awal, bukan batas pengujian. Referensi adalah penggunaan web atau fixture lokal yang ditemukan, bukan jaminan komponen cocok dipindahkan langsung. P0 mendahulukan alur bersama dan pembelajaran, P1 mencakup kontrol dan peran lain, P2 mencakup permukaan khusus. Untuk setiap kasus tetapkan dimensi, density, font dan tema, lalu ikuti gerbang di atas. Nama berkas tanpa direktori pada tabel pertama berada di `components/ui/`.
+
+### 1. Primitif, P0 lalu P1
+
+| Prioritas | Checklist dan referensi | Tiga kasus per komponen |
+|---|---|---|
+| P0 | [x] `separator` dekoratif, [artefak Android dan iOS](https://github.com/soezyxstt/zyxacademy/actions/runs/45784124155) | Horizontal light; vertikal light; horizontal dark. |
+| P0 | [ ] `button`, `components/pull-to-refresh.tsx` | Default aktif; disabled; ikon dengan nama aksesibel. |
+| P0 | [ ] `input`, `textarea`, `label`, `components/forms/form-presets.tsx` | Kosong; berisi teks panjang; disabled. |
+| P0 | [ ] `checkbox`, `switch`, `components/forms/admin-forms-builder.tsx` | Tidak dipilih; dipilih; disabled. |
+| P0 | [ ] `radio-group`, `app/(student)/courses/[id]/flashcard/flashcard-client.tsx` | Belum dipilih; satu opsi dipilih; disabled. |
+| P0 | [ ] `select`, `components/student-leaderboard-controls.tsx` | Tertutup tanpa pilihan; terbuka; pilihan panjang terpilih. |
+| P0 | [ ] `badge`, `components/course/dashboard-weak-concepts.tsx` | Default; sekunder; teks panjang. |
+| P0 | [ ] `avatar`, `components/auth/sidebar-account-menu.tsx` | Gambar tersedia; gambar gagal dengan fallback; inisial panjang. |
+| P0 | [ ] `skeleton`, `components/course/quiz-player.tsx` | Baris pendek; blok multiline; dark dengan reduced motion. |
+| P0 | [ ] `card`, `components/admin/bundle-importer-tab.tsx` | Default; varian alternatif; konten panjang. |
+| P0 | [ ] `alert`, `features/admin-home/ui/mobile/admin-home-mobile.tsx` | Default; destructive; deskripsi panjang. |
+| P0 | [ ] `formatted-date`, `components/student-reflections-view.tsx` | Tanggal valid Indonesia; tanggal valid Inggris; tanggal tidak valid. |
+| P1 | [ ] `slider`, `components/course/interactive-scene-renderer.tsx` | Nilai minimum; tengah; maksimum. |
+| P1 | [ ] `toggle-group`, `components/landing/landing-subject-showcase.tsx` | Tanpa pilihan; satu pilihan aktif; kontrol disabled. |
+| P1 | [ ] `clamped-marquee`, `components/admin/material-review-detail.tsx` | Teks muat; teks melampaui lebar; reduced motion saat aktif. |
+| P1 | [ ] `section-heading`, `components/landing/landing-pricing-preview.tsx` | Tier hero; tier primary; tier secondary dengan judul panjang. |
+| P1 | [ ] `feature-card`, `step-card`, definisi lokal `components/ui/` | Default; varian dark atau active sesuai komponen; konten panjang. Belum ditemukan pemakaian aplikasi langsung saat inventaris ini. |
+
+### 2. Layout dan komposit, setelah primitif terkait
+
+| Prioritas | Checklist dan referensi | Tiga kasus per komponen atau pola |
+|---|---|---|
+| P0 | [ ] `form-field-wrapper`, `input-field`, `select-field`, `checkbox-field`, `components/ui/file-upload-field.tsx` dan `app/(marketing)/forms-playground/page.tsx` | Default; nilai terisi atau dipilih; error validasi. |
+| P0 | [ ] `search-bar`, `components/course/material-viewer.tsx` | Kosong; query berisi; hasil kosong dengan query tetap terlihat. |
+| P0 | [ ] `dialog`, `sheet`, `components/course/material-viewer.tsx` dan `components/command-menu-dialog.tsx` | Tertutup; terbuka dengan konten panjang; tutup dengan Back dan fokus kembali. Sertakan perilaku `dialog-history-runtime` dari `app/layout.tsx`. |
+| P0 | [ ] `popover`, `dropdown-menu`, `tooltip`, `components/student-leaderboard-controls.tsx` dan `components/student-sidebar.tsx` | Tertutup; terbuka dengan pilihan panjang; dismiss dan fokus kembali. Tooltip substantif memerlukan padanan yang dapat disentuh. |
+| P0 | [ ] `tabs`, `components/student-leaderboard-controls.tsx` | Tab pertama aktif; tab lain aktif; overflow dengan tab aktif. Sertakan style bersama `tab-styles`. |
+| P0 | [ ] `collapsible`, `accordion`, `components/sidebar-shell.tsx` dan `components/landing/landing-faq.tsx` | Tertutup; terbuka; konten panjang terbuka. |
+| P0 | [ ] `table`, `components/tutor/watchlist-table.tsx` | Kosong; satu baris; banyak baris dengan label panjang. Periksa susunan mobile dan pagination. |
+| P0 | [ ] `toast` dan `sonner`, `components/app-toaster.tsx` dan `components/language-menu.tsx` | Sukses; error dengan pemulihan; beberapa notifikasi berurutan. `toast` mengekspor ulang `sonner`, bukan sistem terpisah. |
+| P0 | [ ] Shell dan header, `components/application-shell.tsx`, `components/page-header.tsx`, `components/navigation/desktop-sidebar-shell.tsx` | Halaman biasa; header dengan aksi atau Back; teks panjang dan safe area. Periksa `page-transition`, `reveal`, dan `page-ornaments` pada normal, reduced motion, dan dark. |
+| P0 | [ ] Navbar dan bottom navigation, `components/mobile-navbar.tsx` dan `components/navigation/{student,tutor,admin}/` | Rute utama aktif; rute kursus aktif; alur yang menyembunyikan bottom navigation. Uji ketiga peran, Back, tautan langsung dan safe area. |
+| P0 | [ ] State bersama, `components/admin/state-panels.tsx` | Kosong; error dengan retry; pesan panjang. |
+| P0 | [ ] Statistik, `components/admin/stat-card.tsx` | Nilai nol; nilai terisi; label dan caption panjang. |
+| P0 | [ ] Tabel admin, `components/admin/table.tsx` | Tanpa baris; satu baris; banyak baris dengan label panjang. |
+| P0 | [ ] Badge status, `components/admin/status-badges.tsx` | Status normal; status peringatan; status error. |
+| P0 | [ ] Konfirmasi, `components/admin/confirm-dialog.tsx` | Tertutup; terbuka; aksi sedang diproses atau disabled. |
+| P1 | [ ] `file-upload-field`, `app/(marketing)/forms-playground/page.tsx` | Kosong; unggahan berjalan; gagal dan coba lagi. Pertahankan batas berkas. |
+| P1 | [ ] `scientific-input`, `features/student-assessment/ui/shared/quiz-player-parts.tsx` | Kosong; formula valid dengan palet; input tidak valid atau disabled. |
+| P1 | [ ] Kalender, `components/schedule/schedule-calendar-view.tsx` | Tidak ada slot; slot tersedia; slot dipilih atau detail terbuka. |
+| P1 | [ ] Composer diskusi, `components/discussions/composer.tsx` dan `components/course/zyra-composer-input.tsx` | Draft kosong; teks dan lampiran; unggahan gagal dengan pemulihan. Pertahankan seleksi, IME dan identitas retry. |
+| P2 | [ ] `carousel`, definisi `components/ui/carousel.tsx` | Item pertama; item tengah; item terakhir. Belum ditemukan pemakaian aplikasi langsung saat inventaris ini. |
+
+### 3. Halaman, setelah komposit terkait
+
+- [ ] P0, identitas dan shell: login, sesi kedaluwarsa, serta logout atau ganti akun. Acuan `components/auth/` dan layout Student, Tutor, Admin. Uji pembatasan per peran dan callback lingkungan.
+- [ ] P0, Student: dashboard, daftar kursus dan quiz. Untuk setiap halaman periksa data tersedia, kosong atau loading, dan error atau pemulihan; pada quiz sertakan progres, submit dan pemulihan draft.
+- [ ] P1, Tutor: dashboard atau kursus, peserta dan jadwal. Untuk setiap halaman periksa data tersedia, kosong atau loading, dan error atau pemulihan; pertahankan cakupan kursus yang ditugaskan.
+- [ ] P1, Admin: dashboard, pengguna dan kursus. Untuk setiap halaman periksa data tersedia, kosong atau loading, dan error atau pemulihan; pertahankan otorisasi dan konsekuensi aksi.
+- [ ] P1, diskusi bersama peran: daftar kosong, thread aktif, serta pengiriman gagal atau status tidak pasti. Acuan `components/discussions/discussion-workspace.tsx`; uji audiens, akses dan retry.
+- [ ] P2, marketing dan publik: halaman publik, formulir dan blog. Untuk setiap halaman periksa konten tersedia, loading atau kosong, dan error atau tautan tidak tersedia.
+
+### 4. Renderer kompleks, terakhir
+
+- [ ] Artikel dan diktat: teks dan formula; gambar, tabel dan visual interaktif; akses dibatasi atau bacaan offline yang kedaluwarsa. Acuan `components/course/structured-article-reader.tsx`, `markdown-renderer.tsx`, `article-parts.tsx` dan `components/offline/offline-reading-library.tsx`.
+- [ ] Visual dan coding: grafik atau diagram normal; interaksi dan input; kegagalan atau fallback yang dapat diakses. Acuan `components/course/markdown/`, `interactive-scene-renderer.tsx` dan `components/coding/`.
+
 ## Batas data, identitas dan MCP
 
 - SSR dan hidrasi tetap berjalan pada alur web Next.js. Layar React Native merender data terstruktur dari API HTTPS. Expo mengakses operasi yang sah melalui API HTTPS Next.js dengan kontrak tervalidasi dan otorisasi server per permintaan. Server Actions, RSC, cookie browser dan akses langsung database tidak diasumsikan bekerja sebagai API native. Tambah Route Handler khusus hanya jika diperlukan, dengan validasi, batas respons dan uji kontrak. [Route Handler adalah endpoint publik](https://nextjs.org/docs/app/guides/backend-for-frontend), sehingga tetap perlu autentikasi dan otorisasi.

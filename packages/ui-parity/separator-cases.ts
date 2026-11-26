@@ -1,12 +1,7 @@
-export const separatorFrame = {
-  width: 320,
-  height: 100,
-  contentWidth: 256,
-  contentHeight: 60,
-  markerColor: "#e000ef",
-  markerHeight: 1,
-  gap: 8,
-} as const;
+import { parityFrame } from "./frame";
+
+const contentWidth = 256;
+const contentHeight = 60;
 
 export const separatorCases = [
   { id: "separator-horizontal-light", orientation: "horizontal", theme: "light" },
@@ -15,7 +10,7 @@ export const separatorCases = [
 ] as const;
 
 export function getSeparatorPosition(orientation: "horizontal" | "vertical") {
-  const { width, height, contentWidth, contentHeight } = separatorFrame;
+  const { width, height } = parityFrame;
   const horizontal = orientation === "horizontal";
   return {
     position: "absolute",

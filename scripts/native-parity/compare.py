@@ -1,12 +1,13 @@
 """Compare native fixture crops at device scale with the corresponding browser crops."""
 import argparse
+from collections import Counter
 import io
+import json
 import os
 from pathlib import Path
 
 from PIL import Image, ImageChops, ImageCms, ImageOps
 
-CASES = ("separator-horizontal-light", "separator-vertical-light", "separator-horizontal-dark")
 MARKER = (224, 0, 239)
 
 
@@ -35,15 +36,20 @@ def main():
     frame = frame.convert("RGB")
     if profile:
         frame = ImageCms.profileToProfile(frame, io.BytesIO(profile), ImageCms.createProfile("sRGB"))
+    reference_dir = Path(f"artifacts/native-parity/web/dpr{args.scale}")
+    cases = json.loads((reference_dir / "cases.json").read_text())
+    counts = Counter(case.split("-", 1)[0] for case in cases)
+    if not cases or len(set(cases)) != len(cases) or set(counts.values()) != {3}:
+        raise ValueError("Expected three unique cases per component")
     positions = crop_positions(frame, args.scale)
-    if len(positions) != len(CASES):
-        raise SystemExit(f"Expected {len(CASES)} marker strips, found {len(positions)}")
+    if len(positions) != len(cases):
+        raise SystemExit(f"Expected {len(cases)} marker strips, found {len(positions)}")
     if args.ready:
         return
     mismatches = []
     rows = []
-    for case, (x, y) in zip(CASES, positions):
-        reference = Path(f"artifacts/native-parity/web/dpr{args.scale}/{case}.png")
+    for case, (x, y) in zip(cases, positions):
+        reference = reference_dir / f"{case}.png"
         web = Image.open(reference).convert("RGB")
         expected = (320 * args.scale, 100 * args.scale)
         if web.size != expected or y + expected[1] > frame.height:
@@ -69,7 +75,7 @@ def main():
             stream.write(report + "\n")
     if mismatches:
         raise SystemExit(f"Pixel parity failed: {', '.join(mismatches)}")
-    print(f"All three crops match at DPR {args.scale}")
+    print(f"All {len(cases)} crops match at DPR {args.scale}")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
 @import "../../../../app/globals.css";
 
-@source "../../../../components/ui/separator.tsx";
+@source "../../../../components/ui/*.tsx";
 @source "./page.tsx";
