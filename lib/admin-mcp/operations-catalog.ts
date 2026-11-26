@@ -15,6 +15,20 @@ export const operationsCatalog = [
     "reason": "Course tutoring streams use the learner's own session, active course policy and usage limits. Native clients request history persistence with the verified Student identity. The separate administrative Zyra tooling keeps its own authorization."
   },
   {
+    "source": "app/api/zyra/attachments/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Learner camera and gallery uploads use the existing Zyra image policy, sanitizer, private storage and owned conversation. Free access remains text only."
+  },
+  {
+    "source": "app/api/zyra/attachments/[id]/route.ts",
+    "actions": ["GET", "DELETE"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The interactive Zyra client previews and removes images within the current authenticated conversation and course scope."
+  },
+  {
     "source": "app/api/student/navigation/route.ts",
     "actions": ["GET"],
     "tools": [],

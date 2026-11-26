@@ -1,4 +1,5 @@
 import { useIsFocused, useNavigation } from "expo-router";
+import { randomUUID } from "expo-crypto";
 import { openBrowserAsync } from "expo-web-browser";
 import { useLayoutEffect, useMemo, useState, type ComponentProps, type ReactNode } from "react";
 import { View } from "react-native";
@@ -12,7 +13,8 @@ import { useSiteSearch } from "../features/site-search/search";
 import type { StudentRequest } from "../features/student/contracts";
 import { bindStudentRequest } from "../features/student/transport";
 import { CourseZyra } from "../features/student/zyra/CourseZyra";
-import { courseZyraAvailable } from "../features/student/zyra/conversation";
+import { CourseZyraContext, type CourseZyraContextInput, type CourseZyraHandoff } from "../features/student/zyra/context";
+import { courseZyraAvailable, courseZyraContextForPath } from "../features/student/zyra/conversation";
 import { useRoleAccountMenu } from "./account-menu";
 import { useStudentCourseChrome } from "./student-course-chrome";
 import { defaultStudentChromeVisibility, StudentChromeVisibilityContext, StudentCourseNavbarContext } from "./student-course-chrome-context";
@@ -42,27 +44,38 @@ export function StudentChrome(props: FrameProps) {
     userId: transport.scope.accountId, origin: transport.scope.origin, sessionId: transport.scope.sessionId, role: "student", locale,
   }, (path, init) => transport.request(path, { ...init, requiredRole: "murid" })), [transport, locale]);
   const [hideTop, setHideTop] = useState(false);
+  const [handoff, setHandoff] = useState<CourseZyraHandoff | null>(null);
   const pathname = href.split(/[?#]/, 1)[0];
   const courseId = studentCourseId(pathname);
   const current = () => {
     const snapshot = getSnapshot();
-    return enabled && !hideTop && navigation.isFocused() && state.status === "signed-in" && state.expiresAt > Date.now() &&
+    return enabled && navigation.isFocused() && state.status === "signed-in" && state.expiresAt > Date.now() &&
       !!transport?.isCurrent() && snapshot.state === state && snapshot.transport === transport && !snapshot.revalidating;
   };
+  const available = enabled && focused && transport?.isCurrent() && courseId && courseZyraAvailable(pathname);
+  const activeHandoff = handoff?.pathname === pathname ? handoff : null;
+  const zyra = available && transport && courseId ? <CourseZyra key={JSON.stringify([transport.scope, pathname])}
+    courseId={courseId} pathname={pathname} session={transport} locale={locale} theme={theme} current={current} launcher={!hideTop}
+    handoff={activeHandoff} onHandoffConsumed={id => setHandoff(previous => previous?.id === id ? null : previous)}
+    openExternal={href => { if (current()) void openBrowserAsync(new URL(href, transport.scope.origin).href).catch(() => {}); }} /> : null;
+  const openZyra = available ? (input: CourseZyraContextInput) => {
+    if (!current()) return;
+    const scoped = courseZyraContextForPath(pathname, input);
+    if (scoped) setHandoff({ id: randomUUID(), pathname, input: scoped });
+  } : undefined;
+  useLayoutEffect(() => {
+    setHandoff(null);
+  }, [focused, pathname, transport]);
   const siteSearch = useSiteSearch({ enabled: enabled && focused && !hideTop, theme, visit });
   const accountMenu = useRoleAccountMenu({ enabled: enabled && focused && !hideTop && !courseId, theme, visit });
-  return <StudentNavigationFrame {...props} courseRequest={request ?? undefined} focused={focused} onHideTopChange={setHideTop}
+  return <CourseZyraContext.Provider value={openZyra}><StudentNavigationFrame {...props} courseRequest={request ?? undefined} focused={focused} onHideTopChange={setHideTop}
     productActions={{
       notificationSlot: enabled && !hideTop ? <NativeInboxBell role="student" locale={locale} theme={theme} visit={visit} /> : null,
-      pageActions: enabled && focused && !hideTop && transport?.isCurrent() && courseId && courseZyraAvailable(pathname) ?
-        <CourseZyra key={JSON.stringify([transport.scope, pathname])} courseId={courseId} pathname={pathname} session={transport}
-          locale={locale} theme={theme} current={current} openExternal={href => {
-            if (current()) void openBrowserAsync(new URL(href, transport.scope.origin).href).catch(() => {});
-          }} /> : null,
+      pageActions: !hideTop ? zyra : null,
       actions: { search: siteSearch.action, account: accountMenu.action },
       actionRefs: { search: siteSearch.trigger, account: accountMenu.trigger },
     }} onProductAction={action => action === "search" ? siteSearch.open() : accountMenu.open()}
-    productOverlays={<>{siteSearch.dialog}{accountMenu.sheet}</>} />;
+    productOverlays={<>{hideTop ? zyra : null}{siteSearch.dialog}{accountMenu.sheet}</>} /></CourseZyraContext.Provider>;
 }
 
 export function StudentNavigationFrame({ href, pattern, locale, theme, enabled, focused, courseRequest, visit, back,

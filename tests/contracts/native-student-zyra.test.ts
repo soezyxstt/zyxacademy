@@ -19,6 +19,7 @@ mock.module("@/app/actions/tutor", () => ({
 mock.module("@/lib/auth", () => ({ auth: { api: { getSession: async () => ({ user: { id: "student-a" } }) } } }));
 mock.module("@/lib/usage-budget-service", () => ({ FREE_ALLOWANCE_IDEMPOTENCY_PREFIX: "zyra-free:" }));
 mock.module("@/lib/zyra/title-ai", () => ({ generateZyraSessionTitle: async () => ({ updated: false }) }));
+mock.module("@/lib/zyra/runtime-env", () => ({ zyraRuntimeEnv: { FEATURE_ZYRA_IMAGE_INPUT_V1: "1" } }));
 mock.module("next/server", () => ({ after: () => {} }));
 mock.module("next/headers", () => ({ headers: async () => new Headers() }));
 mock.module("@/db", () => ({ db: { select: () => ({ from: () => ({ where: () => ({ limit: receiptQuery }) }) }) } }));
@@ -46,8 +47,10 @@ test("the Student history endpoint checks session and course, loads only owned s
   const response = await read("view=history&courseId=calculus", signed);
   expect(response.status).toBe(200);
   expect(response.headers.get("Cache-Control")).toBe("private, no-store");
-  expect(await response.json()).toMatchObject({ tier: "standard", sessions: [{ id: "owned" }], history: { sessionId: "owned" } });
+  expect(await response.json()).toMatchObject({ tier: "standard", imageInput: true, sessions: [{ id: "owned" }], history: { sessionId: "owned" } });
   expect(history).toHaveBeenCalledWith("calculus", "owned");
+  resolveAccess.mockImplementationOnce(async () => ({ hasCourseAccess: true, capabilities: { canAskZyra: true }, tier: "free" }));
+  expect(await (await read("view=history&courseId=calculus", signed)).json()).toMatchObject({ tier: "free", imageInput: false });
 });
 
 test("the Student receipt lookup reports absent receipts without loading another conversation", async () => {

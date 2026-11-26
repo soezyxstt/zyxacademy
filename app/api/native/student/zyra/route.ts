@@ -4,6 +4,8 @@ import { listTutorSessionsAction, loadTutorHistoryAction } from "@/app/actions/t
 import { db } from "@/db";
 import { tutorChatMessages } from "@/db/schema";
 import { resolveCourseAccess } from "@/lib/student/course-access";
+import { isZyraImageFeatureEnabled } from "@/lib/zyra/images/contracts";
+import { zyraRuntimeEnv } from "@/lib/zyra/runtime-env";
 import { FREE_ALLOWANCE_IDEMPOTENCY_PREFIX } from "@/lib/usage-budget-service";
 import { tutorHistoryMessageId } from "@/lib/zyra/history-identity";
 import { requireNativeStudent } from "../_session";
@@ -44,7 +46,8 @@ export async function GET(request: Request) {
     const sessions = (await listTutorSessionsAction(courseId)).filter(session => session.messageCount > 0);
     const sessionId = parsed.data.sessionId ?? sessions[0]?.id;
     const history = sessionId ? await loadTutorHistoryAction(courseId, sessionId) : null;
-    return reply({ sessions, history, tier: access.tier === "free" ? "free" : "standard" });
+    const imageInput = (access.tier === "enrolled" || access.tier === "staff") && isZyraImageFeatureEnabled(zyraRuntimeEnv.FEATURE_ZYRA_IMAGE_INPUT_V1);
+    return reply({ sessions, history, tier: access.tier === "free" ? "free" : "standard", imageInput });
   } catch (error) {
     const denied = error instanceof Error && ["Unauthorized", "NOT_ENROLLED", "COURSE_SCOPE_REQUIRED", "CHAT_SESSION_ACCESS_DENIED"].includes(error.message);
     return reply({ code: denied ? "COURSE_ACCESS_DENIED" : "ZYRA_HISTORY_UNAVAILABLE" }, denied ? 403 : 500);

@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
-import { applyZyraEvent, courseZyraAvailable, newTurn, readZyraHistory, readZyraReceipt, turnCompletion } from "../../apps/mobile-native/features/student/zyra/conversation";
+import { applyZyraEvent, courseZyraAvailable, courseZyraContextForPath, newTurn, readZyraHistory, readZyraReceipt, turnCompletion } from "../../apps/mobile-native/features/student/zyra/conversation";
+import { deleteZyraImage, readZyraImage, uploadZyraImage } from "../../apps/mobile-native/features/student/zyra/images";
 import { createNativeTransport, NativeRequestNotDispatched } from "../../apps/mobile-native/network/transport";
 import { NativeZyraStreamError, streamNativeZyra } from "../../apps/mobile-native/network/zyra";
 
@@ -64,4 +65,39 @@ test("interruption stays uncertain and rejected writes can retry the same reques
   expect(courseZyraAvailable("/courses/calculus/quiz/1")).toBe(false);
   expect(courseZyraAvailable("/courses/calculus/live/host")).toBe(false);
   expect(courseZyraAvailable("/dashboard")).toBe(false);
+});
+
+test("context is bounded to the explicit reader or Playground route", () => {
+  const selection = { kind: "selection", snippet: `  ${"x".repeat(1400)}  ` } as const;
+  expect(courseZyraContextForPath("/courses/calculus/material/limits", selection)).toEqual({ kind: "selection", snippet: "x".repeat(1200) });
+  expect(courseZyraContextForPath("/courses/calculus/material", selection)).toBeNull();
+  const code = { kind: "playground", code: "print(2)", stdin: "", execution: null, intent: "review" } as const;
+  expect(courseZyraContextForPath("/courses/calculus/playground", code)).toBe(code);
+  expect(courseZyraContextForPath("/courses/calculus/quiz/1", code)).toBeNull();
+});
+
+test("Zyra photos stay bound to the verified account and exact owned conversation", async () => {
+  const id = "8dbfeaa2-1d47-4a6a-92bf-a5e2ce4c8220";
+  const pathname = `/api/zyra/attachments/${id}?courseId=calculus&sessionId=conversation`;
+  const calls: string[] = [];
+  const session = sessionFor(async (href, init) => {
+    const url = new URL(href);
+    calls.push(init.method + " " + url.pathname + url.search);
+    expect(new Headers(init.headers).get("x-student-id")).toBe("signed-student");
+    if (init.method === "POST") {
+      const form = init.body as FormData;
+      expect(form.get("courseId")).toBe("calculus");
+      expect(form.get("sessionId")).toBe("conversation");
+      return Response.json({ id, sessionId: "conversation", expiresAt: "2030-01-01T00:00:00Z", byteSize: 2, width: 1, height: 1,
+        mimeType: "image/png" }, { status: 201 });
+    }
+    if (init.method === "DELETE") return new Response(null, { status: 204 });
+    return new Response(new Uint8Array([1, 2]), { headers: { "Content-Type": "image/png" } });
+  });
+  const { signal } = new AbortController();
+  const upload = await uploadZyraImage(session, "calculus", "conversation", { uri: "file:///fixture/photo.png", name: "photo.png", mimeType: "image/png" }, signal);
+  expect(upload).toMatchObject({ id, sessionId: "conversation" });
+  expect(await readZyraImage(session, "calculus", "conversation", id, signal)).toBe("data:image/png;base64,AQI=");
+  await deleteZyraImage(session, "calculus", upload, signal);
+  expect(calls).toEqual(["POST /api/zyra/attachments", `GET ${pathname}`, `DELETE ${pathname}`]);
 });
