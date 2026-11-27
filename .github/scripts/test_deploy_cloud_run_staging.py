@@ -185,6 +185,14 @@ class CloudRunStagingTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_template(candidate, CONFIG)
 
+    def test_accepts_expo_staging_app_links_fingerprints_in_plaintext(self):
+        candidate = spec()
+        candidate["containers"][0]["env"].append({
+            "name": "ANDROID_APP_LINKS_EXPO_STAGING_SHA256_FINGERPRINTS",
+            "value": ":".join(["AA"] * 32),
+        })
+        validate_template(candidate, CONFIG)
+
     def test_ignores_tagged_revisions_without_traffic(self):
         self.assertTrue(REVISION.fullmatch(CANDIDATE))
         self.assertEqual(traffic(service_with_traffic(PREVIOUS)), {PREVIOUS: 100})
