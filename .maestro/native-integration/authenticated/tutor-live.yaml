@@ -1,0 +1,54 @@
+appId: com.zyx.academy.nativeparity
+name: Tutor creates, resumes and controls a published live quiz
+---
+- openLink: "zyx-native-parity://tutor/native-preview-tutor-course/live"
+- extendedWaitUntil:
+    visible: Kuis Live Preview
+    timeout: 30000
+- tapOn: Kuis Live Preview
+- tapOn: Buka ruang tunggu
+- extendedWaitUntil:
+    visible: "1 peserta"
+    timeout: 30000
+- tapOn:
+    text: Mulai kuis
+    enabled: true
+- extendedWaitUntil:
+    visible: Soal Live Preview 1
+    timeout: 30000
+- assertVisible: "1 dari 1 menjawab"
+- assertVisible: '1 \(100%\)'
+- assertVisible: "Referensi: Seleksi Preview"
+- openLink: "zyx-native-parity://tutor"
+- extendedWaitUntil:
+    visible: ".*Preview Tutor Course.*"
+    timeout: 30000
+- openLink: "zyx-native-parity://tutor/native-preview-tutor-course/live"
+- extendedWaitUntil:
+    visible: Soal Live Preview 1
+    timeout: 30000
+- assertVisible: "1 dari 1 menjawab"
+- tapOn:
+    text: Tampilkan jawaban
+    enabled: true
+- extendedWaitUntil:
+    visible: Jawaban benar
+    timeout: 30000
+- tapOn:
+    text: Soal berikutnya
+    enabled: true
+- extendedWaitUntil:
+    visible: Soal Live Preview 2
+    timeout: 30000
+- tapOn:
+    text: Akhiri kuis
+    enabled: true
+- extendedWaitUntil:
+    visible: 'Akhiri kuis\?'
+    timeout: 30000
+- tapOn:
+    id: tutor-live-confirm-end
+- extendedWaitUntil:
+    visible: Kuis selesai
+    timeout: 30000
+- assertVisible: "1. Murid Preview"

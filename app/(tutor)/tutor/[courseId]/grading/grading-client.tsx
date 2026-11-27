@@ -62,7 +62,7 @@ export function GradingClient({
 
     startTransition(async () => {
       try {
-        const res = await gradeSubmissionAction(courseId, activeSub.id, finalScore, notesInput);
+        const res = await gradeSubmissionAction(courseId, activeSub.id, finalScore, notesInput, activeSub.reviewRevision);
         if (res.success) {
           toast.success(tr("saved"));
           clearDraft();

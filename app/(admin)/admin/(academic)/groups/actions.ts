@@ -18,8 +18,10 @@ import { assertAdmin } from "@/lib/auth/admin-guards";
 import { eq, desc, asc, and, ilike, or, inArray, lte, sql } from "drizzle-orm";
 import { getSemesterEndDate } from "@/lib/utils";
 import { dualWriteEnrollment } from "@/lib/migrasi/repository-kompatibilitas";
-import { PACKAGE_PRESETS, type PackageType } from "@/lib/group-constants";
+import type { PackageType } from "@/lib/group-constants";
 import { computeWeeklySessionStats } from "@/lib/schedule-lock";
+import { deleteStudyGroupRecord, insertStudyGroupCourses, insertStudyGroupRecord, replaceStudyGroupCourses, updateStudyGroupRecord } from "@/lib/groups/study-group-records";
+import { addStudyGroupMember, lockStudyGroupMembership, removeStudyGroupMember } from "@/lib/groups/study-group-members";
 
 export type AdminGroupsQuery = { page?: number; search?: string; status?: string; packageType?: string; courseId?: string };
 const GROUPS_PAGE_SIZE = 25;
@@ -80,7 +82,7 @@ export async function getAdminStudyGroups(input: AdminGroupsQuery = {}) {
       if (!courseMap.has(course.id)) courseMap.set(course.id, course);
     }
     const usedQuotaSessions = Math.max(g.usedQuotaSessions || 0, Number(bookingsCount));
-    return { ...g, usedQuotaSessions, remainingQuota: Math.max(0, g.totalQuotaSessions - usedQuotaSessions),
+    return { ...g, hasEnrollmentToken: Boolean(relation?.tokens.length), usedQuotaSessions, remainingQuota: Math.max(0, g.totalQuotaSessions - usedQuotaSessions),
       bookingsCount: Number(bookingsCount), memberCount: Number(memberCount), courses: [...courseMap.values()],
       members: previews.filter((member) => member.groupId === g.id).map(({ groupId: _groupId, ...member }) => member),
     };
@@ -276,50 +278,16 @@ export async function createStudyGroup(data: CreateGroupInput) {
     return { success: false, error: "Nama kelompok belajar wajib diisi" };
   }
 
-  const pkgType = data.packageType || "reguler_15";
-  const defaultPkg = PACKAGE_PRESETS[pkgType] || PACKAGE_PRESETS.reguler_15;
-  const pkgName = data.packageName?.trim() || defaultPkg.name;
-  const totalQuota = data.totalQuotaSessions ?? defaultPkg.quota;
-  const weeklyQuota = data.weeklyQuotaSessions ?? defaultPkg.weeklySessions;
-
   const now = new Date();
   const semesterEnd = getSemesterEndDate(now);
-  const startDate = data.startDate ? new Date(data.startDate) : now;
   const endDate = data.endDate ? new Date(data.endDate) : semesterEnd;
 
   const groupId = randomUUID();
 
   try {
     await db.transaction(async (tx) => {
-      // 1. Insert Group
-      await tx.insert(groups).values({
-        id: groupId,
-        name: data.name.trim(),
-        packageType: pkgType,
-        packageName: pkgName,
-        totalQuotaSessions: Math.max(1, totalQuota),
-        weeklyQuotaSessions: Math.max(1, weeklyQuota),
-        usedQuotaSessions: 0,
-        academicYear: data.academicYear?.trim() || "2026/2027",
-        semester: data.semester?.trim() || "Ganjil",
-        startDate,
-        endDate,
-        status: data.status || "active",
-        notes: data.notes?.trim() || null,
-        createdAt: now,
-      });
-
-      // 2. Link Courses
-      if (data.courseIds && data.courseIds.length > 0) {
-        for (const cid of data.courseIds) {
-          await tx.insert(groupCourses).values({
-            id: randomUUID(),
-            groupId,
-            courseId: cid,
-            createdAt: now,
-          });
-        }
-      }
+      await insertStudyGroupRecord(tx, groupId, data, now, semesterEnd);
+      await insertStudyGroupCourses(tx, groupId, data.courseIds ?? [], now);
 
       // 3. Add initial members if any
       if (data.memberUserIds && data.memberUserIds.length > 0) {
@@ -388,52 +356,13 @@ export type UpdateGroupInput = {
  */
 export async function updateStudyGroup(groupId: string, data: UpdateGroupInput) {
   await assertAdmin();
-
-  const existing = await db.query.groups.findFirst({
-    where: eq(groups.id, groupId),
-  });
-
-  if (!existing) {
-    return { success: false, error: "Kelompok belajar tidak ditemukan" };
-  }
-
   try {
     await db.transaction(async (tx) => {
-      const updateData: Partial<typeof groups.$inferInsert> = {};
-
-      if (data.name !== undefined) updateData.name = data.name.trim();
-      if (data.packageType !== undefined) {
-        updateData.packageType = data.packageType;
-        if (!data.packageName) {
-          updateData.packageName = PACKAGE_PRESETS[data.packageType]?.name || existing.packageName;
-        }
-      }
-      if (data.packageName !== undefined) updateData.packageName = data.packageName.trim();
-      if (data.totalQuotaSessions !== undefined) updateData.totalQuotaSessions = Math.max(1, data.totalQuotaSessions);
-      if (data.weeklyQuotaSessions !== undefined) updateData.weeklyQuotaSessions = Math.max(1, data.weeklyQuotaSessions);
-      if (data.usedQuotaSessions !== undefined) updateData.usedQuotaSessions = Math.max(0, data.usedQuotaSessions);
-      if (data.academicYear !== undefined) updateData.academicYear = data.academicYear.trim();
-      if (data.semester !== undefined) updateData.semester = data.semester.trim();
-      if (data.startDate !== undefined) updateData.startDate = data.startDate ? new Date(data.startDate) : null;
-      if (data.endDate !== undefined) updateData.endDate = data.endDate ? new Date(data.endDate) : null;
-      if (data.status !== undefined) updateData.status = data.status;
-      if (data.notes !== undefined) updateData.notes = data.notes.trim() || null;
-
-      if (Object.keys(updateData).length > 0) {
-        await tx.update(groups).set(updateData).where(eq(groups.id, groupId));
-      }
-
-      // Reconcile courses if provided
+      const existing = await lockStudyGroupMembership(tx, groupId);
+      if (!existing) throw new Error("GROUP_NOT_FOUND");
+      await updateStudyGroupRecord(tx, existing, data);
       if (data.courseIds !== undefined) {
-        await tx.delete(groupCourses).where(eq(groupCourses.groupId, groupId));
-        for (const cid of data.courseIds) {
-          await tx.insert(groupCourses).values({
-            id: randomUUID(),
-            groupId,
-            courseId: cid,
-            createdAt: new Date(),
-          });
-        }
+        await replaceStudyGroupCourses(tx, groupId, data.courseIds, new Date());
       }
     });
 
@@ -441,6 +370,7 @@ export async function updateStudyGroup(groupId: string, data: UpdateGroupInput) 
     revalidatePath("/dashboard/groups");
     return { success: true };
   } catch (err: any) {
+    if (err.message === "GROUP_NOT_FOUND") return { success: false, error: "Kelompok belajar tidak ditemukan" };
     console.error("Failed to update study group:", err);
     return { success: false, error: "Gagal memperbarui kelompok belajar" };
   }
@@ -453,7 +383,9 @@ export async function deleteStudyGroup(groupId: string) {
   await assertAdmin();
 
   try {
-    await db.delete(groups).where(eq(groups.id, groupId));
+    await db.transaction(async tx => {
+      if (await lockStudyGroupMembership(tx, groupId)) await deleteStudyGroupRecord(tx, groupId);
+    });
     revalidatePath("/admin/groups");
     revalidatePath("/admin/tokens");
     revalidatePath("/dashboard/groups");
@@ -474,70 +406,19 @@ export async function addGroupMember(
 ) {
   await assertAdmin();
 
-  const groupRecord = await db.query.groups.findFirst({
-    where: eq(groups.id, groupId),
-    with: {
-      courses: true,
-      members: true,
-    },
-  });
-
-  if (!groupRecord) {
-    return { success: false, error: "Kelompok belajar tidak ditemukan" };
-  }
-
-  const alreadyMember = groupRecord.members.some((m) => m.userId === userId);
-  if (alreadyMember) {
-    return { success: false, error: "Pengguna sudah tergabung dalam kelompok ini" };
-  }
-
-  const now = new Date();
-  const expiresAt = groupRecord.endDate || getSemesterEndDate(now);
-
   try {
     await db.transaction(async (tx) => {
-      // 1. Insert member
-      await tx.insert(groupMembers).values({
-        id: randomUUID(),
-        groupId,
-        userId,
-        role,
-        joinedAt: now,
-      });
-
-      // 2. Auto-enroll in group courses
-      for (const gc of groupRecord.courses) {
-        const existingEnrollment = await tx.query.enrollments.findFirst({
-          where: and(
-            eq(enrollments.userId, userId),
-            eq(enrollments.courseId, gc.courseId)
-          ),
-        });
-
-        if (!existingEnrollment) {
-          const enrollmentId = randomUUID();
-          await tx.insert(enrollments).values({
-            id: enrollmentId,
-            userId,
-            courseId: gc.courseId,
-            enrolledAt: now,
-            expiresAt,
-          });
-          await dualWriteEnrollment(tx, {
-            id: enrollmentId,
-            userId,
-            courseId: gc.courseId,
-            enrolledAt: now,
-            expiresAt,
-          });
-        }
-      }
+      const group = await lockStudyGroupMembership(tx, groupId);
+      if (!group) throw new Error("GROUP_NOT_FOUND");
+      await addStudyGroupMember(tx, group, userId, role);
     });
 
     revalidatePath("/admin/groups");
     revalidatePath("/dashboard/groups");
     return { success: true };
   } catch (err: any) {
+    if (err.message === "GROUP_NOT_FOUND") return { success: false, error: "Kelompok belajar tidak ditemukan" };
+    if (err.message === "ALREADY_MEMBER") return { success: false, error: "Pengguna sudah tergabung dalam kelompok ini" };
     console.error("Failed to add group member:", err);
     return { success: false, error: "Gagal menambahkan anggota ke kelompok" };
   }
@@ -550,9 +431,9 @@ export async function removeGroupMember(groupId: string, userId: string) {
   await assertAdmin();
 
   try {
-    await db
-      .delete(groupMembers)
-      .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)));
+    await db.transaction(async (tx) => {
+      if (await lockStudyGroupMembership(tx, groupId)) await removeStudyGroupMember(tx, groupId, userId);
+    });
 
     revalidatePath("/admin/groups");
     revalidatePath("/dashboard/groups");

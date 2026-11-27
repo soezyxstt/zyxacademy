@@ -8,6 +8,7 @@ import tempfile
 import unittest
 
 from prepare_worker_runtime import CI_KEYS, TARGETS, prepare_worker_runtime
+from staging_authoring_browser import staging_browser_settings
 
 
 def fixture(environment):
@@ -25,6 +26,7 @@ def fixture(environment):
         "COMPUTE_SERVICE_SECRET": "synthetic-compute", "DIKTAT_RENDERER_SECRET": "synthetic-renderer",
         "DIKTAT_RENDERER_URL": target["renderer"], "CF_ACCOUNT_ID": "synthetic-account",
         "CF_API_TOKEN": "synthetic-browser-token", "NEXT_PUBLIC_APP_URL": target["origin"],
+        **({"STEEL_API_KEY": "synthetic-steel-key"} if environment == "staging" else {}),
     }
 
 
@@ -66,8 +68,38 @@ class WorkerRuntimeTest(unittest.TestCase):
                 self.assertEqual(result["ZYX_ENVIRONMENT"], environment)
                 self.assertEqual(result["ZYX_MCP_ENVIRONMENT"], environment)
                 self.assertEqual(result["BETTER_AUTH_URL"], TARGETS[environment]["origin"])
-                self.assertEqual(result["AUTHORING_VERIFICATION_BROWSER_PROVIDER"], "cloudflare")
+                if environment == "staging":
+                    for name, value in staging_browser_settings().items():
+                        self.assertEqual(result[name], value)
+                else:
+                    self.assertEqual(result["AUTHORING_VERIFICATION_BROWSER_PROVIDER"], "cloudflare")
                 self.assertIn(TARGETS[environment]["branch"], result["COMPUTE_SERVICE_URL"])
+
+    def test_staging_steel_requires_secret_and_overrides_stale_browser_settings(self):
+        source = fixture("staging")
+        result = prepare_worker_runtime("staging", source, {
+            "STEEL_API_KEY": "not-the-secret",
+            "AUTHORING_VERIFICATION_BROWSER_PROVIDER": "cloudflare",
+            "AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION": "1.2.3.4",
+        })
+        self.assertEqual(result["STEEL_API_KEY"], source["STEEL_API_KEY"])
+        for name, value in staging_browser_settings().items():
+            self.assertEqual(result[name], value)
+        for invalid in ("", " ", "[SENSITIVE]"):
+            with self.assertRaisesRegex(ValueError, "WORKER_STEEL_API_KEY_REQUIRED"):
+                prepare_worker_runtime("staging", source | {"STEEL_API_KEY": invalid}, {})
+
+    def test_expo_apns_credentials_only_enter_staging_and_private_keys_use_secrets(self):
+        private = "APNS_EXPO_IOS_DEVELOPMENT_PRIVATE_KEY"
+        key_id = "APNS_EXPO_IOS_DEVELOPMENT_KEY_ID"
+        values = {private: "fixture-private-key", key_id: "FIXTUREKEY"}
+        development = prepare_worker_runtime("staging", fixture("staging") | values, {private: "ignored-variable"})
+        self.assertEqual(development[private], values[private])
+        self.assertEqual(development[key_id], values[key_id])
+        self.assertNotIn(private, prepare_worker_runtime("staging", fixture("staging"), {private: "ignored-variable"}))
+        production = prepare_worker_runtime("production", fixture("production") | values, {})
+        self.assertNotIn(private, production)
+        self.assertNotIn(key_id, production)
 
     def test_ci_credentials_and_unknown_values_are_never_copied(self):
         source = fixture("production") | {key: "synthetic-ci-credential" for key in CI_KEYS}

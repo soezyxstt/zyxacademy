@@ -2,6 +2,7 @@ import { beforeEach, expect, mock, test } from "bun:test";
 
 const objects = ["media/Foo/one.pdf", "media/foo/two.pdf", "legacy/Syllabus Upper/three.pdf"];
 const copied: Array<[string, string]> = [], deleted: string[] = [], uploaded: string[] = [];
+mock.module("server-only", () => ({}));
 mock.module("next/server", () => ({ NextResponse: { json: (body: unknown, init?: ResponseInit) => Response.json(body, init) } }));
 mock.module("@/lib/auth/admin-guards", () => ({ assertAdmin: async () => ({}) }));
 mock.module("@/lib/date-utils", () => ({ formatIsoDateUtc: () => "2026-11-14" }));

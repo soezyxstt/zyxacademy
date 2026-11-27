@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import { db } from "@/db";
-import { blogArticles } from "@/db/schema";
-import { and, count, eq, desc, inArray } from "drizzle-orm";
+import { readMarketingBlogList, type MarketingBlogCard } from "@/lib/blog/marketing-repository";
+import { blogCategories, blogPageSize, parseBlogQuery, blogListHref } from "@/packages/native-parity/operations/public-contract";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { headers } from "next/headers";
@@ -24,18 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 
-const CATEGORIES = [
-  { id: "all", key: "all", value: null },
-  { id: "tips_kuliah", key: "studyTips", value: "tips_kuliah" },
-  { id: "pojok_kampus", key: "campusCorner", value: "pojok_kampus" },
-  { id: "fakta_seru", key: "funFacts", value: "fakta_seru" },
-  { id: "kegiatan_zyx", key: "zyxActivities", value: "kegiatan_zyx" },
-] as const;
-
-type ArticlePreview = Pick<
-  typeof blogArticles.$inferSelect,
-  "id" | "slug" | "title" | "summary" | "status" | "category" | "thumbnailUrl" | "publishedAt" | "readMinutes"
->;
+const CATEGORIES = [{ id: null, key: "all" }, ...blogCategories] as const;
 
 interface BlogPageProps {
   searchParams: Promise<{ category?: string; page?: string }>;
@@ -44,8 +32,7 @@ interface BlogPageProps {
 export default async function BlogPage({ searchParams }: BlogPageProps) {
   const t = await getTranslations("marketing");
   const resolvedParams = await searchParams;
-  const requestedCategory = resolvedParams.category || null;
-  const activeCategory = CATEGORIES.find(category => category.value === requestedCategory)?.value ?? null;
+  const { category: activeCategory, page } = parseBlogQuery(resolvedParams.category ?? null, resolvedParams.page ?? null);
 
   const h = await headers();
   const session = await auth.api.getSession({ headers: h });
@@ -56,37 +43,9 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
       userRole === "admin" ||
       userRole === "teacher");
 
-  const statusFilter = isAdminOrTeacher
-    ? inArray(blogArticles.status, ["published", "draft"])
-    : eq(blogArticles.status, "published");
-
-  const pageSize = 12;
-  const cards = (category: typeof blogArticles.$inferSelect.category | null, limit: number, offset = 0) =>
-    db.query.blogArticles.findMany({
-      columns: { id: true, slug: true, title: true, summary: true, status: true, category: true, thumbnailUrl: true, publishedAt: true, readMinutes: true },
-      where: and(statusFilter, category ? eq(blogArticles.category, category) : undefined),
-      orderBy: [desc(blogArticles.publishedAt), desc(blogArticles.createdAt), desc(blogArticles.id)],
-      limit,
-      offset,
-    });
-  const requestedPage = Number(resolvedParams.page ?? 1);
-  const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 && requestedPage <= 1_000_000 ? requestedPage : 1;
-  const [countRows, articles, previews] = await Promise.all([
-    db.select({ total: count() }).from(blogArticles).where(and(statusFilter, activeCategory ? eq(blogArticles.category, activeCategory) : undefined)),
-    activeCategory ? cards(activeCategory, pageSize, (page - 1) * pageSize) : cards(null, 3),
-    activeCategory ? [] : Promise.all(CATEGORIES.filter(category => category.value !== null).map(category => cards(category.value, 6))),
-  ]);
-  const total = countRows[0]?.total ?? 0;
+  const { total, articles, sections } = await readMarketingBlogList(activeCategory, page, Boolean(isAdminOrTeacher));
   const [leadArticle, ...recentArticles] = articles;
-  const featuredIds = new Set(articles.map((article) => article.id));
-  const categoryPreviews = previews.flat();
-  const categorySections = CATEGORIES.flatMap((category) => {
-    const entries = categoryPreviews
-      .filter((article) => article.category === category.value && !featuredIds.has(article.id))
-      .slice(0, 3);
-    return entries.length ? [{ category, entries }] : [];
-  });
-  const activeCategoryData = CATEGORIES.find((category) => category.value === activeCategory);
+  const activeCategoryData = CATEGORIES.find((category) => category.id === activeCategory);
   const activeCategoryName = activeCategoryData ? t(`blog.categories.${activeCategoryData.key}`) : null;
 
   return (
@@ -104,11 +63,11 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
         <div className="marketing-container space-y-8 pb-10 lg:space-y-12 lg:pb-14">
           <nav aria-label={t("blog.categoryNav")} className="flex flex-wrap gap-x-5 gap-y-1 border-b border-border py-2">
             {CATEGORIES.map((category) => {
-              const href = category.value ? `/blog?category=${category.value}` : "/blog";
-              const isActive = category.value === activeCategory;
+              const href = blogListHref(category.id);
+              const isActive = category.id === activeCategory;
               return (
                 <LocalizedPublicLink
-                  key={category.id}
+                  key={category.id ?? "all"}
                   href={href}
                   aria-current={isActive ? "page" : undefined}
                   className={cn(
@@ -140,10 +99,10 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
               ) : (
                 <BlogEmptyState title={t("blog.emptyTitle")} />
               )}
-              {(page > 1 || page * pageSize < total) && (
+              {(page > 1 || page * blogPageSize < total) && (
                 <nav className="flex gap-4 text-body-sm text-primary" aria-label={t("blog.pagination")}>
-                  {page > 1 && <LocalizedPublicLink href={`/blog?category=${activeCategory}&page=${Math.min(page - 1, Math.max(1, Math.ceil(total / pageSize)))}`}>{t("blog.previous")}</LocalizedPublicLink>}
-                  {page * pageSize < total && <LocalizedPublicLink href={`/blog?category=${activeCategory}&page=${page + 1}`}>{t("blog.next")}</LocalizedPublicLink>}
+                  {page > 1 && <LocalizedPublicLink href={`/blog?category=${activeCategory}&page=${Math.min(page - 1, Math.max(1, Math.ceil(total / blogPageSize)))}`}>{t("blog.previous")}</LocalizedPublicLink>}
+                  {page * blogPageSize < total && <LocalizedPublicLink href={`/blog?category=${activeCategory}&page=${page + 1}`}>{t("blog.next")}</LocalizedPublicLink>}
                 </nav>
               )}
             </section>
@@ -168,14 +127,15 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
                 )}
               </section>
 
-              {categorySections.length > 0 && (
+              {sections.length > 0 && (
                 <Reveal>
                   <div className="space-y-6 gap-8 lg:columns-2">
-                    {categorySections.map(({ category, entries }) => {
+                    {sections.map(({ category: id, entries }) => {
+                      const category = blogCategories.find((item) => item.id === id)!;
                       const headingId = `blog-${category.id}-heading`;
                       const linkId = `blog-${category.id}-link`;
                       return (
-                        <section key={category.id} aria-labelledby={headingId} className="min-w-0" style={{ breakInside: "avoid-column" }}>
+                        <section key={category.id ?? "all"} aria-labelledby={headingId} className="min-w-0" style={{ breakInside: "avoid-column" }}>
                           <div className="flex flex-wrap items-center justify-between gap-x-4 border-b border-border">
                             <h2 id={headingId} className="font-heading text-body-base font-bold">
                               {t(`blog.categories.${category.key}`)}
@@ -183,7 +143,7 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
                             <LocalizedPublicLink
                               id={linkId}
                               aria-labelledby={`${linkId} ${headingId}`}
-                              href={`/blog?category=${category.value}`}
+                              href={blogListHref(category.id)}
                               className="inline-flex min-h-10 items-center text-body-sm font-semibold text-primary hover:underline"
                             >
                               {t("blog.viewAll")}
@@ -225,7 +185,7 @@ function BlogEmptyState({ title }: { title: string }) {
 }
 
 function ArticleEntry({ article, t, featured = false }: {
-  article: ArticlePreview;
+  article: MarketingBlogCard;
   t: Awaited<ReturnType<typeof getTranslations>>;
   featured?: boolean;
 }) {

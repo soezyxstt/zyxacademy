@@ -1,0 +1,2794 @@
+{
+  "repository": "soezyxstt/zyxacademy",
+  "workflowHeadSha": "6fda5518d1e845b19d54e5e50ee9c1381b0a3d1b",
+  "gitHubRun": 45864189557,
+  "gitHubJob": 140062654565,
+  "jobConclusion": "failure",
+  "captureStep": {
+    "name": "Run reactivecircus/android-emulator-runner@v2.38.0",
+    "status": "completed",
+    "conclusion": "failure",
+    "number": 19,
+    "started_at": "2026-11-26T17:16:15Z",
+    "completed_at": "2026-11-26T17:27:37Z"
+  },
+  "device": {
+    "platform": "android",
+    "api": 35,
+    "density": 1,
+    "pixels": [
+      380,
+      844
+    ],
+    "timeZone": "Etc/UTC"
+  },
+  "artifact": {
+    "id": 15140539093,
+    "name": "operations-android",
+    "sizeBytes": 16362392,
+    "digest": "sha256:57fdccfe88e12b8ac3ed4a9c643b56dba3b64aa43912f823b038f7e31a8a1c73"
+  },
+  "junitSuite": {
+    "name": "Operations on Android",
+    "tests": "155",
+    "failures": "1",
+    "time": "558.074"
+  },
+  "flowCounts": {
+    "SUCCESS": 154,
+    "FAILED": 1
+  },
+  "expectedScreens": 175,
+  "recordedScreens": 174,
+  "screenArchive": {
+    "path": "named-screens.tar.xz",
+    "sha256": "d2dee05f5474edb9fd71f313f286846a45d70eb225b9774af05024cbb051e446",
+    "files": 174
+  },
+  "flowTraceArchive": {
+    "path": "flow-traces.tar.xz",
+    "sha256": "add0d11917c5ef2a9afcf63a25c41a173fe6ccc920de30c00323a8f0aaa4daac",
+    "files": 173
+  },
+  "reports": [
+    {
+      "artifactPath": "report.xml",
+      "path": "report.xml",
+      "sha256": "8ef0a813287d99c0b5983c727151afac41a91fba797bba53a15536414c4a5eb4"
+    },
+    {
+      "artifactPath": "comparison.json",
+      "path": "comparison.json",
+      "sha256": "4106be18f81995d7d56497d70a1468144ed76ac40006fbcbec714e916c0b29b3"
+    },
+    {
+      "artifactPath": "cases/manifest.json",
+      "path": "case-manifest.json",
+      "sha256": "5a7626e690c317ac0dd6d5c1ca56aab6f1712259b10f5269f54a72daa5da9042"
+    },
+    {
+      "artifactPath": "missing-captures.json",
+      "path": "missing-captures.json",
+      "sha256": "09de2257be16d0cfc4996f4aa2a1c95d7d4bec2636d9607f018debe64d55e05b"
+    },
+    {
+      "artifactPath": "timezone.txt",
+      "path": "timezone.txt",
+      "sha256": "f0dcac7b1d721d2f68937a71f0229b4c4f88564fd711339951528889913cd85d"
+    },
+    {
+      "artifactPath": "reports/00-journeys-retry.xml",
+      "path": "reports/00-journeys-retry.xml",
+      "sha256": "b65f789c9707f07df702b282c78c638e8695bb51a38edffff783337548214b3a"
+    },
+    {
+      "artifactPath": "reports/00-journeys.xml",
+      "path": "reports/00-journeys.xml",
+      "sha256": "f8a51941293d3f7be42d8e87493f91cf05a184e95078085042050942a1c602ad"
+    },
+    {
+      "artifactPath": "reports/01-cases.xml",
+      "path": "reports/01-cases.xml",
+      "sha256": "9369ea297765a557d52e90885834bffa37f14816dc5e4209334a68d860f1d11d"
+    },
+    {
+      "artifactPath": "reports/02-cases.xml",
+      "path": "reports/02-cases.xml",
+      "sha256": "f39be92e80767398ba451ae024a3daff5c0bf5c5bf7910f51c2d89ffd92bec96"
+    },
+    {
+      "artifactPath": "reports/03-cases.xml",
+      "path": "reports/03-cases.xml",
+      "sha256": "005a390a2c66b194bee264672a1c76545d0e7abc2ea63fa651ae41855752a501"
+    },
+    {
+      "artifactPath": "reports/04-cases-retry.xml",
+      "path": "reports/04-cases-retry.xml",
+      "sha256": "6b3b4b7ff6ed8fa08896b39ef3cb458e369c5ba95bdfa366a215d120c11f4bdd"
+    },
+    {
+      "artifactPath": "reports/04-cases.xml",
+      "path": "reports/04-cases.xml",
+      "sha256": "31af7990c3b2e8d7ddaea046c5e6dd8ae50dfffa8714f0b13a6bd7cd1953f1e4"
+    },
+    {
+      "artifactPath": "reports/05-cases.xml",
+      "path": "reports/05-cases.xml",
+      "sha256": "2ca1a470c3203388173fecd1fe2659bd949f784886a6e349934978016545c65b"
+    }
+  ],
+  "screens": [
+    {
+      "flow": "Operations admin authoring, recovery and confirmation",
+      "slot": "management-blog-invalid.png",
+      "artifactPath": "results/00-journeys/2026-11-26_171710/Operations admin authoring, recovery and confirmation/takeScreenshot/management-blog-invalid.png",
+      "collectedArtifactPath": "management-blog-invalid.png",
+      "sha256": "de1609eca9a5dacb65b3e673bd8bc24ca3df54ec5bd81a79bed30b2bed17171d",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 20,
+      "trace": "results/00-journeys/2026-11-26_171710/Operations admin authoring, recovery and confirmation/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "Operations admin authoring, recovery and confirmation",
+      "slot": "management-blog-populated.png",
+      "artifactPath": "results/00-journeys/2026-11-26_171710/Operations admin authoring, recovery and confirmation/takeScreenshot/management-blog-populated.png",
+      "collectedArtifactPath": "management-blog-populated.png",
+      "sha256": "0e6ec8a70ac2646ea415dfd7d06858e806aaefb66f549e26af87f7a58330f2f5",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 9,
+      "trace": "results/00-journeys/2026-11-26_171710/Operations admin authoring, recovery and confirmation/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "Operations admin authoring, recovery and confirmation",
+      "slot": "management-blog-preview.png",
+      "artifactPath": "results/00-journeys/2026-11-26_171710/Operations admin authoring, recovery and confirmation/takeScreenshot/management-blog-preview.png",
+      "collectedArtifactPath": "management-blog-preview.png",
+      "sha256": "28c38f2c7402a65f817bbc03f1174f6f936afb5c0f4d91091a59e29239d7ae43",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 14,
+      "trace": "results/00-journeys/2026-11-26_171710/Operations admin authoring, recovery and confirmation/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "Operations admin authoring, recovery and confirmation",
+      "slot": "management-denied.png",
+      "artifactPath": "results/00-journeys/2026-11-26_171710/Operations admin authoring, recovery and confirmation/takeScreenshot/management-denied.png",
+      "collectedArtifactPath": "management-denied.png",
+      "sha256": "d93a8de4ef8219262cb8063680a8dbb1f3773b8d74922dbae915737326bdff39",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 38,
+      "trace": "results/00-journeys/2026-11-26_171710/Operations admin authoring, recovery and confirmation/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "Operations admin authoring, recovery and confirmation",
+      "slot": "management-form-summary.png",
+      "artifactPath": "results/00-journeys/2026-11-26_171710/Operations admin authoring, recovery and confirmation/takeScreenshot/management-form-summary.png",
+      "collectedArtifactPath": "management-form-summary.png",
+      "sha256": "0ef50fdf74b70506f1e53e5d21b578028c1d2da242e65636767bbba3fac7b82f",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 25,
+      "trace": "results/00-journeys/2026-11-26_171710/Operations admin authoring, recovery and confirmation/commands.json",
+      "comparisonDiffs": [
+        "diffs/management-form-summary-diff.png"
+      ]
+    },
+    {
+      "flow": "Operations admin authoring, recovery and confirmation",
+      "slot": "management-link-confirmation.png",
+      "artifactPath": "results/00-journeys/2026-11-26_171710/Operations admin authoring, recovery and confirmation/takeScreenshot/management-link-confirmation.png",
+      "collectedArtifactPath": "management-link-confirmation.png",
+      "sha256": "123860b790cf7db6b929f0e10a7625832cb95fc83ee73029a02572ee0c4f73ea",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 31,
+      "trace": "results/00-journeys/2026-11-26_171710/Operations admin authoring, recovery and confirmation/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "Operations evaluation question and generation recovery",
+      "slot": "evaluation-active.png",
+      "artifactPath": "results/00-journeys/2026-11-26_171710/Operations evaluation question and generation recovery/takeScreenshot/evaluation-active.png",
+      "collectedArtifactPath": "evaluation-active.png",
+      "sha256": "bd5192acbcb46c3037051100c1eccc3fc7ebfa041619e7fab92610144d3da443",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 8,
+      "trace": "results/00-journeys/2026-11-26_171710/Operations evaluation question and generation recovery/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "Operations evaluation question and generation recovery",
+      "slot": "evaluation-ast-denied.png",
+      "artifactPath": "results/00-journeys/2026-11-26_171710/Operations evaluation question and generation recovery/takeScreenshot/evaluation-ast-denied.png",
+      "collectedArtifactPath": "evaluation-ast-denied.png",
+      "sha256": "948c236d12b2eadc006dbe098cb161c82a95581b1e8988e0ccab5a9650bebc83",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 26,
+      "trace": "results/00-journeys/2026-11-26_171710/Operations evaluation question and generation recovery/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "Operations evaluation question and generation recovery",
+      "slot": "evaluation-distractors-empty.png",
+      "artifactPath": "results/00-journeys/2026-11-26_171710/Operations evaluation question and generation recovery/takeScreenshot/evaluation-distractors-empty.png",
+      "collectedArtifactPath": "evaluation-distractors-empty.png",
+      "sha256": "df5fa83f9402810c32b46a8dfd62965ce6858ae877825cd6af5ff69b2eeefa5f",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 21,
+      "trace": "results/00-journeys/2026-11-26_171710/Operations evaluation question and generation recovery/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "Operations evaluation question and generation recovery",
+      "slot": "evaluation-historical.png",
+      "artifactPath": "results/00-journeys/2026-11-26_171710/Operations evaluation question and generation recovery/takeScreenshot/evaluation-historical.png",
+      "collectedArtifactPath": "evaluation-historical.png",
+      "sha256": "b08b17390de86a8699d846d072d36f09236cbb929bdc7e7abdb5124e728a693e",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 11,
+      "trace": "results/00-journeys/2026-11-26_171710/Operations evaluation question and generation recovery/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "Operations evaluation question and generation recovery",
+      "slot": "evaluation-jobs.png",
+      "artifactPath": "results/00-journeys/2026-11-26_171710/Operations evaluation question and generation recovery/takeScreenshot/evaluation-jobs.png",
+      "collectedArtifactPath": "evaluation-jobs.png",
+      "sha256": "d755d85f21c1c3e101da5a2fd1e08e76fae9289dec29cfdb604bc8eaabe0028f",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 17,
+      "trace": "results/00-journeys/2026-11-26_171710/Operations evaluation question and generation recovery/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "Operations public blog list, detail, Back and retry",
+      "slot": "blog-detail.png",
+      "artifactPath": "results/00-journeys/2026-11-26_171710/Operations public blog list, detail, Back and retry/takeScreenshot/blog-detail.png",
+      "collectedArtifactPath": "blog-detail.png",
+      "sha256": "79b2eed55d1c8efc6a5b6bb91c48aa3e3c58c0eef389da90ef087e7a721bd971",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 12,
+      "trace": "results/00-journeys/2026-11-26_171710/Operations public blog list, detail, Back and retry/commands.json",
+      "comparisonDiffs": [
+        "diffs/blog-detail-diff.png"
+      ]
+    },
+    {
+      "flow": "Operations public blog list, detail, Back and retry",
+      "slot": "blog-empty-dark.png",
+      "artifactPath": "results/00-journeys/2026-11-26_171710/Operations public blog list, detail, Back and retry/takeScreenshot/blog-empty-dark.png",
+      "collectedArtifactPath": "blog-empty-dark.png",
+      "sha256": "ba4e3b2cb4119de1ed48720e1875b735d368abb6d14ec2a53e61e8e6bcb3df21",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 18,
+      "trace": "results/00-journeys/2026-11-26_171710/Operations public blog list, detail, Back and retry/commands.json",
+      "comparisonDiffs": [
+        "diffs/blog-empty-dark-diff.png"
+      ]
+    },
+    {
+      "flow": "Operations public blog list, detail, Back and retry",
+      "slot": "blog-list.png",
+      "artifactPath": "results/00-journeys/2026-11-26_171710/Operations public blog list, detail, Back and retry/takeScreenshot/blog-list.png",
+      "collectedArtifactPath": "blog-list.png",
+      "sha256": "df5d971454d8c92b3c3520c7883a9c4a5b6a6b07e93b27d4d6310607bbebebd5",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 9,
+      "trace": "results/00-journeys/2026-11-26_171710/Operations public blog list, detail, Back and retry/commands.json",
+      "comparisonDiffs": [
+        "diffs/blog-list-diff.png"
+      ]
+    },
+    {
+      "flow": "Operations public demo completion, study planning and tryout list",
+      "slot": "demo-mastery.png",
+      "artifactPath": "results/00-journeys/2026-11-26_171710/Operations public demo completion, study planning and tryout list/takeScreenshot/demo-mastery.png",
+      "collectedArtifactPath": "demo-mastery.png",
+      "sha256": "3a2a20d5d98b3be72c3d8ee3c6a119afc38c47719324ad1346e4f04c0bbc5493",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 16,
+      "trace": "results/00-journeys/2026-11-26_171710/Operations public demo completion, study planning and tryout list/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "Operations public demo completion, study planning and tryout list",
+      "slot": "demo-path-planned.png",
+      "artifactPath": "results/00-journeys/2026-11-26_171710/Operations public demo completion, study planning and tryout list/takeScreenshot/demo-path-planned.png",
+      "collectedArtifactPath": "demo-path-planned.png",
+      "sha256": "e23ead4ec0ca741cce4266ac64b7a589c16b9362e492987bc8b372cfb4b5785b",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 31,
+      "trace": "results/00-journeys/2026-11-26_171710/Operations public demo completion, study planning and tryout list/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "Operations public demo completion, study planning and tryout list",
+      "slot": "demo-progress.png",
+      "artifactPath": "results/00-journeys/2026-11-26_171710/Operations public demo completion, study planning and tryout list/takeScreenshot/demo-progress.png",
+      "collectedArtifactPath": "demo-progress.png",
+      "sha256": "5127c768f0644fdfdd053b7e9dd5cfb9d3df65212bc1168c3f931fc62c95c2c1",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 12,
+      "trace": "results/00-journeys/2026-11-26_171710/Operations public demo completion, study planning and tryout list/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "Operations public demo completion, study planning and tryout list",
+      "slot": "demo-tryout-list.png",
+      "artifactPath": "results/00-journeys/2026-11-26_171710/Operations public demo completion, study planning and tryout list/takeScreenshot/demo-tryout-list.png",
+      "collectedArtifactPath": "demo-tryout-list.png",
+      "sha256": "2cd1ccb9bc80831a48bbc80f573e4f30aedf67272308c4f121fe65fb5b69afe6",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 38,
+      "trace": "results/00-journeys/2026-11-26_171710/Operations public demo completion, study planning and tryout list/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "Operations public homepage learning interactions",
+      "slot": "landing-flashcard-reviewed.png",
+      "artifactPath": "results/00-journeys/2026-11-26_171710/Operations public homepage learning interactions/takeScreenshot/landing-flashcard-reviewed.png",
+      "collectedArtifactPath": "landing-flashcard-reviewed.png",
+      "sha256": "930043b848ead0147023dc283b8bbf8744651398d7ed1e3b2a7930fbbb26958f",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 25,
+      "trace": "results/00-journeys/2026-11-26_171710/Operations public homepage learning interactions/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "Operations public homepage learning interactions",
+      "slot": "landing-mastery-profile.png",
+      "artifactPath": "results/00-journeys/2026-11-26_171710/Operations public homepage learning interactions/takeScreenshot/landing-mastery-profile.png",
+      "collectedArtifactPath": "landing-mastery-profile.png",
+      "sha256": "ae1c89786e4b8f5378ee913496c90741fb3b4827e7d9cc5faa592c64ddcb9e8a",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 29,
+      "trace": "results/00-journeys/2026-11-26_171710/Operations public homepage learning interactions/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "Operations public homepage learning interactions",
+      "slot": "landing-quiz-feedback.png",
+      "artifactPath": "results/00-journeys/2026-11-26_171710/Operations public homepage learning interactions/takeScreenshot/landing-quiz-feedback.png",
+      "collectedArtifactPath": "landing-quiz-feedback.png",
+      "sha256": "b3a8fcdc14a9d29341e94169e5a99880eae1412274390504d1e7277a0f09a56d",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 9,
+      "trace": "results/00-journeys/2026-11-26_171710/Operations public homepage learning interactions/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "Operations question Idea weights and draft revision",
+      "slot": "evaluation-idea-weights.png",
+      "artifactPath": "results/00-journeys/2026-11-26_171710/Operations question Idea weights and draft revision/takeScreenshot/evaluation-idea-weights.png",
+      "collectedArtifactPath": "evaluation-idea-weights.png",
+      "sha256": "367677ecb6bd554043bc34315398b21c2cd3e3458d6eef5ed67bbd431b3e9b1a",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 15,
+      "trace": "results/00-journeys/2026-11-26_171710/Operations question Idea weights and draft revision/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "Operations short link copy and QR",
+      "slot": "short-links-qr.png",
+      "artifactPath": "results/00-journeys/2026-11-26_171710/Operations short link copy and QR/takeScreenshot/short-links-qr.png",
+      "collectedArtifactPath": "short-links-qr.png",
+      "sha256": "acd508312abf705dd7a0b93e920b2b155f43474675620013d0e512275800a105",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 13,
+      "trace": "results/00-journeys/2026-11-26_171710/Operations short link copy and QR/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "Operations Admin home to Web Analytics and access denial",
+      "slot": "feature-usage-empty-range.png",
+      "artifactPath": "results/00-journeys-retry/2026-11-26_172021/Operations Admin home to Web Analytics and access denial/takeScreenshot/feature-usage-empty-range.png",
+      "collectedArtifactPath": "feature-usage-empty-range.png",
+      "sha256": "713e13f9583ed723e2044e60b3189133cd64b5f03b14d20432f1880709a60de9",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 33,
+      "trace": "results/00-journeys-retry/2026-11-26_172021/Operations Admin home to Web Analytics and access denial/commands.json",
+      "comparisonDiffs": [
+        "diffs/feature-usage-empty-range-diff.png"
+      ]
+    },
+    {
+      "flow": "Operations Admin home to Web Analytics and access denial",
+      "slot": "feature-usage.png",
+      "artifactPath": "results/00-journeys-retry/2026-11-26_172021/Operations Admin home to Web Analytics and access denial/takeScreenshot/feature-usage.png",
+      "collectedArtifactPath": "feature-usage.png",
+      "sha256": "6ade93a557b708bd1e75278a9d247bdbad668b4038da7fcb7787d4d270f515b7",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 29,
+      "trace": "results/00-journeys-retry/2026-11-26_172021/Operations Admin home to Web Analytics and access denial/commands.json",
+      "comparisonDiffs": [
+        "diffs/feature-usage-diff.png"
+      ]
+    },
+    {
+      "flow": "Operations Admin home to Web Analytics and access denial",
+      "slot": "web-analytics-denied.png",
+      "artifactPath": "results/00-journeys-retry/2026-11-26_172021/Operations Admin home to Web Analytics and access denial/takeScreenshot/web-analytics-denied.png",
+      "collectedArtifactPath": "web-analytics-denied.png",
+      "sha256": "5e3ba114b8de45b547be13ef1022f9e0ed82e82fc0e62cd40eb4d3de2b2f9ae9",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 20,
+      "trace": "results/00-journeys-retry/2026-11-26_172021/Operations Admin home to Web Analytics and access denial/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "Operations Admin home to Web Analytics and access denial",
+      "slot": "web-analytics-empty-dark.png",
+      "artifactPath": "results/00-journeys-retry/2026-11-26_172021/Operations Admin home to Web Analytics and access denial/takeScreenshot/web-analytics-empty-dark.png",
+      "collectedArtifactPath": "web-analytics-empty-dark.png",
+      "sha256": "1a127642e757cc35cf21a2ec13e4006f7248f63361d05296d22edb6b77adb6c4",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 15,
+      "trace": "results/00-journeys-retry/2026-11-26_172021/Operations Admin home to Web Analytics and access denial/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "Operations Admin home to Web Analytics and access denial",
+      "slot": "web-analytics.png",
+      "artifactPath": "results/00-journeys-retry/2026-11-26_172021/Operations Admin home to Web Analytics and access denial/takeScreenshot/web-analytics.png",
+      "collectedArtifactPath": "web-analytics.png",
+      "sha256": "ff36bc6d2874b6d6e265e4ef7f02975b77934e47bdd449ab142bbc00d112a3d7",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 11,
+      "trace": "results/00-journeys-retry/2026-11-26_172021/Operations Admin home to Web Analytics and access denial/commands.json",
+      "comparisonDiffs": [
+        "diffs/web-analytics-diff.png"
+      ]
+    },
+    {
+      "flow": "operations-evaluation-assessment-detail-alternate",
+      "slot": "cases/operations-evaluation-assessment-detail-alternate.png",
+      "artifactPath": "results/01-cases/2026-11-26_172052/operations-evaluation-assessment-detail-alternate/takeScreenshot/operations-evaluation-assessment-detail-alternate.png",
+      "collectedArtifactPath": "cases/operations-evaluation-assessment-detail-alternate.png",
+      "sha256": "23fc4daf503555f256f7464cdd4a215ce019b25f3de42e50ac88137f0682ed0e",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/01-cases/2026-11-26_172052/operations-evaluation-assessment-detail-alternate/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-evaluation-assessment-detail-populated",
+      "slot": "cases/operations-evaluation-assessment-detail-populated.png",
+      "artifactPath": "results/01-cases/2026-11-26_172052/operations-evaluation-assessment-detail-populated/takeScreenshot/operations-evaluation-assessment-detail-populated.png",
+      "collectedArtifactPath": "cases/operations-evaluation-assessment-detail-populated.png",
+      "sha256": "5616dedd4ff21a894a1e50bfc3c27d45653cd9b9d6679dadc3d94db0623f4804",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/01-cases/2026-11-26_172052/operations-evaluation-assessment-detail-populated/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-evaluation-assessment-detail-recovery",
+      "slot": "cases/operations-evaluation-assessment-detail-recovery.png",
+      "artifactPath": "results/01-cases/2026-11-26_172052/operations-evaluation-assessment-detail-recovery/takeScreenshot/operations-evaluation-assessment-detail-recovery.png",
+      "collectedArtifactPath": "cases/operations-evaluation-assessment-detail-recovery.png",
+      "sha256": "6d567eaf2e51ef5fd0d1e75c54279cd0cdaf3380b6841971b5a8e4cc1a91a948",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/01-cases/2026-11-26_172052/operations-evaluation-assessment-detail-recovery/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-evaluation-assessments-alternate",
+      "slot": "cases/operations-evaluation-assessments-alternate.png",
+      "artifactPath": "results/01-cases/2026-11-26_172052/operations-evaluation-assessments-alternate/takeScreenshot/operations-evaluation-assessments-alternate.png",
+      "collectedArtifactPath": "cases/operations-evaluation-assessments-alternate.png",
+      "sha256": "23fc4daf503555f256f7464cdd4a215ce019b25f3de42e50ac88137f0682ed0e",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/01-cases/2026-11-26_172052/operations-evaluation-assessments-alternate/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-evaluation-assessments-populated",
+      "slot": "cases/operations-evaluation-assessments-populated.png",
+      "artifactPath": "results/01-cases/2026-11-26_172052/operations-evaluation-assessments-populated/takeScreenshot/operations-evaluation-assessments-populated.png",
+      "collectedArtifactPath": "cases/operations-evaluation-assessments-populated.png",
+      "sha256": "5616dedd4ff21a894a1e50bfc3c27d45653cd9b9d6679dadc3d94db0623f4804",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/01-cases/2026-11-26_172052/operations-evaluation-assessments-populated/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-evaluation-assessments-recovery",
+      "slot": "cases/operations-evaluation-assessments-recovery.png",
+      "artifactPath": "results/01-cases/2026-11-26_172052/operations-evaluation-assessments-recovery/takeScreenshot/operations-evaluation-assessments-recovery.png",
+      "collectedArtifactPath": "cases/operations-evaluation-assessments-recovery.png",
+      "sha256": "6d567eaf2e51ef5fd0d1e75c54279cd0cdaf3380b6841971b5a8e4cc1a91a948",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/01-cases/2026-11-26_172052/operations-evaluation-assessments-recovery/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-evaluation-ast-inspector-alternate",
+      "slot": "cases/operations-evaluation-ast-inspector-alternate.png",
+      "artifactPath": "results/01-cases/2026-11-26_172052/operations-evaluation-ast-inspector-alternate/takeScreenshot/operations-evaluation-ast-inspector-alternate.png",
+      "collectedArtifactPath": "cases/operations-evaluation-ast-inspector-alternate.png",
+      "sha256": "5633404a0c08b87690edfb17cf5dff26c59544bbd52f4c36b38b8c47c5cfda17",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/01-cases/2026-11-26_172052/operations-evaluation-ast-inspector-alternate/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-evaluation-ast-inspector-populated",
+      "slot": "cases/operations-evaluation-ast-inspector-populated.png",
+      "artifactPath": "results/01-cases/2026-11-26_172052/operations-evaluation-ast-inspector-populated/takeScreenshot/operations-evaluation-ast-inspector-populated.png",
+      "collectedArtifactPath": "cases/operations-evaluation-ast-inspector-populated.png",
+      "sha256": "81420e42de87d3a90d1e544dbde42501487cea530a46832791b8e173c81a78dc",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/01-cases/2026-11-26_172052/operations-evaluation-ast-inspector-populated/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-evaluation-ast-inspector-recovery",
+      "slot": "cases/operations-evaluation-ast-inspector-recovery.png",
+      "artifactPath": "results/01-cases/2026-11-26_172052/operations-evaluation-ast-inspector-recovery/takeScreenshot/operations-evaluation-ast-inspector-recovery.png",
+      "collectedArtifactPath": "cases/operations-evaluation-ast-inspector-recovery.png",
+      "sha256": "eaddff367a291f2cf59dff16092474807d43f05e14ebeda9941e4386e8c23995",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/01-cases/2026-11-26_172052/operations-evaluation-ast-inspector-recovery/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-evaluation-diktats-alternate",
+      "slot": "cases/operations-evaluation-diktats-alternate.png",
+      "artifactPath": "results/01-cases/2026-11-26_172052/operations-evaluation-diktats-alternate/takeScreenshot/operations-evaluation-diktats-alternate.png",
+      "collectedArtifactPath": "cases/operations-evaluation-diktats-alternate.png",
+      "sha256": "f3d31d1176bc1c356b94089e756ba65751cb49ffd514e1975e1cf38c572a513a",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/01-cases/2026-11-26_172052/operations-evaluation-diktats-alternate/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-evaluation-diktats-populated",
+      "slot": "cases/operations-evaluation-diktats-populated.png",
+      "artifactPath": "results/01-cases/2026-11-26_172052/operations-evaluation-diktats-populated/takeScreenshot/operations-evaluation-diktats-populated.png",
+      "collectedArtifactPath": "cases/operations-evaluation-diktats-populated.png",
+      "sha256": "78da9d9352d0c15a78db62ad5fa605fb8e5341f54037522872ae7e73869cefb9",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/01-cases/2026-11-26_172052/operations-evaluation-diktats-populated/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-evaluation-diktats-recovery",
+      "slot": "cases/operations-evaluation-diktats-recovery.png",
+      "artifactPath": "results/01-cases/2026-11-26_172052/operations-evaluation-diktats-recovery/takeScreenshot/operations-evaluation-diktats-recovery.png",
+      "collectedArtifactPath": "cases/operations-evaluation-diktats-recovery.png",
+      "sha256": "6d567eaf2e51ef5fd0d1e75c54279cd0cdaf3380b6841971b5a8e4cc1a91a948",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/01-cases/2026-11-26_172052/operations-evaluation-diktats-recovery/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-evaluation-distractors-alternate",
+      "slot": "cases/operations-evaluation-distractors-alternate.png",
+      "artifactPath": "results/01-cases/2026-11-26_172052/operations-evaluation-distractors-alternate/takeScreenshot/operations-evaluation-distractors-alternate.png",
+      "collectedArtifactPath": "cases/operations-evaluation-distractors-alternate.png",
+      "sha256": "951da4a65b4cce62287f499a0d0b4bcab7d361f72e4ccf55e6b39627b74d577a",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/01-cases/2026-11-26_172052/operations-evaluation-distractors-alternate/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-evaluation-distractors-populated",
+      "slot": "cases/operations-evaluation-distractors-populated.png",
+      "artifactPath": "results/01-cases/2026-11-26_172052/operations-evaluation-distractors-populated/takeScreenshot/operations-evaluation-distractors-populated.png",
+      "collectedArtifactPath": "cases/operations-evaluation-distractors-populated.png",
+      "sha256": "2fe776d2b01b66ca409f1023bb88147ede00d42c84c8d8d1ef90076629a202a5",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/01-cases/2026-11-26_172052/operations-evaluation-distractors-populated/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-evaluation-distractors-recovery",
+      "slot": "cases/operations-evaluation-distractors-recovery.png",
+      "artifactPath": "results/01-cases/2026-11-26_172052/operations-evaluation-distractors-recovery/takeScreenshot/operations-evaluation-distractors-recovery.png",
+      "collectedArtifactPath": "cases/operations-evaluation-distractors-recovery.png",
+      "sha256": "916fd27995216420e8a813b74b3875fc30b4e5e67c9b38a2d546382bc1865ac8",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/01-cases/2026-11-26_172052/operations-evaluation-distractors-recovery/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-evaluation-jobs-alternate",
+      "slot": "cases/operations-evaluation-jobs-alternate.png",
+      "artifactPath": "results/01-cases/2026-11-26_172052/operations-evaluation-jobs-alternate/takeScreenshot/operations-evaluation-jobs-alternate.png",
+      "collectedArtifactPath": "cases/operations-evaluation-jobs-alternate.png",
+      "sha256": "635bc18f54b0c3db39b910977720904d355fed82b9e43fdedc69842e764aa595",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/01-cases/2026-11-26_172052/operations-evaluation-jobs-alternate/commands.json",
+      "comparisonDiffs": [
+        "diffs/operations-evaluation-jobs-alternate-diff.png"
+      ]
+    },
+    {
+      "flow": "operations-evaluation-jobs-populated",
+      "slot": "cases/operations-evaluation-jobs-populated.png",
+      "artifactPath": "results/01-cases/2026-11-26_172052/operations-evaluation-jobs-populated/takeScreenshot/operations-evaluation-jobs-populated.png",
+      "collectedArtifactPath": "cases/operations-evaluation-jobs-populated.png",
+      "sha256": "76b3255c610c6fa2c0e09ba2651aa64e7f39359f97f8aca42a6c42a2cef6b77e",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/01-cases/2026-11-26_172052/operations-evaluation-jobs-populated/commands.json",
+      "comparisonDiffs": [
+        "diffs/operations-evaluation-jobs-populated-diff.png"
+      ]
+    },
+    {
+      "flow": "operations-evaluation-jobs-recovery",
+      "slot": "cases/operations-evaluation-jobs-recovery.png",
+      "artifactPath": "results/01-cases/2026-11-26_172052/operations-evaluation-jobs-recovery/takeScreenshot/operations-evaluation-jobs-recovery.png",
+      "collectedArtifactPath": "cases/operations-evaluation-jobs-recovery.png",
+      "sha256": "0ded816c9b0574aabaa67766a757f271b3ec23aaca35fd05545885c7a70f0e33",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/01-cases/2026-11-26_172052/operations-evaluation-jobs-recovery/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-evaluation-leaderboard-alternate",
+      "slot": "cases/operations-evaluation-leaderboard-alternate.png",
+      "artifactPath": "results/01-cases/2026-11-26_172052/operations-evaluation-leaderboard-alternate/takeScreenshot/operations-evaluation-leaderboard-alternate.png",
+      "collectedArtifactPath": "cases/operations-evaluation-leaderboard-alternate.png",
+      "sha256": "cfc6efe1041dad3232aa6b68b103b2229f470416283a6c8f21b116dcd1519f09",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/01-cases/2026-11-26_172052/operations-evaluation-leaderboard-alternate/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-evaluation-leaderboard-populated",
+      "slot": "cases/operations-evaluation-leaderboard-populated.png",
+      "artifactPath": "results/01-cases/2026-11-26_172052/operations-evaluation-leaderboard-populated/takeScreenshot/operations-evaluation-leaderboard-populated.png",
+      "collectedArtifactPath": "cases/operations-evaluation-leaderboard-populated.png",
+      "sha256": "308be130167fb5592f053a29558641da174b9c2005ad706858fde5fbe283e8ea",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/01-cases/2026-11-26_172052/operations-evaluation-leaderboard-populated/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-evaluation-leaderboard-recovery",
+      "slot": "cases/operations-evaluation-leaderboard-recovery.png",
+      "artifactPath": "results/01-cases/2026-11-26_172052/operations-evaluation-leaderboard-recovery/takeScreenshot/operations-evaluation-leaderboard-recovery.png",
+      "collectedArtifactPath": "cases/operations-evaluation-leaderboard-recovery.png",
+      "sha256": "eee93d24ffff75e43fc7247a4dff4eb82712200b21cf3d982bb14af6e576ef21",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/01-cases/2026-11-26_172052/operations-evaluation-leaderboard-recovery/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-evaluation-questions-alternate",
+      "slot": "cases/operations-evaluation-questions-alternate.png",
+      "artifactPath": "results/01-cases/2026-11-26_172052/operations-evaluation-questions-alternate/takeScreenshot/operations-evaluation-questions-alternate.png",
+      "collectedArtifactPath": "cases/operations-evaluation-questions-alternate.png",
+      "sha256": "ac70d1732f65a783fd0a01327c6057fe36dea330e28cb5de54f9dfac1520a19e",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/01-cases/2026-11-26_172052/operations-evaluation-questions-alternate/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-evaluation-questions-populated",
+      "slot": "cases/operations-evaluation-questions-populated.png",
+      "artifactPath": "results/01-cases/2026-11-26_172052/operations-evaluation-questions-populated/takeScreenshot/operations-evaluation-questions-populated.png",
+      "collectedArtifactPath": "cases/operations-evaluation-questions-populated.png",
+      "sha256": "5616dedd4ff21a894a1e50bfc3c27d45653cd9b9d6679dadc3d94db0623f4804",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/01-cases/2026-11-26_172052/operations-evaluation-questions-populated/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-evaluation-questions-recovery",
+      "slot": "cases/operations-evaluation-questions-recovery.png",
+      "artifactPath": "results/01-cases/2026-11-26_172052/operations-evaluation-questions-recovery/takeScreenshot/operations-evaluation-questions-recovery.png",
+      "collectedArtifactPath": "cases/operations-evaluation-questions-recovery.png",
+      "sha256": "742bb01b96c41d0ef3163e2648be8bccbb23684c94bb5e99ab6e7fb9b0f85e4d",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/01-cases/2026-11-26_172052/operations-evaluation-questions-recovery/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-evaluation-quiz-edit-alternate",
+      "slot": "cases/operations-evaluation-quiz-edit-alternate.png",
+      "artifactPath": "results/01-cases/2026-11-26_172052/operations-evaluation-quiz-edit-alternate/takeScreenshot/operations-evaluation-quiz-edit-alternate.png",
+      "collectedArtifactPath": "cases/operations-evaluation-quiz-edit-alternate.png",
+      "sha256": "fe59b23d5a6646ddcf09c96826ee86835d5636caecba9ef804b2143b91ab8cf5",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/01-cases/2026-11-26_172052/operations-evaluation-quiz-edit-alternate/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-evaluation-quiz-edit-populated",
+      "slot": "cases/operations-evaluation-quiz-edit-populated.png",
+      "artifactPath": "results/01-cases/2026-11-26_172052/operations-evaluation-quiz-edit-populated/takeScreenshot/operations-evaluation-quiz-edit-populated.png",
+      "collectedArtifactPath": "cases/operations-evaluation-quiz-edit-populated.png",
+      "sha256": "cb3028bfdf33dbb65e28e6510a705c83f688f4b1739c38c4dcb0e03501ba51bf",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/01-cases/2026-11-26_172052/operations-evaluation-quiz-edit-populated/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-evaluation-quiz-edit-recovery",
+      "slot": "cases/operations-evaluation-quiz-edit-recovery.png",
+      "artifactPath": "results/01-cases/2026-11-26_172052/operations-evaluation-quiz-edit-recovery/takeScreenshot/operations-evaluation-quiz-edit-recovery.png",
+      "collectedArtifactPath": "cases/operations-evaluation-quiz-edit-recovery.png",
+      "sha256": "8f3e3f05a9cc2bc5ea5b042daf3ad2b14b3df24d98fffd38da5a9e6a79befc99",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/01-cases/2026-11-26_172052/operations-evaluation-quiz-edit-recovery/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-evaluation-quiz-insight-alternate",
+      "slot": "cases/operations-evaluation-quiz-insight-alternate.png",
+      "artifactPath": "results/01-cases/2026-11-26_172052/operations-evaluation-quiz-insight-alternate/takeScreenshot/operations-evaluation-quiz-insight-alternate.png",
+      "collectedArtifactPath": "cases/operations-evaluation-quiz-insight-alternate.png",
+      "sha256": "fe59b23d5a6646ddcf09c96826ee86835d5636caecba9ef804b2143b91ab8cf5",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/01-cases/2026-11-26_172052/operations-evaluation-quiz-insight-alternate/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-evaluation-quiz-insight-populated",
+      "slot": "cases/operations-evaluation-quiz-insight-populated.png",
+      "artifactPath": "results/01-cases/2026-11-26_172052/operations-evaluation-quiz-insight-populated/takeScreenshot/operations-evaluation-quiz-insight-populated.png",
+      "collectedArtifactPath": "cases/operations-evaluation-quiz-insight-populated.png",
+      "sha256": "def24768910ad0ef89baf4ab8f5e0a9dc8396d8ddf248767051ef9200cadb33f",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/01-cases/2026-11-26_172052/operations-evaluation-quiz-insight-populated/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-evaluation-quiz-insight-recovery",
+      "slot": "cases/operations-evaluation-quiz-insight-recovery.png",
+      "artifactPath": "results/01-cases/2026-11-26_172052/operations-evaluation-quiz-insight-recovery/takeScreenshot/operations-evaluation-quiz-insight-recovery.png",
+      "collectedArtifactPath": "cases/operations-evaluation-quiz-insight-recovery.png",
+      "sha256": "eee93d24ffff75e43fc7247a4dff4eb82712200b21cf3d982bb14af6e576ef21",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/01-cases/2026-11-26_172052/operations-evaluation-quiz-insight-recovery/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-evaluation-quiz-insights-alternate",
+      "slot": "cases/operations-evaluation-quiz-insights-alternate.png",
+      "artifactPath": "results/01-cases/2026-11-26_172052/operations-evaluation-quiz-insights-alternate/takeScreenshot/operations-evaluation-quiz-insights-alternate.png",
+      "collectedArtifactPath": "cases/operations-evaluation-quiz-insights-alternate.png",
+      "sha256": "cfc6efe1041dad3232aa6b68b103b2229f470416283a6c8f21b116dcd1519f09",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/01-cases/2026-11-26_172052/operations-evaluation-quiz-insights-alternate/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-evaluation-quiz-insights-populated",
+      "slot": "cases/operations-evaluation-quiz-insights-populated.png",
+      "artifactPath": "results/01-cases/2026-11-26_172052/operations-evaluation-quiz-insights-populated/takeScreenshot/operations-evaluation-quiz-insights-populated.png",
+      "collectedArtifactPath": "cases/operations-evaluation-quiz-insights-populated.png",
+      "sha256": "3a6ad7c91cd55cc2edb2d77aa6fd44f640a3de31480d4625f9fd1c493b8e06e8",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/01-cases/2026-11-26_172052/operations-evaluation-quiz-insights-populated/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-evaluation-quiz-insights-recovery",
+      "slot": "cases/operations-evaluation-quiz-insights-recovery.png",
+      "artifactPath": "results/01-cases/2026-11-26_172052/operations-evaluation-quiz-insights-recovery/takeScreenshot/operations-evaluation-quiz-insights-recovery.png",
+      "collectedArtifactPath": "cases/operations-evaluation-quiz-insights-recovery.png",
+      "sha256": "3ac5f996151129bb016dbbc9b7c9e1ba84a9c4218af220ddc48051d9fd11f405",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/01-cases/2026-11-26_172052/operations-evaluation-quiz-insights-recovery/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-evaluation-quiz-new-alternate",
+      "slot": "cases/operations-evaluation-quiz-new-alternate.png",
+      "artifactPath": "results/01-cases/2026-11-26_172052/operations-evaluation-quiz-new-alternate/takeScreenshot/operations-evaluation-quiz-new-alternate.png",
+      "collectedArtifactPath": "cases/operations-evaluation-quiz-new-alternate.png",
+      "sha256": "654470439ce756e0c243d70cffb080a4fcbc966fc3fced60378b062f57ffafff",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/01-cases/2026-11-26_172052/operations-evaluation-quiz-new-alternate/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-evaluation-quiz-new-populated",
+      "slot": "cases/operations-evaluation-quiz-new-populated.png",
+      "artifactPath": "results/01-cases/2026-11-26_172052/operations-evaluation-quiz-new-populated/takeScreenshot/operations-evaluation-quiz-new-populated.png",
+      "collectedArtifactPath": "cases/operations-evaluation-quiz-new-populated.png",
+      "sha256": "4536bff71f1870bc1ec7640521a82107016fdc538dbb18b7cc1bec86d7eb40a3",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/01-cases/2026-11-26_172052/operations-evaluation-quiz-new-populated/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-evaluation-quiz-new-recovery",
+      "slot": "cases/operations-evaluation-quiz-new-recovery.png",
+      "artifactPath": "results/01-cases/2026-11-26_172052/operations-evaluation-quiz-new-recovery/takeScreenshot/operations-evaluation-quiz-new-recovery.png",
+      "collectedArtifactPath": "cases/operations-evaluation-quiz-new-recovery.png",
+      "sha256": "49fb5436aa1f54521ea79c87d17fb1065d002cd3885b9d1b587a53cd707c0cbf",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/01-cases/2026-11-26_172052/operations-evaluation-quiz-new-recovery/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-evaluation-quizzes-alternate",
+      "slot": "cases/operations-evaluation-quizzes-alternate.png",
+      "artifactPath": "results/02-cases/2026-11-26_172211/operations-evaluation-quizzes-alternate/takeScreenshot/operations-evaluation-quizzes-alternate.png",
+      "collectedArtifactPath": "cases/operations-evaluation-quizzes-alternate.png",
+      "sha256": "072c07b94756bbce47cb951fba62116dbb4977224d8663e5e2a9c971d6a7e318",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/02-cases/2026-11-26_172211/operations-evaluation-quizzes-alternate/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-evaluation-quizzes-populated",
+      "slot": "cases/operations-evaluation-quizzes-populated.png",
+      "artifactPath": "results/02-cases/2026-11-26_172211/operations-evaluation-quizzes-populated/takeScreenshot/operations-evaluation-quizzes-populated.png",
+      "collectedArtifactPath": "cases/operations-evaluation-quizzes-populated.png",
+      "sha256": "ef05719e14e87418f0cf9b271ea854990cb86af196629d6948662ba4f201a466",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/02-cases/2026-11-26_172211/operations-evaluation-quizzes-populated/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-evaluation-quizzes-recovery",
+      "slot": "cases/operations-evaluation-quizzes-recovery.png",
+      "artifactPath": "results/02-cases/2026-11-26_172211/operations-evaluation-quizzes-recovery/takeScreenshot/operations-evaluation-quizzes-recovery.png",
+      "collectedArtifactPath": "cases/operations-evaluation-quizzes-recovery.png",
+      "sha256": "d5b22d91029549d2b80fd6bc44d7b905aad1629ad698baeaccee31f2fd0f030a",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/02-cases/2026-11-26_172211/operations-evaluation-quizzes-recovery/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-management-blog-empty",
+      "slot": "cases/operations-management-blog-empty.png",
+      "artifactPath": "results/02-cases/2026-11-26_172211/operations-management-blog-empty/takeScreenshot/operations-management-blog-empty.png",
+      "collectedArtifactPath": "cases/operations-management-blog-empty.png",
+      "sha256": "6946acee4fd9ad667a4ad868432b6bdfc4007ec128c3b31a13544b889f3eab43",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/02-cases/2026-11-26_172211/operations-management-blog-empty/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-management-blog-id-edit-empty",
+      "slot": "cases/operations-management-blog-id-edit-empty.png",
+      "artifactPath": "results/02-cases/2026-11-26_172211/operations-management-blog-id-edit-empty/takeScreenshot/operations-management-blog-id-edit-empty.png",
+      "collectedArtifactPath": "cases/operations-management-blog-id-edit-empty.png",
+      "sha256": "f8786164dd05e448b0fecaa0efa03398223462eb5cfe94948813b79f6eda3dd8",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/02-cases/2026-11-26_172211/operations-management-blog-id-edit-empty/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-management-blog-id-edit-populated",
+      "slot": "cases/operations-management-blog-id-edit-populated.png",
+      "artifactPath": "results/02-cases/2026-11-26_172211/operations-management-blog-id-edit-populated/takeScreenshot/operations-management-blog-id-edit-populated.png",
+      "collectedArtifactPath": "cases/operations-management-blog-id-edit-populated.png",
+      "sha256": "25a8fa02a94e86902647f5e13bfb8704d96285827557db0388b323999767a28e",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/02-cases/2026-11-26_172211/operations-management-blog-id-edit-populated/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-management-blog-id-edit-recoverable-error",
+      "slot": "cases/operations-management-blog-id-edit-recoverable-error.png",
+      "artifactPath": "results/02-cases/2026-11-26_172211/operations-management-blog-id-edit-recoverable-error/takeScreenshot/operations-management-blog-id-edit-recoverable-error.png",
+      "collectedArtifactPath": "cases/operations-management-blog-id-edit-recoverable-error.png",
+      "sha256": "4515fbbfe51fde1c29eed1da8ff222b653b236ddba329d32325f121119fec235",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/02-cases/2026-11-26_172211/operations-management-blog-id-edit-recoverable-error/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-management-blog-new-empty",
+      "slot": "cases/operations-management-blog-new-empty.png",
+      "artifactPath": "results/02-cases/2026-11-26_172211/operations-management-blog-new-empty/takeScreenshot/operations-management-blog-new-empty.png",
+      "collectedArtifactPath": "cases/operations-management-blog-new-empty.png",
+      "sha256": "1c70221b15f7ecd0f9ca8cfcf8c82160cb47afba764aef4c8c7d25c578d4008a",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/02-cases/2026-11-26_172211/operations-management-blog-new-empty/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-management-blog-new-populated",
+      "slot": "cases/operations-management-blog-new-populated.png",
+      "artifactPath": "results/02-cases/2026-11-26_172211/operations-management-blog-new-populated/takeScreenshot/operations-management-blog-new-populated.png",
+      "collectedArtifactPath": "cases/operations-management-blog-new-populated.png",
+      "sha256": "6a6524d5eccbd6a9d8b589a4ad5e71bc483fb6341ee390a4b0b4542a630e100e",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/02-cases/2026-11-26_172211/operations-management-blog-new-populated/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-management-blog-new-recoverable-error",
+      "slot": "cases/operations-management-blog-new-recoverable-error.png",
+      "artifactPath": "results/02-cases/2026-11-26_172211/operations-management-blog-new-recoverable-error/takeScreenshot/operations-management-blog-new-recoverable-error.png",
+      "collectedArtifactPath": "cases/operations-management-blog-new-recoverable-error.png",
+      "sha256": "88bbe9dbc7bde8f0dfe6ca96f73562453ce8bee86050165f1405d49003657c3a",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/02-cases/2026-11-26_172211/operations-management-blog-new-recoverable-error/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-management-blog-populated",
+      "slot": "cases/operations-management-blog-populated.png",
+      "artifactPath": "results/02-cases/2026-11-26_172211/operations-management-blog-populated/takeScreenshot/operations-management-blog-populated.png",
+      "collectedArtifactPath": "cases/operations-management-blog-populated.png",
+      "sha256": "51e84363f27a7626a209f71fc239f361a11e16aa2daa806bcf550aee35e1658d",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/02-cases/2026-11-26_172211/operations-management-blog-populated/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-management-blog-recoverable-error",
+      "slot": "cases/operations-management-blog-recoverable-error.png",
+      "artifactPath": "results/02-cases/2026-11-26_172211/operations-management-blog-recoverable-error/takeScreenshot/operations-management-blog-recoverable-error.png",
+      "collectedArtifactPath": "cases/operations-management-blog-recoverable-error.png",
+      "sha256": "713529dce80f368caedb090e12e9d56615f1886ebe23e401b58d7f11e17fce2d",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/02-cases/2026-11-26_172211/operations-management-blog-recoverable-error/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-management-discussions-empty",
+      "slot": "cases/operations-management-discussions-empty.png",
+      "artifactPath": "results/02-cases/2026-11-26_172211/operations-management-discussions-empty/takeScreenshot/operations-management-discussions-empty.png",
+      "collectedArtifactPath": "cases/operations-management-discussions-empty.png",
+      "sha256": "a0931be691d883bc52abb10c519c89c87f134deee248c06b0fc5cb32de943d7b",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/02-cases/2026-11-26_172211/operations-management-discussions-empty/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-management-discussions-populated",
+      "slot": "cases/operations-management-discussions-populated.png",
+      "artifactPath": "results/02-cases/2026-11-26_172211/operations-management-discussions-populated/takeScreenshot/operations-management-discussions-populated.png",
+      "collectedArtifactPath": "cases/operations-management-discussions-populated.png",
+      "sha256": "6778b5a9b4bbe746fddbbfa4cc2e970fe3ca86abee138e4868e99a6b2730289b",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/02-cases/2026-11-26_172211/operations-management-discussions-populated/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-management-discussions-recoverable-error",
+      "slot": "cases/operations-management-discussions-recoverable-error.png",
+      "artifactPath": "results/02-cases/2026-11-26_172211/operations-management-discussions-recoverable-error/takeScreenshot/operations-management-discussions-recoverable-error.png",
+      "collectedArtifactPath": "cases/operations-management-discussions-recoverable-error.png",
+      "sha256": "b286eab693ba0daeeef6458a030bd52317da062bbb585aee5f12737e11b435d3",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/02-cases/2026-11-26_172211/operations-management-discussions-recoverable-error/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-management-docs-empty",
+      "slot": "cases/operations-management-docs-empty.png",
+      "artifactPath": "results/02-cases/2026-11-26_172211/operations-management-docs-empty/takeScreenshot/operations-management-docs-empty.png",
+      "collectedArtifactPath": "cases/operations-management-docs-empty.png",
+      "sha256": "a06ec52bc398f51542d2c8dd276a07021fc1481f8fac3aa128a7119c442d29fd",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/02-cases/2026-11-26_172211/operations-management-docs-empty/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-management-docs-populated",
+      "slot": "cases/operations-management-docs-populated.png",
+      "artifactPath": "results/02-cases/2026-11-26_172211/operations-management-docs-populated/takeScreenshot/operations-management-docs-populated.png",
+      "collectedArtifactPath": "cases/operations-management-docs-populated.png",
+      "sha256": "a06ec52bc398f51542d2c8dd276a07021fc1481f8fac3aa128a7119c442d29fd",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/02-cases/2026-11-26_172211/operations-management-docs-populated/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-management-docs-recoverable-error",
+      "slot": "cases/operations-management-docs-recoverable-error.png",
+      "artifactPath": "results/02-cases/2026-11-26_172211/operations-management-docs-recoverable-error/takeScreenshot/operations-management-docs-recoverable-error.png",
+      "collectedArtifactPath": "cases/operations-management-docs-recoverable-error.png",
+      "sha256": "4355e792df4ea2d5f00502bc2f921f1b3cac22a35ed0b6ffcf1b39f48290ca96",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/02-cases/2026-11-26_172211/operations-management-docs-recoverable-error/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-management-docs-slug-empty",
+      "slot": "cases/operations-management-docs-slug-empty.png",
+      "artifactPath": "results/02-cases/2026-11-26_172211/operations-management-docs-slug-empty/takeScreenshot/operations-management-docs-slug-empty.png",
+      "collectedArtifactPath": "cases/operations-management-docs-slug-empty.png",
+      "sha256": "90058ce1983ce5aa5f3bcaf33a20da1c6f39059111163eff8e0b3dff81d201cd",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/02-cases/2026-11-26_172211/operations-management-docs-slug-empty/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-management-docs-slug-populated",
+      "slot": "cases/operations-management-docs-slug-populated.png",
+      "artifactPath": "results/02-cases/2026-11-26_172211/operations-management-docs-slug-populated/takeScreenshot/operations-management-docs-slug-populated.png",
+      "collectedArtifactPath": "cases/operations-management-docs-slug-populated.png",
+      "sha256": "4828044e3fc40b366ff2ccb857dcf642286b2dbe1275a84761eb26717af6c7a0",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/02-cases/2026-11-26_172211/operations-management-docs-slug-populated/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-management-docs-slug-recoverable-error",
+      "slot": "cases/operations-management-docs-slug-recoverable-error.png",
+      "artifactPath": "results/02-cases/2026-11-26_172211/operations-management-docs-slug-recoverable-error/takeScreenshot/operations-management-docs-slug-recoverable-error.png",
+      "collectedArtifactPath": "cases/operations-management-docs-slug-recoverable-error.png",
+      "sha256": "4e30101650d0b70d9eddb150eb2ef9c17b1ddd42a97d038f415611c88359b444",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/02-cases/2026-11-26_172211/operations-management-docs-slug-recoverable-error/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-management-forms-empty",
+      "slot": "cases/operations-management-forms-empty.png",
+      "artifactPath": "results/02-cases/2026-11-26_172211/operations-management-forms-empty/takeScreenshot/operations-management-forms-empty.png",
+      "collectedArtifactPath": "cases/operations-management-forms-empty.png",
+      "sha256": "483243be2ae90da27db6e55bb47e8c06d4d169256622b76ca5283d05aa5f9353",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/02-cases/2026-11-26_172211/operations-management-forms-empty/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-management-forms-id-empty",
+      "slot": "cases/operations-management-forms-id-empty.png",
+      "artifactPath": "results/02-cases/2026-11-26_172211/operations-management-forms-id-empty/takeScreenshot/operations-management-forms-id-empty.png",
+      "collectedArtifactPath": "cases/operations-management-forms-id-empty.png",
+      "sha256": "da2eaee8ebb25379b136fb1c2477222687493965c75f376acfecc21b3aa6fc23",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/02-cases/2026-11-26_172211/operations-management-forms-id-empty/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-management-forms-id-populated",
+      "slot": "cases/operations-management-forms-id-populated.png",
+      "artifactPath": "results/02-cases/2026-11-26_172211/operations-management-forms-id-populated/takeScreenshot/operations-management-forms-id-populated.png",
+      "collectedArtifactPath": "cases/operations-management-forms-id-populated.png",
+      "sha256": "e7cc87f5595408cdf3d30eb3e3e5510bdf8156d9b247006863e9930dd6d3e2f0",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/02-cases/2026-11-26_172211/operations-management-forms-id-populated/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-management-forms-id-recoverable-error",
+      "slot": "cases/operations-management-forms-id-recoverable-error.png",
+      "artifactPath": "results/02-cases/2026-11-26_172211/operations-management-forms-id-recoverable-error/takeScreenshot/operations-management-forms-id-recoverable-error.png",
+      "collectedArtifactPath": "cases/operations-management-forms-id-recoverable-error.png",
+      "sha256": "75a5c8312561a5630140eab31ba35dc29802f7a56b5e11543f368559111279a8",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/02-cases/2026-11-26_172211/operations-management-forms-id-recoverable-error/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-management-forms-populated",
+      "slot": "cases/operations-management-forms-populated.png",
+      "artifactPath": "results/02-cases/2026-11-26_172211/operations-management-forms-populated/takeScreenshot/operations-management-forms-populated.png",
+      "collectedArtifactPath": "cases/operations-management-forms-populated.png",
+      "sha256": "ee64417c149f211349afe0dd19959121607fe81a9537e38dc022d3226279bdb7",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/02-cases/2026-11-26_172211/operations-management-forms-populated/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-management-forms-recoverable-error",
+      "slot": "cases/operations-management-forms-recoverable-error.png",
+      "artifactPath": "results/02-cases/2026-11-26_172211/operations-management-forms-recoverable-error/takeScreenshot/operations-management-forms-recoverable-error.png",
+      "collectedArtifactPath": "cases/operations-management-forms-recoverable-error.png",
+      "sha256": "27033b79ea812b087b0248e826b6bf0c2828727c254375add3c5f7651190bf63",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/02-cases/2026-11-26_172211/operations-management-forms-recoverable-error/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-management-media-empty",
+      "slot": "cases/operations-management-media-empty.png",
+      "artifactPath": "results/02-cases/2026-11-26_172211/operations-management-media-empty/takeScreenshot/operations-management-media-empty.png",
+      "collectedArtifactPath": "cases/operations-management-media-empty.png",
+      "sha256": "fa363654f4c71ce55cd4c291cbd361e6e8ecbbd263715b6e79a321607ca32745",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/02-cases/2026-11-26_172211/operations-management-media-empty/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-management-media-populated",
+      "slot": "cases/operations-management-media-populated.png",
+      "artifactPath": "results/02-cases/2026-11-26_172211/operations-management-media-populated/takeScreenshot/operations-management-media-populated.png",
+      "collectedArtifactPath": "cases/operations-management-media-populated.png",
+      "sha256": "1249f084ad410bae315010140274b26cfc30b786dcf9998fd26fe91bd240cf5e",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/02-cases/2026-11-26_172211/operations-management-media-populated/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-management-media-recoverable-error",
+      "slot": "cases/operations-management-media-recoverable-error.png",
+      "artifactPath": "results/02-cases/2026-11-26_172211/operations-management-media-recoverable-error/takeScreenshot/operations-management-media-recoverable-error.png",
+      "collectedArtifactPath": "cases/operations-management-media-recoverable-error.png",
+      "sha256": "a67fbac48631993538bf35970bb527f5d1d2caccb60a1db70afd12a28c28ed8a",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/02-cases/2026-11-26_172211/operations-management-media-recoverable-error/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-management-meet-empty",
+      "slot": "cases/operations-management-meet-empty.png",
+      "artifactPath": "results/02-cases/2026-11-26_172211/operations-management-meet-empty/takeScreenshot/operations-management-meet-empty.png",
+      "collectedArtifactPath": "cases/operations-management-meet-empty.png",
+      "sha256": "822706e999b632361f9fe65411232a8da08ef52bb125b08dcdf39c629e1007db",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/02-cases/2026-11-26_172211/operations-management-meet-empty/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-management-meet-id-empty",
+      "slot": "cases/operations-management-meet-id-empty.png",
+      "artifactPath": "results/02-cases/2026-11-26_172211/operations-management-meet-id-empty/takeScreenshot/operations-management-meet-id-empty.png",
+      "collectedArtifactPath": "cases/operations-management-meet-id-empty.png",
+      "sha256": "666ec98322cb6a5635044f33c06d7b1eaf4ef827ef01b4461bbd40e8271f89f0",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/02-cases/2026-11-26_172211/operations-management-meet-id-empty/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-management-meet-id-populated",
+      "slot": "cases/operations-management-meet-id-populated.png",
+      "artifactPath": "results/02-cases/2026-11-26_172211/operations-management-meet-id-populated/takeScreenshot/operations-management-meet-id-populated.png",
+      "collectedArtifactPath": "cases/operations-management-meet-id-populated.png",
+      "sha256": "8af6351605ee817ba7d0d36dd96194ee47fa41e5a8450d73e58944d2a3a1bef5",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/02-cases/2026-11-26_172211/operations-management-meet-id-populated/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-management-meet-id-recoverable-error",
+      "slot": "cases/operations-management-meet-id-recoverable-error.png",
+      "artifactPath": "results/02-cases/2026-11-26_172211/operations-management-meet-id-recoverable-error/takeScreenshot/operations-management-meet-id-recoverable-error.png",
+      "collectedArtifactPath": "cases/operations-management-meet-id-recoverable-error.png",
+      "sha256": "2bcf6b9ed2253a1a29850b2a3a835fa66e7b5e1002ba458049e305127860c224",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/02-cases/2026-11-26_172211/operations-management-meet-id-recoverable-error/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-management-meet-populated",
+      "slot": "cases/operations-management-meet-populated.png",
+      "artifactPath": "results/02-cases/2026-11-26_172211/operations-management-meet-populated/takeScreenshot/operations-management-meet-populated.png",
+      "collectedArtifactPath": "cases/operations-management-meet-populated.png",
+      "sha256": "bec8b42940235bb8588cf8c4512de82e2871a4f8530184a2f7d9ac4942ad9b10",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/02-cases/2026-11-26_172211/operations-management-meet-populated/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-management-meet-recoverable-error",
+      "slot": "cases/operations-management-meet-recoverable-error.png",
+      "artifactPath": "results/02-cases/2026-11-26_172211/operations-management-meet-recoverable-error/takeScreenshot/operations-management-meet-recoverable-error.png",
+      "collectedArtifactPath": "cases/operations-management-meet-recoverable-error.png",
+      "sha256": "092fc066adf062b26db39a215bd5002b803c4407f119ee4deed23445cbfb0fb6",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/02-cases/2026-11-26_172211/operations-management-meet-recoverable-error/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-management-pricing-empty",
+      "slot": "cases/operations-management-pricing-empty.png",
+      "artifactPath": "results/03-cases/2026-11-26_172331/operations-management-pricing-empty/takeScreenshot/operations-management-pricing-empty.png",
+      "collectedArtifactPath": "cases/operations-management-pricing-empty.png",
+      "sha256": "99c6243f00cd858b72018e33c9be3470fcf680a02a4e6827258a4b11966ac51d",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/03-cases/2026-11-26_172331/operations-management-pricing-empty/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-management-pricing-populated",
+      "slot": "cases/operations-management-pricing-populated.png",
+      "artifactPath": "results/03-cases/2026-11-26_172331/operations-management-pricing-populated/takeScreenshot/operations-management-pricing-populated.png",
+      "collectedArtifactPath": "cases/operations-management-pricing-populated.png",
+      "sha256": "6c8d3d1c8a38e4586c15a1daebbb04c071b4b3384e4a8b8f4b6b3805694ee096",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/03-cases/2026-11-26_172331/operations-management-pricing-populated/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-management-pricing-recoverable-error",
+      "slot": "cases/operations-management-pricing-recoverable-error.png",
+      "artifactPath": "results/03-cases/2026-11-26_172331/operations-management-pricing-recoverable-error/takeScreenshot/operations-management-pricing-recoverable-error.png",
+      "collectedArtifactPath": "cases/operations-management-pricing-recoverable-error.png",
+      "sha256": "e62194c70e84cae7f182970ac75e46393bf937bb46cc28581bfc46810f74e31d",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/03-cases/2026-11-26_172331/operations-management-pricing-recoverable-error/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-management-tautan-empty",
+      "slot": "cases/operations-management-tautan-empty.png",
+      "artifactPath": "results/03-cases/2026-11-26_172331/operations-management-tautan-empty/takeScreenshot/operations-management-tautan-empty.png",
+      "collectedArtifactPath": "cases/operations-management-tautan-empty.png",
+      "sha256": "f2bd02c1eb9d33753679955c494230043d1f6a8d9dad36455fe77958b718b184",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/03-cases/2026-11-26_172331/operations-management-tautan-empty/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-management-tautan-populated",
+      "slot": "cases/operations-management-tautan-populated.png",
+      "artifactPath": "results/03-cases/2026-11-26_172331/operations-management-tautan-populated/takeScreenshot/operations-management-tautan-populated.png",
+      "collectedArtifactPath": "cases/operations-management-tautan-populated.png",
+      "sha256": "163a8b3b4a166132f589aa1e119fe15bb39065bac63f0d5acb036f89d419a40d",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/03-cases/2026-11-26_172331/operations-management-tautan-populated/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-management-tautan-recoverable-error",
+      "slot": "cases/operations-management-tautan-recoverable-error.png",
+      "artifactPath": "results/03-cases/2026-11-26_172331/operations-management-tautan-recoverable-error/takeScreenshot/operations-management-tautan-recoverable-error.png",
+      "collectedArtifactPath": "cases/operations-management-tautan-recoverable-error.png",
+      "sha256": "518bd5ca40f7e2a072a199b5bb16eb741508393979508b224ae4ee66d28d7e0b",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/03-cases/2026-11-26_172331/operations-management-tautan-recoverable-error/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-monitoring-admin-denied",
+      "slot": "cases/operations-monitoring-admin-denied.png",
+      "artifactPath": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-denied/takeScreenshot/operations-monitoring-admin-denied.png",
+      "collectedArtifactPath": "cases/operations-monitoring-admin-denied.png",
+      "sha256": "49acda01b9703d12ee543e60c34c1c4f8810adc6db9e4d37b71185d68c04f39c",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-denied/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-monitoring-admin-ops-analytics-denied",
+      "slot": "cases/operations-monitoring-admin-ops-analytics-denied.png",
+      "artifactPath": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-analytics-denied/takeScreenshot/operations-monitoring-admin-ops-analytics-denied.png",
+      "collectedArtifactPath": "cases/operations-monitoring-admin-ops-analytics-denied.png",
+      "sha256": "4e53f504ca408430c83a7031120b0e8b26e248be7cbf07b5b6463c1b24f3e6a4",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-analytics-denied/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-monitoring-admin-ops-analytics-populated",
+      "slot": "cases/operations-monitoring-admin-ops-analytics-populated.png",
+      "artifactPath": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-analytics-populated/takeScreenshot/operations-monitoring-admin-ops-analytics-populated.png",
+      "collectedArtifactPath": "cases/operations-monitoring-admin-ops-analytics-populated.png",
+      "sha256": "7d6a3e108e59e4e2c4d61ea82da033053b6aff6083928d7b31259cfd7acbbc79",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-analytics-populated/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-monitoring-admin-ops-analytics-retry",
+      "slot": "cases/operations-monitoring-admin-ops-analytics-retry.png",
+      "artifactPath": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-analytics-retry/takeScreenshot/operations-monitoring-admin-ops-analytics-retry.png",
+      "collectedArtifactPath": "cases/operations-monitoring-admin-ops-analytics-retry.png",
+      "sha256": "f42a51afe701d495ea5ed62537ab875587d4759697ee9254da864eb9a66cc187",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-analytics-retry/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-monitoring-admin-ops-denied",
+      "slot": "cases/operations-monitoring-admin-ops-denied.png",
+      "artifactPath": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-denied/takeScreenshot/operations-monitoring-admin-ops-denied.png",
+      "collectedArtifactPath": "cases/operations-monitoring-admin-ops-denied.png",
+      "sha256": "2003b9d56d0abe410bab8780f1910f52c1cc4bb6f197d75ffe79deb81cb8ea2b",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-denied/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-monitoring-admin-ops-feature-usage-denied",
+      "slot": "cases/operations-monitoring-admin-ops-feature-usage-denied.png",
+      "artifactPath": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-feature-usage-denied/takeScreenshot/operations-monitoring-admin-ops-feature-usage-denied.png",
+      "collectedArtifactPath": "cases/operations-monitoring-admin-ops-feature-usage-denied.png",
+      "sha256": "a1ec98c8186017293c7c5f42f90cbcb23c23fabbc78541245a2cc791567f9cac",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-feature-usage-denied/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-monitoring-admin-ops-feature-usage-populated",
+      "slot": "cases/operations-monitoring-admin-ops-feature-usage-populated.png",
+      "artifactPath": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-feature-usage-populated/takeScreenshot/operations-monitoring-admin-ops-feature-usage-populated.png",
+      "collectedArtifactPath": "cases/operations-monitoring-admin-ops-feature-usage-populated.png",
+      "sha256": "3a64062c08aa50e4be12315bdcce10bf6b777694a2d7fa50eb68edc135cf390e",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-feature-usage-populated/commands.json",
+      "comparisonDiffs": [
+        "diffs/operations-monitoring-admin-ops-feature-usage-populated-diff.png"
+      ]
+    },
+    {
+      "flow": "operations-monitoring-admin-ops-feature-usage-retry",
+      "slot": "cases/operations-monitoring-admin-ops-feature-usage-retry.png",
+      "artifactPath": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-feature-usage-retry/takeScreenshot/operations-monitoring-admin-ops-feature-usage-retry.png",
+      "collectedArtifactPath": "cases/operations-monitoring-admin-ops-feature-usage-retry.png",
+      "sha256": "5dcef3e25f0877abc54e8c86f5b3344d30a7df9b6128d1da451643391ba92421",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-feature-usage-retry/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-monitoring-admin-ops-keys-denied",
+      "slot": "cases/operations-monitoring-admin-ops-keys-denied.png",
+      "artifactPath": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-keys-denied/takeScreenshot/operations-monitoring-admin-ops-keys-denied.png",
+      "collectedArtifactPath": "cases/operations-monitoring-admin-ops-keys-denied.png",
+      "sha256": "aaf19a72572f452bdce602ae1d465031d97e34fa740f6a2186b3664a09ae7d06",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-keys-denied/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-monitoring-admin-ops-keys-populated",
+      "slot": "cases/operations-monitoring-admin-ops-keys-populated.png",
+      "artifactPath": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-keys-populated/takeScreenshot/operations-monitoring-admin-ops-keys-populated.png",
+      "collectedArtifactPath": "cases/operations-monitoring-admin-ops-keys-populated.png",
+      "sha256": "6b95dd7c2d51134dd368108cac3d2f964ccab757b1dbd45d2fe8b3c3684fc255",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-keys-populated/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-monitoring-admin-ops-keys-retry",
+      "slot": "cases/operations-monitoring-admin-ops-keys-retry.png",
+      "artifactPath": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-keys-retry/takeScreenshot/operations-monitoring-admin-ops-keys-retry.png",
+      "collectedArtifactPath": "cases/operations-monitoring-admin-ops-keys-retry.png",
+      "sha256": "4bdaac4c75611377689746e64e68763a9ce8b3bb6a43354ad3c23b2acf7f6b51",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-keys-retry/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-monitoring-admin-ops-models-denied",
+      "slot": "cases/operations-monitoring-admin-ops-models-denied.png",
+      "artifactPath": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-models-denied/takeScreenshot/operations-monitoring-admin-ops-models-denied.png",
+      "collectedArtifactPath": "cases/operations-monitoring-admin-ops-models-denied.png",
+      "sha256": "e8450faa902d6a34e3dd51978dcdfeccc4e88de9e8002f9f56e9a4705c6be867",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-models-denied/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-monitoring-admin-ops-models-populated",
+      "slot": "cases/operations-monitoring-admin-ops-models-populated.png",
+      "artifactPath": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-models-populated/takeScreenshot/operations-monitoring-admin-ops-models-populated.png",
+      "collectedArtifactPath": "cases/operations-monitoring-admin-ops-models-populated.png",
+      "sha256": "4dff641346edaf7d1495fc0c04bad685d2bbce3747f570a5861d04b55aa3b261",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-models-populated/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-monitoring-admin-ops-models-retry",
+      "slot": "cases/operations-monitoring-admin-ops-models-retry.png",
+      "artifactPath": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-models-retry/takeScreenshot/operations-monitoring-admin-ops-models-retry.png",
+      "collectedArtifactPath": "cases/operations-monitoring-admin-ops-models-retry.png",
+      "sha256": "ac003a3787f61810e13b778f2b07a161f404395c2c4cdd4d0b7618ab6c223c52",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-models-retry/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-monitoring-admin-ops-offline-denied",
+      "slot": "cases/operations-monitoring-admin-ops-offline-denied.png",
+      "artifactPath": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-offline-denied/takeScreenshot/operations-monitoring-admin-ops-offline-denied.png",
+      "collectedArtifactPath": "cases/operations-monitoring-admin-ops-offline-denied.png",
+      "sha256": "f5c898725145e6ae5b50c11f51bf93bb909e37a9d43a57d38c89738f76656fef",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-offline-denied/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-monitoring-admin-ops-offline-populated",
+      "slot": "cases/operations-monitoring-admin-ops-offline-populated.png",
+      "artifactPath": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-offline-populated/takeScreenshot/operations-monitoring-admin-ops-offline-populated.png",
+      "collectedArtifactPath": "cases/operations-monitoring-admin-ops-offline-populated.png",
+      "sha256": "57ffcdd1e1aeead1ed44a60eab829bd3bfb09ef0ee4fe355feafeeeb8b068d20",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-offline-populated/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-monitoring-admin-ops-offline-retry",
+      "slot": "cases/operations-monitoring-admin-ops-offline-retry.png",
+      "artifactPath": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-offline-retry/takeScreenshot/operations-monitoring-admin-ops-offline-retry.png",
+      "collectedArtifactPath": "cases/operations-monitoring-admin-ops-offline-retry.png",
+      "sha256": "d536d967a681444fcb2ff560faefe7e1de8fc1dbed64ee4d6bfd094867c42606",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-offline-retry/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-monitoring-admin-ops-populated",
+      "slot": "cases/operations-monitoring-admin-ops-populated.png",
+      "artifactPath": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-populated/takeScreenshot/operations-monitoring-admin-ops-populated.png",
+      "collectedArtifactPath": "cases/operations-monitoring-admin-ops-populated.png",
+      "sha256": "fe978649279757f39f1f7be481037bd2ccf40aed856805e6339b640c03a79f04",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-populated/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-monitoring-admin-ops-retry",
+      "slot": "cases/operations-monitoring-admin-ops-retry.png",
+      "artifactPath": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-retry/takeScreenshot/operations-monitoring-admin-ops-retry.png",
+      "collectedArtifactPath": "cases/operations-monitoring-admin-ops-retry.png",
+      "sha256": "fc24e1f66debed10d86077016ba48ebf329fa28cf1d0e6116e9acf5dbd4eba2a",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-retry/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-monitoring-admin-ops-short-links-denied",
+      "slot": "cases/operations-monitoring-admin-ops-short-links-denied.png",
+      "artifactPath": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-short-links-denied/takeScreenshot/operations-monitoring-admin-ops-short-links-denied.png",
+      "collectedArtifactPath": "cases/operations-monitoring-admin-ops-short-links-denied.png",
+      "sha256": "6ee72f5f77ef59c3bde70a77bcce7e92ec2ee89391666a666360024ea24db9a0",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-short-links-denied/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-monitoring-admin-ops-short-links-populated",
+      "slot": "cases/operations-monitoring-admin-ops-short-links-populated.png",
+      "artifactPath": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-short-links-populated/takeScreenshot/operations-monitoring-admin-ops-short-links-populated.png",
+      "collectedArtifactPath": "cases/operations-monitoring-admin-ops-short-links-populated.png",
+      "sha256": "e1a29f85562df1985d157eb3162f7fec9ac3e011ade0bed890bb297e41463cad",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-short-links-populated/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-monitoring-admin-ops-short-links-retry",
+      "slot": "cases/operations-monitoring-admin-ops-short-links-retry.png",
+      "artifactPath": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-short-links-retry/takeScreenshot/operations-monitoring-admin-ops-short-links-retry.png",
+      "collectedArtifactPath": "cases/operations-monitoring-admin-ops-short-links-retry.png",
+      "sha256": "02b42b1ae867eb5376c324e2fda5b3de93e42ff335ed57df62e75906b4819917",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-short-links-retry/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-monitoring-admin-ops-tutor-activity-denied",
+      "slot": "cases/operations-monitoring-admin-ops-tutor-activity-denied.png",
+      "artifactPath": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-tutor-activity-denied/takeScreenshot/operations-monitoring-admin-ops-tutor-activity-denied.png",
+      "collectedArtifactPath": "cases/operations-monitoring-admin-ops-tutor-activity-denied.png",
+      "sha256": "6637500fd91374cbec1f63e05612d7b10bdbdf91a2724ba3f139851d2fb503da",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-tutor-activity-denied/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-monitoring-admin-ops-tutor-activity-populated",
+      "slot": "cases/operations-monitoring-admin-ops-tutor-activity-populated.png",
+      "artifactPath": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-tutor-activity-populated/takeScreenshot/operations-monitoring-admin-ops-tutor-activity-populated.png",
+      "collectedArtifactPath": "cases/operations-monitoring-admin-ops-tutor-activity-populated.png",
+      "sha256": "8679ca381e00fd051b36573682fc2a7995ed8f37e8c4f336e817cc4fe9fa235f",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-tutor-activity-populated/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-monitoring-admin-ops-tutor-activity-retry",
+      "slot": "cases/operations-monitoring-admin-ops-tutor-activity-retry.png",
+      "artifactPath": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-tutor-activity-retry/takeScreenshot/operations-monitoring-admin-ops-tutor-activity-retry.png",
+      "collectedArtifactPath": "cases/operations-monitoring-admin-ops-tutor-activity-retry.png",
+      "sha256": "38e9f21bafc554385544a8bd231a2286589525284b1dae5981e72cd813e7af18",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-tutor-activity-retry/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-monitoring-admin-ops-web-analytics-denied",
+      "slot": "cases/operations-monitoring-admin-ops-web-analytics-denied.png",
+      "artifactPath": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-web-analytics-denied/takeScreenshot/operations-monitoring-admin-ops-web-analytics-denied.png",
+      "collectedArtifactPath": "cases/operations-monitoring-admin-ops-web-analytics-denied.png",
+      "sha256": "38125aedb6acbec73bade880663d4e8ba54ead6e3bde0e4546fb891482660b15",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-web-analytics-denied/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-monitoring-admin-ops-web-analytics-populated",
+      "slot": "cases/operations-monitoring-admin-ops-web-analytics-populated.png",
+      "artifactPath": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-web-analytics-populated/takeScreenshot/operations-monitoring-admin-ops-web-analytics-populated.png",
+      "collectedArtifactPath": "cases/operations-monitoring-admin-ops-web-analytics-populated.png",
+      "sha256": "4531b6dabd4d368d3cad36f30737fc85ea62fe870bcaefda8e0c4ec44e234728",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-web-analytics-populated/commands.json",
+      "comparisonDiffs": [
+        "diffs/operations-monitoring-admin-ops-web-analytics-populated-diff.png"
+      ]
+    },
+    {
+      "flow": "operations-monitoring-admin-ops-web-analytics-retry",
+      "slot": "cases/operations-monitoring-admin-ops-web-analytics-retry.png",
+      "artifactPath": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-web-analytics-retry/takeScreenshot/operations-monitoring-admin-ops-web-analytics-retry.png",
+      "collectedArtifactPath": "cases/operations-monitoring-admin-ops-web-analytics-retry.png",
+      "sha256": "00e2db2ca4cf607a1ba611bc75f23d01ee11fc9574c94b5401e0b5034df60823",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-ops-web-analytics-retry/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-monitoring-admin-populated",
+      "slot": "cases/operations-monitoring-admin-populated.png",
+      "artifactPath": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-populated/takeScreenshot/operations-monitoring-admin-populated.png",
+      "collectedArtifactPath": "cases/operations-monitoring-admin-populated.png",
+      "sha256": "0e6de46b03d0a7032d9293af9a2511be1f3a9bd465b46d4524f8b856f8d92d2e",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-populated/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-monitoring-admin-retry",
+      "slot": "cases/operations-monitoring-admin-retry.png",
+      "artifactPath": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-retry/takeScreenshot/operations-monitoring-admin-retry.png",
+      "collectedArtifactPath": "cases/operations-monitoring-admin-retry.png",
+      "sha256": "b0745b7c501040216affe1216c0fdeaea84298d086c5342db4695dbbcedf0562",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/03-cases/2026-11-26_172331/operations-monitoring-admin-retry/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-public-blog-detail-content",
+      "slot": "cases/operations-public-blog-detail-content.png",
+      "artifactPath": "results/04-cases/2026-11-26_172452/operations-public-blog-detail-content/takeScreenshot/operations-public-blog-detail-content.png",
+      "collectedArtifactPath": "cases/operations-public-blog-detail-content.png",
+      "sha256": "669d9a36825fe2d56936557ee46c98092e545c2bbf763159523aadc3913daebb",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/04-cases/2026-11-26_172452/operations-public-blog-detail-content/commands.json",
+      "comparisonDiffs": [
+        "diffs/operations-public-blog-detail-content-diff.png",
+        "diffs/operations-public-blog-detail-content-full-shell-diff.png"
+      ]
+    },
+    {
+      "flow": "operations-public-blog-detail-missing",
+      "slot": "cases/operations-public-blog-detail-missing.png",
+      "artifactPath": "results/04-cases/2026-11-26_172452/operations-public-blog-detail-missing/takeScreenshot/operations-public-blog-detail-missing.png",
+      "collectedArtifactPath": "cases/operations-public-blog-detail-missing.png",
+      "sha256": "a0101ade44950204a6bc34253cdc01e7741ac685f78620346c4437201aa83055",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/04-cases/2026-11-26_172452/operations-public-blog-detail-missing/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-public-blog-detail-retry",
+      "slot": "cases/operations-public-blog-detail-retry.png",
+      "artifactPath": "results/04-cases/2026-11-26_172452/operations-public-blog-detail-retry/takeScreenshot/operations-public-blog-detail-retry.png",
+      "collectedArtifactPath": "cases/operations-public-blog-detail-retry.png",
+      "sha256": "669d9a36825fe2d56936557ee46c98092e545c2bbf763159523aadc3913daebb",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 9,
+      "trace": "results/04-cases/2026-11-26_172452/operations-public-blog-detail-retry/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-public-blog-list-empty",
+      "slot": "cases/operations-public-blog-list-empty.png",
+      "artifactPath": "results/04-cases/2026-11-26_172452/operations-public-blog-list-empty/takeScreenshot/operations-public-blog-list-empty.png",
+      "collectedArtifactPath": "cases/operations-public-blog-list-empty.png",
+      "sha256": "bf25eb1961b83c38db078308670acab76db13303b0fc2abc31748c48893bfa4b",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/04-cases/2026-11-26_172452/operations-public-blog-list-empty/commands.json",
+      "comparisonDiffs": [
+        "diffs/operations-public-blog-list-empty-diff.png",
+        "diffs/operations-public-blog-list-empty-full-shell-diff.png"
+      ]
+    },
+    {
+      "flow": "operations-public-blog-list-open-back",
+      "slot": "cases/operations-public-blog-list-open-back.png",
+      "artifactPath": "results/04-cases/2026-11-26_172452/operations-public-blog-list-open-back/takeScreenshot/operations-public-blog-list-open-back.png",
+      "collectedArtifactPath": "cases/operations-public-blog-list-open-back.png",
+      "sha256": "20e27eaad806547ee309e6238ea67485ac98acd0045cb082cb66fbc8f162aa6b",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/04-cases/2026-11-26_172452/operations-public-blog-list-open-back/commands.json",
+      "comparisonDiffs": [
+        "diffs/operations-public-blog-list-open-back-diff.png",
+        "diffs/operations-public-blog-list-open-back-full-shell-diff.png"
+      ]
+    },
+    {
+      "flow": "operations-public-blog-list-retry",
+      "slot": "cases/operations-public-blog-list-retry.png",
+      "artifactPath": "results/04-cases/2026-11-26_172452/operations-public-blog-list-retry/takeScreenshot/operations-public-blog-list-retry.png",
+      "collectedArtifactPath": "cases/operations-public-blog-list-retry.png",
+      "sha256": "b3006c4e34c797671dc0f45f079d1085a66d8258b54e9e31fc0d6fe029d9f96d",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 9,
+      "trace": "results/04-cases/2026-11-26_172452/operations-public-blog-list-retry/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-public-demo-course-article",
+      "slot": "cases/operations-public-demo-course-article.png",
+      "artifactPath": "results/04-cases/2026-11-26_172452/operations-public-demo-course-article/takeScreenshot/operations-public-demo-course-article.png",
+      "collectedArtifactPath": "cases/operations-public-demo-course-article.png",
+      "sha256": "39928e8529be005fecd79c5cf2f83b7e2674625726782e93e60d2bdd39bdeebe",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/04-cases/2026-11-26_172452/operations-public-demo-course-article/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-public-demo-empty",
+      "slot": "cases/operations-public-demo-empty.png",
+      "artifactPath": "results/04-cases/2026-11-26_172452/operations-public-demo-empty/takeScreenshot/operations-public-demo-empty.png",
+      "collectedArtifactPath": "cases/operations-public-demo-empty.png",
+      "sha256": "ac8dfc467bde2a3a22a2306145c8e1125ac498846b86ae89f28e724e3f48df0d",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/04-cases/2026-11-26_172452/operations-public-demo-empty/commands.json",
+      "comparisonDiffs": [
+        "diffs/operations-public-demo-empty-diff.png"
+      ]
+    },
+    {
+      "flow": "operations-public-demo-link",
+      "slot": "cases/operations-public-demo-link.png",
+      "artifactPath": "results/04-cases/2026-11-26_172452/operations-public-demo-link/takeScreenshot/operations-public-demo-link.png",
+      "collectedArtifactPath": "cases/operations-public-demo-link.png",
+      "sha256": "27e28e53ee3c740d6dcf5e4aa2b4f37655ddaaddc863a921950a6ae526c669a6",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/04-cases/2026-11-26_172452/operations-public-demo-link/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-public-demo-retry",
+      "slot": "cases/operations-public-demo-retry.png",
+      "artifactPath": "results/04-cases/2026-11-26_172452/operations-public-demo-retry/takeScreenshot/operations-public-demo-retry.png",
+      "collectedArtifactPath": "cases/operations-public-demo-retry.png",
+      "sha256": "bf9f0c342248b9dd4546441adf9d805ffead2022ff99e48e9bf080b127d57edf",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 9,
+      "trace": "results/04-cases/2026-11-26_172452/operations-public-demo-retry/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-public-demo-view-article",
+      "slot": "cases/operations-public-demo-view-article.png",
+      "artifactPath": "results/04-cases/2026-11-26_172452/operations-public-demo-view-article/takeScreenshot/operations-public-demo-view-article.png",
+      "collectedArtifactPath": "cases/operations-public-demo-view-article.png",
+      "sha256": "a0c322bb200ca76ae7f9d5bfcf47653dac4007b1d7436c3628a93045f8f7ffb5",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/04-cases/2026-11-26_172452/operations-public-demo-view-article/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-public-demo-view-missing",
+      "slot": "cases/operations-public-demo-view-missing.png",
+      "artifactPath": "results/04-cases/2026-11-26_172452/operations-public-demo-view-missing/takeScreenshot/operations-public-demo-view-missing.png",
+      "collectedArtifactPath": "cases/operations-public-demo-view-missing.png",
+      "sha256": "8f07c7a8b706e131c64275e87c9423180b171d695297f06d445f2b29c875e8c1",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/04-cases/2026-11-26_172452/operations-public-demo-view-missing/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-public-demo-view-quiz",
+      "slot": "cases/operations-public-demo-view-quiz.png",
+      "artifactPath": "results/04-cases/2026-11-26_172452/operations-public-demo-view-quiz/takeScreenshot/operations-public-demo-view-quiz.png",
+      "collectedArtifactPath": "cases/operations-public-demo-view-quiz.png",
+      "sha256": "8c28f13600650bfb135aea1100f96e4617f55f6dbbebeaaa3cbc7e1601ec4d28",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/04-cases/2026-11-26_172452/operations-public-demo-view-quiz/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-public-download-empty",
+      "slot": "cases/operations-public-download-empty.png",
+      "artifactPath": "results/04-cases/2026-11-26_172452/operations-public-download-empty/takeScreenshot/operations-public-download-empty.png",
+      "collectedArtifactPath": "cases/operations-public-download-empty.png",
+      "sha256": "cb0a28816eafab62e1cd3fc775a7b5e58b7b8857202db5ebec916b7a130439c2",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/04-cases/2026-11-26_172452/operations-public-download-empty/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-public-download-platforms",
+      "slot": "cases/operations-public-download-platforms.png",
+      "artifactPath": "results/04-cases/2026-11-26_172452/operations-public-download-platforms/takeScreenshot/operations-public-download-platforms.png",
+      "collectedArtifactPath": "cases/operations-public-download-platforms.png",
+      "sha256": "9b3d72476775a6397b729238d44c6aa4863c187f1b8e6a9b15bd671eb2b010aa",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/04-cases/2026-11-26_172452/operations-public-download-platforms/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-public-download-retry",
+      "slot": "cases/operations-public-download-retry.png",
+      "artifactPath": "results/04-cases/2026-11-26_172452/operations-public-download-retry/takeScreenshot/operations-public-download-retry.png",
+      "collectedArtifactPath": "cases/operations-public-download-retry.png",
+      "sha256": "c97c31cb7257221bbff103db95d1c3d74719786d5067328b0580cf98c47c257e",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 9,
+      "trace": "results/04-cases/2026-11-26_172452/operations-public-download-retry/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-public-english-faq",
+      "slot": "cases/operations-public-english-faq.png",
+      "artifactPath": "results/04-cases/2026-11-26_172452/operations-public-english-faq/takeScreenshot/operations-public-english-faq.png",
+      "collectedArtifactPath": "cases/operations-public-english-faq.png",
+      "sha256": "6029cba77225fdb775534234857494d20c36b08881d83f226a4d5f9c8b827199",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/04-cases/2026-11-26_172452/operations-public-english-faq/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-public-form-empty",
+      "slot": "cases/operations-public-form-empty.png",
+      "artifactPath": "results/04-cases/2026-11-26_172452/operations-public-form-empty/takeScreenshot/operations-public-form-empty.png",
+      "collectedArtifactPath": "cases/operations-public-form-empty.png",
+      "sha256": "d514a479ea8cd0fe1760c64825b80c5d750ca3e595a78e6da6355e0905ed2367",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/04-cases/2026-11-26_172452/operations-public-form-empty/commands.json",
+      "comparisonDiffs": [
+        "diffs/operations-public-form-empty-diff.png"
+      ]
+    },
+    {
+      "flow": "operations-public-form-validation",
+      "slot": "cases/operations-public-form-validation.png",
+      "artifactPath": "results/04-cases-retry/2026-11-26_172606/operations-public-form-validation/takeScreenshot/operations-public-form-validation.png",
+      "collectedArtifactPath": "cases/operations-public-form-validation.png",
+      "sha256": "ed88d46ba01d569ea89d47df2bc806014252560f64bc3f802a5793522302733d",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 9,
+      "trace": "results/04-cases-retry/2026-11-26_172606/operations-public-form-validation/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-public-founders-id",
+      "slot": "cases/operations-public-founders-id.png",
+      "artifactPath": "results/04-cases-retry/2026-11-26_172606/operations-public-founders-id/takeScreenshot/operations-public-founders-id.png",
+      "collectedArtifactPath": "cases/operations-public-founders-id.png",
+      "sha256": "cf36a6a2624ca7097545d9497cd1b7ee75da5c3f692e2e600477503294a690d6",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/04-cases-retry/2026-11-26_172606/operations-public-founders-id/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-public-hero-id",
+      "slot": "cases/operations-public-hero-id.png",
+      "artifactPath": "results/04-cases-retry/2026-11-26_172606/operations-public-hero-id/takeScreenshot/operations-public-hero-id.png",
+      "collectedArtifactPath": "cases/operations-public-hero-id.png",
+      "sha256": "81a2f5572e878c906986b1933a30da55b7c5eb6a974ff701c892267a1c0dcfda",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/04-cases-retry/2026-11-26_172606/operations-public-hero-id/commands.json",
+      "comparisonDiffs": [
+        "diffs/operations-public-hero-id-diff.png"
+      ]
+    },
+    {
+      "flow": "operations-public-long-copy-en",
+      "slot": "cases/operations-public-long-copy-en.png",
+      "artifactPath": "results/04-cases-retry/2026-11-26_172606/operations-public-long-copy-en/takeScreenshot/operations-public-long-copy-en.png",
+      "collectedArtifactPath": "cases/operations-public-long-copy-en.png",
+      "sha256": "0c301c687b7517599698917f635fbdc3254fcf29f83ca0c9fd9cc2fe21ddd3b6",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/04-cases-retry/2026-11-26_172606/operations-public-long-copy-en/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-public-plans-course-limits",
+      "slot": "cases/operations-public-plans-course-limits.png",
+      "artifactPath": "results/04-cases-retry/2026-11-26_172606/operations-public-plans-course-limits/takeScreenshot/operations-public-plans-course-limits.png",
+      "collectedArtifactPath": "cases/operations-public-plans-course-limits.png",
+      "sha256": "8167bcf6249c5e32d8ba78b665ee352448531840aaf01268bce4412c7a1d2708",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 13,
+      "trace": "results/04-cases-retry/2026-11-26_172606/operations-public-plans-course-limits/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-public-plans-default",
+      "slot": "cases/operations-public-plans-default.png",
+      "artifactPath": "results/04-cases-retry/2026-11-26_172606/operations-public-plans-default/takeScreenshot/operations-public-plans-default.png",
+      "collectedArtifactPath": "cases/operations-public-plans-default.png",
+      "sha256": "01541e31800da1a3fe27f5978e97162999656d7be502994f8dfa737340ef3e49",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/04-cases-retry/2026-11-26_172606/operations-public-plans-default/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-public-plans-retry",
+      "slot": "cases/operations-public-plans-retry.png",
+      "artifactPath": "results/04-cases-retry/2026-11-26_172606/operations-public-plans-retry/takeScreenshot/operations-public-plans-retry.png",
+      "collectedArtifactPath": "cases/operations-public-plans-retry.png",
+      "sha256": "4911275722d53f77ae00b678eef96aeaa7ec0e03b028639e2b1b409ba8daa31d",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 9,
+      "trace": "results/04-cases-retry/2026-11-26_172606/operations-public-plans-retry/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-public-portfolio",
+      "slot": "cases/operations-public-portfolio.png",
+      "artifactPath": "results/04-cases-retry/2026-11-26_172606/operations-public-portfolio/takeScreenshot/operations-public-portfolio.png",
+      "collectedArtifactPath": "cases/operations-public-portfolio.png",
+      "sha256": "bb78dfd01ae069194a89517b3cb697f94bcd55df10c40713e5c87383561bc93e",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/04-cases-retry/2026-11-26_172606/operations-public-portfolio/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-public-privacy-en-anchor",
+      "slot": "cases/operations-public-privacy-en-anchor.png",
+      "artifactPath": "results/04-cases-retry/2026-11-26_172606/operations-public-privacy-en-anchor/takeScreenshot/operations-public-privacy-en-anchor.png",
+      "collectedArtifactPath": "cases/operations-public-privacy-en-anchor.png",
+      "sha256": "a1abe3bf9c881672c4cdc1fe377e8aea26a4bac1c71272b92f8f062e1ca6a0b7",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/04-cases-retry/2026-11-26_172606/operations-public-privacy-en-anchor/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-public-privacy-id",
+      "slot": "cases/operations-public-privacy-id.png",
+      "artifactPath": "results/04-cases-retry/2026-11-26_172606/operations-public-privacy-id/takeScreenshot/operations-public-privacy-id.png",
+      "collectedArtifactPath": "cases/operations-public-privacy-id.png",
+      "sha256": "5954d440c34e86566cce1ec7e6652da6adc5fc9a883871a93be4acac0fad8c4c",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/04-cases-retry/2026-11-26_172606/operations-public-privacy-id/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-public-privacy-terms-link",
+      "slot": "cases/operations-public-privacy-terms-link.png",
+      "artifactPath": "results/04-cases-retry/2026-11-26_172606/operations-public-privacy-terms-link/takeScreenshot/operations-public-privacy-terms-link.png",
+      "collectedArtifactPath": "cases/operations-public-privacy-terms-link.png",
+      "sha256": "177dabfdcf01f80e9e4d4edf710b64115cd86ffd2ebb8b095daa6b34815da3b0",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/04-cases-retry/2026-11-26_172606/operations-public-privacy-terms-link/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-public-terms-en-anchor",
+      "slot": "cases/operations-public-terms-en-anchor.png",
+      "artifactPath": "results/04-cases-retry/2026-11-26_172606/operations-public-terms-en-anchor/takeScreenshot/operations-public-terms-en-anchor.png",
+      "collectedArtifactPath": "cases/operations-public-terms-en-anchor.png",
+      "sha256": "ac16fd1e878e0063c7df51e6214daaca94159d77c0162d4872485c3d0bc37487",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/04-cases-retry/2026-11-26_172606/operations-public-terms-en-anchor/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-public-terms-id",
+      "slot": "cases/operations-public-terms-id.png",
+      "artifactPath": "results/04-cases-retry/2026-11-26_172606/operations-public-terms-id/takeScreenshot/operations-public-terms-id.png",
+      "collectedArtifactPath": "cases/operations-public-terms-id.png",
+      "sha256": "5133c94b49365b35ec52768f13551ed5163fa043c0351292d2fc0a1ad528ca60",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/04-cases-retry/2026-11-26_172606/operations-public-terms-id/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-public-terms-privacy-link",
+      "slot": "cases/operations-public-terms-privacy-link.png",
+      "artifactPath": "results/04-cases-retry/2026-11-26_172606/operations-public-terms-privacy-link/takeScreenshot/operations-public-terms-privacy-link.png",
+      "collectedArtifactPath": "cases/operations-public-terms-privacy-link.png",
+      "sha256": "5b95f3020458f6abf98620f40e20889d345c631e57c1897d0f7371d9c3bf52c2",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/04-cases-retry/2026-11-26_172606/operations-public-terms-privacy-link/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-public-testimonial-dark-en",
+      "slot": "cases/operations-public-testimonial-dark-en.png",
+      "artifactPath": "results/04-cases-retry/2026-11-26_172606/operations-public-testimonial-dark-en/takeScreenshot/operations-public-testimonial-dark-en.png",
+      "collectedArtifactPath": "cases/operations-public-testimonial-dark-en.png",
+      "sha256": "6cfa21ff272b8ea46de059326b31343b4ce23248577d53e7b5e3561ed4c27c25",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/04-cases-retry/2026-11-26_172606/operations-public-testimonial-dark-en/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-public-testimonial-list",
+      "slot": "cases/operations-public-testimonial-list.png",
+      "artifactPath": "results/04-cases-retry/2026-11-26_172606/operations-public-testimonial-list/takeScreenshot/operations-public-testimonial-list.png",
+      "collectedArtifactPath": "cases/operations-public-testimonial-list.png",
+      "sha256": "420f4116f11e80532024461205fd8c65f979b91b5c926e8cf8c6b174acf13110",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/04-cases-retry/2026-11-26_172606/operations-public-testimonial-list/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-public-testimonial-plans",
+      "slot": "cases/operations-public-testimonial-plans.png",
+      "artifactPath": "results/04-cases-retry/2026-11-26_172606/operations-public-testimonial-plans/takeScreenshot/operations-public-testimonial-plans.png",
+      "collectedArtifactPath": "cases/operations-public-testimonial-plans.png",
+      "sha256": "5208828ded1a59e624ab1306cd37bc4ad2ded8587758980741f8517c7e232370",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/04-cases-retry/2026-11-26_172606/operations-public-testimonial-plans/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-public-unsubscribe-confirm",
+      "slot": "cases/operations-public-unsubscribe-confirm.png",
+      "artifactPath": "results/05-cases/2026-11-26_172712/operations-public-unsubscribe-confirm/takeScreenshot/operations-public-unsubscribe-confirm.png",
+      "collectedArtifactPath": "cases/operations-public-unsubscribe-confirm.png",
+      "sha256": "1538d66700b155918231518500a975c68c5b675f3982f3515220c11b906d3df0",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 9,
+      "trace": "results/05-cases/2026-11-26_172712/operations-public-unsubscribe-confirm/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-public-unsubscribe-invalid",
+      "slot": "cases/operations-public-unsubscribe-invalid.png",
+      "artifactPath": "results/05-cases/2026-11-26_172712/operations-public-unsubscribe-invalid/takeScreenshot/operations-public-unsubscribe-invalid.png",
+      "collectedArtifactPath": "cases/operations-public-unsubscribe-invalid.png",
+      "sha256": "5aabd52c6e314ae3430a9b2e61f6c5c6e523178584181417ccda27b0f17f5ec2",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 6,
+      "trace": "results/05-cases/2026-11-26_172712/operations-public-unsubscribe-invalid/commands.json",
+      "comparisonDiffs": []
+    },
+    {
+      "flow": "operations-public-unsubscribe-retry",
+      "slot": "cases/operations-public-unsubscribe-retry.png",
+      "artifactPath": "results/05-cases/2026-11-26_172712/operations-public-unsubscribe-retry/takeScreenshot/operations-public-unsubscribe-retry.png",
+      "collectedArtifactPath": "cases/operations-public-unsubscribe-retry.png",
+      "sha256": "c18bbeb0125991ef0e93461e2e69ee2ee8f83640bddff3e6c648307cd87864ca",
+      "pixels": [
+        380,
+        844
+      ],
+      "commandStatus": "COMPLETED",
+      "commandSequence": 14,
+      "trace": "results/05-cases/2026-11-26_172712/operations-public-unsubscribe-retry/commands.json",
+      "comparisonDiffs": []
+    }
+  ],
+  "checkout": {
+    "parents": [
+      "8a1a516c0327582c09f7f0e1a54aab5b8233f5c4",
+      "6fda5518d1e845b19d54e5e50ee9c1381b0a3d1b"
+    ],
+    "sha": "74ff22df2b67a6f877fe9f5767e8820c655b8e1c",
+    "tree": "f8b8cf5175014294359a4cb20a7fed43e112fb72"
+  },
+  "operationsSourceEquivalence": {
+    "reference": "6fda5518d1e845b19d54e5e50ee9c1381b0a3d1b",
+    "verifiedUnchanged": [
+      "apps/mobile-native/features/operations",
+      ".maestro/native-parallel/operations",
+      "packages/native-parity/operations",
+      "scripts/native-parity/operations",
+      ".github/workflows/native-operations.yml",
+      "tests/visual/native-parallel/operations/references",
+      "tests/visual/native-parallel/operations/public-pages/references"
+    ],
+    "limits": "The merge tree also includes newer shared native app code."
+  },
+  "jobLogExcerpt": {
+    "path": "job-excerpt.txt",
+    "sha256": "b756abf2a44aae55f19b618ded3216db3ad43eae8dec0305a722aba1fe1b2c07"
+  }
+}

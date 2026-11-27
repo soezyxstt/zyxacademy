@@ -17,6 +17,31 @@ import {
   type CapacitorLocalNotificationsPlugin,
 } from "./runtime";
 
+import { quietHoursEnd, quietHoursSchema, type QuietHours } from "@/lib/notifications/quiet-hours";
+
+async function readDeviceQuietHours(userId: string): Promise<QuietHours | null> {
+ const key = "zyx_quiet_hours_v1:" + userId;
+ const storage = getStorage();
+ try {
+  const response = await fetch("/api/notifications/quiet-hours", { credentials:"include", cache:"no-store", signal: AbortSignal.timeout(4000) });
+  if (response.ok) {
+   const result = quietHoursSchema.parse(await response.json());
+   try { storage?.setItem(key,JSON.stringify(result)); } catch { /* optional cache */ }
+   return result;
+  }
+ } catch { /* offline: use the last known account preference */ }
+ try { const raw = storage?.getItem(key); return raw ? quietHoursSchema.parse(JSON.parse(raw)) : null; } catch { return null; }
+}
+function shiftRecurringStudyTime(hour: number, minute: number, weekday: number | undefined, quiet: QuietHours | null | undefined) {
+ if (!quiet?.enabled) return { ...(weekday ? {weekday} : {}), hour, minute };
+ const next = new Date();
+ next.setHours(hour,minute,0,0);
+ if (weekday) next.setDate(next.getDate() + (weekday - (next.getDay()+1) + 7) % 7);
+ if (next <= new Date()) next.setDate(next.getDate() + (weekday ? 7 : 1));
+ const shifted = quietHoursEnd(quiet,next) ?? next;
+ return { ...(weekday ? {weekday: shifted.getDay()+1} : {}), hour:shifted.getHours(), minute:shifted.getMinutes() };
+}
+
 export type StudyReminderFrequency = "daily" | "weekly";
 
 export interface StudyReminderConfig {
@@ -219,6 +244,7 @@ export function parseJakartaSessionStart(sessionDate: string | null | undefined,
 export function buildStudyReminderNotifications(
   config: StudyReminderConfig,
   locale: "id" | "en" = "id",
+  quiet?: QuietHours | null,
 ): CapacitorLocalNotificationSchema[] {
   const normalized = normalizeStudyReminderConfig(config);
   if (!normalized.enabled) return [];
@@ -236,7 +262,7 @@ export function buildStudyReminderNotifications(
         title,
         body,
         schedule: {
-          on: { hour: normalized.hour, minute: normalized.minute },
+          on: shiftRecurringStudyTime(normalized.hour, normalized.minute, undefined, quiet),
           repeats: true,
           allowWhileIdle: true,
         },
@@ -253,7 +279,7 @@ export function buildStudyReminderNotifications(
     title,
     body,
     schedule: {
-      on: { weekday, hour: normalized.hour, minute: normalized.minute },
+      on: shiftRecurringStudyTime(normalized.hour, normalized.minute, weekday, quiet),
       repeats: true,
       allowWhileIdle: true,
     },
@@ -309,7 +335,8 @@ export async function syncStudyReminderNotifications(
     return { scheduledIds: [], cancelledIds };
   }
 
-  const nextNotifications = buildStudyReminderNotifications(normalized, options?.locale ?? "id");
+  const quiet = await readDeviceQuietHours(userId);
+  const nextNotifications = buildStudyReminderNotifications(normalized, options?.locale ?? "id", quiet);
   if (nextNotifications.length > 0) {
     await plugin.schedule({ notifications: nextNotifications });
   }
@@ -337,6 +364,7 @@ export async function syncTutorSessionReminders(
 
   const locale = options?.locale ?? "id";
   const nowMs = options?.nowMs ?? Date.now();
+  const quiet = await readDeviceQuietHours(userId);
   const leadMinutes = options?.leadMinutes ?? loadStudyReminderConfig(userId).tutorLeadMinutes;
   const registry = loadRegistry(userId);
 
@@ -349,8 +377,10 @@ export async function syncTutorSessionReminders(
     if (session.status !== "scheduled") continue;
     const startAt = parseJakartaSessionStart(session.sessionDate, session.startTime);
     if (!startAt) continue;
-    const fireAt = new Date(startAt.getTime() - leadMinutes * 60_000);
-    if (fireAt.getTime() <= nowMs) continue;
+    const requestedAt = new Date(startAt.getTime() - leadMinutes * 60_000);
+    const fireAt = quiet ? quietHoursEnd(quiet,requestedAt) ?? requestedAt : requestedAt;
+    // Do not send a stale reminder after a session starts.
+    if (fireAt.getTime() <= nowMs || fireAt >= startAt) continue;
     desiredByBooking.set(session.bookingId, {
       id: getBookingReminderNotificationId(session.bookingId),
       fireAt,
@@ -392,14 +422,16 @@ export async function syncTutorSessionReminders(
 
     const course = desired.session.courseTitle?.trim() || (locale === "en" ? "Tutor session" : "Sesi tutorial");
     const tutor = desired.session.tutorName?.trim();
+    const startAt = parseJakartaSessionStart(desired.session.sessionDate,desired.session.startTime);
+    const actualLead = startAt ? Math.max(1,Math.round((startAt.getTime()-desired.fireAt.getTime())/60_000)) : leadMinutes;
     const title =
       locale === "en"
         ? `Upcoming session: ${course}`
         : `Sesi segera dimulai: ${course}`;
     const body =
       locale === "en"
-        ? `${tutor ? `With ${tutor}, ` : ""}starts in ${leadMinutes} minutes (${desired.session.startTime} WIB).`
-        : `${tutor ? `Bersama ${tutor}, ` : ""}mulai dalam ${leadMinutes} menit (${desired.session.startTime} WIB).`;
+        ? `${tutor ? `With ${tutor}, ` : ""}starts in ${actualLead} minutes (${desired.session.startTime} WIB).`
+        : `${tutor ? `Bersama ${tutor}, ` : ""}mulai dalam ${actualLead} menit (${desired.session.startTime} WIB).`;
 
     toSchedule.push({
       id: desired.id,

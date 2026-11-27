@@ -1,0 +1,10 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuite name="Student smoke" tests="8" failures="0"><testcase id="smoke-004" name="smoke-004" classname="smoke-004" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/courses/smoke-004.yaml" time="7.872" timestamp="2026-11-26T16:50:47" status="SUCCESS" />
+    <testcase id="smoke-005" name="smoke-005" classname="smoke-005" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/courses/smoke-005.yaml" time="3.981" timestamp="2026-11-26T16:50:55" status="SUCCESS" />
+    <testcase id="smoke-006" name="smoke-006" classname="smoke-006" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/courses/smoke-006.yaml" time="5.186" timestamp="2026-11-26T16:50:59" status="SUCCESS" />
+    <testcase id="smoke-007" name="smoke-007" classname="smoke-007" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/courses/smoke-007.yaml" time="5.641" timestamp="2026-11-26T16:51:04" status="SUCCESS" />
+    <testcase id="smoke-008" name="smoke-008" classname="smoke-008" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/courses/smoke-008.yaml" time="5.5" timestamp="2026-11-26T16:51:09" status="SUCCESS" />
+    <testcase id="smoke-017" name="smoke-017" classname="smoke-017" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/courses/smoke-017.yaml" time="4.467" timestamp="2026-11-26T16:51:15" status="SUCCESS" />
+    <testcase id="smoke-019" name="smoke-019" classname="smoke-019" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/courses/smoke-019.yaml" time="5.171" timestamp="2026-11-26T16:51:19" status="SUCCESS" />
+    <testcase id="smoke-020" name="smoke-020" classname="smoke-020" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/courses/smoke-020.yaml" time="7.736" timestamp="2026-11-26T16:51:25" status="SUCCESS" />
+  </testsuite>

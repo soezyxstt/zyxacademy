@@ -1,4 +1,5 @@
-import { afterEach, describe, expect, it } from "bun:test";
+import { afterEach, describe, expect, it, mock } from "bun:test";
+mock.module("server-only", () => ({}));
 import {
   OPS_FOLLOWUPS_CLOSE,
   OPS_FOLLOWUPS_OPEN,
@@ -6,10 +7,10 @@ import {
   parseOpsFollowups,
   validateOpsFollowups,
 } from "@/lib/admin-ops-ai/followups";
-import {
+const {
   createOpsAiRuntimeResponse,
-} from "@/lib/admin-ops-ai/runtime";
-import { setOpsAiModelStreamMock } from "@/lib/admin-ops-ai/model-factory";
+} = await import("@/lib/admin-ops-ai/runtime");
+const { setOpsAiModelStreamMock } = await import("@/lib/admin-ops-ai/model-factory");
 import { consumeOpsAiStream } from "@/components/admin/ops-ai/use-ops-ai-chat";
 import {
   resolveDynamicOpsPresets,

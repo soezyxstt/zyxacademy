@@ -191,6 +191,9 @@ function LiveView({ state, sendAnswer, courseId, sessionId }: LiveViewProps) {
     reconnecting: "reconnecting",
   } as const;
   const connectionLabel = t(connectionLabelKeys[connectionStatus]);
+  const questionPosition = currentQuestion && (currentQuestion.total > 0
+    ? t("questionPosition", { current: currentQuestion.questionIndex + 1, total: currentQuestion.total })
+    : t("question", { number: currentQuestion.questionIndex + 1 }));
 
   const handleAnswer = useCallback(
     (choice: number) => {
@@ -232,8 +235,8 @@ function LiveView({ state, sendAnswer, courseId, sessionId }: LiveViewProps) {
         <div className="mx-auto max-w-xl space-y-(--related-gap)">
           {/* Countdown */}
           <div className="flex items-center justify-between">
-            <span className="text-body-sm text-muted-foreground tabular-nums" aria-label={t("questionPosition", { current: currentQuestion.questionIndex + 1, total: currentQuestion.total })}>
-              {t("questionPosition", { current: currentQuestion.questionIndex + 1, total: currentQuestion.total })}
+            <span className="text-body-sm text-muted-foreground tabular-nums" aria-label={questionPosition ?? undefined}>
+              {questionPosition}
             </span>
             {sessionState === "question" && (
               <span

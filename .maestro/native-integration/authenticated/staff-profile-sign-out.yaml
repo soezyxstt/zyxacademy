@@ -1,0 +1,41 @@
+appId: com.zyx.academy.nativeparity
+name: Verify the opposite role is denied, open personal settings and profile, and sign out
+---
+- openLink: "${PREVIEW_WRONG_ROLE_URL}"
+- extendedWaitUntil:
+    visible: "(Akses ditolak\\.|Access denied\\.)"
+    timeout: 30000
+- assertNotVisible: ".*${PREVIEW_OTHER_RECORD}.*"
+- openLink: "${PREVIEW_READ_URL}"
+- extendedWaitUntil:
+    visible:
+      id: "(tutor|admin)-navbar-account"
+    timeout: 30000
+- tapOn:
+    id: "(tutor|admin)-navbar-account"
+- assertVisible: "Expo Preview (Tutor|Admin)"
+- assertVisible:
+    id: role-account-profile
+- tapOn:
+    id: role-account-preferences
+- extendedWaitUntil:
+    visible: "(Pengaturan|Settings)"
+    timeout: 30000
+- assertVisible: "(Bahasa|Language)"
+- tapOn: "(Profil|Profile)"
+- extendedWaitUntil:
+    visible: "(Profil akademis|Academic profile)"
+    timeout: 30000
+- tapOn:
+    id: "(tutor|admin)-navbar-account"
+- tapOn:
+    id: role-account-sign-out
+- extendedWaitUntil:
+    visible: '(Kamu sudah keluar\.|You are signed out\.)'
+    timeout: 30000
+- openLink: "${PREVIEW_READ_URL}"
+- extendedWaitUntil:
+    visible:
+      id: native-auth-google
+    timeout: 30000
+- assertNotVisible: ".*${PREVIEW_RECORD}.*"

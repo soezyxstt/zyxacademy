@@ -203,6 +203,12 @@ describe("Tutor Downstream Analytics and Zyra Bridge Contract", () => {
     expect(computedSnapshots.length).toBe(2);
     expect(computedSnapshots[1]).toBe("crs-kalkulus-leg");
 
+    const crossOrigin = new NextRequest("http://localhost/api/tutor/analytics/refresh?courseId=crs-kalkulus-leg", {
+      method: "POST", headers: { Origin: "https://untrusted.example.invalid" },
+    });
+    expect((await refreshAnalytics(crossOrigin)).status).toBe(403);
+    expect(computedSnapshots).toHaveLength(2);
+
     // 3. Unauthorized user / unassigned tutor -> returns 403
     mockSession = {
       user: { id: "usr-stranger", name: "Stranger", role: "student" },

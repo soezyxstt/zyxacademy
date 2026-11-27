@@ -1,0 +1,195 @@
+{
+  "sourceHead": "544c89bec726ad57dad40fa7c3eebe0345572f84",
+  "checkoutSha": "aa22667ee62edf84c1aa815da4990362c9390ea7",
+  "workflowRun": "https://github.com/soezyxstt/zyxacademy/actions/runs/45808632131",
+  "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45808632131/artifacts/15115222022",
+  "artifactSha256": "a6799ace89922f82efdb627f6d734095818a56af16b6a60be22727a15efc4e16",
+  "webReferenceArtifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45808632131/artifacts/15110617721",
+  "jobId": 139871605261,
+  "status": "device_flows_completed_with_failures",
+  "reason": "Maestro reported 173 captured smoke passes, six assertion failures, and 21 ADB transport failures from smoke-047 through smoke-067. Three cases were blocked. Nine of 18 standalone scenarios passed. Catalog captures predate the layout and scroll fixes.",
+  "summaryCounts": {
+    "passed": 173,
+    "blocked": 3,
+    "failed": 27
+  },
+  "standaloneCounts": {
+    "failed": 9,
+    "passed": 9
+  },
+  "standaloneFailures": [
+    "Student restores a saved answer after process restart",
+    "Student quiz saves and restores its draft",
+    "Student tryout retries the same submission after response loss",
+    "Student reads and completes a solution collection",
+    "Student calendar filters assessments and opens tutorial history",
+    "Student opens a discussion alias and posts a scoped answer",
+    "Student separates participation from academic scores and recovers a failed load",
+    "Student weekly calendar selects tutor slots and another day",
+    "Student course long material list fixture"
+  ],
+  "comparison": [
+    {
+      "id": "catalog-all",
+      "status": "different",
+      "differing_pixels": 49115,
+      "max_channel_difference": 236
+    },
+    {
+      "id": "catalog-tpb",
+      "status": "different",
+      "differing_pixels": 41892,
+      "max_channel_difference": 236
+    },
+    {
+      "id": "catalog-pka",
+      "status": "different",
+      "differing_pixels": 25560,
+      "max_channel_difference": 226
+    }
+  ],
+  "captures": [
+    {
+      "file": "captures/catalog-all-diff.png",
+      "member": "comparison/catalog-all-diff.png",
+      "sha256": "f68a00eb02fcf7e7181aea00ab89a99d4adf3012b78d619605abf65e86b62697",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/catalog-pka-diff.png",
+      "member": "comparison/catalog-pka-diff.png",
+      "sha256": "1daf07c2265ee385221f8bee07c64b8c108dc3dad0593a432511a6b97c0f08cb",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/catalog-tpb-diff.png",
+      "member": "comparison/catalog-tpb-diff.png",
+      "sha256": "3079ac93ca15fea2b7396cdf157d399944471a459771099b43f946dc0b07b712",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-catalog-all.png",
+      "member": "results/2026-11-26_113533/Catalog comparable fixture all TPB and PKA/takeScreenshot/student-catalog-all.png",
+      "sha256": "383776e2abbadcedcc1c4306a94e383dc5adb16ea497d139b12d15f47af676ba",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-catalog-pka.png",
+      "member": "results/2026-11-26_113533/Catalog comparable fixture all TPB and PKA/takeScreenshot/student-catalog-pka.png",
+      "sha256": "bc185d17f15bc7759732649fa19db2ddb77b067abf44c5ba8296cead5f012ebc",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-catalog-tpb.png",
+      "member": "results/2026-11-26_113533/Catalog comparable fixture all TPB and PKA/takeScreenshot/student-catalog-tpb.png",
+      "sha256": "88cb22d3b6b294506834c75bb35e6a2fd16a55409947b0c97f82a5c66467c56d",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-flashcard-reviewed.png",
+      "member": "results/2026-11-26_113533/Learning flashcard flip and grade/takeScreenshot/student-flashcard-reviewed.png",
+      "sha256": "8c75d8958bb6e6ea57734ffff0027fe3e988b8de3e033a6ad3359ecd8598dee7",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-enrolled-dashboard.png",
+      "member": "results/2026-11-26_113533/Student course enrolled fixture/takeScreenshot/student-enrolled-dashboard.png",
+      "sha256": "7c46d817fa6cea365573ef20d3570ed89cabdcc880a9c2ff5e47fd941672011e",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-long-content.png",
+      "member": "results/2026-11-26_113533/Student course long material list fixture/takeScreenshot/student-long-content.png",
+      "sha256": "ef9fdbc565f8381c7e22ab58719f991143347a06304956f1479e50f7efb55f01",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/materials-back-failed.png",
+      "member": "results/2026-11-26_113533/Student course long material list fixture/screenshots/step-014-assertCondition-student-material-bab-24.png",
+      "sha256": "1bff9e61536c89cafd87c74150c6f69fba70ca42937e58fd4d97615fb9155d16",
+      "dimensions": [
+        380,
+        820
+      ],
+      "status": "failed"
+    },
+    {
+      "file": "captures/assessment-quiz-list-long-failed.png",
+      "member": "smoke/assessment/results/2026-11-26_114501/smoke-133/screenshots/step-010-scrollUntilVisible-Jelaskan_hubungan_koe.png",
+      "sha256": "3c9ab0ba03a07ff6c64418ced426ea7ccdab99d33da51ff4f2566640013d0055",
+      "dimensions": [
+        380,
+        820
+      ],
+      "status": "failed"
+    },
+    {
+      "file": "captures/schedule-loaded-failed.png",
+      "member": "smoke/community/results/2026-11-26_115733/smoke-039/screenshots/step-006-assertCondition-Sesi_kelompok.png",
+      "sha256": "a2e3406591cd59974f77cfae94d5dcddce137a06d413331e0f685096847d56bc",
+      "dimensions": [
+        380,
+        820
+      ],
+      "status": "failed"
+    },
+    {
+      "file": "captures/preferences-empty-failed.png",
+      "member": "smoke/community/results/2026-11-26_115733/smoke-070/screenshots/step-008-assertCondition-Preferensi_tersimpan.png",
+      "sha256": "3bcae660a4c6a77e03c81a9d2d3ba784680ea664df2698509398564c7ca5a92e",
+      "dimensions": [
+        380,
+        820
+      ],
+      "status": "failed"
+    }
+  ],
+  "transportFailures": {
+    "range": [
+      "smoke-047",
+      "smoke-067"
+    ],
+    "count": 21,
+    "maestroError": "DeviceServerDiedException: Device server died during 'deviceInfo' on emulator-5554",
+    "adbError": "Command failed (host:transport:emulator-5554): device offline"
+  },
+  "matchedScenarioResults": {
+    "catalog": {
+      "name": "Catalog comparable fixture all TPB and PKA",
+      "status": "SUCCESS",
+      "source": "report.xml"
+    },
+    "flashcard": {
+      "name": "Learning flashcard flip and grade",
+      "status": "SUCCESS",
+      "source": "report.xml"
+    }
+  }
+}

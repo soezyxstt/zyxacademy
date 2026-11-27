@@ -1,0 +1,86 @@
+[
+  {
+    "id": "management-form-builder",
+    "width": 380,
+    "dpr": 1,
+    "scrollWidth": 521,
+    "overflow": true,
+    "file": "management-form-builder-380-dpr1.png"
+  },
+  {
+    "id": "management-form-list",
+    "width": 380,
+    "dpr": 1,
+    "error": "Tab daftar tidak mencapai data fixture sebelum batas tunggu."
+  },
+  {
+    "id": "management-form-list-empty",
+    "width": 380,
+    "dpr": 1,
+    "scrollWidth": 380,
+    "overflow": false,
+    "file": "management-form-list-empty-380-dpr1.png"
+  },
+  {
+    "id": "management-form-summary",
+    "width": 380,
+    "dpr": 1,
+    "scrollWidth": 380,
+    "overflow": false,
+    "file": "management-form-summary-380-dpr1.png"
+  },
+  {
+    "id": "management-docs-list",
+    "width": 380,
+    "dpr": 1,
+    "scrollWidth": 380,
+    "overflow": false,
+    "file": "management-docs-list-380-dpr1.png"
+  },
+  {
+    "id": "management-docs-detail",
+    "width": 380,
+    "dpr": 1,
+    "scrollWidth": 380,
+    "overflow": false,
+    "file": "management-docs-detail-380-dpr1.png"
+  },
+  {
+    "id": "management-form-builder",
+    "width": 402,
+    "dpr": 3,
+    "scrollWidth": 521,
+    "overflow": true,
+    "file": "management-form-builder-402-dpr3.png"
+  },
+  {
+    "id": "management-form-list",
+    "width": 402,
+    "dpr": 3,
+    "error": "Tab daftar tidak mencapai data fixture sebelum batas tunggu."
+  },
+  {
+    "id": "management-form-list-empty",
+    "width": 402,
+    "dpr": 3,
+    "error": "Tab daftar tidak mencapai data fixture sebelum batas tunggu."
+  },
+  {
+    "id": "management-form-summary",
+    "width": 402,
+    "dpr": 3,
+    "error": "Capture dihentikan sebelum kasus ini selesai."
+  },
+  {
+    "id": "management-docs-list",
+    "width": 402,
+    "dpr": 3,
+    "error": "Capture dihentikan sebelum kasus ini selesai."
+  },
+  {
+    "id": "management-docs-detail",
+    "width": 402,
+    "dpr": 3,
+    "error": "Capture dihentikan sebelum kasus ini selesai."
+  }
+]

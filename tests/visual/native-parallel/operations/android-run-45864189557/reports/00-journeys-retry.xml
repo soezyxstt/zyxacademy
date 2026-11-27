@@ -1,0 +1,6 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+  <testsuite name="Test Suite" device="test" tests="1" failures="0" time="24.122" timestamp="2026-11-26T17:20:26">
+    <testcase id="Operations Admin home to Web Analytics and access denial" name="Operations Admin home to Web Analytics and access denial" classname="Operations Admin home to Web Analytics and access denial" file="/tmp/tmp.dV5bi50HHE/operations/admin-analytics.yaml" time="24.101" timestamp="2026-11-26T17:20:26" status="SUCCESS"/>
+  </testsuite>
+</testsuites>

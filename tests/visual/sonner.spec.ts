@@ -101,3 +101,21 @@ for (const theme of ["light", "dark"] as const) {
     expect(errors).toEqual([]);
   });
 }
+
+test("passive notification expires even while Sonner is expanded", async ({ page }, info) => {
+  await page.route("http://sonner.test/**", route => route.fulfill({
+    contentType: "text/html",
+    body: '<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"></head><body><div id="root"></div></body></html>',
+  }));
+  await page.goto("http://sonner.test/?passive=1");
+  await page.addStyleTag({ content: styles });
+  await page.addScriptTag({ content: script });
+  await page.getByRole("button", { name: "Show inbox notice" }).click();
+  const notice = page.locator("[data-sonner-toast]").filter({ hasText: "Discussion update" });
+  await expect(notice).toBeVisible();
+  await page.keyboard.press("Alt+t");
+  await expect(notice).toHaveAttribute("data-expanded", "true");
+  await page.screenshot({ path: info.outputPath("passive-notification-visible.png"), animations: "disabled" });
+  await expect(notice).toHaveCount(0, { timeout: 8000 });
+  await page.screenshot({ path: info.outputPath("passive-notification-expired.png"), animations: "disabled" });
+});

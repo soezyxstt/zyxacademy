@@ -13,7 +13,7 @@ const code = ts.transpileModule(`${source.slice(start, end)}\nexport { allowedBy
 const exports: Record<string, any> = {};
 runInNewContext(code, { exports });
 const allowed: (event: any, userId: string, seq: number, state: any) => boolean = exports.allowedByState;
-const state = (revision: number | undefined, statusRevision = 1) => ({ preferences: new Map(),
+const state = (revision: number | undefined, statusRevision = 1) => ({ preferences: new Map(), activity: new Map(), participants: new Set(["alice", "bob"]),
  reads: new Map([["alice", { throughSeq: 40, seenStatusRevision: statusRevision, updatedAt: new Date("2030-01-01") }]]),
  observations: new Map(revision === undefined ? [] : [["alice", revision]]) });
 const event = { kind: "edit", messageId: "m1", messageRevision: 2, statusRevision: null, createdAt: new Date("2020-01-01") };
@@ -60,4 +60,15 @@ test("clearing uses accepted per-event revisions and scopes the user and thread"
  expect(query.params).toContain("alice");
  expect(query.params).toContain("thread");
  expect(query.params).toContain(3);
+});
+
+test("discussion delivery requires participation or thread authorship and honors opt-out", () => {
+ const fresh = { ...state(1), participants: new Set<string>(), activity: new Map<string, { discussionsEnabled: boolean }>() };
+ expect(allowed(event, "alice", 1, fresh)).toBe(false);
+ expect(exports.allowedByState(event, "alice", 1, fresh, "alice")).toBe(true);
+ fresh.participants.add("alice");
+ expect(allowed(event, "alice", 1, fresh)).toBe(true);
+ fresh.activity.set("alice", { discussionsEnabled: false });
+ expect(allowed(event, "alice", 1, fresh)).toBe(false);
+ expect(exports.allowedByState(event, "alice", 1, fresh, "alice")).toBe(false);
 });

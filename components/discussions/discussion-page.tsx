@@ -7,7 +7,7 @@ import { AdminEmptyState } from "@/components/admin/state-panels";
 import { Button } from "@/components/ui/button";
 import { MessageSquareText } from "lucide-react";
 import { getAuthSession } from "@/lib/auth-session";
-import { requireDiscussionCourse, resolveDiscussionCourses } from "@/lib/discussions/access";
+import { getStudentDiscussionListScope, requireDiscussionCourse, resolveDiscussionCourses } from "@/lib/discussions/access";
 import { getSessionDiscussionActor } from "@/lib/discussions/session";
 import { getEquippedZyraAppearance } from "@/lib/gamification/queries";
 import { getTranslations } from "@/lib/i18n/server";
@@ -36,12 +36,18 @@ export async function DiscussionPage({ courseId, surface }: { courseId?: string;
   } catch {
     return <ApplicationPage data-discussion-page spacing="space-y-(--compact-gap)" className={pageClassName}><PageHeader title={t("title")} /><AdminEmptyState icon={MessageSquareText} title={t("pageUnavailable")} description={t("accessChanged")} action={<Button asChild variant="outline"><Link href={surface === "student" ? "/dashboard" : surface === "tutor" ? "/tutor" : "/admin"}>{t("backDashboard")}</Link></Button>} /></ApplicationPage>;
   }
-  const appearance = await getEquippedZyraAppearance(actor.id).catch(() => ({ skinId: null }));
+  const [appearance, listAccess] = await Promise.all([
+    getEquippedZyraAppearance(actor.id).catch(() => ({ skinId: null })),
+    surface === "student" && actor.role === "student" && !courseId
+      ? getStudentDiscussionListScope(actor).catch(() => null)
+      : null,
+  ]);
+  const listScope = listAccess && session.session?.id ? { ...listAccess, sessionId: session.session.id } : undefined;
   const backHref = courseId ? surface === "tutor" ? `/tutor/${encodeURIComponent(courseId)}` : `/courses/${encodeURIComponent(courseId)}` : undefined;
   return <ApplicationPage data-discussion-page spacing="space-y-(--compact-gap)" className={pageClassName}>
     <PageHeader title={t("title")} backHref={backHref} className={backHref ? "px-3 md:px-0" : undefined} />
     <Suspense fallback={<DiscussionWorkspaceSkeleton label={t("loadingThread")} />}>
-      <DiscussionClient key={`${actor.id}:${courseKey ?? "all"}:${surface}`} viewer={{ id: actor.id, name: session.user.name || t("unknownUser"), role: actor.role, skinId: appearance.skinId }} courseId={courseKey} />
+      <DiscussionClient key={`${actor.id}:${courseKey ?? "all"}:${surface}`} viewer={{ id: actor.id, name: session.user.name || t("unknownUser"), role: actor.role, skinId: appearance.skinId }} courseId={courseKey} listScope={listScope} />
     </Suspense>
   </ApplicationPage>;
 }

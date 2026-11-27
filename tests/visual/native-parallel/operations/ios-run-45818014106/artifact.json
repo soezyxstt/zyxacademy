@@ -1,0 +1,20 @@
+{
+  "archive_download_url": "https://api.github.com/repos/soezyxstt/zyxacademy/actions/artifacts/15130240909/zip",
+  "created_at": "2026-11-26T14:52:06Z",
+  "digest": "sha256:a53ac2abb583c8bfe1acef1b6ea3012908c51c5158f46b571d81f2f0629d06e7",
+  "expired": false,
+  "expires_at": "2026-12-03T14:51:39Z",
+  "id": 15130240909,
+  "name": "operations-ios",
+  "node_id": "MDg6QXJ0aWZhY3QxNTEzMDI0MDkwOQ==",
+  "size_in_bytes": 166930698,
+  "updated_at": "2026-11-26T14:52:06Z",
+  "url": "https://api.github.com/repos/soezyxstt/zyxacademy/actions/artifacts/15130240909",
+  "workflow_run": {
+    "head_branch": "native-migration/operations",
+    "head_repository_id": 1192540511,
+    "head_sha": "717b87e5cc8725e1641a42c620f5ffd9e5f00233",
+    "id": 45818014106,
+    "repository_id": 1192540511
+  }
+}

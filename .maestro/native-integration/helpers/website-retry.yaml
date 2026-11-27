@@ -1,0 +1,5 @@
+appId: com.zyx.academy.nativeparity
+name: Retry opening the original public link
+---
+- tapOn:
+    id: website-handoff-retry

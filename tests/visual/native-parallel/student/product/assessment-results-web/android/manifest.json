@@ -1,0 +1,58 @@
+{
+  "platform": "android",
+  "viewport": {
+    "width": 380,
+    "height": 820
+  },
+  "deviceScaleFactor": 1,
+  "locale": "id-ID",
+  "theme": "light",
+  "timeZone": "Asia/Jakarta",
+  "browser": "Chromium 154.0.8037.57",
+  "scope": "Signed production Next.js routes in Chromium; native device execution pending",
+  "nativeSnapshotSha256": "71f186ed2ebf65ce6c4859facb8555547e3849d0af25400926c519b1958b3df1",
+  "captures": {
+    "review-released-quiz.png": {
+      "serverSha": "d56a9da58b2d0f08540bfe58a7d83c61c0e5e5ad",
+      "path": "/courses/assessment-evidence-mathematics/my-results/assessment-evidence-quiz-finished",
+      "status": 200,
+      "nativeResponse": "/api/native/student/assessment/assessment-evidence-mathematics/my-results/assessment-evidence-quiz-finished",
+      "sha256": "62f5a49696acb5fc6136bff016da88b83cd187fa7127d6986b5b94273d14688d"
+    },
+    "review-pending-tryout.png": {
+      "serverSha": "2f0ba3a75fed6e6d25463baeeeb3fceed0780508",
+      "path": "/courses/assessment-evidence-mathematics/my-results/assessment-evidence-tryout-submitted",
+      "status": 200,
+      "nativeResponse": "/api/native/student/assessment/assessment-evidence-mathematics/my-results/assessment-evidence-tryout-submitted",
+      "sha256": "d9654692f5c52039ae20f247f7c85012119fbb581dd8a5216d9824a87835fe0c"
+    },
+    "review-graded-tryout.png": {
+      "serverSha": "d56a9da58b2d0f08540bfe58a7d83c61c0e5e5ad",
+      "path": "/courses/assessment-evidence-mathematics/my-results/assessment-evidence-tryout-graded",
+      "status": 200,
+      "nativeResponse": "/api/native/student/assessment/assessment-evidence-mathematics/my-results/assessment-evidence-tryout-graded",
+      "sha256": "75d33ad2c2c115475917f86e9b2e64d7135b27dd5cc6498813f93c781d3b99fe"
+    },
+    "results-summary-released.png": {
+      "serverSha": "d56a9da58b2d0f08540bfe58a7d83c61c0e5e5ad",
+      "path": "/courses/assessment-evidence-mathematics/my-results/assessment-evidence-quiz-finished/summary",
+      "status": 200,
+      "nativeResponse": "/api/native/student/assessment/assessment-evidence-mathematics/my-results/assessment-evidence-quiz-finished/summary",
+      "sha256": "617bb61c2287df149b4e8d1b548d9cef5f92e4cf5739fa04ea8a2a80086c5f74"
+    },
+    "results-summary-analytics-unavailable.png": {
+      "serverSha": "d56a9da58b2d0f08540bfe58a7d83c61c0e5e5ad",
+      "path": "/courses/assessment-evidence-mathematics/my-results/assessment-evidence-quiz-diagnosis-unavailable/summary",
+      "status": 200,
+      "nativeResponse": "/api/native/student/assessment/assessment-evidence-mathematics/my-results/assessment-evidence-quiz-diagnosis-unavailable/summary",
+      "sha256": "f7e770fdacfc6b1ac56f3102df9585e1d62ebc04e29d05824b84789fd70fbcba"
+    },
+    "quiz-summary-analytics-unavailable.png": {
+      "serverSha": "7bb492a8123a4fb27ebb832dd6994a94b865df09",
+      "path": "/courses/assessment-evidence-mathematics/quiz/assessment-evidence-limit-quiz/summary/assessment-evidence-quiz-diagnosis-unavailable",
+      "status": 200,
+      "nativeResponse": "/api/native/student/assessment/assessment-evidence-mathematics/quiz/assessment-evidence-limit-quiz/summary/assessment-evidence-quiz-diagnosis-unavailable",
+      "sha256": "a27e1dc5cccb92ac08c15d84d058627394124f7870a1496c73af12adfe745ae5"
+    }
+  }
+}

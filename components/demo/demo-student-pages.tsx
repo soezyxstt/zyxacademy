@@ -15,7 +15,9 @@ import { useStudentExperience } from "@/components/student-experience-provider";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import type { StudyPathStep } from "@/components/course/study-path-timeline";
 import { useTranslations } from "@/lib/i18n/client";
+import { demoMasteryGroups } from "@/lib/demo/view-mastery";
 import type { DemoMastery } from "@/lib/demo/mastery";
+import { createDemoPathSteps } from "@/lib/demo/learning-path";
 import { demoLeaderboard } from "@/lib/demo/leaderboard";
 import { demoReflections } from "@/lib/demo/reflections";
 import { emptyOverlay } from "@/lib/demo/session-overlay";
@@ -111,15 +113,15 @@ export function DemoStudentPage({ view, experience: { content, snapshot }, maste
    <CourseVideosClient courseId={courseId} courseTitle={content.course.title} initialPlaylists={[]} chapters={[]} canManage={false} hasFullContentAccess />
  </CoursePageShell>;
  if (view === "path") {
-   const steps: StudyPathStep[] = snapshot.weakConcepts.map((concept, index) => ({
-     stepId: `fictional-step-${index}`, ideaId: null, chapterId: "fictional-first-chapter", chapterTitle: content.course.chapterTitle, chapterOrder: 1,
-     conceptName: concept.title, status: index === 0 ? "in_progress" : "available", actions: { moduleHref: href(`/courses/${courseId}/material`) },
-     estimatedMinutes: 12, prerequisites: [], masteryScore: concept.masteryPercent, priorityReason: t("mastery.title", { course: content.course.title }),
+   const steps: StudyPathStep[] = createDemoPathSteps(snapshot.weakConcepts, content.course.chapterTitle).map(step => ({
+     ...step, ideaId: null, chapterId: "fictional-first-chapter", chapterOrder: 1,
+     actions: { moduleHref: href(`/courses/${courseId}/material`) },
+     prerequisites: [], priorityReason: t("mastery.title", { course: content.course.title }),
    }));
    return <CoursePageShell title={t("path.title", { course: content.course.title })} icon={Compass}><StudyPathTimeline courseId={courseId} initialSteps={steps} /></CoursePageShell>;
  }
  if (view === "mastery") return <CoursePageShell title={t("mastery.title", { course: content.course.title })} icon={Target}>
-   <ConceptMap courseId={courseId} pathHref={href(`/courses/${courseId}/path`)} groups={mastery?.groups ?? [{ chapter: { id: "fictional-first-chapter", title: content.course.chapterTitle, orderIndex: 1 }, concepts: snapshot.weakConcepts.map(concept => ({ conceptName: concept.title, conceptSlug: null, masteryScore: concept.masteryPercent, confidence: 70, trend: "improving", blockedBy: [] })) }]} />
+   <ConceptMap courseId={courseId} pathHref={href(`/courses/${courseId}/path`)} groups={demoMasteryGroups(mastery, snapshot, content.course.chapterTitle)} />
  </CoursePageShell>;
  return null;
 }

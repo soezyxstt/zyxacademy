@@ -1,0 +1,51 @@
+appId: com.zyx.academy.nativeparity
+name: Student device reminder settings
+---
+- setPermissions:
+    permissions:
+      notifications: allow
+- openLink: "zyx-native-parity://settings/notifications"
+- scrollUntilVisible:
+    element:
+      id: student-local-reminder-enabled
+      enabled: true
+- tapOn:
+    id: student-local-reminder-enabled
+    enabled: true
+- scrollUntilVisible:
+    element:
+      text: "(Mingguan|Weekly)"
+- tapOn: "(Mingguan|Weekly)"
+- scrollUntilVisible:
+    element:
+      text: "(Simpan pengingat|Save reminders)"
+      enabled: true
+- tapOn:
+    text: "(Simpan pengingat|Save reminders)"
+    enabled: true
+- scrollUntilVisible:
+    element:
+      text: '(Pengingat belajar lokal diperbarui\.|Local study reminders updated\.)'
+- stopApp
+- openLink: "zyx-native-parity://settings/notifications"
+- scrollUntilVisible:
+    element:
+      text: "(Hari|Days of week)"
+- scrollUntilVisible:
+    direction: UP
+    element:
+      id: student-local-reminder-enabled
+      enabled: true
+- tapOn:
+    id: student-local-reminder-enabled
+    enabled: true
+- scrollUntilVisible:
+    element:
+      text: "(Simpan pengingat|Save reminders)"
+      enabled: true
+- tapOn:
+    text: "(Simpan pengingat|Save reminders)"
+    enabled: true
+- scrollUntilVisible:
+    element:
+      text: '(Pengingat belajar lokal diperbarui\.|Local study reminders updated\.)'

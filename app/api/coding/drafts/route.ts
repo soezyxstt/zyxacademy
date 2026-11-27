@@ -1,3 +1,4 @@
+import { requireNativeArticleCoding } from "@/lib/coding/native-article-access";
 import { z } from "zod";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
@@ -12,6 +13,8 @@ export async function GET(request: Request) {
   try {
     const url = new URL(request.url), actor = await requireCodingAccess(request, url.searchParams.get("courseId") ?? "");
     if (request.headers.get("x-student-id") !== actor.userId) return accountChanged();
+    const article = await requireNativeArticleCoding(request, actor.userId, url.searchParams.get("courseId") ?? "");
+    if (article && article.draftKey !== url.searchParams.get("draftKey")) throw new Error("CODING_INVALID_SURFACE");
     const [draft] = await db.select({ code: codingDrafts.code, stdin: codingDrafts.stdin, revision: codingDrafts.revision }).from(codingDrafts).where(and(eq(codingDrafts.learnerId, actor.userId), eq(codingDrafts.courseId, actor.courseId), eq(codingDrafts.draftKey, url.searchParams.get("draftKey") ?? ""))).limit(1);
     return Response.json({ draft: draft ?? null });
   } catch (error) { return codingErrorResponse(error); }
@@ -24,6 +27,8 @@ export async function PUT(request: Request) {
     const input = parsed.data, actor = await requireCodingAccess(request, input.courseId);
     // A background tab can still hold a draft for the previous cookie identity.
     if (request.headers.get("x-student-id") !== actor.userId) return accountChanged();
+    const article = await requireNativeArticleCoding(request, actor.userId, input.courseId);
+    if (article && article.draftKey !== input.draftKey) throw new Error("CODING_INVALID_SURFACE");
     const where = and(eq(codingDrafts.learnerId, actor.userId), eq(codingDrafts.courseId, actor.courseId), eq(codingDrafts.draftKey, input.draftKey));
     let saved;
     if (!input.revision) {

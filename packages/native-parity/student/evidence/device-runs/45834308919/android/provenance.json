@@ -1,0 +1,871 @@
+{
+  "sourceHead": "e2b8f44a7885a87e20eb2ff71f937ed66aae7218",
+  "checkoutSha": "00d7045041fc83d87e82dc6f671a724e7555298a",
+  "workflowRun": "https://github.com/soezyxstt/zyxacademy/actions/runs/45834308919",
+  "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45834308919/artifacts/15130185657",
+  "artifactSha256": "6a249abd7cb04c4428e268a249c79e6ce64b9c68f78defcc3cff75c255f13060",
+  "webReferenceArtifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45834308919/artifacts/15125130452",
+  "webReferenceArtifactSha256": "28d055e7443cd18716af54a2d5fd58cc55b49509ef6e98b41f0710d6a35c6185",
+  "jobId": 139960846941,
+  "jobConclusion": "failure",
+  "summaryCounts": {
+    "passed": 175,
+    "blocked": 3,
+    "failed": 25
+  },
+  "scrollRestoration": {
+    "status": "missing",
+    "capture": "student-long-content",
+    "matches": 0
+  },
+  "standaloneCounts": {
+    "failed": 25,
+    "passed": 2
+  },
+  "standaloneFailures": [
+    "Student restores a saved answer after process restart",
+    "Student tryout retries the same submission after response loss",
+    "Student reads and completes a solution collection",
+    "Catalog comparable fixture all TPB and PKA",
+    "Community calendar category and history",
+    "Student calendar reference inputs and category states",
+    "Student calendar filters assessments and opens tutorial history",
+    "Student opens a discussion alias and posts a scoped answer",
+    "Community ranking scope and academic class",
+    "Student separates participation from academic scores and recovers a failed load",
+    "Student weekly calendar selects tutor slots and another day",
+    "Student course and material reference enrolled",
+    "Student course and material reference revoked",
+    "Student course and material reference unenrolled",
+    "Student dashboard enrollment states",
+    "Student course enrolled fixture",
+    "Learning flashcard flip and grade",
+    "PKA enrollment gate redirects to registration",
+    "Student course long material list fixture",
+    "Student course offline recovery fixture",
+    "Student participation ranking global and following filters",
+    "Student quiz gateway attempt states",
+    "Student course results history states",
+    "Student course revoked fixture",
+    "Student course unenrolled fixture"
+  ],
+  "retryOutcomes": {
+    "passed": 51,
+    "failed": 25
+  },
+  "initialFailureCategories": {
+    "ADB transport": 76
+  },
+  "finalFailureCategories": {
+    "ADB transport": 25
+  },
+  "comparison": [
+    {
+      "id": "catalog-all",
+      "status": "missing",
+      "reason": "One or both capture files are absent or ambiguous.",
+      "native_scenario": {
+        "name": "Catalog comparable fixture all TPB and PKA",
+        "status": "ERROR"
+      }
+    },
+    {
+      "id": "catalog-tpb",
+      "status": "missing",
+      "reason": "One or both capture files are absent or ambiguous.",
+      "native_scenario": {
+        "name": "Catalog comparable fixture all TPB and PKA",
+        "status": "ERROR"
+      }
+    },
+    {
+      "id": "catalog-pka",
+      "status": "missing",
+      "reason": "One or both capture files are absent or ambiguous.",
+      "native_scenario": {
+        "name": "Catalog comparable fixture all TPB and PKA",
+        "status": "ERROR"
+      }
+    },
+    {
+      "id": "flashcard-question",
+      "status": "missing",
+      "reason": "One or both capture files are absent or ambiguous.",
+      "native_scenario": {
+        "name": "Learning flashcard flip and grade",
+        "status": "ERROR"
+      }
+    },
+    {
+      "id": "flashcard-review-pending",
+      "status": "missing",
+      "reason": "One or both capture files are absent or ambiguous.",
+      "native_scenario": {
+        "name": "Learning flashcard flip and grade",
+        "status": "ERROR"
+      }
+    },
+    {
+      "id": "flashcard-review-failed",
+      "status": "missing",
+      "reason": "One or both capture files are absent or ambiguous.",
+      "native_scenario": {
+        "name": "Learning flashcard flip and grade",
+        "status": "ERROR"
+      }
+    },
+    {
+      "id": "dashboard-enrolled",
+      "status": "missing",
+      "reason": "One or both capture files are absent or ambiguous.",
+      "native_scenario": {
+        "name": "Student dashboard enrollment states",
+        "status": "ERROR"
+      }
+    },
+    {
+      "id": "dashboard-unenrolled",
+      "status": "missing",
+      "reason": "One or both capture files are absent or ambiguous.",
+      "native_scenario": {
+        "name": "Student dashboard enrollment states",
+        "status": "ERROR"
+      }
+    },
+    {
+      "id": "dashboard-revoked",
+      "status": "missing",
+      "reason": "One or both capture files are absent or ambiguous.",
+      "native_scenario": {
+        "name": "Student dashboard enrollment states",
+        "status": "ERROR"
+      }
+    },
+    {
+      "id": "quiz-gateway-new",
+      "status": "missing",
+      "reason": "One or both capture files are absent or ambiguous.",
+      "native_scenario": {
+        "name": "Student quiz gateway attempt states",
+        "status": "ERROR"
+      }
+    },
+    {
+      "id": "quiz-gateway-resumable",
+      "status": "missing",
+      "reason": "One or both capture files are absent or ambiguous.",
+      "native_scenario": {
+        "name": "Student quiz gateway attempt states",
+        "status": "ERROR"
+      }
+    },
+    {
+      "id": "quiz-gateway-exhausted",
+      "status": "missing",
+      "reason": "One or both capture files are absent or ambiguous.",
+      "native_scenario": {
+        "name": "Student quiz gateway attempt states",
+        "status": "ERROR"
+      }
+    },
+    {
+      "id": "calendar-all",
+      "status": "missing",
+      "reason": "One or both capture files are absent or ambiguous.",
+      "native_scenario": {
+        "name": "Student calendar reference inputs and category states",
+        "status": "ERROR"
+      }
+    },
+    {
+      "id": "calendar-tutorial",
+      "status": "missing",
+      "reason": "One or both capture files are absent or ambiguous.",
+      "native_scenario": {
+        "name": "Student calendar reference inputs and category states",
+        "status": "ERROR"
+      }
+    },
+    {
+      "id": "calendar-empty-filter",
+      "status": "missing",
+      "reason": "One or both capture files are absent or ambiguous.",
+      "native_scenario": {
+        "name": "Student calendar reference inputs and category states",
+        "status": "ERROR"
+      }
+    },
+    {
+      "id": "course-detail-enrolled",
+      "status": "missing",
+      "reason": "One or both capture files are absent or ambiguous.",
+      "native_scenario": {
+        "name": "Student course and material reference enrolled",
+        "status": "ERROR"
+      }
+    },
+    {
+      "id": "course-detail-unenrolled",
+      "status": "missing",
+      "reason": "One or both capture files are absent or ambiguous.",
+      "native_scenario": {
+        "name": "Student course and material reference unenrolled",
+        "status": "ERROR"
+      }
+    },
+    {
+      "id": "course-detail-revoked",
+      "status": "missing",
+      "reason": "One or both capture files are absent or ambiguous.",
+      "native_scenario": {
+        "name": "Student course and material reference revoked",
+        "status": "ERROR"
+      }
+    },
+    {
+      "id": "material-list-enrolled",
+      "status": "missing",
+      "reason": "One or both capture files are absent or ambiguous.",
+      "native_scenario": {
+        "name": "Student course and material reference enrolled",
+        "status": "ERROR"
+      }
+    },
+    {
+      "id": "material-list-unenrolled",
+      "status": "missing",
+      "reason": "One or both capture files are absent or ambiguous.",
+      "native_scenario": {
+        "name": "Student course and material reference unenrolled",
+        "status": "ERROR"
+      }
+    },
+    {
+      "id": "material-list-revoked",
+      "status": "missing",
+      "reason": "One or both capture files are absent or ambiguous.",
+      "native_scenario": {
+        "name": "Student course and material reference revoked",
+        "status": "ERROR"
+      }
+    },
+    {
+      "id": "material-reader-enrolled",
+      "status": "missing",
+      "reason": "One or both capture files are absent or ambiguous.",
+      "native_scenario": {
+        "name": "Student course and material reference enrolled",
+        "status": "ERROR"
+      }
+    },
+    {
+      "id": "material-reader-unenrolled",
+      "status": "missing",
+      "reason": "One or both capture files are absent or ambiguous.",
+      "native_scenario": {
+        "name": "Student course and material reference unenrolled",
+        "status": "ERROR"
+      }
+    },
+    {
+      "id": "material-reader-revoked",
+      "status": "missing",
+      "reason": "One or both capture files are absent or ambiguous.",
+      "native_scenario": {
+        "name": "Student course and material reference revoked",
+        "status": "ERROR"
+      }
+    },
+    {
+      "id": "results-mixed",
+      "status": "missing",
+      "reason": "One or both capture files are absent or ambiguous.",
+      "native_scenario": {
+        "name": "Student course results history states",
+        "status": "ERROR"
+      }
+    },
+    {
+      "id": "results-empty",
+      "status": "missing",
+      "reason": "One or both capture files are absent or ambiguous.",
+      "native_scenario": {
+        "name": "Student course results history states",
+        "status": "ERROR"
+      }
+    },
+    {
+      "id": "results-graded",
+      "status": "missing",
+      "reason": "One or both capture files are absent or ambiguous.",
+      "native_scenario": {
+        "name": "Student course results history states",
+        "status": "ERROR"
+      }
+    },
+    {
+      "id": "course-ranking-quiz",
+      "status": "different",
+      "differing_pixels": 44038,
+      "max_channel_difference": 213,
+      "native_scenario": {
+        "name": "Student course ranking podium and own rank",
+        "status": "SUCCESS"
+      }
+    },
+    {
+      "id": "course-ranking-simulation",
+      "status": "different",
+      "differing_pixels": 25679,
+      "max_channel_difference": 213,
+      "native_scenario": {
+        "name": "Student course ranking podium and own rank",
+        "status": "SUCCESS"
+      }
+    },
+    {
+      "id": "course-ranking-unranked",
+      "status": "different",
+      "differing_pixels": 45591,
+      "max_channel_difference": 213,
+      "native_scenario": {
+        "name": "Student course ranking podium and own rank",
+        "status": "SUCCESS"
+      }
+    },
+    {
+      "id": "participation-ranking-global",
+      "status": "missing",
+      "reason": "One or both capture files are absent or ambiguous.",
+      "native_scenario": {
+        "name": "Student participation ranking global and following filters",
+        "status": "ERROR"
+      }
+    },
+    {
+      "id": "participation-ranking-following",
+      "status": "missing",
+      "reason": "One or both capture files are absent or ambiguous.",
+      "native_scenario": {
+        "name": "Student participation ranking global and following filters",
+        "status": "ERROR"
+      }
+    },
+    {
+      "id": "participation-ranking-empty",
+      "status": "missing",
+      "reason": "One or both capture files are absent or ambiguous.",
+      "native_scenario": {
+        "name": "Student participation ranking global and following filters",
+        "status": "ERROR"
+      }
+    }
+  ],
+  "matchedComparisonCounts": {
+    "missing": 30,
+    "different": 3
+  },
+  "captures": [
+    {
+      "file": "captures/student-course-ranking-quiz.png",
+      "member": "results/2026-11-26_143232/Student course ranking podium and own rank/takeScreenshot/student-course-ranking-quiz.png",
+      "sha256": "d9300baa2064c71aeb6d1fee8072a25978ba1c2a088e5b827895dc47ce98c09e",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/course-ranking-quiz-diff.png",
+      "member": "comparison/course-ranking-quiz-diff.png",
+      "sha256": "7b06e26760f5d0dec7c11f2187f4b54fb514ded27aa12a3c35d9457a43a8dbab",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-course-ranking-simulation.png",
+      "member": "results/2026-11-26_143232/Student course ranking podium and own rank/takeScreenshot/student-course-ranking-simulation.png",
+      "sha256": "ecadf5e0540eb8a03c7b2ead94467c90f83b2ff468c282bbec53b865eb503049",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/course-ranking-simulation-diff.png",
+      "member": "comparison/course-ranking-simulation-diff.png",
+      "sha256": "b088be0de1dbc529a5e16a4b4f130e28882de120a2754385f4abf6f6c6886fbe",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-course-ranking-unranked.png",
+      "member": "results/2026-11-26_143232/Student course ranking podium and own rank/takeScreenshot/student-course-ranking-unranked.png",
+      "sha256": "0fcb15b966be8eb728824c17cbc2af8466611ffcdf32061731c04f950e9b4ece",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/course-ranking-unranked-diff.png",
+      "member": "comparison/course-ranking-unranked-diff.png",
+      "sha256": "8a0418aa54f18dc9e4aa91271d9645bb23b96be7d3a395a0152cb2e19db29de8",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-assessment-quiz-player.png",
+      "member": "results/2026-11-26_143232/Student quiz saves and restores its draft/takeScreenshot/student-assessment-quiz-player.png",
+      "sha256": "26cbd39ec0f5c92c247cbb5fd94aee9216b2c7ebb51a73a4ca703b4096c21383",
+      "dimensions": [
+        380,
+        820
+      ]
+    }
+  ],
+  "webCaptures": [
+    {
+      "file": "web-captures/catalog-all.png",
+      "member": "student-evidence/reference/android/catalog-all.png",
+      "sha256": "710f74053e2309d3c1b30eb3c88306b036f9c8814c674c65c0c4f70a1556adb8",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/catalog-tpb.png",
+      "member": "student-evidence/reference/android/catalog-tpb.png",
+      "sha256": "edd0190f65de9668bb3edfc3bed7564fd2596ca034d14f5bdd8aa9b88ee4590e",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/catalog-pka.png",
+      "member": "student-evidence/reference/android/catalog-pka.png",
+      "sha256": "49c7312f61950788f204598c531825660e19a4866ba2d99ba6a2bc50febdde74",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/flashcard-question.png",
+      "member": "student-evidence/reference/flashcard/learning-query-flashcard-reference-matches-the-device-inputs-mobile-380/android/flashcard-question.png",
+      "sha256": "419f9d904399cf4ae87eb9c809e603534f3ba655a4d7b5cdca6af9597fe1ecad",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/flashcard-review-pending.png",
+      "member": "student-evidence/reference/flashcard/learning-query-flashcard-reference-matches-the-device-inputs-mobile-380/android/flashcard-review-pending.png",
+      "sha256": "dbeaa95cfe835210f56ac6f58ecb304970d80d1217f2ff1f9ed58358ee1e1f29",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/flashcard-review-failed.png",
+      "member": "student-evidence/reference/flashcard/learning-query-flashcard-reference-matches-the-device-inputs-mobile-380/android/flashcard-review-failed.png",
+      "sha256": "750fc0dd32a48deb8894b08d318740b01b72ac48f146932e9b2130ad64bb6722",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/dashboard-enrolled.png",
+      "member": "student-evidence/reference/dashboard/android/dashboard-enrolled.png",
+      "sha256": "714c5988e3684223b9f05d3756b507de482118135faea7821eda7402e4b879c5",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/dashboard-unenrolled.png",
+      "member": "student-evidence/reference/dashboard/android/dashboard-unenrolled.png",
+      "sha256": "81e8c5d1d561d460737b0132c11868b7e1fe7625e33c4a464f766611209483c4",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/dashboard-revoked.png",
+      "member": "student-evidence/reference/dashboard/android/dashboard-revoked.png",
+      "sha256": "8657262a3313e507d846d7450c77d9132a757a83b0f502fabdf1f2a907714815",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/quiz-gateway-new.png",
+      "member": "student-evidence/reference/quiz-gateway/native-parallel-student-qu-9dc4d-e-matches-the-device-inputs-mobile-380/android/quiz-gateway-new.png",
+      "sha256": "4bdfa9deb965a0b5979459f942da1801d93cfe2ff367cb807f20baa6f984453d",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/quiz-gateway-resumable.png",
+      "member": "student-evidence/reference/quiz-gateway/native-parallel-student-qu-9dc4d-e-matches-the-device-inputs-mobile-380/android/quiz-gateway-resumable.png",
+      "sha256": "1f1af177e4d3b23081381870c18465a25f30fc5a4ed7052b0f50d72205aa9659",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/quiz-gateway-exhausted.png",
+      "member": "student-evidence/reference/quiz-gateway/native-parallel-student-qu-9dc4d-e-matches-the-device-inputs-mobile-380/android/quiz-gateway-exhausted.png",
+      "sha256": "136b2945a14c725c3f1104ede24f9eed435a77d29dddb41285689a4bfa68acd5",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/calendar-all.png",
+      "member": "student-evidence/reference/calendar/native-parallel-student-ca-55177-records-and-category-states-mobile-380/android/calendar-all.png",
+      "sha256": "d132ce71d7af65f01c5aed0b1b55b7e2fefc72d7e9e7ed9113712a0635e3e1c5",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/calendar-tutorial.png",
+      "member": "student-evidence/reference/calendar/native-parallel-student-ca-55177-records-and-category-states-mobile-380/android/calendar-tutorial.png",
+      "sha256": "5b51961996090d8c1ac203864e3ada39618b3eec253e3c3ea80e59b7be3aa1d6",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/calendar-empty-filter.png",
+      "member": "student-evidence/reference/calendar/native-parallel-student-ca-55177-records-and-category-states-mobile-380/android/calendar-empty-filter.png",
+      "sha256": "9fd482eae185537ea81767f1d0738bf333af693616b75c9d66f4df0550eb1935",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/course-detail-enrolled.png",
+      "member": "student-evidence/reference/course-detail/android/course-detail-enrolled.png",
+      "sha256": "8657930b93806179d2301caccc8987d1888eee702b970f1f0870992b94e75ddf",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/course-detail-unenrolled.png",
+      "member": "student-evidence/reference/course-detail/android/course-detail-unenrolled.png",
+      "sha256": "bdd38c50766686267949f0fceccd7713e6609a5cd3688772ecc6e98d265feaf0",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/course-detail-revoked.png",
+      "member": "student-evidence/reference/course-detail/android/course-detail-revoked.png",
+      "sha256": "bdd38c50766686267949f0fceccd7713e6609a5cd3688772ecc6e98d265feaf0",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/material-list-enrolled.png",
+      "member": "student-evidence/reference/material-list/android/material-list-enrolled.png",
+      "sha256": "987f100549d9edcadf10fbf526abc9fc6f722d2330be74c50d7d8c04ec56d597",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/material-list-unenrolled.png",
+      "member": "student-evidence/reference/material-list/android/material-list-unenrolled.png",
+      "sha256": "36a7c1c77a606ddc350e52dafd86eeccb6d84b2f3c415b33a16bb070ae7ef76a",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/material-list-revoked.png",
+      "member": "student-evidence/reference/material-list/android/material-list-revoked.png",
+      "sha256": "36a7c1c77a606ddc350e52dafd86eeccb6d84b2f3c415b33a16bb070ae7ef76a",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/material-reader-enrolled.png",
+      "member": "student-evidence/reference/material-reader/android/material-reader-enrolled.png",
+      "sha256": "e91e85c3ddebab59b1c1e74382f2fa1bb711f0cf5da233d4055d023bf5951e9a",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/material-reader-unenrolled.png",
+      "member": "student-evidence/reference/material-reader/android/material-reader-unenrolled.png",
+      "sha256": "4ae69a589d29ba7801ce57dde68ce680a09f778b717aa1b461a300639754d7f1",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/material-reader-revoked.png",
+      "member": "student-evidence/reference/material-reader/android/material-reader-revoked.png",
+      "sha256": "39e18ed4e396f55c09af77f488cf3bbe0203eea75277f1eb53612ec1f774d349",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/results-mixed.png",
+      "member": "student-evidence/reference/results/native-parallel-student-re-3ff58--records-and-row-navigation-mobile-380/android/results-mixed.png",
+      "sha256": "0b05c86c3b7750dbbb725cab094680a2450ab2660a47d2885a922cd17d42ec03",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/results-empty.png",
+      "member": "student-evidence/reference/results/native-parallel-student-re-3ff58--records-and-row-navigation-mobile-380/android/results-empty.png",
+      "sha256": "ef42818df21af259f4f03d41931d5021d83836a0c484579b2aa8fe20afffbe0b",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/results-graded.png",
+      "member": "student-evidence/reference/results/native-parallel-student-re-3ff58--records-and-row-navigation-mobile-380/android/results-graded.png",
+      "sha256": "bed92fe4f59aeacded3b4e02ac0e6e97c82d0c63898c56027b5495f62d153c3e",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/course-ranking-quiz.png",
+      "member": "student-evidence/reference/ranking/native-parallel-student-ra-ceefd-ves-the-podium-and-own-rank-mobile-380/android/course-ranking-quiz.png",
+      "sha256": "728dec4d6cd69eb2ce9a36800836fe4f3096c93bfbacb916f8dc53a0d806440a",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/course-ranking-simulation.png",
+      "member": "student-evidence/reference/ranking/native-parallel-student-ra-ceefd-ves-the-podium-and-own-rank-mobile-380/android/course-ranking-simulation.png",
+      "sha256": "0337da40de12d5e2db34eca777e6a69f7878766808ca6d23baf1e03be36f0d9e",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/course-ranking-unranked.png",
+      "member": "student-evidence/reference/ranking/native-parallel-student-ra-ceefd-ves-the-podium-and-own-rank-mobile-380/android/course-ranking-unranked.png",
+      "sha256": "e51072d33af88cd5e0da6492b39d14e2e3f5826f8bec3a225217081e5b1dce12",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/participation-ranking-global.png",
+      "member": "student-evidence/reference/ranking/native-parallel-student-ra-2c218-ce-follows-scope-and-period-mobile-380/android/participation-ranking-global.png",
+      "sha256": "184bcd6705b8a095103ffffa49809f2d84ac846f191f2e5c98c285e80fde278a",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/participation-ranking-following.png",
+      "member": "student-evidence/reference/ranking/native-parallel-student-ra-2c218-ce-follows-scope-and-period-mobile-380/android/participation-ranking-following.png",
+      "sha256": "aa94ffce39e06afa20ed568462402b844dc4d3f69928e35aee0f089cab47b7da",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/participation-ranking-empty.png",
+      "member": "student-evidence/reference/ranking/native-parallel-student-ra-2c218-ce-follows-scope-and-period-mobile-380/android/participation-ranking-empty.png",
+      "sha256": "cbdde1dbd9ca83a2c9070de016b5a1d11c2fcc1083736302b228b3f367d72ae9",
+      "dimensions": [
+        380,
+        820
+      ]
+    }
+  ],
+  "traces": [
+    {
+      "file": "traces/Student course ranking podium and own rank/commands.json",
+      "member": "results/2026-11-26_143232/Student course ranking podium and own rank/commands.json",
+      "sha256": "1878cb79fdba5aab797f29166595ff7d939275f9f83ed2872052cf0225e72450"
+    },
+    {
+      "file": "traces/Catalog comparable fixture all TPB and PKA/commands.json",
+      "member": "results/2026-11-26_143232/Catalog comparable fixture all TPB and PKA/commands.json",
+      "sha256": "f31acd39819d96832ebbbe303c1e9f1d0ee66437bac1ab0c6de90300d80727ba"
+    },
+    {
+      "file": "traces/Community calendar category and history/commands.json",
+      "member": "results/2026-11-26_143232/Community calendar category and history/commands.json",
+      "sha256": "229fcf35420ff49ff59c138fb393685bf3fc4b167c3382523324440ea0f62147"
+    },
+    {
+      "file": "traces/Community ranking scope and academic class/commands.json",
+      "member": "results/2026-11-26_143232/Community ranking scope and academic class/commands.json",
+      "sha256": "7983a910d3cd21fdf5d4e18adfd7a941920ea5facc269128aefaa4dba1c787c0"
+    },
+    {
+      "file": "traces/Learning flashcard flip and grade/commands.json",
+      "member": "results/2026-11-26_143232/Learning flashcard flip and grade/commands.json",
+      "sha256": "4a2431161563078f34175fb07067915267380d623ee5ea3c4039208e6e0f4b60"
+    },
+    {
+      "file": "traces/PKA enrollment gate redirects to registration/commands.json",
+      "member": "results/2026-11-26_143232/PKA enrollment gate redirects to registration/commands.json",
+      "sha256": "170b4fc27ea0ed9e8817da8215968d5ecfd09bc290a4f2fabc93535109fbabb2"
+    },
+    {
+      "file": "traces/Student calendar filters assessments and opens tutorial history/commands.json",
+      "member": "results/2026-11-26_143232/Student calendar filters assessments and opens tutorial history/commands.json",
+      "sha256": "5f4125c39ecd2fc650f747ace1c0906f86b8d016dd692ab6b629f7564f712612"
+    },
+    {
+      "file": "traces/Student calendar reference inputs and category states/commands.json",
+      "member": "results/2026-11-26_143232/Student calendar reference inputs and category states/commands.json",
+      "sha256": "ac99f2d89eda7600cc92d0789e9429ef833ac894769647b5a1d98c84290be396"
+    },
+    {
+      "file": "traces/Student course and material reference enrolled/commands.json",
+      "member": "results/2026-11-26_143232/Student course and material reference enrolled/commands.json",
+      "sha256": "c9a6e61d79a33cbbdd2a22813344d03e4599a181f8d2cc46b01863772e23757e"
+    },
+    {
+      "file": "traces/Student course and material reference revoked/commands.json",
+      "member": "results/2026-11-26_143232/Student course and material reference revoked/commands.json",
+      "sha256": "e227bfa9114cf8bafa63820627c487e6d08b1c93777235dd5503e024eb81553a"
+    },
+    {
+      "file": "traces/Student course and material reference unenrolled/commands.json",
+      "member": "results/2026-11-26_143232/Student course and material reference unenrolled/commands.json",
+      "sha256": "13f9a30c151002b4ce3b0e6e86d432b32fb6fbf2069c179e3afd8541d41605c7"
+    },
+    {
+      "file": "traces/Student course enrolled fixture/commands.json",
+      "member": "results/2026-11-26_143232/Student course enrolled fixture/commands.json",
+      "sha256": "7bd0acf1e3b452631d22cf7ff628c4d78ce9b65204a896924f15594dacafc6ab"
+    },
+    {
+      "file": "traces/Student course long material list fixture/commands.json",
+      "member": "results/2026-11-26_143232/Student course long material list fixture/commands.json",
+      "sha256": "a2518ac4d84f6692e0d23e9b3cda9149ae2d47b446da0bc0c207e99226e0b8e3"
+    },
+    {
+      "file": "traces/Student course offline recovery fixture/commands.json",
+      "member": "results/2026-11-26_143232/Student course offline recovery fixture/commands.json",
+      "sha256": "a5bfc7866ee06b614cd82bb2d31790969327c2b22319261c0b112342ef864341"
+    },
+    {
+      "file": "traces/Student course results history states/commands.json",
+      "member": "results/2026-11-26_143232/Student course results history states/commands.json",
+      "sha256": "dcc9e8f98a5126ed484864a62d90a516c185eb51b0ebc4e38364f58c051214d1"
+    },
+    {
+      "file": "traces/Student course revoked fixture/commands.json",
+      "member": "results/2026-11-26_143232/Student course revoked fixture/commands.json",
+      "sha256": "0d2f87240d9247dd2d14715a580fa47188fc4e9ceaf909680433522a1bedfe15"
+    },
+    {
+      "file": "traces/Student course unenrolled fixture/commands.json",
+      "member": "results/2026-11-26_143232/Student course unenrolled fixture/commands.json",
+      "sha256": "73049593896a0a95f452b7dbd877196c83725c62e2a969e6fe2334a1e1fcd9a1"
+    },
+    {
+      "file": "traces/Student dashboard enrollment states/commands.json",
+      "member": "results/2026-11-26_143232/Student dashboard enrollment states/commands.json",
+      "sha256": "4d13c4731b8e9b3b1cc80bd5092e22c9f2fff6fa0867177c4acff3720cd0cbc4"
+    },
+    {
+      "file": "traces/Student opens a discussion alias and posts a scoped answer/commands.json",
+      "member": "results/2026-11-26_143232/Student opens a discussion alias and posts a scoped answer/commands.json",
+      "sha256": "6da1da3ef8507161e2d66100711c7814a11b78ad56900646f3e16e3b0dd13c9e"
+    },
+    {
+      "file": "traces/Student participation ranking global and following filters/commands.json",
+      "member": "results/2026-11-26_143232/Student participation ranking global and following filters/commands.json",
+      "sha256": "c7d17a7d4afde4107081a47bfe79c6eb86789568e953c6d2115e08fc33c022a5"
+    },
+    {
+      "file": "traces/Student quiz gateway attempt states/commands.json",
+      "member": "results/2026-11-26_143232/Student quiz gateway attempt states/commands.json",
+      "sha256": "af76efdf06cd96aa1c540424ef24fdd8bc85564f284d8abe9ec0baad50453600"
+    },
+    {
+      "file": "traces/Student quiz saves and restores its draft/commands.json",
+      "member": "results/2026-11-26_143232/Student quiz saves and restores its draft/commands.json",
+      "sha256": "788f32979883cdd07a115cf615b62c818e3db765ea057831042dd6f258a0de01"
+    },
+    {
+      "file": "traces/Student reads and completes a solution collection/commands.json",
+      "member": "results/2026-11-26_143232/Student reads and completes a solution collection/commands.json",
+      "sha256": "ec2de7f55f34e4d44f36ba9e80628b7d4d9cf1955925b315ee747bfcc84e0d2b"
+    },
+    {
+      "file": "traces/Student restores a saved answer after process restart/commands.json",
+      "member": "results/2026-11-26_143232/Student restores a saved answer after process restart/commands.json",
+      "sha256": "0001b2a20e0deccebfe3b719dbe3156ae09cf5573d0e8ecb97e960644eec808f"
+    },
+    {
+      "file": "traces/Student separates participation from academic scores and recovers a failed load/commands.json",
+      "member": "results/2026-11-26_143232/Student separates participation from academic scores and recovers a failed load/commands.json",
+      "sha256": "4792c87b47e4488f1ddc7330437c85cb6526c5c8694758f1f692c1ffb5a54e58"
+    },
+    {
+      "file": "traces/Student tryout retries the same submission after response loss/commands.json",
+      "member": "results/2026-11-26_143232/Student tryout retries the same submission after response loss/commands.json",
+      "sha256": "e0a31a41c64a7becdd2c1b90ac339cac96429b5a416c5647471f412609022ba4"
+    },
+    {
+      "file": "traces/Student weekly calendar selects tutor slots and another day/commands.json",
+      "member": "results/2026-11-26_143232/Student weekly calendar selects tutor slots and another day/commands.json",
+      "sha256": "e6ae5e2f05bd6f6c03fee01252950ad4501864155b6cee09b04870f98e874bab"
+    }
+  ],
+  "status": "device_flows_completed_with_failures",
+  "reason": "Generated smoke: {'passed': 175, 'blocked': 3, 'failed': 25}. Standalone flows: {'failed': 25, 'passed': 2}. Matched comparison: {'missing': 30, 'different': 3}."
+}

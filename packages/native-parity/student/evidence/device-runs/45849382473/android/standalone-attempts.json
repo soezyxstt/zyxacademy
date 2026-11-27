@@ -1,0 +1,303 @@
+{
+  "version": 1,
+  "initialReport": "report.xml",
+  "initialComplete": true,
+  "initialExitCode": 1,
+  "cases": {
+    "Student restores a saved answer after process restart": {
+      "flow": "assessment-process-restart.yaml",
+      "initial": "transport_failure",
+      "effective": "standalone-retry/001",
+      "retry": {
+        "directory": "standalone-retry/001",
+        "result": "transport_failure"
+      }
+    },
+    "Student quiz saves and restores its draft": {
+      "flow": "assessment-quiz.yaml",
+      "initial": "transport_failure",
+      "effective": "standalone-retry/001",
+      "retry": {
+        "directory": "standalone-retry/001",
+        "result": "passed"
+      }
+    },
+    "Student tryout retries the same submission after response loss": {
+      "flow": "assessment-retry.yaml",
+      "initial": "transport_failure",
+      "effective": "standalone-retry/001",
+      "retry": {
+        "directory": "standalone-retry/001",
+        "result": "transport_failure"
+      }
+    },
+    "Student reads and completes a solution collection": {
+      "flow": "assessment-solutions.yaml",
+      "initial": "transport_failure",
+      "effective": "standalone-retry/001",
+      "retry": {
+        "directory": "standalone-retry/001",
+        "result": "transport_failure"
+      }
+    },
+    "Catalog comparable fixture all TPB and PKA": {
+      "flow": "catalog-parity.yaml",
+      "initial": "transport_failure",
+      "effective": "standalone-retry/001",
+      "retry": {
+        "directory": "standalone-retry/001",
+        "result": "transport_failure"
+      }
+    },
+    "Community calendar category and history": {
+      "flow": "community-calendar-filter.yaml",
+      "initial": "transport_failure",
+      "effective": "standalone-retry/001",
+      "retry": {
+        "directory": "standalone-retry/001",
+        "result": "transport_failure"
+      }
+    },
+    "Student calendar reference inputs and category states": {
+      "flow": "community-calendar-parity.yaml",
+      "initial": "transport_failure",
+      "effective": "standalone-retry/001",
+      "retry": {
+        "directory": "standalone-retry/001",
+        "result": "transport_failure"
+      }
+    },
+    "Student calendar filters assessments and opens tutorial history": {
+      "flow": "community-calendar.yaml",
+      "initial": "transport_failure",
+      "effective": "standalone-retry/001",
+      "retry": {
+        "directory": "standalone-retry/001",
+        "result": "transport_failure"
+      }
+    },
+    "Student opens a discussion alias and posts a scoped answer": {
+      "flow": "community-discussions.yaml",
+      "initial": "passed",
+      "effective": "."
+    },
+    "Community ranking scope and academic class": {
+      "flow": "community-ranking-scope.yaml",
+      "initial": "transport_failure",
+      "effective": "standalone-retry/002",
+      "retry": {
+        "directory": "standalone-retry/002",
+        "result": "passed"
+      }
+    },
+    "Student separates participation from academic scores and recovers a failed load": {
+      "flow": "community-ranking.yaml",
+      "initial": "transport_failure",
+      "effective": "standalone-retry/002",
+      "retry": {
+        "directory": "standalone-retry/002",
+        "result": "passed"
+      }
+    },
+    "Student weekly calendar selects tutor slots and another day": {
+      "flow": "community-schedule.yaml",
+      "initial": "transport_failure",
+      "effective": "standalone-retry/002",
+      "retry": {
+        "directory": "standalone-retry/002",
+        "result": "transport_failure"
+      }
+    },
+    "Student course and material reference enrolled": {
+      "flow": "course-material-enrolled.yaml",
+      "initial": "transport_failure",
+      "effective": "standalone-retry/002",
+      "retry": {
+        "directory": "standalone-retry/002",
+        "result": "transport_failure"
+      }
+    },
+    "Student course and material reference revoked": {
+      "flow": "course-material-revoked.yaml",
+      "initial": "transport_failure",
+      "effective": "standalone-retry/002",
+      "retry": {
+        "directory": "standalone-retry/002",
+        "result": "transport_failure"
+      }
+    },
+    "Student course and material reference unenrolled": {
+      "flow": "course-material-unenrolled.yaml",
+      "initial": "transport_failure",
+      "effective": "standalone-retry/002",
+      "retry": {
+        "directory": "standalone-retry/002",
+        "result": "transport_failure"
+      }
+    },
+    "Student course ranking podium and own rank": {
+      "flow": "course-ranking.yaml",
+      "initial": "transport_failure",
+      "effective": "standalone-retry/002",
+      "retry": {
+        "directory": "standalone-retry/002",
+        "result": "transport_failure"
+      }
+    },
+    "Student dashboard enrollment states": {
+      "flow": "dashboard-parity.yaml",
+      "initial": "transport_failure",
+      "effective": "standalone-retry/002",
+      "retry": {
+        "directory": "standalone-retry/002",
+        "result": "transport_failure"
+      }
+    },
+    "Student course enrolled fixture": {
+      "flow": "enrolled.yaml",
+      "initial": "transport_failure",
+      "effective": "standalone-retry/003",
+      "retry": {
+        "directory": "standalone-retry/003",
+        "result": "transport_failure"
+      }
+    },
+    "Learning flashcard flip and grade": {
+      "flow": "learning-flashcard-review.yaml",
+      "initial": "transport_failure",
+      "effective": "standalone-retry/003",
+      "retry": {
+        "directory": "standalone-retry/003",
+        "result": "transport_failure"
+      }
+    },
+    "PKA enrollment gate redirects to registration": {
+      "flow": "learning-pka-gate.yaml",
+      "initial": "transport_failure",
+      "effective": "standalone-retry/003",
+      "retry": {
+        "directory": "standalone-retry/003",
+        "result": "transport_failure"
+      }
+    },
+    "Student course long material list fixture": {
+      "flow": "long-content.yaml",
+      "initial": "transport_failure",
+      "effective": "standalone-retry/003",
+      "retry": {
+        "directory": "standalone-retry/003",
+        "result": "transport_failure"
+      }
+    },
+    "Student course offline recovery fixture": {
+      "flow": "offline.yaml",
+      "initial": "transport_failure",
+      "effective": "standalone-retry/003",
+      "retry": {
+        "directory": "standalone-retry/003",
+        "result": "transport_failure"
+      }
+    },
+    "Student participation ranking global and following filters": {
+      "flow": "participation-ranking.yaml",
+      "initial": "transport_failure",
+      "effective": "standalone-retry/003",
+      "retry": {
+        "directory": "standalone-retry/003",
+        "result": "transport_failure"
+      }
+    },
+    "Student quiz gateway attempt states": {
+      "flow": "quiz-gateway.yaml",
+      "initial": "transport_failure",
+      "effective": "standalone-retry/003",
+      "retry": {
+        "directory": "standalone-retry/003",
+        "result": "transport_failure"
+      }
+    },
+    "Student course results history states": {
+      "flow": "results.yaml",
+      "initial": "transport_failure",
+      "effective": "standalone-retry/003",
+      "retry": {
+        "directory": "standalone-retry/003",
+        "result": "transport_failure"
+      }
+    },
+    "Student course revoked fixture": {
+      "flow": "revoked.yaml",
+      "initial": "transport_failure",
+      "effective": "standalone-retry/004",
+      "retry": {
+        "directory": "standalone-retry/004",
+        "result": "passed"
+      }
+    },
+    "Student course unenrolled fixture": {
+      "flow": "unenrolled.yaml",
+      "initial": "transport_failure",
+      "effective": "standalone-retry/004",
+      "retry": {
+        "directory": "standalone-retry/004",
+        "result": "passed"
+      }
+    }
+  },
+  "batches": [
+    {
+      "directory": "standalone-retry/001",
+      "cases": [
+        "Student restores a saved answer after process restart",
+        "Student quiz saves and restores its draft",
+        "Student tryout retries the same submission after response loss",
+        "Student reads and completes a solution collection",
+        "Catalog comparable fixture all TPB and PKA",
+        "Community calendar category and history",
+        "Student calendar reference inputs and category states",
+        "Student calendar filters assessments and opens tutorial history"
+      ],
+      "status": "complete",
+      "exitCode": 1
+    },
+    {
+      "directory": "standalone-retry/002",
+      "cases": [
+        "Community ranking scope and academic class",
+        "Student separates participation from academic scores and recovers a failed load",
+        "Student weekly calendar selects tutor slots and another day",
+        "Student course and material reference enrolled",
+        "Student course and material reference revoked",
+        "Student course and material reference unenrolled",
+        "Student course ranking podium and own rank",
+        "Student dashboard enrollment states"
+      ],
+      "status": "complete",
+      "exitCode": 1
+    },
+    {
+      "directory": "standalone-retry/003",
+      "cases": [
+        "Student course enrolled fixture",
+        "Learning flashcard flip and grade",
+        "PKA enrollment gate redirects to registration",
+        "Student course long material list fixture",
+        "Student course offline recovery fixture",
+        "Student participation ranking global and following filters",
+        "Student quiz gateway attempt states",
+        "Student course results history states"
+      ],
+      "status": "complete",
+      "exitCode": 1
+    },
+    {
+      "directory": "standalone-retry/004",
+      "cases": [
+        "Student course revoked fixture",
+        "Student course unenrolled fixture"
+      ],
+      "status": "complete",
+      "exitCode": 0
+    }
+  ]
+}

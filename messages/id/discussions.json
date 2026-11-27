@@ -204,6 +204,7 @@
   "uploadError_pixels": "Perkecil gambar hingga maksimal 4096 piksel per sisi dan 16 juta piksel.",
   "uploadError_size": "Pilih gambar berukuran maksimal 8 MiB.",
   "uploadError_format": "Pilih gambar JPEG, PNG, atau WebP yang valid dan tidak bergerak.",
+  "uploadError_origin": "Muat ulang halaman, lalu unggah gambar lagi.",
   "uploadError_rate_limited": "Terlalu banyak gambar. Coba lagi nanti.",
   "uploadError_login": "Masuk kembali untuk mengunggah gambar.",
   "uploadError_access": "Periksa akses diskusi, lalu coba unggah lagi.",

@@ -1,0 +1,25 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+  <testsuite name="Test Suite" device="test" tests="8" failures="6" time="13.476" timestamp="2026-11-26T14:40:13">
+    <testcase id="smoke-134" name="smoke-134" classname="smoke-134" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/assessment/smoke-134.yaml" time="9.132" timestamp="2026-11-26T14:40:13" status="SUCCESS"/>
+    <testcase id="smoke-135" name="smoke-135" classname="smoke-135" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/assessment/smoke-135.yaml" time="0.069" timestamp="2026-11-26T14:40:22" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="smoke-136" name="smoke-136" classname="smoke-136" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/assessment/smoke-136.yaml" time="0.026" timestamp="2026-11-26T14:40:23" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="smoke-138" name="smoke-138" classname="smoke-138" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/assessment/smoke-138.yaml" time="0.027" timestamp="2026-11-26T14:40:23" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="smoke-139" name="smoke-139" classname="smoke-139" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/assessment/smoke-139.yaml" time="0.026" timestamp="2026-11-26T14:40:23" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="smoke-140" name="smoke-140" classname="smoke-140" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/assessment/smoke-140.yaml" time="0.024" timestamp="2026-11-26T14:40:23" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="smoke-141" name="smoke-141" classname="smoke-141" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/assessment/smoke-141.yaml" time="0.133" timestamp="2026-11-26T14:40:23" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="smoke-142" name="smoke-142" classname="smoke-142" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/assessment/smoke-142.yaml" time="3.996" timestamp="2026-11-26T14:40:23" status="SUCCESS"/>
+  </testsuite>
+</testsuites>

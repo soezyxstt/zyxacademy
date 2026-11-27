@@ -14,9 +14,11 @@ import {
 import type { ComposerDraft } from "@/components/discussions/composer";
 import type { DiscussionMention } from "@/components/discussions/view-model";
 
+import { DISCUSSION_DRAFT_MAX_ENTRIES, DISCUSSION_DRAFT_TTL_MS } from "./draft-policy";
+
+export { DISCUSSION_DRAFT_TTL_MS } from "./draft-policy";
+
 const STORAGE_VERSION = 1;
-const MAX_DRAFTS = 25;
-export const DISCUSSION_DRAFT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 export interface PersistedDiscussionDraft {
   body: string;
@@ -86,7 +88,7 @@ export function extractPersistableDiscussionDrafts(
     ]);
   }
 
-  return Object.fromEntries(entries.slice(-MAX_DRAFTS));
+  return Object.fromEntries(entries.slice(-DISCUSSION_DRAFT_MAX_ENTRIES));
 }
 
 export function validatePersistedDiscussionDrafts(

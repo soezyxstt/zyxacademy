@@ -1,0 +1,46 @@
+appId: com.zyx.academy.nativeparity
+name: Learning flashcard flip and grade
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: separator
+    timeout: 30000
+- openLink: "zyx-native-parity://student-fixture?scenario=flashcard-parity&theme=light&locale=id&path=%2Fcourses%2Fmatematika-1%2Fflashcard"
+- extendedWaitUntil:
+    visible: "Ketuk untuk membalik kartu"
+    timeout: 30000
+- assertNotVisible:
+    id: student.flashcard.grade-dock
+- assertVisible: "Kapan lim x.*"
+- assertVisible:
+    id: student-rich-markdown
+- assertVisible: "Standar"
+- takeScreenshot: student-flashcard-question
+- tapOn: "Ketuk untuk membalik kartu"
+- assertVisible: "Ketika limit dari kiri dan kanan sama."
+- assertVisible: "Nilai fungsi di a dapat berbeda dari limitnya."
+- assertVisible:
+    id: student.flashcard.grade-dock
+- tapOn: "Paham"
+- extendedWaitUntil:
+    visible:
+      id: student.flashcard.grade-pending
+    timeout: 5000
+- takeScreenshot: student-flashcard-review-pending
+- extendedWaitUntil:
+    visible: "Ulasan kartu tidak dapat disimpan."
+    timeout: 20000
+- assertVisible: "Ketika limit dari kiri dan kanan sama."
+- assertNotVisible:
+    id: student.flashcard.grade-pending
+- takeScreenshot: student-flashcard-review-failed
+- tapOn:
+    id: student.flashcard.dismiss-review-failure
+- assertNotVisible: "Ulasan kartu tidak dapat disimpan."
+- assertVisible: "Ketika limit dari kiri dan kanan sama."
+- tapOn: "Paham"
+- assertVisible: "Apa makna limit dari kiri?"
+- assertNotVisible:
+    id: student.flashcard.grade-dock
+- takeScreenshot: student-flashcard-reviewed

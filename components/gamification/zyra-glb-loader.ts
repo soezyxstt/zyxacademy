@@ -7,7 +7,7 @@ async function loadAsset(src: string, signal: AbortSignal): Promise<GLTF> {
   const [{ GLTFLoader }, { MeshoptDecoder }, response] = await Promise.all([
     import("three/addons/loaders/GLTFLoader.js"),
     import("three/addons/libs/meshopt_decoder.module.js"),
-    fetch(src, { signal }),
+    fetch(src, { signal, credentials: "omit" }),
   ]);
   if (!response.ok) throw new Error("MASCOT_ASSET_UNAVAILABLE");
   const data = await response.arrayBuffer();

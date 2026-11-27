@@ -3,7 +3,7 @@
 import Image from "next/image";
 import dynamic from "next/dynamic";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -40,10 +40,18 @@ function VideoPlayerLoading() {
   );
 }
 
-const ZyxVideoPlayer = dynamic(
-  () => import("./zyx-video-player").then((mod) => mod.ZyxVideoPlayer),
-  { loading: VideoPlayerLoading }
-);
+const loadZyxVideoPlayer = () =>
+  import("./zyx-video-player").then((mod) => mod.ZyxVideoPlayer);
+
+/** Warms the Vidstack player chunk before the user opens the modal. */
+export function preloadVideoPlayer() {
+  void loadZyxVideoPlayer();
+}
+
+const ZyxVideoPlayer = dynamic(loadZyxVideoPlayer, {
+  ssr: false,
+  loading: VideoPlayerLoading,
+});
 
 type VideoPlayerModalProps = {
   video: VideoItem | null;
@@ -70,10 +78,78 @@ export function VideoPlayerModal({
   const t = useTranslations("studentCourse");
   const [autoAdvance, setAutoAdvance] = useState(true);
   const [isPlaylistOpen, setIsPlaylistOpen] = useState(false);
+  const [recovery, setRecovery] = useState<{
+    videoId: string;
+    src: string | null;
+    stage: "refreshing" | "refreshed" | "fallback";
+  } | null>(null);
+  const recoveryAbortRef = useRef<AbortController | null>(null);
   const playlistOpen = isPlaylistOpen && (playlist?.videos.length ?? 0) > 1;
   useDialogHistory(open && video !== null && playlistOpen, () => setIsPlaylistOpen(false));
 
+  useEffect(() => {
+    recoveryAbortRef.current?.abort();
+    recoveryAbortRef.current = null;
+    setRecovery(null);
+    return () => {
+      recoveryAbortRef.current?.abort();
+      recoveryAbortRef.current = null;
+    };
+  }, [open, video?.id, video?.videoUrl]);
+
+  const handleMediaError = useCallback(async () => {
+    if (!open || !video || !video.fallbackVideoUrl) return;
+
+    const currentRecovery = recovery?.videoId === video.id ? recovery : null;
+    // Ignore duplicate error events while a refresh request is already in flight.
+    if (currentRecovery?.stage === "refreshing") return;
+
+    const targetVideoId = video.id;
+    const fallbackUrl = video.fallbackVideoUrl;
+    const currentSrc = currentRecovery?.src ?? video.videoUrl;
+
+    // 1. Try refreshing an expired presigned URL once.
+    if (!currentRecovery) {
+      recoveryAbortRef.current?.abort();
+      const controller = new AbortController();
+      recoveryAbortRef.current = controller;
+      setRecovery({ videoId: targetVideoId, src: null, stage: "refreshing" });
+
+      try {
+        const res = await fetch(`/api/videos/${encodeURIComponent(targetVideoId)}/playback-url`, {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        if (controller.signal.aborted) return;
+        if (res.ok) {
+          const data = (await res.json()) as { url?: string };
+          if (controller.signal.aborted) return;
+          if (data.url && data.url !== currentSrc) {
+            setRecovery({ videoId: targetVideoId, src: data.url, stage: "refreshed" });
+            return;
+          }
+        }
+      } catch {
+        if (controller.signal.aborted) return;
+        // Fall through to proxy fallback below.
+      }
+
+      if (!controller.signal.aborted) {
+        setRecovery({ videoId: targetVideoId, src: fallbackUrl, stage: "fallback" });
+      }
+      return;
+    }
+
+    // 2. If refreshed presigned URL still fails, fall back to the storage proxy.
+    if (currentRecovery.stage === "refreshed" && currentSrc !== fallbackUrl) {
+      setRecovery({ videoId: targetVideoId, src: fallbackUrl, stage: "fallback" });
+    }
+  }, [open, recovery, video]);
+
   if (!video) return null;
+
+  const activeVideoSrc =
+    recovery?.videoId === video.id && recovery.src ? recovery.src : video.videoUrl;
 
   const playlistVideos = playlist?.videos || [];
   const currentIndex = playlistVideos.findIndex((v) => v.id === video.id);
@@ -116,11 +192,12 @@ export function VideoPlayerModal({
             <ZyxVideoPlayer
               key={video.id}
               videoId={video.id}
-              src={video.videoUrl}
+              src={activeVideoSrc}
               title={video.title}
               poster={video.thumbnailUrl}
               autoPlay={true}
               onEnded={handleVideoEnded}
+              onMediaError={handleMediaError}
               className="h-full w-full"
             />
           </div>

@@ -1,0 +1,38 @@
+{
+  "pr": 514,
+  "revision": "3866ea158c427b73696b8c467dd1e90815122e5b",
+  "runId": "45811667510",
+  "runAttempt": "1",
+  "runUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45811667510",
+  "parityCredit": false,
+  "previousDiagnosticIndex": "../06ac6f8f84b740a5fae96f2cfaf2b272f9982659/index.json",
+  "previousCompleteAndroidRouteIndex": "../c60041d6d2cb98513c8232e41838b35c604b3577/index.json",
+  "platforms": {
+    "android": {
+      "jobUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45811667510/job/139880804430",
+      "artifactUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45811667510/artifacts/15114712143",
+      "jobConclusion": "failure",
+      "routeCaptureScope": "Stamped fixture route captures",
+      "reviewedInteractionOutcomes": "android/interaction-outcomes.json",
+      "reviewedInteractionCounts": {
+        "passed": 5,
+        "interrupted": 1,
+        "not-attempted": 5
+      },
+      "diagnosticComparison": "android/comparison.json",
+      "deviceComparisonManifest": "android/device-comparison-manifest.json",
+      "referenceManifest": "android/web-manifest.json",
+      "comparisonCount": 2,
+      "expectedComparisonCount": 8,
+      "missingComparisonCases": [
+        "tutor-dashboard-assigned-light",
+        "tutor-participants-enrolled-light",
+        "tutor-participants-empty-dark",
+        "tutor-tryout-grading-pending-light",
+        "admin-courses-list-light",
+        "admin-course-chapters-light"
+      ],
+      "exactMatchCount": 0
+    }
+  }
+}

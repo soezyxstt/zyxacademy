@@ -4,23 +4,9 @@ import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { bookings, groupMembers } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
-import { storage } from "@/lib/storage";
-import { buildScheduleAttachmentKey, INVALID_OBJECT_KEY } from "@/lib/storage/keys";
-
-const MAX_SIZE_BYTES = 10 * 1024 * 1024;
-
-const ALLOWED_TYPES: Record<string, string> = {
-  ".pdf": "application/pdf",
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".webp": "image/webp",
-};
-
-function getExtension(filename: string): string {
-  const idx = filename.lastIndexOf(".");
-  return idx === -1 ? "" : filename.slice(idx).toLowerCase();
-}
+import { INVALID_OBJECT_KEY } from "@/lib/storage/keys";
+import { scheduleUploadMime, uploadScheduleAttachment } from "@/lib/schedule/attachment-upload";
+import { scheduleFilePolicy } from "@/packages/native-parity/schedule/resources";
 
 export async function POST(req: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -30,7 +16,7 @@ export async function POST(req: Request) {
   const user = session.user;
 
   const contentLength = Number(req.headers.get("content-length") || 0);
-  if (contentLength > MAX_SIZE_BYTES + 64 * 1024) {
+  if (contentLength > scheduleFilePolicy.maxBytes + 64 * 1024) {
     return NextResponse.json(
       { error: "Ukuran berkas melebihi batas 10MB." },
       { status: 413 }
@@ -99,56 +85,17 @@ export async function POST(req: Request) {
     );
   }
 
-  const ext = getExtension(file.name);
-  const expectedMime = ALLOWED_TYPES[ext];
-  if (!expectedMime) {
-    return NextResponse.json(
-      { error: "Format berkas tidak didukung. Gunakan PDF, PNG, JPG, atau WebP." },
-      { status: 415 }
-    );
+  if (file.size > scheduleFilePolicy.maxBytes) {
+    return NextResponse.json({ error: "Ukuran berkas melebihi batas 10MB." }, { status: 413 });
   }
-
-  const normalizedMime = (file.type || "").toLowerCase();
-  if (
-    normalizedMime &&
-    normalizedMime !== expectedMime &&
-    !(normalizedMime === "image/jpg" && expectedMime === "image/jpeg")
-  ) {
-    return NextResponse.json(
-      { error: "Tipe berkas tidak cocok dengan format yang diizinkan." },
-      { status: 415 }
-    );
+  const mime = scheduleUploadMime(file);
+  if (!mime) {
+    return NextResponse.json({ error: "Format berkas tidak didukung. Gunakan PDF, PNG, JPG, atau WebP." }, { status: 415 });
   }
-
-  if (file.size > MAX_SIZE_BYTES) {
-    return NextResponse.json(
-      { error: "Ukuran berkas melebihi batas 10MB." },
-      { status: 413 }
-    );
-  }
-
-  const key = buildScheduleAttachmentKey({
-    bookingId,
-    type: kind,
-    filename: file.name,
-  });
 
   try {
-    const result = await storage.upload(file, file.name, expectedMime, {
-      key,
-      metadata: {
-        uploadedBy: user.id,
-        domain: kind === "pre_session" ? "schedule-materials" : "schedule-notes",
-      },
-    });
-
-    return NextResponse.json({
-      success: true,
-      key: result.key,
-      url: storage.getUrl(result.key),
-      size: result.size,
-      type: expectedMime,
-    });
+    const result = await uploadScheduleAttachment({ bookingId, kind, file, mime, userId: user.id });
+    return NextResponse.json({ success: true, ...result });
   } catch (err: any) {
     if (err?.message === INVALID_OBJECT_KEY) {
       return NextResponse.json({ error: "Kunci objek tidak aman." }, { status: 400 });

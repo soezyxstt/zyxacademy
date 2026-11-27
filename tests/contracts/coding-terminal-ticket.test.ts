@@ -3,6 +3,7 @@ import { createHmac } from "node:crypto";
 
 let allowed = true;
 mock.module("@/lib/coding/server-access", () => ({
+  assertCodingSameOrigin() {},
   async requireCodingAccess() { if (!allowed) throw new Error("CODING_FORBIDDEN"); return { userId: "test", courseId: "course" }; },
   codingErrorResponse(error: Error) { return Response.json({ error: error.message }, { status: error.message === "CODING_FORBIDDEN" ? 403 : 503 }); },
 }));

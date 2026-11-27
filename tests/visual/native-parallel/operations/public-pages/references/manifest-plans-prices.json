@@ -1,0 +1,31 @@
+{
+  "fixedTime": "2026-09-20T05:00:00.000Z",
+  "cases": [
+    {
+      "file": "plans-price-loaded-380-dpr1.png",
+      "path": "/plans",
+      "locale": "id",
+      "theme": "light",
+      "width": 380,
+      "height": 844,
+      "dpr": 1,
+      "scrollWidth": 380,
+      "price": "Rp 650.000\nDiskon 40%\n\nRp 390.000/ orang\n\nTotal Rp 1.170.000 per semester",
+      "component": "PlansClient",
+      "checked": "Loaded price and recalculation after increasing the group size"
+    },
+    {
+      "file": "plans-price-loaded-1536-dpr1.png",
+      "path": "/plans",
+      "locale": "id",
+      "theme": "light",
+      "width": 1536,
+      "height": 864,
+      "dpr": 1,
+      "scrollWidth": 1536,
+      "price": "Rp 650.000\nDiskon 40%\n\nRp 390.000/ orang\n\nTotal Rp 1.170.000 per semester",
+      "component": "PlansClient",
+      "checked": "Loaded price and recalculation after increasing the group size"
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 "use client";
 
+import { parseArticleSections } from "@/lib/materials/reader-markdown-sections";
 import { prefersAppReducedMotion } from "@/components/appearance-preferences";
 
 import { useStudentExperience } from "@/components/student-experience-provider";
@@ -77,7 +78,8 @@ import type { StudentCourseAccessTier } from "@/lib/course-utils";
 import { ChapterSummarySheet } from "@/components/course/chapter-summary-sheet";
 import { useMaterialReadingProgress } from "@/hooks/use-material-reading-progress";
 import { useQueryAccountCurrent } from "@/hooks/use-query-account";
-import { saveTextMaterialOffline } from "@/lib/offline/reading-cache";
+import { OfflineReadingActions, useOfflineReadingActions } from "@/components/offline/offline-reading-actions";
+import { useOfflineReadingVisit } from "@/components/offline/use-offline-reading-visit";
 import { ShareLinkButton } from "@/components/share-link-button";
 import { hapticSelection } from "@/lib/native/haptics";
 import { openAuthorizedFile, saveAuthorizedFile } from "@/lib/native/files";
@@ -305,161 +307,6 @@ const MOCK_PAGES_META = [
   }
 ];
 
-interface ArticleSection {
-  title: string;
-  content: string;
-}
-
-function parseArticleSections(body: string, defaultTitle: string): { chapterTitle: string; sections: ArticleSection[] } {
-  if (!body) return { chapterTitle: defaultTitle, sections: [] };
-
-  const hasSections = body.includes("##") || body.includes("###");
-  if (!hasSections) {
-    return {
-      chapterTitle: defaultTitle,
-      sections: [{ title: "Materi", content: body }]
-    };
-  }
-
-  // 1. Extract Chapter Title
-  let chapterTitle = defaultTitle;
-  let cleanBody = body;
-
-  const h1Match = body.match(/^#\s+([^\n]+)/m);
-  if (h1Match) {
-    chapterTitle = h1Match[1].trim();
-    const headerIndex = body.indexOf(h1Match[0]);
-    if (headerIndex !== -1) {
-      const endOfHeading = body.indexOf("\n", headerIndex);
-      cleanBody = body.slice(endOfHeading !== -1 ? endOfHeading : headerIndex);
-    }
-  } else {
-    const firstHeaderMatch = body.match(/^##\s+Bab\s+\d+:\s+([^\n]+)/im);
-    if (firstHeaderMatch) {
-      chapterTitle = firstHeaderMatch[0].replace(/^##\s+/, "").trim();
-      const headerIndex = body.indexOf(firstHeaderMatch[0]);
-      if (headerIndex !== -1) {
-        const endOfHeading = body.indexOf("\n", headerIndex);
-        cleanBody = body.slice(endOfHeading !== -1 ? endOfHeading : headerIndex);
-      }
-    }
-  }
-
-  // Clean top-level dividers
-  cleanBody = cleanBody.replace(/^[\s\r\n]*---[\s\r\n]*/, "");
-
-  // 2. Remove Metadata blocks
-  cleanBody = cleanBody
-    .replace(/#### Knowledge Graph Metadata[\s\S]*?(?=(?:---|\r?\n###|\r?\n##|\r?\n####|$))/g, "")
-    .replace(/#### Metadata[\s\S]*?(?=(?:---|\r?\n###|\r?\n##|\r?\n####|$))/g, "");
-
-  // Remove Concept Hierarchy block completely
-  cleanBody = cleanBody.replace(/##\s+Concept\s+Hierarchy[\s\S]*?(?=(?:---|\r?\n###|\r?\n##|\r?\n####|$))/gi, "");
-
-  // 3. Parse into blocks
-  interface HeadingBlock {
-    level: 2 | 3;
-    title: string;
-    contentLines: string[];
-  }
-
-  const blocks: HeadingBlock[] = [];
-  let currentBlock: HeadingBlock | null = null;
-  let introLines: string[] = [];
-
-  const lines = cleanBody.split(/\r?\n/);
-  for (const line of lines) {
-    const h2Match = line.match(/^##\s+(.*)/);
-    const h3Match = line.match(/^###\s+(.*)/);
-
-    if (h2Match) {
-      currentBlock = {
-        level: 2,
-        title: h2Match[1].trim(),
-        contentLines: []
-      };
-      blocks.push(currentBlock);
-    } else if (h3Match) {
-      currentBlock = {
-        level: 3,
-        title: h3Match[1].trim(),
-        contentLines: []
-      };
-      blocks.push(currentBlock);
-    } else {
-      if (currentBlock) {
-        currentBlock.contentLines.push(line);
-      } else {
-        introLines.push(line);
-      }
-    }
-  }
-
-  const sections: ArticleSection[] = [];
-  const formulaSections: ArticleSection[] = [];
-  let currentH2Intro: string = introLines.join("\n").trim();
-
-  for (let i = 0; i < blocks.length; i++) {
-    const block = blocks[i];
-    if (block.level === 2) {
-      let hasH3UnderIt = false;
-      for (let j = i + 1; j < blocks.length; j++) {
-        if (blocks[j].level === 2) break;
-        if (blocks[j].level === 3) {
-          hasH3UnderIt = true;
-          break;
-        }
-      }
-
-      if (hasH3UnderIt) {
-        const blockContent = block.contentLines.join("\n").trim();
-        if (blockContent) {
-          if (currentH2Intro) {
-            currentH2Intro += "\n\n" + blockContent;
-          } else {
-            currentH2Intro = blockContent;
-          }
-        }
-      } else {
-        let content = block.contentLines.join("\n").trim();
-        if (currentH2Intro) {
-          content = currentH2Intro + "\n\n" + content;
-          currentH2Intro = "";
-        }
-
-        if (/^F-\d+/i.test(block.title)) {
-          const subHeading = `### ${block.title}\n\n`;
-          formulaSections.push({ title: block.title, content: subHeading + content });
-        } else {
-          sections.push({ title: block.title, content });
-        }
-      }
-    } else if (block.level === 3) {
-      let content = block.contentLines.join("\n").trim();
-      if (currentH2Intro) {
-        content = currentH2Intro + "\n\n" + content;
-        currentH2Intro = "";
-      }
-
-      if (/^F-\d+/i.test(block.title)) {
-        const subHeading = `### ${block.title}\n\n`;
-        formulaSections.push({ title: block.title, content: subHeading + content });
-      } else {
-        sections.push({ title: block.title, content });
-      }
-    }
-  }
-
-  if (formulaSections.length > 0) {
-    const groupedContent = formulaSections.map(fs => fs.content).join("\n\n---\n\n");
-    sections.push({
-      title: "Daftar Rumus",
-      content: groupedContent
-    });
-  }
-
-  return { chapterTitle, sections };
-}
 
 function shortenSubbabLabel(title: string): string {
   return title
@@ -524,11 +371,13 @@ function MaterialViewerContent({
     activeSectionIdxRef.current = activeSectionIdx;
   }, [activeSectionIdx]);
 
-  useEffect(() => {
-    if (demo || !studentId || !learnerMode) return;
-    if (material.kind !== "article" || !material.body?.trim()) return;
-    void saveTextMaterialOffline(studentId, material, course?.title);
-  }, [demo, studentId, learnerMode, material, course?.title]);
+  const textReading = material.kind === "article" && Boolean(material.body?.trim());
+  const offlineUserId = !demo && learnerMode && textReading ? studentId : undefined;
+  const [revokedReading, setRevokedReading] = useState<typeof material>();
+  const revokeReading = useCallback(() => setRevokedReading(material), [material]);
+  const readingKind = material.docCategory === "diktat" ? "diktat" : "article";
+  const offlineReadingActions = useOfflineReadingActions({ userId: learnerMode && !demo && textReading ? studentId : undefined, courseId: material.courseId, materialId: material.id, kind: readingKind, onRevoked: revokeReading });
+  useOfflineReadingVisit(offlineUserId, material.courseId, material.id, readingKind);
 
   useEffect(() => {
     if (demo || !studentId || !learnerMode || material.kind !== "article") return;
@@ -1266,6 +1115,8 @@ function MaterialViewerContent({
     </div>
   ) : null;
 
+  if (revokedReading === material) return null;
+
   if (material.kind === "article" && material.body) {
     const summaryChapterId = !hideHeader && learnerMode && accessTier !== "free" && ragEnabled ? chapterId : undefined;
     const articleDisplayTitle = chapterTitle || material.title;
@@ -1448,6 +1299,7 @@ function MaterialViewerContent({
                           <TooltipContent side="bottom">{t("reader.downloadPdf")}</TooltipContent>
                         </Tooltip>
                       )}
+                      {learnerMode && !demo && <OfflineReadingActions {...offlineReadingActions} />}
                       <ShareLinkButton
                         title={articleDisplayTitle}
                         variant="ghost"

@@ -32,7 +32,7 @@ export function renderDiktatSceneSvg(spec: InteractiveSceneSpec, state: SceneSta
       content = `<${tag} points="${points}" stroke="${color}" stroke-width="${width}" fill="${shape.closed && shape.fill ? color : "none"}"></${tag}>`;
     } else if (shape.type === "path") {
       const d = shape.commands.map(command => command.op === "Z" ? "Z" : command.op === "C" ? `C ${n(command.x1)} ${n(command.y1)} ${n(command.x2)} ${n(command.y2)} ${n(command.x)} ${n(command.y)}` : command.op === "Q" ? `Q ${n(command.x1)} ${n(command.y1)} ${n(command.x)} ${n(command.y)}` : `${command.op} ${n(command.x)} ${n(command.y)}`).join(" ");
-      content = `<path d="${d}" ${style}></path>`;
+      content = `<path d="${escape(d)}" ${style}></path>`;
     } else {
       const suffix = shape.value === undefined ? "" : ` ${Number(n(shape.value).toPrecision(6))}`;
       const segments = splitScientificText(shape.text);
@@ -45,8 +45,8 @@ export function renderDiktatSceneSvg(spec: InteractiveSceneSpec, state: SceneSta
     return `<g pointer-events="none">${content}</g>`;
   };
   try {
-    const { x, y, width, height } = spec.viewBox;
-    return `<svg viewBox="${x} ${y} ${width} ${height}" class="block h-auto w-full" style="width:100%;height:auto;overflow:hidden" role="group" aria-label="${escape(spec.label)}"><title>${escape(spec.label)}</title><desc>${escape(spec.description)}</desc>${spec.shapes.map(draw).join("")}</svg>`;
+    const viewBox = [spec.viewBox.x, spec.viewBox.y, spec.viewBox.width, spec.viewBox.height].map(Number).join(" ");
+    return `<svg viewBox="${viewBox}" class="block h-auto w-full" style="width:100%;height:auto;overflow:hidden" role="group" aria-label="${escape(spec.label)}"><title>${escape(spec.label)}</title><desc>${escape(spec.description)}</desc>${spec.shapes.map(draw).join("")}</svg>`;
   } catch {
     return `<p role="status" class="text-body-sm text-muted-foreground">Keadaan ini tidak dapat ditampilkan. ${escape(spec.description)} Ubah nilai atau reset.</p>`;
   }

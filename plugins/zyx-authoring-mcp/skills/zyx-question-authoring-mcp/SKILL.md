@@ -6,7 +6,7 @@ description: Menyusun atau merevisi soal zyx_original untuk gap bank soal, denga
 # Soal original Zyx melalui MCP
 
 <!-- BEGIN:environment-connection -->
-Gunakan koneksi MCP `zyx-stg` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.4"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
+Gunakan koneksi MCP `zyx-stg` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.6"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
 
 Panggil nama tool dari `tools/list`. Nama bertitik di skill ini merujuk ke operasi; nama panggilan biasanya mengganti titik dengan `_`, seperti `admin_environment`. Pengecualian: `authoring.get_solution_collection_review_context` memakai `authoring_solution_review_context`. Pertahankan nama bertitik pada argumen `operation` serta identitas konfirmasi dan receipt.
 <!-- END:environment-connection -->
@@ -15,7 +15,7 @@ Jika akses kedaluwarsa atau izin kurang, ikuti [pemulihan koneksi](../zyx-operat
 
 ## Mulai atau lanjutkan run
 
-1. Cocokkan identitas koneksi dengan target yang sudah ditetapkan pengguna. Sebelum authoring atau melanjutkan run, panggil `workflow.get_playbook` dengan `skill: "zyx-question-authoring-mcp"`, `stage: "quiz"`, `bootstrapProtocol: 1`, `pluginVersion: "0.5.4"`, dan `clientCapabilities` sesuai kemampuan host nyata. Jangan mengaku memiliki subagent atau renderer yang tidak tersedia.
+1. Cocokkan identitas koneksi dengan target yang sudah ditetapkan pengguna. Sebelum authoring atau melanjutkan run, panggil `workflow.get_playbook` dengan `skill: "zyx-question-authoring-mcp"`, `stage: "quiz"`, `bootstrapProtocol: 1`, `pluginVersion: "0.5.6"`, dan `clientCapabilities` sesuai kemampuan host nyata. Jangan mengaku memiliki subagent atau renderer yang tidak tersedia.
 2. Baca modul wajib `common/execution`, `quiz/workflow`, dan `quiz/quality`. Jika bootstrap gagal atau `compatibility.status` bernilai `incompatible`, hentikan authoring dan sampaikan `remediation`; jangan memakai aturan lama.
 3. Gunakan `catalog.list_courses` dan `catalog.list_chapters` untuk scope dari nama yang diberikan pengguna. Mulai `workflow.start` dengan `workflow: "quiz_bank"`, key scope dan `bootstrapToken`; baca `workflow.get_contract` dengan token run dan bootstrap. Jangan meminta ID internal atau membuat Source Pack baru jika tugas tidak memerlukannya.
 4. Saat kontrak/playbook berubah, ambil bootstrap baru lalu panggil `workflow.get_contract` dengan run lama. Pakai replacement `runToken` yang dikembalikan dan validasi ulang. Ikuti petunjuk server untuk run kedaluwarsa atau legacy; jangan diam-diam mengubah scope atau membuat identitas soal baru.

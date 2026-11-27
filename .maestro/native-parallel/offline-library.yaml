@@ -1,0 +1,53 @@
+appId: com.zyx.academy.nativeparity
+name: Offline library presentation states
+---
+- launchApp
+- extendedWaitUntil:
+    visible: separator
+    timeout: 20000
+- openLink: zyx-native-parity://internal/offline-library/populated
+- assertVisible: Bacaan offline
+- assertVisible: Cara menafsirkan data dari tabel, grafik, dan kasus penalaran kuantitatif dalam soal cerita
+- assertVisible: Hapus Cara menafsirkan data dari tabel, grafik, dan kasus penalaran kuantitatif dalam soal cerita
+- tapOn: Hapus Cara menafsirkan data dari tabel, grafik, dan kasus penalaran kuantitatif dalam soal cerita
+- assertVisible: Hapus unduhan\?
+- tapOn: Batal
+- assertVisible: Hapus Cara menafsirkan data dari tabel, grafik, dan kasus penalaran kuantitatif dalam soal cerita
+- tapOn: Hapus Cara menafsirkan data dari tabel, grafik, dan kasus penalaran kuantitatif dalam soal cerita
+- tapOn: Hapus
+- assertVisible: Simpan Cara menafsirkan data dari tabel, grafik, dan kasus penalaran kuantitatif dalam soal cerita
+- tapOn: Simpan Cara menafsirkan data dari tabel, grafik, dan kasus penalaran kuantitatif dalam soal cerita
+- assertVisible: Hapus Cara menafsirkan data dari tabel, grafik, dan kasus penalaran kuantitatif dalam soal cerita
+- tapOn:
+    id: offline-library-search
+- inputText: peluang
+- assertVisible: Diktat peluang bersyarat
+- assertNotVisible: Cara menafsirkan data dari tabel, grafik, dan kasus penalaran kuantitatif dalam soal cerita
+- hideKeyboard
+- openLink: zyx-native-parity://internal/offline-library/empty
+- assertVisible: Offline
+- assertVisible: Belum ada bacaan tersimpan
+- openLink: zyx-native-parity://internal/offline-library/failure
+- assertVisible: Could not load the reading list\.
+- tapOn: Try again
+- assertVisible: No readings available yet
+- openLink: zyx-native-parity://internal/offline-library/cleanup
+- assertVisible: Hapus unduhan yang tidak tersedia \(2\)
+- tapOn:
+    id: offline-library-purge
+- assertVisible: Hapus unduhan yang tidak tersedia\?
+- tapOn: Batal
+- assertVisible: Hapus unduhan yang tidak tersedia \(2\)
+- tapOn:
+    id: offline-library-purge
+- tapOn: Hapus
+- assertNotVisible:
+    id: offline-library-purge
+- assertVisible: Belum ada bacaan tersimpan
+- openLink: zyx-native-parity://internal/offline-library/refresh
+- assertVisible: Hapus unduhan yang tidak tersedia \(1\)
+- assertVisible: Simpan Cara menafsirkan data dari tabel, grafik, dan kasus penalaran kuantitatif dalam soal cerita
+- tapOn: Periksa pembaruan
+- assertNotVisible:
+    id: offline-library-purge
+- assertVisible: Hapus Cara menafsirkan data dari tabel, grafik, dan kasus penalaran kuantitatif dalam soal cerita

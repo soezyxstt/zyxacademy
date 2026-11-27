@@ -6,9 +6,13 @@ async function readWorkspace(request: Request) {
   const headers = { "Cache-Control": "private, no-store" };
   const respond = (data: unknown, status = 200) => Response.json(data, { status, headers });
   try {
-    const actorId = (await getAuthSession())?.user?.id;
+    const session = await getAuthSession();
+    const actorId = session?.user?.id;
     if (!actorId) return respond({ error: "unauthenticated" }, 401);
     if (request.headers.get("x-student-id") !== actorId) return respond({ error: "account_changed" }, 409);
+
+    const expectedSession = request.headers.get("x-discussion-session-id");
+    if (expectedSession && expectedSession !== session?.session?.id) return respond({ error: "account_changed" }, 409);
 
     const params = new URL(request.url).searchParams;
     const cursor = params.get("cursor") ?? undefined;

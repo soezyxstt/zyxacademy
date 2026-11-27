@@ -1,0 +1,2715 @@
+{
+  "schemaVersion": 1,
+  "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+  "origin": "http://127.0.0.1:3314",
+  "viewport": {
+    "width": 380,
+    "height": 852,
+    "dpr": 1
+  },
+  "locale": "id-ID",
+  "identityEndpoint": "/api/native/context",
+  "apiObservation": {
+    "sameOrigin": true,
+    "pathPrefixes": [
+      "/api/admin",
+      "/api/tutor"
+    ],
+    "responseStatuses": "2xx",
+    "field": "successfulProtectedReads",
+    "completeRequestLogRecorded": false
+  },
+  "browserVersion": "154.0.8037.57",
+  "observedAt": "2026-11-26T13:35:19.551Z",
+  "seed": {
+    "ideaSlug": "fisika-dasar",
+    "ideaCourseId": "fisika-dasar",
+    "productCourseId": "biologi-dasar",
+    "quizId": "academic-web-quiz-1",
+    "documentId": "academic-web-document-1",
+    "ideaId": "academic-web-idea-1",
+    "productId": "academic-web-product-1"
+  },
+  "checkpoints": {
+    "authorized": [
+      {
+        "path": "/admin/courses",
+        "landedPath": "/admin/courses",
+        "fixtureMarker": "Biologi Dasar",
+        "status": 200,
+        "identity": {
+          "status": 200,
+          "accountId": "academic-admin",
+          "roles": [
+            "admin"
+          ],
+          "dashboard": "/admin"
+        }
+      },
+      {
+        "path": "/tutor/academic-course-1/participants",
+        "landedPath": "/tutor/academic-course-1/participants",
+        "fixtureMarker": "Nadia Lestari",
+        "status": 200,
+        "identity": {
+          "status": 200,
+          "accountId": "academic-tutor",
+          "roles": [
+            "tutor"
+          ],
+          "dashboard": "/tutor"
+        }
+      }
+    ],
+    "anonymous": [
+      {
+        "path": "/admin/courses",
+        "status": 307,
+        "destination": "/sign-in?next=%2Fadmin%2Fcourses"
+      },
+      {
+        "path": "/tutor/academic-course-1/participants",
+        "status": 307,
+        "destination": "/sign-in?next=%2Ftutor%2Facademic-course-1%2Fparticipants"
+      }
+    ],
+    "retries": [
+      {
+        "id": "academic-admin-courses-denied",
+        "pattern": "/admin/courses",
+        "fixturePath": "/admin/courses",
+        "webSource": "app/(admin)/admin/(academic)/courses/page.tsx",
+        "requestedPath": "/admin/courses",
+        "landedPath": "/",
+        "classification": "redirected",
+        "status": "pass",
+        "theme": "light",
+        "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+        "observedAt": "2026-11-26T13:35:01.666Z",
+        "navigation": [
+          {
+            "path": "/admin/courses",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "successfulProtectedReads": [],
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "initialHttpStatus": 307,
+        "landingAccountLabel": "Akun (Nadia Lestari)",
+        "heading": "Belajar lebih terarah setiap hari.",
+        "protectedDataChecks": {
+          "fixtureMarkers": 10,
+          "protectedSuccessDocuments": 0
+        },
+        "viewport": {
+          "width": 380,
+          "height": 852,
+          "dpr": 1
+        }
+      },
+      {
+        "id": "academic-tutor-courseId-participants-denied",
+        "pattern": "/tutor/[courseId]/participants",
+        "fixturePath": "/tutor/academic-course-1/participants",
+        "webSource": "app/(tutor)/tutor/[courseId]/participants/page.tsx",
+        "requestedPath": "/tutor/academic-course-1/participants",
+        "landedPath": "/",
+        "classification": "redirected",
+        "status": "pass",
+        "theme": "light",
+        "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+        "observedAt": "2026-11-26T13:35:11.360Z",
+        "navigation": [
+          {
+            "path": "/tutor/academic-course-1/participants",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "successfulProtectedReads": [],
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "initialHttpStatus": 307,
+        "landingAccountLabel": "Akun (Nadia Lestari)",
+        "heading": "Belajar lebih terarah setiap hari.",
+        "protectedDataChecks": {
+          "fixtureMarkers": 10,
+          "protectedSuccessDocuments": 0
+        },
+        "viewport": {
+          "width": 380,
+          "height": 852,
+          "dpr": 1
+        }
+      }
+    ]
+  },
+  "entries": [
+    {
+      "id": "academic-admin-courses-slug-quizzes-id-edit-denied",
+      "pattern": "/admin/courses/[slug]/quizzes/[id]/edit",
+      "fixturePath": "/admin/courses/biologi-dasar/quizzes/academic-quiz-1/edit",
+      "webSource": "app/(admin)/admin/(academic)/courses/[slug]/quizzes/[id]/edit/page.tsx",
+      "requestedPath": "/admin/courses/biologi-dasar/quizzes/academic-web-quiz-1/edit",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:35:19.568Z",
+      "navigation": [
+        {
+          "path": "/admin/courses/biologi-dasar/quizzes/academic-web-quiz-1/edit",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "14f36ec895080a308d6467468220690973e2ea51cae4a179f020fcce6ad84c56",
+      "screenshot": "captures/14f36ec895080a308d6467468220690973e2ea51cae4a179f020fcce6ad84c56.png"
+    },
+    {
+      "id": "academic-admin-courses-slug-quizzes-new-denied",
+      "pattern": "/admin/courses/[slug]/quizzes/new",
+      "fixturePath": "/admin/courses/biologi-dasar/quizzes/new",
+      "webSource": "app/(admin)/admin/(academic)/courses/[slug]/quizzes/new/page.tsx",
+      "requestedPath": "/admin/courses/biologi-dasar/quizzes/new",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:35:19.569Z",
+      "navigation": [
+        {
+          "path": "/admin/courses/biologi-dasar/quizzes/new",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "e01f0226ed3aa26e312d81133121b47d18154650a857e73be4dfa0783d6cf3f0",
+      "screenshot": "captures/e01f0226ed3aa26e312d81133121b47d18154650a857e73be4dfa0783d6cf3f0.png"
+    },
+    {
+      "id": "academic-admin-courses-slug-review-idea-bundleId-denied",
+      "pattern": "/admin/courses/[slug]/review/idea/[bundleId]",
+      "fixturePath": "/admin/courses/biologi-dasar/review/idea/academic-idea-1",
+      "webSource": "app/(admin)/admin/(academic)/courses/[slug]/review/idea/[bundleId]/page.tsx",
+      "requestedPath": "/admin/courses/fisika-dasar/review/idea/academic-web-idea-1",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:35:31.895Z",
+      "navigation": [
+        {
+          "path": "/admin/courses/fisika-dasar/review/idea/academic-web-idea-1",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "f338ed769e7086d720e90e1a1f5e5283e40eb6d0e7b3a843fb17ced8e525d7fa",
+      "screenshot": "captures/f338ed769e7086d720e90e1a1f5e5283e40eb6d0e7b3a843fb17ced8e525d7fa.png"
+    },
+    {
+      "id": "academic-admin-courses-slug-review-product-bundleId-denied",
+      "pattern": "/admin/courses/[slug]/review/product/[bundleId]",
+      "fixturePath": "/admin/courses/biologi-dasar/review/product/academic-product-1",
+      "webSource": "app/(admin)/admin/(academic)/courses/[slug]/review/product/[bundleId]/page.tsx",
+      "requestedPath": "/admin/courses/biologi-dasar/review/product/academic-web-product-1",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:35:33.195Z",
+      "navigation": [
+        {
+          "path": "/admin/courses/biologi-dasar/review/product/academic-web-product-1",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "abb0b6eb78dc2f09df22544bf68719c99ed976ac7c3c3bb05a2257b36f920d71",
+      "screenshot": "captures/abb0b6eb78dc2f09df22544bf68719c99ed976ac7c3c3bb05a2257b36f920d71.png"
+    },
+    {
+      "id": "academic-admin-materials-review-idea-slug-denied",
+      "pattern": "/admin/materials/review/idea/[slug]",
+      "fixturePath": "/admin/materials/review/idea/academic-idea-1",
+      "webSource": "app/(admin)/admin/(academic)/materials/review/idea/[slug]/page.tsx",
+      "requestedPath": "/admin/materials/review/idea/academic-web-idea-1",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:35:46.921Z",
+      "navigation": [
+        {
+          "path": "/admin/materials/review/idea/academic-web-idea-1",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "d870ba9975b9194bb1394bc06d234954aae3b62c3159cac239e0108b64a91243",
+      "screenshot": "captures/d870ba9975b9194bb1394bc06d234954aae3b62c3159cac239e0108b64a91243.png"
+    },
+    {
+      "id": "academic-admin-materials-review-product-slug-denied",
+      "pattern": "/admin/materials/review/product/[slug]",
+      "fixturePath": "/admin/materials/review/product/academic-product-1",
+      "webSource": "app/(admin)/admin/(academic)/materials/review/product/[slug]/page.tsx",
+      "requestedPath": "/admin/materials/review/product/academic-web-product-1",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:35:49.388Z",
+      "navigation": [
+        {
+          "path": "/admin/materials/review/product/academic-web-product-1",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "d2b020a0b85c255a71f3bac78c01a4bad0f4e8d03f70c9bf389c6ac1af40617f",
+      "screenshot": "captures/d2b020a0b85c255a71f3bac78c01a4bad0f4e8d03f70c9bf389c6ac1af40617f.png"
+    },
+    {
+      "id": "academic-admin-bundles-idea-denied",
+      "pattern": "/admin/bundles/idea",
+      "fixturePath": "/admin/bundles/idea",
+      "webSource": "app/(admin)/admin/(academic)/bundles/idea/page.tsx",
+      "requestedPath": "/admin/bundles/idea",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:35:59.916Z",
+      "navigation": [
+        {
+          "path": "/admin/bundles/idea",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "1d689abcf12f7749f18b3df8446a996c45e7fcf0d97a0168ecb68e38f5e9a4cd",
+      "screenshot": "captures/1d689abcf12f7749f18b3df8446a996c45e7fcf0d97a0168ecb68e38f5e9a4cd.png"
+    },
+    {
+      "id": "academic-admin-bundles-product-denied",
+      "pattern": "/admin/bundles/product",
+      "fixturePath": "/admin/bundles/product",
+      "webSource": "app/(admin)/admin/(academic)/bundles/product/page.tsx",
+      "requestedPath": "/admin/bundles/product",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:36:01.190Z",
+      "navigation": [
+        {
+          "path": "/admin/bundles/product",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "41d5be61d895e707f421ed3b52d5be764e96a0c865a9ce533bc126f6ca7bb269",
+      "screenshot": "captures/41d5be61d895e707f421ed3b52d5be764e96a0c865a9ce533bc126f6ca7bb269.png"
+    },
+    {
+      "id": "academic-admin-courses-slug-analytics-denied",
+      "pattern": "/admin/courses/[slug]/analytics",
+      "fixturePath": "/admin/courses/biologi-dasar/analytics",
+      "webSource": "app/(admin)/admin/(academic)/courses/[slug]/analytics/page.tsx",
+      "requestedPath": "/admin/courses/biologi-dasar/analytics",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:36:13.463Z",
+      "navigation": [
+        {
+          "path": "/admin/courses/biologi-dasar/analytics",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "b89175f5be88904ab143ab5cdd2a4afaf4974c487a25475e8a4f198f62c598ef",
+      "screenshot": "captures/b89175f5be88904ab143ab5cdd2a4afaf4974c487a25475e8a4f198f62c598ef.png"
+    },
+    {
+      "id": "academic-admin-courses-slug-analytics-quizId-denied",
+      "pattern": "/admin/courses/[slug]/analytics/[quizId]",
+      "fixturePath": "/admin/courses/biologi-dasar/analytics/academic-quiz-1",
+      "webSource": "app/(admin)/admin/(academic)/courses/[slug]/analytics/[quizId]/page.tsx",
+      "requestedPath": "/admin/courses/biologi-dasar/analytics/academic-web-quiz-1",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:36:13.971Z",
+      "navigation": [
+        {
+          "path": "/admin/courses/biologi-dasar/analytics/academic-web-quiz-1",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "f47bacb4bd5009492d0fe7b2013c86f6e878116d1b9313597be822745318ef30",
+      "screenshot": "captures/f47bacb4bd5009492d0fe7b2013c86f6e878116d1b9313597be822745318ef30.png"
+    },
+    {
+      "id": "academic-admin-courses-slug-documents-denied",
+      "pattern": "/admin/courses/[slug]/documents",
+      "fixturePath": "/admin/courses/biologi-dasar/documents",
+      "webSource": "app/(admin)/admin/(academic)/courses/[slug]/documents/page.tsx",
+      "requestedPath": "/admin/courses/biologi-dasar/documents",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:36:24.539Z",
+      "navigation": [
+        {
+          "path": "/admin/courses/biologi-dasar/documents",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "537cef35875049707a96b1b3a60c617b718e9b84284a3433cf149a6b71ff1330",
+      "screenshot": "captures/537cef35875049707a96b1b3a60c617b718e9b84284a3433cf149a6b71ff1330.png"
+    },
+    {
+      "id": "academic-admin-courses-slug-documents-materialId-denied",
+      "pattern": "/admin/courses/[slug]/documents/[materialId]",
+      "fixturePath": "/admin/courses/biologi-dasar/documents/academic-document-1",
+      "webSource": "app/(admin)/admin/(academic)/courses/[slug]/documents/[materialId]/page.tsx",
+      "requestedPath": "/admin/courses/biologi-dasar/documents/academic-web-document-1",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:36:25.095Z",
+      "navigation": [
+        {
+          "path": "/admin/courses/biologi-dasar/documents/academic-web-document-1",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "4b6e42f91d4df5a02c4566cd807b1084343ca09401ce5278292a1e38ab66df94",
+      "screenshot": "captures/4b6e42f91d4df5a02c4566cd807b1084343ca09401ce5278292a1e38ab66df94.png"
+    },
+    {
+      "id": "academic-admin-courses-slug-flashcards-denied",
+      "pattern": "/admin/courses/[slug]/flashcards",
+      "fixturePath": "/admin/courses/biologi-dasar/flashcards",
+      "webSource": "app/(admin)/admin/(academic)/courses/[slug]/flashcards/page.tsx",
+      "requestedPath": "/admin/courses/biologi-dasar/flashcards",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:36:34.690Z",
+      "navigation": [
+        {
+          "path": "/admin/courses/biologi-dasar/flashcards",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "86248819f53b5683f86e1d4c6176954bd49558e6b66ae441dabd45fded9e491c",
+      "screenshot": "captures/86248819f53b5683f86e1d4c6176954bd49558e6b66ae441dabd45fded9e491c.png"
+    },
+    {
+      "id": "academic-admin-courses-slug-leaderboard-denied",
+      "pattern": "/admin/courses/[slug]/leaderboard",
+      "fixturePath": "/admin/courses/biologi-dasar/leaderboard",
+      "webSource": "app/(admin)/admin/(academic)/courses/[slug]/leaderboard/page.tsx",
+      "requestedPath": "/admin/courses/biologi-dasar/leaderboard",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:36:35.743Z",
+      "navigation": [
+        {
+          "path": "/admin/courses/biologi-dasar/leaderboard",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "6c5bd1255f3830458b67354f50c8847bd44af39c66c508ee1a811a6b01368b66",
+      "screenshot": "captures/6c5bd1255f3830458b67354f50c8847bd44af39c66c508ee1a811a6b01368b66.png"
+    },
+    {
+      "id": "academic-admin-courses-slug-questions-denied",
+      "pattern": "/admin/courses/[slug]/questions",
+      "fixturePath": "/admin/courses/biologi-dasar/questions",
+      "webSource": "app/(admin)/admin/(academic)/courses/[slug]/questions/page.tsx",
+      "requestedPath": "/admin/courses/biologi-dasar/questions",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:36:49.758Z",
+      "navigation": [
+        {
+          "path": "/admin/courses/biologi-dasar/questions",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "d4e502a1abfaab4745a3729a03a021a884dbed0a7c36e9011a579d2c67c648c4",
+      "screenshot": "captures/d4e502a1abfaab4745a3729a03a021a884dbed0a7c36e9011a579d2c67c648c4.png"
+    },
+    {
+      "id": "academic-admin-courses-slug-quizzes-denied",
+      "pattern": "/admin/courses/[slug]/quizzes",
+      "fixturePath": "/admin/courses/biologi-dasar/quizzes",
+      "webSource": "app/(admin)/admin/(academic)/courses/[slug]/quizzes/page.tsx",
+      "requestedPath": "/admin/courses/biologi-dasar/quizzes",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:36:50.204Z",
+      "navigation": [
+        {
+          "path": "/admin/courses/biologi-dasar/quizzes",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "b7742f2ff1acf6456cecc65b0037d83bad4695462f6cd1234d0a476a676bd1cd",
+      "screenshot": "captures/b7742f2ff1acf6456cecc65b0037d83bad4695462f6cd1234d0a476a676bd1cd.png"
+    },
+    {
+      "id": "academic-admin-courses-slug-results-denied",
+      "pattern": "/admin/courses/[slug]/results",
+      "fixturePath": "/admin/courses/biologi-dasar/results",
+      "webSource": "app/(admin)/admin/(academic)/courses/[slug]/results/page.tsx",
+      "requestedPath": "/admin/courses/biologi-dasar/results",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:37:03.074Z",
+      "navigation": [
+        {
+          "path": "/admin/courses/biologi-dasar/results",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "a781bbdc8999e708c5ad9c43c99b4f25fb57aa5c7245d471e66dc4fbf6201c58",
+      "screenshot": "captures/a781bbdc8999e708c5ad9c43c99b4f25fb57aa5c7245d471e66dc4fbf6201c58.png"
+    },
+    {
+      "id": "academic-admin-courses-slug-review-denied",
+      "pattern": "/admin/courses/[slug]/review",
+      "fixturePath": "/admin/courses/biologi-dasar/review",
+      "webSource": "app/(admin)/admin/(academic)/courses/[slug]/review/page.tsx",
+      "requestedPath": "/admin/courses/biologi-dasar/review",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:37:03.523Z",
+      "navigation": [
+        {
+          "path": "/admin/courses/biologi-dasar/review",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "0ba4a68f24e8d9839d6808d715b75dbdba377ee4c0b207f131f29abd9bbd56a2",
+      "screenshot": "captures/0ba4a68f24e8d9839d6808d715b75dbdba377ee4c0b207f131f29abd9bbd56a2.png"
+    },
+    {
+      "id": "academic-admin-courses-slug-settings-denied",
+      "pattern": "/admin/courses/[slug]/settings",
+      "fixturePath": "/admin/courses/biologi-dasar/settings",
+      "webSource": "app/(admin)/admin/(academic)/courses/[slug]/settings/page.tsx",
+      "requestedPath": "/admin/courses/biologi-dasar/settings",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:37:17.290Z",
+      "navigation": [
+        {
+          "path": "/admin/courses/biologi-dasar/settings",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "4f36fc438b65db089704d0ee3b7e1a63ad5ce62048fd450a90a67a41bdf1cd48",
+      "screenshot": "captures/4f36fc438b65db089704d0ee3b7e1a63ad5ce62048fd450a90a67a41bdf1cd48.png"
+    },
+    {
+      "id": "academic-admin-courses-slug-tryouts-denied",
+      "pattern": "/admin/courses/[slug]/tryouts",
+      "fixturePath": "/admin/courses/biologi-dasar/tryouts",
+      "webSource": "app/(admin)/admin/(academic)/courses/[slug]/tryouts/page.tsx",
+      "requestedPath": "/admin/courses/biologi-dasar/tryouts",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:37:17.891Z",
+      "navigation": [
+        {
+          "path": "/admin/courses/biologi-dasar/tryouts",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "6cfe25a3d7ce9eb5441dd6203bd38651e88eff146a34476104169eaf99ba374f",
+      "screenshot": "captures/6cfe25a3d7ce9eb5441dd6203bd38651e88eff146a34476104169eaf99ba374f.png"
+    },
+    {
+      "id": "academic-admin-courses-slug-videos-denied",
+      "pattern": "/admin/courses/[slug]/videos",
+      "fixturePath": "/admin/courses/biologi-dasar/videos",
+      "webSource": "app/(admin)/admin/(academic)/courses/[slug]/videos/page.tsx",
+      "requestedPath": "/admin/courses/biologi-dasar/videos",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:37:30.266Z",
+      "navigation": [
+        {
+          "path": "/admin/courses/biologi-dasar/videos",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "9dede4486df6e5fa1bb2c8b1aae71ffc3b19949b2899c9f312ccde3cc7fd414f",
+      "screenshot": "captures/9dede4486df6e5fa1bb2c8b1aae71ffc3b19949b2899c9f312ccde3cc7fd414f.png"
+    },
+    {
+      "id": "academic-admin-materials-manual-denied",
+      "pattern": "/admin/materials/manual",
+      "fixturePath": "/admin/materials/manual",
+      "webSource": "app/(admin)/admin/(academic)/materials/manual/page.tsx",
+      "requestedPath": "/admin/materials/manual",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:37:31.617Z",
+      "navigation": [
+        {
+          "path": "/admin/materials/manual",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "6aef55aa1e3287180b0199b22b29502398e3a4eb41ef1e57e3305b094212ae11",
+      "screenshot": "captures/6aef55aa1e3287180b0199b22b29502398e3a4eb41ef1e57e3305b094212ae11.png"
+    },
+    {
+      "id": "academic-admin-materials-review-denied",
+      "pattern": "/admin/materials/review",
+      "fixturePath": "/admin/materials/review?courseId=academic-course-1&section=idea",
+      "webSource": "app/(admin)/admin/(academic)/materials/review/page.tsx",
+      "requestedPath": "/admin/materials/review?courseId=academic-course-1&section=idea",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:37:45.444Z",
+      "navigation": [
+        {
+          "path": "/admin/materials/review?courseId=academic-course-1&section=idea",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "57bb04091488eef2b30fb2928d277eba8762a09fb75d9c315caeafd4e5871042",
+      "screenshot": "captures/57bb04091488eef2b30fb2928d277eba8762a09fb75d9c315caeafd4e5871042.png"
+    },
+    {
+      "id": "academic-admin-tutorial-pka-announcements-denied",
+      "pattern": "/admin/tutorial-pka/announcements",
+      "fixturePath": "/admin/tutorial-pka/announcements",
+      "webSource": "app/(admin)/admin/(academic)/tutorial-pka/announcements/page.tsx",
+      "requestedPath": "/admin/tutorial-pka/announcements",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:37:48.851Z",
+      "navigation": [
+        {
+          "path": "/admin/tutorial-pka/announcements",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "ed045c55894caf6b48baeda744faeff23c99e16214d79c1163a8f426b34b69d0",
+      "screenshot": "captures/ed045c55894caf6b48baeda744faeff23c99e16214d79c1163a8f426b34b69d0.png"
+    },
+    {
+      "id": "academic-admin-tutorial-pka-registrations-denied",
+      "pattern": "/admin/tutorial-pka/registrations",
+      "fixturePath": "/admin/tutorial-pka/registrations",
+      "webSource": "app/(admin)/admin/(academic)/tutorial-pka/registrations/page.tsx",
+      "requestedPath": "/admin/tutorial-pka/registrations",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:37:55.127Z",
+      "navigation": [
+        {
+          "path": "/admin/tutorial-pka/registrations",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "4dbf7b3e980e148afdaf0762f6d8a6f3a3a663840dce8580370e436b18d4ebb8",
+      "screenshot": "captures/4dbf7b3e980e148afdaf0762f6d8a6f3a3a663840dce8580370e436b18d4ebb8.png"
+    },
+    {
+      "id": "academic-admin-tutorial-pka-schedules-denied",
+      "pattern": "/admin/tutorial-pka/schedules",
+      "fixturePath": "/admin/tutorial-pka/schedules",
+      "webSource": "app/(admin)/admin/(academic)/tutorial-pka/schedules/page.tsx",
+      "requestedPath": "/admin/tutorial-pka/schedules",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:37:58.130Z",
+      "navigation": [
+        {
+          "path": "/admin/tutorial-pka/schedules",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "e3945f4c84b41fc43be903006f87930e5ebe48da0f8c445b9d1bbc7291d8ecc2",
+      "screenshot": "captures/e3945f4c84b41fc43be903006f87930e5ebe48da0f8c445b9d1bbc7291d8ecc2.png"
+    },
+    {
+      "id": "academic-tutor-courseId-quizzes-templateId-attempts-denied",
+      "pattern": "/tutor/[courseId]/quizzes/[templateId]/attempts",
+      "fixturePath": "/tutor/academic-course-1/quizzes/academic-quiz-1/attempts",
+      "webSource": "app/(tutor)/tutor/[courseId]/quizzes/[templateId]/attempts/page.tsx",
+      "requestedPath": "/tutor/academic-course-1/quizzes/academic-web-quiz-1/attempts",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:38:04.725Z",
+      "navigation": [
+        {
+          "path": "/tutor/academic-course-1/quizzes/academic-web-quiz-1/attempts",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "7d7e12e1064115eab9a17df9ed569bf7ebaadeb4baf0243bced353462215a477",
+      "screenshot": "captures/7d7e12e1064115eab9a17df9ed569bf7ebaadeb4baf0243bced353462215a477.png"
+    },
+    {
+      "id": "academic-tutor-courseId-quizzes-templateId-edit-denied",
+      "pattern": "/tutor/[courseId]/quizzes/[templateId]/edit",
+      "fixturePath": "/tutor/academic-course-1/quizzes/academic-quiz-1/edit",
+      "webSource": "app/(tutor)/tutor/[courseId]/quizzes/[templateId]/edit/page.tsx",
+      "requestedPath": "/tutor/academic-course-1/quizzes/academic-web-quiz-1/edit",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:38:05.122Z",
+      "navigation": [
+        {
+          "path": "/tutor/academic-course-1/quizzes/academic-web-quiz-1/edit",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "f844d8619d7367af348231424037f463d3407d68404d788a1222f72a1c2cae8e",
+      "screenshot": "captures/f844d8619d7367af348231424037f463d3407d68404d788a1222f72a1c2cae8e.png"
+    },
+    {
+      "id": "academic-tutor-courseId-quizzes-grading-denied",
+      "pattern": "/tutor/[courseId]/quizzes/grading",
+      "fixturePath": "/tutor/academic-course-1/quizzes/grading",
+      "webSource": "app/(tutor)/tutor/[courseId]/quizzes/grading/page.tsx",
+      "requestedPath": "/tutor/academic-course-1/quizzes/grading",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:38:14.827Z",
+      "navigation": [
+        {
+          "path": "/tutor/academic-course-1/quizzes/grading",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "0b9838ccce24c9f555f1e00d6cec16622d54ee028a78eacf54ae4ea1ebfda4d5",
+      "screenshot": "captures/0b9838ccce24c9f555f1e00d6cec16622d54ee028a78eacf54ae4ea1ebfda4d5.png"
+    },
+    {
+      "id": "academic-tutor-courseId-quizzes-new-denied",
+      "pattern": "/tutor/[courseId]/quizzes/new",
+      "fixturePath": "/tutor/academic-course-1/quizzes/new",
+      "webSource": "app/(tutor)/tutor/[courseId]/quizzes/new/page.tsx",
+      "requestedPath": "/tutor/academic-course-1/quizzes/new",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:38:15.246Z",
+      "navigation": [
+        {
+          "path": "/tutor/academic-course-1/quizzes/new",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "83b640be543cf695deea9a51921bb992c68c03a4e8236533b1d555fd370eb085",
+      "screenshot": "captures/83b640be543cf695deea9a51921bb992c68c03a4e8236533b1d555fd370eb085.png"
+    },
+    {
+      "id": "academic-admin-authoring-context-denied",
+      "pattern": "/admin/authoring-context",
+      "fixturePath": "/admin/authoring-context",
+      "webSource": "app/(admin)/admin/(academic)/authoring-context/page.tsx",
+      "requestedPath": "/admin/authoring-context",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:38:24.958Z",
+      "navigation": [
+        {
+          "path": "/admin/authoring-context",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "3bbd5da5fd4731ad989348550230f739235da33425bcf92aca5eb19da70dd424",
+      "screenshot": "captures/3bbd5da5fd4731ad989348550230f739235da33425bcf92aca5eb19da70dd424.png"
+    },
+    {
+      "id": "academic-admin-courses-denied",
+      "pattern": "/admin/courses",
+      "fixturePath": "/admin/courses",
+      "webSource": "app/(admin)/admin/(academic)/courses/page.tsx",
+      "requestedPath": "/admin/courses",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:38:27.103Z",
+      "navigation": [
+        {
+          "path": "/admin/courses",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "bd901889c0a5024fe71267b7fad0a34960e6f5b34ef794efe381351d74ed65ab",
+      "screenshot": "captures/bd901889c0a5024fe71267b7fad0a34960e6f5b34ef794efe381351d74ed65ab.png"
+    },
+    {
+      "id": "academic-admin-courses-slug-denied",
+      "pattern": "/admin/courses/[slug]",
+      "fixturePath": "/admin/courses/biologi-dasar",
+      "webSource": "app/(admin)/admin/(academic)/courses/[slug]/page.tsx",
+      "requestedPath": "/admin/courses/biologi-dasar",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:38:35.653Z",
+      "navigation": [
+        {
+          "path": "/admin/courses/biologi-dasar",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "06ab9db8f92e9dadb26459779a1a90c09908567e6e8ce519dbed32f77870fe1f",
+      "screenshot": "captures/06ab9db8f92e9dadb26459779a1a90c09908567e6e8ce519dbed32f77870fe1f.png"
+    },
+    {
+      "id": "academic-admin-groups-denied",
+      "pattern": "/admin/groups",
+      "fixturePath": "/admin/groups",
+      "webSource": "app/(admin)/admin/(academic)/groups/page.tsx",
+      "requestedPath": "/admin/groups",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:38:36.201Z",
+      "navigation": [
+        {
+          "path": "/admin/groups",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "d0f6e7a360879efc41a7a8ac0b561375376c7639da0ce4ac40dedfc42db68514",
+      "screenshot": "captures/d0f6e7a360879efc41a7a8ac0b561375376c7639da0ce4ac40dedfc42db68514.png"
+    },
+    {
+      "id": "academic-admin-materials-denied",
+      "pattern": "/admin/materials",
+      "fixturePath": "/admin/materials",
+      "webSource": "app/(admin)/admin/(academic)/materials/page.tsx",
+      "requestedPath": "/admin/materials",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:38:47.417Z",
+      "navigation": [
+        {
+          "path": "/admin/materials",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "6814953a7b8a6f2813552770aebc866c9ae65a7af9f12d5cebffc635db21603f",
+      "screenshot": "captures/6814953a7b8a6f2813552770aebc866c9ae65a7af9f12d5cebffc635db21603f.png"
+    },
+    {
+      "id": "academic-admin-notifications-denied",
+      "pattern": "/admin/notifications",
+      "fixturePath": "/admin/notifications",
+      "webSource": "app/(admin)/admin/(academic)/notifications/page.tsx",
+      "requestedPath": "/admin/notifications",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:38:50.114Z",
+      "navigation": [
+        {
+          "path": "/admin/notifications",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "d5ce12225630ec879de941f8f5e49a8e8c4a16a4b4e5d1c7602ac597e69a275c",
+      "screenshot": "captures/d5ce12225630ec879de941f8f5e49a8e8c4a16a4b4e5d1c7602ac597e69a275c.png"
+    },
+    {
+      "id": "academic-admin-schedules-denied",
+      "pattern": "/admin/schedules",
+      "fixturePath": "/admin/schedules",
+      "webSource": "app/(admin)/admin/(academic)/schedules/page.tsx",
+      "requestedPath": "/admin/schedules",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:38:56.836Z",
+      "navigation": [
+        {
+          "path": "/admin/schedules",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "6d1723afec826b423e2e12526d85acb9d942e0c3fa595640f92fe9b439b75c60",
+      "screenshot": "captures/6d1723afec826b423e2e12526d85acb9d942e0c3fa595640f92fe9b439b75c60.png"
+    },
+    {
+      "id": "academic-admin-tokens-denied",
+      "pattern": "/admin/tokens",
+      "fixturePath": "/admin/tokens",
+      "webSource": "app/(admin)/admin/(academic)/tokens/page.tsx",
+      "requestedPath": "/admin/tokens",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:39:00.176Z",
+      "navigation": [
+        {
+          "path": "/admin/tokens",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "afd0da3c85ff34e7f35ddc21187da9a6c622a6bd5ebc818ccd5791ca49af0140",
+      "screenshot": "captures/afd0da3c85ff34e7f35ddc21187da9a6c622a6bd5ebc818ccd5791ca49af0140.png"
+    },
+    {
+      "id": "academic-admin-tutorial-pka-denied",
+      "pattern": "/admin/tutorial-pka",
+      "fixturePath": "/admin/tutorial-pka",
+      "webSource": "app/(admin)/admin/(academic)/tutorial-pka/page.tsx",
+      "requestedPath": "/admin/tutorial-pka",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:39:06.574Z",
+      "navigation": [
+        {
+          "path": "/admin/tutorial-pka",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "6f2c37bcf1ea4796d31a632d881df08981d35762bd72bf350b7aceb4b774a111",
+      "screenshot": "captures/6f2c37bcf1ea4796d31a632d881df08981d35762bd72bf350b7aceb4b774a111.png"
+    },
+    {
+      "id": "academic-admin-users-denied",
+      "pattern": "/admin/users",
+      "fixturePath": "/admin/users",
+      "webSource": "app/(admin)/admin/(academic)/users/page.tsx",
+      "requestedPath": "/admin/users",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:39:09.123Z",
+      "navigation": [
+        {
+          "path": "/admin/users",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "2cc5d0963f8492550b5e0161fe010ed9e2eba26cad2a8d6be61daa0f898416b2",
+      "screenshot": "captures/2cc5d0963f8492550b5e0161fe010ed9e2eba26cad2a8d6be61daa0f898416b2.png"
+    },
+    {
+      "id": "academic-tutor-courseId-discussions-denied",
+      "pattern": "/tutor/[courseId]/discussions",
+      "fixturePath": "/tutor/academic-course-1/discussions",
+      "webSource": "app/(tutor)/tutor/[courseId]/discussions/page.tsx",
+      "requestedPath": "/tutor/academic-course-1/discussions",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:39:16.667Z",
+      "navigation": [
+        {
+          "path": "/tutor/academic-course-1/discussions",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "b65dc6e67393ed8905c11c10f846ccfbdc657d0da6e378edb4ea0b5a656d341b",
+      "screenshot": "captures/b65dc6e67393ed8905c11c10f846ccfbdc657d0da6e378edb4ea0b5a656d341b.png"
+    },
+    {
+      "id": "academic-tutor-courseId-grading-denied",
+      "pattern": "/tutor/[courseId]/grading",
+      "fixturePath": "/tutor/academic-course-1/grading",
+      "webSource": "app/(tutor)/tutor/[courseId]/grading/page.tsx",
+      "requestedPath": "/tutor/academic-course-1/grading",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:39:18.410Z",
+      "navigation": [
+        {
+          "path": "/tutor/academic-course-1/grading",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "06c1761a637e67ff47d7d50f9d44cc83fa1e1037393d99b967f98fec29a22a8e",
+      "screenshot": "captures/06c1761a637e67ff47d7d50f9d44cc83fa1e1037393d99b967f98fec29a22a8e.png"
+    },
+    {
+      "id": "academic-tutor-courseId-live-denied",
+      "pattern": "/tutor/[courseId]/live",
+      "fixturePath": "/tutor/academic-course-1/live",
+      "webSource": "app/(tutor)/tutor/[courseId]/live/page.tsx",
+      "requestedPath": "/tutor/academic-course-1/live",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:39:26.995Z",
+      "navigation": [
+        {
+          "path": "/tutor/academic-course-1/live",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "9cbf7deb632ce46ecc3d9d40745300ecaa54d29a346c0376e84185c6984c27cc",
+      "screenshot": "captures/9cbf7deb632ce46ecc3d9d40745300ecaa54d29a346c0376e84185c6984c27cc.png"
+    },
+    {
+      "id": "academic-tutor-courseId-materials-denied",
+      "pattern": "/tutor/[courseId]/materials",
+      "fixturePath": "/tutor/academic-course-1/materials",
+      "webSource": "app/(tutor)/tutor/[courseId]/materials/page.tsx",
+      "requestedPath": "/tutor/academic-course-1/materials",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:39:31.649Z",
+      "navigation": [
+        {
+          "path": "/tutor/academic-course-1/materials",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "3a417459febb1eddd5a1ba0fce9fcbabbb8affdc650f7af8a0368d964586b84e",
+      "screenshot": "captures/3a417459febb1eddd5a1ba0fce9fcbabbb8affdc650f7af8a0368d964586b84e.png"
+    },
+    {
+      "id": "academic-tutor-courseId-participants-denied",
+      "pattern": "/tutor/[courseId]/participants",
+      "fixturePath": "/tutor/academic-course-1/participants",
+      "webSource": "app/(tutor)/tutor/[courseId]/participants/page.tsx",
+      "requestedPath": "/tutor/academic-course-1/participants",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:39:38.640Z",
+      "navigation": [
+        {
+          "path": "/tutor/academic-course-1/participants",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "eab2a7356c969fdedda33a10a15b5795b19d506680fc6f81511c7ad47ae85d53",
+      "screenshot": "captures/eab2a7356c969fdedda33a10a15b5795b19d506680fc6f81511c7ad47ae85d53.png"
+    },
+    {
+      "id": "academic-tutor-courseId-quizzes-denied",
+      "pattern": "/tutor/[courseId]/quizzes",
+      "fixturePath": "/tutor/academic-course-1/quizzes",
+      "webSource": "app/(tutor)/tutor/[courseId]/quizzes/page.tsx",
+      "requestedPath": "/tutor/academic-course-1/quizzes",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:39:48.540Z",
+      "navigation": [
+        {
+          "path": "/tutor/academic-course-1/quizzes",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "1ffa19f0cb87d12d61e964848bc921ab76e41b8626ebf7cdb9d55a9e14b7c3e2",
+      "screenshot": "captures/1ffa19f0cb87d12d61e964848bc921ab76e41b8626ebf7cdb9d55a9e14b7c3e2.png"
+    },
+    {
+      "id": "academic-tutor-courseId-tryouts-denied",
+      "pattern": "/tutor/[courseId]/tryouts",
+      "fixturePath": "/tutor/academic-course-1/tryouts",
+      "webSource": "app/(tutor)/tutor/[courseId]/tryouts/page.tsx",
+      "requestedPath": "/tutor/academic-course-1/tryouts",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:39:52.444Z",
+      "navigation": [
+        {
+          "path": "/tutor/academic-course-1/tryouts",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "2dd85d2855df94c4081cb415caad731dff49d41cd2cf67a3f36d00821e3dbb68",
+      "screenshot": "captures/2dd85d2855df94c4081cb415caad731dff49d41cd2cf67a3f36d00821e3dbb68.png"
+    },
+    {
+      "id": "academic-tutor-courseId-videos-denied",
+      "pattern": "/tutor/[courseId]/videos",
+      "fixturePath": "/tutor/academic-course-1/videos",
+      "webSource": "app/(tutor)/tutor/[courseId]/videos/page.tsx",
+      "requestedPath": "/tutor/academic-course-1/videos",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:40:01.268Z",
+      "navigation": [
+        {
+          "path": "/tutor/academic-course-1/videos",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "ec0e8f38329549d1b6e738f6cc57f5e5c61309fc7e8591a62ca5931d446b6e9e",
+      "screenshot": "captures/ec0e8f38329549d1b6e738f6cc57f5e5c61309fc7e8591a62ca5931d446b6e9e.png"
+    },
+    {
+      "id": "academic-tutor-discussions-denied",
+      "pattern": "/tutor/discussions",
+      "fixturePath": "/tutor/discussions",
+      "webSource": "app/(tutor)/tutor/discussions/page.tsx",
+      "requestedPath": "/tutor/discussions",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:40:03.622Z",
+      "navigation": [
+        {
+          "path": "/tutor/discussions",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "6c29a922a05a35b1043fc52a7b5c9370dbb0f9316277394b633761f418cf5d21",
+      "screenshot": "captures/6c29a922a05a35b1043fc52a7b5c9370dbb0f9316277394b633761f418cf5d21.png"
+    },
+    {
+      "id": "academic-tutor-docs-denied",
+      "pattern": "/tutor/docs",
+      "fixturePath": "/tutor/docs",
+      "webSource": "app/(tutor)/tutor/docs/page.tsx",
+      "requestedPath": "/tutor/docs",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:40:14.459Z",
+      "navigation": [
+        {
+          "path": "/tutor/docs",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "74cea9355416621bb6989b42fa1276fa83cad9ec6bf312298231e50552d71976",
+      "screenshot": "captures/74cea9355416621bb6989b42fa1276fa83cad9ec6bf312298231e50552d71976.png"
+    },
+    {
+      "id": "academic-tutor-docs-slug-denied",
+      "pattern": "/tutor/docs/[slug]",
+      "fixturePath": "/tutor/docs/ruang-kerja-tutor",
+      "webSource": "app/(tutor)/tutor/docs/[slug]/page.tsx",
+      "requestedPath": "/tutor/docs/ruang-kerja-tutor",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:40:15.526Z",
+      "navigation": [
+        {
+          "path": "/tutor/docs/ruang-kerja-tutor",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "415372bfcbca68d45a646fe2e87f36ca36fcc0205dfeda31825d44a37e18d361",
+      "screenshot": "captures/415372bfcbca68d45a646fe2e87f36ca36fcc0205dfeda31825d44a37e18d361.png"
+    },
+    {
+      "id": "academic-tutor-schedule-denied",
+      "pattern": "/tutor/schedule",
+      "fixturePath": "/tutor/schedule",
+      "webSource": "app/(tutor)/tutor/schedule/page.tsx",
+      "requestedPath": "/tutor/schedule",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:40:26.147Z",
+      "navigation": [
+        {
+          "path": "/tutor/schedule",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "4810b7a8b25b6ee48b3fbb87eebe4b495d4387b2cd2f8dada12f3f7a50576784",
+      "screenshot": "captures/4810b7a8b25b6ee48b3fbb87eebe4b495d4387b2cd2f8dada12f3f7a50576784.png"
+    },
+    {
+      "id": "academic-tutor-denied",
+      "pattern": "/tutor",
+      "fixturePath": "/tutor",
+      "webSource": "app/(tutor)/tutor/page.tsx",
+      "requestedPath": "/tutor",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:40:27.567Z",
+      "navigation": [
+        {
+          "path": "/tutor",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "891e4757afa4ee8f56feeb5437e33d9f1583fab30b8cab73cdad6e15ebe27401",
+      "screenshot": "captures/891e4757afa4ee8f56feeb5437e33d9f1583fab30b8cab73cdad6e15ebe27401.png"
+    },
+    {
+      "id": "academic-tutor-courseId-denied",
+      "pattern": "/tutor/[courseId]",
+      "fixturePath": "/tutor/academic-course-1",
+      "webSource": "app/(tutor)/tutor/[courseId]/page.tsx",
+      "requestedPath": "/tutor/academic-course-1",
+      "landedPath": "/",
+      "classification": "redirected",
+      "status": "pass",
+      "theme": "light",
+      "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+      "observedAt": "2026-11-26T13:40:38.396Z",
+      "navigation": [
+        {
+          "path": "/tutor/academic-course-1",
+          "status": 307,
+          "location": "/"
+        },
+        {
+          "path": "/",
+          "status": 200
+        }
+      ],
+      "successfulProtectedReads": [],
+      "identity": {
+        "status": 200,
+        "accountId": "academic-student",
+        "roles": [
+          "murid"
+        ],
+        "dashboard": "/dashboard"
+      },
+      "initialHttpStatus": 307,
+      "landingAccountLabel": "Akun (Nadia Lestari)",
+      "heading": "Belajar lebih terarah setiap hari.",
+      "protectedDataChecks": {
+        "fixtureMarkers": 10,
+        "protectedSuccessDocuments": 0
+      },
+      "viewport": {
+        "width": 380,
+        "height": 852,
+        "dpr": 1
+      },
+      "screenshotSha256": "901d4a02fbccb64b90076e98be1e09da6219acfcc9a3610b25abbedb65c9d82e",
+      "screenshot": "captures/901d4a02fbccb64b90076e98be1e09da6219acfcc9a3610b25abbedb65c9d82e.png"
+    }
+  ],
+  "summary": {
+    "passed": 54,
+    "observed": 54,
+    "registered": 54,
+    "uniqueScreenshots": 54
+  }
+}

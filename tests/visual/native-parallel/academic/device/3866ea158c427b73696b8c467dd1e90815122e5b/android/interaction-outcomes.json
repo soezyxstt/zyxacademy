@@ -1,0 +1,200 @@
+[
+  {
+    "flow": "administration-bundle",
+    "runnerStatus": "passed",
+    "outcome": "passed",
+    "segments": [
+      {
+        "segment": 1,
+        "fixture": "zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fmaterials%2Freview%2Fproduct%2Facademic-product-1&theme=light",
+        "status": "passed",
+        "exitCode": 0,
+        "outcome": "passed",
+        "artifactLog": "interactions/administration-bundle/segment-01/report.xml"
+      },
+      {
+        "segment": 2,
+        "fixture": "zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fcourses%2Fbiologi-dasar%2Freview%2Fproduct%2Facademic-product-1&scenario=empty&theme=light",
+        "status": "passed",
+        "exitCode": 0,
+        "outcome": "passed",
+        "artifactLog": "interactions/administration-bundle/segment-02/report.xml"
+      }
+    ]
+  },
+  {
+    "flow": "administration-conflict",
+    "runnerStatus": "passed",
+    "outcome": "passed",
+    "segments": [
+      {
+        "segment": 1,
+        "fixture": "zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fusers&scenario=error&theme=dark",
+        "status": "passed",
+        "exitCode": 0,
+        "outcome": "passed",
+        "artifactLog": "interactions/administration-conflict/report.xml"
+      }
+    ]
+  },
+  {
+    "flow": "assessment-grading-retry",
+    "runnerStatus": "passed",
+    "outcome": "passed",
+    "segments": [
+      {
+        "segment": 1,
+        "fixture": "zyx-native-parity://academic?role=tutor&path=%2Ftutor%2Facademic-course-1%2Fquizzes%2Fgrading&scenario=error&theme=dark",
+        "status": "passed",
+        "exitCode": 0,
+        "outcome": "passed",
+        "artifactLog": "interactions/assessment-grading-retry/report.xml"
+      }
+    ]
+  },
+  {
+    "flow": "assessment-quiz",
+    "runnerStatus": "passed",
+    "outcome": "passed",
+    "segments": [
+      {
+        "segment": 1,
+        "fixture": "zyx-native-parity://academic?role=tutor&path=%2Ftutor%2Facademic-course-1%2Fquizzes&theme=light",
+        "status": "passed",
+        "exitCode": 0,
+        "outcome": "passed",
+        "artifactLog": "interactions/assessment-quiz/report.xml"
+      }
+    ]
+  },
+  {
+    "flow": "assessment-tryout",
+    "runnerStatus": "passed",
+    "outcome": "passed",
+    "segments": [
+      {
+        "segment": 1,
+        "fixture": "zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fcourses%2Fbiologi-dasar%2Ftryouts&theme=light",
+        "status": "passed",
+        "exitCode": 0,
+        "outcome": "passed",
+        "artifactLog": "interactions/assessment-tryout/report.xml"
+      }
+    ]
+  },
+  {
+    "flow": "courses-states",
+    "runnerStatus": "failed",
+    "outcome": "interrupted",
+    "segments": [
+      {
+        "segment": 1,
+        "fixture": "zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fcourses&theme=dark&scenario=empty",
+        "status": "passed",
+        "exitCode": 0,
+        "outcome": "passed",
+        "artifactLog": "interactions/courses-states/segment-01/report.xml"
+      },
+      {
+        "segment": 2,
+        "fixture": "zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fcourses%2Fbiologi-dasar&theme=dark&scenario=error",
+        "status": "failed",
+        "exitCode": 1,
+        "outcome": "interrupted",
+        "reason": "Device server died during viewHierarchy",
+        "artifactLog": "interactions/courses-states/segment-02/report.xml"
+      },
+      {
+        "segment": 3,
+        "fixture": "zyx-native-parity://academic?role=tutor&path=%2Fadmin%2Fcourses&theme=dark",
+        "status": "fixture-open-failed",
+        "outcome": "not-attempted",
+        "reason": "ADB could not open the fixture because emulator-5554 was unavailable",
+        "artifactLog": "interactions/courses-states/segment-03/preopen.log"
+      }
+    ]
+  },
+  {
+    "flow": "courses",
+    "runnerStatus": "fixture-open-failed",
+    "outcome": "not-attempted",
+    "segments": [
+      {
+        "segment": 1,
+        "fixture": "zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fcourses&theme=light",
+        "status": "fixture-open-failed",
+        "outcome": "not-attempted",
+        "reason": "ADB could not open the fixture because emulator-5554 was unavailable",
+        "artifactLog": "interactions/courses/preopen.log"
+      }
+    ]
+  },
+  {
+    "flow": "tutor-assigned",
+    "runnerStatus": "fixture-open-failed",
+    "outcome": "not-attempted",
+    "segments": [
+      {
+        "segment": 1,
+        "fixture": "zyx-native-parity://academic?role=tutor&path=%2Ftutor&theme=light",
+        "status": "fixture-open-failed",
+        "outcome": "not-attempted",
+        "reason": "ADB could not open the fixture because emulator-5554 was unavailable",
+        "artifactLog": "interactions/tutor-assigned/preopen.log"
+      }
+    ]
+  },
+  {
+    "flow": "tutor-empty-denied",
+    "runnerStatus": "fixture-open-failed",
+    "outcome": "not-attempted",
+    "segments": [
+      {
+        "segment": 1,
+        "fixture": "zyx-native-parity://academic?role=tutor&path=%2Ftutor%2Facademic-course-2%2Fparticipants&theme=dark",
+        "status": "fixture-open-failed",
+        "outcome": "not-attempted",
+        "reason": "ADB could not open the fixture because emulator-5554 was unavailable",
+        "artifactLog": "interactions/tutor-empty-denied/segment-01/preopen.log"
+      },
+      {
+        "segment": 2,
+        "fixture": "zyx-native-parity://academic?role=tutor&path=%2Ftutor%2Facademic-course-3%2Fparticipants&theme=dark",
+        "status": "fixture-open-failed",
+        "outcome": "not-attempted",
+        "reason": "ADB could not open the fixture because emulator-5554 was unavailable",
+        "artifactLog": "interactions/tutor-empty-denied/segment-02/preopen.log"
+      }
+    ]
+  },
+  {
+    "flow": "tutor-retry",
+    "runnerStatus": "fixture-open-failed",
+    "outcome": "not-attempted",
+    "segments": [
+      {
+        "segment": 1,
+        "fixture": "zyx-native-parity://academic?role=tutor&path=%2Ftutor%2Facademic-course-1%2Fgrading&scenario=error&theme=dark",
+        "status": "fixture-open-failed",
+        "outcome": "not-attempted",
+        "reason": "ADB could not open the fixture because emulator-5554 was unavailable",
+        "artifactLog": "interactions/tutor-retry/preopen.log"
+      }
+    ]
+  },
+  {
+    "flow": "tutor-schedule",
+    "runnerStatus": "fixture-open-failed",
+    "outcome": "not-attempted",
+    "segments": [
+      {
+        "segment": 1,
+        "fixture": "zyx-native-parity://academic?role=tutor&path=%2Ftutor%2Fschedule&theme=dark",
+        "status": "fixture-open-failed",
+        "outcome": "not-attempted",
+        "reason": "ADB could not open the fixture because emulator-5554 was unavailable",
+        "artifactLog": "interactions/tutor-schedule/preopen.log"
+      }
+    ]
+  }
+]

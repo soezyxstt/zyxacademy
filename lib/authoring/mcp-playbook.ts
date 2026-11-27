@@ -6,7 +6,7 @@ import { z } from "zod";
 
 export const AUTHORING_MCP_BOOTSTRAP_PROTOCOL = 1;
 export const SUPPORTED_BOOTSTRAP_PROTOCOLS = [1] as const;
-export const RECOMMENDED_PLUGIN_VERSION = "0.5.4";
+export const RECOMMENDED_PLUGIN_VERSION = "0.5.6";
 export const MIN_COMPATIBLE_PLUGIN_VERSION = "0.2.0";
 
 export const AUTHORING_MCP_SKILLS = [
@@ -56,6 +56,11 @@ export const AUTHORING_PLAYBOOK_MODULE_KEYS = AUTHORING_MCP_PLAYBOOK_MODULE_KEYS
 
 export type AuthoringPlaybookModuleKey = (typeof AUTHORING_MCP_PLAYBOOK_MODULE_KEYS)[number];
 export const authoringPlaybookModuleKeySchema = z.enum(AUTHORING_MCP_PLAYBOOK_MODULE_KEYS);
+export const playbookResponseOptionsSchema = z.object({
+  responseMode: z.enum(["full", "compact"]).optional(),
+  knownModuleChecksums: z.partialRecord(authoringPlaybookModuleKeySchema, z.string().regex(/^[a-f0-9]{64}$/)).optional(),
+});
+export type PlaybookResponseOptions = z.infer<typeof playbookResponseOptionsSchema>;
 
 export const clientCapabilitiesSchema = z.object({
   independentSubagents: z.boolean().optional(),
@@ -527,7 +532,7 @@ export function resolveAuthoringServerRevision(): string {
   return "local-dev";
 }
 
-export function buildPlaybookResponse(input: {
+type PlaybookRequest = {
   skill?: AuthoringMcpSkill;
   stage?: AuthoringPlaybookStage;
   modules?: readonly AuthoringPlaybookModuleKey[];
@@ -535,7 +540,17 @@ export function buildPlaybookResponse(input: {
   pluginVersion?: string;
   clientCapabilities?: AuthoringClientCapabilities;
   expectedPlaybookRevision?: string;
-}) {
+} & PlaybookResponseOptions;
+type PlaybookResponse = ReturnType<typeof buildPlaybookResponseInternal>;
+export function buildPlaybookResponse(input: PlaybookRequest & { responseMode: "compact" }): Extract<PlaybookResponse, { responseMode: "compact" }>;
+export function buildPlaybookResponse(input: PlaybookRequest & { responseMode?: "full" }): Extract<PlaybookResponse, { instructionsMarkdown: string }>;
+export function buildPlaybookResponse(input: PlaybookRequest): PlaybookResponse;
+export function buildPlaybookResponse(input: PlaybookRequest): PlaybookResponse {
+  return buildPlaybookResponseInternal(input);
+}
+
+function buildPlaybookResponseInternal(input: PlaybookRequest) {
+  if (input.knownModuleChecksums && input.responseMode !== "compact") throw new Error("AUTHORING_MCP_PLAYBOOK_CACHE_REQUIRES_COMPACT");
   const resolvedStage = resolvePlaybookStage({ skill: input.skill, stage: input.stage });
   const manifest = getStagePlaybookManifest(resolvedStage);
   if (input.expectedPlaybookRevision && input.expectedPlaybookRevision !== manifest.playbookRevision) {
@@ -568,7 +583,7 @@ export function buildPlaybookResponse(input: {
     ),
   ].join("\n");
 
-  return {
+  const common = {
     environment: resolveAuthoringMcpEnvironment(),
     serverRevision: resolveAuthoringServerRevision(),
     skill: input.skill ?? null,
@@ -581,7 +596,16 @@ export function buildPlaybookResponse(input: {
     optionalModules: manifest.optionalModules,
     requiredCapabilities: manifest.requiredCapabilities,
     compatibility,
-    modules: loadedModules,
-    instructionsMarkdown,
   };
+  if (input.responseMode === "compact") return {
+      ...common,
+      responseMode: "compact" as const,
+      modules: loadedModules.map(mod => {
+        const { markdown, ...metadata } = mod;
+        const unchanged = input.knownModuleChecksums?.[mod.key] === mod.checksum;
+        return { ...metadata, contentStatus: unchanged ? "unchanged" as const : "included" as const, ...(!unchanged ? { markdown } : {}) };
+      }),
+      cache: { identity: "module_checksum", bootstrapRequired: true, missingContent: "Reuse only the locally cached module with the exact returned checksum." },
+  };
+  return { ...common, modules: loadedModules, instructionsMarkdown };
 }

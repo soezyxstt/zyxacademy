@@ -1,6 +1,7 @@
 import { describe, expect, mock, test } from "bun:test";
 mock.module("server-only", () => ({}));
 mock.module("@/lib/auth", () => ({ auth: {} }));
+mock.module("@/lib/auth/authorization", () => ({ getPeranCodes: async () => [] }));
 mock.module("@/lib/student/course-access", () => ({ resolveCourseAccess: () => {} }));
 mock.module("@/db", () => ({ db: {} }));
 mock.module("@/db/schema", () => ({ codingProblems: {} }));

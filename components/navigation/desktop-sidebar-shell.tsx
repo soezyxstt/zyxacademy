@@ -153,6 +153,7 @@ export function DesktopSidebarShell({
               >
                 <button
                   type="button"
+                  data-tour="search"
                   onClick={() => setSearchOpen(true)}
                   aria-label={t("searchWithShortcut", { shortcut: modKeyHint })}
                   className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -198,7 +199,8 @@ export function DesktopSidebarShell({
             >
               <button
                 type="button"
-                onClick={() => setSearchOpen(true)}
+                data-tour="search"
+                  onClick={() => setSearchOpen(true)}
                 aria-label={t("searchWithShortcut", { shortcut: modKeyHint })}
                 className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >

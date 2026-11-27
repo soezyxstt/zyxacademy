@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { shortLink } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { desc } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
@@ -23,7 +23,7 @@ export async function GET() {
       orderBy: [desc(shortLink.createdAt)],
     });
     
-    return NextResponse.json(links);
+    return NextResponse.json(links, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     console.error("Error fetching short links:", error);
     return new NextResponse("Internal Server Error", { status: 500 });
@@ -49,24 +49,18 @@ export async function POST(request: Request) {
     // create ID
     const id = "sl_" + randomBytes(8).toString("hex");
 
-    await db.insert(shortLink).values({
+    const [newLink] = await db.insert(shortLink).values({
       id,
       slug,
       url,
       title,
       userId: user.id,
-    });
+    }).onConflictDoNothing({ target: shortLink.slug }).returning();
 
-    const newLink = await db.query.shortLink.findFirst({
-      where: eq(shortLink.id, id),
-    });
-
+    if (!newLink) return NextResponse.json({ error: "Slug already exists" }, { status: 409 });
     return NextResponse.json(newLink);
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error creating short link:", error);
-    if (error?.message?.includes("UNIQUE constraint failed")) {
-       return new NextResponse("Slug already exists", { status: 400 });
-    }
     return new NextResponse("Internal Server Error", { status: 500 });
   }
 }

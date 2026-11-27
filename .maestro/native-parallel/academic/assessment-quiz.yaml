@@ -1,0 +1,51 @@
+appId: com.zyx.academy.nativeparity
+name: Academic quiz edits, validation, cancellation and save
+---
+- launchApp
+- openLink: zyx-native-parity://academic?role=tutor&path=%2Ftutor%2Facademic-course-1%2Fquizzes&theme=light
+- extendedWaitUntil:
+    visible:
+      id: academic-quiz-edit-academic-quiz-1
+    timeout: 20000
+- takeScreenshot: academic-tutor-quiz-list-populated-light
+- tapOn:
+    id: academic-quiz-edit-academic-quiz-1
+- extendedWaitUntil:
+    visible:
+      id: academic-quiz-title
+    timeout: 10000
+- tapOn:
+    id: academic-quiz-title
+- eraseText
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: academic-quiz-save
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: academic-quiz-save
+- assertVisible: Judul kuis wajib diisi.
+- takeScreenshot: academic-tutor-quiz-edit-invalid-light
+- tapOn:
+    id: academic-quiz-cancel
+- tapOn:
+    id: academic-quiz-confirm-cancel
+- assertVisible: Kuis struktur sel
+- tapOn:
+    id: academic-quiz-edit-academic-quiz-1
+- tapOn:
+    id: academic-quiz-title
+- eraseText
+- inputText: Kuis struktur sel revisi
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: academic-quiz-save
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: academic-quiz-save
+- assertVisible: Kuis tersimpan.
+- assertVisible: Kuis struktur sel revisi
+- takeScreenshot: academic-tutor-quiz-edit-saved-light

@@ -180,35 +180,73 @@ test("agenda groups dates and keeps assessment and tutorial actions distinct", a
   expect(errors).toEqual([]);
 });
 
-test("settings mobile controls fit and preferences persist", async ({ page }, info) => {
-  const errors = await prepare(page);
-  await page.route("**/api/auth/get-session**", (route) => route.fulfill({ json: null }));
-  await visit(page, "settings");
-  const main = page.getByRole("main");
-  await expect(main.getByRole("tab", { name: "Appearance", selected: true })).toBeVisible();
-  const mode = main.getByRole("combobox", { name: "Color mode" });
-  await expect(mode).toHaveCSS("border-top-width", "0px");
-  const language = main.getByRole("combobox", { name: "Language" });
-  await expect(language).toHaveCSS("border-top-width", "0px");
-  await expect(language).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
-  const label = main.locator("label").filter({ hasText: "Color mode" });
-  const [labelBox, modeBox] = await Promise.all([label.boundingBox(), mode.boundingBox()]);
-  expect(labelBox && modeBox && modeBox.x > labelBox.x && modeBox.y < labelBox.y + labelBox.height).toBeTruthy();
-  await expect(main.getByText("Reading preview")).toBeVisible();
-  await capture(page, info, "settings-appearance");
+for (const theme of ["light", "dark"] as const) {
+  test(`settings ${theme} groups controls and keeps saved preferences`, async ({ page }, info) => {
+    const errors = await prepare(page);
+    await page.emulateMedia({ colorScheme: theme });
+    await page.route("**/api/auth/get-session**", (route) => route.fulfill({ json: null }));
+    await page.route("**/api/notifications/status", (route) => route.fulfill({ json: {
+      transports: { webpush: { registeredCount: 0, configured: true } },
+    } }));
+    await visit(page, "settings-account");
+    const main = page.getByRole("main");
+    await expect(main.getByRole("tab", { name: "General", selected: true })).toBeVisible();
+    const language = main.getByRole("combobox", { name: "Language" });
+    await expect(language).toHaveCSS("border-top-width", "0px");
+    await expect(language).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+    await expect(main.getByRole("switch", { name: "Vibration", exact: true })).toBeDisabled();
+    await expect(main.getByRole("link", { name: "Manage readings", exact: true })).toHaveAttribute("href", "/offline");
+    await expect(main.getByRole("link", { name: "Download app", exact: true })).toHaveAttribute("href", "/download");
+    await capture(page, info, `settings-general-${theme}`);
 
-  const spacing = main.getByRole("combobox", { name: "Spacing" });
-  await spacing.click();
-  await capture(page, info, "settings-spacing-options");
-  await page.getByRole("option", { name: "Tight", exact: true }).click();
-  await expect(spacing).toHaveText("Tight");
+    await main.getByRole("tab", { name: "Appearance", exact: true }).click();
+    const mode = main.getByRole("combobox", { name: "Color mode" });
+    await expect(mode).toHaveCSS("border-top-width", "0px");
+    const label = main.locator("label").filter({ hasText: "Color mode" });
+    const [labelBox, modeBox] = await Promise.all([label.boundingBox(), mode.boundingBox()]);
+    expect(labelBox && modeBox && modeBox.x > labelBox.x && modeBox.y < labelBox.y + labelBox.height).toBeTruthy();
+    await expect(main.getByText("Reading preview")).toBeVisible();
+    await expect(main.getByRole("combobox", { name: "Language" })).toHaveCount(0);
+    await expect(main.getByRole("switch", { name: "Vibration", exact: true })).toHaveCount(0);
+    await capture(page, info, `settings-appearance-${theme}`);
 
-  await main.getByRole("tab", { name: "Email notifications" }).click();
-  await expect(main.getByText("aly@example.test", { exact: false })).toBeVisible();
-  await expect(page).toHaveURL(/tab=email/);
-  await capture(page, info, "settings-email");
+    const spacing = main.getByRole("combobox", { name: "Spacing" });
+    await spacing.focus();
+    await page.keyboard.press("Enter");
+    await capture(page, info, `settings-spacing-options-${theme}`);
+    await page.keyboard.press("Escape");
+    await expect(spacing).toBeFocused();
+    await spacing.click();
+    await page.getByRole("option", { name: "Tight", exact: true }).click();
+    await expect(spacing).toHaveText("Tight");
+    await main.getByRole("switch", { name: "Animations", exact: true }).click();
 
-  await visit(page, "settings");
-  await expect(spacing).toHaveText("Tight");
-  expect(errors).toEqual([]);
-});
+    await main.getByRole("tab", { name: "Notifications", exact: true }).click();
+    await expect(main.getByText("aly@example.test", { exact: false })).toBeVisible();
+    await expect(page).toHaveURL(/tab=notifications/);
+    const position = main.getByRole("combobox", { name: "On-screen alert position", exact: true });
+    await position.click();
+    await page.getByRole("option", { name: "Bottom left", exact: true }).click();
+    await expect(page.locator('[data-sonner-toast][data-x-position="left"][data-y-position="bottom"]').getByText("Notifications will appear here")).toBeVisible();
+    await capture(page, info, `settings-notifications-${theme}`);
+
+    await visit(page, "settings-account&tab=email");
+    await expect(main.getByRole("tab", { name: "Notifications", selected: true })).toBeVisible();
+    await expect(position).toHaveText("Bottom left");
+    await main.getByRole("tab", { name: "Appearance", exact: true }).click();
+    await expect(spacing).toHaveText("Tight");
+    await expect(main.getByRole("switch", { name: "Animations", exact: true })).not.toBeChecked();
+    const hapticsBeforeReset = await page.evaluate(() => localStorage.getItem("zyx-haptics-enabled"));
+    await main.getByRole("button", { name: "Restore display defaults", exact: true }).click();
+    await expect(spacing).toHaveText("Normal");
+    await expect(mode).toHaveText("System");
+    await expect(main.getByRole("switch", { name: "Animations", exact: true })).toBeChecked();
+    expect(await page.evaluate(() => localStorage.getItem("zyx-haptics-enabled"))).toBe(hapticsBeforeReset);
+    await main.getByRole("tab", { name: "Notifications", exact: true }).click();
+    await expect(position).toHaveText("Bottom left");
+    await visit(page, "settings-account&tab=appearance");
+    await expect(main.getByRole("tab", { name: "Appearance", selected: true })).toBeVisible();
+    await expect(spacing).toHaveText("Normal");
+    expect(errors).toEqual([]);
+  });
+}

@@ -257,7 +257,7 @@ async function listChannelPage<T extends DiscussionChannelMetadata>(
  const limit = options.limit ?? 50;
  if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw invalid();
  const after = decodeCursor(options.cursor) as { kind?: unknown; title?: unknown; id?: unknown } | null;
- if (after && (!isAllowedKind(after.kind as DiscussionChannelKind) || typeof after.title !== "string" || !validDiscussionId(after.id))) throw invalid();
+ if (after && (!["global", "course", "technical", "academic"].includes(after.kind as string) || typeof after.title !== "string" || !validDiscussionId(after.id))) throw invalid();
  if (options.kinds?.length === 0 || (options.kind && options.kinds && !options.kinds.includes(options.kind))) return { items: [], nextCursor: null };
  let courseAliases: string[] | undefined;
  const courseEntry = options.courseId ? (await resolveDiscussionCourses(actor, [options.courseId])).get(options.courseId) : undefined;

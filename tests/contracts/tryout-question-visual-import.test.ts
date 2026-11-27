@@ -12,6 +12,7 @@ mock.module("@/lib/storage", () => ({ storage: {
 const { aiQuestionBank, exams, mataKuliah, questions } = await import("@/db/schema");
 let examCourse = "legacy-course";
 let bankRows: Record<string, unknown>[] = [];
+let lockedBankRows: Record<string, unknown>[] | undefined;
 let transactions = 0;
 let inserted: Record<string, unknown>[] = [];
 const db = {
@@ -24,7 +25,14 @@ const db = {
   } }) }),
   transaction: async (callback: (tx: unknown) => Promise<void>) => {
     transactions++;
-    await callback({ insert: () => ({ values: async (rows: Record<string, unknown>[]) => { inserted = rows; } }) });
+    await callback({
+      select: () => ({ from: (table: unknown) => ({ where: () => {
+        if (table === exams) return { limit: () => ({ for: async () => [{ id: "exam", courseId: examCourse, type: "tryout" }] }) };
+        if (table === aiQuestionBank) return { for: async () => lockedBankRows ?? bankRows };
+        return Promise.resolve([]);
+      } }) }),
+      insert: () => ({ values: async (rows: Record<string, unknown>[]) => { inserted = rows; } }),
+    });
   },
 };
 mock.module("@/db", () => ({ db }));
@@ -47,7 +55,8 @@ mock.module("@/lib/tutor/assessment-policy", () => ({
   recordTutorMutationAuditSafe: async () => {},
   recordTutorFailureAudit: async () => {},
 }));
-mock.module("@/lib/audit/mutasi", () => ({ recordTutorMutationAudit: async () => {} }));
+const audit = { ...await import("@/lib/audit/mutasi") };
+mock.module("@/lib/audit/mutasi", () => ({ ...audit, recordTutorMutationAudit: async () => {} }));
 mock.module("next/headers", () => ({ headers: async () => new Headers() }));
 mock.module("next/cache", () => ({ revalidatePath: () => {}, revalidateTag: () => {} }));
 
@@ -66,6 +75,7 @@ beforeEach(() => {
   inserted = [];
   examCourse = "legacy-course";
   bankRows = [{ ...row }];
+  lockedBankRows = undefined;
 });
 
 test("imports the exact published bank snapshot using its existing legacy course receipt", async () => {
@@ -101,4 +111,16 @@ test("imports an ordinary question without a receipt", async () => {
   expect(await importQuestionBankToTryoutAction("canonical-course", "exam", ["bank"])).toEqual({ success: true, imported: 1, skipped: 0 });
   expect(transactions).toBe(1);
   expect(downloads).toBe(0);
+});
+
+test("checks bank eligibility and visual bindings again if the bank changes during preflight", async () => {
+  await stageQuestionVisualBinding("legacy-course", question, [pair]);
+  lockedBankRows = [{ ...row, prompt: `${fence}\nSoal diperbarui` }];
+  await expect(importQuestionBankToTryoutAction("canonical-course", "exam", ["bank"]))
+    .rejects.toThrow("Aset visual soal belum terverifikasi untuk mata kuliah tryout.");
+  lockedBankRows = [];
+  await expect(importQuestionBankToTryoutAction("canonical-course", "exam", ["bank"]))
+    .rejects.toThrow("Sebagian soal bank tidak tersedia atau belum dipublikasi.");
+  expect(transactions).toBe(2);
+  expect(inserted).toHaveLength(0);
 });

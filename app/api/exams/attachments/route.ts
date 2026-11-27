@@ -7,8 +7,9 @@ import { eq } from "drizzle-orm";
 import { storage } from "@/lib/storage";
 import { buildExamAttachmentKey, INVALID_OBJECT_KEY } from "@/lib/storage/keys";
 import { resolveCourseAccess } from "@/lib/student/course-access";
+import { tryoutGradeAttachmentPolicy } from "@/packages/academic/tryout-grade-attachment";
 
-const MAX_SIZE_BYTES = 10 * 1024 * 1024;
+const MAX_SIZE_BYTES = tryoutGradeAttachmentPolicy.maxBytes;
 
 const ALLOWED_TYPES: Record<string, string> = {
   ".pdf": "application/pdf",

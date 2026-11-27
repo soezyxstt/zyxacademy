@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+  <testsuite name="Test Suite" device="test" tests="1" failures="1" time="1.914" timestamp="2026-11-26T17:11:51">
+    <testcase id="smoke-060" name="smoke-060" classname="smoke-060" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-060.yaml" time="1.881" timestamp="2026-11-26T17:11:51" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+  </testsuite>
+</testsuites>

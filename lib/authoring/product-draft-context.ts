@@ -1,6 +1,6 @@
 import { and, eq, inArray, isNull, or } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { bagianPembelajaran, ide, potonganSumber, sumberMateri } from "@/db/schema";
+import { bab, bagianPembelajaran, ide, mataKuliah, potonganSumber, sumberMateri } from "@/db/schema";
 import { sha256Text } from "@/lib/bundle/validator";
 import { normalizeSha256Checksum } from "./mcp-source-files";
 import type { ProductDraftContext } from "./product-draft-builder";
@@ -24,10 +24,11 @@ export const loadProductDraftContext: ProductDraftCreationPorts["loadContext"] =
       selectSources(section.sourceRefs);
       for (const block of section.blocks) { block.ideaIds?.forEach(id => ideaIds.add(id)); selectSources(block.sourceRefs); }
     }
-    else for (const unit of product.units) unit.ideaIds.forEach(id => ideaIds.add(id));
+    else if (product.productType === "diktat") for (const unit of product.units) unit.ideaIds.forEach(id => ideaIds.add(id));
   }
   if (ideaIds.size > 256 || sourceIds.size > 256 || excerptIds.size > 2048 || sectionIds.size > 256) throw new Error("PRODUCT_DRAFT_REFERENCE_LIMIT");
-  const [ideas, sources, excerpts, sections] = await Promise.all([
+  const needsCollectionScope = draft.products.some(product => product.productType === "solution_collection");
+  const [ideas, sources, excerpts, sections, scope] = await Promise.all([
     db.select({ id: ide.id, version: ide.version, semanticHash: ide.semanticHash }).from(ide)
       .where(and(inArray(ide.id, [...ideaIds]), eq(ide.mataKuliahId, run.courseId), eq(ide.status, "published"))),
     db.select({ sourceId: sumberMateri.id, version: sumberMateri.version, checksum: sumberMateri.checksum }).from(sumberMateri)
@@ -38,10 +39,15 @@ export const loadProductDraftContext: ProductDraftCreationPorts["loadContext"] =
     sectionIds.size ? db.select({ id: bagianPembelajaran.id }).from(bagianPembelajaran)
       .where(and(inArray(bagianPembelajaran.id, [...sectionIds]), eq(bagianPembelajaran.mataKuliahId, run.courseId),
         eq(bagianPembelajaran.babId, run.chapterId), eq(bagianPembelajaran.status, "published"))) : Promise.resolve([]),
+    needsCollectionScope ? db.select({ courseTitle: mataKuliah.title, chapterTitle: bab.title }).from(mataKuliah)
+      .innerJoin(bab, eq(bab.mataKuliahId, mataKuliah.id))
+      .where(and(eq(mataKuliah.id, run.courseId), eq(bab.id, run.chapterId), eq(mataKuliah.status, "active"), eq(bab.status, "active"))).limit(1) : Promise.resolve([]),
   ]);
+  if (needsCollectionScope && !scope[0]) throw new Error("PRODUCT_DRAFT_COLLECTION_SCOPE_REQUIRED");
   return {
     bundleId: `mcp-product-${sha256Text(`${run.runId}:${principal.actorId}:${draftKey}`).slice(0, 32)}`,
     courseId: run.courseId, chapterId: run.chapterId, creatorId: principal.actorId,
+    ...(scope[0] ?? {}),
     createdAt: new Date(run.issuedAt).toISOString(), ideas,
     sources: sources.map(source => {
       const checksum = normalizeSha256Checksum(source.checksum);

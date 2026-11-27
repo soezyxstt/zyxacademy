@@ -19,9 +19,9 @@ test("authenticated Scheduler accepts its job ID and both pinned resource names"
 test("staging schedules one UTC day and includes Monday reflection exactly once", () => {
   const monday = new Date("2026-11-23T00:00:00Z");
   const window = cronWindow("staging", monday);
-  expect(window).toHaveLength(42);
+  expect(window).toHaveLength(67 + 288 + 2);
   expect(window.find(item => item.job === "gamification-missions-cron")?.scheduledAt).toBe(Date.parse("2026-11-23T17:05:00Z"));
-  expect(cronWindow("staging", new Date("2026-11-24T00:00:00Z"))).toHaveLength(41);
+  expect(cronWindow("staging", new Date("2026-11-24T00:00:00Z"))).toHaveLength(66 + 288 + 2);
   expect(cronWindow("staging", monday)).toEqual(window);
 });
 
@@ -66,5 +66,32 @@ test("calendar sync is due once daily at 03:00 WIB in both queue environments", 
   const production = [0, 6, 12, 18].flatMap(hour => cronWindow("production", new Date(`${day}T${String(hour).padStart(2, "0")}:00:00Z`)));
   for (const jobs of [staging, production]) {
     expect(jobs.filter(item => item.job === "google-calendar-sync-cron")).toEqual([{ job: "google-calendar-sync-cron", scheduledAt: Date.parse(`${day}T20:00:00Z`) }]);
+  }
+});
+
+test("offline change retention runs once daily at 01:30 WIB in both queue environments", () => {
+  const day = "2026-11-23";
+  const staging = cronWindow("staging", new Date(`${day}T00:00:00Z`));
+  const production = [0, 6, 12, 18].flatMap(hour => cronWindow("production", new Date(`${day}T${String(hour).padStart(2, "0")}:00:00Z`)));
+  for (const jobs of [staging, production]) {
+    expect(jobs.filter(item => item.job === "offline-change-retention")).toEqual([{ job: "offline-change-retention", scheduledAt: Date.parse(`${day}T18:30:00Z`) }]);
+  }
+});
+
+test("quiet-hour recovery is scheduled once per UTC hour, without boundary duplicates", () => {
+  const midnight = Date.parse("2026-11-23T00:00:00Z");
+  for (const environment of ["staging", "production"] as const) {
+    const starts = environment === "staging" ? [0] : [0, 6, 12, 18];
+    const recovery = starts.flatMap(hour => cronWindow(environment, new Date(midnight + hour * 3_600_000)))
+      .filter(item => item.job === "notification-quiet-recovery").map(item => item.scheduledAt);
+    expect(recovery).toEqual(Array.from({ length: 24 }, (_, hour) => midnight + hour * 3_600_000));
+  }
+});
+
+test("native PKA delivery has its own recovery job in each queue window", () => {
+  for (const environment of ["staging", "production"] as const) {
+    const start = new Date("2026-11-23T00:00:00Z");
+    expect(cronWindow(environment, start).filter(item => item.job === "pka-native-delivery"))
+      .toEqual([{ job: "pka-native-delivery", scheduledAt: start.getTime() }]);
   }
 });

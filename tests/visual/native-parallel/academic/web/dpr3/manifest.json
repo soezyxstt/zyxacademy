@@ -1,0 +1,681 @@
+{
+  "sourceRevision": "5f2bf62e9bf038ef443fb2b4fe08cb84e9df4087",
+  "viewport": {
+    "width": 380,
+    "height": 844
+  },
+  "deviceScaleFactor": 3,
+  "locale": "id-ID",
+  "timezoneId": "Asia/Jakarta",
+  "clock": "2026-11-28T02:00:00.000Z",
+  "browser": "Chromium 154.0.8037.57",
+  "fonts": [
+    "Inter 400-700",
+    "Lexend 700"
+  ],
+  "captures": [
+    {
+      "id": "tutor-dashboard-assigned-light",
+      "component": "TutorDashboardContent",
+      "source": "features/tutor-dashboard/ui/tutor-dashboard-content.tsx",
+      "route": "/tutor",
+      "theme": "light",
+      "image": "tutor-dashboard-assigned-light.png",
+      "width": 1140,
+      "height": 2532,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1140,
+        "height": 2532
+      },
+      "sha256": "5efef64016ad91608b9a9529d89536cae1025379c80fd06c35ced0b2d578a260"
+    },
+    {
+      "id": "tutor-dashboard-empty-dark",
+      "component": "TutorDashboardContent",
+      "source": "features/tutor-dashboard/ui/tutor-dashboard-content.tsx",
+      "route": "/tutor?state=empty",
+      "theme": "dark",
+      "image": "tutor-dashboard-empty-dark.png",
+      "width": 1140,
+      "height": 2532,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1140,
+        "height": 2532
+      },
+      "sha256": "e0246526c3ce13c7d57b3a12dfb7be9c5588cdef90afdd4176dd38fc408e9df7"
+    },
+    {
+      "id": "tutor-dashboard-assigned-dark",
+      "component": "TutorDashboardContent",
+      "source": "features/tutor-dashboard/ui/tutor-dashboard-content.tsx",
+      "route": "/tutor",
+      "theme": "dark",
+      "image": "tutor-dashboard-assigned-dark.png",
+      "width": 1140,
+      "height": 2532,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1140,
+        "height": 2532
+      },
+      "sha256": "bb1458e628afbd84ccb55f4f0ac014e86198ae0ba8727b12900b4375c973e6dc"
+    },
+    {
+      "id": "tutor-course-priorities-light",
+      "component": "AnalyticsClient",
+      "source": "components/tutor/analytics-client.tsx",
+      "route": "/tutor/academic-course-1",
+      "theme": "light",
+      "image": "tutor-course-priorities-light.png",
+      "width": 1140,
+      "height": 2532,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1140,
+        "height": 2532
+      },
+      "sha256": "38af0a884fe48e4c81129342bc9809e5d0c7f8830a78b8ea6671d318925c8e0d"
+    },
+    {
+      "id": "tutor-course-not-calculated-dark",
+      "component": "AnalyticsClient",
+      "source": "components/tutor/analytics-client.tsx",
+      "route": "/tutor/academic-course-2?state=empty",
+      "theme": "dark",
+      "image": "tutor-course-not-calculated-dark.png",
+      "width": 1140,
+      "height": 2532,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1140,
+        "height": 2532
+      },
+      "sha256": "0bd28689741861704f079ce3eb6aa5c0122487046baff23f73804b79785d6380"
+    },
+    {
+      "id": "tutor-course-drilldown-dark",
+      "component": "AnalyticsClient",
+      "source": "components/tutor/analytics-client.tsx",
+      "route": "/tutor/academic-course-1",
+      "theme": "dark",
+      "image": "tutor-course-drilldown-dark.png",
+      "width": 1140,
+      "height": 2532,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1140,
+        "height": 2532
+      },
+      "sha256": "c9571896621b05b12f7f7d89e7b6064fd4b9b246915186be657f4cc5ff0ad463"
+    },
+    {
+      "id": "tutor-participants-enrolled-light",
+      "component": "ParticipantsClient",
+      "source": "app/(tutor)/tutor/[courseId]/participants/participants-client.tsx",
+      "route": "/tutor/academic-course-1/participants",
+      "theme": "light",
+      "image": "tutor-participants-enrolled-light.png",
+      "width": 1140,
+      "height": 2532,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1140,
+        "height": 2532
+      },
+      "sha256": "81ab0922ccdd3dd356ef6a82cc53974b4226e076bdc3dd6c4040c9180c0f5f51"
+    },
+    {
+      "id": "tutor-participants-empty-dark",
+      "component": "ParticipantsClient",
+      "source": "app/(tutor)/tutor/[courseId]/participants/participants-client.tsx",
+      "route": "/tutor/academic-course-2/participants",
+      "theme": "dark",
+      "image": "tutor-participants-empty-dark.png",
+      "width": 1140,
+      "height": 2532,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1140,
+        "height": 2532
+      },
+      "sha256": "7a691edeb163a0c2d479059a7fa71a8a790e426bdaef762e3840bef0645f2dc2"
+    },
+    {
+      "id": "tutor-participants-no-search-match-dark",
+      "component": "ParticipantsClient",
+      "source": "app/(tutor)/tutor/[courseId]/participants/participants-client.tsx",
+      "route": "/tutor/academic-course-1/participants",
+      "theme": "dark",
+      "image": "tutor-participants-no-search-match-dark.png",
+      "width": 1140,
+      "height": 2532,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1140,
+        "height": 2532
+      },
+      "sha256": "db08d195189e2f7e8a14cd41095faf02eb978d89069fc31b2451a08fdac3379e"
+    },
+    {
+      "id": "tutor-schedule-calendar-light",
+      "component": "TutorScheduleView",
+      "source": "components/tutor/tutor-schedule-view.tsx",
+      "route": "/tutor/schedule",
+      "theme": "light",
+      "image": "tutor-schedule-calendar-light.png",
+      "width": 1140,
+      "height": 2532,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1140,
+        "height": 2532
+      },
+      "sha256": "6196babbbcfe1ac433662383be9b11f288b48e7cfd5e381e7279be1ca4022648"
+    },
+    {
+      "id": "tutor-schedule-no-slots-dark",
+      "component": "TutorScheduleView",
+      "source": "components/tutor/tutor-schedule-view.tsx",
+      "route": "/tutor/schedule?state=empty",
+      "theme": "dark",
+      "image": "tutor-schedule-no-slots-dark.png",
+      "width": 1140,
+      "height": 2532,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1140,
+        "height": 2532
+      },
+      "sha256": "b05f47391414023883628ac377db72737bfc1b09d530b27d104d336fedabe254"
+    },
+    {
+      "id": "tutor-schedule-add-slot-dark",
+      "component": "TutorScheduleView",
+      "source": "components/tutor/tutor-schedule-view.tsx",
+      "route": "/tutor/schedule",
+      "theme": "dark",
+      "image": "tutor-schedule-add-slot-dark.png",
+      "width": 1140,
+      "height": 2532,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1140,
+        "height": 2532
+      },
+      "sha256": "95286b56a6034cc905bae101cd9b98e1d33101ba1b7d944a4056f9d831ce6d7f"
+    },
+    {
+      "id": "tutor-tryout-grading-pending-light",
+      "component": "GradingClient",
+      "source": "app/(tutor)/tutor/[courseId]/grading/grading-client.tsx",
+      "route": "/tutor/academic-course-1/grading",
+      "theme": "light",
+      "image": "tutor-tryout-grading-pending-light.png",
+      "width": 1140,
+      "height": 2532,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1140,
+        "height": 2532
+      },
+      "sha256": "b11b68f74254ff32522f37c81e056b94d550a56252f42c220c333c2d5236b433"
+    },
+    {
+      "id": "tutor-tryout-grading-empty-dark",
+      "component": "GradingClient",
+      "source": "app/(tutor)/tutor/[courseId]/grading/grading-client.tsx",
+      "route": "/tutor/academic-course-2/grading",
+      "theme": "dark",
+      "image": "tutor-tryout-grading-empty-dark.png",
+      "width": 1140,
+      "height": 2532,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1140,
+        "height": 2532
+      },
+      "sha256": "04ddf36d0e380fa50f9dc49faeb0fe8c0e630b9971751c158c6df30ee21d8484"
+    },
+    {
+      "id": "tutor-tryout-grading-review-dark",
+      "component": "GradingClient",
+      "source": "app/(tutor)/tutor/[courseId]/grading/grading-client.tsx",
+      "route": "/tutor/academic-course-1/grading",
+      "theme": "dark",
+      "image": "tutor-tryout-grading-review-dark.png",
+      "width": 1140,
+      "height": 2532,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1140,
+        "height": 2532
+      },
+      "sha256": "d7bf1a652ba30c66768826387762caa94bd275955d4e756f1a39a51f3f0ffa72"
+    },
+    {
+      "id": "tutor-quizzes-list-light",
+      "component": "QuizzesClient",
+      "source": "app/(tutor)/tutor/[courseId]/quizzes/quizzes-client.tsx",
+      "route": "/tutor/academic-course-1/quizzes",
+      "theme": "light",
+      "image": "tutor-quizzes-list-light.png",
+      "width": 1140,
+      "height": 2532,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1140,
+        "height": 2532
+      },
+      "sha256": "99be0bc00b0c0ae4912fdad6cb94c63c059f340c50d4892892a71e1c85bde002"
+    },
+    {
+      "id": "tutor-quizzes-question-bank-dark",
+      "component": "QuizzesClient",
+      "source": "app/(tutor)/tutor/[courseId]/quizzes/quizzes-client.tsx",
+      "route": "/tutor/academic-course-1/quizzes",
+      "theme": "dark",
+      "image": "tutor-quizzes-question-bank-dark.png",
+      "width": 1140,
+      "height": 2532,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1140,
+        "height": 2532
+      },
+      "sha256": "20ab9456dfcca8cad882c11f9a48fe00397a5172fbc02975db83fb47d110113d"
+    },
+    {
+      "id": "tutor-quizzes-question-editor-light",
+      "component": "QuizzesClient",
+      "source": "app/(tutor)/tutor/[courseId]/quizzes/quizzes-client.tsx",
+      "route": "/tutor/academic-course-1/quizzes",
+      "theme": "light",
+      "image": "tutor-quizzes-question-editor-light.png",
+      "width": 1140,
+      "height": 2532,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1140,
+        "height": 2532
+      },
+      "sha256": "b71ec68fd4565641b67af2ef4980dcb0b82b7740a696c6fe32a14659376705bf"
+    },
+    {
+      "id": "tutor-quiz-grading-pending-light",
+      "component": "TutorQuizGradingClient",
+      "source": "app/(tutor)/tutor/[courseId]/quizzes/grading/grading-client.tsx",
+      "route": "/tutor/academic-course-1/quizzes/grading",
+      "theme": "light",
+      "image": "tutor-quiz-grading-pending-light.png",
+      "width": 1140,
+      "height": 2532,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1140,
+        "height": 2532
+      },
+      "sha256": "b36dd1c2ca776e40691aa0fa860bbdc6c29c6cbfde92f9e0076d8e8cc7eff072"
+    },
+    {
+      "id": "tutor-quiz-grading-empty-dark",
+      "component": "TutorQuizGradingClient",
+      "source": "app/(tutor)/tutor/[courseId]/quizzes/grading/grading-client.tsx",
+      "route": "/tutor/academic-course-1/quizzes/grading?state=empty",
+      "theme": "dark",
+      "image": "tutor-quiz-grading-empty-dark.png",
+      "width": 1140,
+      "height": 2532,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1140,
+        "height": 2532
+      },
+      "sha256": "340ade183409b48670c9d147635c0e04f0270356ac43fccfce47f36cb5598cf5"
+    },
+    {
+      "id": "tutor-quiz-grading-review-dark",
+      "component": "TutorQuizGradingClient",
+      "source": "app/(tutor)/tutor/[courseId]/quizzes/grading/grading-client.tsx",
+      "route": "/tutor/academic-course-1/quizzes/grading",
+      "theme": "dark",
+      "image": "tutor-quiz-grading-review-dark.png",
+      "width": 1140,
+      "height": 2532,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1140,
+        "height": 2532
+      },
+      "sha256": "9bf5c3dcfccaf9a2a5f795d9a4a44d707fb685b4a5b92edcb08c4d77e3c85658"
+    },
+    {
+      "id": "tutor-tryouts-list-light",
+      "component": "TryoutsClient",
+      "source": "app/(tutor)/tutor/[courseId]/tryouts/tryouts-client.tsx",
+      "route": "/tutor/academic-course-1/tryouts",
+      "theme": "light",
+      "image": "tutor-tryouts-list-light.png",
+      "width": 1140,
+      "height": 2532,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1140,
+        "height": 2532
+      },
+      "sha256": "d858c06b2dfd7bda5eab362e77f85a126987ee05c275f7d281f0647ace78aabe"
+    },
+    {
+      "id": "tutor-tryouts-empty-dark",
+      "component": "TryoutsClient",
+      "source": "app/(tutor)/tutor/[courseId]/tryouts/tryouts-client.tsx",
+      "route": "/tutor/academic-course-1/tryouts?state=empty",
+      "theme": "dark",
+      "image": "tutor-tryouts-empty-dark.png",
+      "width": 1140,
+      "height": 2532,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1140,
+        "height": 2532
+      },
+      "sha256": "78de7e3743041c5581cf1f221f6c2005af39848c014d66086f3de885fa10fe17"
+    },
+    {
+      "id": "tutor-tryouts-questions-dark",
+      "component": "TryoutsClient",
+      "source": "app/(tutor)/tutor/[courseId]/tryouts/tryouts-client.tsx",
+      "route": "/tutor/academic-course-1/tryouts",
+      "theme": "dark",
+      "image": "tutor-tryouts-questions-dark.png",
+      "width": 1140,
+      "height": 2532,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1140,
+        "height": 2532
+      },
+      "sha256": "796f8d4b3c3a5d3caa277a64c1172d8aaa91f815e574e641ccfcb356b2ff43dd"
+    },
+    {
+      "id": "admin-courses-list-light",
+      "component": "CoursesDashboard",
+      "source": "components/admin/courses-dashboard.tsx",
+      "route": "/admin/courses",
+      "theme": "light",
+      "image": "admin-courses-list-light.png",
+      "width": 1140,
+      "height": 2532,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1140,
+        "height": 2532
+      },
+      "sha256": "43fb7ded94b461f6fc15c47b2a4dc2ea5385481b662b91f7fa0306cbdb9642af"
+    },
+    {
+      "id": "admin-courses-filtered-dark",
+      "component": "CoursesDashboard",
+      "source": "components/admin/courses-dashboard.tsx",
+      "route": "/admin/courses",
+      "theme": "dark",
+      "image": "admin-courses-filtered-dark.png",
+      "width": 1140,
+      "height": 2532,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1140,
+        "height": 2532
+      },
+      "sha256": "3eee4d646d390ce1abdb73cd2789c2dad80036d67bb19a5cf8d401eb43ab8409"
+    },
+    {
+      "id": "admin-courses-empty-dark",
+      "component": "CoursesDashboard",
+      "source": "components/admin/courses-dashboard.tsx",
+      "route": "/admin/courses?state=empty",
+      "theme": "dark",
+      "image": "admin-courses-empty-dark.png",
+      "width": 1140,
+      "height": 2532,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1140,
+        "height": 2532
+      },
+      "sha256": "61db4ed49e6741eb9ab1dbd9a7ef35163e3f376251f952991bfa58c1476fc9db"
+    },
+    {
+      "id": "admin-course-chapters-light",
+      "component": "CourseDetailHeader + ChaptersTab",
+      "source": "components/admin/course-detail/course-detail-header.tsx and components/admin/course-detail/chapters-tab.tsx",
+      "route": "/admin/courses/academic-course-1",
+      "theme": "light",
+      "image": "admin-course-chapters-light.png",
+      "width": 1140,
+      "height": 2532,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1140,
+        "height": 2532
+      },
+      "sha256": "33bf23b4dd45d311ac677f4037579c32fdde3b0dacc52e92b37536b306c1d5ad"
+    },
+    {
+      "id": "admin-course-empty-dark",
+      "component": "CourseDetailHeader + ChaptersTab",
+      "source": "components/admin/course-detail/course-detail-header.tsx and components/admin/course-detail/chapters-tab.tsx",
+      "route": "/admin/courses/fisika-dasar",
+      "theme": "dark",
+      "image": "admin-course-empty-dark.png",
+      "width": 1140,
+      "height": 2532,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1140,
+        "height": 2532
+      },
+      "sha256": "d6e9a3ddd9748b36d9c91620e373626fbf43f4e5cd23f8c5fb2c7213dbdc32a8"
+    },
+    {
+      "id": "admin-course-edit-chapter-dark",
+      "component": "CourseDetailHeader + ChaptersTab",
+      "source": "components/admin/course-detail/course-detail-header.tsx and components/admin/course-detail/chapters-tab.tsx",
+      "route": "/admin/courses/academic-course-1",
+      "theme": "dark",
+      "image": "admin-course-edit-chapter-dark.png",
+      "width": 1140,
+      "height": 2532,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1140,
+        "height": 2532
+      },
+      "sha256": "99d89023c511b8a34403b04136c28aa0782b416ff47c25468ac0185fd5d29c5c"
+    },
+    {
+      "id": "admin-groups-list-light",
+      "component": "GroupsDashboard",
+      "source": "components/admin/groups-dashboard.tsx",
+      "route": "/admin/groups",
+      "theme": "light",
+      "image": "admin-groups-list-light.png",
+      "width": 1140,
+      "height": 2532,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1140,
+        "height": 2532
+      },
+      "sha256": "97bb49d8bba97761478048bcb0ee494118d46a22e5d720930c159a487739a432"
+    },
+    {
+      "id": "admin-groups-empty-dark",
+      "component": "GroupsDashboard",
+      "source": "components/admin/groups-dashboard.tsx",
+      "route": "/admin/groups?state=empty",
+      "theme": "dark",
+      "image": "admin-groups-empty-dark.png",
+      "width": 1140,
+      "height": 2532,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1140,
+        "height": 2532
+      },
+      "sha256": "cace253ee5ccbeb936f1ba824f99f6cc1522fda38263897dec9e6070f7c7f502"
+    },
+    {
+      "id": "admin-groups-create-dark",
+      "component": "GroupsDashboard",
+      "source": "components/admin/groups-dashboard.tsx",
+      "route": "/admin/groups",
+      "theme": "dark",
+      "image": "admin-groups-create-dark.png",
+      "width": 1140,
+      "height": 2532,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1140,
+        "height": 2532
+      },
+      "sha256": "2c4447071fa04a8a288495927eb3055f19b6fee317491a3aebe35dba6825c143"
+    },
+    {
+      "id": "admin-tokens-list-light",
+      "component": "TokensDashboard",
+      "source": "components/admin/tokens-dashboard.tsx",
+      "route": "/admin/tokens",
+      "theme": "light",
+      "image": "admin-tokens-list-light.png",
+      "width": 1140,
+      "height": 2532,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1140,
+        "height": 2532
+      },
+      "sha256": "9c886948addeae80d78f8ba202658846083c9cf9d607aefbfc73817fe41aa1cd"
+    },
+    {
+      "id": "admin-tokens-empty-dark",
+      "component": "TokensDashboard",
+      "source": "components/admin/tokens-dashboard.tsx",
+      "route": "/admin/tokens?state=empty",
+      "theme": "dark",
+      "image": "admin-tokens-empty-dark.png",
+      "width": 1140,
+      "height": 2532,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1140,
+        "height": 2532
+      },
+      "sha256": "34af890679017ce4a908baa1985a929275a46e77fcfe611cb563fe1c0af106b2"
+    },
+    {
+      "id": "admin-tokens-create-dark",
+      "component": "TokensDashboard",
+      "source": "components/admin/tokens-dashboard.tsx",
+      "route": "/admin/tokens",
+      "theme": "dark",
+      "image": "admin-tokens-create-dark.png",
+      "width": 1140,
+      "height": 2532,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1140,
+        "height": 2532
+      },
+      "sha256": "ce0d60e20387a841b2c7e20d662b65f568a89fbcbecd2272e152559025effdc6"
+    },
+    {
+      "id": "admin-users-list-light",
+      "component": "UsersDashboard",
+      "source": "components/admin/users-dashboard.tsx",
+      "route": "/admin/users",
+      "theme": "light",
+      "image": "admin-users-list-light.png",
+      "width": 1140,
+      "height": 2532,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1140,
+        "height": 2532
+      },
+      "sha256": "3be1a697e8ebbd7450658474bd36dfba6aa5fbc15e6811f7907404cffdcdc0e2"
+    },
+    {
+      "id": "admin-users-suspended-filter-dark",
+      "component": "UsersDashboard",
+      "source": "components/admin/users-dashboard.tsx",
+      "route": "/admin/users",
+      "theme": "dark",
+      "image": "admin-users-suspended-filter-dark.png",
+      "width": 1140,
+      "height": 2532,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1140,
+        "height": 2532
+      },
+      "sha256": "b181c5f89a57f971b129ebba12f58c9383b381f95d5a21f6636161e75b8ed265"
+    },
+    {
+      "id": "admin-users-roles-dark",
+      "component": "UsersDashboard",
+      "source": "components/admin/users-dashboard.tsx",
+      "route": "/admin/users",
+      "theme": "dark",
+      "image": "admin-users-roles-dark.png",
+      "width": 1140,
+      "height": 2532,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1140,
+        "height": 2532
+      },
+      "sha256": "d83295c7dfb4b71a9bdba0de81cb2713c25c1b3c92953784e92d9488e3b26118"
+    }
+  ]
+}

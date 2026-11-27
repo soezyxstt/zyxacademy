@@ -1,0 +1,33 @@
+{
+  "sha": "faa6626107c1c40979d86cedcdbd9deb64c434fc",
+  "locale": "id-ID",
+  "timeZone": "Asia/Jakarta",
+  "captures": [
+    {
+      "id": "web-empty",
+      "screen": "web",
+      "theme": "dark",
+      "viewport": {
+        "width": 402,
+        "height": 874
+      },
+      "dpr": 3,
+      "viewportScreenshot": "web-empty-dark-402-dpr3.png",
+      "url": "http://localhost:3211/monitoring?screen=web&mode=empty&theme=dark"
+    },
+    {
+      "id": "features-7-days-direct",
+      "screen": "features",
+      "theme": "light",
+      "viewport": {
+        "width": 402,
+        "height": 874
+      },
+      "dpr": 3,
+      "viewportScreenshot": "features-7-days-direct-light-402-dpr3.png",
+      "url": "http://localhost:3211/monitoring?screen=features&mode=populated&theme=light&range=7"
+    }
+  ],
+  "failures": [],
+  "errors": []
+}

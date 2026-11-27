@@ -1,0 +1,41 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+  <testsuite name="Test Suite" device="test" tests="18" failures="9" time="412.077" timestamp="2026-11-26T11:35:55">
+    <testcase id="Student restores a saved answer after process restart" name="Student restores a saved answer after process restart" classname="Student restores a saved answer after process restart" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/assessment-process-restart.yaml" time="39.321" timestamp="2026-11-26T11:35:55" status="ERROR">
+      <failure>Assertion is false: id: student-assessment-option-1 is visible</failure>
+    </testcase>
+    <testcase id="Student quiz saves and restores its draft" name="Student quiz saves and restores its draft" classname="Student quiz saves and restores its draft" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/assessment-quiz.yaml" time="36.746" timestamp="2026-11-26T11:36:35" status="ERROR">
+      <failure>Assertion is false: id: student-assessment-native-quiz is visible</failure>
+    </testcase>
+    <testcase id="Student tryout retries the same submission after response loss" name="Student tryout retries the same submission after response loss" classname="Student tryout retries the same submission after response loss" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/assessment-retry.yaml" time="34.74" timestamp="2026-11-26T11:37:11" status="ERROR">
+      <failure>Assertion is false: id: student-assessment-option-1 is visible</failure>
+    </testcase>
+    <testcase id="Student reads and completes a solution collection" name="Student reads and completes a solution collection" classname="Student reads and completes a solution collection" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/assessment-solutions.yaml" time="34.397" timestamp="2026-11-26T11:37:46" status="ERROR">
+      <failure>Assertion is false: id: student-assessment-reveal is visible</failure>
+    </testcase>
+    <testcase id="Catalog comparable fixture all TPB and PKA" name="Catalog comparable fixture all TPB and PKA" classname="Catalog comparable fixture all TPB and PKA" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/catalog-parity.yaml" time="11.363" timestamp="2026-11-26T11:38:21" status="SUCCESS"/>
+    <testcase id="Community calendar category and history" name="Community calendar category and history" classname="Community calendar category and history" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/community-calendar-filter.yaml" time="9.535" timestamp="2026-11-26T11:38:32" status="SUCCESS"/>
+    <testcase id="Student calendar filters assessments and opens tutorial history" name="Student calendar filters assessments and opens tutorial history" classname="Student calendar filters assessments and opens tutorial history" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/community-calendar.yaml" time="34.346" timestamp="2026-11-26T11:38:41" status="ERROR">
+      <failure>Assertion is false: "Kuis limit" is visible</failure>
+    </testcase>
+    <testcase id="Student opens a discussion alias and posts a scoped answer" name="Student opens a discussion alias and posts a scoped answer" classname="Student opens a discussion alias and posts a scoped answer" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/community-discussions.yaml" time="34.128" timestamp="2026-11-26T11:39:16" status="ERROR">
+      <failure>Assertion is false: "Limit kiri dan kanan pada fungsi potongan" is visible</failure>
+    </testcase>
+    <testcase id="Community ranking scope and academic class" name="Community ranking scope and academic class" classname="Community ranking scope and academic class" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/community-ranking-scope.yaml" time="7.404" timestamp="2026-11-26T11:39:50" status="SUCCESS"/>
+    <testcase id="Student separates participation from academic scores and recovers a failed load" name="Student separates participation from academic scores and recovers a failed load" classname="Student separates participation from academic scores and recovers a failed load" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/community-ranking.yaml" time="32.607" timestamp="2026-11-26T11:39:57" status="ERROR">
+      <failure>Assertion is false: "Coba lagi" is visible</failure>
+    </testcase>
+    <testcase id="Student weekly calendar selects tutor slots and another day" name="Student weekly calendar selects tutor slots and another day" classname="Student weekly calendar selects tutor slots and another day" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/community-schedule.yaml" time="34.427" timestamp="2026-11-26T11:40:30" status="ERROR">
+      <failure>Assertion is false: id: student-tutorial-calendar-event-slot-slot-integral is visible</failure>
+    </testcase>
+    <testcase id="Student course enrolled fixture" name="Student course enrolled fixture" classname="Student course enrolled fixture" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/enrolled.yaml" time="8.851" timestamp="2026-11-26T11:41:04" status="SUCCESS"/>
+    <testcase id="Learning flashcard flip and grade" name="Learning flashcard flip and grade" classname="Learning flashcard flip and grade" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/learning-flashcard-review.yaml" time="10.605" timestamp="2026-11-26T11:41:13" status="SUCCESS"/>
+    <testcase id="PKA enrollment gate redirects to registration" name="PKA enrollment gate redirects to registration" classname="PKA enrollment gate redirects to registration" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/learning-pka-gate.yaml" time="4.36" timestamp="2026-11-26T11:41:24" status="SUCCESS"/>
+    <testcase id="Student course long material list fixture" name="Student course long material list fixture" classname="Student course long material list fixture" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/long-content.yaml" time="49.744" timestamp="2026-11-26T11:41:28" status="ERROR">
+      <failure>Assertion is false: id: student-material-bab-24 is visible</failure>
+    </testcase>
+    <testcase id="Student course offline recovery fixture" name="Student course offline recovery fixture" classname="Student course offline recovery fixture" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/offline.yaml" time="6.782" timestamp="2026-11-26T11:42:18" status="SUCCESS"/>
+    <testcase id="Student course revoked fixture" name="Student course revoked fixture" classname="Student course revoked fixture" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/revoked.yaml" time="11.198" timestamp="2026-11-26T11:42:25" status="SUCCESS"/>
+    <testcase id="Student course unenrolled fixture" name="Student course unenrolled fixture" classname="Student course unenrolled fixture" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/unenrolled.yaml" time="11.436" timestamp="2026-11-26T11:42:36" status="SUCCESS"/>
+  </testsuite>
+</testsuites>

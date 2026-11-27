@@ -5,7 +5,7 @@ import { createPostgresTestDb } from "../helpers/postgres";
 import { buildLocalVerificationFixture } from "../../scripts/authoring/local-verification-fixture";
 import { validateProductBundle } from "@/lib/bundle/product-validator";
 import { PRODUCT_DIKTAT_PRINT_PROFILE } from "@/lib/bundle/product-diktat-pdf";
-import { PRODUCT_V4_VERIFICATION_POLICY, type ProductV4VerificationRequirement } from "@/lib/bundle/product-v4-verification";
+import { PRODUCT_V4_VERIFICATION_POLICY, type ProductV4VerificationPurpose, type ProductV4VerificationRequirement } from "@/lib/bundle/product-v4-verification";
 
 const { client, testDb } = await createPostgresTestDb();
 const fixture = buildLocalVerificationFixture();
@@ -40,16 +40,17 @@ mock.module("@/lib/storage", () => ({ storage: {
   },
 } }));
 mock.module("@/jobs/client", () => ({ inngest: { send: async () => { enqueued++; } } }));
-mock.module("@/lib/compute/product-v4-runtime-binding", () => ({ buildProductV4RuntimeBinding: async ({ row, runId }: { row: { id: string }; runId: string }) => ({
-  importId: row.id, courseId: bundle.manifest.courseId, runId, revision: 1,
-  rendererChecksum: hash, dependencyChecksum: hash, contractChecksum: hash, playbookChecksum: hash, fontChecksum: hash, assetChecksum: hash,
-  printProfile: PRODUCT_DIKTAT_PRINT_PROFILE, policyRevision: PRODUCT_V4_VERIFICATION_POLICY, browserProvider,
+mock.module("@/lib/compute/product-v4-runtime-binding", () => ({ buildProductV4RuntimeBinding: async ({ row, runId, purpose = "logic" }: { row: { id: string }; runId: string; purpose?: ProductV4VerificationPurpose }) => ({
+  importId: row.id, courseId: bundle.manifest.courseId, runId, revision: 1, purpose,
+  dependencyChecksum: hash, contractChecksum: hash, playbookChecksum: hash, assetChecksum: hash, policyRevision: PRODUCT_V4_VERIFICATION_POLICY,
+  ...(purpose === "pdf" ? { rendererChecksum: hash, fontChecksum: hash, printProfile: PRODUCT_DIKTAT_PRINT_PROFILE, browserProvider } : { logicChecksum: hash }),
 }) }));
 
 const { provisionPenggunaForNewUser } = await import("@/lib/auth/authorization");
 const { adoptProductDraftRun } = await import("@/lib/bundle/product-staging");
 const { createProductV4ApplicationService, requestProductV4LocalAttempt } = await import("@/lib/bundle/product-v4-verification-service");
 const { persistProductV4PdfEvidence } = await import("@/lib/compute/product-v4-pdf-evidence");
+const { attachProductV4VerificationSnapshot } = await import("@/lib/bundle/product-v4-staging-identity");
 afterAll(async () => { if (previousSecret === undefined) delete process.env.BETTER_AUTH_SECRET; else process.env.BETTER_AUTH_SECRET = previousSecret; await client.close(); });
 
 async function seed() {
@@ -75,16 +76,18 @@ const scope = (runId: string) => ({ importId, runId, expectedChecksum: bundle.ch
 for (const mode of ["local", "hosted"] as const) test(`${mode} request cannot attach after adoption and the adopted run can start`, async () => {
   await seed();
   browserProvider = mode === "local" ? "local_playwright" : "cloudflare";
-  const serviceA = await createProductV4ApplicationService(execute, mode === "local" ? async () => {} : async () => { enqueued++; }, mode === "local" ? scope(runA) : undefined);
+  const purpose = mode === "local" ? "pdf" : "logic";
+  const refKey = purpose === "pdf" ? "productV4PdfGeneration" : "productV4Verification";
+  const serviceA = await createProductV4ApplicationService(execute, mode === "local" ? async () => {} : async () => { enqueued++; }, mode === "local" ? scope(runA) : undefined, purpose);
   beforeStateWrite = async () => { await adopt(); };
   const requestA = mode === "local" ? requestProductV4LocalAttempt(serviceA, scope(runA)) : serviceA.request({ importId, runId: runA });
   await expect(requestA).rejects.toThrow("PRODUCT_V4_VERIFICATION_CONFLICT");
-  expect((await row()).validationReport.productV4Verification).toBeUndefined();
+  expect((await row()).validationReport[refKey]).toBeUndefined();
   expect(enqueued).toBe(0);
-  const serviceB = await createProductV4ApplicationService(execute, mode === "local" ? async () => {} : async () => { enqueued++; }, mode === "local" ? scope(runB) : undefined);
+  const serviceB = await createProductV4ApplicationService(execute, mode === "local" ? async () => {} : async () => { enqueued++; }, mode === "local" ? scope(runB) : undefined, purpose);
   const requested = mode === "local" ? await requestProductV4LocalAttempt(serviceB, scope(runB)) : await serviceB.request({ importId, runId: runB });
   expect(requested.state.status).toBe("pending");
-  expect((await row()).validationReport.productV4Verification).toMatchObject({ runId: runB, stagingAuditId: requested.stagingAuditId, attemptId: requested.attemptId });
+  expect((await row()).validationReport[refKey]).toMatchObject({ runId: runB, stagingAuditId: requested.stagingAuditId, attemptId: requested.attemptId });
   expect(enqueued).toBe(mode === "hosted" ? 1 : 0);
 }, 30000);
 
@@ -126,9 +129,9 @@ test("adoption before finalization makes the worker stale and old references can
 
 test("PDF attachment rejects adoption after artifact read, while a current run completes and reads back", async () => {
   await seed(); browserProvider = "cloudflare";
-  const service = await createProductV4ApplicationService(execute);
+  const service = await createProductV4ApplicationService(execute, undefined, undefined, "pdf");
   const pending = await service.request({ importId, runId: runA });
-  const complete = await service.process({ importId, runId: runA, planHash: pending.plan.planHash, attemptId: pending.attemptId });
+  const complete = await service.process({ importId, runId: runA, planHash: pending.plan.planHash, attemptId: pending.attemptId, purpose: "pdf" });
   expect(complete.evaluation.ready).toBe(true);
   expect((await service.readiness(importId, runA)).evaluation.ready).toBe(true);
   const { snapshot } = await service.current(importId, runA);
@@ -138,4 +141,51 @@ test("PDF attachment rejects adoption after artifact read, while a current run c
   expect(evidence.length).toBeGreaterThan(0);
   expect(evidence.every(item => item.status === "stale")).toBe(true);
   expect((await service.readiness(importId, runB)).evaluation.ready).toBe(false);
+}, 30000);
+
+test("independent logic and PDF attachments preserve both refs while rejecting own-attempt and authored-state changes", async () => {
+  await seed(); browserProvider = "cloudflare";
+  const logic = await createProductV4ApplicationService(execute, async () => {});
+  const pdf = await createProductV4ApplicationService(execute, async () => {}, undefined, "pdf");
+  const [logicStart, pdfStart] = await Promise.all([logic.current(importId, runA), pdf.current(importId, runA)]);
+  const logicAttempt = "11111111-1111-4111-8111-111111111111", pdfAttempt = "22222222-2222-4222-8222-222222222222";
+  const attached = await Promise.all([
+    attachProductV4VerificationSnapshot(testDb as never, logicStart.snapshot, logicStart.plan.planHash, logicAttempt, null, "logic"),
+    attachProductV4VerificationSnapshot(testDb as never, pdfStart.snapshot, pdfStart.plan.planHash, pdfAttempt, null, "pdf"),
+  ]);
+  expect(attached).toEqual([true, true]);
+  expect((await row()).validationReport).toMatchObject({
+    productV4Verification: { attemptId: logicAttempt, planHash: logicStart.plan.planHash },
+    productV4PdfGeneration: { attemptId: pdfAttempt, planHash: pdfStart.plan.planHash },
+  });
+  const currentLogic = await logic.current(importId, runA);
+  const nextAttempt = "33333333-3333-4333-8333-333333333333";
+  expect(await attachProductV4VerificationSnapshot(testDb as never, currentLogic.snapshot, currentLogic.plan.planHash, nextAttempt, logicAttempt, "logic")).toBe(true);
+  expect(await attachProductV4VerificationSnapshot(testDb as never, currentLogic.snapshot, currentLogic.plan.planHash, logicAttempt, logicAttempt, "logic")).toBe(false);
+  const currentPdf = await pdf.current(importId, runA);
+  const admitted = await row();
+  await testDb.update(schema.imporBundle).set({ validationReport: { ...admitted.validationReport, admissionChanged: true } }).where(eq(schema.imporBundle.id, importId));
+  expect(await attachProductV4VerificationSnapshot(testDb as never, currentPdf.snapshot, currentPdf.plan.planHash, nextAttempt, pdfAttempt, "pdf")).toBe(false);
+}, 30000);
+
+test("PDF completion during logic finalization does not revoke either purpose or trigger a second PDF", async () => {
+  await seed(); browserProvider = "cloudflare";
+  let printExecutions = 0;
+  const counted = async (input: Parameters<typeof execute>[0]) => { if (input.requirement.layer === "print") printExecutions++; return execute(input); };
+  const logic = await createProductV4ApplicationService(counted, async () => {});
+  const pdf = await createProductV4ApplicationService(counted, async () => {}, undefined, "pdf");
+  const pendingLogic = await logic.request({ importId, runId: runA });
+  const pendingPdf = await pdf.request({ importId, runId: runA });
+  const logicResult = await logic.process({ importId, runId: runA, planHash: pendingLogic.plan.planHash, attemptId: pendingLogic.attemptId, purpose: "logic" }, async (id, operation) => {
+    if (id === "finalize-verification") {
+      const generated = await pdf.process({ importId, runId: runA, planHash: pendingPdf.plan.planHash, attemptId: pendingPdf.attemptId, purpose: "pdf" });
+      expect(generated.evaluation.ready).toBe(true);
+    }
+    return operation();
+  });
+  expect(logicResult.evaluation.ready).toBe(true);
+  expect(printExecutions).toBe(bundle.products.filter(product => product.productType === "diktat").length);
+  expect((await logic.readiness(importId, runA)).evaluation.ready).toBe(true);
+  expect((await pdf.readiness(importId, runA)).evaluation.ready).toBe(true);
+  await expect(requestProductV4LocalAttempt(logic, scope(runA))).rejects.toThrow("LOCAL_BROWSER_REQUIRED");
 }, 30000);

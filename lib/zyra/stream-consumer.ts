@@ -1,5 +1,6 @@
 import { validateFollowups, type Followup } from "@/lib/zyra/followups";
 import type { CanvasSpec } from "@/lib/zyra/canvas";
+import { readZyraStream } from "@/packages/zyra/stream";
 
 export interface ZyraSource {
   type: string;
@@ -35,46 +36,12 @@ export async function* consumeZyraStream<Part extends { type: string } = ZyraStr
   body: ReadableStream<Uint8Array>,
   signal?: AbortSignal
 ): AsyncGenerator<Part | Extract<ZyraStreamPart, { type: "done" | "data-followups" }>, void, unknown> {
-  const reader = body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-
-  try {
-    while (true) {
-      if (signal?.aborted) break;
-
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
-
-      for (const line of lines) {
-        if (signal?.aborted) return;
-        const trimmed = line.trim();
-        if (!trimmed.startsWith("data: ")) continue;
-        const dataStr = trimmed.slice(6).trim();
-        if (dataStr === "[DONE]") {
-          yield { type: "done" };
-          return;
-        }
-
-        try {
-          const parsed = JSON.parse(dataStr);
-          if (parsed && typeof parsed.type === "string") {
-            if (parsed.type === "data-followups") {
-              yield { type: "data-followups", followups: validateFollowups(parsed.followups) };
-            } else {
-              yield parsed as Part;
-            }
-          }
-        } catch {
-          // Ignore malformed JSON chunks
-        }
-      }
+  for await (const event of readZyraStream(body, signal)) {
+    if (signal?.aborted) return;
+    if (event.type === "data-followups") {
+      yield { type: "data-followups", followups: validateFollowups(event.followups) };
+    } else {
+      yield event as Part;
     }
-  } finally {
-    reader.releaseLock();
   }
 }

@@ -17,6 +17,7 @@ import { useViewportMode } from "@/hooks/use-viewport-mode";
 import { useTranslations } from "@/lib/i18n/client";
 import { AdminMoreSheet } from "./admin-more-sheet";
 import {
+  adminMobileHrefs,
   getActiveAdminBottomTab,
   isAdminFocusEditorRoute,
 } from "./admin-nav-model";
@@ -37,28 +38,28 @@ export function AdminMobileBottomNav() {
         id: "home",
         label: tMobile("home"),
         icon: LayoutDashboard,
-        href: "/admin",
+        href: adminMobileHrefs.home,
         active: activeTab === "home",
       },
       {
         id: "courses",
         label: tMobile("courses"),
         icon: GraduationCap,
-        href: "/admin/courses",
+        href: adminMobileHrefs.courses,
         active: activeTab === "courses",
       },
       {
         id: "people",
         label: tMobile("people"),
         icon: Users,
-        href: "/admin/users",
+        href: adminMobileHrefs.people,
         active: activeTab === "people",
       },
       {
         id: "ops",
         label: tMobile("ops"),
         icon: Gauge,
-        href: "/admin/ops/web-analytics",
+        href: adminMobileHrefs.ops,
         active: activeTab === "ops",
       },
       {

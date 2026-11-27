@@ -19,6 +19,19 @@ function interpolate(template: string, values: Record<string, string | number>):
   );
 }
 
+/** Plain, bounded text for inbox cards and native notification banners. */
+export function shortNotificationText(value: string | null | undefined, limit: number): string {
+  if (!value) return "";
+  const plain = value
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/<[^>]+>/g, "")
+    .split("").map(char => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127 ? " " : char).join("")
+    .replace(/\s+/g, " ").trim();
+  const chars = Array.from(plain);
+  return chars.length > limit ? chars.slice(0, limit - 1).join("") + "…" : plain;
+}
+
 // ─── Quiz Published ───────────────────────────────────────────────────────────
 
 export function quizPublishedPayload(
@@ -27,8 +40,8 @@ export function quizPublishedPayload(
   quizUrl: string,
 ): NotificationPayload {
   return {
-    title: "📝 Kuis Baru Tersedia",
-    body: `${quizTitle} untuk ${courseTitle} sudah bisa dikerjakan. Yuk coba sekarang!`,
+    title: shortNotificationText(interpolate(messages.id.push.quizPublished.title, { quizTitle }), 65),
+    body: interpolate(messages.id.push.quizPublished.body, { quizTitle, courseTitle }),
     type: "quiz_published",
     link: quizUrl,
     metadata: {
@@ -48,7 +61,7 @@ export function quizGradedPayload(input: {
   attemptId?: string;
 }): NotificationPayload {
   return {
-    title: messages.id.push.quizGraded.title,
+    title: shortNotificationText(interpolate(messages.id.push.quizGraded.title, input), 65),
     body: interpolate(messages.id.push.quizGraded.body, {
       quizTitle: input.quizTitle,
       courseTitle: input.courseTitle,
@@ -87,7 +100,7 @@ export function flashcardReminderPayload(input: {
       });
 
   return {
-    title: messages.id.push.flashcardReminder.title,
+    title: interpolate(messages.id.push.flashcardReminder.title, { dueCount: input.dueCount }),
     body,
     type: "flashcard_reminder",
     link: input.link,
@@ -113,7 +126,7 @@ export function paymentSuccessPayload(input: {
 }): NotificationPayload {
   const link = input.link ?? "/dashboard";
   return {
-    title: messages.id.push.paymentSuccess.title,
+    title: shortNotificationText(interpolate(messages.id.push.paymentSuccess.title, input), 65),
     body: interpolate(messages.id.push.paymentSuccess.body, {
       groupName: input.groupName,
       courseCount: input.courseCount,
@@ -219,8 +232,14 @@ export function renderNotificationPayload(payload: NotificationPayload, locale: 
   const withLocale = { ...payload.metadata, locale };
 
   switch (payload.systemTemplate.key) {
-    case "discussion":
-      return { ...payload, ...pushMessages.discussion, metadata: withLocale };
+    case "discussion": {
+      const { threadTitle, preview, eventKind } = payload.systemTemplate.params;
+      const copy = pushMessages.discussion;
+      const title = threadTitle ? shortNotificationText(interpolate(copy.titleWithThread, { threadTitle }), 65) : copy.title;
+      const fallback = eventKind === "edit" ? copy.edited : eventKind === "delete" ? copy.deleted
+        : eventKind === "resolved" ? copy.statusChanged : threadTitle ? copy.newMessage : copy.body;
+      return { ...payload, title, body: shortNotificationText(preview, 180) || fallback, metadata: withLocale };
+    }
 
     case "pka_schedule": {
       const { scheduleTitle, sessionAt } = payload.systemTemplate.params;
@@ -258,7 +277,7 @@ export function renderNotificationPayload(payload: NotificationPayload, locale: 
       const template = pushMessages.tutorScheduleMoved;
       return {
         ...payload,
-        title: template.title,
+        title: payload.systemTemplate.params.courseTitle ? shortNotificationText(interpolate(template.titleWithCourse, { courseTitle: payload.systemTemplate.params.courseTitle }), 65) : template.title,
         body: interpolate(template.body, payload.systemTemplate.params),
         metadata: withLocale,
       };
@@ -268,7 +287,7 @@ export function renderNotificationPayload(payload: NotificationPayload, locale: 
       const template = pushMessages.tutorTicketDecision;
       const typeLabel =
         payload.systemTemplate.params.ticketType === "reschedule"
-          ? "Reschedule"
+          ? locale === "id" ? "Perubahan jadwal" : "Reschedule"
           : locale === "id"
             ? "Pembatalan"
             : "Cancellation";
@@ -282,7 +301,7 @@ export function renderNotificationPayload(payload: NotificationPayload, locale: 
             : "declined";
       return {
         ...payload,
-        title: interpolate(template.title, { ticketType: typeLabel, decision: decisionLabel }),
+        title: shortNotificationText(interpolate(payload.systemTemplate.params.courseTitle ? template.titleWithCourse : template.title, { ticketType: typeLabel, decision: decisionLabel, courseTitle: payload.systemTemplate.params.courseTitle ?? "" }), 65),
         body: payload.systemTemplate.params.notes ?? interpolate(template.body, { ticketType: typeLabel }),
         metadata: withLocale,
       };
@@ -291,8 +310,8 @@ export function renderNotificationPayload(payload: NotificationPayload, locale: 
     case "tutor_ticket_message":
       return {
         ...payload,
-        title: pushMessages.tutorTicketMessage.title,
-        body: payload.systemTemplate.params.body,
+        title: payload.systemTemplate.params.courseTitle ? shortNotificationText(interpolate(pushMessages.tutorTicketMessage.titleWithCourse, { courseTitle: payload.systemTemplate.params.courseTitle }), 65) : pushMessages.tutorTicketMessage.title,
+        body: shortNotificationText([payload.systemTemplate.params.senderName, payload.systemTemplate.params.body].filter(Boolean).join(": "), 180),
         metadata: withLocale,
       };
 
@@ -301,7 +320,7 @@ export function renderNotificationPayload(payload: NotificationPayload, locale: 
       const text = pushMessages.quizPublished;
       return {
         ...payload,
-        title: text.title,
+        title: shortNotificationText(interpolate(text.title, { quizTitle, courseTitle }), 65),
         body: interpolate(text.body, { quizTitle, courseTitle }),
         metadata: withLocale,
       };
@@ -311,7 +330,7 @@ export function renderNotificationPayload(payload: NotificationPayload, locale: 
       const text = pushMessages.quizGraded;
       return {
         ...payload,
-        title: text.title,
+        title: shortNotificationText(interpolate(text.title, payload.systemTemplate.params), 65),
         body: interpolate(text.body, payload.systemTemplate.params),
         metadata: withLocale,
       };
@@ -322,7 +341,7 @@ export function renderNotificationPayload(payload: NotificationPayload, locale: 
       const { dueCount, courseTitle } = payload.systemTemplate.params;
       return {
         ...payload,
-        title: text.title,
+        title: shortNotificationText(interpolate(text.title, { dueCount }), 65),
         body: courseTitle
           ? interpolate(text.bodyWithCourse, { dueCount, courseTitle })
           : interpolate(text.body, { dueCount }),
@@ -334,7 +353,7 @@ export function renderNotificationPayload(payload: NotificationPayload, locale: 
       const text = pushMessages.paymentSuccess;
       return {
         ...payload,
-        title: text.title,
+        title: shortNotificationText(interpolate(text.title, payload.systemTemplate.params), 65),
         body: interpolate(text.body, payload.systemTemplate.params),
         metadata: withLocale,
       };
@@ -367,7 +386,7 @@ export function renderNotificationPayload(payload: NotificationPayload, locale: 
       const text = pushMessages.tutorBookingCreated;
       return {
         ...payload,
-        title: text.title,
+        title: shortNotificationText(interpolate(text.title, payload.systemTemplate.params), 65),
         body: interpolate(text.body, payload.systemTemplate.params),
         metadata: withLocale,
       };
@@ -377,7 +396,7 @@ export function renderNotificationPayload(payload: NotificationPayload, locale: 
       const text = pushMessages.tutorBookingMoved;
       return {
         ...payload,
-        title: text.title,
+        title: shortNotificationText(interpolate(text.title, payload.systemTemplate.params), 65),
         body: interpolate(text.body, payload.systemTemplate.params),
         metadata: withLocale,
       };
@@ -387,7 +406,7 @@ export function renderNotificationPayload(payload: NotificationPayload, locale: 
       const text = pushMessages.tutorBookingCancelled;
       return {
         ...payload,
-        title: text.title,
+        title: shortNotificationText(interpolate(text.title, payload.systemTemplate.params), 65),
         body: interpolate(text.body, payload.systemTemplate.params),
         metadata: withLocale,
       };
@@ -397,13 +416,13 @@ export function renderNotificationPayload(payload: NotificationPayload, locale: 
       const text = pushMessages.tutorTicketSubmitted;
       const typeLabel =
         payload.systemTemplate.params.ticketType === "reschedule"
-          ? "reschedule"
+          ? locale === "id" ? "perubahan jadwal" : "reschedule"
           : locale === "id"
             ? "pembatalan"
             : "cancellation";
       return {
         ...payload,
-        title: interpolate(text.title, { ticketType: typeLabel }),
+        title: shortNotificationText(interpolate(text.title, { ticketType: typeLabel, courseTitle: payload.systemTemplate.params.courseTitle }), 65),
         body: interpolate(text.body, {
           studentName: payload.systemTemplate.params.studentName,
           ticketType: typeLabel,
@@ -418,7 +437,7 @@ export function renderNotificationPayload(payload: NotificationPayload, locale: 
       const { window, courseTitle, sessionDate, startTime } = payload.systemTemplate.params;
       return {
         ...payload,
-        title: text.title,
+        title: shortNotificationText(interpolate(text.title, { courseTitle }), 65),
         body: interpolate(window === "24h" ? text.body24h : text.body1h, {
           courseTitle,
           sessionDate,
@@ -461,6 +480,9 @@ export function discussionPayload(input: {
   seq: number;
   messageId?: string | null;
   report?: boolean;
+  threadTitle?: string;
+  preview?: string;
+  eventKind?: string;
 }): NotificationPayload {
   const link = discussionNotificationLink(input.threadId, input.report, input.messageId ?? undefined);
   return {
@@ -474,7 +496,7 @@ export function discussionPayload(input: {
       seq: String(input.seq),
       ...(!input.report && input.messageId ? { messageId: input.messageId } : {}),
     },
-    systemTemplate: { key: "discussion", params: {} },
+    systemTemplate: { key: "discussion", params: input.report ? {} : { threadTitle: input.threadTitle, preview: input.preview, eventKind: input.eventKind } },
   };
 }
 
@@ -558,6 +580,7 @@ export function tutorScheduleMovedPayload(input: {
   sessionDate: string;
   startTime: string;
   endTime: string;
+  courseTitle?: string;
 }): NotificationPayload {
   return {
     title: "Jadwal Tutorial Diperbarui",
@@ -573,6 +596,7 @@ export function tutorTicketDecisionPayload(input: {
   ticketType: "reschedule" | "cancellation";
   decision: "approved" | "rejected";
   notes: string | null;
+  courseTitle?: string;
 }): NotificationPayload {
   return {
     title: "Pembaruan tiket jadwal",
@@ -584,14 +608,14 @@ export function tutorTicketDecisionPayload(input: {
   };
 }
 
-export function tutorTicketMessagePayload(body: string, link = "/dashboard/schedule"): NotificationPayload {
+export function tutorTicketMessagePayload(body: string, link = "/dashboard/schedule", context: { courseTitle?: string; senderName?: string } = {}): NotificationPayload {
   return {
     title: "Balasan baru pada diskusi jadwal",
     body,
     type: "tutor_reminder",
     link,
     metadata: { url: link },
-    systemTemplate: { key: "tutor_ticket_message", params: { body } },
+    systemTemplate: { key: "tutor_ticket_message", params: { body, ...context } },
   };
 }
 
@@ -604,7 +628,7 @@ export function tutorBookingCreatedPayload(input: {
 }): NotificationPayload {
   const link = "/tutor/schedule";
   return {
-    title: messages.id.push.tutorBookingCreated.title,
+    title: shortNotificationText(interpolate(messages.id.push.tutorBookingCreated.title, input), 65),
     body: interpolate(messages.id.push.tutorBookingCreated.body, input),
     type: "tutor_booking",
     link,
@@ -633,7 +657,7 @@ export function tutorBookingMovedPayload(input: {
 }): NotificationPayload {
   const link = "/tutor/schedule";
   return {
-    title: messages.id.push.tutorBookingMoved.title,
+    title: shortNotificationText(interpolate(messages.id.push.tutorBookingMoved.title, input), 65),
     body: interpolate(messages.id.push.tutorBookingMoved.body, input),
     type: "tutor_booking",
     link,
@@ -662,7 +686,7 @@ export function tutorBookingCancelledPayload(input: {
 }): NotificationPayload {
   const link = "/tutor/schedule";
   return {
-    title: messages.id.push.tutorBookingCancelled.title,
+    title: shortNotificationText(interpolate(messages.id.push.tutorBookingCancelled.title, input), 65),
     body: interpolate(messages.id.push.tutorBookingCancelled.body, input),
     type: "tutor_booking",
     link,
@@ -691,7 +715,7 @@ export function tutorTicketSubmittedPayload(input: {
   const link = "/tutor/schedule";
   const typeLabel = input.ticketType === "reschedule" ? "reschedule" : "pembatalan";
   return {
-    title: interpolate(messages.id.push.tutorTicketSubmitted.title, { ticketType: typeLabel }),
+    title: shortNotificationText(interpolate(messages.id.push.tutorTicketSubmitted.title, { ticketType: typeLabel, courseTitle: input.courseTitle }), 65),
     body: interpolate(messages.id.push.tutorTicketSubmitted.body, {
       studentName: input.studentName,
       ticketType: typeLabel,
@@ -725,7 +749,7 @@ export function upcomingSessionReminderPayload(input: {
   const link = input.audience === "tutor" ? "/tutor/schedule" : "/dashboard/schedule";
   const text = messages.id.push.upcomingSessionReminder;
   return {
-    title: text.title,
+    title: shortNotificationText(interpolate(text.title, { courseTitle: input.courseTitle }), 65),
     body: interpolate(input.window === "24h" ? text.body24h : text.body1h, {
       courseTitle: input.courseTitle,
       sessionDate: input.sessionDate,

@@ -20,20 +20,36 @@ export async function publisherProductReviewReadiness(row: NonNullable<Awaited<R
   return { reviewApproved, missingSections, missingSectionTargets };
 }
 
-export async function currentPublisherProductReadiness(importId: string, publisherId: string, options: { v4Verification?: Awaited<ReturnType<typeof getProductV4VerificationReadiness>> | null } = {}) {
-  const row = await getProductBundleImport(importId);
+type AdmittedReadContext = {
+  row: NonNullable<Awaited<ReturnType<typeof getProductBundleImport>>>;
+  bundle: Extract<ReturnType<typeof validateProductBundle>, { success: true }>["data"];
+};
+export type ProductReadSnapshot = { checksum: string; status: string; version: number; updatedAt: string };
+
+export async function currentPublisherProductReadiness(importId: string, publisherId: string, options: { v4Verification?: Awaited<ReturnType<typeof getProductV4VerificationReadiness>> | null; v4PdfVerification?: Awaited<ReturnType<typeof getProductV4VerificationReadiness>> | null; admittedContext?: AdmittedReadContext; expectedSnapshot?: ProductReadSnapshot } = {}) {
+  const row = options.admittedContext?.row ?? await getProductBundleImport(importId);
   if (!row) throw new Error("PRODUCT_BUNDLE_NOT_FOUND");
+  if (row.id !== importId || row.bundleType !== "product") throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
+  const expected = options.expectedSnapshot;
+  if (expected && (expected.checksum !== row.checksum || expected.status !== row.status || expected.version !== row.version || expected.updatedAt !== row.updatedAt.toISOString())) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
+  if (row.validationReport.valid !== true) throw new Error("PRODUCT_BUNDLE_ADMISSION_REQUIRED");
   const { parseStagedProductBundle } = await import("@/lib/bundle/product-staging");
-  const bundle = await parseStagedProductBundle(importId);
-  if (bundle.checksum !== row.checksum) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
+  const bundle = options.admittedContext?.bundle ?? await parseStagedProductBundle(importId, row);
+  if (bundle.checksum !== row.checksum || bundle.manifest.bundleId !== row.bundleId || bundle.manifest.schemaVersion !== `product-bundle.v${row.version}`) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
   let verification = options.v4Verification;
+  let pdfVerification = options.v4PdfVerification;
   if (row.version === 4 && verification === undefined) {
     const ref = row.validationReport.productV4Verification as { runId?: string } | undefined;
     verification = ref?.runId ? await (await import("./product-v4-verification-service")).getProductV4VerificationReadiness(importId, ref.runId).catch(() => null) : null;
   }
   if (row.version === 4 && verification) {
     const ref = row.validationReport.productV4Verification as { runId?: unknown; planHash?: unknown; attemptId?: unknown; stagingAuditId?: unknown } | undefined;
-    if (ref?.runId !== verification.plan.binding.runId || ref.planHash !== verification.plan.planHash || ref.stagingAuditId !== verification.stagingAuditId || !("attemptId" in verification) || ref.attemptId !== verification.attemptId) verification = null;
+    if (verification.plan.binding.purpose !== "logic" || verification.plan.binding.importId !== importId || ref?.runId !== verification.plan.binding.runId || ref.planHash !== verification.plan.planHash || ref.stagingAuditId !== verification.stagingAuditId || !("attemptId" in verification) || ref.attemptId !== verification.attemptId) verification = null;
+  }
+  if (row.version === 4 && bundle.products.some(product => product.productType === "diktat")) {
+    const ref = row.validationReport.productV4PdfGeneration as { runId?: string; planHash?: unknown; attemptId?: unknown; stagingAuditId?: unknown } | undefined;
+    if (pdfVerification === undefined) pdfVerification = ref?.runId ? await (await import("./product-v4-verification-service")).getProductV4VerificationReadiness(importId, ref.runId, "pdf").catch(() => null) : null;
+    if (pdfVerification && (pdfVerification.plan.binding.purpose !== "pdf" || pdfVerification.plan.binding.importId !== importId || ref?.runId !== pdfVerification.plan.binding.runId || ref.planHash !== pdfVerification.plan.planHash || ref.stagingAuditId !== pdfVerification.stagingAuditId || !("attemptId" in pdfVerification) || ref.attemptId !== pdfVerification.attemptId)) pdfVerification = null;
   }
   const legacyPdf = row.version === 2 || row.version === 3 ? await db.transaction(async tx => {
     const [locked] = await tx.select().from(imporBundle).where(eq(imporBundle.id, importId)).limit(1).for("update");
@@ -42,7 +58,7 @@ export async function currentPublisherProductReadiness(importId: string, publish
     const pendingPdfRequests = await listProcessingLegacyPdfRequests({ importId, expectedRevision: row.checksum, connection: tx });
     return { pdfEvidence: pdfEvidence as unknown as PdfArtifactEvidence[], pendingPdfRequests };
   }) : {};
-  const quality = await evaluateProductBundleQualityPolicy({ bundle }, { imporBundleId: importId, publisherId, v4Verification: verification ?? null, ...legacyPdf });
+  const quality = await evaluateProductBundleQualityPolicy({ bundle }, { imporBundleId: importId, publisherId, v4Verification: verification ?? null, v4PdfVerification: pdfVerification ?? null, ...legacyPdf });
   const publisher = await publisherProductReviewReadiness(row, bundle, publisherId);
   const issues = [...quality.issues];
   if (row.version === 4) {
@@ -62,9 +78,9 @@ export async function currentPublisherProductReadiness(importId: string, publish
   if (row.version === 4) await db.transaction(async tx => {
     const [locked] = await tx.select().from(imporBundle).where(eq(imporBundle.id, importId)).limit(1).for("update");
     if (!locked || locked.checksum !== row.checksum || locked.sourceUriOrKey !== row.sourceUriOrKey || locked.version !== row.version || locked.status !== row.status || deterministicProductSerialization(locked.validationReport) !== deterministicProductSerialization(row.validationReport)) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
-    if (verification) {
+    if (verification || pdfVerification) {
       const staging = await latestProductV4StagingAudit(tx, importId);
-      if (staging?.id !== verification.stagingAuditId || staging.correlationId !== verification.plan.binding.runId || staging.afterSnapshot?.checksum !== row.checksum) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
+      for (const current of [verification, pdfVerification]) if (current && (staging?.id !== current.stagingAuditId || staging.correlationId !== current.plan.binding.runId || staging.afterSnapshot?.checksum !== row.checksum)) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
     }
   });
   return { ...quality, ...publisher, ...(!bundle.products.some(product => product.productType === "article") && row.version !== 4 && row.version !== 5 ? { reviewStatus: publisher.reviewApproved ? "approved" : "missing" } : {}), ...(issues.some(issue => issue.code === "PDF_REQUEST_PROCESSING" || issue.code === "PDF_EVIDENCE_PENDING") ? { pdfEvidenceStatus: "pending" as const } : {}), evaluatedAt: new Date().toISOString(), issues, blockingIssueCodes: issues.filter(issue => issue.severity === "blocking").map(issue => issue.code), publicationReady: quality.publicationReady && !issues.some(issue => issue.severity === "blocking") };

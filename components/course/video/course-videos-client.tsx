@@ -60,7 +60,7 @@ import {
   type VideoItem,
   type VideoPlaylistItem,
 } from "@/app/actions/video-actions";
-import { VideoPlayerModal } from "./video-player-modal";
+import { VideoPlayerModal, preloadVideoPlayer } from "./video-player-modal";
 import { getYouTubeThumbnailUrl } from "@/lib/video/youtube";
 import { cn } from "@/lib/utils";
 import { courseListRowClass } from "@/components/course/course-surfaces";
@@ -508,6 +508,8 @@ export function CourseVideosClient({
                             className={canManage
                               ? "group -mx-2.5 flex cursor-pointer items-center justify-between gap-(--compact-gap) rounded-lg px-2.5 py-(--row-padding) transition-colors hover:bg-muted/40"
                               : courseListRowClass("-mx-2.5 cursor-pointer items-center px-2.5")}
+                            onMouseEnter={!isLocked ? preloadVideoPlayer : undefined}
+                            onFocus={!isLocked ? preloadVideoPlayer : undefined}
                             onClick={() => handlePlayVideo(video, playlist)}
                           >
                             <div className="flex min-w-0 flex-1 items-center gap-3">

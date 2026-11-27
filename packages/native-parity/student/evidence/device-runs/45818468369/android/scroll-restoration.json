@@ -1,0 +1,16 @@
+{
+  "status": "pass",
+  "region": [
+    38,
+    205,
+    342,
+    615
+  ],
+  "dimensions": [
+    380,
+    820
+  ],
+  "different_pixels": 0,
+  "before": "results/2026-11-26_124659/Student course long material list fixture/takeScreenshot/student-long-content.png",
+  "after": "results/2026-11-26_124659/Student course long material list fixture/takeScreenshot/student-long-content-restored.png"
+}

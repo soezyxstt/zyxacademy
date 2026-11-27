@@ -1,0 +1,15 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+  <testsuite name="Test Suite" device="test" tests="8" failures="1" time="175.857" timestamp="2026-11-26T17:17:23">
+    <testcase id="Operations Admin home to Web Analytics and access denial" name="Operations Admin home to Web Analytics and access denial" classname="Operations Admin home to Web Analytics and access denial" file="/tmp/tmp.dV5bi50HHE/operations/admin-analytics.yaml" time="3.166" timestamp="2026-11-26T17:17:23" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="Operations question Idea weights and draft revision" name="Operations question Idea weights and draft revision" classname="Operations question Idea weights and draft revision" file="/tmp/tmp.dV5bi50HHE/operations/evaluation-ideas.yaml" time="39.15" timestamp="2026-11-26T17:17:26" status="SUCCESS"/>
+    <testcase id="Operations evaluation question and generation recovery" name="Operations evaluation question and generation recovery" classname="Operations evaluation question and generation recovery" file="/tmp/tmp.dV5bi50HHE/operations/evaluation.yaml" time="12.786" timestamp="2026-11-26T17:18:05" status="SUCCESS"/>
+    <testcase id="Operations admin authoring, recovery and confirmation" name="Operations admin authoring, recovery and confirmation" classname="Operations admin authoring, recovery and confirmation" file="/tmp/tmp.dV5bi50HHE/operations/management.yaml" time="21.863" timestamp="2026-11-26T17:18:18" status="SUCCESS"/>
+    <testcase id="Operations short link copy and QR" name="Operations short link copy and QR" classname="Operations short link copy and QR" file="/tmp/tmp.dV5bi50HHE/operations/monitoring-short-links.yaml" time="11.318" timestamp="2026-11-26T17:18:40" status="SUCCESS"/>
+    <testcase id="Operations public blog list, detail, Back and retry" name="Operations public blog list, detail, Back and retry" classname="Operations public blog list, detail, Back and retry" file="/tmp/tmp.dV5bi50HHE/operations/public-blog.yaml" time="14.226" timestamp="2026-11-26T17:18:51" status="SUCCESS"/>
+    <testcase id="Operations public demo completion, study planning and tryout list" name="Operations public demo completion, study planning and tryout list" classname="Operations public demo completion, study planning and tryout list" file="/tmp/tmp.dV5bi50HHE/operations/public-demo-learning.yaml" time="32.054" timestamp="2026-11-26T17:19:05" status="SUCCESS"/>
+    <testcase id="Operations public homepage learning interactions" name="Operations public homepage learning interactions" classname="Operations public homepage learning interactions" file="/tmp/tmp.dV5bi50HHE/operations/public-landing-learning.yaml" time="41.23" timestamp="2026-11-26T17:19:37" status="SUCCESS"/>
+  </testsuite>
+</testsuites>

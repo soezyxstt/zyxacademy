@@ -1,4 +1,5 @@
 import { db } from "@/db";
+import { recordOfflineChange } from "@/lib/offline/server-events";
 import {
   courses,
   chapters,
@@ -119,33 +120,36 @@ export async function executeCreateCourse(input: CreateCourseInput, actorId?: st
     throw new Error("Kategori mata kuliah tidak boleh kosong.");
   }
 
-  const matchedCategory = (allowedCategories as readonly string[]).find(
+  const matchedCategory = allowedCategories.find(
     (c) => c.toLowerCase() === cleanCategory.toLowerCase()
   ) || "Umum";
 
-  try {
+  if (matchedCategory === "Umum") {
+    await db.transaction(async tx => {
+      await tx.insert(courses).values({
+        id: cleanId,
+        title: cleanTitle,
+        category: matchedCategory as Category,
+        description: cleanDesc,
+      });
+      await tx.insert(mataKuliah).values({
+        id: cleanId,
+        code: `legacy-${cleanId}`,
+        title: cleanTitle,
+        status: "active",
+        legacyCourseId: cleanId,
+      }).onConflictDoNothing();
+      await recordOfflineChange(tx, { kind: "course", courseId: cleanId, action: "upsert" });
+    });
+  } else {
     await saveCourseWithCanonicalProjection({
       id: cleanId,
       title: cleanTitle,
-      category: matchedCategory as Category,
+      category: matchedCategory,
       description: cleanDesc,
       isNew: true,
       actorId: await resolvePenggunaActorId(actorId),
     });
-  } catch {
-    await db.insert(courses).values({
-      id: cleanId,
-      title: cleanTitle,
-      category: matchedCategory as Category,
-      description: cleanDesc,
-    });
-    await db.insert(mataKuliah).values({
-      id: cleanId,
-      code: `legacy-${cleanId}`,
-      title: cleanTitle,
-      status: "active",
-      legacyCourseId: cleanId,
-    }).onConflictDoNothing();
   }
 
   return {
@@ -175,7 +179,7 @@ export async function executeUpdateCourse(input: UpdateCourseInput, actorId?: st
   const updatedCategory = input.category?.trim() || existing?.category || "Umum";
   const updatedDesc = input.description !== undefined ? input.description.trim() : (existing?.description || null);
 
-  const matchedCategory = (allowedCategories as readonly string[]).find(
+  const matchedCategory = allowedCategories.find(
     (c) => c.toLowerCase() === updatedCategory.toLowerCase()
   ) || "Umum";
 

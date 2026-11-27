@@ -15,7 +15,7 @@ const schema = {
  discussionNotificationDeliveries: table("work", ["eventId", "userId", "staffOnly", "attempts", "retryAt"]),
  discussionChannelPreferences: table("preference", ["userId", "channelId"]), discussionThreadReads: table("read", ["userId", "threadId"]),
  discussionMessageObservations: table("observation", ["messageId", "userId", "revision"]),
- accountLocalePreferences: table("locale", ["userId"]), notifications: table("notification", ["id", "userId"]),
+ activityNotificationPreferences: table("activity", ["userId"]), accountLocalePreferences: table("locale", ["userId"]), notifications: table("notification", ["id", "userId"]),
  discussionChannels: table("channel", ["id"]), discussionMessages: table("message", ["id", "threadId", "seq"]),
  pengguna: table("pengguna", []), penggunaPeran: table("penggunaPeran", []), peran: table("peran", []),
 };
@@ -29,7 +29,7 @@ const orm = {
  sql: () => ({}),
 };
 
-function harness(failure: { access?: string; inbox?: string }, options: { participants?: Row[]; denied?: string[]; preferences?: Row[]; reads?: Row[]; observations?: Row[]; message?: Row } = {}) {
+function harness(failure: { access?: string; inbox?: string }, options: { participants?: Row[]; activity?: Row[]; denied?: string[]; preferences?: Row[]; reads?: Row[]; observations?: Row[]; message?: Row } = {}) {
  const work = new Map<string, Row>(), inbox = new Map<string, Row>();
  let queries = 0;
  const key = (row: Row) => `${row.eventId}:${row.userId}`;
@@ -44,11 +44,11 @@ function harness(failure: { access?: string; inbox?: string }, options: { partic
     then: (resolve: (rows: Row[]) => unknown) => {
      queries++;
      const rows = source.name === "thread" && joined ? [{ channel: { id: "channel", kind: "global" }, thread: { id: "thread", authorId: "owner" } }]
-      : source.name === "event" || source.name === "thread" ? [{ id: source.name }]
+      : source.name === "event" || source.name === "thread" ? [{ id: source.name, authorId: "owner", title: "Question" }]
       : source.name === "message" ? [options.message ?? { id: "message", threadId: "thread", seq: 6, kind: "human", authorId: "actor", mentionIds: [] }]
-      : source.name === "participant" ? options.participants ?? [] : source.name === "preference" ? options.preferences ?? []
+      : source.name === "participant" ? options.participants ?? ["owner", "actor", ...Array.from({length: 550}, (_, i) => `member-${String(i).padStart(3, "0")}`), ...Array.from({length: 550}, (_, i) => `member-${i}`)].map(userId => ({threadId: "thread", userId, firstSeq: 1})) : source.name === "activity" ? options.activity ?? [] : source.name === "preference" ? options.preferences ?? []
       : source.name === "read" ? options.reads ?? [] : source.name === "observation" ? options.observations ?? [] : [];
-     return Promise.resolve(resolve((["participant", "preference", "read", "observation"].includes(source.name) ? rows.filter(row => !condition || condition(row)) : rows).slice(0, limit)));
+     return Promise.resolve(resolve((["participant", "preference", "read", "observation", "activity"].includes(source.name) ? rows.filter(row => !condition || condition(row)) : rows).slice(0, limit)));
     },
    };
    return query;
@@ -147,9 +147,9 @@ test("batch delivery uses a constant number of fake queries per 100 recipients",
  const ids = Array.from({ length: 500 }, (_, i) => `member-${i}`);
  await queue(event, ids.slice(0, 100), false, 1000, "actor");
  const hundred = queries();
- expect(hundred).toBe(12);
+ expect(hundred).toBe(14);
  for (let i = 100; i < ids.length; i += 100) await queue(event, ids.slice(i, i + 100), false, 1000, "actor");
- expect(queries()).toBe(60);
+ expect(queries()).toBe(70);
 });
 
 test("a non-owner Zyra invoker remains eligible while a human sender is excluded", async () => {
@@ -214,4 +214,11 @@ test("status notifications respect the observed status revision at the serialize
  await process({ ...event, kind: "resolved", messageId: null, statusRevision: 2, participantThroughSeq: 6,
   recipientCursor: JSON.stringify({ phase: "participants", after: null }) });
  expect([...inbox.values()].map(row => row.userId)).toEqual(["unseen"]);
+});
+
+test("global discussion preference suppresses an otherwise eligible participant", async () => {
+ const participants = [{threadId: "thread", userId: "opted-out", firstSeq: 1}, {threadId: "thread", userId: "eligible", firstSeq: 1}];
+ const { process, inbox } = harness({}, { participants, activity: [{userId: "opted-out", discussionsEnabled: false}] });
+ await process({ ...event, participantThroughSeq: 6, recipientCursor: JSON.stringify({ phase: "participants", after: null }) });
+ expect([...inbox.values()].map(row => row.userId)).toEqual(["eligible"]);
 });

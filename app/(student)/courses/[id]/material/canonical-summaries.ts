@@ -4,7 +4,7 @@ import { findCanonicalMataKuliah } from "@/lib/course-utils";
 import { and, eq, inArray } from "drizzle-orm";
 
 // The catalogue needs identifiers and reading estimates, not article bodies or blocks.
-export async function getMaterialArticleSummaries(courseId: string, userId: string) {
+export async function getMaterialArticleSummaries(courseId: string, userId: string, materialId?: string) {
   try {
     const normalizedCourseId = courseId.trim();
     if (!normalizedCourseId) return [];
@@ -20,6 +20,7 @@ export async function getMaterialArticleSummaries(courseId: string, userId: stri
     }).from(artikel).where(and(
       inArray(artikel.mataKuliahId, validCourseIds),
       eq(artikel.status, "published"),
+      materialId ? eq(artikel.id, materialId) : undefined,
     ));
     if (articles.length === 0) return [];
 

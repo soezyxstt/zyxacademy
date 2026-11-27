@@ -1,0 +1,15 @@
+export const assessmentEvidence = {
+  course: "assessment-evidence-mathematics",
+  courseTitle: "Kalkulus dasar",
+  quizTitle: "Latihan limit fungsi",
+  quiz: "assessment-evidence-limit-quiz",
+  active: "assessment-evidence-quiz-active",
+  finished: "assessment-evidence-quiz-finished",
+  tryoutTitle: "Tryout turunan dan penerapannya untuk sains dan rekayasa",
+  tryout: "assessment-evidence-tryout",
+  submission: "assessment-evidence-tryout-submitted",
+  solution: "assessment-evidence-solutions",
+  solutionTitle: "Pembahasan soal pilihan",
+  dates: { submitted: "2026-11-26T02:00:00.000Z" },
+  accounts: ["assessment-enrolled", "assessment-unenrolled"] as const,
+};

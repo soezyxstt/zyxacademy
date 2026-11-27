@@ -2,15 +2,17 @@ import { findUnmarkedScientificProse } from "@/lib/math/unmarked-scientific";
 import { z } from "zod";
 import type { ProductV4VerificationPorts } from "@/lib/bundle/product-v4-verification-core";
 import type { ProductV4ObservedCheck } from "@/lib/bundle/product-v4-verification";
-import { loadProductV4StaticFigureAssets, loadProductV4InteractiveDocumentAssets, readProductV4ExecutorRuntime, assertProductV4RuntimeFingerprint } from "./product-v4-runtime-binding";
+import { loadProductV4StaticFigureAssets, loadProductV4InteractiveDocumentAssets, readProductV4ExecutorRuntime, assertProductV4RuntimeFingerprint, readProductV4LogicExecutorRuntime, assertProductV4LogicRuntimeFingerprint } from "./product-v4-runtime-binding";
 import { encodeProductV4DocumentWire } from "./product-v4-document-wire";
 import { articlePartsSchema, validateArticlePartReferences } from "@/lib/materials/article-parts";
 import { visualSpecSchema } from "@/lib/materials/visual-contract";
 import { deriveEpsilonDelta } from "@/lib/materials/epsilon-delta";
+import { validateCanvasSpec } from "@/lib/zyra/canvas/validator";
 import { validateAuthoredDiktat } from "@/lib/materials/diktat-v4";
 import { compileArticleProduct } from "@/lib/materials/compiler";
 import { runVerificationBrowserOperation } from "./product-v4-browser-session";
 import { isHostedComputeRuntime } from "./runtime";
+import { logProductV4BrowserStart } from "./product-v4-diagnostics";
 
 export { buildProductV4RuntimeBinding } from "./product-v4-runtime-binding";
 
@@ -29,12 +31,20 @@ const responseSchema = z.object({
 export const executeProductV4VerificationCheck = async (input: Parameters<ProductV4VerificationPorts["execute"]>[0], readDocumentAsset?: Parameters<typeof loadProductV4InteractiveDocumentAssets>[1], figurePorts?: Parameters<typeof loadProductV4StaticFigureAssets>[1]): Promise<ProductV4ObservedCheck> => {
   if (input.requirement.layer === "structure" || input.requirement.layer === "model") {
     const findings: string[] = [];
+    const untested: string[] = [];
     const observations: unknown[] = [];
     if (input.requirement.layer === "structure") {
       if (isHostedComputeRuntime()) {
-        const actual = await readProductV4ExecutorRuntime();
-        assertProductV4RuntimeFingerprint(input.plan.binding, actual);
-        observations.push({ executorRuntime: actual, host: "neon" });
+        const logic = (input.plan.binding.purpose ?? "logic") === "logic";
+        if (logic) {
+          const actual = await readProductV4LogicExecutorRuntime();
+          assertProductV4LogicRuntimeFingerprint(input.plan.binding, actual);
+          observations.push({ executorRuntime: actual, host: "neon" });
+        } else {
+          const actual = await readProductV4ExecutorRuntime();
+          assertProductV4RuntimeFingerprint(input.plan.binding, actual);
+          observations.push({ executorRuntime: actual, host: "neon" });
+        }
       }
       for (const product of input.bundle.products) {
         if (input.bundle.manifest.schemaVersion === "product-bundle.v4" || product.schemaVersion === "article.v4" || product.schemaVersion === "diktat.v4") findings.push(...findUnmarkedScientificProse(product).map((finding) => `UNMARKED_SCIENTIFIC_NOTATION:${product.id}:${finding.path}:${finding.notation}`));
@@ -58,7 +68,12 @@ export const executeProductV4VerificationCheck = async (input: Parameters<Produc
         for (const epsilon of [visual.defaultEpsilon * 0.1, visual.defaultEpsilon, visual.defaultEpsilon * 2.2]) {
           const bound = deriveEpsilonDelta(visual, epsilon);
           observations.push({ epsilon, bound, method: "conservative polynomial analytic bound with floating-point guards" });
+          if (bound.status !== "guaranteed") untested.push("EPSILON_DELTA_RESOLUTION_LIMITED");
         }
+      } else if (visual.kind === "learning_canvas") {
+        const checked = validateCanvasSpec(visual.canvas);
+        findings.push(...checked.reasonCodes.map(code => `LEARNING_CANVAS_${code}`));
+        observations.push({ kind: visual.kind, contract: "safe expressions, variables, controls and diagram references", semanticReview: "required separately" });
       } else if (visual.kind === "source_figure") {
         const assets = await loadProductV4StaticFigureAssets(input.bundle, figurePorts, true, readDocumentAsset);
         if (!assets[visual.assetId]) findings.push("SOURCE_FIGURE_NOT_VERIFIED");
@@ -66,9 +81,9 @@ export const executeProductV4VerificationCheck = async (input: Parameters<Produc
       } else if (visual.kind === "interactive_document") observations.push({ kind: visual.kind, contract: "document metadata only", scientificModel: "NOT_TESTED", semanticReview: "required separately" });
       else observations.push({ kind: visual.kind, contract: "bounded typed geometry, expressions and units", semanticReview: "required separately" });
     }
-    return { checkId: input.requirement.id, status: findings.length ? "FAIL" : "PASS", expected: input.requirement.state,
-      observed: findings.length ? "Reference or model constraints failed" : input.requirement.state === "document-metadata-only-scientific-review-required" ? "Document metadata passed; scientific model NOT_TESTED and requires separate review" : "Application structural and supported model constraints passed; semantic review remains separate",
-      artifacts: [{ id: `${input.requirement.id}.json`, mediaType: "application/json", bytes: new TextEncoder().encode(JSON.stringify({ findings, observations })) }] };
+    return { checkId: input.requirement.id, status: findings.length ? "FAIL" : untested.length ? "NOT_TESTED" : "PASS", expected: input.requirement.state,
+      observed: findings.length ? "Reference or model constraints failed" : untested.length ? "Numeric precision did not establish the requested model bound" : input.requirement.state === "document-metadata-only-scientific-review-required" ? "Document metadata passed; scientific model NOT_TESTED and requires separate review" : "Application structural and supported model constraints passed; semantic review remains separate",
+      artifacts: [{ id: `${input.requirement.id}.json`, mediaType: "application/json", bytes: new TextEncoder().encode(JSON.stringify({ findings, untested: [...new Set(untested)], observations })) }] };
   }
   if (isHostedComputeRuntime()) {
     const { executeBrowserProductV4Check, closeProductV4BrowserRunner } = await import("./product-v4-browser-runner");
@@ -76,6 +91,7 @@ export const executeProductV4VerificationCheck = async (input: Parameters<Produc
       const staticFigureAssets = await loadProductV4StaticFigureAssets(input.bundle, figurePorts, input.requirement.layer === "print", readDocumentAsset);
       const interactiveDocumentAssets = await loadProductV4InteractiveDocumentAssets(input, readDocumentAsset);
       signal.throwIfAborted();
+      logProductV4BrowserStart(input.plan.planHash, input.requirement.id);
       return executeBrowserProductV4Check({ ...input, signal, baseUrl: process.env.NEXT_PUBLIC_APP_URL ?? "", staticFigureAssets, interactiveDocumentAssets });
     }, closeProductV4BrowserRunner);
   }

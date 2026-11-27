@@ -1,7 +1,6 @@
 import { db } from "@/db";
 import { bookings } from "@/db/schema";
 import { and, eq, gte, lte } from "drizzle-orm";
-import { createGoogleMeetSpace } from "@/lib/google-meet";
 import {
   INDONESIAN_DAYS,
   type IndonesianDay,
@@ -172,40 +171,11 @@ export function computeWeeklySessionStats(
  */
 export async function ensureGoogleMeetForBooking(bookingId: string): Promise<string | null> {
   try {
-    const booking = await db.query.bookings.findFirst({
-      where: eq(bookings.id, bookingId),
-    });
-
-    if (!booking) return null;
-    if (booking.mode !== "online") return null;
-
-    if (booking.googleMeetUrl) {
-      return booking.googleMeetUrl;
-    }
-
-    // Generate Meet space
-    const space = await createGoogleMeetSpace({
-      moderation: "ON",
-      accessType: "OPEN",
-    });
-
-    const meetUrl = space.meetingUri;
-    const spaceName = space.name;
-
-    await db
-      .update(bookings)
-      .set({
-        googleMeetUrl: meetUrl,
-        googleMeetSpaceName: spaceName,
-      })
-      .where(eq(bookings.id, bookingId));
-
-    const { triggerGoogleCalendarSyncForBookingId } = await import("@/lib/google-calendar/trigger");
-    await triggerGoogleCalendarSyncForBookingId(bookingId);
-
-    return meetUrl;
-  } catch (err) {
-    console.error("Failed to generate Google Meet for booking:", bookingId, err);
+    const { provisionBookingMeet } = await import("@/lib/schedule/booking-meet");
+    const result = await provisionBookingMeet(bookingId);
+    return result.url ?? null;
+  } catch {
+    console.error("Google Meet provisioning unavailable for booking:", bookingId);
     return null;
   }
 }

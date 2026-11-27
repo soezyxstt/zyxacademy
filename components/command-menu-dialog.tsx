@@ -11,6 +11,7 @@ import { useRouter } from "nextjs-toploader/app";
 import { Command } from "cmdk";
 import { Dialog } from "radix-ui";
 import { Dialog as DialogRoot } from "@/components/ui/dialog";
+import { useOnboardingTour } from "@/components/onboarding/tour-context";
 import { closeDialogsThen } from "@/hooks/use-dialog-history";
 import { closeMobileSidebar } from "@/lib/sidebar-overlay";
 import {
@@ -428,6 +429,7 @@ export function CommandMenuDialog(props: CommandMenuDialogProps) {
   return <StudentAccountBoundary>{account => <CommandMenuDialogContent {...props} account={account} />}</StudentAccountBoundary>;
 }
 function CommandMenuDialogContent({ open, initialQuery = "", onOpenChange, onSelectStudent, studentSurface, account }: CommandMenuDialogProps & { account: StudentAccountState }) {
+  const tour = useOnboardingTour();
   const router = useRouter();
   const t = useTranslations("search");
   const { locale } = useAppLocale();
@@ -785,6 +787,7 @@ function CommandMenuDialogContent({ open, initialQuery = "", onOpenChange, onSel
   return (
     <DialogRoot
       open={open}
+      modal={!tour.active}
       onOpenChange={(next) => {
         onOpenChange(next);
         if (!next) {
@@ -807,6 +810,7 @@ function CommandMenuDialogContent({ open, initialQuery = "", onOpenChange, onSel
         <div className="pointer-events-none fixed inset-0 z-[201] flex items-start justify-center overflow-y-auto p-3 pt-[6vh] sm:p-4 sm:pt-[11vh]">
           <Dialog.Content
             aria-label={t("dialogLabel")}
+            onInteractOutside={event => { if (tour.active) event.preventDefault(); }}
             className={cn(
               "pointer-events-auto relative w-full max-w-xl overflow-hidden rounded-2xl border border-border/80 bg-popover/98 text-popover-foreground shadow-2xl backdrop-blur-xl outline-none",
               "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
@@ -893,12 +897,14 @@ function CommandMenuDialogContent({ open, initialQuery = "", onOpenChange, onSel
                   esc
                 </kbd>
 
-                {/* Mobile close button when query is empty */}
-                {search.length === 0 ? (
+                {/* Keep a visible close target while the guided tour owns focus. */}
+                {search.length === 0 || tour.active ? (
                   <Dialog.Close asChild>
                     <button
                       type="button"
-                      className="relative flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:hidden after:absolute after:-inset-1 after:content-['']"
+                      data-tour="search-close"
+                      onKeyDown={event => { if (tour.active && (event.key === "Enter" || event.key === " ")) event.stopPropagation(); }}
+                      className={cn("relative flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground after:absolute after:-inset-1 after:content-['']", !tour.active && "sm:hidden")}
                       aria-label={t("close")}
                     >
                       <X className="size-4" aria-hidden="true" />

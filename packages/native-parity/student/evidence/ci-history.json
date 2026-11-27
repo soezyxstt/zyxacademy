@@ -1,0 +1,1091 @@
+{
+  "runs": [
+    {
+      "runId": 45801396810,
+      "sourceHead": "e6c4cf311f8bf5a7833605bc09345fc5c5bf5e75",
+      "url": "https://github.com/soezyxstt/zyxacademy/actions/runs/45801396810",
+      "observedAt": "2026-11-26T11:01:00Z",
+      "web": {
+        "jobId": 139845230163,
+        "status": "failed",
+        "reason": "Catalog TPB filter assertion failed before all requested web captures. Later local fixture captures have separate provenance."
+      },
+      "android": {
+        "jobId": 139845961701,
+        "status": "build_failed_before_device_flows",
+        "reason": "Metro could not resolve react-native/asset-registry for public/founders/adi.jpeg.",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45801396810/artifacts/15107438037"
+      },
+      "ios": {
+        "jobId": 139845961719,
+        "status": "build_failed_before_device_flows",
+        "reason": "Expo could not open the missing ~/.expo/devicectl-exists path.",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45801396810/artifacts/15108093130"
+      }
+    },
+    {
+      "runId": 45803927675,
+      "sourceHead": "81bb06096f64e858cfc17241661397536c591490",
+      "checkoutSha": "a861cea39330e6cd47fce7197fc758171094aea7",
+      "url": "https://github.com/soezyxstt/zyxacademy/actions/runs/45803927675",
+      "observedAt": "2026-11-26T11:01:00Z",
+      "web": {
+        "jobId": 139854635103,
+        "status": "passed",
+        "details": "Six Playwright tests passed: catalog, calendar, quiz player, and light/dark assessment references. Catalog captures were also generated.",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45803927675/artifacts/15108313389"
+      },
+      "android": {
+        "jobId": 139855852676,
+        "status": "in_progress_at_observation"
+      },
+      "ios": {
+        "jobId": 139855852683,
+        "status": "queued_at_observation"
+      },
+      "laterObservations": [
+        {
+          "observedAt": "2026-11-26T11:12:53Z",
+          "ios": {
+            "jobId": 139855852683,
+            "status": "build_failed_before_device_flows",
+            "reason": "Expo ENOENT ~/.expo/devicectl-exists; source predates the setup fix.",
+            "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45803927675/artifacts/15110427607",
+            "summaryCounts": {
+              "not_run": 125,
+              "blocked": 66
+            }
+          }
+        },
+        {
+          "observedAt": "2026-11-26T11:20:00Z",
+          "android": {
+            "jobId": 139855852676,
+            "status": "device_flows_completed_with_failures",
+            "reason": "Emulator booted and Maestro ran. Three generated smoke cases and nine of 18 standalone scenarios failed. Three catalog image pairs were comparable and had pixel differences.",
+            "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45803927675/artifacts/15111830132",
+            "summaryCounts": {
+              "passed": 122,
+              "blocked": 66,
+              "failed": 3
+            },
+            "standaloneCounts": {
+              "passed": 9,
+              "failed": 9
+            },
+            "comparison": [
+              {
+                "id": "catalog-all",
+                "status": "different",
+                "differing_pixels": 49116,
+                "max_channel_difference": 236
+              },
+              {
+                "id": "catalog-tpb",
+                "status": "different",
+                "differing_pixels": 41892,
+                "max_channel_difference": 236
+              },
+              {
+                "id": "catalog-pka",
+                "status": "different",
+                "differing_pixels": 25560,
+                "max_channel_difference": 226
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "runId": 45806783256,
+      "sourceHead": "68d7ab400177773341ee46e4d425c4383ccc6261",
+      "checkoutSha": "32d3f391b2db18563ddb64e1b6c04b21ccfcdf4e",
+      "url": "https://github.com/soezyxstt/zyxacademy/actions/runs/45806783256",
+      "observedAt": "2026-11-26T11:18:00Z",
+      "web": {
+        "jobId": 139864019353,
+        "status": "passed",
+        "details": "Web workflow capture step passed, including the synthetic Student references.",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45806783256/artifacts/15109487601"
+      },
+      "android": {
+        "jobId": 139865143280,
+        "status": "emulator_setup_failed_before_device_flows",
+        "reason": "Android release APK built. AVD creation failed because avdmanager could not read hardware-properties.ini; no emulator or Maestro flow launched.",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45806783256/artifacts/15109409435",
+        "summaryCounts": {
+          "not_run": 200,
+          "blocked": 3
+        }
+      },
+      "ios": {
+        "jobId": 139865143324,
+        "status": "in_progress_at_observation"
+      },
+      "laterObservations": [
+        {
+          "observedAt": "2026-11-26T13:50:15Z",
+          "ios": {
+            "jobId": 139865143324,
+            "status": "device_flows_cancelled_with_failures",
+            "reason": "Maestro produced failure diagnostics on iPhone 17 Pro. An iOS system dialog requesting permission to open Zyx Academy Native appeared on the route-entry screen. All 18 standalone scenarios failed, and all 20 generated cases with a JUnit result failed while waiting for separator. The combined step was cancelled 150 minutes after the job started, and the upload published partial evidence.",
+            "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45806783256/artifacts/15121444766",
+            "summaryCounts": {
+              "not_run": 180,
+              "blocked": 3,
+              "failed": 20
+            },
+            "standaloneCounts": {
+              "failed": 18
+            },
+            "diagnosticCounts": {
+              "rawPngs": 113,
+              "namedProductCaptures": 0,
+              "retainedFailurePngs": 4,
+              "standalonePromptHierarchies": 18,
+              "generatedPromptHierarchies": 95
+            },
+            "comparison": [
+              {
+                "id": "catalog-all",
+                "status": "missing",
+                "reason": "One or both capture files are absent or ambiguous."
+              },
+              {
+                "id": "catalog-tpb",
+                "status": "missing",
+                "reason": "One or both capture files are absent or ambiguous."
+              },
+              {
+                "id": "catalog-pka",
+                "status": "missing",
+                "reason": "One or both capture files are absent or ambiguous."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "runId": 45808632131,
+      "sourceHead": "544c89bec726ad57dad40fa7c3eebe0345572f84",
+      "checkoutSha": "aa22667ee62edf84c1aa815da4990362c9390ea7",
+      "url": "https://github.com/soezyxstt/zyxacademy/actions/runs/45808632131",
+      "observedAt": "2026-11-26T11:55:39Z",
+      "web": {
+        "jobId": 139870362645,
+        "status": "passed",
+        "details": "Web workflow captured synthetic Student references.",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45808632131/artifacts/15110617721"
+      },
+      "android": {
+        "jobId": 139871605261,
+        "status": "in_progress_at_observation",
+        "details": "The Android release built and the emulator step was still running."
+      },
+      "ios": {
+        "jobId": 139871605360,
+        "status": "cancelled_before_device_flows"
+      },
+      "laterObservations": [
+        {
+          "observedAt": "2026-11-26T12:04:00Z",
+          "android": {
+            "jobId": 139871605261,
+            "status": "device_flows_completed_with_failures",
+            "reason": "Maestro recorded six smoke assertion failures and 21 failures caused by an ADB transport interruption. The three catalog pairs had pixel differences, and the material scroll-restoration capture was missing.",
+            "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45808632131/artifacts/15115222022",
+            "summaryCounts": {
+              "passed": 173,
+              "blocked": 3,
+              "failed": 27
+            },
+            "standaloneCounts": {
+              "passed": 9,
+              "failed": 9
+            },
+            "comparison": [
+              {
+                "id": "catalog-all",
+                "status": "different",
+                "differing_pixels": 49115,
+                "max_channel_difference": 236
+              },
+              {
+                "id": "catalog-tpb",
+                "status": "different",
+                "differing_pixels": 41892,
+                "max_channel_difference": 236
+              },
+              {
+                "id": "catalog-pka",
+                "status": "different",
+                "differing_pixels": 25560,
+                "max_channel_difference": 226
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "runId": 45814465447,
+      "sourceHead": "17c0b80ae892779e72e37701d89629255aec4cfe",
+      "checkoutSha": "15ba8024dbc25385fc54050e439187e1e3f1963b",
+      "url": "https://github.com/soezyxstt/zyxacademy/actions/runs/45814465447",
+      "observedAt": "2026-11-26T11:55:39Z",
+      "web": {
+        "jobId": 139890472684,
+        "status": "passed",
+        "details": "Web workflow captured synthetic Student references.",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45814465447/artifacts/15114936296"
+      },
+      "android": {
+        "jobId": 139891824953,
+        "status": "pending_at_observation"
+      },
+      "ios": {
+        "jobId": 139891825357,
+        "status": "pending_at_observation"
+      },
+      "laterObservations": [
+        {
+          "observedAt": "2026-11-26T12:36:38Z",
+          "android": {
+            "jobId": 139891824953,
+            "status": "device_flows_completed_with_failures",
+            "reason": "Maestro reported 199 captured smoke passes, one preference confirmation assertion failure and three blocked cases. Fifteen of 18 standalone scenarios passed. Restoring the long material list passed the bounded pixel check, and all three matched catalog images differed from web.",
+            "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45814465447/artifacts/15117816864",
+            "summaryCounts": {
+              "passed": 199,
+              "blocked": 3,
+              "failed": 1
+            },
+            "standaloneCounts": {
+              "passed": 15,
+              "failed": 3
+            },
+            "comparison": [
+              {
+                "id": "catalog-all",
+                "status": "different",
+                "differing_pixels": 53263,
+                "max_channel_difference": 227
+              },
+              {
+                "id": "catalog-tpb",
+                "status": "different",
+                "differing_pixels": 45212,
+                "max_channel_difference": 227
+              },
+              {
+                "id": "catalog-pka",
+                "status": "different",
+                "differing_pixels": 28345,
+                "max_channel_difference": 227
+              }
+            ],
+            "scrollRestoration": {
+              "status": "pass",
+              "region": [
+                38,
+                205,
+                342,
+                615
+              ],
+              "dimensions": [
+                380,
+                820
+              ],
+              "different_pixels": 0,
+              "before": "results/2026-11-26_121622/Student course long material list fixture/takeScreenshot/student-long-content.png",
+              "after": "results/2026-11-26_121622/Student course long material list fixture/takeScreenshot/student-long-content-restored.png"
+            }
+          },
+          "ios": {
+            "jobId": 139891825357,
+            "status": "cancelled_before_device_flows"
+          }
+        }
+      ]
+    },
+    {
+      "runId": 45818468369,
+      "sourceHead": "379dbde47ad55e7689b5bf6e65f4812e5549063d",
+      "url": "https://github.com/soezyxstt/zyxacademy/actions/runs/45818468369",
+      "observedAt": "2026-11-26T12:36:38Z",
+      "web": {
+        "jobId": 139904215092,
+        "status": "passed",
+        "details": "The workflow captured synthetic catalog, flashcard, calendar and assessment web references.",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45818468369/artifacts/15116826047"
+      },
+      "android": {
+        "jobId": 139905770183,
+        "status": "in_progress_at_observation",
+        "details": "Android release build in progress."
+      },
+      "ios": {
+        "jobId": 139905770793,
+        "status": "pending_at_observation"
+      },
+      "checkoutSha": "8f073512c063882ac5a24621824ad7cee84c2832",
+      "laterObservations": [
+        {
+          "observedAt": "2026-11-26T13:08:38Z",
+          "android": {
+            "jobId": 139905770183,
+            "status": "device_flows_completed_with_failures",
+            "reason": "Android captured 180 smoke passes, with 20 transport failures remaining after one targeted retry recovered ten of 30 cases. Three cases were blocked. Sixteen of 18 standalone scenarios passed, including quiz draft and flashcard grading. Material scroll restoration passed, and all six matched catalog and flashcard pairs differed from web.",
+            "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45818468369/artifacts/15120241857",
+            "summaryCounts": {
+              "passed": 180,
+              "blocked": 3,
+              "failed": 20
+            },
+            "standaloneCounts": {
+              "passed": 16,
+              "failed": 2
+            },
+            "comparison": [
+              {
+                "id": "catalog-all",
+                "status": "different",
+                "differing_pixels": 53261,
+                "max_channel_difference": 227
+              },
+              {
+                "id": "catalog-tpb",
+                "status": "different",
+                "differing_pixels": 45211,
+                "max_channel_difference": 227
+              },
+              {
+                "id": "catalog-pka",
+                "status": "different",
+                "differing_pixels": 28344,
+                "max_channel_difference": 227
+              },
+              {
+                "id": "flashcard-question",
+                "status": "different",
+                "differing_pixels": 23397,
+                "max_channel_difference": 214
+              },
+              {
+                "id": "flashcard-review-pending",
+                "status": "different",
+                "differing_pixels": 45803,
+                "max_channel_difference": 255
+              },
+              {
+                "id": "flashcard-review-failed",
+                "status": "different",
+                "differing_pixels": 68175,
+                "max_channel_difference": 255
+              }
+            ],
+            "scrollRestoration": {
+              "status": "pass",
+              "region": [
+                38,
+                205,
+                342,
+                615
+              ],
+              "dimensions": [
+                380,
+                820
+              ],
+              "different_pixels": 0,
+              "before": "results/2026-11-26_124659/Student course long material list fixture/takeScreenshot/student-long-content.png",
+              "after": "results/2026-11-26_124659/Student course long material list fixture/takeScreenshot/student-long-content-restored.png"
+            },
+            "transportRetry": {
+              "initialFailed": 30,
+              "retryPassed": 10,
+              "retryFailed": 20,
+              "recovered": [
+                "smoke-046",
+                "smoke-047",
+                "smoke-048",
+                "smoke-049",
+                "smoke-050",
+                "smoke-051",
+                "smoke-052",
+                "smoke-053",
+                "smoke-054",
+                "smoke-055"
+              ],
+              "originalJunit": "smoke-junit/community.xml",
+              "retryJunit": "smoke-junit/community-retry/report.xml",
+              "selection": "smoke-junit/community-retry/selected.json",
+              "preferenceConfirmation": "The preference case smoke-070 lost device transport in both attempts."
+            }
+          },
+          "ios": {
+            "jobId": 139905770793,
+            "status": "cancelled_before_device_flows"
+          }
+        }
+      ]
+    },
+    {
+      "runId": 45824831032,
+      "sourceHead": "bdae1785d8e95d542df36c6b7ee2bbcb500f3859",
+      "checkoutSha": "ccfeb5809bb8da43b2fc2973ad34a6546d9a1d17",
+      "url": "https://github.com/soezyxstt/zyxacademy/actions/runs/45824831032",
+      "observedAt": "2026-11-26T13:08:38Z",
+      "web": {
+        "jobId": 139926225522,
+        "status": "passed",
+        "details": "Six primary synthetic web reference tests and one matched flashcard test passed.",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45824831032/artifacts/15120456140"
+      },
+      "android": {
+        "jobId": 139927769797,
+        "status": "in_progress_at_observation",
+        "details": "Android release build in progress."
+      },
+      "ios": {
+        "jobId": 139927769305,
+        "status": "pending_at_observation"
+      },
+      "laterObservations": [
+        {
+          "observedAt": "2026-11-26T13:37:13Z",
+          "android": {
+            "jobId": 139927769797,
+            "status": "device_flows_completed_with_failures",
+            "reason": "Android captured 156 generated smoke passes. One targeted replay recovered 63 of 107 transport failures, leaving 44 transport failures and three blocked cases. Nineteen of 20 standalone scenarios passed; the quiz gateway start assertion failed. Material scroll restoration passed and six matched catalog and flashcard pairs differed from web.",
+            "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45824831032/artifacts/15121682481",
+            "summaryCounts": {
+              "passed": 156,
+              "blocked": 3,
+              "failed": 44
+            },
+            "standaloneCounts": {
+              "passed": 19,
+              "failed": 1
+            },
+            "comparison": [
+              {
+                "id": "catalog-all",
+                "status": "different",
+                "differing_pixels": 52809,
+                "max_channel_difference": 227
+              },
+              {
+                "id": "catalog-tpb",
+                "status": "different",
+                "differing_pixels": 44768,
+                "max_channel_difference": 227
+              },
+              {
+                "id": "catalog-pka",
+                "status": "different",
+                "differing_pixels": 28237,
+                "max_channel_difference": 227
+              },
+              {
+                "id": "flashcard-question",
+                "status": "different",
+                "differing_pixels": 23351,
+                "max_channel_difference": 214
+              },
+              {
+                "id": "flashcard-review-pending",
+                "status": "different",
+                "differing_pixels": 45757,
+                "max_channel_difference": 255
+              },
+              {
+                "id": "flashcard-review-failed",
+                "status": "different",
+                "differing_pixels": 68129,
+                "max_channel_difference": 255
+              }
+            ],
+            "scrollRestoration": {
+              "status": "pass",
+              "region": [
+                38,
+                205,
+                342,
+                615
+              ],
+              "dimensions": [
+                380,
+                820
+              ],
+              "different_pixels": 0,
+              "before": "results/2026-11-26_131656/Student course long material list fixture/takeScreenshot/student-long-content.png",
+              "after": "results/2026-11-26_131656/Student course long material list fixture/takeScreenshot/student-long-content-restored.png"
+            },
+            "transportRetry": {
+              "initialFailed": 107,
+              "retryPassed": 63,
+              "retryFailed": 44,
+              "failureClassification": "generated-failure-classification.json"
+            }
+          },
+          "ios": {
+            "jobId": 139927769305,
+            "status": "cancelled_before_device_flows"
+          }
+        }
+      ]
+    },
+    {
+      "runId": 45829658265,
+      "sourceHead": "14295fc2494a4fca8da6e82b40f9ab3d3fb15abc",
+      "url": "https://github.com/soezyxstt/zyxacademy/actions/runs/45829658265",
+      "observedAt": "2026-11-26T13:50:15Z",
+      "web": {
+        "jobId": 139942812305,
+        "status": "passed",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45829658265/artifacts/15122146944",
+        "details": "Workflow completed the source web references, all device-sized reference groups, and assessment refocus checks."
+      },
+      "android": {
+        "jobId": 139944816133,
+        "status": "in_progress_at_observation"
+      },
+      "ios": {
+        "jobId": 139944816671,
+        "status": "cancelled_before_device_flows"
+      },
+      "checkoutSha": "ae4ceeff7e5bcc75980c511075079810335aa177",
+      "laterObservations": [
+        {
+          "observedAt": "2026-11-26T14:22:00Z",
+          "android": {
+            "jobId": 139944816133,
+            "status": "device_flows_completed_with_failures",
+            "reason": "Generated smoke: {'passed': 200, 'blocked': 3}. Standalone flows: {'passed': 25, 'failed': 2}. Matched comparison: {'different': 26, 'missing': 6, 'blocked_renderer': 1}.",
+            "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45829658265/artifacts/15125807531",
+            "summaryCounts": {
+              "passed": 200,
+              "blocked": 3
+            },
+            "standaloneCounts": {
+              "passed": 25,
+              "failed": 2
+            },
+            "matchedComparisonCounts": {
+              "different": 26,
+              "missing": 6,
+              "blocked_renderer": 1
+            },
+            "initialFailureCategories": {
+              "ADB transport": 17
+            },
+            "retryOutcomes": {
+              "passed": 17
+            },
+            "scrollRestoration": {
+              "status": "pass",
+              "region": [
+                38,
+                205,
+                342,
+                615
+              ],
+              "dimensions": [
+                380,
+                820
+              ],
+              "different_pixels": 0,
+              "before": "results/2026-11-26_135022/Student course long material list fixture/takeScreenshot/student-long-content.png",
+              "after": "results/2026-11-26_135022/Student course long material list fixture/takeScreenshot/student-long-content-restored.png"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "runId": 45831047938,
+      "sourceHead": "95a5b9731847ad902e08a1cfbe8ea489f5972bb6",
+      "url": "https://github.com/soezyxstt/zyxacademy/actions/runs/45831047938",
+      "observedAt": "2026-11-26T13:50:15Z",
+      "web": {
+        "jobId": 139947580011,
+        "status": "passed",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45831047938/artifacts/15121869073",
+        "details": "Workflow completed the source web references, all device-sized reference groups, and assessment refocus checks."
+      },
+      "ios": {
+        "jobId": 139949544377,
+        "status": "queued_at_observation"
+      },
+      "android": {
+        "jobId": 139949544809,
+        "status": "pending_at_observation"
+      },
+      "laterObservations": [
+        {
+          "observedAt": "2026-11-26T14:47:00Z",
+          "ios": {
+            "jobId": 139949544377,
+            "status": "cancelled_before_device_flows",
+            "details": "Superseded by the current Student run while awaiting a hosted Mac. No runner had been assigned and no steps had executed."
+          },
+          "android": {
+            "jobId": 139949544809,
+            "status": "cancelled_before_device_flows"
+          }
+        }
+      ]
+    },
+    {
+      "runId": 45834308919,
+      "sourceHead": "e2b8f44a7885a87e20eb2ff71f937ed66aae7218",
+      "url": "https://github.com/soezyxstt/zyxacademy/actions/runs/45834308919",
+      "observedAt": "2026-11-26T14:55:00Z",
+      "web": {
+        "jobId": 139958989193,
+        "status": "passed",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45834308919/artifacts/15125130452",
+        "details": "Web reference job passed, including both refocus suites."
+      },
+      "ios": {
+        "jobId": 139960846388,
+        "status": "cancelled_before_device_flows"
+      },
+      "android": {
+        "jobId": 139960846941,
+        "status": "device_flows_completed_with_failures",
+        "reason": "Generated smoke: {'passed': 175, 'blocked': 3, 'failed': 25}. Standalone flows: {'failed': 25, 'passed': 2}. Matched comparison: {'missing': 30, 'different': 3}.",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45834308919/artifacts/15130185657",
+        "summaryCounts": {
+          "passed": 175,
+          "blocked": 3,
+          "failed": 25
+        },
+        "standaloneCounts": {
+          "failed": 25,
+          "passed": 2
+        },
+        "matchedComparisonCounts": {
+          "missing": 30,
+          "different": 3
+        },
+        "initialFailureCategories": {
+          "ADB transport": 76
+        },
+        "finalFailureCategories": {
+          "ADB transport": 25
+        },
+        "retryOutcomes": {
+          "passed": 51,
+          "failed": 25
+        },
+        "scrollRestoration": {
+          "status": "missing",
+          "capture": "student-long-content",
+          "matches": 0
+        }
+      },
+      "checkoutSha": "00d7045041fc83d87e82dc6f671a724e7555298a"
+    },
+    {
+      "runId": 45839001628,
+      "sourceHead": "0cc3c835251cead65ff838cde0c3e9c9ad3ccc0b",
+      "url": "https://github.com/soezyxstt/zyxacademy/actions/runs/45839001628",
+      "observedAt": "2026-11-26T14:55:00Z",
+      "web": {
+        "jobId": 139975352849,
+        "status": "passed",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45839001628/artifacts/15127855450",
+        "details": "Web reference job passed, including both refocus suites."
+      },
+      "ios": {
+        "jobId": 139977461611,
+        "status": "queued_at_observation"
+      },
+      "android": {
+        "jobId": 139977462101,
+        "status": "in_progress_at_observation"
+      },
+      "checkoutSha": "863ba52c773dcadcb4e20cc3734e6d922d37c0c5",
+      "laterObservations": [
+        {
+          "observedAt": "2026-11-26T15:23:00Z",
+          "android": {
+            "jobId": 139977462101,
+            "status": "device_flows_completed_with_failures",
+            "reason": "Generated smoke: {'passed': 183, 'blocked': 3, 'failed': 17}. Standalone flows: {'passed': 2, 'failed': 25}. Matched comparison: {'missing': 33}.",
+            "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45839001628/artifacts/15130999260",
+            "summaryCounts": {
+              "passed": 183,
+              "blocked": 3,
+              "failed": 17
+            },
+            "standaloneCounts": {
+              "passed": 2,
+              "failed": 25
+            },
+            "matchedComparisonCounts": {
+              "missing": 33
+            },
+            "initialFailureCategories": {
+              "ADB transport": 58
+            },
+            "finalFailureCategories": {
+              "ADB transport": 17
+            },
+            "retryOutcomes": {
+              "passed": 41,
+              "failed": 17
+            },
+            "scrollRestoration": {
+              "status": "missing",
+              "capture": "student-long-content",
+              "matches": 0
+            }
+          },
+          "ios": {
+            "jobId": 139977461611,
+            "status": "in_progress_at_observation",
+            "details": "Hosted macOS assigned, boot simulator and install iOS release in progress."
+          }
+        },
+        {
+          "observedAt": "2026-11-26T16:13:31Z",
+          "ios": {
+            "jobId": 139977461611,
+            "status": "bootstrap_failed_before_device_flows",
+            "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45839001628/artifacts/15136581520",
+            "summaryCounts": {
+              "not_run": 200,
+              "blocked": 3
+            },
+            "reason": "iOS release build and installation passed. Maestro tapped the enabled Open button for the exact Zyx Academy Native prompt, but the system dialog remained visible and the gallery assertion timed out.",
+            "device": "iPhone 17 Pro, iOS 26.2"
+          }
+        }
+      ]
+    },
+    {
+      "runId": 45846158662,
+      "sourceHead": "75843587d5ff277f2129dd1074af4f70ee76d365",
+      "url": "https://github.com/soezyxstt/zyxacademy/actions/runs/45846158662",
+      "observedAt": "2026-11-26T15:55:35Z",
+      "web": {
+        "jobId": 140000262252,
+        "status": "passed",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45846158662/artifacts/15132137443",
+        "details": "Student web reference and protected route refocus suites passed."
+      },
+      "android": {
+        "jobId": 140002198444,
+        "status": "device_flows_completed_with_failures",
+        "reason": "Generated smoke: {'passed': 199, 'blocked': 3, 'failed': 1}. Standalone flows: {'failed': 24, 'passed': 3}. Matched comparison: {'missing': 33}.",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45846158662/artifacts/15134404282",
+        "summaryCounts": {
+          "passed": 199,
+          "blocked": 3,
+          "failed": 1
+        },
+        "standaloneCounts": {
+          "failed": 24,
+          "passed": 3
+        },
+        "matchedComparisonCounts": {
+          "missing": 33
+        },
+        "initialFailureCategories": {
+          "ADB transport": 29
+        },
+        "finalFailureCategories": {
+          "ADB transport": 1
+        },
+        "retryOutcomes": {
+          "passed": 28,
+          "failed": 1
+        },
+        "scrollRestoration": {
+          "status": "pass",
+          "region": [
+            38,
+            205,
+            342,
+            615
+          ],
+          "dimensions": [
+            380,
+            820
+          ],
+          "different_pixels": 0,
+          "before": "results/2026-11-26_153503/Student course long material list fixture/takeScreenshot/student-long-content.png",
+          "after": "results/2026-11-26_153503/Student course long material list fixture/takeScreenshot/student-long-content-restored.png"
+        }
+      },
+      "ios": {
+        "jobId": 140002198732,
+        "status": "cancelled_before_device_flows"
+      },
+      "checkoutSha": "bdbaad76a07863f63e99528886286c7fa7c8f264"
+    },
+    {
+      "runId": 45849382473,
+      "sourceHead": "4a1d9c866fd24047db59585f66dded3671cbc4c5",
+      "url": "https://github.com/soezyxstt/zyxacademy/actions/runs/45849382473",
+      "observedAt": "2026-11-26T15:55:38Z",
+      "web": {
+        "jobId": 140011419475,
+        "status": "passed",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45849382473/artifacts/15133012168",
+        "details": "Student web reference and protected route refocus suites passed."
+      },
+      "ios": {
+        "jobId": 140013786533,
+        "status": "pending_at_observation"
+      },
+      "android": {
+        "jobId": 140013786870,
+        "status": "in_progress_at_observation"
+      },
+      "laterObservations": [
+        {
+          "observedAt": "2026-11-26T16:27:19Z",
+          "checkoutSha": "dc861fff2555c34797c543dc74268abceedc2e5f",
+          "android": {
+            "jobId": 140013786870,
+            "status": "device_flows_completed_with_failures",
+            "reason": "Generated smoke: {'passed': 167, 'blocked': 3, 'failed': 33}. Standalone flows: {'failed': 21, 'passed': 6}. Matched comparison: {'missing': 33}.",
+            "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45849382473/artifacts/15136398977",
+            "summaryCounts": {
+              "passed": 167,
+              "blocked": 3,
+              "failed": 33
+            },
+            "standaloneInitialOutcomes": {
+              "transport_failure": 26,
+              "passed": 1
+            },
+            "standaloneRetryOutcomes": {
+              "failed": 21,
+              "passed": 5
+            },
+            "standaloneCounts": {
+              "failed": 21,
+              "passed": 6
+            },
+            "matchedComparisonCounts": {
+              "missing": 33
+            },
+            "initialFailureCategories": {
+              "ADB transport": 126
+            },
+            "finalFailureCategories": {
+              "ADB transport": 33
+            },
+            "retryOutcomes": {
+              "passed": 93,
+              "failed": 33
+            },
+            "scrollRestoration": {
+              "status": "inconclusive",
+              "reason": "The effective Maestro material flow did not finish successfully"
+            }
+          },
+          "ios": {
+            "jobId": 140013786533,
+            "status": "superseded_before_runner_assignment",
+            "details": "Requested cancellation after Android artifacts were published. The replacement iOS job targets the in-app fixture launcher."
+          }
+        }
+      ]
+    },
+    {
+      "runId": 45857948643,
+      "sourceHead": "1ecc8e15f7f506b8b00a7aa2dfdc815d892cbe40",
+      "url": "https://github.com/soezyxstt/zyxacademy/actions/runs/45857948643",
+      "observedAt": "2026-11-26T16:27:19Z",
+      "web": {
+        "jobId": 140041156861,
+        "status": "passed",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45857948643/artifacts/15135874622"
+      },
+      "android": {
+        "jobId": 140042922299,
+        "status": "in_progress_at_observation"
+      },
+      "ios": {
+        "jobId": 140042922883,
+        "status": "pending_at_observation"
+      },
+      "laterObservations": [
+        {
+          "observedAt": "2026-11-26T17:15:28Z",
+          "checkoutSha": "628e2ab0f206385cb1fd4725b92234ae06afc45a",
+          "android": {
+            "jobId": 140042922299,
+            "status": "device_flows_completed_with_failures",
+            "reason": "Generated smoke: {'passed': 199, 'blocked': 3, 'failed': 1}. Standalone flows: {'failed': 10, 'passed': 17}. Matched comparison: {'missing': 11, 'not_comparable': 1, 'different': 20, 'blocked_renderer': 1}.",
+            "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45857948643/artifacts/15139752771",
+            "summaryCounts": {
+              "passed": 199,
+              "blocked": 3,
+              "failed": 1
+            },
+            "standaloneInitialOutcomes": {
+              "transport_failure": 26,
+              "passed": 1
+            },
+            "standaloneRetryOutcomes": {
+              "failed": 10,
+              "passed": 16
+            },
+            "standaloneCounts": {
+              "failed": 10,
+              "passed": 17
+            },
+            "matchedComparisonCounts": {
+              "missing": 11,
+              "not_comparable": 1,
+              "different": 20,
+              "blocked_renderer": 1
+            },
+            "initialFailureCategories": {
+              "ADB transport": 38
+            },
+            "finalFailureCategories": {
+              "ADB transport": 1
+            },
+            "retryOutcomes": {
+              "passed": 37,
+              "failed": 1
+            },
+            "scrollRestoration": {
+              "status": "pass",
+              "region": [
+                38,
+                205,
+                342,
+                615
+              ],
+              "dimensions": [
+                380,
+                820
+              ],
+              "different_pixels": 0,
+              "before": "standalone-retry/003/results/2026-11-26_164603/Student course long material list fixture/takeScreenshot/student-long-content.png",
+              "after": "standalone-retry/003/results/2026-11-26_164603/Student course long material list fixture/takeScreenshot/student-long-content-restored.png"
+            }
+          },
+          "ios": {
+            "jobId": 140042922883,
+            "status": "queued_at_observation"
+          }
+        }
+      ]
+    },
+    {
+      "runId": 45863831357,
+      "sourceHead": "960a226363107a7ce444b71b6ac5216cd535b600",
+      "url": "https://github.com/soezyxstt/zyxacademy/actions/runs/45863831357",
+      "observedAt": "2026-11-26T17:15:28Z",
+      "web": {
+        "jobId": 140061462559,
+        "status": "passed",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45863831357/artifacts/15140455658"
+      },
+      "ios": {
+        "jobId": 140063862934,
+        "status": "pending_at_observation"
+      },
+      "android": {
+        "jobId": 140063863414,
+        "status": "in_progress_at_observation"
+      },
+      "laterObservations": [
+        {
+          "observedAt": "2026-11-26T17:48:13+00:00",
+          "android": {
+            "jobId": 140063863414,
+            "status": "completed",
+            "conclusion": "failure",
+            "counts": {
+              "passed": 200,
+              "blocked": 3
+            },
+            "effectiveStandalone": {
+              "passed": 29,
+              "failed": 1
+            },
+            "description": "All runnable smoke and 29 standalone flows passed on the first attempt. Hermes dashboard preview crash reproduced. 38 of 42 matched targets measured, and the restored list region matched exactly.",
+            "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45863831357/artifacts/15141523251",
+            "artifactSha256": "814168446f2444fd4f179e844ec8e248cfb4dd86154c05e639c11f64acfedc77",
+            "provenance": "packages/native-parity/student/evidence/device-runs/45863831357/android/provenance.json"
+          }
+        }
+      ]
+    },
+    {
+      "runId": 45867547298,
+      "sourceHead": "e855ebabd1350f24265a04752c82c6ff7c9cd3b6",
+      "url": "https://github.com/soezyxstt/zyxacademy/actions/runs/45867547298",
+      "observedAt": "2026-11-26T18:21:44Z",
+      "web": {
+        "jobId": 140074157949,
+        "status": "passed",
+        "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45867547298/artifacts/15141825676"
+      },
+      "android": {
+        "jobId": 140076387262,
+        "status": "failure"
+      },
+      "ios": {
+        "jobId": 140076388116,
+        "status": "pending_at_observation"
+      },
+      "laterObservations": [
+        {
+          "observedAt": "2026-11-26T18:21:44Z",
+          "android": {
+            "jobId": 140076387262,
+            "status": "completed",
+            "conclusion": "failure",
+            "description": "Generated smoke: {'passed': 181, 'blocked': 3, 'failed': 19}. Standalone flows: {'passed': 25, 'failed': 5}. Matched comparison: {'different': 32, 'blocked_renderer': 1, 'missing': 9}.",
+            "provenance": "packages/native-parity/student/evidence/device-runs/45867547298/android/provenance.json",
+            "summaryCounts": {
+              "passed": 181,
+              "blocked": 3,
+              "failed": 19
+            },
+            "standaloneCounts": {
+              "passed": 25,
+              "failed": 5
+            },
+            "matchedComparisonCounts": {
+              "different": 32,
+              "blocked_renderer": 1,
+              "missing": 9
+            },
+            "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45867547298/artifacts/15144078441",
+            "artifactSha256": "f39965b9aa64acc1638135393a07cd05fef43e24af74c78c2d53982b6b675452",
+            "scrollRestoration": {
+              "status": "pass",
+              "region": [
+                38,
+                205,
+                342,
+                615
+              ],
+              "dimensions": [
+                380,
+                820
+              ],
+              "different_pixels": 0,
+              "before": "standalone-retry/001/results/2026-11-26_180306/Student course long material list fixture/takeScreenshot/student-long-content.png",
+              "after": "standalone-retry/001/results/2026-11-26_180306/Student course long material list fixture/takeScreenshot/student-long-content-restored.png"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

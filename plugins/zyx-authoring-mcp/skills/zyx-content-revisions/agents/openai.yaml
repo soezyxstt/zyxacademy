@@ -1,4 +1,4 @@
 interface:
   display_name: "Zyx Content Revisions"
   short_description: "Edit stable units and release reviewed Zyx revisions"
-  default_prompt: "Use $zyx-content-revisions to edit the requested Idea or Product unit by stable ID, use its canonical bootstrap role, and carry successful successor identities forward. Read full context and exact verification results before authorized release; preserve the local operator requirement when the profile uses local_playwright. Use only the zyx-stg MCP connection; use advertised tool names and keep dotted operation arguments unchanged."
+  default_prompt: "Use $zyx-content-revisions to find current heads, edit stable units and retain successor identities. Review affected reasoning and Diktat units. For V4, verify purpose logic during edits and request purpose pdf only for final Diktat artifacts; screenshots are optional. Read full context before authorized release and retain exact logic and PDF identities. Use only the zyx-stg MCP connection; use advertised tool names and keep dotted operation arguments unchanged."

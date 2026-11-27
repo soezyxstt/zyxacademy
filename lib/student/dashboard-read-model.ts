@@ -1,3 +1,4 @@
+import { createOnlineReadMemo } from "@/lib/online-read-memo";
 import { db } from "@/db";
 import {
   quizTemplates,
@@ -358,19 +359,10 @@ export async function getDashboardCourseExamsBatch(
   );
 }
 
-/**
- * Aggregates article, quiz, and tryout counts in batch SQL GROUP BY queries.
- * Dashboard "bahan belajar" intentionally counts article-like learning content only.
- */
-export async function getCatalogCourseSummaries(
-  activeCourses: StudentCourseRecord[]
-): Promise<CatalogCourseSummary[]> {
-  if (activeCourses.length === 0) return [];
+const readOnboardingCountMaps = createOnlineReadMemo<Awaited<ReturnType<typeof loadOnboardingCountMaps>>>(60_000, 32);
 
-  const legacyIds = [...new Set(activeCourses.map((course) => course.legacyId ?? course.id))];
-  const canonicalIds = [...new Set(activeCourses.flatMap((course) => course.canonicalId ? [course.canonicalId] : []))];
+async function loadOnboardingCountMaps(legacyIds: string[], canonicalIds: string[]) {
   const assessmentIds = [...new Set([...legacyIds, ...canonicalIds])];
-
   const [
     quizCounts,
     tryoutCounts,
@@ -425,6 +417,20 @@ export async function getCatalogCourseSummaries(
   const aiMatMap = new Map(aiMatCounts.map((r) => [r.courseId, Number(r.count)]));
   const webMatMap = new Map(webMatCounts.map((r) => [r.courseId, Number(r.count)]));
   const artikelMap = new Map(artikelCounts.map((r) => [r.courseId, Number(r.count)]));
+
+  return { quizMap, tryoutMap, aiMatMap, webMatMap, artikelMap };
+}
+
+/** Dashboard onboarding counts article-like learning content. */
+export async function getCatalogCourseSummaries(activeCourses: StudentCourseRecord[]): Promise<CatalogCourseSummary[]> {
+  if (activeCourses.length === 0) return [];
+
+  const legacyIds = [...new Set(activeCourses.map((course) => course.legacyId ?? course.id))].sort();
+  const canonicalIds = [...new Set(activeCourses.flatMap((course) => course.canonicalId ? [course.canonicalId] : []))].sort();
+  const { quizMap, tryoutMap, aiMatMap, webMatMap, artikelMap } = await readOnboardingCountMaps(
+    JSON.stringify([legacyIds, canonicalIds]),
+    () => loadOnboardingCountMaps(legacyIds, canonicalIds),
+  );
 
   return activeCourses.map((c) => {
     const legacyId = c.legacyId ?? c.id;

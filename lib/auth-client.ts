@@ -49,7 +49,7 @@ export async function signOut(...args: Parameters<typeof authClient.signOut>) {
     syncQueryAccount(getQueryClient(), null);
     if (typeof window !== "undefined") {
       const [
-        { clearAllOfflineReadings },
+        { clearOfflineReadingsForOtherUsers },
         { clearAllLocalRemindersOnLogout },
         { clearNativeLastRoute },
         { clearPersistedZyraDrawerOpenFlags },
@@ -65,7 +65,7 @@ export async function signOut(...args: Parameters<typeof authClient.signOut>) {
       clearPersistedZyraDrawerOpenFlags();
       clearPersistedVideoState();
       await Promise.all([
-        clearAllOfflineReadings().catch(() => {}),
+        clearOfflineReadingsForOtherUsers(null).catch(() => {}),
         clearAllLocalRemindersOnLogout().catch(() => {}),
       ]);
     }

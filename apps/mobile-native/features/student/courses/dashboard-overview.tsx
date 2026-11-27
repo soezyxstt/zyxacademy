@@ -1,0 +1,220 @@
+import type { ReactNode } from "react";
+import { StyleSheet, Text, View } from "react-native";
+import { nativeColors, nativeLinkInks, nativeRadii } from "../../../../../packages/design-tokens/native-colors";
+import { coursePath, dashboardPreviewPath, type CourseCard, type DashboardPreview } from "../../../../../packages/native-parity/student/courses/contract";
+import studentEn from "../../../../../messages/en/student.json";
+import studentId from "../../../../../messages/id/student.json";
+import { useNativeAppearance, readingDensityScales, readingFontScales, scaleReadingText } from "../../../device/appearance";
+import { Button } from "../../../components/Button";
+import { nativeTypography } from "../../../typography";
+import { NavigationIcon, type NavigationIconName } from "../../shared-ui/navigation-icons";
+import type { StudentScreenProps } from "../contracts";
+import { DashboardLink } from "./dashboard-link";
+
+type Theme = keyof typeof nativeColors;
+type DashboardPane = Pick<StudentScreenProps, "navigate" | "openExternal"> & { locale: string; theme: Theme };
+type DashboardMessages = typeof studentId.dashboard;
+
+export function dashboardMessages(locale: string): DashboardMessages {
+  return locale.startsWith("en") ? studentEn.dashboard : studentId.dashboard;
+}
+
+export function countLabel(pattern: string, count: number, locale: string) {
+  const parts = pattern.match(/one \{([^}]+)\} other \{([^}]+)\}/u);
+  if (!parts) return String(count);
+  // Student supports English and Indonesian. Indonesian uses the same form for every count.
+  const singular = locale.startsWith("en") && count === 1;
+  return parts[singular ? 1 : 2].replace("#", new Intl.NumberFormat(locale).format(count));
+}
+
+export function DashboardSectionHeading({ title, icon, theme, tone = "muted", meta }: { title: string; icon?: NavigationIconName; theme: Theme; tone?: "muted" | "primary"; meta?: ReactNode }) {
+  const colors = nativeColors[theme];
+  const scale = readingFontScales[useNativeAppearance().fontSize];
+  return <View style={styles.inline}>
+    <View style={styles.headingGroup}>
+      {icon && <NavigationIcon name={icon} color={tone === "primary" ? colors.primary : colors.mutedForeground} size={16} />}
+      <Text accessibilityRole="header" style={[styles.heading, scaleReadingText(scale, styles.heading), { color: colors.foreground }]}>{title}</Text>
+    </View>
+    {meta}
+  </View>;
+}
+
+function dashboardProgress(done: number, total: number, message: string) {
+  const percent = total > 0 ? Math.max(0, Math.min(100, Math.round(done / total * 100))) : 0;
+  const label = message.replace("{done}", String(done)).replace("{complete}", String(done)).replace("{total}", String(total));
+  return { percent, label };
+}
+
+function Progress({ percent, label, title, theme }: ReturnType<typeof dashboardProgress> & { title: string; theme: Theme }) {
+  const colors = nativeColors[theme];
+  const scale = readingFontScales[useNativeAppearance().fontSize];
+  return <View style={styles.progress}>
+    <View accessibilityRole="progressbar" accessibilityLabel={title} accessibilityValue={{ min: 0, now: percent, max: 100 }}
+      style={[styles.track, { backgroundColor: colors.muted }]}>
+      <View style={[styles.trackFill, { width: `${percent}%`, backgroundColor: percent === 100 ? nativeLinkInks.success : colors.primary }]} />
+    </View>
+    <Text style={[styles.progressNumber, scaleReadingText(scale, styles.progressNumber), { color: colors.foreground }]}>{percent}%</Text>
+    <Text style={[styles.meta, scaleReadingText(scale, styles.meta), { color: colors.mutedForeground }]}>{label}</Text>
+  </View>;
+}
+
+export function ActiveDashboardCourses({ courses, completed, locale, theme, navigate, activate, activationOpen }: DashboardPane & {
+  courses: CourseCard[]; completed: Record<string, number>; activate(): void; activationOpen: boolean;
+}) {
+  const t = dashboardMessages(locale);
+  const colors = nativeColors[theme];
+  const scale = readingFontScales[useNativeAppearance().fontSize];
+  const spacing = readingDensityScales[useNativeAppearance().density];
+  return <View testID="student-dashboard-active">
+    <View style={styles.spread}>
+      <DashboardSectionHeading title={t.classesActive} icon="classes" theme={theme} />
+      <View style={styles.activeActions}>
+        <Button theme={theme} variant="outline" size="sm" renderIcon={(color, size) => <NavigationIcon name="key" color={color} size={size} />} accessibilityState={{ expanded: activationOpen }} onPress={activate}>{t.activateClass}</Button>
+        <DashboardLink theme={theme} testID="student-dashboard-all-courses" label={t.viewAll} onPress={() => navigate("/courses")} style={styles.compactLink}>
+          <Text style={[styles.actionLabel, scaleReadingText(scale, styles.actionLabel), { color: colors.mutedForeground }]}>{t.viewAll}</Text>
+          <NavigationIcon name="arrow-up-right" size={14} color={colors.mutedForeground} />
+        </DashboardLink>
+      </View>
+    </View>
+    {courses.map(course => {
+      const progress = dashboardProgress(completed[course.id] ?? 0, course.materialsCount ?? 0, t.materialProgressShort);
+      return <DashboardLink key={course.id} testID={`student-course-${course.id}`} theme={theme} style={[styles.activeCourse, { paddingVertical: styles.activeCourse.paddingVertical * spacing }]}
+        label={[course.title, course.category, `${progress.percent}%`, progress.label].filter(Boolean).join(", ")}
+        onPress={() => navigate(coursePath(course.id))}>
+        <View style={styles.courseProgress}>
+          <View style={styles.inline}>
+            <Text style={[styles.heading, scaleReadingText(scale, styles.heading), { color: colors.foreground }]}>{course.title}</Text>
+            <Text style={[styles.meta, styles.category, scaleReadingText(scale, styles.meta), { color: colors.mutedForeground }]}>{course.category}</Text>
+          </View>
+          <Progress {...progress} title={course.title} theme={theme} />
+        </View>
+        <NavigationIcon name="arrow-up-right" size={16} color={colors.mutedForeground} />
+      </DashboardLink>;
+    })}
+  </View>;
+}
+
+const features = [
+  { icon: "book", title: "pdfFeature", description: "pdfFeatureDescription" },
+  { icon: "clipboard", title: "interactiveFeature", description: "interactiveFeatureDescription" },
+  { icon: "circle-check", title: "savedProgressFeature", description: "savedProgressDescription" },
+] as const;
+
+export function DashboardPreviewCourses({ preview, locale, theme, navigate, openExternal, offerLabel }: DashboardPane & {
+  preview: DashboardPreview;
+  offerLabel(course: DashboardPreview["courses"][number]): string | undefined;
+}) {
+  const t = dashboardMessages(locale);
+  const colors = nativeColors[theme];
+  const scale = readingFontScales[useNativeAppearance().fontSize];
+  const spacing = readingDensityScales[useNativeAppearance().density];
+  return <View style={{ gap: styles.preview.gap * spacing }} testID="student-dashboard-preview">
+    <View style={styles.sectionIntro}>
+      <View style={styles.spread}>
+        <DashboardSectionHeading title={t.coursesForYou} icon="book" theme={theme} tone="primary" />
+        <View style={[styles.planBadge, { backgroundColor: `${colors.primary}1a` }]}>
+          <Text accessibilityLabel={t.freePackage} style={[styles.planBadgeText, { color: colors.primary }]}>{t.freePackage.replace(/ /g, "\u00a0")}</Text>
+        </View>
+      </View>
+      {preview.targetCategory && <Text style={[styles.meta, scaleReadingText(scale, styles.meta), { color: colors.primary }]}>
+        {preview.targetCategory === "TPB" ? t.recommendedTpb : t.recommendedFor.replace("{category}", preview.targetCategory)}
+      </Text>}
+      <Text style={[styles.meta, scaleReadingText(scale, styles.meta), { color: colors.mutedForeground }]}>{t.firstChapterFree}</Text>
+    </View>
+    {preview.courses.map(course => {
+      const next = course.completedFreeMaterialCount > 0 && course.completedFreeMaterialCount < course.freeMaterialCount
+        ? t.continueLearning : t.startChapterOne;
+      const offer = offerLabel(course);
+      const availableCounts = [
+        [t.freeChapters, course.freeChapters.length],
+        [t.materialsCount, course.freeMaterialCount],
+        [t.quizzesCount, course.freeQuizCount],
+      ] as const;
+      return <View key={course.id} style={[styles.previewCourse, { borderTopColor: colors.border }]}>
+        <View style={styles.spread}>
+          <View style={styles.inline}>
+            <Text style={[styles.pill, styles.category, { color: colors.primary, backgroundColor: `${colors.primary}1a` }]}>{course.category}</Text>
+            <Text style={[styles.courseTitle, scaleReadingText(scale, styles.courseTitle), { color: colors.foreground }]}>{course.title}</Text>
+          </View>
+          <Button theme={theme} size="sm" iconPosition="end" renderIcon={(color, size) => <NavigationIcon name="arrow-right" color={color} size={size} />} accessibilityRole="link" testID={`student-dashboard-first-chapter-${course.id}`}
+            onPress={() => navigate(dashboardPreviewPath(course))}>{next}</Button>
+        </View>
+        {offer ? <Text style={[styles.meta, scaleReadingText(scale, styles.meta), { color: colors.mutedForeground }]}>{offer}</Text> :
+          <Text style={[styles.pill, styles.pricing, { color: colors.foreground, backgroundColor: colors.muted }]}>
+            {course.pricing?.category === "free" ? "Free" : "Premium"}
+          </Text>}
+        <View style={styles.inline}>
+          {availableCounts.map(([message, count]) =>
+            <Text key={message} style={[styles.meta, scaleReadingText(scale, styles.meta), { color: colors.mutedForeground }]}>
+              {countLabel(message, count, locale)}
+            </Text>)}
+        </View>
+        <Progress {...dashboardProgress(course.completedFreeMaterialCount, course.freeMaterialCount, t.onboardingMaterialProgress)}
+          title={course.title} theme={theme} />
+        {course.freeChapters.length > 0 ? course.freeChapters.map((chapter, index) => <View key={chapter.id} style={styles.spread}>
+          <View style={styles.inline}>
+            {chapter.completed ? <NavigationIcon name="check" color={nativeLinkInks.success} size={16} /> :
+              <Text style={[styles.ordinal, { color: colors.primary, borderColor: `${colors.primary}66` }]}>{index + 1}</Text>}
+            <Text style={[styles.meta, scaleReadingText(scale, styles.meta), { color: colors.foreground }]}>{chapter.title}</Text>
+          </View>
+          <Text style={[styles.pill, { color: theme === "light" ? "#0c773b" : nativeLinkInks.success, backgroundColor: `${nativeLinkInks.success}1a` }]}>{t.free}</Text>
+        </View>) : <Text style={[styles.meta, scaleReadingText(scale, styles.meta), { color: colors.mutedForeground }]}>{t.preparingFreeMaterials}</Text>}
+      </View>;
+    })}
+    {!preview.courses.length && <View style={styles.previewCourse}>
+      <Text style={[styles.courseTitle, scaleReadingText(scale, styles.courseTitle), { color: colors.foreground }]}>{preview.targetCategory
+        ? t.noCoursesForCategory.replace("{category}", preview.targetCategory) : t.noCoursesAvailable}</Text>
+      <Text style={[styles.meta, scaleReadingText(scale, styles.meta), { color: colors.mutedForeground }]}>{preview.targetCategory ? t.exploreOtherCourses : t.returnAfterPublish}</Text>
+      <Button theme={theme} variant="outline" size="sm" onPress={() => navigate("/courses")}>{t.courseCatalog}</Button>
+    </View>}
+    <View style={styles.featureSection}>
+      <View style={styles.featureHeading}>
+        <NavigationIcon name="flame" size={18} color={colors.primary} />
+        <Text accessibilityRole="header" style={[styles.heading, styles.featureHeadingText, scaleReadingText(scale, styles.heading), { color: colors.foreground }]}>{t.availableInFree}</Text>
+      </View>
+      {features.map(({ icon, title, description }) => <View style={styles.feature} key={title}>
+        <View style={[styles.featureIcon, { backgroundColor: `${colors.primary}1a` }]}><NavigationIcon name={icon} color={colors.primary} size={16} /></View>
+        <Text style={[styles.featureTitle, scaleReadingText(scale, styles.featureTitle), { color: colors.foreground }]}>{t[title]}</Text>
+        <Text style={[styles.meta, scaleReadingText(scale, styles.meta), { color: colors.mutedForeground }]}>{t[description]}</Text>
+      </View>)}
+    </View>
+    {openExternal && <View style={[styles.plans, { borderTopColor: colors.border }]}>
+      <DashboardSectionHeading title={t.semesterPlans} icon="classes" theme={theme} tone="primary" />
+      <Button theme={theme} variant="outline" size="sm" onPress={() => openExternal("/plans")} style={styles.pricing}>{t.comparePlans}</Button>
+    </View>}
+  </View>;
+}
+
+const styles = StyleSheet.create({
+  headingGroup: { flexDirection: "row", alignItems: "center", gap: 8, maxWidth: "100%" },
+  heading: { ...nativeTypography.headingBold, fontSize: 16, lineHeight: 24, includeFontPadding: false, flexShrink: 1 },
+  courseTitle: { ...nativeTypography.headingBold, fontSize: 14, lineHeight: 20, includeFontPadding: false, flexShrink: 1 },
+  featureTitle: { ...nativeTypography.headingBold, fontSize: 12, lineHeight: 18, includeFontPadding: false },
+  meta: { ...nativeTypography.bodyRegular, fontSize: 12, lineHeight: 18, includeFontPadding: false, flexShrink: 1 },
+  inline: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", flexShrink: 1, gap: 8 },
+  spread: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 },
+  pill: { ...nativeTypography.bodySemibold, fontSize: 11, lineHeight: 15, includeFontPadding: false, borderRadius: nativeRadii.sm, overflow: "hidden", paddingHorizontal: 8, paddingVertical: 2 },
+  category: { textTransform: "uppercase", letterSpacing: 0.45 },
+  progress: { flexDirection: "row", alignItems: "center", gap: 12 },
+  progressNumber: { ...nativeTypography.bodySemibold, fontSize: 12, lineHeight: 18, includeFontPadding: false },
+  track: { flex: 1, height: 6, borderRadius: 3, overflow: "hidden" },
+  trackFill: { height: "100%", borderRadius: 3 },
+  activeActions: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 10 },
+  activeCourse: { flexDirection: "row", alignItems: "flex-start", paddingVertical: 16, marginTop: 10, gap: 12 },
+  courseProgress: { flex: 1, minWidth: 0, gap: 8 },
+  compactLink: { flexDirection: "row", alignItems: "center", gap: 2, paddingVertical: 8 },
+  actionLabel: { ...nativeTypography.bodySemibold, fontSize: 12, lineHeight: 18, includeFontPadding: false },
+  preview: { gap: 16 },
+  sectionIntro: { gap: 4 },
+  planBadge: { borderRadius: nativeRadii.sm, paddingHorizontal: 8, paddingVertical: 4 },
+  planBadgeText: { ...nativeTypography.bodySemibold, fontSize: 10, lineHeight: 14, includeFontPadding: false },
+  featureHeading: { flexDirection: "row", alignItems: "center", gap: 8 },
+  featureHeadingText: { flex: 1 },
+  previewCourse: { gap: 10, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 12 },
+  pricing: { alignSelf: "flex-start" },
+  ordinal: { ...nativeTypography.bodySemibold, fontSize: 9, lineHeight: 14, minWidth: 16, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth, includeFontPadding: false, textAlign: "center" },
+  featureSection: { marginTop: 8, gap: 20 },
+  feature: { gap: 4 },
+  featureIcon: { width: 28, height: 28, borderRadius: nativeRadii.md, alignItems: "center", justifyContent: "center", marginBottom: 4 },
+  plans: { borderTopWidth: StyleSheet.hairlineWidth, gap: 8, marginTop: 12, paddingTop: 16 },
+});

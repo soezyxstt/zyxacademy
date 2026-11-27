@@ -44,6 +44,8 @@ The composed pattern `mcp_<plugin>_<server>_<tool>` has a 20-character prefix fo
 
 Upgrading the server does not rename an installed plugin. Update the package through the host's supported installation flow, replace the old staging connection with `zyx-stg`, and refresh its tool catalog. The package doctor reports the old long IDs; it does not edit host caches or silently delete connections. Installing the staging package does not migrate a production connection. The production render remains a local candidate until its separate release.
 
+The Expo account screen at `/mcp/connections` lists and revokes the signed-in user’s connections for the configured MCP resource. Revocation uses the same consent and grant-family transaction as the website. OAuth approval still takes place in the browser.
+
 OAuth remains direct HTTP. A renamed host installation may register a new OAuth client and need consent again. The resource URL stays fixed. A manual-bearer stdio proxy is not equivalent: manual connections cannot delegate the admin/provider jobs that require persisted OAuth consent.
 
 ## JSON Schema compatibility

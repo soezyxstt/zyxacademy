@@ -1,9 +1,9 @@
-import type { PublicDemoSnapshot } from "@/lib/demo/snapshot";
-import type { DemoOverlay } from "@/lib/demo/session-overlay";
-import { addCalendarDays, getCalendarWeekRange } from "@/lib/date-utils";
+import type { PublicDemoSnapshot } from "./snapshot";
+import type { DemoOverlay } from "./session-overlay";
+import { addCalendarDays, getCalendarWeekRange } from "../date-utils";
 
 /** Combine distinct session actions with a synthetic, immutable course baseline. */
-export function demoProgress(snapshot: PublicDemoSnapshot, overlay: DemoOverlay) {
+export function demoProgress(snapshot: Pick<PublicDemoSnapshot, "course" | "history"> & { flashcards: Pick<PublicDemoSnapshot["flashcards"], "dueCount"> }, overlay: DemoOverlay) {
   const articles = overlay.events.filter((event) => event.kind === "article").length;
   const reviews = overlay.events.filter((event) => event.kind === "review").length;
   const history = new Map(snapshot.history.map((day) => [day.date, { ...day }]));

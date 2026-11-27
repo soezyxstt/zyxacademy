@@ -6,8 +6,12 @@
  * push notification permission is denied, ignored, or unsupported.
  */
 
-const OFFLINE_SHELL_CACHE = "zyx-offline-shell-v2";
+const OFFLINE_SHELL_CACHE = "zyx-offline-shell-v3";
 const OFFLINE_PAGE_URL = "/offline";
+const OFFLINE_CHROME_ASSETS = [
+  "/brand/zyx-logo-symbol-color.svg",
+  "/brand/zyx-logo-symbol-reversed.svg",
+];
 
 function extractStaticAssetUrls(text) {
   const matches = text.match(/\/_next\/static\/[^"'\s<>)]+/g) || [];
@@ -57,7 +61,7 @@ async function precacheOfflineShell() {
 
   await cache.put(OFFLINE_PAGE_URL, response.clone());
   const html = await response.text();
-  const initialAssets = extractStaticAssetUrls(html).slice(0, 80);
+  const initialAssets = [...OFFLINE_CHROME_ASSETS, ...extractStaticAssetUrls(html).slice(0, 80)];
 
   const nestedAssets = new Set();
   await Promise.all(
@@ -121,7 +125,7 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname.startsWith("/api/")) return;
 
   // Cache immutable Next.js static bundles and fonts so /offline renders cleanly without network.
-  if (url.pathname.startsWith("/_next/static/")) {
+  if (url.pathname.startsWith("/_next/static/") || OFFLINE_CHROME_ASSETS.includes(url.pathname)) {
     event.respondWith(
       caches.open(OFFLINE_SHELL_CACHE).then((cache) =>
         cache.match(request).then((cached) => {

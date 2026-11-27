@@ -24,7 +24,6 @@ import {
   renderPaymentSuccessEmail,
   renderScheduleEventEmail,
   renderStudyReengagementEmail,
-  renderUpcomingSessionEmail,
 } from "@/lib/notifications/email-templates";
 import {
   classifyReengagementTier,
@@ -43,8 +42,11 @@ describe("notification event catalog", () => {
 
     for (const entry of NOTIFICATION_EVENT_CATALOG) {
       expect(entry.audiences.length).toBeGreaterThan(0);
-      expect(entry.inApp).toBe(true);
-      expect(entry.push).toBe(true);
+      expect(entry.inApp || entry.push || entry.email !== "never").toBe(true);
+      if (entry.key === "tutorial_session_reminder_email") {
+        expect(entry.inApp).toBe(false);
+        expect(entry.push).toBe(false);
+      }
       if (entry.email === "optional") {
         expect(entry.emailCategory).not.toBeNull();
       } else {
@@ -182,17 +184,6 @@ describe("bilingual templates and native read-sync metadata", () => {
     });
     expect(reengage.subject).toContain("Calculus I");
     expect(reengage.html).toContain("Derivatives");
-
-    const upcoming = renderUpcomingSessionEmail({
-      locale: "id",
-      recipientName: "Pengajar",
-      courseTitle: "Kalkulus I",
-      sessionDate: "2026-11-25",
-      startTime: "19:00",
-      endTime: "20:30",
-      link: "/tutor/schedule",
-    });
-    expect(upcoming.html).toContain("19:00 - 20:30 WIB");
 
     const schedule = renderScheduleEventEmail({
       locale: "en",

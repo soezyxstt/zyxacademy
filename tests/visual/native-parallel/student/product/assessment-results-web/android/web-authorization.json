@@ -1,0 +1,67 @@
+{
+  "platform": "android",
+  "viewport": {
+    "width": 380,
+    "height": 820
+  },
+  "deviceScaleFactor": 1,
+  "observer": "Second enrolled Student using a signed session",
+  "openedForeignResult": {
+    "results-summary-foreign-denied": {
+      "serverSha": "d56a9da58b2d0f08540bfe58a7d83c61c0e5e5ad",
+      "requestPath": "/courses/assessment-evidence-mathematics/my-results/assessment-evidence-quiz-finished/summary",
+      "documentStatus": 200,
+      "renderedHeading": "404"
+    },
+    "quiz-summary-foreign-denied": {
+      "serverSha": "7bb492a8123a4fb27ebb832dd6994a94b865df09",
+      "requestPath": "/courses/assessment-evidence-mathematics/quiz/assessment-evidence-limit-quiz/summary/assessment-evidence-quiz-finished",
+      "documentStatus": 200,
+      "renderedHeading": "404"
+    },
+    "review-released-quiz-foreign-denied": {
+      "serverSha": "2f0ba3a75fed6e6d25463baeeeb3fceed0780508",
+      "requestPath": "/courses/assessment-evidence-mathematics/my-results/assessment-evidence-quiz-finished",
+      "documentStatus": 200,
+      "renderedHeading": "404"
+    },
+    "review-pending-tryout-foreign-denied": {
+      "serverSha": "2f0ba3a75fed6e6d25463baeeeb3fceed0780508",
+      "requestPath": "/courses/assessment-evidence-mathematics/my-results/assessment-evidence-tryout-submitted",
+      "documentStatus": 200,
+      "renderedHeading": "404"
+    },
+    "review-graded-tryout-foreign-denied": {
+      "serverSha": "2f0ba3a75fed6e6d25463baeeeb3fceed0780508",
+      "requestPath": "/courses/assessment-evidence-mathematics/my-results/assessment-evidence-tryout-graded",
+      "documentStatus": 200,
+      "renderedHeading": "404"
+    }
+  },
+  "withheldCaptures": [
+    {
+      "serverSha": "d56a9da58b2d0f08540bfe58a7d83c61c0e5e5ad",
+      "case": "quiz-summary-released",
+      "requestPath": "/courses/assessment-evidence-mathematics/quiz/assessment-evidence-limit-quiz/summary/assessment-evidence-quiz-finished",
+      "reason": "Account shell hydration mismatch"
+    },
+    {
+      "serverSha": "d56a9da58b2d0f08540bfe58a7d83c61c0e5e5ad",
+      "case": "quiz-summary-grading-pending",
+      "requestPath": "/courses/assessment-evidence-mathematics/quiz/assessment-evidence-limit-quiz/summary/assessment-evidence-quiz-grading-pending",
+      "reason": "Account shell hydration mismatch"
+    },
+    {
+      "serverSha": "7bb492a8123a4fb27ebb832dd6994a94b865df09",
+      "case": "quiz-summary-released",
+      "requestPath": "/courses/assessment-evidence-mathematics/quiz/assessment-evidence-limit-quiz/summary/assessment-evidence-quiz-finished",
+      "reason": "Account shell hydration mismatch"
+    },
+    {
+      "serverSha": "7bb492a8123a4fb27ebb832dd6994a94b865df09",
+      "case": "quiz-summary-grading-pending",
+      "requestPath": "/courses/assessment-evidence-mathematics/quiz/assessment-evidence-limit-quiz/summary/assessment-evidence-quiz-grading-pending",
+      "reason": "Account shell hydration mismatch"
+    }
+  ]
+}

@@ -143,6 +143,8 @@ export const env = createEnv({
   ANDROID_APP_LINKS_SHA256_FINGERPRINTS: z.string().optional(),
   /** Comma-separated SHA-256 certificate fingerprints for nightly Android App Links */
   ANDROID_APP_LINKS_NIGHTLY_SHA256_FINGERPRINTS: z.string().optional(),
+  /** Comma-separated SHA-256 certificate fingerprints for Expo staging Android only */
+  ANDROID_APP_LINKS_EXPO_STAGING_SHA256_FINGERPRINTS: z.string().optional(),
   /** Comma-separated Apple App Site Association appIDs (TEAMID.bundleId) */
   APPLE_APP_SITE_ASSOCIATION_APP_IDS: z.string().optional(),
   /** 10-character Apple Developer Team ID for Universal Links */
@@ -158,6 +160,12 @@ export const env = createEnv({
   APNS_BUNDLE_ID: z.string().optional(),
   /** Set to "1" to send APNs requests to api.sandbox.push.apple.com. */
   APNS_USE_SANDBOX: z.enum(["0", "1"]).optional(),
+  APNS_EXPO_IOS_DEVELOPMENT_KEY_ID: z.string().optional(),
+  APNS_EXPO_IOS_DEVELOPMENT_TEAM_ID: z.string().optional(),
+  APNS_EXPO_IOS_DEVELOPMENT_PRIVATE_KEY: z.string().optional(),
+  APNS_EXPO_IOS_PRODUCTION_KEY_ID: z.string().optional(),
+  APNS_EXPO_IOS_PRODUCTION_TEAM_ID: z.string().optional(),
+  APNS_EXPO_IOS_PRODUCTION_PRIVATE_KEY: z.string().optional(),
   },
  client: {
  /** Absolute origin for better-auth client (e.g. https://app.example.com). Falls back for local dev. */
@@ -269,6 +277,7 @@ export const env = createEnv({
   // Mobile App Links / Universal Links
   ANDROID_APP_LINKS_SHA256_FINGERPRINTS: process.env.ANDROID_APP_LINKS_SHA256_FINGERPRINTS,
   ANDROID_APP_LINKS_NIGHTLY_SHA256_FINGERPRINTS: process.env.ANDROID_APP_LINKS_NIGHTLY_SHA256_FINGERPRINTS,
+  ANDROID_APP_LINKS_EXPO_STAGING_SHA256_FINGERPRINTS: process.env.ANDROID_APP_LINKS_EXPO_STAGING_SHA256_FINGERPRINTS,
   APPLE_APP_SITE_ASSOCIATION_APP_IDS: process.env.APPLE_APP_SITE_ASSOCIATION_APP_IDS,
   APPLE_APP_SITE_ASSOCIATION_TEAM_ID: process.env.APPLE_APP_SITE_ASSOCIATION_TEAM_ID,
   // Apple Push Notification service (APNs)
@@ -277,5 +286,11 @@ export const env = createEnv({
   APNS_PRIVATE_KEY: process.env.APNS_PRIVATE_KEY,
   APNS_BUNDLE_ID: process.env.APNS_BUNDLE_ID,
   APNS_USE_SANDBOX: process.env.APNS_USE_SANDBOX,
+  APNS_EXPO_IOS_DEVELOPMENT_KEY_ID: process.env.APNS_EXPO_IOS_DEVELOPMENT_KEY_ID,
+  APNS_EXPO_IOS_DEVELOPMENT_TEAM_ID: process.env.APNS_EXPO_IOS_DEVELOPMENT_TEAM_ID,
+  APNS_EXPO_IOS_DEVELOPMENT_PRIVATE_KEY: process.env.APNS_EXPO_IOS_DEVELOPMENT_PRIVATE_KEY,
+  APNS_EXPO_IOS_PRODUCTION_KEY_ID: process.env.APNS_EXPO_IOS_PRODUCTION_KEY_ID,
+  APNS_EXPO_IOS_PRODUCTION_TEAM_ID: process.env.APNS_EXPO_IOS_PRODUCTION_TEAM_ID,
+  APNS_EXPO_IOS_PRODUCTION_PRIVATE_KEY: process.env.APNS_EXPO_IOS_PRODUCTION_PRIVATE_KEY,
   },
 });

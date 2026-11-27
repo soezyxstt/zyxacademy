@@ -21,10 +21,12 @@ import { reviewProductBundle } from "@/lib/bundle/product-staging";
 import { productPedagogyFingerprint } from "@/lib/bundle/product-review-gate";
 import { computeProductV4SectionSemanticHash, normalizeProductSectionDecisions, productSectionReviewKey, type ProductV4SectionDecision } from "@/lib/bundle/product-v4-review";
 import { getProductV4VerificationReadiness } from "@/lib/bundle/product-v4-verification-service";
+import { selectProductV4ReusableDiktatVersions } from "@/lib/bundle/product-v4-revision-reuse";
 import { getSolutionCollectionReviewContext, reviewSolutionCollection } from "@/lib/solutions/review";
 import { solutionItemHash } from "@/lib/solutions/review-contract";
 import { ideaReviewTargets, type IdeaReviewItem } from "./idea-review";
-import { buildRevisionArtifact, type RevisionKind, type RevisionPatchOperation } from "./revision-artifact";
+import { buildRevisionArtifact, revisionValidationError, type RevisionKind, type RevisionPatchOperation } from "./revision-artifact";
+import type { DerivedContentReview, DerivedReviewRequirement } from "./revision-derived";
 import { withRevisionPublication, revisionEntityKey } from "./revision-publication-context";
 import { withRevisionReviewGuard } from "./revision-review-context";
 import { dispatchVectorSync } from "@/lib/vector-sync-dispatch";
@@ -36,6 +38,7 @@ export { prepareRevisionVerification } from "./revision-verification-context";
 export type RevisionSelector = { actorId: string; kind: RevisionKind; importId: string; expectedRevision: string };
 export type RevisionReleaseEntry = { importId: string; expectedRevision: string };
 export type RevisionReleaseInput = { actorId: string; entries: RevisionReleaseEntry[] };
+const MAX_RELEASE_ENTRIES = 16;
 export type CreateRevisionInput = { actorId: string; kind: RevisionKind; baseImportId: string; expectedRevision: string; entityIds?: string[]; responseMode?: RevisionResponseMode };
 export type RestoreRevisionInput = { actorId: string; kind: RevisionKind; historicalImportId: string; expectedRevision: string; currentImportId: string; currentRevision: string; responseMode?: RevisionResponseMode };
 export type RevisionReviewInput = RevisionSelector & { evidence: Record<string, unknown> };
@@ -49,11 +52,19 @@ type Lineage = {
   restoredFrom?: { importId: string; revision: string }; impact: unknown; requestFingerprint: string;
 };
 const digest = (value: unknown) => createHash("sha256").update(serializeDeterministically(JSON.parse(JSON.stringify(value)))).digest("hex");
+const patchFingerprint = (actorId: string, importId: string, revision: string, operations: readonly RevisionPatchOperation[], derivedContentReviews?: readonly DerivedContentReview[], refreshPrintEvidence?: boolean) => digest({ actorId, importId, revision, operations, ...(derivedContentReviews?.length ? { derivedContentReviews } : {}), ...(refreshPrintEvidence ? { refreshPrintEvidence: true } : {}) });
 const checksum = (bundle: Bundle) => "canonicalChecksum" in bundle ? bundle.canonicalChecksum : bundle.checksum;
 const kindOf = (row: Row): RevisionKind => { if ((row.bundleType !== "idea" && row.bundleType !== "product") || row.version < 3) throw new Error("REVISION_V3_OR_LATER_REQUIRED"); return row.bundleType; };
 function lineageOf(row: Row): Lineage | null {
   const value = row.validationReport.revisionLineage as Lineage | undefined;
   return value?.schema === "authoring-revision.v1" ? value : null;
+}
+function priorDerivedRequirements(lineage: Lineage | null): DerivedReviewRequirement[] {
+  const impact = lineage?.impact as { derivedReviewRequirements?: unknown } | undefined;
+  if (!Array.isArray(impact?.derivedReviewRequirements)) return [];
+  return impact.derivedReviewRequirements.filter((value): value is DerivedReviewRequirement => !!value && typeof value === "object"
+    && typeof value.entityId === "string" && typeof value.sourceArticleId === "string" && typeof value.sourceArticleHash === "string"
+    && /^[a-f0-9]{64}$/.test(value.sourceArticleHash) && Array.isArray(value.unitIds) && value.unitIds.every((id: unknown) => typeof id === "string"));
 }
 async function authorize(actorId: string, connection: typeof db | Tx = db, lock = false) {
   await assertAuthoringActor(connection, actorId, { roles: ["admin"], error: "REVISION_ADMIN_REQUIRED", requireLegacyAdmin: true, lock });
@@ -118,27 +129,59 @@ async function latestLive(rootImportId: string, connection: typeof db | Tx = db)
 }
 
 /** Persist a new immutable revision and close only its preceding unpublished draft. */
-async function persistDraft(input: { actorId: string; kind: RevisionKind; source: Row; original: Bundle; operations: RevisionPatchOperation[]; previous?: Row; selectedEntityIds?: string[]; restoreFrom?: Row; base?: Row; versionOverrides?: Record<string, number>; responseMode?: RevisionResponseMode }) {
+async function persistDraft(input: { actorId: string; kind: RevisionKind; source: Row; original: Bundle; operations: RevisionPatchOperation[]; derivedContentReviews?: DerivedContentReview[]; refreshPrintEvidence?: boolean; previous?: Row; selectedEntityIds?: string[]; restoreFrom?: Row; base?: Row; versionOverrides?: Record<string, number>; responseMode?: RevisionResponseMode }) {
   const previousLineage = lineageOf(input.previous ?? input.source);
   const base = input.base ?? (input.source.status === "published" ? input.source : previousLineage ? await rowFor(previousLineage.baseImportId, previousLineage.baseRevision, input.kind) : input.source);
   const importId = `impor-${input.kind}-revision-${randomUUID()}`;
   const stagingRunId = input.previous && previousLineage ? previousLineage.stagingRunId : `mcp-run-${randomUUID()}`;
   const bundleId = `revision-${randomUUID()}`;
-  const built = buildRevisionArtifact({ kind: input.kind, original: input.original, bundleId, operations: input.operations, incrementVersions: Boolean(input.operations.length), versionOverrides: input.versionOverrides } as Parameters<typeof buildRevisionArtifact>[0]);
+  const artifactInput = { kind: input.kind, original: input.original, bundleId, operations: input.operations,
+    derivedContentReviews: input.derivedContentReviews, priorDerivedReviewRequirements: priorDerivedRequirements(previousLineage),
+    incrementVersions: Boolean(input.operations.length || input.derivedContentReviews?.length || input.refreshPrintEvidence), versionOverrides: input.versionOverrides };
+  const mayReusePrint = !!input.previous && input.source.version === 4 && "products" in input.original;
+  const possibleDiktatIds = mayReusePrint ? productBundle(input.original).products.filter(product => product.productType === "diktat").map(product => product.id) : [];
+  let built = buildRevisionArtifact({ ...artifactInput, preserveUnchangedDiktatIds: possibleDiktatIds });
+  const printContextChanged = possibleDiktatIds.length > 0 && (serializeDeterministically(productBundle(input.original).products) !== serializeDeterministically(productBundle(built.bundle).products)
+    || serializeDeterministically(productBundle(input.original).dependencies) !== serializeDeterministically(productBundle(built.bundle).dependencies));
+  if (possibleDiktatIds.length && (printContextChanged || input.refreshPrintEvidence)) {
+    const selected = previousLineage?.selectedEntityIds ?? [];
+    const priorPrintImpact = (previousLineage?.impact as { printVersionReuse?: { preservedEntityIds?: unknown } } | undefined)?.printVersionReuse?.preservedEntityIds;
+    const permittedRefresh = possibleDiktatIds.filter(id => !selected.length || selected.includes(id)
+      || productBundle(input.original).products.some(product => product.id === id && product.productType === "diktat" && !!product.sourceArticleId && selected.includes(product.sourceArticleId))
+      || Array.isArray(priorPrintImpact) && priorPrintImpact.includes(id));
+    if (input.refreshPrintEvidence && !permittedRefresh.length) throw new Error("REVISION_PRINT_REFRESH_OUTSIDE_SELECTION");
+    const unchangedIds = productBundle(built.bundle).products.filter(product => product.productType === "diktat"
+      && (!input.refreshPrintEvidence || permittedRefresh.includes(product.id))
+      && productBundle(input.original).products.some(previous => previous.id === product.id && serializeDeterministically(previous) === serializeDeterministically(product))).map(product => product.id);
+    if (unchangedIds.length) {
+      const reuse = await selectProductV4ReusableDiktatVersions({ source: input.source, original: productBundle(input.original),
+        candidate: productBundle(built.bundle), runId: stagingRunId, rootImportId: previousLineage?.rootImportId ?? base.id });
+      const preservedEntityIds = unchangedIds.filter(id => reuse.preserveUnchangedDiktatIds.includes(id));
+      const advancedEntityIds = unchangedIds.filter(id => !preservedEntityIds.includes(id));
+      if (advancedEntityIds.length) built = buildRevisionArtifact({ ...artifactInput,
+        preserveUnchangedDiktatIds: [...possibleDiktatIds.filter(id => !unchangedIds.includes(id)), ...preservedEntityIds],
+        ...(input.refreshPrintEvidence ? { refreshPrintEvidenceIds: advancedEntityIds } : {}) });
+      built.impact.printVersionReuse = { preservedEntityIds, advancedEntityIds, reason: reuse.reason };
+    }
+  }
   const bundle = built.bundle as Bundle;
-  if (input.previous && !built.impact.changed) return getRevisionContext({ actorId: input.actorId, kind: input.kind, importId: input.previous.id, expectedRevision: input.previous.checksum, responseMode: input.responseMode });
+  if (input.previous && !built.impact.changed) {
+    const current = await rowFor(input.previous.id, input.previous.checksum, input.kind);
+    return revisionContextFromArtifact({ actorId: input.actorId, kind: input.kind, responseMode: input.responseMode }, current, input.original);
+  }
   const scope = await scopeFor(bundle);
   if ("products" in bundle) {
     if (bundle.products.some(product => !["article", "diktat", "flashcard_set", "flashcard", "solution_collection"].includes(product.productType))) throw new Error("REVISION_LEARNING_PRODUCTS_ONLY");
     const admitted = await validateProductBundleAdmission(built.bytes);
-    if (!admitted.success || admitted.data.checksum !== checksum(bundle)) throw new Error("REVISION_ADMISSION_FAILED");
+    if (!admitted.success) throw revisionValidationError("REVISION_ADMISSION_FAILED", admitted.issues);
+    if (admitted.data.checksum !== checksum(bundle)) throw new Error("REVISION_ADMISSION_FAILED");
     const pairs = await validateInteractiveDocumentArchive(productInteractiveDocuments(bundle.products), bundle.manifest.visualAssets ?? [], bundle.files);
     if (pairs.length) await stageInteractiveDocumentAssets(pairs);
   }
   const selectedEntityIds = input.selectedEntityIds ?? (input.previous ? previousLineage?.selectedEntityIds : []) ?? [];
   const available = new Set([...inventory(bundle), ...inventory(input.original)].map(item => item.entityId));
   if (selectedEntityIds.some(id => !available.has(id))) throw new Error("REVISION_ENTITY_SELECTION_INVALID");
-  const lineage: Lineage = { schema: "authoring-revision.v1", rootImportId: previousLineage?.rootImportId ?? base.id, baseImportId: base.id, baseRevision: base.checksum, previousImportId: input.previous?.id ?? input.source.id, previousRevision: input.previous?.checksum ?? input.source.checksum, stagingRunId, selectedEntityIds, requestFingerprint: digest({ actorId: input.actorId, importId: input.source.id, revision: input.source.checksum, operations: input.operations }), ...(input.restoreFrom ? { restoredFrom: { importId: input.restoreFrom.id, revision: input.restoreFrom.checksum } } : {}), impact: built.impact };
+  const lineage: Lineage = { schema: "authoring-revision.v1", rootImportId: previousLineage?.rootImportId ?? base.id, baseImportId: base.id, baseRevision: base.checksum, previousImportId: input.previous?.id ?? input.source.id, previousRevision: input.previous?.checksum ?? input.source.checksum, stagingRunId, selectedEntityIds, requestFingerprint: patchFingerprint(input.actorId, input.source.id, input.source.checksum, input.operations, input.derivedContentReviews, input.refreshPrintEvidence), ...(input.restoreFrom ? { restoredFrom: { importId: input.restoreFrom.id, revision: input.restoreFrom.checksum } } : {}), impact: built.impact };
   const artifactKeyInput = { runId: stagingRunId, bundleId, checksum: checksum(bundle) };
   const sourceKey = input.kind === "idea" ? buildIdeaBundleKey(artifactKeyInput) : buildProductBundleKey(artifactKeyInput);
   await storage.upload(built.bytes, `${bundleId}.zip`, "application/zip", { key: sourceKey, metadata: { importId, checksum: checksum(bundle), rootImportId: lineage.rootImportId } });
@@ -151,18 +194,26 @@ async function persistDraft(input: { actorId: string; kind: RevisionKind; source
     const products = "products" in bundle ? bundle.products : [];
     const article = products.find(product => product.productType === "article");
     const diktat = products.find(product => product.productType === "diktat");
-    const report = { valid: true, chapterId: scope.chapterId, bundleTitle: "title" in (bundle.manifest as object) ? String((bundle.manifest as unknown as { title: string }).title) : null, publicationBlocked: "publicationBlocked" in bundle ? bundle.publicationBlocked : false, issues: "issues" in bundle ? bundle.issues : [], productCount: products.length, dependencyCount: "dependencies" in bundle ? bundle.dependencies.length : 0, articleId: article?.id ?? null, diktatId: diktat?.id ?? null, articleGenerationHash: article?.generationHash ?? null, diktatGenerationHash: diktat?.generationHash ?? null, contentFingerprint: productPedagogyFingerprint(products), revisionLineage: lineage };
+    const titledProduct = products.find((product): product is ProductEntity & { title: string } => "title" in product && typeof product.title === "string");
+    const bundleTitle = "title" in (bundle.manifest as object) ? String((bundle.manifest as unknown as { title: string }).title) : titledProduct?.title ?? ("entities" in bundle ? bundle.entities.learningSections[0]?.title : null) ?? scope.chapterTitle;
+    const report = { valid: true, chapterId: scope.chapterId, bundleTitle, publicationBlocked: "publicationBlocked" in bundle ? bundle.publicationBlocked : false, issues: "issues" in bundle ? bundle.issues : [], productCount: products.length, dependencyCount: "dependencies" in bundle ? bundle.dependencies.length : 0, articleId: article?.id ?? null, diktatId: diktat?.id ?? null, articleGenerationHash: article?.generationHash ?? null, diktatGenerationHash: diktat?.generationHash ?? null, contentFingerprint: productPedagogyFingerprint(products), revisionLineage: lineage };
     await tx.insert(imporBundle).values({ id: importId, bundleId, bundleType: input.kind, version: input.source.version, checksum: checksum(bundle), sourceUriOrKey: sourceKey, courseId: scope.legacyCourseId, requestedBy: input.actorId, status: input.kind === "idea" ? "validated" : "draft", validationReport: report });
     if (items.length) await tx.insert(itemImporBundle).values(items.map(item => ({ ...item, id: `revision-item-${randomUUID()}`, imporBundleId: importId, status: input.kind === "idea" ? "validated" as const : "draft" as const })));
     await tx.insert(auditMutasi).values({ id: `audit-stage-${randomUUID()}`, actorId: input.actorId, entityType: `${input.kind}_bundle`, entityId: importId, action: "draft_created", correlationId: stagingRunId, afterSnapshot: { checksum: checksum(bundle), bundleId, revisionLineage: lineage } });
     const [created] = await tx.select().from(imporBundle).where(eq(imporBundle.id, importId));
     await audit(tx, input.actorId, created, input.restoreFrom ? "revision_restored" : input.previous ? "revision_patched" : "revision_created", { rootImportId: lineage.rootImportId, revision: created.checksum, sourceUriOrKey: sourceKey, lineage, impact: built.impact }, { importId: input.source.id, revision: input.source.checksum, sourceUriOrKey: input.source.sourceUriOrKey });
+    if (built.impact.appliedDerivedContentReviews?.length) await audit(tx, input.actorId, created, "derived_content_reviewed", {
+      revision: created.checksum, reviews: built.impact.appliedDerivedContentReviews,
+    }, { importId: input.source.id, revision: input.source.checksum });
     if (input.previous) {
       await tx.update(imporBundle).set({ status: "withdrawn", updatedAt: new Date() }).where(eq(imporBundle.id, input.previous.id));
       await audit(tx, input.actorId, source, "draft_superseded", { rootImportId: lineage.rootImportId, successorImportId: importId, successorRevision: created.checksum, state: "superseded_draft" });
     }
   });
-  return getRevisionContext({ actorId: input.actorId, kind: input.kind, importId, expectedRevision: checksum(bundle), responseMode: input.responseMode });
+  // The new archive was built and admitted above. Read the committed identity,
+  // but do not download and validate those same immutable bytes again.
+  const created = await rowFor(importId, checksum(bundle), input.kind);
+  return revisionContextFromArtifact({ actorId: input.actorId, kind: input.kind, responseMode: input.responseMode }, created, bundle, scope);
 }
 
 export async function createRevisionDraft(input: CreateRevisionInput) {
@@ -172,19 +223,34 @@ export async function createRevisionDraft(input: CreateRevisionInput) {
   if (!["published", "draft", "validated", "approved", "rejected"].includes(source.status)) throw new Error("REVISION_LIVE_OR_DRAFT_REQUIRED");
   return persistDraft({ ...input, source, original: await bundleFor(source), operations: [], selectedEntityIds: input.entityIds });
 }
-export async function patchRevisionDraft(input: RevisionSelector & { operations: RevisionPatchOperation[]; responseMode?: RevisionResponseMode }) {
+export async function patchRevisionDraft(input: RevisionSelector & { operations: RevisionPatchOperation[]; derivedContentReviews?: DerivedContentReview[]; refreshPrintEvidence?: boolean; responseMode?: RevisionResponseMode }) {
   await authorize(input.actorId);
-  if (!input.operations.length || input.operations.length > 128 || Buffer.byteLength(JSON.stringify(input.operations)) > 512 * 1024) throw new Error("REVISION_PATCH_LIMIT");
+  if ((!input.operations.length && !input.derivedContentReviews?.length && !input.refreshPrintEvidence) || input.operations.length > 128 || (input.derivedContentReviews?.length ?? 0) > 100 || Buffer.byteLength(JSON.stringify({ operations: input.operations, derivedContentReviews: input.derivedContentReviews })) > 512 * 1024) throw new Error("REVISION_PATCH_LIMIT");
+  if (input.refreshPrintEvidence && (input.operations.length || input.derivedContentReviews?.length)) throw new Error("REVISION_PRINT_REFRESH_CONTENT_PATCH_NOT_ALLOWED");
   const source = await rowFor(input.importId, input.expectedRevision, input.kind);
   const lineage = lineageOf(source);
+  if (input.refreshPrintEvidence && (input.kind !== "product" || source.version !== 4)) throw new Error("REVISION_PRINT_REFRESH_V4_REQUIRED");
   if (lineage && source.status === "withdrawn") {
-    const fingerprint = digest({ actorId: input.actorId, importId: source.id, revision: source.checksum, operations: input.operations });
+    const fingerprint = patchFingerprint(input.actorId, source.id, source.checksum, input.operations, input.derivedContentReviews, input.refreshPrintEvidence);
     const [successor] = await db.select().from(imporBundle).where(and(sql`${imporBundle.validationReport}->'revisionLineage'->>'previousImportId' = ${source.id}`, sql`${imporBundle.validationReport}->'revisionLineage'->>'requestFingerprint' = ${fingerprint}`)).limit(1);
     if (successor) return getRevisionContext({ actorId: input.actorId, kind: input.kind, importId: successor.id, expectedRevision: successor.checksum, responseMode: input.responseMode });
   }
   if (!lineage || !["draft", "validated", "approved", "rejected"].includes(source.status)) throw new Error("REVISION_DRAFT_REQUIRED");
   if (lineage.selectedEntityIds.length && input.operations.some(operation => !lineage.selectedEntityIds.includes(operation.target.entityId))) throw new Error("REVISION_PATCH_OUTSIDE_SELECTION");
-  return persistDraft({ ...input, source, previous: source, original: await bundleFor(source) });
+  const original = await bundleFor(source);
+  if (input.refreshPrintEvidence && !productBundle(original).products.some(product => product.productType === "diktat")) throw new Error("REVISION_PRINT_REFRESH_DIKTAT_REQUIRED");
+  if (lineage.selectedEntityIds.length && input.derivedContentReviews?.some(review => {
+    if (lineage.selectedEntityIds.includes(review.entityId)) return false;
+    if (!("products" in original) || !lineage.selectedEntityIds.includes(review.sourceArticleId)) return true;
+    const diktat = original.products.find(product => product.id === review.entityId && product.productType === "diktat");
+    const article = original.products.find(product => product.id === review.sourceArticleId && product.productType === "article");
+    if (diktat?.productType !== "diktat" || article?.productType !== "article" || diktat.sourceArticleId !== article.id
+      || diktat.sourceArticleHash !== article.generationHash || diktat.sourceArticleVersion !== article.version) return true;
+    return !original.dependencies.some(edge => edge.upstreamEntityType === "product" && edge.upstreamEntityId === article.id
+      && edge.upstreamVersion === article.version && edge.upstreamHash === article.generationHash
+      && edge.downstreamEntityId === diktat.id && edge.downstreamVersion === diktat.version && edge.downstreamHash === diktat.generationHash);
+  })) throw new Error("REVISION_PATCH_OUTSIDE_SELECTION");
+  return persistDraft({ ...input, source, previous: source, original });
 }
 export async function restoreRevisionDraft(input: RestoreRevisionInput) {
   await authorize(input.actorId);
@@ -202,7 +268,7 @@ export async function restoreRevisionDraft(input: RestoreRevisionInput) {
 
 function unitContext(product: ProductEntity) {
   const { version: _version, generationHash: _generationHash, ...value } = product;
-  if (value.productType === "article") { const { sections: _sections, ...parent } = value; return digest(parent); }
+  if (value.productType === "article") { const { sections: _sections, visuals: _visuals, ...parent } = value; return digest(parent); }
   if (value.productType === "solution_collection") { const { items: _items, ...parent } = value.collection; return digest({ ...value, collection: parent }); }
   return digest(value);
 }
@@ -210,23 +276,34 @@ async function reusableEvidence(row: Row, bundle: Bundle, actorId: string) {
   const lineage = lineageOf(row);
   const empty = { sourceImportId: null as string | null, sourceRevision: null as string | null, units: [] as string[], ideaItems: [] as IdeaReviewItem[], sectionDecisions: [] as Array<ProductV4SectionDecision & { productId: string }>, solutionItems: [] as Array<Parameters<typeof reviewSolutionCollection>[0]["items"][number]>, token: digest(null) };
   if (!lineage) return empty;
-  let previousId = lineage.previousImportId, previousRevision = lineage.previousRevision;
-  let source: Row | undefined;
-  let reviews: Array<typeof reviewBundle.$inferSelect> = [], items: Array<typeof reviewItemBundle.$inferSelect> = [];
-  const visited = new Set<string>();
-  for (let depth = 0; depth < 100 && !visited.has(previousId); depth++) {
-    visited.add(previousId);
-    const [candidate] = await db.select().from(imporBundle).where(eq(imporBundle.id, previousId)).limit(1);
-    if (!candidate || candidate.checksum !== previousRevision || kindOf(candidate) !== kindOf(row)) return empty;
-    reviews = await db.select().from(reviewBundle).where(and(eq(reviewBundle.imporBundleId, candidate.id), eq(reviewBundle.reviewerId, actorId)));
-    items = await db.select().from(reviewItemBundle).where(and(eq(reviewItemBundle.imporBundleId, candidate.id), eq(reviewItemBundle.reviewerId, actorId)));
-    if (reviews.length || items.length) { source = candidate; break; }
-    const earlier = lineageOf(candidate);
-    if (!earlier || earlier.rootImportId !== lineage.rootImportId) return empty;
-    previousId = earlier.previousImportId;
-    previousRevision = earlier.previousRevision;
-  }
+  // Follow only exact predecessor links. One bounded recursive lookup replaces
+  // three network round trips per unreviewed ancestor, including fork histories.
+  const [source] = await db.select().from(imporBundle).where(eq(imporBundle.id, sql`(
+    with recursive revision_ancestors as (
+      select i.id, i.validation_report as lineage_report, 0 as depth, array[i.id]::text[] as visited
+      from ${imporBundle} i
+      where i.id = ${lineage.previousImportId} and i.checksum = ${lineage.previousRevision}
+        and i.bundle_type = ${kindOf(row)} and i.version >= 3
+      union all
+      select p.id, p.validation_report, a.depth + 1, a.visited || p.id
+      from revision_ancestors a
+      join ${imporBundle} p on p.id = a.lineage_report->'revisionLineage'->>'previousImportId'
+        and p.checksum = a.lineage_report->'revisionLineage'->>'previousRevision'
+        and p.bundle_type = ${kindOf(row)} and p.version >= 3
+      where a.depth < 99 and not p.id = any(a.visited)
+        and a.lineage_report->'revisionLineage'->>'schema' = 'authoring-revision.v1'
+        and a.lineage_report->'revisionLineage'->>'rootImportId' = ${lineage.rootImportId}
+    )
+    select a.id from revision_ancestors a
+    where exists (select 1 from ${reviewBundle} where ${reviewBundle.imporBundleId} = a.id and ${reviewBundle.reviewerId} = ${actorId})
+       or exists (select 1 from ${reviewItemBundle} where ${reviewItemBundle.imporBundleId} = a.id and ${reviewItemBundle.reviewerId} = ${actorId})
+    order by a.depth limit 1
+  )`)).limit(1);
   if (!source) return empty;
+  const [reviews, items] = await Promise.all([
+    db.select().from(reviewBundle).where(and(eq(reviewBundle.imporBundleId, source.id), eq(reviewBundle.reviewerId, actorId))),
+    db.select().from(reviewItemBundle).where(and(eq(reviewItemBundle.imporBundleId, source.id), eq(reviewItemBundle.reviewerId, actorId))),
+  ]);
   const previous = await bundleFor(source);
   const result = { ...empty, sourceImportId: source.id, sourceRevision: source.checksum };
   if ("entities" in previous && "entities" in bundle) {
@@ -284,7 +361,12 @@ export async function getRevisionContext(input: RevisionSelector & RevisionConte
   await authorize(input.actorId);
   const row = await rowFor(input.importId, input.expectedRevision, input.kind);
   const bundle = await bundleFor(row);
-  const scope = await scopeFor(bundle);
+  return revisionContextFromArtifact(input, row, bundle);
+}
+
+/** Only accepts a server-loaded or freshly admitted artifact, never caller-provided content. */
+async function revisionContextFromArtifact(input: Pick<RevisionSelector, "actorId" | "kind"> & RevisionContextOptions, row: Row, bundle: Bundle, resolvedScope?: Awaited<ReturnType<typeof scopeFor>>) {
+  const scope = resolvedScope ?? await scopeFor(bundle);
   const lineage = lineageOf(row);
   const draft = ["draft", "validated", "approved", "rejected"].includes(row.status);
   const selection = input.target ? selectRevisionContent(bundle, input.target) : undefined;
@@ -298,7 +380,14 @@ export async function getRevisionContext(input: RevisionSelector & RevisionConte
     const products = productBundle(bundle).products;
     reviewContext = { policyVersion: (await import("@/lib/materials/quality-policy")).QUALITY_POLICY_VERSION, contentFingerprint: productPedagogyFingerprint(products), sections: products.flatMap(product => product.productType === "article" ? product.sections.map(section => ({ productId: product.id, sectionId: section.id, semanticHash: computeProductV4SectionSemanticHash(product, section.id) })) : []), readiness: await currentPublisherProductReadiness(row.id, input.actorId) };
   }
-  return { kind: input.kind, importId: row.id, revision: row.checksum, version: row.version, schemaVersion: bundle.manifest.schemaVersion, status: row.status, scope, stagingRunId: lineage?.stagingRunId ?? null, draftLineage: lineage, bundle: "products" in bundle ? { manifest: bundle.manifest, products: bundle.products, dependencies: bundle.dependencies } : { manifest: bundle.manifest, entities: bundle.entities }, ...(selection ? { selection } : {}), reviewContext, reviewReuse: includeReview && draft ? await reusableEvidence(row, bundle, input.actorId) : null, nextActions: draft ? ["authoring.patch_revision", ...(row.version === 4 ? ["authoring.prepare_revision_verification"] : []), "authoring.review_revision", "authoring.plan_release"] : ["authoring.create_revision", "authoring.list_revisions", "authoring.restore_revision"] };
+  const nextActions = draft
+    ? lineage
+      ? ["authoring.patch_revision", ...(row.version === 4 ? ["authoring.prepare_revision_verification"] : []), "authoring.review_revision", "authoring.plan_release"]
+      : ["authoring.create_revision", "authoring.list_revisions"]
+    : row.status === "published"
+      ? ["authoring.create_revision", "authoring.list_revisions", "authoring.restore_revision"]
+      : ["authoring.list_revisions", "authoring.restore_revision"];
+  return { kind: input.kind, importId: row.id, revision: row.checksum, version: row.version, schemaVersion: bundle.manifest.schemaVersion, status: row.status, scope, stagingRunId: lineage?.stagingRunId ?? null, draftLineage: lineage, bundle: "products" in bundle ? { manifest: bundle.manifest, products: bundle.products, dependencies: bundle.dependencies } : { manifest: bundle.manifest, entities: bundle.entities }, ...(selection ? { selection } : {}), reviewContext, reviewReuse: includeReview && draft ? await reusableEvidence(row, bundle, input.actorId) : null, nextActions };
 }
 
 export async function listRevisionHistory(input: RevisionSelector) {
@@ -356,7 +445,7 @@ export async function reviewRevisionDraft(input: RevisionReviewInput) {
   return { kind: input.kind, importId: row.id, revision: row.checksum, result, reusedUnits: reuseRequested ? reuse.units : [], nextActions: ["authoring.plan_release"] };
 }
 
-type LoadedReleaseEntry = { row: Row; bundle: Bundle; base: Row; baseBundle: Bundle; scope: Awaited<ReturnType<typeof scopeFor>>; lineage: Lineage; verification: Awaited<ReturnType<typeof getProductV4VerificationReadiness>> | null; reviewFingerprint?: string; canonicalIdeaFingerprint?: string; canonicalIdeaIds?: string[]; retiredReplacements?: string[]; canonicalAuxiliaryFingerprint?: string };
+type LoadedReleaseEntry = { row: Row; bundle: Bundle; base: Row; baseBundle: Bundle; scope: Awaited<ReturnType<typeof scopeFor>>; lineage: Lineage; verification: Awaited<ReturnType<typeof getProductV4VerificationReadiness>> | null; pdfVerification: Awaited<ReturnType<typeof getProductV4VerificationReadiness>> | null; reviewFingerprint?: string; canonicalIdeaFingerprint?: string; canonicalIdeaIds?: string[]; retiredReplacements?: string[]; canonicalAuxiliaryFingerprint?: string };
 type ReleaseBlocker = { code: string; importId?: string; entityId?: string; action: string };
 async function auxiliarySnapshot(entry: LoadedReleaseEntry, connection: typeof db | Tx = db, lock = false) {
   const bundles = [ideaBundle(entry.baseBundle),ideaBundle(entry.bundle)];
@@ -420,7 +509,7 @@ async function liveIdeaDependents(ideaIds: string[], connection: typeof db | Tx 
 }
 async function prepareRelease(input: RevisionReleaseInput) {
   await authorize(input.actorId);
-  if (!input.entries.length || input.entries.length > 16 || new Set(input.entries.map(entry => entry.importId)).size !== input.entries.length) throw new Error("REVISION_RELEASE_ENTRY_LIMIT");
+  if (!input.entries.length || input.entries.length > MAX_RELEASE_ENTRIES || new Set(input.entries.map(entry => entry.importId)).size !== input.entries.length) throw new Error("REVISION_RELEASE_ENTRY_LIMIT");
   const entries: LoadedReleaseEntry[] = [];
   for (const entry of [...input.entries].sort((a, b) => a.importId.localeCompare(b.importId))) {
     const row = await rowFor(entry.importId, entry.expectedRevision);
@@ -430,16 +519,20 @@ async function prepareRelease(input: RevisionReleaseInput) {
     const base = await rowFor(lineage.baseImportId, lineage.baseRevision, kindOf(row));
     const baseBundle = await bundleFor(base);
     let verification: LoadedReleaseEntry["verification"] = null;
+    let pdfVerification: LoadedReleaseEntry["pdfVerification"] = null;
     if (row.version === 4) {
       const ref = row.validationReport.productV4Verification as { runId?: string } | undefined;
       if (ref?.runId) verification = await getProductV4VerificationReadiness(row.id, ref.runId).catch(() => null);
+      const pdfRef = row.validationReport.productV4PdfGeneration as { runId?: string } | undefined;
+      if (pdfRef?.runId && "products" in bundle && bundle.products.some(product => product.productType === "diktat")) pdfVerification = await getProductV4VerificationReadiness(row.id, pdfRef.runId, "pdf").catch(() => null);
     }
-    entries.push({ row, bundle, base, baseBundle, scope, lineage, verification });
+    entries.push({ row, bundle, base, baseBundle, scope, lineage, verification, pdfVerification });
   }
   if (new Set(entries.map(entry => entry.scope.courseId)).size !== 1) throw new Error("REVISION_RELEASE_COURSE_MISMATCH");
   if (new Set(entries.map(entry => entry.lineage.rootImportId)).size !== entries.length) throw new Error("REVISION_RELEASE_DUPLICATE_LINEAGE");
   const blockers: ReleaseBlocker[] = [], deferredChecks: ReleaseBlocker[] = [];
   const superseded = new Set(entries.filter(entry => entry.base.status === "published").map(entry => entry.base.id));
+  const missingOwnerImports = new Set<string>();
   const selectedKeys = new Map<string, string>();
   const changes: Array<{ importId: string; kind: RevisionKind; changed: ReturnType<typeof inventory>; removed: ReturnType<typeof inventory>; unchanged: string[]; reviewReuse: Awaited<ReturnType<typeof reusableEvidence>> }> = [];
   const reviewsForHash: unknown[] = [];
@@ -464,12 +557,18 @@ async function prepareRelease(input: RevisionReleaseInput) {
       if (old && ["idea", "relation", "article", "diktat", "flashcard", "flashcard_set", "solution_collection"].includes(item.entityType) && item.entityVersion <= old.entityVersion) blockers.push({ code: "REVISION_ENTITY_VERSION_REQUIRED", importId: row.id, entityId: item.entityId, action: "Rebuild this changed entity with a version newer than the live entity." });
       if (row.bundleType === "idea" && old) {
         const owners = await db.select({ id: imporBundle.id }).from(itemImporBundle).innerJoin(imporBundle, eq(imporBundle.id, itemImporBundle.imporBundleId)).where(and(eq(imporBundle.status, "published"), eq(itemImporBundle.entityType, item.entityType), eq(itemImporBundle.entityId, item.entityId)));
-        for (const owner of owners) if (!superseded.has(owner.id)) blockers.push({ code: "REVISION_SHARED_IDEA_OWNER", importId: row.id, entityId: item.entityId, action: `Include an exact successor for published owner ${owner.id}, or keep the shared entity unchanged.` });
+        for (const owner of owners) if (!superseded.has(owner.id)) {
+          missingOwnerImports.add(owner.id);
+          blockers.push({ code: "REVISION_SHARED_IDEA_OWNER", importId: row.id, entityId: item.entityId, action: `Include an exact successor for published owner ${owner.id}, or keep the shared entity unchanged.` });
+        }
       }
     }
     if (row.bundleType === "idea") for (const item of removed) {
       const owners = await db.select({ id: imporBundle.id }).from(itemImporBundle).innerJoin(imporBundle, eq(imporBundle.id, itemImporBundle.imporBundleId)).where(and(eq(imporBundle.status, "published"), eq(itemImporBundle.entityType, item.entityType), eq(itemImporBundle.entityId, item.entityId)));
-      for (const owner of owners) if (!superseded.has(owner.id)) blockers.push({ code: "REVISION_SHARED_IDEA_OWNER", importId: row.id, entityId: item.entityId, action: `Include an exact successor for published owner ${owner.id}, or retain this shared entity.` });
+      for (const owner of owners) if (!superseded.has(owner.id)) {
+        missingOwnerImports.add(owner.id);
+        blockers.push({ code: "REVISION_SHARED_IDEA_OWNER", importId: row.id, entityId: item.entityId, action: `Include an exact successor for published owner ${owner.id}, or retain this shared entity.` });
+      }
     }
     const reviews = await db.select().from(reviewBundle).where(and(eq(reviewBundle.imporBundleId, row.id), eq(reviewBundle.reviewerId, input.actorId)));
     const itemReviews = await db.select().from(reviewItemBundle).where(and(eq(reviewItemBundle.imporBundleId, row.id), eq(reviewItemBundle.reviewerId, input.actorId)));
@@ -508,7 +607,7 @@ async function prepareRelease(input: RevisionReleaseInput) {
       await attestRetiredAuxiliary(entry,blockers);
       canonicalForHash.push(entry.canonicalAuxiliaryFingerprint);
     } else {
-      const readiness = await currentPublisherProductReadiness(row.id, input.actorId, { v4Verification: entry.verification });
+      const readiness = await currentPublisherProductReadiness(row.id, input.actorId, { v4Verification: entry.verification, v4PdfVerification: entry.pdfVerification });
       for (const code of new Set(readiness.blockingIssueCodes)) {
         const incomingIdeas = entries.filter(candidate => candidate.row.bundleType === "idea").map(candidate => ideaBundle(candidate.bundle));
         if (incomingIdeas.length && ["PRODUCT_BUNDLE_DEPENDENCY_NEEDS_REVIEW", "PRODUCT_TRACEABILITY_INVALID", "PRODUCT_V5_LIVE_DEPENDENCY_MISMATCH"].includes(code)) {
@@ -527,15 +626,22 @@ async function prepareRelease(input: RevisionReleaseInput) {
   // Current published Products depending on a changed Idea must be replaced in this release.
   const changedIdeaIds = changes.filter(change => change.kind === "idea").flatMap(change => [...change.changed, ...change.removed].filter(item => item.entityType === "idea").map(item => item.entityId));
   const dependentProducts = await liveIdeaDependents(changedIdeaIds);
-  for (const owner of dependentProducts) if (!superseded.has(owner.importId)) blockers.push({ code: "REVISION_LIVE_DEPENDENT_REQUIRES_UPDATE", importId: owner.importId, entityId: owner.entityId, action: "Create a Product revision, explicitly update its Idea references, review it, and include it in this release." });
-  const manifest = { schemaVersion: "authoring-release.v1", scopes: entries.map(entry => entry.scope), entries: entries.map(entry => ({ importId: entry.row.id, revision: entry.row.checksum, kind: kindOf(entry.row), schemaVersion: entry.bundle.manifest.schemaVersion, rootImportId: entry.lineage.rootImportId, replaces: entry.base.status === "published" ? { importId: entry.base.id, revision: entry.base.checksum } : null })), changes, dependentProducts, blockers, deferredChecks };
+  for (const owner of dependentProducts) if (!superseded.has(owner.importId)) {
+    missingOwnerImports.add(owner.importId);
+    blockers.push({ code: "REVISION_LIVE_DEPENDENT_REQUIRES_UPDATE", importId: owner.importId, entityId: owner.entityId, action: "Create a Product revision, explicitly update its Idea references, review it, and include it in this release." });
+  }
+  const capacity = { maxEntries: MAX_RELEASE_ENTRIES, selectedEntryCount: entries.length, requiredEntryCount: entries.length + missingOwnerImports.size,
+    missingOwnerCount: missingOwnerImports.size, fits: entries.length + missingOwnerImports.size <= MAX_RELEASE_ENTRIES };
+  if (!capacity.fits) blockers.push({ code: "REVISION_RELEASE_CAPACITY_EXCEEDED", importId: entries[0].row.id,
+    action: `This change needs at least ${capacity.requiredEntryCount} exact import successors; the atomic release limit is ${MAX_RELEASE_ENTRIES}. Keep the drafts and live versions unchanged, stop automatic retries, and request support for a larger bounded release job. Do not split this Idea update into partial releases.` });
+  const manifest = { schemaVersion: "authoring-release.v1", scopes: entries.map(entry => entry.scope), entries: entries.map(entry => ({ importId: entry.row.id, revision: entry.row.checksum, kind: kindOf(entry.row), schemaVersion: entry.bundle.manifest.schemaVersion, rootImportId: entry.lineage.rootImportId, replaces: entry.base.status === "published" ? { importId: entry.base.id, revision: entry.base.checksum } : null })), changes, dependentProducts, capacity, blockers, deferredChecks };
   const planHash = digest({ manifest, snapshots: entries.map(entry => ({ incoming: identitySnapshot(entry.row), base: identitySnapshot(entry.base) })), reviewsForHash, canonicalForHash });
   return { entries, manifest, planHash };
 }
 
 export async function planRevisionRelease(input: RevisionReleaseInput) {
   const prepared = await prepareRelease(input);
-  return { ...prepared.manifest, planHash: prepared.planHash, publicationReady: prepared.manifest.blockers.length === 0, atomic: true, nextActions: prepared.manifest.blockers.length ? ["authoring.get_edit_context", "authoring.review_revision", "authoring.plan_release"] : ["authoring.publish_release"] };
+  return { ...prepared.manifest, planHash: prepared.planHash, publicationReady: prepared.manifest.blockers.length === 0, atomic: true, nextActions: !prepared.manifest.capacity.fits ? [] : prepared.manifest.blockers.length ? ["authoring.get_edit_context", "authoring.review_revision", "authoring.plan_release"] : ["authoring.publish_release"] };
 }
 
 export async function publishRevisionRelease(input: RevisionReleaseInput & { expectedPlanHash: string }) {
@@ -552,6 +658,7 @@ export async function publishRevisionRelease(input: RevisionReleaseInput & { exp
   if (prepared.manifest.blockers.length) throw new Error(`REVISION_RELEASE_BLOCKED:${prepared.manifest.blockers.map(blocker => blocker.code).join(",")}`);
   const dispatchCourses = new Set<string>();
   const verifications = new Map(prepared.entries.filter(entry => entry.verification).map(entry => [entry.row.id, entry.verification]));
+  const pdfVerifications = new Map(prepared.entries.map(entry => [entry.row.id, entry.pdfVerification]));
   const replacements = new Set(prepared.entries.filter(entry => entry.row.bundleType === "idea" && entry.base.status === "published").flatMap(entry => {
     const before = new Map(inventory(entry.baseBundle).map(item => [revisionEntityKey(item.entityType, item.entityId), item.entityHash]));
     return [...inventory(entry.bundle).filter(item => before.has(revisionEntityKey(item.entityType, item.entityId)) && before.get(revisionEntityKey(item.entityType, item.entityId)) !== item.entityHash).map(item => revisionEntityKey(item.entityType, item.entityId)), ...(entry.retiredReplacements??[])];
@@ -602,7 +709,7 @@ export async function publishRevisionRelease(input: RevisionReleaseInput & { exp
       await assertProspectiveReleaseDependencies({ productBundle: productBundle(entry.bundle), ideaDrafts, scope: entry.scope, connection: tx });
     }
     await assertRevisionVerificationReleaseContext({ entries: prepared.entries.map(({ row, bundle }) => ({ row, bundle })), connection: tx });
-    return withRevisionPublication({ tx, replacements, unchangedProducts, verifications, dispatchCourses }, async () => {
+    return withRevisionPublication({ tx, replacements, unchangedProducts, verifications, pdfVerifications, dispatchCourses }, async () => {
       // Provenance has no retired status and its semantic span is unique. Remove
       // only superseded, unshared rows before inserting replacement spans. The
       // immutable predecessor archive and its inventory retain the old evidence.

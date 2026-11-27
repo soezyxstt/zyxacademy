@@ -21,7 +21,9 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { MathText } from "@/components/course/math-text";
 import dynamic from "next/dynamic";
 import { cn } from "@/lib/utils";
-import { fitNumericRange, isRepresentableRange, normalizedVectorComponent, zoomNumericRange } from "@/lib/zyra/canvas/viewport";
+import { plotAnnotations } from "@/lib/zyra/canvas/plot-annotations";
+import { computeValueTableSampling, fitNumericRange, isRepresentableRange, niceStep, normalizedVectorComponent, zoomNumericRange } from "@/lib/zyra/canvas/viewport";
+export { computeValueTableSampling };
 import { scientificNumberToLatex, scientificNumberToText, scientificValueToMathText } from "@/lib/math/scientific-format";
 import { Check, ChevronDown, RotateCcw, SlidersHorizontal, ZoomIn, ZoomOut } from "lucide-react";
 import { useTranslations } from "@/lib/i18n/client";
@@ -333,38 +335,6 @@ function usePlotLabelSize(ref: RefObject<SVGSVGElement | null>) {
     return () => observer.disconnect();
   }, [ref]);
   return size;
-}
-
-function niceStep(range: number) {
-  const raw = range / 8;
-  if (!Number.isFinite(raw) || raw <= 0) return 1;
-  const magnitude = Math.pow(10, Math.floor(Math.log10(raw)));
-  for (const multiplier of [1, 2, 5, 10]) {
-    if (raw <= multiplier * magnitude) return multiplier * magnitude;
-  }
-  return 10 * magnitude;
-}
-
-export function computeValueTableSampling(
-  domainMin: number,
-  domainMax: number,
-  viewMin: number,
-  viewMax: number,
-): { min: number; max: number; sampleCount: number } | null {
-  const min = Math.max(domainMin, viewMin);
-  const max = Math.min(domainMax, viewMax);
-  if (!Number.isFinite(min) || !Number.isFinite(max) || !(min < max)) return null;
-  const span = max - min;
-  for (const step of [niceStep(span * 2), niceStep(span)]) {
-    if (!Number.isFinite(step) || step <= 0) continue;
-    const start = Math.max(min, Math.ceil((min - step * 1e-9) / step) * step);
-    const end = Math.min(max, Math.floor((max + step * 1e-9) / step) * step);
-    if (start < end) {
-      const sampleCount = Math.min(400, Math.max(2, Math.round((end - start) / step) + 1));
-      return { min: start, max: end, sampleCount };
-    }
-  }
-  return { min, max, sampleCount: 5 };
 }
 
 function tickValues(min: number, max: number, step: number): number[] {
@@ -781,89 +751,10 @@ function FunctionPlot({ spec, embedded = false }: { spec: FunctionPlotCanvas; em
     });
   }, [evaluated, mapX, mapY, view.yMin, view.yMax, visibleSeriesIds]);
 
-  const roots = useMemo(() => {
-    return evaluated.flatMap((series, seriesIndex) => {
-      if (!visibleSeriesIds.has(series.id)) return [];
-      const result: Array<{ id: string; x: number; color: string }> = [];
-      for (let i = 1; i < series.points.length; i += 1) {
-        const prev = series.points[i - 1];
-        const curr = series.points[i];
-        if (!prev || !curr || prev.y === null || curr.y === null) continue;
-        if (Math.sign(prev.y) === Math.sign(curr.y)) continue;
-        if (Math.abs(prev.y - curr.y) > (view.yMax - view.yMin) * 0.8) continue;
-        const ratio = Math.abs(prev.y) / (Math.abs(prev.y) + Math.abs(curr.y));
-        const rootX = prev.x + (curr.x - prev.x) * ratio;
-        if (Number.isFinite(rootX) && rootX >= view.xMin && rootX <= view.xMax) {
-          result.push({
-            id: `${series.id}-root-${i}`,
-            x: rootX,
-            color: getSeriesColor(seriesIndex),
-          });
-        }
-      }
-      return result;
-    });
-  }, [evaluated, visibleSeriesIds, view.xMin, view.xMax, view.yMin, view.yMax]);
-
-  const intersections = useMemo(() => {
-    if (embedded) return [];
-    const visibleSeries = evaluated.filter((s) => visibleSeriesIds.has(s.id));
-    if (visibleSeries.length < 2) return [];
-
-    const results: Array<{ id: string; x: number; y: number; label: string }> = [];
-
-    for (let i = 0; i < visibleSeries.length - 1; i += 1) {
-      for (let j = i + 1; j < visibleSeries.length; j += 1) {
-        const s1 = visibleSeries[i];
-        const s2 = visibleSeries[j];
-        const count = Math.min(s1.points.length, s2.points.length);
-
-        for (let k = 1; k < count; k += 1) {
-          const p1Prev = s1.points[k - 1];
-          const p1Curr = s1.points[k];
-          const p2Prev = s2.points[k - 1];
-          const p2Curr = s2.points[k];
-
-          if (
-            !p1Prev || !p1Curr || !p2Prev || !p2Curr ||
-            p1Prev.y === null || p1Curr.y === null ||
-            p2Prev.y === null || p2Curr.y === null
-          ) continue;
-
-          const diffPrev = p1Prev.y - p2Prev.y;
-          const diffCurr = p1Curr.y - p2Curr.y;
-
-          if (diffPrev === 0 || Math.sign(diffPrev) !== Math.sign(diffCurr)) {
-            const denom = Math.abs(diffPrev) + Math.abs(diffCurr);
-            const ratio = denom === 0 ? 0 : Math.abs(diffPrev) / denom;
-            const ix = p1Prev.x + (p1Curr.x - p1Prev.x) * ratio;
-            const iy = p1Prev.y + (p1Curr.y - p1Prev.y) * ratio;
-
-            if (
-              Number.isFinite(ix) && Number.isFinite(iy) &&
-              ix >= view.xMin && ix <= view.xMax &&
-              iy >= view.yMin && iy <= view.yMax
-            ) {
-              const roundedX = Math.round(ix * 100) / 100;
-              const roundedY = Math.round(iy * 100) / 100;
-              const exists = results.some(
-                (r) => Math.abs(r.x - roundedX) < 0.04 && Math.abs(r.y - roundedY) < 0.04,
-              );
-              if (!exists) {
-                results.push({
-                  id: `intersect-${s1.id}-${s2.id}-${k}`,
-                  x: roundedX,
-                  y: roundedY,
-                  label: `(${formatNum(roundedX)}, ${formatNum(roundedY)})`,
-                });
-              }
-            }
-          }
-        }
-      }
-    }
-    return results;
-  }, [embedded, evaluated, visibleSeriesIds, view.xMin, view.xMax, view.yMin, view.yMax]);
+  const { roots, intersections } = useMemo(() => plotAnnotations(
+    evaluated.filter(series => visibleSeriesIds.has(series.id)),
+    { x: { min: view.xMin, max: view.xMax }, y: { min: view.yMin, max: view.yMax } }, !embedded,
+  ), [embedded, evaluated, visibleSeriesIds, view.xMin, view.xMax, view.yMin, view.yMax]);
 
   const handleHoverMove = (e: ReactMouseEvent<SVGSVGElement>) => {
     if (isDragging || !interactive) return;
@@ -1172,8 +1063,8 @@ function FunctionPlot({ spec, embedded = false }: { spec: FunctionPlotCanvas; em
               cx={mapX(root.x)}
               cy={mapY(0)}
               r={4}
-              fill={root.color}
-              stroke={root.color}
+              fill={getSeriesColor(spec.series.findIndex(series => series.id === root.seriesId))}
+              stroke={getSeriesColor(spec.series.findIndex(series => series.id === root.seriesId))}
               strokeWidth={2}
               clipPath={`url(#plot-clip-${uid})`}
             />

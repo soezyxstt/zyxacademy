@@ -45,7 +45,8 @@ export async function GET(req: NextRequest, { params }: Context) {
     .where(eq(quizTemplates.id, templateId))
     .limit(1);
 
-  if (!template) {
+  const expectedCourse = req.nextUrl.searchParams.get("expectedCourseId");
+  if (!template || (expectedCourse !== null && template.courseId !== expectedCourse)) {
     return NextResponse.json({ error: "Quiz template not found" }, { status: 404 });
   }
 

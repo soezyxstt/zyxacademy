@@ -1,0 +1,149 @@
+{
+  "enrolled": {
+    "dashboard": {
+      "view": "dashboard",
+      "firstName": "Alya",
+      "enrolled": [
+        {
+          "id": "matematika-1",
+          "title": "Matematika I",
+          "category": "Matematika",
+          "description": "Fungsi, limit, turunan dan integral.",
+          "hasFullContentAccess": true,
+          "materialsCount": 4
+        }
+      ],
+      "completedMaterialsByCourse": {
+        "matematika-1": 0
+      },
+      "recommended": [],
+      "continueReading": []
+    },
+    "extras": {
+      "view": "dashboard-extras",
+      "today": {
+        "streak": 0,
+        "items": []
+      },
+      "achievements": {
+        "rank": "Rakyat",
+        "xp": 0,
+        "lp": 0
+      },
+      "mastery": {
+        "courseId": "matematika-1",
+        "title": "Matematika I",
+        "concepts": []
+      },
+      "reviews": {
+        "due": 0,
+        "courseId": "matematika-1",
+        "courseTitle": "Matematika I",
+        "recent": []
+      },
+      "assessments": {
+        "total": 0,
+        "items": []
+      },
+      "partial": false
+    }
+  },
+  "unenrolled": {
+    "dashboard": {
+      "view": "dashboard",
+      "firstName": "Bima",
+      "enrolled": [],
+      "continueReading": [],
+      "recommended": [
+        {
+          "id": "matematika-1",
+          "title": "Matematika I",
+          "category": "Matematika",
+          "description": "Fungsi, limit, turunan dan integral.",
+          "hasFullContentAccess": false,
+          "materialsCount": 4,
+          "quizzesCount": 0,
+          "tryoutsCount": 0
+        }
+      ],
+      "preview": {
+        "targetCategory": null,
+        "courses": [
+          {
+            "id": "matematika-1",
+            "title": "Matematika I",
+            "category": "Matematika",
+            "pricing": {
+              "category": "premium",
+              "startsAt": null,
+              "endsAt": null
+            },
+            "freeChapters": [
+              {
+                "id": "bab-1",
+                "title": "Sistem bilangan real",
+                "completed": false
+              }
+            ],
+            "freeMaterialCount": 1,
+            "completedFreeMaterialCount": 0,
+            "freeQuizCount": 0,
+            "firstIncompleteMaterialId": "dokumen-1"
+          }
+        ]
+      }
+    },
+    "extras": {
+      "view": "dashboard-extras"
+    }
+  },
+  "revoked": {
+    "dashboard": {
+      "view": "dashboard",
+      "firstName": "Citra",
+      "enrolled": [],
+      "continueReading": [],
+      "recommended": [
+        {
+          "id": "matematika-1",
+          "title": "Matematika I",
+          "category": "Matematika",
+          "description": "Fungsi, limit, turunan dan integral.",
+          "hasFullContentAccess": false,
+          "materialsCount": 4,
+          "quizzesCount": 0,
+          "tryoutsCount": 0
+        }
+      ],
+      "preview": {
+        "targetCategory": null,
+        "courses": [
+          {
+            "id": "matematika-1",
+            "title": "Matematika I",
+            "category": "Matematika",
+            "pricing": {
+              "category": "premium",
+              "startsAt": null,
+              "endsAt": null
+            },
+            "freeChapters": [
+              {
+                "id": "bab-1",
+                "title": "Sistem bilangan real",
+                "completed": false
+              }
+            ],
+            "freeMaterialCount": 1,
+            "completedFreeMaterialCount": 0,
+            "freeQuizCount": 0,
+            "firstIncompleteMaterialId": "dokumen-1"
+          }
+        ]
+      }
+    },
+    "extras": {
+      "view": "dashboard-extras"
+    }
+  }
+}

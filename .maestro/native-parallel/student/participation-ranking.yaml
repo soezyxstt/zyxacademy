@@ -1,0 +1,55 @@
+appId: com.zyx.academy.nativeparity
+name: Student participation ranking global and following filters
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: separator
+    timeout: 30000
+- openLink: "zyx-native-parity://student-fixture?scenario=ranking-parity&theme=light&locale=id&path=%2Fleaderboard"
+- extendedWaitUntil:
+    visible: ".*Nara Putri.*"
+    timeout: 30000
+- assertVisible: "Peringkat berdasarkan XP dasar. XP sama mendapat posisi yang sama."
+- assertVisible: ".*165 XP.*"
+- assertVisible: ".*Satrio Wibowo.*"
+- assertVisible: ".*141 XP.*"
+- assertNotVisible: ".*Aruni Rasyid.*"
+- assertNotVisible: ".*Posisi Anda.*"
+- assertNotVisible: "3 teratas"
+- takeScreenshot: student-participation-ranking-global
+- tapOn:
+    id: student-ranking-filter
+- tapOn: "Diikuti"
+- extendedWaitUntil:
+    visible: ".*165 XP.*"
+    timeout: 30000
+- assertNotVisible: ".*Satrio Wibowo.*"
+- assertNotVisible: ".*Aruni Rasyid.*"
+- assertVisible: "Filter, aktif"
+- takeScreenshot: student-participation-ranking-following
+- tapOn:
+    id: student-ranking-filter
+- tapOn: "Bulan"
+- extendedWaitUntil:
+    visible: "Belum ada peringkat"
+    timeout: 30000
+- assertVisible: "Filter, aktif"
+- assertNotVisible: ".*Nara Putri.*"
+- assertNotVisible: ".*Satrio Wibowo.*"
+- assertNotVisible: ".*Posisi Anda.*"
+- takeScreenshot: student-participation-ranking-empty
+- tapOn:
+    id: student-ranking-tab-academic
+- extendedWaitUntil:
+    visible: "Matematika I"
+    timeout: 30000
+- assertVisible: "Semua kelas"
+- assertVisible: ".*Nara Putri.*"
+- assertVisible: '94[.,]5'
+- assertNotVisible: ".*XP.*"
+- tapOn:
+    id: student-ranking-tab-rank
+- extendedWaitUntil:
+    visible: "Belum ada peringkat"
+    timeout: 30000

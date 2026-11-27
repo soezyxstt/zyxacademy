@@ -1,0 +1,248 @@
+{
+  "sourceHead": "17c0b80ae892779e72e37701d89629255aec4cfe",
+  "checkoutSha": "15ba8024dbc25385fc54050e439187e1e3f1963b",
+  "workflowRun": "https://github.com/soezyxstt/zyxacademy/actions/runs/45814465447",
+  "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45814465447/artifacts/15117816864",
+  "artifactSha256": "47943eceddc9f8d9832fa4d3f20b0c328b1b046083a6262097e3fa649ced195b",
+  "webReferenceArtifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45814465447/artifacts/15114936296",
+  "webReferenceArtifactSha256": "273abeafe28e41a74b8dc99f7b34f3f6cf144c4a9c08482361b6f82f8d72ad55",
+  "jobId": 139891824953,
+  "status": "device_flows_completed_with_failures",
+  "reason": "Maestro reported 199 captured smoke passes, one preference confirmation assertion failure and three blocked cases. Fifteen of 18 standalone scenarios passed. Restoring the long material list passed the bounded pixel check, and all three matched catalog images differed from web.",
+  "summaryCounts": {
+    "passed": 199,
+    "blocked": 3,
+    "failed": 1
+  },
+  "standaloneCounts": {
+    "passed": 15,
+    "failed": 3
+  },
+  "standaloneFailures": [
+    "Student quiz saves and restores its draft",
+    "Catalog comparable fixture all TPB and PKA",
+    "Student opens a discussion alias and posts a scoped answer"
+  ],
+  "comparison": [
+    {
+      "id": "catalog-all",
+      "status": "different",
+      "differing_pixels": 53263,
+      "max_channel_difference": 227
+    },
+    {
+      "id": "catalog-tpb",
+      "status": "different",
+      "differing_pixels": 45212,
+      "max_channel_difference": 227
+    },
+    {
+      "id": "catalog-pka",
+      "status": "different",
+      "differing_pixels": 28345,
+      "max_channel_difference": 227
+    }
+  ],
+  "captures": [
+    {
+      "file": "captures/catalog-all-diff.png",
+      "member": "comparison/catalog-all-diff.png",
+      "sha256": "9069340f6a6a711c728f8d1cb19bc475d99b7e5c913cac5fa716be8511d326a7",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/catalog-pka-diff.png",
+      "member": "comparison/catalog-pka-diff.png",
+      "sha256": "0ae6e022df78ff18043e6f9b2e3d0a7994cc1e73b1d3bcc64ba53f97f7e027bf",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/catalog-tpb-diff.png",
+      "member": "comparison/catalog-tpb-diff.png",
+      "sha256": "aef31db2b869e3d2d56438089470a61272327cc0d03bf68f19f16bf19f68a3b5",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-catalog-all.png",
+      "member": "results/2026-11-26_121622/Catalog comparable fixture all TPB and PKA/takeScreenshot/student-catalog-all.png",
+      "sha256": "e4172fef9c60f781e5c0fe46c8d49409b54642ce3af2dfd0ab9467d296c1bcd8",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-catalog-pka.png",
+      "member": "results/2026-11-26_121622/Catalog comparable fixture all TPB and PKA/takeScreenshot/student-catalog-pka.png",
+      "sha256": "a815d92303d51599cf712860bbd13d34bd7ffea7e58341a49529507690319cb3",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-catalog-tpb.png",
+      "member": "results/2026-11-26_121622/Catalog comparable fixture all TPB and PKA/takeScreenshot/student-catalog-tpb.png",
+      "sha256": "fe953a6119195073a7327ade00eea373a0f66fdf957437823f0efff1b54d1bce",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-flashcard-reviewed.png",
+      "member": "results/2026-11-26_121622/Learning flashcard flip and grade/takeScreenshot/student-flashcard-reviewed.png",
+      "sha256": "0e64d23526008c7e687d972359f68c862fb8aeba9df669b78008c7576577d596",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-enrolled-dashboard.png",
+      "member": "results/2026-11-26_121622/Student course enrolled fixture/takeScreenshot/student-enrolled-dashboard.png",
+      "sha256": "e64d13ed43ac24da473fc4a99e68759a8bb0a7552208e01105247c81ee2c255e",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-long-content-restored.png",
+      "member": "results/2026-11-26_121622/Student course long material list fixture/takeScreenshot/student-long-content-restored.png",
+      "sha256": "c2b8ff2ea559d08dddf4842f713f4fe8005d8f7521153abef6eeab3df186b2cd",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-long-content.png",
+      "member": "results/2026-11-26_121622/Student course long material list fixture/takeScreenshot/student-long-content.png",
+      "sha256": "c2b8ff2ea559d08dddf4842f713f4fe8005d8f7521153abef6eeab3df186b2cd",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/preferences-empty-failed.png",
+      "member": "smoke/community/results/2026-11-26_123002/smoke-070/screenshots/step-008-assertCondition-Preferensi_tersimpan.png",
+      "sha256": "7f75c3ab8dd4ec64bcaac6a87135e797fccabfd7d5f338382684b0069a5d9075",
+      "dimensions": [
+        380,
+        820
+      ],
+      "status": "failed"
+    },
+    {
+      "file": "captures/catalog-empty-assertion-failed.png",
+      "member": "results/2026-11-26_121622/Catalog comparable fixture all TPB and PKA/screenshots/step-032-assertCondition-No_courses_found.png",
+      "sha256": "0d72e726804237445829ea70f59f329541632fc1adfe44040b1c96e4a83184d4",
+      "dimensions": [
+        380,
+        820
+      ],
+      "status": "failed"
+    },
+    {
+      "file": "captures/assessment-quiz-draft-option-failed.png",
+      "member": "results/2026-11-26_121622/Student quiz saves and restores its draft/screenshots/step-010-assertCondition-student-assessment-optio.png",
+      "sha256": "7baa2c5c3507516ec0e8f60652ddb5546946301f4a558db6eae4364803b4e723",
+      "dimensions": [
+        380,
+        820
+      ],
+      "status": "failed"
+    },
+    {
+      "file": "captures/discussion-opened-message-assertion-failed.png",
+      "member": "results/2026-11-26_121622/Student opens a discussion alias and posts a scoped answer/screenshots/step-007-assertCondition-Pesan_yang_dibuka.png",
+      "sha256": "64f86f33c65d23fcdb7ab980eb10ef719da3bf6a85ec7c62cac9cafaab1c8e13",
+      "dimensions": [
+        380,
+        820
+      ],
+      "status": "failed"
+    }
+  ],
+  "webCaptures": [
+    {
+      "file": "web-captures/catalog-all.png",
+      "member": "student-evidence/reference/android/catalog-all.png",
+      "sha256": "710f74053e2309d3c1b30eb3c88306b036f9c8814c674c65c0c4f70a1556adb8",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/catalog-tpb.png",
+      "member": "student-evidence/reference/android/catalog-tpb.png",
+      "sha256": "edd0190f65de9668bb3edfc3bed7564fd2596ca034d14f5bdd8aa9b88ee4590e",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/catalog-pka.png",
+      "member": "student-evidence/reference/android/catalog-pka.png",
+      "sha256": "49c7312f61950788f204598c531825660e19a4866ba2d99ba6a2bc50febdde74",
+      "dimensions": [
+        380,
+        820
+      ]
+    }
+  ],
+  "scrollRestoration": {
+    "status": "pass",
+    "region": [
+      38,
+      205,
+      342,
+      615
+    ],
+    "dimensions": [
+      380,
+      820
+    ],
+    "different_pixels": 0,
+    "before": "results/2026-11-26_121622/Student course long material list fixture/takeScreenshot/student-long-content.png",
+    "after": "results/2026-11-26_121622/Student course long material list fixture/takeScreenshot/student-long-content-restored.png"
+  },
+  "longQuizGeneratedCases": [
+    "student.assessment.quizList.long.light",
+    "student.assessment.quizList.long.dark"
+  ],
+  "quizDraftFailure": {
+    "case": "Student quiz saves and restores its draft",
+    "failedAssertion": "student-assessment-option-1 was not visible",
+    "deviceLogMember": "results/2026-11-26_121622/Student quiz saves and restores its draft/logs/device-logcat.txt",
+    "deviceLogTimestamp": "2026-11-26T12:17:10.971Z",
+    "nativeCrash": "Fatal main-thread IllegalStateException in React Native Fabric removeViewAt: Unable to find parentView for tag 378",
+    "sequence": "The crash occurred before the visibility assertion. Both generated long-list launch cases passed on the same build.",
+    "laterChange": "96053de3 keeps the quiz button child wrapper mounted during loading. This run predates that change."
+  },
+  "matchedScenarioResults": {
+    "catalog": {
+      "name": "Catalog comparable fixture all TPB and PKA",
+      "status": "ERROR",
+      "source": "report.xml"
+    },
+    "flashcard": {
+      "name": "Learning flashcard flip and grade",
+      "status": "SUCCESS",
+      "source": "report.xml"
+    }
+  }
+}

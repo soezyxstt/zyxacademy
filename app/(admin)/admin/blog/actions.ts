@@ -4,8 +4,8 @@ import { z } from "zod";
 import { db } from "@/db";
 import { assertTutorOrAdmin } from "@/lib/auth/admin-guards";
 import { revalidatePath } from "next/cache";
-import { generateContentWithFallback } from "@/lib/gemini";
 import { BlogServiceError, blogFieldsSchema, createBlogArticle, getBlogArticle, normalizeBlogFields, updateBlogArticle } from "@/lib/blog/service";
+import { generateBlogSummary } from "@/lib/blog/summary";
 
 const saveArticleSchema = blogFieldsSchema.extend({
   id: z.string().optional(),
@@ -40,17 +40,7 @@ export async function saveArticle(rawData: unknown) {
     // Keep the existing Admin summary-generation boundary. MCP normalization
     // never calls a provider and never spends this quota implicitly.
     if (!article.summary?.trim()) {
-      try {
-        const generated = await generateContentWithFallback({
-          userId: user.id, feature: "blog-summary", useCase: "chapter-summary",
-          contents: `Tolong buatkan ringkasan untuk artikel berikut:\n\n${prepared.content}`,
-          config: { temperature: 0.3, maxOutputTokens: 100, systemInstruction: "Tulis ringkasan artikel Zyx Academy maksimal 2 kalimat dalam bahasa Indonesia yang komunikatif. Gunakan sentence case. Hindari tanda seru, tanda hubung panjang, dan filler. Kembalikan ringkasan saja." },
-        });
-        const summary = generated.response.text?.trim().replace(/[\u2013\u2014]/g, ", ").replace(/!/g, ".").replace(/\bZYX\b/gi, "Zyx");
-        if (summary) prepared.summary = summary.slice(0, 2000);
-      } catch {
-        // Deterministic prepared.summary remains available without provider data.
-      }
+      prepared.summary = await generateBlogSummary(user.id, prepared.content) ?? prepared.summary;
     }
     const result = await db.transaction(async tx => id
       ? updateBlogArticle(tx, { actorId: user.id, id, expectedRevision: expectedRevision!, changes: { ...article, content: prepared.content, title: prepared.title, summary: prepared.summary }, status })

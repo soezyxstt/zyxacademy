@@ -1,0 +1,7 @@
+appId: com.zyx.academy.nativeparity
+name: Show the original native sign-up screen
+---
+- extendedWaitUntil:
+    visible: "Sign up with Google"
+    timeout: 20000
+- takeScreenshot: guest-sign-up

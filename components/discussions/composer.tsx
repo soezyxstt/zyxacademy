@@ -125,7 +125,7 @@ export function discussionSendErrorKey(reason: unknown) {
 
 export function discussionUploadErrorKey(reason: unknown) {
   switch (reason) {
-    case "pixels": case "size": case "format": case "rate_limited": case "login": case "access": case "expired": return `uploadError_${reason}` as const;
+    case "pixels": case "size": case "format": case "origin": case "rate_limited": case "login": case "access": case "expired": return `uploadError_${reason}` as const;
     default: return "uploadError_unknown";
   }
 }

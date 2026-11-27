@@ -302,6 +302,48 @@
       "when": 1795460000000,
       "tag": "0042_tutor_slot_courses",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1795625168219,
+      "tag": "0043_onboarding_tours",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1795657920000,
+      "tag": "0044_activity_notification_preferences",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1795657920001,
+      "tag": "0045_native_notification_delivery",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1795657920002,
+      "tag": "0046_tutorial_reminder_preferences",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1795657920003,
+      "tag": "0047_tutorial_email_schedule",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1795661557560,
+      "tag": "0048_offline_content_sync",
+      "breakpoints": true
     }
   ]
 }

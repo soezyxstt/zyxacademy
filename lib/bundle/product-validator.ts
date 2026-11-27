@@ -245,6 +245,23 @@ export function computeProductBundleChecksum(manifest: Omit<ProductBundleManifes
   return createHash("sha256").update(deterministicProductSerialization({ manifest: manifestWithoutChecksum, files: fileChecksums }), "utf8").digest("hex");
 }
 
+// Before 8f899a2 (2026-09-05), the V2/V3 checksum serializer retained
+// undefined object fields, including the deliberately cleared bundleChecksum.
+// Keep that exact read format without changing the current writer or stored hash.
+function legacyProductChecksumSerialization(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(legacyProductChecksumSerialization).join(",")}]`;
+  if (value && typeof value === "object") return `{${Object.entries(value as Record<string, unknown>).sort(([left], [right]) => left.localeCompare(right)).map(([key, nested]) => `${JSON.stringify(key)}:${legacyProductChecksumSerialization(nested)}`).join(",")}}`;
+  return JSON.stringify(value);
+}
+
+function matchesLegacyProductBundleChecksum(manifest: ProductBundleManifest, files: ProductBundleFiles): boolean {
+  if (manifest.schemaVersion !== "product-bundle.v2" && manifest.schemaVersion !== "product-bundle.v3") return false;
+  const manifestWithoutChecksum = { ...manifest, bundleChecksum: undefined };
+  const fileChecksums = [...files.entries()].filter(([path]) => path !== "manifest.json").sort(([left], [right]) => left.localeCompare(right)).map(([path, bytes]) => [path, sha256Bytes(bytes)]);
+  const checksum = createHash("sha256").update(legacyProductChecksumSerialization({ manifest: manifestWithoutChecksum, files: fileChecksums }), "utf8").digest("hex");
+  return checksum === manifest.bundleChecksum;
+}
+
 export function parseProductBundle(input: SecureZipArchive | ProductBundleFiles): ProductBundleValidation {
   try {
     const files = "files" in input && input.files instanceof Map ? input.files : input instanceof Map ? input : new Map<string, Uint8Array>();
@@ -666,8 +683,8 @@ export function parseProductBundle(input: SecureZipArchive | ProductBundleFiles)
       if (product.productType === "assessment_blueprint" && product.questionIds.some((questionId) => productById.get(questionId)?.productType !== "question")) return { success: false, issues: [issue("PRODUCT_ASSESSMENT_QUESTION_MISSING", `assessment ${product.id} references a missing question`)] };
     }
     const blocked = v4Pilot || dependencies.some((dependency) => dependency.freshness !== "UP_TO_DATE");
-    const checksum = computeProductBundleChecksum(manifest, files);
-    if (checksum !== manifest.bundleChecksum) return { success: false, issues: [issue("PRODUCT_BUNDLE_CHECKSUM_MISMATCH", "bundle checksum does not match", "manifest.json")] };
+    const checksum = manifest.bundleChecksum;
+    if (computeProductBundleChecksum(manifest, files) !== checksum && !matchesLegacyProductBundleChecksum(manifest, files)) return { success: false, issues: [issue("PRODUCT_BUNDLE_CHECKSUM_MISMATCH", "bundle checksum does not match", "manifest.json")] };
     return { success: true, data: { manifest, products, dependencies, files, checksum, publicationBlocked: blocked, issues: v4Pilot ? [issue("PRODUCT_V4_VERIFICATION_REQUIRED", "V4 drafts require trusted verification for the products present before publication")] : blocked ? [issue("PRODUCT_DEPENDENCY_NEEDS_REVIEW", "one or more product dependencies need review")] : [] } };
   } catch (error) {
     const issueValue = error instanceof ProductValidationError ? error.issue : error instanceof BundleValidationError ? issue(error.code, error.message, error.path) : issue("PRODUCT_INVALID", error instanceof Error ? error.message : String(error));

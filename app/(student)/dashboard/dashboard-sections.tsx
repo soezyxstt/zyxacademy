@@ -68,7 +68,7 @@ import { getOrUpdateStreak } from "@/lib/streak-service";
 import {
   type StudentEnrollmentRecord,
 } from "@/lib/student/course-catalog";
-import { getCourseCatalogStatsMap } from "@/lib/student/course-catalog-stats";
+import { getStudentCatalogDisplayStats } from "@/lib/student/course-catalog-stats";
 import { getDashboardCourseMaterialsBatch } from "@/lib/student/dashboard-materials";
 import { resolveCourseAccessBatch } from "@/lib/student/course-access";
 import type { StudentCourseAccess } from "@/lib/course-utils";
@@ -513,7 +513,7 @@ export async function loadRecommendedCoursesData(
         materialsCount: countById.get(c.id) ?? 0,
       }));
     } else {
-      const statsMap = await getCourseCatalogStatsMap(topCandidates);
+      const statsMap = await getStudentCatalogDisplayStats(dbCourses.filter((course) => !TEST_COURSE_IDS.has(course.id)));
       recommendedCourses = topCandidates.map((c) => ({
         id: c.id,
         title: c.title,

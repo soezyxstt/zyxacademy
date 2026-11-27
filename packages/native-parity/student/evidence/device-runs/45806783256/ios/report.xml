@@ -1,0 +1,59 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+  <testsuite name="Test Suite" device="iPhone 17 Pro - iOS 26.2 - EED6FB0A-E273-43C6-B5DE-3DF739543042" tests="18" failures="18" time="975.352" timestamp="2026-11-26T12:05:10">
+    <testcase id="Student restores a saved answer after process restart" name="Student restores a saved answer after process restart" classname="Student restores a saved answer after process restart" file="/Users/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/assessment-process-restart.yaml" time="71.622" timestamp="2026-11-26T12:05:10" status="ERROR">
+      <failure>Assertion is false: id: student-assessment-option-1 is visible</failure>
+    </testcase>
+    <testcase id="Student quiz saves and restores its draft" name="Student quiz saves and restores its draft" classname="Student quiz saves and restores its draft" file="/Users/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/assessment-quiz.yaml" time="52.776" timestamp="2026-11-26T12:06:22" status="ERROR">
+      <failure>Assertion is false: id: student-assessment-native-quiz is visible</failure>
+    </testcase>
+    <testcase id="Student tryout retries the same submission after response loss" name="Student tryout retries the same submission after response loss" classname="Student tryout retries the same submission after response loss" file="/Users/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/assessment-retry.yaml" time="64.38" timestamp="2026-11-26T12:07:14" status="ERROR">
+      <failure>Assertion is false: id: student-assessment-option-1 is visible</failure>
+    </testcase>
+    <testcase id="Student reads and completes a solution collection" name="Student reads and completes a solution collection" classname="Student reads and completes a solution collection" file="/Users/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/assessment-solutions.yaml" time="53.297" timestamp="2026-11-26T12:08:19" status="ERROR">
+      <failure>Assertion is false: id: student-assessment-reveal is visible</failure>
+    </testcase>
+    <testcase id="Catalog comparable fixture all TPB and PKA" name="Catalog comparable fixture all TPB and PKA" classname="Catalog comparable fixture all TPB and PKA" file="/Users/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/catalog-parity.yaml" time="55.015" timestamp="2026-11-26T12:09:12" status="ERROR">
+      <failure>Assertion is false: "separator" is visible</failure>
+    </testcase>
+    <testcase id="Community calendar category and history" name="Community calendar category and history" classname="Community calendar category and history" file="/Users/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/community-calendar-filter.yaml" time="48.71" timestamp="2026-11-26T12:10:07" status="ERROR">
+      <failure>Assertion is false: "separator" is visible</failure>
+    </testcase>
+    <testcase id="Student calendar filters assessments and opens tutorial history" name="Student calendar filters assessments and opens tutorial history" classname="Student calendar filters assessments and opens tutorial history" file="/Users/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/community-calendar.yaml" time="54.286" timestamp="2026-11-26T12:10:56" status="ERROR">
+      <failure>Assertion is false: "Kuis limit" is visible</failure>
+    </testcase>
+    <testcase id="Student opens a discussion alias and posts a scoped answer" name="Student opens a discussion alias and posts a scoped answer" classname="Student opens a discussion alias and posts a scoped answer" file="/Users/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/community-discussions.yaml" time="50.42" timestamp="2026-11-26T12:11:50" status="ERROR">
+      <failure>Assertion is false: "Limit kiri dan kanan pada fungsi potongan" is visible</failure>
+    </testcase>
+    <testcase id="Community ranking scope and academic class" name="Community ranking scope and academic class" classname="Community ranking scope and academic class" file="/Users/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/community-ranking-scope.yaml" time="45.454" timestamp="2026-11-26T12:12:41" status="ERROR">
+      <failure>Assertion is false: "separator" is visible</failure>
+    </testcase>
+    <testcase id="Student separates participation from academic scores and recovers a failed load" name="Student separates participation from academic scores and recovers a failed load" classname="Student separates participation from academic scores and recovers a failed load" file="/Users/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/community-ranking.yaml" time="56.275" timestamp="2026-11-26T12:13:26" status="ERROR">
+      <failure>Assertion is false: "Coba lagi" is visible</failure>
+    </testcase>
+    <testcase id="Student weekly calendar selects tutor slots and another day" name="Student weekly calendar selects tutor slots and another day" classname="Student weekly calendar selects tutor slots and another day" file="/Users/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/community-schedule.yaml" time="51.191" timestamp="2026-11-26T12:14:22" status="ERROR">
+      <failure>Assertion is false: id: student-tutorial-calendar-event-slot-slot-integral is visible</failure>
+    </testcase>
+    <testcase id="Student course enrolled fixture" name="Student course enrolled fixture" classname="Student course enrolled fixture" file="/Users/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/enrolled.yaml" time="53.669" timestamp="2026-11-26T12:15:14" status="ERROR">
+      <failure>Assertion is false: "separator" is visible</failure>
+    </testcase>
+    <testcase id="Learning flashcard flip and grade" name="Learning flashcard flip and grade" classname="Learning flashcard flip and grade" file="/Users/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/learning-flashcard-review.yaml" time="52.009" timestamp="2026-11-26T12:16:07" status="ERROR">
+      <failure>Assertion is false: "separator" is visible</failure>
+    </testcase>
+    <testcase id="PKA enrollment gate redirects to registration" name="PKA enrollment gate redirects to registration" classname="PKA enrollment gate redirects to registration" file="/Users/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/learning-pka-gate.yaml" time="61.519" timestamp="2026-11-26T12:16:59" status="ERROR">
+      <failure>Assertion is false: "separator" is visible</failure>
+    </testcase>
+    <testcase id="Student course long material list fixture" name="Student course long material list fixture" classname="Student course long material list fixture" file="/Users/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/long-content.yaml" time="51.588" timestamp="2026-11-26T12:18:01" status="ERROR">
+      <failure>Assertion is false: "separator" is visible</failure>
+    </testcase>
+    <testcase id="Student course offline recovery fixture" name="Student course offline recovery fixture" classname="Student course offline recovery fixture" file="/Users/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/offline.yaml" time="50.921" timestamp="2026-11-26T12:18:53" status="ERROR">
+      <failure>Assertion is false: "separator" is visible</failure>
+    </testcase>
+    <testcase id="Student course revoked fixture" name="Student course revoked fixture" classname="Student course revoked fixture" file="/Users/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/revoked.yaml" time="53.629" timestamp="2026-11-26T12:19:44" status="ERROR">
+      <failure>Assertion is false: "separator" is visible</failure>
+    </testcase>
+    <testcase id="Student course unenrolled fixture" name="Student course unenrolled fixture" classname="Student course unenrolled fixture" file="/Users/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/unenrolled.yaml" time="47.973" timestamp="2026-11-26T12:20:37" status="ERROR">
+      <failure>Assertion is false: "separator" is visible</failure>
+    </testcase>
+  </testsuite>
+</testsuites>

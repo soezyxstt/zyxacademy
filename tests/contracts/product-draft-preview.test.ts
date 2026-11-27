@@ -9,7 +9,9 @@ import { assertDraftPreviewPaths, createDraftPreviewServer, draftPreviewSetupIss
 import type { ProductDraftInput } from "@/lib/authoring/product-draft-builder";
 import { build } from "esbuild";
 
-function standaloneDiktat(): ProductDraftInput {
+function standaloneDiktat(): Omit<ProductDraftInput, "products"> & {
+  products: Array<Extract<ProductDraftInput["products"][number], { productType: "diktat" }>>;
+} {
   return { products: [{ productType: "diktat", title: "Pangkat", ideaIds: ["idea"], sourceRefs: [{ sourceId: "source", excerptIds: ["excerpt"] }],
     units: [{ ideaIds: ["idea"], parts: [{ kind: "math_unit", latex: "x^2", meaningMarkdown: "Hasil kali bilangan dengan dirinya." }] }],
   }] };

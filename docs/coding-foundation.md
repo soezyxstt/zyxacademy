@@ -213,6 +213,16 @@ case fraction, without a speed bonus. Callbacks retain numeric coding correctnes
 in learning events and coding score in the saved result snapshot. Legacy choice
 sessions retain their scoring and callbacks.
 
+Expo Student uses the same room connection, coding problem, attempt history,
+and grade endpoints. It waits for the current room state, verifies the active
+participant and problem through Next, and keeps unconfirmed attempts in the
+existing account and session-scoped SQLite store. An explicit retry resends the
+same request ID and frozen code/input. Hints and full review use the same Zyra
+exercise policy. The general Zyra launcher is unavailable in the live route.
+Practice uses the existing interactive terminal and only displays public examples.
+Programs that wait for stdin EOF can be graded through Submit, which supplies a
+finite test input to the trusted evaluator.
+
 Deploy the Next app and realtime Worker together after applying the local-tested
 migration to the explicitly selected environment. A preexisting deployed Worker
 will reject the new service operations until updated. No deployment or remote
@@ -220,12 +230,6 @@ migration was performed as part of local implementation.
 
 ## Verification boundaries
 
-Local checks include contract tests, durable SQLite attempts, real Python runtime
-fixtures, room state transitions and Article/Diktat schema regressions. Playwright
-fixtures exercise actual browser Python at 380x844 and 1536x864. Article submission,
-draft/auth responses and AI streams in visual tests use deterministic synthetic
-responses; they are not proof of live AI, production grading or remote database
-success. Exact command outcomes and inspected screenshots are recorded in
-[coding verification](coding-verification.md).
+Local checks cover contract tests, PostgreSQL/PGlite attempt persistence, Python runtime fixtures, room state transitions, and Article/Diktat schema regressions. Synthetic fixture responses are not proof of live AI, production grading, or remote database success.
 
 Playground editors measure their available viewport height, allowing long code to grow beyond 400 px while reserving 64 px for the quick actions and bottom spacing. Embedded Article editors retain their existing cap. Python help keeps contextual quick actions next to the editor and inside the existing Zyra drawer in Python mode. Presets send their specific coding intent without generating or applying replacement code. Code explanation and flowchart require code; error explanation requires a current failed execution. Generated response follow-ups are context-specific in either mode, while the stable Python entry actions remain separate. Ordinary Python messages request a review. Only the explicit `Buat kode` action requests replacement generation, and retries preserve the original intent. Prose-only generation replies remain visible without replacing code. Image paste is consumed once in the composer capture handler before CodeMirror handles it. Terminal input uses a native caret without a focus ring.

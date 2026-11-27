@@ -1,0 +1,27 @@
+appId: com.zyx.academy.nativeparity
+name: Published link directory in Indonesian and English
+---
+- launchApp
+- extendedWaitUntil:
+    visible: separator
+    timeout: 20000
+- runFlow:
+    file: helpers/open-directory.yaml
+    env:
+      CASE_ID: empty
+- assertVisible: "Belum ada tautan"
+- takeScreenshot: directory-empty
+- runFlow:
+    file: helpers/open-directory.yaml
+    env:
+      CASE_ID: single
+- assertVisible: "Zyx Academy links"
+- assertVisible: "Komunitas mahasiswa"
+- takeScreenshot: directory-single
+- runFlow:
+    file: helpers/open-directory.yaml
+    env:
+      CASE_ID: grouped
+- assertVisible: "Komunitas"
+- assertVisible: "Umum"
+- takeScreenshot: directory-grouped

@@ -1,0 +1,13 @@
+2026-11-26T17:02:22.4129960Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +74ff22df2b67a6f877fe9f5767e8820c655b8e1c:refs/remotes/pull/516/merge
+2026-11-26T17:02:27.9524150Z  * [new ref]         74ff22df2b67a6f877fe9f5767e8820c655b8e1c -> pull/516/merge
+2026-11-26T17:02:28.9177540Z HEAD is now at 74ff22d Merge 6fda5518d1e845b19d54e5e50ee9c1381b0a3d1b into 8a1a516c0327582c09f7f0e1a54aab5b8233f5c4
+2026-11-26T17:02:28.9321194Z 74ff22df2b67a6f877fe9f5767e8820c655b8e1c
+2026-11-26T17:16:33.1678872Z adb: device offline
+2026-11-26T17:16:35.1773924Z adb: device offline
+2026-11-26T17:17:26.3642455Z [Failed] Operations Admin home to Web Analytics and access denial (3s)
+2026-11-26T17:18:05.5233938Z [Passed] Operations question Idea weights and draft revision (39s)
+2026-11-26T17:20:50.5716566Z [Passed] Operations Admin home to Web Analytics and access denial (24s)
+2026-11-26T17:26:04.9061628Z [Failed] operations-public-form-local-submit (15s)
+2026-11-26T17:26:05.1946241Z 18/36 Flows Failed
+2026-11-26T17:26:05.2751090Z ##[error]Exception in thread "Thread-5" java.io.IOException: Command failed (host:transport:emulator-5554): device 'emulator-5554' not found
+2026-11-26T17:27:35.2806913Z 154/155 Android flows passed

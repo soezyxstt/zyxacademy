@@ -1,0 +1,130 @@
+name: Steel staging browser smoke
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: steel-staging-browser-smoke
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    if: github.repository == 'soezyxstt/zyxacademy' && github.ref == 'refs/heads/staging'
+    runs-on: ubuntu-24.04
+    environment: staging
+    timeout-minutes: 5
+    steps:
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+      - name: Verify Steel session, browser version, PDF, and release
+        env:
+          STEEL_API_KEY: ${{ secrets.STEEL_API_KEY }}
+        run: |
+          node --input-type=module <<'JS'
+          import { randomUUID } from 'node:crypto';
+          const key = process.env.STEEL_API_KEY;
+          if (!key) {
+            console.error('STEEL_API_KEY_MISSING');
+            process.exit(1);
+          }
+          const id = randomUUID();
+          const headers = { 'steel-api-key': key, 'content-type': 'application/json' };
+          const endpoint = 'https://api.steel.dev/v1/sessions';
+          let socket;
+          let created = false;
+          let phase = 'acquire';
+          let success = false;
+          const pending = new Map();
+          let sequence = 0;
+          const failPending = () => {
+            for (const callback of pending.values()) callback(null);
+          };
+          try {
+            const response = await fetch(endpoint, {
+              method: 'POST', headers, redirect: 'error',
+              body: JSON.stringify({ sessionId: id, timeout: 120000, inactivityTimeout: 60000, useProxy: false, solveCaptcha: false, headless: true, persistProfile: false }),
+              signal: AbortSignal.timeout(30000),
+            });
+            if (!response.ok) {
+              console.error('STEEL_ACQUIRE_HTTP_' + response.status);
+              throw new Error();
+            }
+            created = true;
+            if ((await response.json()).id !== id) throw new Error();
+            console.log('PASS Steel session acquired');
+            phase = 'connect';
+            const url = new URL('wss://connect.steel.dev');
+            url.searchParams.set('apiKey', key);
+            url.searchParams.set('sessionId', id);
+            socket = new WebSocket(url);
+            await new Promise((resolve, reject) => {
+              const timer = setTimeout(() => reject(new Error()), 20000);
+              socket.addEventListener('open', () => { clearTimeout(timer); resolve(); }, { once: true });
+              socket.addEventListener('error', () => { clearTimeout(timer); reject(new Error()); }, { once: true });
+              socket.addEventListener('close', () => { clearTimeout(timer); reject(new Error()); }, { once: true });
+            });
+            socket.addEventListener('message', ({ data }) => {
+              try {
+                const message = JSON.parse(data);
+                if (Number.isInteger(message.id)) pending.get(message.id)?.(message);
+              } catch { failPending(); }
+            });
+            socket.addEventListener('error', failPending);
+            socket.addEventListener('close', failPending);
+            const cdp = (method, params = {}, sessionId) => new Promise((resolve, reject) => {
+              const id = ++sequence;
+              const timer = setTimeout(() => { pending.delete(id); reject(new Error()); }, 15000);
+              pending.set(id, message => {
+                clearTimeout(timer);
+                pending.delete(id);
+                if (!message || message.error) reject(new Error());
+                else resolve(message.result);
+              });
+              try { socket.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) })); }
+              catch { pending.get(id)?.(null); }
+            });
+            phase = 'browser_version';
+            const version = await cdp('Browser.getVersion');
+            const browser = /^(?:HeadlessChrome|Chrome|Chromium)\/([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)$/.exec(version.product);
+            if (!browser) throw new Error();
+            console.log('PASS Steel Chromium ' + browser[1]);
+            phase = 'pdf';
+            const { targetId } = await cdp('Target.createTarget', { url: 'about:blank' });
+            const { sessionId } = await cdp('Target.attachToTarget', { targetId, flatten: true });
+            const { frameTree } = await cdp('Page.getFrameTree', {}, sessionId);
+            await cdp('Page.setDocumentContent', {
+              frameId: frameTree.frame.id,
+              html: '<!doctype html><html><body><h1>Steel staging PDF smoke</h1></body></html>',
+            }, sessionId);
+            const ready = await cdp('Runtime.evaluate', {
+              expression: 'document.fonts.ready.then(() => document.body.textContent)',
+              awaitPromise: true, returnByValue: true,
+            }, sessionId);
+            if (ready.result.value !== 'Steel staging PDF smoke') throw new Error();
+            const result = await cdp('Page.printToPDF', { printBackground: true, paperWidth: 8.27, paperHeight: 11.69 }, sessionId);
+            const pdf = Buffer.from(result.data ?? '', 'base64');
+            if (pdf.length < 100 || pdf.subarray(0, 5).toString() !== '%PDF-') throw new Error();
+            console.log('PASS synthetic A4 PDF: ' + pdf.length + ' bytes');
+            success = true;
+          } catch {
+            console.error('STEEL_PROBE_FAILED_' + phase.toUpperCase());
+            process.exitCode = 1;
+          } finally {
+            try { socket?.close(); } catch {}
+            try {
+              const response = await fetch(endpoint + '/' + id + '/release', {
+                method: 'POST', headers, body: '{}', redirect: 'error',
+                signal: AbortSignal.timeout(15000),
+              });
+              if (!(response.status === 404 && !created) && (!response.ok || (await response.json()).success !== true)) throw new Error();
+              if (created) console.log('PASS Steel session released');
+            } catch {
+              console.error('STEEL_RELEASE_FAILED');
+              process.exitCode = 1;
+            }
+          }
+          if (!success) process.exitCode = 1;
+          JS

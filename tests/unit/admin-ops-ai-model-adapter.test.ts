@@ -1,12 +1,13 @@
-import { describe, it, expect, afterEach } from "bun:test";
-import {
+import { describe, it, expect, afterEach, mock } from "bun:test";
+mock.module("server-only", () => ({}));
+const {
   ZyxLanguageModel,
   createZyxLanguageModel,
-} from "@/lib/admin-ops-ai/zyx-language-model-adapter";
-import {
+} = await import("@/lib/admin-ops-ai/zyx-language-model-adapter");
+const {
   setOpsAiModelStreamMock,
-} from "@/lib/admin-ops-ai/model-factory";
-import { createOpsAiAgent } from "@/lib/admin-ops-ai/runtime";
+} = await import("@/lib/admin-ops-ai/model-factory");
+const { createOpsAiAgent } = await import("@/lib/admin-ops-ai/runtime");
 
 describe("Zyx Ops AI - LanguageModel Adapter (Tahap 3B)", () => {
   afterEach(() => {

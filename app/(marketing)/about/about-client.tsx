@@ -11,45 +11,7 @@ import { Reveal } from "@/components/ui/reveal";
 import { PageOrnaments } from "@/components/ui/page-ornaments";
 import { useTranslations } from "@/lib/i18n/client";
 
-const founders = [
-  {
-    id: "adi",
-    name: "Adi Haditya Nursyam",
-    image: "/founders/adi.jpeg",
-    socials: {
-      website: "https://adihnursyam.com",
-      linkedin: "https://www.linkedin.com/in/adihnursyam/",
-      instagram: "https://instagram.com/adihnursyam",
-    },
-  },
-  {
-    id: "dawam",
-    name: "Nur Dawam Abdan Syakuro",
-    image: "/founders/dawam.jpeg",
-    socials: {
-      linkedin: "https://www.linkedin.com/in/mawadrun/",
-      instagram: "https://www.instagram.com/mawadrun/",
-    },
-  },
-  {
-    id: "heidi",
-    name: "Heidi Schan Andriana",
-    image: "/founders/heidi.jpeg",
-    socials: {
-      linkedin: "https://www.linkedin.com/in/heidischan/",
-      instagram: "https://www.instagram.com/heidischan/",
-    },
-  },
-  {
-    id: "raihan",
-    name: "Muhammad Raihan Fasya Mian",
-    image: "/founders/raihan.png",
-    socials: {
-      linkedin: "https://www.linkedin.com/in/raihanmian/",
-      instagram: "https://www.instagram.com/raihan_mianz/",
-    },
-  },
-];
+import { marketingFounders as founders } from "@/lib/marketing-founders";
 
 const workingPrinciples = [
   { title: "about.principleAligned", description: "about.principleAlignedDescription" },
@@ -195,7 +157,7 @@ export function AboutClient() {
                     </div>
                     <p className="text-body-sm leading-relaxed text-muted-foreground">{t(`about.founder${founder.id === "adi" ? "Adi" : founder.id === "dawam" ? "Dawam" : founder.id === "heidi" ? "Heidi" : "Raihan"}Bio`)}</p>
                     <div className="flex flex-wrap gap-x-4 gap-y-2">
-                      {founder.socials.website ? (
+                      {"website" in founder.socials && founder.socials.website ? (
                         <ExternalProfileLink href={founder.socials.website} icon={<Globe className="size-3.5" />}>
                           {t("about.founderPortfolio")}
                         </ExternalProfileLink>

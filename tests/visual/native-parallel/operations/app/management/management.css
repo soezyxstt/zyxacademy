@@ -1,0 +1,4 @@
+@reference "../fixture.css";
+@source "../../../../../../components/forms/*.tsx";
+@source "../../../../../../components/docs/*.tsx";
+@source "../../../../../../app/(admin)/admin/forms/**/*.tsx";

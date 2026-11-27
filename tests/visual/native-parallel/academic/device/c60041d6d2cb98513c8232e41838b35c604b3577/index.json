@@ -1,0 +1,218 @@
+{
+  "pr": 514,
+  "revision": "c60041d6d2cb98513c8232e41838b35c604b3577",
+  "runId": "45808678527",
+  "runAttempt": "1",
+  "runUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45808678527",
+  "parityCredit": false,
+  "previousDiagnosticIndex": "../06ac6f8f84b740a5fae96f2cfaf2b272f9982659/index.json",
+  "platforms": {
+    "android": {
+      "jobUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45808678527/job/139871147373",
+      "artifactUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45808678527/artifacts/15114412486",
+      "jobConclusion": "failure",
+      "routeCaptureScope": "Stamped fixture route captures",
+      "interactionBlocker": "Maestro remained in the default gallery before reaching the academic fixture assertions.",
+      "interactionCounts": {
+        "failed": 11
+      },
+      "interactions": [
+        {
+          "flow": "administration-bundle",
+          "exitCode": 1,
+          "status": "failed"
+        },
+        {
+          "flow": "administration-conflict",
+          "exitCode": 1,
+          "status": "failed"
+        },
+        {
+          "flow": "assessment-grading-retry",
+          "exitCode": 1,
+          "status": "failed"
+        },
+        {
+          "flow": "assessment-quiz",
+          "exitCode": 1,
+          "status": "failed"
+        },
+        {
+          "flow": "assessment-tryout",
+          "exitCode": 1,
+          "status": "failed"
+        },
+        {
+          "flow": "courses-states",
+          "exitCode": 1,
+          "status": "failed"
+        },
+        {
+          "flow": "courses",
+          "exitCode": 1,
+          "status": "failed"
+        },
+        {
+          "flow": "tutor-assigned",
+          "exitCode": 1,
+          "status": "failed"
+        },
+        {
+          "flow": "tutor-empty-denied",
+          "exitCode": 1,
+          "status": "failed"
+        },
+        {
+          "flow": "tutor-retry",
+          "exitCode": 1,
+          "status": "failed"
+        },
+        {
+          "flow": "tutor-schedule",
+          "exitCode": 1,
+          "status": "failed"
+        }
+      ],
+      "accessibilityCounts": {
+        "failed": 4
+      },
+      "accessibility": [
+        {
+          "case": "tutor-participant",
+          "passed": false,
+          "flow": {
+            "flow": "tutor-participant",
+            "exitCode": 1,
+            "status": "failed"
+          },
+          "hierarchyError": null,
+          "requiredNames": [
+            "Nadia Lestari",
+            "Terdaftar sejak"
+          ],
+          "missingNames": [
+            "Nadia Lestari",
+            "Terdaftar sejak"
+          ],
+          "forbiddenNames": [
+            "Meilani Prameswari"
+          ],
+          "exposedNames": []
+        },
+        {
+          "case": "tutor-student-denied",
+          "passed": false,
+          "flow": {
+            "flow": "tutor-student-denied",
+            "exitCode": 1,
+            "status": "failed"
+          },
+          "hierarchyError": null,
+          "requiredNames": [
+            "Akses ditolak"
+          ],
+          "missingNames": [
+            "Akses ditolak"
+          ],
+          "forbiddenNames": [
+            "Nadia Lestari",
+            "nadia@example.test",
+            "Kelompok Sel"
+          ],
+          "exposedNames": []
+        },
+        {
+          "case": "admin-list",
+          "passed": false,
+          "flow": {
+            "flow": "admin-list",
+            "exitCode": 1,
+            "status": "failed"
+          },
+          "hierarchyError": null,
+          "requiredNames": [
+            "Biologi Dasar",
+            "Fisika Dasar",
+            "Cari mata kuliah"
+          ],
+          "missingNames": [
+            "Biologi Dasar",
+            "Fisika Dasar",
+            "Cari mata kuliah"
+          ],
+          "forbiddenNames": [],
+          "exposedNames": []
+        },
+        {
+          "case": "admin-student-denied",
+          "passed": false,
+          "flow": {
+            "flow": "admin-student-denied",
+            "exitCode": 1,
+            "status": "failed"
+          },
+          "hierarchyError": null,
+          "requiredNames": [
+            "Akses ditolak"
+          ],
+          "missingNames": [
+            "Akses ditolak"
+          ],
+          "forbiddenNames": [
+            "Biologi Dasar",
+            "Fisika Dasar",
+            "Cari mata kuliah"
+          ],
+          "exposedNames": []
+        }
+      ],
+      "device": "sdk_gphone64_x86_64 | 15 | Physical size: 320x640 | Override size: 380x900 | Physical density: 160 | 1",
+      "dpr": 1,
+      "routeCaptureCounts": {
+        "captured": 162
+      },
+      "capturedRoutePatterns": 54,
+      "routeEvidence": "android/routes.json"
+    },
+    "ios": {
+      "jobUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45808678527/job/139871147894",
+      "artifactUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45808678527/artifacts/15121787302",
+      "jobConclusion": "failure",
+      "observation": "Release simulator app built and installed. An unsupported battery state stopped device setup before capture.",
+      "buildSucceeded": true,
+      "simulator": {
+        "model": "iPhone 17 Pro",
+        "runtime": "iOS 26.2",
+        "booted": true
+      },
+      "fixtureCasesExported": 162,
+      "collectionStatus": {
+        "stage": "setup",
+        "priorityExitCode": null,
+        "accessibilityExitCode": null,
+        "interactionExitCode": null,
+        "captureExitCode": null,
+        "comparisonExitCode": null
+      },
+      "observedBlocker": {
+        "command": "xcrun simctl status_bar",
+        "diagnostic": "Invalid batteryState: unplugged",
+        "exitCode": 117
+      },
+      "routeCaptureCounts": {
+        "captured": 0
+      },
+      "screenComparisonCount": 0,
+      "artifactEvidenceSha256": {
+        "build.log": "72e0b5fb9b36263d035b303fbd3148d709290b60c4a5e247c237b5d46adb14d3",
+        "cases.json": "53e0e79870a1863ae67db02ef19fc35a32b7c3a6f52a6807e3b06df39e4b8495",
+        "device.txt": "0f43210ccc08bfa9ec56ba826d51cff49b28a8b33981d67500324db79e06f3ea",
+        "job-status.json": "84ab5c8f8010ce0fb1242288a151b7aac7f2e73864b48d65b4f6002568a0d38e",
+        "provenance.json": "fa541d54be024f87e80e3f773d51810cc01112cfb019dcf792b7e1d610f47b43",
+        "status.json": "2be7ebd61c7072fb23618daace549ae98a37fba042e0508272d76a96b61c2811"
+      },
+      "interactionCounts": {},
+      "interactions": []
+    }
+  }
+}

@@ -1,5 +1,5 @@
 import { execSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { CapacitorConfig } from "@capacitor/cli";
 
@@ -75,20 +75,24 @@ const defaultServerUrl = isNightly
   : "https://www.zyxacademy.com";
 
 const serverUrl = process.env.ZYX_MOBILE_SERVER_URL?.trim() || defaultServerUrl;
+// Capacitor loads this TypeScript config as CommonJS, including under Node 24.
+writeFileSync(join(__dirname, "www", "offline-origin.js"), `window.__ZYX_NATIVE_SERVER_ORIGIN__=${JSON.stringify(new URL(serverUrl).origin)};\n`);
 
 const config: CapacitorConfig = {
   appId: isNightly ? "com.zyx.academy.nightly" : "com.zyx.academy",
   appName: isNightly ? "Zyx Academy Nightly" : "Zyx Academy",
   webDir: "www",
   server: {
-    url: serverUrl,
+    // The native library can start from the device before contacting the server.
+    // Online routes still use the configured, allowlisted Zyx origin.
     cleartext: serverUrl.startsWith("http://"),
     allowNavigation: isNightly
       ? ["staging.zyxacademy.com", "accounts.google.com"]
       : ["www.zyxacademy.com", "zyxacademy.com", "zyx.academy", "accounts.google.com"],
-    errorPath: "index.html",
+    errorPath: "index.html?zyx-recovery=1",
   },
   plugins: {
+    ZyxOfflineStore: { serverOrigin: serverUrl },
     LocalNotifications: {
       smallIcon: "ic_stat_zyx",
     },

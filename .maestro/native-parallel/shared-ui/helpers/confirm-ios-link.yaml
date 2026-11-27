@@ -1,0 +1,8 @@
+appId: com.zyx.academy.nativeparity
+---
+- runFlow:
+    when:
+      platform: iOS
+      visible: '^Open in “Zyx Academy Native”\?$'
+    commands:
+      - tapOn: '^Open$'

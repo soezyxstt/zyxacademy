@@ -1,0 +1,568 @@
+{
+  "serverSha": "7d93b3a5984814ee382ccd36d9ceff8cb34abbcd",
+  "browser": "154.0.8037.57",
+  "width": 380,
+  "height": 844,
+  "dpr": 1,
+  "theme": "light",
+  "locale": "id-ID",
+  "timezone": "Asia/Jakarta",
+  "results": [
+    {
+      "id": "concept",
+      "pattern": "/courses/[id]/concept/[slug]",
+      "path": "/courses/learning-evidence-math/concept/learning-evidence-limit",
+      "text": [
+        "Limit ada jika nilai dari kiri dan kanan"
+      ],
+      "terminal": "/courses/learning-evidence-math/concept/learning-evidence-limit",
+      "status": 200,
+      "documents": [
+        {
+          "status": 200,
+          "path": "/courses/learning-evidence-math/concept/learning-evidence-limit"
+        }
+      ],
+      "screenshots": [
+        {
+          "file": "concept.png",
+          "sha256": "2e448afcf5c85e1a75c6009d1c0d7379cf381aa7995c49ad6655c453008cf7fa"
+        }
+      ]
+    },
+    {
+      "id": "flashcard",
+      "pattern": "/courses/[id]/flashcard",
+      "path": "/courses/learning-evidence-math/flashcard",
+      "text": [
+        "Kapan limit dari dua arah ada?"
+      ],
+      "flip": true,
+      "terminal": "/courses/learning-evidence-math/flashcard",
+      "status": 200,
+      "documents": [
+        {
+          "status": 200,
+          "path": "/courses/learning-evidence-math/flashcard"
+        }
+      ],
+      "screenshots": [
+        {
+          "file": "flashcard.png",
+          "sha256": "973decdcb061c712a6ea8ae0fafa04fce42321b70160a930d1ae00a731d0b822"
+        },
+        {
+          "file": "flashcard-answer.png",
+          "sha256": "ad005531850183d5af26993835f28f8ea06e5bd3975d23c32f7acfca24f01202"
+        }
+      ]
+    },
+    {
+      "id": "mastery",
+      "pattern": "/courses/[id]/mastery",
+      "path": "/courses/learning-evidence-math/mastery",
+      "text": [
+        "Limit dari dua arah",
+        "56"
+      ],
+      "terminal": "/courses/learning-evidence-math/mastery",
+      "status": 200,
+      "preflightStatus": 200,
+      "documents": [
+        {
+          "status": 200,
+          "path": "/courses/learning-evidence-math/mastery"
+        }
+      ],
+      "redirectRequests": [],
+      "redirectEvidence": [],
+      "screenshots": [
+        {
+          "file": "mastery.png",
+          "sha256": "56aba314fde3776d949b9e52010824f6101b640926e8472759af21e9fb0343bf"
+        }
+      ]
+    },
+    {
+      "id": "mastery-locked",
+      "pattern": "/courses/[id]/mastery",
+      "path": "/courses/learning-evidence-math/mastery",
+      "text": [
+        "Kelas memerlukan token"
+      ],
+      "scenario": "visitor",
+      "terminal": "/courses/learning-evidence-math/mastery",
+      "status": 200,
+      "preflightStatus": 200,
+      "documents": [
+        {
+          "status": 200,
+          "path": "/courses/learning-evidence-math/mastery"
+        }
+      ],
+      "redirectRequests": [],
+      "redirectEvidence": [],
+      "screenshots": [
+        {
+          "file": "mastery-locked.png",
+          "sha256": "98ac995046ee13457a4e646bc79605d8588de891e80ee6b638f06f96c866a734"
+        }
+      ]
+    },
+    {
+      "id": "path",
+      "pattern": "/courses/[id]/path",
+      "path": "/courses/learning-evidence-math/path",
+      "text": [
+        "Limit dari dua arah"
+      ],
+      "selector": "main #study-path-days",
+      "terminal": "/courses/learning-evidence-math/path",
+      "status": 200,
+      "preflightStatus": 200,
+      "documents": [
+        {
+          "status": 200,
+          "path": "/courses/learning-evidence-math/path"
+        }
+      ],
+      "redirectRequests": [],
+      "redirectEvidence": [],
+      "screenshots": [
+        {
+          "file": "path.png",
+          "sha256": "f6a2bc31b2dd1c3759f469517b9be8eabc73c5b608831e2b96a0ef1ab23d38fa"
+        }
+      ]
+    },
+    {
+      "id": "playground",
+      "pattern": "/courses/[id]/playground",
+      "path": "/courses/learning-evidence-math/playground",
+      "selector": "main .cm-content",
+      "terminal": "/courses/learning-evidence-math/playground",
+      "status": 200,
+      "documents": [
+        {
+          "status": 200,
+          "path": "/courses/learning-evidence-math/playground"
+        }
+      ],
+      "screenshots": [
+        {
+          "file": "playground.png",
+          "sha256": "4589c72efa0c1cbabac600386709feb5af641259ad0046a346ff279317000938"
+        }
+      ]
+    },
+    {
+      "id": "progress",
+      "pattern": "/courses/[id]/progress",
+      "path": "/courses/learning-evidence-math/progress",
+      "text": [
+        "Membaca limit dari tabel"
+      ],
+      "selector": "main [aria-label=\"Statistik belajar\"]",
+      "terminal": "/courses/learning-evidence-math/progress",
+      "status": 200,
+      "documents": [
+        {
+          "status": 200,
+          "path": "/courses/learning-evidence-math/progress"
+        }
+      ],
+      "screenshots": [
+        {
+          "file": "progress.png",
+          "sha256": "acf2d0efad0b6dba608d9f0d4f4cf1c512f1fccb18e457ceeb3f7b2d90ce95c6"
+        }
+      ]
+    },
+    {
+      "id": "video",
+      "pattern": "/courses/[id]/video",
+      "path": "/courses/learning-evidence-math/video",
+      "text": [
+        "Pembahasan limit",
+        "Membaca limit dengan tabel"
+      ],
+      "terminal": "/courses/learning-evidence-math/video",
+      "status": 200,
+      "documents": [
+        {
+          "status": 200,
+          "path": "/courses/learning-evidence-math/video"
+        }
+      ],
+      "screenshots": [
+        {
+          "file": "video.png",
+          "sha256": "632f0f5e0943710cf5022a4966fc09ec6e590896b34b92a5fd9e4c8fdbc7e445"
+        }
+      ]
+    },
+    {
+      "id": "live",
+      "pattern": "/courses/[id]/live",
+      "path": "/courses/learning-evidence-math/live",
+      "text": [
+        "Belum ada sesi kuis langsung"
+      ],
+      "terminal": "/courses/learning-evidence-math/live",
+      "status": 200,
+      "documents": [
+        {
+          "status": 200,
+          "path": "/courses/learning-evidence-math/live"
+        }
+      ],
+      "screenshots": [
+        {
+          "file": "live.png",
+          "sha256": "014988f73c76a31c6ec392dec5cc5963cc1e776f24380707105a3add17c653cf"
+        }
+      ]
+    },
+    {
+      "id": "live-host",
+      "pattern": "/courses/[id]/live/host",
+      "path": "/courses/learning-evidence-math/live/host",
+      "redirects": [
+        "/tutor/learning-evidence-math/live",
+        "/"
+      ],
+      "terminal": "/",
+      "text": [
+        "Belajar lebih terarah"
+      ],
+      "status": 200,
+      "preflightStatus": 200,
+      "documents": [
+        {
+          "status": 200,
+          "path": "/courses/learning-evidence-math/live/host"
+        },
+        {
+          "status": 307,
+          "path": "/tutor/learning-evidence-math/live"
+        },
+        {
+          "status": 200,
+          "path": "/"
+        }
+      ],
+      "redirectRequests": [
+        {
+          "status": 307,
+          "path": "/tutor/learning-evidence-math/live",
+          "type": "document"
+        },
+        {
+          "status": 200,
+          "path": "/",
+          "type": "document"
+        }
+      ],
+      "redirectEvidence": [
+        {
+          "path": "/tutor/learning-evidence-math/live",
+          "streamed": true
+        },
+        {
+          "path": "/",
+          "streamed": false
+        }
+      ],
+      "screenshots": [
+        {
+          "file": "live-host.png",
+          "sha256": "8ae1092978d20b4d365153d28859c99dd8f9cc4d57f5cda02b37774c56036ea5"
+        }
+      ]
+    },
+    {
+      "id": "pka-home",
+      "pattern": "/courses/tutorial-pka",
+      "path": "/courses/tutorial-pka",
+      "text": [
+        "Persiapan sesi Matematika",
+        "Diskusi limit PKA"
+      ],
+      "terminal": "/courses/tutorial-pka",
+      "status": 200,
+      "documents": [
+        {
+          "status": 200,
+          "path": "/courses/tutorial-pka"
+        }
+      ],
+      "screenshots": [
+        {
+          "file": "pka-home.png",
+          "sha256": "00ced4c0f9ca7348a4a6558dd439ebec5767bc0cd9e9b437e9b70efb60174e64"
+        }
+      ]
+    },
+    {
+      "id": "pka-registration",
+      "pattern": "/courses/tutorial-pka/daftar",
+      "path": "/courses/tutorial-pka/daftar",
+      "text": [
+        "Pendaftaran ditutup"
+      ],
+      "scenario": "visitor",
+      "terminal": "/courses/tutorial-pka/daftar",
+      "status": 200,
+      "preflightStatus": 200,
+      "documents": [
+        {
+          "status": 200,
+          "path": "/courses/tutorial-pka/daftar"
+        }
+      ],
+      "redirectRequests": [],
+      "redirectEvidence": [],
+      "screenshots": [
+        {
+          "file": "pka-registration.png",
+          "sha256": "3e10946e250d55d3665ec46126e44eca232e7af92fd10d574cc72f15b4594eca"
+        }
+      ]
+    },
+    {
+      "id": "pka-schedule",
+      "pattern": "/courses/tutorial-pka/jadwal",
+      "path": "/courses/tutorial-pka/jadwal",
+      "text": [
+        "Diskusi limit PKA",
+        "Gabung Meet"
+      ],
+      "selector": "main a[href^=\"https://meet.google.com/\"]",
+      "terminal": "/courses/tutorial-pka/jadwal",
+      "status": 200,
+      "preflightStatus": 200,
+      "documents": [
+        {
+          "status": 200,
+          "path": "/courses/tutorial-pka/jadwal"
+        }
+      ],
+      "redirectRequests": [],
+      "redirectEvidence": [],
+      "screenshots": [
+        {
+          "file": "pka-schedule.png",
+          "sha256": "93a72f30842304cab1fcd008c98ee31bf6a62a6922e6840ec31abeb7b0e36c99"
+        }
+      ]
+    },
+    {
+      "id": "pka-report",
+      "pattern": "/courses/tutorial-pka/laporan",
+      "path": "/courses/tutorial-pka/laporan",
+      "text": [
+        "Laporan diagnostik",
+        "85%"
+      ],
+      "terminal": "/courses/tutorial-pka/laporan",
+      "status": 200,
+      "preflightStatus": 200,
+      "documents": [
+        {
+          "status": 200,
+          "path": "/courses/tutorial-pka/laporan"
+        }
+      ],
+      "redirectRequests": [],
+      "redirectEvidence": [],
+      "screenshots": [
+        {
+          "file": "pka-report.png",
+          "sha256": "d491bdfc1b0f1b480ee5f9d1e21c55d48e4e46166708761c5611b344278127d9"
+        }
+      ]
+    },
+    {
+      "id": "pka-material-list",
+      "pattern": "/courses/tutorial-pka/material",
+      "path": "/courses/tutorial-pka/material",
+      "text": [
+        "Persiapan limit PKA"
+      ],
+      "terminal": "/courses/tutorial-pka/material",
+      "status": 200,
+      "preflightStatus": 200,
+      "documents": [
+        {
+          "status": 200,
+          "path": "/courses/tutorial-pka/material"
+        }
+      ],
+      "redirectRequests": [],
+      "redirectEvidence": [],
+      "screenshots": [
+        {
+          "file": "pka-material-list.png",
+          "sha256": "7b304e2b1f86083fb145ee36721696051d8b44efdae1a7b49898138572f1cfed"
+        }
+      ]
+    },
+    {
+      "id": "pka-material-detail",
+      "pattern": "/courses/tutorial-pka/material/[materialId]",
+      "path": "/courses/tutorial-pka/material/learning-evidence-pka-material",
+      "text": [
+        "Bandingkan nilai dari kiri dan kanan"
+      ],
+      "terminal": "/courses/tutorial-pka/material/learning-evidence-pka-material",
+      "status": 200,
+      "preflightStatus": 200,
+      "documents": [
+        {
+          "status": 200,
+          "path": "/courses/tutorial-pka/material/learning-evidence-pka-material"
+        }
+      ],
+      "redirectRequests": [],
+      "redirectEvidence": [],
+      "screenshots": [
+        {
+          "file": "pka-material-detail.png",
+          "sha256": "6a02f11f733846d264949b16245bd960c9a6c5c5ae18601b74af2efa9b4f84a6"
+        }
+      ]
+    },
+    {
+      "id": "pka-simulation",
+      "pattern": "/courses/tutorial-pka/simulasi",
+      "path": "/courses/tutorial-pka/simulasi",
+      "text": [
+        "Simulasi Ujian PKA",
+        "Simulasi matematika tahap 1"
+      ],
+      "terminal": "/courses/tutorial-pka/simulasi",
+      "status": 200,
+      "preflightStatus": 200,
+      "documents": [
+        {
+          "status": 200,
+          "path": "/courses/tutorial-pka/simulasi"
+        }
+      ],
+      "redirectRequests": [],
+      "redirectEvidence": [],
+      "screenshots": [
+        {
+          "file": "pka-simulation.png",
+          "sha256": "3200c91ae5c8c9bca3c3986628f019febf40f87add47d5435fd083e7dfde7e0e"
+        }
+      ]
+    },
+    {
+      "id": "pka-stage",
+      "pattern": "/courses/tutorial-pka/simulasi/[subject]/[stage]",
+      "path": "/courses/tutorial-pka/simulasi/matematika/1",
+      "text": [
+        "Ambang kelulusan stage ini"
+      ],
+      "selector": "main button:has-text(\"Mulai simulasi\")",
+      "terminal": "/courses/tutorial-pka/simulasi/matematika/1",
+      "status": 200,
+      "preflightStatus": 200,
+      "documents": [
+        {
+          "status": 200,
+          "path": "/courses/tutorial-pka/simulasi/matematika/1"
+        }
+      ],
+      "redirectRequests": [],
+      "redirectEvidence": [],
+      "screenshots": [
+        {
+          "file": "pka-stage.png",
+          "sha256": "859d8f02e4c54a953f1941c51ba25d82248e595aab2cba803130352a15760d07"
+        }
+      ]
+    },
+    {
+      "id": "pka-stage-locked",
+      "pattern": "/courses/tutorial-pka/simulasi/[subject]/[stage]",
+      "path": "/courses/tutorial-pka/simulasi/matematika/2",
+      "text": [
+        "Stage 2 masih terkunci",
+        "Selesaikan stage sebelumnya"
+      ],
+      "terminal": "/courses/tutorial-pka/simulasi/matematika/2",
+      "status": 200,
+      "preflightStatus": 200,
+      "documents": [
+        {
+          "status": 200,
+          "path": "/courses/tutorial-pka/simulasi/matematika/2"
+        }
+      ],
+      "redirectRequests": [],
+      "redirectEvidence": [],
+      "screenshots": [
+        {
+          "file": "pka-stage-locked.png",
+          "sha256": "76df73aa01ae60508dd06241efa426848f1df79b0b548602bec695444ed263e0"
+        }
+      ]
+    },
+    {
+      "id": "pka-simulation-visitor",
+      "pattern": "/courses/tutorial-pka/simulasi",
+      "path": "/courses/tutorial-pka/simulasi",
+      "text": [
+        "Pendaftaran ditutup"
+      ],
+      "scenario": "visitor",
+      "redirects": [
+        "/courses/tutorial-pka/daftar"
+      ],
+      "terminal": "/courses/tutorial-pka/daftar",
+      "status": 200,
+      "preflightStatus": 200,
+      "documents": [
+        {
+          "status": 200,
+          "path": "/courses/tutorial-pka/simulasi"
+        },
+        {
+          "status": 200,
+          "path": "/courses/tutorial-pka/daftar"
+        }
+      ],
+      "redirectRequests": [
+        {
+          "status": 200,
+          "path": "/courses/tutorial-pka/daftar",
+          "type": "document"
+        },
+        {
+          "status": 200,
+          "path": "/courses/tutorial-pka/daftar",
+          "type": "fetch"
+        },
+        {
+          "status": 200,
+          "path": "/courses/tutorial-pka/daftar",
+          "type": "fetch"
+        }
+      ],
+      "redirectEvidence": [
+        {
+          "path": "/courses/tutorial-pka/daftar",
+          "streamed": true
+        }
+      ],
+      "screenshots": [
+        {
+          "file": "pka-simulation-visitor.png",
+          "sha256": "3e10946e250d55d3665ec46126e44eca232e7af92fd10d574cc72f15b4594eca"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+appId: com.zyx.academy.nativeparity
+name: Student results summaries show released and unavailable analytics
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: separator
+    timeout: 30000
+- openLink: "zyx-native-parity://student-fixture?scenario=assessment-signed-results&locale=id&theme=light&path=%2Fcourses%2Fassessment-evidence-mathematics%2Fmy-results%2Fassessment-evidence-quiz-finished%2Fsummary"
+- extendedWaitUntil:
+    visible: 'Ringkasan hasil'
+    timeout: 30000
+- assertVisible: 'Ringkasan hasil'
+- assertVisible: '85%'
+- assertVisible: '1/2'
+- assertVisible:
+    id: student-fixture-id-light
+- takeScreenshot: student-assessment-results-summary-released
+- openLink: "zyx-native-parity://student-fixture?scenario=assessment-signed-results&locale=id&theme=light&path=%2Fcourses%2Fassessment-evidence-mathematics%2Fmy-results%2Fassessment-evidence-quiz-diagnosis-unavailable%2Fsummary"
+- extendedWaitUntil:
+    visible: 'Diagnosis belum tersedia'
+    timeout: 30000
+- assertVisible: 'Diagnosis belum tersedia'
+- assertNotVisible: 'Ringkasan hasil'
+- assertNotVisible: '85%'
+- assertVisible:
+    id: student-fixture-id-light
+- takeScreenshot: student-assessment-results-summary-analytics-unavailable

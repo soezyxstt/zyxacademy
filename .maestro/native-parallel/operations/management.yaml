@@ -1,0 +1,91 @@
+appId: com.zyx.academy.nativeparity
+name: Operations admin authoring, recovery and confirmation
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: separator
+    timeout: 30000
+- openLink: "zyx-native-parity://operations-fixture?caseId=&mode=recoverable&theme=light&locale=id&path=%2Fadmin%2Fblog"
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - runFlow:
+          when:
+            visible: 'Open in .*Zyx Academy Native.*'
+          commands:
+            - tapOn: "Open"
+- assertVisible: Data belum dapat dimuat. Coba lagi.
+- tapOn: Coba lagi
+- assertVisible: Strategi latihan mandiri
+- takeScreenshot: management-blog-populated
+- tapOn: Pratinjau
+- assertVisible: Sunting
+- tapOn: Coba lagi
+- scrollUntilVisible:
+    element: Pengaturan publikasi
+    direction: DOWN
+- takeScreenshot: management-blog-preview
+- openLink: "zyx-native-parity://operations-fixture?caseId=&mode=populated&theme=light&locale=id&path=%2Fadmin%2Fblog%2Fnew"
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - runFlow:
+          when:
+            visible: 'Open in .*Zyx Academy Native.*'
+          commands:
+            - tapOn: "Open"
+- assertVisible: Simpan artikel
+- tapOn: Simpan artikel
+- assertVisible: Isi judul atau awali konten dengan heading judul.
+- takeScreenshot: management-blog-invalid
+- openLink: "zyx-native-parity://operations-fixture?caseId=&mode=populated&theme=light&locale=id&path=%2Fadmin%2Fforms%2Fform-local"
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - runFlow:
+          when:
+            visible: 'Open in .*Zyx Academy Native.*'
+          commands:
+            - tapOn: "Open"
+- assertVisible: Umpan balik latihan
+- assertVisible: 2 respons
+- assertVisible: /f/umpan-balik-latihan
+- takeScreenshot: management-form-summary
+- tapOn: /f/umpan-balik-latihan
+- assertVisible: /f/umpan-balik-latihan
+- assertNotVisible: Umpan balik latihan
+- openLink: "zyx-native-parity://operations-fixture?caseId=&mode=populated&theme=light&locale=id&path=%2Fadmin%2Ftautan"
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - runFlow:
+          when:
+            visible: 'Open in .*Zyx Academy Native.*'
+          commands:
+            - tapOn: "Open"
+- assertVisible: Tautan penting
+- tapOn:
+    text: Hapus
+    index: 0
+- assertVisible: Hapus tautan?
+- takeScreenshot: management-link-confirmation
+- tapOn: Batal
+- assertVisible: '.*Panduan belajar.*'
+- openLink: "zyx-native-parity://operations-fixture?caseId=&mode=denied&theme=dark&locale=id&path=%2Fadmin%2Fblog"
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - runFlow:
+          when:
+            visible: 'Open in .*Zyx Academy Native.*'
+          commands:
+            - tapOn: "Open"
+- assertVisible: Akses admin diperlukan.
+- assertNotVisible: Strategi latihan mandiri
+- takeScreenshot: management-denied

@@ -472,6 +472,16 @@ export function buildCourseVideoThumbnailKey(params: {
   );
 }
 
+/** Returns true when a key is a protected course video file (excluding public thumbnails). */
+export function isCourseVideoKey(key: string): boolean {
+  return isSafeKey(key) && /^courses\/[^/]+\/videos\/(?!thumbnails\/)[^/]+$/.test(key);
+}
+
+/** Returns true when a key is a course video thumbnail under `courses/{slug}/videos/thumbnails/{leaf}`. */
+export function isCourseVideoThumbnailKey(key: string): boolean {
+  return isSafeKey(key) && /^courses\/[^/]+\/videos\/thumbnails\/[^/]+$/.test(key);
+}
+
 export function buildProductVerificationKey(planHash: string, leaf = "manifest.json"): string {
   if (!/^[a-f0-9]{64}$/.test(planHash) || !/^(manifest|receipt|state)(-[a-f0-9-]{36})?\.json$|^artifact-([a-f0-9-]{36}-)?[a-f0-9]{64}-\d+\.(png|pdf|json)$/.test(leaf)) throw new Error("INVALID_VERIFICATION_KEY");
   return joinKey("overhaul", "product-verification", planHash, leaf);
@@ -480,6 +490,11 @@ export function buildProductVerificationKey(planHash: string, leaf = "manifest.j
 export function buildProductVerificationCheckpointKey(planHash: string, checkpointHash: string): string {
   if (!/^[a-f0-9]{64}$/.test(planHash) || !/^[a-f0-9]{64}$/.test(checkpointHash)) throw new Error("INVALID_VERIFICATION_CHECKPOINT_KEY");
   return joinKey("overhaul", "product-verification", planHash, `checkpoint-${checkpointHash}.json`);
+}
+
+export function buildProductVerificationReuseKey(scopeHash: string): string {
+  if (!/^[a-f0-9]{64}$/.test(scopeHash)) throw new Error("INVALID_VERIFICATION_CHECKPOINT_KEY");
+  return joinKey("overhaul", "product-verification-reuse", `${scopeHash}.json`);
 }
 
 

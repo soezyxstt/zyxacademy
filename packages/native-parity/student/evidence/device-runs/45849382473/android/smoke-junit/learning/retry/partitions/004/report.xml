@@ -1,0 +1,6 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+  <testsuite name="Test Suite" device="test" tests="1" failures="0" time="4.432" timestamp="2026-11-26T16:18:03">
+    <testcase id="smoke-116" name="smoke-116" classname="smoke-116" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/learning/smoke-116.yaml" time="4.422" timestamp="2026-11-26T16:18:03" status="SUCCESS"/>
+  </testsuite>
+</testsuites>

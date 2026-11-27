@@ -1,4 +1,4 @@
-﻿import { expect, mock, test } from "bun:test";
+import { expect, mock, test } from "bun:test";
 import { createHash } from "node:crypto";
 import sharp from "sharp";
 import { zipSync } from "fflate";
@@ -13,7 +13,7 @@ const { computeProductBundleChecksum, deterministicProductSerialization } = awai
 const { admitLocalV4Bundle, localV4DocumentReader } = await import("../../scripts/authoring/local-v4-bundle");
 const { deriveProductV4VerificationPlan } = await import("@/lib/bundle/product-v4-verification");
 const { buildProductV4RuntimeBinding, loadProductV4InteractiveDocumentAssets, loadProductV4StaticFigureAssets } = await import("@/lib/compute/product-v4-runtime-binding");
-const { productV4DocumentPairKey, encodeProductV4DocumentWire, decodeProductV4DocumentWire } = await import("@/lib/compute/product-v4-document-wire");
+const { encodeProductV4DocumentWire, decodeProductV4DocumentWire } = await import("@/lib/compute/product-v4-document-wire");
 const { executeProductV4VerificationCheck } = await import("@/lib/compute/product-v4-verification-executor");
 const digest = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 
@@ -47,7 +47,7 @@ test("wire counts shared document bytes once and rejects inconsistent shared byt
   expect(() => encodeProductV4DocumentWire(assets)).toThrow("VERIFICATION_DOCUMENT_WIRE_INVALID");
 });
 
-test("admitted ZIP retains both print pairs through binding, wire and local executor", async () => {
+test("admitted ZIP checks document bytes without browser and retains both final PDF print pairs", async () => {
   const image = { create: { width: 64, height: 40, channels: 4 as const, background: "#2470ab" } };
   const printA = await sharp(image).png({ compressionLevel: 1 }).toBuffer();
   const printB = await sharp(image).png({ compressionLevel: 9 }).toBuffer();
@@ -97,18 +97,19 @@ test("admitted ZIP retains both print pairs through binding, wire and local exec
   const read = localV4DocumentReader(bundle.files);
   await expect(read({ ...specA, printSha256: "0".repeat(64) }, "print")).rejects.toThrow("LOCAL_BUNDLE_ASSET_MISSING");
   const hash = "a".repeat(64);
-  const ports = { course: async () => ({ id: bundle.manifest.courseId, legacyCourseId: "local" }), dependencies: async () => bundle.products.flatMap(product => [...product.ideaLinks.map(idea => ({ type: "idea" as const, id: idea.id, version: idea.version, hash: idea.semanticHash, status: "published", courseId: product.courseId })), ...product.sourceRefs.flatMap(source => [{ type: "source_material" as const, id: source.sourceId, version: source.version, hash: source.checksum, status: "active", courseId: product.courseId }, ...source.excerptIds.map(id => ({ type: "source_chunk" as const, id, version: source.version, hash: source.checksum, status: "active", courseId: product.courseId, sourceId: source.sourceId }))])]), runtime: async () => ({ rendererChecksum: hash, fontChecksum: hash, contractChecksum: hash, playbookChecksum: hash, printProfile: "a4" }), figure: async (): Promise<never> => { throw new Error("DATABASE_FORBIDDEN"); }, download: async (): Promise<never> => { throw new Error("REMOTE_STORAGE_FORBIDDEN"); } };
+  const ports = { course: async () => ({ id: bundle.manifest.courseId, legacyCourseId: "local" }), dependencies: async () => bundle.products.flatMap(product => [...product.ideaLinks.map(idea => ({ type: "idea" as const, id: idea.id, version: idea.version, hash: idea.semanticHash, status: "published", courseId: product.courseId })), ...product.sourceRefs.flatMap(source => [{ type: "source_material" as const, id: source.sourceId, version: source.version, hash: source.checksum, status: "active", courseId: product.courseId }, ...source.excerptIds.map(id => ({ type: "source_chunk" as const, id, version: source.version, hash: source.checksum, status: "active", courseId: product.courseId, sourceId: source.sourceId }))])]), logicRuntime: async () => ({ logicChecksum: hash, contractChecksum: hash, playbookChecksum: hash }), runtime: async () => ({ rendererChecksum: hash, fontChecksum: hash, contractChecksum: hash, playbookChecksum: hash, printProfile: "a4" }), figure: async (): Promise<never> => { throw new Error("DATABASE_FORBIDDEN"); }, download: async (): Promise<never> => { throw new Error("REMOTE_STORAGE_FORBIDDEN"); } };
   const unique = new Map((await ports.dependencies()).map(row => [`${row.type}:${row.id}`, row]));
   ports.dependencies = async () => [...unique.values()];
   const row = { id: "local", bundleType: "product" as const, bundleId: bundle.manifest.bundleId, courseId: "local", checksum: bundle.manifest.bundleChecksum };
   const binding = await buildProductV4RuntimeBinding({ row, bundle, runId: "run" }, ports, read);
   const plan = deriveProductV4VerificationPlan({ bundle, binding });
-  const requirement = plan.requirements.find(item => item.target === article.id && item.layer === "web")!;
-  const assets = await loadProductV4InteractiveDocumentAssets({ bundle, plan, requirement }, read);
-  const decoded = decodeProductV4DocumentWire(encodeProductV4DocumentWire(assets));
-  expect(decoded[productV4DocumentPairKey(specA)].print).toEqual(new Uint8Array(printA));
-  expect(decoded[productV4DocumentPairKey(specB)].print).toEqual(new Uint8Array(printB));
-  expect(Object.keys(decoded)).toHaveLength(2);
+  expect(plan.binding.purpose).toBe("logic");
+  expect(plan.requirements.every(item => item.layer === "structure" || item.layer === "model")).toBe(true);
+  const requirement = plan.requirements.find(item => item.target === `${article.id}/${specA.id}` && item.layer === "model")!;
+  const pdfBinding = await buildProductV4RuntimeBinding({ row, bundle, runId: "run", purpose: "pdf" }, ports, read);
+  const pdfPlan = deriveProductV4VerificationPlan({ bundle, binding: pdfBinding });
+  const printRequirement = pdfPlan.requirements.find(item => item.layer === "print")!;
+  expect(await loadProductV4InteractiveDocumentAssets({ bundle, plan: pdfPlan, requirement: printRequirement }, read)).toEqual({});
   const prints = await loadProductV4StaticFigureAssets(bundle, ports, true, read);
   expect(prints[`interactive_document:${specA.printSha256}`].bytes).toEqual(new Uint8Array(printA));
   expect(prints[`interactive_document:${specB.printSha256}`].bytes).toEqual(new Uint8Array(printB));
@@ -117,23 +118,16 @@ test("admitted ZIP retains both print pairs through binding, wire and local exec
   try {
     process.env.AUTHORING_VERIFICATION_RENDERER_URL = "http://127.0.0.1:9876";
     process.env.AUTHORING_VERIFICATION_RENDERER_SECRET = "local-only";
-    let printCheck = false;
+    globalThis.fetch = (() => { throw new Error("LOGIC_RENDERER_REQUEST_FORBIDDEN"); }) as unknown as typeof fetch;
+    expect((await executeProductV4VerificationCheck({ bundle, plan, requirement }, read, ports)).status).toBe("PASS");
     globalThis.fetch = (async (_url, options) => {
       const body = JSON.parse(String(options?.body));
-      if (printCheck) {
-        expect(body.staticFigureAssets[`interactive_document:${specA.printSha256}`].base64).toBe(printA.toString("base64"));
-        expect(body.staticFigureAssets[`interactive_document:${specB.printSha256}`].base64).toBe(printB.toString("base64"));
-      } else {
-        const decodedWire = decodeProductV4DocumentWire(body.interactiveDocumentAssets);
-        expect(decodedWire[productV4DocumentPairKey(specA)].print).toEqual(new Uint8Array(printA));
-        expect(decodedWire[productV4DocumentPairKey(specB)].print).toEqual(new Uint8Array(printB));
-      }
+      expect(body.staticFigureAssets[`interactive_document:${specA.printSha256}`].base64).toBe(printA.toString("base64"));
+      expect(body.staticFigureAssets[`interactive_document:${specB.printSha256}`].base64).toBe(printB.toString("base64"));
+      expect(decodeProductV4DocumentWire(body.interactiveDocumentAssets)).toEqual({});
       return Response.json({ checkId: body.requirement.id, status: "PASS", expected: "expected", observed: "observed", artifacts: [] });
     }) as typeof fetch;
-    expect((await executeProductV4VerificationCheck({ bundle, plan, requirement }, read, ports)).status).toBe("PASS");
-    printCheck = true;
-    const printRequirement = plan.requirements.find(item => item.layer === "print")!;
-    expect((await executeProductV4VerificationCheck({ bundle, plan, requirement: printRequirement }, read, ports)).status).toBe("PASS");
+    expect((await executeProductV4VerificationCheck({ bundle, plan: pdfPlan, requirement: printRequirement }, read, ports)).status).toBe("PASS");
   } finally {
     globalThis.fetch = previousFetch;
     if (previousUrl === undefined) delete process.env.AUTHORING_VERIFICATION_RENDERER_URL; else process.env.AUTHORING_VERIFICATION_RENDERER_URL = previousUrl;

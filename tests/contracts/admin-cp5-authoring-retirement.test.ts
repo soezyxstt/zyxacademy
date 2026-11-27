@@ -51,7 +51,9 @@ describe("CP5: Retirement of browser manual authoring and clean global navigatio
     });
 
     it("admin dashboard uses the sidebar catalogue and omits the current and default archived destinations", () => {
-      const dashboard = source("app/(admin)/admin/page.tsx");
+      const dashboard = source("features/admin-home/model/dashboard.ts");
+      expect(source("app/(admin)/admin/page.tsx")).toContain("await getAdminHomeDashboard()");
+      expect(source("app/api/admin/native-monitoring/route.ts")).toContain("await getAdminHomeDashboard()");
       expect(dashboard).toContain('from "@/lib/admin-navigation"');
       expect(dashboard).toContain('ALL_ADMIN_TABS.filter(tab => tab.id !== "dashboard" && !DEFAULT_ARCHIVED.includes(tab.id))');
       expect(dashboard).toContain("item.group === group");
@@ -86,7 +88,7 @@ describe("CP5: Retirement of browser manual authoring and clean global navigatio
       expect(sidebar).not.toContain("/admin/materials/manual");
       expect(sidebar).not.toContain("/admin/authoring-context");
 
-      const mobileNavbar = source("components/mobile-navbar.tsx");
+      const mobileNavbar = source("components/mobile-navbar.tsx") + source("components/navigation/route-title-model.ts");
       expect(mobileNavbar).not.toContain('"Upload Manual"');
       expect(mobileNavbar).not.toContain('"Authoring Context"');
 

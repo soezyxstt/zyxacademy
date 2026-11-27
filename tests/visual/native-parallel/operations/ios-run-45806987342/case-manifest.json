@@ -1,0 +1,1325 @@
+[
+  {
+    "id": "operations-public-hero-id",
+    "path": "/",
+    "component": "Landing",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-public-hero-id.png"
+  },
+  {
+    "id": "operations-public-english-faq",
+    "path": "/",
+    "component": "Landing",
+    "mode": "populated",
+    "theme": "dark",
+    "locale": "en",
+    "filename": "operations-public-english-faq.png"
+  },
+  {
+    "id": "operations-public-demo-link",
+    "path": "/",
+    "component": "Landing",
+    "mode": "populated",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-public-demo-link.png"
+  },
+  {
+    "id": "operations-public-founders-id",
+    "path": "/about",
+    "component": "About",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-public-founders-id.png"
+  },
+  {
+    "id": "operations-public-long-copy-en",
+    "path": "/about",
+    "component": "About",
+    "mode": "populated",
+    "theme": "dark",
+    "locale": "en",
+    "filename": "operations-public-long-copy-en.png"
+  },
+  {
+    "id": "operations-public-portfolio",
+    "path": "/about",
+    "component": "About",
+    "mode": "populated",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-public-portfolio.png"
+  },
+  {
+    "id": "operations-public-blog-list-open-back",
+    "path": "/blog",
+    "component": "BlogList",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-public-blog-list-open-back.png"
+  },
+  {
+    "id": "operations-public-blog-list-empty",
+    "path": "/blog?category=kegiatan_zyx",
+    "component": "BlogList",
+    "mode": "empty",
+    "theme": "dark",
+    "locale": "en",
+    "filename": "operations-public-blog-list-empty.png"
+  },
+  {
+    "id": "operations-public-blog-list-retry",
+    "path": "/blog?category=tips_kuliah",
+    "component": "BlogList",
+    "mode": "recoverable",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-public-blog-list-retry.png"
+  },
+  {
+    "id": "operations-public-blog-detail-content",
+    "path": "/blog/belajar-dengan-latihan-terarah",
+    "component": "BlogArticle",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-public-blog-detail-content.png"
+  },
+  {
+    "id": "operations-public-blog-detail-missing",
+    "path": "/blog/artikel-tidak-tersedia",
+    "component": "BlogArticle",
+    "mode": "empty",
+    "theme": "dark",
+    "locale": "en",
+    "filename": "operations-public-blog-detail-missing.png"
+  },
+  {
+    "id": "operations-public-blog-detail-retry",
+    "path": "/blog/belajar-dengan-latihan-terarah",
+    "component": "BlogArticle",
+    "mode": "recoverable",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-public-blog-detail-retry.png"
+  },
+  {
+    "id": "operations-public-demo-course-article",
+    "path": "/demo",
+    "component": "Demo",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-public-demo-course-article.png"
+  },
+  {
+    "id": "operations-public-demo-empty",
+    "path": "/demo",
+    "component": "Demo",
+    "mode": "empty",
+    "theme": "dark",
+    "locale": "en",
+    "filename": "operations-public-demo-empty.png"
+  },
+  {
+    "id": "operations-public-demo-retry",
+    "path": "/demo",
+    "component": "Demo",
+    "mode": "recoverable",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-public-demo-retry.png"
+  },
+  {
+    "id": "operations-public-demo-view-article",
+    "path": "/demo/article?course=demo-kalkulus&articleId=demo-integral",
+    "component": "NativeDemoContent",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-public-demo-view-article.png"
+  },
+  {
+    "id": "operations-public-demo-view-missing",
+    "path": "/demo/flashcards?course=unknown",
+    "component": "NativeDemoContent",
+    "mode": "populated",
+    "theme": "dark",
+    "locale": "en",
+    "filename": "operations-public-demo-view-missing.png"
+  },
+  {
+    "id": "operations-public-demo-view-quiz",
+    "path": "/demo/quiz?course=demo-kalkulus",
+    "component": "NativeDemoContent",
+    "mode": "populated",
+    "theme": "dark",
+    "locale": "en",
+    "filename": "operations-public-demo-view-quiz.png"
+  },
+  {
+    "id": "operations-public-download-platforms",
+    "path": "/download",
+    "component": "Download",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-public-download-platforms.png"
+  },
+  {
+    "id": "operations-public-download-empty",
+    "path": "/download",
+    "component": "Download",
+    "mode": "empty",
+    "theme": "dark",
+    "locale": "en",
+    "filename": "operations-public-download-empty.png"
+  },
+  {
+    "id": "operations-public-download-retry",
+    "path": "/download",
+    "component": "Download",
+    "mode": "recoverable",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-public-download-retry.png"
+  },
+  {
+    "id": "operations-public-form-empty",
+    "path": "/forms-playground",
+    "component": "FormsPlayground",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "en",
+    "filename": "operations-public-form-empty.png"
+  },
+  {
+    "id": "operations-public-form-validation",
+    "path": "/forms-playground",
+    "component": "FormsPlayground",
+    "mode": "populated",
+    "theme": "dark",
+    "locale": "en",
+    "filename": "operations-public-form-validation.png"
+  },
+  {
+    "id": "operations-public-form-local-submit",
+    "path": "/forms-playground",
+    "component": "FormsPlayground",
+    "mode": "populated",
+    "theme": "dark",
+    "locale": "en",
+    "filename": "operations-public-form-local-submit.png"
+  },
+  {
+    "id": "operations-public-plans-default",
+    "path": "/plans",
+    "component": "Plans",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-public-plans-default.png"
+  },
+  {
+    "id": "operations-public-plans-course-limits",
+    "path": "/plans",
+    "component": "Plans",
+    "mode": "populated",
+    "theme": "dark",
+    "locale": "en",
+    "filename": "operations-public-plans-course-limits.png"
+  },
+  {
+    "id": "operations-public-plans-retry",
+    "path": "/plans",
+    "component": "Plans",
+    "mode": "recoverable",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-public-plans-retry.png"
+  },
+  {
+    "id": "operations-public-privacy-id",
+    "path": "/privacy",
+    "component": "Legal",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-public-privacy-id.png"
+  },
+  {
+    "id": "operations-public-privacy-en-anchor",
+    "path": "/privacy",
+    "component": "Legal",
+    "mode": "populated",
+    "theme": "dark",
+    "locale": "en",
+    "filename": "operations-public-privacy-en-anchor.png"
+  },
+  {
+    "id": "operations-public-privacy-terms-link",
+    "path": "/privacy",
+    "component": "Legal",
+    "mode": "populated",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-public-privacy-terms-link.png"
+  },
+  {
+    "id": "operations-public-terms-id",
+    "path": "/terms",
+    "component": "Legal",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-public-terms-id.png"
+  },
+  {
+    "id": "operations-public-terms-en-anchor",
+    "path": "/terms",
+    "component": "Legal",
+    "mode": "populated",
+    "theme": "dark",
+    "locale": "en",
+    "filename": "operations-public-terms-en-anchor.png"
+  },
+  {
+    "id": "operations-public-terms-privacy-link",
+    "path": "/terms",
+    "component": "Legal",
+    "mode": "populated",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-public-terms-privacy-link.png"
+  },
+  {
+    "id": "operations-public-testimonial-list",
+    "path": "/testimonial",
+    "component": "Testimonial",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-public-testimonial-list.png"
+  },
+  {
+    "id": "operations-public-testimonial-dark-en",
+    "path": "/testimonial",
+    "component": "Testimonial",
+    "mode": "populated",
+    "theme": "dark",
+    "locale": "en",
+    "filename": "operations-public-testimonial-dark-en.png"
+  },
+  {
+    "id": "operations-public-testimonial-plans",
+    "path": "/testimonial",
+    "component": "Testimonial",
+    "mode": "populated",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-public-testimonial-plans.png"
+  },
+  {
+    "id": "operations-public-unsubscribe-confirm",
+    "path": "/unsubscribe?token=fixture-course-updates",
+    "component": "Unsubscribe",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-public-unsubscribe-confirm.png"
+  },
+  {
+    "id": "operations-public-unsubscribe-invalid",
+    "path": "/unsubscribe?token=invalid",
+    "component": "Unsubscribe",
+    "mode": "populated",
+    "theme": "dark",
+    "locale": "en",
+    "filename": "operations-public-unsubscribe-invalid.png"
+  },
+  {
+    "id": "operations-public-unsubscribe-retry",
+    "path": "/unsubscribe?token=fixture-course-updates",
+    "component": "Unsubscribe",
+    "mode": "recoverable",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-public-unsubscribe-retry.png"
+  },
+  {
+    "id": "operations-management-blog-populated",
+    "path": "/admin/blog",
+    "component": "/admin/blog",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-management-blog-populated.png"
+  },
+  {
+    "id": "operations-management-blog-empty",
+    "path": "/admin/blog",
+    "component": "/admin/blog",
+    "mode": "empty",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-management-blog-empty.png"
+  },
+  {
+    "id": "operations-management-blog-recoverable-error",
+    "path": "/admin/blog",
+    "component": "/admin/blog",
+    "mode": "recoverable",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-management-blog-recoverable-error.png"
+  },
+  {
+    "id": "operations-management-blog-new-populated",
+    "path": "/admin/blog/new",
+    "component": "/admin/blog/new",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-management-blog-new-populated.png"
+  },
+  {
+    "id": "operations-management-blog-new-empty",
+    "path": "/admin/blog/new",
+    "component": "/admin/blog/new",
+    "mode": "empty",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-management-blog-new-empty.png"
+  },
+  {
+    "id": "operations-management-blog-new-recoverable-error",
+    "path": "/admin/blog/new",
+    "component": "/admin/blog/new",
+    "mode": "recoverable",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-management-blog-new-recoverable-error.png"
+  },
+  {
+    "id": "operations-management-blog-id-edit-populated",
+    "path": "/admin/blog/article-local/edit",
+    "component": "/admin/blog/[id]/edit",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-management-blog-id-edit-populated.png"
+  },
+  {
+    "id": "operations-management-blog-id-edit-empty",
+    "path": "/admin/blog/article-local/edit",
+    "component": "/admin/blog/[id]/edit",
+    "mode": "empty",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-management-blog-id-edit-empty.png"
+  },
+  {
+    "id": "operations-management-blog-id-edit-recoverable-error",
+    "path": "/admin/blog/article-local/edit",
+    "component": "/admin/blog/[id]/edit",
+    "mode": "recoverable",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-management-blog-id-edit-recoverable-error.png"
+  },
+  {
+    "id": "operations-management-forms-populated",
+    "path": "/admin/forms",
+    "component": "/admin/forms",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-management-forms-populated.png"
+  },
+  {
+    "id": "operations-management-forms-empty",
+    "path": "/admin/forms",
+    "component": "/admin/forms",
+    "mode": "empty",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-management-forms-empty.png"
+  },
+  {
+    "id": "operations-management-forms-recoverable-error",
+    "path": "/admin/forms",
+    "component": "/admin/forms",
+    "mode": "recoverable",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-management-forms-recoverable-error.png"
+  },
+  {
+    "id": "operations-management-forms-id-populated",
+    "path": "/admin/forms/form-local",
+    "component": "/admin/forms/[id]",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-management-forms-id-populated.png"
+  },
+  {
+    "id": "operations-management-forms-id-empty",
+    "path": "/admin/forms/form-local",
+    "component": "/admin/forms/[id]",
+    "mode": "empty",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-management-forms-id-empty.png"
+  },
+  {
+    "id": "operations-management-forms-id-recoverable-error",
+    "path": "/admin/forms/form-local",
+    "component": "/admin/forms/[id]",
+    "mode": "recoverable",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-management-forms-id-recoverable-error.png"
+  },
+  {
+    "id": "operations-management-media-populated",
+    "path": "/admin/media",
+    "component": "/admin/media",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-management-media-populated.png"
+  },
+  {
+    "id": "operations-management-media-empty",
+    "path": "/admin/media",
+    "component": "/admin/media",
+    "mode": "empty",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-management-media-empty.png"
+  },
+  {
+    "id": "operations-management-media-recoverable-error",
+    "path": "/admin/media",
+    "component": "/admin/media",
+    "mode": "recoverable",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-management-media-recoverable-error.png"
+  },
+  {
+    "id": "operations-management-docs-populated",
+    "path": "/admin/docs",
+    "component": "/admin/docs",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-management-docs-populated.png"
+  },
+  {
+    "id": "operations-management-docs-empty",
+    "path": "/admin/docs",
+    "component": "/admin/docs",
+    "mode": "empty",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-management-docs-empty.png"
+  },
+  {
+    "id": "operations-management-docs-recoverable-error",
+    "path": "/admin/docs",
+    "component": "/admin/docs",
+    "mode": "recoverable",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-management-docs-recoverable-error.png"
+  },
+  {
+    "id": "operations-management-docs-slug-populated",
+    "path": "/admin/docs/blog-dan-tautan",
+    "component": "/admin/docs/[slug]",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-management-docs-slug-populated.png"
+  },
+  {
+    "id": "operations-management-docs-slug-empty",
+    "path": "/admin/docs/blog-dan-tautan",
+    "component": "/admin/docs/[slug]",
+    "mode": "empty",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-management-docs-slug-empty.png"
+  },
+  {
+    "id": "operations-management-docs-slug-recoverable-error",
+    "path": "/admin/docs/blog-dan-tautan",
+    "component": "/admin/docs/[slug]",
+    "mode": "recoverable",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-management-docs-slug-recoverable-error.png"
+  },
+  {
+    "id": "operations-management-meet-populated",
+    "path": "/admin/meet",
+    "component": "/admin/meet",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-management-meet-populated.png"
+  },
+  {
+    "id": "operations-management-meet-empty",
+    "path": "/admin/meet",
+    "component": "/admin/meet",
+    "mode": "empty",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-management-meet-empty.png"
+  },
+  {
+    "id": "operations-management-meet-recoverable-error",
+    "path": "/admin/meet",
+    "component": "/admin/meet",
+    "mode": "recoverable",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-management-meet-recoverable-error.png"
+  },
+  {
+    "id": "operations-management-meet-id-populated",
+    "path": "/admin/meet/record-local",
+    "component": "/admin/meet/[id]",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-management-meet-id-populated.png"
+  },
+  {
+    "id": "operations-management-meet-id-empty",
+    "path": "/admin/meet/record-local",
+    "component": "/admin/meet/[id]",
+    "mode": "empty",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-management-meet-id-empty.png"
+  },
+  {
+    "id": "operations-management-meet-id-recoverable-error",
+    "path": "/admin/meet/record-local",
+    "component": "/admin/meet/[id]",
+    "mode": "recoverable",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-management-meet-id-recoverable-error.png"
+  },
+  {
+    "id": "operations-management-discussions-populated",
+    "path": "/admin/discussions",
+    "component": "/admin/discussions",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-management-discussions-populated.png"
+  },
+  {
+    "id": "operations-management-discussions-empty",
+    "path": "/admin/discussions",
+    "component": "/admin/discussions",
+    "mode": "empty",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-management-discussions-empty.png"
+  },
+  {
+    "id": "operations-management-discussions-recoverable-error",
+    "path": "/admin/discussions",
+    "component": "/admin/discussions",
+    "mode": "recoverable",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-management-discussions-recoverable-error.png"
+  },
+  {
+    "id": "operations-management-pricing-populated",
+    "path": "/admin/pricing",
+    "component": "/admin/pricing",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-management-pricing-populated.png"
+  },
+  {
+    "id": "operations-management-pricing-empty",
+    "path": "/admin/pricing",
+    "component": "/admin/pricing",
+    "mode": "empty",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-management-pricing-empty.png"
+  },
+  {
+    "id": "operations-management-pricing-recoverable-error",
+    "path": "/admin/pricing",
+    "component": "/admin/pricing",
+    "mode": "recoverable",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-management-pricing-recoverable-error.png"
+  },
+  {
+    "id": "operations-management-tautan-populated",
+    "path": "/admin/tautan",
+    "component": "/admin/tautan",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-management-tautan-populated.png"
+  },
+  {
+    "id": "operations-management-tautan-empty",
+    "path": "/admin/tautan",
+    "component": "/admin/tautan",
+    "mode": "empty",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-management-tautan-empty.png"
+  },
+  {
+    "id": "operations-management-tautan-recoverable-error",
+    "path": "/admin/tautan",
+    "component": "/admin/tautan",
+    "mode": "recoverable",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-management-tautan-recoverable-error.png"
+  },
+  {
+    "id": "operations-evaluation-assessment-detail-populated",
+    "path": "/admin/assessments/asesmen-lama",
+    "component": "EvaluationScreen",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-evaluation-assessment-detail-populated.png"
+  },
+  {
+    "id": "operations-evaluation-assessment-detail-alternate",
+    "path": "/admin/assessments/asesmen-lama",
+    "component": "EvaluationScreen",
+    "mode": "empty",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-evaluation-assessment-detail-alternate.png"
+  },
+  {
+    "id": "operations-evaluation-assessment-detail-recovery",
+    "path": "/admin/assessments/asesmen-lama",
+    "component": "EvaluationScreen",
+    "mode": "denied",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-evaluation-assessment-detail-recovery.png"
+  },
+  {
+    "id": "operations-evaluation-assessments-populated",
+    "path": "/admin/assessments",
+    "component": "EvaluationScreen",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-evaluation-assessments-populated.png"
+  },
+  {
+    "id": "operations-evaluation-assessments-alternate",
+    "path": "/admin/assessments",
+    "component": "EvaluationScreen",
+    "mode": "empty",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-evaluation-assessments-alternate.png"
+  },
+  {
+    "id": "operations-evaluation-assessments-recovery",
+    "path": "/admin/assessments",
+    "component": "EvaluationScreen",
+    "mode": "denied",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-evaluation-assessments-recovery.png"
+  },
+  {
+    "id": "operations-evaluation-ast-inspector-populated",
+    "path": "/admin/ast-inspector",
+    "component": "EvaluationScreen",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-evaluation-ast-inspector-populated.png"
+  },
+  {
+    "id": "operations-evaluation-ast-inspector-alternate",
+    "path": "/admin/ast-inspector?tab=diagnostics",
+    "component": "EvaluationScreen",
+    "mode": "populated",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-evaluation-ast-inspector-alternate.png"
+  },
+  {
+    "id": "operations-evaluation-ast-inspector-recovery",
+    "path": "/admin/ast-inspector",
+    "component": "EvaluationScreen",
+    "mode": "recoverable",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-evaluation-ast-inspector-recovery.png"
+  },
+  {
+    "id": "operations-evaluation-diktats-populated",
+    "path": "/admin/diktats",
+    "component": "EvaluationScreen",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-evaluation-diktats-populated.png"
+  },
+  {
+    "id": "operations-evaluation-diktats-alternate",
+    "path": "/admin/diktats",
+    "component": "EvaluationScreen",
+    "mode": "empty",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-evaluation-diktats-alternate.png"
+  },
+  {
+    "id": "operations-evaluation-diktats-recovery",
+    "path": "/admin/diktats",
+    "component": "EvaluationScreen",
+    "mode": "denied",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-evaluation-diktats-recovery.png"
+  },
+  {
+    "id": "operations-evaluation-distractors-populated",
+    "path": "/admin/distractors",
+    "component": "EvaluationScreen",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-evaluation-distractors-populated.png"
+  },
+  {
+    "id": "operations-evaluation-distractors-alternate",
+    "path": "/admin/distractors",
+    "component": "EvaluationScreen",
+    "mode": "empty",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-evaluation-distractors-alternate.png"
+  },
+  {
+    "id": "operations-evaluation-distractors-recovery",
+    "path": "/admin/distractors",
+    "component": "EvaluationScreen",
+    "mode": "recoverable",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-evaluation-distractors-recovery.png"
+  },
+  {
+    "id": "operations-evaluation-jobs-populated",
+    "path": "/admin/jobs",
+    "component": "EvaluationScreen",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-evaluation-jobs-populated.png"
+  },
+  {
+    "id": "operations-evaluation-jobs-alternate",
+    "path": "/admin/jobs",
+    "component": "EvaluationScreen",
+    "mode": "empty",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-evaluation-jobs-alternate.png"
+  },
+  {
+    "id": "operations-evaluation-jobs-recovery",
+    "path": "/admin/jobs",
+    "component": "EvaluationScreen",
+    "mode": "recoverable",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-evaluation-jobs-recovery.png"
+  },
+  {
+    "id": "operations-evaluation-leaderboard-populated",
+    "path": "/admin/leaderboard?courseId=mekanika-legacy",
+    "component": "EvaluationScreen",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-evaluation-leaderboard-populated.png"
+  },
+  {
+    "id": "operations-evaluation-leaderboard-alternate",
+    "path": "/admin/leaderboard",
+    "component": "EvaluationScreen",
+    "mode": "empty",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-evaluation-leaderboard-alternate.png"
+  },
+  {
+    "id": "operations-evaluation-leaderboard-recovery",
+    "path": "/admin/leaderboard",
+    "component": "EvaluationScreen",
+    "mode": "denied",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-evaluation-leaderboard-recovery.png"
+  },
+  {
+    "id": "operations-evaluation-questions-populated",
+    "path": "/admin/questions",
+    "component": "EvaluationScreen",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-evaluation-questions-populated.png"
+  },
+  {
+    "id": "operations-evaluation-questions-alternate",
+    "path": "/admin/questions?tab=historical",
+    "component": "EvaluationScreen",
+    "mode": "populated",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-evaluation-questions-alternate.png"
+  },
+  {
+    "id": "operations-evaluation-questions-recovery",
+    "path": "/admin/questions",
+    "component": "EvaluationScreen",
+    "mode": "recoverable",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-evaluation-questions-recovery.png"
+  },
+  {
+    "id": "operations-evaluation-quiz-insight-populated",
+    "path": "/admin/quiz-insights/kuis-energi",
+    "component": "EvaluationScreen",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-evaluation-quiz-insight-populated.png"
+  },
+  {
+    "id": "operations-evaluation-quiz-insight-alternate",
+    "path": "/admin/quiz-insights/kuis-tidak-ada",
+    "component": "EvaluationScreen",
+    "mode": "empty",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-evaluation-quiz-insight-alternate.png"
+  },
+  {
+    "id": "operations-evaluation-quiz-insight-recovery",
+    "path": "/admin/quiz-insights/kuis-energi",
+    "component": "EvaluationScreen",
+    "mode": "denied",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-evaluation-quiz-insight-recovery.png"
+  },
+  {
+    "id": "operations-evaluation-quiz-insights-populated",
+    "path": "/admin/quiz-insights?courseId=mekanika-legacy",
+    "component": "EvaluationScreen",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-evaluation-quiz-insights-populated.png"
+  },
+  {
+    "id": "operations-evaluation-quiz-insights-alternate",
+    "path": "/admin/quiz-insights",
+    "component": "EvaluationScreen",
+    "mode": "empty",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-evaluation-quiz-insights-alternate.png"
+  },
+  {
+    "id": "operations-evaluation-quiz-insights-recovery",
+    "path": "/admin/quiz-insights",
+    "component": "EvaluationScreen",
+    "mode": "denied",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-evaluation-quiz-insights-recovery.png"
+  },
+  {
+    "id": "operations-evaluation-quiz-edit-populated",
+    "path": "/admin/quizzes/kuis-energi/edit",
+    "component": "EvaluationScreen",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-evaluation-quiz-edit-populated.png"
+  },
+  {
+    "id": "operations-evaluation-quiz-edit-alternate",
+    "path": "/admin/quizzes/kuis-tidak-ada/edit",
+    "component": "EvaluationScreen",
+    "mode": "empty",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-evaluation-quiz-edit-alternate.png"
+  },
+  {
+    "id": "operations-evaluation-quiz-edit-recovery",
+    "path": "/admin/quizzes/kuis-energi/edit",
+    "component": "EvaluationScreen",
+    "mode": "denied",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-evaluation-quiz-edit-recovery.png"
+  },
+  {
+    "id": "operations-evaluation-quiz-new-populated",
+    "path": "/admin/quizzes/new?courseSlug=mekanika-legacy&tags=energi%2Ckinetik",
+    "component": "EvaluationScreen",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-evaluation-quiz-new-populated.png"
+  },
+  {
+    "id": "operations-evaluation-quiz-new-alternate",
+    "path": "/admin/quizzes/new",
+    "component": "EvaluationScreen",
+    "mode": "empty",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-evaluation-quiz-new-alternate.png"
+  },
+  {
+    "id": "operations-evaluation-quiz-new-recovery",
+    "path": "/admin/quizzes/new",
+    "component": "EvaluationScreen",
+    "mode": "denied",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-evaluation-quiz-new-recovery.png"
+  },
+  {
+    "id": "operations-evaluation-quizzes-populated",
+    "path": "/admin/quizzes?courseId=mekanika-legacy",
+    "component": "EvaluationScreen",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-evaluation-quizzes-populated.png"
+  },
+  {
+    "id": "operations-evaluation-quizzes-alternate",
+    "path": "/admin/quizzes",
+    "component": "EvaluationScreen",
+    "mode": "empty",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-evaluation-quizzes-alternate.png"
+  },
+  {
+    "id": "operations-evaluation-quizzes-recovery",
+    "path": "/admin/quizzes",
+    "component": "EvaluationScreen",
+    "mode": "denied",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-evaluation-quizzes-recovery.png"
+  },
+  {
+    "id": "operations-monitoring-admin-populated",
+    "path": "/admin",
+    "component": "HomeDashboardScreen",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-monitoring-admin-populated.png"
+  },
+  {
+    "id": "operations-monitoring-admin-retry",
+    "path": "/admin",
+    "component": "HomeDashboardScreen",
+    "mode": "recoverable",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-monitoring-admin-retry.png"
+  },
+  {
+    "id": "operations-monitoring-admin-denied",
+    "path": "/admin",
+    "component": "HomeDashboardScreen",
+    "mode": "denied",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-monitoring-admin-denied.png"
+  },
+  {
+    "id": "operations-monitoring-admin-ops-web-analytics-populated",
+    "path": "/admin/ops/web-analytics",
+    "component": "WebAnalyticsScreen",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-monitoring-admin-ops-web-analytics-populated.png"
+  },
+  {
+    "id": "operations-monitoring-admin-ops-web-analytics-retry",
+    "path": "/admin/ops/web-analytics",
+    "component": "WebAnalyticsScreen",
+    "mode": "recoverable",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-monitoring-admin-ops-web-analytics-retry.png"
+  },
+  {
+    "id": "operations-monitoring-admin-ops-web-analytics-denied",
+    "path": "/admin/ops/web-analytics",
+    "component": "WebAnalyticsScreen",
+    "mode": "denied",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-monitoring-admin-ops-web-analytics-denied.png"
+  },
+  {
+    "id": "operations-monitoring-admin-ops-populated",
+    "path": "/admin/ops",
+    "component": "OpsMonitorScreen",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-monitoring-admin-ops-populated.png"
+  },
+  {
+    "id": "operations-monitoring-admin-ops-retry",
+    "path": "/admin/ops",
+    "component": "OpsMonitorScreen",
+    "mode": "recoverable",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-monitoring-admin-ops-retry.png"
+  },
+  {
+    "id": "operations-monitoring-admin-ops-denied",
+    "path": "/admin/ops",
+    "component": "OpsMonitorScreen",
+    "mode": "denied",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-monitoring-admin-ops-denied.png"
+  },
+  {
+    "id": "operations-monitoring-admin-ops-analytics-populated",
+    "path": "/admin/ops/analytics",
+    "component": "AiAnalyticsScreen",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-monitoring-admin-ops-analytics-populated.png"
+  },
+  {
+    "id": "operations-monitoring-admin-ops-analytics-retry",
+    "path": "/admin/ops/analytics",
+    "component": "AiAnalyticsScreen",
+    "mode": "recoverable",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-monitoring-admin-ops-analytics-retry.png"
+  },
+  {
+    "id": "operations-monitoring-admin-ops-analytics-denied",
+    "path": "/admin/ops/analytics",
+    "component": "AiAnalyticsScreen",
+    "mode": "denied",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-monitoring-admin-ops-analytics-denied.png"
+  },
+  {
+    "id": "operations-monitoring-admin-ops-feature-usage-populated",
+    "path": "/admin/ops/feature-usage",
+    "component": "FeatureUsageScreen",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-monitoring-admin-ops-feature-usage-populated.png"
+  },
+  {
+    "id": "operations-monitoring-admin-ops-feature-usage-retry",
+    "path": "/admin/ops/feature-usage",
+    "component": "FeatureUsageScreen",
+    "mode": "recoverable",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-monitoring-admin-ops-feature-usage-retry.png"
+  },
+  {
+    "id": "operations-monitoring-admin-ops-feature-usage-denied",
+    "path": "/admin/ops/feature-usage",
+    "component": "FeatureUsageScreen",
+    "mode": "denied",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-monitoring-admin-ops-feature-usage-denied.png"
+  },
+  {
+    "id": "operations-monitoring-admin-ops-tutor-activity-populated",
+    "path": "/admin/ops/tutor-activity",
+    "component": "TutorActivityScreen",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-monitoring-admin-ops-tutor-activity-populated.png"
+  },
+  {
+    "id": "operations-monitoring-admin-ops-tutor-activity-retry",
+    "path": "/admin/ops/tutor-activity",
+    "component": "TutorActivityScreen",
+    "mode": "recoverable",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-monitoring-admin-ops-tutor-activity-retry.png"
+  },
+  {
+    "id": "operations-monitoring-admin-ops-tutor-activity-denied",
+    "path": "/admin/ops/tutor-activity",
+    "component": "TutorActivityScreen",
+    "mode": "denied",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-monitoring-admin-ops-tutor-activity-denied.png"
+  },
+  {
+    "id": "operations-monitoring-admin-ops-keys-populated",
+    "path": "/admin/ops/keys",
+    "component": "KeyDiagnosticsScreen",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-monitoring-admin-ops-keys-populated.png"
+  },
+  {
+    "id": "operations-monitoring-admin-ops-keys-retry",
+    "path": "/admin/ops/keys",
+    "component": "KeyDiagnosticsScreen",
+    "mode": "recoverable",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-monitoring-admin-ops-keys-retry.png"
+  },
+  {
+    "id": "operations-monitoring-admin-ops-keys-denied",
+    "path": "/admin/ops/keys",
+    "component": "KeyDiagnosticsScreen",
+    "mode": "denied",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-monitoring-admin-ops-keys-denied.png"
+  },
+  {
+    "id": "operations-monitoring-admin-ops-models-populated",
+    "path": "/admin/ops/models",
+    "component": "ModelsScreen",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-monitoring-admin-ops-models-populated.png"
+  },
+  {
+    "id": "operations-monitoring-admin-ops-models-retry",
+    "path": "/admin/ops/models",
+    "component": "ModelsScreen",
+    "mode": "recoverable",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-monitoring-admin-ops-models-retry.png"
+  },
+  {
+    "id": "operations-monitoring-admin-ops-models-denied",
+    "path": "/admin/ops/models",
+    "component": "ModelsScreen",
+    "mode": "denied",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-monitoring-admin-ops-models-denied.png"
+  },
+  {
+    "id": "operations-monitoring-admin-ops-offline-populated",
+    "path": "/admin/ops/offline",
+    "component": "OfflineCacheScreen",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-monitoring-admin-ops-offline-populated.png"
+  },
+  {
+    "id": "operations-monitoring-admin-ops-offline-retry",
+    "path": "/admin/ops/offline",
+    "component": "OfflineCacheScreen",
+    "mode": "recoverable",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-monitoring-admin-ops-offline-retry.png"
+  },
+  {
+    "id": "operations-monitoring-admin-ops-offline-denied",
+    "path": "/admin/ops/offline",
+    "component": "OfflineCacheScreen",
+    "mode": "denied",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-monitoring-admin-ops-offline-denied.png"
+  },
+  {
+    "id": "operations-monitoring-admin-ops-short-links-populated",
+    "path": "/admin/ops/short-links",
+    "component": "ShortLinksScreen",
+    "mode": "populated",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-monitoring-admin-ops-short-links-populated.png"
+  },
+  {
+    "id": "operations-monitoring-admin-ops-short-links-retry",
+    "path": "/admin/ops/short-links",
+    "component": "ShortLinksScreen",
+    "mode": "recoverable",
+    "theme": "dark",
+    "locale": "id",
+    "filename": "operations-monitoring-admin-ops-short-links-retry.png"
+  },
+  {
+    "id": "operations-monitoring-admin-ops-short-links-denied",
+    "path": "/admin/ops/short-links",
+    "component": "ShortLinksScreen",
+    "mode": "denied",
+    "theme": "light",
+    "locale": "id",
+    "filename": "operations-monitoring-admin-ops-short-links-denied.png"
+  }
+]

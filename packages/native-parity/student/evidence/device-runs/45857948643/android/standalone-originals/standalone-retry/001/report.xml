@@ -1,0 +1,27 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+  <testsuite name="Test Suite" device="test" tests="8" failures="7" time="22.577" timestamp="2026-11-26T16:42:58">
+    <testcase id="Student restores a saved answer after process restart" name="Student restores a saved answer after process restart" classname="Student restores a saved answer after process restart" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/assessment-process-restart.yaml" time="1.832" timestamp="2026-11-26T16:42:58" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="Student tryout retries the same submission after response loss" name="Student tryout retries the same submission after response loss" classname="Student tryout retries the same submission after response loss" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/assessment-retry.yaml" time="20.591" timestamp="2026-11-26T16:43:00" status="SUCCESS"/>
+    <testcase id="Student reads and completes a solution collection" name="Student reads and completes a solution collection" classname="Student reads and completes a solution collection" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/assessment-solutions.yaml" time="0.021" timestamp="2026-11-26T16:43:21" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="Catalog comparable fixture all TPB and PKA" name="Catalog comparable fixture all TPB and PKA" classname="Catalog comparable fixture all TPB and PKA" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/catalog-parity.yaml" time="0.017" timestamp="2026-11-26T16:43:21" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="Community calendar category and history" name="Community calendar category and history" classname="Community calendar category and history" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/community-calendar-filter.yaml" time="0.016" timestamp="2026-11-26T16:43:21" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="Student calendar reference inputs and category states" name="Student calendar reference inputs and category states" classname="Student calendar reference inputs and category states" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/community-calendar-parity.yaml" time="0.012" timestamp="2026-11-26T16:43:21" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="Student calendar filters assessments and opens tutorial history" name="Student calendar filters assessments and opens tutorial history" classname="Student calendar filters assessments and opens tutorial history" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/community-calendar.yaml" time="0.014" timestamp="2026-11-26T16:43:21" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="Student opens a discussion alias and posts a scoped answer" name="Student opens a discussion alias and posts a scoped answer" classname="Student opens a discussion alias and posts a scoped answer" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/community-discussions.yaml" time="0.016" timestamp="2026-11-26T16:43:21" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+  </testsuite>
+</testsuites>

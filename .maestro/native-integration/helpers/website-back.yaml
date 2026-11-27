@@ -1,0 +1,9 @@
+appId: com.zyx.academy.nativeparity
+name: Return to the original native screen from browser failure
+---
+- tapOn:
+    id: website-handoff-back
+- extendedWaitUntil:
+    visible: "Sign up with Google"
+    timeout: 20000
+- takeScreenshot: website-back

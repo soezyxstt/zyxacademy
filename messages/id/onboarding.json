@@ -1,0 +1,292 @@
+{
+  "invitation": {
+    "student": {
+      "title": "Kenali Zyx Academy",
+      "description": "Ikuti {count} langkah untuk mengenal fitur belajar, jadwal, dan pengaturan akun."
+    },
+    "tutor": {
+      "title": "Kenali panel pengajar",
+      "description": "Ikuti {count} langkah untuk mengenal alat mengajar, jadwal, dan pengaturan akun."
+    },
+    "choiceHint": "Kamu bisa melewati tur kapan saja dan mengulangnya lewat tab Umum di Preferensi."
+  },
+  "completion": {
+    "title": "Tur selesai",
+    "description": "Untuk mengulang tur, buka Preferensi, lalu Umum."
+  },
+  "resume": {
+    "title": "Lanjutkan tur?",
+    "description": "Kamu berhenti di langkah {current} dari {total}. Lanjutkan dari sini atau lewati tur."
+  },
+  "error": {
+    "loadTitle": "Tur belum bisa dimuat",
+    "loadDescription": "Coba muat lagi. Kamu tetap bisa memakai Zyx tanpa mengikuti tur.",
+    "saveTitle": "Belum bisa menyimpan tur",
+    "saveDescription": "Coba lagi untuk menyimpan langkah atau pilihan terakhir.",
+    "exitDescription": "Tur sudah ditutup, tetapi pilihanmu belum tersimpan. Coba lagi lewat tab Umum di Preferensi."
+  },
+  "recovery": {
+    "title": "Bagian ini belum tersedia",
+    "description": "Bagian ini belum tersedia. Coba lagi atau akhiri tur. Kamu bisa mengulangnya lewat tab Umum di Preferensi."
+  },
+  "progress": "Langkah {current} dari {total}",
+  "loading": "Menyiapkan langkah berikutnya…",
+  "actions": {
+    "start": "Mulai tur",
+    "skip": "Lewati tur",
+    "end": "Akhiri tur",
+    "back": "Kembali",
+    "retry": "Coba lagi",
+    "resume": "Lanjutkan tur",
+    "restart": "Mulai lagi",
+    "skipStep": "Lewati langkah",
+    "replay": "Ulangi tur",
+    "done": "Selesai"
+  },
+  "more": {
+    "title": "Buka menu lainnya",
+    "description": "Beberapa menu ada di Lebih saat layar tidak cukup lebar.",
+    "instruction": "Buka Lebih untuk melihat menu berikutnya."
+  },
+  "viewMenu": {
+    "title": "Pilih tampilan jadwal",
+    "description": "Kalender, sesi, dan tiket ada dalam menu tampilan.",
+    "instruction": "Buka pilihan tampilan jadwal."
+  },
+  "student": {
+    "course": {
+      "documents": {
+        "title": "Bahan belajar",
+        "description": "Baca artikel dan diktat per topik.",
+        "instruction": "Buka Dokumen."
+      },
+      "quiz": {
+        "title": "Latihan soal",
+        "description": "Cek pemahaman lewat kuis dan lihat hasil latihanmu.",
+        "instruction": "Buka Kuis."
+      },
+      "flashcards": {
+        "title": "Ulangi konsep",
+        "description": "Kartu tanya jawab membantu kamu mengulang konsep dan istilah.",
+        "instruction": "Buka Flashcard."
+      },
+      "zyra": {
+        "title": "Tanya Zyra",
+        "description": "Zyra bisa membantu menjelaskan materi yang belum jelas.",
+        "instruction": "Pilih Zyra untuk membuka ruang tanya jawab."
+      },
+      "zyraClose": {
+        "title": "Ruang tanya jawab",
+        "description": "Di sini, kamu bisa bertanya tentang materi dan cara menyelesaikan soal.",
+        "instruction": "Tutup Zyra untuk melanjutkan tur."
+      },
+      "schedule": {
+        "title": "Jadwal belajar",
+        "description": "Lihat jadwal tutorial, kuis, dan ujian dalam satu halaman.",
+        "instruction": "Buka Jadwal."
+      },
+      "discussions": {
+        "title": "Diskusi kelas",
+        "description": "Ikuti pertanyaan dan jawaban di kelasmu.",
+        "instruction": "Buka Diskusi."
+      },
+      "account": {
+        "title": "Akunmu",
+        "description": "Menu akun memuat pilihan akun dan pengaturan aplikasi.",
+        "instruction": "Pilih ikon akunmu."
+      },
+      "preferences": {
+        "title": "Preferensi aplikasi",
+        "description": "Pilih bahasa, tampilan, dan notifikasi yang sesuai.",
+        "instruction": "Buka Preferensi."
+      }
+    },
+    "general": {
+      "courses": {
+        "title": "Cari mata kuliah",
+        "description": "Jelajahi materi dan latihan yang tersedia di Zyx.",
+        "instruction": "Buka daftar mata kuliah."
+      },
+      "schedule": {
+        "title": "Jadwal belajar",
+        "description": "Jadwal tutorial, kuis, dan ujian akan muncul di sini.",
+        "instruction": "Buka Jadwal."
+      },
+      "nextWeek": {
+        "title": "Lihat pekan berikutnya",
+        "description": "Pindah pekan untuk mengecek kegiatan mendatang.",
+        "instruction": "Pilih panah ke kanan."
+      },
+      "discussions": {
+        "title": "Diskusi kelas",
+        "description": "Pertanyaan dan jawaban kelas tersedia sesuai aksesmu.",
+        "instruction": "Buka Diskusi."
+      },
+      "search": {
+        "title": "Cari dari satu tempat",
+        "description": "Temukan halaman dan konten yang bisa kamu akses.",
+        "instruction": "Buka pencarian."
+      },
+      "searchClose": {
+        "title": "Kembali ke halaman",
+        "description": "Kamu bisa membuka pencarian lagi dari ikon kaca pembesar.",
+        "instruction": "Tutup pencarian untuk melanjutkan tur."
+      },
+      "account": {
+        "title": "Akunmu",
+        "description": "Menu akun memuat pilihan akun dan pengaturan aplikasi.",
+        "instruction": "Pilih ikon akunmu."
+      },
+      "preferences": {
+        "title": "Preferensi aplikasi",
+        "description": "Atur bahasa, tampilan, dan notifikasi di sini.",
+        "instruction": "Buka Preferensi."
+      },
+      "language": {
+        "title": "Pilih bahasa",
+        "description": "Tampilan aplikasi tersedia dalam bahasa Indonesia dan Inggris.",
+        "instruction": "Buka pilihan Bahasa."
+      }
+    }
+  },
+  "tutor": {
+    "course": {
+      "course": {
+        "title": "Kelas yang diampu",
+        "description": "Setiap kelas memuat bahan ajar, peserta, dan penilaian.",
+        "instruction": "Buka kelas yang disorot."
+      },
+      "documents": {
+        "title": "Bahan ajar",
+        "description": "Baca dokumen kelas untuk menyiapkan bahan ajar.",
+        "instruction": "Buka menu bahan ajar yang disorot."
+      },
+      "quizzes": {
+        "title": "Kuis kelas",
+        "description": "Lihat kuis kelas dan hasil pengerjaan siswa.",
+        "instruction": "Buka Kuis."
+      },
+      "grading": {
+        "title": "Tinjau jawaban siswa",
+        "description": "Periksa jawaban esai yang memerlukan penilaian.",
+        "instruction": "Buka Penilaian kuis."
+      },
+      "schedule": {
+        "title": "Jadwal mengajar",
+        "description": "Kelola waktu mengajar dan sesi tutorial.",
+        "instruction": "Buka Jadwal."
+      },
+      "tickets": {
+        "title": "Permintaan perubahan jadwal",
+        "description": "Permintaan pindah jadwal dan pembatalan masuk ke Tiket.",
+        "instruction": "Pilih Tiket."
+      },
+      "discussions": {
+        "title": "Diskusi dengan siswa",
+        "description": "Ikuti pertanyaan siswa dari kelas yang kamu ampu.",
+        "instruction": "Buka Diskusi."
+      },
+      "account": {
+        "title": "Akun pengajar",
+        "description": "Menu akun memuat pilihan akun dan pengaturan aplikasi.",
+        "instruction": "Pilih ikon akunmu."
+      },
+      "preferences": {
+        "title": "Atur preferensi",
+        "description": "Pilih bahasa, tampilan, dan notifikasi yang sesuai.",
+        "instruction": "Buka Preferensi."
+      }
+    },
+    "general": {
+      "schedule": {
+        "title": "Jadwal mengajar",
+        "description": "Kelola waktu mengajar dan sesi tutorial.",
+        "instruction": "Buka Jadwal."
+      },
+      "addSlot": {
+        "title": "Siapkan waktu mengajar",
+        "description": "Slot menunjukkan waktu yang bisa dipakai untuk tutorial.",
+        "instruction": "Buka Tambah slot untuk melihat formulirnya."
+      },
+      "cancelSlot": {
+        "title": "Rincian slot",
+        "description": "Formulir ini memuat tanggal, jam, dan cara pertemuan.",
+        "instruction": "Pilih Batal untuk melanjutkan tur."
+      },
+      "sessions": {
+        "title": "Sesi tutorial",
+        "description": "Sesi yang sudah terjadwal beserta rinciannya muncul di sini.",
+        "instruction": "Pilih Sesi."
+      },
+      "tickets": {
+        "title": "Permintaan perubahan jadwal",
+        "description": "Permintaan pindah jadwal dan pembatalan masuk ke Tiket.",
+        "instruction": "Pilih Tiket."
+      },
+      "discussions": {
+        "title": "Diskusi dengan siswa",
+        "description": "Diskusi kelas tersedia setelah admin memberi penugasan.",
+        "instruction": "Buka Diskusi."
+      },
+      "docs": {
+        "title": "Panduan mengajar",
+        "description": "Cari panduan jadwal, materi, dan penilaian di Dokumentasi.",
+        "instruction": "Buka panduan yang disorot."
+      },
+      "account": {
+        "title": "Akun pengajar",
+        "description": "Menu akun memuat pilihan akun dan pengaturan aplikasi.",
+        "instruction": "Pilih ikon akunmu."
+      },
+      "preferences": {
+        "title": "Atur preferensi",
+        "description": "Pilih bahasa, tampilan, dan notifikasi yang sesuai.",
+        "instruction": "Buka Preferensi."
+      }
+    }
+  },
+  "accountMenu": {
+    "instruction": "Buka menu akun untuk melihat Preferensi."
+  },
+  "zyraMenu": {
+    "instruction": "Buka Zyra untuk melihat ruang tanya jawab."
+  },
+  "searchMenu": {
+    "instruction": "Buka pencarian untuk melanjutkan tur."
+  },
+  "slotMenu": {
+    "instruction": "Buka Tambah slot untuk melihat isian jadwal."
+  },
+  "profileMenu": {
+    "instruction": "Buka Saya untuk menemukan menu akun."
+  },
+  "homeMenu": {
+    "instruction": "Kembali ke beranda untuk membuka jadwal."
+  },
+  "generalMenu": {
+    "instruction": "Buka tab Umum."
+  },
+  "notifications": {
+    "title": "Atur notifikasi",
+    "description": "Terima kabar jadwal dan aktivitas di Zyx lewat notifikasi.",
+    "instruction": "Atur izin notifikasi, lalu selesaikan tur.",
+    "statusLabel": "Status notifikasi",
+    "requesting": "Menunggu izin notifikasi…",
+    "registering": "Menyiapkan notifikasi untuk perangkat ini…",
+    "checking": "Memeriksa notifikasi…",
+    "ready": "Notifikasi aktif di perangkat ini.",
+    "deniedBrowser": "Browser memblokir notifikasi. Izinkan di pengaturan situs, lalu periksa lagi.",
+    "deniedDevice": "Perangkat memblokir notifikasi. Izinkan notifikasi untuk Zyx di pengaturan perangkat, lalu periksa lagi.",
+    "unsupported": "Notifikasi tidak tersedia di browser atau perangkat ini. Kamu tetap bisa menyelesaikan tur.",
+    "registrationFailed": "Izin sudah diberikan, tetapi Zyx belum bisa menyiapkan notifikasi. Coba lagi.",
+    "transportInactive": "Izin sudah diberikan, tetapi layanan notifikasi belum aktif. Periksa lagi atau selesaikan tur.",
+    "requestFailed": "Permintaan izin belum berhasil. Coba lagi.",
+    "enable": "Aktifkan notifikasi",
+    "enableAgain": "Coba beri izin lagi",
+    "retryRegistration": "Coba aktifkan lagi",
+    "recheck": "Periksa lagi",
+    "done": "Selesai",
+    "permissionRequiredBrowser": "Pilih Aktifkan notifikasi, lalu izinkan saat browser meminta.",
+    "permissionRequiredDevice": "Pilih Aktifkan notifikasi, lalu izinkan di perangkatmu."
+  }
+}

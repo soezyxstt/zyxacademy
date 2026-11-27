@@ -10,8 +10,14 @@ on:
         required: true
       action:
         type: choice
-        options: [inspect, retry, evidence, cancel, prepare-fixture]
+        options: [inspect, retry, evidence, cancel]
         default: inspect
+        required: true
+      purpose:
+        description: Logic validation or final Diktat PDF generation
+        type: choice
+        options: [logic, pdf]
+        default: logic
         required: true
       revision:
         description: Exact bundle checksum from the inspect operation
@@ -22,19 +28,30 @@ permissions:
 
 jobs:
   verify:
-    if: inputs.action != 'prepare-fixture' && ((inputs.environment == 'production' && github.ref == 'refs/heads/main') || (inputs.environment == 'staging' && github.ref == 'refs/heads/staging'))
+    if: (inputs.environment == 'production' && github.ref == 'refs/heads/main') || (inputs.environment == 'staging' && github.ref == 'refs/heads/staging')
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     timeout-minutes: 40
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      QUEUE_PROVIDER: ${{ vars.QUEUE_PROVIDER || 'inngest' }}
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: '1.2.21'
+          bun-version: '1.3.14'
       - run: bun install --frozen-lockfile --ignore-scripts
       - run: bun scripts/authoring/prepare-web-verification.ts
+      - name: Authenticate the selected Cloud Tasks target
+        if: env.QUEUE_PROVIDER == 'cloud-tasks'
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        with:
+          workload_identity_provider: ${{ vars.CLOUD_TASKS_WORKLOAD_IDENTITY_PROVIDER || (inputs.environment == 'staging' && vars.CLOUD_RUN_STAGING_WORKLOAD_IDENTITY_PROVIDER) }}
+          service_account: ${{ vars.CLOUD_TASKS_SERVICE_ACCOUNT || (inputs.environment == 'staging' && 'zyx-staging-web-ci@zyx-academy.iam.gserviceaccount.com') }}
       - name: Operate exact staged revision
         env:
           NODE_ENV: production
@@ -45,98 +62,27 @@ jobs:
           AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION: ${{ vars.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION || secrets.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION }}
           V4_OPERATION: ${{ inputs.action }}
           V4_REVISION: ${{ inputs.revision }}
+          V4_PURPOSE: ${{ inputs.purpose }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          TURSO_CONNECTION_URL: ${{ secrets.TURSO_CONNECTION_URL }}
-          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
           BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
           INNGEST_EVENT_KEY: ${{ secrets.INNGEST_EVENT_KEY }}
           INNGEST_SIGNING_KEY: ${{ secrets.INNGEST_SIGNING_KEY }}
           INNGEST_API_KEY: ${{ secrets.INNGEST_API_KEY }}
-          STORAGE_PROVIDER_MODE: r2
-          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
-          R2_BUCKET: ${{ secrets.R2_BUCKET || secrets.CF_R2_BUCKET }}
-          R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID || secrets.CF_R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY || secrets.CF_R2_SECRET_ACCESS_KEY }}
-        run: bun scripts/authoring/operate-v4-verification.ts
+          STORAGE_PROVIDER_MODE: neon
+          AWS_ENDPOINT_URL_S3: ${{ vars.AWS_ENDPOINT_URL_S3 || secrets.AWS_ENDPOINT_URL_S3 }}
+          NEON_STORAGE_BUCKET: ${{ vars.NEON_STORAGE_BUCKET || secrets.NEON_STORAGE_BUCKET }}
+          AWS_REGION: ${{ vars.AWS_REGION || secrets.AWS_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: |
+          if [ "$ZYX_ENVIRONMENT" = staging ] && [ "$V4_PURPOSE" = pdf ]; then
+            python3 .github/scripts/staging_authoring_browser.py bun --conditions=react-server scripts/authoring/operate-v4-verification.ts
+          else
+            bun --conditions=react-server scripts/authoring/operate-v4-verification.ts
+          fi
       - uses: actions/upload-artifact@v4
         if: success() && inputs.action == 'evidence'
         with:
           name: v4-verification-evidence
           path: artifacts/v4-operations/
           retention-days: 3
-
-  export-learning-content:
-    if: inputs.action == 'prepare-fixture' && inputs.environment == 'staging' && github.ref == 'refs/heads/staging'
-    runs-on: ubuntu-latest
-    environment: production
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.3.14
-      - run: bun install --frozen-lockfile --ignore-scripts
-      - name: Read the exact production draft and learning dependencies
-        env:
-          V4_FIXTURE_MODE: export
-          ZYX_ENVIRONMENT: production
-          NEXT_PUBLIC_APP_URL: https://www.zyxacademy.com
-          TURSO_DATABASE_URL: ${{ secrets.TURSO_CONNECTION_URL || secrets.DATABASE_URL || secrets.TURSO_DATABASE_URL }}
-          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
-          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
-          R2_BUCKET: ${{ secrets.R2_BUCKET || secrets.CF_R2_BUCKET }}
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID || secrets.CF_R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY || secrets.CF_R2_SECRET_ACCESS_KEY }}
-        run: bun scripts/staging/prepare-v4-verification-fixture.ts
-      - uses: actions/upload-artifact@v4
-        with:
-          name: v4-staging-learning-fixture
-          path: artifacts/v4-fixture/
-          retention-days: 1
-    env: &a1
-      NODE_ENV: production
-      SKIP_ENV_VALIDATION: "1"
-      STORAGE_PROVIDER_MODE: r2
-      V4_REVISION: ${{ inputs.revision }}
-  stage-and-verify:
-    needs: export-learning-content
-    runs-on: ubuntu-latest
-    environment: staging
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.3.14
-      - run: bun install --frozen-lockfile --ignore-scripts
-      - uses: actions/download-artifact@v4
-        with:
-          name: v4-staging-learning-fixture
-          path: artifacts/v4-fixture/
-      - run: bun scripts/authoring/prepare-web-verification.ts
-      - name: Guard staging, insert missing learning dependencies, and request trusted verification
-        env:
-          V4_FIXTURE_MODE: import
-          ZYX_ENVIRONMENT: staging
-          ALLOW_STAGING_MUTATION: "1"
-          BETTER_AUTH_URL: https://staging.zyxacademy.com
-          NEXT_PUBLIC_APP_URL: https://staging.zyxacademy.com
-          TURSO_DATABASE_URL: ${{ secrets.TURSO_CONNECTION_URL || secrets.DATABASE_URL || secrets.TURSO_DATABASE_URL }}
-          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
-          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
-          INNGEST_EVENT_KEY: ${{ secrets.INNGEST_EVENT_KEY }}
-          INNGEST_SIGNING_KEY: ${{ secrets.INNGEST_SIGNING_KEY }}
-          AUTHORING_VERIFICATION_BROWSER_PROVIDER: ${{ vars.AUTHORING_VERIFICATION_BROWSER_PROVIDER || secrets.AUTHORING_VERIFICATION_BROWSER_PROVIDER || 'cloudflare' }}
-          AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION: ${{ vars.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION || secrets.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION }}
-          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
-          R2_BUCKET: ${{ secrets.R2_BUCKET || secrets.CF_R2_BUCKET }}
-          R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID || secrets.CF_R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY || secrets.CF_R2_SECRET_ACCESS_KEY }}
-        run: bun scripts/staging/prepare-v4-verification-fixture.ts
-    env: *a1

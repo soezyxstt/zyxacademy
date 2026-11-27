@@ -1,0 +1,9 @@
+2026-11-26T13:32:51.0076660Z HEAD is now at bedd9d0 Merge 717b87e5cc8725e1641a42c620f5ffd9e5f00233 into 70afd1b781fdded21a3baf692623c1951e4983c0
+2026-11-26T13:32:51.0756130Z [command]/opt/homebrew/bin/git log -1 --format=%H
+2026-11-26T13:32:51.0808940Z bedd9d00829760966b4513439e94862f21190c11
+2026-11-26T14:27:09.2992990Z [Failed] Operations Admin home to Web Analytics and access denial (1m 1s) (Assertion is false: "Tampilan halaman" is visible)
+2026-11-26T14:29:11.3227840Z [Failed] Operations public demo completion, study planning and tryout list (1m 17s) (Couldn't hide the keyboard. This can happen if the app uses a custom input or doesn't expose a standard dismiss action.)
+2026-11-26T14:39:50.5196440Z [Failed] operations-public-form-local-submit (48s) (Couldn't hide the keyboard. This can happen if the app uses a custom input or doesn't expose a standard dismiss action.)
+2026-11-26T14:51:23.7583660Z 3/155 Flows Failed
+2026-11-26T14:51:30.6686330Z Maestro did not save 8 of 175 expected named captures
+2026-11-26T14:51:31.4500640Z Maestro did not save 8 of 175 expected named captures

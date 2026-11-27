@@ -13,9 +13,11 @@ import { getProductV4Verification, getProductV4VerificationReadiness, requestPro
 
 import { insufficientScopeChallenge } from "./mcp-oauth";
 import { authoringFailureDiagnostics } from "./diagnostics";
+import { productV4ExecutionCapability } from "@/lib/compute/product-v4-execution";
 
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
 const context = { runToken: z.string().min(1), bootstrapToken: z.string().min(1) };
+const verificationPurpose = z.enum(["logic", "pdf"]).default("logic");
 const defaults = {
   resolveFile: resolveStoredSourceFile, extract: extractSourceFigure, figureJob: getSourceFigureJob, list: listSourceFigures, figure: getSourceFigure,
   getImport: getProductBundleImport, readiness: getProductV4VerificationReadiness, request: requestProductV4Verification, verification: getProductV4Verification,
@@ -34,6 +36,9 @@ type Ports = typeof defaults;
 type Registrar = { registerTool(name: string, config: { description: string; inputSchema: Record<string, z.ZodType>; annotations: { readOnlyHint: boolean; destructiveHint: false; openWorldHint: false } }, callback: (input: Record<string, unknown>) => Promise<CallToolResult>): unknown };
 const result = (payload: Record<string, unknown>, isError = false): CallToolResult => ({ content: [{ type: "text", text: JSON.stringify(payload) }], structuredContent: payload, ...(isError ? { isError: true } : {}) });
 const safeCodes = /^(AUTHORING_MCP_(TOKEN_INVALID|TOKEN_EXPIRED|SCOPE_REQUIRED|BOOTSTRAP_[A-Z_]+|LEGACY_RUN_RESTART_REQUIRED|WORKFLOW_MISMATCH)|SOURCE_FIGURE_[A-Z_]+|PRODUCT_V4_VERIFICATION_CONFLICT|PRODUCT_BUNDLE_NOT_FOUND)$/;
+function verificationConflict(current: Awaited<ReturnType<Ports["readiness"]>>, purpose: "logic" | "pdf") {
+  return Object.assign(new Error("PRODUCT_V4_VERIFICATION_CONFLICT"), { currentVerification: { contentHash: current.plan.contentHash, planHash: current.plan.planHash, purpose, status: current.state?.status } });
+}
 
 export function productV4RequestErrorCode(error: unknown): string {
   const message = error instanceof Error ? error.message : "";
@@ -49,10 +54,12 @@ export function registerProductV4Tools(server: McpServer, principal: McpPrincipa
   const registrar = server as unknown as Registrar;
   function register<T extends z.ZodObject>(name: string, schema: T, mutation: boolean, description: string, execute: (input: z.infer<T>, run: ReturnType<typeof readMcpRunToken>) => Promise<unknown>) {
     registrar.registerTool(name, { description, inputSchema: schema.shape, annotations: { readOnlyHint: !mutation, destructiveHint: false, openWorldHint: false } }, async raw => {
+      let purpose: "logic" | "pdf" | undefined;
       try {
         requireMcpScope(principal, "authoring:read");
         if (mutation) requireMcpScope(principal, "authoring:stage");
         const input = schema.strict().parse(raw) as z.infer<T>;
+        if (input.purpose === "logic" || input.purpose === "pdf") purpose = input.purpose;
         const run = readMcpRunToken(String(raw.runToken));
         if (run.workflow !== "idea_product") throw new Error("AUTHORING_MCP_WORKFLOW_MISMATCH");
         const bootstrap = verifyMcpExecutionBootstrap({ actorId: principal.actorId, sessionId: principal.sessionId, bootstrapToken: String(raw.bootstrapToken), run, requiredStage: raw.stage === "source" ? "source" : "product", expectedWorkflow: "idea_product", requireBoundRun: true });
@@ -63,9 +70,9 @@ export function registerProductV4Tools(server: McpServer, principal: McpPrincipa
         console.error("[authoring-v4]", { operation: name, code });
         if (code === "AUTHORING_MCP_SCOPE_REQUIRED") {
           const requiredScope = error instanceof Error ? error.message.split(":").slice(1).join(":") : undefined;
-          if (requiredScope) return { ...result({ ok: false, error: code, ...authoringFailureDiagnostics(error, { code }), requiredScope, remediation: "Reauthorize with the union of current scopes and the required scope, then retry with the new token." }, true), _meta: { "mcp/www_authenticate": [insufficientScopeChallenge(requiredScope)] } };
+          if (requiredScope) return { ...result({ ok: false, error: code, ...authoringFailureDiagnostics(error, { code, purpose }), requiredScope, remediation: "Reauthorize with the union of current scopes and the required scope, then retry with the new token." }, true), _meta: { "mcp/www_authenticate": [insufficientScopeChallenge(requiredScope)] } };
         }
-        return result({ ok: false, error: code, ...authoringFailureDiagnostics(error, { code }) }, true);
+        return result({ ok: false, error: code, ...authoringFailureDiagnostics(error, { code, purpose }) }, true);
       }
     });
   }
@@ -92,14 +99,25 @@ export function registerProductV4Tools(server: McpServer, principal: McpPrincipa
   register("source.get_figure", sourceFigureRefSchema.extend({ ...context, stage: z.enum(["source", "product"]).default("source") }), false, "Read a scoped figure manifest and short lived delivery handles.", async (input, run) => {
     await fileScope(input.fileKey, run); return ports.figure(input);
   });
-  register("authoring.verify_product_bundle", z.object({ ...context, importId: z.string().min(1), expectedContentHash: hash, expectedPlanHash: hash.optional(), retry: z.boolean().optional() }), true, "Request server derived verification for the current V4 content hash.", async (input, run) => {
+  register("authoring.verify_product_bundle", z.object({ ...context, importId: z.string().min(1), expectedContentHash: hash, expectedPlanHash: hash.optional(), purpose: verificationPurpose, retry: z.boolean().optional() }), true, "Verify exact V4 content. purpose defaults to logic: structure, references, notation and supported models without browser, screenshots or PDF. Explicit purpose pdf prepares final Diktat PDF artifacts using the separate print plan; no screenshots or page captures are required. Retry applies only to the selected purpose. Authored semantic review remains separate.", async (input, run) => {
     await importScope(input.importId, run);
-    const current = await ports.readiness(input.importId, run.runId);
-    if (current.plan.contentHash !== input.expectedContentHash || (input.expectedPlanHash && current.plan.planHash !== input.expectedPlanHash)) throw new Error("PRODUCT_V4_VERIFICATION_CONFLICT");
-    return ports.request({ importId: input.importId, runId: run.runId, expectedPlanHash: current.plan.planHash, retry: input.retry });
+    const current = await ports.readiness(input.importId, run.runId, input.purpose);
+    if (current.plan.contentHash !== input.expectedContentHash || (input.expectedPlanHash && current.plan.planHash !== input.expectedPlanHash)) throw verificationConflict(current, input.purpose);
+    const requested = await ports.request({ importId: input.importId, runId: run.runId, expectedPlanHash: current.plan.planHash, purpose: input.purpose, retry: input.retry });
+    return { ...requested, purpose: input.purpose, execution: productV4ExecutionCapability(input.purpose) };
   });
-  register("authoring.get_verification", z.object({ ...context, importId: z.string().min(1), planHash: hash }), false, "Read current server verification evidence for the exact plan hash.", async (input, run) => {
-    await importScope(input.importId, run); return ports.verification({ importId: input.importId, runId: run.runId, planHash: input.planHash });
+  register("authoring.get_verification", z.object({ ...context, importId: z.string().min(1), planHash: hash, purpose: verificationPurpose }), false, "Read the exact V4 logic or PDF plan. purpose defaults to logic; use purpose pdf for final Diktat artifacts. Logic and PDF readiness are separate. not_started requires a request for that same purpose, not polling or content edits.", async (input, run) => {
+    await importScope(input.importId, run);
+    try {
+      const verification = await ports.verification({ importId: input.importId, runId: run.runId, planHash: input.planHash, purpose: input.purpose });
+      return { ...verification, purpose: input.purpose, execution: productV4ExecutionCapability(input.purpose) };
+    } catch (error) {
+      if (!(error instanceof Error) || !["PRODUCT_V4_VERIFICATION_JOB_NOT_FOUND", "PRODUCT_V4_VERIFICATION_CONFLICT"].includes(error.message)) throw error;
+      const current = await ports.readiness(input.importId, run.runId, input.purpose);
+      if (current.plan.planHash !== input.planHash) throw verificationConflict(current, input.purpose);
+      if (error.message === "PRODUCT_V4_VERIFICATION_CONFLICT") throw verificationConflict(current, input.purpose);
+      return { ...current, purpose: input.purpose, execution: productV4ExecutionCapability(input.purpose) };
+    }
   });
 }
 

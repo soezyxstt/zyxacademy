@@ -33,6 +33,10 @@ Admin draft editing accepts only safe textual and ordering fields with `expected
 
 `workflow.get_contract`, validation, submission, Context Pack, and Job Pack advertise V3. Readers accept V2 and V3. When `FEATURE_STRUCTURED_ARTICLE_READER_V1=1`, new Idea Bundle submission must use V3. Disabling the flag restores V2 submission without deleting V3 artifacts.
 
+## Native Admin review
+
+The course Idea Bundle detail opens the existing Admin bundle HTTP workspace with the signed-in reviewer, selected course, import ID and exact checksum. The app renders the full Idea statements, explanations, LaTeX, sources and relationships, and can record individual and final decisions, edit staged Ideas, publish, withdraw or discard. Saving a replacement revision uses the current review-reset fingerprint. When there are saved decisions, the app shows their counts and asks for confirmation before replacing the draft. A changed fingerprint requires fresh confirmation. If a response cannot be verified, the app re-reads the bundle before allowing another command. The MCP tool grants, consent, discovery and environment bindings follow the existing headless contract.
+
 ## Headless revision lifecycle
 
 `authoring.withdraw_idea_bundle` accepts the same `runToken`, `bootstrapToken`, `importId` and exact `expectedRevision` identity as publication, with `authoring:withdraw`. The active authenticated admin is server-derived. Withdrawal uses the shared transactional lifecycle, preserves canonical entities owned by other published imports, and permits idempotent retries. No Admin website visit is required.

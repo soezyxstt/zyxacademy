@@ -280,7 +280,8 @@ export async function submitReview(
   flashcardId: string,
   grade: number, // 1: Again, 2: Hard, 3: Good, 4: Easy
   manualAnswer?: string,
-  isExamMode: boolean = false
+  isExamMode: boolean = false,
+  expectedCourseId?: string,
 ): Promise<ReviewSubmissionResult> {
   const [cardRecord] = await db
     .select()
@@ -327,6 +328,9 @@ export async function submitReview(
     throw new Error("FLASHCARD_NOT_AVAILABLE");
   }
   const access = await getStudentCourseAccess(studentId, reviewCourse.courseId);
+  if (expectedCourseId && ![reviewCourse.courseId, access?.courseId, access?.canonicalCourseId, access?.legacyCourseId].includes(expectedCourseId)) {
+    throw new Error("FLASHCARD_ACCESS_DENIED");
+  }
   if (!access || (access.tier === "free" && !isFreeChapterScoped(
     [
       reviewCourse.chapterId,

@@ -1,0 +1,153 @@
+{
+  "platform": "ios",
+  "viewport": {
+    "width": 402,
+    "height": 874
+  },
+  "deviceScaleFactor": 3,
+  "locale": "id",
+  "theme": "light",
+  "timeZone": "Asia/Jakarta",
+  "route": "/courses/[id]/progress",
+  "endpoint": "/api/native/student/learning?view=progress&courseId=matematika-1&locale=id",
+  "browser": "154.0.8037.57",
+  "webClock": "2026-07-23T07:00:00Z",
+  "states": {
+    "populated": {
+      "scenario": "enrolled",
+      "path": "/courses/matematika-1/progress",
+      "courseId": "matematika-1",
+      "data": {
+        "state": "ready",
+        "courseTitle": "Kalkulus Dasar",
+        "view": "progress",
+        "statistics": {
+          "studyTimeMin": 35,
+          "completedMaterialsCount": 2,
+          "cardsReviewedCount": 12,
+          "currentStreakDays": 3
+        },
+        "activities": [
+          {
+            "id": "event-1",
+            "type": "material_completion",
+            "title": "Menyelesaikan dokumen",
+            "timestamp": "2026-07-20T07:00:00.000Z",
+            "description": "Limit fungsi"
+          }
+        ]
+      },
+      "nativeMarkers": [
+        {
+          "id": "student-fixture-id-light"
+        },
+        {
+          "text": ".*35 menit.*"
+        },
+        {
+          "text": ".*12 ulasan.*"
+        },
+        {
+          "text": ".*Limit fungsi.*"
+        },
+        {
+          "text": "Analisis lebih lanjut"
+        }
+      ]
+    },
+    "long": {
+      "scenario": "long",
+      "path": "/courses/matematika-1/progress",
+      "courseId": "matematika-1",
+      "data": {
+        "state": "ready",
+        "courseTitle": "Kalkulus Dasar",
+        "view": "progress",
+        "statistics": {
+          "studyTimeMin": 35,
+          "completedMaterialsCount": 2,
+          "cardsReviewedCount": 12,
+          "currentStreakDays": 3
+        },
+        "activities": [
+          {
+            "id": "event-1",
+            "type": "material_completion",
+            "title": "Menyelesaikan dokumen",
+            "timestamp": "2026-07-20T07:00:00.000Z",
+            "description": "Limit fungsi aljabar dengan pendekatan tabel nilai dan pembuktian hubungan antara pembilang dan penyebut"
+          }
+        ]
+      },
+      "nativeMarkers": [
+        {
+          "id": "student-fixture-id-light"
+        },
+        {
+          "text": "Aktivitas terbaru"
+        },
+        {
+          "text": ".*pembuktian hubungan antara pembilang dan penyebut.*"
+        }
+      ]
+    },
+    "empty": {
+      "scenario": "empty",
+      "path": "/courses/matematika-1/progress",
+      "courseId": "matematika-1",
+      "data": {
+        "state": "ready",
+        "courseTitle": "Kalkulus Dasar",
+        "view": "progress",
+        "statistics": null,
+        "activities": []
+      },
+      "nativeMarkers": [
+        {
+          "id": "student-fixture-id-light"
+        },
+        {
+          "text": "Statistik belajar"
+        },
+        {
+          "text": "Belum ada aktivitas belajar\\."
+        }
+      ]
+    }
+  },
+  "captures": {
+    "progress-populated.png": "8f70aaeac5dfc3b33da9cd8339b766687acf104df2f43a7249e85f0f8100fe04",
+    "progress-long.png": "5b8ae8ae122539bbb09adcdc7341811486d57d832036ebe61236e4a0abcf2126",
+    "progress-empty.png": "1ef1c61187e22d1138b58eaffa962bc3f4fd9475173cf20f4522226d49f0da29"
+  },
+  "sourceDigests": {
+    "tests/visual/fixtures/student-learning-reference.tsx": "7da7472fdc812a5e306dbb7b3ed2d7885ada05cbf29670efbb1fdaaac10397f7",
+    "tests/visual/native-parallel/student/learning-reference.spec.ts": "1c7e94b445eb8363c53812ce8e740b04543c9eda72c628f51a2207ff06baa999",
+    "tests/visual/fixtures/interactive-document-build.ts": "dc51a2f41b0a567504d40004f1ec44e9469601c8e74eb6fd71b6da23ebd45053",
+    "app/globals.css": "be812b64b005159daf0c3db873b0a8571952834222d9c8906019650388becf83",
+    "components/course/course-page-shell.tsx": "e4171dee451d6ca3e9049e0fafb61061392cfa23d3d2fb8c1451dd7f75f05aa6",
+    "components/navigation/mobile-top-navbar.tsx": "80bc1dc3904f662bff0b39ff07f108339b69ce4b68672a836b738e8db50beda6",
+    "packages/native-parity/student/fixture-request.ts": "dd4c36db26586b294cac067e5d062c8e5d7e2ac0b78fac09eafa1ee406192ae9",
+    "packages/native-parity/student/learning/contracts.ts": "2a1cf81df56c117429678fbb197edeb74bcef6344461757859e4674e346de3eb",
+    "packages/native-parity/student/learning/fixtures.ts": "ebadf962b505c8ff90a63ee9e0a3809c99e021b11af4760b2e877588a9483f6c",
+    "packages/native-parity/student/learning/messages-id.json": "31b159634be1bc9bbf4264d7eeb4f9642d3a6ce1af6f6d72f42e04316ab5b9b6",
+    "apps/mobile-native/features/student/StudentFixtureRoute.tsx": "9d137376881ead4134ec428c5957ed21afa3fdf9f7d094e431a186ca123984bd",
+    "apps/mobile-native/features/student/learning/knowledge.tsx": "45637fd799424eb28b52d40b8d663852496efe3aa03b44a8de91484756e58cdf",
+    "apps/mobile-native/features/student/learning/index.tsx": "49f4e3bfb143d7f7ec791b1186e7151006d47b4b0db1a8d4d2deb438916c6c75",
+    "apps/mobile-native/features/student/learning/ui.tsx": "c849d71311766b75f32720dec8d291177eecdf05dbae31d5621fb30097fddbbe",
+    "messages/id/learning.json": "e5376bea4a130042fea063ca931aca3c135994777ee3ebe4300ae107877ecc54",
+    "messages/id/studentCourse.json": "03a30324db79eaa188e609e12b9f1b9c84b67c8a50641f54a74d7280f865a6d1",
+    "app/(student)/courses/[id]/progress/page.tsx": "fca2787c2363b7cd0c34bbbb9f3ad120c0bf76e7aa959176ecde483f4b5655cc",
+    "components/course/student-course-progress-view.tsx": "6f5116ca44f0bd91516751a8e0ca95e98874456b3fc985ab9fe8e615a2a30e75",
+    "components/course/study-statistics-card.tsx": "a63f49a1a337f2fb437bd7c7128fb5c59f6900763cea598c66464b2e26c34b6a",
+    "components/course/recent-activity-card.tsx": "dd20bd7c5e47238695a1d32dd650134d71976a0de1fa955123978d3187b55fe8",
+    ".maestro/native-parallel/student/progress-parity.yaml": "486e97e6595ac3f93a6aea978fb7d61c3aa6a19f9b2d79d85f7f5f36b4bc12c9"
+  },
+  "fontDigests": {
+    "Inter-Regular": "19b2e364a739f0a493415b5185f1323f4994fcf451d24ab314cb7ff0504ccd39",
+    "Inter-Medium": "5bd11bf34ec26309bf6fa65f8d7e23c4738356f8219e643ce9f376be6dce0295",
+    "Inter-SemiBold": "bec5d982df3acdc7edbd7d99458e397285dd2d206058a1cfcdf77f55c7ac6c44",
+    "Lexend-SemiBold": "f8afa7919bba1f2b2536477e68359857d3f10e6bf8d93f21242fcc359437323f",
+    "Lexend-Bold": "231fd4c77e990af738beb90c090e7bb92a960b24e64efebf419761aa516b0fcf"
+  }
+}

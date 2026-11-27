@@ -352,9 +352,10 @@ export async function listProductBundleImports(options?: number | { limit?: numb
   }));
 }
 
-export async function downloadProductBundleArtifact(importId: string): Promise<Uint8Array> {
-  const row = await getProductBundleImport(importId);
+export async function downloadProductBundleArtifact(importId: string, observed?: NonNullable<Awaited<ReturnType<typeof getProductBundleImport>>>): Promise<Uint8Array> {
+  const row = observed ?? await getProductBundleImport(importId);
   if (!row) throw new Error("PRODUCT_BUNDLE_NOT_FOUND");
+  if (row.id !== importId || row.bundleType !== "product") throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
   if (!storage.download) throw new Error("PRODUCT_BUNDLE_STORAGE_DOWNLOAD_UNAVAILABLE");
   return storage.download(row.sourceUriOrKey);
 }
@@ -373,7 +374,7 @@ export async function adoptProductDraftRun(input: { importId: string; actorId: s
     if (!staging || staging.afterSnapshot?.checksum !== input.expectedRevision) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
     if (staging.correlationId === input.runId && staging.afterSnapshot?.adoptedFrom === input.expectedStagingRunId) return { importId: row.id, checksum: row.checksum, runId: input.runId, adopted: false };
     if (staging.correlationId !== input.expectedStagingRunId || staging.correlationId === input.runId) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
-    const { productV4Verification: _verification, ...validationReport } = current.validationReport;
+    const { productV4Verification: _verification, productV4PdfGeneration: _pdfGeneration, productV4PdfEvidence: _pdfEvidence, ...validationReport } = current.validationReport;
     await tx.update(imporBundle).set({ validationReport: { ...validationReport, productRunAdoption: { runId: input.runId, previousStagingAuditId: staging.id } }, updatedAt: new Date() }).where(eq(imporBundle.id, row.id));
     await tx.update(buktiPdfBundle).set({ status: "stale", updatedAt: new Date() }).where(eq(buktiPdfBundle.imporBundleId, row.id));
     await tx.delete(reviewBundle).where(eq(reviewBundle.imporBundleId, row.id));
@@ -571,11 +572,12 @@ export async function discardProductBundleDraft(input: { importId: string; actor
   return { importId: row.id, discarded: true };
 }
 
-export async function parseStagedProductBundle(importId: string): Promise<Extract<ProductBundleValidation, { success: true }>["data"]> {
-  const row = await getProductBundleImport(importId);
+export async function parseStagedProductBundle(importId: string, observed?: NonNullable<Awaited<ReturnType<typeof getProductBundleImport>>>): Promise<Extract<ProductBundleValidation, { success: true }>["data"]> {
+  const row = observed ?? await getProductBundleImport(importId);
   if (!row) throw new Error("PRODUCT_BUNDLE_NOT_FOUND");
+  if (row.id !== importId || row.bundleType !== "product") throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
   if (row.validationReport.valid !== true) throw new Error("PRODUCT_BUNDLE_ADMISSION_REQUIRED");
-  const bundle = parseAdmittedProductBundle(await downloadProductBundleArtifact(importId), row);
+  const bundle = parseAdmittedProductBundle(await downloadProductBundleArtifact(importId, row), row);
   const specs = productInteractiveDocuments(bundle.products);
   if (specs.length && bundle.manifest.schemaVersion !== "product-bundle.v4") throw new Error("PRODUCT_VISUAL_REQUIRES_V4");
   await verifyAdmittedInteractiveDocumentArchive(specs, bundle.manifest.visualAssets ?? [], bundle.files);

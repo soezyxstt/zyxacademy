@@ -38,7 +38,11 @@ mock.module("@/db", () => ({ db: {
       : table === kemajuanBacaArtikel
         ? [{ sectionId: "section", maxReadPercent: 95, completedAt: new Date("2026-11-18T00:00:00Z"), timeSpentSeconds: 14, lastReadAt: new Date("2026-11-18T01:00:00Z") }]
         : [];
-    return Object.assign(Promise.resolve(rows), { limit: async () => rows });
+    const result = Object.assign(Promise.resolve(rows), {
+      limit: async () => rows,
+      orderBy: () => Object.assign(Promise.resolve(rows), { limit: async () => rows }),
+    });
+    return result;
   } }) }),
   transaction: async () => { throw new Error("Unexpected write"); },
 } }));
