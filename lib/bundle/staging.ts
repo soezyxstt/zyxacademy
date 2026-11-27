@@ -1,8 +1,8 @@
 import { revisionPublicationConnection } from "@/lib/authoring/revision-publication-context";
-import { normalizeDate } from "@/lib/date-utils";
+import { nextMonotonicTimestamp, normalizeDate } from "@/lib/date-utils";
 import { createHash, createHmac, randomUUID } from "node:crypto";
 import { resolveAuthSecret } from "@/lib/auth-secret";
-import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   auditMutasi,
@@ -23,6 +23,8 @@ import { isBundleIdentitySentinelOrPlaceholder } from "@/lib/bundle/attribution"
 import { assertAuthoringActor } from "@/lib/auth/authoring-actor";
 import { checkTutorCourseAccess } from "@/lib/auth/tutor-access";
 import { ideaItemReviewAuditId, ideaReviewAuditId, ideaReviewTargets, normalizeIdeaReviewItems, type IdeaReviewItem } from "@/lib/authoring/idea-review";
+import { revisionOf } from "@/lib/admin-mcp/revision";
+import { canEditIdeaReview } from "@/packages/academic/idea-item-review";
 
 export type IdeaBundleStageItem = {
   entityType: string;
@@ -407,6 +409,12 @@ export async function hasIdeaRevisionReviewEvidence(input: { importId: string; r
   return audits.some(audit => audit.afterSnapshot?.revision === input.expectedRevision);
 }
 
+export function ideaItemReviewRevision(review?: Pick<typeof reviewItemBundle.$inferSelect, "id" | "status" | "notes" | "updatedAt">) {
+  return revisionOf(review ? [review.id, review.status, review.notes, review.updatedAt] : null);
+}
+
+type ItemReviewTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 export async function upsertIdeaItemReview(input: {
   importId: string;
   reviewerId: string;
@@ -414,23 +422,47 @@ export async function upsertIdeaItemReview(input: {
   status: "pending" | "approved" | "changes_requested";
   notes?: string;
   expectedRevision: string;
+  command?: {
+    expectedReviewRevision: string;
+    receiptId: string;
+    requestDigest: string;
+    verifyArtifact(bundle: ValidatedIdeaBundle): void;
+    authorize(tx: ItemReviewTransaction, courseId: string | null): Promise<void>;
+  };
 }) {
   const importRow = await getIdeaBundleImport(input.importId);
   if (!importRow) throw new Error("IDEA_BUNDLE_NOT_FOUND");
   if (input.expectedRevision !== importRow.checksum) throw new Error("IDEA_BUNDLE_STALE_CONTEXT");
   const role = await assertReviewAccess(importRow, input.reviewerId);
-  if (["published", "withdrawn", "discarding"].includes(importRow.status)) throw new Error("IDEA_ITEM_REVIEW_DRAFT_REQUIRED");
+  if (!input.command && ["published", "withdrawn", "discarding"].includes(importRow.status)) throw new Error("IDEA_ITEM_REVIEW_DRAFT_REQUIRED");
   const notes = input.notes?.trim() || null;
   if (notes && notes.length > 2000) throw new Error("IDEA_ITEM_REVIEW_NOTES_LIMIT");
   const bundle = await parseStagedIdeaBundle(input.importId);
   if (bundle.manifest.bundleId !== importRow.bundleId || bundle.manifest.bundleChecksum !== importRow.checksum) throw new Error("IDEA_BUNDLE_STALE_CONTEXT");
   if (!bundle.entities.ideas.some((idea) => idea.id === input.ideaId)) throw new Error("IDEA_ITEM_REVIEW_IDEA_NOT_FOUND");
+  input.command?.verifyArtifact(bundle);
   const id = stableId("review-idea-item", `${input.importId}:${input.reviewerId}:${input.ideaId}`);
   return db.transaction(async (tx) => {
     await assertAuthoringActor(tx, input.reviewerId, { roles: [role], error: "IDEA_BUNDLE_REVIEW_FORBIDDEN", lock: true });
     if (role === "tutor" && (!importRow.courseId || !(await checkTutorCourseAccess(input.reviewerId, importRow.courseId, undefined, tx)).hasAccess)) throw new Error("IDEA_BUNDLE_REVIEW_COURSE_FORBIDDEN");
     const [current] = await tx.select().from(imporBundle).where(eq(imporBundle.id, input.importId)).limit(1).for("update");
     if (!current || current.bundleType !== "idea") throw new Error("IDEA_BUNDLE_NOT_FOUND");
+    const { command } = input;
+    if (command) {
+      await command.authorize(tx, current.courseId);
+      if (current.checksum !== input.expectedRevision || current.sourceUriOrKey !== importRow.sourceUriOrKey ||
+        current.bundleId !== importRow.bundleId || current.version !== importRow.version) throw new Error("IDEA_BUNDLE_STALE_CONTEXT");
+      const [receipt] = await tx.select({ actorId: auditMutasi.actorId, data: auditMutasi.afterSnapshot })
+        .from(auditMutasi).where(eq(auditMutasi.id, command.receiptId)).limit(1);
+      if (receipt) {
+        const updatedAt = receipt.data?.updatedAt;
+        if (receipt.actorId !== input.reviewerId || receipt.data?.requestDigest !== command.requestDigest || typeof updatedAt !== "string") {
+          throw new Error("IDEA_ITEM_REVIEW_REQUEST_CONFLICT");
+        }
+        return { id, targetType: "idea" as const, targetId: input.ideaId, status: input.status, notes, updatedAt: new Date(updatedAt) };
+      }
+      if (!canEditIdeaReview(current.status)) throw new Error("IDEA_ITEM_REVIEW_DRAFT_REQUIRED");
+    }
     if (["published", "withdrawn", "discarding"].includes(current.status)) throw new Error("IDEA_ITEM_REVIEW_DRAFT_REQUIRED");
     if (current.status !== importRow.status || current.checksum !== importRow.checksum || current.sourceUriOrKey !== importRow.sourceUriOrKey || current.version !== importRow.version || current.bundleId !== importRow.bundleId || current.courseId !== importRow.courseId || current.requestedBy !== importRow.requestedBy || JSON.stringify(current.validationReport) !== JSON.stringify(importRow.validationReport)) throw new Error("IDEA_BUNDLE_STALE_CONTEXT");
     const [finalReview] = await tx.select({ id: reviewBundle.id }).from(reviewBundle).where(and(
@@ -446,7 +478,12 @@ export async function upsertIdeaItemReview(input: {
       if (reviews.some((review) => review.afterSnapshot?.revision === current.checksum)) throw new Error("IDEA_ITEM_REVIEW_IMMUTABLE");
     }
 
-    const now = new Date();
+    const [previous] = await tx.select().from(reviewItemBundle).where(and(
+      eq(reviewItemBundle.imporBundleId, input.importId), eq(reviewItemBundle.reviewerId, input.reviewerId),
+      eq(reviewItemBundle.targetType, "idea"), eq(reviewItemBundle.targetId, input.ideaId), isNull(reviewItemBundle.productId),
+    )).limit(1);
+    if (command && ideaItemReviewRevision(previous) !== command.expectedReviewRevision) throw new Error("IDEA_ITEM_REVIEW_CONFLICT");
+    const now = nextMonotonicTimestamp(previous?.updatedAt);
     const claimed = await tx.update(imporBundle).set({ updatedAt: now }).where(and(
       eq(imporBundle.id, input.importId), eq(imporBundle.bundleType, "idea"),
       eq(imporBundle.status, importRow.status), eq(imporBundle.checksum, importRow.checksum),
@@ -476,6 +513,11 @@ export async function upsertIdeaItemReview(input: {
       action: "item_reviewed", beforeSnapshot: null,
       afterSnapshot: { revision: importRow.checksum, ...item }, correlationId: input.importId,
     }).onConflictDoNothing();
+    if (command) await tx.insert(auditMutasi).values({
+      id: command.receiptId, actorId: input.reviewerId, entityType: "idea_bundle", entityId: input.importId,
+      action: "native_item_review_receipt", beforeSnapshot: null,
+      afterSnapshot: { requestDigest: command.requestDigest, updatedAt: now.toISOString() }, correlationId: input.importId,
+    });
     return { id, targetType: "idea" as const, targetId: input.ideaId, status: input.status, notes, updatedAt: now };
   });
 }

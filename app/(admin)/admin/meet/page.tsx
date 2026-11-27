@@ -1,5 +1,6 @@
 "use client";
 
+import { filterMeetParticipants, toggleMeetParticipants } from "@/lib/meet/participant-selection";
 import { googleErrorKey } from "@/lib/google-operation-error";
 import { GoogleSetupHelp } from "@/components/admin/google-setup-help";
 import { ParticipantPickerSkeleton } from "@/components/admin/content-loading-skeletons";
@@ -270,24 +271,12 @@ export default function AdminMeetPage() {
 
   const toggleRoleBulk = (role: string) => {
     const matching = filteredUsers.filter((u) => u.roles.includes(role)).map((u) => u.email);
-    if (matching.length === 0) return;
-    setSelectedEmails((prev) => {
-      const allSelected = matching.every((e) => prev.includes(e));
-      return allSelected
-        ? prev.filter((e) => !matching.includes(e))
-        : [...new Set([...prev, ...matching])];
-    });
+    setSelectedEmails(previous => toggleMeetParticipants(previous, matching));
   };
 
   const toggleCourseBulk = (courseId: string) => {
     const matching = filteredUsers.filter((u) => u.courseIds.includes(courseId)).map((u) => u.email);
-    if (matching.length === 0) return;
-    setSelectedEmails((prev) => {
-      const allSelected = matching.every((e) => prev.includes(e));
-      return allSelected
-        ? prev.filter((e) => !matching.includes(e))
-        : [...new Set([...prev, ...matching])];
-    });
+    setSelectedEmails(previous => toggleMeetParticipants(previous, matching));
   };
 
   const roleAllSelected = (role: string) => {
@@ -295,15 +284,8 @@ export default function AdminMeetPage() {
     return matching.length > 0 && matching.every((u) => selectedEmails.includes(u.email));
   };
 
-  const filteredUsers = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return meetUsers.filter((u) => {
-      if (roleFilter !== "all" && !u.roles.includes(roleFilter)) return false;
-      if (courseFilter !== "all" && !u.courseIds.includes(courseFilter)) return false;
-      if (q && !u.email.toLowerCase().includes(q) && !u.name.toLowerCase().includes(q)) return false;
-      return true;
-    });
-  }, [meetUsers, search, roleFilter, courseFilter]);
+  const filteredUsers = useMemo(() => filterMeetParticipants(meetUsers, search, roleFilter, courseFilter),
+    [meetUsers, search, roleFilter, courseFilter]);
 
   const selectedCourse =
     courseFilter === "all" ? null : (meetCourses.find((c) => c.id === courseFilter) ?? null);

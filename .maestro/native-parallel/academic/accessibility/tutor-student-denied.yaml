@@ -1,0 +1,11 @@
+appId: com.zyx.academy.nativeparity
+name: Academic participant details unavailable to students
+---
+- launchApp
+- openLink: zyx-native-parity://academic?role=student&path=%2Ftutor%2Facademic-course-1%2Fparticipants&theme=light
+- extendedWaitUntil:
+    visible: Akses ditolak.*
+    timeout: 20000
+- assertNotVisible: Nadia Lestari
+- assertNotVisible: nadia@example.test
+- takeScreenshot: academic-accessibility-tutor-student-denied

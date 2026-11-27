@@ -1,15 +1,18 @@
 import { beforeEach, expect, mock, test } from "bun:test";
 
 let actor: { user: { id: string } } | null = { user: { id: "student-a" } };
+const env = { FEATURE_LIVE: "0" };
 const getCourse = mock(async (id: string) => id === "missing" ? null : ({ id, title: "Mechanics", privateBody: "not navigation data" }));
 const listStudentEnrollments = mock(async () => [{ id: "course-a", title: "Mechanics", access: "standard", email: "private@example.test" }]);
 mock.module("@/lib/auth-session", () => ({ getAuthSession: async () => actor }));
 mock.module("@/lib/course-utils", () => ({ getCourse }));
 mock.module("@/lib/student/course-catalog", () => ({ listStudentEnrollments }));
+mock.module("@/lib/env", () => ({ env }));
 const { GET } = await import("@/app/api/student/navigation/route");
 
 beforeEach(() => {
   actor = { user: { id: "student-a" } };
+  env.FEATURE_LIVE = "0";
   getCourse.mockClear();
   listStudentEnrollments.mockClear();
 });
@@ -27,15 +30,18 @@ test("enrollment reads use the authenticated account and expose only navigation 
   const response = await GET(new Request("http://localhost/api/student/navigation", { headers: { "x-student-id": "student-a" } }));
   expect(response.status).toBe(200);
   expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+  expect(response.headers.get("X-Zyx-Course-Live")).toBe("0");
   expect(await response.json()).toEqual([{ id: "course-a", title: "Mechanics" }]);
   expect(listStudentEnrollments).toHaveBeenCalledWith("student-a");
   expect(getCourse).not.toHaveBeenCalled();
 });
 
 test("course fallback strips learning bodies and preserves a missing-course result", async () => {
+  env.FEATURE_LIVE = "1";
   const response = await GET(new Request("http://localhost/api/student/navigation?courseId=course%2Fa"));
   expect(await response.json()).toEqual({ id: "course/a", title: "Mechanics" });
   expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+  expect(response.headers.get("X-Zyx-Course-Live")).toBe("1");
   expect(await (await GET(new Request("http://localhost/api/student/navigation?courseId=missing"))).json()).toBeNull();
   expect(listStudentEnrollments).not.toHaveBeenCalled();
 });

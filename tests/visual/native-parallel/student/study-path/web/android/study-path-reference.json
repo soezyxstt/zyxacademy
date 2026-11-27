@@ -1,0 +1,220 @@
+{
+  "platform": "android",
+  "viewport": {
+    "width": 380,
+    "height": 820
+  },
+  "deviceScaleFactor": 1,
+  "locale": "id",
+  "theme": "light",
+  "timeZone": "Asia/Jakarta",
+  "route": "/courses/[id]/path",
+  "endpoint": "/api/native/student/learning?view=path&courseId=matematika-1&locale=id",
+  "browser": "154.0.8037.57",
+  "webClock": "2026-07-23T07:00:00Z",
+  "states": {
+    "roadmap": {
+      "scenario": "enrolled",
+      "path": "/courses/matematika-1/path",
+      "courseId": "matematika-1",
+      "data": {
+        "state": "ready",
+        "courseTitle": "Kalkulus Dasar",
+        "view": "path"
+      },
+      "study": {
+        "dayPlan": null,
+        "steps": [
+          {
+            "stepId": "step-1",
+            "ideaId": "idea-1",
+            "chapterId": "chapter-1",
+            "chapterTitle": "Fungsi dan limit",
+            "chapterOrder": 1,
+            "conceptName": "Limit fungsi",
+            "status": "available",
+            "actions": {
+              "moduleHref": "/courses/matematika-1/material/pengantar"
+            },
+            "estimatedMinutes": 8,
+            "prerequisites": [],
+            "priorityReason": "Perlu diulang"
+          },
+          {
+            "stepId": "step-2",
+            "ideaId": "idea-2",
+            "chapterId": "chapter-1",
+            "chapterTitle": "Fungsi dan limit",
+            "chapterOrder": 1,
+            "conceptName": "Kekontinuan",
+            "status": "locked",
+            "actions": {},
+            "estimatedMinutes": 12,
+            "prerequisites": [
+              "Limit fungsi"
+            ],
+            "priorityReason": "Prasyarat"
+          }
+        ]
+      },
+      "nativeMarkers": [
+        {
+          "id": "student-fixture-id-light"
+        },
+        {
+          "text": "Lanjutkan belajar"
+        },
+        {
+          "text": ".*Prasyarat: Limit fungsi.*"
+        }
+      ]
+    },
+    "plan": {
+      "scenario": "enrolled",
+      "path": "/courses/matematika-1/path",
+      "courseId": "matematika-1",
+      "data": {
+        "state": "ready",
+        "courseTitle": "Kalkulus Dasar",
+        "view": "path"
+      },
+      "study": {
+        "dayPlan": [
+          {
+            "day": 1,
+            "steps": [
+              {
+                "stepId": "step-1",
+                "ideaId": "idea-1",
+                "chapterId": "chapter-1",
+                "chapterTitle": "Fungsi dan limit",
+                "chapterOrder": 1,
+                "conceptName": "Limit fungsi",
+                "status": "available",
+                "actions": {
+                  "moduleHref": "/courses/matematika-1/material/pengantar"
+                },
+                "estimatedMinutes": 8,
+                "prerequisites": [],
+                "priorityReason": "Perlu diulang"
+              }
+            ],
+            "totalMinutes": 8
+          }
+        ],
+        "steps": [
+          {
+            "stepId": "step-1",
+            "ideaId": "idea-1",
+            "chapterId": "chapter-1",
+            "chapterTitle": "Fungsi dan limit",
+            "chapterOrder": 1,
+            "conceptName": "Limit fungsi",
+            "status": "available",
+            "actions": {
+              "moduleHref": "/courses/matematika-1/material/pengantar"
+            },
+            "estimatedMinutes": 8,
+            "prerequisites": [],
+            "priorityReason": "Perlu diulang"
+          },
+          {
+            "stepId": "step-2",
+            "ideaId": "idea-2",
+            "chapterId": "chapter-1",
+            "chapterTitle": "Fungsi dan limit",
+            "chapterOrder": 1,
+            "conceptName": "Kekontinuan",
+            "status": "locked",
+            "actions": {},
+            "estimatedMinutes": 12,
+            "prerequisites": [
+              "Limit fungsi"
+            ],
+            "priorityReason": "Prasyarat"
+          }
+        ]
+      },
+      "days": 7,
+      "nativeMarkers": [
+        {
+          "id": "student-fixture-id-light"
+        },
+        {
+          "id": "student-study-path-duration",
+          "text": "7"
+        },
+        {
+          "text": ".*Hari 1.*"
+        },
+        {
+          "text": ".*8 menit.*"
+        },
+        {
+          "text": "Lihat roadmap"
+        }
+      ]
+    },
+    "empty": {
+      "scenario": "empty",
+      "path": "/courses/matematika-1/path",
+      "courseId": "matematika-1",
+      "data": {
+        "state": "ready",
+        "courseTitle": "Kalkulus Dasar",
+        "view": "path"
+      },
+      "study": {
+        "steps": [],
+        "dayPlan": null
+      },
+      "nativeMarkers": [
+        {
+          "id": "student-fixture-id-light"
+        },
+        {
+          "text": "Alur belajar: Kalkulus Dasar"
+        },
+        {
+          "text": "Alur belajar akan tersedia setelah konten kelas diproses\\."
+        }
+      ]
+    }
+  },
+  "captures": {
+    "study-path-roadmap.png": "94e3f16d8c03ea1aee85abc31f0c0d7de5c5d88f35fad1a50e7c4ac97491d9db",
+    "study-path-plan.png": "5bbec79bffb350156dfde35688577ae50890726b19d300ce7408c37b2a392ff9",
+    "study-path-empty.png": "f485c37b3fd13f0d85588ec7d185855808d66a4f242db094081e7ebf0d3f8bca"
+  },
+  "sourceDigests": {
+    "tests/visual/fixtures/student-learning-reference.tsx": "7da7472fdc812a5e306dbb7b3ed2d7885ada05cbf29670efbb1fdaaac10397f7",
+    "tests/visual/native-parallel/student/learning-reference.spec.ts": "1c7e94b445eb8363c53812ce8e740b04543c9eda72c628f51a2207ff06baa999",
+    "tests/visual/fixtures/interactive-document-build.ts": "dc51a2f41b0a567504d40004f1ec44e9469601c8e74eb6fd71b6da23ebd45053",
+    "app/globals.css": "be812b64b005159daf0c3db873b0a8571952834222d9c8906019650388becf83",
+    "components/course/course-page-shell.tsx": "e4171dee451d6ca3e9049e0fafb61061392cfa23d3d2fb8c1451dd7f75f05aa6",
+    "components/navigation/mobile-top-navbar.tsx": "80bc1dc3904f662bff0b39ff07f108339b69ce4b68672a836b738e8db50beda6",
+    "packages/native-parity/student/fixture-request.ts": "dd4c36db26586b294cac067e5d062c8e5d7e2ac0b78fac09eafa1ee406192ae9",
+    "packages/native-parity/student/learning/contracts.ts": "2a1cf81df56c117429678fbb197edeb74bcef6344461757859e4674e346de3eb",
+    "packages/native-parity/student/learning/fixtures.ts": "ebadf962b505c8ff90a63ee9e0a3809c99e021b11af4760b2e877588a9483f6c",
+    "packages/native-parity/student/learning/messages-id.json": "31b159634be1bc9bbf4264d7eeb4f9642d3a6ce1af6f6d72f42e04316ab5b9b6",
+    "apps/mobile-native/features/student/StudentFixtureRoute.tsx": "9d137376881ead4134ec428c5957ed21afa3fdf9f7d094e431a186ca123984bd",
+    "apps/mobile-native/features/student/learning/knowledge.tsx": "45637fd799424eb28b52d40b8d663852496efe3aa03b44a8de91484756e58cdf",
+    "apps/mobile-native/features/student/learning/index.tsx": "49f4e3bfb143d7f7ec791b1186e7151006d47b4b0db1a8d4d2deb438916c6c75",
+    "apps/mobile-native/features/student/learning/ui.tsx": "c849d71311766b75f32720dec8d291177eecdf05dbae31d5621fb30097fddbbe",
+    "messages/id/learning.json": "e5376bea4a130042fea063ca931aca3c135994777ee3ebe4300ae107877ecc54",
+    "messages/id/studentCourse.json": "03a30324db79eaa188e609e12b9f1b9c84b67c8a50641f54a74d7280f865a6d1",
+    "app/(student)/courses/[id]/path/page.tsx": "c17cb9ce092b6ab30c8dce1803b1cabb2253793c85710385d70c0c9e1042e723",
+    "components/course/study-path-timeline.tsx": "0025718d1641b666eb3a5567abebcce4be1e5a75d2a4741ddf32b05de006cd65",
+    "components/student-account-boundary.tsx": "3c2e2282b7b9e49666abf7caa3dd621cd120589d4a12e16dd2f9b2c0d094f19a",
+    "hooks/use-study-path.ts": "0e4b5e8c265b4f4b6e6f584a2665bf50914f802fa677d79d769c693899886020",
+    "lib/student/study-path-query.ts": "277499cb323d61c205adae78d3557797379f060bfda2027d236a853815cc87b5",
+    ".maestro/native-parallel/student/study-path-parity.yaml": "344f3f487cce486d0b4072c6ce7311137a8b2a65506d55c9025ca1c067332741"
+  },
+  "fontDigests": {
+    "Inter-Regular": "19b2e364a739f0a493415b5185f1323f4994fcf451d24ab314cb7ff0504ccd39",
+    "Inter-Medium": "5bd11bf34ec26309bf6fa65f8d7e23c4738356f8219e643ce9f376be6dce0295",
+    "Inter-SemiBold": "bec5d982df3acdc7edbd7d99458e397285dd2d206058a1cfcdf77f55c7ac6c44",
+    "Lexend-SemiBold": "f8afa7919bba1f2b2536477e68359857d3f10e6bf8d93f21242fcc359437323f",
+    "Lexend-Bold": "231fd4c77e990af738beb90c090e7bb92a960b24e64efebf419761aa516b0fcf"
+  }
+}

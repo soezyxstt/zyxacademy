@@ -8,10 +8,7 @@ import {
 } from "@/lib/storage/keys";
 import { requireTutorCourseAccess } from "@/lib/auth/tutor-access";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
-import { ALLOWED_VIDEO_EXTENSIONS, ALLOWED_IMAGE_EXTENSIONS, ALLOWED_VIDEO_MIME_TYPES, ALLOWED_IMAGE_MIME_TYPES } from "@/lib/video/upload-policy";
-
-const MAX_VIDEO_SIZE_BYTES = 100 * 1024 * 1024; // 100 MB
-const MAX_THUMBNAIL_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+import { ALLOWED_VIDEO_EXTENSIONS, ALLOWED_IMAGE_EXTENSIONS, ALLOWED_VIDEO_MIME_TYPES, ALLOWED_IMAGE_MIME_TYPES, MAX_VIDEO_SIZE_BYTES, MAX_THUMBNAIL_SIZE_BYTES } from "@/lib/video/upload-policy";
 
 async function verifyVideoUploaderAccess(
   userId: string,

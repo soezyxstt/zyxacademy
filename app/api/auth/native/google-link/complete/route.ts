@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSafeRedirectPath } from "@/lib/auth-redirect";
-import {
-  isMobileAuthScheme,
-  normalizeNativeAuthScheme,
-} from "@/lib/native/auth-handoff";
+import { isMobileAuthScheme, resolveNativeRequestOrigin } from "@/lib/native/auth-handoff";
+import { EXPO_STAGING_SCHEME, normalizeCalendarLinkScheme, prefersExpoAndroidReturnPage } from "@/lib/native/expo-auth-config";
+import { studentCalendarPath } from "@/packages/student-community/calendar-link";
 
 export const dynamic = "force-dynamic";
 
@@ -23,12 +22,12 @@ function escapeHtml(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
-function buildDesktopHandoffHtml(deepLink: string, succeeded: boolean): string {
+function buildHandoffHtml(deepLink: string, succeeded: boolean, automatic: boolean): string {
   const escapedHref = escapeHtml(deepLink);
   const serializedUrl = JSON.stringify(deepLink).replace(/</g, "\\u003c");
   const heading = succeeded ? "Akun Google terhubung" : "Gagal menghubungkan Google";
   const subtitle = succeeded
-    ? "Membuka kembali aplikasi Zyx Academy. Jika tidak terbuka otomatis, klik tombol di bawah."
+    ? automatic ? "Jika aplikasi belum terbuka, gunakan tombol di bawah." : "Buka Zyx Academy untuk memeriksa koneksi Kalender."
     : "Kembali ke aplikasi Zyx Academy untuk mencoba lagi.";
 
   return `<!doctype html>
@@ -82,22 +81,23 @@ function buildDesktopHandoffHtml(deepLink: string, succeeded: boolean): string {
       <p class="muted">${escapeHtml(subtitle)}</p>
       <a class="btn" href="${escapedHref}">Buka Zyx Academy</a>
     </div>
-    <script>
-      window.location.href = ${serializedUrl};
-    </script>
+    ${automatic ? `<script>window.location.href = ${serializedUrl};</script>` : ""}
   </body>
 </html>`;
 }
 
 export async function GET(request: NextRequest) {
-  const scheme = normalizeNativeAuthScheme(request.nextUrl.searchParams.get("scheme"));
+  const linkState = request.nextUrl.searchParams.get("linkState");
+  const { origin } = resolveNativeRequestOrigin(request);
+  const scheme = normalizeCalendarLinkScheme(request.nextUrl.searchParams.get("scheme"), linkState, origin);
+  const expo = scheme === EXPO_STAGING_SCHEME;
   const rawNext = request.nextUrl.searchParams.get("next") ?? "/calendar";
   const safeNext = getSafeRedirectPath(rawNext);
   const rawParam = request.nextUrl.searchParams.get("param") ?? "calendarSync";
   const paramKey = ALLOWED_CALLBACK_PARAMS.has(rawParam) ? rawParam : "calendarSync";
 
-  if (!scheme) {
-    return NextResponse.json({ error: "Invalid native scheme" }, { status: 400 });
+  if (!scheme || (expo && (!studentCalendarPath(rawNext) || request.nextUrl.searchParams.getAll("linkState").length !== 1))) {
+    return NextResponse.json({ error: "Invalid native calendar callback" }, { status: 400 });
   }
 
   const nextPathOnly = (safeNext.split(/[?#]/)[0] ?? "/calendar").replace(/\/+$/, "") || "/";
@@ -106,9 +106,10 @@ export async function GET(request: NextRequest) {
   const hasProviderError = Boolean(request.nextUrl.searchParams.get("error"));
   const succeeded = !hasProviderError && request.nextUrl.searchParams.get("status") !== "error";
   const query = new URLSearchParams({ [paramKey]: succeeded ? "1" : "error" });
+  if (expo && linkState) query.set("linkState", linkState);
   const deepLink = `${scheme}://${targetPath.replace(/^\/+/, "")}?${query.toString()}`;
 
-  if (isMobileAuthScheme(scheme)) {
+  if (expo ? !prefersExpoAndroidReturnPage(request.headers) : isMobileAuthScheme(scheme)) {
     return new NextResponse(null, {
       status: 302,
       headers: {
@@ -118,11 +119,16 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  return new NextResponse(buildDesktopHandoffHtml(deepLink, succeeded), {
+  return new NextResponse(buildHandoffHtml(deepLink, succeeded, !expo), {
     status: 200,
     headers: {
       "Content-Type": "text/html; charset=utf-8",
       "Cache-Control": "no-store",
+      ...(expo && {
+        "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
+        "Referrer-Policy": "no-referrer",
+        "X-Content-Type-Options": "nosniff",
+      }),
     },
   });
 }

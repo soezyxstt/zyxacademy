@@ -1,17 +1,19 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 import { createHash } from "node:crypto";
 import { runInNewContext } from "node:vm";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import sharp from "sharp";
-import { InteractiveDocumentVisual } from "@/components/course/interactive-document-visual";
-import { ProductLearningVisual } from "@/components/course/product-learning-visual";
-import { InteractiveDocumentArticle, InteractiveDocumentArticleLocation, useInteractiveDocumentUrl } from "@/components/course/interactive-document-context";
-import { ArticleParts } from "@/components/course/article-parts";
-import { interactiveDocumentSchema } from "@/lib/materials/interactive-document";
-import { interactiveDocumentResponse, verifyInteractiveDocumentAsset } from "@/lib/materials/interactive-document-server";
-import { visualSpecSchema } from "@/lib/materials/visual-contract";
-import { parseEmbeddedVisual } from "@/lib/materials/embedded-visuals";
+// Bun has no Next server bundler to interpret this marker. SSR still runs the real React components.
+mock.module("server-only", () => ({}));
+const { InteractiveDocumentVisual } = await import("@/components/course/interactive-document-visual");
+const { ProductLearningVisual } = await import("@/components/course/product-learning-visual");
+const { InteractiveDocumentArticle, InteractiveDocumentArticleLocation, useInteractiveDocumentUrl } = await import("@/components/course/interactive-document-context");
+const { ArticleParts } = await import("@/components/course/article-parts");
+const { interactiveDocumentSchema } = await import("@/lib/materials/interactive-document");
+const { interactiveDocumentResponse, verifyInteractiveDocumentAsset } = await import("@/lib/materials/interactive-document-server");
+const { visualSpecSchema } = await import("@/lib/materials/visual-contract");
+const { parseEmbeddedVisual } = await import("@/lib/materials/embedded-visuals");
 
 const digest = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 const html = new TextEncoder().encode("<!doctype html><canvas></canvas><script>document.querySelector('canvas')</script>");

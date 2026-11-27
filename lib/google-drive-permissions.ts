@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { user, pengguna, peran, penggunaPeran } from "@/db/schema";
 import { getGoogleMeetAccessToken } from "@/lib/google-meet";
 
-export async function getAllAdminEmails(): Promise<string[]> {
+export async function getAllAdminEmails(options: { activeOnly?: boolean } = {}): Promise<string[]> {
   const [domainRows, legacyRows] = await Promise.all([
     db
       .select({ email: user.email })
@@ -12,7 +12,7 @@ export async function getAllAdminEmails(): Promise<string[]> {
       .innerJoin(user, eq(pengguna.id, user.id))
       .innerJoin(peran, eq(penggunaPeran.peranId, peran.id))
       .where(and(eq(pengguna.status, "active"), eq(peran.code, "admin"))),
-    db.select({ email: user.email }).from(user).where(eq(user.role, "admin")),
+    options.activeOnly ? [] : db.select({ email: user.email }).from(user).where(eq(user.role, "admin")),
   ]);
 
   return [

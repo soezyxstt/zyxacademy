@@ -8,15 +8,9 @@
  */
 
 import { ApiError } from "@/lib/query/http";
-import type { PublicArticleReadModel, PublicVisualSpec } from "@/lib/articles/structured-read-model";
+import type { PublicArticleReadModel } from "@/lib/articles/structured-read-model";
 import { getCapacitor, getTauri } from "@/lib/native/runtime";
-import {
-  renderOfflineMarkdownHtml,
-  renderOfflineMath,
-  escapeHtml,
-  renderOfflineVisualHtml,
-  renderOfflineWorkedExampleHtml,
-} from "@/lib/offline/offline-snapshot-renderer";
+import { buildOfflineReadingSections, type NativeOfflineSection } from "./reading-sections";
 import {
   clearOfflineReadingPositionsForOtherUsers,
   loadOfflineReadingPosition,
@@ -30,6 +24,8 @@ import { offlineMetadataByteLimit, offlineJsonBytes, readOfflineLibrarySnapshot 
 import { notifyOfflineCacheChanged } from "./library-contract";
 import { OFFLINE_PACKAGE_MAX_BYTES, collectSnapshotImageUrls, downloadOfflineImages, replaceOfflineAssetUrls } from "./asset-cache";
 import type { CourseMaterial } from "@/lib/student-course-fixtures";
+
+export type { NativeOfflineSection } from "./reading-sections";
 
 const resourceGenerations = new Map<string, number>();
 let readingCacheGeneration = 0;
@@ -142,15 +138,6 @@ async function getAllRecordsForUser(db: IDBDatabase, userId: string): Promise<Of
   });
 }
 
-export interface NativeOfflineSection {
-  id?: string;
-  slug?: string;
-  heading: string;
-  headingHtml?: string;
-  body: string;
-  bodyHtml?: string;
-}
-
 export interface NativeOfflineSnapshot {
   kind: OfflineReadingKind;
   chapterIds: string[];
@@ -179,154 +166,9 @@ export interface NativeOfflineSnapshot {
   sections: NativeOfflineSection[];
 }
 
-function cleanOfflineMarkdown(raw: string): string {
-  return raw
-    .replace(/\n*<!--__ZYX_V3_ARTICLE_VISUALS__:[A-Za-z0-9_-]+-->/g, "")
-    .replace(/<!--[\s\S]*?-->/g, "")
-    .trim();
-}
-
-function collectVisualMap(
-  articleVisuals?: PublicVisualSpec[],
-  sectionVisuals?: PublicVisualSpec[],
-  blockVisuals?: PublicVisualSpec[],
-): Map<string, PublicVisualSpec> {
-  const map = new Map<string, PublicVisualSpec>();
-  for (const list of [articleVisuals, sectionVisuals, blockVisuals]) {
-    if (!list) continue;
-    for (const v of list) {
-      if (v?.id) map.set(v.id, v);
-    }
-  }
-  return map;
-}
-
 export function buildNativeOfflineSnapshot(record: OfflineReadingRecord): NativeOfflineSnapshot {
   if (record.snapshot) return { ...record.snapshot, readingPosition: loadOfflineReadingPosition(record.key), lastAccessedAt: record.lastAccessedAt, pinned: Boolean(record.pinned), accessValidUntil: record.accessValidUntil ?? 0, lastVerifiedAt: record.lastVerifiedAt ?? 0 };
-  const sections: NativeOfflineSection[] = [];
-
-  if (record.kind === "structured_article" && record.article) {
-    for (const sec of record.article.sections) {
-      const parts: string[] = [];
-      const htmlParts: string[] = [];
-
-      if (sec.learningObjective?.trim()) {
-        const obj = sec.learningObjective.trim();
-        parts.push(obj);
-        htmlParts.push(`<div class="offline-objective">${renderOfflineMarkdownHtml(obj)}</div>`);
-      }
-
-      const hasBlockParts = (sec.blocks ?? []).some((b) => Boolean(b.parts?.length));
-      if (!hasBlockParts && sec.visuals?.length) {
-        for (const visual of sec.visuals) {
-          htmlParts.push(renderOfflineVisualHtml(visual));
-        }
-      }
-
-      for (const block of sec.blocks ?? []) {
-        const visualMap = collectVisualMap(record.article.visuals, sec.visuals, block.visuals);
-        const renderedVisualIds = new Set<string>();
-
-        if (block.title?.trim()) {
-          parts.push(`### ${block.title.trim()}`);
-          htmlParts.push(renderOfflineMarkdownHtml(`### ${block.title.trim()}`));
-        }
-
-        if (block.parts?.length) {
-          for (const part of block.parts) {
-            if (part.kind === "visual_ref") {
-              const vis = visualMap.get(part.visualId);
-              if (vis) {
-                renderedVisualIds.add(vis.id);
-                htmlParts.push(renderOfflineVisualHtml(vis));
-              }
-            } else if (part.kind === "math_unit") {
-              const equations = part.relations?.map(relation => `${renderOfflineMath(relation.latex, true)}${renderOfflineMarkdownHtml(relation.meaningMarkdown)}${relation.conditionsMarkdown ? renderOfflineMarkdownHtml(relation.conditionsMarkdown) : ""}`).join("\n") ?? renderOfflineMath(part.latex ?? "", true);
-              htmlParts.push(equations, renderOfflineMarkdownHtml(part.meaningMarkdown));
-              if (part.conditionsMarkdown) htmlParts.push(renderOfflineMarkdownHtml(part.conditionsMarkdown));
-              for (const symbol of part.symbolDefinitions ?? []) htmlParts.push(`${renderOfflineMath(symbol.latex)} ${renderOfflineMarkdownHtml(symbol.meaningMarkdown)}`);
-            } else if (part.kind === "worked_example") {
-              htmlParts.push(renderOfflineMarkdownHtml(`### ${part.title}`), renderOfflineMarkdownHtml(part.problemMarkdown));
-              for (const step of part.steps) {
-                htmlParts.push(renderOfflineMarkdownHtml(step.operationMarkdown), renderOfflineMarkdownHtml(step.reasonMarkdown));
-                if (step.conditionsMarkdown) htmlParts.push(renderOfflineMarkdownHtml(step.conditionsMarkdown));
-                for (const leaf of step.parts) {
-                  if (leaf.kind === "markdown") htmlParts.push(renderOfflineMarkdownHtml(leaf.markdown));
-                  if (leaf.kind === "math_unit") htmlParts.push(renderOfflineMath(leaf.latex ?? "", true), ...(leaf.relations ?? []).map(relation => renderOfflineMath(relation.latex, true)), renderOfflineMarkdownHtml(leaf.meaningMarkdown));
-                  if (leaf.kind === "visual_ref") { const vis = visualMap.get(leaf.visualId); if (vis) { renderedVisualIds.add(vis.id); htmlParts.push(renderOfflineVisualHtml(vis)); } }
-                }
-              }
-              htmlParts.push(renderOfflineMarkdownHtml(part.verificationMarkdown));
-            } else if (part.kind === "code_example") {
-              htmlParts.push(`<pre><code>${escapeHtml(part.code)}</code></pre>`);
-            } else if (part.kind === "coding_exercise") {
-              htmlParts.push(renderOfflineMarkdownHtml(record.locale === "en" ? "Coding practice requires a connection." : "Latihan kode perlu koneksi."));
-            } else if ("content" in part && typeof part.content === "string") {
-              const cleanedPart = cleanOfflineMarkdown(part.content);
-              if (cleanedPart) {
-                parts.push(cleanedPart);
-                htmlParts.push(renderOfflineMarkdownHtml(cleanedPart));
-              }
-            } else if ("markdown" in part && typeof part.markdown === "string") {
-              const cleanedPart = cleanOfflineMarkdown(part.markdown);
-              if (cleanedPart) {
-                parts.push(cleanedPart);
-                htmlParts.push(renderOfflineMarkdownHtml(cleanedPart));
-              }
-            }
-          }
-        } else {
-          const cleaned = cleanOfflineMarkdown(block.content ?? "");
-          if (cleaned) {
-            parts.push(cleaned);
-            htmlParts.push(renderOfflineMarkdownHtml(cleaned));
-          }
-        }
-
-        if (block.workedExample?.steps?.length) {
-          const stepLines = block.workedExample.steps.map(
-            (step) => `${step.stepIndex + 1}. ${step.label}: ${step.explanation}`,
-          );
-          if (block.workedExample.verification?.trim()) {
-            stepLines.push(block.workedExample.verification.trim());
-          }
-          parts.push(stepLines.join("\n"));
-          htmlParts.push(renderOfflineWorkedExampleHtml(block.workedExample));
-        }
-
-        for (const visual of block.visuals ?? []) {
-          if (!renderedVisualIds.has(visual.id)) {
-            htmlParts.push(renderOfflineVisualHtml(visual));
-          }
-        }
-      }
-
-      const body = parts.join("\n\n").trim();
-      const bodyHtml = htmlParts.filter(Boolean).join("\n").trim();
-      if (body || bodyHtml) {
-        const headingHtml = sec.title
-          ? renderOfflineMarkdownHtml(sec.title).replace(/^<p>|<\/p>$/g, "")
-          : "";
-        sections.push({
-          id: sec.id,
-          slug: sec.slug,
-          heading: sec.title,
-          headingHtml,
-          body,
-          bodyHtml,
-        });
-      }
-    }
-  } else if (record.material?.body) {
-    const cleaned = cleanOfflineMarkdown(record.material.body);
-    if (cleaned) {
-      sections.push({
-        heading: "",
-        body: cleaned,
-        bodyHtml: renderOfflineMarkdownHtml(cleaned),
-      });
-    }
-  }
+  const sections = buildOfflineReadingSections(record);
 
   const savedPosition = loadOfflineReadingPosition(record.key);
 

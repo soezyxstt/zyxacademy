@@ -1,0 +1,247 @@
+import { expect, test } from "bun:test";
+import { createRequire } from "node:module";
+import { dirname } from "node:path";
+import { buildReadingContentHtml, buildReadingDocumentHtml, readerCodingAction, savedReadingContent } from "../../apps/mobile-native/offline/reading-document";
+import type { OfflineReadingArticle, OfflineReadingPackage, OfflineReadingSummary } from "../../apps/mobile-native/offline/reading-contract";
+import { normalizeReadingSelection, readerSelectionUsesContentEngine } from "../../apps/mobile-native/offline/reading-selection";
+import { sectionCodingParts } from "../../lib/coding/native-article-parts";
+import { buildReadingKatexCss } from "../../apps/mobile-native/offline/prepare-reading-katex.cjs";
+import type { PublicArticleReadModel } from "../../lib/articles/structured-read-model";
+import { buildOfflineReadingSections } from "../../lib/offline/reading-sections";
+
+const require = createRequire(import.meta.url);
+const katexCss = buildReadingKatexCss(dirname(require.resolve("katex/dist/katex.min.css")));
+const summary: OfflineReadingSummary = { kind: "article", id: "article", courseId: "course", key: "saved-key", title: "Saved reading", revision: "a".repeat(64), bytes: 20, leaseExpiresAt: 200, savedAt: 100 };
+const rawUrl = "/images/structure.png?width=480&height=320";
+const identity = { id: summary.id, courseId: summary.courseId, title: summary.title };
+const block = { id: "block", blockKey: "block", orderIndex: 0, blockType: "explanation", title: null, content: "" };
+const section = {
+  id: "first", slug: "section-one", title: "Learning goal", sectionNumber: "1", sectionKind: "topic" as const,
+  learningObjective: "Explain equilibrium", estimatedReadingMinutes: 0, orderIndex: 0, parentSectionId: null,
+};
+function assetUrl(source: string, details = summary, locale = "en") {
+  const { kind, id, courseId, revision } = details;
+  return "/api/offline/asset?" + new URLSearchParams({ kind, id, courseId, revision, locale, asset: source });
+}
+
+test("uses the same authored Article sections as the Capacitor snapshot", () => {
+  const figure = {
+    id: "figure", kind: "source_figure", label: "Molecule diagram", description: "Electron arrangement",
+    captionMarkdown: "Shared caption", asset: { imageUrl: assetUrl(rawUrl), attribution: "Course notes" },
+  };
+  const sections = [
+    { ...section, blocks: [{ ...block, parts: [
+      { id: "math", kind: "math_unit", layout: "cases",
+        relations: [
+          { id: "left", latex: "x", conditionLatex: "x>0", meaningMarkdown: "Positive side" },
+          { id: "right", latex: "0", conditionLatex: "x\\leq 0", meaningMarkdown: "Nonpositive side" },
+        ], meaningMarkdown: "Piecewise definition",
+        symbolDefinitions: [{ id: "symbol", latex: "x", meaningMarkdown: "Real variable", conditionsMarkdown: "Bounded interval" }] },
+      { id: "reuse", kind: "visual_ref", visualId: "figure" },
+      { id: "react", kind: "markdown", markdown: "Chemistry: $\\ce{H2O}$" },
+      { id: "example", kind: "worked_example", title: "Apply it", problemMarkdown: "Calculate both cases",
+        steps: [{ id: "step", operationMarkdown: "Substitute", reasonMarkdown: "Use the definition", sourceElementRefs: ["math"],
+          parts: [{ id: "why", kind: "markdown", markdown: "Show the result" }] }],
+        verificationMarkdown: "Check by substitution" },
+    ] }], visuals: [figure] },
+    { ...section, id: "second", slug: "section-two", title: "Second title", blocks: [{ ...block, content: "Another topic." }] },
+  ] as unknown as OfflineReadingArticle["sections"];
+  const data = { ...identity, chapterId: "chapter", version: 4, sections } satisfies OfflineReadingArticle;
+  const saved = {
+    summary, data, assets: [{ url: assetUrl(rawUrl), mime: "image/png", bytes: Uint8Array.of(1, 2, 3) }],
+  };
+  const html = buildReadingDocumentHtml({ saved, locale: "en", section: "section-one" }, katexCss)!;
+  const personalized = buildReadingContentHtml(savedReadingContent({ saved, locale: "en" }), katexCss, "light", { fontSize: "large", density: "tight" });
+  expect(personalized).toContain("--reading-size: 20px; --reading-spacing: 0.875;");
+  expect(personalized).toContain('src="data:image/png;base64,AQID"');
+  const shared = buildOfflineReadingSections({ kind: "structured_article", article: { sections: sections as unknown as PublicArticleReadModel["sections"] }, locale: "en" }, {
+    allowLinks: false, resolveImage: (source) => source === assetUrl(rawUrl) ? "data:image/png;base64,AQID" : undefined,
+  }, "first");
+  expect(html).toContain(shared[0].bodyHtml!);
+  expect(html).toContain("<math");
+  for (const phrase of ["Piecewise definition", "Positive side", "Bounded interval", "Molecule diagram", "Shared caption", "Use the definition", "Check by substitution"]) {
+    expect(html).toContain(phrase);
+  }
+  expect(html).toContain('src="data:image/png;base64,AQID"');
+  expect(html).not.toContain("Another topic.");
+  expect(buildReadingDocumentHtml({ saved, locale: "en", section: "stale-section" }, katexCss)).toContain("Another topic.");
+});
+
+test("renders legacy flat Articles and original image references from the matching local package", () => {
+  const data: OfflineReadingArticle = {
+    ...identity, chapterId: null, version: 1, sections: [{
+      id: "article:offline", slug: "reading", title: "Old title",
+      blocks: [{ ...block, content: `Paragraph **retained**.\n\n![](${rawUrl})` }],
+    }],
+  };
+  const saved = {
+    summary, data, assets: [
+      { url: assetUrl(rawUrl, { ...summary, courseId: "other-course" }), mime: "image/png", bytes: Uint8Array.of(10) },
+      { url: assetUrl(rawUrl), mime: "image/png", bytes: Uint8Array.of(27) },
+      { url: assetUrl(rawUrl, summary, "id"), mime: "image/png", bytes: Uint8Array.of(31) },
+    ],
+  };
+  const html = buildReadingDocumentHtml({ saved, locale: "en", section: "reading" }, katexCss)!;
+  expect(html).toContain("<strong>retained</strong>");
+  expect(html).toContain('src="data:image/png;base64,Gw=="');
+  expect(html).not.toContain('src="data:image/png;base64,Cg=="');
+  expect(html).not.toContain('src="data:image/png;base64,Hw=="');
+  expect(html).not.toContain(rawUrl);
+});
+
+test("reads Diktat markdown and fences remote, script and unverified image inputs", () => {
+  const diktat = { ...summary, kind: "diktat" as const, id: "diktat", title: 'Diktat <Example>' };
+  const body = [
+    "## Reaksi dan tekanan",
+    "| Nilai | Satuan |\n| --- | --- |\n| $P$ | Pa |",
+    `![Kurva](${assetUrl(rawUrl, diktat, "id")})`,
+    "![Daring](https://other.example/tracker.png)", "![Aset mentah](data:image/png;base64,AA==)",
+    "[Tautan luar](https://other.example/redirect)",
+    "<script>alert(1)</script><img src='https://other.example/img' onerror='alert(1)'>",
+    "```html\n<iframe src='https://other.example/frame'></iframe>\n```",
+  ].join("\n\n");
+  const saved: OfflineReadingPackage = { summary: diktat, data: {
+    id: diktat.id, courseId: diktat.courseId, title: diktat.title, kind: "article", docCategory: "diktat", contentVersion: 1, body,
+  }, assets: [{ url: assetUrl(rawUrl, diktat, "id"), mime: "image/png", bytes: Uint8Array.of(43) }] };
+  const html = buildReadingDocumentHtml({ saved, locale: "id" }, katexCss, "dark")!;
+  expect(html).toContain('<html lang="id">');
+  expect(html).toContain("<title>Diktat &lt;Example&gt;</title>");
+  expect(html).toContain("color-scheme: dark");
+  expect(html).toContain("<table");
+  expect(html).toContain("<math");
+  expect(html).toContain('src="data:image/png;base64,Kw=="');
+  expect(html).toContain("Daring");
+  expect(html).toContain("Aset mentah");
+  expect(html).toContain("Tautan luar");
+  expect(html).toContain("&lt;script&gt;");
+  expect(html).not.toContain("<script>");
+  expect(html).not.toContain("<iframe");
+  expect([...html.matchAll(/<img[^>]+src="([^"]+)"[^>]*>/g)].map(match => match[1])).toEqual(["data:image/png;base64,Kw=="]);
+  expect(html).not.toMatch(/<a\s[^>]*href=/);
+});
+
+test("the generated document permits only inline styles, local images and local fonts", async () => {
+  const saved = { summary, data: { ...identity, chapterId: null, version: 1, sections: [{
+    id: "intro", slug: "start", title: "First", blocks: [{ ...block, content: "$x^2$" }],
+  }] }, assets: [] };
+  const html = buildReadingDocumentHtml({ saved, locale: "en" }, katexCss)!;
+  expect(html).toContain("default-src 'none'; script-src 'none'; connect-src 'none'; form-action 'none'; base-uri 'none'; img-src data:; font-src data:; style-src 'unsafe-inline'");
+  expect(html.indexOf("Content-Security-Policy")).toBeLessThan(html.indexOf("<style>"));
+  expect([...katexCss.matchAll(/url\(([^)]+)\)/g)].length).toBeGreaterThan(10);
+  expect(katexCss).not.toMatch(/url\((?!["']data:font\/woff2;base64,)|@import/);
+  const wrapper = await Bun.file("apps/mobile-native/offline/ReadingDocument.tsx").text();
+  for (const option of ["domStorageEnabled", "allowFileAccess", "allowUniversalAccessFromFileURLs", "thirdPartyCookiesEnabled"]) {
+    expect(wrapper).toContain(`${option}={false}`);
+  }
+  expect(wrapper).toContain("javaScriptEnabled={readerSelectionUsesContentEngine(Platform.OS, nativeSelection || Boolean(focus))}");
+  expect(wrapper).toContain('const initialPage = "about:blank"');
+  expect(wrapper).toContain("request.url === initialPage");
+});
+
+test("only authorized local typed parts can open a native coding workspace from the inert reader", () => {
+  const data: OfflineReadingArticle = { ...identity, chapterId: "chapter", version: 3, sections: [{
+    ...section, blocks: [{ ...block, parts: [
+      { id: "exercise-1", kind: "coding_exercise", problem: { problemId: "exercise", version: 1 } },
+      { id: "static", kind: "code_example", language: "python", runnable: false, code: "print(1)" },
+      { id: "other", kind: "markdown", markdown: "[Pretend action](https://reader.invalid/coding/hidden)" },
+    ] }],
+  }] };
+  const saved: OfflineReadingPackage = { summary, data, assets: [] };
+  const actions = new Map([["exercise-1", "Open <practice>"], ["static", "Should stay static"]]);
+  const online = buildReadingContentHtml(savedReadingContent({ saved, locale: "en" }), katexCss, "light", undefined, actions);
+  expect(online).toContain('href="https://reader.invalid/coding/exercise-1">Open &lt;practice&gt;');
+  expect(online).not.toContain('href="https://reader.invalid/coding/hidden"');
+  expect(online).not.toContain('href="https://reader.invalid/coding/static"');
+  expect(online).toContain("script-src 'none'; connect-src 'none'");
+  expect(buildReadingDocumentHtml({ saved, locale: "en" }, katexCss)).not.toContain('href="https://reader.invalid/coding/exercise-1"');
+  expect(readerCodingAction("https://reader.invalid/coding/exercise-1", actions)).toBe("exercise-1");
+  for (const url of ["https://reader.invalid/coding/hidden", "https://reader.invalid/coding/exercise-1?branch=other",
+    "https://reader.invalid/coding/%65xercise-1", "https://reader.invalid.evil/coding/exercise-1"]) {
+    expect(readerCodingAction(url, actions)).toBeUndefined();
+  }
+  expect(readerCodingAction("https://reader.invalid/coding/exercise-1")).toBeUndefined();
+});
+
+test("native selection keeps host extraction Android-online-only and bounds the explicit text handoff", () => {
+  expect(readerSelectionUsesContentEngine("android", true)).toBe(true);
+  expect(readerSelectionUsesContentEngine("android", false)).toBe(false);
+  expect(readerSelectionUsesContentEngine("ios", true)).toBe(false);
+  expect(readerSelectionUsesContentEngine("web", true)).toBe(false);
+  expect(normalizeReadingSelection("  Flux\u0000\ngradient ")).toBe("Flux\ngradient");
+  expect(normalizeReadingSelection("x".repeat(2_000))).toHaveLength(1200);
+  expect(normalizeReadingSelection("  print(2)\n", "clipboard")).toBe("  print(2)\n");
+  expect(normalizeReadingSelection({ snippet: "spoofed" })).toBe("");
+});
+
+test("authorized Markdown control follows its exact Python fence, including a nested worked step", () => {
+  const print = "```python\nprint(2)\n```";
+  const nonPython = "```js\nprint(2)\n```";
+  const typed = {
+    ...block, id: "typed", parts: [{ id: "worked", kind: "worked_example", title: "Work",
+      problemMarkdown: "Read the input", verificationMarkdown: "Check it", steps: [{ id: "step", operationMarkdown: "Run Python",
+        reasonMarkdown: "Observe output", sourceElementRefs: ["sheet"], parts: [{ id: "sub", kind: "markdown", markdown: print }],
+      }] }],
+  };
+  const blocks = [{ ...block, content: nonPython + "\n\n" + print + "\n\nAfter code" }, typed];
+  const data: OfflineReadingArticle = { ...identity, chapterId: "chapter", version: 3, sections: [{ ...section, blocks }] };
+  const saved: OfflineReadingPackage = { summary, data, assets: [] };
+  const items = sectionCodingParts(blocks, section.id);
+  expect(items).toHaveLength(2);
+  const actions = new Map(items.map(({ part }, index) => [part.id, "Run example " + (index + 1)]));
+  const html = buildReadingContentHtml(savedReadingContent({ saved, locale: "en" }), katexCss, "light", undefined, actions)!.split("<main>")[1];
+  for (const [id, label] of actions) {
+    expect(html).toContain(`</code></pre>\n<a class="reader-coding-action" href="https://reader.invalid/coding/${id}">${label}</a>`);
+  }
+  expect(html.indexOf("Run example 1")).toBeLessThan(html.indexOf("After code"));
+  expect(html.indexOf("Run Python")).toBeLessThan(html.indexOf("Run example 2"));
+  expect(buildReadingDocumentHtml({ saved, locale: "en" }, katexCss)?.split("<main>")[1]).not.toContain("Run example 1");
+});
+
+test("a signed Article result anchors an exact admitted part or worked step and leaves offline copies inert", () => {
+  const saved: OfflineReadingPackage = { summary, data: { ...identity, chapterId: "chapter", version: 4, sections: [{
+    ...section, blocks: [{ ...block, parts: [
+      { id: "lead", kind: "markdown", markdown: "Earlier passage" },
+      { id: "target", kind: "markdown", markdown: "Matched passage" },
+      { id: "worked", kind: "worked_example", title: "Step by step", problemMarkdown: "Problem text", verificationMarkdown: "Finish",
+        steps: [{ id: "step", operationMarkdown: "Matching operation", reasonMarkdown: "Reasoning",
+          sourceElementRefs: ["target"], parts: [{ id: "detail", kind: "markdown", markdown: "Matching detail" }] }] },
+    ] }],
+  }] }, assets: [] };
+  const props = { saved, locale: "en" as const, section: section.slug };
+  const content = savedReadingContent(props);
+  const focus = { sectionId: section.id, blockId: block.id, partId: "target" };
+  const focused = buildReadingContentHtml(content, "", "light", undefined, undefined, undefined, focus);
+  expect(focused).toContain('<div id="reading-search-result"><p>Matched passage</p>');
+  expect(focused).not.toContain('<div id="reading-search-result"><p>Earlier passage</p>');
+  const step = { ...focus, partId: "worked", elementId: "step" };
+  expect(buildReadingContentHtml(content, "", "light", undefined, undefined, undefined, step))
+    .toContain('<div id="reading-search-result"><p>Matching operation</p>');
+  expect(buildReadingContentHtml(content, "", "light", undefined, undefined, undefined, { ...step, elementId: "detail" }))
+    .toContain('<div id="reading-search-result"><p>Matching detail</p>');
+  const stale = buildReadingContentHtml(content, "", "light", undefined, undefined, undefined, { ...focus, sectionId: "retired" });
+  expect(stale).not.toContain('id="reading-search-result"');
+  expect(buildReadingDocumentHtml(props, "")).not.toContain('id="reading-search-result"');
+});
+
+test("legacy Article example controls stay in the concept and worked step that contain them", () => {
+  const fence = "```python\nprint(8)\n```";
+  const blocks = [{
+    ...block, id: "concept", content: [":::concept {id=concept title=Scope}", "Explanation for the concept.", fence, ":::"].join("\n"),
+  }, {
+    ...block, id: "worked", blockType: "worked_example",
+    workedExample: {
+      steps: [{ stepIndex: 0, label: "Apply the result", explanation: "Observe the output.", reason: fence }],
+      verification: "End of the example.",
+    },
+  }];
+  const saved: OfflineReadingPackage = { summary, data: { ...identity, chapterId: "chapter", version: 3, sections: [{ ...section, blocks }] }, assets: [] };
+  const actions = new Map(sectionCodingParts(blocks, section.id).map(({ part }, index) => [part.id, "Legacy run " + (index + 1)]));
+  expect(actions.size).toBe(2);
+  const props = { saved, locale: "en" as const };
+  const html = buildReadingContentHtml(savedReadingContent(props), "", "light", undefined, actions)!;
+  expect(html.indexOf("Explanation for the concept.")).toBeLessThan(html.indexOf("Legacy run 1"));
+  expect(html.indexOf("Legacy run 1")).toBeLessThan(html.indexOf("Apply the result"));
+  expect(html.indexOf("Apply the result")).toBeLessThan(html.indexOf("Legacy run 2"));
+  expect(html.indexOf("Legacy run 2")).toBeLessThan(html.indexOf("End of the example."));
+  expect(buildReadingDocumentHtml(props, "")).not.toContain("reader.invalid");
+});

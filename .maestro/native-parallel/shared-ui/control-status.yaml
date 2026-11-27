@@ -1,0 +1,28 @@
+appId: com.zyx.academy.nativeparity
+name: Shared loading, empty and recovery states
+---
+- launchApp
+- extendedWaitUntil:
+    visible: separator
+    timeout: 20000
+- openLink: zyx-native-parity://internal/shared-ui/shared-ui-status-loading
+- runFlow: helpers/confirm-ios-link.yaml
+- assertVisible: Memuat pertanyaan
+- assertNotVisible:
+    id: shared-ui-status-loading-action
+- openLink: zyx-native-parity://internal/shared-ui/shared-ui-status-empty
+- runFlow: helpers/confirm-ios-link.yaml
+- assertVisible: Belum ada pertanyaan
+- assertVisible: Pertanyaan baru akan muncul di sini.
+- tapOn:
+    id: shared-ui-status-empty-action
+- assertVisible: Buat pertanyaan
+- assertNotVisible:
+    id: shared-ui-status-empty-action
+- openLink: zyx-native-parity://internal/shared-ui/shared-ui-status-recovery
+- runFlow: helpers/confirm-ios-link.yaml
+- assertVisible: Pertanyaan gagal dimuat
+- tapOn:
+    id: shared-ui-status-recovery-action
+- assertVisible: 3 pertanyaan dimuat
+- assertNotVisible: Pertanyaan gagal dimuat

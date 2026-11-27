@@ -1,0 +1,14 @@
+[
+  {
+    "caseId": "student.community.profile.edit.loaded",
+    "route": "app/(student)/profile/edit/page.tsx",
+    "testName": "smoke-060",
+    "area": "community",
+    "phase": "retry",
+    "junitMember": "smoke/community/retry/report.xml",
+    "category": "ADB transport",
+    "message": "Unknown error",
+    "logMember": "smoke/community/retry/partitions/002/results/2026-11-26_171144/smoke-060/logs/maestro.log",
+    "evidence": "Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline"
+  }
+]

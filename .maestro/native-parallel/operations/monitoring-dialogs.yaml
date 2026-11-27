@@ -1,0 +1,58 @@
+appId: com.zyx.academy.nativeparity
+name: Operations nested Tutor activity filters
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: separator
+    timeout: 30000
+- openLink: "zyx-native-parity://operations-fixture?caseId=&mode=populated&theme=dark&locale=en&path=%2Fadmin%2Fops%2Ftutor-activity"
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - runFlow:
+          when:
+            visible: 'Open in .*Zyx Academy Native.*'
+          commands:
+            - tapOn: Open
+- extendedWaitUntil:
+    visible:
+      id: operations-tutor-filters
+    timeout: 30000
+- tapOn:
+    id: operations-tutor-filters
+- scrollUntilVisible:
+    element:
+      id: operations-tutor-page-size-trigger
+- tapOn:
+    id: operations-tutor-page-size-trigger
+- assertVisible:
+    id: operations-tutor-page-size
+- tapOn: '^10$'
+- assertNotVisible:
+    id: operations-tutor-page-size
+- assertVisible: 'Per page: 10'
+- scrollUntilVisible:
+    element:
+      text: '^End date$'
+- assertVisible: Apply filters
+- tapOn:
+    id: operations-tutor-filter-dialog-close
+- assertNotVisible:
+    id: operations-tutor-filter-dialog
+- tapOn:
+    id: operations-tutor-filters
+- scrollUntilVisible:
+    element:
+      id: operations-tutor-page-size-trigger
+- assertVisible: 'Per page: 25'
+- tapOn:
+    id: operations-tutor-page-size-trigger
+- tapOn: '^10$'
+- tapOn: Apply filters
+- assertNotVisible:
+    id: operations-tutor-filter-dialog
+- extendedWaitUntil:
+    visible: Filter, 1 active
+    timeout: 10000

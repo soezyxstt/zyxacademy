@@ -1,0 +1,35 @@
+{
+  "group": "assessment-result-review",
+  "route": "/courses/[id]/my-results/[submissionId]",
+  "platform": "android",
+  "testcase": "Student assessment review shows owned results",
+  "flow": "assessment-result-review.yaml",
+  "referencePath": "product/assessment-results-web",
+  "scope": "Signed production web review and native replay of the owner GET response",
+  "states": {
+    "released-quiz": {
+      "submissionId": "assessment-evidence-quiz-finished",
+      "kind": "quiz",
+      "status": "completed",
+      "score": 85,
+      "visible": ["Latihan limit fungsi", "85%", "Lihat diagnosis dan rencana belajar"],
+      "hidden": []
+    },
+    "pending-tryout": {
+      "submissionId": "assessment-evidence-tryout-submitted",
+      "kind": "tryout",
+      "status": "pending_review",
+      "score": null,
+      "visible": ["Tryout turunan dan penerapannya untuk sains dan rekayasa", "Menunggu penilaian"],
+      "hidden": ["95%", "Uraikan alasan pilihan jawaban sebelum menulis kesimpulan\\."]
+    },
+    "graded-tryout": {
+      "submissionId": "assessment-evidence-tryout-graded",
+      "kind": "tryout",
+      "status": "graded",
+      "score": 95,
+      "visible": ["95%", "Uraikan alasan pilihan jawaban sebelum menulis kesimpulan\\."],
+      "hidden": ["Menunggu penilaian"]
+    }
+  }
+}

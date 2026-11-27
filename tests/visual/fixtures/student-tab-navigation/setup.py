@@ -28,8 +28,9 @@ def stub(spec, body):
  put(key+'.tsx',body)
 for file in ['components/navigation/student/student-tab-reuse.tsx','components/navigation/student/student-mobile-bottom-nav.tsx','components/navigation/student/student-mobile-destinations.ts','components/navigation/student/student-nav-model.ts','components/navigation/mobile-bottom-nav.tsx','components/navigation/mobile-chrome-context.tsx','components/student-experience-provider.tsx','components/application-page.tsx','components/ui/skeleton.tsx','components/discussions/discussion-skeleton.tsx','lib/auth/account-transition-state.ts']:
  copy(file)
+copy('components/navigation/student/student-mobile-hrefs.mjs')
 stub('@/components/navigation','export { MobileBottomNav } from "@/components/navigation/mobile-bottom-nav";')
-stub('@/lib/pka-config','export const PKA_COURSE_ID = "pka";')
+put('lib/pka-config.ts', 'export const PKA_COURSE_ID = "pka";')
 stub('@/lib/auth-client','"use client"; export const useSession = () => ({data: {session: {id:"fixture-session"}}, isPending: false, error: null});')
 stub('@/lib/utils','export function cn(...values:any[]) {return values.filter(Boolean).join(" ");}')
 stub('@/lib/native/haptics','export async function hapticSelection(){}')

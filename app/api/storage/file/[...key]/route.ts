@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { customForms, diktatMateri, diktats, mataKuliah, studentQuizAttempts, quizTemplates, courseVideos } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { hasPeran } from "@/lib/auth/authorization";
+import { isFormResponseAttachmentFolder } from "@/lib/forms/attachment";
 import { resolveAuthBaseUrl } from "@/lib/auth-site-url";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { canAccessCourseContent, resolveCourseAccess } from "@/lib/student/course-access";
@@ -58,6 +59,10 @@ type DiktatAuthorization = {
 async function canAccessFormFile(key: string, search: string): Promise<boolean> {
   try {
     if (!isSafeKey(key)) return false;
+    if (isFormResponseAttachmentFolder(key.split("/")[1])) {
+      const session = await auth.api.getSession({ headers: await nextHeaders() });
+      return Boolean(session?.user?.id && await hasPeran(session.user.id, "admin"));
+    }
     const origin = new URL(resolveAuthBaseUrl()).origin;
     const paths = new Set([key, encodeURI(key), key.split("/").map(encodeURIComponent).join("/")]);
     const urls = [...paths].flatMap((path) => {

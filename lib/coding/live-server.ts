@@ -1,19 +1,13 @@
 import "server-only";
-import { z } from "zod";
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { codingAttempts, liveQuizSessions, mataKuliah } from "@/db/schema";
 import { env } from "@/lib/env";
 import { deriveLiveCodingScore } from "./live";
+import { liveCodingConfigSchema } from "./live-config";
+export { liveCodingConfigSchema } from "./live-config";
 import type { CodingProblemPrivate } from "./contracts";
 
-export const liveCodingConfigSchema = z.object({
-  problemId: z.string().min(1), version: z.number().int().positive(),
-  maxAttempts: z.number().int().positive().max(100).nullable(),
-  assistance: z.enum(["disabled", "hints", "full"]),
-  scoring: z.enum(["best", "latest"]),
-  durationSeconds: z.number().int().min(30).max(3600),
-}).strict();
 type Surface = { kind: "live_quiz"; sessionId: string; questionIndex: number };
 
 export async function liveCodingRoomRequest(sessionId: string, operation: "coding-state" | "coding-reserve" | "coding-result", body: object) {

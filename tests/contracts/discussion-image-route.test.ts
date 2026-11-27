@@ -8,11 +8,12 @@ let rateLimited: boolean;
 let pixelLimit: boolean;
 let uploadFailure: Error | null;
 let requestedPreview: boolean | undefined;
+const uploadedExpiry = "2026-11-27T04:30:00.000Z";
 const image = { id: "image", name: 'soal".png', mime: "image/png", size: 3, width: 1, height: 1, url: "/api/discussions/attachments/image", downloadUrl: "/api/discussions/attachments/image?download=1" };
 
 mock.module("@/lib/auth", () => ({ auth: { api: { getSession: async () => signedIn ? { user: { id: "owner" } } : null } } }));
 mock.module("@/lib/discussions/image-upload", () => ({
-  uploadDiscussionImage: async ({ actorId, channelId }: { actorId: string; channelId: string }) => { uploads++; expect(actorId).toBe("owner"); expect(channelId).toBe("channel"); if (uploadFailure) throw uploadFailure; if (rateLimited) throw new Error("DISCUSSION_IMAGE_RATE_LIMIT"); if (pixelLimit) throw new DiscussionImageError("pixels"); return image; },
+  uploadDiscussionImage: async ({ actorId, channelId }: { actorId: string; channelId: string }) => { uploads++; expect(actorId).toBe("owner"); expect(channelId).toBe("channel"); if (uploadFailure) throw uploadFailure; if (rateLimited) throw new Error("DISCUSSION_IMAGE_RATE_LIMIT"); if (pixelLimit) throw new DiscussionImageError("pixels"); return { ...image, expiresAt: uploadedExpiry }; },
 }));
 mock.module("@/lib/discussions/images", () => ({
   readDiscussionImage: async (_actorId: string, _id: string, preview: boolean) => { requestedPreview = preview; return readable ? { image, bytes: new Uint8Array([1, 2, 3]) } : null; },
@@ -65,7 +66,7 @@ describe("discussion attachment routes", () => {
     expect(requestedPreview).toBe(false);
   });
 
-  test("upload requires an authenticated same-origin request and returns the DTO only", async () => {
+  test("upload requires an authenticated same-origin request and returns the DTO with its expiry", async () => {
     const form = new FormData();
     form.set("channelId", "channel");
     form.set("file", new File(["abc"], "a.png", { type: "image/png" }));
@@ -82,7 +83,7 @@ describe("discussion attachment routes", () => {
     expect(response.status).toBe(201);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect(response.headers.get("x-content-type-options")).toBe("nosniff");
-    expect(await response.json()).toEqual(image);
+    expect(await response.json()).toEqual({ ...image, expiresAt: uploadedExpiry });
     expect(uploads).toBe(1);
     rateLimited = true;
     expect((await POST(request("https://example.com"))).status).toBe(429);

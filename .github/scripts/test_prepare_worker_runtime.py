@@ -89,6 +89,18 @@ class WorkerRuntimeTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "WORKER_STEEL_API_KEY_REQUIRED"):
                 prepare_worker_runtime("staging", source | {"STEEL_API_KEY": invalid}, {})
 
+    def test_expo_apns_credentials_only_enter_staging_and_private_keys_use_secrets(self):
+        private = "APNS_EXPO_IOS_DEVELOPMENT_PRIVATE_KEY"
+        key_id = "APNS_EXPO_IOS_DEVELOPMENT_KEY_ID"
+        values = {private: "fixture-private-key", key_id: "FIXTUREKEY"}
+        development = prepare_worker_runtime("staging", fixture("staging") | values, {private: "ignored-variable"})
+        self.assertEqual(development[private], values[private])
+        self.assertEqual(development[key_id], values[key_id])
+        self.assertNotIn(private, prepare_worker_runtime("staging", fixture("staging"), {private: "ignored-variable"}))
+        production = prepare_worker_runtime("production", fixture("production") | values, {})
+        self.assertNotIn(private, production)
+        self.assertNotIn(key_id, production)
+
     def test_ci_credentials_and_unknown_values_are_never_copied(self):
         source = fixture("production") | {key: "synthetic-ci-credential" for key in CI_KEYS}
         result = prepare_worker_runtime("production", source | {"UNRECOGNIZED_SECRET": "hidden"}, {})

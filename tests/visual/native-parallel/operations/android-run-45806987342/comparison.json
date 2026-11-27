@@ -1,0 +1,148 @@
+[
+  {
+    "device": "blog-list.png",
+    "reference": "blog-list-light-380-dpr1.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 203500,
+    "maxChannelDelta": 213,
+    "status": "different"
+  },
+  {
+    "device": "blog-detail.png",
+    "reference": "blog-detail-light-380-dpr1.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 67386,
+    "maxChannelDelta": 213,
+    "status": "different"
+  },
+  {
+    "device": "blog-empty-dark.png",
+    "reference": "blog-empty-dark-380-dpr1.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 131609,
+    "maxChannelDelta": 226,
+    "status": "different"
+  },
+  {
+    "device": "management-form-summary.png",
+    "reference": "management-form-summary-380-dpr1.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 40278,
+    "maxChannelDelta": 213,
+    "status": "different"
+  },
+  {
+    "device": "cases/operations-evaluation-jobs-populated.png",
+    "reference": "evaluation/jobs-completed-light-380.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 46018,
+    "maxChannelDelta": 216,
+    "status": "different"
+  },
+  {
+    "device": "cases/operations-evaluation-jobs-alternate.png",
+    "reference": "evaluation/jobs-empty-dark-380.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 10832,
+    "maxChannelDelta": 226,
+    "status": "different"
+  },
+  {
+    "device": "cases/operations-evaluation-ast-inspector-populated.png",
+    "reference": "evaluation/ast-preview-light-380.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      1516
+    ],
+    "status": "viewport mismatch"
+  },
+  {
+    "device": "cases/operations-monitoring-admin-populated.png",
+    "reference": "monitoring/home-populated-light-380.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      1692
+    ],
+    "status": "viewport mismatch"
+  },
+  {
+    "device": "web-analytics.png",
+    "reference": "analytics-data-light.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 47323,
+    "maxChannelDelta": 213,
+    "status": "different"
+  },
+  {
+    "device": "web-analytics-empty-dark.png",
+    "reference": "analytics-empty-dark.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 21971,
+    "maxChannelDelta": 226,
+    "status": "different"
+  }
+]

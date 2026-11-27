@@ -1,0 +1,28 @@
+appId: com.zyx.academy.nativeparity
+name: Slider bounds and commit
+---
+- runFlow:
+    file: helpers/open-gallery.yaml
+    env:
+      COMPONENT: slider
+- assertVisible:
+    id: slider-midpoint-light-control
+- assertVisible:
+    id: slider-disabled-end-dark-control
+    enabled: false
+- assertVisible:
+    id: slider-start-rtl-light-control
+- assertNotVisible:
+    id: slider-start-rtl-light-commit
+- tapOn:
+    id: slider-start-rtl-light-control
+- assertVisible:
+    id: slider-start-rtl-light-commit
+    text: Nilai 5
+- swipe:
+    from:
+      id: slider-start-rtl-light-control
+    direction: LEFT
+- assertVisible:
+    id: slider-start-rtl-light-commit
+    text: Nilai 10

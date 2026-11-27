@@ -1,0 +1,72 @@
+appId: com.zyx.academy.nativeparity
+name: Catalog comparable fixture all TPB and PKA
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: separator
+    timeout: 30000
+- openLink: "zyx-native-parity://student-fixture?scenario=catalog-parity"
+- extendedWaitUntil:
+    visible:
+      id: student-course-ma1101
+    timeout: 30000
+- assertVisible: 4 courses
+- assertVisible: 1 course
+- assertVisible:
+    id: student-catalog-tab-all
+    selected: true
+- assertNotVisible:
+    id: student-catalog-clear-search
+- takeScreenshot: student-catalog-all
+- tapOn:
+    id: student-catalog-tab-tpb
+- assertVisible:
+    id: student-course-ma1101
+- assertNotVisible:
+    id: student-course-tutorial-pka
+- assertVisible:
+    id: student-catalog-tab-tpb
+    selected: true
+- assertVisible:
+    id: student-catalog-tab-pka
+    selected: false
+- assertVisible: 4 courses
+- takeScreenshot: student-catalog-tpb
+- tapOn:
+    id: student-catalog-tab-pka
+- assertVisible:
+    id: student-course-tutorial-pka
+- assertNotVisible:
+    id: student-course-ma1101
+- assertVisible:
+    id: student-catalog-tab-pka
+    selected: true
+- assertVisible: 1 course
+- takeScreenshot: student-catalog-pka
+- tapOn: View plans
+- assertVisible: 'https://student\.invalid/plans'
+- tapOn: OK
+- tapOn: contact us on WhatsApp
+- assertVisible: 'https://wa\.me/620000000000'
+- tapOn: OK
+- openLink: "zyx-native-parity://student-fixture?scenario=catalog-parity&path=/courses&query_jurusan=tpb&query_q=no-match"
+- extendedWaitUntil:
+    visible: No courses found
+    timeout: 30000
+- assertVisible:
+    id: student-catalog-clear-search
+    text: Clear search
+    enabled: true
+- tapOn: Clear search
+- assertVisible:
+    id: student-course-ma1101
+- assertVisible:
+    id: student-catalog-tab-tpb
+    selected: true
+- assertNotVisible:
+    id: student-course-tutorial-pka
+- assertNotVisible:
+    id: student-catalog-clear-search
+- assertNotVisible:
+    id: student\.back

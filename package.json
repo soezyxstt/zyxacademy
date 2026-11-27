@@ -18,7 +18,7 @@
     "lint": "eslint",
     "typecheck": "node --max-old-space-size=4096 ./node_modules/typescript/bin/tsc --noEmit --tsBuildInfoFile .cache/typecheck/app.tsbuildinfo",
     "i18n:check": "bun scripts/check-i18n-catalogs.ts",
-    "typecheck:tests": "node --max-old-space-size=4096 ./node_modules/typescript/bin/tsc -p tsconfig.test.json --noEmit --tsBuildInfoFile .cache/typecheck/tests.tsbuildinfo",
+    "typecheck:tests": "node --max-old-space-size=8192 ./node_modules/typescript/bin/tsc -p tsconfig.test.json --noEmit --tsBuildInfoFile .cache/typecheck/tests.tsbuildinfo",
     "typecheck:structured-articles": "tsc -p tsconfig.structured-articles.json",
     "test": "bun test",
     "test:visual": "playwright test --config=playwright.config.ts",

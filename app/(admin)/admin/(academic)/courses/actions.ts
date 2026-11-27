@@ -14,15 +14,12 @@ import {
   studentQuizAttempts,
   quizAiInsights,
   aiQuestionBank,
-  artikel,
-  diktatMateri,
-  websiteMaterials,
 } from "@/db/schema";
 import { assertAdmin } from "@/lib/auth/admin-guards";
 import { z } from "zod";
 import { eq, asc, desc, inArray, and, or, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
-import { recordOfflineChange } from "@/lib/offline/server-events";
+import { inspectDemoSelection, writeDemoSelection, revalidateDemoSelection } from "@/lib/demo/course-selection";
 import { storage } from "@/lib/storage";
 import { isSafeKey, joinKey, slugifySegment } from "@/lib/storage/keys";
 import { generateAndSavePdfThumbnail } from "@/lib/thumbnail";
@@ -41,6 +38,9 @@ import {
 } from "@/lib/academic/course-canonical-sync";
 import { PREMIUM_PRICING, parseCoursePricingInput, type CoursePricing } from "@/lib/student/course-pricing";
 import { getDemoCourseEligibility } from "@/app/(marketing)/demo/demo-data";
+import { courseChapterRevision } from "@/lib/academic/course-chapter-revision";
+import { revalidateChapterPaths } from "@/lib/academic/revalidate-chapter-paths";
+import { isTextDocumentSource, writeCourseTextDocument } from "@/lib/academic/course-text-document";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 
 export async function getCourses() {
@@ -250,86 +250,11 @@ export async function deleteCourse(id: string) {
 export async function setDemoCourse(courseId: string, enabled: boolean) {
   await assertAdmin();
 
-  const cleanCourseId = courseId.trim().toLowerCase();
-  if (!cleanCourseId) {
-    return { success: false, error: "Mata kuliah tidak ditemukan." };
-  }
-
-  const matchingCanonicalCourses = await db
-    .select({ id: mataKuliah.id, status: mataKuliah.status, legacyCourseId: mataKuliah.legacyCourseId })
-    .from(mataKuliah)
-    .where(or(eq(mataKuliah.id, cleanCourseId), eq(mataKuliah.legacyCourseId, cleanCourseId)))
-    .orderBy(asc(mataKuliah.id));
-
-  if (matchingCanonicalCourses.length === 0) {
-    return { success: false, error: "Mata kuliah tidak ditemukan." };
-  }
-  if (matchingCanonicalCourses.length !== 1) {
-    return { success: false, error: "Pemetaan mata kuliah tidak jelas." };
-  }
-
-  const canonicalCourse = matchingCanonicalCourses[0];
-  if (canonicalCourse.legacyCourseId) {
-    const mappedCourses = await db
-      .select({ id: mataKuliah.id })
-      .from(mataKuliah)
-      .where(eq(mataKuliah.legacyCourseId, canonicalCourse.legacyCourseId));
-    if (mappedCourses.length !== 1 || mappedCourses[0]?.id !== canonicalCourse.id) {
-      return { success: false, error: "Pemetaan mata kuliah tidak jelas." };
-    }
-
-    const legacyCourses = await db
-      .select({ id: courses.id })
-      .from(courses)
-      .where(eq(courses.id, canonicalCourse.legacyCourseId));
-    if (legacyCourses.length !== 1) {
-      return { success: false, error: "Pemetaan mata kuliah tidak jelas." };
-    }
-  }
-
-  if (enabled) {
-    if (canonicalCourse.status !== "active") {
-      return { success: false, error: "Hanya mata kuliah aktif yang dapat dipilih sebagai demo." };
-    }
-
-    const eligibility = await getDemoCourseEligibility(canonicalCourse.id);
-    if (!eligibility.eligible) {
-      return {
-        success: false,
-        error: `Belum siap untuk demo: ${eligibility.issues.join("; ")}`,
-        eligibility,
-      };
-    }
-  }
-
+  const selection = await inspectDemoSelection(courseId, enabled);
+  if (!selection.success) return selection;
   try {
-    const now = new Date();
-    await db.transaction(async (tx) => {
-      const previous = enabled
-        ? await tx.update(mataKuliah)
-          .set({ isDemo: false, updatedAt: now })
-          .where(eq(mataKuliah.isDemo, true))
-          .returning({ id: mataKuliah.id })
-        : [];
-
-      await tx
-        .update(mataKuliah)
-        .set({ isDemo: enabled, updatedAt: now })
-        .where(eq(mataKuliah.id, canonicalCourse.id));
-      for (const courseId of new Set([canonicalCourse.id, ...previous.map(course => course.id)])) {
-        await recordOfflineChange(tx, { kind: "access", courseId, action: "invalidate" });
-      }
-    });
-
-    revalidatePath("/demo");
-    revalidatePath(`/demo/article`);
-    revalidatePath(`/demo/diktat`);
-    revalidatePath(`/demo/flashcards`);
-    revalidatePath(`/demo/quiz`);
-    revalidatePath(`/demo/zyra`);
-    revalidatePath("/admin/courses");
-    revalidatePath(`/admin/courses/${canonicalCourse.id}`);
-    revalidatePath(`/admin/courses/${canonicalCourse.id}/settings`);
+    await db.transaction(tx => writeDemoSelection(tx, selection.canonicalId, enabled));
+    revalidateDemoSelection(selection.canonicalId);
     return { success: true, isDemo: enabled };
   } catch (error) {
     console.error("Failed to update demo course selection:", error);
@@ -578,6 +503,10 @@ export async function getCourseDetailData(courseId: string, includeQuestions = f
       demoEligibility,
     },
     chapters: chaptersList,
+    chapterEdit: canonicalCourse ? {
+      revision: courseChapterRevision(canonicalCourse.id, canonicalCourse.legacyCourseId, allBab, legacyChapters),
+      allowsDescription: Boolean(legacyCourse),
+    } : null,
     materials: materialsList,
     quizzes: quizzesWithMetrics,
     questions: includeQuestions ? rawQuestions : [],
@@ -660,19 +589,6 @@ export async function getAllChapters() {
     .select()
     .from(chapters)
     .orderBy(asc(chapters.orderIndex));
-}
-
-function revalidateChapterPaths(courseIds: string[]) {
-  revalidatePath("/admin/courses");
-  // shortcut: layout patterns also invalidate other courses, narrow this when per-course tags cover nested reads.
-  revalidatePath("/(admin)/admin/(academic)/courses/[slug]", "layout");
-  revalidatePath("/(student)/courses/[id]", "layout");
-  for (const id of new Set(courseIds)) {
-    revalidatePath(`/admin/courses/${id}`);
-    revalidatePath(`/courses/${id}`);
-    revalidatePath(`/courses/${id}/material`);
-  }
-  revalidatePath("/dashboard");
 }
 
 export async function saveChapter(
@@ -1023,40 +939,10 @@ export async function updateDocumentStatusAction(input: {
 }) {
   await assertAdmin();
   const { materialId, source, status } = input;
-  const now = new Date();
-
   try {
-    await db.transaction(async tx => {
-      if (source === "canonical-article") {
-        const changed = await tx
-          .update(artikel)
-          .set({
-            status,
-            publishedAt: status === "published" ? now : null,
-            updatedAt: now,
-          })
-          .where(or(eq(artikel.id, materialId), eq(artikel.slug, materialId))).returning({ id: artikel.id, courseId: artikel.mataKuliahId });
-        for (const row of changed) await recordOfflineChange(tx, { kind: "article", resourceId: row.id, courseId: row.courseId, action: status === "published" ? "upsert" : "delete" });
-      } else if (source === "canonical-diktat") {
-        const changed = await tx
-          .update(diktatMateri)
-          .set({
-            status,
-            publishedAt: status === "published" ? now : null,
-            updatedAt: now,
-          })
-          .where(eq(diktatMateri.id, materialId)).returning({ id: diktatMateri.id, courseId: diktatMateri.mataKuliahId });
-        for (const row of changed) await recordOfflineChange(tx, { kind: "diktat", resourceId: row.id, courseId: row.courseId, action: status === "published" ? "upsert" : "delete" });
-      } else if (source === "legacy-article") {
-        const changed = await tx
-          .update(websiteMaterials)
-          .set({
-            status: status === "published" ? "published" : "draft",
-          })
-          .where(eq(websiteMaterials.id, materialId)).returning({ courseId: websiteMaterials.courseId });
-        for (const row of changed) await recordOfflineChange(tx, { kind: "course", courseId: row.courseId, action: "invalidate" });
-      }
-    });
+    if (isTextDocumentSource(source)) {
+      await db.transaction(tx => writeCourseTextDocument(tx, { id: materialId, source, allowArticleSlug: true }, { action: "status", status }));
+    }
     revalidatePath("/admin/courses");
     return { success: true };
   } catch (err: any) {
@@ -1079,44 +965,12 @@ export async function updateArticleContentAction(input: {
     return { success: false, error: "Judul artikel wajib diisi" };
   }
 
-  const now = new Date();
-
   try {
-    await db.transaction(async tx => {
-      if (source === "canonical-article") {
-        const changed = await tx
-          .update(artikel)
-          .set({
-            title: cleanTitle,
-            contentMarkdown,
-            babId: babId || null,
-            updatedAt: now,
-          })
-          .where(or(eq(artikel.id, id), eq(artikel.slug, id))).returning({ id: artikel.id, courseId: artikel.mataKuliahId });
-        for (const row of changed) await recordOfflineChange(tx, { kind: "article", resourceId: row.id, courseId: row.courseId, action: "upsert" });
-      } else if (source === "canonical-diktat") {
-        const changed = await tx
-          .update(diktatMateri)
-          .set({
-            title: cleanTitle,
-            contentMarkdown,
-            babId: babId || null,
-            updatedAt: now,
-          })
-          .where(eq(diktatMateri.id, id)).returning({ id: diktatMateri.id, courseId: diktatMateri.mataKuliahId });
-        for (const row of changed) await recordOfflineChange(tx, { kind: "diktat", resourceId: row.id, courseId: row.courseId, action: "upsert" });
-      } else if (source === "legacy-article") {
-        const changed = await tx
-          .update(websiteMaterials)
-          .set({
-            title: cleanTitle,
-            canonicalMarkdown: contentMarkdown,
-            chapterId: babId || "",
-          })
-          .where(eq(websiteMaterials.id, id)).returning({ courseId: websiteMaterials.courseId });
-        for (const row of changed) await recordOfflineChange(tx, { kind: "course", courseId: row.courseId, action: "invalidate" });
-      }
-    });
+    if (isTextDocumentSource(source)) {
+      await db.transaction(tx => writeCourseTextDocument(tx, { id, source, allowArticleSlug: true }, {
+        action: "content", title: cleanTitle, markdown: contentMarkdown, chapterId: babId || null,
+      }));
+    }
     revalidatePath("/admin/courses");
     return { success: true };
   } catch (err: any) {

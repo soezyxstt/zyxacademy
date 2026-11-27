@@ -1,0 +1,48 @@
+appId: com.zyx.academy.nativeparity
+name: Student edits academic profile faculty and major
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: separator
+    timeout: 30000
+- openLink: "zyx-native-parity://student-fixture?scenario=loaded&path=/profile/edit&theme=light&locale=id"
+- extendedWaitUntil:
+    visible:
+      id: student-fixture-id-light
+    timeout: 30000
+- extendedWaitUntil:
+    visible: '^Profil akademis$'
+    timeout: 30000
+- assertVisible:
+    id: student-fixture-id-light
+- assertVisible:
+    text: '^FMIPA$'
+    selected: true
+- assertVisible:
+    text: '^Matematika$'
+    selected: true
+- assertVisible: '^2025$'
+- takeScreenshot: student-profile-edit-existing
+- tapOn: '^FITB$'
+- assertVisible:
+    id: student-fixture-id-light
+- assertVisible:
+    text: '^FITB$'
+    selected: true
+- assertVisible:
+    text: '^Teknik Geologi$'
+    selected: false
+- assertNotVisible: '^Matematika$'
+- takeScreenshot: student-profile-edit-major-reset
+- tapOn: '^Teknik Geologi$'
+- assertVisible:
+    id: student-fixture-id-light
+- assertVisible:
+    text: '^FITB$'
+    selected: true
+- assertVisible:
+    text: '^Teknik Geologi$'
+    selected: true
+- assertVisible: '^2025$'
+- takeScreenshot: student-profile-edit-revised

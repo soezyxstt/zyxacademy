@@ -5,6 +5,8 @@
  * and Apple App Site Association (`/.well-known/apple-app-site-association`).
  */
 
+import expoStagingAppLinks from "../../packages/native-session/expo-staging-app-links.json";
+
 const SHA256_FINGERPRINT_RE = /^(?:[0-9A-F]{2}:){31}[0-9A-F]{2}$/;
 const APPLE_TEAM_ID_RE = /^[A-Z0-9]{10}$/;
 const APPLE_APP_ID_RE = /^[A-Z0-9]{10}\.[A-Za-z0-9.-]+$/;
@@ -54,6 +56,10 @@ export function parseSha256Fingerprints(raw: string | undefined): string[] {
 export function buildAndroidAssetLinks(envInput: {
   stableFingerprints?: string;
   nightlyFingerprints?: string;
+  expoStagingFingerprints?: string;
+  configuredOrigin?: string;
+  requestOrigin?: string;
+  environment?: string;
 } = {}): AndroidAssetLinkStatement[] {
   const stable = parseSha256Fingerprints(
     envInput.stableFingerprints ?? process.env.ANDROID_APP_LINKS_SHA256_FINGERPRINTS,
@@ -82,6 +88,20 @@ export function buildAndroidAssetLinks(envInput: {
         sha256_cert_fingerprints: nightly,
       },
     });
+  }
+  if (envInput.configuredOrigin === expoStagingAppLinks.origin && envInput.requestOrigin === expoStagingAppLinks.origin &&
+    (envInput.environment === undefined || envInput.environment === "staging")) {
+    const expo = parseSha256Fingerprints(envInput.expoStagingFingerprints ?? process.env.ANDROID_APP_LINKS_EXPO_STAGING_SHA256_FINGERPRINTS);
+    if (expo.length > 0) {
+      statements.push({
+        relation: ["delegate_permission/common.handle_all_urls"],
+        target: {
+          namespace: "android_app",
+          package_name: expoStagingAppLinks.androidPackage,
+          sha256_cert_fingerprints: expo,
+        },
+      });
+    }
   }
   return statements;
 }

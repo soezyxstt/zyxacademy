@@ -6,6 +6,7 @@ const saves: unknown[][] = [];
 let pendingGeneration: Promise<void> | undefined;
 let answer = "Penjelasan.\n```python\nprint(2)\n```";
 let failSave = false;
+mock.module("server-only", () => ({}));
 mock.module("next/headers", () => ({ headers: async () => new Headers() }));
 mock.module("@/lib/auth", () => ({ auth: { api: { getSession: async () => ({ user: { id: "student" } }) } } }));
 mock.module("@/lib/student/course-access", () => ({ resolveCourseAccess: async () => ({ hasCourseAccess: true, tier: "paid" }) }));

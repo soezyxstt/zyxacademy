@@ -56,8 +56,10 @@ describe("student courses layout, whatsapp contact, and material access contract
     const materialDetail = source("app/(student)/courses/[id]/material/[materialId]/page.tsx");
 
     // Free PDF condition
-    expect(materialPage).toContain('material.kind === "pdf" && material.docCategory !== "diktat"');
-    expect(materialPage).toContain("locked = !hasFullContentAccess && !isFreeContent");
+    const materialReadModel = source("lib/student/course-material-list.ts");
+    expect(materialPage).toContain('import { loadCourseMaterialData } from "@/lib/student/course-material-list"');
+    expect(materialReadModel).toContain('material.kind === "pdf" && material.docCategory !== "diktat"');
+    expect(materialReadModel).toContain("locked = !hasFullContentAccess && !isFreeContent");
 
     // Token activation banner for unenrolled students
     expect(materialPage).toContain("!hasFullContentAccess");

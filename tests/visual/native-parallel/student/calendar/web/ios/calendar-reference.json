@@ -1,0 +1,125 @@
+{
+  "platform": "ios",
+  "viewport": {
+    "width": 402,
+    "height": 874
+  },
+  "deviceScaleFactor": 3,
+  "locale": "id",
+  "theme": "light",
+  "timeZone": "Asia/Jakarta",
+  "font": "Inter and Lexend from native assets",
+  "motion": "reduced",
+  "canSync": false,
+  "states": {
+    "all": {
+      "scenario": "calendar-parity",
+      "category": "all",
+      "eventIds": [
+        "quiz-parity-limits",
+        "tryout-parity-derivatives",
+        "tutorial-parity-composition"
+      ]
+    },
+    "tutorial": {
+      "scenario": "calendar-parity",
+      "category": "tutorial",
+      "eventIds": [
+        "tutorial-parity-composition"
+      ]
+    },
+    "empty-filter": {
+      "scenario": "calendar-parity-assessments",
+      "category": "tutorial",
+      "eventIds": []
+    }
+  },
+  "sourceDigests": {
+    "app/(student)/calendar/calendar-agenda-client.tsx": "018992aff022684259a065dcc62cb7eb1e1f4b3396e6377bd6b80ba0f56f424f",
+    "lib/student/agenda-presentation.ts": "de475d1d1b55447126c3bc68fabf7919f96ab152e69baa195c4831aa5388fa2c",
+    "packages/native-parity/student/community/calendar-fixture.ts": "d35a7cbec7b1110d4c2ef2953355c0d70d2e430256510bbc7e34ae5b3ce3dc02",
+    "tests/visual/fixtures/student-calendar.tsx": "de60a657abe3e4ba9df39e2bda818478f0e62fb0b4fd51de08aa007da008795b",
+    "tests/visual/native-parallel/student/calendar-reference.spec.ts": "88073e204806fb4dde8ddaf875710adb5bd8505b7a90343921e465ebca1e5295",
+    "app/globals.css": "be812b64b005159daf0c3db873b0a8571952834222d9c8906019650388becf83",
+    "components/navigation/mobile-top-navbar.tsx": "80bc1dc3904f662bff0b39ff07f108339b69ce4b68672a836b738e8db50beda6",
+    "lib/date-utils/jakarta-calendar.ts": "3bdf363d9dba6b1de876f0cd82b79002ffb40978705beaa2a422031c432b1c8f"
+  },
+  "fontDigests": {
+    "Inter-Regular": "19b2e364a739f0a493415b5185f1323f4994fcf451d24ab314cb7ff0504ccd39",
+    "Inter-Medium": "5bd11bf34ec26309bf6fa65f8d7e23c4738356f8219e643ce9f376be6dce0295",
+    "Inter-SemiBold": "bec5d982df3acdc7edbd7d99458e397285dd2d206058a1cfcdf77f55c7ac6c44",
+    "Lexend-SemiBold": "f8afa7919bba1f2b2536477e68359857d3f10e6bf8d93f21242fcc359437323f",
+    "Lexend-Bold": "231fd4c77e990af738beb90c090e7bb92a960b24e64efebf419761aa516b0fcf"
+  },
+  "browser": "154.0.8037.57",
+  "inputs": {
+    "calendar-parity": [
+      {
+        "id": "quiz-parity-limits",
+        "title": "Latihan limit fungsi",
+        "courseTitle": "Matematika I",
+        "category": "quiz",
+        "categoryLabel": "quiz",
+        "dateValue": "2030-01-01T17:30:00.000Z",
+        "timeKind": "deadline",
+        "actionUrl": "/courses/matematika-1/quiz/latihan-fungsi",
+        "status": "today"
+      },
+      {
+        "id": "tryout-parity-derivatives",
+        "title": "Simulasi turunan untuk sains dan rekayasa",
+        "courseTitle": "Matematika Lanjut",
+        "category": "tryout",
+        "categoryLabel": "tryout",
+        "dateValue": "2030-01-02T06:30:00.000Z",
+        "timeKind": "opens",
+        "actionUrl": "/courses/matematika-1/tryout/simulasi-turunan",
+        "status": "today"
+      },
+      {
+        "id": "tutorial-parity-composition",
+        "title": "",
+        "courseTitle": "Matematika I",
+        "category": "tutorial",
+        "categoryLabel": "tutorialGroup",
+        "dateValue": "2030-01-01T03:00:00.000Z",
+        "timeKind": "range",
+        "scheduledRange": "10:00 - 11:00",
+        "tutorialTopic": "Fungsi komposisi",
+        "tutorName": "Raisa Dewi",
+        "actionUrl": "/dashboard/schedule",
+        "status": "past",
+        "cancelled": true
+      }
+    ],
+    "calendar-parity-assessments": [
+      {
+        "id": "quiz-parity-limits",
+        "title": "Latihan limit fungsi",
+        "courseTitle": "Matematika I",
+        "category": "quiz",
+        "categoryLabel": "quiz",
+        "dateValue": "2030-01-01T17:30:00.000Z",
+        "timeKind": "deadline",
+        "actionUrl": "/courses/matematika-1/quiz/latihan-fungsi",
+        "status": "today"
+      },
+      {
+        "id": "tryout-parity-derivatives",
+        "title": "Simulasi turunan untuk sains dan rekayasa",
+        "courseTitle": "Matematika Lanjut",
+        "category": "tryout",
+        "categoryLabel": "tryout",
+        "dateValue": "2030-01-02T06:30:00.000Z",
+        "timeKind": "opens",
+        "actionUrl": "/courses/matematika-1/tryout/simulasi-turunan",
+        "status": "today"
+      }
+    ]
+  },
+  "captures": {
+    "calendar-all.png": "0c331522af70d8d900cab58a35d8712062ab9e6a162c6fdcd7fcae3439fd912c",
+    "calendar-tutorial.png": "67e9839a22f88ae84f793716bff924ea2400af07f97a1226f5a035b7fb10596b",
+    "calendar-empty-filter.png": "7a9ee842e0b291aa0fee15f8922db36e8489e2d71a091a9bc7f3f7e30712a573"
+  }
+}

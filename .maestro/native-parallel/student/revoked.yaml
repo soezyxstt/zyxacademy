@@ -1,0 +1,38 @@
+appId: com.zyx.academy.nativeparity
+name: Student course revoked fixture
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: separator
+    timeout: 30000
+- openLink: "zyx-native-parity://student-fixture?scenario=revoked"
+- extendedWaitUntil:
+    visible:
+      id: student-course-matematika-1
+    timeout: 30000
+- tapOn:
+    id: student-course-matematika-1
+- tapOn:
+    id: student-course-tabs-documents
+- extendedWaitUntil:
+    visible:
+      id: student-material-pengantar
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: student-documents-chapter-bab-2
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: student-documents-chapter-bab-2
+- scrollUntilVisible:
+    element:
+      id: student-material-catatan-fungsi
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: student-material-catatan-fungsi
+- assertVisible:
+    id: student-material-locked
+- takeScreenshot: student-revoked-locked

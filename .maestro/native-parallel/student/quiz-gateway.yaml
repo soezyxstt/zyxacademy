@@ -1,0 +1,113 @@
+appId: com.zyx.academy.nativeparity
+name: Student quiz gateway attempt states
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: separator
+    timeout: 30000
+- openLink: "zyx-native-parity://student-fixture?scenario=quiz-gateway-new&theme=light&locale=id&path=%2Fcourses%2Fnative-assessment-course%2Fquiz%2Fnative-quiz"
+- extendedWaitUntil:
+    visible: "Belum ada percobaan selesai."
+    timeout: 30000
+- assertVisible: "Fungsi, limit, dan turunan"
+- assertVisible: "Kalkulus dasar"
+- assertVisible: "Instruksi kuis"
+- assertVisible: "Jumlah soal"
+- assertVisible: "3"
+- assertVisible: "15 menit"
+- assertVisible: "2 dari 2"
+- assertVisible: 'Kuis ini bersifat mandiri dan dinilai secara otomatis setelah pengumpulan\.'
+- assertVisible: 'Waktu pengerjaan dimulai saat Anda memulai kuis\.'
+- assertVisible: 'Draf jawaban tersimpan otomatis di perangkat ini\.'
+- assertVisible: 'Jika aplikasi ditutup, Anda dapat melanjutkan kuis selama batas waktu belum habis\.'
+- assertVisible: "Batal"
+- assertVisible: "Riwayat percobaan"
+# The enabled control must expose its own label after the draft lookup clears loading.
+- assertVisible:
+    id: student-assessment-start
+    text: "Mulai kuis"
+    enabled: true
+- assertNotVisible:
+    id: student-assessment-resume
+- takeScreenshot: student-quiz-gateway-new
+- tapOn:
+    id: student-assessment-start
+- extendedWaitUntil:
+    visible:
+      id: student-assessment-option-0
+    timeout: 30000
+
+- openLink: "zyx-native-parity://student-fixture?scenario=quiz-gateway-resumable&theme=light&locale=id&path=%2Fcourses%2Fnative-assessment-course%2Fquiz%2Fnative-quiz"
+- extendedWaitUntil:
+    visible:
+      id: student-assessment-resume
+    timeout: 30000
+- assertVisible: "Fungsi, limit, dan turunan"
+- assertVisible: "Kalkulus dasar"
+- assertVisible: "Instruksi kuis"
+- assertVisible: "Jumlah soal"
+- assertVisible: "3"
+- assertVisible: "15 menit"
+- assertVisible: "1 dari 2"
+- assertVisible: "Batal"
+- assertVisible: "Riwayat percobaan"
+- assertVisible: "Percobaan #1"
+- assertVisible: "80%"
+- assertVisible: "5 Okt 2026"
+- assertVisible: "Durasi: 5 menit 1 detik"
+- assertVisible:
+    id: student-assessment-review-native-completed-attempt
+- assertVisible:
+    id: student-assessment-resume
+    text: "Lanjutkan"
+    enabled: true
+- assertNotVisible:
+    id: student-assessment-start
+- takeScreenshot: student-quiz-gateway-resumable
+- tapOn:
+    id: student-assessment-resume
+- extendedWaitUntil:
+    visible:
+      id: student-assessment-option-0
+    timeout: 30000
+
+- openLink: "zyx-native-parity://student-fixture?scenario=quiz-gateway-exhausted&theme=light&locale=id&path=%2Fcourses%2Fnative-assessment-course%2Fquiz%2Fnative-quiz"
+- extendedWaitUntil:
+    visible: 'Batas percobaan maksimal telah tercapai\. Anda tidak dapat memulai kuis ini lagi\.'
+    timeout: 30000
+- assertVisible: "Fungsi, limit, dan turunan"
+- assertVisible: "Kalkulus dasar"
+- assertVisible: "Instruksi kuis"
+- assertVisible: "Jumlah soal"
+- assertVisible: "3"
+- assertVisible: "15 menit"
+- assertVisible: "0 dari 1"
+- assertVisible: "Batal"
+- assertVisible: "Riwayat percobaan"
+- assertVisible: "Percobaan #1"
+- assertVisible: "80%"
+- assertVisible: "5 Okt 2026"
+- assertVisible: "Durasi: 5 menit 1 detik"
+- assertVisible:
+    id: student-assessment-review-native-completed-attempt
+- assertNotVisible:
+    id: student-assessment-start
+- assertNotVisible:
+    id: student-assessment-resume
+- takeScreenshot: student-quiz-gateway-exhausted
+- tapOn:
+    id: student-assessment-review-native-completed-attempt
+- extendedWaitUntil:
+    visible: "Dikumpulkan pada"
+    timeout: 30000
+- assertVisible: "Pembahasan belum tersedia"
+- openLink: "zyx-native-parity://student-fixture?scenario=quiz-gateway-new&theme=light&locale=id&path=%2Fcourses%2Fnative-assessment-course%2Fquiz%2Fnative-quiz"
+- extendedWaitUntil:
+    visible: "Batal"
+    timeout: 30000
+- tapOn: "Batal"
+- extendedWaitUntil:
+    visible:
+      id: student-assessment-native-quiz
+    timeout: 30000

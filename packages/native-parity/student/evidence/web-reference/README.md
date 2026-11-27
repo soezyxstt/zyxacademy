@@ -1,0 +1,7 @@
+# Referensi web katalog lokal
+
+Enam PNG ini diambil pada 26 November 2026 dengan `capture-catalog.ts` dari fixture development `app/visual-fixtures/course-catalog`. Fixture memakai komponen katalog web dan lima rekaman sintetis. Waktu halaman dibekukan pada `2030-01-02T00:00:00Z`; locale `en-GB`, tema gelap, reduced motion, dan service worker diblokir. Untuk setiap gambar, test menunggu fixture terhidrasi, kemudian memeriksa tab terpilih, query URL, dan isi yang sesuai. Kasus adalah `all`, `tpb`, dan `pka`.
+
+Chromium 154.0.8037.57 di Debian 13, Bun 1.3.14, Next.js dev dengan webpack. Folder `android` adalah viewport browser 380 × 820 DPR 1; folder `ios` adalah viewport browser 402 × 874 DPR 3 dan gambar 1206 × 2622. Nama folder hanya menunjukkan ukuran referensi yang dituju, bukan platform browser atau capture perangkat. Layout web mengonfigurasi font Next `Inter` dan `Lexend`; pemuatan font aktual belum diverifikasi terpisah pada run ini.
+
+Script dan fixture kemudian dikomit sebagai `97718676`. Checkout memiliki perubahan lain yang berlangsung selama run, sehingga gambar ini tidak membuktikan keseluruhan tree pada commit itu. SHA-256 berkas script saat run: `0cd450eb9340ddde30cc11edb6972f94f8a5096fdec2c4b787224ac8374b976f`; SHA-256 fixture: `47ed2f9850aa70f5d79f97837d8cf91416766c2a22cf468e9a28778d044f9d04`. Belum ada bukti perbandingan dengan capture native untuk keenam gambar ini.

@@ -8,7 +8,7 @@ import runpy
 import unittest
 from unittest.mock import patch
 
-from sync_vercel_staging import ENVIRONMENT, PROJECT, TEAM, staging_env
+from sync_vercel_staging import ENVIRONMENT, EXPO_LINKS_FINGERPRINTS, PROJECT, TEAM, staging_env
 from test_prepare_worker_runtime import fixture
 
 
@@ -54,6 +54,10 @@ class VercelStagingTest(unittest.TestCase):
         result = {item["key"]: item for item in staging_env(source, {})}
         self.assertEqual(result["ANDROID_APP_LINKS_NIGHTLY_SHA256_FINGERPRINTS"]["value"], fingerprint)
         self.assertNotIn("ANDROID_APP_LINKS_SHA256_FINGERPRINTS", result)
+        self.assertNotIn(EXPO_LINKS_FINGERPRINTS, result)
+        result = {item["key"]: item for item in staging_env(source, {EXPO_LINKS_FINGERPRINTS: fingerprint})}
+        self.assertEqual(result[EXPO_LINKS_FINGERPRINTS]["value"], fingerprint)
+        self.assertEqual(result[EXPO_LINKS_FINGERPRINTS]["customEnvironmentIds"], [ENVIRONMENT])
 
     def test_production_configuration_is_rejected(self):
         with self.assertRaises(ValueError):

@@ -5,6 +5,7 @@ import { runInNewContext } from "node:vm";
 import * as fileTypes from "@/lib/forms/file-types";
 import * as presentation from "@/lib/forms/presentation";
 import * as responsePolicy from "@/lib/forms/response-policy";
+import { formResponseAttachmentFolder } from "@/lib/forms/response-attachment-key";
 import * as storageUtils from "@/lib/forms/storage-utils";
 
 const origin = "https://zyx.example";
@@ -56,6 +57,7 @@ function fixture() {
     "@/db/schema": { customForms, customFormResponses: {} },
     "@/lib/auth": { auth: { api: { getSession: async () => current.user ? { user: current.user } : null } } },
     "@/lib/auth/authorization": { hasPeran: async (_id: string, role: string) => role === "admin" && current.isAdmin },
+    "@/lib/forms/short-entry": { findShortFormEntry: async () => null, findFullFormEntry: async () => form },
     "@/lib/forms/file-types": fileTypes,
     "@/lib/forms/presentation": presentation,
     "@/lib/forms/response-policy": responsePolicy,
@@ -74,7 +76,7 @@ function fixture() {
     } };
     const source = readFileSync(path, "utf8");
     runInNewContext(transformSync(source, { loader: "ts", format: "cjs" }).code, {
-      module, exports: module.exports, require: (name: string) => modules[name] ?? require(name), File, crypto, console,
+      module, exports: module.exports, require: (name: string) => modules[name] ?? require(name), File, crypto, console, URL,
     });
     return module.exports.POST;
   }
@@ -168,7 +170,7 @@ test("public upload requires an open form and validates the stored question and 
   expect(response.status).toBe(200);
   expect(uploads).toHaveLength(2);
   expect(uploads[1].mime).toBe("application/pdf");
-  expect(uploads[1].key).toMatch(/^forms\/tim-akademik\/question-2\//);
+  expect(uploads[1].key).toMatch(new RegExp(`^forms/${formResponseAttachmentFolder(form.id)}/question-2/`));
   expect((await response.json()).url).toBe(`/api/storage/file/${uploads[1].key}`);
 });
 

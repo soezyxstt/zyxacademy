@@ -219,6 +219,8 @@ export async function listAdminCourseMaterials(
         tabGroup: "materi" as const,
         fileSize: "Artikel Web",
         body: item.canonicalMarkdown,
+        source: "legacy-article" as const,
+        status: (item.status === "published" ? "published" : "draft") as "draft" | "published",
         completed: false,
         isPastYear: false,
         isPreview: true,
@@ -270,7 +272,7 @@ export async function getAdminCourseMaterialPreview(
         status: artikel.status,
       })
       .from(artikel)
-      .where(or(eq(artikel.id, structured.id), eq(artikel.slug, structured.slug)))
+      .where(and(eq(artikel.id, structured.id), eq(artikel.mataKuliahId, canonicalCourseId)))
       .limit(1);
 
     const cleanMarkdown = artRecord?.contentMarkdown
@@ -326,7 +328,7 @@ export async function getAdminCourseMaterialPreview(
     })
     .from(artikel)
     .leftJoin(bab, eq(artikel.babId, bab.id))
-    .where(or(eq(artikel.id, materialId), eq(artikel.slug, materialId)))
+    .where(and(eq(artikel.mataKuliahId, canonicalCourseId), or(eq(artikel.id, materialId), eq(artikel.slug, materialId))))
     .limit(1);
 
   if (directArticle) {
@@ -362,7 +364,7 @@ export async function getAdminCourseMaterialPreview(
     })
     .from(diktatMateri)
     .leftJoin(bab, eq(diktatMateri.babId, bab.id))
-    .where(eq(diktatMateri.id, materialId))
+    .where(and(eq(diktatMateri.id, materialId), eq(diktatMateri.mataKuliahId, canonicalCourseId)))
     .limit(1);
 
   if (directDiktat) {

@@ -50,3 +50,10 @@ export function assertCompleteQuestionProvenance(input: ProvenanceInput): Questi
 export function questionProvenanceSnapshot(input: ProvenanceInput): QuestionProvenance {
   return assertCompleteQuestionProvenance(input);
 }
+
+export function formatQuestionSourceCitation(origin: unknown, sourceEventName: unknown, locale: "id" | "en" = "id") {
+  const label = nonEmptyString(sourceEventName);
+  if (!label || (origin !== "itb_example" && origin !== "historical_reference")) return null;
+  if (origin === "historical_reference") return (locale === "en" ? "Reference: " : "Referensi: ") + label;
+  return (locale === "en" ? "Source: " : "Sumber: ") + label;
+}

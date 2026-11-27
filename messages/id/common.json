@@ -41,6 +41,10 @@
     "dismiss": "Tutup"
   },
   "accounts": {
+    "alreadySaved": "Akun Google ini sudah ada di perangkat. Pilih akun lain.",
+    "googleAccountUnavailable": "Akun Google yang dipilih belum dapat diverifikasi. Pilih kembali akun tersebut.",
+    "addExpired": "Sesi awal telah berakhir. Coba tambahkan akun lagi.",
+    "numbered": "Akun {count}",
     "menu": "Akun dan pengaturan",
     "saved": "Akun tersimpan",
     "active": "Akun aktif",

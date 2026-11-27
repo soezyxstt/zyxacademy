@@ -1,0 +1,111 @@
+{
+  "sourceCommit": "487771ae0b5be95e9f018f5d76f33bfca3658094",
+  "source": "signed-local-synthetic-student-api",
+  "locale": "id",
+  "member": {
+    "pka-home": {
+      "state": "ready",
+      "courseTitle": "Tutorial PKA Referensi",
+      "view": "pka-home",
+      "testDate": "2026-07-22T17:00:00.000Z",
+      "nextSession": {
+        "id": "learning-evidence-pka-canonical-next",
+        "title": "Diskusi limit PKA",
+        "sessionAt": "2030-07-21T08:00:00.000Z",
+        "meetLink": "https://meet.google.com/abc-defg-hij",
+        "isPast": false
+      },
+      "announcements": [
+        {
+          "id": "learning-evidence-pka-canonical-announcement",
+          "title": "Persiapan sesi Matematika",
+          "body": "Baca materi limit sebelum membuka simulasi.",
+          "createdAt": "2026-07-01T07:00:00.000Z",
+          "isPinned": true
+        }
+      ],
+      "simulationCount": 9,
+      "completedCount": 1,
+      "bestScore": 85
+    },
+    "pka-schedule": {
+      "state": "ready",
+      "courseTitle": "Tutorial PKA Referensi",
+      "view": "pka-schedule",
+      "schedules": [
+        {
+          "id": "learning-evidence-pka-canonical-past",
+          "title": "Pengantar sesi tutorial",
+          "sessionAt": "2026-07-01T07:00:00.000Z",
+          "meetLink": null,
+          "isPast": true
+        },
+        {
+          "id": "learning-evidence-pka-canonical-next",
+          "title": "Diskusi limit PKA",
+          "sessionAt": "2030-07-21T08:00:00.000Z",
+          "meetLink": "https://meet.google.com/abc-defg-hij",
+          "isPast": false
+        }
+      ]
+    },
+    "pka-report": {
+      "state": "ready",
+      "courseTitle": "Tutorial PKA Referensi",
+      "view": "pka-report",
+      "results": [
+        {
+          "subject": "matematika",
+          "attempted": false,
+          "passedAtStage": null,
+          "bestScore": null,
+          "status": "not_attempted",
+          "message": "Belum mencoba simulasi Matematika."
+        },
+        {
+          "subject": "fisika",
+          "attempted": true,
+          "passedAtStage": 1,
+          "bestScore": 85,
+          "status": "solid",
+          "message": "Lolos di Stage 1 - kesiapan Fisika kamu terlihat solid pada simulasi ini."
+        },
+        {
+          "subject": "kimia",
+          "attempted": false,
+          "passedAtStage": null,
+          "bestScore": null,
+          "status": "not_attempted",
+          "message": "Belum mencoba simulasi Kimia."
+        }
+      ]
+    },
+    "pka-registration": {
+      "view": "pka-registration",
+      "state": "redirect",
+      "path": "/courses/tutorial-pka"
+    }
+  },
+  "visitor": {
+    "pka-home": {
+      "view": "pka-home",
+      "state": "redirect",
+      "path": "/courses/tutorial-pka/daftar"
+    },
+    "pka-schedule": {
+      "view": "pka-schedule",
+      "state": "redirect",
+      "path": "/courses/tutorial-pka/daftar"
+    },
+    "pka-report": {
+      "view": "pka-report",
+      "state": "redirect",
+      "path": "/courses/tutorial-pka/daftar"
+    },
+    "pka-registration": {
+      "view": "pka-registration",
+      "state": "ready",
+      "courseTitle": "Tutorial PKA Referensi"
+    }
+  }
+}

@@ -16,101 +16,26 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { DISCUSSION_COUNTS_CHANGED } from "@/components/discussions/discussion-count-badge";
 import { ZYX_LIFECYCLE_REFRESH_EVENT } from "@/lib/native/lifecycle-refresh";
 import { useRouter } from "next/navigation";
-import {
-  Bell,
-  CheckCheck,
-  Brain,
-  Calendar,
-  CreditCard,
-  Megaphone,
-  BellRing,
-  ClipboardList,
-  Inbox,
-  MessagesSquare,
-  GraduationCap,
-  TrendingUp,
-  BookOpen,
-  CalendarClock,
-  ShieldAlert,
-} from "lucide-react";
+import { Bell } from "lucide-react";
 import { StudentAccountBoundary, type StudentAccountState } from "@/components/student-account-boundary";
 import { useStudentExperience } from "@/components/student-experience-provider";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { NotificationRuntimeForAccount, ZYX_NOTIFICATIONS_CHANGED } from "./notification-runtime";
-import { cn } from "@/lib/utils";
 import { useTranslations, useAppLocale } from "@/lib/i18n/client";
 import { getDefaultHomeLinkForRole } from "@/lib/notifications/catalog";
 
+import { NotificationInboxPanel, notificationInboxPanelSurface, type NotificationInboxRow } from "./notification-inbox-panel";
+
 export { ZYX_NOTIFICATIONS_CHANGED } from "./notification-runtime";
 
-interface NotificationRow {
-  id: string;
-  title: string;
-  body: string;
-  type: string;
-  read: boolean;
-  metadata: Record<string, unknown>;
-  createdAt: string;
-}
-
 interface HistoryResponse {
-  notifications: NotificationRow[];
+  notifications: NotificationInboxRow[];
   unreadCount: number;
   page: number;
   limit: number;
 }
 
-// ─── Type icon mapping ────────────────────────────────────────────────────────
-
-const TYPE_ICONS: Record<string, typeof Bell> = {
-  quiz_published: ClipboardList,
-  quiz_graded: GraduationCap,
-  flashcard_reminder: Brain,
-  tutor_reminder: Calendar,
-  tutor_booking: CalendarClock,
-  tutor_digest: ClipboardList,
-  payment_success: CreditCard,
-  weekly_progress: TrendingUp,
-  study_reengagement: BookOpen,
-  admin_broadcast: Megaphone,
-  admin_alert: ShieldAlert,
-  announcement: BellRing,
-  discussion: MessagesSquare,
-};
-
-const TYPE_COLORS: Record<string, string> = {
-  quiz_published: "text-brand-primary",
-  quiz_graded: "text-status-success",
-  flashcard_reminder: "text-tertiary-2",
-  tutor_reminder: "text-tertiary-3",
-  tutor_booking: "text-brand-primary",
-  tutor_digest: "text-brand-secondary",
-  payment_success: "text-status-success",
-  weekly_progress: "text-status-success",
-  study_reengagement: "text-brand-primary",
-  admin_broadcast: "text-brand-secondary",
-  admin_alert: "text-status-error",
-  announcement: "text-status-warning",
-  discussion: "text-brand-primary",
-};
-
-// ─── Relative time helper ─────────────────────────────────────────────────────
-
-function formatRelative(value: string, locale: "id" | "en", t: ReturnType<typeof useTranslations>): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const diff = Date.now() - date.getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return t("relative.justNow");
-  if (mins < 60) return t("relative.minutes", { count: mins });
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return t("relative.hours", { count: hours });
-  const days = Math.floor(hours / 24);
-  if (days < 7) return t("relative.days", { count: days });
-  return date.toLocaleDateString(locale === "en" ? "en-US" : "id-ID", { day: "numeric", month: "short" });
-}
-
-function resolveLink(row: NotificationRow, fallbackUrl: string): string {
+function resolveLink(row: NotificationInboxRow, fallbackUrl: string): string {
   const url = row.metadata?.url;
   return typeof url === "string" && url ? url : fallbackUrl;
 }
@@ -137,7 +62,7 @@ function NotificationBellContent({ variant = "sidebar", account }: NotificationB
   const router = useRouter();
 
   const [open, setOpen] = useState(false);
-  const [rows, setRows] = useState<NotificationRow[]>([]);
+  const [rows, setRows] = useState<NotificationInboxRow[]>([]);
   const [unread, setUnread] = useState(0);
   const [loading, setLoading] = useState(false);
   const identity = session?.user?.id;
@@ -232,7 +157,7 @@ function NotificationBellContent({ variant = "sidebar", account }: NotificationB
     }
   };
 
-  const handleClickRow = async (row: NotificationRow) => {
+  const handleClickRow = async (row: NotificationInboxRow) => {
     if (!row.read) {
       void markRead({ ids: [row.id] });
       setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, read: true } : r)));
@@ -268,87 +193,26 @@ function NotificationBellContent({ variant = "sidebar", account }: NotificationB
           ) : null}
         </button>
       </PopoverTrigger>
-      <PopoverContent align="end" sideOffset={8} className="w-[min(22rem,calc(100vw-2rem))] p-0">
-        <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
-          <h3 className="font-heading text-body-base font-semibold text-foreground">{t("title")}</h3>
-          {unread > 0 ? (
-            <button
-              type="button"
-              onClick={handleMarkAllRead}
-              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-body-xs font-medium text-brand-primary transition-colors hover:bg-brand-primary/10 cursor-pointer"
-            >
-              <CheckCheck className="size-3.5" aria-hidden />
-              {t("markAllRead")}
-            </button>
-          ) : null}
-        </div>
-
-        {loading ? (
-          <div className="space-y-2 p-4">
-            <div className="h-12 rounded-lg bg-muted animate-pulse" />
-            <div className="h-12 rounded-lg bg-muted animate-pulse" />
-            <div className="h-12 rounded-lg bg-muted animate-pulse" />
-          </div>
-        ) : rows.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
-            <span className="flex size-10 items-center justify-center rounded-full bg-muted">
-              <Inbox className="size-5 text-muted-foreground" aria-hidden />
-            </span>
-            <p className="text-body-sm text-muted-foreground">{t("empty")}</p>
-          </div>
-        ) : (
-          <ul className="max-h-[24rem] divide-y divide-border/60 zebra-no-rows overflow-y-auto">
-            {rows.map((row) => {
-              const TypeIcon = TYPE_ICONS[row.type] ?? Bell;
-              const iconColor = TYPE_COLORS[row.type] ?? "text-muted-foreground";
-              return (
-                <li key={row.id} className="p-0">
-                  <button
-                    type="button"
-                    onClick={() => void handleClickRow(row)}
-                    className={cn(
-                      "flex w-full items-start gap-3 px-4 py-3 text-left transition-colors cursor-pointer",
-                      row.read ? "hover:bg-muted/40" : "bg-muted/30 hover:bg-muted/60",
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg",
-                        row.read ? "bg-muted/60" : "bg-brand-primary/10",
-                        iconColor,
-                      )}
-                    >
-                      <TypeIcon className="size-4 shrink-0" aria-hidden />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-start justify-between gap-2">
-                        <span
-                          className={cn(
-                            "min-w-0 flex-1 line-clamp-2 break-words text-body-sm font-medium",
-                            row.read ? "text-muted-foreground" : "text-foreground",
-                          )}
-                        >
-                          {row.title}
-                        </span>
-                        <span className="shrink-0 text-[10px] text-muted-foreground">
-                          {formatRelative(row.createdAt, locale, t)}
-                        </span>
-                      </span>
-                      {row.body ? (
-                        <span className="mt-0.5 line-clamp-2 break-words text-body-xs text-muted-foreground">
-                          {row.body}
-                        </span>
-                      ) : null}
-                    </span>
-                    {!row.read ? (
-                      <span className="mt-2 size-2 shrink-0 rounded-full bg-brand-primary" aria-hidden />
-                    ) : null}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+      <PopoverContent aria-label={t("title")} align="end" sideOffset={8}
+        className={`${notificationInboxPanelSurface} w-[min(22rem,calc(100vw-2rem))] overflow-hidden p-0`}>
+        <NotificationInboxPanel
+          locale={locale}
+          copy={{
+            title: t("title"),
+            markAllRead: t("markAllRead"),
+            close: t("close"),
+            unread: t("unread"),
+            loading: t("loading"),
+            empty: t("empty"),
+            relative: (unit, count) => t(`relative.${unit}`, { count }),
+          }}
+          unread={unread}
+          rows={rows}
+          loading={loading}
+          onMarkAllRead={handleMarkAllRead}
+          onSelect={row => void handleClickRow(row)}
+          onClose={() => setOpen(false)}
+        />
       </PopoverContent>
     </Popover>
   );

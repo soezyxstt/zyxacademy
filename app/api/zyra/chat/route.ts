@@ -1,6 +1,7 @@
 import { zyraLiveProgress, zyraLiveTextStream } from "@/lib/zyra/live-progress";
 import { JsonFieldStreamExtractor } from "@/lib/zyra/json-field-stream";
 import { followupEvent, parseFollowupAnswer } from "@/lib/zyra/followups";
+import { nativeArticleCodingHeader } from "@/lib/coding/native-article-contract";
 import { codingHelpRequestSchema } from "@/lib/coding/http-contracts";
 import { after } from "next/server";
 import { headers } from "next/headers";
@@ -12,6 +13,7 @@ import { FREE_ALLOWANCE_IDEMPOTENCY_PREFIX } from "@/lib/usage-budget-service";
 import { sanitizeAnswer } from "@/lib/tutor/answer-sanitizer";
 import { pythonHistoryReply } from "@/lib/coding/python-reply";
 import { generateZyraSessionTitle } from "@/lib/zyra/title-ai";
+import { requireNativeStudent } from "@/app/api/native/student/_session";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -87,6 +89,7 @@ export async function POST(req: Request) {
       attachmentIds = [],
       pathname,
       requestId,
+      persistHistory,
       selectionContext = null,
       codingContext = null,
       responseLanguage,
@@ -102,6 +105,28 @@ export async function POST(req: Request) {
     requestLanguage = normalizedResponseLanguage ?? "id";
     const normalizedSessionId = typeof sessionId === "string" ? sessionId : null;
     const normalizedPathname = typeof pathname === "string" ? pathname : null;
+    const nativeHistory = persistHistory === true;
+    if (nativeHistory) {
+      const actor = await requireNativeStudent(req);
+      if (actor instanceof Response) return actor;
+      if (actor.userId !== userId) return Response.json({ code: "ACCOUNT_CHANGED" }, { status: 409 });
+      if (typeof requestId !== "string" || !/^[A-Za-z0-9._:-]{1,96}$/.test(requestId) || normalizedQuestion.length > 4_000) {
+        return Response.json({ code: "INVALID_ZYRA_TURN" }, { status: 400 });
+      }
+    }
+    if (req.headers.has(nativeArticleCodingHeader)) {
+      if (!nativeHistory || !coding?.success || coding.data.kind !== "exercise" || coding.data.surface.kind !== "article") {
+        return Response.json({ code: "INVALID_ZYRA_TURN" }, { status: 400 });
+      }
+      const { requireCodingAccess, codingErrorResponse } = await import("@/lib/coding/server-access");
+      const { requireNativeArticleCoding, assertNativeArticleProblem } = await import("@/lib/coding/native-article-access");
+      try {
+        const actor = await requireCodingAccess(req, normalizedCourseId, true);
+        if (actor.userId !== userId) return Response.json({ code: "ACCOUNT_CHANGED" }, { status: 409 });
+        const article = await requireNativeArticleCoding(req, actor.userId, normalizedCourseId);
+        assertNativeArticleProblem(article, coding.data.problem, coding.data.surface);
+      } catch (error) { return codingErrorResponse(error); }
+    }
     const sanitizedSelectionContext = selectionContext && typeof selectionContext === "object"
       ? {
           snippet: typeof selectionContext.snippet === "string" ? selectionContext.snippet.trim().slice(0, 1200) : undefined,
@@ -282,8 +307,8 @@ export async function POST(req: Request) {
             });
           }
 
-          if (coding?.success && res.sessionId && res.answer && !res.failureCode && !res.budgetExhausted && !req.signal.aborted) {
-            const historyAnswer = coding.data.kind === "playground" && coding.data.intent === "generate"
+          if ((coding?.success || nativeHistory) && res.sessionId && res.answer && !res.failureCode && !res.budgetExhausted && !req.signal.aborted) {
+            const historyAnswer = coding?.success && coding.data.kind === "playground" && coding.data.intent === "generate"
               ? pythonHistoryReply(fullAnswer, res.responseLanguage)
               : fullAnswer;
             try {
@@ -297,6 +322,8 @@ export async function POST(req: Request) {
                 ? "This answer could not be saved. Copy anything you need before closing this conversation."
                 : "Jawaban ini belum tersimpan. Salin bagian yang diperlukan sebelum menutup percakapan." });
             }
+          } else if (nativeHistory && !req.signal.aborted) {
+            sendEvent({ type: "data-history", saved: false });
           }
 
           if (res.sessionId && normalizedQuestion && !res.failureCode && !res.budgetExhausted && !req.signal.aborted) {

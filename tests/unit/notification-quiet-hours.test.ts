@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { quietHoursEnd, quietHoursSchema, notificationMatchesVisibleDiscussion } from "@/lib/notifications/quiet-hours";
 import { describeDeviceSession } from "@/lib/auth/device-session-label";
+import { parseQuietHours } from "@/packages/student-community/quiet-hours";
 
 const preferences = { enabled: true, startMinute: 22*60, endMinute: 7*60, timeZone: "Asia/Jakarta" };
 test("overnight quiet hours end at 07:00 WIB, with exclusive end", () => {
@@ -15,6 +16,13 @@ test("same-day quiet window and invalid settings", () => {
 });
 test("quiet hours use the selected time zone at a DST transition", () => {
  expect(quietHoursEnd({enabled:true,startMinute:60,endMinute:180,timeZone:"America/New_York"},new Date("2026-03-08T06:30:00Z"))?.toISOString()).toBe("2026-03-08T07:00:00.000Z");
+});
+test("the dependency-free parser validates the native form and API payload", () => {
+ expect(parseQuietHours(preferences)).toEqual(quietHoursSchema.parse(preferences));
+ expect(parseQuietHours({ ...preferences, startMinute: -1 })).toBeNull();
+ expect(parseQuietHours({ ...preferences, endMinute: preferences.startMinute })).toBeNull();
+ expect(parseQuietHours({ ...preferences, timeZone: "invalid" })).toBeNull();
+ expect(parseQuietHours(null)).toBeNull();
 });
 test("suppress matching visible discussions across student, tutor, admin and course routes", () => {
  const routes = ["/discussions", "/dashboard/discussions", "/admin/discussions", "/tutor/discussions", "/courses/course-123/discussions", "/tutor/course-123/discussions"];

@@ -1,0 +1,1242 @@
+[
+  {
+    "flow": "Operations Admin home to Web Analytics and access denial",
+    "batchReport": "reports/00-journeys.xml",
+    "trace": "admin-analytics/commands.json",
+    "source": "results/00-journeys/2026-11-26_121320/Operations Admin home to Web Analytics and access denial/commands.json",
+    "sha256": "173e0df32c6b9d7741320787c9ea584c9814aa13c993a8a8097406428109300f",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "Operations question Idea weights and draft revision",
+    "batchReport": "reports/00-journeys.xml",
+    "trace": "evaluation-ideas/commands.json",
+    "source": "results/00-journeys/2026-11-26_121320/Operations question Idea weights and draft revision/commands.json",
+    "sha256": "cd8fb17906d8c2b52ee377be490a4e7b96edf4cda8218da0d17f79bae631a2c9",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "Operations evaluation question and generation recovery",
+    "batchReport": "reports/00-journeys.xml",
+    "trace": "evaluation/commands.json",
+    "source": "results/00-journeys/2026-11-26_121320/Operations evaluation question and generation recovery/commands.json",
+    "sha256": "d4d4ac61614e99c44fd679d535474aea1bd06ff0f14214829fe8dfd5b9d1ef72",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "Operations admin authoring, recovery and confirmation",
+    "batchReport": "reports/00-journeys.xml",
+    "trace": "management/commands.json",
+    "source": "results/00-journeys/2026-11-26_121320/Operations admin authoring, recovery and confirmation/commands.json",
+    "sha256": "c4660c6a1947653033ca5bc0471017c1267f97e8c6aa91ba7078257a047c1a3b",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "Operations short link copy and QR",
+    "batchReport": "reports/00-journeys.xml",
+    "trace": "monitoring-short-links/commands.json",
+    "source": "results/00-journeys/2026-11-26_121320/Operations short link copy and QR/commands.json",
+    "sha256": "5cb19c6406d883f74af66bd9301e44519561b44520d3c23d2bf68e3f2e1f2cc8",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "Operations public blog list, detail, Back and retry",
+    "batchReport": "reports/00-journeys.xml",
+    "trace": "public-blog/commands.json",
+    "source": "results/00-journeys/2026-11-26_121320/Operations public blog list, detail, Back and retry/commands.json",
+    "sha256": "c026888c4e04159db7507838b6442194132f292c9c930486efeb08458abd502e",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "Operations public demo completion, study planning and tryout list",
+    "batchReport": "reports/00-journeys.xml",
+    "trace": "public-demo-learning/commands.json",
+    "source": "results/00-journeys/2026-11-26_121320/Operations public demo completion, study planning and tryout list/commands.json",
+    "sha256": "3460d7dad1e7e24cf583c22b5f79e37fe349150454add3ac1db1d00118bb5a4d",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "Operations public homepage learning interactions",
+    "batchReport": "reports/00-journeys.xml",
+    "trace": "public-landing-learning/commands.json",
+    "source": "results/00-journeys/2026-11-26_121320/Operations public homepage learning interactions/commands.json",
+    "sha256": "0a1a1fd91cccd48d675249b5e436f03d49f102badb62e206de9441b7663b5a3e",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-evaluation-assessment-detail-alternate",
+    "batchReport": "reports/01-cases.xml",
+    "trace": "operations-evaluation-assessment-detail-alternate/commands.json",
+    "source": "results/01-cases/2026-11-26_121715/operations-evaluation-assessment-detail-alternate/commands.json",
+    "sha256": "94aaf3de129a3caffb1a3e2874e373622f716d0c4beb157e9764599bb9c8ef0c",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-evaluation-assessment-detail-populated",
+    "batchReport": "reports/01-cases.xml",
+    "trace": "operations-evaluation-assessment-detail-populated/commands.json",
+    "source": "results/01-cases/2026-11-26_121715/operations-evaluation-assessment-detail-populated/commands.json",
+    "sha256": "31237983b7b5523534f89750b2ddb5525d188eddf40a2e644c674c3d4afb9a0d",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-evaluation-assessment-detail-recovery",
+    "batchReport": "reports/01-cases.xml",
+    "trace": "operations-evaluation-assessment-detail-recovery/commands.json",
+    "source": "results/01-cases/2026-11-26_121715/operations-evaluation-assessment-detail-recovery/commands.json",
+    "sha256": "238ac3946c744b10e86924a4aba78dee43ed2b4057b2033c414b971c4654a4fa",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-evaluation-assessments-alternate",
+    "batchReport": "reports/01-cases.xml",
+    "trace": "operations-evaluation-assessments-alternate/commands.json",
+    "source": "results/01-cases/2026-11-26_121715/operations-evaluation-assessments-alternate/commands.json",
+    "sha256": "7c2fdb2ffaf498836eaa2084d7fa9c08dbdbd3241fb7898f0c761bec1ab8ec92",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-evaluation-assessments-populated",
+    "batchReport": "reports/01-cases.xml",
+    "trace": "operations-evaluation-assessments-populated/commands.json",
+    "source": "results/01-cases/2026-11-26_121715/operations-evaluation-assessments-populated/commands.json",
+    "sha256": "d2fbcea39e130fe6cae5321abc95a5a19837b1d7216477861ac3c26c2f42baf0",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-evaluation-assessments-recovery",
+    "batchReport": "reports/01-cases.xml",
+    "trace": "operations-evaluation-assessments-recovery/commands.json",
+    "source": "results/01-cases/2026-11-26_121715/operations-evaluation-assessments-recovery/commands.json",
+    "sha256": "a2bfdeac111f2d1685dd990de85962b022e435d4d8617dec5ba88e6f456f446b",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-evaluation-ast-inspector-alternate",
+    "batchReport": "reports/01-cases.xml",
+    "trace": "operations-evaluation-ast-inspector-alternate/commands.json",
+    "source": "results/01-cases/2026-11-26_121715/operations-evaluation-ast-inspector-alternate/commands.json",
+    "sha256": "890a57ac54b4b799fb01ba866a3f221556f0f54ca3d47581d29206a42fd36bc6",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-evaluation-ast-inspector-populated",
+    "batchReport": "reports/01-cases.xml",
+    "trace": "operations-evaluation-ast-inspector-populated/commands.json",
+    "source": "results/01-cases/2026-11-26_121715/operations-evaluation-ast-inspector-populated/commands.json",
+    "sha256": "1660fcca0e71ce3b9cb6429c937bdb401993a7edb3126cc3ab0780d30ca46b6e",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-evaluation-ast-inspector-recovery",
+    "batchReport": "reports/01-cases.xml",
+    "trace": "operations-evaluation-ast-inspector-recovery/commands.json",
+    "source": "results/01-cases/2026-11-26_121715/operations-evaluation-ast-inspector-recovery/commands.json",
+    "sha256": "823fbbc757ddd6e4c7f381c2430d1f9fda7e9eda49029e6fb026e8c64dd36ea0",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-evaluation-diktats-alternate",
+    "batchReport": "reports/01-cases.xml",
+    "trace": "operations-evaluation-diktats-alternate/commands.json",
+    "source": "results/01-cases/2026-11-26_121715/operations-evaluation-diktats-alternate/commands.json",
+    "sha256": "7e2a11fc17994fffdb0dd20944e9b205a1a49c55e41549c0d8ae1f0654b02972",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-evaluation-diktats-populated",
+    "batchReport": "reports/01-cases.xml",
+    "trace": "operations-evaluation-diktats-populated/commands.json",
+    "source": "results/01-cases/2026-11-26_121715/operations-evaluation-diktats-populated/commands.json",
+    "sha256": "25fdcedfe539518065429a1f984f7dc41485dc3588aef7bec979829553689a9e",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-evaluation-diktats-recovery",
+    "batchReport": "reports/01-cases.xml",
+    "trace": "operations-evaluation-diktats-recovery/commands.json",
+    "source": "results/01-cases/2026-11-26_121715/operations-evaluation-diktats-recovery/commands.json",
+    "sha256": "7558ab5023c99ffb5d8bf8e12d6eef08bd50ba4e51e1f320305789653b91f791",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-evaluation-distractors-alternate",
+    "batchReport": "reports/01-cases.xml",
+    "trace": "operations-evaluation-distractors-alternate/commands.json",
+    "source": "results/01-cases/2026-11-26_121715/operations-evaluation-distractors-alternate/commands.json",
+    "sha256": "7fa46cd91aa2f64f2108e9bf89c4132b2286b1441389d1ef620bb29e11957aea",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-evaluation-distractors-populated",
+    "batchReport": "reports/01-cases.xml",
+    "trace": "operations-evaluation-distractors-populated/commands.json",
+    "source": "results/01-cases/2026-11-26_121715/operations-evaluation-distractors-populated/commands.json",
+    "sha256": "f1e7f8234d621d7c8d55355756354090d6b9557c5cbb811877e53f9cfffdbf34",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-evaluation-distractors-recovery",
+    "batchReport": "reports/01-cases.xml",
+    "trace": "operations-evaluation-distractors-recovery/commands.json",
+    "source": "results/01-cases/2026-11-26_121715/operations-evaluation-distractors-recovery/commands.json",
+    "sha256": "de7b62836d712749b5bdf835ce534712844ea9b7ee9b7872e02694d3572e73c6",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-evaluation-jobs-alternate",
+    "batchReport": "reports/01-cases.xml",
+    "trace": "operations-evaluation-jobs-alternate/commands.json",
+    "source": "results/01-cases/2026-11-26_121715/operations-evaluation-jobs-alternate/commands.json",
+    "sha256": "8b4edd329308adcbc60377105e8085f8c110deadd5d61cbb0e22b5491a1cb655",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-evaluation-jobs-populated",
+    "batchReport": "reports/01-cases.xml",
+    "trace": "operations-evaluation-jobs-populated/commands.json",
+    "source": "results/01-cases/2026-11-26_121715/operations-evaluation-jobs-populated/commands.json",
+    "sha256": "cd4a4e4bc2c119a2003f8f060c10adf5c79b016529a233a1d28103fed1b515c4",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-evaluation-jobs-recovery",
+    "batchReport": "reports/01-cases.xml",
+    "trace": "operations-evaluation-jobs-recovery/commands.json",
+    "source": "results/01-cases/2026-11-26_121715/operations-evaluation-jobs-recovery/commands.json",
+    "sha256": "26179ab4931c26178ac6f7b14cbae887b6f08b95e63ca55fb09bd96d4108e3e0",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-evaluation-leaderboard-alternate",
+    "batchReport": "reports/01-cases.xml",
+    "trace": "operations-evaluation-leaderboard-alternate/commands.json",
+    "source": "results/01-cases/2026-11-26_121715/operations-evaluation-leaderboard-alternate/commands.json",
+    "sha256": "9849bf6aa0ab4704e6a4c08b5d25f11b79cdf9b86d05f541f545190ab7915d09",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-evaluation-leaderboard-populated",
+    "batchReport": "reports/01-cases.xml",
+    "trace": "operations-evaluation-leaderboard-populated/commands.json",
+    "source": "results/01-cases/2026-11-26_121715/operations-evaluation-leaderboard-populated/commands.json",
+    "sha256": "9771b482b9a0d8ef436bee6843a17d2bc611b9b40bd1e9668fee6172f266213c",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-evaluation-leaderboard-recovery",
+    "batchReport": "reports/01-cases.xml",
+    "trace": "operations-evaluation-leaderboard-recovery/commands.json",
+    "source": "results/01-cases/2026-11-26_121715/operations-evaluation-leaderboard-recovery/commands.json",
+    "sha256": "8b7874590deba256975eb006574b5cc9160495dff670c1556b1f46ada5d15b58",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-evaluation-questions-alternate",
+    "batchReport": "reports/01-cases.xml",
+    "trace": "operations-evaluation-questions-alternate/commands.json",
+    "source": "results/01-cases/2026-11-26_121715/operations-evaluation-questions-alternate/commands.json",
+    "sha256": "21f1fa6d7470ef157f06c07353e502215d5ddf96c7e0b8a55b96e40f002275eb",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-evaluation-questions-populated",
+    "batchReport": "reports/01-cases.xml",
+    "trace": "operations-evaluation-questions-populated/commands.json",
+    "source": "results/01-cases/2026-11-26_121715/operations-evaluation-questions-populated/commands.json",
+    "sha256": "f052491cd3f61443b4cd2f01513c0ed97608aaca8906e18ba9dc5b6a4973f1ec",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-evaluation-questions-recovery",
+    "batchReport": "reports/01-cases.xml",
+    "trace": "operations-evaluation-questions-recovery/commands.json",
+    "source": "results/01-cases/2026-11-26_121715/operations-evaluation-questions-recovery/commands.json",
+    "sha256": "30ee7d3a47d719b52e9abee12101af376f27a3fde39f11d6c48cf3226d536b7a",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-evaluation-quiz-edit-alternate",
+    "batchReport": "reports/01-cases.xml",
+    "trace": "operations-evaluation-quiz-edit-alternate/commands.json",
+    "source": "results/01-cases/2026-11-26_121715/operations-evaluation-quiz-edit-alternate/commands.json",
+    "sha256": "0501c7b1eeb8bd18bffbd3e74c190fafb0953a58d8331fbcacca6119cf9a58cf",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-evaluation-quiz-edit-populated",
+    "batchReport": "reports/01-cases.xml",
+    "trace": "operations-evaluation-quiz-edit-populated/commands.json",
+    "source": "results/01-cases/2026-11-26_121715/operations-evaluation-quiz-edit-populated/commands.json",
+    "sha256": "9b33a549da6f7186a063a479f1b911023bf39c5f60a083b9c362c9d1dd0edc70",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-evaluation-quiz-edit-recovery",
+    "batchReport": "reports/01-cases.xml",
+    "trace": "operations-evaluation-quiz-edit-recovery/commands.json",
+    "source": "results/01-cases/2026-11-26_121715/operations-evaluation-quiz-edit-recovery/commands.json",
+    "sha256": "f79a77e73e6e27fc9f2762f54e9b9ae97b1609b3f51490eb11abdff674f13843",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-evaluation-quiz-insight-alternate",
+    "batchReport": "reports/01-cases.xml",
+    "trace": "operations-evaluation-quiz-insight-alternate/commands.json",
+    "source": "results/01-cases/2026-11-26_121715/operations-evaluation-quiz-insight-alternate/commands.json",
+    "sha256": "7d0489f4014985ae3bda3281a3a2bd44146a501cf8a942425d2ccff40878be6f",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-evaluation-quiz-insight-populated",
+    "batchReport": "reports/01-cases.xml",
+    "trace": "operations-evaluation-quiz-insight-populated/commands.json",
+    "source": "results/01-cases/2026-11-26_121715/operations-evaluation-quiz-insight-populated/commands.json",
+    "sha256": "049cb3dc351fd065ef0880aeff99097e363c39ba53f4a3b5f87a8a39f54431e2",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-evaluation-quiz-insight-recovery",
+    "batchReport": "reports/01-cases.xml",
+    "trace": "operations-evaluation-quiz-insight-recovery/commands.json",
+    "source": "results/01-cases/2026-11-26_121715/operations-evaluation-quiz-insight-recovery/commands.json",
+    "sha256": "4ea1ccf2c84cdee1dccc8465d82826d930ec1e7895bffb989667372a273966bd",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-evaluation-quiz-insights-alternate",
+    "batchReport": "reports/01-cases.xml",
+    "trace": "operations-evaluation-quiz-insights-alternate/commands.json",
+    "source": "results/01-cases/2026-11-26_121715/operations-evaluation-quiz-insights-alternate/commands.json",
+    "sha256": "dfdc2e79017f14f42aa171a4fc5ad1be26b7410d470113b6eb288c7e543d2cf4",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-evaluation-quiz-insights-populated",
+    "batchReport": "reports/01-cases.xml",
+    "trace": "operations-evaluation-quiz-insights-populated/commands.json",
+    "source": "results/01-cases/2026-11-26_121715/operations-evaluation-quiz-insights-populated/commands.json",
+    "sha256": "9488707fc9f1d11c744ab0a6a4d2827b9c604477ab7c19aff0fcc83a1a630f2b",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-evaluation-quiz-insights-recovery",
+    "batchReport": "reports/01-cases.xml",
+    "trace": "operations-evaluation-quiz-insights-recovery/commands.json",
+    "source": "results/01-cases/2026-11-26_121715/operations-evaluation-quiz-insights-recovery/commands.json",
+    "sha256": "b3fcb5af5a69edfdc6ed18fe64713a93ba4a537fcbd08cccad047285b6c85a18",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-evaluation-quiz-new-alternate",
+    "batchReport": "reports/01-cases.xml",
+    "trace": "operations-evaluation-quiz-new-alternate/commands.json",
+    "source": "results/01-cases/2026-11-26_121715/operations-evaluation-quiz-new-alternate/commands.json",
+    "sha256": "ab5c717148a5d2bdd18e99e88db4bc0bcae9ec9f683f2e69f9e65eedc5b218d8",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-evaluation-quiz-new-populated",
+    "batchReport": "reports/01-cases.xml",
+    "trace": "operations-evaluation-quiz-new-populated/commands.json",
+    "source": "results/01-cases/2026-11-26_121715/operations-evaluation-quiz-new-populated/commands.json",
+    "sha256": "3bc4b7cae5595cb055a4daef30639fc26f11b1770c33ed141d8aa996cf043a4c",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-evaluation-quiz-new-recovery",
+    "batchReport": "reports/01-cases.xml",
+    "trace": "operations-evaluation-quiz-new-recovery/commands.json",
+    "source": "results/01-cases/2026-11-26_121715/operations-evaluation-quiz-new-recovery/commands.json",
+    "sha256": "786e3037bf7c01f97dc91e71b4b3a7de5eb6aa6234770e67e1468a1b10a7e725",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-evaluation-quizzes-alternate",
+    "batchReport": "reports/02-cases.xml",
+    "trace": "operations-evaluation-quizzes-alternate/commands.json",
+    "source": "results/02-cases/2026-11-26_121838/operations-evaluation-quizzes-alternate/commands.json",
+    "sha256": "636151e024c49eacd043bfb4d21c30619d9fa6a73b2d677a811cf99c0c04366e",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-evaluation-quizzes-populated",
+    "batchReport": "reports/02-cases.xml",
+    "trace": "operations-evaluation-quizzes-populated/commands.json",
+    "source": "results/02-cases/2026-11-26_121838/operations-evaluation-quizzes-populated/commands.json",
+    "sha256": "d628210df73b95bdcf4e87fd982ec9bbcadb39bb12f2cd82e161f5a2f4a3d002",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-evaluation-quizzes-recovery",
+    "batchReport": "reports/02-cases.xml",
+    "trace": "operations-evaluation-quizzes-recovery/commands.json",
+    "source": "results/02-cases/2026-11-26_121838/operations-evaluation-quizzes-recovery/commands.json",
+    "sha256": "48f61de2f92161e7a29847f6793dc00134e70ef8ae8f4e3fee5a699d0a6f0138",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-management-blog-empty",
+    "batchReport": "reports/02-cases.xml",
+    "trace": "operations-management-blog-empty/commands.json",
+    "source": "results/02-cases/2026-11-26_121838/operations-management-blog-empty/commands.json",
+    "sha256": "15624a8553de6006a9ee61d7c37b4a8e720e28237ebabec8c5df6aad687207b5",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-management-blog-id-edit-empty",
+    "batchReport": "reports/02-cases.xml",
+    "trace": "operations-management-blog-id-edit-empty/commands.json",
+    "source": "results/02-cases/2026-11-26_121838/operations-management-blog-id-edit-empty/commands.json",
+    "sha256": "6817bbf5b390ce630d5f7c7eb1913a4c79c127a6fd7d59e81bd0dadde420ef6d",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-management-blog-id-edit-populated",
+    "batchReport": "reports/02-cases.xml",
+    "trace": "operations-management-blog-id-edit-populated/commands.json",
+    "source": "results/02-cases/2026-11-26_121838/operations-management-blog-id-edit-populated/commands.json",
+    "sha256": "abc8015697d3d8d6a94179b69aaf7367ed5f91df68b655ffc7bafb323c5273e8",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-management-blog-id-edit-recoverable-error",
+    "batchReport": "reports/02-cases.xml",
+    "trace": "operations-management-blog-id-edit-recoverable-error/commands.json",
+    "source": "results/02-cases/2026-11-26_121838/operations-management-blog-id-edit-recoverable-error/commands.json",
+    "sha256": "e10184d7c821b66b0e9d2f9f4abf2ce3802d77820ec3b1ef16fc7a24ca15e98d",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-management-blog-new-empty",
+    "batchReport": "reports/02-cases.xml",
+    "trace": "operations-management-blog-new-empty/commands.json",
+    "source": "results/02-cases/2026-11-26_121838/operations-management-blog-new-empty/commands.json",
+    "sha256": "9bb195165b9b6e82d4472bcc1125f87a6d382ff18564e219273c28b915cf3634",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-management-blog-new-populated",
+    "batchReport": "reports/02-cases.xml",
+    "trace": "operations-management-blog-new-populated/commands.json",
+    "source": "results/02-cases/2026-11-26_121838/operations-management-blog-new-populated/commands.json",
+    "sha256": "1f9ec076c17da109ce64bf18bc83cdff68bb71eb9cdaea89eb27844a4f44c1c3",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-management-blog-new-recoverable-error",
+    "batchReport": "reports/02-cases.xml",
+    "trace": "operations-management-blog-new-recoverable-error/commands.json",
+    "source": "results/02-cases/2026-11-26_121838/operations-management-blog-new-recoverable-error/commands.json",
+    "sha256": "fe4ab9adb6a14fc842ef17250424d02b9f94256119cf0d1047d525f0fc5a7f49",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-management-blog-populated",
+    "batchReport": "reports/02-cases.xml",
+    "trace": "operations-management-blog-populated/commands.json",
+    "source": "results/02-cases/2026-11-26_121838/operations-management-blog-populated/commands.json",
+    "sha256": "bddc8fb33ebbd27c88086aa8b2cf1c0ba5193751d7c7a4dfb602065e4e61abe3",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-management-blog-recoverable-error",
+    "batchReport": "reports/02-cases.xml",
+    "trace": "operations-management-blog-recoverable-error/commands.json",
+    "source": "results/02-cases/2026-11-26_121838/operations-management-blog-recoverable-error/commands.json",
+    "sha256": "de6f34cd0f4f5b4b47a488d22043e1046bafa0bf7052a979ec0c0e72ce124b4c",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-management-discussions-empty",
+    "batchReport": "reports/02-cases.xml",
+    "trace": "operations-management-discussions-empty/commands.json",
+    "source": "results/02-cases/2026-11-26_121838/operations-management-discussions-empty/commands.json",
+    "sha256": "233e272f62ae392939b7682e7481cd596bd1aabf9d951412a1081e1c6c3ba970",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-management-discussions-populated",
+    "batchReport": "reports/02-cases.xml",
+    "trace": "operations-management-discussions-populated/commands.json",
+    "source": "results/02-cases/2026-11-26_121838/operations-management-discussions-populated/commands.json",
+    "sha256": "8807195eae7ae2bd6843621fdf02fa1a5ff1e17b0d75bd9cd9a25a6eadcffcc9",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-management-discussions-recoverable-error",
+    "batchReport": "reports/02-cases.xml",
+    "trace": "operations-management-discussions-recoverable-error/commands.json",
+    "source": "results/02-cases/2026-11-26_121838/operations-management-discussions-recoverable-error/commands.json",
+    "sha256": "691761f3f4341680a6c8abf352f2d22fd23527c1562084843d3255a40b5e4de3",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-management-docs-empty",
+    "batchReport": "reports/02-cases.xml",
+    "trace": "operations-management-docs-empty/commands.json",
+    "source": "results/02-cases/2026-11-26_121838/operations-management-docs-empty/commands.json",
+    "sha256": "a7f91078efd48e52889eaab1a043a74042cb6653e947a27390f2a40ca85ce3bc",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-management-docs-populated",
+    "batchReport": "reports/02-cases.xml",
+    "trace": "operations-management-docs-populated/commands.json",
+    "source": "results/02-cases/2026-11-26_121838/operations-management-docs-populated/commands.json",
+    "sha256": "731aed58ac7f1cc288cb84ddd168f730589b39716a6c6615a5ede05ac4c3275f",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-management-docs-recoverable-error",
+    "batchReport": "reports/02-cases.xml",
+    "trace": "operations-management-docs-recoverable-error/commands.json",
+    "source": "results/02-cases/2026-11-26_121838/operations-management-docs-recoverable-error/commands.json",
+    "sha256": "3a7e28c087ace1597ee7f3d28bb062bd3b1e171ea3eb309823cbbc75782fc659",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-management-docs-slug-empty",
+    "batchReport": "reports/02-cases.xml",
+    "trace": "operations-management-docs-slug-empty/commands.json",
+    "source": "results/02-cases/2026-11-26_121838/operations-management-docs-slug-empty/commands.json",
+    "sha256": "6d3e11fd1c12df57e9bd2b1dd375dfebf189793eae338faf853a3d67b5bede4b",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-management-docs-slug-populated",
+    "batchReport": "reports/02-cases.xml",
+    "trace": "operations-management-docs-slug-populated/commands.json",
+    "source": "results/02-cases/2026-11-26_121838/operations-management-docs-slug-populated/commands.json",
+    "sha256": "368b1c30c24916dc4e04bf3a6b41e703c23be132a2c0fb1e8e97dd0dded7a992",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-management-docs-slug-recoverable-error",
+    "batchReport": "reports/02-cases.xml",
+    "trace": "operations-management-docs-slug-recoverable-error/commands.json",
+    "source": "results/02-cases/2026-11-26_121838/operations-management-docs-slug-recoverable-error/commands.json",
+    "sha256": "e480347c2fcba6425328995e801c0a5d5cffa133970cd1fb897d68fbaae4514a",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-management-forms-empty",
+    "batchReport": "reports/02-cases.xml",
+    "trace": "operations-management-forms-empty/commands.json",
+    "source": "results/02-cases/2026-11-26_121838/operations-management-forms-empty/commands.json",
+    "sha256": "d7a99f1532eaa7ff46e1b5186e4e8baa0a6dd61cae37d8bffeca52aee1242f35",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-management-forms-id-empty",
+    "batchReport": "reports/02-cases.xml",
+    "trace": "operations-management-forms-id-empty/commands.json",
+    "source": "results/02-cases/2026-11-26_121838/operations-management-forms-id-empty/commands.json",
+    "sha256": "3cce064daba5e79f9ce9824b85d39b5f1b72fbd60987a21df4e3e499f96c6ff5",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-management-forms-id-populated",
+    "batchReport": "reports/02-cases.xml",
+    "trace": "operations-management-forms-id-populated/commands.json",
+    "source": "results/02-cases/2026-11-26_121838/operations-management-forms-id-populated/commands.json",
+    "sha256": "a1475fb286ab78fb19e8705682bde03c42e373cad273e2d1d7ee7219f69648dd",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-management-forms-id-recoverable-error",
+    "batchReport": "reports/02-cases.xml",
+    "trace": "operations-management-forms-id-recoverable-error/commands.json",
+    "source": "results/02-cases/2026-11-26_121838/operations-management-forms-id-recoverable-error/commands.json",
+    "sha256": "be1ff3a3f8a2e70593f2b70def7f8e3cecb4d78ab6959e566ba9affc5abcda96",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-management-forms-populated",
+    "batchReport": "reports/02-cases.xml",
+    "trace": "operations-management-forms-populated/commands.json",
+    "source": "results/02-cases/2026-11-26_121838/operations-management-forms-populated/commands.json",
+    "sha256": "26456797c3ce3137d49946ebaac0d872dc9f7217e4d3dbff11582d3140784e28",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-management-forms-recoverable-error",
+    "batchReport": "reports/02-cases.xml",
+    "trace": "operations-management-forms-recoverable-error/commands.json",
+    "source": "results/02-cases/2026-11-26_121838/operations-management-forms-recoverable-error/commands.json",
+    "sha256": "9eadab707364482ecdaf179b2249215ee8c63fcbdcada88b56f821dcf2d97eb2",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-management-media-empty",
+    "batchReport": "reports/02-cases.xml",
+    "trace": "operations-management-media-empty/commands.json",
+    "source": "results/02-cases/2026-11-26_121838/operations-management-media-empty/commands.json",
+    "sha256": "ac67a2f8997efbab12d27e033cd13d2a19b60ab1cfd81666fa34cb791152e1b6",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-management-media-populated",
+    "batchReport": "reports/02-cases.xml",
+    "trace": "operations-management-media-populated/commands.json",
+    "source": "results/02-cases/2026-11-26_121838/operations-management-media-populated/commands.json",
+    "sha256": "902d0ce747440292dcebc0cba80c033bb73ee48ff8c7fcf0494a42a176f12dfc",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-management-media-recoverable-error",
+    "batchReport": "reports/02-cases.xml",
+    "trace": "operations-management-media-recoverable-error/commands.json",
+    "source": "results/02-cases/2026-11-26_121838/operations-management-media-recoverable-error/commands.json",
+    "sha256": "6ef4e54aab362d45c8d7900c0c5ddfed27877f5e8e5e5472deef019b727bf0bb",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-management-meet-empty",
+    "batchReport": "reports/02-cases.xml",
+    "trace": "operations-management-meet-empty/commands.json",
+    "source": "results/02-cases/2026-11-26_121838/operations-management-meet-empty/commands.json",
+    "sha256": "79450b960347949ad83364e8c8bff6cf0286dee431c04872982642c96fe7150e",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-management-meet-id-empty",
+    "batchReport": "reports/02-cases.xml",
+    "trace": "operations-management-meet-id-empty/commands.json",
+    "source": "results/02-cases/2026-11-26_121838/operations-management-meet-id-empty/commands.json",
+    "sha256": "4daf9ef04cbab9fcd994e855efc613706bccf744614e34a9bb5199f6d9fd440f",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-management-meet-id-populated",
+    "batchReport": "reports/02-cases.xml",
+    "trace": "operations-management-meet-id-populated/commands.json",
+    "source": "results/02-cases/2026-11-26_121838/operations-management-meet-id-populated/commands.json",
+    "sha256": "8a3bce241bc4204f96bcbc22f776f5d1726601c142534c099a99aaeca7236501",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-management-meet-id-recoverable-error",
+    "batchReport": "reports/02-cases.xml",
+    "trace": "operations-management-meet-id-recoverable-error/commands.json",
+    "source": "results/02-cases/2026-11-26_121838/operations-management-meet-id-recoverable-error/commands.json",
+    "sha256": "c0809ee04c5d5165d4608aa18eac9a53af337ac9ee9797dda93fd8a8e21bc03d",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-management-meet-populated",
+    "batchReport": "reports/02-cases.xml",
+    "trace": "operations-management-meet-populated/commands.json",
+    "source": "results/02-cases/2026-11-26_121838/operations-management-meet-populated/commands.json",
+    "sha256": "7bb856c502e3c4daf9aeef73db486645e1d34d23c5cae50cf1ec84095ae34c8e",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-management-meet-recoverable-error",
+    "batchReport": "reports/02-cases.xml",
+    "trace": "operations-management-meet-recoverable-error/commands.json",
+    "source": "results/02-cases/2026-11-26_121838/operations-management-meet-recoverable-error/commands.json",
+    "sha256": "5758a9fdbe03d561632808a31887213ce65326e9545d6939d599a0592bad2894",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-management-pricing-empty",
+    "batchReport": "reports/03-cases.xml",
+    "trace": "operations-management-pricing-empty/commands.json",
+    "source": "results/03-cases/2026-11-26_122003/operations-management-pricing-empty/commands.json",
+    "sha256": "9bb2b1b8b9340e1e4d8ff381a3b4d1543c43ad07f3b224321f366dfed17cc818",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-management-pricing-populated",
+    "batchReport": "reports/03-cases.xml",
+    "trace": "operations-management-pricing-populated/commands.json",
+    "source": "results/03-cases/2026-11-26_122003/operations-management-pricing-populated/commands.json",
+    "sha256": "9903ae39e4483525489a7ab7586c6db141aae8f0ba953f6b249a3e3cbac34f55",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-management-pricing-recoverable-error",
+    "batchReport": "reports/03-cases.xml",
+    "trace": "operations-management-pricing-recoverable-error/commands.json",
+    "source": "results/03-cases/2026-11-26_122003/operations-management-pricing-recoverable-error/commands.json",
+    "sha256": "d495ac5a15dc3cc1a933e8ad46cf9002dad550f506f1c108a82becc8777b7611",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-management-tautan-empty",
+    "batchReport": "reports/03-cases.xml",
+    "trace": "operations-management-tautan-empty/commands.json",
+    "source": "results/03-cases/2026-11-26_122003/operations-management-tautan-empty/commands.json",
+    "sha256": "676b3210a1c4040f731c68364da967dea7bc43279f02ec231bbcb9a810461ac9",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-management-tautan-populated",
+    "batchReport": "reports/03-cases.xml",
+    "trace": "operations-management-tautan-populated/commands.json",
+    "source": "results/03-cases/2026-11-26_122003/operations-management-tautan-populated/commands.json",
+    "sha256": "2c9ba8e9e4e493d536f9e0568c802e1cb157e3d36cf79010f382c5b6c28ee8fe",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-management-tautan-recoverable-error",
+    "batchReport": "reports/03-cases.xml",
+    "trace": "operations-management-tautan-recoverable-error/commands.json",
+    "source": "results/03-cases/2026-11-26_122003/operations-management-tautan-recoverable-error/commands.json",
+    "sha256": "4791b46e53d243b799fdcbbed6e24a487c84ff630772e1b683726b1159dc2b4f",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-monitoring-admin-denied",
+    "batchReport": "reports/03-cases.xml",
+    "trace": "operations-monitoring-admin-denied/commands.json",
+    "source": "results/03-cases/2026-11-26_122003/operations-monitoring-admin-denied/commands.json",
+    "sha256": "2ba9ea286d1219b3e857ddb337a1bb86d2d09d2bf273f1042c22c1e3361afbcb",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-analytics-denied",
+    "batchReport": "reports/03-cases.xml",
+    "trace": "operations-monitoring-admin-ops-analytics-denied/commands.json",
+    "source": "results/03-cases/2026-11-26_122003/operations-monitoring-admin-ops-analytics-denied/commands.json",
+    "sha256": "abaa50f282f80e41197e1024b82accbd58851636b8c739a239b834e5243fe84b",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-analytics-populated",
+    "batchReport": "reports/03-cases.xml",
+    "trace": "operations-monitoring-admin-ops-analytics-populated/commands.json",
+    "source": "results/03-cases/2026-11-26_122003/operations-monitoring-admin-ops-analytics-populated/commands.json",
+    "sha256": "31574cba5092b41c6ecc7fcfe4ac3ef76a86b59028837d5dede21a8e5657ece0",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-analytics-retry",
+    "batchReport": "reports/03-cases.xml",
+    "trace": "operations-monitoring-admin-ops-analytics-retry/commands.json",
+    "source": "results/03-cases/2026-11-26_122003/operations-monitoring-admin-ops-analytics-retry/commands.json",
+    "sha256": "b13ba06e9df62eb1d597820cce2966354ffbfece57959b900e8d3716049803d9",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-denied",
+    "batchReport": "reports/03-cases.xml",
+    "trace": "operations-monitoring-admin-ops-denied/commands.json",
+    "source": "results/03-cases/2026-11-26_122003/operations-monitoring-admin-ops-denied/commands.json",
+    "sha256": "bbf9119eed342bc57032611275f387ff193aec759aa0b12f4639e264dc0ad3c3",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-feature-usage-denied",
+    "batchReport": "reports/03-cases.xml",
+    "trace": "operations-monitoring-admin-ops-feature-usage-denied/commands.json",
+    "source": "results/03-cases/2026-11-26_122003/operations-monitoring-admin-ops-feature-usage-denied/commands.json",
+    "sha256": "43f278a90cad46aa98d77395c96f175471dfb94052b592f2a991526e48fd4194",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-feature-usage-populated",
+    "batchReport": "reports/03-cases.xml",
+    "trace": "operations-monitoring-admin-ops-feature-usage-populated/commands.json",
+    "source": "results/03-cases/2026-11-26_122003/operations-monitoring-admin-ops-feature-usage-populated/commands.json",
+    "sha256": "c41405b4e4a3aeb1afc5b5cec85d124d1517e6158493afdbd66437972b3c5867",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-feature-usage-retry",
+    "batchReport": "reports/03-cases.xml",
+    "trace": "operations-monitoring-admin-ops-feature-usage-retry/commands.json",
+    "source": "results/03-cases/2026-11-26_122003/operations-monitoring-admin-ops-feature-usage-retry/commands.json",
+    "sha256": "96a9bc5c8c92c8df49433432ee4763cd35ff3dd4266f8a0e983d97fd0fa9e884",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-keys-denied",
+    "batchReport": "reports/03-cases.xml",
+    "trace": "operations-monitoring-admin-ops-keys-denied/commands.json",
+    "source": "results/03-cases/2026-11-26_122003/operations-monitoring-admin-ops-keys-denied/commands.json",
+    "sha256": "8d75fe957a9c9b37bfbcc7467c4cca74076fd7fb2f9b72d4971d8f9ce252cb26",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-keys-populated",
+    "batchReport": "reports/03-cases.xml",
+    "trace": "operations-monitoring-admin-ops-keys-populated/commands.json",
+    "source": "results/03-cases/2026-11-26_122003/operations-monitoring-admin-ops-keys-populated/commands.json",
+    "sha256": "5ff135ef32a1b0c6371e2d274469a62b6987f6924f2db8633e6775d79b505de2",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-keys-retry",
+    "batchReport": "reports/03-cases.xml",
+    "trace": "operations-monitoring-admin-ops-keys-retry/commands.json",
+    "source": "results/03-cases/2026-11-26_122003/operations-monitoring-admin-ops-keys-retry/commands.json",
+    "sha256": "e9f0ce026f873d2488ab2e021995d26cbe32f100d5c092c43a66887f59922ad6",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-models-denied",
+    "batchReport": "reports/03-cases.xml",
+    "trace": "operations-monitoring-admin-ops-models-denied/commands.json",
+    "source": "results/03-cases/2026-11-26_122003/operations-monitoring-admin-ops-models-denied/commands.json",
+    "sha256": "48e6612bd6a1e0c6a9385e92b7db550f5fdd62330d4aac410935b3d782f58f27",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-models-populated",
+    "batchReport": "reports/03-cases.xml",
+    "trace": "operations-monitoring-admin-ops-models-populated/commands.json",
+    "source": "results/03-cases/2026-11-26_122003/operations-monitoring-admin-ops-models-populated/commands.json",
+    "sha256": "144b63201fcea723293a52854439959fd60be1c706799650e3f63e58f28b4ce1",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-models-retry",
+    "batchReport": "reports/03-cases.xml",
+    "trace": "operations-monitoring-admin-ops-models-retry/commands.json",
+    "source": "results/03-cases/2026-11-26_122003/operations-monitoring-admin-ops-models-retry/commands.json",
+    "sha256": "f5f5adb0230d8d67acc6ef87e01a03e24b05924f18d123376483cc305d66af72",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-offline-denied",
+    "batchReport": "reports/03-cases.xml",
+    "trace": "operations-monitoring-admin-ops-offline-denied/commands.json",
+    "source": "results/03-cases/2026-11-26_122003/operations-monitoring-admin-ops-offline-denied/commands.json",
+    "sha256": "07692f3623e916985ae0d6ac383e3c2ce2f3aaf22fcf72bd932a4cac8e39d4fd",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-offline-populated",
+    "batchReport": "reports/03-cases.xml",
+    "trace": "operations-monitoring-admin-ops-offline-populated/commands.json",
+    "source": "results/03-cases/2026-11-26_122003/operations-monitoring-admin-ops-offline-populated/commands.json",
+    "sha256": "31fd4664cd2644d1f78134e6e47a3641022f8ce4ff2ed207a4306b68fa5fcffb",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-offline-retry",
+    "batchReport": "reports/03-cases.xml",
+    "trace": "operations-monitoring-admin-ops-offline-retry/commands.json",
+    "source": "results/03-cases/2026-11-26_122003/operations-monitoring-admin-ops-offline-retry/commands.json",
+    "sha256": "e99261cafc246589a4d7be23f037cf0afd1e03dd704705aba18b849e22638d97",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-populated",
+    "batchReport": "reports/03-cases.xml",
+    "trace": "operations-monitoring-admin-ops-populated/commands.json",
+    "source": "results/03-cases/2026-11-26_122003/operations-monitoring-admin-ops-populated/commands.json",
+    "sha256": "e495baa56f992d6b52070169cda67bb3bbe137b63715b457ebf30dc5a6e0cb39",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-retry",
+    "batchReport": "reports/03-cases.xml",
+    "trace": "operations-monitoring-admin-ops-retry/commands.json",
+    "source": "results/03-cases/2026-11-26_122003/operations-monitoring-admin-ops-retry/commands.json",
+    "sha256": "3a569c84aa0cfd607e25a4a5afb3d616a7febcceeef5fa6467181ee1d8e11dc9",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-short-links-denied",
+    "batchReport": "reports/03-cases.xml",
+    "trace": "operations-monitoring-admin-ops-short-links-denied/commands.json",
+    "source": "results/03-cases/2026-11-26_122003/operations-monitoring-admin-ops-short-links-denied/commands.json",
+    "sha256": "c5152bcb29a05b4edeb3d07c1041c62a946c4c32263c35fac3dba7e101850e01",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-short-links-populated",
+    "batchReport": "reports/03-cases.xml",
+    "trace": "operations-monitoring-admin-ops-short-links-populated/commands.json",
+    "source": "results/03-cases/2026-11-26_122003/operations-monitoring-admin-ops-short-links-populated/commands.json",
+    "sha256": "a8b2e20833235ca0cf81f97d1d9c30a5ab8504a28f8f1768ff93a1a44fe4104b",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-short-links-retry",
+    "batchReport": "reports/03-cases.xml",
+    "trace": "operations-monitoring-admin-ops-short-links-retry/commands.json",
+    "source": "results/03-cases/2026-11-26_122003/operations-monitoring-admin-ops-short-links-retry/commands.json",
+    "sha256": "c10c7453f1fb8173f2f4d65765c3917bc5b934e2554bcfda9d7f398cae0750c2",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-tutor-activity-denied",
+    "batchReport": "reports/03-cases.xml",
+    "trace": "operations-monitoring-admin-ops-tutor-activity-denied/commands.json",
+    "source": "results/03-cases/2026-11-26_122003/operations-monitoring-admin-ops-tutor-activity-denied/commands.json",
+    "sha256": "1c6973af2338743ad991f843383eb4d983a624f5de6f388d1eb922f7888216d6",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-tutor-activity-populated",
+    "batchReport": "reports/03-cases.xml",
+    "trace": "operations-monitoring-admin-ops-tutor-activity-populated/commands.json",
+    "source": "results/03-cases/2026-11-26_122003/operations-monitoring-admin-ops-tutor-activity-populated/commands.json",
+    "sha256": "a5861fe040a74ddd2031370f1dc150154de9a6e5246831e6d0b2d6bd820ec2a5",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-tutor-activity-retry",
+    "batchReport": "reports/03-cases.xml",
+    "trace": "operations-monitoring-admin-ops-tutor-activity-retry/commands.json",
+    "source": "results/03-cases/2026-11-26_122003/operations-monitoring-admin-ops-tutor-activity-retry/commands.json",
+    "sha256": "ca0aba12885882e1c1967b49d1c8d0eb0069d82347afa1881f3957376d946671",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-web-analytics-denied",
+    "batchReport": "reports/03-cases.xml",
+    "trace": "operations-monitoring-admin-ops-web-analytics-denied/commands.json",
+    "source": "results/03-cases/2026-11-26_122003/operations-monitoring-admin-ops-web-analytics-denied/commands.json",
+    "sha256": "c54d2c2dffe072614feefe097fc4a3e489bc90d1deeb7c01b9d74db9ce9be919",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-web-analytics-populated",
+    "batchReport": "reports/03-cases.xml",
+    "trace": "operations-monitoring-admin-ops-web-analytics-populated/commands.json",
+    "source": "results/03-cases/2026-11-26_122003/operations-monitoring-admin-ops-web-analytics-populated/commands.json",
+    "sha256": "b790e00ce066b6669ca57df6a0f5f712aa1a4125dec961c8ca3d2a0711b61997",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-web-analytics-retry",
+    "batchReport": "reports/03-cases.xml",
+    "trace": "operations-monitoring-admin-ops-web-analytics-retry/commands.json",
+    "source": "results/03-cases/2026-11-26_122003/operations-monitoring-admin-ops-web-analytics-retry/commands.json",
+    "sha256": "a7c600e1d37565435dc447edd2ed9b819791eeb4696c1d388a565d37403b87d8",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-monitoring-admin-populated",
+    "batchReport": "reports/03-cases.xml",
+    "trace": "operations-monitoring-admin-populated/commands.json",
+    "source": "results/03-cases/2026-11-26_122003/operations-monitoring-admin-populated/commands.json",
+    "sha256": "9887cc47818be7798abfaad06e756033d8e26ce16325e12194d55c16e18d01a5",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-monitoring-admin-retry",
+    "batchReport": "reports/03-cases.xml",
+    "trace": "operations-monitoring-admin-retry/commands.json",
+    "source": "results/03-cases/2026-11-26_122003/operations-monitoring-admin-retry/commands.json",
+    "sha256": "f1c330585850ad6f86ab14f4843286186c1bdaddb221ee1ac9074f9d4ec2409a",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-public-blog-detail-content",
+    "batchReport": "reports/04-cases.xml",
+    "trace": "operations-public-blog-detail-content/commands.json",
+    "source": "results/04-cases/2026-11-26_122128/operations-public-blog-detail-content/commands.json",
+    "sha256": "745515f8ecf06488c272a6b4a1f046cfefe5acabb7f7639d767928362b8a4cc0",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-public-blog-detail-missing",
+    "batchReport": "reports/04-cases.xml",
+    "trace": "operations-public-blog-detail-missing/commands.json",
+    "source": "results/04-cases/2026-11-26_122128/operations-public-blog-detail-missing/commands.json",
+    "sha256": "3718a47e6fb35cc324e9a17490aaf4529c58f30208c22d579ccdcb003754c0cb",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-public-blog-detail-retry",
+    "batchReport": "reports/04-cases.xml",
+    "trace": "operations-public-blog-detail-retry/commands.json",
+    "source": "results/04-cases/2026-11-26_122128/operations-public-blog-detail-retry/commands.json",
+    "sha256": "2422299c5954bcb44c3ef564876ec66a69dc7d61bc2e68e65a77c7e764ec8508",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-public-blog-list-empty",
+    "batchReport": "reports/04-cases.xml",
+    "trace": "operations-public-blog-list-empty/commands.json",
+    "source": "results/04-cases/2026-11-26_122128/operations-public-blog-list-empty/commands.json",
+    "sha256": "82735030fe5f258af2de820a54a06a1e8bb015ee7e4363f79e574718edf28bc8",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-public-blog-list-open-back",
+    "batchReport": "reports/04-cases.xml",
+    "trace": "operations-public-blog-list-open-back/commands.json",
+    "source": "results/04-cases/2026-11-26_122128/operations-public-blog-list-open-back/commands.json",
+    "sha256": "528e3f9f60ac319818b1646e91dcca4b7f855e2ce0b4dbfbb1c6fbecb9a45c19",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-public-blog-list-retry",
+    "batchReport": "reports/04-cases.xml",
+    "trace": "operations-public-blog-list-retry/commands.json",
+    "source": "results/04-cases/2026-11-26_122128/operations-public-blog-list-retry/commands.json",
+    "sha256": "160356f09c0d783b34153b41c87094c17636df7858df3e4ce770ddae3a64953e",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-public-demo-course-article",
+    "batchReport": "reports/04-cases.xml",
+    "trace": "operations-public-demo-course-article/commands.json",
+    "source": "results/04-cases/2026-11-26_122128/operations-public-demo-course-article/commands.json",
+    "sha256": "0e62caae69f8222bb2032a475a462c082b64978a971031075a56d567a4f22e40",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-public-demo-empty",
+    "batchReport": "reports/04-cases.xml",
+    "trace": "operations-public-demo-empty/commands.json",
+    "source": "results/04-cases/2026-11-26_122128/operations-public-demo-empty/commands.json",
+    "sha256": "84f02fc775d3fb1e25ed54e07b12d1b7ca92d41d6d96324b77ea29c8c555c0f4",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-public-demo-link",
+    "batchReport": "reports/04-cases.xml",
+    "trace": "operations-public-demo-link/commands.json",
+    "source": "results/04-cases/2026-11-26_122128/operations-public-demo-link/commands.json",
+    "sha256": "73745c281f9aa7c31898312377c2b4f22cd6c4d8edb9f3ed971e5ff9d81853a3",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-public-demo-retry",
+    "batchReport": "reports/04-cases.xml",
+    "trace": "operations-public-demo-retry/commands.json",
+    "source": "results/04-cases/2026-11-26_122128/operations-public-demo-retry/commands.json",
+    "sha256": "f8571ff4f23bd30c5aa8771d328886da99e74dad264e0ebe84b788163576434b",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-public-demo-view-article",
+    "batchReport": "reports/04-cases.xml",
+    "trace": "operations-public-demo-view-article/commands.json",
+    "source": "results/04-cases/2026-11-26_122128/operations-public-demo-view-article/commands.json",
+    "sha256": "82ab8a9da3641fa345f8b16b8208234b7cde260f1b5ef608e0110ce85c5b65b4",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-public-demo-view-missing",
+    "batchReport": "reports/04-cases.xml",
+    "trace": "operations-public-demo-view-missing/commands.json",
+    "source": "results/04-cases/2026-11-26_122128/operations-public-demo-view-missing/commands.json",
+    "sha256": "46b356514605ba4977883216acbc8cd3c2985a443a379c2dd8476280cd3dc5fd",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-public-demo-view-quiz",
+    "batchReport": "reports/04-cases.xml",
+    "trace": "operations-public-demo-view-quiz/commands.json",
+    "source": "results/04-cases/2026-11-26_122128/operations-public-demo-view-quiz/commands.json",
+    "sha256": "3e9eb1c7788151b822dc32e851164e9b2ffdb531300729ed2f22ba24a1a1fb00",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-public-download-empty",
+    "batchReport": "reports/04-cases.xml",
+    "trace": "operations-public-download-empty/commands.json",
+    "source": "results/04-cases/2026-11-26_122128/operations-public-download-empty/commands.json",
+    "sha256": "0d6a042a07274ab078829a22d2c3bbadccdd2bd585df3b7fe47244e6cbf84379",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-public-download-platforms",
+    "batchReport": "reports/04-cases.xml",
+    "trace": "operations-public-download-platforms/commands.json",
+    "source": "results/04-cases/2026-11-26_122128/operations-public-download-platforms/commands.json",
+    "sha256": "908682b4eaa7fdf474c6a8c4b8ed1c5bb88eae8af71d46fcd65df2934a87fb38",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-public-download-retry",
+    "batchReport": "reports/04-cases.xml",
+    "trace": "operations-public-download-retry/commands.json",
+    "source": "results/04-cases/2026-11-26_122128/operations-public-download-retry/commands.json",
+    "sha256": "08fb12bcda6e520efe1d31b474234960590ffd0cc8a74f134ca823460826f23f",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-public-english-faq",
+    "batchReport": "reports/04-cases.xml",
+    "trace": "operations-public-english-faq/commands.json",
+    "source": "results/04-cases/2026-11-26_122128/operations-public-english-faq/commands.json",
+    "sha256": "eb48439e2f6b7ba7cd12785e638d510ff48424b31fa0ed88275268041992d172",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-public-form-empty",
+    "batchReport": "reports/04-cases.xml",
+    "trace": "operations-public-form-empty/commands.json",
+    "source": "results/04-cases/2026-11-26_122128/operations-public-form-empty/commands.json",
+    "sha256": "69c4a35ff6d3fe59331ab598e0607ad0bb3caaa00c843056ad2ea296ac3f6db7",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-public-form-local-submit",
+    "batchReport": "reports/04-cases.xml",
+    "trace": "operations-public-form-local-submit/commands.json",
+    "source": "results/04-cases/2026-11-26_122128/operations-public-form-local-submit/commands.json",
+    "sha256": "1ff1e83eddb0c6fa149bd6486d93625c36ba1293a494485b9868403a5abec5fd",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-public-form-validation",
+    "batchReport": "reports/04-cases.xml",
+    "trace": "operations-public-form-validation/commands.json",
+    "source": "results/04-cases/2026-11-26_122128/operations-public-form-validation/commands.json",
+    "sha256": "d962dc8323e22dc6d9f84fa90baca494c2b63e1535bafc0f593afc8288f5a95b",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-public-founders-id",
+    "batchReport": "reports/04-cases.xml",
+    "trace": "operations-public-founders-id/commands.json",
+    "source": "results/04-cases/2026-11-26_122128/operations-public-founders-id/commands.json",
+    "sha256": "a931a7a25836557e714b01fa05226567773d0746de3f484369a9d6f29a6067be",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-public-hero-id",
+    "batchReport": "reports/04-cases.xml",
+    "trace": "operations-public-hero-id/commands.json",
+    "source": "results/04-cases/2026-11-26_122128/operations-public-hero-id/commands.json",
+    "sha256": "77d6334936cb1bf84bb06c357835b7050e9c653d4c50284d884c48ebfc795144",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-public-long-copy-en",
+    "batchReport": "reports/04-cases.xml",
+    "trace": "operations-public-long-copy-en/commands.json",
+    "source": "results/04-cases/2026-11-26_122128/operations-public-long-copy-en/commands.json",
+    "sha256": "45f46bb518b8b2c18f284f8abd0b90a9ad67d8a9b66430f905b3e4985db16f7b",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-public-plans-course-limits",
+    "batchReport": "reports/04-cases.xml",
+    "trace": "operations-public-plans-course-limits/commands.json",
+    "source": "results/04-cases/2026-11-26_122128/operations-public-plans-course-limits/commands.json",
+    "sha256": "0fc74f92d61050fb949af2fa53db08b4bc264cfc0e2016e13ae787ec331e3de8",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-public-plans-default",
+    "batchReport": "reports/04-cases.xml",
+    "trace": "operations-public-plans-default/commands.json",
+    "source": "results/04-cases/2026-11-26_122128/operations-public-plans-default/commands.json",
+    "sha256": "91549b3c651d3ecf98a603bed682561c1f6b4a3a91e892699c9c9ca6ebc7fd2b",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-public-plans-retry",
+    "batchReport": "reports/04-cases.xml",
+    "trace": "operations-public-plans-retry/commands.json",
+    "source": "results/04-cases/2026-11-26_122128/operations-public-plans-retry/commands.json",
+    "sha256": "dd50d90eb12cfae0d06bc61c4d0f77b01b448801bade1b2948cb4e69077ffc4c",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-public-portfolio",
+    "batchReport": "reports/04-cases.xml",
+    "trace": "operations-public-portfolio/commands.json",
+    "source": "results/04-cases/2026-11-26_122128/operations-public-portfolio/commands.json",
+    "sha256": "3930e5331adead84d82407cd388f18610dd12d1060c2018104522dc55b485ce7",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-public-privacy-en-anchor",
+    "batchReport": "reports/04-cases.xml",
+    "trace": "operations-public-privacy-en-anchor/commands.json",
+    "source": "results/04-cases/2026-11-26_122128/operations-public-privacy-en-anchor/commands.json",
+    "sha256": "99a4c7eada18726c54c3252ed6f866d23ec50f7b98586ba2fe0050c7b7154c9f",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-public-privacy-id",
+    "batchReport": "reports/04-cases.xml",
+    "trace": "operations-public-privacy-id/commands.json",
+    "source": "results/04-cases/2026-11-26_122128/operations-public-privacy-id/commands.json",
+    "sha256": "036a263ad65150c8765b88fdae9a8af9c89635c281174424643c300d76acf5a6",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-public-privacy-terms-link",
+    "batchReport": "reports/04-cases.xml",
+    "trace": "operations-public-privacy-terms-link/commands.json",
+    "source": "results/04-cases/2026-11-26_122128/operations-public-privacy-terms-link/commands.json",
+    "sha256": "4c6e4d892c183cad6a9f5529d5ca7e50477e47e4396379f5b9ba9bdcc65f1231",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-public-terms-en-anchor",
+    "batchReport": "reports/04-cases.xml",
+    "trace": "operations-public-terms-en-anchor/commands.json",
+    "source": "results/04-cases/2026-11-26_122128/operations-public-terms-en-anchor/commands.json",
+    "sha256": "8e67c59ed0a52925cc9e6f536e29a749784ed24a7f45b5b50906b5d9c290c592",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-public-terms-id",
+    "batchReport": "reports/04-cases.xml",
+    "trace": "operations-public-terms-id/commands.json",
+    "source": "results/04-cases/2026-11-26_122128/operations-public-terms-id/commands.json",
+    "sha256": "a45a1e869211c8870fccbd4001f7137d4546f05eb9792f46c37af93a2b2ce43b",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-public-terms-privacy-link",
+    "batchReport": "reports/04-cases.xml",
+    "trace": "operations-public-terms-privacy-link/commands.json",
+    "source": "results/04-cases/2026-11-26_122128/operations-public-terms-privacy-link/commands.json",
+    "sha256": "51d22d74a8db3ad38bb940f4d45fc5b515d5003d03db6c1f138141d66889e25a",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-public-testimonial-dark-en",
+    "batchReport": "reports/04-cases.xml",
+    "trace": "operations-public-testimonial-dark-en/commands.json",
+    "source": "results/04-cases/2026-11-26_122128/operations-public-testimonial-dark-en/commands.json",
+    "sha256": "49daa67d49f864577285056ee705639275136b1d2c8ad08cfb51dd4a65e4626c",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-public-testimonial-list",
+    "batchReport": "reports/04-cases.xml",
+    "trace": "operations-public-testimonial-list/commands.json",
+    "source": "results/04-cases/2026-11-26_122128/operations-public-testimonial-list/commands.json",
+    "sha256": "6b2c01abebde0e1b0b2d9487fa16cb66fe5db20a104274319366eec94924e31b",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-public-testimonial-plans",
+    "batchReport": "reports/04-cases.xml",
+    "trace": "operations-public-testimonial-plans/commands.json",
+    "source": "results/04-cases/2026-11-26_122128/operations-public-testimonial-plans/commands.json",
+    "sha256": "e76fed61071d6a237a47cdc6b2f129c366c536f32d52d2e22c043307602bf4f7",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-public-unsubscribe-confirm",
+    "batchReport": "reports/05-cases.xml",
+    "trace": "operations-public-unsubscribe-confirm/commands.json",
+    "source": "results/05-cases/2026-11-26_122410/operations-public-unsubscribe-confirm/commands.json",
+    "sha256": "5987284ede08a11a7e50da43da1a78a69dd3516f92a64f1a1353945b697f7d7b",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-public-unsubscribe-invalid",
+    "batchReport": "reports/05-cases.xml",
+    "trace": "operations-public-unsubscribe-invalid/commands.json",
+    "source": "results/05-cases/2026-11-26_122410/operations-public-unsubscribe-invalid/commands.json",
+    "sha256": "a0cb98a0ae4d37347c0a4c0b53a4bd5ac00fa3ef5bdeb3032287f4dcf7e70220",
+    "status": "SUCCESS"
+  },
+  {
+    "flow": "operations-public-unsubscribe-retry",
+    "batchReport": "reports/05-cases.xml",
+    "trace": "operations-public-unsubscribe-retry/commands.json",
+    "source": "results/05-cases/2026-11-26_122410/operations-public-unsubscribe-retry/commands.json",
+    "sha256": "4d88d162ddcf9d0ada2ea1442d0ffc5a489de41e598478379f2c6d092103455f",
+    "status": "SUCCESS"
+  }
+]

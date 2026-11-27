@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { and, asc, desc, eq, inArray, or } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
 import { TryoutsClient } from "@/app/(tutor)/tutor/[courseId]/tryouts/tryouts-client";
 import { CourseDetailHeader } from "@/components/admin/course-detail/course-detail-header";
@@ -10,6 +10,7 @@ import { assertAdmin } from "@/lib/auth/admin-guards-server";
 import { getCourse } from "@/lib/course-utils";
 import { pageTitle } from "@/lib/site";
 import { getTranslations } from "@/lib/i18n/server";
+import { selectableTryoutBankCondition } from "@/lib/tutor/tryout-authoring";
 import { getCourseDetailData } from "../../actions";
 
 type Props = {
@@ -53,6 +54,7 @@ export default async function AdminCourseTryoutsPage({ params }: Props) {
     db
       .select({
         id: aiQuestionBank.id,
+        courseId: aiQuestionBank.courseId,
         prompt: aiQuestionBank.prompt,
         questionType: aiQuestionBank.questionType,
         difficulty: aiQuestionBank.difficulty,
@@ -60,16 +62,7 @@ export default async function AdminCourseTryoutsPage({ params }: Props) {
         sourceEventName: aiQuestionBank.sourceEventName,
       })
       .from(aiQuestionBank)
-      .where(
-        and(
-          inArray(aiQuestionBank.courseId, courseIds),
-          eq(aiQuestionBank.reviewStatus, "published"),
-          or(
-            eq(aiQuestionBank.origin, "zyx_original"),
-            eq(aiQuestionBank.origin, "itb_example"),
-          ),
-        ),
-      )
+      .where(selectableTryoutBankCondition(courseIds))
       .orderBy(desc(aiQuestionBank.createdAt)),
   ]);
   const initialQuestions = initialTryouts.length
@@ -79,12 +72,12 @@ export default async function AdminCourseTryoutsPage({ params }: Props) {
         .where(inArray(questions.examId, initialTryouts.map((exam) => exam.id)))
         .orderBy(asc(questions.order))
     : [];
-  const questionBank = bankRows.flatMap((question) =>
+  const questionBank = bankRows.flatMap(({ courseId: _courseId, ...question }) =>
     question.origin === "zyx_original" || question.origin === "itb_example"
       ? [{ ...question, origin: question.origin }]
       : [],
   );
-  const bankIds: { questionId: string; courseId: string }[] = [];
+  const bankIds = bankRows.map((question) => ({ questionId: question.id, courseId: question.courseId }));
   let unmapped = false;
   for (const question of initialQuestions) {
     let content: unknown = question.content;

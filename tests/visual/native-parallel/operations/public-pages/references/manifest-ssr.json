@@ -1,0 +1,83 @@
+{
+  "cases": [
+    {
+      "file": "ssr-about-380-dpr1.png",
+      "path": "/about",
+      "locale": "id",
+      "theme": "light",
+      "width": 380,
+      "height": 844,
+      "dpr": 1,
+      "status": 200,
+      "scrollWidth": 380,
+      "layout": "fits",
+      "ssrOnly": true
+    },
+    {
+      "file": "ssr-plans-380-dpr1.png",
+      "path": "/plans",
+      "locale": "id",
+      "theme": "light",
+      "width": 380,
+      "height": 844,
+      "dpr": 1,
+      "status": 200,
+      "scrollWidth": 380,
+      "layout": "fits",
+      "ssrOnly": true
+    },
+    {
+      "file": "ssr-privacy-380-dpr1.png",
+      "path": "/privacy",
+      "locale": "id",
+      "theme": "light",
+      "width": 380,
+      "height": 844,
+      "dpr": 1,
+      "status": 200,
+      "scrollWidth": 380,
+      "layout": "fits",
+      "ssrOnly": true
+    },
+    {
+      "file": "ssr-terms-380-dpr1.png",
+      "path": "/terms",
+      "locale": "id",
+      "theme": "light",
+      "width": 380,
+      "height": 844,
+      "dpr": 1,
+      "status": 200,
+      "scrollWidth": 380,
+      "layout": "fits",
+      "ssrOnly": true
+    },
+    {
+      "file": "ssr-testimonial-380-dpr1.png",
+      "path": "/testimonial",
+      "locale": "id",
+      "theme": "light",
+      "width": 380,
+      "height": 844,
+      "dpr": 1,
+      "status": 200,
+      "scrollWidth": 380,
+      "layout": "fits",
+      "ssrOnly": true
+    },
+    {
+      "file": "ssr-unsubscribe-380-dpr1.png",
+      "path": "/unsubscribe",
+      "locale": "id",
+      "theme": "light",
+      "width": 380,
+      "height": 844,
+      "dpr": 1,
+      "status": 200,
+      "scrollWidth": 380,
+      "layout": "fits",
+      "ssrOnly": true
+    }
+  ],
+  "failures": []
+}

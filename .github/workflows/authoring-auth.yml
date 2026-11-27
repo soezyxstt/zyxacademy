@@ -11,6 +11,7 @@ on:
       - 'lib/authoring/mcp-workflows.ts'
       - 'app/api/mcp/**'
       - 'app/mcp/authorize/**'
+      - 'app/api/native/mcp/connections/**'
       - 'app/.well-known/oauth-authorization-server/**'
       - 'app/.well-known/oauth-protected-resource/**'
       - 'lib/auth-site-url.ts'

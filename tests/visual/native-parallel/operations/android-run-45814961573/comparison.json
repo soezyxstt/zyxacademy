@@ -1,0 +1,306 @@
+[
+  {
+    "device": "cases/operations-public-blog-list-open-back.png",
+    "reference": "blog-list-light-380-dpr1.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 203391,
+    "maxChannelDelta": 213,
+    "status": "different"
+  },
+  {
+    "device": "cases/operations-public-blog-detail-content.png",
+    "reference": "blog-detail-light-380-dpr1.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 73158,
+    "maxChannelDelta": 213,
+    "status": "different"
+  },
+  {
+    "device": "cases/operations-public-blog-list-empty.png",
+    "reference": "blog-empty-dark-en-380-dpr1.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 131380,
+    "maxChannelDelta": 226,
+    "status": "different"
+  },
+  {
+    "device": "blog-list.png",
+    "reference": "blog-list-light-380-dpr1.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 203393,
+    "maxChannelDelta": 213,
+    "status": "different"
+  },
+  {
+    "device": "blog-detail.png",
+    "reference": "blog-detail-light-380-dpr1.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 73160,
+    "maxChannelDelta": 213,
+    "status": "different"
+  },
+  {
+    "device": "blog-empty-dark.png",
+    "reference": "blog-empty-dark-380-dpr1.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 131785,
+    "maxChannelDelta": 226,
+    "status": "different"
+  },
+  {
+    "device": "management-form-summary.png",
+    "reference": "management-form-summary-380-dpr1.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 40280,
+    "maxChannelDelta": 213,
+    "status": "different"
+  },
+  {
+    "device": "cases/operations-evaluation-jobs-populated.png",
+    "reference": "evaluation/jobs-completed-light-380-viewport-utc.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 46066,
+    "maxChannelDelta": 216,
+    "status": "different"
+  },
+  {
+    "device": "cases/operations-evaluation-jobs-alternate.png",
+    "reference": "evaluation/jobs-empty-dark-380.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 10815,
+    "maxChannelDelta": 226,
+    "status": "different"
+  },
+  {
+    "device": "cases/operations-monitoring-admin-populated.png",
+    "reference": "monitoring/home-populated-light-380.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      1692
+    ],
+    "status": "viewport mismatch"
+  },
+  {
+    "device": "cases/operations-monitoring-admin-ops-web-analytics-populated.png",
+    "reference": "monitoring/web-analytics-populated-light-380-viewport.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 46387,
+    "maxChannelDelta": 213,
+    "status": "different"
+  },
+  {
+    "device": "cases/operations-monitoring-admin-ops-feature-usage-populated.png",
+    "reference": "monitoring/features-30-days-light-380-viewport.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 64570,
+    "maxChannelDelta": 221,
+    "status": "different"
+  },
+  {
+    "device": "feature-usage.png",
+    "reference": "monitoring/features-30-days-light-380-viewport.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 64531,
+    "maxChannelDelta": 221,
+    "status": "different"
+  },
+  {
+    "device": "feature-usage-empty-range.png",
+    "reference": "monitoring/features-7-days-light-380-viewport.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 43440,
+    "maxChannelDelta": 204,
+    "status": "different"
+  },
+  {
+    "device": "cases/operations-public-hero-id.png",
+    "reference": "../public-pages/references/hero-id-380-dpr1.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 175537,
+    "maxChannelDelta": 229,
+    "status": "different"
+  },
+  {
+    "device": "cases/operations-public-form-empty.png",
+    "reference": "../public-pages/references/form-empty-380-dpr1.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 142646,
+    "maxChannelDelta": 204,
+    "status": "different"
+  },
+  {
+    "device": "web-analytics.png",
+    "reference": "monitoring/web-analytics-populated-light-380-viewport.png",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 46379,
+    "maxChannelDelta": 213,
+    "status": "different"
+  },
+  {
+    "device": "cases/operations-public-blog-list-open-back.png",
+    "reference": "blog-shell-list-id-light-380-dpr1.png",
+    "variant": "full-shell",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 180527,
+    "maxChannelDelta": 250,
+    "status": "different",
+    "diff": "cases/operations-public-blog-list-open-back-full-shell-diff.png"
+  },
+  {
+    "device": "cases/operations-public-blog-detail-content.png",
+    "reference": "blog-shell-detail-id-light-380-dpr1.png",
+    "variant": "full-shell",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 71972,
+    "maxChannelDelta": 250,
+    "status": "different",
+    "diff": "cases/operations-public-blog-detail-content-full-shell-diff.png"
+  },
+  {
+    "device": "cases/operations-public-blog-list-empty.png",
+    "reference": "blog-shell-empty-en-dark-380-dpr1.png",
+    "variant": "full-shell",
+    "devicePixels": [
+      380,
+      844
+    ],
+    "referencePixels": [
+      380,
+      844
+    ],
+    "differentPixels": 141112,
+    "maxChannelDelta": 226,
+    "status": "different",
+    "diff": "cases/operations-public-blog-list-empty-full-shell-diff.png"
+  }
+]

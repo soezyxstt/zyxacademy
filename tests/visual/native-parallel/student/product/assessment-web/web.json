@@ -1,0 +1,90 @@
+{
+  "serverSha": "7d93b3a5984814ee382ccd36d9ceff8cb34abbcd",
+  "browser": "154.0.8037.57",
+  "theme": "light",
+  "locale": "id-ID",
+  "timeZone": "Asia/Jakarta",
+  "results": [
+    {
+      "id": "quiz-list",
+      "path": "/courses/assessment-evidence-mathematics/quiz",
+      "status": 200,
+      "elapsedMs": 11290
+    },
+    {
+      "id": "quiz-gateway",
+      "path": "/courses/assessment-evidence-mathematics/quiz/assessment-evidence-limit-quiz",
+      "status": 200,
+      "elapsedMs": 19683
+    },
+    {
+      "id": "quiz-draft-restored",
+      "path": "/courses/assessment-evidence-mathematics/quiz/assessment-evidence-limit-quiz?attemptId=assessment-evidence-quiz-active",
+      "status": 200,
+      "elapsedMs": 56272
+    },
+    {
+      "id": "quiz-summary",
+      "path": "/courses/assessment-evidence-mathematics/quiz/assessment-evidence-limit-quiz/summary/assessment-evidence-quiz-finished",
+      "status": 200,
+      "elapsedMs": 35159
+    },
+    {
+      "id": "tryout-list",
+      "path": "/courses/assessment-evidence-mathematics/tryout",
+      "status": 200,
+      "elapsedMs": 13899
+    },
+    {
+      "id": "tryout-draft-restored",
+      "path": "/courses/assessment-evidence-mathematics/tryout/assessment-evidence-tryout",
+      "status": 200,
+      "elapsedMs": 95919
+    },
+    {
+      "id": "results-list",
+      "path": "/courses/assessment-evidence-mathematics/my-results",
+      "status": 200,
+      "elapsedMs": 13080
+    },
+    {
+      "id": "tryout-review",
+      "path": "/courses/assessment-evidence-mathematics/my-results/assessment-evidence-tryout-submitted",
+      "status": 200,
+      "elapsedMs": 12050
+    },
+    {
+      "id": "results-diagnosis",
+      "path": "/courses/assessment-evidence-mathematics/my-results/assessment-evidence-quiz-finished/summary",
+      "status": 200,
+      "elapsedMs": 222736
+    },
+    {
+      "id": "solution-reveal",
+      "path": "/courses/assessment-evidence-mathematics/solutions/assessment-evidence-solutions",
+      "status": 200,
+      "elapsedMs": 12587
+    },
+    {
+      "id": "quiz-locked",
+      "path": "/courses/assessment-evidence-mathematics/quiz/assessment-evidence-limit-quiz",
+      "status": 200,
+      "elapsedMs": 31597
+    },
+    {
+      "id": "tryout-locked",
+      "path": "/courses/assessment-evidence-mathematics/tryout/assessment-evidence-tryout",
+      "status": 200,
+      "elapsedMs": 24657
+    },
+    {
+      "id": "results-locked",
+      "path": "/courses/assessment-evidence-mathematics/my-results",
+      "status": 200,
+      "elapsedMs": 20561
+    }
+  ],
+  "width": 380,
+  "height": 820,
+  "dpr": 1
+}

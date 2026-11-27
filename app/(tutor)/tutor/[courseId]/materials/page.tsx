@@ -11,6 +11,7 @@ import { db } from "@/db";
 import { aiMaterialInstances, aiMaterialInstanceSections, aiMaterialInstanceChunks } from "@/db/schema";
 import { inArray, desc, asc } from "drizzle-orm";
 import { MaterialsClient } from "./materials-client";
+import { legacyMaterialRevision } from "@/lib/tutor/legacy-materials";
 import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 import { getTranslations } from "@/lib/i18n/server";
 import { TranslatedText } from "@/components/i18n/translated-text";
@@ -63,7 +64,7 @@ export default async function TutorMaterialsPage({ params }: Props) {
         .select()
         .from(aiMaterialInstanceSections)
         .where(inArray(aiMaterialInstanceSections.materialInstanceId, materialIds))
-        .orderBy(asc(aiMaterialInstanceSections.orderIndex))
+        .orderBy(asc(aiMaterialInstanceSections.orderIndex), asc(aiMaterialInstanceSections.id))
     : [];
 
   const sectionIds = sections.map((s) => s.id);
@@ -73,7 +74,7 @@ export default async function TutorMaterialsPage({ params }: Props) {
         .select()
         .from(aiMaterialInstanceChunks)
         .where(inArray(aiMaterialInstanceChunks.sectionId, sectionIds))
-        .orderBy(asc(aiMaterialInstanceChunks.orderIndex))
+        .orderBy(asc(aiMaterialInstanceChunks.orderIndex), asc(aiMaterialInstanceChunks.id))
     : [];
 
   const chunksBySection = new Map<string, typeof chunks>();
@@ -104,6 +105,7 @@ export default async function TutorMaterialsPage({ params }: Props) {
     summary: m.summary,
     createdAt: m.createdAt,
     sections: sectionsByMaterial.get(m.id) || [],
+    ...(canManage ? { revision: legacyMaterialRevision(m, sectionsByMaterial.get(m.id) ?? []) } : {}),
   }));
 
   return (

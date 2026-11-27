@@ -12,63 +12,15 @@ import {
   writePersistentDraft,
 } from "@/hooks/use-persistent-draft";
 
+import { boundVideoProgress, playbackCheckpoint, validateActiveCourseVideo, validateVideoProgressMap, type ActiveCourseVideoState, type VideoProgressMap } from "./playback-progress";
+export { ACTIVE_VIDEO_TTL_MS, VIDEO_PROGRESS_TTL_MS, validateVideoProgressMap } from "./playback-progress";
+export type { ActiveCourseVideoState, VideoProgressEntry, VideoProgressMap } from "./playback-progress";
+
 const STORAGE_VERSION = 1;
 const PROGRESS_KEY = `zyx:video-progress:v${STORAGE_VERSION}`;
-const MAX_VIDEO_ENTRIES = 50;
-export const VIDEO_PROGRESS_TTL_MS = 30 * 24 * 60 * 60 * 1000;
-export const ACTIVE_VIDEO_TTL_MS = 24 * 60 * 60 * 1000;
-const MIN_RESUME_SECONDS = 3;
-const END_THRESHOLD_SECONDS = 5;
-
-export interface VideoProgressEntry {
-  time: number;
-  duration?: number;
-  updatedAt: number;
-}
-
-export type VideoProgressMap = Record<string, VideoProgressEntry>;
-
-export interface ActiveCourseVideoState {
-  videoId: string;
-  updatedAt: number;
-}
 
 export function getActiveCourseVideoKey(courseId: string): string {
   return `zyx:course-active-video:v${STORAGE_VERSION}:${courseId}`;
-}
-
-export function validateVideoProgressMap(
-  raw: unknown,
-  now = Date.now(),
-): VideoProgressMap | null {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
-  const result: VideoProgressMap = {};
-
-  for (const [videoId, value] of Object.entries(raw as Record<string, unknown>)) {
-    if (!videoId || !value || typeof value !== "object" || Array.isArray(value)) continue;
-    const record = value as Record<string, unknown>;
-    if (typeof record.time !== "number" || !Number.isFinite(record.time) || record.time < MIN_RESUME_SECONDS) {
-      continue;
-    }
-    const updatedAt =
-      typeof record.updatedAt === "number" && Number.isFinite(record.updatedAt)
-        ? record.updatedAt
-        : now;
-    if (now - updatedAt > VIDEO_PROGRESS_TTL_MS || now - updatedAt < -60_000) continue;
-
-    const duration =
-      typeof record.duration === "number" && Number.isFinite(record.duration) && record.duration > 0
-        ? record.duration
-        : undefined;
-
-    result[videoId] = {
-      time: Math.floor(record.time),
-      ...(duration !== undefined ? { duration: Math.floor(duration) } : {}),
-      updatedAt,
-    };
-  }
-
-  return Object.keys(result).length > 0 ? result : null;
 }
 
 function readProgressMap(now = Date.now()): VideoProgressMap {
@@ -82,12 +34,11 @@ function readProgressMap(now = Date.now()): VideoProgressMap {
 }
 
 function writeProgressMap(map: VideoProgressMap): void {
-  const entries = Object.entries(map).sort((a, b) => b[1].updatedAt - a[1].updatedAt);
-  if (entries.length === 0) {
+  if (Object.keys(map).length === 0) {
     removePersistentDraft(PROGRESS_KEY, "local");
     return;
   }
-  const bounded = Object.fromEntries(entries.slice(0, MAX_VIDEO_ENTRIES));
+  const bounded = boundVideoProgress(map);
   writePersistentDraft(PROGRESS_KEY, STORAGE_VERSION, bounded, "local");
 }
 
@@ -106,25 +57,16 @@ export function saveVideoPlaybackTime(
   if (!videoId || !Number.isFinite(currentTime)) return;
   const map = readProgressMap(now);
 
-  const hasValidDuration = typeof duration === "number" && Number.isFinite(duration) && duration > 0;
-  const nearEnd =
-    hasValidDuration &&
-    (duration - currentTime <= END_THRESHOLD_SECONDS || currentTime / duration >= 0.98);
-
-  if (currentTime < MIN_RESUME_SECONDS || nearEnd) {
-    if (videoId in map) {
+  const checkpoint = playbackCheckpoint(currentTime, duration, now);
+  if (!checkpoint) {
+    if (Object.hasOwn(map, videoId)) {
       delete map[videoId];
       writeProgressMap(map);
     }
     return;
   }
-
-  map[videoId] = {
-    time: Math.floor(currentTime),
-    ...(hasValidDuration ? { duration: Math.floor(duration) } : {}),
-    updatedAt: now,
-  };
-  writeProgressMap(map);
+  const next = { ...map, [videoId]: checkpoint };
+  writeProgressMap(next);
 }
 
 export function clearVideoPlaybackTime(videoId: string | null | undefined, now = Date.now()): void {
@@ -145,17 +87,7 @@ export function readActiveCourseVideoId(
     getActiveCourseVideoKey(courseId),
     STORAGE_VERSION,
     "local",
-    (raw) => {
-      if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
-      const record = raw as Record<string, unknown>;
-      if (typeof record.videoId !== "string" || !record.videoId.trim()) return null;
-      const updatedAt =
-        typeof record.updatedAt === "number" && Number.isFinite(record.updatedAt)
-          ? record.updatedAt
-          : now;
-      if (now - updatedAt > ACTIVE_VIDEO_TTL_MS || now - updatedAt < -60_000) return null;
-      return { videoId: record.videoId.trim(), updatedAt };
-    },
+    raw => validateActiveCourseVideo(raw, now),
   );
   return envelope?.data.videoId ?? null;
 }

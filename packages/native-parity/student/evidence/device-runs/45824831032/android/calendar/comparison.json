@@ -1,0 +1,416 @@
+{
+  "schemaVersion": 1,
+  "route": "/calendar",
+  "workflowRun": "https://github.com/soezyxstt/zyxacademy/actions/runs/45824831032",
+  "androidJob": "https://github.com/soezyxstt/zyxacademy/actions/runs/45824831032/job/139927769797",
+  "androidJobConclusion": "failure",
+  "androidArtifact": {
+    "url": "https://github.com/soezyxstt/zyxacademy/actions/runs/45824831032/artifacts/15121682481",
+    "sha256": "ef243ecd652b36e5a1e99011b186acd4ecad43049adda5b4ef32728d22a9632d"
+  },
+  "pullRequestHead": "bdae1785d8e95d542df36c6b7ee2bbcb500f3859",
+  "checkoutSha": "ccfeb5809bb8da43b2fc2973ad34a6546d9a1d17",
+  "webReferenceCommit": "bad59272474ebb712cc7494012799d8ef2195b18",
+  "webOrigin": "Pinned Playwright references committed before the run. The run web artifact does not contain this matched-device web suite.",
+  "webManifest": {
+    "path": "tests/visual/native-parallel/student/calendar/web/android/calendar-reference.json",
+    "sha256": "995ebb827fe71bb9386d146290f9ff2c0a42e290f056a54a8ac75c9ed1f832aa"
+  },
+  "maestro": {
+    "testcase": "Student calendar reference inputs and category states",
+    "status": "SUCCESS",
+    "flow": ".maestro/native-parallel/student/community-calendar-parity.yaml",
+    "report": {
+      "archiveEntry": "report.xml",
+      "sha256": "95eb4160747d667ffb2498161fa8ff7be0dc576f871daee7a7acb2108fd223d0"
+    },
+    "trace": {
+      "archiveEntry": "results/2026-11-26_131656/Student calendar reference inputs and category states/commands.json",
+      "sha256": "8d981109451996492a92ff88bc2120e40cf207f750d3a9d530afab5c9c808116",
+      "verifiedSteps": [
+        {
+          "sequence": 2,
+          "launchApp": {
+            "clearState": true
+          }
+        },
+        {
+          "sequence": 3,
+          "extendedWaitUntil": {
+            "visible": "separator",
+            "timeout": 30000
+          }
+        },
+        {
+          "sequence": 4,
+          "openLink": "zyx-native-parity://student-fixture?scenario=calendar-parity&theme=light&locale=id&path=%2Fcalendar"
+        },
+        {
+          "sequence": 5,
+          "extendedWaitUntil": {
+            "visible": "Latihan limit fungsi",
+            "timeout": 30000
+          }
+        },
+        {
+          "sequence": 6,
+          "assertVisible": "Kelola tutorial"
+        },
+        {
+          "sequence": 7,
+          "assertVisible": "Agenda aktif"
+        },
+        {
+          "sequence": 8,
+          "assertVisible": "Riwayat"
+        },
+        {
+          "sequence": 9,
+          "assertVisible": {
+            "id": "student.calendar.day.2030-01-02"
+          }
+        },
+        {
+          "sequence": 10,
+          "assertVisible": "Hari ini.*"
+        },
+        {
+          "sequence": 11,
+          "assertVisible": "Tenggat 00.30 WIB"
+        },
+        {
+          "sequence": 12,
+          "assertVisible": "Kerjakan kuis"
+        },
+        {
+          "sequence": 13,
+          "assertVisible": "Simulasi turunan untuk sains dan rekayasa"
+        },
+        {
+          "sequence": 14,
+          "assertVisible": "Buka 13.30 WIB"
+        },
+        {
+          "sequence": 15,
+          "assertVisible": "Lihat tryout"
+        },
+        {
+          "sequence": 16,
+          "assertVisible": "Tutorial: Fungsi komposisi"
+        },
+        {
+          "sequence": 17,
+          "assertVisible": "10:00 - 11:00 WIB · Dibatalkan"
+        },
+        {
+          "sequence": 18,
+          "assertVisible": "Jadwal tutorial"
+        },
+        {
+          "sequence": 19,
+          "takeScreenshot": "student-calendar-all"
+        },
+        {
+          "sequence": 20,
+          "tapOn": {
+            "id": "student.calendar.filter"
+          }
+        },
+        {
+          "sequence": 21,
+          "tapOn": {
+            "id": "student.calendar.filter.tutorial"
+          }
+        },
+        {
+          "sequence": 22,
+          "assertVisible": "Riwayat"
+        },
+        {
+          "sequence": 23,
+          "assertVisible": {
+            "id": "student.calendar.day.2030-01-01"
+          }
+        },
+        {
+          "sequence": 24,
+          "assertVisible": "Tutorial: Fungsi komposisi"
+        },
+        {
+          "sequence": 25,
+          "assertVisible": "10:00 - 11:00 WIB · Dibatalkan"
+        },
+        {
+          "sequence": 26,
+          "assertNotVisible": "Agenda aktif"
+        },
+        {
+          "sequence": 27,
+          "assertNotVisible": "Latihan limit fungsi"
+        },
+        {
+          "sequence": 28,
+          "assertNotVisible": "Simulasi turunan untuk sains dan rekayasa"
+        },
+        {
+          "sequence": 29,
+          "takeScreenshot": "student-calendar-tutorial"
+        },
+        {
+          "sequence": 30,
+          "tapOn": {
+            "id": "student.calendar.action.tutorial-parity-composition"
+          }
+        },
+        {
+          "sequence": 31,
+          "assertVisible": "Jadwal tutorial"
+        },
+        {
+          "sequence": 32,
+          "assertVisible": {
+            "id": "student.back"
+          }
+        },
+        {
+          "sequence": 33,
+          "tapOn": {
+            "id": "student.back"
+          }
+        },
+        {
+          "sequence": 34,
+          "extendedWaitUntil": {
+            "visible": "Latihan limit fungsi",
+            "timeout": 30000
+          }
+        },
+        {
+          "sequence": 35,
+          "openLink": "zyx-native-parity://student-fixture?scenario=calendar-parity-assessments&theme=light&locale=id&path=%2Fcalendar"
+        },
+        {
+          "sequence": 36,
+          "extendedWaitUntil": {
+            "visible": "Latihan limit fungsi",
+            "timeout": 30000
+          }
+        },
+        {
+          "sequence": 37,
+          "tapOn": {
+            "id": "student.calendar.filter"
+          }
+        },
+        {
+          "sequence": 38,
+          "tapOn": {
+            "id": "student.calendar.filter.tutorial"
+          }
+        },
+        {
+          "sequence": 39,
+          "assertVisible": "Tidak ada agenda di kategori ini"
+        },
+        {
+          "sequence": 40,
+          "assertVisible": {
+            "id": "student.calendar.empty-action"
+          }
+        },
+        {
+          "sequence": 41,
+          "assertNotVisible": "Riwayat"
+        },
+        {
+          "sequence": 42,
+          "assertNotVisible": "Agenda aktif"
+        },
+        {
+          "sequence": 43,
+          "assertNotVisible": "Latihan limit fungsi"
+        },
+        {
+          "sequence": 44,
+          "takeScreenshot": "student-calendar-empty-filter"
+        },
+        {
+          "sequence": 45,
+          "tapOn": {
+            "id": "student.calendar.empty-action"
+          }
+        },
+        {
+          "sequence": 46,
+          "assertVisible": "Latihan limit fungsi"
+        },
+        {
+          "sequence": 47,
+          "assertVisible": "Simulasi turunan untuk sains dan rekayasa"
+        },
+        {
+          "sequence": 48,
+          "assertNotVisible": "Riwayat"
+        }
+      ]
+    }
+  },
+  "configuration": {
+    "androidApi": 35,
+    "androidDensityDpi": 160,
+    "androidFontScale": 1,
+    "viewport": {
+      "width": 380,
+      "height": 820
+    },
+    "deviceScaleFactor": 1,
+    "locale": "id",
+    "theme": "light",
+    "timeZone": "Asia/Jakarta",
+    "browser": "154.0.8037.57",
+    "font": "Inter and Lexend from native assets",
+    "motion": "reduced",
+    "canSync": false,
+    "scope": "Full screenshot in RGB with no scaling, cropping, or compositing."
+  },
+  "sourceDigestsAtHeadAndCheckout": {
+    ".github/workflows/native-student-evidence.yml": "eca08b0198c98aede0c6688e3cc7715ca6e0a063bae5e129b757cd5ebf071707",
+    ".maestro/native-parallel/student/community-calendar-parity.yaml": "0be94a4c34ed615f499ca0766c288b52011b53de7fa1ca58527aacb15ede14ae",
+    "app/(student)/calendar/calendar-agenda-client.tsx": "018992aff022684259a065dcc62cb7eb1e1f4b3396e6377bd6b80ba0f56f424f",
+    "app/globals.css": "be812b64b005159daf0c3db873b0a8571952834222d9c8906019650388becf83",
+    "apps/mobile-native/features/shared-ui/layout.tsx": "79795ee3b29700de71443b7a1507469e07de79b2cab0282247c19a1ced48e01e",
+    "apps/mobile-native/features/shared-ui/overlays.tsx": "1f6719560d24ee55a50ecbea5832f87bbdbbc6f8e812cebd3cb28a4fe64496e7",
+    "apps/mobile-native/features/student/StudentFixtureRoute.tsx": "77218e79fb4fd0242cb31b26cadfc37ebd0d672e7917ebf55fc46f51a21a81df",
+    "apps/mobile-native/features/student/community/calendar.tsx": "f6b1f1f48ceb7b3926880eb9dc8da015f0e504a052faf354c270ed01988c5b85",
+    "apps/mobile-native/features/student/community/ui.tsx": "4a63a9b1a4173a4dd931e2d629b3c60fdd0f065796be28f1ba0cdac12a0d9f99",
+    "apps/mobile-native/typography.ts": "b97423fa9f359e37f42d1ff0bfb2306a74acf49b046a10577b37aaee018b2aea",
+    "components/navigation/mobile-top-navbar.tsx": "80bc1dc3904f662bff0b39ff07f108339b69ce4b68672a836b738e8db50beda6",
+    "lib/date-utils/jakarta-calendar.ts": "3bdf363d9dba6b1de876f0cd82b79002ffb40978705beaa2a422031c432b1c8f",
+    "lib/student/agenda-presentation.ts": "138dfd99c3433cd511359f6a716dd90a962801d2007be6f85ec0486e0b5e6d21",
+    "packages/native-parity/student/community/calendar-fixture.ts": "d35a7cbec7b1110d4c2ef2953355c0d70d2e430256510bbc7e34ae5b3ce3dc02",
+    "packages/native-parity/student/community/fixtures.ts": "0eaa8f62966afa9d73689157dfd7a4113b6c958d4b0c26820fea802ea8431619",
+    "packages/native-parity/student/fixture-request.ts": "96ca8379221b84d8f2d0e4163059110790f188fbfa688d0435df4ac6824ca333",
+    "tests/visual/fixtures/student-calendar.tsx": "de60a657abe3e4ba9df39e2bda818478f0e62fb0b4fd51de08aa007da008795b",
+    "tests/visual/native-parallel/student/calendar-reference.spec.ts": "88073e204806fb4dde8ddaf875710adb5bd8505b7a90343921e465ebca1e5295"
+  },
+  "fontDigests": {
+    "Inter-Regular": "19b2e364a739f0a493415b5185f1323f4994fcf451d24ab314cb7ff0504ccd39",
+    "Inter-Medium": "5bd11bf34ec26309bf6fa65f8d7e23c4738356f8219e643ce9f376be6dce0295",
+    "Inter-SemiBold": "bec5d982df3acdc7edbd7d99458e397285dd2d206058a1cfcdf77f55c7ac6c44",
+    "Lexend-SemiBold": "f8afa7919bba1f2b2536477e68359857d3f10e6bf8d93f21242fcc359437323f",
+    "Lexend-Bold": "231fd4c77e990af738beb90c090e7bb92a960b24e64efebf419761aa516b0fcf"
+  },
+  "pairs": [
+    {
+      "state": "all",
+      "inputs": {
+        "scenario": "calendar-parity",
+        "category": "all",
+        "eventIds": [
+          "quiz-parity-limits",
+          "tryout-parity-derivatives",
+          "tutorial-parity-composition"
+        ]
+      },
+      "maestroScreenshotSequence": 19,
+      "status": "different",
+      "web": {
+        "path": "tests/visual/native-parallel/student/calendar/web/android/calendar-all.png",
+        "sha256": "a62efe37e1a3fc6809a03ad23e13e21e331babfc30240f3e394e2b8b312346e8"
+      },
+      "native": {
+        "path": "student-calendar-all.png",
+        "archiveEntry": "results/2026-11-26_131656/Student calendar reference inputs and category states/takeScreenshot/student-calendar-all.png",
+        "sha256": "31003fe1d13c936a31b3149fa6ed998cebf11fd3f801de45df21d9f55a53306d"
+      },
+      "diff": {
+        "path": "calendar-all-diff.png",
+        "sha256": "d8cdf63b256672a6bd659060d40ff5b3a6e511d6df890adcd1dda5e29a20d8b5"
+      },
+      "width": 380,
+      "height": 820,
+      "totalPixels": 311600,
+      "differingPixels": 32176,
+      "differingPercent": 10.326,
+      "maxChannelDifference": 204,
+      "differenceBounds": [
+        0,
+        5,
+        380,
+        810
+      ]
+    },
+    {
+      "state": "tutorial",
+      "inputs": {
+        "scenario": "calendar-parity",
+        "category": "tutorial",
+        "eventIds": [
+          "tutorial-parity-composition"
+        ]
+      },
+      "maestroScreenshotSequence": 29,
+      "status": "different",
+      "web": {
+        "path": "tests/visual/native-parallel/student/calendar/web/android/calendar-tutorial.png",
+        "sha256": "261151ca1f63cd43a60e990aa71bceadef26845b2eec28318f9e12cc52b8106e"
+      },
+      "native": {
+        "path": "student-calendar-tutorial.png",
+        "archiveEntry": "results/2026-11-26_131656/Student calendar reference inputs and category states/takeScreenshot/student-calendar-tutorial.png",
+        "sha256": "83cc763abb16dacfd2f41c13d6f3fa687e0624bceff2e1df31af5b542321bad0"
+      },
+      "diff": {
+        "path": "calendar-tutorial-diff.png",
+        "sha256": "2f0639cd4a4effc5b302b4f2f1f065bfbc7f277ebbf191d2ae8af228cfe6d687"
+      },
+      "width": 380,
+      "height": 820,
+      "totalPixels": 311600,
+      "differingPixels": 16870,
+      "differingPercent": 5.414,
+      "maxChannelDifference": 204,
+      "differenceBounds": [
+        0,
+        5,
+        380,
+        810
+      ]
+    },
+    {
+      "state": "empty-filter",
+      "inputs": {
+        "scenario": "calendar-parity-assessments",
+        "category": "tutorial",
+        "eventIds": []
+      },
+      "maestroScreenshotSequence": 44,
+      "status": "different",
+      "web": {
+        "path": "tests/visual/native-parallel/student/calendar/web/android/calendar-empty-filter.png",
+        "sha256": "902d781f79bf05a265bd787b27233c1e94c1c08613c06010db9a9e1ad9a65880"
+      },
+      "native": {
+        "path": "student-calendar-empty-filter.png",
+        "archiveEntry": "results/2026-11-26_131656/Student calendar reference inputs and category states/takeScreenshot/student-calendar-empty-filter.png",
+        "sha256": "6b1925b20900e650114e12a3494bb41fcddca9247ad54f1cd97debc4e78d27e4"
+      },
+      "diff": {
+        "path": "calendar-empty-filter-diff.png",
+        "sha256": "34df320aa7304efbe13d45b4d01215b04178ed4e962db4d19e4c877c768aae37"
+      },
+      "width": 380,
+      "height": 820,
+      "totalPixels": 311600,
+      "differingPixels": 14020,
+      "differingPercent": 4.499,
+      "maxChannelDifference": 204,
+      "differenceBounds": [
+        0,
+        5,
+        380,
+        810
+      ]
+    }
+  ]
+}

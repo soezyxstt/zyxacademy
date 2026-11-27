@@ -1,0 +1,55 @@
+appId: com.zyx.academy.nativeparity
+name: Student mastery review and chapter coverage
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: separator
+    timeout: 30000
+- openLink: "zyx-native-parity://student-fixture?scenario=enrolled&theme=light&locale=id&path=%2Fcourses%2Fmatematika-1%2Fmastery"
+- extendedWaitUntil:
+    visible: "Topik untuk diulang"
+    timeout: 30000
+- assertVisible: "Topik untuk diulang"
+- assertVisible: "Penguasaan materi: Kalkulus Dasar"
+- assertVisible: "Limit fungsi"
+- assertVisible: '.*Skor penguasaan 56/100.*'
+- assertVisible: "Pelajari kembali topik"
+- assertVisible: "Topik per bab"
+- assertVisible: '.*1 dari 2 dinilai.*'
+- assertNotVisible: ".*Dasar yang bisa diulang: Fungsi real.*"
+- assertNotVisible: ".*Limit sepihak.*"
+- assertVisible:
+    id: student-fixture-id-light
+- takeScreenshot: student-mastery-review
+- tapOn: '(?s)^Fungsi dan limit(?:\s+1 dari 2 dinilai.*)?$'
+- assertVisible: '.*Dasar yang bisa diulang: Fungsi real.*'
+- assertVisible: '.*56/100 · Meningkat.*'
+- assertNotVisible: ".*Limit sepihak.*"
+- tapOn: '.*Belum dinilai \(1\).*'
+- assertVisible: '.*Belum dinilai \(1\).*'
+- assertVisible: ".*Limit sepihak.*"
+- assertVisible:
+    id: student-fixture-id-light
+- takeScreenshot: student-mastery-expanded
+- tapOn: "Pelajari kembali topik"
+- extendedWaitUntil:
+    visible: '.*Limit menjelaskan nilai yang didekati fungsi.*'
+    timeout: 30000
+
+- openLink: "zyx-native-parity://student-fixture?scenario=empty&theme=light&locale=id&path=%2Fcourses%2Fmatematika-1%2Fmastery"
+- extendedWaitUntil:
+    visible: "Belum ada hasil per topik"
+    timeout: 30000
+- assertVisible: "Belum ada hasil per topik"
+- assertVisible: 'Mulai dari latihan di alur belajar\. Hasilnya muncul di sini saat topik terkait sudah dinilai\.'
+- assertVisible: "Buka alur belajar"
+- assertNotVisible: "Topik per bab"
+- assertNotVisible: "Pelajari kembali topik"
+- assertVisible:
+    id: student-fixture-id-light
+- takeScreenshot: student-mastery-empty
+- tapOn: "Buka alur belajar"
+- extendedWaitUntil:
+    visible: "Alur belajar: Kalkulus Dasar"
+    timeout: 30000

@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { createPostgresTestDb } from "../../helpers/postgres";
 import { affectedRows } from "@/lib/mutation-result";
+import { tutorHistoryMessageId } from "@/lib/zyra/history-identity";
 import { and, asc, desc, eq, gt, inArray, isNull, or } from "drizzle-orm";
 import { createHash, randomUUID } from "node:crypto";
 import { user, courses, tutorChatMessages, chatSessions, zyraMessageAttachments } from "@/db/schema";
@@ -17,7 +18,8 @@ test("history replay preserves one pair and one image link, including after expi
     const action = source.slice(source.indexOf("const CHAT_HISTORY_LIMIT"), source.indexOf("export async function loadTutorHistoryAction"))
       .replace("export async function", "async function");
     const dependencies = {
-      db: testDb, tutorChatMessages, chatSessions, zyraMessageAttachments, affectedRows,
+      db: testDb, tutorChatMessages, chatSessions, zyraMessageAttachments, affectedRows, tutorHistoryMessageId,
+      FREE_TEXT_ONLY: "FREE_TEXT_ONLY",
       and, asc, desc, eq, gt, inArray, isNull, or, createHash, randomUUID,
       requireCourseAccess: async () => ({ user: { id: "student" }, access: { tier: "paid" } }),
       requireOwnedChatSession: async (_user: string, _course: string, session: string) => session || "session",

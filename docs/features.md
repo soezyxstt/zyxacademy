@@ -39,7 +39,7 @@ This catalog documents the active user-facing and operational capabilities of Zy
 - **Weekly Reflections**: Student reflection journal (`/profile/reflections`) with optional reminder emails (`FEATURE_REFLECTION_EMAIL`).
 
 ### Python Learning and Playground
-- Editable Python Markdown blocks directly inside student Articles, plus a dedicated viewport-aware Playground (`/courses/[id]/playground`).
+- Editable Python blocks in Student Articles and a Playground (`/courses/[id]/playground`). The Expo reader can attach a selected Article or Diktat excerpt to the existing Zyra composer. The Expo Playground saves multiline program input with the learner draft, sends it when the protected terminal starts, and accepts more lines while the program runs.
 - Browser Pyodide execution, staging WASI terminal support, explicit Submit grading, guarded code insertion from Zyra, and beginner-friendly Python coaching. See [coding-foundation.md](coding-foundation.md).
 
 ## 3. Assessments, Quizzes, Tryouts, and Live Classroom
@@ -96,6 +96,7 @@ This catalog documents the active user-facing and operational capabilities of Zy
 - **Form Studio (`/admin/forms`)**: Revamped Google Forms style builder with less-cards layout, per-question or per-section publication, upload size labels, submission confirmation, and Google Sheets export with attachment URLs.
 - **Pricing & Discounts (`/admin/pricing`)**: Admin-managed platform and tutorial discount schedules backed by singleton `pricing_settings`.
 - **Course Access Categories**: Admin-managed free/paid course access categories and scheduled free access windows.
+- **Expo course intake**: Admin Documents accepts one or several PDFs for an active course with a compatible PDF catalog. Admins choose how to handle checksum matches and link each PDF to course chapters. Private Review accepts Idea and Product ZIPs for the selected course and presents a validation preview before staging. Staged bundles open in the existing review workspace.
 
 ### Authoring and Admin MCP (`/api/mcp/authoring`)
 - Streamable HTTP MCP endpoint supporting OAuth PKCE with 4 default scopes plus explicit publication and admin consent grants.

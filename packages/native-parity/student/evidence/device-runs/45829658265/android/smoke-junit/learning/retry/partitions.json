@@ -1,0 +1,42 @@
+[
+  {
+    "partition": "partitions/001",
+    "cases": [
+      "smoke-095",
+      "smoke-096",
+      "smoke-097",
+      "smoke-098",
+      "smoke-099",
+      "smoke-100",
+      "smoke-101",
+      "smoke-106"
+    ],
+    "status": "complete",
+    "exitCode": 0,
+    "observed": [
+      "smoke-095",
+      "smoke-096",
+      "smoke-097",
+      "smoke-098",
+      "smoke-099",
+      "smoke-100",
+      "smoke-101",
+      "smoke-106"
+    ]
+  },
+  {
+    "partition": "partitions/002",
+    "cases": [
+      "smoke-107",
+      "smoke-108",
+      "smoke-109"
+    ],
+    "status": "complete",
+    "exitCode": 0,
+    "observed": [
+      "smoke-107",
+      "smoke-108",
+      "smoke-109"
+    ]
+  }
+]

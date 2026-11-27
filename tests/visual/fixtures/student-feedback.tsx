@@ -16,7 +16,7 @@ createRoot(document.getElementById("root")!).render(
     <NextIntlClientProvider locale={locale} timeZone="Asia/Jakarta" messages={{ student: locale === "en" ? studentEn : studentId }}>
       <main className="mx-auto max-w-3xl p-4 sm:p-8">
         <h1 className="mb-6 font-heading text-h4">{locale === "en" ? "Student feedback" : "Masukan mahasiswa"}</h1>
-        <FeedbackForm initialEmail="pelajar@example.test" />
+        <FeedbackForm initialEmail={params.get("comparison") === "feedback" ? "" : "pelajar@example.test"} />
       </main>
       <Toaster />
     </NextIntlClientProvider>

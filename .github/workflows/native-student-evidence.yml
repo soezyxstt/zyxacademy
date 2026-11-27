@@ -1,0 +1,254 @@
+name: Native Student evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      canvas_only:
+        description: Run the Android course Canvas interaction with its isolated transport
+        type: boolean
+        default: false
+      include_ios:
+        description: Also capture iOS fixtures
+        type: boolean
+        default: false
+  pull_request:
+    branches:
+      - soezyxst/react-native-monorepo
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+env:
+  CI: '1'
+  EXPO_NO_TELEMETRY: '1'
+  NEXT_TELEMETRY_DISABLED: '1'
+
+jobs:
+  web:
+    concurrency:
+      group: student-web-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
+    if: ${{ !inputs.canvas_only && ((github.head_ref == 'native-migration/student' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name == 'workflow_dispatch' && github.ref_name == 'soezyxst/react-native-monorepo')) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      SKIP_ENV_VALIDATION: '1'
+      DATABASE_URL: postgresql://localhost:1/fixture
+      BETTER_AUTH_SECRET: fixture-only-secret-not-used-for-auth
+      NEXT_PUBLIC_APP_URL: http://127.0.0.1:3127
+      PLAYWRIGHT_BASE_URL: http://127.0.0.1:3127
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.14'
+      - run: bun install --frozen-lockfile
+      - name: Verify Student list state and fixture launcher
+        run: |
+          bun test tests/unit/native-student-ios-evidence-menu.test.ts tests/unit/expo-course-content.test.ts
+          bun test tests/unit/native-student-course-data.test.ts
+          bun test tests/unit/expo-course-markdown.test.ts tests/unit/expo-discussion-math.test.ts
+      - run: bunx playwright install --with-deps chromium
+      - name: Capture web reference cases
+        run: |
+          node node_modules/next/dist/bin/next dev --webpack -p 3127 > "$RUNNER_TEMP/student-next.log" 2>&1 &
+          trap 'cat "$RUNNER_TEMP/student-next.log"' EXIT
+          curl --fail --retry 30 --retry-all-errors --retry-delay 2 http://127.0.0.1:3127/visual-fixtures/course-catalog >/dev/null
+          bun tests/visual/native-parallel/student/verify-catalog-input.ts
+          mkdir -p artifacts/student-evidence/reference
+          printf '%s\n' 'catalog source data verified' > artifacts/student-evidence/reference/catalog-input-verified.txt
+          bun tests/visual/native-parallel/student/capture-catalog.ts
+          bunx playwright test tests/visual/native-parallel/student/web-reference.spec.ts tests/visual/native-parallel/student/assessment-reference.spec.ts --project=mobile-380 --reporter=list
+      - name: Capture flashcard reference at each device extent
+        env:
+          PLAYWRIGHT_BASE_URL: http://learning-query.invalid
+        run: >-
+          bunx playwright test tests/visual/learning-query.spec.ts --project=mobile-380
+          --grep 'flashcard reference matches the device inputs' --reporter=list
+          --output artifacts/student-evidence/reference/flashcard
+      - name: Prepare Student references at the Android and iOS device extents
+        run: bun tests/visual/native-parallel/student/capture-device-references.ts
+      - name: Check course materials and assessment results after returning to the screen
+        env:
+          PLAYWRIGHT_BASE_URL: http://student-results-refocus.invalid
+        run: >-
+          bunx playwright test tests/visual/native-parallel/student/course-refocus.spec.ts
+          tests/visual/native-parallel/student/results-refocus.spec.ts
+          --project=mobile-380 --reporter=list --output artifacts/student-evidence/reference/route-refocus
+      - name: Keep a web artifact even if capture failed
+        if: always()
+        run: |
+          mkdir -p artifacts/visual-quality/results
+          printf '%s\n' 'See job status for the outcome; missing screenshots are not evidence.' > artifacts/visual-quality/results/README.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: student-web-reference
+          path: |
+            artifacts/visual-quality/results
+            artifacts/student-evidence/reference
+          if-no-files-found: warn
+          retention-days: 7
+
+  device:
+    if: ${{ !cancelled() && (needs.web.result != 'skipped' || (inputs.canvas_only && github.ref_name == 'soezyxst/react-native-monorepo')) }}
+    needs: web
+    env:
+      STUDENT_CANVAS_ONLY: ${{ inputs.canvas_only && '1' || '0' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJSON((github.event_name == 'pull_request' || (inputs.include_ios && !inputs.canvas_only)) && '["android","ios"]' || '["android"]') }}
+    concurrency:
+      group: student-device-${{ github.event.pull_request.number || github.ref }}-${{ matrix.platform }}
+      cancel-in-progress: false
+    runs-on: ${{ matrix.platform == 'ios' && 'macos-26' || 'ubuntu-latest' }}
+    timeout-minutes: ${{ matrix.platform == 'ios' && 240 || 150 }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - if: ${{ !inputs.canvas_only }}
+        uses: actions/download-artifact@v4
+        with:
+          name: student-web-reference
+          path: artifacts/student-evidence/web
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.14'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install Pillow==12.2.0 PyYAML==6.0.3
+      - name: Verify device evidence tools
+        run: python -m unittest discover -s tests/visual/native-parallel/student -p 'test_*.py'
+      - run: npm ci
+        working-directory: apps/mobile-native
+      - name: Mount isolated fixture route for this run
+        run: |
+          test -f apps/mobile-native/features/student/StudentFixtureRoute.tsx
+          printf '%s\n' 'export { default } from "../features/student/StudentFixtureRoute";' > apps/mobile-native/app/student-fixture.tsx
+      - name: Generate scoped Student route smoke cases
+        if: ${{ !inputs.canvas_only }}
+        run: |
+          bun tests/visual/native-parallel/student/generate-smoke.ts
+          mkdir -p artifacts/student-evidence/${{ matrix.platform }}/smoke
+          cp artifacts/student-evidence/generated/manifest.json artifacts/student-evidence/${{ matrix.platform }}/smoke/generated-manifest.json
+      - if: matrix.platform == 'ios'
+        name: Install the isolated iOS fixture launcher
+        run: |
+          launcher=artifacts/student-evidence/ios/launcher
+          python tests/visual/native-parallel/student/compile-ios-fixtures.py \
+            .maestro/native-parallel/student artifacts/student-evidence/generated "$launcher"
+          cp "$launcher/cases.json" apps/mobile-native/features/student/ios-evidence-cases.json
+          cp tests/visual/native-parallel/student/ios-evidence-menu.tsx.in apps/mobile-native/app/index.tsx
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - if: matrix.platform == 'android'
+        name: Build Android release
+        env:
+          EXPO_PUBLIC_PARITY_CAPTURE_NAVIGATION: '1'
+        working-directory: apps/mobile-native
+        run: |
+          npx --no-install expo prebuild --platform android --no-install
+          cd android
+          ./gradlew :app:assembleRelease -PreactNativeArchitectures=x86_64 --max-workers=2
+      - if: matrix.platform == 'android'
+        run: sudo chmod a+rw /dev/kvm
+      - if: matrix.platform == 'android'
+        name: Install supported Android command-line tools for AVD creation
+        run: |
+          cli="$RUNNER_TEMP/student-android-cli"
+          mkdir -p "$cli" "$ANDROID_HOME/cmdline-tools"
+          curl --fail --silent --show-error --location --retry 3 --connect-timeout 15 --max-time 180 \
+            --output "$cli/tools.zip" https://dl.google.com/android/repository/commandlinetools-linux-15859902_latest.zip
+          printf '%s  %s\n' 4e4c464f145a7512b57d088ac6c278c03c9eea610886b35a5e0804e74eedf583 "$cli/tools.zip" | sha256sum --check
+          unzip -q "$cli/tools.zip" -d "$cli"
+          # The emulator action resolves its SDK tools from the latest slot.
+          sdk_cli="$ANDROID_HOME/cmdline-tools/latest"
+          if [[ -e "$sdk_cli" || -L "$sdk_cli" ]]; then mv "$sdk_cli" "$cli/runner-tools"; fi
+          mv "$cli/cmdline-tools" "$sdk_cli"
+          printf '%s\n' "$sdk_cli/bin" >> "$GITHUB_PATH"
+      - if: matrix.platform == 'android'
+        name: Prepare the Android emulator image after compilation
+        run: bash scripts/native-parity/prepare-android-emulator.sh
+      - if: matrix.platform == 'android'
+        uses: reactivecircus/android-emulator-runner@v2.38.0
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          script: |
+            adb shell wm density 160
+            adb shell wm size 380x820
+            adb shell settings put system font_scale 1
+            adb install "$PARITY_APK_PATH"
+            bash tests/visual/native-parallel/student/run-device-smoke.sh android "$(adb get-serialno)"
+      - if: matrix.platform == 'ios'
+        name: Boot simulator and install iOS release
+        id: ios-simulator
+        run: |
+          device=$(xcrun simctl list devices available -j | python -c 'import json,sys; print(next(d["udid"] for devices in reversed(list(json.load(sys.stdin)["devices"].values())) for d in devices if d["name"] == "iPhone 17 Pro"))')
+          xcrun simctl boot "$device"
+          xcrun simctl bootstatus "$device" -b
+          xcrun simctl spawn "$device" defaults write com.apple.Accessibility ReduceMotionEnabled -bool true
+          # Expo probes devicectl before creating its state directory on a fresh runner.
+          export __UNSAFE_EXPO_HOME_DIRECTORY="$RUNNER_TEMP/student-expo"
+          mkdir -p "$__UNSAFE_EXPO_HOME_DIRECTORY"
+          (cd apps/mobile-native && npx --no-install expo run:ios --configuration Release --device "$device" --no-bundler)
+          printf 'udid=%s\n' "$device" >> "$GITHUB_OUTPUT"
+      - if: matrix.platform == 'ios'
+        name: Run standalone Student scenarios on iOS
+        id: ios-standalone
+        env:
+          STUDENT_SIMULATOR_UDID: ${{ steps.ios-simulator.outputs.udid }}
+        run: bash tests/visual/native-parallel/student/run-maestro.sh ios "$STUDENT_SIMULATOR_UDID"
+      - if: ${{ !cancelled() && matrix.platform == 'ios' && steps.ios-simulator.outcome == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: student-ios-standalone
+          path: |
+            artifacts/student-evidence/ios/ios-bootstrap
+            artifacts/student-evidence/ios/launcher
+            artifacts/student-evidence/ios/report.xml
+            artifacts/student-evidence/ios/results
+          if-no-files-found: warn
+          retention-days: 7
+      - if: ${{ !cancelled() && matrix.platform == 'ios' && steps.ios-standalone.outputs.bootstrap == 'success' }}
+        name: Run generated Student smoke cases on iOS
+        env:
+          STUDENT_SIMULATOR_UDID: ${{ steps.ios-simulator.outputs.udid }}
+        run: bash tests/visual/native-parallel/student/run-generated-smoke.sh ios "$STUDENT_SIMULATOR_UDID"
+      - name: Compare captures with matched web and device inputs
+        if: ${{ always() && !inputs.canvas_only }}
+        run: |
+          python tests/visual/native-parallel/student/compare.py --platform ${{ matrix.platform }} --web artifacts/student-evidence/web --native artifacts/student-evidence/${{ matrix.platform }} --output artifacts/student-evidence/${{ matrix.platform }}/comparison
+      - name: Check the material list position after Back
+        if: ${{ always() && !inputs.canvas_only }}
+        run: python tests/visual/native-parallel/student/check-scroll-restoration.py artifacts/student-evidence/${{ matrix.platform }}
+      - name: Report executed and blocked route cases
+        if: always()
+        run: |
+          if test -f artifacts/student-evidence/generated/manifest.json; then
+            mkdir -p artifacts/student-evidence/${{ matrix.platform }}/smoke
+            python tests/visual/native-parallel/student/summarize-smoke.py --manifest artifacts/student-evidence/generated/manifest.json --output artifacts/student-evidence/${{ matrix.platform }}/smoke
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: student-${{ matrix.platform }}-evidence
+          path: artifacts/student-evidence/${{ matrix.platform }}
+          if-no-files-found: warn
+          retention-days: 7

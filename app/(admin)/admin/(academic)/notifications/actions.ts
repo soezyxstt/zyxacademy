@@ -10,9 +10,11 @@
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { db } from "@/db";
-import { notifications, courses, user } from "@/db/schema";
-import { desc, eq, count, sql } from "drizzle-orm";
+import { adminBroadcastCourseEnrollments, adminBroadcastCourses } from "@/lib/notifications/admin-broadcast-audience";
 import { sendAdminBroadcast } from "@/lib/notifications/send";
+import { listAdminNotificationHistory, type NotificationHistoryRow } from "@/lib/notifications/admin-history";
+
+export type { NotificationHistoryRow } from "@/lib/notifications/admin-history";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -63,13 +65,7 @@ export async function sendBroadcastAction(
  if (target === "all") {
  resolvedTarget = "all";
  } else if (target === "course" && targetId) {
- // Fetch enrolled user IDs for the course
- const { enrollments } = await import("@/db/schema");
- const enrolled = await db
- .select({ userId: enrollments.userId })
- .from(enrollments)
- .where(eq(enrollments.courseId, targetId));
- resolvedTarget = enrolled.map((e) => e.userId);
+ resolvedTarget = (await adminBroadcastCourseEnrollments(db, targetId)).map(({ id }) => id);
  } else if (target === "user" && targetId) {
  resolvedTarget = [targetId];
  } else {
@@ -98,20 +94,6 @@ export async function sendBroadcastAction(
 
 // ─── Get notification history ─────────────────────────────────────────────────
 
-export interface NotificationHistoryRow {
-  id: string;
-  userId: string;
-  userName: string | null;
-  title: string;
-  body: string;
-  type: string;
-  read: boolean;
-  attempted: number;
-  succeeded: number;
-  failedCount: number;
-  createdAt: Date;
-}
-
 /**
  * Fetches the global notification history (all users) for the admin table,
  * joining the user's display name. Returns rows plus the total count so the
@@ -123,33 +105,7 @@ export async function getNotificationHistoryAction(
 ): Promise<{ rows: NotificationHistoryRow[]; total: number }> {
   await requireAdmin();
 
-  const offset = (page - 1) * limit;
-
-  const [rows, totalRows] = await Promise.all([
-    db
-      .select({
-        id: notifications.id,
-        userId: notifications.userId,
-        userName: user.name,
-        title: notifications.title,
-        body: notifications.body,
-        type: notifications.type,
-        read: notifications.read,
-        attempted: notifications.attempted,
-        succeeded: notifications.succeeded,
-        failedCount: notifications.failedCount,
-        createdAt: notifications.createdAt,
-      })
-      .from(notifications)
-      .leftJoin(user, eq(notifications.userId, user.id))
-      .where(sql`${notifications.type} <> 'discussion'`)
-      .orderBy(desc(notifications.createdAt))
-      .limit(limit)
-      .offset(offset),
-    db.select({ count: count() }).from(notifications).where(sql`${notifications.type} <> 'discussion'`),
-  ]);
-
-  return { rows, total: Number(totalRows[0]?.count ?? 0) };
+  return listAdminNotificationHistory(page, limit);
 }
 
 // ─── Get courses for targeting ────────────────────────────────────────────────
@@ -160,5 +116,5 @@ export async function getNotificationHistoryAction(
 export async function getCoursesForTargetingAction(): Promise<{ id: string; title: string }[]> {
  await requireAdmin();
 
- return db.select({ id: courses.id, title: courses.title }).from(courses);
+ return adminBroadcastCourses(db);
 }

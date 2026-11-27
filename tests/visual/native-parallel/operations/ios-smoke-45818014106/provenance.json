@@ -1,0 +1,213 @@
+{
+  "repository": "soezyxstt/zyxacademy",
+  "runId": 45818014106,
+  "jobId": 139902653253,
+  "workflowHeadSha": "717b87e5cc8725e1641a42c620f5ffd9e5f00233",
+  "artifact": {
+    "id": 15126392811,
+    "name": "operations-ios-smoke",
+    "sizeBytes": 5051340,
+    "sha256": "6221f7c6f2e0b6fca065aba9e596ed9802a25586b0f575897716a36390faeb26"
+  },
+  "device": {
+    "model": "iPhone 17 Pro simulator",
+    "os": "iOS 26.2",
+    "logicalWidth": 402,
+    "logicalHeight": 874,
+    "density": 3,
+    "pixelWidth": 1206,
+    "pixelHeight": 2622
+  },
+  "reports": [
+    {
+      "path": "report.xml",
+      "sha256": "c2f2d652c55fae5e3a394100618ab9b767d101bccfbc7e64b0af988e0bbc0179"
+    },
+    {
+      "path": "ios-link-readiness.xml",
+      "sha256": "bb831c7ad80350c006b9a7c88c52b1891fbddb41faf68b46a356aed34614ab6e"
+    },
+    {
+      "path": "cases/manifest.json",
+      "sha256": "b5ca86b7e1f5774162d99d09a45510602927e42900dc406a85036c819ccda28b"
+    },
+    {
+      "path": "comparison.json",
+      "sha256": "5c1875d7d01557d1867bbc7aae1c3fbb2ce490b1e900629135311b0c49b27fa7"
+    },
+    {
+      "path": "missing-captures.json",
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    }
+  ],
+  "cases": [
+    {
+      "id": "operations-public-blog-list-open-back",
+      "route": "/blog",
+      "state": "populated",
+      "locale": "id",
+      "theme": "light",
+      "maestroStatus": "SUCCESS",
+      "screenshot": {
+        "path": "cases/operations-public-blog-list-open-back.png",
+        "sha256": "2b9330ac29f3ba6656d81a229a9b6e53ba18bbc77492afdab8be0dbaca3c7327"
+      },
+      "matchingMaestroArtifactPath": "results/2026-11-26_142240/operations-public-blog-list-open-back/takeScreenshot/operations-public-blog-list-open-back.png",
+      "commands": {
+        "path": "results/2026-11-26_142240/operations-public-blog-list-open-back/commands.json",
+        "sha256": "03475accf755d7ad5998bdf81c958127b63561b0717492ee72c70f34a9aa649e"
+      },
+      "comparisons": [
+        {
+          "variant": "page body",
+          "webRoute": "/blog",
+          "webReference": {
+            "path": "../references/blog-list-light-402-dpr3.png",
+            "sha256": "54e27f4932552935d5e0942f6973759dc469db3024bbfdec25a225c08da0bcd4",
+            "referenceCommit": "c7498bd5d6a1b8599dc5a2b8f9c68826447acb77"
+          },
+          "diff": {
+            "path": "cases/operations-public-blog-list-open-back-diff.png",
+            "sha256": "aa58b658a1ce25db885122b9ede6c71732bc1b9803a27e5d89ba2b58f812d03c"
+          },
+          "diffRendering": "autocontrasted absolute RGB channel difference",
+          "differentPixels": 1955389,
+          "totalPixels": 3162132,
+          "differentPercent": 61.838,
+          "maxChannelDelta": 255
+        },
+        {
+          "variant": "marketing shell",
+          "webRoute": "/id/blog",
+          "webReference": {
+            "path": "../references/blog-shell-list-id-light-402-dpr3.png",
+            "sha256": "2b7eea875dd110821230fea412e9dd44448f1153bb708e673fed41a187fc40f9",
+            "referenceCommit": "ddd3a78a0b6d47b45657b3a607383f02bed87f50",
+            "sourceCommit": "79b3229fb1d8bf4ca910f02d6f1dec18390edaac"
+          },
+          "diff": {
+            "path": "cases/operations-public-blog-list-open-back-full-shell-diff.png",
+            "sha256": "42e3a94ba3f96775f28cc476f60f0d2d2b9146bf535b6ef30048c920f73e215f"
+          },
+          "diffRendering": "absolute RGB channel difference",
+          "differentPixels": 1807789,
+          "totalPixels": 3162132,
+          "differentPercent": 57.17,
+          "maxChannelDelta": 255
+        }
+      ]
+    },
+    {
+      "id": "operations-public-blog-list-empty",
+      "route": "/blog?category=kegiatan_zyx",
+      "state": "empty",
+      "locale": "en",
+      "theme": "dark",
+      "maestroStatus": "SUCCESS",
+      "screenshot": {
+        "path": "cases/operations-public-blog-list-empty.png",
+        "sha256": "6f00a7959a129444e3a1d948c9e76d8e545f0475cae6b43ba6b00524c678633b"
+      },
+      "matchingMaestroArtifactPath": "results/2026-11-26_142240/operations-public-blog-list-empty/takeScreenshot/operations-public-blog-list-empty.png",
+      "commands": {
+        "path": "results/2026-11-26_142240/operations-public-blog-list-empty/commands.json",
+        "sha256": "5db09ce56007a21ae96c6a3f63a0fb5bfe22c707fca4be9d809554feec6493bf"
+      },
+      "comparisons": [
+        {
+          "variant": "page body",
+          "webRoute": "/blog?category=kegiatan_zyx",
+          "webReference": {
+            "path": "../references/blog-empty-dark-en-402-dpr3.png",
+            "sha256": "d220fc6ded78f90cc6934dce7cd39b5838f268f4158cb6a090a91b1284d4041f",
+            "referenceCommit": "97dc42ea0178387283373e5552702c8d3cd40438"
+          },
+          "diff": {
+            "path": "cases/operations-public-blog-list-empty-diff.png",
+            "sha256": "5d9308666ca854f10d5dada47bdd8cf5457d75530119ea6192fd88af5837b5a2"
+          },
+          "diffRendering": "autocontrasted absolute RGB channel difference",
+          "differentPixels": 1205672,
+          "totalPixels": 3162132,
+          "differentPercent": 38.128,
+          "maxChannelDelta": 226
+        },
+        {
+          "variant": "marketing shell",
+          "webRoute": "/en/blog?category=kegiatan_zyx",
+          "webReference": {
+            "path": "../references/blog-shell-empty-en-dark-402-dpr3.png",
+            "sha256": "7f451f0320cd1a4160d663d27c91b1235afa09904373c8075712f3b8174e8ea5",
+            "referenceCommit": "ddd3a78a0b6d47b45657b3a607383f02bed87f50",
+            "sourceCommit": "79b3229fb1d8bf4ca910f02d6f1dec18390edaac"
+          },
+          "diff": {
+            "path": "cases/operations-public-blog-list-empty-full-shell-diff.png",
+            "sha256": "f8fd95ba3bc3e205233db40be5e197657e9afc131af310be35b8dbe738b62155"
+          },
+          "diffRendering": "absolute RGB channel difference",
+          "differentPixels": 1289742,
+          "totalPixels": 3162132,
+          "differentPercent": 40.787,
+          "maxChannelDelta": 255
+        }
+      ]
+    },
+    {
+      "id": "operations-public-blog-detail-content",
+      "route": "/blog/belajar-dengan-latihan-terarah",
+      "state": "populated",
+      "locale": "id",
+      "theme": "light",
+      "maestroStatus": "SUCCESS",
+      "screenshot": {
+        "path": "cases/operations-public-blog-detail-content.png",
+        "sha256": "1e17c945ca5d6bb0f80e91b69517dbbf911eca41e2b8139e3940df7c100f494d"
+      },
+      "matchingMaestroArtifactPath": "results/2026-11-26_142240/operations-public-blog-detail-content/takeScreenshot/operations-public-blog-detail-content.png",
+      "commands": {
+        "path": "results/2026-11-26_142240/operations-public-blog-detail-content/commands.json",
+        "sha256": "2b3cffd943fdade70ab04c16759303dbbf47203800f6f2e2791cd6fbc257befe"
+      },
+      "comparisons": [
+        {
+          "variant": "page body",
+          "webRoute": "/blog/belajar-dengan-latihan-terarah",
+          "webReference": {
+            "path": "../references/blog-detail-light-402-dpr3.png",
+            "sha256": "353c60d02f8ba19e011ae4b1038f95ae49849e46ac03aadc989460de12b0cfb3",
+            "referenceCommit": "c7498bd5d6a1b8599dc5a2b8f9c68826447acb77"
+          },
+          "diff": {
+            "path": "cases/operations-public-blog-detail-content-diff.png",
+            "sha256": "e56fa2ad3f717e3ac689b45d6a688cf2d3accbb3fc6da6161a509a58b7ff348a"
+          },
+          "diffRendering": "autocontrasted absolute RGB channel difference",
+          "differentPixels": 563489,
+          "totalPixels": 3162132,
+          "differentPercent": 17.82,
+          "maxChannelDelta": 255
+        },
+        {
+          "variant": "marketing shell",
+          "webRoute": "/id/blog/belajar-dengan-latihan-terarah",
+          "webReference": {
+            "path": "../references/blog-shell-detail-id-light-402-dpr3.png",
+            "sha256": "6626a08d3c62591d34d74f1e0aae5550f27a5074c20cbd7da399e6ce5aca85f7",
+            "referenceCommit": "ddd3a78a0b6d47b45657b3a607383f02bed87f50",
+            "sourceCommit": "79b3229fb1d8bf4ca910f02d6f1dec18390edaac"
+          },
+          "diff": {
+            "path": "cases/operations-public-blog-detail-content-full-shell-diff.png",
+            "sha256": "665782150dc467257966100eebe1b764961c8017739d1d890ed2a2b8b5ddec0b"
+          },
+          "diffRendering": "absolute RGB channel difference",
+          "differentPixels": 564426,
+          "totalPixels": 3162132,
+          "differentPercent": 17.85,
+          "maxChannelDelta": 255
+        }
+      ]
+    }
+  ]
+}

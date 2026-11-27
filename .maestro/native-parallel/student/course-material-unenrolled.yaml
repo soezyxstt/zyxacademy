@@ -1,0 +1,73 @@
+appId: com.zyx.academy.nativeparity
+name: Student course and material reference unenrolled
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: separator
+    timeout: 30000
+- openLink: "zyx-native-parity://student-fixture?scenario=course-material-unenrolled&theme=light&locale=id&path=%2Fcourses%2Fmatematika-1"
+- extendedWaitUntil:
+    visible: "(?i)silabus kelas"
+    timeout: 30000
+- assertVisible: "Matematika I"
+- assertVisible: "Token kelas"
+- assertNotVisible: "4 dokumen tersedia"
+- takeScreenshot: student-course-detail-unenrolled
+- tapOn:
+    id: student-course-tabs-documents
+- extendedWaitUntil:
+    visible: "Semua"
+    timeout: 30000
+- assertVisible: "Matematika I"
+- assertNotVisible:
+    id: student-learning-back
+- scrollUntilVisible:
+    element:
+      id: student-material-dokumen-1
+    direction: DOWN
+    timeout: 30000
+- assertVisible: "Token kelas"
+- takeScreenshot: student-material-list-unenrolled
+- scrollUntilVisible:
+    element:
+      id: student-documents-chapter-bab-4
+    direction: DOWN
+- tapOn:
+    id: student-documents-chapter-bab-4
+- scrollUntilVisible:
+    element:
+      id: student-material-dokumen-4
+    direction: DOWN
+- tapOn:
+    id: student-material-dokumen-4
+- extendedWaitUntil:
+    visible: "Turunan"
+    timeout: 30000
+- assertVisible: "Matematika I"
+- assertVisible:
+    id: student-material-locked
+- assertVisible: "Token kelas"
+- assertNotVisible: 'Pembaca materi belum tersedia di aplikasi ini\.'
+- assertNotVisible: 'Catatan belajar mengenai Turunan\.'
+- takeScreenshot: student-material-reader-unenrolled
+- tapOn:
+    id: student-learning-back
+- extendedWaitUntil:
+    visible:
+      id: student-material-dokumen-4
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: student-documents-chapter-bab-1
+    direction: UP
+- tapOn:
+    id: student-documents-chapter-bab-1
+- tapOn:
+    id: student-material-dokumen-1
+- extendedWaitUntil:
+    visible: "Sistem bilangan real"
+    timeout: 30000
+- assertNotVisible:
+    id: student-material-locked
+- assertVisible: 'Pembaca materi belum tersedia di aplikasi ini\.'

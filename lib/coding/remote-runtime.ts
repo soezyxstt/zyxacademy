@@ -2,23 +2,29 @@ import type { ExecutionResult } from "./contracts";
 import type { PythonRuntime } from "./runtime";
 import { takeWarmRemotePython } from "./remote-warm";
 
-type Terminal = { output(text: string): void; input(send: (value: string) => void): void };
+type Terminal = { output(text: string): void; input(send: (value: string) => void): void; prefillInput?: boolean };
 
-export function createRemotePythonRuntime(courseId: string, onPhase: (phase: "loading" | "running") => void, terminal: Terminal): PythonRuntime {
+type TerminalRequest = (path: string, init: RequestInit) => Promise<{ ok: boolean; json(): Promise<unknown>; dispose?(): void }>;
+
+export function createRemotePythonRuntime(courseId: string, onPhase: (phase: "loading" | "running") => void, terminal: Terminal, sessionRequest?: TerminalRequest): PythonRuntime {
   return {
-    async execute({ code, limits, signal }) {
+    async execute({ code, stdin, limits, signal }) {
       const unavailable = (): ExecutionResult => ({ status: "unavailable", stdout: "", stderr: "Python belum tersedia. Coba lagi.", truncated: false });
       onPhase("loading");
       const attempt = async (allowWarm: boolean, retry: boolean): Promise<ExecutionResult> => {
-      const warm = allowWarm ? await takeWarmRemotePython(courseId, signal) : null;
+      const warm = allowWarm && !sessionRequest ? await takeWarmRemotePython(courseId, signal) : null;
       if (signal?.aborted) { warm?.close(); return { status: "stopped", stdout: "", stderr: "", truncated: false }; }
       let connection: { url: string; ticket: string } | undefined;
       try {
         if (!warm) {
-        const response = await fetch("/api/coding/terminal", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ courseId }), signal });
-        if (!response.ok) return unavailable();
-        connection = await response.json();
-        if (!connection || connection.url !== "wss://zyx-py-runtime.onrender.com/v1/terminal" || typeof connection.ticket !== "string" || !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(connection.ticket)) return unavailable();
+          const request: TerminalRequest = sessionRequest ?? fetch;
+          const response = await request("/api/coding/terminal", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ courseId }), signal });
+          if (!response.ok) { response.dispose?.(); return unavailable(); }
+          const ticket: unknown = await response.json();
+          if (!ticket || typeof ticket !== "object" || !("url" in ticket) || !("ticket" in ticket) ||
+            ticket.url !== "wss://zyx-py-runtime.onrender.com/v1/terminal" || typeof ticket.ticket !== "string" ||
+            !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(ticket.ticket)) return unavailable();
+          connection = { url: ticket.url, ticket: ticket.ticket };
         }
       } catch { return signal?.aborted ? { status: "stopped", stdout: "", stderr: "", truncated: false } : unavailable(); }
       return new Promise<ExecutionResult>((resolve) => {
@@ -42,6 +48,10 @@ export function createRemotePythonRuntime(courseId: string, onPhase: (phase: "lo
           if (message.type === "ready") { try { socket.send(JSON.stringify({ type: "start", code })); sent = true; } catch { retryBeforeSend(); } }
           if (message.type === "running") {
             clearTimeout(timer); onPhase("running");
+            if (terminal.prefillInput && stdin && socket.readyState === WebSocket.OPEN) {
+              try { socket.send(JSON.stringify({ type: "input", data: stdin.endsWith("\n") ? stdin : stdin + "\n" })); }
+              catch { finish(unavailable()); return; }
+            }
             terminal.input((value) => { if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: "input", data: value + "\n" })); });
           }
           if (message.type === "output" && typeof message.data === "string") {

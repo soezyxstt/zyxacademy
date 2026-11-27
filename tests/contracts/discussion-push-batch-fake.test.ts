@@ -9,6 +9,7 @@ import * as schema from "@/db/schema";
 import { validDiscussionId } from "@/lib/discussions/policy";
 import { DEFAULT_LOCALE, normalizeLocale } from "@/lib/i18n/locale";
 import { dispatchTokensByTransport } from "@/lib/notifications/dispatch";
+import { expoPushTarget } from "@/lib/notifications/expo-payload";
 import { discussionPayload, renderNotificationPayload } from "@/lib/notifications/templates";
 
 type Row = Record<string, any>;
@@ -98,6 +99,7 @@ function harness(count: number, tokenFor: (index: number) => boolean = () => tru
   "@/lib/notifications/templates": { discussionPayload, renderNotificationPayload },
   "./apns": { sendApnsNotifications: async () => ({ succeeded: 0, failedTokens: [], errors: [] }) },
   "./dispatch": { dispatchTokensByTransport },
+  "./expo-payload": { expoPushTarget },
   "./templates": { renderNotificationPayload },
   "./quiet-delivery": { deferQuietPushes: async () => new Set(), deferredSendResult: () => ({ attempted:0,succeeded:0,failedTokens:[],errors:[] }) },
   "@/lib/discussions/access": {}, "@/lib/discussions/policy": { validDiscussionId },

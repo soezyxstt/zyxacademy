@@ -1,0 +1,7 @@
+appId: com.zyx.academy.nativeparity
+name: Return to native sign-in after a cold public link
+---
+- extendedWaitUntil:
+    visible: "(Sign in with Google|Masuk dengan Google)"
+    timeout: 20000
+- takeScreenshot: guest-sign-in

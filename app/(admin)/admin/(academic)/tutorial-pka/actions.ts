@@ -2,16 +2,17 @@
 
 import { headers } from "next/headers";
 import { randomUUID } from "node:crypto";
-import { and, desc, eq, isNull, or } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { enrollments, pkaAnnouncements, pkaRegistrations, pkaSchedules, user } from "@/db/schema";
+import { pkaAnnouncements, pkaRegistrations, pkaSchedules, user } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { storage } from "@/lib/storage";
-import { PKA_COURSE_ID } from "@/lib/pka-config";
-import { sendToMany } from "@/lib/notifications/send";
-import { pkaAnnouncementPayload, pkaSchedulePayload, pkaScheduleUpdatePayload } from "@/lib/notifications/templates";
-import { pkaAnnouncementEmailHtml, pkaAnnouncementEmailSubject, pkaScheduleEmailSubject, pkaScheduleUpdateEmailSubject, scheduleEmailHtml } from "@/lib/pka-email-template";
-import { sendOptionalEmail } from "@/lib/email-preferences/send";
+import { deliverPkaMessage } from "@/lib/pka/delivery";
+import { updatePkaAnnouncementText } from "@/lib/pka/announcement-text";
+import { lockPkaSchedule, pkaScheduleDeliveryRequired, updatePkaSchedule } from "@/lib/pka/schedule-update";
+import { createPkaAnnouncementRecord, createPkaScheduleRecord, deletePkaScheduleRecord, updatePkaAnnouncementState } from "@/lib/pka/lifecycle";
+import { pkaScheduleCreationNeedsDelivery } from "@/packages/academic/pka-lifecycle";
+import { isValidPkaScheduleText } from "@/packages/academic/pka-schedule-edit";
 
 export interface PkaActionState {
   success?: boolean;
@@ -32,30 +33,6 @@ async function requireAdmin() {
   return session.user;
 }
 
-async function getAllEnrolledStudents() {
-  return db
-    .select({ userId: enrollments.userId })
-    .from(enrollments)
-    .innerJoin(user, eq(user.id, enrollments.userId))
-    .where(eq(enrollments.courseId, PKA_COURSE_ID));
-}
-
-async function getLegacyPkaNotificationRecipients() {
-  return db
-    .select({ userId: enrollments.userId })
-    .from(enrollments)
-    .innerJoin(user, eq(user.id, enrollments.userId))
-    .leftJoin(pkaRegistrations, eq(pkaRegistrations.userId, enrollments.userId))
-    .where(
-      and(
-        eq(enrollments.courseId, PKA_COURSE_ID),
-        or(isNull(pkaRegistrations.id), eq(pkaRegistrations.receiveAnnouncements, true)),
-      ),
-    );
-}
-
-// ─── ANNOUNCEMENTS ──────────────────────────────────────────────────────────
-
 export async function createAndSendPkaAnnouncementAction(
   _prevState: PkaActionState,
   formData: FormData,
@@ -71,53 +48,17 @@ export async function createAndSendPkaAnnouncementAction(
     }
 
     const announcementId = randomUUID();
-    const [enrolled, pushRecipients] = await Promise.all([
-      getAllEnrolledStudents(),
-      getLegacyPkaNotificationRecipients(),
-    ]);
-
-    await db.insert(pkaAnnouncements).values({
+    await createPkaAnnouncementRecord(db, {
       id: announcementId,
       title,
       body,
       createdBy: admin.id,
     });
 
-    const notificationResult = await sendToMany(
-      pushRecipients.map((e) => e.userId),
-      pkaAnnouncementPayload(title, body, `/courses/${PKA_COURSE_ID}`),
-    );
+    const { recipientCount, notificationsSucceeded, emailsSucceeded } = await deliverPkaMessage({ kind: "announcement", title, body });
+    await db.update(pkaAnnouncements).set({ sentAt: new Date(), recipientCount }).where(eq(pkaAnnouncements.id, announcementId));
 
-    const emailResults = await Promise.allSettled(
-      enrolled.map((student) =>
-        sendOptionalEmail({
-          userId: student.userId,
-          category: "course_updates",
-          render: (locale) => ({
-            subject: pkaAnnouncementEmailSubject(title, locale),
-            html: pkaAnnouncementEmailHtml(title, body, locale),
-          }),
-        }),
-      ),
-    );
-    const emailsSucceeded = emailResults.filter(
-      (result) => result.status === "fulfilled" && result.value.status === "sent",
-    ).length;
-
-    await db
-      .update(pkaAnnouncements)
-      .set({ sentAt: new Date(), recipientCount: enrolled.length })
-      .where(eq(pkaAnnouncements.id, announcementId));
-
-    return {
-      success: true,
-      result: {
-        recipientCount: enrolled.length,
-        notificationsSucceeded: notificationResult.succeeded,
-        emailsSucceeded,
-        broadcasted: true,
-      },
-    };
+    return { success: true, result: { recipientCount, notificationsSucceeded, emailsSucceeded, broadcasted: true } };
   } catch (err) {
     console.error("[createAndSendPkaAnnouncementAction]", err);
     return { error: err instanceof Error ? err.message : "Terjadi kesalahan." };
@@ -160,10 +101,7 @@ export async function archivePkaAnnouncementAction(
   try {
     await requireAdmin();
 
-    await db
-      .update(pkaAnnouncements)
-      .set({ isArchived: archive })
-      .where(eq(pkaAnnouncements.id, announcementId));
+    await updatePkaAnnouncementState(db, announcementId, "archived", archive);
 
     return { success: true };
   } catch (err) {
@@ -179,10 +117,7 @@ export async function togglePinPkaAnnouncementAction(
   try {
     await requireAdmin();
 
-    await db
-      .update(pkaAnnouncements)
-      .set({ isPinned: pin })
-      .where(eq(pkaAnnouncements.id, announcementId));
+    await updatePkaAnnouncementState(db, announcementId, "pinned", pin);
 
     return { success: true };
   } catch (err) {
@@ -199,10 +134,7 @@ export async function editPkaAnnouncementAction(
   try {
     await requireAdmin();
 
-    await db
-      .update(pkaAnnouncements)
-      .set({ title, body })
-      .where(eq(pkaAnnouncements.id, announcementId));
+    await updatePkaAnnouncementText(announcementId, { title, body });
 
     return { success: true };
   } catch (err) {
@@ -226,13 +158,16 @@ function parseScheduleForm(formData: FormData): { title: string; meetLink: strin
   if (!title || !sessionAtRaw) {
     return { error: "Judul dan jadwal wajib diisi." };
   }
+  if (!isValidPkaScheduleText(title)) {
+    return { error: "Periksa karakter pada judul sesi." };
+  }
 
   const sessionAt = new Date(sessionAtRaw);
   if (Number.isNaN(sessionAt.getTime())) {
     return { error: "Jadwal sesi tidak valid." };
   }
 
-  if (meetLink && !/^https:\/\//.test(meetLink)) {
+  if (meetLink && (!isValidPkaScheduleText(meetLink) || !/^https:\/\//.test(meetLink))) {
     return { error: "Link Meet harus diawali https://." };
   }
 
@@ -251,7 +186,7 @@ export async function createPkaScheduleAction(
     const { title, meetLink, sessionAt } = parsed;
 
     const scheduleId = randomUUID();
-    await db.insert(pkaSchedules).values({
+    await createPkaScheduleRecord(db, {
       id: scheduleId,
       title,
       meetLink,
@@ -260,7 +195,7 @@ export async function createPkaScheduleAction(
     });
 
     // Broadcast only for upcoming sessions; backfilling a past session stays silent.
-    const isUpcoming = sessionAt.getTime() > Date.now();
+    const isUpcoming = pkaScheduleCreationNeedsDelivery(sessionAt);
     if (!isUpcoming) {
       return {
         success: true,
@@ -268,45 +203,11 @@ export async function createPkaScheduleAction(
       };
     }
 
-    const [enrolled, pushRecipients] = await Promise.all([
-      getAllEnrolledStudents(),
-      getLegacyPkaNotificationRecipients(),
-    ]);
-    const notificationResult = await sendToMany(
-      pushRecipients.map((e) => e.userId),
-      pkaSchedulePayload(title, sessionAt, `/courses/${PKA_COURSE_ID}/jadwal`),
-    );
-
-    const emailResults = await Promise.allSettled(
-      enrolled.map((student) =>
-        sendOptionalEmail({
-          userId: student.userId,
-          category: "events_and_schedules",
-          render: (locale) => ({
-            subject: pkaScheduleEmailSubject(title, locale),
-            html: scheduleEmailHtml(title, sessionAt, meetLink, locale),
-          }),
-        }),
-      ),
-    );
-    const emailsSucceeded = emailResults.filter(
-      (result) => result.status === "fulfilled" && result.value.status === "sent",
-    ).length;
-
-    await db
-      .update(pkaSchedules)
-      .set({ sentAt: new Date(), recipientCount: enrolled.length })
-      .where(eq(pkaSchedules.id, scheduleId));
-
-    return {
-      success: true,
-      result: {
-        recipientCount: enrolled.length,
-        notificationsSucceeded: notificationResult.succeeded,
-        emailsSucceeded,
-        broadcasted: true,
-      },
-    };
+    const { recipientCount, notificationsSucceeded, emailsSucceeded } = await deliverPkaMessage({
+      kind: "schedule-create", title, sessionAt, meetLink,
+    });
+    await db.update(pkaSchedules).set({ sentAt: new Date(), recipientCount }).where(eq(pkaSchedules.id, scheduleId));
+    return { success: true, result: { recipientCount, notificationsSucceeded, emailsSucceeded, broadcasted: true } };
   } catch (err) {
     console.error("[createPkaScheduleAction]", err);
     return { error: err instanceof Error ? err.message : "Terjadi kesalahan." };
@@ -324,36 +225,17 @@ export async function updatePkaScheduleAction(
     if ("error" in parsed) return { success: false, error: parsed.error };
     const { title, meetLink, sessionAt } = parsed;
 
-    const [existing] = await db.select().from(pkaSchedules).where(eq(pkaSchedules.id, scheduleId));
+    const fields = { title, meetLink, sessionAt };
+    const existing = await db.transaction(async (tx) => {
+      const schedule = await lockPkaSchedule(tx, scheduleId);
+      if (!schedule) return null;
+      await updatePkaSchedule(tx, schedule, fields);
+      return schedule;
+    });
     if (!existing) return { success: false, error: "Jadwal tidak ditemukan." };
 
-    await db
-      .update(pkaSchedules)
-      .set({ title, meetLink, sessionAt })
-      .where(eq(pkaSchedules.id, scheduleId));
-
-    if (meetLink && existing.meetLink !== meetLink && sessionAt.getTime() > Date.now()) {
-      const [enrolled, pushRecipients] = await Promise.all([
-        getAllEnrolledStudents(),
-        getLegacyPkaNotificationRecipients(),
-      ]);
-      await sendToMany(
-        pushRecipients.map((e) => e.userId),
-        pkaScheduleUpdatePayload(title, sessionAt, `/courses/${PKA_COURSE_ID}/jadwal`),
-      );
-
-      await Promise.allSettled(
-        enrolled.map((student) =>
-          sendOptionalEmail({
-            userId: student.userId,
-            category: "events_and_schedules",
-            render: (locale) => ({
-              subject: pkaScheduleUpdateEmailSubject(title, locale),
-              html: scheduleEmailHtml(title, sessionAt, meetLink, locale),
-            }),
-          }),
-        ),
-      );
+    if (pkaScheduleDeliveryRequired(existing, fields)) {
+      await deliverPkaMessage({ kind: "schedule-update", title, sessionAt, meetLink });
     }
 
     return { success: true };
@@ -366,7 +248,7 @@ export async function updatePkaScheduleAction(
 export async function deletePkaScheduleAction(scheduleId: string): Promise<{ success: boolean; error?: string }> {
   try {
     await requireAdmin();
-    await db.delete(pkaSchedules).where(eq(pkaSchedules.id, scheduleId));
+    await deletePkaScheduleRecord(db, scheduleId);
     return { success: true };
   } catch (err) {
     console.error("[deletePkaScheduleAction]", err);

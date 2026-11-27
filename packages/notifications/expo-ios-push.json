@@ -1,0 +1,8 @@
+{
+  "bundleId": "com.zyx.academy.nativeparity",
+  "origin": "https://staging.zyxacademy.com",
+  "deviceLabels": {
+    "development": "expo-ios-development",
+    "production": "expo-ios-production"
+  }
+}

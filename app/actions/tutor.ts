@@ -9,12 +9,13 @@ import { resolveCodingTutorContext, CODING_TUTOR_INSTRUCTIONS } from "@/lib/codi
 import { getConversationMemory } from "@/lib/zyra/conversation-memory";
 import { affectedRows } from "@/lib/mutation-result";
 import { headers } from "next/headers";
+import { tutorHistoryMessageId } from "@/lib/zyra/history-identity";
 import { auth } from "@/lib/auth";
 import { TutorActionService } from "@/lib/tutor-actions";
 import { db } from "@/db";
 import { aiQuestionBank, knowledgeObjects, tutorChatMessages, chatSessions, studentQuizAttempts, quizTemplates, zyraMessageAttachments, bab, chapters, mataKuliah, courseMaterials } from "@/db/schema";
 import { eq, and, asc, desc, gt, inArray, isNull, or } from "drizzle-orm";
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { exams } from "@/lib/student-course-fixtures";
 import { askTutorRag, type TutorPageContext } from "@/lib/tutor-rag";
 import { createChatSession, getOrCreateChatSession } from "@/lib/zyra/zyra-context-builder";
@@ -865,7 +866,7 @@ export async function saveTutorMessagesAction(
       : (m.content ?? "");
     return {
       id: requestId && /^[A-Za-z0-9._:-]{1,128}$/.test(requestId)
-        ? createHash("sha256").update(JSON.stringify([user.id, courseId, requestId, index])).digest("hex")
+        ? tutorHistoryMessageId(user.id, courseId, requestId, index)
         : randomUUID(),
       studentId: user.id,
       courseId,

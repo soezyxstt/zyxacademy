@@ -50,7 +50,7 @@ class CheckCommandsTest(unittest.TestCase):
         self.assertEqual(commands[0], ['run', 'typegen'])
         self.assertCountEqual(
             [commands[1][0], commands[2][0]],
-            ['run', '--max-old-space-size=4096'],
+            ['run', '--max-old-space-size=8192'],
         )
         self.assertIn(['run', 'typecheck'], commands[1:])
         selected_cmd = next(cmd for cmd in commands[1:] if 'tests-selected.json' in ' '.join(cmd))

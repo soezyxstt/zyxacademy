@@ -27,6 +27,9 @@ TARGETS = {
         "renderer": "https://zyx-diktat-renderer-staging.16922204.workers.dev",
     },
 }
+EXPO_IOS_APNS_KEYS = tuple(f"APNS_EXPO_IOS_{environment}_{field}"
+                          for environment in ("DEVELOPMENT", "PRODUCTION")
+                          for field in ("KEY_ID", "TEAM_ID", "PRIVATE_KEY"))
 CI_KEYS = {"NEON_API_KEY", "GITHUB_TOKEN", "VERCEL_TOKEN", "GCP_SERVICE_ACCOUNT_KEY",
            "SKIP_ENV_VALIDATION"}
 
@@ -98,6 +101,12 @@ def prepare_worker_runtime(environment, secrets, variables):
                     COMPUTE_SERVICE_URL=f"https://{target['branch']}-zyxcompute.compute.c-3.ap-southeast-1.aws.neon.tech",
                     AUTHORING_VERIFICATION_BROWSER_PROVIDER="cloudflare")
     if environment == "staging":
+        for key in EXPO_IOS_APNS_KEYS:
+            value = secrets.get(key) if key.endswith("_PRIVATE_KEY") else variables.get(key) or secrets.get(key)
+            if value:
+                if not isinstance(value, str):
+                    raise ValueError("STAGING_EXPO_IOS_APNS_VALUE_INVALID")
+                settings[key] = value
         steel_key = secrets.get("STEEL_API_KEY")
         if not isinstance(steel_key, str) or not steel_key.strip() or steel_key == "[SENSITIVE]":
             raise ValueError("WORKER_STEEL_API_KEY_REQUIRED")

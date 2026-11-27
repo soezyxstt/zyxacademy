@@ -23,7 +23,8 @@ This document is the source of truth for notification scopes, delivery channels,
 | Tutor moves a scheduled tutorial session | `tutor_reminder` | Yes | Optional | `events_and_schedules` | `/dashboard/schedule` |
 | Tutor approves or declines schedule ticket | `tutor_reminder` | Yes | Optional | `events_and_schedules` | `/dashboard/schedule` |
 | New message on schedule ticket | `tutor_reminder` | Yes | Never | None | `/dashboard/schedule` |
-| Tutorial PKA announcement, schedule, or Meet update | `announcement` | Yes | Optional | `events_and_schedules` | `/courses/tutorial-pka` |
+| Tutorial PKA announcement | `announcement` | Yes | Optional | `course_updates` | `/courses/tutorial-pka` |
+| Tutorial PKA schedule or Meet update | `announcement` | Yes | Optional | `events_and_schedules` | `/courses/tutorial-pka/jadwal` |
 | Admin broadcast | `admin_broadcast` | Yes | Never | None | Custom or `/dashboard` |
 
 ### Tutor
@@ -60,10 +61,19 @@ All interval jobs are registered in [`jobs/compute.ts`](../jobs/compute.ts), [`l
 ## 4. Native App and Cross-Role Synchronization
 
 - **Role coverage**: [`PushPermissionInit`](../components/notifications/push-permission-init.tsx) is mounted across Student, Tutor, and Admin layouts so all roles register FCM, APNs, WebPush, or Tauri desktop tokens. Student-only local study reminders remain scoped away from Admin surfaces.
+- **Expo device registration**: [`NotificationsProvider`](../apps/mobile-native/device/notifications-provider.tsx) binds the raw Android FCM or iOS APNs token to the signed-in session through `POST /api/notifications/register-token`. Only an explicit settings action may start the OS permission prompt. The provider handles token rotation and removes the outgoing registration before session revocation when the server is reachable. Delivery requires a signed build with matching app credentials and server transport settings.
 - **Mobile inbox parity**: [`NotificationBell`](../components/notifications/notification-bell.tsx) is rendered across Student, Tutor, and Admin desktop sidebars and mobile top navbars.
 - **Read-state synchronization on native tap**: [`sendToUser`](../lib/notifications/send.ts) generates the `notifications.id` UUID before push dispatch and embeds `notificationId` in FCM `data` and APNs payloads. When a user taps a native push notification, [`subscribeNativeNotifications`](../lib/native/notifications.ts) forwards `notificationId` to [`NotificationBell`](../components/notifications/notification-bell.tsx), which marks the record read via `PATCH /api/notifications/read` and dispatches `zyx:notifications-changed` to refresh unread badges across components.
+- Android installations registered as `expo-android` receive a localized generic system notification. The selected channel and delivery priority follow the event type. Only the inbox UUID or quiet-digest marker reaches the tap handler. Titles, bodies, media and destinations remain in the authenticated inbox. This also applies to a delivery queued before logout. [Dispatch](../lib/notifications/dispatch.ts), [Firebase localization](https://firebase.google.com/docs/cloud-messaging/customize-messages/localize-messages).
+- **Expo push taps**: Expo holds one pending row tap for up to 60 seconds during session and route verification. A verified session confirms ownership and visibility through `GET /api/notifications/history?tapId=…`. On 401, Expo verifies the original origin, account and session before retrying the lookup once. Logout or session replacement cancels the pending tap. Expo opens the authorized inbox destination or the verified role home and sends at most one read acknowledgement. Quiet-hour digests open the role home only when the identity is already verified at tap time.
 - **Broadcast inbox completeness**: [`sendBroadcast`](../lib/notifications/send.ts) targets all accounts in `user` rather than only `user_push_tokens`, ensuring users without push tokens still receive broadcasts in their in-app inbox.
 - **Role-aware fallback routing**: Missing or invalid deep links fall back to `/admin`, `/tutor`, or `/dashboard` according to the signed-in role.
+
+### Native Admin broadcast
+
+The Admin `/admin/notifications` composer targets all accounts, a course's enrolled accounts, or one account by ID. The explicit review shows the message, destination, audience and recipient count. The 15-minute review is bound to the Admin session. Confirmation and the queue worker each verify that the exact recipient membership still matches. Changed membership requires a new review even when the count stays the same.
+
+Confirmation creates one durable operation. Repeating the same confirmation returns its recorded status. The worker rechecks the active Admin role and originating session before claiming delivery, then uses the existing inbox and push sender. An interrupted claim stays uncertain and is never replayed automatically. Check history for partial or uncertain outcomes. The operation binds to the application's exact auth origin. It uses a distinct outbox namespace from OAuth-delegated MCP operations.
 
 ## Context and optional activity
 

@@ -56,6 +56,7 @@ export type QuizGradeDraftMap = Record<string, QuizGradeInput>;
 
 export interface SubmissionItem {
   id: string;
+  reviewRevision?: string;
   studentName: string | null;
   studentEmail: string | null;
   examTitle: string;

@@ -18,6 +18,7 @@ import {
   tutorSlots,
   penggunaPeran,
   peran,
+  pengguna,
 } from "@/db/schema";
 import { assertAdmin } from "@/lib/auth/admin-guards";
 import {
@@ -56,9 +57,11 @@ import {
   validateSlotWeekdayDate,
 } from "@/lib/schedule/tutor-policy";
 import { recordMutationAudit } from "@/lib/audit/mutasi";
+import { lockTutorAssignmentChanges } from "@/lib/auth/authoring-actor";
 import { type DbExecutor } from "@/lib/auth/tutor-access";
 const generateRequestId = randomUUID;
 import { dualWriteTutorAssignment, revokeCanonicalTutorCourseAssignments } from "@/lib/migrasi/repository-kompatibilitas";
+import { deleteAcademicEvent, insertAcademicEvent, updateAcademicEvent } from "@/lib/schedule/academic-event";
 import { buildAdminCoverage } from "@/lib/schedule/admin-coverage";
 import {
   normalizeAdminOverrideReason,
@@ -271,6 +274,8 @@ export interface AdminScheduleMutationOptions {
   actorId?: string;
   executor?: DbExecutor;
   now?: Date;
+  deferEffects?: boolean;
+  requestId?: string;
 }
 
 interface AdminActorContext {
@@ -335,7 +340,7 @@ export async function executeAdminCreateTutorAvailability(
   options?: AdminScheduleMutationOptions,
 ) {
   const actor = await getAdminActorContext(options);
-  const requestId = generateRequestId();
+  const requestId = options?.requestId ?? generateRequestId();
   const tutorId = typeof input.tutorId === "string" ? input.tutorId.trim() : "";
   const sessionDate = typeof input.sessionDate === "string" ? input.sessionDate.trim() : "";
   const startTime = typeof input.startTime === "string" ? input.startTime.trim() : "";
@@ -385,13 +390,13 @@ export async function executeAdminCreateTutorAvailability(
     };
   }
 
-  const existingTutor = await actor.client
-    .select({ id: user.id })
-    .from(user)
-    .where(eq(user.id, tutorId))
-    .limit(1);
-  if (existingTutor.length === 0) {
+  const [existingTutor] = await actor.client.select({ id: user.id, status: pengguna.status }).from(user)
+    .leftJoin(pengguna, eq(pengguna.id, user.id)).where(eq(user.id, tutorId)).limit(1);
+  if (!existingTutor) {
     return { success: false, error: "Tutor tidak ditemukan.", reason: "TUTOR_NOT_FOUND" };
+  }
+  if (existingTutor.status && existingTutor.status !== "active") {
+    return { success: false, error: "Tutor tidak aktif.", reason: "TUTOR_INACTIVE" };
   }
 
   const tutorRoleRows = await actor.client
@@ -458,7 +463,7 @@ export async function executeAdminCreateTutorAvailability(
       return newSlotId;
     });
 
-    revalidateAdminSchedulePaths(["/admin/schedules", "/tutor/schedule"]);
+    if (!options?.deferEffects) revalidateAdminSchedulePaths(["/admin/schedules", "/tutor/schedule"]);
     return { success: true, slotId };
   } catch (error) {
     if (error instanceof Error && error.message === "TUTOR_SLOT_OVERLAP") {
@@ -482,7 +487,7 @@ export async function executeAdminDeleteTutorAvailability(
   options?: AdminScheduleMutationOptions,
 ) {
   const actor = await getAdminActorContext(options);
-  const requestId = generateRequestId();
+  const requestId = options?.requestId ?? generateRequestId();
   const slotId = typeof input.slotId === "string" ? input.slotId.trim() : "";
   const reason = requireReason(input.reason);
 
@@ -538,7 +543,7 @@ export async function executeAdminDeleteTutorAvailability(
       }, tx);
     });
 
-    revalidateAdminSchedulePaths(["/admin/schedules", "/tutor/schedule", "/dashboard/schedule"]);
+    if (!options?.deferEffects) revalidateAdminSchedulePaths(["/admin/schedules", "/tutor/schedule", "/dashboard/schedule"]);
     return { success: true as const };
   } catch (error) {
     const code = error instanceof Error ? error.message : "DATABASE_ERROR";
@@ -566,7 +571,7 @@ export async function executeAdminAssignTutorialSession(
   options?: AdminScheduleMutationOptions,
 ) {
   const actor = await getAdminActorContext(options);
-  const requestId = generateRequestId();
+  const requestId = options?.requestId ?? generateRequestId();
   const slotId = typeof input.slotId === "string" ? input.slotId.trim() : "";
   const groupId = typeof input.groupId === "string" ? input.groupId.trim() : "";
   const courseId = typeof input.courseId === "string" ? input.courseId.trim() : "";
@@ -675,7 +680,7 @@ export async function executeAdminAssignTutorialSession(
       return { bookingId };
     });
 
-    revalidateAdminSchedulePaths(["/admin/schedules", "/tutor/schedule", "/dashboard/schedule"]);
+    if (!options?.deferEffects) revalidateAdminSchedulePaths(["/admin/schedules", "/tutor/schedule", "/dashboard/schedule"]);
     return { success: true, ...result };
   } catch (error) {
     const code = error instanceof Error ? error.message : "DATABASE_ERROR";
@@ -708,7 +713,7 @@ export async function executeAdminMoveTutorialSession(
   options?: AdminScheduleMutationOptions,
 ) {
   const actor = await getAdminActorContext(options);
-  const requestId = generateRequestId();
+  const requestId = options?.requestId ?? generateRequestId();
   const bookingId = typeof input.bookingId === "string" ? input.bookingId.trim() : "";
   const targetSlotId = typeof input.targetSlotId === "string" ? input.targetSlotId.trim() : "";
   const reason = requireReason(input.reason);
@@ -784,7 +789,7 @@ export async function executeAdminMoveTutorialSession(
         after,
       }, tx);
     });
-    revalidateAdminSchedulePaths(["/admin/schedules", "/tutor/schedule", "/dashboard/schedule"]);
+    if (!options?.deferEffects) revalidateAdminSchedulePaths(["/admin/schedules", "/tutor/schedule", "/dashboard/schedule"]);
     return { success: true };
   } catch (error) {
     const code = error instanceof Error ? error.message : "DATABASE_ERROR";
@@ -811,7 +816,7 @@ export async function executeAdminCancelTutorialSession(
   options?: AdminScheduleMutationOptions,
 ) {
   const actor = await getAdminActorContext(options);
-  const requestId = generateRequestId();
+  const requestId = options?.requestId ?? generateRequestId();
   const bookingId = typeof input.bookingId === "string" ? input.bookingId.trim() : "";
   const reason = requireReason(input.reason);
   if (!reason) return { success: false, error: "Alasan override wajib diisi.", reason: "REASON_REQUIRED" };
@@ -855,7 +860,7 @@ export async function executeAdminCancelTutorialSession(
         after,
       }, tx);
     });
-    revalidateAdminSchedulePaths(["/admin/schedules", "/tutor/schedule", "/dashboard/schedule"]);
+    if (!options?.deferEffects) revalidateAdminSchedulePaths(["/admin/schedules", "/tutor/schedule", "/dashboard/schedule"]);
     return { success: true };
   } catch (error) {
     const code = error instanceof Error ? error.message : "DATABASE_ERROR";
@@ -907,46 +912,60 @@ export async function adminDeleteTutorAvailability(input: AdminDeleteTutorAvaila
   return executeAdminDeleteTutorAvailability(input);
 }
 
-export async function updateTutorCourses(targetTutorId: string, courseIds: string[]) {
-  const { user: adminUser } = await assertAdmin();
-  const normalizedTutorId = typeof targetTutorId === "string" ? targetTutorId.trim() : "";
+export async function executeAdminUpdateTutorCourses(targetTutorId: string, courseIds: string[], options?: AdminScheduleMutationOptions) {
+  const actor = await getAdminActorContext(options);
+  const tutorId = typeof targetTutorId === "string" ? targetTutorId.trim() : "";
   const uniqueCourseIds = [...new Set(
     (Array.isArray(courseIds) ? courseIds : [])
       .filter((courseId): courseId is string => typeof courseId === "string")
       .map((courseId) => courseId.trim())
       .filter(Boolean),
   )];
-
-  if (!normalizedTutorId) return { success: false, error: "Tutor wajib dipilih." };
+  if (!tutorId) return { success: false, reason: "TUTOR_NOT_FOUND", error: "Tutor wajib dipilih." };
 
   try {
-    await db.transaction(async (tx) => {
-      await revokeCanonicalTutorCourseAssignments(tx, normalizedTutorId, adminUser.id);
-      await tx.delete(tutorCourses).where(eq(tutorCourses.tutorId, normalizedTutorId));
+    await actor.client.transaction(async tx => {
+      await lockTutorAssignmentChanges(tx, tutorId);
+      const [tutor] = await tx.select({ role: user.role, status: pengguna.status }).from(user)
+        .leftJoin(pengguna, eq(pengguna.id, user.id)).where(eq(user.id, tutorId)).limit(1);
+      if (!tutor) throw new Error("TUTOR_NOT_FOUND");
+      if (tutor.status && tutor.status !== "active") throw new Error("TUTOR_INACTIVE");
+      const [membership] = await tx.select({ id: penggunaPeran.id }).from(penggunaPeran)
+        .innerJoin(peran, eq(penggunaPeran.peranId, peran.id))
+        .where(and(eq(penggunaPeran.penggunaId, tutorId), eq(peran.code, "tutor"))).limit(1);
+      if (!membership && tutor.role !== "teacher") throw new Error("NOT_A_TUTOR");
+      if (uniqueCourseIds.length) {
+        const rows = await tx.select({ id: courses.id }).from(courses).where(inArray(courses.id, uniqueCourseIds)).for("key share");
+        if (rows.length !== uniqueCourseIds.length) throw new Error("COURSE_NOT_FOUND");
+      }
+
+      await revokeCanonicalTutorCourseAssignments(tx, tutorId, actor.actorId);
+      await tx.delete(tutorCourses).where(eq(tutorCourses.tutorId, tutorId));
       if (uniqueCourseIds.length === 0) return;
 
-      const assignments = uniqueCourseIds.map((courseId) => ({
-        id: generateRequestId(),
-        tutorId: normalizedTutorId,
-        courseId,
-      }));
+      const assignments = uniqueCourseIds.map(courseId => ({ id: generateRequestId(), tutorId, courseId }));
       await tx.insert(tutorCourses).values(assignments);
       for (const assignment of assignments) {
-        await dualWriteTutorAssignment(
-          tx,
-          { ...assignment, status: "active" },
-          adminUser.id,
-        );
+        await dualWriteTutorAssignment(tx, { ...assignment, status: "active" }, actor.actorId);
       }
     });
 
-    revalidatePath("/admin/schedules");
-    revalidatePath("/tutor/schedule");
-    return { success: true };
+    if (!options?.deferEffects) revalidateAdminSchedulePaths(["/admin/schedules", "/tutor/schedule"]);
+    return { success: true as const };
   } catch (error) {
+    const reason = error instanceof Error ? error.message : "";
+    const messages: Record<string, string> = {
+      TUTOR_NOT_FOUND: "Tutor tidak ditemukan.", NOT_A_TUTOR: "Pengguna yang dipilih bukan tutor.",
+      TUTOR_INACTIVE: "Tutor tidak aktif.", COURSE_NOT_FOUND: "Mata kuliah tidak ditemukan.",
+    };
+    if (Object.hasOwn(messages, reason)) return { success: false as const, reason, error: messages[reason] };
     console.error("Update tutor courses error:", error);
-    return { success: false, error: "Gagal memperbarui mata kuliah tutorial." };
+    return { success: false as const, reason: "DATABASE_ERROR", error: "Gagal memperbarui mata kuliah tutorial." };
   }
+}
+
+export async function updateTutorCourses(targetTutorId: string, courseIds: string[]) {
+  return executeAdminUpdateTutorCourses(targetTutorId, courseIds);
 }
 
 // ── CRUD ACADEMIC SCHEDULES (Ujian Resmi ITB, Tryout, Kuis) ───────────────────
@@ -965,23 +984,7 @@ export async function createAcademicSchedule(data: {
   const adminUser = authResult.user;
 
   try {
-    const id = randomUUID();
-    const now = new Date();
-
-    await db.insert(academicSchedules).values({
-      id,
-      type: data.type,
-      title: data.title.trim(),
-      courseId: data.courseId || null,
-      description: data.description?.trim() || null,
-      startDate: data.startDate,
-      endDate: data.endDate || null,
-      location: data.location?.trim() || null,
-      createdById: adminUser.id,
-      status: data.status || "published",
-      createdAt: now,
-      updatedAt: now,
-    });
+    const id = await insertAcademicEvent(db, adminUser.id, data);
 
     revalidatePath("/admin/schedules");
     revalidatePath("/dashboard/schedule");
@@ -1010,20 +1013,7 @@ export async function updateAcademicSchedule(
   await assertAdmin();
 
   try {
-    await db
-      .update(academicSchedules)
-      .set({
-        ...(data.type ? { type: data.type } : {}),
-        ...(data.title ? { title: data.title.trim() } : {}),
-        ...(data.courseId !== undefined ? { courseId: data.courseId || null } : {}),
-        ...(data.description !== undefined ? { description: data.description?.trim() || null } : {}),
-        ...(data.startDate ? { startDate: data.startDate } : {}),
-        ...(data.endDate !== undefined ? { endDate: data.endDate || null } : {}),
-        ...(data.location !== undefined ? { location: data.location?.trim() || null } : {}),
-        ...(data.status ? { status: data.status } : {}),
-        updatedAt: new Date(),
-      })
-      .where(eq(academicSchedules.id, id));
+    await updateAcademicEvent(db, id, { ...data, title: data.title || undefined });
 
     revalidatePath("/admin/schedules");
     revalidatePath("/dashboard/schedule");
@@ -1039,7 +1029,7 @@ export async function deleteAcademicSchedule(id: string) {
   await assertAdmin();
 
   try {
-    await db.delete(academicSchedules).where(eq(academicSchedules.id, id));
+    await deleteAcademicEvent(db, id);
     revalidatePath("/admin/schedules");
     revalidatePath("/dashboard/schedule");
     await triggerGoogleCalendarSyncForScheduleChange({ includeCentral: true });

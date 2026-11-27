@@ -1,0 +1,76 @@
+{
+  "pr": 514,
+  "revision": "06ac6f8f84b740a5fae96f2cfaf2b272f9982659",
+  "runId": "45804599913",
+  "runAttempt": "1",
+  "runUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45804599913",
+  "matchedViewportJobUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45804599913/job/139870314428",
+  "matchedViewportArtifactUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45804599913/artifacts/15110428558",
+  "matchedViewportWorkflowConclusion": "failure",
+  "parityCredit": false,
+  "platforms": {
+    "android": {
+      "jobUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45804599913/job/139856557602",
+      "artifactUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45804599913/artifacts/15110024055",
+      "jobConclusion": "failure",
+      "routeCaptureScope": "Stamped fixture route captures",
+      "diagnosticScope": "Approved populated and empty fixture routes compared offline. Maestro validated zero flows.",
+      "outsideDiagnosticScope": {
+        "tutor-participants-empty-dark": "Stamped empty route exists; the approved mapping excludes this case and Maestro supplied no validated screenshot."
+      },
+      "approvedRoutePairs": {
+        "admin-courses-list-light": {
+          "routeCase": "academic-admin-courses-populated",
+          "role": "admin",
+          "scenario": "populated"
+        },
+        "admin-courses-empty-dark": {
+          "routeCase": "academic-admin-courses-empty",
+          "role": "admin",
+          "scenario": "empty",
+          "retainImages": true,
+          "webRoute": "/admin/courses?state=empty",
+          "nativeRoute": "/admin/courses"
+        },
+        "admin-course-chapters-light": {
+          "routeCase": "academic-admin-courses-slug-populated",
+          "role": "admin",
+          "scenario": "populated",
+          "webRoute": "/admin/courses/academic-course-1",
+          "nativeRoute": "/admin/courses/biologi-dasar"
+        },
+        "tutor-tryout-grading-pending-light": {
+          "routeCase": "academic-tutor-courseId-grading-populated",
+          "role": "tutor",
+          "scenario": "populated"
+        },
+        "tutor-participants-enrolled-light": {
+          "routeCase": "academic-tutor-courseId-participants-populated",
+          "role": "tutor",
+          "scenario": "populated"
+        },
+        "tutor-quizzes-list-light": {
+          "routeCase": "academic-tutor-courseId-quizzes-populated",
+          "role": "tutor",
+          "scenario": "populated"
+        },
+        "tutor-dashboard-assigned-light": {
+          "routeCase": "academic-tutor-populated",
+          "role": "tutor",
+          "scenario": "populated",
+          "retainImages": true
+        }
+      }
+    },
+    "ios": {
+      "jobUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45804599913/job/139856558241",
+      "artifactUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45804599913/artifacts/15110856315",
+      "jobConclusion": "failure",
+      "observedBlocker": "Expo CLI failed before iOS build while opening the missing ~/.expo/devicectl-exists file.",
+      "routeCaptureCounts": {
+        "captured": 0
+      },
+      "fixtureCasesExported": 162
+    }
+  }
+}

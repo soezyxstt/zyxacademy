@@ -124,7 +124,9 @@ describe("PDF thumbnail compute boundary", () => {
 describe("canonical material covers", () => {
   test("published Product Bundle Article and Diktat cards use deterministic SVG covers", () => {
     const page = source("app/(student)/courses/[id]/material/page.tsx");
-    expect(page.match(/\/cover\.svg/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+    const readModel = source("lib/student/course-material-list.ts");
+    expect(page).toContain('import { loadCourseMaterialData } from "@/lib/student/course-material-list"');
+    expect(readModel.match(/\/cover\.svg/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
   });
 
   test("cover title stays within three readable lines and XML is escaped", () => {

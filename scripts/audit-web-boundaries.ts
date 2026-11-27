@@ -21,10 +21,11 @@ const FORBIDDEN_PATTERNS = [
   { pattern: /^@\/lib\/compute\/pdf-thumbnail(\/.*)?$/, label: "Heavy PDF Thumbnail Generator (@/lib/compute/pdf-thumbnail)" },
 ];
 
-// Bounded image upload sanitizers used only by synchronous /api/*/attachments Node upload routes.
+// Bounded image upload sanitizers and page-range PDF text search used only by synchronous Node routes.
 const EXCLUDED_FILES = [
   "lib/zyra/images/sanitizer.ts",
   "lib/discussions/image-sanitizer.ts",
+  "lib/compute/pdf-pages.ts",
 ];
 
 const visited = new Set<string>();

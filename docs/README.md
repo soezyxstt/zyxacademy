@@ -15,6 +15,8 @@ docs/
 ├── DEPLOYMENT.md                             # Production/Staging Topology, Workers, AI Gateway, and Native Releases
 ├── FILE_NAMING_CONVENTIONS.md                # Academic Asset Naming Formula and Directory Hierarchy
 ├── data-fetching.md                          # Client Data Fetching and TanStack Query Standard
+├── native-readiness.md                       # Expo readiness evidence and scope
+├── mobile-native.md                          # Expo and Next.js Mobile Migration Roadmap
 ├── coding-foundation.md                      # Python Learning, Playground, Live Quiz, and Zyra Coaching
 ├── discussions.md                            # Bilingual Scoped Discussions Contract
 ├── gamification.md                           # Student Gamification, Pet Studio, Achievements, and Social Identity
@@ -75,10 +77,12 @@ docs/
 | Document | Category | Status | Purpose and Scope |
 | --- | --- | --- | --- |
 | [data-fetching.md](data-fetching.md) | Architecture | `ACTIVE` | TanStack Query 5 standard: account-scoped keys, validated API functions, freshness/retry/invalidation policies, student return navigation, and RSC boundaries. |
+| [mobile-native.md](mobile-native.md) | Plan | `OPEN / IN PROGRESS` | Staged Expo and Next.js mobile migration, component inventory, shared transport, public form respondent checks and upload limits, offline reading verification and storage recovery, pixel parity gates, and native capability boundaries. |
+| [native-readiness.md](native-readiness.md) | Audit | `OPEN / IN PROGRESS` | Independent baseline and evidence for native component, page and backend readiness. |
 | [coding-foundation.md](coding-foundation.md) | Feature Contract | `ACTIVE` | Editable Python Markdown in Articles, viewport-aware Playground, Pyodide/WASI execution, Submit grading, Live Quiz, and Zyra Python coaching. |
 | [discussions.md](discussions.md) | Feature Contract | `ACTIVE` | Bilingual scoped Q&A discussions, compact composer, immutable retries, mention handles, full-text search, and single-dispatch `@Zyra` AI cooldowns. |
 | [gamification.md](gamification.md) | Feature Contract | `ACTIVE` | Student-only ranks, XP/LP ledgers, achievements, animated frames, 6 Zyra chat skins, Pet Studio (4 GLB pets + 15 fitted suits), leaderboards, and public profile privacy boundaries. |
-| [notifications.md](notifications.md) | Feature Contract | `ACTIVE` | Contextual activity notifications, preference controls, recurring permission reminders, and email/push templates. |
+| [notifications.md](notifications.md) | Feature Contract | `ACTIVE` | Notification policy, preference controls, delivery, and the native Admin broadcast workflow. |
 | [notifications-quiet-hours.md](notifications-quiet-hours.md) | Feature Contract | `ACTIVE` | Per-account quiet-hour push digests, native push isolation, and signed-in device session management. |
 
 ### Canonical Authoring Bundle Contracts
@@ -103,7 +107,7 @@ docs/
 | [operations/cloud-run-staging.md](operations/cloud-run-staging.md) | Operations | `ACTIVE` | Cloud Run Bangkok staging container build, Secret Manager import, Cloudflare Edge Worker routing, and rollback. |
 | [operations/vercel-staging.md](operations/vercel-staging.md) | Operations | `ACTIVE` | Manual Vercel custom `staging` deployment, target guards, and recovery procedure. |
 | [operations/offline-data-sync.md](operations/offline-data-sync.md) | Operations | `ACTIVE` | Admin mutation coverage, account-scoped caches, reconnect and revocation checks, and native recovery. |
-| [operations/admin-mcp.md](operations/admin-mcp.md) | Operations | `ACTIVE` | Admin MCP endpoint (`/api/mcp/authoring`), OAuth scopes, mutation boundaries, and supported tool catalog. |
+| [operations/admin-mcp.md](operations/admin-mcp.md) | Operations | `ACTIVE` | Admin MCP endpoint (`/api/mcp/authoring`), OAuth scopes, native outbox isolation, mutation boundaries, and supported tool catalog. |
 | [operations/agent-first-content.md](operations/agent-first-content.md) | Operations | `ACTIVE` | Agent-first MCP workflows for blog, forms, media, and committed-mutation receipt recovery. |
 | [operations/authoring-mcp-skills.md](operations/authoring-mcp-skills.md) | Operations | `ACTIVE` | Pinned skills catalog, source 0.5.6 logic/PDF purposes, optional PDF runtime diagnostics, distribution and separate host verification. |
 | [operations/mcp-host-compatibility.md](operations/mcp-host-compatibility.md) | Operations | `ACTIVE` | Streamable HTTP MCP OAuth consent (46 grouped permissions), tool schemas, and host compatibility boundaries. |

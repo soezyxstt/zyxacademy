@@ -1,0 +1,34 @@
+appId: com.zyx.academy.nativeparity
+name: Student changes a signed Article scene and returns to reading
+---
+- openLink: "zyx-native-parity://courses/native-preview-reading-course/material/native-preview-reading-article?section=pembahasan"
+- extendedWaitUntil:
+    visible: Artikel verifikasi kanonis
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: student-open-native-reading
+- tapOn:
+    id: student-open-native-reading
+- extendedWaitUntil:
+    visible: ".*Isi artikel kanonis versi tiga.*"
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      text: "(Jelajahi visual|Explore visual).*Lintasan uji Article"
+    direction: DOWN
+- tapOn: "(Jelajahi visual|Explore visual).*Lintasan uji Article"
+- extendedWaitUntil:
+    visible:
+      id: student-solution-scene
+    timeout: 15000
+- assertVisible: "Perpindahan uji.*0 m"
+- tapOn: Majukan penanda uji
+- extendedWaitUntil:
+    visible: "Perpindahan uji.*3 m"
+    timeout: 15000
+- tapOn:
+    id: student-close-article-visual
+- assertVisible:
+    id: student-native-reading-screen
+- tapOn: "(Kembali|Back)"

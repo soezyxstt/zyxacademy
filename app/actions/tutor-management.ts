@@ -1,18 +1,14 @@
 "use server";
 
 import { recordStaffCourseDisclosures } from "@/lib/gamification/question-exposure";
-import { resolveCourseAccess } from "@/lib/student/course-access";
+import { submitStudentTryout } from "@/lib/student/tryout-submit";
 
 import { db } from "@/db";
 import {
-  aiMaterialInstances,
-  aiMaterialInstanceSections,
-  aiMaterialInstanceChunks,
   quizTemplates,
   aiQuestionBank,
   exams,
   questions,
-  submissions,
   mataKuliah,
 } from "@/db/schema";
 import { eq, and, inArray, asc, or, sql, notInArray } from "drizzle-orm";
@@ -21,12 +17,13 @@ import { headers } from "next/headers";
 import { randomUUID } from "crypto";
 import { z } from "zod";
 import { rejectQuestionVisualReferences } from "@/lib/authoring/question-visual-references";
-import { parseInteractiveDocumentsInMarkdown } from "@/lib/materials/interactive-document-markdown";
-import { verifyQuestionVisualBinding } from "@/lib/materials/question-visual-binding";
-import { parseMaterialIntoSections } from "@/lib/ingestion-parser";
+import { lockLegacyMaterialCourse, writeLegacyMaterial } from "@/lib/tutor/legacy-materials";
+import { assertAuthoringActor } from "@/lib/auth/authoring-actor";
 import { revalidatePath } from "next/cache";
+import { revisionOf } from "@/lib/admin-mcp/revision";
 import { notifyQuizPublishedBestEffort } from "@/lib/notifications/send";
-import { normalizeQuestionProvenance, questionProvenanceSnapshot } from "@/lib/asesmen/question-provenance";
+import { deleteTryoutRecord, lockTryoutExam, saveTryoutQuestionRecord, saveTryoutRecord, tryoutBankQuestionId, type TryoutQuestionFields } from "@/lib/tutor/tryout-authoring";
+import { buildTryoutBankSnapshot } from "@/lib/tutor/tryout-bank-snapshot";
 import {
   createAssessmentWithLegacyProjection,
   updateAssessmentWithLegacyProjection,
@@ -40,14 +37,12 @@ import {
   resolveEffectiveAssessmentType,
   assertTutorQuizCapability,
   checkCourseMatch,
-  buildGradingSnapshots,
-  isReviewableSubmissionStatus,
-  isSqliteBusyError,
-  isUniqueConstraintError,
   recordTutorFailureAudit,
   recordTutorMutationAuditSafe,
 } from "@/lib/tutor/assessment-policy";
 import { recordTutorMutationAudit } from "@/lib/audit/mutasi";
+import { questionBankInputSchema, QuestionBankWriteError, writeQuestionBankRecord, type QuestionBankFields } from "@/lib/tutor/question-bank-write";
+import { gradeTryoutSubmission } from "@/lib/tutor/tryout-grading";
 
 function publishedQuizQuestionCondition() {
   return and(
@@ -77,48 +72,6 @@ const quizTemplateInputSchema = z.object({
   status: z.enum(["draft", "published"]).optional(),
   showDiscussion: z.boolean().optional(),
 });
-
-const questionBankInputSchema = z
-  .object({
-    prompt: z.string().min(1).max(4000),
-    options: z.array(z.string().max(2000)),
-    correctIndices: z.array(z.number().int()),
-    acceptableAnswers: z.array(z.string().max(2000)).optional(),
-    difficulty: z.enum(["easy", "medium", "hard"]),
-    questionType: z.enum(["multiple_choice", "multiple_choices", "short_answer", "essay"]),
-    explanation: z.string().max(8000),
-    tags: z.array(z.string().max(64)).max(50),
-  })
-  .superRefine((val, ctx) => {
-    const isChoiceType =
-      val.questionType === "multiple_choice" || val.questionType === "multiple_choices";
-    if (isChoiceType) {
-      if (val.options.length < 2 || val.options.some((o) => !o.trim())) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["options"],
-          message: "Pilihan jawaban wajib diisi minimal dua opsi.",
-        });
-      }
-      if (val.correctIndices.length < 1) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["correctIndices"],
-          message: "Minimal satu kunci jawaban wajib dipilih.",
-        });
-      }
-    }
-    if (val.questionType === "short_answer") {
-      const accepted = val.acceptableAnswers ?? [];
-      if (accepted.length < 1 || accepted.some((a) => !a.trim())) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["acceptableAnswers"],
-          message: "Minimal satu kunci jawaban diterima wajib diisi.",
-        });
-      }
-    }
-  });
 
 function formatValidationIssues(error: z.ZodError): string {
   return error.issues
@@ -154,6 +107,7 @@ export async function saveTutorMaterialAction(
   title: string,
   summary: string,
   rawText: string,
+  expectedRevision?: string,
 ) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) {
@@ -180,71 +134,11 @@ export async function saveTutorMaterialAction(
     throw new Error(TUTOR_CAPABILITY_ERRORS.MATERIALS_AUTHORING_DISABLED);
   }
 
-  const parsedSections = parseMaterialIntoSections(rawText);
-  const identity = await resolveCourseIdentity(courseId);
-  const legacyCourseId = identity?.legacyId;
-  if (!legacyCourseId) throw new Error("COURSE_LEGACY_MAPPING_REQUIRED");
-  const targetId = materialId || `mat-tutor-${randomUUID()}`;
-
-  await db.transaction(async (tx) => {
-    if (materialId) {
-      await tx
-        .update(aiMaterialInstances)
-        .set({
-          title,
-          summary,
-          updatedAt: new Date(),
-        })
-        .where(eq(aiMaterialInstances.id, materialId));
-
-      const oldSections = await tx
-        .select({ id: aiMaterialInstanceSections.id })
-        .from(aiMaterialInstanceSections)
-        .where(eq(aiMaterialInstanceSections.materialInstanceId, materialId));
-
-      if (oldSections.length > 0) {
-        const sectionIds = oldSections.map((s) => s.id);
-        await tx
-          .delete(aiMaterialInstanceChunks)
-          .where(inArray(aiMaterialInstanceChunks.sectionId, sectionIds));
-        await tx
-          .delete(aiMaterialInstanceSections)
-          .where(eq(aiMaterialInstanceSections.materialInstanceId, materialId));
-      }
-    } else {
-      await tx.insert(aiMaterialInstances).values({
-        id: targetId,
-        courseId: legacyCourseId,
-        title,
-        sourceType: "markdown",
-        summary,
-        learningObjectives: [],
-        keywords: [],
-        pineconeSyncStatus: "pending",
-      });
-    }
-
-    for (const section of parsedSections) {
-      const sectionId = `sec-tutor-${randomUUID()}`;
-      await tx.insert(aiMaterialInstanceSections).values({
-        id: sectionId,
-        materialInstanceId: targetId,
-        title: section.title,
-        orderIndex: section.orderIndex,
-      });
-
-      for (const chunk of section.chunks) {
-        const chunkId = `chk-tutor-${randomUUID()}`;
-        await tx.insert(aiMaterialInstanceChunks).values({
-          id: chunkId,
-          sectionId,
-          chunkText: chunk.chunkText,
-          orderIndex: chunk.orderIndex,
-          pineconeVectorId: `vec-tutor-${chunkId}`,
-          isSynced: false,
-        });
-      }
-    }
+  const targetId = await db.transaction(async tx => {
+    await assertAuthoringActor(tx, session.user.id, { roles: ["admin"], error: "FORBIDDEN", lock: true });
+    const legacyId = await lockLegacyMaterialCourse(tx, session.user.id, courseId);
+    return writeLegacyMaterial(tx, legacyId, { action: materialId ? "edit" : "create", id: materialId ?? undefined,
+      expectedRevision, title, summary, markdown: rawText });
   });
 
   revalidatePath(`/tutor/${courseId}/materials`);
@@ -252,7 +146,7 @@ export async function saveTutorMaterialAction(
   return { success: true, id: targetId };
 }
 
-export async function deleteTutorMaterialAction(courseId: string, materialId: string) {
+export async function deleteTutorMaterialAction(courseId: string, materialId: string, expectedRevision?: string) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) {
     throw new Error("Unauthorized: Silakan masuk terlebih dahulu.");
@@ -278,23 +172,10 @@ export async function deleteTutorMaterialAction(courseId: string, materialId: st
     throw new Error(TUTOR_CAPABILITY_ERRORS.MATERIALS_AUTHORING_DISABLED);
   }
 
-  await db.transaction(async (tx) => {
-    const sections = await tx
-      .select({ id: aiMaterialInstanceSections.id })
-      .from(aiMaterialInstanceSections)
-      .where(eq(aiMaterialInstanceSections.materialInstanceId, materialId));
-
-    if (sections.length > 0) {
-      const sectionIds = sections.map((s) => s.id);
-      await tx
-        .delete(aiMaterialInstanceChunks)
-        .where(inArray(aiMaterialInstanceChunks.sectionId, sectionIds));
-      await tx
-        .delete(aiMaterialInstanceSections)
-        .where(eq(aiMaterialInstanceSections.materialInstanceId, materialId));
-    }
-
-    await tx.delete(aiMaterialInstances).where(eq(aiMaterialInstances.id, materialId));
+  await db.transaction(async tx => {
+    await assertAuthoringActor(tx, session.user.id, { roles: ["admin"], error: "FORBIDDEN", lock: true });
+    const legacyId = await lockLegacyMaterialCourse(tx, session.user.id, courseId);
+    await writeLegacyMaterial(tx, legacyId, { action: "delete", id: materialId, expectedRevision });
   });
 
   revalidatePath(`/tutor/${courseId}/materials`);
@@ -1014,271 +895,61 @@ export async function getQuizTemplatePreviewAction(courseId: string, templateId:
   return { success: true, questions: mappedQuestions };
 }
 
-export async function saveQuestionBankAction(
-  courseId: string,
-  questionId: string | null,
-  data: {
-    prompt: string;
-    options: string[];
-    correctIndices: number[];
-    acceptableAnswers?: string[];
-    difficulty: "easy" | "medium" | "hard";
-    questionType: "multiple_choice" | "multiple_choices" | "short_answer" | "essay";
-    explanation: string;
-    tags: string[];
-  },
-) {
-  const { session, access } = await verifyTutorAccess(courseId);
+export async function saveQuestionBankAction(courseId: string, questionId: string | null, data: QuestionBankFields) {
+  const context = await verifyTutorAccess(courseId);
   rejectQuestionVisualReferences([{ prompt: typeof data?.prompt === "string" ? data.prompt : "", options: Array.isArray(data?.options) ? data.options.filter((value): value is string => typeof value === "string") : [], explanation: typeof data?.explanation === "string" ? data.explanation : "" }]);
-  const { roles, isAdmin } = await resolveActorRoles(
-    session.user.id,
-    (session.user as { role?: string | null }).role,
-  );
-
-  const parsedInput = questionBankInputSchema.safeParse(data);
-  if (!parsedInput.success) {
-    const validationError = `Validasi gagal: ${formatValidationIssues(parsedInput.error)}`;
-    await recordTutorMutationAuditSafe({
-      actorId: session.user.id,
-      actorRoles: roles,
-      courseId: access.courseId ?? courseId,
-      entityType: "question_bank",
-      entityId: questionId || "new",
-      entityVersion: 1,
-      action: questionId ? "question_bank:update" : "question_bank:create",
-      outcome: "rejected",
-      reason: validationError,
-    });
-    throw new Error(validationError);
-  }
-
-  const targetCourseId = access.legacyCourseId ?? courseId;
-  const targetId = questionId || `qbk-tutor-${randomUUID()}`;
-  const acceptableAnswers = data.acceptableAnswers || [];
-
-  if (questionId) {
-    const [existing] = await db
-      .select()
-      .from(aiQuestionBank)
-      .where(eq(aiQuestionBank.id, questionId))
-      .limit(1);
-
-    if (!existing) {
-      await recordTutorMutationAuditSafe({
-        actorId: session.user.id,
-        actorRoles: roles,
-        courseId: access.courseId ?? courseId,
-        entityType: "question_bank",
-        entityId: questionId,
-        entityVersion: 1,
-        action: "question_bank:update",
-        outcome: "rejected",
-        reason: "QUESTION_BANK_NOT_FOUND",
-      });
-      throw new Error("Soal bank tidak ditemukan.");
-    }
-
-    if (!isAdmin && !checkCourseMatch(existing.courseId, access.courseId!, access.legacyCourseId)) {
-      await recordTutorMutationAuditSafe({
-        actorId: session.user.id,
-        actorRoles: roles,
-        courseId: access.courseId ?? courseId,
-        entityType: "question_bank",
-        entityId: questionId,
-        entityVersion: 1,
-        action: "question_bank:update",
-        outcome: "rejected",
-        reason: TUTOR_CAPABILITY_ERRORS.CROSS_COURSE_MUTATION_FORBIDDEN,
-      });
-      throw new Error(TUTOR_CAPABILITY_ERRORS.CROSS_COURSE_MUTATION_FORBIDDEN);
-    }
-
-    if (existing.origin !== "zyx_original") {
-      await recordTutorMutationAuditSafe({
-        actorId: session.user.id,
-        actorRoles: roles,
-        courseId: access.courseId ?? courseId,
-        entityType: "question_bank",
-        entityId: questionId,
-        entityVersion: 1,
-        action: "question_bank:update",
-        outcome: "rejected",
-        reason: "HISTORICAL_QUESTION_IMMUTABLE",
-      });
-      throw new Error("Soal referensi historis hanya dapat ditinjau, bukan diedit.");
-    }
-  }
-
-  const requestId = newAuditRequestId();
-  try {
-    await db.transaction(async (tx) => {
-      if (questionId) {
-        await tx
-          .update(aiQuestionBank)
-          .set({
-            prompt: data.prompt,
-            options: data.options,
-            correctIndices: data.correctIndices,
-            acceptableAnswers: acceptableAnswers,
-            difficulty: data.difficulty,
-            questionType: data.questionType,
-            explanation: data.explanation,
-            tags: data.tags,
-          })
-          .where(eq(aiQuestionBank.id, questionId));
-      } else {
-        await tx.insert(aiQuestionBank).values({
-          id: targetId,
-          courseId: targetCourseId,
-          prompt: data.prompt,
-          options: data.options,
-          correctIndices: data.correctIndices,
-          acceptableAnswers: acceptableAnswers,
-          difficulty: data.difficulty,
-          questionType: data.questionType,
-          explanation: data.explanation,
-          tags: data.tags,
-          status: "active",
-          reviewStatus: "published",
-        });
-      }
-
-      await recordTutorMutationAudit({
-        actorId: session.user.id,
-        actorRoles: roles,
-        courseId: access.courseId ?? courseId,
-        entityType: "question_bank",
-        entityId: targetId,
-        entityVersion: 1,
-        requestId,
-        action: questionId ? "question_bank:update" : "question_bank:create",
-        outcome: "success",
-        reason: questionId ? "Question bank item updated" : "Question bank item created",
-        after: {
-          prompt: data.prompt,
-          difficulty: data.difficulty,
-          questionType: data.questionType,
-        },
-      }, tx);
-    });
-  } catch (err: any) {
-    await recordTutorMutationAuditSafe({
-      actorId: session.user.id,
-      actorRoles: roles,
-      courseId: access.courseId ?? courseId,
-      entityType: "question_bank",
-      entityId: targetId,
-      entityVersion: 1,
-      requestId,
-      action: questionId ? "question_bank:update" : "question_bank:create",
-      outcome: "failed",
-      reason: err?.message || "Failed to persist question bank item",
-    });
-    throw err;
-  }
-
-  revalidatePath(`/tutor/${courseId}/quizzes`);
-  return { success: true, id: targetId };
+  const parsed = questionBankInputSchema.safeParse(data);
+  const id = questionId || `qbk-tutor-${randomUUID()}`;
+  const mutation = questionId ? "update" : "create";
+  await writeWebQuestionBank(courseId, context, mutation, id, parsed.success ? parsed.data : null,
+    parsed.success ? undefined : `Validasi gagal: ${formatValidationIssues(parsed.error)}`);
+  return { success: true, id };
 }
 
 export async function deleteQuestionBankAction(courseId: string, questionId: string) {
-  const { session, access } = await verifyTutorAccess(courseId);
-  const { roles, isAdmin } = await resolveActorRoles(
-    session.user.id,
-    (session.user as { role?: string | null }).role,
-  );
+  await writeWebQuestionBank(courseId, await verifyTutorAccess(courseId), "delete", questionId, null);
+  return { success: true };
+}
 
-  const [existing] = await db
-    .select()
-    .from(aiQuestionBank)
-    .where(eq(aiQuestionBank.id, questionId))
-    .limit(1);
+async function writeWebQuestionBank(courseId: string, { session, access }: Awaited<ReturnType<typeof verifyTutorAccess>>,
+  kind: "create" | "update" | "delete", id: string, data: QuestionBankFields | null, validationError?: string) {
+  const { roles, isAdmin } = await resolveActorRoles(session.user.id, (session.user as { role?: string | null }).role);
+  const audit = {
+    actorId: session.user.id, actorRoles: roles, courseId: access.courseId ?? courseId,
+    entityType: "question_bank", entityId: kind === "create" && validationError ? "new" : id,
+    entityVersion: 1, action: `question_bank:${kind}`, requestId: newAuditRequestId(),
+  } as const;
 
-  if (!existing) {
-    await recordTutorMutationAuditSafe({
-      actorId: session.user.id,
-      actorRoles: roles,
-      courseId: access.courseId ?? courseId,
-      entityType: "question_bank",
-      entityId: questionId,
-      entityVersion: 1,
-      action: "question_bank:delete",
-      outcome: "rejected",
-      reason: "QUESTION_BANK_NOT_FOUND",
-    });
-    throw new Error("Soal bank tidak ditemukan.");
+  if (validationError) {
+    await recordTutorMutationAuditSafe({ ...audit, outcome: "rejected", reason: validationError });
+    throw new Error(validationError);
   }
-
-  if (!isAdmin && !checkCourseMatch(existing.courseId, access.courseId!, access.legacyCourseId)) {
-    await recordTutorMutationAuditSafe({
-      actorId: session.user.id,
-      actorRoles: roles,
-      courseId: access.courseId ?? courseId,
-      entityType: "question_bank",
-      entityId: questionId,
-      entityVersion: 1,
-      action: "question_bank:delete",
-      outcome: "rejected",
-      reason: TUTOR_CAPABILITY_ERRORS.CROSS_COURSE_MUTATION_FORBIDDEN,
-    });
-    throw new Error(TUTOR_CAPABILITY_ERRORS.CROSS_COURSE_MUTATION_FORBIDDEN);
-  }
-
-  if (existing.origin !== "zyx_original") {
-    await recordTutorMutationAuditSafe({
-      actorId: session.user.id,
-      actorRoles: roles,
-      courseId: access.courseId ?? courseId,
-      entityType: "question_bank",
-      entityId: questionId,
-      entityVersion: 1,
-      action: "question_bank:delete",
-      outcome: "rejected",
-      reason: "HISTORICAL_QUESTION_IMMUTABLE",
-    });
-    throw new Error("Soal referensi historis hanya dapat ditinjau, bukan dihapus.");
-  }
-
-  const requestId = newAuditRequestId();
+  const targetCourse = access.legacyCourseId ?? courseId;
   try {
     await db.transaction(async (tx) => {
-      await tx.delete(aiQuestionBank).where(eq(aiQuestionBank.id, questionId));
-
+      const { previous, current } = await writeQuestionBankRecord(tx, {
+        id, courseId: targetCourse, allowedCourseIds: isAdmin ? undefined : [access.courseId!, targetCourse],
+      }, kind === "delete" ? { kind } : { kind, data: data! });
       await recordTutorMutationAudit({
-        actorId: session.user.id,
-        actorRoles: roles,
-        courseId: access.courseId ?? courseId,
-        entityType: "question_bank",
-        entityId: questionId,
-        entityVersion: 1,
-        requestId,
-        action: "question_bank:delete",
-        outcome: "success",
-        reason: "Question bank item deleted",
-        before: {
-          id: questionId,
-          prompt: existing.prompt,
-        },
+        ...audit, outcome: "success",
+        reason: { create: "Question bank item created", update: "Question bank item updated", delete: "Question bank item deleted" }[kind],
+        ...(kind === "delete" && previous ? { before: { id, prompt: previous.prompt } } : {}),
+        ...(current ? { after: { prompt: current.prompt, difficulty: current.difficulty, questionType: current.questionType } } : {}),
       }, tx);
     });
-  } catch (err: any) {
-    await recordTutorMutationAuditSafe({
-      actorId: session.user.id,
-      actorRoles: roles,
-      courseId: access.courseId ?? courseId,
-      entityType: "question_bank",
-      entityId: questionId,
-      entityVersion: 1,
-      requestId,
-      action: "question_bank:delete",
-      outcome: "failed",
-      reason: err?.message || "Failed to delete question bank item",
-    });
-    throw err;
+  } catch (error) {
+    const code = error instanceof QuestionBankWriteError ? error.code : null;
+    const reason = code === "QUESTION_BANK_WRONG_COURSE" ? TUTOR_CAPABILITY_ERRORS.CROSS_COURSE_MUTATION_FORBIDDEN
+      : code ?? (error instanceof Error ? error.message : "Failed to persist question bank item");
+    await recordTutorMutationAuditSafe({ ...audit, outcome: code ? "rejected" : "failed", reason });
+    if (code === "QUESTION_BANK_NOT_FOUND") throw new Error("Soal bank tidak ditemukan.");
+    if (code === "QUESTION_BANK_WRONG_COURSE") throw new Error(reason);
+    if (code === "HISTORICAL_QUESTION_IMMUTABLE") {
+      throw new Error(`Soal referensi historis hanya dapat ditinjau, bukan ${kind === "delete" ? "dihapus" : "diedit"}.`);
+    }
+    throw error;
   }
-
   revalidatePath(`/tutor/${courseId}/quizzes`);
-  return { success: true };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1326,19 +997,6 @@ export async function saveTryoutAction(
   const identity = await resolveCourseIdentity(courseId);
   const legacyCourseId = identity?.legacyId;
   if (!legacyCourseId) throw new Error("COURSE_LEGACY_MAPPING_REQUIRED");
-  const settings = {
-    timeLimitMinutes: data.timeLimitMinutes,
-    maxAttempts: data.maxAttempts,
-  };
-
-  const dbData = {
-    title: data.title,
-    status: data.status,
-    settings: settings,
-    openAt: data.openAt ? new Date(data.openAt) : null,
-    closeAt: data.closeAt ? new Date(data.closeAt) : null,
-  };
-
   const requestId = newAuditRequestId();
   const auditBase = {
     actorId: session.user.id,
@@ -1352,19 +1010,9 @@ export async function saveTryoutAction(
 
   try {
     await db.transaction(async (tx) => {
-      if (examId) {
-        await tx
-          .update(exams)
-          .set(dbData)
-          .where(eq(exams.id, examId));
-      } else {
-        await tx.insert(exams).values({
-          id: targetId,
-          courseId: legacyCourseId,
-          type: "tryout",
-          ...dbData,
-        });
-      }
+      const previous = examId ? await lockTryoutExam(tx, legacyCourseId, examId) : null;
+      if (examId && !previous) throw new Error("TRYOUT_NOT_FOUND");
+      await saveTryoutRecord(tx, { id: targetId, legacyCourseId, previous }, data);
 
       await recordTutorMutationAudit({
         ...auditBase,
@@ -1420,17 +1068,15 @@ export async function deleteTryoutAction(courseId: string, examId: string) {
     throw new Error(TUTOR_CAPABILITY_ERRORS.TRYOUT_AUTHORING_DISABLED);
   }
 
+  const identity = await resolveCourseIdentity(courseId);
+  const legacyCourseId = identity?.legacyId;
+  if (!legacyCourseId) throw new Error("COURSE_LEGACY_MAPPING_REQUIRED");
   const requestId = newAuditRequestId();
   try {
     await db.transaction(async (tx) => {
-      const [existingExam] = await tx
-        .select()
-        .from(exams)
-        .where(eq(exams.id, examId))
-        .limit(1);
-
-      await tx.delete(questions).where(eq(questions.examId, examId));
-      await tx.delete(exams).where(eq(exams.id, examId));
+      const existingExam = await lockTryoutExam(tx, legacyCourseId, examId);
+      if (!existingExam) throw new Error("TRYOUT_NOT_FOUND");
+      await deleteTryoutRecord(tx, existingExam);
 
       await recordTutorMutationAudit({
         actorId: session.user.id,
@@ -1443,7 +1089,7 @@ export async function deleteTryoutAction(courseId: string, examId: string) {
         action: "tryout:delete",
         outcome: "success",
         reason: "Tryout exam deleted by admin",
-        before: existingExam ? { id: examId, title: existingExam.title } : { id: examId },
+        before: { id: examId, title: existingExam.title },
       }, tx);
     });
   } catch (err: any) {
@@ -1471,17 +1117,7 @@ export async function saveTryoutQuestionAction(
   courseId: string,
   examId: string,
   questionId: string | null,
-  data: {
-    type: "multiple_choice" | "multiple_choices" | "short_answer" | "essay";
-    order: number;
-    prompt: string;
-    options?: string[];
-    correctIndex?: number;
-    correctIndices?: number[];
-    acceptsImage?: boolean;
-    acceptsFile?: boolean;
-    acceptableAnswers?: string[];
-  },
+  data: TryoutQuestionFields,
 ) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) {
@@ -1510,42 +1146,9 @@ export async function saveTryoutQuestionAction(
   }
 
   const targetId = questionId || `que-tutor-${randomUUID()}`;
-  let existingProvenance = normalizeQuestionProvenance(null);
-  if (questionId) {
-    const [existingQuestion] = await db
-      .select({ examId: questions.examId, content: questions.content })
-      .from(questions)
-      .where(eq(questions.id, questionId))
-      .limit(1);
-    if (!existingQuestion || existingQuestion.examId !== examId) {
-      const reason = "Soal tryout tidak ditemukan.";
-      await recordTutorFailureAudit({
-        actorId: session.user.id,
-        actorRoles: roles,
-        courseId,
-        entityType: "question",
-        entityId: questionId,
-        entityVersion: 1,
-        action: "tryout_question:update",
-        outcome: "rejected",
-        requestId: newAuditRequestId(),
-        reason,
-      });
-      throw new Error(reason);
-    }
-    const existingContent = typeof existingQuestion.content === "string" ? JSON.parse(existingQuestion.content) : existingQuestion.content;
-    existingProvenance = normalizeQuestionProvenance(existingContent);
-  }
-  const content = {
-    prompt: data.prompt,
-    options: data.options || [],
-    correctIndex: data.correctIndex,
-    correctIndices: data.correctIndices || [],
-    acceptsImage: data.acceptsImage || false,
-    acceptsFile: data.acceptsFile || false,
-    acceptableAnswers: data.acceptableAnswers || [],
-    ...existingProvenance,
-  };
+  const identity = await resolveCourseIdentity(courseId);
+  const legacyCourseId = identity?.legacyId;
+  if (!legacyCourseId) throw new Error("COURSE_LEGACY_MAPPING_REQUIRED");
 
   const requestId = newAuditRequestId();
   const auditBase = {
@@ -1560,24 +1163,9 @@ export async function saveTryoutQuestionAction(
 
   try {
     await db.transaction(async (tx) => {
-      if (questionId) {
-        await tx
-          .update(questions)
-          .set({
-            type: data.type,
-            order: data.order,
-            content: content,
-          })
-          .where(eq(questions.id, questionId));
-      } else {
-        await tx.insert(questions).values({
-          id: targetId,
-          examId,
-          type: data.type,
-          order: data.order,
-          content: content,
-        });
-      }
+      const exam = await lockTryoutExam(tx, legacyCourseId, examId);
+      if (!exam) throw new Error("TRYOUT_NOT_FOUND");
+      await saveTryoutQuestionRecord(tx, { exam, id: targetId, updating: Boolean(questionId) }, data);
 
       await recordTutorMutationAudit({
         ...auditBase,
@@ -1595,9 +1183,10 @@ export async function saveTryoutQuestionAction(
     await recordTutorMutationAuditSafe({
       ...auditBase,
       action: questionId ? "tryout_question:update" : "tryout_question:create",
-      outcome: "failed",
-      reason: err?.message || "Failed to persist tryout question",
+      outcome: err?.message === "TRYOUT_QUESTION_NOT_FOUND" ? "rejected" : "failed",
+      reason: err?.message === "TRYOUT_QUESTION_NOT_FOUND" ? "Soal tryout tidak ditemukan." : err?.message || "Failed to persist tryout question",
     });
+    if (err?.message === "TRYOUT_QUESTION_NOT_FOUND") throw new Error("Soal tryout tidak ditemukan.");
     throw err;
   }
 
@@ -1690,22 +1279,12 @@ export async function importQuestionBankToTryoutAction(
     throw new Error(reason);
   }
 
-  const [bankRows, existingQuestions] = await Promise.all([
-    db
-      .select()
-      .from(aiQuestionBank)
-      .where(
-        and(
-          inArray(aiQuestionBank.courseId, candidateCourseIds),
-          publishedQuizQuestionCondition(),
-          inArray(aiQuestionBank.id, uniqueIds),
-        ),
-      ),
-    db
-      .select({ content: questions.content, order: questions.order })
-      .from(questions)
-      .where(eq(questions.examId, examId)),
-  ]);
+  const bankScope = and(
+    inArray(aiQuestionBank.courseId, candidateCourseIds),
+    publishedQuizQuestionCondition(),
+    inArray(aiQuestionBank.id, uniqueIds),
+  );
+  const bankRows = await db.select().from(aiQuestionBank).where(bankScope);
   if (bankRows.length !== uniqueIds.length) {
     const reason = "Sebagian soal bank tidak tersedia atau belum dipublikasi.";
     await recordTutorFailureAudit({
@@ -1723,50 +1302,49 @@ export async function importQuestionBankToTryoutAction(
     throw new Error(reason);
   }
 
-  const importedIds = new Set(
-    existingQuestions.flatMap((question) => {
-      const content = typeof question.content === "string" ? JSON.parse(question.content) : question.content;
-      return typeof content?.bankQuestionId === "string" ? [content.bankQuestionId] : [];
-    }),
-  );
-  const rowsToImport = uniqueIds
-    .map((qId) => bankRows.find((row) => row.id === qId)!)
-    .filter((row) => !importedIds.has(row.id));
-  for (const row of rowsToImport) {
-    const copied = { prompt: row.prompt, options: Array.isArray(row.options) ? row.options.map(String) : [], explanation: row.explanation };
-    const documents = [copied.prompt, ...copied.options, copied.explanation].flatMap(parseInteractiveDocumentsInMarkdown);
-    if (documents.length && !await verifyQuestionVisualBinding(exam.courseId, copied)) {
-      throw new Error("Aset visual soal belum terverifikasi untuk mata kuliah tryout.");
+  const existingQuestions = await db.select({ content: questions.content }).from(questions).where(eq(questions.examId, examId));
+  const importedIds = new Set(existingQuestions.map((question) => tryoutBankQuestionId(question.content)));
+  const rowsById = new Map(bankRows.map((row) => [row.id, row]));
+  const candidates = uniqueIds.map((id) => rowsById.get(id)!);
+  const snapshots = new Map<string, { bankRevision: string; content: Awaited<ReturnType<typeof buildTryoutBankSnapshot>> }>();
+  async function buildSnapshot(row: typeof aiQuestionBank.$inferSelect) {
+    try {
+      return await buildTryoutBankSnapshot(exam.courseId, row);
+    } catch (error) {
+      if (error instanceof Error && error.message === "TRYOUT_BANK_VISUAL_UNVERIFIED") {
+        throw new Error("Aset visual soal belum terverifikasi untuk mata kuliah tryout.");
+      }
+      throw error;
     }
   }
-  const firstOrder =
-    existingQuestions.reduce((highest, question) => Math.max(highest, question.order), 0) + 1;
+  for (const row of candidates) {
+    if (!importedIds.has(row.id)) snapshots.set(row.id, { bankRevision: revisionOf(row), content: await buildSnapshot(row) });
+  }
 
   const requestId = newAuditRequestId();
+  let imported = 0;
   try {
     await db.transaction(async (tx) => {
-      if (rowsToImport.length > 0) {
-        await tx.insert(questions).values(
-          rowsToImport.map((row, index) => ({
-            id: `que-bank-${randomUUID()}`,
-            examId,
-            type: row.questionType,
-            order: firstOrder + index,
-            content: {
-              bankQuestionId: row.id,
-              prompt: row.prompt,
-              options: Array.isArray(row.options) ? row.options.map(String) : [],
-              correctIndex: Array.isArray(row.correctIndices) ? row.correctIndices[0] : undefined,
-              correctIndices: Array.isArray(row.correctIndices) ? row.correctIndices : [],
-              acceptsImage: false,
-              acceptsFile: row.questionType === "essay",
-              acceptableAnswers: Array.isArray(row.acceptableAnswers) ? row.acceptableAnswers : [],
-              explanation: row.explanation,
-              ...questionProvenanceSnapshot(row),
-            },
-          })),
-        );
+      if (!await lockTryoutExam(tx, exam.courseId, examId)) throw new Error("TRYOUT_NOT_FOUND");
+      const lockedBank = await tx.select().from(aiQuestionBank).where(bankScope).for("share");
+      if (lockedBank.length !== uniqueIds.length) throw new Error("Sebagian soal bank tidak tersedia atau belum dipublikasi.");
+      const lockedBankById = new Map(lockedBank.map((row) => [row.id, row]));
+      const current = await tx.select({ content: questions.content, order: questions.order })
+        .from(questions).where(eq(questions.examId, examId));
+      const currentIds = new Set(current.map((question) => tryoutBankQuestionId(question.content)));
+      const firstOrder = current.reduce((highest, question) => Math.max(highest, question.order), 0) + 1;
+      const rowsToImport = uniqueIds.filter((id) => !currentIds.has(id)).map((id) => lockedBankById.get(id)!);
+      if (rowsToImport.length) {
+        const values = await Promise.all(rowsToImport.map(async (row, index) => {
+          const preflight = snapshots.get(row.id);
+          return {
+            id: `que-bank-${randomUUID()}`, examId, type: row.questionType, order: firstOrder + index,
+            content: preflight?.bankRevision === revisionOf(row) ? preflight.content : await buildSnapshot(row),
+          };
+        }));
+        await tx.insert(questions).values(values);
       }
+      imported = rowsToImport.length;
 
       await recordTutorMutationAudit(
         {
@@ -1782,8 +1360,8 @@ export async function importQuestionBankToTryoutAction(
           reason: "Question bank items imported to tryout by admin",
           after: {
             examId,
-            importedCount: rowsToImport.length,
-            skippedCount: uniqueIds.length - rowsToImport.length,
+            importedCount: imported,
+            skippedCount: uniqueIds.length - imported,
           },
         },
         tx,
@@ -1809,8 +1387,8 @@ export async function importQuestionBankToTryoutAction(
   revalidatePath(`/courses/${courseId}/tryout/${examId}`);
   return {
     success: true,
-    imported: rowsToImport.length,
-    skipped: uniqueIds.length - rowsToImport.length,
+    imported,
+    skipped: uniqueIds.length - imported,
   };
 }
 
@@ -1886,161 +1464,12 @@ export async function deleteTryoutQuestionAction(courseId: string, questionId: s
 // GRADING & SUBMISSIONS (Course-scoped Tryout Grading)
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function submitTryoutAction(courseId: string, examId: string, answers: any) {
+export async function submitTryoutAction(courseId: string, examId: string, answers: Record<string, unknown>) {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user) {
-    throw new Error("Unauthorized: Silakan masuk terlebih dahulu.");
-  }
-
-  const [examRecord] = await db.select().from(exams).where(eq(exams.id, examId)).limit(1);
-  if (!examRecord) throw new Error("Tryout tidak ditemukan.");
-
-  const [canonicalCourse] = await db
-    .select({ id: mataKuliah.id, legacyCourseId: mataKuliah.legacyCourseId })
-    .from(mataKuliah)
-    .where(or(eq(mataKuliah.id, courseId), eq(mataKuliah.legacyCourseId, courseId)))
-    .limit(1);
-
-  const canonicalId = canonicalCourse?.id ?? courseId;
-  const legacyId = canonicalCourse?.legacyCourseId ?? courseId;
-
-  if (!checkCourseMatch(examRecord.courseId, canonicalId, legacyId) || examRecord.type !== "tryout") {
-    throw new Error("Tryout tidak sesuai dengan kelas.");
-  }
-
-  const access = await resolveCourseAccess({ courseId: examRecord.courseId, userId: session.user.id });
-  if (!access.hasFullContentAccess) throw new Error("Akses mata kuliah tidak tersedia.");
-
-  if (examRecord.status !== "published") {
-    throw new Error("Tryout belum dipublikasikan atau sudah ditutup.");
-  }
-
-  const now = new Date();
-  if (examRecord.openAt && now < new Date(examRecord.openAt)) {
-    throw new Error("Tryout belum dibuka.");
-  }
-  if (examRecord.closeAt && now > new Date(examRecord.closeAt)) {
-    throw new Error("Tryout sudah ditutup.");
-  }
-
-  const settings = typeof examRecord.settings === "string"
-    ? JSON.parse(examRecord.settings)
-    : (examRecord.settings as Record<string, any> | null);
-  const maxAttempts = settings?.maxAttempts;
-
-  const dbQuestions = await db
-    .select()
-    .from(questions)
-    .where(eq(questions.examId, examId))
-    .orderBy(asc(questions.order));
-
-  const hasEssay = dbQuestions.some((q) => q.type === "essay");
-  const status = hasEssay ? "pending_review" : "completed";
-
-  let correctCount = 0;
-  let autoGradedCount = 0;
-
-  const questionsSnapshot = dbQuestions.map((q) => {
-    const qContent = typeof q.content === "string" ? JSON.parse(q.content) : q.content;
-    const answer = answers[q.id];
-
-    if (q.type === "multiple_choice") {
-      autoGradedCount++;
-      const isCorrect = answer && answer.index === qContent.correctIndex;
-      if (isCorrect) correctCount++;
-    } else if (q.type === "multiple_choices") {
-      autoGradedCount++;
-      const submitted = answer?.indices || [];
-      const correct = qContent.correctIndices || [];
-      const isCorrect =
-        submitted.length === correct.length &&
-        submitted.every((idx: number) => correct.includes(idx));
-      if (isCorrect) correctCount++;
-    } else if (q.type === "short_answer") {
-      autoGradedCount++;
-      const submittedText = (answer?.text || "").trim().toLowerCase();
-      const acceptable = (qContent.acceptableAnswers || []).map((a: string) =>
-        a.trim().toLowerCase()
-      );
-      const isCorrect = acceptable.includes(submittedText);
-      if (isCorrect) correctCount++;
-    }
-
-    return {
-      id: q.id,
-      ...(typeof qContent.bankQuestionId === "string" ? { bankQuestionId: qContent.bankQuestionId } : {}),
-      order: q.order,
-      type: q.type,
-      prompt: qContent.prompt,
-      options: qContent.options || [],
-      correctIndex: qContent.correctIndex,
-      correctIndices: qContent.correctIndices || [],
-      acceptsImage: qContent.acceptsImage,
-      acceptsFile: qContent.acceptsFile,
-      acceptableAnswers: qContent.acceptableAnswers || [],
-      explanation: qContent.explanation || "",
-      ...normalizeQuestionProvenance(qContent),
-    };
-  });
-
-  const autoGradedScore = autoGradedCount > 0 ? Math.round((correctCount / autoGradedCount) * 100) : 100;
-  const score = hasEssay ? null : autoGradedScore;
-
-  const submissionId = `sub-tutor-${randomUUID()}`;
-
-  let attemptNumber = 1;
-  const maxSubmitRetries = 6;
-  for (let retry = 0; retry < maxSubmitRetries; retry++) {
-    try {
-      await db.transaction(async (tx) => {
-        const [attemptsResult] = await tx
-          .select({ count: sql<number>`count(*)` })
-          .from(submissions)
-          .where(
-            and(
-              eq(submissions.userId, session.user.id),
-              eq(submissions.examId, examId),
-            ),
-          );
-        const attemptCount = Number(attemptsResult?.count ?? 0);
-        if (typeof maxAttempts === "number" && maxAttempts > 0 && attemptCount >= maxAttempts) {
-          throw new Error("Batas maksimum percobaan tryout telah tercapai.");
-        }
-
-        attemptNumber = attemptCount + 1;
-        if (typeof maxAttempts === "number" && maxAttempts > 0 && attemptNumber > maxAttempts) {
-          throw new Error("Batas maksimum percobaan tryout telah tercapai.");
-        }
-
-        await tx.insert(submissions).values({
-          id: submissionId,
-          userId: session.user.id,
-          examId: examId,
-          status: status,
-          score: score,
-          answersSnapshot: answers,
-          questionsSnapshot: questionsSnapshot,
-          submittedAt: new Date(),
-          attemptNumber,
-        });
-      });
-      break;
-    } catch (err: any) {
-      const isRetryable = isUniqueConstraintError(err) || isSqliteBusyError(err);
-      if (isRetryable && retry < maxSubmitRetries - 1) {
-        const jitter = Math.floor(Math.random() * 20);
-        await new Promise((resolve) => setTimeout(resolve, 15 * 2 ** retry + jitter));
-        continue;
-      }
-      if (isUniqueConstraintError(err)) {
-        throw new Error("Batas maksimum percobaan tryout telah tercapai.");
-      }
-      throw err;
-    }
-  }
-
+  if (!session?.user) throw new Error("Unauthorized: Silakan masuk terlebih dahulu.");
+  const result = await submitStudentTryout({ courseId, examId, userId: session.user.id, answers });
   revalidatePath(`/courses/${courseId}/my-results`);
-  return { success: true, submissionId };
+  return result;
 }
 
 export async function gradeSubmissionAction(
@@ -2048,199 +1477,17 @@ export async function gradeSubmissionAction(
   submissionId: string,
   score: number,
   teacherNotes: string,
+  expectedRevision?: string,
 ) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) {
     throw new Error("Unauthorized: Silakan masuk terlebih dahulu.");
   }
 
-  const { roles, isAdmin } = await resolveActorRoles(
-    session.user.id,
-    (session.user as { role?: string | null }).role,
+  await gradeTryoutSubmission(
+    { id: session.user.id, role: (session.user as { role?: string | null }).role },
+    { courseId, submissionId, score, notes: teacherNotes ?? "", expectedRevision },
   );
-
-  let access;
-  try {
-    access = await requireTutorCourseAccess(session.user.id, courseId, { allowAdmin: isAdmin });
-  } catch (err: any) {
-    await recordTutorMutationAuditSafe({
-      actorId: session.user.id,
-      actorRoles: roles,
-      courseId,
-      entityType: "submission",
-      entityId: submissionId,
-      entityVersion: 1,
-      action: "submission:grade",
-      outcome: "rejected",
-      reason: err?.message || TUTOR_CAPABILITY_ERRORS.ACCESS_DENIED,
-    });
-    throw err;
-  }
-
-  const gradingInput = z
-    .object({
-      score: z.number().min(0).max(100),
-      teacherNotes: z.string().max(4000).optional(),
-    })
-    .safeParse({ score, teacherNotes });
-  if (!gradingInput.success) {
-    const validationError = `Validasi gagal: ${formatValidationIssues(gradingInput.error)}`;
-    await recordTutorFailureAudit({
-      actorId: session.user.id,
-      actorRoles: roles,
-      courseId: access.courseId ?? courseId,
-      entityType: "submission",
-      entityId: submissionId,
-      entityVersion: 1,
-      action: "submission:grade",
-      outcome: "rejected",
-      requestId: newAuditRequestId(),
-      reason: validationError,
-    });
-    throw new Error(validationError);
-  }
-
-  const [submissionWithExam] = await db
-    .select({
-      id: submissions.id,
-      status: submissions.status,
-      score: submissions.score,
-      examId: submissions.examId,
-      examCourseId: exams.courseId,
-      examType: exams.type,
-    })
-    .from(submissions)
-    .innerJoin(exams, eq(submissions.examId, exams.id))
-    .where(eq(submissions.id, submissionId))
-    .limit(1);
-
-  if (!submissionWithExam) {
-    await recordTutorMutationAuditSafe({
-      actorId: session.user.id,
-      actorRoles: roles,
-      courseId: access.courseId ?? courseId,
-      entityType: "submission",
-      entityId: submissionId,
-      entityVersion: 1,
-      action: "submission:grade",
-      outcome: "rejected",
-      reason: TUTOR_CAPABILITY_ERRORS.SUBMISSION_NOT_FOUND,
-    });
-    throw new Error(TUTOR_CAPABILITY_ERRORS.SUBMISSION_NOT_FOUND);
-  }
-
-  const isCourseMatch = checkCourseMatch(
-    submissionWithExam.examCourseId,
-    access.courseId!,
-    access.legacyCourseId,
-  );
-
-  if (!isCourseMatch) {
-    await recordTutorMutationAuditSafe({
-      actorId: session.user.id,
-      actorRoles: roles,
-      courseId: access.courseId ?? courseId,
-      entityType: "submission",
-      entityId: submissionId,
-      entityVersion: 1,
-      action: "submission:grade",
-      outcome: "rejected",
-      reason: TUTOR_CAPABILITY_ERRORS.GRADING_COURSE_MISMATCH,
-    });
-    throw new Error(TUTOR_CAPABILITY_ERRORS.GRADING_COURSE_MISMATCH);
-  }
-
-  if (submissionWithExam.examType !== "tryout") {
-    await recordTutorMutationAuditSafe({
-      actorId: session.user.id,
-      actorRoles: roles,
-      courseId: access.courseId ?? courseId,
-      entityType: "submission",
-      entityId: submissionId,
-      entityVersion: 1,
-      action: "submission:grade",
-      outcome: "rejected",
-      reason: TUTOR_CAPABILITY_ERRORS.GRADING_NON_TRYOUT_FORBIDDEN,
-    });
-    throw new Error(TUTOR_CAPABILITY_ERRORS.GRADING_NON_TRYOUT_FORBIDDEN);
-  }
-
-  if (!isReviewableSubmissionStatus(submissionWithExam.status)) {
-    await recordTutorMutationAuditSafe({
-      actorId: session.user.id,
-      actorRoles: roles,
-      courseId: access.courseId ?? courseId,
-      entityType: "submission",
-      entityId: submissionId,
-      entityVersion: 1,
-      action: "submission:grade",
-      outcome: "rejected",
-      reason: TUTOR_CAPABILITY_ERRORS.GRADING_NOT_REVIEWABLE,
-    });
-    throw new Error(TUTOR_CAPABILITY_ERRORS.GRADING_NOT_REVIEWABLE);
-  }
-
-  const { beforeSnapshot, afterSnapshot } = buildGradingSnapshots(
-    submissionWithExam,
-    score,
-    teacherNotes,
-  );
-
-  const requestId = newAuditRequestId();
-  try {
-    await db.transaction(async (tx) => {
-      const updatedRows = await tx
-        .update(submissions)
-        .set({
-          score,
-          teacherNotes: teacherNotes || "",
-          status: "graded",
-        })
-        .where(
-          and(
-            eq(submissions.id, submissionId),
-            eq(submissions.status, submissionWithExam.status),
-          ),
-        )
-        .returning({ id: submissions.id });
-
-      if (updatedRows.length === 0) {
-        throw new Error(TUTOR_CAPABILITY_ERRORS.GRADING_CONCURRENT_CONFLICT);
-      }
-
-      await recordTutorMutationAudit({
-        actorId: session.user.id,
-        actorRoles: roles,
-        courseId: access.courseId ?? courseId,
-        entityType: "submission",
-        entityId: submissionId,
-        entityVersion: 1,
-        requestId,
-        action: "submission:grade",
-        outcome: "success",
-        reason: "Tryout submission graded",
-        before: beforeSnapshot,
-        after: afterSnapshot,
-      }, tx);
-    });
-  } catch (err: any) {
-    await recordTutorMutationAuditSafe({
-      actorId: session.user.id,
-      actorRoles: roles,
-      courseId: access.courseId ?? courseId,
-      entityType: "submission",
-      entityId: submissionId,
-      entityVersion: 1,
-      requestId,
-      action: "submission:grade",
-      outcome: "failed",
-      reason: err?.message || "Failed to update submission",
-      before: beforeSnapshot,
-      after: afterSnapshot,
-    });
-    throw err;
-  }
-
   revalidatePath(`/tutor/${courseId}/grading`);
   return { success: true };
 }

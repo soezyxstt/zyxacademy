@@ -1,0 +1,87 @@
+{
+  "path": "plans-retry-touch-excerpts.txt",
+  "sha256": "028cea7c388f92a7c985c53a5f66686ee2848c63dcb29ff53bd36ddf6665e743",
+  "sources": [
+    {
+      "label": "Passing XCTest dispatch",
+      "run": 45818014106,
+      "artifact": 15130240909,
+      "artifactPath": "results/2026-11-26_142457/operations-public-plans-retry/logs/device-xctest.log",
+      "sourceSha256": "6337aa6b7eb2a575cac796060ce507c224464f3ce507a72c45903eb2295ab492",
+      "lineRanges": [
+        [
+          205,
+          207
+        ]
+      ]
+    },
+    {
+      "label": "Passing UIKit event",
+      "run": 45818014106,
+      "artifact": 15130240909,
+      "artifactPath": "results/2026-11-26_142457/operations-public-plans-retry/logs/device-simulator.log",
+      "sourceSha256": "f538470d43f220e038404f18b94d187833b352dc91921a078ae46de5997e2bd9",
+      "lineRanges": [
+        [
+          5545,
+          5545
+        ],
+        [
+          5548,
+          5551
+        ]
+      ]
+    },
+    {
+      "label": "Passing Maestro retry assertion",
+      "run": 45818014106,
+      "artifact": 15130240909,
+      "artifactPath": "results/2026-11-26_142457/operations-public-plans-retry/logs/maestro.log",
+      "sourceSha256": "41db103e51140e81e0abd0e4b5b8f28d4b2aa7d204cc432368ad796d0123ce10",
+      "lineRanges": [
+        [
+          19,
+          28
+        ]
+      ]
+    },
+    {
+      "label": "Failing XCTest dispatch",
+      "run": 45844285297,
+      "artifact": 15142415580,
+      "artifactPath": "results/2026-11-26_170707/operations-public-plans-retry/logs/device-xctest.log",
+      "sourceSha256": "e909877f8e1e822fb7f27219afa6d25b0958d5d5449c800d55a82309d227cc85",
+      "lineRanges": [
+        [
+          206,
+          208
+        ]
+      ]
+    },
+    {
+      "label": "Failing BackBoard touch handling",
+      "run": 45844285297,
+      "artifact": 15142415580,
+      "artifactPath": "results/2026-11-26_170707/operations-public-plans-retry/logs/device-simulator.log",
+      "sourceSha256": "b4e99d2ccba00decf562b1712e00859c398f41f3d71083a2b2f7ad98c653cda3",
+      "lineRanges": [
+        [
+          13853,
+          13854
+        ],
+        [
+          13857,
+          13857
+        ],
+        [
+          13864,
+          13866
+        ],
+        [
+          14168,
+          14170
+        ]
+      ]
+    }
+  ]
+}

@@ -56,6 +56,7 @@ export interface BookingResourceOptions {
   actorId?: string;
   executor?: DbExecutor;
   now?: Date;
+  resourceId?: string;
 }
 
 interface ResourceActor {
@@ -281,7 +282,7 @@ export async function addBookingResource(
 
   const now = options.now ?? new Date();
   const row: typeof bookingResources.$inferInsert = {
-    id: randomUUID(),
+    id: options.resourceId ?? randomUUID(),
     bookingId: input.bookingId.trim(),
     phase: input.phase,
     kind: input.kind,

@@ -5,12 +5,21 @@ import { customForms } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { detectFormFileMime } from "@/lib/forms/file-types";
 import { formFileSizeLimitMb } from "@/lib/forms/presentation";
-import { getFormClosedReason, getFormRespondentError } from "@/lib/forms/response-policy";
+import { expectsFormWriteSession, formWriteSessionError, getFormClosedReason, getFormRespondentError, matchesFormWriteSession } from "@/lib/forms/response-policy";
 import { storage } from "@/lib/storage";
+import { formResponseAttachmentFolder } from "@/lib/forms/response-attachment-key";
 import { buildFormStorageKey } from "@/lib/forms/storage-utils";
 
 export async function POST(req: Request) {
   try {
+    const expectedSession = expectsFormWriteSession(req);
+    const session = expectedSession
+      ? await auth.api.getSession({ headers: req.headers, query: { disableCookieCache: true, disableRefresh: true } })
+      : null;
+    if (expectedSession && !matchesFormWriteSession(req.headers, session)) {
+      return NextResponse.json({ error: formWriteSessionError }, { status: 401 });
+    }
+
     const formData = await req.formData().catch(() => null);
     const file = formData?.get("file");
     const formIdentifier = formData?.get("formSlug");
@@ -25,17 +34,18 @@ export async function POST(req: Request) {
     }
 
     const formIdOrSlug = formIdentifier.trim();
+    const exactId = new URL(req.url).searchParams.get("target") === "id";
     const [form] = await db
       .select({
+        id: customForms.id,
         slug: customForms.slug,
-        title: customForms.title,
         questions: customForms.questions,
         settings: customForms.settings,
       })
       .from(customForms)
       .where(and(
         isNull(customForms.deletedAt),
-        or(eq(customForms.id, formIdOrSlug), eq(customForms.slug, formIdOrSlug.toLowerCase())),
+        exactId ? eq(customForms.id, formIdOrSlug) : or(eq(customForms.id, formIdOrSlug), eq(customForms.slug, formIdOrSlug.toLowerCase())),
       ))
       .limit(1);
     if (!form) {
@@ -49,8 +59,8 @@ export async function POST(req: Request) {
     }
 
     if (settings.requireLogin || settings.collectEmail === "verified") {
-      const session = await auth.api.getSession({ headers: req.headers });
-      const respondentError = getFormRespondentError(settings, session?.user);
+      const respondent = session ?? await auth.api.getSession({ headers: req.headers });
+      const respondentError = getFormRespondentError(settings, respondent?.user);
       if (respondentError) {
         return NextResponse.json({ error: respondentError.message }, { status: respondentError.status });
       }
@@ -72,7 +82,7 @@ export async function POST(req: Request) {
     }
 
     const key = buildFormStorageKey({
-      formTitle: form.title,
+      formTitle: formResponseAttachmentFolder(form.id),
       formSlug: form.slug,
       questionNumber,
       filename: file.name,

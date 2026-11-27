@@ -1,0 +1,44 @@
+[
+  {
+    "role": "tutor",
+    "path": "/tutor",
+    "landed": "/tutor",
+    "key": "tutor-dashboard",
+    "status": 200
+  },
+  {
+    "role": "tutor",
+    "path": "/tutor/academic-course-1/participants",
+    "landed": "/tutor/academic-course-1/participants",
+    "key": "tutor-participants",
+    "status": 200
+  },
+  {
+    "role": "tutor",
+    "path": "/tutor/academic-course-2/participants",
+    "landed": "/tutor/academic-course-2/participants",
+    "key": "tutor-empty",
+    "status": 200
+  },
+  {
+    "role": "tutor",
+    "path": "/tutor/academic-course-3/participants",
+    "landed": "/tutor",
+    "key": "tutor-denied",
+    "status": 200
+  },
+  {
+    "role": "admin",
+    "path": "/admin/courses",
+    "landed": "/admin/courses",
+    "key": "admin-courses",
+    "status": 200
+  },
+  {
+    "role": "admin",
+    "path": "/admin/courses/biologi-dasar",
+    "landed": "/admin/courses/biologi-dasar",
+    "key": "admin-detail",
+    "status": 200
+  }
+]

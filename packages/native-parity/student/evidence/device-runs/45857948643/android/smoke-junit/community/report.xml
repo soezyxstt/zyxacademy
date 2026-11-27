@@ -1,0 +1,111 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuite name="Student smoke" tests="55" failures="9"><testcase id="smoke-021" name="smoke-021" classname="smoke-021" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-021.yaml" time="5.032" timestamp="2026-11-26T17:05:32" status="SUCCESS" />
+    <testcase id="smoke-022" name="smoke-022" classname="smoke-022" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-022.yaml" time="4.678" timestamp="2026-11-26T17:05:37" status="SUCCESS" />
+    <testcase id="smoke-023" name="smoke-023" classname="smoke-023" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-023.yaml" time="4.45" timestamp="2026-11-26T17:05:42" status="SUCCESS" />
+    <testcase id="smoke-024" name="smoke-024" classname="smoke-024" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-024.yaml" time="4.242" timestamp="2026-11-26T17:05:46" status="SUCCESS" />
+    <testcase id="smoke-025" name="smoke-025" classname="smoke-025" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-025.yaml" time="4.399" timestamp="2026-11-26T17:05:50" status="SUCCESS" />
+    <testcase id="smoke-026" name="smoke-026" classname="smoke-026" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-026.yaml" time="4.119" timestamp="2026-11-26T17:05:55" status="SUCCESS" />
+    <testcase id="smoke-027" name="smoke-027" classname="smoke-027" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-027.yaml" time="5.232" timestamp="2026-11-26T17:05:59" status="SUCCESS" />
+    <testcase id="smoke-028" name="smoke-028" classname="smoke-028" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-028.yaml" time="3.738" timestamp="2026-11-26T17:06:04" status="SUCCESS" />
+  <testcase id="smoke-029" name="smoke-029" classname="smoke-029" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-029.yaml" time="5.24" timestamp="2026-11-26T17:06:17" status="SUCCESS" />
+    <testcase id="smoke-030" name="smoke-030" classname="smoke-030" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-030.yaml" time="4.226" timestamp="2026-11-26T17:06:22" status="SUCCESS" />
+    <testcase id="smoke-031" name="smoke-031" classname="smoke-031" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-031.yaml" time="4.225" timestamp="2026-11-26T17:06:26" status="SUCCESS" />
+    <testcase id="smoke-032" name="smoke-032" classname="smoke-032" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-032.yaml" time="3.716" timestamp="2026-11-26T17:06:30" status="SUCCESS" />
+    <testcase id="smoke-033" name="smoke-033" classname="smoke-033" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-033.yaml" time="4.273" timestamp="2026-11-26T17:06:34" status="SUCCESS" />
+    <testcase id="smoke-034" name="smoke-034" classname="smoke-034" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-034.yaml" time="4.282" timestamp="2026-11-26T17:06:38" status="SUCCESS" />
+    <testcase id="smoke-035" name="smoke-035" classname="smoke-035" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-035.yaml" time="3.305" timestamp="2026-11-26T17:06:43" status="SUCCESS" />
+    <testcase id="smoke-036" name="smoke-036" classname="smoke-036" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-036.yaml" time="3.612" timestamp="2026-11-26T17:06:46" status="SUCCESS" />
+  <testcase id="smoke-037" name="smoke-037" classname="smoke-037" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-037.yaml" time="5.485" timestamp="2026-11-26T17:06:58" status="SUCCESS" />
+    <testcase id="smoke-038" name="smoke-038" classname="smoke-038" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-038.yaml" time="4.034" timestamp="2026-11-26T17:07:04" status="SUCCESS" />
+    <testcase id="smoke-039" name="smoke-039" classname="smoke-039" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-039.yaml" time="4.609" timestamp="2026-11-26T17:07:08" status="SUCCESS" />
+    <testcase id="smoke-040" name="smoke-040" classname="smoke-040" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-040.yaml" time="4.623" timestamp="2026-11-26T17:07:13" status="SUCCESS" />
+    <testcase id="smoke-041" name="smoke-041" classname="smoke-041" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-041.yaml" time="7.101" timestamp="2026-11-26T17:07:17" status="SUCCESS" />
+    <testcase id="smoke-042" name="smoke-042" classname="smoke-042" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-042.yaml" time="3.826" timestamp="2026-11-26T17:07:24" status="SUCCESS" />
+    <testcase id="smoke-043" name="smoke-043" classname="smoke-043" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-043.yaml" time="4.345" timestamp="2026-11-26T17:07:28" status="SUCCESS" />
+    <testcase id="smoke-044" name="smoke-044" classname="smoke-044" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-044.yaml" time="4.265" timestamp="2026-11-26T17:07:32" status="SUCCESS" />
+  <testcase id="smoke-045" name="smoke-045" classname="smoke-045" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-045.yaml" time="5.99" timestamp="2026-11-26T17:07:45" status="SUCCESS" />
+    <testcase id="smoke-046" name="smoke-046" classname="smoke-046" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-046.yaml" time="11.347" timestamp="2026-11-26T17:07:51" status="ERROR">
+      <failure>maestro.android.DeviceServerDiedException: Device server died during 'viewHierarchy' on emulator-5554 (970ms since last byte, connection age 18981ms): StatusRuntimeException: UNAVAILABLE: End of stream or IOException
+	at maestro.android.AndroidDeviceConnection.onGrpcDeath(AndroidDeviceConnection.kt:319)
+	at maestro.android.AndroidDeviceConnection.mapTransport(AndroidDeviceConnection.kt:306)
+	at maestro.android.AndroidDeviceConnection.execute(AndroidDeviceConnection.kt:122)
+	at maestro.drivers.AndroidDriver.callViewHierarchy(AndroidDriver.kt:368)
+	at maestro.drivers.AndroidDriver.contentDescriptor$lambda$16(AndroidDriver.kt:329)
+	at maestro.utils.Metrics.measured(Metrics.kt:48)
+	at maestro.drivers.AndroidDriver.contentDescriptor(AndroidDriver.kt:328)
+	at maestro.ViewHierarchy$Companion.from-8JJjmZI(ViewHierarchy.kt:29)
+	at maestro.utils.ScreenshotUtils$Companion.viewHierarchy-c1iYVAs(ScreenshotUtils.kt:99)
+	at maestro.utils.ScreenshotUtils$Companion.waitForAppToSettle-OpTFbEc(ScreenshotUtils.kt:58)
+	at maestro.drivers.AndroidDriver$waitForAppToSettle$1.invoke-prqvCes(AndroidDriver.kt:721)
+	at maestro.drivers.AndroidDriver$waitForAppToSettle$1.invoke(AndroidDriver.kt:717)
+	at maestro.utils.Metrics.measured(Metrics.kt:48)
+	at maestro.drivers.AndroidDriver.waitForAppToSettle-5RpGHs4(AndroidDriver.kt:717)
+	at maestro.Maestro$waitForAppToSettle$2.invoke-F9mIFpk(Maestro.kt:583)
+	at maestro.Maestro$waitForAppToSettle$2.invoke(Maestro.kt:582)
+	at kotlinx.coroutines.InterruptibleKt.runInterruptibleInExpectedContext(Interruptible.kt:48)
+	at kotlinx.coroutines.InterruptibleKt.access$runInterruptibleInExpectedContext(Interruptible.kt:1)
+	at kotlinx.coroutines.InterruptibleKt$runInterruptible$2.invokeSuspend(Interruptible.kt:40)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.internal.LimitedDispatcher$Worker.run(LimitedDispatcher.kt:124)
+	at kotlinx.coroutines.scheduling.TaskImpl.run(Tasks.kt:89)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler.runSafely(CoroutineScheduler.kt:586)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.executeTask(CoroutineScheduler.kt:820)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.runWorker(CoroutineScheduler.kt:717)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.run(CoroutineScheduler.kt:704)
+Caused by: io.grpc.StatusRuntimeException: UNAVAILABLE: End of stream or IOException
+	at io.grpc.stub.ClientCalls.toStatusRuntimeException(ClientCalls.java:275)
+	at io.grpc.stub.ClientCalls.getUnchecked(ClientCalls.java:256)
+	at io.grpc.stub.ClientCalls.blockingUnaryCall(ClientCalls.java:169)
+	at maestro_android.MaestroDriverGrpc$MaestroDriverBlockingStub.viewHierarchy(MaestroDriverGrpc.java:747)
+	at maestro.drivers.AndroidDriver.callViewHierarchy$lambda$19(AndroidDriver.kt:368)
+	at maestro.android.AndroidDeviceConnection.execute(AndroidDeviceConnection.kt:120)
+	... 24 more
+</failure>
+    </testcase>
+    <testcase id="smoke-047" name="smoke-047" classname="smoke-047" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-047.yaml" time="0.084" timestamp="2026-11-26T17:08:03" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="smoke-048" name="smoke-048" classname="smoke-048" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-048.yaml" time="0.026" timestamp="2026-11-26T17:08:03" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="smoke-049" name="smoke-049" classname="smoke-049" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-049.yaml" time="0.045" timestamp="2026-11-26T17:08:03" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="smoke-050" name="smoke-050" classname="smoke-050" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-050.yaml" time="0.026" timestamp="2026-11-26T17:08:03" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="smoke-051" name="smoke-051" classname="smoke-051" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-051.yaml" time="0.024" timestamp="2026-11-26T17:08:03" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="smoke-052" name="smoke-052" classname="smoke-052" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-052.yaml" time="0.028" timestamp="2026-11-26T17:08:03" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+  <testcase id="smoke-053" name="smoke-053" classname="smoke-053" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-053.yaml" time="5.214" timestamp="2026-11-26T17:08:12" status="SUCCESS" />
+    <testcase id="smoke-054" name="smoke-054" classname="smoke-054" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-054.yaml" time="4.734" timestamp="2026-11-26T17:08:17" status="SUCCESS" />
+    <testcase id="smoke-055" name="smoke-055" classname="smoke-055" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-055.yaml" time="6.369" timestamp="2026-11-26T17:08:22" status="SUCCESS" />
+    <testcase id="smoke-056" name="smoke-056" classname="smoke-056" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-056.yaml" time="4.12" timestamp="2026-11-26T17:08:28" status="SUCCESS" />
+    <testcase id="smoke-057" name="smoke-057" classname="smoke-057" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-057.yaml" time="3.644" timestamp="2026-11-26T17:08:32" status="SUCCESS" />
+    <testcase id="smoke-058" name="smoke-058" classname="smoke-058" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-058.yaml" time="7.09" timestamp="2026-11-26T17:08:36" status="SUCCESS" />
+    <testcase id="smoke-059" name="smoke-059" classname="smoke-059" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-059.yaml" time="0.045" timestamp="2026-11-26T17:08:43" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="smoke-060" name="smoke-060" classname="smoke-060" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-060.yaml" time="0.015" timestamp="2026-11-26T17:08:43" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+  <testcase id="smoke-061" name="smoke-061" classname="smoke-061" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-061.yaml" time="15.485" timestamp="2026-11-26T17:08:52" status="SUCCESS" />
+    <testcase id="smoke-062" name="smoke-062" classname="smoke-062" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-062.yaml" time="4.363" timestamp="2026-11-26T17:09:07" status="SUCCESS" />
+    <testcase id="smoke-063" name="smoke-063" classname="smoke-063" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-063.yaml" time="6.384" timestamp="2026-11-26T17:09:12" status="SUCCESS" />
+    <testcase id="smoke-064" name="smoke-064" classname="smoke-064" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-064.yaml" time="4.211" timestamp="2026-11-26T17:09:18" status="SUCCESS" />
+    <testcase id="smoke-065" name="smoke-065" classname="smoke-065" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-065.yaml" time="4.209" timestamp="2026-11-26T17:09:22" status="SUCCESS" />
+    <testcase id="smoke-066" name="smoke-066" classname="smoke-066" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-066.yaml" time="3.467" timestamp="2026-11-26T17:09:27" status="SUCCESS" />
+    <testcase id="smoke-067" name="smoke-067" classname="smoke-067" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-067.yaml" time="5.838" timestamp="2026-11-26T17:09:30" status="SUCCESS" />
+    <testcase id="smoke-068" name="smoke-068" classname="smoke-068" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-068.yaml" time="9.051" timestamp="2026-11-26T17:09:36" status="SUCCESS" />
+  <testcase id="smoke-069" name="smoke-069" classname="smoke-069" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-069.yaml" time="6.266" timestamp="2026-11-26T17:09:54" status="SUCCESS" />
+    <testcase id="smoke-070" name="smoke-070" classname="smoke-070" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-070.yaml" time="10.549" timestamp="2026-11-26T17:10:00" status="SUCCESS" />
+    <testcase id="smoke-071" name="smoke-071" classname="smoke-071" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-071.yaml" time="4.605" timestamp="2026-11-26T17:10:11" status="SUCCESS" />
+    <testcase id="smoke-072" name="smoke-072" classname="smoke-072" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-072.yaml" time="4.638" timestamp="2026-11-26T17:10:16" status="SUCCESS" />
+    <testcase id="smoke-075" name="smoke-075" classname="smoke-075" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-075.yaml" time="4.319" timestamp="2026-11-26T17:10:20" status="SUCCESS" />
+    <testcase id="smoke-076" name="smoke-076" classname="smoke-076" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-076.yaml" time="4.464" timestamp="2026-11-26T17:10:24" status="SUCCESS" />
+    <testcase id="smoke-077" name="smoke-077" classname="smoke-077" file="/home/runner/work/zyxacademy/zyxacademy/artifacts/student-evidence/generated/community/smoke-077.yaml" time="4.412" timestamp="2026-11-26T17:10:29" status="SUCCESS" />
+  </testsuite>

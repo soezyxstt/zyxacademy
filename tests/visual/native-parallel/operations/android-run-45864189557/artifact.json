@@ -1,0 +1,20 @@
+{
+  "id": 15140539093,
+  "node_id": "MDg6QXJ0aWZhY3QxNTE0MDUzOTA5Mw==",
+  "name": "operations-android",
+  "size_in_bytes": 16362392,
+  "url": "https://api.github.com/repos/soezyxstt/zyxacademy/actions/artifacts/15140539093",
+  "archive_download_url": "https://api.github.com/repos/soezyxstt/zyxacademy/actions/artifacts/15140539093/zip",
+  "expired": false,
+  "digest": "sha256:57fdccfe88e12b8ac3ed4a9c643b56dba3b64aa43912f823b038f7e31a8a1c73",
+  "created_at": "2026-11-26T17:27:41Z",
+  "updated_at": "2026-11-26T17:27:41Z",
+  "expires_at": "2026-12-03T17:27:39Z",
+  "workflow_run": {
+    "id": 45864189557,
+    "repository_id": 1192540511,
+    "head_repository_id": 1192540511,
+    "head_branch": "native-migration/operations",
+    "head_sha": "6fda5518d1e845b19d54e5e50ee9c1381b0a3d1b"
+  }
+}

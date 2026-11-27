@@ -1,0 +1,29 @@
+{
+  "generated_utc": "2026-11-26T14:25:37.557171+00:00",
+  "head": "bea0bf4c97e098f01cd19be42a79e616e91031a2",
+  "scope": "Web and implementation observations are from a changing local worktree. Device observations refer to the latest published artifact for each platform.",
+  "route_count": 54,
+  "capture_manifest": "tests/visual/native-parallel/academic/pages/results.json",
+  "student_denied_manifest": "tests/visual/native-parallel/academic/pages/denied/manifest.json",
+  "student_web_request_audit": {
+    "path": "tests/visual/native-parallel/academic/pages/denied/api-observations.json",
+    "revision": "bea0bf4c97e098f01cd19be42a79e616e91031a2"
+  },
+  "native_student_denial_diagnostic": {
+    "path": "tests/visual/native-parallel/academic/denied-diagnostic/results.json",
+    "android_revision": "03f9f7bd8bb6267fe68cdaa772debadf2fc95260",
+    "parity_credit": false
+  },
+  "earlier_ios_evidence_index": "tests/visual/native-parallel/academic/device/f75e0496914edd53c4bc24487ca58f6ac47a3769/index.json",
+  "device_evidence_by_platform": {
+    "android": {
+      "index": "tests/visual/native-parallel/academic/device/03f9f7bd8bb6267fe68cdaa772debadf2fc95260/index.json",
+      "revision": "03f9f7bd8bb6267fe68cdaa772debadf2fc95260",
+      "capture_index": "tests/visual/native-parallel/academic/device/03f9f7bd8bb6267fe68cdaa772debadf2fc95260/index.json"
+    },
+    "ios": {
+      "index": "tests/visual/native-parallel/academic/device/c60041d6d2cb98513c8232e41838b35c604b3577/index.json",
+      "revision": "c60041d6d2cb98513c8232e41838b35c604b3577"
+    }
+  }
+}

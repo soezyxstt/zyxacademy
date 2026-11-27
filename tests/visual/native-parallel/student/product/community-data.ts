@@ -1,0 +1,16 @@
+export const communityReference = {
+  learnerSession: "community-enrolled",
+  peerSession: "community-peer",
+  course: "community-reference-matematika",
+  courseTitle: "Matematika komunitas",
+  learner: "Alya Komunitas",
+  peer: "Bima Komunitas",
+  publicId: "bima-komunitas-fixture",
+  quiz: "Latihan limit komunitas",
+  group: "Kelompok Integral",
+  tutor: "Raisa Komunitas",
+  sessionTopic: "Klinik integral",
+  threadId: "community-reference-thread",
+  threadTitle: "Strategi menentukan limit kiri dan kanan",
+  question: "Bagaimana membandingkan limit kiri dan kanan pada fungsi potongan?",
+} as const;

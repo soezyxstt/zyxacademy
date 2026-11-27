@@ -1,0 +1,8 @@
+/.expo/
+/android/
+/ios/
+/dist/
+/google-services.json
+
+/offline/reading-katex.generated.js
+/features/student/pet/scene.generated.js

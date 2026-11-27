@@ -1,0 +1,1563 @@
+{
+  "sourceHead": "14295fc2494a4fca8da6e82b40f9ab3d3fb15abc",
+  "checkoutSha": "ae4ceeff7e5bcc75980c511075079810335aa177",
+  "workflowRun": "https://github.com/soezyxstt/zyxacademy/actions/runs/45829658265",
+  "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45829658265/artifacts/15125807531",
+  "artifactSha256": "b6567a25a72d16c0e141a802bad95dfc52e214e07c9352c4cf6a0c913426132a",
+  "webReferenceArtifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45829658265/artifacts/15122146944",
+  "webReferenceArtifactSha256": "7823a577858bc075703e7df4f3bfcf78634fa907bb4ce52831a91bb782c331ab",
+  "jobId": 139944816133,
+  "jobConclusion": "failure",
+  "summaryCounts": {
+    "passed": 200,
+    "blocked": 3
+  },
+  "scrollRestoration": {
+    "status": "pass",
+    "region": [
+      38,
+      205,
+      342,
+      615
+    ],
+    "dimensions": [
+      380,
+      820
+    ],
+    "different_pixels": 0,
+    "before": "results/2026-11-26_135022/Student course long material list fixture/takeScreenshot/student-long-content.png",
+    "after": "results/2026-11-26_135022/Student course long material list fixture/takeScreenshot/student-long-content-restored.png"
+  },
+  "standaloneCounts": {
+    "passed": 25,
+    "failed": 2
+  },
+  "standaloneFailures": [
+    "Student dashboard enrollment states",
+    "Student quiz gateway attempt states"
+  ],
+  "retryOutcomes": {
+    "passed": 17
+  },
+  "initialFailureCategories": {
+    "ADB transport": 17
+  },
+  "finalFailureCategories": {},
+  "comparison": [
+    {
+      "id": "catalog-all",
+      "status": "different",
+      "differing_pixels": 52847,
+      "max_channel_difference": 227,
+      "native_scenario": {
+        "name": "Catalog comparable fixture all TPB and PKA",
+        "status": "SUCCESS"
+      }
+    },
+    {
+      "id": "catalog-tpb",
+      "status": "different",
+      "differing_pixels": 44805,
+      "max_channel_difference": 227,
+      "native_scenario": {
+        "name": "Catalog comparable fixture all TPB and PKA",
+        "status": "SUCCESS"
+      }
+    },
+    {
+      "id": "catalog-pka",
+      "status": "different",
+      "differing_pixels": 28274,
+      "max_channel_difference": 227,
+      "native_scenario": {
+        "name": "Catalog comparable fixture all TPB and PKA",
+        "status": "SUCCESS"
+      }
+    },
+    {
+      "id": "flashcard-question",
+      "status": "different",
+      "differing_pixels": 222532,
+      "max_channel_difference": 214,
+      "native_scenario": {
+        "name": "Learning flashcard flip and grade",
+        "status": "SUCCESS"
+      }
+    },
+    {
+      "id": "flashcard-review-pending",
+      "status": "different",
+      "differing_pixels": 214096,
+      "max_channel_difference": 255,
+      "native_scenario": {
+        "name": "Learning flashcard flip and grade",
+        "status": "SUCCESS"
+      }
+    },
+    {
+      "id": "flashcard-review-failed",
+      "status": "different",
+      "differing_pixels": 225091,
+      "max_channel_difference": 255,
+      "native_scenario": {
+        "name": "Learning flashcard flip and grade",
+        "status": "SUCCESS"
+      }
+    },
+    {
+      "id": "dashboard-enrolled",
+      "status": "missing",
+      "reason": "One or both capture files are absent or ambiguous.",
+      "native_scenario": {
+        "name": "Student dashboard enrollment states",
+        "status": "ERROR"
+      }
+    },
+    {
+      "id": "dashboard-unenrolled",
+      "status": "missing",
+      "reason": "One or both capture files are absent or ambiguous.",
+      "native_scenario": {
+        "name": "Student dashboard enrollment states",
+        "status": "ERROR"
+      }
+    },
+    {
+      "id": "dashboard-revoked",
+      "status": "missing",
+      "reason": "One or both capture files are absent or ambiguous.",
+      "native_scenario": {
+        "name": "Student dashboard enrollment states",
+        "status": "ERROR"
+      }
+    },
+    {
+      "id": "quiz-gateway-new",
+      "status": "missing",
+      "reason": "One or both capture files are absent or ambiguous.",
+      "native_scenario": {
+        "name": "Student quiz gateway attempt states",
+        "status": "ERROR"
+      }
+    },
+    {
+      "id": "quiz-gateway-resumable",
+      "status": "missing",
+      "reason": "One or both capture files are absent or ambiguous.",
+      "native_scenario": {
+        "name": "Student quiz gateway attempt states",
+        "status": "ERROR"
+      }
+    },
+    {
+      "id": "quiz-gateway-exhausted",
+      "status": "missing",
+      "reason": "One or both capture files are absent or ambiguous.",
+      "native_scenario": {
+        "name": "Student quiz gateway attempt states",
+        "status": "ERROR"
+      }
+    },
+    {
+      "id": "calendar-all",
+      "status": "different",
+      "differing_pixels": 35156,
+      "max_channel_difference": 204,
+      "native_scenario": {
+        "name": "Student calendar reference inputs and category states",
+        "status": "SUCCESS"
+      }
+    },
+    {
+      "id": "calendar-tutorial",
+      "status": "different",
+      "differing_pixels": 17966,
+      "max_channel_difference": 204,
+      "native_scenario": {
+        "name": "Student calendar reference inputs and category states",
+        "status": "SUCCESS"
+      }
+    },
+    {
+      "id": "calendar-empty-filter",
+      "status": "different",
+      "differing_pixels": 14649,
+      "max_channel_difference": 204,
+      "native_scenario": {
+        "name": "Student calendar reference inputs and category states",
+        "status": "SUCCESS"
+      }
+    },
+    {
+      "id": "course-detail-enrolled",
+      "status": "different",
+      "differing_pixels": 266757,
+      "max_channel_difference": 216,
+      "native_scenario": {
+        "name": "Student course and material reference enrolled",
+        "status": "SUCCESS"
+      }
+    },
+    {
+      "id": "course-detail-unenrolled",
+      "status": "different",
+      "differing_pixels": 264076,
+      "max_channel_difference": 216,
+      "native_scenario": {
+        "name": "Student course and material reference unenrolled",
+        "status": "SUCCESS"
+      }
+    },
+    {
+      "id": "course-detail-revoked",
+      "status": "different",
+      "differing_pixels": 264076,
+      "max_channel_difference": 216,
+      "native_scenario": {
+        "name": "Student course and material reference revoked",
+        "status": "SUCCESS"
+      }
+    },
+    {
+      "id": "material-list-enrolled",
+      "status": "different",
+      "differing_pixels": 258034,
+      "max_channel_difference": 233,
+      "native_scenario": {
+        "name": "Student course and material reference enrolled",
+        "status": "SUCCESS"
+      }
+    },
+    {
+      "id": "material-list-unenrolled",
+      "status": "different",
+      "differing_pixels": 252059,
+      "max_channel_difference": 233,
+      "native_scenario": {
+        "name": "Student course and material reference unenrolled",
+        "status": "SUCCESS"
+      }
+    },
+    {
+      "id": "material-list-revoked",
+      "status": "different",
+      "differing_pixels": 252059,
+      "max_channel_difference": 233,
+      "native_scenario": {
+        "name": "Student course and material reference revoked",
+        "status": "SUCCESS"
+      }
+    },
+    {
+      "id": "material-reader-enrolled",
+      "status": "blocked_renderer",
+      "reason": "The enrolled native reader uses the authorized fallback until the host installs the article renderer.",
+      "native_scenario": {
+        "name": "Student course and material reference enrolled",
+        "status": "SUCCESS"
+      }
+    },
+    {
+      "id": "material-reader-unenrolled",
+      "status": "different",
+      "differing_pixels": 267656,
+      "max_channel_difference": 216,
+      "native_scenario": {
+        "name": "Student course and material reference unenrolled",
+        "status": "SUCCESS"
+      }
+    },
+    {
+      "id": "material-reader-revoked",
+      "status": "different",
+      "differing_pixels": 267650,
+      "max_channel_difference": 216,
+      "native_scenario": {
+        "name": "Student course and material reference revoked",
+        "status": "SUCCESS"
+      }
+    },
+    {
+      "id": "results-mixed",
+      "status": "different",
+      "differing_pixels": 19928,
+      "max_channel_difference": 204,
+      "native_scenario": {
+        "name": "Student course results history states",
+        "status": "SUCCESS"
+      }
+    },
+    {
+      "id": "results-empty",
+      "status": "different",
+      "differing_pixels": 20805,
+      "max_channel_difference": 221,
+      "native_scenario": {
+        "name": "Student course results history states",
+        "status": "SUCCESS"
+      }
+    },
+    {
+      "id": "results-graded",
+      "status": "different",
+      "differing_pixels": 18983,
+      "max_channel_difference": 204,
+      "native_scenario": {
+        "name": "Student course results history states",
+        "status": "SUCCESS"
+      }
+    },
+    {
+      "id": "course-ranking-quiz",
+      "status": "different",
+      "differing_pixels": 44024,
+      "max_channel_difference": 213,
+      "native_scenario": {
+        "name": "Student course ranking podium and own rank",
+        "status": "SUCCESS"
+      }
+    },
+    {
+      "id": "course-ranking-simulation",
+      "status": "different",
+      "differing_pixels": 25659,
+      "max_channel_difference": 213,
+      "native_scenario": {
+        "name": "Student course ranking podium and own rank",
+        "status": "SUCCESS"
+      }
+    },
+    {
+      "id": "course-ranking-unranked",
+      "status": "different",
+      "differing_pixels": 45571,
+      "max_channel_difference": 213,
+      "native_scenario": {
+        "name": "Student course ranking podium and own rank",
+        "status": "SUCCESS"
+      }
+    },
+    {
+      "id": "participation-ranking-global",
+      "status": "different",
+      "differing_pixels": 20128,
+      "max_channel_difference": 213,
+      "native_scenario": {
+        "name": "Student participation ranking global and following filters",
+        "status": "SUCCESS"
+      }
+    },
+    {
+      "id": "participation-ranking-following",
+      "status": "different",
+      "differing_pixels": 16594,
+      "max_channel_difference": 221,
+      "native_scenario": {
+        "name": "Student participation ranking global and following filters",
+        "status": "SUCCESS"
+      }
+    },
+    {
+      "id": "participation-ranking-empty",
+      "status": "different",
+      "differing_pixels": 15825,
+      "max_channel_difference": 221,
+      "native_scenario": {
+        "name": "Student participation ranking global and following filters",
+        "status": "SUCCESS"
+      }
+    }
+  ],
+  "matchedComparisonCounts": {
+    "different": 26,
+    "missing": 6,
+    "blocked_renderer": 1
+  },
+  "captures": [
+    {
+      "file": "captures/student-catalog-all.png",
+      "member": "results/2026-11-26_135022/Catalog comparable fixture all TPB and PKA/takeScreenshot/student-catalog-all.png",
+      "sha256": "174be503cfcb2c6384a2235e2c46893021bbbc88343c29ace002edca448fbd75",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/catalog-all-diff.png",
+      "member": "comparison/catalog-all-diff.png",
+      "sha256": "74fef925d46acc37ec4a38394b5d1dec33601195e063fc4946247f0c988e3b04",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-catalog-tpb.png",
+      "member": "results/2026-11-26_135022/Catalog comparable fixture all TPB and PKA/takeScreenshot/student-catalog-tpb.png",
+      "sha256": "a5c7ddf22a593ea0306221f094517a0bff380f88f816ce8ca29731bf59b4f31b",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/catalog-tpb-diff.png",
+      "member": "comparison/catalog-tpb-diff.png",
+      "sha256": "cad36f02eb2ab3c900560146e10647bf29c8678b0175d5dd2847ccdc85b742bb",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-catalog-pka.png",
+      "member": "results/2026-11-26_135022/Catalog comparable fixture all TPB and PKA/takeScreenshot/student-catalog-pka.png",
+      "sha256": "175d76ce4e04b71a488efd2606f8f7dfd9fed5d1aae7dee89a8d2fd641820359",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/catalog-pka-diff.png",
+      "member": "comparison/catalog-pka-diff.png",
+      "sha256": "4135a2a2140bdb69588564140bf06f8d8f571b7611ab53fd896a05a98f3f73f1",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-flashcard-question.png",
+      "member": "results/2026-11-26_135022/Learning flashcard flip and grade/takeScreenshot/student-flashcard-question.png",
+      "sha256": "012eefef297bca9b8be1644a33135f54ada9f7bfb36f033ebcdc105f93e2850d",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/flashcard-question-diff.png",
+      "member": "comparison/flashcard-question-diff.png",
+      "sha256": "1c80281791a48aae33bad045737ed7079fbce7ce62ce21b7e352c580a8e83cd5",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-flashcard-review-pending.png",
+      "member": "results/2026-11-26_135022/Learning flashcard flip and grade/takeScreenshot/student-flashcard-review-pending.png",
+      "sha256": "936eabac2e2ef8c6267495ec62f640b83e58c4b13277f83f7b035eeb79fd29e8",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/flashcard-review-pending-diff.png",
+      "member": "comparison/flashcard-review-pending-diff.png",
+      "sha256": "10786de5772be5615024e489eed83d613b45b65a411b335b8ab89e24e306c096",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-flashcard-review-failed.png",
+      "member": "results/2026-11-26_135022/Learning flashcard flip and grade/takeScreenshot/student-flashcard-review-failed.png",
+      "sha256": "de6910e3fb1a16d0cb0c657ca02426fe373f027e66db61763e36552be8046c75",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/flashcard-review-failed-diff.png",
+      "member": "comparison/flashcard-review-failed-diff.png",
+      "sha256": "bb7d159ef4823438a2fd8cd26158355dc3fec8d8c6b0a7a99559bd8e1ee15d08",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-calendar-all.png",
+      "member": "results/2026-11-26_135022/Student calendar reference inputs and category states/takeScreenshot/student-calendar-all.png",
+      "sha256": "e3d8bc864fd4301dafe6457f6d759bc489c669e725aedaeec6888f7d3ee2ebbd",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/calendar-all-diff.png",
+      "member": "comparison/calendar-all-diff.png",
+      "sha256": "2e5c0bcd2ac838396228d95dacfb3a58b0804fe92be1a04bd7e21f588218a84f",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-calendar-tutorial.png",
+      "member": "results/2026-11-26_135022/Student calendar reference inputs and category states/takeScreenshot/student-calendar-tutorial.png",
+      "sha256": "39046fdf3e41a377c1762da038a5956e5dc297ee421657dcf2a7bf8a4cd082da",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/calendar-tutorial-diff.png",
+      "member": "comparison/calendar-tutorial-diff.png",
+      "sha256": "7cb28d426372b4e46d5f3fc1c43b443b2c7f4cb2691c81cad09894f97493cf6b",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-calendar-empty-filter.png",
+      "member": "results/2026-11-26_135022/Student calendar reference inputs and category states/takeScreenshot/student-calendar-empty-filter.png",
+      "sha256": "12102024fdc091f2ea117308d83d2c9d725cb0c8324b5f1992ddd511cd0de4f9",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/calendar-empty-filter-diff.png",
+      "member": "comparison/calendar-empty-filter-diff.png",
+      "sha256": "190cf3ab4f532f0c8ca96e0430fcbd24ea876bdad528624aa6cd77c063de0c21",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-course-detail-enrolled.png",
+      "member": "results/2026-11-26_135022/Student course and material reference enrolled/takeScreenshot/student-course-detail-enrolled.png",
+      "sha256": "6aa7e71e75628c67dd8caf99bfd170a45d8a68fd4aebeb9494147d4c53e860f6",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/course-detail-enrolled-diff.png",
+      "member": "comparison/course-detail-enrolled-diff.png",
+      "sha256": "44731805dfa409210beebf30f841ca416f10ebf43b69d447c27d5e83ab69589b",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-course-detail-unenrolled.png",
+      "member": "results/2026-11-26_135022/Student course and material reference unenrolled/takeScreenshot/student-course-detail-unenrolled.png",
+      "sha256": "01f837f8f8eac8b4e0ca00a9d51f10ac74d38609cde0a3bc1ddc98adc156b7ca",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/course-detail-unenrolled-diff.png",
+      "member": "comparison/course-detail-unenrolled-diff.png",
+      "sha256": "7a7515e8047658ceb3ff9dd622bf980ab7ca9f14a32b18ee86982911d6b08f05",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-course-detail-revoked.png",
+      "member": "results/2026-11-26_135022/Student course and material reference revoked/takeScreenshot/student-course-detail-revoked.png",
+      "sha256": "01f837f8f8eac8b4e0ca00a9d51f10ac74d38609cde0a3bc1ddc98adc156b7ca",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/course-detail-revoked-diff.png",
+      "member": "comparison/course-detail-revoked-diff.png",
+      "sha256": "7a7515e8047658ceb3ff9dd622bf980ab7ca9f14a32b18ee86982911d6b08f05",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-material-list-enrolled.png",
+      "member": "results/2026-11-26_135022/Student course and material reference enrolled/takeScreenshot/student-material-list-enrolled.png",
+      "sha256": "41bdc317ec478ca9bd65ef08aa1bd4abdffadccaaf3493e35dd3f84f290144f5",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/material-list-enrolled-diff.png",
+      "member": "comparison/material-list-enrolled-diff.png",
+      "sha256": "1e4d86bb45a35af32cbe51c1afe0c923bd7fc04aed06055ad8685e56d89b88f8",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-material-list-unenrolled.png",
+      "member": "results/2026-11-26_135022/Student course and material reference unenrolled/takeScreenshot/student-material-list-unenrolled.png",
+      "sha256": "bb83eb6f0085c5514346d686dbc3c407bbd1f6fa7afc302bd37981045b26cce0",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/material-list-unenrolled-diff.png",
+      "member": "comparison/material-list-unenrolled-diff.png",
+      "sha256": "b8afda8941610682a9a30f60b2a3f295325277e805dedadaef7838e3c212c785",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-material-list-revoked.png",
+      "member": "results/2026-11-26_135022/Student course and material reference revoked/takeScreenshot/student-material-list-revoked.png",
+      "sha256": "bb83eb6f0085c5514346d686dbc3c407bbd1f6fa7afc302bd37981045b26cce0",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/material-list-revoked-diff.png",
+      "member": "comparison/material-list-revoked-diff.png",
+      "sha256": "b8afda8941610682a9a30f60b2a3f295325277e805dedadaef7838e3c212c785",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-material-reader-enrolled.png",
+      "member": "results/2026-11-26_135022/Student course and material reference enrolled/takeScreenshot/student-material-reader-enrolled.png",
+      "sha256": "d4d99f35fbd6161ddee964fcc69d54bee2bec7bf86cef27eee5263cbfd14f2fb",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-material-reader-unenrolled.png",
+      "member": "results/2026-11-26_135022/Student course and material reference unenrolled/takeScreenshot/student-material-reader-unenrolled.png",
+      "sha256": "df5041f388b8a914c6c883af3cf6c959019c78c562163b4f866cd464fac03212",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/material-reader-unenrolled-diff.png",
+      "member": "comparison/material-reader-unenrolled-diff.png",
+      "sha256": "76b5be52d77701a7be5ebf3bf081b62f1cbf2bf724ab33a51242a8a800f2d609",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-material-reader-revoked.png",
+      "member": "results/2026-11-26_135022/Student course and material reference revoked/takeScreenshot/student-material-reader-revoked.png",
+      "sha256": "082d97c7074b4260eae184eb260f86897a87fe3f75bba66c6628cd160c7004a8",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/material-reader-revoked-diff.png",
+      "member": "comparison/material-reader-revoked-diff.png",
+      "sha256": "97c8525a1c1b3c5dfa6cc1cf4bccbf5b5dc81e3c5e6f7fc8066c16cebd848c28",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-results-mixed.png",
+      "member": "results/2026-11-26_135022/Student course results history states/takeScreenshot/student-results-mixed.png",
+      "sha256": "818591c71ac8b561cc73ebd3b1df355c50533c6db581e8e6a0528bdb2c8b3321",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/results-mixed-diff.png",
+      "member": "comparison/results-mixed-diff.png",
+      "sha256": "35c84cd5011080b1704401f138dc4e98e5613bc4cdbaf8cfa24f69a995159cec",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-results-empty.png",
+      "member": "results/2026-11-26_135022/Student course results history states/takeScreenshot/student-results-empty.png",
+      "sha256": "b3d3cdbef7c2d07788d04dd7195a71e4b8093c25c3c4582deab2bb0d9de60bff",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/results-empty-diff.png",
+      "member": "comparison/results-empty-diff.png",
+      "sha256": "2365a08d903e9a710d33c31c0423c863a7fae0d27bb3a88e9337bf3ba5227da6",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-results-graded.png",
+      "member": "results/2026-11-26_135022/Student course results history states/takeScreenshot/student-results-graded.png",
+      "sha256": "a412e44ed99d98f9e6c686f3c6bc64c04a78859477fb37581c39932605f59d2c",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/results-graded-diff.png",
+      "member": "comparison/results-graded-diff.png",
+      "sha256": "49b80b5899d80be60423ecf2af62f1dd893ea6318996d79dce71b339f1932489",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-course-ranking-quiz.png",
+      "member": "results/2026-11-26_135022/Student course ranking podium and own rank/takeScreenshot/student-course-ranking-quiz.png",
+      "sha256": "bfe03f4101fadcfbcd692aa35ff1f6516152382464e73235b9cf215acad5e8ad",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/course-ranking-quiz-diff.png",
+      "member": "comparison/course-ranking-quiz-diff.png",
+      "sha256": "346072359f2d1c4c2988351aa73645df05327f16cdd9f4504cbec7dc3cdc6e34",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-course-ranking-simulation.png",
+      "member": "results/2026-11-26_135022/Student course ranking podium and own rank/takeScreenshot/student-course-ranking-simulation.png",
+      "sha256": "6d54c33403b26b4bf096e55611e4fec55efcf6873a685793621ee34385e45121",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/course-ranking-simulation-diff.png",
+      "member": "comparison/course-ranking-simulation-diff.png",
+      "sha256": "f72e4809523a4c044eb181aa9978a317ae9318dbb42af835d35b05bf91be9ab0",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-course-ranking-unranked.png",
+      "member": "results/2026-11-26_135022/Student course ranking podium and own rank/takeScreenshot/student-course-ranking-unranked.png",
+      "sha256": "6cce46b61eafbc8f6d1599125036780b992171daf1e5dadcc70c0942d57a8b74",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/course-ranking-unranked-diff.png",
+      "member": "comparison/course-ranking-unranked-diff.png",
+      "sha256": "06d0a9bb22c58ed084054fbe42907a1643be1d00868cff0dfb2a8f5f23531410",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-participation-ranking-global.png",
+      "member": "results/2026-11-26_135022/Student participation ranking global and following filters/takeScreenshot/student-participation-ranking-global.png",
+      "sha256": "07c6168efcb012bfc688cc79603f918e564010cba3ce9ee0ca55d57bc2776739",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/participation-ranking-global-diff.png",
+      "member": "comparison/participation-ranking-global-diff.png",
+      "sha256": "94c795ae60014a4136f59b5117c6a2bf468d5000bde67a30671cbf69d35730f1",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-participation-ranking-following.png",
+      "member": "results/2026-11-26_135022/Student participation ranking global and following filters/takeScreenshot/student-participation-ranking-following.png",
+      "sha256": "480323b3070ccfd5458ae43653970540d477004c64c7afa5c09d7c25025e8d23",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/participation-ranking-following-diff.png",
+      "member": "comparison/participation-ranking-following-diff.png",
+      "sha256": "a01cf9898b54c794652f202c10f57c75629577c205bea81d3320b4ab12a57f9c",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-participation-ranking-empty.png",
+      "member": "results/2026-11-26_135022/Student participation ranking global and following filters/takeScreenshot/student-participation-ranking-empty.png",
+      "sha256": "411b9f5b601e2f5fe28474d6d2791726b2df7ff0038b8d2f450a49163d75e3b9",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/participation-ranking-empty-diff.png",
+      "member": "comparison/participation-ranking-empty-diff.png",
+      "sha256": "71ac51e2bacacde994d3679e8595be234d2c1193a93cc69c5a2cf71194d4ed4e",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-calendar-tutorial-history.png",
+      "member": "results/2026-11-26_135022/Community calendar category and history/takeScreenshot/student-calendar-tutorial-history.png",
+      "sha256": "ff158b75ce1712dfc2f9fb83afe8d63f62ed18becf9527cf13d6548e90c56460",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-ranking-academic.png",
+      "member": "results/2026-11-26_135022/Community ranking scope and academic class/takeScreenshot/student-ranking-academic.png",
+      "sha256": "813020a9d830b3772be39061009739508bbad0bd71a4bf66c768e4657fffcc8c",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-flashcard-reviewed.png",
+      "member": "results/2026-11-26_135022/Learning flashcard flip and grade/takeScreenshot/student-flashcard-reviewed.png",
+      "sha256": "54bcfb1285b092cde3b2124061cd3bbc5256619f43eaccd29e69354efc13400c",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-pka-enrollment-gate.png",
+      "member": "results/2026-11-26_135022/PKA enrollment gate redirects to registration/takeScreenshot/student-pka-enrollment-gate.png",
+      "sha256": "260d7f4da14edd504b8822a9a067f5900e0b63cb00b5bace450a6734dfa8614f",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-community-calendar-all.png",
+      "member": "results/2026-11-26_135022/Student calendar filters assessments and opens tutorial history/takeScreenshot/student-community-calendar-all.png",
+      "sha256": "1301b866e676a3b3376a294b10066a46ea392b4f9e7659f5b0e09fa8a9cba770",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-community-calendar-empty.png",
+      "member": "results/2026-11-26_135022/Student calendar filters assessments and opens tutorial history/takeScreenshot/student-community-calendar-empty.png",
+      "sha256": "9f5b896829b118620eaab7a3616a1041daabb70eab59d50ce90cce7e1e900c92",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-community-calendar-history.png",
+      "member": "results/2026-11-26_135022/Student calendar filters assessments and opens tutorial history/takeScreenshot/student-community-calendar-history.png",
+      "sha256": "ddae8cd1a70dbaf7dc9c4e35f5fbcb1710e778951cb4f6a7b74e59f00fb7e6df",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-enrolled-dashboard.png",
+      "member": "results/2026-11-26_135022/Student course enrolled fixture/takeScreenshot/student-enrolled-dashboard.png",
+      "sha256": "264dfeb5836f746f77c1ce54bdea241a6dcd1556526e486eb09e7089d7e30347",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-enrolled-materials.png",
+      "member": "results/2026-11-26_135022/Student course enrolled fixture/takeScreenshot/student-enrolled-materials.png",
+      "sha256": "411cd5135aa3ef106d2218fd829fbee50e55c09473bb903409922887f1073836",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-long-content-restored.png",
+      "member": "results/2026-11-26_135022/Student course long material list fixture/takeScreenshot/student-long-content-restored.png",
+      "sha256": "aba123c82182f74aabb3fb7adb22275bd461c19232541ce61776c17b9f8a882b",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-long-content.png",
+      "member": "results/2026-11-26_135022/Student course long material list fixture/takeScreenshot/student-long-content.png",
+      "sha256": "aba123c82182f74aabb3fb7adb22275bd461c19232541ce61776c17b9f8a882b",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-offline-error.png",
+      "member": "results/2026-11-26_135022/Student course offline recovery fixture/takeScreenshot/student-offline-error.png",
+      "sha256": "4b864c2903e9b1dff3697be7500fa298a4143fe965399b1b01b7f398d2a385d2",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-offline-recovered.png",
+      "member": "results/2026-11-26_135022/Student course offline recovery fixture/takeScreenshot/student-offline-recovered.png",
+      "sha256": "46284d7656306b7e4497976653e9ffad329f274dfaad1b8810f1f9eaefdd2496",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-revoked-locked.png",
+      "member": "results/2026-11-26_135022/Student course revoked fixture/takeScreenshot/student-revoked-locked.png",
+      "sha256": "8bcbc98259cc17ec53378364b4d79631f7a5d50d5ce34ae99577169e17027645",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-unenrolled-dashboard.png",
+      "member": "results/2026-11-26_135022/Student course unenrolled fixture/takeScreenshot/student-unenrolled-dashboard.png",
+      "sha256": "247311cbc4255049077f0efa304a2a9bf89e414fdf349b16883373f547f001ff",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-unenrolled-locked.png",
+      "member": "results/2026-11-26_135022/Student course unenrolled fixture/takeScreenshot/student-unenrolled-locked.png",
+      "sha256": "8bcbc98259cc17ec53378364b4d79631f7a5d50d5ce34ae99577169e17027645",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-community-discussion-answer.png",
+      "member": "results/2026-11-26_135022/Student opens a discussion alias and posts a scoped answer/takeScreenshot/student-community-discussion-answer.png",
+      "sha256": "20b1c7b004a47318ba8420567f0b197d25ef4dc8ecf064cf3848f81366cd25da",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-community-discussion-draft.png",
+      "member": "results/2026-11-26_135022/Student opens a discussion alias and posts a scoped answer/takeScreenshot/student-community-discussion-draft.png",
+      "sha256": "33fa17b283bc595b9a38e4df1e44a00991c2d398e015fa2e1880ccb05fe6f87d",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-community-discussion-open.png",
+      "member": "results/2026-11-26_135022/Student opens a discussion alias and posts a scoped answer/takeScreenshot/student-community-discussion-open.png",
+      "sha256": "673f33a069014513010e0b950e9c43eb38735b5b3f2ed75fd6e716050f289de5",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-assessment-quiz-player.png",
+      "member": "results/2026-11-26_135022/Student quiz saves and restores its draft/takeScreenshot/student-assessment-quiz-player.png",
+      "sha256": "7ea72c39f95173e06ed29f9325e26dcdc8563b000a9787924179045db5ce9acb",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-assessment-solutions.png",
+      "member": "results/2026-11-26_135022/Student reads and completes a solution collection/takeScreenshot/student-assessment-solutions.png",
+      "sha256": "02980bcb203d8af7823dc2167894a4e85022f8def94456b1d07a48f394636f7a",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-assessment-restored-after-restart.png",
+      "member": "results/2026-11-26_135022/Student restores a saved answer after process restart/takeScreenshot/student-assessment-restored-after-restart.png",
+      "sha256": "6021225b1c9300458f7bfee900561c6b911cc016d2fabdae58323c3405b089e0",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-community-academic.png",
+      "member": "results/2026-11-26_135022/Student separates participation from academic scores and recovers a failed load/takeScreenshot/student-community-academic.png",
+      "sha256": "813020a9d830b3772be39061009739508bbad0bd71a4bf66c768e4657fffcc8c",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-community-participation.png",
+      "member": "results/2026-11-26_135022/Student separates participation from academic scores and recovers a failed load/takeScreenshot/student-community-participation.png",
+      "sha256": "cf95baeaaef9ae6d7428d91955831bc3c701e7de682726c611e0afc1fa1aea27",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-community-ranking-recovery.png",
+      "member": "results/2026-11-26_135022/Student separates participation from academic scores and recovers a failed load/takeScreenshot/student-community-ranking-recovery.png",
+      "sha256": "f6f84793700012b19dcaa3f5c961c502b61a60f23c4f26268e7d604289a680cd",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-assessment-tryout-results.png",
+      "member": "results/2026-11-26_135022/Student tryout retries the same submission after response loss/takeScreenshot/student-assessment-tryout-results.png",
+      "sha256": "f541aba4718adf1b65ae86f853bc0d5c1b86e6d64dec5e7ece116572c188f682",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-assessment-tryout-retry.png",
+      "member": "results/2026-11-26_135022/Student tryout retries the same submission after response loss/takeScreenshot/student-assessment-tryout-retry.png",
+      "sha256": "cf90703cc172b3112888ee5c489c1ce6380a5e2edef443193da664bc9a9c3613",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-community-schedule-academic.png",
+      "member": "results/2026-11-26_135022/Student weekly calendar selects tutor slots and another day/takeScreenshot/student-community-schedule-academic.png",
+      "sha256": "e5e0106097c7ae1503364d3285a703444f35f2f30eadc657cafe42a16dee7952",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-community-schedule-booking.png",
+      "member": "results/2026-11-26_135022/Student weekly calendar selects tutor slots and another day/takeScreenshot/student-community-schedule-booking.png",
+      "sha256": "1180633992471d914bff8a0a6553bc52615544dd2cf0139ee47b539474967147",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "captures/student-community-schedule-slot.png",
+      "member": "results/2026-11-26_135022/Student weekly calendar selects tutor slots and another day/takeScreenshot/student-community-schedule-slot.png",
+      "sha256": "ae9f8646c5fc7512fd3e1fa3e931133eefa2091b671df9120b34a0b9a7a724bd",
+      "dimensions": [
+        380,
+        820
+      ]
+    }
+  ],
+  "webCaptures": [
+    {
+      "file": "web-captures/catalog-all.png",
+      "member": "student-evidence/reference/android/catalog-all.png",
+      "sha256": "710f74053e2309d3c1b30eb3c88306b036f9c8814c674c65c0c4f70a1556adb8",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/catalog-tpb.png",
+      "member": "student-evidence/reference/android/catalog-tpb.png",
+      "sha256": "edd0190f65de9668bb3edfc3bed7564fd2596ca034d14f5bdd8aa9b88ee4590e",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/catalog-pka.png",
+      "member": "student-evidence/reference/android/catalog-pka.png",
+      "sha256": "49c7312f61950788f204598c531825660e19a4866ba2d99ba6a2bc50febdde74",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/flashcard-question.png",
+      "member": "student-evidence/reference/flashcard/learning-query-flashcard-reference-matches-the-device-inputs-mobile-380/android/flashcard-question.png",
+      "sha256": "419f9d904399cf4ae87eb9c809e603534f3ba655a4d7b5cdca6af9597fe1ecad",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/flashcard-review-pending.png",
+      "member": "student-evidence/reference/flashcard/learning-query-flashcard-reference-matches-the-device-inputs-mobile-380/android/flashcard-review-pending.png",
+      "sha256": "dbeaa95cfe835210f56ac6f58ecb304970d80d1217f2ff1f9ed58358ee1e1f29",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/flashcard-review-failed.png",
+      "member": "student-evidence/reference/flashcard/learning-query-flashcard-reference-matches-the-device-inputs-mobile-380/android/flashcard-review-failed.png",
+      "sha256": "750fc0dd32a48deb8894b08d318740b01b72ac48f146932e9b2130ad64bb6722",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/dashboard-enrolled.png",
+      "member": "student-evidence/reference/dashboard/android/dashboard-enrolled.png",
+      "sha256": "714c5988e3684223b9f05d3756b507de482118135faea7821eda7402e4b879c5",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/dashboard-unenrolled.png",
+      "member": "student-evidence/reference/dashboard/android/dashboard-unenrolled.png",
+      "sha256": "81e8c5d1d561d460737b0132c11868b7e1fe7625e33c4a464f766611209483c4",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/dashboard-revoked.png",
+      "member": "student-evidence/reference/dashboard/android/dashboard-revoked.png",
+      "sha256": "8657262a3313e507d846d7450c77d9132a757a83b0f502fabdf1f2a907714815",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/quiz-gateway-new.png",
+      "member": "student-evidence/reference/quiz-gateway/native-parallel-student-qu-9dc4d-e-matches-the-device-inputs-mobile-380/android/quiz-gateway-new.png",
+      "sha256": "4bdfa9deb965a0b5979459f942da1801d93cfe2ff367cb807f20baa6f984453d",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/quiz-gateway-resumable.png",
+      "member": "student-evidence/reference/quiz-gateway/native-parallel-student-qu-9dc4d-e-matches-the-device-inputs-mobile-380/android/quiz-gateway-resumable.png",
+      "sha256": "1f1af177e4d3b23081381870c18465a25f30fc5a4ed7052b0f50d72205aa9659",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/quiz-gateway-exhausted.png",
+      "member": "student-evidence/reference/quiz-gateway/native-parallel-student-qu-9dc4d-e-matches-the-device-inputs-mobile-380/android/quiz-gateway-exhausted.png",
+      "sha256": "136b2945a14c725c3f1104ede24f9eed435a77d29dddb41285689a4bfa68acd5",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/calendar-all.png",
+      "member": "student-evidence/reference/calendar/native-parallel-student-ca-55177-records-and-category-states-mobile-380/android/calendar-all.png",
+      "sha256": "d132ce71d7af65f01c5aed0b1b55b7e2fefc72d7e9e7ed9113712a0635e3e1c5",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/calendar-tutorial.png",
+      "member": "student-evidence/reference/calendar/native-parallel-student-ca-55177-records-and-category-states-mobile-380/android/calendar-tutorial.png",
+      "sha256": "5b51961996090d8c1ac203864e3ada39618b3eec253e3c3ea80e59b7be3aa1d6",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/calendar-empty-filter.png",
+      "member": "student-evidence/reference/calendar/native-parallel-student-ca-55177-records-and-category-states-mobile-380/android/calendar-empty-filter.png",
+      "sha256": "9fd482eae185537ea81767f1d0738bf333af693616b75c9d66f4df0550eb1935",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/course-detail-enrolled.png",
+      "member": "student-evidence/reference/course-detail/android/course-detail-enrolled.png",
+      "sha256": "8657930b93806179d2301caccc8987d1888eee702b970f1f0870992b94e75ddf",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/course-detail-unenrolled.png",
+      "member": "student-evidence/reference/course-detail/android/course-detail-unenrolled.png",
+      "sha256": "bdd38c50766686267949f0fceccd7713e6609a5cd3688772ecc6e98d265feaf0",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/course-detail-revoked.png",
+      "member": "student-evidence/reference/course-detail/android/course-detail-revoked.png",
+      "sha256": "bdd38c50766686267949f0fceccd7713e6609a5cd3688772ecc6e98d265feaf0",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/material-list-enrolled.png",
+      "member": "student-evidence/reference/material-list/android/material-list-enrolled.png",
+      "sha256": "987f100549d9edcadf10fbf526abc9fc6f722d2330be74c50d7d8c04ec56d597",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/material-list-unenrolled.png",
+      "member": "student-evidence/reference/material-list/android/material-list-unenrolled.png",
+      "sha256": "36a7c1c77a606ddc350e52dafd86eeccb6d84b2f3c415b33a16bb070ae7ef76a",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/material-list-revoked.png",
+      "member": "student-evidence/reference/material-list/android/material-list-revoked.png",
+      "sha256": "36a7c1c77a606ddc350e52dafd86eeccb6d84b2f3c415b33a16bb070ae7ef76a",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/material-reader-enrolled.png",
+      "member": "student-evidence/reference/material-reader/android/material-reader-enrolled.png",
+      "sha256": "e91e85c3ddebab59b1c1e74382f2fa1bb711f0cf5da233d4055d023bf5951e9a",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/material-reader-unenrolled.png",
+      "member": "student-evidence/reference/material-reader/android/material-reader-unenrolled.png",
+      "sha256": "4ae69a589d29ba7801ce57dde68ce680a09f778b717aa1b461a300639754d7f1",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/material-reader-revoked.png",
+      "member": "student-evidence/reference/material-reader/android/material-reader-revoked.png",
+      "sha256": "39e18ed4e396f55c09af77f488cf3bbe0203eea75277f1eb53612ec1f774d349",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/results-mixed.png",
+      "member": "student-evidence/reference/results/native-parallel-student-re-3ff58--records-and-row-navigation-mobile-380/android/results-mixed.png",
+      "sha256": "0b05c86c3b7750dbbb725cab094680a2450ab2660a47d2885a922cd17d42ec03",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/results-empty.png",
+      "member": "student-evidence/reference/results/native-parallel-student-re-3ff58--records-and-row-navigation-mobile-380/android/results-empty.png",
+      "sha256": "ef42818df21af259f4f03d41931d5021d83836a0c484579b2aa8fe20afffbe0b",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/results-graded.png",
+      "member": "student-evidence/reference/results/native-parallel-student-re-3ff58--records-and-row-navigation-mobile-380/android/results-graded.png",
+      "sha256": "bed92fe4f59aeacded3b4e02ac0e6e97c82d0c63898c56027b5495f62d153c3e",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/course-ranking-quiz.png",
+      "member": "student-evidence/reference/ranking/native-parallel-student-ra-ceefd-ves-the-podium-and-own-rank-mobile-380/android/course-ranking-quiz.png",
+      "sha256": "728dec4d6cd69eb2ce9a36800836fe4f3096c93bfbacb916f8dc53a0d806440a",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/course-ranking-simulation.png",
+      "member": "student-evidence/reference/ranking/native-parallel-student-ra-ceefd-ves-the-podium-and-own-rank-mobile-380/android/course-ranking-simulation.png",
+      "sha256": "0337da40de12d5e2db34eca777e6a69f7878766808ca6d23baf1e03be36f0d9e",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/course-ranking-unranked.png",
+      "member": "student-evidence/reference/ranking/native-parallel-student-ra-ceefd-ves-the-podium-and-own-rank-mobile-380/android/course-ranking-unranked.png",
+      "sha256": "e51072d33af88cd5e0da6492b39d14e2e3f5826f8bec3a225217081e5b1dce12",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/participation-ranking-global.png",
+      "member": "student-evidence/reference/ranking/native-parallel-student-ra-2c218-ce-follows-scope-and-period-mobile-380/android/participation-ranking-global.png",
+      "sha256": "184bcd6705b8a095103ffffa49809f2d84ac846f191f2e5c98c285e80fde278a",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/participation-ranking-following.png",
+      "member": "student-evidence/reference/ranking/native-parallel-student-ra-2c218-ce-follows-scope-and-period-mobile-380/android/participation-ranking-following.png",
+      "sha256": "aa94ffce39e06afa20ed568462402b844dc4d3f69928e35aee0f089cab47b7da",
+      "dimensions": [
+        380,
+        820
+      ]
+    },
+    {
+      "file": "web-captures/participation-ranking-empty.png",
+      "member": "student-evidence/reference/ranking/native-parallel-student-ra-2c218-ce-follows-scope-and-period-mobile-380/android/participation-ranking-empty.png",
+      "sha256": "cbdde1dbd9ca83a2c9070de016b5a1d11c2fcc1083736302b228b3f367d72ae9",
+      "dimensions": [
+        380,
+        820
+      ]
+    }
+  ],
+  "traces": [
+    {
+      "file": "traces/Catalog comparable fixture all TPB and PKA/commands.json",
+      "member": "results/2026-11-26_135022/Catalog comparable fixture all TPB and PKA/commands.json",
+      "sha256": "600d56de87b86559f92ff8f2b521ba8b375055db20dfa27598eeee73f929f32a"
+    },
+    {
+      "file": "traces/Learning flashcard flip and grade/commands.json",
+      "member": "results/2026-11-26_135022/Learning flashcard flip and grade/commands.json",
+      "sha256": "56a7301decea1e7f984ccad4577f1c9e724c49342085464ebb8fd3a5993e9d19"
+    },
+    {
+      "file": "traces/Student calendar reference inputs and category states/commands.json",
+      "member": "results/2026-11-26_135022/Student calendar reference inputs and category states/commands.json",
+      "sha256": "436a7aa52f9750f55079a1c59ee3cfd7d64b4430e2c66ecbd7d5937abcb41596"
+    },
+    {
+      "file": "traces/Student course and material reference enrolled/commands.json",
+      "member": "results/2026-11-26_135022/Student course and material reference enrolled/commands.json",
+      "sha256": "6ff612b48d54b18a251d15f0143ef6196111d22f376704332eda536d67fe91af"
+    },
+    {
+      "file": "traces/Student course and material reference unenrolled/commands.json",
+      "member": "results/2026-11-26_135022/Student course and material reference unenrolled/commands.json",
+      "sha256": "b296fe70682b73199d04f7ea209b1257a6a9d7475c92cc7b37e3181c2dce80d1"
+    },
+    {
+      "file": "traces/Student course and material reference revoked/commands.json",
+      "member": "results/2026-11-26_135022/Student course and material reference revoked/commands.json",
+      "sha256": "441b65f5bb5c5dae50c13291d6e5b0fbf59b5b0593556bdb671a33808a701828"
+    },
+    {
+      "file": "traces/Student course results history states/commands.json",
+      "member": "results/2026-11-26_135022/Student course results history states/commands.json",
+      "sha256": "9170bffedc27216bf5d7cd73cfc98b088acf01bd2b3b9ef94ac54ac2d9ac085f"
+    },
+    {
+      "file": "traces/Student course ranking podium and own rank/commands.json",
+      "member": "results/2026-11-26_135022/Student course ranking podium and own rank/commands.json",
+      "sha256": "5f9d9187e901db11fed9ea2ef9552ebd4e59a082a37c0273aaaaceccd70314ab"
+    },
+    {
+      "file": "traces/Student participation ranking global and following filters/commands.json",
+      "member": "results/2026-11-26_135022/Student participation ranking global and following filters/commands.json",
+      "sha256": "1d8bd70921290207e33dfc379123bdb0a562168943e2e3dcf588bead1cdc723c"
+    },
+    {
+      "file": "traces/Community calendar category and history/commands.json",
+      "member": "results/2026-11-26_135022/Community calendar category and history/commands.json",
+      "sha256": "d5fa8550e4ffb679076c29a7ae45decbdeae6de4f642591f29f3672072d7680f"
+    },
+    {
+      "file": "traces/Community ranking scope and academic class/commands.json",
+      "member": "results/2026-11-26_135022/Community ranking scope and academic class/commands.json",
+      "sha256": "877df19f10cbdacb4c76de2266a80fe0c6b870ff9285e8c0c112cf7ab14e0132"
+    },
+    {
+      "file": "traces/PKA enrollment gate redirects to registration/commands.json",
+      "member": "results/2026-11-26_135022/PKA enrollment gate redirects to registration/commands.json",
+      "sha256": "3d71a300626560f337c51da488d5b2ce39162d55c148e2e0463db3e746531c12"
+    },
+    {
+      "file": "traces/Student calendar filters assessments and opens tutorial history/commands.json",
+      "member": "results/2026-11-26_135022/Student calendar filters assessments and opens tutorial history/commands.json",
+      "sha256": "bc365166883826f3f23a64c470b08c74e2ecaedafad8e9de99b3e243ba30b41e"
+    },
+    {
+      "file": "traces/Student course enrolled fixture/commands.json",
+      "member": "results/2026-11-26_135022/Student course enrolled fixture/commands.json",
+      "sha256": "ae0f09e6e54b8732e2aff30c68ee7ee11933450f8111ae5f4f739b92ef696d12"
+    },
+    {
+      "file": "traces/Student course long material list fixture/commands.json",
+      "member": "results/2026-11-26_135022/Student course long material list fixture/commands.json",
+      "sha256": "73180cdfb1d042f9a91497bc5984e158a98c07a0242da9b51c48200f3522f43e"
+    },
+    {
+      "file": "traces/Student course offline recovery fixture/commands.json",
+      "member": "results/2026-11-26_135022/Student course offline recovery fixture/commands.json",
+      "sha256": "c07696f94e45541e18f4e8a3a4c0309df32651e9d046c704f7348d0204de0ac3"
+    },
+    {
+      "file": "traces/Student course revoked fixture/commands.json",
+      "member": "results/2026-11-26_135022/Student course revoked fixture/commands.json",
+      "sha256": "e171853a6c6ded8ca7df2175c66536f2161474a2ed7853eb39fd1bd801dc6a9f"
+    },
+    {
+      "file": "traces/Student course unenrolled fixture/commands.json",
+      "member": "results/2026-11-26_135022/Student course unenrolled fixture/commands.json",
+      "sha256": "fee1b40e17555a75a6c30f09a1cae01c4247b94149072aa8e9f6d158317af143"
+    },
+    {
+      "file": "traces/Student dashboard enrollment states/commands.json",
+      "member": "results/2026-11-26_135022/Student dashboard enrollment states/commands.json",
+      "sha256": "8610ec68a45a3d8daa4f166f5f542f7ab2fd1268647ef5da6f8e337c4e87d8e7"
+    },
+    {
+      "file": "traces/Student opens a discussion alias and posts a scoped answer/commands.json",
+      "member": "results/2026-11-26_135022/Student opens a discussion alias and posts a scoped answer/commands.json",
+      "sha256": "6403d7b92f1cf4af9dbe9e00d7887ae274bc6e752bff9ceb471d9690e8e608bd"
+    },
+    {
+      "file": "traces/Student quiz gateway attempt states/commands.json",
+      "member": "results/2026-11-26_135022/Student quiz gateway attempt states/commands.json",
+      "sha256": "9a4b92dc24c0414be9e2b381ab9eeb9135103fda1f2e613f7abbf46b26a5c5f3"
+    },
+    {
+      "file": "traces/Student quiz saves and restores its draft/commands.json",
+      "member": "results/2026-11-26_135022/Student quiz saves and restores its draft/commands.json",
+      "sha256": "eaa557174d12bbf6367c2a48ddba607a854c66ae3df5e6c4a2f09b2f27896012"
+    },
+    {
+      "file": "traces/Student reads and completes a solution collection/commands.json",
+      "member": "results/2026-11-26_135022/Student reads and completes a solution collection/commands.json",
+      "sha256": "de27b8351e374b07cd9164f423f3668064fc8bb0c3528c2bc33d28d0f7a8f995"
+    },
+    {
+      "file": "traces/Student restores a saved answer after process restart/commands.json",
+      "member": "results/2026-11-26_135022/Student restores a saved answer after process restart/commands.json",
+      "sha256": "0ffbee38393dca912693921062a42be9bdf7a24843fba8fa486131ee08b930a1"
+    },
+    {
+      "file": "traces/Student separates participation from academic scores and recovers a failed load/commands.json",
+      "member": "results/2026-11-26_135022/Student separates participation from academic scores and recovers a failed load/commands.json",
+      "sha256": "59ee66baf2f94c8ce814cc7d2fc5a9fd180a7cefe6ef3cdb28609ee159601071"
+    },
+    {
+      "file": "traces/Student tryout retries the same submission after response loss/commands.json",
+      "member": "results/2026-11-26_135022/Student tryout retries the same submission after response loss/commands.json",
+      "sha256": "6de99fec4a01d88d82c701435a1f700e5420d973c6e85ac302db8ae695f788e3"
+    },
+    {
+      "file": "traces/Student weekly calendar selects tutor slots and another day/commands.json",
+      "member": "results/2026-11-26_135022/Student weekly calendar selects tutor slots and another day/commands.json",
+      "sha256": "28a3e14548132d1821bcc501a877b26669d217763d144057e627a5bb863cbf79"
+    }
+  ],
+  "status": "device_flows_completed_with_failures",
+  "reason": "Generated smoke: {'passed': 200, 'blocked': 3}. Standalone flows: {'passed': 25, 'failed': 2}. Matched comparison: {'different': 26, 'missing': 6, 'blocked_renderer': 1}."
+}

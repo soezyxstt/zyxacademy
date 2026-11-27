@@ -1,0 +1,35 @@
+appId: com.zyx.academy.nativeparity
+name: Signed Admin Ops AI chat and explicit approval
+---
+- tapOn:
+    id: admin-navbar-ops-ai
+- tapOn:
+    id: admin-ops-ai-input
+- inputText: Ringkas formulir preview
+- tapOn:
+    id: admin-ops-ai-send
+- extendedWaitUntil:
+    visible: "Formulir preview tersedia."
+    timeout: 20000
+- tapOn:
+    text: Aksi
+    enabled: true
+- tapOn:
+    id: admin-ops-ai-input
+- inputText: Siapkan formulir preview tertutup
+- tapOn:
+    id: admin-ops-ai-send
+- extendedWaitUntil:
+    visible: Izinkan sekali
+    timeout: 20000
+- tapOn:
+    text: Izinkan sekali
+    enabled: true
+- extendedWaitUntil:
+    visible: Aksi selesai.
+    timeout: 20000
+- pressKey: Back
+- extendedWaitUntil:
+    visible:
+      id: admin-navbar-ops-ai
+    timeout: 10000

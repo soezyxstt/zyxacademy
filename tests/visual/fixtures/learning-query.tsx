@@ -8,16 +8,29 @@ import learning from "@/messages/id/learning.json";
 import studentCourse from "@/messages/id/studentCourse.json";
 import ui from "@/messages/id/ui.json";
 import search from "@/messages/id/search.json";
+import admin from "@/messages/id/admin.json";
+import common from "@/messages/id/common.json";
+import discussions from "@/messages/id/discussions.json";
+import notifications from "@/messages/id/notifications.json";
+import student from "@/messages/id/student.json";
+import tutor from "@/messages/id/tutor.json";
+import { AppToaster } from "@/components/app-toaster";
+import { ApplicationShell } from "@/components/application-shell";
 import { StructuredArticleReader } from "@/components/course/structured-article-reader";
 import { FlashcardClient } from "@/app/(student)/courses/[id]/flashcard/flashcard-client";
+import { StudentFlashcardsView } from "@/components/course/student-flashcards-view";
+import { MobileNavTitle } from "@/components/mobile-nav-title";
+import { CourseMobileTabNav, StudentMobileBottomNav, StudentMobileTopNav } from "@/components/navigation/student";
 import { MaterialViewer } from "@/components/course/material-viewer";
 import { Toaster } from "@/components/ui/toast";
+import { Reveal } from "@/components/ui/reveal";
 import type { PublicArticleReadModel } from "@/lib/articles/structured-read-model";
 import type { FlashcardQueueItem } from "@/lib/flashcards/review-contract";
+import { flashcardEvidence, flashcardEvidenceCards } from "@/packages/native-parity/student/learning/flashcard-fixture";
 
 declare global {
   interface Window {
-    learningFixture: { mode: "article" | "flashcards" | "material" | "canonical-material"; demo?: boolean };
+    learningFixture: { mode: "article" | "flashcards" | "material" | "canonical-material"; demo?: boolean; deviceFlashcards?: boolean };
     changeLearningAccount: (userId: string | null) => void;
     closeLearningFixture: () => void;
   }
@@ -41,6 +54,12 @@ const queue: FlashcardQueueItem[] = ["Apa turunan fungsi kuadrat?", "Apa arti li
   card: { id: `card-${index}`, setId: "set", koId: null, front, back: index ? "Nilai yang didekati fungsi." : "Turunan x kuadrat adalah dua x.", explanation: "Periksa arti tiap simbol sebelum memakai rumus.", status: "active", metadata: { recallDifficulty: 2 }, createdAt: new Date("2026-11-18T00:00:00Z") },
   progress: null, dueStatus: "new", nextReviewDue: new Date(0), ideaId: null, masteryScore: null, confidence: null, seenBefore: false, priorityReason: "Kartu baru",
 }));
+const deviceQueue: FlashcardQueueItem[] = flashcardEvidenceCards.map(flashcard => ({
+  card: { id: flashcard.id, front: flashcard.front, back: flashcard.back, explanation: flashcard.explanation,
+    setId: "set", koId: null, status: "active", metadata: { recallDifficulty: flashcard.recallDifficulty ?? undefined }, createdAt: new Date("2026-11-18T00:00:00Z") },
+  progress: null, dueStatus: flashcard.dueStatus, nextReviewDue: new Date(0), ideaId: null, masteryScore: null,
+  confidence: null, seenBefore: false, priorityReason: flashcard.priorityReason,
+}));
 
 function App() {
   const [open, setOpen] = useState(true);
@@ -50,6 +69,16 @@ function App() {
   }, []);
   const config = window.learningFixture;
   if (!open) return <p role="status">Pembaca ditutup</p>;
+  if (config.mode === "flashcards" && config.deviceFlashcards) return <>
+    <ApplicationShell personalizeTypographyAndSpacing mobileTopNav={<StudentMobileTopNav />} mobileBottomNav={<StudentMobileBottomNav />}>
+      <MobileNavTitle title={flashcardEvidence.courseTitle} />
+      <CourseMobileTabNav courseId={flashcardEvidence.courseId} courseTitle={flashcardEvidence.courseTitle} />
+      <StudentFlashcardsView courseTitle={flashcardEvidence.courseTitle}>
+        <Reveal><FlashcardClient studentId="fixture-student" courseId={flashcardEvidence.courseId} initialQueue={deviceQueue} /></Reveal>
+      </StudentFlashcardsView>
+    </ApplicationShell>
+    <AppToaster />
+  </>;
   return <main className="mx-auto max-w-6xl p-4 text-foreground">
     {config.mode === "article" ? <StructuredArticleReader article={article} studentId="fixture-student" course={{ id: "fixture-course", title: "Matematika" }} />
       : config.mode === "flashcards" ? <FlashcardClient studentId="fixture-student" courseId="fixture-course" initialQueue={queue} adapter={config.demo ? { onReview: () => { setDemoReviews((count) => count + 1); }, backHref: "/" } : undefined} />
@@ -65,6 +94,6 @@ function App() {
 
 createRoot(document.getElementById("root")!).render(
   <QueryClientProvider client={client}>
-    <NextIntlClientProvider locale="id" timeZone="UTC" messages={{ learning, studentCourse, ui, search }}><App /></NextIntlClientProvider>
+    <NextIntlClientProvider locale="id" timeZone="UTC" messages={{ learning, studentCourse, ui, search, admin, common, discussions, notifications, student, tutor }}><App /></NextIntlClientProvider>
   </QueryClientProvider>,
 );

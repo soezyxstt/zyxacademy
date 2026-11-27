@@ -234,7 +234,7 @@ function legacyResourceDate(value: string | undefined, fallback: Date): Date {
   return Number.isNaN(parsed.getTime()) ? fallback : parsed;
 }
 
-function mergeBookingResources(
+export function mergeBookingResources(
   booking: typeof bookings.$inferSelect,
   normalized: SessionResource[],
 ): SessionResource[] {

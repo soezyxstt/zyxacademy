@@ -38,3 +38,18 @@ export async function readBoundedOfflineAsset(response: Response): Promise<Uint8
   for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
   return bytes;
 }
+
+/** Only image references get downloaded; video URLs and interactive evaluation stay online. */
+export function offlineAssetSources(data: unknown): string[] {
+  const urls = new Set<string>();
+  const visit = (value: unknown, key = "") => {
+    if (typeof value === "string") {
+      if (["imageUrl", "thumbnailUrl", "icon"].includes(key) && /^(?:https?:\/\/|\/)/.test(value)) urls.add(value);
+      for (const match of value.matchAll(/!\[[^\]]*\]\(([^\s)]+)(?:\s+[^)]*)?\)/g)) urls.add(match[1]);
+    } else if (Array.isArray(value)) value.forEach(item => visit(item));
+    else if (value && typeof value === "object") for (const [childKey, child] of Object.entries(value)) visit(child, childKey);
+  };
+  visit(data);
+  if (urls.size > 80) throw new OfflineHttpError(413, "OFFLINE_TOO_MANY_ASSETS");
+  return [...urls].filter(url => !url.startsWith("//") && !url.includes("\u0000"));
+}

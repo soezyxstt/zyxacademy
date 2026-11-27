@@ -1,0 +1,23 @@
+appId: com.zyx.academy.nativeparity
+name: Student opens the 3D pet and completes one practice question
+---
+- openLink: "zyx-native-parity://pet"
+- extendedWaitUntil:
+    visible:
+      id: pet-scene-rendered
+    timeout: 40000
+- swipe:
+    from:
+      id: pet-scene-rendered
+    direction: LEFT
+    duration: 450
+- tapOn: "(Latihan berhitung|Mental math)"
+- extendedWaitUntil:
+    visible:
+      id: pet-scene-rendered
+    timeout: 30000
+- copyTextFrom: "[0-9]+ × [0-9]+ = \\?"
+- evalScript: ${output.factors = maestro.copiedText.match(/[0-9]+/g)}
+- evalScript: ${output.answer = String(Number(output.factors[0]) * Number(output.factors[1]))}
+- tapOn: "^${output.answer}$"
+- assertVisible: "(Benar 1|Correct 1)"

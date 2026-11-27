@@ -604,6 +604,9 @@
       "zyra": "Zyra",
       "courses": "Courses",
       "progress": "Progress",
+      "mastery": "Mastery",
+      "path": "Study path",
+      "tryout-list": "Tryouts",
       "history": "History",
       "tryout": "Tryout"
     },

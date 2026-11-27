@@ -1,0 +1,159 @@
+{
+  "version": 1,
+  "initialReport": "report.xml",
+  "initialComplete": true,
+  "initialExitCode": 1,
+  "cases": {
+    "Student restores a saved answer after process restart": {
+      "flow": "assessment-process-restart.yaml",
+      "initial": "passed",
+      "effective": "."
+    },
+    "Student quiz saves and restores its draft": {
+      "flow": "assessment-quiz.yaml",
+      "initial": "passed",
+      "effective": "."
+    },
+    "Student tryout retries the same submission after response loss": {
+      "flow": "assessment-retry.yaml",
+      "initial": "passed",
+      "effective": "."
+    },
+    "Student reads and completes a solution collection": {
+      "flow": "assessment-solutions.yaml",
+      "initial": "passed",
+      "effective": "."
+    },
+    "Catalog comparable fixture all TPB and PKA": {
+      "flow": "catalog-parity.yaml",
+      "initial": "passed",
+      "effective": "."
+    },
+    "Community calendar category and history": {
+      "flow": "community-calendar-filter.yaml",
+      "initial": "passed",
+      "effective": "."
+    },
+    "Student calendar reference inputs and category states": {
+      "flow": "community-calendar-parity.yaml",
+      "initial": "passed",
+      "effective": "."
+    },
+    "Student calendar filters assessments and opens tutorial history": {
+      "flow": "community-calendar.yaml",
+      "initial": "passed",
+      "effective": "."
+    },
+    "Student opens a discussion alias and posts a scoped answer": {
+      "flow": "community-discussions.yaml",
+      "initial": "passed",
+      "effective": "."
+    },
+    "Community ranking scope and academic class": {
+      "flow": "community-ranking-scope.yaml",
+      "initial": "passed",
+      "effective": "."
+    },
+    "Student separates participation from academic scores and recovers a failed load": {
+      "flow": "community-ranking.yaml",
+      "initial": "passed",
+      "effective": "."
+    },
+    "Student weekly calendar selects tutor slots and another day": {
+      "flow": "community-schedule.yaml",
+      "initial": "passed",
+      "effective": "."
+    },
+    "Student course and material reference enrolled": {
+      "flow": "course-material-enrolled.yaml",
+      "initial": "passed",
+      "effective": "."
+    },
+    "Student course and material reference revoked": {
+      "flow": "course-material-revoked.yaml",
+      "initial": "passed",
+      "effective": "."
+    },
+    "Student course and material reference unenrolled": {
+      "flow": "course-material-unenrolled.yaml",
+      "initial": "passed",
+      "effective": "."
+    },
+    "Student course ranking podium and own rank": {
+      "flow": "course-ranking.yaml",
+      "initial": "passed",
+      "effective": "."
+    },
+    "Student dashboard enrollment states": {
+      "flow": "dashboard-parity.yaml",
+      "initial": "failed",
+      "effective": "."
+    },
+    "Student course enrolled fixture": {
+      "flow": "enrolled.yaml",
+      "initial": "passed",
+      "effective": "."
+    },
+    "Learning flashcard flip and grade": {
+      "flow": "learning-flashcard-review.yaml",
+      "initial": "passed",
+      "effective": "."
+    },
+    "PKA enrollment gate redirects to registration": {
+      "flow": "learning-pka-gate.yaml",
+      "initial": "passed",
+      "effective": "."
+    },
+    "Student course long material list fixture": {
+      "flow": "long-content.yaml",
+      "initial": "passed",
+      "effective": "."
+    },
+    "Student mastery review and chapter coverage": {
+      "flow": "mastery-parity.yaml",
+      "initial": "passed",
+      "effective": "."
+    },
+    "Student course offline recovery fixture": {
+      "flow": "offline.yaml",
+      "initial": "passed",
+      "effective": "."
+    },
+    "Student participation ranking global and following filters": {
+      "flow": "participation-ranking.yaml",
+      "initial": "passed",
+      "effective": "."
+    },
+    "Student quiz gateway attempt states": {
+      "flow": "quiz-gateway.yaml",
+      "initial": "passed",
+      "effective": "."
+    },
+    "Student quiz player answer and draft states": {
+      "flow": "quiz-player.yaml",
+      "initial": "passed",
+      "effective": "."
+    },
+    "Student course results history states": {
+      "flow": "results.yaml",
+      "initial": "passed",
+      "effective": "."
+    },
+    "Student course revoked fixture": {
+      "flow": "revoked.yaml",
+      "initial": "passed",
+      "effective": "."
+    },
+    "Student settings language selection states": {
+      "flow": "settings-parity.yaml",
+      "initial": "passed",
+      "effective": "."
+    },
+    "Student course unenrolled fixture": {
+      "flow": "unenrolled.yaml",
+      "initial": "passed",
+      "effective": "."
+    }
+  },
+  "batches": []
+}

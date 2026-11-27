@@ -1,0 +1,35 @@
+appId: com.zyx.academy.nativeparity
+name: Student reads and completes a solution collection
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: separator
+    timeout: 30000
+- openLink: "zyx-native-parity://student-fixture?scenario=populated&path=%2Fcourses%2Fnative-assessment-course%2Fsolutions%2Fnative-solutions"
+- extendedWaitUntil:
+    visible:
+      id: student-assessment-reveal
+    timeout: 30000
+- assertNotVisible:
+    id: student-solution-visual-geometry_2d
+- tapOn:
+    id: student-assessment-reveal
+- scrollUntilVisible:
+    element:
+      id: student-solution-visual-geometry_2d
+    direction: DOWN
+- scrollUntilVisible:
+    element:
+      id: student-assessment-solution-mark
+    direction: DOWN
+- tapOn:
+    id: student-assessment-solution-mark
+- scrollUntilVisible:
+    element:
+      id: student-assessment-solution-complete
+    direction: DOWN
+- tapOn:
+    id: student-assessment-solution-complete
+- assertVisible: Pembahasan selesai
+- takeScreenshot: student-assessment-solutions

@@ -2,51 +2,12 @@
 
 import { useState } from "react";
 import { Check, Lock } from "lucide-react";
+import { landingPathProfiles } from "@/lib/marketing-learning-previews";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/client";
 
-type NodeStatus = "done" | "active" | "open" | "locked";
-
-type PathNode = {
- name: string;
- status: NodeStatus;
- /** Mastery 0-100; omitted for locked nodes. */
- score?: number;
- lockedNote?: string;
-};
-
-type Profile = {
- id: string;
- labelKey: string;
- nodes: PathNode[];
-};
-
-const profiles: Profile[] = [
- {
- id: "a",
- labelKey: "home.path.profileA",
- nodes: [
- { name: "Limit", status: "done", score: 95 },
- { name: "Turunan", status: "done", score: 88 },
- { name: "Aturan Rantai", status: "active", score: 54 },
- { name: "Integral", status: "open", score: 31 },
- { name: "Integral Parsial", status: "locked", lockedNote: "Integral" },
- { name: "Volume Benda Putar", status: "locked", lockedNote: "Integral Parsial" },
- ],
- },
- {
- id: "b",
- labelKey: "home.path.profileB",
- nodes: [
- { name: "Limit", status: "done", score: 90 },
- { name: "Turunan", status: "done", score: 85 },
- { name: "Aturan Rantai", status: "done", score: 88 },
- { name: "Integral", status: "done", score: 76 },
- { name: "Integral Parsial", status: "active", score: 58 },
- { name: "Volume Benda Putar", status: "locked", lockedNote: "Integral Parsial" },
- ],
- },
-];
+type PathNode = (typeof landingPathProfiles)[number]["nodes"][number];
+type NodeStatus = PathNode["status"];
 
 function NodeCircle({ status }: { status: NodeStatus }) {
  return (
@@ -106,12 +67,12 @@ function MasteryMiniBar({ node, delay, lockedNote }: { node: PathNode; delay: nu
 export function MasteryPathDemo() {
  const t = useTranslations("marketing");
  const [profileId, setProfileId] = useState("a");
- const profile = profiles.find((entry) => entry.id === profileId) ?? profiles[0];
+ const profile = landingPathProfiles.find((entry) => entry.id === profileId) ?? landingPathProfiles[0];
 
  return (
  <div>
  <div className="flex flex-wrap items-center justify-center gap-2" role="group" aria-label={t("home.path.profileLabel")}>
- {profiles.map((entry) => (
+ {landingPathProfiles.map((entry) => (
  <button
  key={entry.id}
  type="button"
@@ -124,7 +85,7 @@ export function MasteryPathDemo() {
  : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground",
  )}
  >
- {t(entry.labelKey)}
+ {t(`home.path.${entry.labelKey}`)}
  </button>
  ))}
  </div>

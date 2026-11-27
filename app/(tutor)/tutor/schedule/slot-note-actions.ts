@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { and, eq, inArray } from "drizzle-orm";
+import { writeTutorSlotCourses } from "@/lib/schedule/replace-slot-courses";
 import { db } from "@/db";
 import { tutorSlotCourses, tutorSlotNotes } from "@/db/schedule-extras";
 import { tutorSlots } from "@/db/schema";
@@ -63,18 +64,7 @@ function isMissingTutorSlotNotesTable(error: unknown): boolean {
 }
 
 async function replaceTutorSlotCourses(slotId: string, courseIds: readonly string[]) {
-  const normalized = normalizeSlotCourseIds(courseIds).slice(0, 50);
-  await db.transaction(async (tx) => {
-    await tx.delete(tutorSlotCourses).where(eq(tutorSlotCourses.slotId, slotId));
-    if (normalized.length > 0) {
-      await tx.insert(tutorSlotCourses).values(
-        normalized.map((courseId) => ({
-          slotId,
-          courseId,
-        })),
-      );
-    }
-  });
+  await db.transaction(tx => writeTutorSlotCourses(tx, slotId, courseIds));
 }
 
 export async function addTutorSlotWithNotesAction(

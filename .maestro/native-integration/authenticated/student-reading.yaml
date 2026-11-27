@@ -1,0 +1,42 @@
+appId: com.zyx.academy.nativeparity
+name: Student reads a published Article and registered PKA Diktat
+---
+- openLink: "zyx-native-parity://courses/native-preview-reading-course/material/native-preview-reading-article?section=pembahasan"
+- extendedWaitUntil:
+    visible: Artikel verifikasi kanonis
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: student-open-native-reading
+- tapOn:
+    id: student-open-native-reading
+- extendedWaitUntil:
+    visible: ".*Isi artikel kanonis versi tiga.*"
+    timeout: 30000
+- assertVisible:
+    id: student-native-reading-screen
+- tapOn:
+    id: student-reader-open-outline
+- tapOn:
+    id: student-reader-query
+- inputText: Rumus luas
+- hideKeyboard
+- tapOn:
+    id: student-reader-result-native-preview-reading-article-section
+- extendedWaitUntil:
+    visible: ".*Rumus luas.*"
+    timeout: 15000
+- tapOn: "(Kembali|Back)"
+- openLink: "zyx-native-parity://courses/tutorial-pka/material/native-preview-reading-pka-diktat"
+- extendedWaitUntil:
+    visible: Diktat verifikasi PKA
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: student-open-native-reading
+- tapOn:
+    id: student-open-native-reading
+- extendedWaitUntil:
+    visible: ".*Isi diktat PKA versi tiga.*"
+    timeout: 30000
+- tapOn: "(Kembali|Back)"

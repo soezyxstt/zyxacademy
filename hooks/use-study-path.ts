@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { planLocalStudyDays } from "@/lib/demo/learning-path";
 import { studyPathQuery, type StudyDayPlan, type StudyPathStep } from "@/lib/student/study-path-query";
 
 export type StudyPathState = {
@@ -34,10 +35,7 @@ export function useStudyPath(userId: string, courseId: string): StudyPathState {
 /** Public demo plans stay local and never enter private server caches. */
 export function useLocalStudyPath(steps: StudyPathStep[]): StudyPathState {
   const [days, setDays] = useState<number>();
-  const dayPlan = days === undefined ? null : Array.from({ length: Math.min(days, steps.length) }, (_, index) => {
-    const daily = steps.filter((_, stepIndex) => stepIndex % days === index);
-    return { day: index + 1, steps: daily, totalMinutes: daily.reduce((total, step) => total + step.estimatedMinutes, 0) };
-  });
+  const dayPlan = days === undefined ? null : planLocalStudyDays(steps, days);
   return {
     steps, dayPlan, loading: false, planning: false, error: false,
     plan: value => { if (Number.isInteger(value) && value > 0 && value <= 60) setDays(value); },

@@ -123,6 +123,10 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Penyimpanan tidak mendukung daftar objek" }, { status: 501 });
       }
       const objs = await storage.list(sourcePrefix);
+      if (!objs.length) return NextResponse.json({ error: "Folder tidak ditemukan" }, { status: 404 });
+      if ((await storage.list(`${MEDIA_DOMAIN}/${newPath}/`)).length) {
+        return NextResponse.json({ error: "Folder tujuan sudah ada" }, { status: 409 });
+      }
       let count = 0;
       for (const obj of objs) {
         const relative = obj.key.slice(sourcePrefix.length);

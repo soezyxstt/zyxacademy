@@ -1,11 +1,452 @@
 /** Source-level coverage index. Tool registration is authoritative; partial does not imply every action is exposed. */
 export const operationsCatalog = [
   {
+    "source": "app/api/native/mcp/connections/route.ts",
+    "actions": ["GET", "DELETE"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The signed-in user views and revokes their own OAuth connections. The native session and server resource identify the account. Consent and revocation remain user controlled."
+  },
+  {
+    "source": "app/api/native/student/zyra/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Learner Zyra history and receipts are bound to the verified Student account and course. The interactive chat reuses the existing course authorization, usage limits and private conversation history."
+  },
+  {
+    "source": "app/api/zyra/chat/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Course tutoring streams use the learner's own session, active course policy and usage limits. Native clients request history persistence with the verified Student identity. Native Article exercise help also checks the current Article, revision, section and exact exercise. Administrative Zyra tooling keeps its own authorization."
+  },
+  {
+    "source": "app/api/zyra/attachments/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Learner camera and gallery uploads use the existing Zyra image policy, sanitizer, private storage and owned conversation. Free access remains text only."
+  },
+  {
+    "source": "app/api/zyra/attachments/[id]/route.ts",
+    "actions": ["GET", "DELETE"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The interactive Zyra client previews and removes images within the current authenticated conversation and course scope."
+  },
+  {
+    "source": "app/api/student/navigation/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The interactive Student course switcher uses authenticated enrollment and course title metadata. Navigation does not grant access or bypass course and material authorization."
+  },
+  {
+    "source": "app/api/native/student/courses/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The Expo course views return metadata and Diktat PDF download eligibility for the signed-in learner under the existing course policy. Activation is the learner's existing group token redemption flow, with live Student authorization and a bound account. Admin MCP tools retain their own enrollment and group permissions."
+  },
+  {
+    "source": "app/api/native/student/learning/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Expo learning reads, recall grades and PKA announcement acknowledgements are bound to the current Student account and use existing course or campaign authorization. PKA remains outside Admin MCP. Existing tools, OAuth consent and scopes, discovery, playbooks, packaged skills, host prompts and environment bindings are unchanged."
+  },
+  {
+    "source": "app/api/videos/[videoId]/playback-url/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Interactive playback mints a temporary source after the existing course and chapter access checks. Expo plays the source within the signed-in session. Administrative video tools continue to manage course content under their own scopes and consent. Native resume position and playlist navigation are scoped to the interactive learner and reuse the same playback decision for each opened video."
+  },
+  {
+    "source": "app/api/coding/problems/[problemId]/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Student Python exercise reads provide the published public problem snapshot. Live reads also require current participant membership, room and question. Expo Article reads verify the current signed learner, published reading revision, section and exercise. Only public problem fields are returned."
+  },
+  {
+    "source": "app/api/coding/submissions/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Student coding history and graded attempts use the learner's verified account, existing course access and the authorized article or live room. Expo Article grading binds the exact published section and part to the signed learner request. Live grading uses the existing attempt reservation and score delivery. Student coding provides no MCP capability or scope."
+  },
+  {
+    "source": "app/api/coding/drafts/route.ts",
+    "actions": ["GET", "PUT"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Learners read and save their own coding drafts. Expo Article requests additionally verify the current account, session, Article section, part, revision and draft key."
+  },
+  {
+    "source": "app/api/coding/terminal/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Interactive Python sessions require existing course access. Expo Article requests additionally verify the signed learner and current runnable Article part. No MCP credentials or scope apply."
+  },
+  {
+    "source": "app/api/native/academic-document/[slug]/[materialId]/suggestion/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The native Admin document editor requests a course-scoped metadata suggestion through the existing academic document standardizer. An explicit save applies the draft under the existing revision and session checks. MCP materials.update_metadata retains its registered scope and consent."
+  },
+  {
+    "source": "app/api/native/student/learning/live/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Joining a live room requires an interactive Student session, an active course enrollment and a valid room code. The short-lived token is specific to the learner and room. Tutor hosting remains independently authorized."
+  },
+  {
+    "source": "app/api/admin/course-materials/batch/check-duplicates/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Interactive Admin PDF intake checks PDF fingerprints against the selected course catalog."
+  },
+  {
+    "source": "app/api/admin/course-materials/batch/presign/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Interactive Admin PDF intake signs bounded uploads using the deployment storage provider. Native grants bind the current Admin session, course and file fingerprint."
+  },
+  {
+    "source": "app/api/admin/course-materials/batch/commit/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Interactive Admin PDF intake commits metadata and chapter relationships. Native batches verify uploaded bytes, revisions and same-session receipts."
+  },
+  {
+    "source": "app/api/admin/bundles/idea/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The interactive Idea ZIP path previews and stages a private review artifact. Native staging requires the same live Admin session, course and archive from preview. Run-scoped authoring tools retain their existing consent."
+  },
+  {
+    "source": "app/api/admin/bundles/product/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The interactive Product ZIP path previews and stages a private review artifact. Native staging requires the same live Admin session, course and archive from preview. Run-scoped authoring tools retain their existing consent."
+  },
+  {
+    "source": "app/api/native/academic/material-pdf/route.ts",
+    "actions": ["GET", "HEAD"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Admin document PDF preview and lease renewal require the live Admin account, session and current course document or staged Diktat evidence binding. Bundle preview checks the selected course, import, product, revision and ready PDF evidence. Native display has no storage URL handoff, share or download capability and does not enable an MCP tool or scope."
+  },
+  {
+    "source": "app/api/native/student/material-pdf/route.ts",
+    "actions": ["GET", "HEAD", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The authenticated Student PDF reader checks chapter, file revision and PKA registration before viewing. Manual PDF export additionally checks the web download capability. Export and viewing use app-private files. Text search reuses the same live chapter and revision authority with a bounded page window. Link sharing sends the learner page URL and grants no storage link or MCP authority."
+  },
+  {
+    "source": "app/api/native/student/reading/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Published canonical, website and generated course readings use the current Student session, course and chapter authorization, and Tutorial PKA registration where applicable. Admitted image bytes are bound to the same authorized revision. Exploring declarative Article visuals and enlarging an admitted figure are local learner controls. Published structured Articles indicate whether the existing full course entitlement permits native Python. Selected terms in the compatibility reader use the same deterministic course index and concept details as web. The lookup rechecks the active Student grant and reading revision and neither consumes Zyra quota nor adds authoring permissions."
+  },
+  {
+    "source": "app/api/native/student/reading/learning/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Learner Article and Diktat progress, completion and formative responses require an active Student session, exact course and current published revision. Tutorial PKA still checks registration. These operations reuse learner web evidence and feedback rules. Formative Python is scoped to published options or to a short-lived field attestation after an explicit reveal. MCP authoring grants do not expose learner progress, answers or formative submissions."
+  },
+  {
+    "source": "app/api/admin/quiz-insights/[id]/attempts/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Authenticated Admin and assigned Tutor screens read course-bound attempt snapshots and record authorized disclosures. This private inspection has no operations tool."
+  },
+  {
+    "source": "app/api/admin/export-spreadsheet/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Signed-in Admins export the selected dataset to Google Sheets. Web and native screens confirm filtered exports and conflicts against the current revision. No operations tool initiates these interactive exports."
+  },
+  {
+    "source": "app/api/admin/quiz-insights/[id]/analyze/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Web and Expo Admin course analytics generate the existing quiz performance analysis from completed attempts. The Expo action checks the selected course before invoking the same provider and disclosure path. This interactive workflow has no MCP tool."
+  },
+  {
+    "source": "app/api/account/sessions/route.ts",
+    "actions": ["GET", "DELETE"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Web and Expo account settings list the active user's sessions and allow personal revocation of another device after confirmation. The current session uses the existing sign-out flow. Session tokens stay server-side."
+  },
+  {
+    "source": "app/api/student/gamification/celebrations/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Web and Expo show personal achievement notifications for the active learner and acknowledge only that account's displayed events. These participant actions use the existing learner session."
+  },
+  {
+    "source": "app/api/notifications/register-token/route.ts",
+    "actions": ["POST", "DELETE"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Device push registration and retirement require the current authenticated user's session and operating-system permission. Expo iOS development and production registrations are separate staging profiles for their own APNs topic and credentials. MCP cannot register or retire device push tokens."
+  },
+  {
+    "source": "app/api/notifications/status/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Signed-in users check their own registrations and provider profile readiness. The response contains no device tokens or credentials and has no MCP tool or authority."
+  },
+  {
+    "source": "app/.well-known/assetlinks.json/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The operating system reads Android package associations. Expo adds a configured signing fingerprint for the exact staging origin; the native manifest only claims selected product destinations. Existing session and role checks govern opening private data. This discovery document grants no MCP authority."
+  },
+  {
+    "source": "app/api/app/latest/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "This public release lookup selects compatible application archives. Expo targets its own signed Android pre-release independently of Capacitor and desktop, and installation requires explicit consent in Android. MCP has no device installation authority."
+  },
+  {
+    "source": "app/api/auth/native/google/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Explicit Android account selection uses the existing staged Google challenge and single-use nonce proof. Expo requires a supported application package and signer, and accepts the result only through its verified session controller. The system browser remains available for recovery. The operation creates the person's app session and has no tools or MCP authorization."
+  },
+  {
+    "source": "app/api/auth/native/google-link/start/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The interactive Calendar handoff sends only one-time Google OAuth state to the system browser for an account that explicitly chose to link. Better Auth owns scope consent."
+  },
+  {
+    "source": "app/api/auth/native/google-link/complete/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The Calendar browser return only delivers a scoped UI callback. Expo verifies the original session and current Calendar connection before using the existing personal sync operation."
+  },
+  {
+    "source": "app/api/native/student/community/[operation]/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Native accounts use the current signed session for their own profile, locale and notification preferences. Ranking, social privacy, schedule, discussion, group, rewards and feedback operations retain the learner gate and their existing authorization and OAuth consent. Administrative MCP scopes, discovery, tools, playbooks, packaged skills, host prompts and environment bindings stay as registered."
+  },
+  {
+    "source": "app/api/native/student/assessment/[courseId]/[...segments]/route.ts",
+    "actions": ["readStudentAssessment", "startQuizAttempt", "submitQuizAttempt", "submitTryout", "manageAssessmentAttachment", "regenerateQuizAnalytics", "completeSolutionCollection"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Learner assessment requires the native Student session, course eligibility and attempt ownership. Tryout submission checks publication under the same exam lock as Admin lifecycle writes. The learner API uses existing academic services through app HTTPS and does not accept MCP credentials. Released quiz feedback links only the exact owner’s essay attachment through the same authorization. Learner visual controls consume admitted assets with no MCP authority."
+  },
+  {
+    "source": "app/api/tutor/analytics/refresh/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Web and Expo refresh the same course-scoped Tutor analytics snapshot after checking the signed role and course access. Snapshot refresh, roster analytics and concept drilldown are interactive academic operations without an MCP tool."
+  },
+  {
+    "source": "app/api/native/academic/[...resource]/route.ts",
+    "actions": ["GET", "POST", "PATCH", "DELETE"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Course and roster reads use the signed-in role and course assignment. Course and chapter management, settings including free access windows, and uploaded PDF metadata use shared projections and authorized retry receipts. PDF catalog removal requires a current Admin session and the expected document revision, and protects referenced sources. Confirmed course and chapter archives check revisions and connected records. Chapter reorder checks the whole course chapter set and revision. The app uses authorized shared video playback and confirms course-scoped catalog removal using actor-bound receipts. Mobile removal retains media objects. MCP videos.delete retains its existing consent and revision contract, and playlist removal and interactive playback remain app operations. Admin flashcard set and card changes use the same scoped transaction as web, with session-bound receipts and revision checks. Manual flashcard management is interactive; MCP generation and bundle operations retain their registered authorization and input contracts. Manual course question deletion requires an Admin session and a scoped revision. Original questions with assessment or source dependencies are protected. Reference authoring and quiz MCP tools keep their existing consent and scopes. Native demo selection shares the web eligibility checks, singleton update and offline access invalidation. This interactive publishing control uses the observed selection and a live Admin session. MCP courses.*, chapters.* and materials.update_metadata retain their registered authorization and input contracts."
+  },
+  {
+    "source": "app/api/native/academic/tutor-support/[...resource]/route.ts",
+    "actions": ["GET", "POST", "PATCH"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Schedule, live class, materials and discussions use the current Tutor session. Assigned Tutors have read-only materials, matching the web capability. Availability edits check ownership and revision, and weekly series apply the assigned course restrictions to each slot. Calendar commands reuse slot deletion, week copy and direct or ticketed moves with booking and target-slot ownership checks. Ticket decisions and replies use the booking Tutor, session-bound receipts and the existing schedule notifications. Contextual replies, attachments, reactions, observed reads and resolution reuse the signed-in discussion services. Foreground polling rereads authorized cursor windows and retains exact observation receipts for visible rows. The refresh adds no MCP authorization. Native Tutors select and mute authorized discussion channels and create questions in allowed public or course channels. Message edits use the current revision, deletions and reports check current message permissions, and forwards validate both audiences with the canonical retry identity. Tutor mentions and profile reads check current thread access. Explicit @Zyra requests use the same actor, request fingerprint and authorized web queue policy. Tryout grades use the web grading operation and the stored answer revision."
+  },
+  {
+    "source": "app/api/native/academic/tutor-support/courses/[courseId]/grading/[submissionId]/attachment/[questionId]/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Private tryout essay files require the verified Tutor session, active course assignment and exact stored answer in a reviewable submission. The web storage proxy verifies upload ownership and immutable delivery. MCP credentials grant no access to these learner files."
+  },
+  {
+    "source": "app/api/native/academic/tutor-support/courses/[courseId]/materials/legacy/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The legacy Tutor materials editor uses the interactive Admin override with active Tutor membership. Its exact course, revision and session-bound receipt protect material, section and chunk writes. The registered materials tools retain their existing scopes and contracts."
+  },
+  {
+    "source": "app/api/native/academic/tutor-support/courses/[courseId]/live/host/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Live quiz hosting requires a verified Tutor session, active course assignment and current room ownership. HTTPS commands use the web live room service and host state uses its signed realtime socket. Ad hoc Python sessions use a published course problem version and the same web timing, hints and scoring. These are interactive Tutor operations outside MCP."
+  },
+  {
+    "source": "app/api/native/course-videos/[role]/[courseId]/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Interactive Admin and assigned Tutor video management verifies the exact course, session and revision and uses shared web catalog operations. Upload grants bind the file type and byte length to the verified account and course. Only provider-verified video and thumbnail versions attach. MCP videos.* retains its existing scopes, consent, discovery and environment bindings."
+  },
+  {
+    "source": "app/api/native/schedule/[role]/[bookingId]/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Tutorial resources belong to the verified Student group or assigned Tutor. Session-bounded uploads, resource edits, summaries and private downloads retain the web booking and storage policies."
+  },
+  {
+    "source": "app/api/native/academic-document/[slug]/[materialId]/route.ts",
+    "actions": ["GET", "PATCH"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Text previews, content edits and publication status changes for canonical articles, canonical Diktat and legacy articles require a current Admin session and exact course and source ownership. Native revisions and same-session receipts reuse the web material projections and offline changes. MCP material and authoring tools keep their registered scopes, consent and operation contracts."
+  },
+  {
+    "source": "app/api/native/academic-assessment/[...resource]/route.ts",
+    "actions": ["GET", "POST", "PATCH", "DELETE"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Interactive assessment reads and manual grading use the signed-in role, disclosure checks and course access. Tutor attachment downloads resolve the exact submitted answer and use protected storage. Grading retries are bound to the active Tutor session. Tryout drafts, explicit metadata and lifecycle saves, and bank selection require active Admin authority and course-scoped revisions. The status-aware route binds retry receipts to the original Admin session. Direct question edits and deletions bind the exact tryout and question, and unused tryout deletion uses the current course-scoped revision. These operations retain submitted snapshots. Tutor bank edits require the active Tutor session and an assigned course. Source references remain immutable. Existing MCP authoring tools keep their registered scopes, consent and service contracts."
+  },
+  {
+    "source": "app/api/native/academic-administration/tutorial-operations/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Native Admin tutorial availability, booking overrides and qualifications use the active human session and protected revision receipt. Override reasons, quota, assignment and post-commit Calendar behavior reuse the web operations. Existing MCP schedules and tutor assignment contracts keep their scopes, consent and environment bindings."
+  },
+  {
+    "source": "app/api/native/academic-administration/schedule-meet/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "A signed-in Admin can provision missing tutorial booking links using an interactive batch. Each booking reserves its shared Google Meet effect before delivery. MCP meet.create creates standalone meeting spaces with its own consent and job contract."
+  },
+  {
+    "source": "app/api/native/academic-administration/schedule-events/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Native Admin calendar edits use the active human session, current event revision and session-bound retry. MCP schedules.create, schedules.update and schedules.delete retain their existing scoped confirmation."
+  },
+  {
+    "source": "app/api/native/academic-administration/[...resource]/route.ts",
+    "actions": ["GET", "POST", "PATCH"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The Expo adapter reads administrative data and uses active Admin sessions for study groups, enrollment tokens, user roles and status, PKA and Idea item review. The selected study group's activation strings use a private, uncached Admin detail request. MCP groups.inspect and tokens.get return metadata, and tokens.reveal retains the access:secrets:read scope. Idea item review uses the staged artifact and the canonical reviewer decision operation with a session-scoped receipt. Role changes retain the self-demotion guard, compare current memberships and require an explicit human confirmation. MCP users.set_roles retains its scoped confirmation and elevated Admin grant permission. PKA schedule and announcement actions reuse the interactive Admin session, revision-bound receipts and preference-aware delivery on a separate product queue. The private PKA registration list and filtered Google Sheets export use the same active Admin role. PKA remains outside MCP. Native notification broadcasts require a live Admin session and a confirmed audience snapshot, with receipts isolated from MCP jobs. Native Product Bundle reads and editorial actions call the existing product HTTP endpoints with the signed-in Admin session and selected revision. MCP operations retain their registered scopes and consent."
+  },
+  {
+    "source": "app/api/native/academic-administration/group-deletion/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Admin hard deletion checks the live session, exact group or token association, observed revision and confirmed impact. Enrollment access keeps its existing independent lifecycle. MCP tokens.revoke retains expiry semantics and group or token hard deletion remains an administrative app operation."
+  },
+  {
+    "source": "app/api/admin/bundles/product/[id]/solution-review/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Web and Expo interactive V5 review use the current Admin session, bundle checksum, review version and exact item hashes. The registered solution collection review and publication tools keep their existing authorization and contracts."
+  },
+  {
+    "source": "app/api/admin/bundles/product/[id]/pdf/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The V2/V3 draft PDF queue uses the signed-in Admin UI and an exact Diktat, revision and request identity. V4 uses its separate trusted verification workflow and scoped authoring tools."
+  },
+  {
+    "source": "app/api/forms/[idOrSlug]/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Public form links resolve published respondent content. Live submissions use the respondent session or the form's anonymous policy. Admin MCP forms preview and simulation use separate read scopes and never submit live responses."
+  },
+  {
+    "source": "app/api/forms/upload/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Public file uploads attach files to a live respondent form under its current upload and authentication policy. Respondents opening an Expo link choose and submit files on the website under their browser session. Admin MCP preview and simulation do not upload respondent files. New object keys use the immutable form ID and stay private even when referenced in a public question."
+  },
+  {
+    "source": "app/api/meet/[slug]/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The public lookup reports the title behind one exact Zyx meeting link. The canonical web route rechecks availability before Google Meet applies its own admission policy. Administrative meeting operations and MCP authorization, scopes, consent and environment bindings are independent."
+  },
+  {
+    "source": "app/api/tautan/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Public clients read the same published link fields as the public directory. Existing administrative links tools retain their scopes, consent, environment and ability to manage unpublished entries."
+  },
+  {
+    "source": "app/api/auth/native/complete/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Native sign-in completion verifies browser handoff state and returns the verifier-bound Expo code. Android HTML uses an explicit browser link. This is end-user authentication outside the MCP OAuth and consent surface."
+  },
+  {
+    "source": "app/api/auth/native/expo/exchange/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The internal staging Expo app exchanges a browser login code bound to its own verifier. This is an interactive end-user session. MCP clients keep their separate OAuth registration, consent, scopes, discovery, playbooks, packaged skills and environment bindings."
+  },
+  {
     "source": "components/admin/offline-cache-settings.tsx",
     "actions": ["save", "refresh"],
     "tools": [],
     "status": "excluded",
     "reason": "Offline cache policy and manual invalidation currently use the authenticated admin UI with origin checks and revision conflicts. Existing publication, revision, withdrawal, enrollment, course and video services record durable offline changes for their existing Admin and MCP callers. This adds no MCP tools or changes to scopes, consent, discovery, skills, host prompts or staging/production bindings. Device download and storage choices remain local to the signed-in user."
+  },
+  {
+    "source": "apps/mobile-native/offline/lifecycle-provider.tsx",
+    "actions": ["foregroundSync"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Foreground recovery rechecks the current Expo session and Student role before fetching its offline metadata on the configured origin. The native lifecycle and connectivity state are device-local. Existing MCP authorization and environment bindings still apply to the server operations that change offline content."
+  },
+  {
+    "source": "apps/mobile-native/app/offline.tsx",
+    "actions": ["download", "read", "forget", "revalidateSaved", "purgeUnavailable"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Expo manages the signed-in learner's local downloads, pins and storage. Course, video and achievement catalog reads use the existing authenticated offline endpoints and scoped resource leases on the configured app origin. MCP tools, scopes, consent, discovery, playbooks, packaged skills, host prompts and environment bindings are unchanged."
   },
   {
     "source": "app/(student)/feedback/feedback-form.tsx",
@@ -29,6 +470,41 @@ export const operationsCatalog = [
     "reason": "Personal interface language and device display, vibration and alert choices require the signed-in UI or local device. Preference grouping and reset do not change MCP tools, scopes, consent, discovery, playbooks, packaged skills, host prompts or environment bindings."
   },
   {
+    "source": "apps/mobile-native/device/preferences.ts",
+    "actions": ["setTheme", "setHaptics", "setAppearance", "restoreDisplay"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Expo reading size, spacing, background, motion, on-screen alert placement, theme and haptics are personal device preferences. The host uses the existing verified account locale, session and origin for app copy. MCP tools, scopes, consent, discovery, playbooks, packaged skills, host prompts and environment bindings are unchanged."
+  },
+  {
+    "source": "apps/mobile-native/features/site-search/results.ts",
+    "actions": ["readSearchHits", "readSearchPeople", "localSearchHits", "searchShortcuts"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Verified users search the existing index and eligible navigation links. Student profile lookup uses the existing visibility-filtered social endpoint. These reads and local navigation are personal UI actions."
+  },
+  {
+    "source": "apps/mobile-native/features/site-search/saved-links.ts",
+    "actions": ["updateSavedLinks", "readSavedLinks"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Recent search destinations and favorites are local to the signed account and role on this device."
+  },
+  {
+    "source": "apps/mobile-native/routing/route-history.ts",
+    "actions": ["remember", "restore", "clear"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The app remembers a local navigation destination for the verified session. Installed routes, roles and product authorization still apply. MCP tools, scopes, consent, discovery, playbooks, packaged skills, host prompts and environment bindings are unchanged."
+  },
+  {
+    "source": "apps/mobile-native/features/onboarding/GuidedTour.tsx",
+    "actions": ["start", "progress", "skip", "restart", "complete"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Only the signed-in Student or Tutor can run the in-app tour. Expo uses the account and role-bound onboarding API with the current generation. Device notification permission remains a user gesture."
+  },
+  {
     "source": "components/onboarding/guided-tour.tsx",
     "actions": ["start", "progress", "skip", "restart"],
     "tools": [],
@@ -48,6 +524,97 @@ export const operationsCatalog = [
     "tools": [],
     "status": "excluded",
     "reason": "Installed-device version checks and installer launch require the native app. MCP tokens, scopes, consent, discovery, playbooks, packaged skills and host prompts cannot install or update a user's device."
+  },
+  {
+    "source": "app/api/native/context/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The Expo client reads the active account's own role memberships and locale for routing. Each product API still enforces object permissions. MCP client identity, consent, scopes, discovery, playbooks, packaged skills and environment bindings are independent."
+  },
+  {
+    "source": "apps/mobile-native/routing/BrowserHandoff.tsx",
+    "actions": ["open"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The app opens the staging Next consent or account connections URL in the system browser. The browser owns the session. Consent, registration, scopes, redirect validation, revocation and environment binding stay on their existing server paths."
+  },
+  {
+    "source": "apps/mobile-native/routing/PublicWebsiteRoute.tsx",
+    "actions": ["open"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The Expo client opens public marketing, blog, form, short-link and meeting URLs in the browser on the configured website origin. Each browser request follows the website's session and permissions. Administrative MCP tools use their existing scopes and consent."
+  },
+  {
+    "source": "apps/mobile-native/app/meet/[slug].tsx",
+    "actions": ["open"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The app opens the canonical public meeting link on its configured staging origin. Browser and Google accounts handle admission independently of the Expo session. No MCP or OAuth credential is passed."
+  },
+  {
+    "source": "app/api/notifications/history/route.ts",
+    "actions": ["resolveOwnNotificationTap"],
+    "status": "excluded",
+    "tools": [],
+    "reason": "An OS push tap resolves one visible inbox notification owned by the active app session. This personal device interaction cannot query another account. Administrative notification history has a separate authorized operation."
+  },
+  {
+    "source": "apps/mobile-native/device/remote-response.ts",
+    "actions": ["consume"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Expo handles an interactive device tap within its verified origin, account and session. Session revalidation can retry the personal visibility lookup once. The read acknowledgement has no automatic replay. Administrative MCP tools, scopes, consent and environment bindings are unchanged."
+  },
+  {
+    "source": "apps/mobile-native/features/notification-inbox/client.ts",
+    "actions": ["loadInbox", "markInboxRead"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The account holder opens their own notification history and acknowledges visible notifications through their interactive session. Administrative notification history and sending retain their existing MCP authorization."
+  },
+  {
+    "source": "apps/mobile-native/features/notification-inbox/staff-device-push.tsx",
+    "actions": ["requestPermission", "openSettings"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "A verified Tutor or Admin explicitly chooses a device notification action from an open inbox on a supported build. The OS manages user consent and app settings. Existing registration uses the same verified account session and app origin. Administrative MCP tools and bindings remain unchanged."
+  },
+  {
+    "source": "apps/mobile-native/device/reminder-controller.ts",
+    "actions": ["updateSettings", "refreshTutorSessions"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The Student notification settings screen schedules local study and tutorial reminders for the verified account on its device. The OS handles permission and delivery. Tutorial schedules and quiet hours use existing authorized reads."
+  },
+  {
+    "source": "apps/mobile-native/device/file-controller.ts",
+    "actions": ["pickDocument", "shareDocument", "shareAuthorizedDownload"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The signed-in user selects a local document or downloads using an existing authorized route. Student Diktat PDF downloads use the learner's verified session and the existing download permission. The OS sheet controls sharing on the device. MCP authorization and publication are independent."
+  },
+  {
+    "source": "apps/mobile-native/device/audio-controller.ts",
+    "actions": ["play", "pause", "seekBy", "seekTo"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Playback controls operate on local media on the device, with no server mutation, recording permission or MCP operation."
+  },
+  {
+    "source": "apps/mobile-native/device/photo-controller.ts",
+    "actions": ["pick", "recover"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "A signed-in user chooses a photo for one local device draft. Camera consent and Android picker recovery are device actions. Upload authorization stays with the consuming domain. This adds no MCP operation, scope or environment binding."
+  },
+  {
+    "source": "apps/mobile-native/device/notifications-controller.ts",
+    "actions": ["requestPermission", "sync", "setAccount"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Push permission requires direct device consent. Registration, rotation and removal use the authenticated app session on its own origin and do not change admin notification operations or MCP bindings."
   },
   {
     "source": "components/course/material-viewer.tsx",
@@ -508,7 +1075,7 @@ export const operationsCatalog = [
       "videos.update"
     ],
     "status": "partial",
-    "reason": "Related MCP operations are implemented; this source may contain additional UI actions. See docs/operations/admin-mcp.md for exact supported boundaries."
+    "reason": "Native Idea Bundle content edits, review reset, final decisions, publication, withdrawal and draft discard reuse the human Admin session and current bundle revision. The existing run-scoped authoring MCP tools retain their separate grants and consent. See docs/operations/admin-mcp.md for exact tool boundaries."
   },
   {
     "source": "app/(admin)/admin/(academic)/courses/[slug]/review/page.tsx",
@@ -761,7 +1328,7 @@ export const operationsCatalog = [
       "videos.update"
     ],
     "status": "partial",
-    "reason": "Related MCP operations are implemented; this source may contain additional UI actions. See docs/operations/admin-mcp.md for exact supported boundaries."
+    "reason": "Manual flashcard CRUD uses the Admin session and shared course-scoped web and native service. Published bundle and generation tools retain their registered MCP contracts. There is no manual flashcard MCP mutation."
   },
   {
     "source": "app/(admin)/admin/(academic)/courses/import-actions.ts",
@@ -1120,7 +1687,7 @@ export const operationsCatalog = [
     "actions": [],
     "tools": [],
     "status": "excluded",
-    "reason": "No operations tool implemented for this source; mutations require service invariants and concurrency review."
+    "reason": "Compiling and previewing draft Markdown, reading local JSON, and exporting or copying the compiled AST are interactive Admin actions."
   },
   {
     "source": "app/(admin)/admin/(content)/diktats/actions.ts",
@@ -1282,6 +1849,13 @@ export const operationsCatalog = [
     "reason": "Related MCP operations are implemented; this source may contain additional UI actions. See docs/operations/admin-mcp.md for exact supported boundaries."
   },
   {
+    "source": "app/api/blog/upload/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Interactive blog uploads use an authenticated web tutor or Admin session, or a bound native Admin session for thumbnails and article images or videos. Blog MCP article tools can reference accepted media URLs under their existing scopes and consent."
+  },
+  {
     "source": "app/(admin)/admin/forms/[id]/page.tsx",
     "actions": [],
     "tools": [
@@ -1345,7 +1919,7 @@ export const operationsCatalog = [
       "media.upload"
     ],
     "status": "partial",
-    "reason": "Related MCP operations are implemented; this source may contain additional UI actions. See docs/operations/admin-mcp.md for exact supported boundaries."
+    "reason": "The signed Admin UI filters file and folder names within the current authorized listing. The local search adds no MCP scope. media.list and media.upload retain their existing grants and boundaries."
   },
   {
     "source": "app/(admin)/admin/meet/[id]/page.tsx",
@@ -1444,6 +2018,13 @@ export const operationsCatalog = [
     "reason": "No operations tool implemented for this source; mutations require service invariants and concurrency review."
   },
   {
+    "source": "app/api/admin/native-monitoring/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": ["shortlinks.create"],
+    "status": "partial",
+    "reason": "The native Admin UI reuses web monitoring behind canonical admin session authorization. Native writes validate origin and input, including short links, analytics sync, versioned model changes, latency scheduling and read-only report proposal creation/review/confirmation. Model request share and average latency are local summaries of the same authorized recent-log sample as web. Its MCP equivalent retains its existing scope and request-key contract. This adapter changes no MCP tools, scopes, consent, discovery, playbooks, packaged skills, host prompts or environment bindings."
+  },
+  {
     "source": "app/(admin)/admin/ops/web-analytics/page.tsx",
     "actions": [],
     "tools": [],
@@ -1505,11 +2086,46 @@ export const operationsCatalog = [
     "reason": "Documentation reading is available in the Admin UI."
   },
   {
+    "source": "app/api/native/operations/management/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The native Admin workspace uses the verified Admin account. Conference transcript entries and existing Google Docs links use the authorized interactive Meet history read. Admins may explicitly reconcile the active Admin editor grants for one conference under FEATURE_DRIVE_EDITOR_SYNC. This uses the signed provider receipt, while MCP meet.get and meet.list remain read-only. Discussion targets, report reads and moderation use the existing role and channel authorization. Moderators resolve or dismiss a pending report through the same locked transition as the website. Native Forms Sheets export builds rows from authorized stored responses and confirms conflicts against the observed sheet revision. Its provider receipt is scoped to the Admin session. MCP forms.responses.* scopes, consent, job workflow and environment bindings retain their existing contracts. Management writes retain their interactive authorization and retry rules."
+  },
+  {
+    "source": "app/api/native/operations/forms/[formId]/responses/[responseId]/attachment/[index]/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "An interactive Admin attachment download binds the verified account to one stored file-upload response slot and reuses protected storage delivery. New uploads use an immutable form namespace. Legacy attachments require a matching stored form folder. MCP response read and export tools retain their existing disclosure scopes."
+  },
+  {
+    "source": "app/api/admin/custom-forms/image/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Interactive form question and statement images use the existing Admin storage upload. Expo binds the local image choice to the current Admin account and session. MCP media and forms operations keep their existing limits and consent."
+  },
+  {
+    "source": "app/api/native/operations/management/media/route.ts",
+    "actions": ["POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Interactive native media upload and replacement require the live Admin account, session and a local file selection. Writes use the existing media-library storage paths and provider receipts. MCP media.list and media.upload keep their registered scopes, content limits, consent and environment bindings."
+  },
+  {
     "source": "app/(admin)/admin/discussions/page.tsx",
     "actions": [],
     "tools": [],
     "status": "excluded",
     "reason": "Discussion moderation and replies use the Admin UI."
+  },
+  {
+    "source": "app/api/native/operations/management/discussions/[[...operation]]/route.ts",
+    "actions": ["GET", "POST"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The native Admin discussion workspace binds the active Admin account and session, and uses existing channel-level discussion authority, signed read observations and canonical mutation identities. Report moderation remains in the Admin UI."
   },
   {
     "source": "app/(admin)/admin/ops/models/page.tsx",
@@ -1519,11 +2135,32 @@ export const operationsCatalog = [
     "reason": "Model assignments, Gateway catalog observations and billed latency refresh use the Admin UI. Feature flag reads do not expose these actions or authorize provider probes."
   },
   {
+    "source": "app/api/native/operations/evaluation/route.ts",
+    "actions": ["GET"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The interactive Admin route resolves legacy destinations and reads evaluation models with the existing role and disclosure checks. Registered authoring and jobs tools retain their independent scopes and usage."
+  },
+  {
+    "source": "app/api/native/operations/evaluation/actions/route.ts",
+    "actions": ["GET", "POST", "PUT", "DELETE"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Signed native Evaluation uses existing interactive Admin services for question authoring, review and queued generation. Picking a local Markdown file only fills the question import draft, which still requires explicit submission. MCP authoring and jobs operations keep their registered scopes, consent and environment bindings."
+  },
+  {
+    "source": "apps/mobile-native/features/operations/ops-ai/OpsAiWorkspace.tsx",
+    "actions": ["selectChat", "startChat", "confirmRemoval", "visitCitation"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "Ops AI local history and citation navigation stay in the interactive Admin app. Approval recovery uses the active Admin session and the existing proposal identity and signed receipt."
+  },
+  {
     "source": "app/api/admin/ops-ai/execute/route.ts",
     "actions": ["confirmAdminOperation", "revokeChatOperationGrants"],
     "tools": [],
     "status": "excluded",
-    "reason": "Ops AI chat approvals require the active browser admin session and specific chat. Shared domain operations retain the MCP signed-plan and consent contracts."
+    "reason": "Ops AI chat approvals require the active interactive Admin session and specific chat in the web or native client. Shared domain operations retain the MCP signed-plan and consent contracts."
   },
   {
     "source": "components/auth/sidebar-account-menu.tsx",
@@ -1531,5 +2168,12 @@ export const operationsCatalog = [
     "tools": [],
     "status": "excluded",
     "reason": "Saved-account selection, Google sign-in and device session removal require the user's browser or native app. MCP bearer tokens retain their authorized user, session, scopes and environment; account switching cannot retarget them."
+  },
+  {
+    "source": "apps/mobile-native/auth/SavedAccounts.tsx",
+    "actions": ["listSavedAccounts", "switchSavedAccount", "removeSavedAccount", "acceptAdditionalLogin"],
+    "tools": [],
+    "status": "excluded",
+    "reason": "The signed native account menu and signed-out chooser act on this device's saved accounts. Additional Google sign-in binds to the original active session. MCP bearer tokens retain their authorized account, session, scopes, consent and environment."
   }
 ] as const;

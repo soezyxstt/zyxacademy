@@ -65,6 +65,11 @@ export function createCodingAttemptRepository(db: Database): CodingAttemptReposi
   };
 }
 
-export function loadCodingHistory(db: Database, learnerId: string, problemId: string, version: number) {
-  return db.select().from(codingAttempts).where(and(eq(codingAttempts.learnerId, learnerId), eq(codingAttempts.problemId, problemId), eq(codingAttempts.problemVersion, version))).orderBy(desc(codingAttempts.createdAt), desc(codingAttempts.ordinal)).limit(20);
+export function loadCodingHistory(db: Database, learnerId: string, problemId: string, version: number,
+  scope?: { courseId: string; surfaceId?: string }) {
+  return db.select().from(codingAttempts).where(and(
+    eq(codingAttempts.learnerId, learnerId), eq(codingAttempts.problemId, problemId), eq(codingAttempts.problemVersion, version),
+    scope ? eq(codingAttempts.courseId, scope.courseId) : undefined,
+    scope?.surfaceId ? eq(codingAttempts.surfaceId, scope.surfaceId) : undefined,
+  )).orderBy(desc(codingAttempts.createdAt), desc(codingAttempts.ordinal)).limit(20);
 }

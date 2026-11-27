@@ -2,7 +2,14 @@
 
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { Plus, X } from "lucide-react";
-import { compileSafeExpression } from "@/lib/zyra/canvas";
+import {
+  compileMarkdownGraphFormula,
+  formatMarkdownGraphPoint,
+  markdownGraphDomain,
+  markdownGraphEntries,
+  parseMarkdownGraphPoint,
+  type MarkdownGraphPoint,
+} from "@/lib/materials/interactive-markdown-graph";
 
 const SVG_W = 620;
 const SVG_H = 380;
@@ -13,8 +20,7 @@ const PAD_B = 34;
 const PLOT_W = SVG_W - PAD_L - PAD_R;
 const PLOT_H = SVG_H - PAD_T - PAD_B;
 
-const X_MIN_DEFAULT = -10;
-const X_MAX_DEFAULT = 10;
+const { min: X_MIN_DEFAULT, max: X_MAX_DEFAULT } = markdownGraphDomain;
 
 const ENTRY_COLORS = [
   "var(--color-brand-primary)",
@@ -30,30 +36,12 @@ interface GraphEntry {
   raw: string;
 }
 
-interface ParsedPoint {
-  kind: "point";
-  name?: string;
-  x: number;
-  y: number;
-}
-
-type Compiled = ReturnType<typeof compileSafeExpression>;
-
-const POINT_PATTERN = /^(?:([A-Za-z])\s*=\s*)?\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)$/;
+type Compiled = ReturnType<typeof compileMarkdownGraphFormula>;
 
 let entryIdCounter = 0;
 function nextEntryId(): string {
   entryIdCounter += 1;
   return `entry-${entryIdCounter}`;
-}
-
-function parsePoint(raw: string): ParsedPoint | null {
-  const match = raw.trim().match(POINT_PATTERN);
-  if (!match) return null;
-  const x = Number(match[2]);
-  const y = Number(match[3]);
-  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
-  return { kind: "point", name: match[1], x, y };
 }
 
 function niceStep(rawStep: number): number {
@@ -69,16 +57,10 @@ function formatTick(value: number): string {
 }
 
 export function InteractiveGraphWidget({ initialFormula }: { initialFormula: string }) {
-  const initialEntries = useMemo<GraphEntry[]>(() => {
-    const lines = (initialFormula || "x^2 - 4x + 3")
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean);
-    return (lines.length > 0 ? lines : ["x^2 - 4x + 3"]).map((raw) => ({
-      id: nextEntryId(),
-      raw,
-    }));
-  }, [initialFormula]);
+  const initialEntries = useMemo<GraphEntry[]>(() => markdownGraphEntries(initialFormula).map(raw => ({
+    id: nextEntryId(),
+    raw,
+  })), [initialFormula]);
 
   const [entries, setEntries] = useState<GraphEntry[]>(initialEntries);
   const [focusId, setFocusId] = useState<string | null>(null);
@@ -88,11 +70,11 @@ export function InteractiveGraphWidget({ initialFormula }: { initialFormula: str
   const parsed = useMemo(
     () =>
       entries.map((entry, index) => {
-        const point = parsePoint(entry.raw);
+        const point = parseMarkdownGraphPoint(entry.raw);
         if (point) return { entry, index, point };
         let compiled: Compiled | null = null;
         try {
-          compiled = compileSafeExpression(entry.raw, { variables: ["x"] });
+          compiled = compileMarkdownGraphFormula(entry.raw);
         } catch {
           compiled = null;
         }
@@ -156,9 +138,8 @@ export function InteractiveGraphWidget({ initialFormula }: { initialFormula: str
     setEntries((prev) =>
       prev.map((entry) => {
         if (entry.id !== id) return entry;
-        const point = parsePoint(entry.raw);
-        const prefix = point?.name ? `${point.name} = ` : "";
-        return { ...entry, raw: `${prefix}(${x}, ${y})` };
+        const point = parseMarkdownGraphPoint(entry.raw);
+        return point ? { ...entry, raw: formatMarkdownGraphPoint(point, x, y) } : entry;
       }),
     );
   }, []);
@@ -197,15 +178,15 @@ export function InteractiveGraphWidget({ initialFormula }: { initialFormula: str
       id: item.entry.id,
       color: ENTRY_COLORS[item.index % ENTRY_COLORS.length],
       label: item.entry.raw.trim().match(/^[A-Za-z]/)?.[0] ?? String.fromCharCode(65 + item.index),
-      point: item.point as ParsedPoint,
+      point: item.point as MarkdownGraphPoint,
     }));
 
   const invalidRows = entries.filter((entry) => {
     const trimmed = entry.raw.trim();
     if (trimmed.length === 0) return false;
-    if (parsePoint(trimmed)) return false;
+    if (parseMarkdownGraphPoint(trimmed)) return false;
     try {
-      compileSafeExpression(trimmed, { variables: ["x"] });
+      compileMarkdownGraphFormula(trimmed);
       return false;
     } catch {
       return true;

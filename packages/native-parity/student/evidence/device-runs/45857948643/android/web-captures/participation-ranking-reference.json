@@ -1,0 +1,94 @@
+{
+  "platform": "android",
+  "viewport": {
+    "width": 380,
+    "height": 820
+  },
+  "deviceScaleFactor": 1,
+  "locale": "id",
+  "theme": "light",
+  "timeZone": "Asia/Jakarta",
+  "motion": "reduced",
+  "fonts": "Inter and Lexend from native assets",
+  "states": {
+    "global": {
+      "scenario": "ranking-parity",
+      "path": "/leaderboard",
+      "data": {
+        "entries": [
+          {
+            "publicId": "nara-putri",
+            "displayName": "Nara Putri",
+            "avatarUrl": null,
+            "rankKey": "kades",
+            "equippedFrameId": null,
+            "equippedThemeId": null,
+            "position": 1,
+            "baseXpMicro": 165000000,
+            "avatarMode": "photo",
+            "avatarBadgeId": null,
+            "badgeTier": null
+          },
+          {
+            "publicId": "satrio-wibowo",
+            "displayName": "Satrio Wibowo",
+            "avatarUrl": null,
+            "rankKey": "kades",
+            "equippedFrameId": null,
+            "equippedThemeId": null,
+            "position": 2,
+            "baseXpMicro": 141000000,
+            "avatarMode": "photo",
+            "avatarBadgeId": null,
+            "badgeTier": null
+          }
+        ],
+        "ownEntry": null,
+        "nextCursor": null
+      },
+      "scope": "global",
+      "period": "all"
+    },
+    "following": {
+      "scenario": "ranking-parity",
+      "path": "/leaderboard?scope=following",
+      "data": {
+        "entries": [
+          {
+            "publicId": "nara-putri",
+            "displayName": "Nara Putri",
+            "avatarUrl": null,
+            "rankKey": "kades",
+            "equippedFrameId": null,
+            "equippedThemeId": null,
+            "position": 1,
+            "baseXpMicro": 165000000,
+            "avatarMode": "photo",
+            "avatarBadgeId": null,
+            "badgeTier": null
+          }
+        ],
+        "ownEntry": null,
+        "nextCursor": null
+      },
+      "scope": "following",
+      "period": "all"
+    },
+    "empty": {
+      "scenario": "ranking-parity",
+      "path": "/leaderboard?scope=following&period=month",
+      "data": {
+        "entries": [],
+        "ownEntry": null,
+        "nextCursor": null
+      },
+      "scope": "following",
+      "period": "month"
+    }
+  },
+  "captures": {
+    "participation-ranking-global.png": "184bcd6705b8a095103ffffa49809f2d84ac846f191f2e5c98c285e80fde278a",
+    "participation-ranking-following.png": "5b5e8516e6862d7212964bc3ed37d2a5a62e3e96b5df43ea46e036f30f5e8304",
+    "participation-ranking-empty.png": "cbdde1dbd9ca83a2c9070de016b5a1d11c2fcc1083736302b228b3f367d72ae9"
+  }
+}

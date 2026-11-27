@@ -1,0 +1,15 @@
+appId: com.zyx.academy.nativeparity
+name: Tutor grading load failure and recovery
+---
+- launchApp
+- openLink: zyx-native-parity://academic?role=tutor&path=%2Ftutor%2Facademic-course-1%2Fgrading&scenario=error&theme=dark
+- extendedWaitUntil:
+    visible: Data gagal dimuat
+    timeout: 20000
+- takeScreenshot: academic-tutor-grading-error-dark
+- tapOn: Coba lagi
+- extendedWaitUntil:
+    visible:
+      id: tutor-submission-academic-submission-1
+    timeout: 10000
+- takeScreenshot: academic-tutor-grading-recovered-dark

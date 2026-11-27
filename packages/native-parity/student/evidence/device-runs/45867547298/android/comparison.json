@@ -1,0 +1,1219 @@
+[
+  {
+    "id": "catalog-all",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/android/catalog-all.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "710f74053e2309d3c1b30eb3c88306b036f9c8814c674c65c0c4f70a1556adb8"
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/results/2026-11-26_175824/Catalog comparable fixture all TPB and PKA/takeScreenshot/student-catalog-all.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "67238b10ec356aef9967cbe3f1cbd59d567b133d7ddd9ddee98d9018ec58dd84"
+    },
+    "native_scenario": {
+      "name": "Catalog comparable fixture all TPB and PKA",
+      "status": "SUCCESS",
+      "attempt": "."
+    },
+    "status": "different",
+    "differing_pixels": 52884,
+    "max_channel_difference": 227,
+    "bounds": [
+      0,
+      5,
+      380,
+      817
+    ],
+    "diff": "artifacts/student-evidence/android/comparison/catalog-all-diff.png"
+  },
+  {
+    "id": "catalog-tpb",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/android/catalog-tpb.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "edd0190f65de9668bb3edfc3bed7564fd2596ca034d14f5bdd8aa9b88ee4590e"
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/results/2026-11-26_175824/Catalog comparable fixture all TPB and PKA/takeScreenshot/student-catalog-tpb.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "c61a138090cff636879d5207be217aa8f70d6f9b80667af73034a150f95933e1"
+    },
+    "native_scenario": {
+      "name": "Catalog comparable fixture all TPB and PKA",
+      "status": "SUCCESS",
+      "attempt": "."
+    },
+    "status": "different",
+    "differing_pixels": 44850,
+    "max_channel_difference": 227,
+    "bounds": [
+      0,
+      5,
+      380,
+      817
+    ],
+    "diff": "artifacts/student-evidence/android/comparison/catalog-tpb-diff.png"
+  },
+  {
+    "id": "catalog-pka",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/android/catalog-pka.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "49c7312f61950788f204598c531825660e19a4866ba2d99ba6a2bc50febdde74"
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/results/2026-11-26_175824/Catalog comparable fixture all TPB and PKA/takeScreenshot/student-catalog-pka.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "e89bfc16e7b07dff18953895b2fb7d55e7ad042b7202dee58b8a26b43adfff13"
+    },
+    "native_scenario": {
+      "name": "Catalog comparable fixture all TPB and PKA",
+      "status": "SUCCESS",
+      "attempt": "."
+    },
+    "status": "different",
+    "differing_pixels": 28319,
+    "max_channel_difference": 227,
+    "bounds": [
+      0,
+      5,
+      380,
+      817
+    ],
+    "diff": "artifacts/student-evidence/android/comparison/catalog-pka-diff.png"
+  },
+  {
+    "id": "flashcard-question",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/flashcard/learning-query-flashcard-reference-matches-the-device-inputs-mobile-380/android/flashcard-question.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "419f9d904399cf4ae87eb9c809e603534f3ba655a4d7b5cdca6af9597fe1ecad"
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/standalone-retry/001/results/2026-11-26_180306/Learning flashcard flip and grade/takeScreenshot/student-flashcard-question.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "ffe7d39f80231bfde416cdc17567404d99547741ac225c867023149706472536"
+    },
+    "native_scenario": {
+      "name": "Learning flashcard flip and grade",
+      "status": "SUCCESS",
+      "attempt": "standalone-retry/001"
+    },
+    "status": "different",
+    "differing_pixels": 222560,
+    "max_channel_difference": 214,
+    "bounds": [
+      0,
+      5,
+      380,
+      820
+    ],
+    "diff": "artifacts/student-evidence/android/comparison/flashcard-question-diff.png"
+  },
+  {
+    "id": "flashcard-review-pending",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/flashcard/learning-query-flashcard-reference-matches-the-device-inputs-mobile-380/android/flashcard-review-pending.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "dbeaa95cfe835210f56ac6f58ecb304970d80d1217f2ff1f9ed58358ee1e1f29"
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/standalone-retry/001/results/2026-11-26_180306/Learning flashcard flip and grade/takeScreenshot/student-flashcard-review-pending.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "34b541dc4d0ce9a3475ea18a132f588cb8b1c7352dacb02c588ad7f18d408f1a"
+    },
+    "native_scenario": {
+      "name": "Learning flashcard flip and grade",
+      "status": "SUCCESS",
+      "attempt": "standalone-retry/001"
+    },
+    "status": "different",
+    "differing_pixels": 214124,
+    "max_channel_difference": 255,
+    "bounds": [
+      0,
+      5,
+      380,
+      810
+    ],
+    "diff": "artifacts/student-evidence/android/comparison/flashcard-review-pending-diff.png"
+  },
+  {
+    "id": "flashcard-review-failed",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/flashcard/learning-query-flashcard-reference-matches-the-device-inputs-mobile-380/android/flashcard-review-failed.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "750fc0dd32a48deb8894b08d318740b01b72ac48f146932e9b2130ad64bb6722"
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/standalone-retry/001/results/2026-11-26_180306/Learning flashcard flip and grade/takeScreenshot/student-flashcard-review-failed.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "434c09515811c6d746a560a97b2dd74b7fa3cd370f2f27e7b593d0eb3a8a77a6"
+    },
+    "native_scenario": {
+      "name": "Learning flashcard flip and grade",
+      "status": "SUCCESS",
+      "attempt": "standalone-retry/001"
+    },
+    "status": "different",
+    "differing_pixels": 225119,
+    "max_channel_difference": 255,
+    "bounds": [
+      0,
+      5,
+      380,
+      810
+    ],
+    "diff": "artifacts/student-evidence/android/comparison/flashcard-review-failed-diff.png"
+  },
+  {
+    "id": "dashboard-enrolled",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/dashboard/android/dashboard-enrolled.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "714c5988e3684223b9f05d3756b507de482118135faea7821eda7402e4b879c5"
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/results/2026-11-26_175824/Student dashboard enrollment states/takeScreenshot/student-dashboard-enrolled.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "1d554dbb03aed7d43fe534923ed0f1be7236ef4264430cf57fd0189b25fb53a0"
+    },
+    "native_scenario": {
+      "name": "Student dashboard enrollment states",
+      "status": "SUCCESS",
+      "attempt": "."
+    },
+    "status": "different",
+    "differing_pixels": 280552,
+    "max_channel_difference": 216,
+    "bounds": [
+      0,
+      5,
+      380,
+      817
+    ],
+    "diff": "artifacts/student-evidence/android/comparison/dashboard-enrolled-diff.png"
+  },
+  {
+    "id": "dashboard-unenrolled",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/dashboard/android/dashboard-unenrolled.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "81e8c5d1d561d460737b0132c11868b7e1fe7625e33c4a464f766611209483c4"
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/results/2026-11-26_175824/Student dashboard enrollment states/takeScreenshot/student-dashboard-unenrolled.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "45349654c03784a4973e12d673ab0be46aa16fcb66f4977719173d182d1a97a2"
+    },
+    "native_scenario": {
+      "name": "Student dashboard enrollment states",
+      "status": "SUCCESS",
+      "attempt": "."
+    },
+    "status": "different",
+    "differing_pixels": 270066,
+    "max_channel_difference": 239,
+    "bounds": [
+      0,
+      5,
+      380,
+      817
+    ],
+    "diff": "artifacts/student-evidence/android/comparison/dashboard-unenrolled-diff.png"
+  },
+  {
+    "id": "dashboard-revoked",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/dashboard/android/dashboard-revoked.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "8657262a3313e507d846d7450c77d9132a757a83b0f502fabdf1f2a907714815"
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/results/2026-11-26_175824/Student dashboard enrollment states/takeScreenshot/student-dashboard-revoked.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "45349654c03784a4973e12d673ab0be46aa16fcb66f4977719173d182d1a97a2"
+    },
+    "native_scenario": {
+      "name": "Student dashboard enrollment states",
+      "status": "SUCCESS",
+      "attempt": "."
+    },
+    "status": "different",
+    "differing_pixels": 277093,
+    "max_channel_difference": 239,
+    "bounds": [
+      0,
+      5,
+      380,
+      817
+    ],
+    "diff": "artifacts/student-evidence/android/comparison/dashboard-revoked-diff.png"
+  },
+  {
+    "id": "quiz-gateway-new",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/quiz-gateway/native-parallel-student-qu-9dc4d-e-matches-the-device-inputs-mobile-380/android/quiz-gateway-new.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "4bdfa9deb965a0b5979459f942da1801d93cfe2ff367cb807f20baa6f984453d"
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/standalone-retry/001/results/2026-11-26_180306/Student quiz gateway attempt states/takeScreenshot/student-quiz-gateway-new.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "d46b0cd95f2b78915d32f15e6fc44778b59d784bd08754f8ee3e5ef177e266d0"
+    },
+    "native_scenario": {
+      "name": "Student quiz gateway attempt states",
+      "status": "SUCCESS",
+      "attempt": "standalone-retry/001"
+    },
+    "status": "different",
+    "differing_pixels": 48287,
+    "max_channel_difference": 213,
+    "bounds": [
+      15,
+      5,
+      366,
+      810
+    ],
+    "diff": "artifacts/student-evidence/android/comparison/quiz-gateway-new-diff.png"
+  },
+  {
+    "id": "quiz-gateway-resumable",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/quiz-gateway/native-parallel-student-qu-9dc4d-e-matches-the-device-inputs-mobile-380/android/quiz-gateway-resumable.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "1f1af177e4d3b23081381870c18465a25f30fc5a4ed7052b0f50d72205aa9659"
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/standalone-retry/001/results/2026-11-26_180306/Student quiz gateway attempt states/takeScreenshot/student-quiz-gateway-resumable.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "315bc8ba20178e1bb96eb86251a4e9d7ceda2a901d82082fad3fbeb2036ceed2"
+    },
+    "native_scenario": {
+      "name": "Student quiz gateway attempt states",
+      "status": "SUCCESS",
+      "attempt": "standalone-retry/001"
+    },
+    "status": "different",
+    "differing_pixels": 49333,
+    "max_channel_difference": 213,
+    "bounds": [
+      15,
+      5,
+      365,
+      810
+    ],
+    "diff": "artifacts/student-evidence/android/comparison/quiz-gateway-resumable-diff.png"
+  },
+  {
+    "id": "quiz-gateway-exhausted",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/quiz-gateway/native-parallel-student-qu-9dc4d-e-matches-the-device-inputs-mobile-380/android/quiz-gateway-exhausted.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "136b2945a14c725c3f1104ede24f9eed435a77d29dddb41285689a4bfa68acd5"
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/standalone-retry/001/results/2026-11-26_180306/Student quiz gateway attempt states/takeScreenshot/student-quiz-gateway-exhausted.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "ddabbeae1c93ecc5b23befc537f8a9ef4e747d98424804527f642f9b7d8882bb"
+    },
+    "native_scenario": {
+      "name": "Student quiz gateway attempt states",
+      "status": "SUCCESS",
+      "attempt": "standalone-retry/001"
+    },
+    "status": "different",
+    "differing_pixels": 51922,
+    "max_channel_difference": 240,
+    "bounds": [
+      15,
+      5,
+      365,
+      810
+    ],
+    "diff": "artifacts/student-evidence/android/comparison/quiz-gateway-exhausted-diff.png"
+  },
+  {
+    "id": "calendar-all",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/calendar/native-parallel-student-ca-55177-records-and-category-states-mobile-380/android/calendar-all.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "d132ce71d7af65f01c5aed0b1b55b7e2fefc72d7e9e7ed9113712a0635e3e1c5"
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/results/2026-11-26_175824/Student calendar reference inputs and category states/takeScreenshot/student-calendar-all.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "214ebe753f2160dc99140ebe19bac1dad01c0d8feb61de3544d1827f7f834c2f"
+    },
+    "native_scenario": {
+      "name": "Student calendar reference inputs and category states",
+      "status": "SUCCESS",
+      "attempt": "."
+    },
+    "status": "different",
+    "differing_pixels": 35196,
+    "max_channel_difference": 204,
+    "bounds": [
+      0,
+      5,
+      380,
+      810
+    ],
+    "diff": "artifacts/student-evidence/android/comparison/calendar-all-diff.png"
+  },
+  {
+    "id": "calendar-tutorial",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/calendar/native-parallel-student-ca-55177-records-and-category-states-mobile-380/android/calendar-tutorial.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "5b51961996090d8c1ac203864e3ada39618b3eec253e3c3ea80e59b7be3aa1d6"
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/results/2026-11-26_175824/Student calendar reference inputs and category states/takeScreenshot/student-calendar-tutorial.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "231002ee8a7bdb17f5bf1eef6d441b1b619f48ca066540c53fce5d88fd722799"
+    },
+    "native_scenario": {
+      "name": "Student calendar reference inputs and category states",
+      "status": "SUCCESS",
+      "attempt": "."
+    },
+    "status": "different",
+    "differing_pixels": 18006,
+    "max_channel_difference": 204,
+    "bounds": [
+      0,
+      5,
+      380,
+      810
+    ],
+    "diff": "artifacts/student-evidence/android/comparison/calendar-tutorial-diff.png"
+  },
+  {
+    "id": "calendar-empty-filter",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/calendar/native-parallel-student-ca-55177-records-and-category-states-mobile-380/android/calendar-empty-filter.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "9fd482eae185537ea81767f1d0738bf333af693616b75c9d66f4df0550eb1935"
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/results/2026-11-26_175824/Student calendar reference inputs and category states/takeScreenshot/student-calendar-empty-filter.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "1df94b969e8d968cfec4db0a492d1d2dbb8cf3c6203850fe31186eb0f557b27d"
+    },
+    "native_scenario": {
+      "name": "Student calendar reference inputs and category states",
+      "status": "SUCCESS",
+      "attempt": "."
+    },
+    "status": "different",
+    "differing_pixels": 14686,
+    "max_channel_difference": 204,
+    "bounds": [
+      0,
+      5,
+      380,
+      810
+    ],
+    "diff": "artifacts/student-evidence/android/comparison/calendar-empty-filter-diff.png"
+  },
+  {
+    "id": "course-detail-enrolled",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/course-detail/android/course-detail-enrolled.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "8657930b93806179d2301caccc8987d1888eee702b970f1f0870992b94e75ddf"
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/results/2026-11-26_175824/Student course and material reference enrolled/takeScreenshot/student-course-detail-enrolled.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "ad0b000b9fc1fda6d7572d3e219db602e601fa41a18da3a1ef8a95901f230572"
+    },
+    "native_scenario": {
+      "name": "Student course and material reference enrolled",
+      "status": "SUCCESS",
+      "attempt": "."
+    },
+    "status": "different",
+    "differing_pixels": 266760,
+    "max_channel_difference": 216,
+    "bounds": [
+      0,
+      5,
+      380,
+      817
+    ],
+    "diff": "artifacts/student-evidence/android/comparison/course-detail-enrolled-diff.png"
+  },
+  {
+    "id": "course-detail-unenrolled",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/course-detail/android/course-detail-unenrolled.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "bdd38c50766686267949f0fceccd7713e6609a5cd3688772ecc6e98d265feaf0"
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/results/2026-11-26_175824/Student course and material reference unenrolled/takeScreenshot/student-course-detail-unenrolled.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "cfedc8beab727471d47246db2ed8027e8a4fd3213bb7ecda9b7aef513b1009cd"
+    },
+    "native_scenario": {
+      "name": "Student course and material reference unenrolled",
+      "status": "SUCCESS",
+      "attempt": "."
+    },
+    "status": "different",
+    "differing_pixels": 264106,
+    "max_channel_difference": 216,
+    "bounds": [
+      0,
+      5,
+      380,
+      817
+    ],
+    "diff": "artifacts/student-evidence/android/comparison/course-detail-unenrolled-diff.png"
+  },
+  {
+    "id": "course-detail-revoked",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/course-detail/android/course-detail-revoked.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "bdd38c50766686267949f0fceccd7713e6609a5cd3688772ecc6e98d265feaf0"
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/results/2026-11-26_175824/Student course and material reference revoked/takeScreenshot/student-course-detail-revoked.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "d12270f48573690c824388f12cdacb18c956308ffa4cac67c26269461638a129"
+    },
+    "native_scenario": {
+      "name": "Student course and material reference revoked",
+      "status": "SUCCESS",
+      "attempt": "."
+    },
+    "status": "different",
+    "differing_pixels": 264082,
+    "max_channel_difference": 216,
+    "bounds": [
+      0,
+      5,
+      380,
+      817
+    ],
+    "diff": "artifacts/student-evidence/android/comparison/course-detail-revoked-diff.png"
+  },
+  {
+    "id": "material-list-enrolled",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/material-list/android/material-list-enrolled.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "987f100549d9edcadf10fbf526abc9fc6f722d2330be74c50d7d8c04ec56d597"
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/results/2026-11-26_175824/Student course and material reference enrolled/takeScreenshot/student-material-list-enrolled.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "a94f351229f384b39edcabd12d8be20063ad862fca6eeaf4b81101e4ba7102f2"
+    },
+    "native_scenario": {
+      "name": "Student course and material reference enrolled",
+      "status": "SUCCESS",
+      "attempt": "."
+    },
+    "status": "different",
+    "differing_pixels": 258890,
+    "max_channel_difference": 233,
+    "bounds": [
+      0,
+      5,
+      380,
+      817
+    ],
+    "diff": "artifacts/student-evidence/android/comparison/material-list-enrolled-diff.png"
+  },
+  {
+    "id": "material-list-unenrolled",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/material-list/android/material-list-unenrolled.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "36a7c1c77a606ddc350e52dafd86eeccb6d84b2f3c415b33a16bb070ae7ef76a"
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/results/2026-11-26_175824/Student course and material reference unenrolled/takeScreenshot/student-material-list-unenrolled.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "d134cddd9a3ce6bca74463d07cb32afd1e97975f196cfe24b2e9812a24307a53"
+    },
+    "native_scenario": {
+      "name": "Student course and material reference unenrolled",
+      "status": "SUCCESS",
+      "attempt": "."
+    },
+    "status": "different",
+    "differing_pixels": 251067,
+    "max_channel_difference": 233,
+    "bounds": [
+      0,
+      5,
+      380,
+      817
+    ],
+    "diff": "artifacts/student-evidence/android/comparison/material-list-unenrolled-diff.png"
+  },
+  {
+    "id": "material-list-revoked",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/material-list/android/material-list-revoked.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "36a7c1c77a606ddc350e52dafd86eeccb6d84b2f3c415b33a16bb070ae7ef76a"
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/results/2026-11-26_175824/Student course and material reference revoked/takeScreenshot/student-material-list-revoked.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "c6c27739a0a1bf5b8b997b53d8dbe8359d2561967708f89bdadcc7cac33f4574"
+    },
+    "native_scenario": {
+      "name": "Student course and material reference revoked",
+      "status": "SUCCESS",
+      "attempt": "."
+    },
+    "status": "different",
+    "differing_pixels": 251043,
+    "max_channel_difference": 233,
+    "bounds": [
+      0,
+      5,
+      380,
+      817
+    ],
+    "diff": "artifacts/student-evidence/android/comparison/material-list-revoked-diff.png"
+  },
+  {
+    "id": "material-reader-enrolled",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/material-reader/android/material-reader-enrolled.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "e91e85c3ddebab59b1c1e74382f2fa1bb711f0cf5da233d4055d023bf5951e9a"
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/results/2026-11-26_175824/Student course and material reference enrolled/takeScreenshot/student-material-reader-enrolled.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "d720e7cc9c5a9dde3d91db8ecc93e6c67809b82fa6ad362bcd450c17c8317da9"
+    },
+    "native_scenario": {
+      "name": "Student course and material reference enrolled",
+      "status": "SUCCESS",
+      "attempt": "."
+    },
+    "status": "blocked_renderer",
+    "reason": "The enrolled native reader uses the authorized fallback until the host installs the article renderer."
+  },
+  {
+    "id": "material-reader-unenrolled",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/material-reader/android/material-reader-unenrolled.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "4ae69a589d29ba7801ce57dde68ce680a09f778b717aa1b461a300639754d7f1"
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/results/2026-11-26_175824/Student course and material reference unenrolled/takeScreenshot/student-material-reader-unenrolled.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "bfa535047dd0f1ac5de56d91f04b58ccd2e755b527c08a4fdc14852d907bad7b"
+    },
+    "native_scenario": {
+      "name": "Student course and material reference unenrolled",
+      "status": "SUCCESS",
+      "attempt": "."
+    },
+    "status": "different",
+    "differing_pixels": 268054,
+    "max_channel_difference": 216,
+    "bounds": [
+      0,
+      5,
+      380,
+      817
+    ],
+    "diff": "artifacts/student-evidence/android/comparison/material-reader-unenrolled-diff.png"
+  },
+  {
+    "id": "material-reader-revoked",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/material-reader/android/material-reader-revoked.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "39e18ed4e396f55c09af77f488cf3bbe0203eea75277f1eb53612ec1f774d349"
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/results/2026-11-26_175824/Student course and material reference revoked/takeScreenshot/student-material-reader-revoked.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "6ce2f283c9bb5c8a8a3897b484bfd35355315be38d63b700cbade8fd6825e529"
+    },
+    "native_scenario": {
+      "name": "Student course and material reference revoked",
+      "status": "SUCCESS",
+      "attempt": "."
+    },
+    "status": "different",
+    "differing_pixels": 268028,
+    "max_channel_difference": 216,
+    "bounds": [
+      0,
+      5,
+      380,
+      817
+    ],
+    "diff": "artifacts/student-evidence/android/comparison/material-reader-revoked-diff.png"
+  },
+  {
+    "id": "results-mixed",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/results/native-parallel-student-re-3ff58--records-and-row-navigation-mobile-380/android/results-mixed.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "0b05c86c3b7750dbbb725cab094680a2450ab2660a47d2885a922cd17d42ec03"
+    },
+    "native": null,
+    "native_scenario": {
+      "name": "Student course results history states",
+      "status": "ERROR",
+      "attempt": "standalone-retry/002"
+    },
+    "status": "missing",
+    "reason": "One or both capture files are absent or ambiguous."
+  },
+  {
+    "id": "results-empty",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/results/native-parallel-student-re-3ff58--records-and-row-navigation-mobile-380/android/results-empty.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "ef42818df21af259f4f03d41931d5021d83836a0c484579b2aa8fe20afffbe0b"
+    },
+    "native": null,
+    "native_scenario": {
+      "name": "Student course results history states",
+      "status": "ERROR",
+      "attempt": "standalone-retry/002"
+    },
+    "status": "missing",
+    "reason": "One or both capture files are absent or ambiguous."
+  },
+  {
+    "id": "results-graded",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/results/native-parallel-student-re-3ff58--records-and-row-navigation-mobile-380/android/results-graded.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "bed92fe4f59aeacded3b4e02ac0e6e97c82d0c63898c56027b5495f62d153c3e"
+    },
+    "native": null,
+    "native_scenario": {
+      "name": "Student course results history states",
+      "status": "ERROR",
+      "attempt": "standalone-retry/002"
+    },
+    "status": "missing",
+    "reason": "One or both capture files are absent or ambiguous."
+  },
+  {
+    "id": "course-ranking-quiz",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/ranking/native-parallel-student-ra-ceefd-ves-the-podium-and-own-rank-mobile-380/android/course-ranking-quiz.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "728dec4d6cd69eb2ce9a36800836fe4f3096c93bfbacb916f8dc53a0d806440a"
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/results/2026-11-26_175824/Student course ranking podium and own rank/takeScreenshot/student-course-ranking-quiz.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "82223396c3df3e016d23ce84dd96a8c2350741dc9542f9c2da9fd04a77a0a528"
+    },
+    "native_scenario": {
+      "name": "Student course ranking podium and own rank",
+      "status": "SUCCESS",
+      "attempt": "."
+    },
+    "status": "different",
+    "differing_pixels": 44059,
+    "max_channel_difference": 213,
+    "bounds": [
+      0,
+      5,
+      380,
+      810
+    ],
+    "diff": "artifacts/student-evidence/android/comparison/course-ranking-quiz-diff.png"
+  },
+  {
+    "id": "course-ranking-simulation",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/ranking/native-parallel-student-ra-ceefd-ves-the-podium-and-own-rank-mobile-380/android/course-ranking-simulation.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "0337da40de12d5e2db34eca777e6a69f7878766808ca6d23baf1e03be36f0d9e"
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/results/2026-11-26_175824/Student course ranking podium and own rank/takeScreenshot/student-course-ranking-simulation.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "9a2ba9b9dfe0add0895aae53e152638d03c1f7596f8398fcd41957f8bbb4e2f7"
+    },
+    "native_scenario": {
+      "name": "Student course ranking podium and own rank",
+      "status": "SUCCESS",
+      "attempt": "."
+    },
+    "status": "different",
+    "differing_pixels": 25700,
+    "max_channel_difference": 213,
+    "bounds": [
+      0,
+      5,
+      380,
+      810
+    ],
+    "diff": "artifacts/student-evidence/android/comparison/course-ranking-simulation-diff.png"
+  },
+  {
+    "id": "course-ranking-unranked",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/ranking/native-parallel-student-ra-ceefd-ves-the-podium-and-own-rank-mobile-380/android/course-ranking-unranked.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "e51072d33af88cd5e0da6492b39d14e2e3f5826f8bec3a225217081e5b1dce12"
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/results/2026-11-26_175824/Student course ranking podium and own rank/takeScreenshot/student-course-ranking-unranked.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "1dfaa1ff049a280c3415feb9642976236fd2f983ce4cf32063b315bade0c4f6f"
+    },
+    "native_scenario": {
+      "name": "Student course ranking podium and own rank",
+      "status": "SUCCESS",
+      "attempt": "."
+    },
+    "status": "different",
+    "differing_pixels": 45612,
+    "max_channel_difference": 213,
+    "bounds": [
+      0,
+      5,
+      380,
+      810
+    ],
+    "diff": "artifacts/student-evidence/android/comparison/course-ranking-unranked-diff.png"
+  },
+  {
+    "id": "participation-ranking-global",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/ranking/native-parallel-student-ra-2c218-ce-follows-scope-and-period-mobile-380/android/participation-ranking-global.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "184bcd6705b8a095103ffffa49809f2d84ac846f191f2e5c98c285e80fde278a"
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/standalone-retry/001/results/2026-11-26_180306/Student participation ranking global and following filters/takeScreenshot/student-participation-ranking-global.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "3f93f16af789e6343c7d96c8d6ef095b0c5e9db4d9a7177ccac1106935898b46"
+    },
+    "native_scenario": {
+      "name": "Student participation ranking global and following filters",
+      "status": "SUCCESS",
+      "attempt": "standalone-retry/001"
+    },
+    "status": "different",
+    "differing_pixels": 20179,
+    "max_channel_difference": 213,
+    "bounds": [
+      0,
+      5,
+      380,
+      810
+    ],
+    "diff": "artifacts/student-evidence/android/comparison/participation-ranking-global-diff.png"
+  },
+  {
+    "id": "participation-ranking-following",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/ranking/native-parallel-student-ra-2c218-ce-follows-scope-and-period-mobile-380/android/participation-ranking-following.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "aa94ffce39e06afa20ed568462402b844dc4d3f69928e35aee0f089cab47b7da"
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/standalone-retry/001/results/2026-11-26_180306/Student participation ranking global and following filters/takeScreenshot/student-participation-ranking-following.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "a15dc1b0f74986eb1b2b3258eaa8297d18fa55705b9a06fb937d5fb7f45a0b5f"
+    },
+    "native_scenario": {
+      "name": "Student participation ranking global and following filters",
+      "status": "SUCCESS",
+      "attempt": "standalone-retry/001"
+    },
+    "status": "different",
+    "differing_pixels": 16645,
+    "max_channel_difference": 221,
+    "bounds": [
+      0,
+      5,
+      380,
+      810
+    ],
+    "diff": "artifacts/student-evidence/android/comparison/participation-ranking-following-diff.png"
+  },
+  {
+    "id": "participation-ranking-empty",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/ranking/native-parallel-student-ra-2c218-ce-follows-scope-and-period-mobile-380/android/participation-ranking-empty.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "cbdde1dbd9ca83a2c9070de016b5a1d11c2fcc1083736302b228b3f367d72ae9"
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/standalone-retry/001/results/2026-11-26_180306/Student participation ranking global and following filters/takeScreenshot/student-participation-ranking-empty.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "51f4cf90232421f63581d83a4a3da3681051c5cd16d04ca904ba2572ee06ed50"
+    },
+    "native_scenario": {
+      "name": "Student participation ranking global and following filters",
+      "status": "SUCCESS",
+      "attempt": "standalone-retry/001"
+    },
+    "status": "different",
+    "differing_pixels": 15882,
+    "max_channel_difference": 221,
+    "bounds": [
+      0,
+      5,
+      380,
+      810
+    ],
+    "diff": "artifacts/student-evidence/android/comparison/participation-ranking-empty-diff.png"
+  },
+  {
+    "id": "mastery-review",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/mastery/native-parallel-student-ma-69d13-ure-and-empty-state-actions-mobile-380/android/mastery-review.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "226a1ef5a2117ebabc360cc5705d78a691fc6df5ff3a612778f49e40782c0eda"
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/standalone-retry/001/results/2026-11-26_180306/Student mastery review and chapter coverage/takeScreenshot/student-mastery-review.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "1a4b6a91ab7cc2ee2790836307c2f3e176c0516353e768f161938f78052ba804"
+    },
+    "comparison_scope": "Mastery review, chapter expansion and empty learning state",
+    "native_scenario": {
+      "name": "Student mastery review and chapter coverage",
+      "status": "SUCCESS",
+      "attempt": "standalone-retry/001"
+    },
+    "status": "different",
+    "differing_pixels": 34700,
+    "max_channel_difference": 213,
+    "bounds": [
+      0,
+      5,
+      380,
+      810
+    ],
+    "diff": "artifacts/student-evidence/android/comparison/mastery-review-diff.png"
+  },
+  {
+    "id": "mastery-expanded",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/mastery/native-parallel-student-ma-69d13-ure-and-empty-state-actions-mobile-380/android/mastery-expanded.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "efb3af4fad164481c0846588100352c34e5f6b5b1f8976007a6ef6108138bf6f"
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/standalone-retry/001/results/2026-11-26_180306/Student mastery review and chapter coverage/takeScreenshot/student-mastery-expanded.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "d0a76a8f4deaa09625307d34261c12b389e660146627f2ab301236274d656325"
+    },
+    "comparison_scope": "Mastery review, chapter expansion and empty learning state",
+    "native_scenario": {
+      "name": "Student mastery review and chapter coverage",
+      "status": "SUCCESS",
+      "attempt": "standalone-retry/001"
+    },
+    "status": "different",
+    "differing_pixels": 43061,
+    "max_channel_difference": 216,
+    "bounds": [
+      0,
+      5,
+      380,
+      810
+    ],
+    "diff": "artifacts/student-evidence/android/comparison/mastery-expanded-diff.png"
+  },
+  {
+    "id": "mastery-empty",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/mastery/native-parallel-student-ma-69d13-ure-and-empty-state-actions-mobile-380/android/mastery-empty.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "40ebbb5307ac949bae3a22ce7e143de29cfbcb5f4f83dc2d10600103d75f3cd7"
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/standalone-retry/001/results/2026-11-26_180306/Student mastery review and chapter coverage/takeScreenshot/student-mastery-empty.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "4d7890b9177de8baa6f4ddd5da2b8167ee26c839fab2e04ea2f9ef2935af9728"
+    },
+    "comparison_scope": "Mastery review, chapter expansion and empty learning state",
+    "native_scenario": {
+      "name": "Student mastery review and chapter coverage",
+      "status": "SUCCESS",
+      "attempt": "standalone-retry/001"
+    },
+    "status": "different",
+    "differing_pixels": 26716,
+    "max_channel_difference": 213,
+    "bounds": [
+      0,
+      5,
+      380,
+      810
+    ],
+    "diff": "artifacts/student-evidence/android/comparison/mastery-empty-diff.png"
+  },
+  {
+    "id": "settings-id-light",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/settings/native-parallel-student-se-4895d-heme-as-the-native-fixtures-mobile-380/android/settings-id-light.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "953200598ab9ab6552d35a45bf8953bbe22414bce0f17c4e7d4d4efa0251c8a7"
+    },
+    "native": null,
+    "comparison_scope": "Settings language selection with contextual full-viewport capture",
+    "native_scenario": {
+      "name": "Student settings language selection states",
+      "status": "ERROR",
+      "attempt": "standalone-retry/002"
+    },
+    "status": "missing",
+    "reason": "One or both capture files are absent or ambiguous."
+  },
+  {
+    "id": "settings-en-light",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/settings/native-parallel-student-se-4895d-heme-as-the-native-fixtures-mobile-380/android/settings-en-light.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "47599f4b8496505bcc495abee94382ac3458ed051e4527cac5bc0017badb17ad"
+    },
+    "native": null,
+    "comparison_scope": "Settings language selection with contextual full-viewport capture",
+    "native_scenario": {
+      "name": "Student settings language selection states",
+      "status": "ERROR",
+      "attempt": "standalone-retry/002"
+    },
+    "status": "missing",
+    "reason": "One or both capture files are absent or ambiguous."
+  },
+  {
+    "id": "settings-id-dark",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/settings/native-parallel-student-se-4895d-heme-as-the-native-fixtures-mobile-380/android/settings-id-dark.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "da9e9375d2b4ff2c7c8d9b9114a6f3c5437f3b99d3331f27bdf7bd977f87d347"
+    },
+    "native": null,
+    "comparison_scope": "Settings language selection with contextual full-viewport capture",
+    "native_scenario": {
+      "name": "Student settings language selection states",
+      "status": "ERROR",
+      "attempt": "standalone-retry/002"
+    },
+    "status": "missing",
+    "reason": "One or both capture files are absent or ambiguous."
+  },
+  {
+    "id": "quiz-player-unanswered",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/quiz-player/native-parallel-student-qu-9f3da-very-at-both-device-extents-mobile-380/android/quiz-player-unanswered.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "4dc48ad4ae400c39b2a155de9c38e4857532bbeb86b1151eb26806494124e587"
+    },
+    "native": null,
+    "comparison_scope": "Quiz question, answer selection and flagged draft restoration",
+    "native_scenario": {
+      "name": "Student quiz player answer and draft states",
+      "status": "ERROR",
+      "attempt": "standalone-retry/002"
+    },
+    "status": "missing",
+    "reason": "One or both capture files are absent or ambiguous."
+  },
+  {
+    "id": "quiz-player-answered",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/quiz-player/native-parallel-student-qu-9f3da-very-at-both-device-extents-mobile-380/android/quiz-player-answered.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "5422ef9638a697f36096c089f9230a57eb04742e7c50bacb72155af5a88b1a9c"
+    },
+    "native": null,
+    "comparison_scope": "Quiz question, answer selection and flagged draft restoration",
+    "native_scenario": {
+      "name": "Student quiz player answer and draft states",
+      "status": "ERROR",
+      "attempt": "standalone-retry/002"
+    },
+    "status": "missing",
+    "reason": "One or both capture files are absent or ambiguous."
+  },
+  {
+    "id": "quiz-player-flagged-restored",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/student-evidence/reference/quiz-player/native-parallel-student-qu-9f3da-very-at-both-device-extents-mobile-380/android/quiz-player-flagged-restored.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "f11509510a3b862b0fcb747a71d4937fc52e3846045fec54da48c91b5164cd40"
+    },
+    "native": null,
+    "comparison_scope": "Quiz question, answer selection and flagged draft restoration",
+    "native_scenario": {
+      "name": "Student quiz player answer and draft states",
+      "status": "ERROR",
+      "attempt": "standalone-retry/002"
+    },
+    "status": "missing",
+    "reason": "One or both capture files are absent or ambiguous."
+  },
+  {
+    "id": "catalog-versus-enrolled-dashboard",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/visual-quality/results/native-parallel-student-we-a025d-ulated-filtered-and-loading-mobile-380/catalog-populated.png",
+      "width": 380,
+      "height": 844,
+      "sha256": "ce049a4e35d5d6820508accae7ef6671eda0c3a04315631f05c7904dadbb3986"
+    },
+    "native": {
+      "path": "artifacts/student-evidence/android/results/2026-11-26_175824/Student course enrolled fixture/takeScreenshot/student-enrolled-dashboard.png",
+      "width": 380,
+      "height": 820,
+      "sha256": "f168e12de8bd4a68751f0e212479de51b360e3ed4e8020f63b2c8ae771f7cbe2"
+    },
+    "status": "not_comparable",
+    "reason": "Different screen and synthetic course records; cannot compare pixels."
+  },
+  {
+    "id": "catalog-versus-unenrolled-dashboard",
+    "platform": "android",
+    "web": {
+      "path": "artifacts/student-evidence/web/visual-quality/results/native-parallel-student-we-a025d-ulated-filtered-and-loading-mobile-380/catalog-populated.png",
+      "width": 380,
+      "height": 844,
+      "sha256": "ce049a4e35d5d6820508accae7ef6671eda0c3a04315631f05c7904dadbb3986"
+    },
+    "native": null,
+    "status": "missing",
+    "reason": "One or both capture files are absent or ambiguous."
+  }
+]

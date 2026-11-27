@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getJakartaCalendarDate, isCalendarDate } from "@/lib/date-utils";
+import { getJakartaCalendarDate, isCalendarDate } from "./date-utils";
 
 const campaignSchema = z.object({
   percent: z.number().int().min(0).max(100),

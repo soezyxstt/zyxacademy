@@ -9,18 +9,15 @@ import {
   peran,
 } from "@/db/schema";
 import { assertAdmin } from "@/lib/auth/admin-guards";
-import { lockAuthoringIdentityChange } from "@/lib/auth/authoring-actor";
+import { adminUserRolesRevision, lockAdminUserRoles, replaceAdminUserRoles } from "@/lib/admin/user-roles";
 import { and, asc, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import {
   PERAN_CODES,
-  PERAN_SEEDS,
-  membershipIdFor,
-  peranIdFor,
   mapLegacyRole,
   type PeranCode,
 } from "@/lib/auth/peran";
 import { toIsoTimestamp } from "@/lib/date-utils";
-import { recordOfflineChange } from "@/lib/offline/server-events";
+import { adminUserStatusRevision, assertAdminUserStatusChange, assertWebUserStatusActor, lockAdminUserStatus, lockAdminUserStatusActors, updateAdminUserStatus } from "@/lib/admin/user-status";
 
 export type AdminUserItem = {
   id: string;
@@ -46,6 +43,7 @@ export type AdminUserStats = {
 };
 
 export type AdminUsersQuery = { page?: number; search?: string; role?: string; status?: string };
+type AdminUserRow = AdminUserItem & { statusRevision: string; roleSelection: ReturnType<typeof adminUserRolesRevision> };
 const USERS_PAGE_SIZE = 30;
 
 // Match the compatibility projection: canonical recognized roles win, then the
@@ -60,7 +58,7 @@ function hasRole(code: PeranCode) {
 }
 
 export async function getAdminUsersData(input: AdminUsersQuery = {}): Promise<{
-  users: AdminUserItem[];
+  users: AdminUserRow[];
   stats: AdminUserStats;
   currentUserId: string;
   total: number;
@@ -80,6 +78,7 @@ export async function getAdminUsersData(input: AdminUsersQuery = {}): Promise<{
     db.select({ id: user.id, name: user.name, email: user.email, image: user.image,
       emailVerified: user.emailVerified, legacyRole: user.role, createdAt: user.createdAt,
       updatedAt: user.updatedAt, lastActivityAt: user.lastActivityAt, penggunaStatus: pengguna.status,
+      penggunaUpdatedAt: pengguna.updatedAt, identityId: pengguna.id,
     }).from(user).leftJoin(pengguna, eq(user.id, pengguna.id)).where(condition)
       .orderBy(desc(user.createdAt), asc(user.id)).limit(USERS_PAGE_SIZE).offset((page - 1) * USERS_PAGE_SIZE),
     db.select({ count: sql<number>`count(*)` }).from(user).leftJoin(pengguna, eq(user.id, pengguna.id)).where(condition),
@@ -103,11 +102,12 @@ export async function getAdminUsersData(input: AdminUsersQuery = {}): Promise<{
       rolesByUser.set(row.penggunaId, list);
     }
   }
-  const users = userRows.map((u): AdminUserItem => {
+  const users = userRows.map((u): AdminUserRow => {
     const roles = rolesByUser.get(u.id) ?? [mapLegacyRole(u.legacyRole) ?? "murid"];
+    const { status, revision: statusRevision } = adminUserStatusRevision(u.id, u.penggunaStatus === "suspended" ? "suspended" : "active", u.penggunaUpdatedAt);
     return { id: u.id, name: u.name, email: u.email, image: u.image ?? null,
       emailVerified: Boolean(u.emailVerified), legacyRole: u.legacyRole ?? null, roles,
-      status: u.penggunaStatus === "suspended" ? "suspended" : "active",
+      status, statusRevision, roleSelection: adminUserRolesRevision(u.id, u.identityId === null ? roles : rolesByUser.get(u.id) ?? []),
       createdAt: toIsoTimestamp(u.createdAt), updatedAt: toIsoTimestamp(u.updatedAt),
       lastActivityAt: u.lastActivityAt ? toIsoTimestamp(u.lastActivityAt) : null };
   });
@@ -122,7 +122,7 @@ export async function updateUserRolesAction(
   targetUserId: string,
   newRoles: PeranCode[]
 ): Promise<{ success: boolean; error?: string }> {
-  const { user: currentAdmin } = await assertAdmin();
+  const { user: currentAdmin, session } = await assertAdmin();
 
   const cleanRoles = Array.from(new Set(newRoles)).filter((r): r is PeranCode =>
     PERAN_CODES.includes(r)
@@ -138,74 +138,17 @@ export async function updateUserRolesAction(
 
   try {
     await db.transaction(async (tx) => {
-      if (!(await lockAuthoringIdentityChange(tx, targetUserId))) throw new Error("Pengguna tidak ditemukan.");
-      // Ensure seed roles exist
-      for (const seed of PERAN_SEEDS) {
-        const existing = await tx
-          .select({ id: peran.id })
-          .from(peran)
-          .where(eq(peran.code, seed.code))
-          .limit(1);
-        if (existing.length === 0) {
-          await tx.insert(peran).values(seed);
-        }
-      }
-
-      // Ensure pengguna row exists
-      const existingPengguna = await tx
-        .select({ id: pengguna.id })
-        .from(pengguna)
-        .where(eq(pengguna.id, targetUserId))
-        .limit(1);
-
-      const now = new Date();
-      if (existingPengguna.length === 0) {
-        await tx.insert(pengguna).values({
-          id: targetUserId,
-          status: "active",
-          createdAt: now,
-          updatedAt: now,
-        });
-      }
-
-      // Remove existing roles
-      await tx
-        .delete(penggunaPeran)
-        .where(eq(penggunaPeran.penggunaId, targetUserId));
-
-      // Insert new roles
-      for (const role of cleanRoles) {
-        await tx.insert(penggunaPeran).values({
-          id: membershipIdFor(targetUserId, role),
-          penggunaId: targetUserId,
-          peranId: peranIdFor(role),
-          source: "admin_role_management",
-          auditActorPenggunaId: currentAdmin.id,
-          createdAt: now,
-        });
-      }
-
-      // Synchronize legacy user.role
-      const legacyRole = cleanRoles.includes("admin")
-        ? "admin"
-        : cleanRoles.includes("tutor")
-        ? "teacher"
-        : "student";
-
-      await tx
-        .update(user)
-        .set({
-          role: legacyRole,
-          updatedAt: now,
-        })
-        .where(eq(user.id, targetUserId));
-      await recordOfflineChange(tx, { kind: "access", userId: targetUserId, action: "invalidate" });
+      await lockAdminUserStatusActors(tx, currentAdmin.id, targetUserId);
+      await assertWebUserStatusActor(tx, currentAdmin.id, session?.session.id);
+      await lockAdminUserRoles(tx, targetUserId);
+      await replaceAdminUserRoles(tx, targetUserId, currentAdmin.id, cleanRoles);
     });
 
     revalidatePath("/admin/users");
     revalidatePath("/admin/schedules");
     return { success: true };
   } catch (error: any) {
+    if (error instanceof Error && error.message === "USER_NOT_FOUND") return { success: false, error: "Pengguna tidak ditemukan." };
     console.error("Error updating user roles:", error);
     return { success: false, error: error.message || "Gagal memperbarui peran pengguna." };
   }
@@ -215,44 +158,23 @@ export async function updateUserStatusAction(
   targetUserId: string,
   status: "active" | "suspended"
 ): Promise<{ success: boolean; error?: string }> {
-  const { user: currentAdmin } = await assertAdmin();
-
-  if (targetUserId === currentAdmin.id && status === "suspended") {
-    return { success: false, error: "Tidak dapat menangguhkan akun Anda sendiri." };
-  }
+  const { user: currentAdmin, session } = await assertAdmin();
 
   try {
+    assertAdminUserStatusChange(currentAdmin.id, targetUserId, status);
     await db.transaction(async tx => {
-      if (!(await lockAuthoringIdentityChange(tx, targetUserId))) throw new Error("Pengguna tidak ditemukan.");
-      const existing = await tx
-        .select({ id: pengguna.id })
-        .from(pengguna)
-        .where(eq(pengguna.id, targetUserId))
-        .limit(1);
-
-      const now = new Date();
-      if (existing.length === 0) {
-        await tx.insert(pengguna).values({
-          id: targetUserId,
-          status,
-          createdAt: now,
-          updatedAt: now,
-        });
-      } else {
-        await tx
-          .update(pengguna)
-          .set({
-            status,
-            updatedAt: now,
-          })
-          .where(eq(pengguna.id, targetUserId));
-      }
-      await recordOfflineChange(tx, { kind: "access", userId: targetUserId, action: "invalidate" });
+      await lockAdminUserStatusActors(tx, currentAdmin.id, targetUserId);
+      await assertWebUserStatusActor(tx, currentAdmin.id, session?.session.id);
+      const target = await lockAdminUserStatus(tx, targetUserId);
+      await updateAdminUserStatus(tx, target, currentAdmin.id, status);
     });
 
     revalidatePath("/admin/users");
     return { success: true };
   } catch (error: any) {
+    if (error.message === "SELF_SUSPENSION") return { success: false, error: "Tidak dapat menangguhkan akun Anda sendiri." };
+    if (error.message === "USER_NOT_FOUND") return { success: false, error: "Pengguna tidak ditemukan." };
+    if (error.message === "USER_IDENTITY_UNAVAILABLE") return { success: false, error: "Identitas pengguna belum tersedia." };
     console.error("Error updating user status:", error);
     return { success: false, error: error.message || "Gagal memperbarui status pengguna." };
   }

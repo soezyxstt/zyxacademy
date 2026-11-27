@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, beforeEach, expect, mock, test } from "bun:test";
+import type { MulticastMessage } from "firebase-admin/messaging";
 import { readFileSync } from "node:fs";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
@@ -11,10 +12,12 @@ const payload = { title: "Notice", body: "Update", type: "announcement" as const
 let client: PGlite;
 let testDb: ReturnType<typeof drizzle>;
 let registration: typeof import("@/app/api/notifications/register-token/route");
+let status: typeof import("@/app/api/notifications/status/route");
 let sessions: typeof import("@/app/api/account/sessions/route");
 let sender: typeof import("@/lib/notifications/send");
 let active = { user: { id: "owner" }, session: { id: "phone" } };
 const deliveries: string[] = [];
+const messages: MulticastMessage[] = [];
 const revoked: string[] = [];
 
 function req(path: string, method = "GET", body?: object) {
@@ -59,13 +62,15 @@ beforeAll(async () => {
   mock.module("next/headers", () => ({ headers: async () => new Headers({ cookie: "session=fake" }) }));
   mock.module("@/lib/firebase/admin", () => ({
     isFirebaseAdminConfigured: () => true,
-    adminMessaging: () => ({ sendEachForMulticast: async ({ tokens }: { tokens: string[] }) => {
-      deliveries.push(...tokens);
-      return { responses: tokens.map(() => ({ success: true })) };
+    adminMessaging: () => ({ sendEachForMulticast: async (message: MulticastMessage) => {
+      messages.push(message);
+      deliveries.push(...message.tokens);
+      return { responses: message.tokens.map(() => ({ success: true })) };
     } }),
   }));
   mock.module("@/lib/notifications/apns", () => ({
     isApnsConfigured: () => true,
+    getExpoIosApnsConfig: (environment: string) => environment === "development" ? {} : null,
     sendApnsNotifications: async () => ({ succeeded: 0, failedTokens: [], errors: [] }),
   }));
   mock.module("@/lib/i18n/preferences", () => ({ getUserLocalePreference: async () => "en" }));
@@ -74,6 +79,7 @@ beforeAll(async () => {
     deferredSendResult: () => ({ attempted: 0, succeeded: 0, failedTokens: [], errors: [] }),
   }));
   registration = await import("@/app/api/notifications/register-token/route");
+  status = await import("@/app/api/notifications/status/route");
   sessions = await import("@/app/api/account/sessions/route");
   sender = await import("@/lib/notifications/send");
 });
@@ -85,7 +91,7 @@ beforeEach(async () => {
     ('expired','expired-session-secret','owner',now()-interval '1 day'),
     ('foreign','foreign-session-secret','other',now()+interval '1 day');`);
   active = { user: { id: "owner" }, session: { id: "phone" } };
-  deliveries.length = 0; revoked.length = 0;
+  deliveries.length = 0; messages.length = 0; revoked.length = 0;
 });
 afterAll(async () => { await client?.close(); });
 
@@ -152,4 +158,81 @@ test("single and batched push skip expired or mismatched sessions while preservi
   expect(result.get("owner")).toMatchObject({ attempted: 2, succeeded: 2 });
   expect(deliveries.sort()).toEqual(["active-token", "legacy-token"].map(token).sort());
   expect(await testDb.select().from(userPushTokens)).toHaveLength(4);
+});
+
+test("Expo Android gets private inbox details only after the tap and lookup, for immediate and batched sends", async () => {
+  const register = await registration.POST(req("/api/notifications/register-token", "POST", {
+    token: token("expo"), device: "expo-android", platform: "android", transport: "fcm",
+  }));
+  expect(register.status).toBe(200);
+  await add("capacitor", "laptop");
+  const notice = {
+    title: "Grade for a student", body: "You scored 85", type: "quiz_graded" as const,
+    link: "/courses/private-course", imageUrl: "https://example.test/private.jpg",
+    notificationId: "9658a2c1-e9b3-4ad7-8e8b-b78b600273c3",
+    metadata: { threadId: "private discussion", notificationId: "untrusted" },
+  };
+  async function assertDelivery(send: () => Promise<unknown>) {
+    messages.length = 0;
+    await send();
+    expect(messages).toHaveLength(2);
+    const expo = messages.find(message => message.tokens.includes(token("expo")));
+    expect(expo).toEqual({
+      tokens: [token("expo")], data: { notificationId: notice.notificationId },
+      notification: { title: "Zyx Academy" },
+      android: { priority: "normal", notification: {
+        channelId: "zyx_learning", sound: "default", bodyLocKey: "zyx_inbox_new_notification", tag: `zyx:${notice.notificationId}`,
+      } },
+    });
+    const legacy = messages.find(message => message.tokens.includes(token("capacitor")));
+    expect(legacy?.notification).toMatchObject({ title: notice.title, body: notice.body, imageUrl: notice.imageUrl });
+  }
+  await assertDelivery(() => sender.sendPushToUserNow("owner", notice));
+  await assertDelivery(() => sender.sendPushToUsers([{ userId: "owner", payload: notice }]));
+  messages.length = 0;
+  await sender.sendPushToUserNow("owner", {
+    ...notice, notificationId: undefined,
+    metadata: { quietDigest: "true", groupKey: "quiet-digest", count: "19" },
+  });
+  const digest = messages.find(message => message.tokens.includes(token("expo")));
+  expect(digest?.data).toEqual({ quietDigest: "true", groupKey: "quiet-digest" });
+  expect(digest?.android?.notification?.tag).toBe("zyx:quiet-digest");
+});
+
+
+test("Expo iOS registration and rotation keep legacy and other APNs environments isolated", async () => {
+  const original = process.env.BETTER_AUTH_URL;
+  const environment = process.env.ZYX_ENVIRONMENT;
+  process.env.BETTER_AUTH_URL = "https://staging.zyxacademy.com";
+  process.env.ZYX_ENVIRONMENT = "staging";
+  const path = "/api/notifications/register-token";
+  const label = (device: string, token: string) => ({ platform: "ios", transport: "apns", device, token });
+  const cap = "a1".repeat(32), dev = "b2".repeat(32), prod = "c3".repeat(32), rotation = "d4".repeat(32);
+  try {
+    expect((await registration.POST(req(path, "POST", label("capacitor-ios", cap)))).status).toBe(200);
+    expect(await (await registration.POST(req(path, "POST", label("expo-ios-development", dev)))).json())
+      .toMatchObject({ transport: "apns", device: "expo-ios-development", transportActive: true });
+    expect(await (await registration.POST(req(path, "POST", label("expo-ios-production", prod)))).json())
+      .toMatchObject({ transport: "apns", device: "expo-ios-production", transportActive: false });
+    expect((await registration.POST(req(path, "POST", label("expo-ios-development", rotation)))).status).toBe(200);
+    expect((await registration.POST(req(path, "POST", label("capacitor-ios", prod)))).status).toBe(409);
+    expect((await registration.POST(req(path, "POST", label("expo-ios-unknown", dev)))).status).toBe(422);
+    const wrong = new NextRequest("https://www.zyxacademy.com" + path, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(label("expo-ios-development", dev)),
+    });
+    expect((await registration.POST(wrong)).status).toBe(422);
+    expect((await testDb.select().from(userPushTokens)).map(row => row.token).sort()).toEqual([cap, prod, rotation].sort());
+    const summary = await (await status.GET()).json();
+    expect(summary.apnsProfiles).toEqual({
+      capacitor: { configured: true, registeredCount: 1, active: true },
+      expoDevelopment: { configured: true, registeredCount: 1, active: true },
+      expoProduction: { configured: false, registeredCount: 1, active: false },
+    });
+    expect(summary.devices.find(({ device }: { device: string }) => device === "expo-ios-production").transportActive).toBe(false);
+    expect(JSON.stringify(summary)).not.toContain(prod);
+  } finally {
+    if (original === undefined) delete process.env.BETTER_AUTH_URL; else process.env.BETTER_AUTH_URL = original;
+    if (environment === undefined) delete process.env.ZYX_ENVIRONMENT; else process.env.ZYX_ENVIRONMENT = environment;
+  }
 });

@@ -6364,7 +6364,7 @@ export const codingDrafts = pgTable("coding_drafts", {
  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [primaryKey({ columns: [table.learnerId, table.courseId, table.draftKey] })]);
 
-/** Durable admin external-operation outbox. Running attempts are never automatically replayed. */
+/** Durable admin operation outbox. Running attempts are never automatically replayed. */
 export const adminOperationJobs = pgTable("admin_operation_jobs", {
   id: text("id").primaryKey(),
   actorId: text("actor_id").notNull().references(() => pengguna.id, { onDelete: "restrict" }),
@@ -6373,7 +6373,7 @@ export const adminOperationJobs = pgTable("admin_operation_jobs", {
   requiredScope: text("required_scope").notNull(),
   environment: text("environment").notNull(),
   payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
-  status: text("status").$type<"queued" | "running" | "succeeded" | "failed" | "unknown" | "cancelled">().default("queued").notNull(),
+  status: text("status").$type<"prepared" | "queued" | "running" | "succeeded" | "failed" | "unknown" | "cancelled">().default("queued").notNull(),
   result: jsonb("result").$type<Record<string, unknown>>(),
   errorCode: text("error_code"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull(),

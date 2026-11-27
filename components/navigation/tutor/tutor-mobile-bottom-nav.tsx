@@ -24,6 +24,7 @@ import {
   getActiveTutorBottomTab,
   getActiveTutorCourseIdFromPathname,
   resolveTutorCourseSwitchHref,
+  tutorMobileHrefs,
   type TutorCourseSummary,
 } from "./tutor-nav-model";
 
@@ -91,21 +92,21 @@ export function TutorMobileBottomNav({
         id: "home",
         label: tMobile("home"),
         icon: Home,
-        href: "/tutor",
+        href: tutorMobileHrefs.home,
         active: activeTab === "home",
       },
       {
         id: "schedule",
         label: tMobile("schedule"),
         icon: CalendarDays,
-        href: "/tutor/schedule",
+        href: tutorMobileHrefs.schedule,
         active: activeTab === "schedule",
       },
       {
         id: "discuss",
         label: tMobile("discuss"),
         icon: MessageSquareText,
-        href: "/tutor/discussions",
+        href: tutorMobileHrefs.discuss,
         active: activeTab === "discuss",
         badgeCount: unreadDiscussions,
         badgeLabel:

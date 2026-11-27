@@ -213,6 +213,16 @@ case fraction, without a speed bonus. Callbacks retain numeric coding correctnes
 in learning events and coding score in the saved result snapshot. Legacy choice
 sessions retain their scoring and callbacks.
 
+Expo Student uses the same room connection, coding problem, attempt history,
+and grade endpoints. It waits for the current room state, verifies the active
+participant and problem through Next, and keeps unconfirmed attempts in the
+existing account and session-scoped SQLite store. An explicit retry resends the
+same request ID and frozen code/input. Hints and full review use the same Zyra
+exercise policy. The general Zyra launcher is unavailable in the live route.
+Practice uses the existing interactive terminal and only displays public examples.
+Programs that wait for stdin EOF can be graded through Submit, which supplies a
+finite test input to the trusted evaluator.
+
 Deploy the Next app and realtime Worker together after applying the local-tested
 migration to the explicitly selected environment. A preexisting deployed Worker
 will reject the new service operations until updated. No deployment or remote

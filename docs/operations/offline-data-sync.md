@@ -8,7 +8,7 @@ Android and desktop start from bundled files and probe the configured origin bef
 
 The bundled library and browser `/offline` put downloaded Article/Diktat readings first. The library management control exposes the last authorized course and material lists, video links and thumbnails, achievement definitions, refresh and storage controls.
 
-Shared metadata excludes achievement ownership, scores, private formative evaluators and assessment answers. Video entries contain links and optional thumbnails, not the video stream. The bundled reader uses local fonts and math styles. Remote interactive documents and server actions still need a connection.
+Expo uses the same scoped course manifests and offline catalog endpoints for the Courses, Videos and Achievements sections. Video rows open the verified native player when connected. The app retains bounded thumbnail bytes with their resource lease. Achievement rows contain definitions and thresholds. Shared metadata excludes achievement ownership, scores, private formative evaluators and assessment answers. Video streams remain online-only. The bundled reader uses local fonts and math styles. Remote interactive documents and server actions still need a connection.
 
 The browser library uses the student application shell. The native recovery document uses the same student destination links and responsive controls. Saved-reading search works locally. Online-only destinations retry the configured server and keep the library open when it cannot be reached. The connection label appears in the content.
 
@@ -49,11 +49,15 @@ The shared controller checks on account start, app resume, reconnect, live hints
 
 Stream reconnects use bounded retry delays and do not postpone the active fallback check. A hint arriving during synchronization queues another pass. An unchanged cursor skips the change-log scan and unrelated events do not trigger catalog fetches. Each stream poll checks the current session. The native recovery shell uses the authenticated active check interval and reconnect events because its bridge transports bounded responses. Browser contexts with Web Locks serialize same-scope writes and use BroadcastChannel to notify other tabs with active readers.
 
+Expo verifies the current session and Student role before resuming observed course metadata sync after foreground entry or confirmed reconnection. On backgrounding, confirmed disconnection or loss of verified session access, it cancels metadata work and rejects late results. Expo does not register a background sync task.
+
 Sync validates response identity, removes revoked resources, persists invalidations and reconciles affected course manifests before acknowledging its cursor. Mounted readers keep the current version until the learner accepts an ordinary update. Explicit deletion clears the old reading and refreshes the authorized route. Grant changes are checked without waiting for confirmation. A missing, future or expired cursor requests a full authorized manifest. Duplicate events and late requests cannot lower a stored version. Failed downloads retain the previous complete package and leave the update pending.
 
 Routine checks use the authorized manifest to refresh verification timestamps and leases for complete, current readings with matching revisions. Per-reading requests still recover changed, incomplete, invalidated, stale or expired packages and revalidate saved readings after a cursor reset.
 
 Expired course outlines and video catalogs are checked even when the manifest is still fresh. An authenticated 304 rebuilds the library entries from the stored body under the current course lease and chapter scope. Cached images whose previous lease does not cover the renewed catalog are omitted until a body and its assets are fetched again.
+
+Expo renders Article sections and Diktat Markdown with the shared snapshot generator. It embeds KaTeX fonts and only images whose saved asset URL matches the package and language. The local document opens in a script-disabled view with external navigation and requests disabled. Interactive material uses its static authored representation where available.
 
 Article/Diktat packages include admitted images. The client downloads a candidate, checks required assets, account generation and space limits, then replaces the active package. The asset proxy admits only an exact URL belonging to the current resource and never forwards private cookies to public thumbnail hosts. Required asset failure prevents replacement.
 
@@ -80,9 +84,9 @@ Admins can request checks for all data, one course or one material, using title 
 
 ## Storage and offline access
 
-The first online Article or Diktat visit records only a bounded visit marker for the account, origin, language and resource. The local ledger retains up to two visit IDs per resource and the 1,000 most recently visited resources per scope. Watching an open reader for changes does not admit a reading package. Starting with the second distinct visit, the client can fetch the package and required images when current access, policy, network and storage permit. Reloading the page starts a new visit. Rendering the same reading again or refreshing its content props within the mounted reader keeps the same visit. Existing saved packages continue to synchronize. Use the offline library to manage explicit downloads and pins.
+The first online Article or Diktat visit records only a bounded visit marker for the account, origin, language and resource. The local ledger retains up to two visit IDs per resource and the 1,000 most recently visited resources per scope. Watching an open reader for changes does not admit a reading package. Starting with the second distinct visit, web and Expo can fetch an unpinned package and its required images when current access, policy, network and storage permit. Expo checks the live native connection before the resource and asset requests when Wi-Fi only is enabled. Reloading the page starts a new visit. Rendering the same reading again or refreshing its content props within the mounted reader keeps the same visit. Existing saved packages continue to synchronize. Use the offline library to manage explicit downloads and pins.
 
-Automatic cache entries can be removed to make room. Explicit downloads stay pinned until removed or access ends. Pinning preserves the user's download choice, not permanent authorization. If pinned data fills the limit, a new download reports a storage problem instead of silently removing a saved download.
+Automatic cache entries can be removed to make room. Explicit downloads stay pinned until removed or access ends. Pinning preserves the user's download choice, and every open still requires a current lease. In Expo, unpinning permits eviction when the current account and language need room. Storage usage shows the bytes, limit and pin count for this scope. Clearing downloads preserves the authorized material list and prevents requests started before the clear from restoring downloads. If pinned data fills the limit, a new download reports a storage problem.
 
 Native and web libraries and saved readers show Offline once as muted text when the device is disconnected. The indicator takes up no space while connected. Reconnection leaves the current reading open. Learners can choose Buka aplikasi to return to the web app. Sync progress, failed requests, expired access and empty storage retain their own messages. Release channel selection still uses the configured environment. Reading position belongs to its account and material. A content update must not mix private state into another account.
 
@@ -109,7 +113,7 @@ Resource headers include `x-offline-*` identity, cursor, revision and validation
 
 Existing publication, academic, video and access tools receive invalidation through the same services. The event consumers authorize and translate course IDs under the current server origin and account. The revalidation request uses the same authenticated clients on staging and production. This change adds no MCP tools and does not change OAuth scopes, consent, discovery, packaged skills, playbooks, host prompts or environment bindings. Policy editing and manual revalidation are intentionally admin-UI-only, as recorded in `lib/admin-mcp/operations-catalog.ts`.
 
-The reader admission threshold and the library, reader and native shell connectivity presentation are device-local. The existing desktop recovery and admin policy entries in the operations catalog still cover the affected workflows. Native origin lookup and web API calls use the existing clients and environment bindings.
+The reader admission threshold and the library, reader and native shell connectivity presentation are device-local. The existing desktop recovery and admin policy entries in the operations catalog still cover the affected workflows. Native origin lookup and web API calls use the existing clients and environment bindings. The Expo reading renderer accepts the verified package supplied by the app ledger and has no new tools, remote calls, or authorization rules.
 
 ## Rollout and evidence
 

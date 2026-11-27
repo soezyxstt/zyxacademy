@@ -1,0 +1,45 @@
+{
+  "sha": "06b00165073af67fa581f5a7a7407b2fd3b3b16a",
+  "locale": "id-ID",
+  "timeZone": "Asia/Jakarta",
+  "captures": [
+    {
+      "id": "home-populated",
+      "screen": "home",
+      "theme": "light",
+      "viewport": {
+        "width": 402,
+        "height": 874
+      },
+      "dpr": 3,
+      "viewportScreenshot": "home-populated-light-402-dpr3.png",
+      "url": "http://localhost:3211/monitoring?screen=home&mode=populated&theme=light"
+    },
+    {
+      "id": "web-populated",
+      "screen": "web",
+      "theme": "light",
+      "viewport": {
+        "width": 402,
+        "height": 874
+      },
+      "dpr": 3,
+      "viewportScreenshot": "web-populated-light-402-dpr3.png",
+      "url": "http://localhost:3211/monitoring?screen=web&mode=populated&theme=light"
+    },
+    {
+      "id": "features-30-days",
+      "screen": "features",
+      "theme": "light",
+      "viewport": {
+        "width": 402,
+        "height": 874
+      },
+      "dpr": 3,
+      "viewportScreenshot": "features-30-days-light-402-dpr3.png",
+      "url": "http://localhost:3211/monitoring?screen=features&mode=populated&theme=light"
+    }
+  ],
+  "failures": [],
+  "errors": []
+}
