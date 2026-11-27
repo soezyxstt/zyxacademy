@@ -3,6 +3,10 @@ name: Sign in as a staff role and open its protected record
 ---
 - launchApp:
     clearState: true
+- extendedWaitUntil:
+    visible:
+      id: native-auth-google
+    timeout: 30000
 - openLink: "${PREVIEW_SIGN_IN_URL}"
 - extendedWaitUntil:
     visible:

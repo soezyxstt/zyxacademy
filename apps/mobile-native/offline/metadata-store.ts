@@ -21,6 +21,7 @@ const maxCatalogBytes = 1536 * 1024;
 const maxReadingInvalidations = 512;
 export const EXPO_OFFLINE_DATABASE_NAME = "zyx-offline-reading-metadata.db";
 export const offlineMetadataSchema = `
+  PRAGMA busy_timeout = 5000;
   PRAGMA secure_delete = ON;
   CREATE TABLE IF NOT EXISTS offline_reading_metadata_v1 (
     origin TEXT NOT NULL,

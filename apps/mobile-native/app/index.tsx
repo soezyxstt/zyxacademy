@@ -1,4 +1,4 @@
-import { Redirect } from "expo-router";
+import { Redirect, useIsFocused } from "expo-router";
 import { useNetworkState } from "expo-network";
 import { deviceIsOffline } from "../offline/reading-access";
 import { ActivityIndicator } from "react-native";
@@ -7,8 +7,10 @@ import { authLocale } from "../auth/auth-copy";
 import { useNativeSession } from "../auth/session-provider";
 
 export default function InternalAppEntry() {
+  const isFocused = useIsFocused();
   const { state } = useNativeSession();
   const network = useNetworkState();
+  if (!isFocused) return null;
   if (process.env.EXPO_PUBLIC_PARITY_WEBVIEW === "1" || process.env.EXPO_PUBLIC_PARITY_CAPTURE_NAVIGATION === "1") {
     return <Redirect href="/gallery/separator" />;
   }

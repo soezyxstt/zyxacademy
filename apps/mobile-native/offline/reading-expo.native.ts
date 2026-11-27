@@ -1,13 +1,12 @@
 import { CryptoDigestAlgorithm, digest } from "expo-crypto";
-import { openDatabaseAsync } from "expo-sqlite";
 
-import { EXPO_OFFLINE_DATABASE_NAME } from "./metadata-store";
+import { openExpoOfflineDatabase } from "./database-expo.native";
 import { createOfflineReadingStore, type NativeOfflineReadingStore } from "./reading-store";
 
 let repository: Promise<NativeOfflineReadingStore> | undefined;
 
 export function openExpoOfflineReadingStore(): Promise<NativeOfflineReadingStore> {
-  repository ??= openDatabaseAsync(EXPO_OFFLINE_DATABASE_NAME)
+  repository ??= openExpoOfflineDatabase()
     .then(db => createOfflineReadingStore(db))
     .catch(error => {
       repository = undefined;

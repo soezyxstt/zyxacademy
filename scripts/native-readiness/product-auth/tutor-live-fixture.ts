@@ -61,7 +61,7 @@ export function createTutorLiveFixture() {
         await tx.insert(aiQuestionBank).values(questionIds.map((id, index) => ({
           id, courseId: legacyId, prompt: "Soal Live Preview " + (index + 1), options: ["Pilihan A", "Pilihan B"],
           correctIndices: [0], explanation: "Penjelasan soal Live Preview.", reviewStatus: "published" as const,
-          ...(index === 0 ? { origin: "historical_reference" as const, sourceEventName: "Seleksi Preview",
+          ...(index === 0 ? { origin: "historical_reference" as const, quizEligible: true, sourceEventName: "Seleksi Preview",
             sourceReferenceId: legacyId + "-reference" } : {}),
         }))).onConflictDoNothing();
         await tx.insert(quizTemplates).values({

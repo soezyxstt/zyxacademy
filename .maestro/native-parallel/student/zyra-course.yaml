@@ -20,9 +20,9 @@ name: Student Zyra renders and recovers an interactive canvas
 - tapOn:
     id: student-zyra-question
 - inputText: Explain the limit
+- hideKeyboard
 - tapOn:
     id: student-zyra-send
-- hideKeyboard
 - extendedWaitUntil:
     visible: Parameters
     timeout: 20000
@@ -73,9 +73,9 @@ name: Student Zyra renders and recovers an interactive canvas
 - tapOn:
     id: student-zyra-question
 - inputText: Explain continuity
+- hideKeyboard
 - tapOn:
     id: student-zyra-send
-- hideKeyboard
 - extendedWaitUntil:
     visible: "Your question may have been saved.*"
     timeout: 20000

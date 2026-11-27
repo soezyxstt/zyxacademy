@@ -236,11 +236,19 @@ export function createOfflineReadingStore(db: OfflineReadingDatabase, now = Date
   let writer: Promise<unknown> = Promise.resolve();
   async function exclusive<T>(work: (tx: Connection) => Promise<T>): Promise<T> {
     let value: T | undefined;
-    await db.withExclusiveTransactionAsync(async tx => {
-      await tx.execAsync("PRAGMA busy_timeout = 2000; PRAGMA secure_delete = ON");
-      value = await work(tx);
-    });
-    return value as T;
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await db.withExclusiveTransactionAsync(async tx => {
+          await tx.execAsync("PRAGMA busy_timeout = 5000; PRAGMA secure_delete = ON");
+          value = await work(tx);
+        });
+        return value as T;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error ?? "");
+        if (attempt >= 5 || !/SQLITE_BUSY|database is locked|database table is locked/i.test(message)) throw error;
+        await new Promise(resolve => setTimeout(resolve, 25 * (attempt + 1)));
+      }
+    }
   }
   function initialize() {
     // A downgraded client can recreate the old tables, so clear them on every new repository open.
