@@ -16,9 +16,14 @@ type Bundle = Awaited<ReturnType<typeof parseStagedProductBundle>>;
 type Verification = Awaited<ReturnType<typeof getProductV4VerificationReadiness>> | null;
 type EvidenceRow = typeof buktiPdfBundle.$inferSelect;
 
+/** Published imports may retain a pre-split receipt solely for historical delivery. */
+function historicalPdfRef(row: typeof imporBundle.$inferSelect) {
+  return (row.validationReport.productV4PdfGeneration ?? row.validationReport.productV4Verification) as { stagingAuditId?: unknown; planHash?: unknown; attemptId?: unknown } | undefined;
+}
+
 export async function readPublishedDiktatReceipt(row: typeof imporBundle.$inferSelect) {
-  const ref = row.validationReport.productV4Verification as { stagingAuditId?: unknown; planHash?: unknown; attemptId?: unknown } | undefined;
-  if (row.status !== "published" || row.version !== 4 || typeof ref?.stagingAuditId === "string" || typeof ref?.planHash !== "string" || !/^[a-f0-9]{64}$/.test(ref.planHash) || typeof ref.attemptId !== "string" || !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(ref.attemptId)) return null;
+  const ref = historicalPdfRef(row);
+  if (row.status !== "published" || row.version !== 4 || typeof ref?.planHash !== "string" || !/^[a-f0-9]{64}$/.test(ref.planHash) || typeof ref.attemptId !== "string" || !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(ref.attemptId)) return null;
   const [{ storage }, { resolveAuthSecret }] = await Promise.all([import("@/lib/storage"), import("@/lib/auth-secret")]);
   const bytes = await readProductVerificationObject(storage, buildProductVerificationKey(ref.planHash, `receipt-${ref.attemptId}.json`));
   if (!bytes || bytes.byteLength > 5 * 1024 * 1024 || !process.env.BETTER_AUTH_SECRET) return null;
@@ -31,8 +36,8 @@ export async function readPublishedDiktatReceipt(row: typeof imporBundle.$inferS
 /** Historical preview only. This identity never supplies publication evidence. */
 export async function publishedDiktatPreviewBindings(connection: Pick<typeof db, "select">, row: typeof imporBundle.$inferSelect, bundle: Bundle, rows: EvidenceRow[], receipt: ProductV4VerificationReceipt | null) {
   const bindings = new Map<string, ProductV4PdfBinding>();
-  const ref = row.validationReport.productV4Verification as { stagingAuditId?: unknown; planHash?: unknown; attemptId?: unknown } | undefined;
-  if (row.status !== "published" || row.version !== 4 || !row.courseId || typeof ref?.stagingAuditId === "string" || !receipt || receipt.planHash !== ref?.planHash || typeof ref.attemptId !== "string") return bindings;
+  const ref = historicalPdfRef(row);
+  if (row.status !== "published" || row.version !== 4 || !row.courseId || !receipt || receipt.planHash !== ref?.planHash || typeof ref.attemptId !== "string") return bindings;
   const [publication] = await connection.select({ id: publikasiBundle.id }).from(publikasiBundle).where(and(eq(publikasiBundle.imporBundleId, row.id), eq(publikasiBundle.status, "published"))).limit(1).for("share");
   if (!publication) return bindings;
   for (const product of bundle.products) {
@@ -86,8 +91,8 @@ export async function getDiktatPdfContext(importId: string, productId: string, e
   if (!/^[a-f0-9]{64}$/.test(expectedRevision) || row.checksum !== expectedRevision) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
   const bundle = await parseStagedProductBundle(importId);
   if (bundle.checksum !== expectedRevision) throw new Error("PRODUCT_BUNDLE_STALE_CONTEXT");
-  const ref = row.validationReport.productV4Verification as { runId?: unknown } | undefined;
-  const verification = row.version === 4 && typeof ref?.runId === "string" ? await getProductV4VerificationReadiness(importId, ref.runId).catch(() => null) : null;
+  const ref = row.validationReport.productV4PdfGeneration as { runId?: unknown } | undefined;
+  const verification = row.version === 4 && typeof ref?.runId === "string" ? await getProductV4VerificationReadiness(importId, ref.runId, "pdf").catch(() => null) : null;
   const historicalReceipt = await readPublishedDiktatReceipt(row);
   const selected = await db.transaction(async tx => {
     const [locked] = await tx.select().from(imporBundle).where(eq(imporBundle.id, importId)).limit(1).for("update");

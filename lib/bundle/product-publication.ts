@@ -697,7 +697,7 @@ export async function assertCurrentProductV4Review(input: {
   const recorded = z.object({ ...productV4ReviewContextShape, criteria: z.array(pedagogicRubricItemSchema) }).parse(approval.rubric);
   validateProductV4ReviewContext({ articles, importId: input.importId, checksum: input.checksum, fingerprint: input.fingerprint,
     review: { ...recorded, decision: "approved", expectedRevision: input.checksum, policyVersion: QUALITY_POLICY_VERSION, contentFingerprint: input.fingerprint },
-    verification: { ready: input.verification.evaluation.ready, planHash: input.verification.plan.planHash, importId: input.importId, receiptSignature: (input.verification.receipt as { signature?: string } | null)?.signature ?? "" },
+    verification: { purpose: input.verification.plan.binding.purpose ?? "logic", ready: input.verification.evaluation.ready, planHash: input.verification.plan.planHash, importId: input.verification.plan.binding.importId, receiptSignature: (input.verification.receipt as { signature?: string } | null)?.signature ?? "" },
   });
 }
 
@@ -740,11 +740,20 @@ export async function publishProductBundle(input: { importId: string; publishedB
   const isV5 = bundle.manifest.schemaVersion === "product-bundle.v5";
   if (hasProductBundleDependencyBlock(bundle)) throw new Error("PRODUCT_BUNDLE_DEPENDENCY_NEEDS_REVIEW");
   let v4Verification: Awaited<ReturnType<typeof getProductV4VerificationReadiness>> | undefined;
+  let v4PdfVerification: Awaited<ReturnType<typeof getProductV4VerificationReadiness>> | null = null;
   if (isV4) {
     const ref = snapshot.validationReport.productV4Verification as { runId?: unknown; planHash?: unknown } | undefined;
     if (typeof ref?.runId !== "string" || typeof ref.planHash !== "string") throw new Error("PRODUCT_V4_VERIFICATION_REQUIRED");
     v4Verification = (revisionPublicationVerification(input.importId) as typeof v4Verification) ?? await (await import("./product-v4-verification-service")).getProductV4VerificationReadiness(input.importId, ref.runId);
-    if (!v4Verification.evaluation.ready || v4Verification.plan.planHash !== ref.planHash) throw new Error("PRODUCT_V4_VERIFICATION_REQUIRED");
+    if (!v4Verification.evaluation.ready || v4Verification.plan.binding.purpose !== "logic" || v4Verification.plan.planHash !== ref.planHash) throw new Error("PRODUCT_V4_VERIFICATION_REQUIRED");
+    if (bundle.products.some(product => product.productType === "diktat")) {
+      const pdfRef = snapshot.validationReport.productV4PdfGeneration as { runId?: unknown; planHash?: unknown } | undefined;
+      if (typeof pdfRef?.runId === "string" && typeof pdfRef.planHash === "string") {
+        const prepared = revisionPublicationVerification(input.importId, "pdf") as typeof v4PdfVerification | undefined;
+        v4PdfVerification = prepared === undefined ? await (await import("./product-v4-verification-service")).getProductV4VerificationReadiness(input.importId, pdfRef.runId, "pdf").catch(() => null) : prepared;
+        if (v4PdfVerification?.plan.binding.purpose !== "pdf" || v4PdfVerification.plan.planHash !== pdfRef.planHash) v4PdfVerification = null;
+      }
+    }
   }
   // A new exact receipt uses new attempt keys. Preserve the published version's
   // key only after reading its bytes against that receipt, then recheck the key
@@ -758,7 +767,7 @@ export async function publishProductBundle(input: { importId: string; publishedB
     const download = storage.download?.bind(storage);
     for (const product of reusedDiktats) {
       const existingKey = existingPdfs.find(row => row.id === targetId(product))?.fileKey;
-      const binding = resolveProductV4PdfBinding({ importId: input.importId, diktatId: product.id, validationReport: snapshot.validationReport, verification: v4Verification });
+      const binding = resolveProductV4PdfBinding({ importId: input.importId, diktatId: product.id, validationReport: snapshot.validationReport, verification: v4PdfVerification });
       if (!existingKey || !binding || existingKey === binding.storageKey) continue;
       if (!download) throw new Error("PRODUCT_DIKTAT_PDF_STORAGE_UNAVAILABLE");
       if (await verifyCanonicalProductPdf({ existingKey, binding, read: download })) verifiedCanonicalPdfs.set(targetId(product), existingKey);
@@ -815,6 +824,7 @@ export async function publishProductBundle(input: { importId: string; publishedB
           tx,
           pdfEvidence: pdfEvidenceRows,
           v4Verification,
+          v4PdfVerification,
         },
       );
 
@@ -903,7 +913,7 @@ export async function publishProductBundle(input: { importId: string; publishedB
           const pdfEvidence = selectProductPdfEvidence({
             rows: pdfEvidenceRows, imporBundleId: input.importId, ...lineage, diktatId: product.id,
             diktatHash: product.generationHash,
-            v4Binding: isV4 ? resolveProductV4PdfBinding({ importId: input.importId, diktatId: product.id, validationReport: row.validationReport, verification: v4Verification }) : undefined,
+            v4Binding: isV4 ? resolveProductV4PdfBinding({ importId: input.importId, diktatId: product.id, validationReport: row.validationReport, verification: v4PdfVerification }) : undefined,
           });
           if (pdfEvidence?.status !== "ready" || !pdfEvidence.storageKey || pdfEvidence.articleVersion !== lineage.articleVersion || pdfEvidence.articleHash !== lineage.articleHash || pdfEvidence.diktatHash !== product.generationHash) throw new Error(`PRODUCT_DIKTAT_PDF_NOT_READY:${product.id}`);
           const original = bundle.products.find((candidate) => candidate.productType === "diktat" && candidate.id === product.id && candidate.version === product.version);

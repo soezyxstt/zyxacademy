@@ -7,6 +7,7 @@ type ReleaseContext = {
   tx: Tx;
   replacements: ReadonlySet<string>;
   verifications: ReadonlyMap<string, unknown>;
+  pdfVerifications?: ReadonlyMap<string, unknown>;
   unchangedProducts?: ReadonlySet<string>;
   dispatchCourses: Set<string>;
 };
@@ -27,7 +28,10 @@ export function revisionPublicationTransaction<T>(operation: (tx: Tx) => Promise
 export function canReplaceRevisionEntity(type: string, id: string): boolean {
   return releaseContext.getStore()?.replacements.has(revisionEntityKey(type, id)) ?? false;
 }
-export function revisionPublicationVerification(importId: string) { return releaseContext.getStore()?.verifications.get(importId); }
+export function revisionPublicationVerification(importId: string, purpose: "logic" | "pdf" = "logic") {
+  const context = releaseContext.getStore();
+  return purpose === "pdf" ? context?.pdfVerifications?.get(importId) : context?.verifications.get(importId);
+}
 export function reusesRevisionProduct(type: string, id: string, version: number) {
   return releaseContext.getStore()?.unchangedProducts?.has(JSON.stringify([type, id, version])) ?? false;
 }

@@ -107,10 +107,12 @@ test("prospective graph is exact and covers each Idea, source, excerpt and depen
 
 test("prepare writes an immutable attestation, invalidates old applicability, and is idempotent", async () => {
   const row = await currentProduct();
-  await testDb.update(schema.imporBundle).set({ validationReport: { ...row.validationReport, productV4Verification: { attemptId: "old" }, productV4PdfEvidence: { attemptId: "old" } } }).where(eq(schema.imporBundle.id, row.id));
+  await testDb.update(schema.imporBundle).set({ validationReport: { ...row.validationReport, productV4Verification: { attemptId: "old" }, productV4PdfGeneration: { attemptId: "old-pdf" }, productV4PdfEvidence: { attemptId: "old" } } }).where(eq(schema.imporBundle.id, row.id));
   const first = await service.prepareRevisionVerification({ actorId: "admin", entries });
   expect(first.invalidated).toBe(true);
   expect((await currentProduct()).validationReport.productV4Verification).toBeUndefined();
+  expect((await currentProduct()).validationReport.productV4PdfGeneration).toBeUndefined();
+  expect((await currentProduct()).validationReport.productV4PdfEvidence).toBeUndefined();
   const resolved = await service.resolveRevisionVerificationContext({ row: await currentProduct(), bundle: candidateProduct.bundle, rows: [] });
   expect(resolved.contextDigest).toBe(first.digest);
   expect(resolved.rows.find(row => row.type === "idea")?.version).toBe(2);

@@ -19,18 +19,18 @@ const proofSchema = z.object({ schema: z.literal("product-v4-reuse-proof.v1"), s
 const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value));
 const digest = (value: unknown) => createHash("sha256").update(deterministicProductSerialization(value)).digest("hex");
 
-/** Captures must come from the same signed observation as the exact PDF bytes. */
+/** The signed observation binds the complete PDF bytes and bounded page count. */
 export function hasCompleteProductV4PrintCapture(proof: ProductV4ObservedCheck | null): proof is ProductV4ObservedCheck {
-  if (!proof || proof.status !== "PASS" || !proof.pageCount) return false;
+  if (!proof || proof.status !== "PASS" || !proof.pageCount || !Number.isInteger(proof.pageCount) || proof.pageCount < 1 || proof.pageCount > 4) return false;
   const pdfs = proof.artifacts.filter(artifact => artifact.mediaType === "application/pdf");
-  const pages = proof.artifacts.filter(artifact => artifact.mediaType === "image/png");
-  return pdfs.length === 1 && pages.length === proof.pageCount &&
-    Array.from({ length: proof.pageCount }, (_, index) => index + 1).every(page => pages.some(artifact => artifact.pageNumber === page));
+  return pdfs.length === 1 && pdfs[0].bytes.byteLength > 5 && Buffer.from(pdfs[0].bytes.subarray(0, 5)).toString() === "%PDF-";
 }
 
 /** Structure and dependency admission always run against the complete current bundle. */
 export function productV4ReuseScope(snapshot: ProductV4VerificationSnapshot, plan: ProductV4VerificationPlan, requirement: ProductV4VerificationRequirement, captureOffset: number, captureLimit: number | null): ReuseScope | null {
-  if (requirement.layer === "structure" || !plan.binding.executionOrigin || !plan.binding.browserProvider || !plan.binding.browserVersion || !plan.binding.targetInputHashes) return null;
+  if (requirement.layer === "structure" || !plan.binding.executionOrigin || !plan.binding.targetInputHashes) return null;
+  if (plan.binding.purpose === "pdf" && (!plan.binding.browserProvider || !plan.binding.browserVersion)) return null;
+  if ((plan.binding.purpose ?? "logic") === "logic" && !plan.binding.logicChecksum) return null;
   const candidates = snapshot.bundle.products.filter(product => (product.productType === "article" || product.productType === "diktat") &&
     (product.id === requirement.target || (product.visuals ?? []).some(visual => `${product.id}/${visual.id}` === requirement.target) || formativeDocumentFields([product]).some(field => field.target === requirement.target)));
   if (candidates.length !== 1) return null;

@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { deriveProductV4PdfEvidence } from "@/lib/compute/product-v4-pdf-evidence";
-import { recordProductV4VerificationReport, runProductV4Verification } from "@/lib/bundle/product-v4-verification";
+import { deriveProductV4VerificationPlan, recordProductV4VerificationReport, runProductV4Verification } from "@/lib/bundle/product-v4-verification";
 import { fixture, hash, authority, attemptId } from "../fixtures/product-learning/pdf-verification-receipt";
 
 test("promotes the exact verified PDF artifact with existing lineage/profile metadata", async () => {
@@ -12,6 +12,7 @@ test("promotes the exact verified PDF artifact with existing lineage/profile met
   expect(rows[0].pageCount).toBe(1);
   expect(rows[0].storageKey).toContain(`/artifact-${attemptId}-`);
   expect(rows[0].storageKey!.endsWith(".pdf")).toBe(true);
+  expect(input.plan.requirements.every(check => check.artifactType !== "image/png")).toBe(true);
 });
 
 test("rejects stale attempts, untrusted reports, failed checks, wrong targets and changed bytes", async () => {
@@ -30,11 +31,19 @@ test("rejects stale attempts, untrusted reports, failed checks, wrong targets an
   expect(() => deriveProductV4PdfEvidence({ ...input, artifactBytes: changed })).toThrow("ARTIFACT_MISMATCH");
 });
 
-test("rejects PDF page counts that disagree with captured pages", async () => {
+test("accepts PDF-only evidence without screenshots but rejects missing page counts", async () => {
   const input = await fixture();
   const receipt = await runProductV4Verification(input.plan, authority, async (required) => {
     const original = input.checks.find((check) => check.checkId === required.id)!;
-    return { ...original, ...(required.artifactType === "application/pdf" ? { pageCount: 2 } : {}) };
+    return { ...original, ...(required.artifactType === "application/pdf" ? { pageCount: undefined } : {}) };
   });
   expect(() => deriveProductV4PdfEvidence({ ...input, receipt })).toThrow("VERIFICATION_REQUIRED");
+});
+
+test("logic receipts never attach PDF evidence", async () => {
+  const input = await fixture();
+  const binding = { ...input.plan.binding, purpose: "logic" as const, logicChecksum: hash };
+  const plan = deriveProductV4VerificationPlan({ bundle: input.snapshot.bundle, binding });
+  const receipt = await runProductV4Verification(plan, authority, async required => ({ ...input.checks.find(check => check.checkId === required.id)!, checkId: required.id }));
+  expect(() => deriveProductV4PdfEvidence({ ...input, plan, receipt, snapshot: { ...input.snapshot, binding, verificationPlanHash: plan.planHash } })).toThrow("EVIDENCE_STALE");
 });

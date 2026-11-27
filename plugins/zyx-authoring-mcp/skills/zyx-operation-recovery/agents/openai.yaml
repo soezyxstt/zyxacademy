@@ -1,4 +1,4 @@
 interface:
   display_name: "Zyx Operation Recovery"
   short_description: "Recover exact operations without duplicate effects"
-  default_prompt: "Use $zyx-operation-recovery on the original environment and actor. Separate OAuth, bootstrap/run recovery, receipts and domain jobs. Request verification when its current plan is not started; polling alone does not start work. Preserve original mutation identity and payload, inspect uncertain outcomes, and follow the configured provider without direct queue calls. Use only the zyx-stg MCP connection; use advertised tool names and keep dotted operation arguments unchanged."
+  default_prompt: "Use $zyx-operation-recovery on the original environment and actor. Separate OAuth, bootstrap, domain jobs and V4 purposes: logic is browser-free; pdf prepares final Diktat artifacts. Keep the same purpose and current plan for request, read and retry, inspect uncertain outcomes, and never create direct queue tasks. Use only the zyx-stg MCP connection; use advertised tool names and keep dotted operation arguments unchanged."

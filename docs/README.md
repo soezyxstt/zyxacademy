@@ -25,13 +25,13 @@ docs/
 ├── public-showcase.md                        # Public Engineering Case Study
 │
 ├── bundle/                                   # Canonical Authoring and Bundle Contracts
-│   ├── authoring-agent-workflow.md           # Agent-Friendly Idea/Product Drafts, Local Preview, and Compact Mode
+│   ├── authoring-agent-workflow.md           # Agent-Friendly Drafts, Compact Reads, Logic Checks, and Final PDFs
 │   ├── authoring-context-pack-v1.md          # Authoring Context Pack V1 Export & Security Contract
 │   ├── authoring-job-pack-v1.md              # Authoring Job Pack V1 and Source Pack Provenance
-│   ├── authoring-revisions.md                # Flexible Stable-ID Revisions, Atomic Releases, and Restore
+│   ├── authoring-revisions.md                # Stable-ID Revisions, Purpose-Bound Evidence, Atomic Releases, and Restore
 │   ├── idea-bundle-v3.md                     # Idea Bundle V3 Contract
 │   ├── product-bundle-v3.md                  # Product Bundle V3 Compatibility Contract
-│   ├── product-bundle-v4.md                  # Default Product Bundle V4 Contract (Article, Diktat, Visuals, Flashcards)
+│   ├── product-bundle-v4.md                  # Product V4 Contract, Browser-Free Logic, and Final Diktat PDFs
 │   └── product-bundle-v5.md                  # Product Bundle V5 Contract (Standalone Solution Collections)
 │
 └── operations/                               # Active Operational Runbooks and Checklists
@@ -42,7 +42,7 @@ docs/
     ├── offline-data-sync.md                  # Offline cache and native recovery
     ├── admin-mcp.md                          # Admin MCP Operations, Scopes, and Tool Catalog
     ├── agent-first-content.md                # Agent-First Content Operations (Blog, Forms, Media, Recovery)
-    ├── authoring-mcp-skills.md               # Authoring MCP Skills Build, Pinning, and Distribution
+    ├── authoring-mcp-skills.md               # Authoring MCP Skills, Purpose Contracts, Build, Pinning, and Distribution
     ├── mcp-host-compatibility.md             # MCP OAuth Consent, Tool Schemas, and Host Compatibility
     └── public-demo-seeding.md                # Public Demo Snapshot Policy and Guarded Seeding
 ```
@@ -63,8 +63,8 @@ docs/
 | Document | Category | Status | Purpose and Scope |
 | --- | --- | --- | --- |
 | [README.md](README.md) | Index | `ACTIVE` | Master documentation taxonomy and lifecycle status registry. |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Architecture | `ACTIVE` | Full-stack topology (Next.js 16.3, Neon PostgreSQL/Storage/Functions, Cloudflare AI Gateway/Vectorize/Workers, Capacitor 7, Tauri v2), separated mobile/desktop shells, saved account sessions, canonical authoring, Zyra quota/retrieval, and bilingual routing. |
-| [features.md](features.md) | Product | `ACTIVE` | Authoritative catalog of Student, Tutor, Admin, Public, Native App, Zyra AI, Discussions, Calendar Sync, Form Studio, Gamification/Pet Studio, and MCP workflows. |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Architecture | `ACTIVE` | Full-stack topology (Next.js 16.3, Neon PostgreSQL/Storage/Functions, Cloudflare AI Gateway/Vectorize/Workers, Capacitor 7, Tauri v2), separated mobile/desktop shells, saved account sessions, canonical authoring with separate V4 logic and final PDF plans, Zyra quota/retrieval, and bilingual routing. |
+| [features.md](features.md) | Product | `ACTIVE` | Authoritative catalog of Student, Tutor, Admin, Public, Native App, Zyra AI, Discussions, Calendar Sync, Form Studio, Gamification/Pet Studio, and MCP workflows with browser-free V4 logic and explicit final PDFs. |
 | [DATABASE.md](DATABASE.md) | Database | `ACTIVE` | Neon PostgreSQL staging/production targets, private Neon Object Storage, Drizzle migration workflow (`drizzle-postgres/`), and schema domain overview. |
 | [DB_SCHEMA.md](DB_SCHEMA.md) | Database | `ACTIVE` | PostgreSQL schema reference covering all 244 tables in `db/schema.ts` through migration `0041_discussion_search_indexes.sql`. |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Development | `ACTIVE` | Local setup, Bun commands, dependency-scoped CI planner, environment variables, 8 active feature flags, AI Gateway catalog/probes, bilingual catalogs, Google Calendar token rotation, and local V4 verification. |
@@ -89,13 +89,13 @@ docs/
 
 | Document | Category | Status | Purpose and Scope |
 | --- | --- | --- | --- |
-| [bundle/authoring-agent-workflow.md](bundle/authoring-agent-workflow.md) | Bundle Contract | `ACTIVE` | Typed V4/V5 creation, paged compact discovery, checksum-cached contracts, bounded diagnostics and exact target proof reuse. |
+| [bundle/authoring-agent-workflow.md](bundle/authoring-agent-workflow.md) | Bundle Contract | `ACTIVE` | Typed V4/V5 creation, compact discovery and cached contracts, browser-free V4 logic, explicit final PDFs and bounded purpose-aware recovery. |
 | [bundle/authoring-context-pack-v1.md](bundle/authoring-context-pack-v1.md) | Bundle Contract | `ACTIVE` | Export format, determinism, and security boundaries for Authoring Context Packs. |
 | [bundle/authoring-job-pack-v1.md](bundle/authoring-job-pack-v1.md) | Bundle Contract | `ACTIVE` | Authoring Job Pack V1 structure, Source Pack provenance, and skill integration. |
-| [bundle/authoring-revisions.md](bundle/authoring-revisions.md) | Bundle Contract | `ACTIVE` | Stable-ID edits, explicit derived-content review, immutable lineage, bounded release planning, proof reuse and atomic V3+ releases. |
+| [bundle/authoring-revisions.md](bundle/authoring-revisions.md) | Bundle Contract | `ACTIVE` | Stable-ID edits, explicit derived-content review, immutable lineage, separate logic/PDF plans, unchanged PDF reuse and atomic V3+ releases. |
 | [bundle/idea-bundle-v3.md](bundle/idea-bundle-v3.md) | Bundle Contract | `ACTIVE` | Atomic Idea extraction, learning sections, provenance, and revision-bound MCP lifecycle. |
 | [bundle/product-bundle-v3.md](bundle/product-bundle-v3.md) | Bundle Contract | `TRANSITIONAL / LEGACY` | Read compatibility and legacy revision lifecycle for Product Bundle V3. |
-| [bundle/product-bundle-v4.md](bundle/product-bundle-v4.md) | Bundle Contract | `ACTIVE` | Default V4 contract for Articles, Diktats, flashcards and trusted verification with current-target proofs and cold-proof fallback. |
+| [bundle/product-bundle-v4.md](bundle/product-bundle-v4.md) | Bundle Contract | `ACTIVE` | V4 Articles, Diktats and flashcards; browser-free logic and semantic review; explicit final canonical Diktat PDFs without screenshot or visual-review gates. |
 | [bundle/product-bundle-v5.md](bundle/product-bundle-v5.md) | Bundle Contract | `ACTIVE` | Standalone reviewed solution collections, scoped headless review/publication, and learner access boundaries. |
 
 ### Operational Runbooks
@@ -109,7 +109,7 @@ docs/
 | [operations/offline-data-sync.md](operations/offline-data-sync.md) | Operations | `ACTIVE` | Admin mutation coverage, account-scoped caches, reconnect and revocation checks, and native recovery. |
 | [operations/admin-mcp.md](operations/admin-mcp.md) | Operations | `ACTIVE` | Admin MCP endpoint (`/api/mcp/authoring`), OAuth scopes, native outbox isolation, mutation boundaries, and supported tool catalog. |
 | [operations/agent-first-content.md](operations/agent-first-content.md) | Operations | `ACTIVE` | Agent-first MCP workflows for blog, forms, media, and committed-mutation receipt recovery. |
-| [operations/authoring-mcp-skills.md](operations/authoring-mcp-skills.md) | Operations | `ACTIVE` | Build-time pinned skills catalog (`authoring-skills.lock.json`), distribution, and host verification. |
+| [operations/authoring-mcp-skills.md](operations/authoring-mcp-skills.md) | Operations | `ACTIVE` | Pinned skills catalog, source 0.5.6 logic/PDF purposes, optional PDF runtime diagnostics, distribution and separate host verification. |
 | [operations/mcp-host-compatibility.md](operations/mcp-host-compatibility.md) | Operations | `ACTIVE` | Streamable HTTP MCP OAuth consent (46 grouped permissions), tool schemas, and host compatibility boundaries. |
 | [operations/public-demo-seeding.md](operations/public-demo-seeding.md) | Operations | `ACTIVE` | First-chapter Free content policy, V2 JSONB snapshot validation, and guarded seeding for `/demo`. |
 

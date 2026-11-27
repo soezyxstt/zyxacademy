@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import { resolve } from "node:path";
 import { productBundleManifestSchema, productEntitySchema } from "@/lib/bundle/product-validator";
-import { PRODUCT_V4_RUNTIME_FILES, readProductV4RuntimeFingerprint, assertProductV4RuntimeFingerprint, buildProductV4RuntimeBinding, expectedChromiumRuntime, loadProductV4StaticFigureAssets, productV4DependencyChecksum, resolveProductV4LoadedRuntime, type ProductV4LiveDependency } from "@/lib/compute/product-v4-runtime-binding";
+import { PRODUCT_V4_LOGIC_RUNTIME_FILES, PRODUCT_V4_RUNTIME_FILES, readProductV4LogicRuntimeFingerprint, readProductV4RuntimeFingerprint, assertProductV4LogicRuntimeFingerprint, assertProductV4RuntimeFingerprint, buildProductV4RuntimeBinding, expectedChromiumRuntime, loadProductV4StaticFigureAssets, productV4DependencyChecksum, resolveProductV4LoadedRuntime, type ProductV4LiveDependency } from "@/lib/compute/product-v4-runtime-binding";
 import { loadDiktatWorkerAssets } from "@/lib/compute/product-diktat-worker-assets";
 
 const hash = "a".repeat(64);
@@ -16,11 +16,13 @@ const rows: ProductV4LiveDependency[] = [
   { type: "source_chunk", id: "excerpt", courseId: "course", version: 1, hash, status: "active", sourceId: "source" },
 ];
 const runtime = { rendererChecksum: hash, fontChecksum: hash, contractChecksum: hash, playbookChecksum: hash, printProfile: "fixed-a4" };
+const logicRuntime = { logicChecksum: hash, contractChecksum: hash, playbookChecksum: hash };
 const ports = {
   async course() { return { id: "course", legacyCourseId: "legacy-course" }; },
   async figure(): Promise<never> { throw new Error("No figures expected"); },
   async download(): Promise<Uint8Array> { throw new Error("No bytes expected"); },
   async dependencies() { return rows; }, async runtime() { return runtime; },
+  async logicRuntime() { return logicRuntime; },
 };
 const row = { id: "import", bundleId: "bundle", bundleType: "product" as const, courseId: "legacy-course", checksum: hash, updatedAt: new Date() };
 
@@ -39,6 +41,7 @@ const articleReadingRuntimeFiles = [
 const articleReadingPackageManifests = [
   "node_modules/@tanstack/react-query/package.json", "node_modules/@tanstack/query-core/package.json",
 ] as const;
+const markdownValidationRuntimeFiles = ["lib/markdown-compiler.ts", "lib/ast-validator.ts"] as const;
 
 test("extracted article and query runtime dependencies remain in the API source trace", async () => {
   const { default: createConfig } = await import("../../next.config");
@@ -53,9 +56,13 @@ test("extracted article and query runtime dependencies remain in the API source 
     expect(PRODUCT_V4_RUNTIME_FILES).toContain(path);
     expect(includes.some(pattern => new Bun.Glob(pattern).match(`./${path}`)), path).toBe(true);
   }
+  for (const path of ["lib/zyra/canvas/validator.ts", "lib/tutor/visual-contracts.ts", "lib/flowchart.ts", ...markdownValidationRuntimeFiles] as const) {
+    expect(PRODUCT_V4_LOGIC_RUNTIME_FILES).toContain(path);
+    expect(includes.some(pattern => new Bun.Glob(pattern).match(`./${path}`)), path).toBe(true);
+  }
 });
 
-test("changing extracted article sources or Query versions invalidates renderer evidence", async () => {
+test("changing article sources, Markdown validation or Query versions invalidates renderer evidence", async () => {
   const webRuntime = process.env.NEXT_PUBLIC_V4_WEB_RUNTIME;
   const computeRuntime = process.env.ZYX_COMPUTE_RUNTIME;
   const readFile = fs.readFileSync;
@@ -74,12 +81,13 @@ test("changing extracted article sources or Query versions invalidates renderer 
     delete process.env.NEXT_PUBLIC_V4_WEB_RUNTIME;
     delete process.env.ZYX_COMPUTE_RUNTIME;
     const baseline = await readProductV4RuntimeFingerprint();
-    for (const path of [...articleReadingRuntimeFiles, ...articleReadingPackageManifests]) {
+    for (const path of [...articleReadingRuntimeFiles, ...articleReadingPackageManifests, ...markdownValidationRuntimeFiles]) {
       changedPath = resolve(path);
       intercepted = false;
       const changed = await readProductV4RuntimeFingerprint();
       expect(intercepted).toBe(true);
       expect(changed.rendererChecksum).not.toBe(baseline.rendererChecksum);
+      if ((markdownValidationRuntimeFiles as readonly string[]).includes(path)) expect(changed.contractChecksum).not.toBe(baseline.contractChecksum);
       expect(() => assertProductV4RuntimeFingerprint(baseline, changed)).toThrow("RUNTIME_MISMATCH:rendererChecksum");
     }
   } finally {
@@ -115,7 +123,23 @@ test("binding is independent of mutable evidence attachment timestamps and row o
   const changedTime = { ...row, updatedAt: new Date(0) };
   expect(await buildProductV4RuntimeBinding({ row: changedTime, bundle, runId: "run" }, { ...ports, dependencies: async () => [...rows].reverse() })).toEqual(first);
   expect(first.revision).toBe(Number.parseInt(hash.slice(0, 8), 16) + 1);
-  expect((await buildProductV4RuntimeBinding({ row, bundle, runId: "run" }, { ...ports, runtime: async () => ({ ...runtime, rendererChecksum: "b".repeat(64) }) })).rendererChecksum).not.toBe(first.rendererChecksum);
+  expect((await buildProductV4RuntimeBinding({ row, bundle, runId: "run" }, { ...ports, logicRuntime: async () => ({ ...logicRuntime, logicChecksum: "b".repeat(64) }) })).logicChecksum).not.toBe(first.logicChecksum);
+});
+
+test("logic binding never requests browser identity or renderer and font fingerprints", async () => {
+  const provider = process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER;
+  const version = process.env.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION;
+  try {
+    process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER = "invalid-provider";
+    process.env.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION = "invalid-version";
+    const binding = await buildProductV4RuntimeBinding({ row, bundle, runId: "run" }, { ...ports,
+      runtime: async (): Promise<never> => { throw new Error("BROWSER_RUNTIME_FORBIDDEN"); } });
+    expect(binding).toMatchObject({ purpose: "logic", ...logicRuntime });
+    for (const key of ["browserProvider", "browserVersion", "rendererChecksum", "fontChecksum", "printProfile"]) expect(binding).not.toHaveProperty(key);
+  } finally {
+    if (provider === undefined) delete process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER; else process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER = provider;
+    if (version === undefined) delete process.env.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION; else process.env.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION = version;
+  }
 });
 
 test("live dependency closure rejects stale versions, hashes, statuses, course and excerpt scope", () => {
@@ -177,22 +201,81 @@ test("Next serverless verification uses its validated embedded build identity", 
   }
 });
 
+test("logic build identity requires its own real manifest and ignores PDF runtime fields", async () => {
+  const previous = process.env.NEXT_PUBLIC_V4_WEB_RUNTIME;
+  try {
+    process.env.NEXT_PUBLIC_V4_WEB_RUNTIME = JSON.stringify({ ...runtime, logicFingerprint: logicRuntime });
+    expect(await readProductV4LogicRuntimeFingerprint()).toEqual(logicRuntime);
+    expect(await readProductV4RuntimeFingerprint()).toEqual(runtime);
+    process.env.NEXT_PUBLIC_V4_WEB_RUNTIME = JSON.stringify({ rendererChecksum: "invalid", fontChecksum: "invalid", logicFingerprint: logicRuntime });
+    expect(await readProductV4LogicRuntimeFingerprint()).toEqual(logicRuntime);
+    for (const invalid of [{ ...runtime }, { ...runtime, logicFingerprint: { ...logicRuntime, logicChecksum: "invalid" } }]) {
+      process.env.NEXT_PUBLIC_V4_WEB_RUNTIME = JSON.stringify(invalid);
+      await expect(readProductV4LogicRuntimeFingerprint()).rejects.toThrow("LOGIC_BUILD_RUNTIME_INVALID");
+    }
+    for (const key of ["logicChecksum", "contractChecksum", "playbookChecksum"] as const) expect(() => assertProductV4LogicRuntimeFingerprint(logicRuntime, { ...logicRuntime, [key]: "b".repeat(64) })).toThrow(`LOGIC_RUNTIME_MISMATCH:${key}`);
+  } finally {
+    if (previous === undefined) delete process.env.NEXT_PUBLIC_V4_WEB_RUNTIME; else process.env.NEXT_PUBLIC_V4_WEB_RUNTIME = previous;
+  }
+});
+
+test("logic fingerprint changes with validator code but does not read browser or font files", async () => {
+  const webRuntime = process.env.NEXT_PUBLIC_V4_WEB_RUNTIME;
+  const computeRuntime = process.env.ZYX_COMPUTE_RUNTIME;
+  const readFile = fs.readFileSync;
+  let changedPath: string | undefined;
+  let intercepted = false;
+  const read = spyOn(fs, "readFileSync").mockImplementation(((...args: Parameters<typeof fs.readFileSync>) => {
+    const filename = String(args[0]);
+    if (filename.includes("playwright") || /katex[\\/]dist[\\/]/.test(filename) || filename.endsWith("app/globals.css")) throw new Error("LOGIC_BROWSER_OR_FONT_READ_FORBIDDEN");
+    const content = Reflect.apply(readFile, fs, args) as string | Buffer;
+    if (filename !== changedPath) return content;
+    intercepted = true;
+    const updated = `${content.toString()}\n// Changed logical validation dependency.\n`;
+    return typeof content === "string" ? updated : Buffer.from(updated);
+  }) as typeof fs.readFileSync);
+  try {
+    delete process.env.NEXT_PUBLIC_V4_WEB_RUNTIME;
+    delete process.env.ZYX_COMPUTE_RUNTIME;
+    const baseline = await readProductV4LogicRuntimeFingerprint();
+    expect(baseline.logicChecksum).toMatch(/^[a-f0-9]{64}$/);
+    for (const file of ["lib/zyra/canvas/validator.ts", "lib/zyra/canvas/expression.ts", "lib/materials/epsilon-delta.ts", "lib/compute/product-v4-verification-executor.ts", "lib/materials/quality-gates.ts", "lib/materials/diktat-visual-snapshot.ts", ...markdownValidationRuntimeFiles]) {
+      changedPath = resolve(file); intercepted = false;
+      const changed = await readProductV4LogicRuntimeFingerprint();
+      expect(intercepted).toBe(true);
+      expect(changed.logicChecksum).not.toBe(baseline.logicChecksum);
+      if ((markdownValidationRuntimeFiles as readonly string[]).includes(file)) expect(changed.contractChecksum).not.toBe(baseline.contractChecksum);
+      expect(() => assertProductV4LogicRuntimeFingerprint(baseline, changed)).toThrow("LOGIC_RUNTIME_MISMATCH:logicChecksum");
+    }
+    for (const file of ["lib/bundle/product-diktat-pdf.ts", "lib/bundle/product-pdf-selection.ts", "lib/materials/diktat-print-readiness.ts", "lib/materials/diktat-renderer-policy.ts", "lib/materials/diktat-static-visual.ts", "lib/materials/diktat-scene-svg.ts", "lib/materials/pdf-artifact-contract.ts"] as const) {
+      expect(PRODUCT_V4_LOGIC_RUNTIME_FILES).not.toContain(file);
+      changedPath = resolve(file); intercepted = false;
+      expect(await readProductV4LogicRuntimeFingerprint()).toEqual(baseline);
+      expect(intercepted).toBe(false);
+    }
+  } finally {
+    read.mockRestore();
+    if (webRuntime === undefined) delete process.env.NEXT_PUBLIC_V4_WEB_RUNTIME; else process.env.NEXT_PUBLIC_V4_WEB_RUNTIME = webRuntime;
+    if (computeRuntime === undefined) delete process.env.ZYX_COMPUTE_RUNTIME; else process.env.ZYX_COMPUTE_RUNTIME = computeRuntime;
+  }
+});
+
 test("provider and reviewed browser version bind separate plans and cannot reuse receipts", async () => {
   const { deriveProductV4VerificationPlan } = await import("@/lib/bundle/product-v4-verification");
   const beforeProvider = process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER;
   const beforeVersion = process.env.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION;
   try {
     process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER = "cloudflare";
-    const cf = await buildProductV4RuntimeBinding({ row, bundle, runId: "run" }, ports);
+    const cf = await buildProductV4RuntimeBinding({ row, bundle, runId: "run", purpose: "pdf" }, ports);
     process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER = "steel";
     process.env.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION = cf.browserVersion;
-    const steel = await buildProductV4RuntimeBinding({ row, bundle, runId: "run" }, ports);
+    const steel = await buildProductV4RuntimeBinding({ row, bundle, runId: "run", purpose: "pdf" }, ports);
     const cfPlan = deriveProductV4VerificationPlan({ bundle, binding: cf });
     const steelPlan = deriveProductV4VerificationPlan({ bundle, binding: steel });
     expect(steel.browserProvider).toBe("steel");
     expect(steelPlan.planHash).not.toBe(cfPlan.planHash);
     process.env.AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION = "140.0.1.2";
-    const changed = await buildProductV4RuntimeBinding({ row, bundle, runId: "run" }, ports);
+    const changed = await buildProductV4RuntimeBinding({ row, bundle, runId: "run", purpose: "pdf" }, ports);
     expect(deriveProductV4VerificationPlan({ bundle, binding: changed }).planHash).not.toBe(steelPlan.planHash);
   } finally {
     if (beforeProvider === undefined) delete process.env.AUTHORING_VERIFICATION_BROWSER_PROVIDER;

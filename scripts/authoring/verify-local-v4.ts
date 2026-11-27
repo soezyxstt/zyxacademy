@@ -5,22 +5,26 @@ import path from "node:path";
 import { buildLocalVerificationFixture } from "./local-verification-fixture";
 import { createProductV4VerificationService, type ProductV4VerificationSnapshot } from "../../lib/bundle/product-v4-verification-service";
 import { executeProductV4VerificationCheck } from "../../lib/compute/product-v4-verification-executor";
-import { buildProductV4RuntimeBinding, readProductV4RuntimeFingerprint, type ProductV4LiveDependency } from "../../lib/compute/product-v4-runtime-binding";
+import { buildProductV4RuntimeBinding, readProductV4LogicRuntimeFingerprint, readProductV4RuntimeFingerprint, type ProductV4LiveDependency } from "../../lib/compute/product-v4-runtime-binding";
 import { deriveProductV4PdfEvidence } from "../../lib/compute/product-v4-pdf-evidence";
-import { getProductV4VerificationReceiptSignature } from "../../lib/bundle/product-v4-verification";
+import { getProductV4VerificationReceiptSignature, type ProductV4VerificationPurpose } from "../../lib/bundle/product-v4-verification";
 import { validateProductV4ReviewContext } from "../../lib/bundle/product-v4-review";
 import { computePedagogyContentFingerprint, QUALITY_POLICY_VERSION } from "../../lib/materials/quality-policy";
 import { buildProductVerificationKey } from "../../lib/storage/keys";
 import { isCurrentProductV4PdfAttachment, resolveProductV4PdfBinding } from "../../lib/bundle/product-pdf-selection";
-import { closeProductV4BrowserRunner, validateDeployedVerificationBaseUrl } from "../../lib/compute/product-v4-browser-runner";
-
-const flag = process.argv.indexOf("--renderer");
-const renderer = new URL(flag >= 0 ? process.argv[flag + 1] : "http://127.0.0.1:3101");
-if (renderer.protocol !== "http:" || !["127.0.0.1", "localhost"].includes(renderer.hostname) || renderer.pathname !== "/" || renderer.username || renderer.password || renderer.search || renderer.hash) throw new Error("LOCAL_RENDERER_ORIGIN_REQUIRED");
-if (!process.env.AUTHORING_VERIFICATION_RENDERER_SECRET) throw new Error("AUTHORING_VERIFICATION_RENDERER_SECRET_REQUIRED");
-process.env.AUTHORING_VERIFICATION_RENDERER_URL = renderer.origin;
+const purposeFlag = process.argv.indexOf("--purpose");
+const selectedPurpose = purposeFlag >= 0 ? process.argv[purposeFlag + 1] : "logic";
+if (selectedPurpose !== "logic" && selectedPurpose !== "pdf") throw new Error("LOCAL_VERIFICATION_PURPOSE_INVALID");
+const purpose: ProductV4VerificationPurpose = selectedPurpose;
+if (purpose === "pdf") {
+  const flag = process.argv.indexOf("--renderer");
+  const renderer = new URL(flag >= 0 ? process.argv[flag + 1] : "http://127.0.0.1:3101");
+  if (renderer.protocol !== "http:" || !["127.0.0.1", "localhost"].includes(renderer.hostname) || renderer.pathname !== "/" || renderer.username || renderer.password || renderer.search || renderer.hash) throw new Error("LOCAL_RENDERER_ORIGIN_REQUIRED");
+  if (!process.env.AUTHORING_VERIFICATION_RENDERER_SECRET) throw new Error("AUTHORING_VERIFICATION_RENDERER_SECRET_REQUIRED");
+  process.env.AUTHORING_VERIFICATION_RENDERER_URL = renderer.origin;
+}
 const outputFlag = process.argv.indexOf("--output");
-const root = path.resolve(outputFlag >= 0 ? process.argv[outputFlag + 1] : "artifacts/authoring-verification/local-run");
+const root = path.resolve(outputFlag >= 0 ? process.argv[outputFlag + 1] : `artifacts/authoring-verification/local-run/${purpose}`);
 await mkdir(root, { recursive: true });
 const bundleFlag = process.argv.indexOf("--bundle");
 const fixture = bundleFlag < 0 ? buildLocalVerificationFixture() : await (async () => {
@@ -38,23 +42,24 @@ for (const product of bundle.products) {
   }
 }
 const row = { id: "local-verification-import", bundleType: "product" as const, bundleId: bundle.manifest.bundleId, courseId: "local-course", checksum: bundle.manifest.bundleChecksum };
-const runtimePorts = { course: async () => ({ id: bundle.manifest.courseId, legacyCourseId: "local-course" }), dependencies: async () => [...live.values()], runtime: readProductV4RuntimeFingerprint,
+const runtimePorts = { course: async () => ({ id: bundle.manifest.courseId, legacyCourseId: "local-course" }), dependencies: async () => [...live.values()], runtime: readProductV4RuntimeFingerprint, logicRuntime: readProductV4LogicRuntimeFingerprint,
   figure: async (): Promise<never> => { throw new Error("LOCAL_FIXTURE_HAS_NO_SOURCE_FIGURES"); }, download: async (): Promise<never> => { throw new Error("REMOTE_STORAGE_FORBIDDEN"); } };
 const readDocumentAsset = localV4DocumentReader(fixture.bundle.files);
 const runId = "local-v4-verification";
-let snapshot: ProductV4VerificationSnapshot = { importId: row.id, checksum: row.checksum, sourceUriOrKey: "local-fixture.zip", stagingAuditId: "local-fixture-stage", stagingRunId: runId, importState: { bundleType: row.bundleType, bundleId: row.bundleId, courseId: row.courseId, version: 4, status: "draft", validationReport: {} }, bundle, binding: await buildProductV4RuntimeBinding({ row, bundle, runId }, runtimePorts, readDocumentAsset) };
+let snapshot: ProductV4VerificationSnapshot = { importId: row.id, checksum: row.checksum, sourceUriOrKey: "local-fixture.zip", stagingAuditId: "local-fixture-stage", stagingRunId: runId, importState: { bundleType: row.bundleType, bundleId: row.bundleId, courseId: row.courseId, version: 4, status: "draft", validationReport: {} }, bundle, binding: await buildProductV4RuntimeBinding({ row, bundle, runId, purpose }, runtimePorts, readDocumentAsset) };
 const objects = new Map<string, Uint8Array>();
 let promotedPdf: ReturnType<typeof deriveProductV4PdfEvidence> = [];
-const queue: { importId: string; runId: string; planHash: string; attemptId: string }[] = [];
+const queue: { importId: string; runId: string; planHash: string; attemptId: string; purpose?: ProductV4VerificationPurpose }[] = [];
 const authority = { signingKey: "local-only-verification-receipt-key-not-for-deployment", executorId: "zyx-product-v4-server-runner.v1" };
 const service = createProductV4VerificationService({
-  async load() { snapshot = { ...snapshot, binding: await buildProductV4RuntimeBinding({ row, bundle, runId }, runtimePorts, readDocumentAsset) }; return snapshot; },
+  async load() { snapshot = { ...snapshot, binding: await buildProductV4RuntimeBinding({ row, bundle, runId, purpose }, runtimePorts, readDocumentAsset) }; return snapshot; },
   async read(key) { return objects.get(key) ?? null; },
   async write(key, bytes) { objects.set(key, bytes); const output = path.join(root, "objects", key); await mkdir(path.dirname(output), { recursive: true }); await writeFile(output, bytes); },
   async enqueue(input) { queue.push(input); },
   async attach(_snapshot, planHash, attemptId, expectedAttemptId) {
     if ((snapshot.verificationAttemptId ?? null) !== expectedAttemptId) return false;
-    snapshot = { ...snapshot, verificationPlanHash: planHash, verificationAttemptId: attemptId, importState: { ...snapshot.importState, validationReport: { ...snapshot.importState.validationReport, productV4Verification: { planHash, attemptId, runId, stagingAuditId: snapshot.stagingAuditId } } } };
+    const refKey = purpose === "pdf" ? "productV4PdfGeneration" : "productV4Verification";
+    snapshot = { ...snapshot, verificationPlanHash: planHash, verificationAttemptId: attemptId, importState: { ...snapshot.importState, validationReport: { ...snapshot.importState.validationReport, [refKey]: { planHash, attemptId, runId, stagingAuditId: snapshot.stagingAuditId } } } };
     return true;
   },
   async persistPdfEvidence(input) {
@@ -84,19 +89,19 @@ await writeFile(path.join(root, "result.json"), JSON.stringify(result, null, 2))
 if (!result.evaluation.ready) throw new Error(`LOCAL_VERIFICATION_NOT_READY:${result.evaluation.missingCheckIds.join(",")}`);
 const artifactBytes = new Map<string, Uint8Array>();
 for (const check of result.receipt.results) for (const artifact of check.artifacts) artifactBytes.set(artifact.id, objects.get(buildProductVerificationKey(result.plan.planHash, artifact.id))!);
-const pdfEvidence = deriveProductV4PdfEvidence({ snapshot, plan: result.plan, attemptId: result.attemptId, receipt: result.receipt, artifactBytes, authority });
-await writeFile(path.join(root, "pdf-evidence.json"), JSON.stringify(pdfEvidence, null, 2));
+const pdfEvidence = purpose === "pdf" ? deriveProductV4PdfEvidence({ snapshot, plan: result.plan, attemptId: result.attemptId, receipt: result.receipt, artifactBytes, authority }) : [];
+if (purpose === "pdf") await writeFile(path.join(root, "pdf-evidence.json"), JSON.stringify(pdfEvidence, null, 2));
 const article = bundle.products.find((product) => product.productType === "article")!;
 const diktat = bundle.products.find((product) => product.productType === "diktat");
 if (article.productType !== "article") throw new Error("ARTICLE_REQUIRED");
 const fingerprint = computePedagogyContentFingerprint({ article, diktat });
-assert.throws(() => validateProductV4ReviewContext({ articles: [article], importId: row.id, checksum: row.checksum, fingerprint,
+if (purpose === "logic") assert.throws(() => validateProductV4ReviewContext({ articles: [article], importId: row.id, checksum: row.checksum, fingerprint,
   review: { decision: "approved", expectedRevision: row.checksum, policyVersion: QUALITY_POLICY_VERSION, contentFingerprint: fingerprint, verificationPlanHash: result.plan.planHash, verificationReceiptSignature: getProductV4VerificationReceiptSignature(result.receipt) ?? undefined },
   verification: { ready: true, importId: row.id, planHash: result.plan.planHash, receiptSignature: getProductV4VerificationReceiptSignature(result.receipt) } }), /ALL_SECTIONS_REQUIRED/);
-const summary = { status: "PASS", requirementCount: result.plan.requirements.length, planHash: result.plan.planHash, attemptId: result.attemptId, pdfEvidence,
-  review: "Missing explicit section decisions correctly rejected; no pedagogic approval generated.", boundaries: { fixture: bundleFlag < 0 ? "Synthetic canonical V4 ZIP" : "Supplied canonical V4 ZIP with simulated local dependency records", storage: "Local memory and files", databasePromotion: "Not exercised", mcpTransport: "Not exercised", production: "Not accessed" } };
+const summary = { status: "PASS", purpose, requirementCount: result.plan.requirements.length, planHash: result.plan.planHash, attemptId: result.attemptId, pdfEvidence,
+  review: purpose === "logic" ? "Missing explicit section decisions correctly rejected; no pedagogic approval generated." : "PDF artifact generation only; no pedagogic approval generated.", boundaries: { fixture: bundleFlag < 0 ? "Synthetic canonical V4 ZIP" : "Supplied canonical V4 ZIP with simulated local dependency records", storage: "Local memory and files", databasePromotion: "Not exercised", mcpTransport: "Not exercised", production: "Not accessed" } };
 await writeFile(path.join(root, "summary.json"), JSON.stringify(summary, null, 2));
-console.log(JSON.stringify({ status: summary.status, requirementCount: summary.requirementCount, outputDirectory: root }));
+console.log(JSON.stringify({ status: summary.status, purpose, requirementCount: summary.requirementCount, outputDirectory: root }));
 } finally {
-  await closeProductV4BrowserRunner();
+  if (purpose === "pdf") await (await import("../../lib/compute/product-v4-browser-runner")).closeProductV4BrowserRunner();
 }

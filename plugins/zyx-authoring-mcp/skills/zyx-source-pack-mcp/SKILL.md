@@ -8,7 +8,7 @@ description: Membuat atau memakai ulang Source Pack Zyx dari dokumen akademik de
 Hasil tahap ini ialah `zyx-source-pack.v1` tervalidasi yang tersimpan untuk authoring. Periksa sumber yang sudah ada sebelum membaca atau mengunggah seluruh berkas lagi.
 
 <!-- BEGIN:environment-connection -->
-Gunakan koneksi MCP `zyx-stg` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.5"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
+Gunakan koneksi MCP `zyx-stg` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.6"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
 
 Panggil nama tool dari `tools/list`. Nama bertitik di skill ini merujuk ke operasi; nama panggilan biasanya mengganti titik dengan `_`, seperti `admin_environment`. Pengecualian: `authoring.get_solution_collection_review_context` memakai `authoring_solution_review_context`. Pertahankan nama bertitik pada argumen `operation` serta identitas konfirmasi dan receipt.
 <!-- END:environment-connection -->
@@ -17,7 +17,7 @@ Jika akses kedaluwarsa atau izin kurang, ikuti [pemulihan koneksi](../zyx-operat
 
 ## Bootstrap
 
-Panggil `workflow.get_playbook` sebelum membaca sumber atau melanjutkan pekerjaan, dengan identitas `{"skill": "zyx-source-pack-mcp", "stage": "source", "bootstrapProtocol": 1, "pluginVersion": "0.5.5"}` dan `clientCapabilities` nyata: `independentSubagents`, `localArtifactFiles`, serta `pdfRendering`. Baca `common/execution`, `source/workflow`, dan `source/reconciliation`. Tahap ini mendahului `workflow.start`.
+Panggil `workflow.get_playbook` sebelum membaca sumber atau melanjutkan pekerjaan, dengan identitas `{"skill": "zyx-source-pack-mcp", "stage": "source", "bootstrapProtocol": 1, "pluginVersion": "0.5.6"}` dan `clientCapabilities` nyata: `independentSubagents`, `localArtifactFiles`, serta `pdfRendering`. Baca `common/execution`, `source/workflow`, dan `source/reconciliation`. Tahap ini mendahului `workflow.start`.
 
 Jika bootstrap gagal atau tidak kompatibel, hentikan tahap dan sampaikan `remediation`. Ikuti peringatan versi serta katalog tool live; paket skill baru tidak membuktikan server sudah diperbarui.
 

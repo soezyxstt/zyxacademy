@@ -3,7 +3,7 @@ import { buildProductDraft, productDraftInputSchema, type ProductDraftContext } 
 import { projectRevisionResponse, selectRevisionContent } from "../../lib/authoring/revision-response";
 import { createProductV4VerificationService, type ProductV4VerificationPorts, type ProductV4VerificationSnapshot } from "../../lib/bundle/product-v4-verification-core";
 import { productV4VerificationBatchKey } from "../../lib/bundle/product-v4-verification-checkpoint";
-import { deriveProductV4VerificationPlan, evaluateProductV4Verification, PRODUCT_V4_VERIFICATION_POLICY, runProductV4Verification, type ProductV4ObservedCheck, type ProductV4VerificationPlan, type ProductV4VerificationRequirement } from "../../lib/bundle/product-v4-verification";
+import { deriveProductV4VerificationPlan, formativeDocumentFields, evaluateProductV4Verification, PRODUCT_V4_VERIFICATION_POLICY, runProductV4Verification, type ProductV4ObservedCheck, type ProductV4VerificationPlan, type ProductV4VerificationRequirement } from "../../lib/bundle/product-v4-verification";
 import { renderProductV4PrintArtifacts } from "../../lib/compute/product-v4-print-artifacts";
 import { buildLocalVerificationFixture } from "./local-verification-fixture";
 
@@ -85,8 +85,8 @@ export function buildAuthoringBenchmarkFixture(size: "short" | "long") {
   return { input, context, built };
 }
 
-function binding(courseId: string) {
-  return { importId: "synthetic-import", courseId, runId: "synthetic-run", revision: 1,
+function binding(courseId: string, purpose: "logic" | "pdf" = "logic") {
+  return { purpose, logicChecksum: hash, importId: "synthetic-import", courseId, runId: "synthetic-run", revision: 1,
     rendererChecksum: hash, dependencyChecksum: hash, contractChecksum: hash, playbookChecksum: hash,
     fontChecksum: hash, assetChecksum: hash, printProfile: "a4", policyRevision: PRODUCT_V4_VERIFICATION_POLICY };
 }
@@ -100,7 +100,7 @@ function observe(requirement: ProductV4VerificationRequirement): ProductV4Observ
   };
 }
 
-async function countVerificationWork(plan: ProductV4VerificationPlan) {
+async function countVerificationWork(plan: ProductV4VerificationPlan, pdfPlan: ProductV4VerificationPlan, bundle: ProductV4VerificationSnapshot["bundle"]) {
   let pdfCalls = 0;
   let executeCalls = 0;
   let browserCalls = 0;
@@ -112,7 +112,6 @@ async function countVerificationWork(plan: ProductV4VerificationPlan) {
       const print = await renderProductV4PrintArtifacts({
         renderPdf: async () => { pdfCalls++; return Buffer.from("%PDF-1.7\n%%EOF"); },
         pageCount: async () => 1,
-        capturePages: async (_pdf, numbers) => numbers.map(pageNumber => ({ pageNumber, png })),
       });
       Object.assign(observed, print, { artifacts: print.artifacts.map(artifact => ({ ...artifact, id: `${requirement.id}-${artifact.id}` })) });
     }
@@ -125,10 +124,21 @@ async function countVerificationWork(plan: ProductV4VerificationPlan) {
     return { ...observe(requirement), ...(requirement.layer === "structure" ? { status: "FAIL" as const } : {}) };
   });
   assert.equal(evaluateProductV4Verification(plan, [blocked], authority).ready, false);
-  return { baseline: { method: "Declared pre-PR matrix; each print requirement invokes PDF once", executeCalls: plan.requirements.length,
-    browserCalls: plan.requirements.filter(check => check.layer === "web" || check.layer === "print").length,
-    pdfCalls: plan.requirements.filter(check => check.layer === "print").length },
+  const articles = bundle.products.filter(product => product.productType === "article");
+  const diktats = bundle.products.filter(product => product.productType === "diktat");
+  const priorWeb = articles.reduce((count, article) => count + 4 + (article.visuals?.length ?? 0) * 2, 0) + formativeDocumentFields(bundle.products).length * 2;
+  const priorRequirements = plan.requirements.length + priorWeb + diktats.length * 2;
+  let finalPdfCalls = 0;
+  const pdfReceipt = await runProductV4Verification(pdfPlan, authority, async requirement => {
+    const observed = observe(requirement);
+    if (requirement.layer === "print") finalPdfCalls++;
+    return observed;
+  });
+  assert.ok(evaluateProductV4Verification(pdfPlan, [pdfReceipt], authority).ready);
+  return { baseline: { method: "Deployed policy v2 schedule, including shared PDF/page capture", requiredChecks: priorRequirements,
+    executeCalls: priorRequirements - diktats.length, browserCalls: priorWeb + diktats.length, pdfCalls: diktats.length },
     current: { executeCalls, browserCalls, pdfCalls },
+    finalPdf: { requiredChecks: pdfPlan.requirements.length, pdfCalls: finalPdfCalls, screenshotCalls: 0 },
     invalidStructure: { currentBrowserCalls: blockedBrowserCalls, untestedChecks: blocked.results.filter(result => result.status === "NOT_TESTED").length },
     requiredChecks: plan.requirements.length, recordedChecks: receipt.results.length };
 }
@@ -142,7 +152,7 @@ async function countRetryWork(fixture: ReturnType<typeof buildAuthoringBenchmark
     importState: { bundleType: "product", bundleId: bundle.manifest.bundleId, courseId: bound.courseId, version: 4, status: "draft", validationReport: {} }, binding: bound, bundle };
   const objects = new Map<string, Uint8Array>();
   const plan = deriveProductV4VerificationPlan({ bundle, binding: bound });
-  const interruptAt = plan.requirements.filter(check => check.layer === "web")[1].id;
+  const interruptAt = plan.requirements.find(check => check.layer === "model")!.id;
   let interrupt = true;
   let calls = 0;
   let renderCalls = 0;
@@ -205,7 +215,7 @@ export async function benchmarkAgentWorkflow() {
     cases.push({ size, content: { authoredJsonBytes: jsonBytes(input), canonicalJsonBytes: jsonBytes(artifact),
       archiveBytes: built.bytes.byteLength, archiveBase64Bytes: Buffer.byteLength(Buffer.from(built.bytes).toString("base64"), "utf8") },
       editResponse: { fullBytes, compactBytes, targetedBytes, compactReductionPercent: reductionPercent(fullBytes, compactBytes), targetedReductionPercent: reductionPercent(fullBytes, targetedBytes) },
-      verification: await countVerificationWork(plan),
+      verification: await countVerificationWork(plan, deriveProductV4VerificationPlan({ bundle: built.bundle, binding: binding(built.bundle.manifest.courseId, "pdf") }), built.bundle),
       retry: { withoutCheckpoint: await countRetryWork(fixture, false), withCheckpoint: await countRetryWork(fixture, true) },
     });
   }

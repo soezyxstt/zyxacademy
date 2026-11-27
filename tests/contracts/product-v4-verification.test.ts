@@ -3,52 +3,59 @@ import { RetryAfterError } from "inngest";
 import { productBundleManifestSchema, productEntitySchema } from "@/lib/bundle/product-validator";
 import { readProductVerificationObject, createProductV4VerificationService, requestProductV4LocalAttempt, type ProductV4VerificationPorts, type ProductV4VerificationSnapshot } from "@/lib/bundle/product-v4-verification-service";
 import { buildProductVerificationKey } from "@/lib/storage/keys";
-import { assertProductV4VerificationCurrent, deriveProductV4VerificationPlan, evaluateProductV4Verification, PRODUCT_V4_VERIFICATION_POLICY, PRODUCT_V4_VIEWPORTS, recordProductV4VerificationReport, runProductV4Verification, type ProductV4ObservedCheck, type ProductV4VerificationResult, type ProductV4VerificationRequirement } from "@/lib/bundle/product-v4-verification";
+import { assertProductV4VerificationCurrent, deriveProductV4VerificationPlan, evaluateProductV4Verification, PRODUCT_V4_VERIFICATION_POLICY, recordProductV4VerificationReport, runProductV4Verification, type ProductV4ObservedCheck, type ProductV4VerificationResult, type ProductV4VerificationRequirement } from "@/lib/bundle/product-v4-verification";
 
 const hash = "a".repeat(64);
 const authority = { signingKey: "test-only-secret-with-at-least-32-bytes", executorId: "server-test-runner" };
-const binding = { importId: "import", courseId: "course", runId: "run", revision: 1, rendererChecksum: hash, dependencyChecksum: hash, contractChecksum: hash, playbookChecksum: hash, fontChecksum: hash, assetChecksum: hash, printProfile: "a4", policyRevision: PRODUCT_V4_VERIFICATION_POLICY };
+const binding = { importId: "import", courseId: "course", runId: "run", revision: 1, logicChecksum: hash, rendererChecksum: hash, dependencyChecksum: hash, contractChecksum: hash, playbookChecksum: hash, fontChecksum: hash, assetChecksum: hash, printProfile: "a4", policyRevision: PRODUCT_V4_VERIFICATION_POLICY };
 const manifest = productBundleManifestSchema.parse({ bundleId: "bundle", bundleType: "product", schemaVersion: "product-bundle.v4", courseId: "course", creatorId: "creator", createdAt: "2026-10-21T00:00:00.000Z", entityFiles: ["products", "dependencies"].map((entityType) => ({ entityType, path: `${entityType}.json`, checksum: hash, stableIds: [] })), bundleChecksum: hash });
 const article = productEntitySchema.parse({ id: "article", productType: "article", courseId: "course", version: 1, status: "draft", ideaLinks: [{ id: "idea", version: 1, semanticHash: hash, weight: 1 }], sourceRefs: [{ sourceId: "source", version: 1, checksum: hash, excerptIds: ["excerpt"] }], schemaVersion: "article.v4", sourceHash: hash, generationHash: hash, creatorId: "creator", slug: "article", title: "Limit", visuals: [{ id: "graph", kind: "epsilon_delta_graph", label: "Limit", description: "A quadratic limit", bounds: { xMin: -2, xMax: 2, yMin: -2, yMax: 5 }, staticFallback: { type: "text", summary: "Limit", content: "Approach zero" }, limitPoint: 0, limitValue: 0, defaultEpsilon: 1, defaultDelta: 0.5, functionModel: { kind: "quadratic", a: 1, b: 0, c: 0 } }] });
 const bundle = { manifest, products: [article], dependencies: [] };
 const plan = () => deriveProductV4VerificationPlan({ bundle, binding });
 const observe = (requirement: ProductV4VerificationRequirement): ProductV4ObservedCheck => ({ checkId: requirement.id, status: "PASS", expected: "Expected behavior", observed: "Observed behavior", artifacts: [{ id: `artifact-${requirement.id}`, mediaType: requirement.artifactType, bytes: requirement.artifactType === "image/png" ? Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64") : new TextEncoder().encode(requirement.artifactType === "application/pdf" ? "%PDF-1.7\n%%EOF" : "{}") }] });
 
-test("derives the complete v2 smoke matrix at both viewports without repeated state checks", () => {
+test("default logic plan has no browser, screenshot or PDF requirements", () => {
   const value = plan();
-  expect(PRODUCT_V4_VERIFICATION_POLICY).toBe("product-v4-verification.v2");
-  expect(value.requirements).toHaveLength(8);
-  expect(value.requirements.filter(check => check.layer === "structure")).toHaveLength(1);
-  expect(value.requirements.filter(check => check.layer === "model").map(check => check.state)).toEqual(["domain-units-and-model"]);
-  for (const state of ["reading-order-and-math", "keyboard-and-text-zoom", "visual-smoke"]) {
-    expect(value.requirements.filter(check => check.state === state).map(check => check.viewport)).toEqual([...PRODUCT_V4_VIEWPORTS]);
-  }
-  expect(value.requirements.filter(check => ["default", "fallback", "changed", "reset", "keyboard", "epsilon-minimum", "epsilon-maximum", "resolution-limited"].includes(check.state))).toHaveLength(0);
+  expect(PRODUCT_V4_VERIFICATION_POLICY).toBe("product-v4-verification.v3");
+  expect(value.binding.purpose).toBe("logic");
+  expect(value.requirements).toHaveLength(2);
+  expect(value.requirements.map(check => check.layer)).toEqual(["structure", "model"]);
+  expect(value.requirements.every(check => check.artifactType === "application/json" && check.viewport === null)).toBe(true);
+  expect(value.binding.rendererChecksum).toBeUndefined();
+  expect(value.binding.fontChecksum).toBeUndefined();
+  expect(value.binding.printProfile).toBeUndefined();
   expect(plan()).toEqual(value);
   expect(evaluateProductV4Verification(value, [], authority).ready).toBe(false);
 });
 
-test("eight visuals retain eight model checks, sixteen viewport smokes and both PDF checks", () => {
+test("eight visuals require nine cheap logic checks; final PDF is a separate explicit purpose", () => {
   if (article.productType !== "article") throw new Error("ARTICLE_FIXTURE_REQUIRED");
   const chapter = productEntitySchema.parse({ ...article, visuals: Array.from({ length: 8 }, (_, index) => ({ ...article.visuals![0], id: `graph-${index}` })) });
-  if (chapter.productType !== "article") throw new Error("ARTICLE_FIXTURE_REQUIRED");
   const diktat = productEntitySchema.parse({ id: "diktat", productType: "diktat", courseId: article.courseId, version: 1, status: "draft", ideaLinks: article.ideaLinks, sourceRefs: article.sourceRefs, schemaVersion: "diktat.v4", sourceHash: hash, generationHash: hash, creatorId: "creator", title: "Summary", contentMarkdown: "Summary", sourceArticleId: article.id, sourceArticleVersion: 1, sourceArticleHash: hash });
-  const value = deriveProductV4VerificationPlan({ bundle: { ...bundle, products: [chapter, diktat] }, binding });
-  expect(value.requirements).toHaveLength(31);
-  expect(value.requirements.filter(check => check.layer === "model")).toHaveLength(8);
-  for (const visual of chapter.visuals!) {
-    const checks = value.requirements.filter(check => check.target === `${article.id}/${visual.id}`);
-    expect(checks.map(check => check.state)).toEqual(["domain-units-and-model", "visual-smoke", "visual-smoke"]);
-    expect(checks.filter(check => check.layer === "web").map(check => check.viewport)).toEqual([...PRODUCT_V4_VIEWPORTS]);
-  }
-  expect(value.requirements.filter(check => check.layer === "print").map(({ state, viewport, artifactType }) => ({ state, viewport, artifactType }))).toEqual([
+  const fixture = { ...bundle, products: [chapter, diktat] };
+  const logic = deriveProductV4VerificationPlan({ bundle: fixture, binding });
+  expect(logic.requirements).toHaveLength(9);
+  expect(logic.requirements.filter(check => check.layer === "model")).toHaveLength(8);
+  expect(logic.requirements.filter(check => check.layer === "web" || check.layer === "print")).toHaveLength(0);
+  const pdf = deriveProductV4VerificationPlan({ bundle: fixture, binding: { ...binding, purpose: "pdf" } });
+  expect(pdf.requirements).toHaveLength(10);
+  expect(pdf.requirements.filter(check => check.layer === "print").map(({ state, viewport, artifactType }) => ({ state, viewport, artifactType }))).toEqual([
     { state: "pdf-fonts-assets-lineage-and-pages", viewport: null, artifactType: "application/pdf" },
-    { state: "every-page-rendering-and-overflow", viewport: null, artifactType: "image/png" },
   ]);
+  expect(pdf.requirements.some(check => check.artifactType === "image/png")).toBe(false);
+  expect(pdf.contentHash).toBe(logic.contentHash);
+  expect(pdf.planHash).not.toBe(logic.planHash);
 });
 
-test("previous policy receipts cannot satisfy the v2 plan", async () => {
-  const previous = deriveProductV4VerificationPlan({ bundle, binding: { ...binding, policyRevision: "product-v4-verification.v1" } });
+test("browser version, fonts and print changes cannot change a logic plan", () => {
+  const changed = deriveProductV4VerificationPlan({ bundle, binding: { ...binding, rendererChecksum: "b".repeat(64), fontChecksum: "c".repeat(64), printProfile: "another", browserProvider: "steel", browserVersion: "1.2.3.4" } });
+  expect(changed).toEqual(plan());
+  const { logicChecksum: _logic, ...missing } = binding;
+  expect(() => deriveProductV4VerificationPlan({ bundle, binding: missing })).toThrow("LOGIC_FINGERPRINT_REQUIRED");
+});
+
+test("previous policy receipts cannot satisfy the v3 plan", async () => {
+  const previous = deriveProductV4VerificationPlan({ bundle, binding: { ...binding, policyRevision: "product-v4-verification.v2" } });
   const receipt = await runProductV4Verification(previous, authority, async requirement => observe(requirement));
   expect(evaluateProductV4Verification(plan(), [receipt], authority).ready).toBe(false);
   expect(() => assertProductV4VerificationCurrent(previous, plan())).toThrow("CONFLICT");
@@ -97,7 +104,7 @@ test("missing artifacts, failed checks, and partial reports cannot satisfy the m
 test("content, source, Idea, scope and runtime changes invalidate old evidence and publication snapshots", async () => {
   const value = plan();
   const receipt = await runProductV4Verification(value, authority, async (requirement) => observe(requirement));
-  for (const field of ["rendererChecksum", "dependencyChecksum", "contractChecksum", "playbookChecksum", "fontChecksum", "assetChecksum"] as const) {
+  for (const field of ["logicChecksum", "dependencyChecksum", "contractChecksum", "playbookChecksum", "assetChecksum"] as const) {
     const changed = deriveProductV4VerificationPlan({ bundle, binding: { ...binding, [field]: "b".repeat(64) } });
     expect(evaluateProductV4Verification(changed, [receipt], authority).ready).toBe(false);
     expect(() => assertProductV4VerificationCurrent(value, changed)).toThrow("CONFLICT");
@@ -124,7 +131,7 @@ function serviceFixture(withPrint = false) {
   const diktat = withPrint ? productEntitySchema.parse({ id: "diktat", productType: "diktat", courseId: article.courseId, version: 1, status: "draft", ideaLinks: article.ideaLinks, sourceRefs: article.sourceRefs, schemaVersion: "diktat.v4", sourceHash: hash, generationHash: hash, creatorId: "creator", title: "Summary", contentMarkdown: "Summary" }) : null;
   const fixtureBundle = diktat ? { ...bundle, products: [diktat] } : bundle;
   const objects = new Map<string, Uint8Array>();
-  const mutable: { snapshot: ProductV4VerificationSnapshot; allowAttach: boolean; executeCount: number; enqueueCount: number; mutateDuringExecution: boolean; reportedStatus: ProductV4ObservedCheck["status"]; enqueueFails: boolean; changeAttemptDuringExecution: boolean } = { snapshot: { importId: "import", checksum: hash, sourceUriOrKey: "bundle.zip", stagingAuditId: "stage-a", stagingRunId: "run", importState: { bundleType: "product", bundleId: "bundle", courseId: "course", version: 4, status: "draft", validationReport: {} }, binding, bundle: fixtureBundle }, allowAttach: true, executeCount: 0, enqueueCount: 0, mutateDuringExecution: false, reportedStatus: "PASS", enqueueFails: false, changeAttemptDuringExecution: false };
+  const mutable: { snapshot: ProductV4VerificationSnapshot; allowAttach: boolean; executeCount: number; enqueueCount: number; mutateDuringExecution: boolean; reportedStatus: ProductV4ObservedCheck["status"]; enqueueFails: boolean; changeAttemptDuringExecution: boolean } = { snapshot: { importId: "import", checksum: hash, sourceUriOrKey: "bundle.zip", stagingAuditId: "stage-a", stagingRunId: "run", importState: { bundleType: "product", bundleId: "bundle", courseId: "course", version: 4, status: "draft", validationReport: {} }, binding: { ...binding, purpose: withPrint ? "pdf" : "logic" }, bundle: fixtureBundle }, allowAttach: true, executeCount: 0, enqueueCount: 0, mutateDuringExecution: false, reportedStatus: "PASS", enqueueFails: false, changeAttemptDuringExecution: false };
   const ports: ProductV4VerificationPorts = {
     async load() { return mutable.snapshot; },
     async read(key) { return objects.get(key) ?? null; },
@@ -156,8 +163,8 @@ function serviceFixture(withPrint = false) {
 }
 
 test("local attempt starts without a prior job, reuses a completed result and retries failures only on request", async () => {
-  const { service, mutable, ports } = serviceFixture();
-  mutable.snapshot = { ...mutable.snapshot, binding: { ...binding, browserProvider: "local_playwright", browserVersion: "1.2.3.4" } };
+  const { service, mutable, ports } = serviceFixture(true);
+  mutable.snapshot = { ...mutable.snapshot, binding: { ...binding, purpose: "pdf", browserProvider: "local_playwright", browserVersion: "1.2.3.4" } };
   ports.enqueue = async () => {};
   const scope = { importId: "import", runId: "run", expectedChecksum: hash };
   await expect(requestProductV4LocalAttempt(service, { ...scope, expectedChecksum: "b".repeat(64) })).rejects.toThrow("EXACT_DRAFT_REQUIRED");
@@ -191,19 +198,41 @@ test("persisted job only becomes ready after actual execution and intact artifac
   const input = { importId: "import", runId: "run", planHash: requested.jobId };
   const result = await service.process(input);
   expect(result.evaluation.ready).toBe(true);
-  expect(mutable.executeCount).toBe(8);
+  expect(mutable.executeCount).toBe(2);
   await service.get(input);
   await service.process(input);
-  expect(mutable.executeCount).toBe(8);
+  expect(mutable.executeCount).toBe(2);
   const artifact = result.receipt.results[0].artifacts[0];
   objects.set(buildProductVerificationKey(input.planHash, artifact.id), new TextEncoder().encode("changed bytes"));
   expect(await service.get(input)).toMatchObject({ state: { status: "failed", failureCode: "PRODUCT_V4_VERIFICATION_ARTIFACT_MISSING_OR_CHANGED" }, evaluation: { ready: false } });
 });
 
+test("a mismatched purpose cannot start, read, process or cancel another purpose", async () => {
+  const { service, mutable } = serviceFixture();
+  await expect(service.request({ importId: "import", runId: "run", purpose: "pdf" })).rejects.toThrow("PURPOSE_INVALID");
+  expect(mutable.enqueueCount).toBe(0);
+  const started = await service.request({ importId: "import", runId: "run", purpose: "logic" });
+  const wrong = { importId: "import", runId: "run", planHash: started.plan.planHash, attemptId: started.attemptId, purpose: "pdf" as const };
+  await expect(service.get({ importId: wrong.importId, runId: wrong.runId, planHash: wrong.planHash, purpose: wrong.purpose })).rejects.toThrow("CONFLICT");
+  await expect(service.process(wrong)).rejects.toThrow("CONFLICT");
+  await expect(service.cancel(wrong)).rejects.toThrow("ATTEMPT_STALE");
+  await service.fail(wrong);
+  expect((await service.get({ importId: wrong.importId, runId: wrong.runId, planHash: wrong.planHash })).state.status).toBe("pending");
+});
+
+test("Article-only PDF request exits before writing an attempt or enqueuing work", async () => {
+  const { service, mutable, objects } = serviceFixture();
+  mutable.snapshot = { ...mutable.snapshot, binding: { ...binding, purpose: "pdf" } };
+  await expect(service.request({ importId: "import", runId: "run", purpose: "pdf" })).rejects.toThrow("PDF_NOT_REQUIRED");
+  expect(mutable.enqueueCount).toBe(0);
+  expect(objects.size).toBe(0);
+  expect(mutable.snapshot.verificationAttemptId).toBeUndefined();
+});
+
 test("a changed current plan has no active job until an explicit verification request", async () => {
   const { service, mutable } = serviceFixture();
   const old = await service.request({ importId: "import", runId: "run" });
-  mutable.snapshot = { ...mutable.snapshot, binding: { ...mutable.snapshot.binding, rendererChecksum: "b".repeat(64) } };
+  mutable.snapshot = { ...mutable.snapshot, binding: { ...mutable.snapshot.binding, logicChecksum: "b".repeat(64) } };
   const current = await service.readiness("import", "run");
   expect(current).toMatchObject({ jobId: null, receipt: null, state: { status: "not_started", reason: "plan_changed" } });
   expect(current.plan.planHash).not.toBe(old.plan.planHash);
@@ -247,8 +276,8 @@ test("a concurrent worker cannot attach its receipt after cancellation revokes i
 });
 
 for (const local of [false, true]) test(`${local ? "local" : "hosted"} artifact damage is retryable within the current run without swallowing storage errors`, async () => {
-  const { service, mutable, objects, ports } = serviceFixture();
-  if (local) mutable.snapshot = { ...mutable.snapshot, binding: { ...binding, browserProvider: "local_playwright", browserVersion: "1.2.3.4" } };
+  const { service, mutable, objects, ports } = serviceFixture(local);
+  if (local) mutable.snapshot = { ...mutable.snapshot, binding: { ...binding, purpose: "pdf", browserProvider: "local_playwright", browserVersion: "1.2.3.4" } };
   const scope = { importId: "import", runId: "run", expectedChecksum: hash };
   const request = (retry = false) => local ? requestProductV4LocalAttempt(service, { ...scope, retry }) : service.request({ importId: scope.importId, runId: scope.runId, retry });
   for (const missing of [true, false]) {
@@ -326,8 +355,8 @@ test("transient missing state retries without inventing an expired lease, persis
 });
 
 for (const local of [false, true]) for (const missing of ["manifest", "state", "both"]) test(`${local ? "local" : "hosted"} explicit retry recovers absent ${missing} metadata in the same staging identity`, async () => {
-  const { service, mutable, objects, ports } = serviceFixture();
-  if (local) mutable.snapshot = { ...mutable.snapshot, binding: { ...binding, browserProvider: "local_playwright", browserVersion: "1.2.3.4" } };
+  const { service, mutable, objects, ports } = serviceFixture(local);
+  if (local) mutable.snapshot = { ...mutable.snapshot, binding: { ...binding, purpose: "pdf", browserProvider: "local_playwright", browserVersion: "1.2.3.4" } };
   const scope = { importId: "import", runId: "run", expectedChecksum: hash };
   const request = (retry = false) => local ? requestProductV4LocalAttempt(service, { ...scope, retry }) : service.request({ importId: scope.importId, runId: scope.runId, retry });
   const started = await request();
@@ -455,24 +484,20 @@ test("provider backoff survives a 20-minute lease window and never implies readi
   expect((await service.get(input)).state.failureCode).toBe("PRODUCT_V4_VERIFICATION_LEASE_EXPIRED");
 });
 
-test("chapter capture batches retain every image under unique persisted identities", async () => {
+test("logic execution never requests a browser or creates image artifacts", async () => {
   const { service, ports } = serviceFixture();
   const execute = ports.execute;
   ports.execute = async input => {
-    const result = await execute(input);
-    if (input.requirement.layer !== "web") return result;
-    expect(input.captureLimit).toBe(2);
-    const offset = input.captureOffset ?? 0;
-    return { ...result, captureTotal: 17, artifacts: Array.from({ length: Math.min(input.captureLimit ?? 17, 17 - offset) }, () => ({ ...result.artifacts[0] })) };
+    expect(["structure", "model"]).toContain(input.requirement.layer);
+    expect(input.captureOffset).toBeUndefined();
+    expect(input.captureLimit).toBeUndefined();
+    return execute(input);
   };
   const requested = await service.request({ importId: "import", runId: "run" });
   const result = await service.process({ importId: "import", runId: "run", planHash: requested.jobId });
   expect(result.evaluation.ready).toBe(true);
-  const webIds = new Set(result.plan.requirements.filter(check => check.layer === "web").map(check => check.id));
-  for (const check of result.receipt.results.filter((check: ProductV4VerificationResult) => webIds.has(check.checkId))) {
-    expect(check.artifacts).toHaveLength(17);
-    expect(new Set(check.artifacts.map((artifact: ProductV4VerificationResult["artifacts"][number]) => artifact.id)).size).toBe(17);
-  }
+  expect(result.receipt.results).toHaveLength(2);
+  expect(result.receipt.results.flatMap((check: ProductV4VerificationResult) => check.artifacts).every((artifact: ProductV4VerificationResult["artifacts"][number]) => artifact.mediaType === "application/json")).toBe(true);
 });
 
 test("concurrent edits and failed conditional attachment cannot mark a receipt complete", async () => {
@@ -494,34 +519,33 @@ test("conflicting execution attempts cannot be combined into readiness", async (
   expect(evaluateProductV4Verification(value, [passed, passed], authority).ready).toBe(false);
 });
 
-test("print completion requires captures for every inspected PDF page", async () => {
-  const diktat = productEntitySchema.parse({ id: "diktat", productType: "diktat", courseId: article.courseId, version: 1, status: "draft", ideaLinks: article.ideaLinks, sourceRefs: article.sourceRefs, schemaVersion: "diktat.v4", sourceHash: hash, generationHash: hash, creatorId: "creator", title: "Summary", contentMarkdown: "Summary", sourceArticleId: article.id, sourceArticleVersion: 1, sourceArticleHash: hash });
-  const value = deriveProductV4VerificationPlan({ bundle: { ...bundle, products: [article, diktat] }, binding });
-  const receipt = await runProductV4Verification(value, authority, async (requirement) => {
+test("PDF completion needs exact PDF evidence and page count, without page images", async () => {
+  const { service, ports } = serviceFixture(true);
+  const current = await service.current("import", "run");
+  const value = current.plan;
+  expect(value.binding.purpose).toBe("pdf");
+  const missing = await runProductV4Verification(value, authority, async requirement => observe(requirement));
+  expect(evaluateProductV4Verification(value, [missing], authority).ready).toBe(false);
+  const complete = await runProductV4Verification(value, authority, async requirement => {
     const result = observe(requirement);
     if (requirement.artifactType === "application/pdf") result.pageCount = 2;
-    if (requirement.state === "every-page-rendering-and-overflow") { result.pageCount = 2; result.artifacts[0].pageNumber = 1; }
-    return result;
-  });
-  expect(evaluateProductV4Verification(value, [receipt], authority).ready).toBe(false);
-  const complete = await runProductV4Verification(value, authority, async (requirement) => {
-    const result = observe(requirement);
-    if (requirement.artifactType === "application/pdf") result.pageCount = 2;
-    if (requirement.state === "every-page-rendering-and-overflow") {
-      result.pageCount = 2;
-      result.artifacts = [{ ...result.artifacts[0], pageNumber: 1 }, { ...result.artifacts[0], id: "page-2", pageNumber: 2 }];
-    }
     return result;
   });
   expect(evaluateProductV4Verification(value, [complete], authority).ready).toBe(true);
-});
-
-test("artifact media type cannot substitute unrelated bytes", () => {
-  const value = plan();
-  const image = value.requirements.find((requirement) => requirement.artifactType === "image/png")!;
-  const result = observe(image);
-  result.artifacts[0].bytes = new TextEncoder().encode('{"status":"PASS"}');
-  expect(() => recordProductV4VerificationReport(value, [result], authority)).toThrow("ARTIFACT_INVALID");
+  expect(complete.results.flatMap(check => check.artifacts).some(artifact => artifact.mediaType === "image/png")).toBe(false);
+  const requirement = value.requirements.find(check => check.artifactType === "application/pdf")!;
+  const invalid = observe(requirement);
+  invalid.artifacts[0].bytes = new TextEncoder().encode('{"status":"PASS"}');
+  expect(() => recordProductV4VerificationReport(value, [invalid], authority)).toThrow("ARTIFACT_INVALID");
+  let pdfCalls = 0;
+  const execute = ports.execute;
+  ports.execute = async input => { if (input.requirement.layer === "print") pdfCalls++; return execute(input); };
+  const started = await service.request({ importId: "import", runId: "run" });
+  await service.process({ importId: "import", runId: "run", planHash: started.plan.planHash });
+  const repeated = await service.request({ importId: "import", runId: "run" });
+  expect(repeated.attemptId).toBe(started.attemptId);
+  expect(repeated.evaluation.ready).toBe(true);
+  expect(pdfCalls).toBe(1);
 });
 
 test("server-only staging metadata does not change the canonical verification plan", () => {

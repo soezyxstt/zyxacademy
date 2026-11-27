@@ -519,9 +519,13 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
         "authorPreflight",
         "deterministicValid",
         "adminReview",
+        "logicVerification",
         "pdfEvidence",
         "publicationReady",
       ]);
+      expect(pbContract.verification.defaultPurpose).toBe("logic");
+      expect(pbContract.verification.logic).toMatchObject({ browserRequired: false, screenshotsRequired: false, pdfRequired: false });
+      expect(pbContract.verification.pdf.products).toEqual(["diktat"]);
 
       // Section and block pedagogy fields
       expect(pbContract.pedagogyFields.section).toHaveProperty("objectives");
