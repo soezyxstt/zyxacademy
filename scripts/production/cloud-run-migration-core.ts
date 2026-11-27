@@ -51,6 +51,12 @@ export const FILES: ReadonlyArray<readonly [number, string, string]> = [
  [1795276800000, '0040_google_calendar_sync', '41ab1dfef0a5877bb03b4b4dd506e86ecb7b4ae8c02d6312803e9fd5e2c6017c'],
  [1795425908526, '0041_discussion_search_indexes', '8ff947d226653c5c2c98eeb07e9efddb68a66561b2cbbdf7523d259745b6b1ae'],
  [1795460000000, '0042_tutor_slot_courses', '8ef6b7cc7312bec77fef6961ae25ab69024cb19114eccd4de160091c920c4fd5'],
+ [1795625168219, '0043_onboarding_tours', 'cb0263d637ac43c9b85dc92f94466279926428586a6f2b07133bcfba4d7b1ed6'],
+ [1795657920000, '0044_activity_notification_preferences', '3764c018b9aad124342d4d70c98a90f203aabce2c3b62985fe8e2f5413c81213'],
+ [1795657920001, '0045_native_notification_delivery', 'c0aa472fb3bd6179363772742c8ab6891e5efc7ae99541499ceefb1f5a63b8bb'],
+ [1795657920002, '0046_tutorial_reminder_preferences', 'ffbc6cda74db780044d3ae25a819f05a037626179d9b6b3dd7686a8dc5f08c2b'],
+ [1795657920003, '0047_tutorial_email_schedule', '32fed38eb30f966fede7dd2b96734ccaf3fe8d980805ab20a8509e40cd1fa16c'],
+ [1795661557560, '0048_offline_content_sync', '4554d8873bd05c491d7d57f83b572aea07fd9c56950c0e597f94ae398a685fac'],
 ];
 
 export const BASELINE: ReadonlyArray<readonly [number, string]> = [
